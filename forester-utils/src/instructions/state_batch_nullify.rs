@@ -88,26 +88,42 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
 
         trace!("Requesting {} total elements with offset {}", total_elements, offset);
 
-        let all_queue_elements = {
-            let mut connection = rpc_pool.get_connection().await?;
-            let indexer = connection.indexer_mut()?;
-            indexer.get_queue_elements(
-                merkle_tree_pubkey.to_bytes(),
-                QueueType::InputStateV2,
-                total_elements as u16,
-                Some(offset),
-                None,
-            )
-            .await
-        };
+        // Fetch queue elements in chunks of max 1000 elements
+        const MAX_ELEMENTS_PER_REQUEST: usize = 1000;
+        let mut all_queue_elements = Vec::new();
+        let mut current_offset = offset;
+        let mut remaining_elements = total_elements;
 
-        let all_queue_elements = match all_queue_elements {
-            Ok(res) => res.value.items,
-            Err(e) => {
-                yield Err(ForesterUtilsError::Indexer(format!("Failed to get queue elements: {}", e)));
-                return;
+        while remaining_elements > 0 {
+            let chunk_size = remaining_elements.min(MAX_ELEMENTS_PER_REQUEST);
+            
+            let queue_elements_chunk = {
+                let mut connection = rpc_pool.get_connection().await?;
+                let indexer = connection.indexer_mut()?;
+                indexer.get_queue_elements(
+                    merkle_tree_pubkey.to_bytes(),
+                    QueueType::InputStateV2,
+                    chunk_size as u16,
+                    Some(current_offset),
+                    None,
+                )
+                .await
+            };
+
+            match queue_elements_chunk {
+                Ok(res) => {
+                    let chunk_items = res.value.items;
+                    trace!("Got {} queue elements in chunk (offset: {})", chunk_items.len(), current_offset);
+                    all_queue_elements.extend(chunk_items);
+                    current_offset += chunk_size as u64;
+                    remaining_elements -= chunk_size;
+                },
+                Err(e) => {
+                    yield Err(ForesterUtilsError::Indexer(format!("Failed to get queue elements: {}", e)));
+                    return;
+                }
             }
-        };
+        }
 
         trace!("Got {} queue elements in total", all_queue_elements.len());
         if all_queue_elements.len() != total_elements {

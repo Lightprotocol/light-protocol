@@ -21,7 +21,7 @@ use light_prover_client::{
 use light_sparse_merkle_tree::SparseMerkleTree;
 use tracing::{debug, error, info, warn};
 
-use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool};
+use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
 
 const MAX_PHOTON_ELEMENTS_PER_CALL: usize = 500;
 
@@ -62,6 +62,11 @@ async fn stream_instruction_data<'a, R: Rpc>(
 
             let elements_for_chunk = chunk_hash_chains.len() * zkp_batch_size as usize;
             let processed_items_offset = chunk_start * zkp_batch_size as usize;
+
+            {
+                let connection = rpc_pool.get_connection().await?;
+                wait_for_indexer(&*connection).await?;
+            }
 
             let indexer_update_info = {
                 let mut connection = rpc_pool.get_connection().await?;
