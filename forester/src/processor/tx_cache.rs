@@ -1,7 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use tokio::time::Instant;
-use tracing::warn;
+use tracing::{trace, warn};
 
 #[derive(Debug, Clone)]
 struct CacheEntry {
@@ -54,7 +54,7 @@ impl ProcessedHashCache {
         if let Some(entry) = self.entries.get(hash) {
             let age = Instant::now().duration_since(entry.timestamp);
             if age > Duration::from_secs(60) && age < entry.timeout {
-                warn!(
+                trace!(
                     "Cache entry {} has been processing for {:?} (timeout: {:?})",
                     hash, age, entry.timeout
                 );

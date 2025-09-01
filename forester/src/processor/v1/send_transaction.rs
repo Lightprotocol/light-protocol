@@ -130,7 +130,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: Rpc>(
         trace!(tree = %tree_accounts.merkle_tree, "Built {} transactions in {:?}", transactions_to_send.len(), build_start_time.elapsed());
 
         if Instant::now() >= data.timeout_deadline {
-            warn!(tree = %tree_accounts.merkle_tree, "Reached global timeout deadline after building transactions, stopping.");
+            trace!(tree = %tree_accounts.merkle_tree, "Reached global timeout deadline after building transactions, stopping.");
             break;
         }
 
@@ -152,15 +152,6 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: Rpc>(
 
     let total_sent_successfully = num_sent_transactions.load(Ordering::SeqCst);
     trace!(tree = %tree_accounts.merkle_tree, "Transaction sending loop finished. Total transactions sent successfully: {}", total_sent_successfully);
-
-    let total_duration = function_start_time.elapsed();
-    let tps = if total_duration.as_secs_f64() > 0.0 {
-        total_sent_successfully as f64 / total_duration.as_secs_f64()
-    } else {
-        0.0
-    };
-
-    info!("V1_TPS_METRIC: operation_complete tree_type={} tree={} epoch={} transactions={} duration_ms={} tps={:.2}", tree_accounts.tree_type, tree_accounts.merkle_tree, transaction_builder.epoch(), total_sent_successfully, total_duration.as_millis(), tps);
 
     Ok(total_sent_successfully)
 }
@@ -348,36 +339,9 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
         max_concurrent_sends
     );
     let exec_start = Instant::now();
-    let results = futures::stream::iter(transaction_send_futures)
+    let _  = futures::stream::iter(transaction_send_futures)
         .buffer_unordered(max_concurrent_sends) // buffer_unordered for concurrency
         .collect::<Vec<TransactionSendResult>>()
         .await;
     trace!("Finished executing batch in {:?}", exec_start.elapsed());
-
-    let mut successes = 0;
-    let mut failures = 0;
-    let mut cancelled_or_timeout = 0;
-    for outcome in results {
-        match outcome {
-            TransactionSendResult::Success(sig) => {
-                trace!(tx.signature = %sig, outcome = "SuccessInChunkSummary");
-                successes += 1;
-            }
-            TransactionSendResult::Failure(err, opt_sig) => {
-                failures += 1;
-                if let Some(sig) = opt_sig {
-                    trace!(tx.signature = %sig, error = ?err, outcome = "FailureInChunkSummary");
-                } else {
-                    trace!(error = ?err, outcome = "FailureInChunkSummary (no signature)");
-                }
-            }
-            TransactionSendResult::Cancelled | TransactionSendResult::Timeout => {
-                cancelled_or_timeout += 1;
-            }
-        }
-    }
-    debug!(
-        "Chunk send summary: {} successes, {} failures, {} cancelled/timeout",
-        successes, failures, cancelled_or_timeout
-    );
 }
