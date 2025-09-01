@@ -9,6 +9,11 @@ import (
 	"time"
 )
 
+const (
+	// JobExpirationTimeout should match the forester's max_wait_time (600 seconds)
+	JobExpirationTimeout = 600 * time.Second
+)
+
 type ProofJob struct {
 	ID        string          `json:"id"`
 	Type      string          `json:"type"`
@@ -112,8 +117,29 @@ func (w *BaseQueueWorker) processJobs() {
 		return
 	}
 
+	// Check if job has expired
 	if !job.CreatedAt.IsZero() {
-		queueWaitTime := time.Since(job.CreatedAt).Seconds()
+		jobAge := time.Since(job.CreatedAt)
+		if jobAge > JobExpirationTimeout {
+			logging.Logger().Warn().
+				Str("job_id", job.ID).
+				Str("job_type", job.Type).
+				Str("queue", w.queueName).
+				Dur("job_age", jobAge).
+				Dur("expiration_timeout", JobExpirationTimeout).
+				Time("created_at", job.CreatedAt).
+				Msg("Skipping expired job - forester likely timed out")
+			
+			// Record metrics for expired jobs
+			ExpiredJobsCounter.WithLabelValues(w.queueName).Inc()
+			
+			// Add to failed queue with expiration reason
+			expirationErr := fmt.Errorf("job expired after %v (max: %v)", jobAge, JobExpirationTimeout)
+			w.addToFailedQueue(job, expirationErr)
+			return
+		}
+
+		queueWaitTime := jobAge.Seconds()
 		circuitType := "unknown"
 		if w.queueName == "zk_update_queue" {
 			circuitType = "update"

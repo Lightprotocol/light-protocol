@@ -50,6 +50,14 @@ var (
 		[]string{"status"},
 	)
 
+	ExpiredJobsCounter = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Name: "prover_expired_jobs_total",
+			Help: "Total number of expired jobs that were skipped",
+		},
+		[]string{"queue"},
+	)
+
 	ActiveJobs = promauto.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "prover_active_jobs",
