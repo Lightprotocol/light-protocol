@@ -3260,7 +3260,7 @@ dependencies = [
 
 [[package]]
 name = "light-batched-merkle-tree"
-version = "0.4.0"
+version = "0.4.1"
 dependencies = [
  "aligned-sized",
  "borsh 0.10.4",
@@ -3361,7 +3361,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressed-account"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "anchor-lang",
  "ark-bn254 0.5.0",
@@ -3810,7 +3810,7 @@ dependencies = [
 
 [[package]]
 name = "light-zero-copy"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "borsh 0.10.4",
  "light-zero-copy-derive",
@@ -3822,7 +3822,7 @@ dependencies = [
 
 [[package]]
 name = "light-zero-copy-derive"
-version = "0.1.0"
+version = "0.3.0"
 dependencies = [
  "borsh 0.10.4",
  "lazy_static",
