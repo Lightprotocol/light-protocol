@@ -1610,12 +1610,12 @@ impl Indexer for PhotonIndexer {
                         }),
                         ..Default::default()
                     };
+
                 let result = photon_api::apis::default_api::get_queue_elements_post(
                     &self.configuration,
                     request,
                 )
                 .await;
-
                 let result: Result<Response<Items<MerkleProofWithContext>>, IndexerError> =
                     match result {
                         Ok(api_response) => match api_response.result {
