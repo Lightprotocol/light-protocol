@@ -71,6 +71,7 @@ fn invoke_create_account_heap<'info>(
 #[inline(never)]
 pub fn prepare_accounts_for_decompress_idempotent<'info, T>(
     solana_accounts: Vec<&AccountInfo<'info>>,
+    // TODO: make slice
     compressed_accounts: Vec<LightAccount<'_, T>>,
     solana_accounts_signer_seeds: Vec<&[&[u8]]>,
     cpi_accounts: &Box<CpiAccountsSmall<'_, 'info>>,
@@ -100,6 +101,7 @@ where
 
         let mut compressed_accounts = compressed_accounts;
 
+        // TODO: iterate over compressed_accounts
         for idx in 0..account_count {
             let solana_account = solana_accounts[idx];
             let compressed_account = compressed_accounts.remove(0);

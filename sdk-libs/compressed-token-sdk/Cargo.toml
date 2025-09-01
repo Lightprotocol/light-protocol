@@ -5,7 +5,11 @@ edition = { workspace = true }
 
 [features]
 
-anchor = ["anchor-lang", "light-compressed-token-types/anchor", "light-ctoken-types/anchor"]
+anchor = [
+    "anchor-lang",
+    "light-compressed-token-types/anchor",
+    "light-ctoken-types/anchor",
+]
 
 [dependencies]
 # Light Protocol dependencies
@@ -28,6 +32,8 @@ arrayvec = { workspace = true }
 spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
 light-account-checks = { workspace = true, features = ["solana"] }
+light-sdk-types = { workspace = true }
+
 # optional
 anchor-lang = { workspace = true, optional = true }
 

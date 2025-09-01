@@ -3551,6 +3551,7 @@ dependencies = [
  "light-ctoken-types",
  "light-macros",
  "light-sdk",
+ "light-sdk-types",
  "solana-account-info",
  "solana-cpi",
  "solana-instruction",

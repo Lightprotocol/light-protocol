@@ -1,5 +1,8 @@
+use light_account_checks::AccountError;
 use light_compressed_token_types::error::LightTokenSdkTypeError;
 use light_ctoken_types::CTokenError;
+use light_sdk::error::LightSdkError;
+use light_sdk_types::error::LightSdkTypesError;
 use solana_program_error::ProgramError;
 use thiserror::Error;
 
@@ -39,13 +42,23 @@ pub enum TokenSdkError {
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
     #[error(transparent)]
     CTokenError(#[from] CTokenError),
+    #[error(transparent)]
+    LightSdkError(#[from] LightSdkError),
+    #[error(transparent)]
+    AccountError(#[from] AccountError),
+    #[error(transparent)]
+    LightSdkTypesError(#[from] LightSdkTypesError),
+    #[error("Program error: {0}")]
+    ProgramError(#[from] ProgramError),
 }
+
 #[cfg(feature = "anchor")]
 impl From<TokenSdkError> for anchor_lang::prelude::ProgramError {
     fn from(e: TokenSdkError) -> Self {
         ProgramError::Custom(e.into())
     }
 }
+
 #[cfg(not(feature = "anchor"))]
 impl From<TokenSdkError> for ProgramError {
     fn from(e: TokenSdkError) -> Self {
@@ -72,6 +85,10 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::MissingCpiAccount => 17014,
             TokenSdkError::CompressedTokenTypes(e) => e.into(),
             TokenSdkError::CTokenError(e) => e.into(),
+            TokenSdkError::LightSdkError(e) => e.into(),
+            TokenSdkError::AccountError(e) => e.into(),
+            TokenSdkError::LightSdkTypesError(e) => e.into(),
+            TokenSdkError::ProgramError(e) => u64::from(e) as u32,
         }
     }
 }

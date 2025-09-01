@@ -13,5 +13,4 @@ pub mod compressible;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-pub use compressible::*;
 pub use light_compressed_token_types::*;

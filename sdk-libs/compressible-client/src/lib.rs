@@ -1,6 +1,5 @@
 pub mod account_fetcher;
 
-use anchor_lang::Key;
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
@@ -13,10 +12,7 @@ pub use light_sdk::compressible::config::CompressibleConfig;
 use light_sdk::{
     constants::{COMPRESSED_TOKEN_PROGRAM_CPI_AUTHORITY, COMPRESSED_TOKEN_PROGRAM_ID},
     instruction::{
-        account_meta::{
-            CompressedAccountMeta, CompressedAccountMetaNoAddress,
-            CompressedAccountMetaNoLamportsNoAddress,
-        },
+        account_meta::{CompressedAccountMeta, CompressedAccountMetaNoLamportsNoAddress},
         PackedAccounts, PackedMerkleContext, SystemAccountMetaConfig, ValidityProof,
     },
 };
