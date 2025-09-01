@@ -138,9 +138,12 @@ impl Rpc for LightProgramTest {
     ) -> Result<Signature, RpcError> {
         let sig = *transaction.signatures.first().unwrap();
         if self.indexer.is_some() {
+            // Delegate to _send_transaction_with_batched_event which handles counter and logging
             self._send_transaction_with_batched_event(transaction)
                 .await?;
         } else {
+            // Handle transaction directly without logging (logging should be done elsewhere)
+            self.transaction_counter += 1;
             let _res = self.context.send_transaction(transaction).map_err(|x| {
                 if self.config.log_failed_tx {
                     println!("{}", x.meta.pretty_logs());
@@ -148,6 +151,7 @@ impl Rpc for LightProgramTest {
 
                 RpcError::TransactionError(x.err)
             })?;
+
             self.maybe_print_logs(_res.pretty_logs());
         }
         Ok(sig)
@@ -158,15 +162,17 @@ impl Rpc for LightProgramTest {
         transaction: Transaction,
     ) -> Result<(Signature, Slot), RpcError> {
         let sig = *transaction.signatures.first().unwrap();
+        self.transaction_counter += 1;
         let _res = self.context.send_transaction(transaction).map_err(|x| {
             if self.config.log_failed_tx {
                 println!("{}", x.meta.pretty_logs());
             }
             RpcError::TransactionError(x.err)
         })?;
-        self.maybe_print_logs(_res.pretty_logs());
 
         let slot = self.context.get_sysvar::<Clock>().slot;
+        self.maybe_print_logs(_res.pretty_logs());
+
         Ok((sig, slot))
     }
 
@@ -287,23 +293,30 @@ impl Rpc for LightProgramTest {
             tree_type: TreeType::AddressV1,
         }
     }
-}
 
-impl LightProgramTest {
-    fn maybe_print_logs(&self, logs: impl std::fmt::Display) {
-        if !self.config.no_logs && cfg!(debug_assertions) && std::env::var("RUST_BACKTRACE").is_ok()
-        {
-            println!("{}", logs);
-        }
-    }
-    #[cfg(feature = "v2")]
-    pub fn get_address_tree_v2(&self) -> TreeInfo {
+    fn get_address_tree_v2(&self) -> TreeInfo {
         TreeInfo {
             tree: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
             queue: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
             cpi_context: None,
             next_tree_info: None,
             tree_type: TreeType::AddressV2,
+        }
+    }
+}
+
+impl LightProgramTest {
+    fn maybe_print_logs(&self, logs: impl std::fmt::Display) {
+        // Use enhanced logging if enabled and RUST_BACKTRACE is set
+        if crate::logging::should_use_enhanced_logging(&self.config) {
+            // Enhanced logging will be handled in the transaction processing methods
+            return;
+        }
+
+        // Fallback to basic logging
+        if !self.config.no_logs && cfg!(debug_assertions) && std::env::var("RUST_BACKTRACE").is_ok()
+        {
+            println!("{}", logs);
         }
     }
 
@@ -314,20 +327,72 @@ impl LightProgramTest {
         let mut vec = Vec::new();
 
         let signature = transaction.signatures[0];
-        // Simulate the transaction. Currently, in banks-client/server, only
-        // simulations are able to track CPIs. Therefore, simulating is the
-        // only way to retrieve the event.
-        let simulation_result = self
-            .context
-            .simulate_transaction(transaction.clone())
-            .map_err(|x| {
-                if self.config.log_failed_tx {
-                    println!("{}", x.meta.pretty_logs());
-                }
+        let transaction_for_logging = transaction.clone(); // Clone for logging
+                                                           // Simulate the transaction. Currently, in banks-client/server, only
+                                                           // simulations are able to track CPIs. Therefore, simulating is the
+                                                           // only way to retrieve the event.
+        let simulation_result = self.context.simulate_transaction(transaction.clone());
 
-                RpcError::TransactionError(x.err)
-            })?;
+        // Transaction was successful, execute it.
+        self.transaction_counter += 1;
+        let transaction_result = self.context.send_transaction(transaction.clone());
+        let slot = self.context.get_sysvar::<Clock>().slot;
 
+        // Always try enhanced logging for file output (both success and failure)
+        if crate::logging::should_use_enhanced_logging(&self.config) {
+            crate::logging::log_transaction_enhanced(
+                &self.config,
+                &transaction_for_logging,
+                &transaction_result,
+                &signature,
+                slot,
+                self.transaction_counter,
+            );
+        }
+
+        // Handle transaction result after logging
+        let _res = transaction_result.as_ref().map_err(|x| {
+            // Prevent duplicate prints for failing tx.
+            if self.config.log_failed_tx {
+                crate::logging::log_transaction_enhanced_with_console(
+                    &self.config,
+                    &transaction_for_logging,
+                    &transaction_result,
+                    &signature,
+                    slot,
+                    self.transaction_counter,
+                    true, // Enable console output
+                );
+            }
+            RpcError::TransactionError(x.err.clone())
+        })?;
+
+        // Console logging - if RUST_BACKTRACE is set, print to console too
+        if !self.config.no_logs && std::env::var("RUST_BACKTRACE").is_ok() {
+            if crate::logging::should_use_enhanced_logging(&self.config) {
+                // Print enhanced logs to console
+                crate::logging::log_transaction_enhanced_with_console(
+                    &self.config,
+                    &transaction_for_logging,
+                    &transaction_result,
+                    &signature,
+                    slot,
+                    self.transaction_counter,
+                    true, // Enable console output
+                );
+
+                // if self.config.log_light_protocol_events {
+                //     if let Some(ref event_data) = event {
+                //         println!("event:\n {:?}", event_data);
+                //     }
+                // }
+            } else {
+                // Fallback to basic log printing
+                self.maybe_print_logs(_res.pretty_logs());
+            }
+        }
+
+        let simulation_result = simulation_result.unwrap();
         // Try old event deserialization.
         let event = simulation_result
             .meta
@@ -392,29 +457,9 @@ impl LightProgramTest {
                 ParseIndexerEventError,
             >(None))?
         };
-
-        // Transaction was successful, execute it.
-        let _res = self.context.send_transaction(transaction).map_err(|x| {
-            // Prevent duplicate prints for failing tx.
-
-            if self.config.log_failed_tx {
-                println!("{}", x.meta.pretty_logs());
-            }
-
-            RpcError::TransactionError(x.err)
-        })?;
-        if !self.config.no_logs {
-            #[cfg(debug_assertions)]
-            {
-                if std::env::var("RUST_BACKTRACE").is_ok() {
-                    // Print all tx logs and events.
-                    println!("{}", _res.pretty_logs());
-                    println!("event:\n {:?}", event);
-                }
-            }
+        if self.config.log_light_protocol_events {
+            println!("event:\n {:?}", event);
         }
-
-        let slot = self.context.get_sysvar::<Clock>().slot;
         let event = event.map(|e| (e, signature, slot));
 
         if let Some(indexer) = self.indexer.as_mut() {
@@ -466,6 +511,7 @@ impl LightProgramTest {
                 T::try_from_slice(&inner_instruction.instruction.data).ok()
             });
         // If transaction was successful, execute it.
+        self.transaction_counter += 1;
         let _res = self.context.send_transaction(transaction).map_err(|x| {
             if self.config.log_failed_tx {
                 println!("{}", x.meta.pretty_logs());

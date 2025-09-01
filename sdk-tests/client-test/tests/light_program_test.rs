@@ -1,4 +1,3 @@
-#![cfg(feature = "test-sbf")]
 use light_client::{
     indexer::{
         AddressWithTree, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer,

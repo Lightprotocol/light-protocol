@@ -34,13 +34,13 @@ members = [
     "program-tests/system-cpi-test",
     "program-tests/system-cpi-v2-test",
     "program-tests/system-test",
-    "sdk-tests/sdk-anchor-test/programs/sdk-anchor-test",
-    "sdk-tests/sdk-test",
-    "sdk-tests/sdk-pinocchio-test",
     "program-tests/create-address-test-program",
     "program-tests/utils",
     "program-tests/merkle-tree",
     "sdk-tests/client-test",
+    "sdk-tests/sdk-anchor-test/programs/sdk-anchor-test",
+    "sdk-tests/sdk-pinocchio-test",
+    "sdk-tests/sdk-native-test",
     "forester-utils",
     "forester",
     "sparse-merkle-tree",
@@ -55,6 +55,10 @@ strip = "none"
 
 [profile.release]
 overflow-checks = true
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
 
 [workspace.dependencies]
 solana-banks-client = { version = "2.2" }
@@ -100,8 +104,10 @@ solana-compute-budget = { version = "2.2" }
 solana-system-interface = { version = "1" }
 solana-security-txt = "1.1.1"
 spl-token = "7.0.0"
-spl-token-2022 = { version = "7", features = ["no-entrypoint"] }
+spl-token-2022 = { version = "7.0.0", features = ["no-entrypoint"] }
+spl-pod = "0.5.1"
 pinocchio = { version = "0.8.4" }
+pinocchio-pubkey = { version = "0.3.0" }
 bs58 = "^0.5.1"
 litesvm = "0.6.1"
 # Anchor
@@ -172,6 +178,7 @@ account-compression = { path = "programs/account-compression", version = "2.0.0"
 light-compressed-token = { path = "programs/compressed-token", version = "2.0.0", features = [
     "cpi",
 ] }
+light-compressed-token-types = { path = "sdk-libs/compressed-token-types", version = "0.1.0" }
 light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [
     "cpi",
 ] }
@@ -190,6 +197,7 @@ light-bounded-vec = { version = "2.0.0" }
 light-poseidon = { version = "0.3.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
 light-indexed-array = { path = "program-libs/indexed-array", version = "0.1.0" }
+light-program-profiler = { git = "https://github.com/Lightprotocol/light-program-profiler", rev = "36a75e14f54dd862bf2f338c97435ffc7e3e8de9", version = "0.1.0" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
 groth16-solana = { version = "0.2.0" }
 bytemuck = { version = "1.19.0" }
@@ -197,6 +205,7 @@ arrayvec = "0.7"
 
 # Math and crypto
 num-bigint = "0.4.6"
+tabled = "0.20"
 num-traits = "0.2.19"
 zerocopy = { version = "0.8.25" }
 base64 = "0.13"
@@ -213,3 +222,11 @@ governor = "0.8.0"
 
 # Random
 rand = "0.8.5"
+
+[patch.crates-io]
+# Profiling logs and state is handled here
+solana-program-runtime = { git = "https://github.com/Lightprotocol/agave", rev = "580e29f03e4176a4a5525abc188a948c6595c47f" }
+# Profiling syscalls are defined here
+solana-bpf-loader-program = { git = "https://github.com/Lightprotocol/agave", rev = "580e29f03e4176a4a5525abc188a948c6595c47f" }
+# Patch solana-program-memory to use older version where is_nonoverlapping is public
+solana-program-memory = { git = "https://github.com/anza-xyz/solana-sdk", rev = "1c1d667f161666f12f5a43ebef8eda9470a8c6ee" }
