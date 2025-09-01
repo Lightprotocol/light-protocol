@@ -49,7 +49,7 @@ pub fn compress_account<'info, A>(
     compressed_account_meta: &CompressedAccountMeta,
     proof: ValidityProof,
     cpi_accounts: CpiAccountsSmall<'_, 'info>,
-    rent_recipient: &AccountInfo<'info>,
+    _rent_recipient: &AccountInfo<'info>,
     compression_delay: &u32,
 ) -> Result<(), crate::ProgramError>
 where
@@ -101,8 +101,7 @@ where
     // invoke light system program to update compressed account
     cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
 
-    // cleanup
-    solana_account.close(rent_recipient.clone())?;
+
 
     Ok(())
 }

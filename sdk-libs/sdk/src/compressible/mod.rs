@@ -1,5 +1,6 @@
 //! SDK helpers for compressing and decompressing compressible PDAs accounts.
 
+pub mod allocate;
 pub mod compress_account;
 pub mod compress_account_on_init;
 pub mod compress_account_on_init_native;
@@ -7,6 +8,7 @@ pub mod compression_info;
 pub mod config;
 pub mod decompress_idempotent;
 
+pub use allocate::*;
 #[cfg(feature = "anchor")]
 pub use compress_account::compress_account;
 pub use compress_account::compress_pda_native;

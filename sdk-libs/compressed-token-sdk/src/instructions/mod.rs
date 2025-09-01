@@ -25,9 +25,7 @@ pub use batch_compress::{
 pub use create_associated_token_account::*;
 pub use create_compressed_mint::*;
 pub use create_spl_mint::*;
-pub use create_token_account::{
-    create_compressible_token_account, create_token_account, CreateCompressibleTokenAccount,
-};
+pub use create_token_account::create_token_account;
 pub use ctoken_accounts::*;
 pub use decompressed_transfer::{
     create_decompressed_token_transfer_instruction, transfer, transfer_signed,

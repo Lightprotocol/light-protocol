@@ -498,6 +498,7 @@ impl TreeInfo {
     }
 }
 
+
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct CompressedAccount {
     pub address: Option<[u8; 32]>,
