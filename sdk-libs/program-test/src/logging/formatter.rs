@@ -16,7 +16,7 @@ use super::{
 /// Row for account table display
 #[derive(Tabled)]
 struct AccountRow {
-    #[tabled(rename = "Access")]
+    #[tabled(rename = "#")]
     symbol: String,
     #[tabled(rename = "Account")]
     pubkey: String,
@@ -469,7 +469,7 @@ impl TransactionFormatter {
             // Create a table for better account formatting
             let mut account_rows: Vec<AccountRow> = Vec::new();
 
-            for account in instruction.accounts.iter() {
+            for (idx, account) in instruction.accounts.iter().enumerate() {
                 let access = if account.is_signer && account.is_writable {
                     AccountAccess::SignerWritable
                 } else if account.is_signer {
@@ -482,7 +482,7 @@ impl TransactionFormatter {
 
                 let account_name = self.get_account_name(&account.pubkey);
                 account_rows.push(AccountRow {
-                    symbol: access.symbol().to_string(),
+                    symbol: access.symbol(idx + 1),
                     pubkey: account.pubkey.to_string(),
                     access: access.text().to_string(),
                     name: account_name,
@@ -1046,7 +1046,7 @@ impl TransactionFormatter {
         writeln!(
             output,
             "│ {}{} {} ({}) - {}{}{}",
-            change.access.symbol(),
+            change.access.symbol(change.account_index),
             self.colors.cyan,
             change.pubkey,
             change.access.text(),

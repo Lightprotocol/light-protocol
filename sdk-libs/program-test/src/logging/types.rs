@@ -159,6 +159,7 @@ pub struct AccountChange {
     pub pubkey: Pubkey,
     pub account_type: String,
     pub access: AccountAccess,
+    pub account_index: usize,
     pub lamports_before: u64,
     pub lamports_after: u64,
     pub data_len_before: usize,
@@ -178,13 +179,8 @@ pub enum AccountAccess {
 }
 
 impl AccountAccess {
-    pub fn symbol(&self) -> &'static str {
-        match self {
-            AccountAccess::Readonly => "👁️",
-            AccountAccess::Writable => "✏️",
-            AccountAccess::Signer => "🔑",
-            AccountAccess::SignerWritable => "🔐",
-        }
+    pub fn symbol(&self, index: usize) -> String {
+        format!("#{}", index)
     }
 
     pub fn text(&self) -> &'static str {
