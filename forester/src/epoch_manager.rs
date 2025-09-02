@@ -1007,6 +1007,7 @@ impl<R: Rpc> EpochManager<R> {
                     current_light_slot,
                     &tree_accounts.queue,
                     epoch_info.epoch,
+                    epoch_info,
                 )
                 .await?
             {
@@ -1062,7 +1063,20 @@ impl<R: Rpc> EpochManager<R> {
         current_light_slot: u64,
         queue_pubkey: &Pubkey,
         current_epoch_num: u64,
+        epoch_info: &Epoch,
     ) -> Result<bool> {
+        let current_slot = self.slot_tracker.estimated_current_slot();
+        let current_phase_state = epoch_info.phases.get_current_epoch_state(current_slot);
+        
+        if current_phase_state != EpochState::Active {
+            trace!(
+                "Skipping processing: not in active phase (current phase: {:?}, slot: {})",
+                current_phase_state,
+                current_slot
+            );
+            return Ok(false);
+        }
+
         let total_epoch_weight = epoch_pda.total_epoch_weight.ok_or_else(|| {
             anyhow::anyhow!(
                 "Total epoch weight not available in ForesterEpochPda for epoch {}",
@@ -1176,19 +1190,6 @@ impl<R: Rpc> EpochManager<R> {
     }
 
     async fn process_v2(&self, epoch_info: &Epoch, tree_accounts: &TreeAccounts) -> Result<usize> {
-        // Check if we're in the active phase before processing v2 transactions
-        let current_slot = self.slot_tracker.estimated_current_slot();
-        let current_phase_state = epoch_info.phases.get_current_epoch_state(current_slot);
-
-        if current_phase_state != EpochState::Active {
-            trace!(
-                "Skipping v2 processing: not in active phase (current phase: {:?}, slot: {})",
-                current_phase_state,
-                current_slot
-            );
-            return Ok(0);
-        }
-
         let default_prover_url = "http://127.0.0.1:3001".to_string();
         let batch_context = BatchContext {
             rpc_pool: self.rpc_pool.clone(),
