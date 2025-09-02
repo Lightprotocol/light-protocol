@@ -1,6 +1,5 @@
-use light_compressed_token::{
-    token_data::AccountState as ProgramAccountState, TokenData as ProgramTokenData,
-};
+use light_compressed_token::TokenData as ProgramTokenData;
+use light_ctoken_types::state::AccountState as ProgramAccountState;
 use light_sdk::{self as sdk};
 
 // pub fn sdk_to_program_merkle_context(
@@ -93,32 +92,31 @@ pub fn sdk_to_program_account_state(sdk_state: sdk::token::AccountState) -> Prog
     }
 }
 
-pub fn program_to_sdk_account_state(
-    program_state: ProgramAccountState,
-) -> sdk::token::AccountState {
+pub fn program_to_sdk_account_state(program_state: u8) -> sdk::token::AccountState {
     match program_state {
-        ProgramAccountState::Initialized => sdk::token::AccountState::Initialized,
-        ProgramAccountState::Frozen => sdk::token::AccountState::Frozen,
+        0 => sdk::token::AccountState::Initialized,
+        1 => sdk::token::AccountState::Frozen,
+        _ => panic!("program_to_sdk_account_state: invalid account state"),
     }
 }
 
 pub fn sdk_to_program_token_data(sdk_token: sdk::token::TokenData) -> ProgramTokenData {
     ProgramTokenData {
-        mint: sdk_token.mint,
-        owner: sdk_token.owner,
+        mint: sdk_token.mint.into(),
+        owner: sdk_token.owner.into(),
         amount: sdk_token.amount,
-        delegate: sdk_token.delegate,
-        state: sdk_to_program_account_state(sdk_token.state),
+        delegate: sdk_token.delegate.map(|d| d.into()),
+        state: sdk_to_program_account_state(sdk_token.state) as u8,
         tlv: sdk_token.tlv,
     }
 }
 
 pub fn program_to_sdk_token_data(program_token: ProgramTokenData) -> sdk::token::TokenData {
     sdk::token::TokenData {
-        mint: program_token.mint,
-        owner: program_token.owner,
+        mint: program_token.mint.into(),
+        owner: program_token.owner.into(),
         amount: program_token.amount,
-        delegate: program_token.delegate,
+        delegate: program_token.delegate.map(|d| d.into()),
         state: program_to_sdk_account_state(program_token.state),
         tlv: program_token.tlv,
     }

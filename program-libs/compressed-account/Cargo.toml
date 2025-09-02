@@ -13,21 +13,25 @@ anchor = ["anchor-lang"]
 pinocchio = ["dep:pinocchio"]
 bytemuck-des = ["bytemuck"]
 new-unique = ["dep:solana-pubkey"]
+profile-program = []
+profile-heap = ["dep:light-heap"]
 
 [dependencies]
 thiserror = { workspace = true }
 zerocopy = { workspace = true, features = ["derive"] }
 light-hasher = { workspace = true }
-light-zero-copy = { workspace = true, features = ["std"] }
+light-zero-copy = { workspace = true, features = ["std", "mut", "derive"] }
 light-macros = { workspace = true }
 pinocchio = { workspace = true, optional = true }
 solana-program-error = { workspace = true, optional = true }
-
+solana-msg = { workspace = true }
 # Feature-gated dependencies
 anchor-lang = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true, features = ["derive"] }
 borsh = { workspace = true }
 solana-pubkey = { workspace = true, optional = true }
+light-profiler = { workspace = true }
+light-heap = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand = { workspace = true }

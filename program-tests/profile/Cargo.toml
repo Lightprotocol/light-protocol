@@ -1,0 +1,25 @@
+[package]
+name = "light-profiler"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+] }
+
+[features]
+profile-program = []
+profile-heap = []
+
+[dependencies]
+syn = { version = "2", features = ["full"] }
+quote = "1"
+proc-macro2 = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }

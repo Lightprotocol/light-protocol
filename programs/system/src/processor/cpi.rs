@@ -4,6 +4,7 @@ use light_compressed_account::{
     constants::ACCOUNT_COMPRESSION_PROGRAM_ID, discriminators::DISCRIMINATOR_INSERT_INTO_QUEUES,
     instruction_data::insert_into_queues::InsertIntoQueuesInstructionDataMut,
 };
+use light_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
     cpi::slice_invoke_signed,
@@ -17,6 +18,7 @@ use crate::{
     context::SystemContext,
     Result,
 };
+#[profile]
 #[allow(clippy::too_many_arguments)]
 pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccounts<'info>>(
     ctx: &A,
@@ -29,8 +31,8 @@ pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccou
     remaining_accounts: &'info [AccountInfo],
 ) -> Result<(SystemContext<'info>, Vec<u8>)> {
     let account_infos = vec![
-        ctx.get_account_compression_authority(),
-        ctx.get_registered_program_pda(),
+        ctx.get_account_compression_authority()?,
+        ctx.get_registered_program_pda()?,
     ];
     let accounts = vec![
         AccountMeta::new(account_infos[0].key(), false, true),
@@ -49,7 +51,7 @@ pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccou
     );
     // Data size + 8 bytes for discriminator + 4 bytes for vec length, + 4 cpi data vec length, + cpi data length.
     let byte_len = bytes_size + 8 + 4 + 4 + cpi_data_len;
-    let mut bytes = vec![0u8; byte_len];
+    let mut bytes = vec![0u8; 10240];
     bytes[..8].copy_from_slice(&DISCRIMINATOR_INSERT_INTO_QUEUES);
     // Vec len.
     bytes[8..12].copy_from_slice(&u32::try_from(byte_len - 12).unwrap().to_le_bytes());
@@ -70,6 +72,7 @@ pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccou
     ))
 }
 
+#[profile]
 pub fn cpi_account_compression_program(
     cpi_context: SystemContext<'_>,
     bytes: Vec<u8>,

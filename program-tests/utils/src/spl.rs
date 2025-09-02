@@ -24,9 +24,9 @@ use light_compressed_token::{
     },
     process_compress_spl_token_account::sdk::create_compress_spl_token_account_instruction,
     process_transfer::{transfer_sdk::create_transfer_instruction, TokenTransferOutputData},
-    token_data::AccountState,
     TokenData,
 };
+use light_ctoken_types::state::AccountState;
 use light_hasher::Poseidon;
 use light_program_test::{indexer::TestIndexerExtensions, program_test::TestRpc};
 use light_sdk::token::TokenDataWithMerkleContext;
@@ -992,9 +992,9 @@ pub async fn perform_compress_spl_token_account<R: Rpc, I: Indexer + TestIndexer
         .clone();
     let expected_token_data = TokenData {
         amount: pre_token_account_amount - remaining_amount.unwrap_or_default(),
-        mint: *mint,
-        owner: token_owner.pubkey(),
-        state: AccountState::Initialized,
+        mint: (*mint).into(),
+        owner: token_owner.pubkey().into(),
+        state: AccountState::Initialized as u8,
         delegate: None,
         tlv: None,
     };
@@ -1247,11 +1247,11 @@ pub async fn approve_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerEx
         test_indexer.add_event_and_compressed_accounts(slot, &event.clone());
 
     let expected_delegated_token_data = TokenData {
-        mint,
-        owner: authority.pubkey(),
+        mint: mint.into(),
+        owner: authority.pubkey().into(),
         amount: delegated_amount,
-        delegate: Some(*delegate),
-        state: AccountState::Initialized,
+        delegate: Some((*delegate).into()),
+        state: AccountState::Initialized as u8,
         tlv: None,
     };
 
@@ -1263,11 +1263,11 @@ pub async fn approve_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerEx
     let mut delegates = vec![Some(*delegate)];
     if delegated_amount != input_amount {
         let expected_change_token_data = TokenData {
-            mint,
-            owner: authority.pubkey(),
+            mint: mint.into(),
+            owner: authority.pubkey().into(),
             amount: change_amount,
             delegate: None,
-            state: AccountState::Initialized,
+            state: AccountState::Initialized as u8,
             tlv: None,
         };
         assert_eq!(
@@ -1384,11 +1384,11 @@ pub async fn revoke_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExt
         .map(|x| x.token_data.amount)
         .sum::<u64>();
     let expected_token_data = TokenData {
-        mint,
-        owner: authority.pubkey(),
+        mint: mint.into(),
+        owner: authority.pubkey().into(),
         amount: input_amount,
         delegate: None,
-        state: AccountState::Initialized,
+        state: AccountState::Initialized as u8,
         tlv: None,
     };
     assert_eq!(
@@ -1551,15 +1551,15 @@ pub async fn freeze_or_thaw_test<
     let mut expected_output_accounts = Vec::new();
     for account in input_compressed_accounts.iter() {
         let state = if FREEZE {
-            AccountState::Frozen
+            AccountState::Frozen as u8
         } else {
-            AccountState::Initialized
+            AccountState::Initialized as u8
         };
         let expected_token_data = TokenData {
-            mint,
-            owner: input_compressed_accounts[0].token_data.owner,
+            mint: mint.into(),
+            owner: input_compressed_accounts[0].token_data.owner.into(),
             amount: account.token_data.amount,
-            delegate: account.token_data.delegate,
+            delegate: account.token_data.delegate.map(|d| d.into()),
             state,
             tlv: None,
         };
@@ -1689,15 +1689,15 @@ pub async fn burn_test<R: Rpc + TestRpc + Indexer, I: Indexer + TestIndexerExten
     };
     if output_amount > 0 {
         let expected_token_data = TokenData {
-            mint,
-            owner: input_compressed_accounts[0].token_data.owner,
+            mint: mint.into(),
+            owner: input_compressed_accounts[0].token_data.owner.into(),
             amount: output_amount,
-            delegate,
-            state: AccountState::Initialized,
+            delegate: delegate.map(|d| d.into()),
+            state: AccountState::Initialized as u8,
             tlv: None,
         };
         if let Some(delegate) = expected_token_data.delegate {
-            delegates.push(Some(delegate));
+            delegates.push(Some(delegate.into()));
         } else {
             delegates.push(None);
         }
@@ -1854,7 +1854,7 @@ pub fn create_expected_token_output_data(
         expected_token_data.iter().zip(merkle_tree_pubkeys.iter())
     {
         expected_compressed_output_accounts.push(TokenTransferOutputData {
-            owner: token_data.owner,
+            owner: token_data.owner.into(),
             amount: token_data.amount,
             merkle_tree: *merkle_tree_pubkey,
             lamports: None,

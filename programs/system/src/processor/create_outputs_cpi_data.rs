@@ -7,6 +7,7 @@ use light_compressed_account::{
     TreeType,
 };
 use light_hasher::{Hasher, Poseidon};
+use light_profiler::profile;
 use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
 use crate::{
@@ -30,6 +31,7 @@ use crate::{
 ///    output compressed accounts. This will close the account.
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
+#[profile]
 pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
     inputs: &WrappedInstructionData<'a, T>,
     remaining_accounts: &'info [AccountInfo],
@@ -49,6 +51,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
     let mut index_merkle_tree_account = 0;
     let number_of_merkle_trees =
         inputs.output_accounts().last().unwrap().merkle_tree_index() as usize + 1;
+
     let mut merkle_tree_pubkeys =
         Vec::<light_compressed_account::pubkey::Pubkey>::with_capacity(number_of_merkle_trees);
     let mut hash_chain = [0u8; 32];
@@ -70,6 +73,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                         output_queue.metadata.rollover_metadata.network_fee,
                         current_index as u8,
                     );
+
                     hashed_merkle_tree = output_queue.hashed_merkle_tree_pubkey;
                     rollover_fee = output_queue.metadata.rollover_metadata.rollover_fee;
                     mt_next_index = output_queue.batch_metadata.next_index as u32;
@@ -100,7 +104,39 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                     is_batched = false;
                     *pubkey
                 }
+                AcpAccount::Unknown() => {
+                    msg!(
+                        format!("found batched unknown create outputs {} ", current_index).as_str()
+                    );
+
+                    return Err(
+                        SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+                    );
+                }
+                AcpAccount::BatchedAddressTree(_) => {
+                    msg!(format!(
+                        "found batched address tree create outputs {} ",
+                        current_index
+                    )
+                    .as_str());
+
+                    return Err(
+                        SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+                    );
+                }
+                AcpAccount::BatchedStateTree(_) => {
+                    msg!(
+                        format!("found batched state tree create outputs {} ", current_index)
+                            .as_str()
+                    );
+
+                    return Err(
+                        SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+                    );
+                }
                 _ => {
+                    msg!(format!("create outputs {} ", current_index).as_str());
+
                     return Err(
                         SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
                     );
@@ -136,11 +172,12 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
             {
                 context.addresses.remove(position);
             } else {
+                msg!(format!("context.addresses: {:?}", context.addresses).as_str());
                 return Err(SystemProgramError::InvalidAddress.into());
             }
         }
-
         cpi_ix_data.output_leaf_indices[j] = (mt_next_index + num_leaves_in_tree).into();
+
         num_leaves_in_tree += 1;
         if account.has_data() && context.invoking_program_id.is_none() {
             msg!("Invoking program is not provided.");
@@ -188,6 +225,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
 }
 
 // Check that new addresses are assigned correctly to the compressed output accounts specified by index
+#[profile]
 pub fn check_new_address_assignment<'a, 'info, T: InstructionData<'a>>(
     inputs: &WrappedInstructionData<'a, T>,
     cpi_ix_data: &InsertIntoQueuesInstructionDataMut<'_>,
@@ -199,11 +237,28 @@ pub fn check_new_address_assignment<'a, 'info, T: InstructionData<'a>>(
             let output_account = inputs
                 .get_output_account(assigned_account_index)
                 .ok_or(SystemProgramError::NewAddressAssignedIndexOutOfBounds)?;
+
             if derived_addresses.address
                 != output_account
                     .address()
                     .ok_or(SystemProgramError::AddressIsNone)?
             {
+                msg!(format!(
+                    "derived_addresses.address {:?} != account address {:?}",
+                    derived_addresses.address,
+                    output_account.address()
+                )
+                .as_str());
+                msg!(format!(
+                    "account owner {:?}",
+                    solana_pubkey::Pubkey::new_from_array(output_account.owner().into())
+                )
+                .as_str());
+                msg!(format!(
+                    "account merkle_tree_index {:?}",
+                    output_account.merkle_tree_index()
+                )
+                .as_str());
                 return Err(SystemProgramError::AddressDoesNotMatch);
             }
         }

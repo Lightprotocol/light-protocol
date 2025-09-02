@@ -31,10 +31,10 @@ fn main() {
 
     // Test Borsh serialization
     let serialized = original.try_to_vec().unwrap();
-    let deserialized: VecPubkey = VecPubkey::try_from_slice(&serialized).unwrap();
+    let _deserialized: VecPubkey = VecPubkey::try_from_slice(&serialized).unwrap();
     
     // Test zero_copy_at (read-only)
-    let zero_copy_read = VecPubkey::zero_copy_at(&serialized).unwrap();
+    let _zero_copy_read = VecPubkey::zero_copy_at(&serialized).unwrap();
     
     // Test zero_copy_at_mut (mutable)
     let mut serialized_mut = serialized.clone();

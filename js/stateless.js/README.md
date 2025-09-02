@@ -32,18 +32,18 @@ For a more detailed documentation on usage, please check [the respective section
 
 For example implementations, including web and Node, refer to the respective repositories:
 
-- [Web application example implementation](https://github.com/Lightprotocol/example-web-client)
+-   [Web application example implementation](https://github.com/Lightprotocol/example-web-client)
 
-- [Node server example implementation](https://github.com/Lightprotocol/example-nodejs-client)
+-   [Node server example implementation](https://github.com/Lightprotocol/example-nodejs-client)
 
 ## Troubleshooting
 
 Have a question or a problem?
 Feel free to ask in the [Light](https://discord.gg/CYvjBgzRFP) and [Helius](https://discord.gg/Uzzf6a7zKr) developer Discord servers. Please, include the following information:
 
-- A detailed description or context of the issue or what you are trying to achieve.
-- A code example that we can use to test and debug (if possible). Use [CodeSandbox](https://codesandbox.io/p/sandbox/vanilla-ts) or any other live environment provider.
-- A description or context of any errors you are encountering with stacktraces if available.
+-   A detailed description or context of the issue or what you are trying to achieve.
+-   A code example that we can use to test and debug (if possible). Use [CodeSandbox](https://codesandbox.io/p/sandbox/vanilla-ts) or any other live environment provider.
+-   A description or context of any errors you are encountering with stacktraces if available.
 
 ### Source Maps
 
@@ -57,14 +57,14 @@ We provide `index.js.map` for debugging. Exclude in production:
 
 Light and ZK Compression are open source protocols and very much welcome contributions. If you have a contribution, do not hesitate to send a PR to the respective repository or discuss in the linked developer Discord servers.
 
-- 🐞 For bugs or feature requests, please open an
-  [issue](https://github.com/lightprotocol/light-protocol/issues/new).
-- 🔒 For security vulnerabilities, please follow the [security policy](https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md).
+-   🐞 For bugs or feature requests, please open an
+    [issue](https://github.com/lightprotocol/light-protocol/issues/new).
+-   🔒 For security vulnerabilities, please follow the [security policy](https://github.com/Lightprotocol/light-protocol/blob/main/SECURITY.md).
 
 ## Additional Resources
 
-- [Light Protocol Repository](https://github.com/Lightprotocol/light-protocol)
-- [ZK Compression Official Documentation](https://www.zkcompression.com/)
+-   [Light Protocol Repository](https://github.com/Lightprotocol/light-protocol)
+-   [ZK Compression Official Documentation](https://www.zkcompression.com/)
 
 ## Disclaimer
 

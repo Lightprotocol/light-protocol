@@ -1,0 +1,79 @@
+[package]
+name = "light-compressed-token"
+version = "2.0.0"
+description = "Generalized token compression on Solana"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "light_compressed_token"
+
+[features]
+no-entrypoint = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+custom-heap = ["light-heap"]
+mem-profiling = []
+default = ["custom-heap"]
+test-sbf = []
+bench-sbf = []
+profile-program = [
+    "light-profiler/profile-program",
+    "light-compressed-account/profile-program",
+    "light-ctoken-types/profile-program",
+]
+profile-heap = [
+    "light-profiler/profile-heap",
+    "light-compressed-account/profile-heap",
+    "light-ctoken-types/profile-heap",
+]
+cpi-context = []
+cpi-without-program-ids = []
+
+[dependencies]
+light-profiler = { workspace = true }
+
+light-token-22 = { package = "spl-token-2022", git = "https://github.com/Lightprotocol/token-2022", rev = "06d12f50a06db25d73857d253b9a82857d6f4cdf", features = [
+    "no-entrypoint",
+] }
+anchor-lang = { workspace = true }
+spl-token = { workspace = true, features = ["no-entrypoint"] }
+account-compression = { workspace = true, features = ["cpi", "no-idl"] }
+light-system-program-anchor = { workspace = true, features = ["cpi"] }
+solana-security-txt = "1.1.0"
+light-hasher = { workspace = true }
+light-heap = { workspace = true, optional = true }
+light-compressed-account = { workspace = true, features = ["anchor"] }
+spl-token-2022 = { workspace = true, features = ["no-entrypoint"] }
+spl-pod = { workspace = true }
+light-zero-copy = { workspace = true, features = ["mut", "std", "derive"] }
+zerocopy = { workspace = true }
+anchor-compressed-token = { path = "../anchor", features = ["cpi"] }
+light-account-checks = { workspace = true, features = ["solana", "pinocchio"] }
+light-sdk = { workspace = true }
+borsh = { workspace = true }
+light-sdk-types = { workspace = true }
+solana-pubkey = { workspace = true }
+arrayvec = { workspace = true }
+pinocchio = { workspace = true, features = ["std"] }
+light-sdk-pinocchio = { workspace = true }
+light-ctoken-types = { workspace = true, features = ["anchor"] }
+pinocchio-pubkey = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true }
+num-bigint = { workspace = true }
+light-account-checks = { workspace = true, features = [
+    "solana",
+    "pinocchio",
+    "test-only",
+] }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]
