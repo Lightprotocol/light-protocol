@@ -83,6 +83,8 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         match error {
             // Do not retry transaction errors.
             RpcError::ClientError(error) => error.kind.get_transaction_error().is_none(),
+            // Do not retry signing errors.
+            RpcError::SigningError(_) => false,
             _ => true,
         }
     }
@@ -172,7 +174,7 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         let mut transaction = Transaction::new_with_payer(instructions, Some(payer));
         transaction
             .try_sign(signers, blockhash)
-            .map_err(|e| RpcError::CustomError(e.to_string()))?;
+            .map_err(|e| RpcError::SigningError(e.to_string()))?;
         self.process_transaction(transaction).await
     }
 
