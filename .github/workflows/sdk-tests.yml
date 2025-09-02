@@ -79,14 +79,22 @@ jobs:
           source ./scripts/devenv.sh
           npx nx build @lightprotocol/programs
 
-      - name: ${{ matrix.program }}
+      - name: Run sub-tests for ${{ matrix.program }}
+        if: matrix.sub-tests != null
         run: |
           source ./scripts/devenv.sh
           npx nx build @lightprotocol/zk-compression-cli
 
-          IFS=',' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
+          IFS=',' read -r -a sub_tests <<< "${{ join(fromJSON(matrix.sub-tests), ', ') }}"
           for subtest in "${sub_tests[@]}"
           do
             echo "$subtest"
             eval "RUSTFLAGS=\"-D warnings\" $subtest"
           done
+
+      - name: Run tests for ${{ matrix.program }}
+        if: matrix.test_cmd != null
+        run: |
+          source ./scripts/devenv.sh
+          npx nx build @lightprotocol/zk-compression-cli
+          ${{ matrix.test_cmd }}
