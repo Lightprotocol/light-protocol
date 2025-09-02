@@ -458,6 +458,14 @@ impl TreeInfo {
         }
     }
 
+    pub fn get_output_pubkey(&self) -> Result<Pubkey, IndexerError> {
+        match self.tree_type {
+            TreeType::StateV1 => Ok(self.tree),
+            TreeType::StateV2 => Ok(self.queue),
+            _ => Err(IndexerError::InvalidPackTreeType),
+        }
+    }
+
     pub fn from_api_model(
         value: &photon_api::models::MerkleContextV2,
     ) -> Result<Self, IndexerError> {

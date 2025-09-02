@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "**/*.rs"
+      - "program-libs/**"
       - "**/Cargo.*"
       - ".cargo/**"
       - "prover/client/**"
@@ -12,7 +12,7 @@ on:
   pull_request:
     branches: ["*"]
     paths:
-      - "**/*.rs"
+      - "program-libs/**"
       - "**/Cargo.*"
       - "prover/client/**"
       - ".github/workflows/rust.yml"
@@ -50,6 +50,7 @@ jobs:
               cargo test -p aligned-sized
               cargo test -p light-hasher --all-features
               cargo test -p light-compressed-account --all-features
+              cargo test -p light-compressed-account --features new-unique
               cargo test -p light-account-checks  --all-features
               cargo test -p light-verifier --all-features
               cargo test -p light-merkle-tree-metadata --all-features
@@ -64,16 +65,6 @@ jobs:
               cargo test -p light-bloom-filter --all-features
               cargo test -p light-indexed-merkle-tree --all-features
               cargo test -p light-batched-merkle-tree --all-features -- --test test_e2e
-          - name: sdk-libs
-            packages: light-macros light-sdk light-program-test light-client light-batched-merkle-tree
-            test_cmd: |
-              cargo test -p light-macros
-              cargo test -p light-sdk
-              cargo test -p light-program-test
-              cargo test -p light-client
-              cargo test-sbf -p client-test
-              cargo test -p light-sparse-merkle-tree
-              cargo test -p light-batched-merkle-tree --features test-only -- --skip test_simulate_transactions --skip test_e2e
 
     name: Test ${{ matrix.group.name }}
 

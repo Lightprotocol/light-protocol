@@ -18,7 +18,7 @@ use solana_sdk::{
 };
 
 #[tokio::test]
-async fn test_sdk_test() {
+async fn test_anchor_sdk_test() {
     let config =
         ProgramTestConfig::new_v2(true, Some(vec![("sdk_anchor_test", sdk_anchor_test::ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();

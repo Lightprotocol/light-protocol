@@ -33,6 +33,9 @@ pub enum RpcError {
     #[error("Error: `{0}`")]
     CustomError(String),
 
+    #[error("Signing error: {0}")]
+    SigningError(String),
+
     #[error("Assert Rpc Error: {0}")]
     AssertRpcError(String),
 
@@ -73,6 +76,7 @@ impl Clone for RpcError {
             RpcError::ClientError(_) => RpcError::CustomError("ClientError".to_string()),
             RpcError::IoError(e) => RpcError::IoError(e.kind().into()),
             RpcError::CustomError(e) => RpcError::CustomError(e.clone()),
+            RpcError::SigningError(e) => RpcError::SigningError(e.clone()),
             RpcError::AssertRpcError(e) => RpcError::AssertRpcError(e.clone()),
             RpcError::InvalidWarpSlot => RpcError::InvalidWarpSlot,
             RpcError::AccountDoesNotExist(e) => RpcError::AccountDoesNotExist(e.clone()),

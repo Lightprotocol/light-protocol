@@ -83,6 +83,8 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         match error {
             // Do not retry transaction errors.
             RpcError::ClientError(error) => error.kind.get_transaction_error().is_none(),
+            // Do not retry signing errors.
+            RpcError::SigningError(_) => false,
             _ => true,
         }
     }
@@ -169,8 +171,10 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         signers: &'a [&'a Keypair],
     ) -> Result<Signature, RpcError> {
         let blockhash = self.get_latest_blockhash().await?.0;
-        let transaction =
-            Transaction::new_signed_with_payer(instructions, Some(payer), signers, blockhash);
+        let mut transaction = Transaction::new_with_payer(instructions, Some(payer));
+        transaction
+            .try_sign(signers, blockhash)
+            .map_err(|e| RpcError::SigningError(e.to_string()))?;
         self.process_transaction(transaction).await
     }
 
@@ -204,6 +208,5 @@ pub trait Rpc: Send + Sync + Debug + 'static {
 
     fn get_address_tree_v1(&self) -> TreeInfo;
 
-    // TODO: add with v2 release
-    // fn get_address_tree_v2(&self) -> Result<Vec<Pubkey>, RpcError>;
+    fn get_address_tree_v2(&self) -> TreeInfo;
 }

@@ -1,4 +1,4 @@
-//#![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
 use borsh::BorshSerialize;
 use light_compressed_account::{
@@ -11,7 +11,7 @@ use light_program_test::{
 use light_sdk::instruction::{
     account_meta::CompressedAccountMeta, PackedAccounts, SystemAccountMetaConfig,
 };
-use sdk_test::{
+use sdk_native_test::{
     create_pda::CreatePdaInstructionData,
     update_pda::{UpdateMyCompressedAccount, UpdatePdaInstructionData},
     ARRAY_LEN,
@@ -23,26 +23,27 @@ use solana_sdk::{
 };
 
 #[tokio::test]
-async fn test_sdk_test() {
-    let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_test", sdk_test::ID)]));
+async fn test_sdk_native_test() {
+    let config =
+        ProgramTestConfig::new_v2(true, Some(vec![("sdk_native_test", sdk_native_test::ID)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let payer = rpc.get_payer().insecure_clone();
 
-    let address_tree_pubkey = rpc.get_address_merkle_tree_v2();
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let account_data = [1u8; ARRAY_LEN];
 
     // // V1 trees
     // let (address, _) = light_sdk::address::derive_address(
     //     &[b"compressed", &account_data],
     //     &address_tree_info,
-    //     &sdk_test::ID,
+    //     &sdk_native_test::ID,
     // );
     // Batched trees
     let address_seed = hashv_to_bn254_field_size_be(&[b"compressed", account_data.as_slice()]);
     let address = derive_address(
         &address_seed,
         &address_tree_pubkey.to_bytes(),
-        &sdk_test::ID.to_bytes(),
+        &sdk_native_test::ID.to_bytes(),
     );
     let ouput_queue = rpc.get_random_state_tree_info().unwrap().queue;
     create_pda(
@@ -79,7 +80,7 @@ pub async fn create_pda(
     address_tree_pubkey: Pubkey,
     address: [u8; 32],
 ) -> Result<(), RpcError> {
-    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test::ID);
+    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_native_test::ID);
     let mut accounts = PackedAccounts::default();
     accounts.add_pre_accounts_signer(payer.pubkey());
     accounts.add_system_accounts(system_account_meta_config);
@@ -111,7 +112,7 @@ pub async fn create_pda(
     let inputs = instruction_data.try_to_vec().unwrap();
 
     let instruction = Instruction {
-        program_id: sdk_test::ID,
+        program_id: sdk_native_test::ID,
         accounts,
         data: [&[0u8][..], &inputs[..]].concat(),
     };
@@ -127,7 +128,7 @@ pub async fn update_pda(
     new_account_data: [u8; ARRAY_LEN],
     compressed_account: CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError> {
-    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_test::ID);
+    let system_account_meta_config = SystemAccountMetaConfig::new(sdk_native_test::ID);
     let mut accounts = PackedAccounts::default();
     accounts.add_pre_accounts_signer(payer.pubkey());
     accounts.add_system_accounts(system_account_meta_config);
@@ -167,7 +168,7 @@ pub async fn update_pda(
     let inputs = instruction_data.try_to_vec().unwrap();
 
     let instruction = Instruction {
-        program_id: sdk_test::ID,
+        program_id: sdk_native_test::ID,
         accounts,
         data: [&[1u8][..], &inputs[..]].concat(),
     };
