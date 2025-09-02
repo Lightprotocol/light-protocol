@@ -106,6 +106,13 @@ pub struct CompressInput<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq)]
+pub struct CompressAndCloseInput {
+    pub solana_ctoken_account: Pubkey,
+    pub authority: Pubkey,
+    pub output_queue: Pubkey,
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct ApproveInput<'a> {
     pub compressed_token_account: &'a [CompressedTokenAccount],
     pub delegate: Pubkey,
@@ -118,6 +125,7 @@ pub enum Transfer2InstructionType<'a> {
     Decompress(DecompressInput<'a>),
     Transfer(TransferInput<'a>),
     Approve(ApproveInput<'a>),
+    CompressAndClose(CompressAndCloseInput),
 }
 
 // Note doesn't support multiple signers.
@@ -129,6 +137,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     let mut hashes = Vec::new();
     actions.iter().for_each(|account| match account {
         Transfer2InstructionType::Compress(_) => {}
+        Transfer2InstructionType::CompressAndClose(_) => {}
         Transfer2InstructionType::Decompress(input) => input
             .compressed_token_account
             .iter()
@@ -418,6 +427,66 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 out_lamports.push(0);
                 token_accounts.push(token_account);
                 token_accounts.push(delegated_token_account);
+            }
+            Transfer2InstructionType::CompressAndClose(input) => {
+                // Get token account info to extract mint, balance, owner, and rent_recipient
+                let token_account_info = rpc
+                    .get_account(input.solana_ctoken_account)
+                    .await
+                    .map_err(|_| TokenSdkError::InvalidAccountData)?
+                    .ok_or(TokenSdkError::InvalidAccountData)?;
+
+                // Parse the compressed token account using zero-copy deserialization
+                use light_ctoken_types::state::{CompressedToken, ZExtensionStruct};
+                use light_zero_copy::traits::ZeroCopyAt;
+                let (compressed_token, _) = CompressedToken::zero_copy_at(&token_account_info.data)
+                    .map_err(|_| TokenSdkError::InvalidAccountData)?;
+
+                let mint = compressed_token.mint;
+                let balance = compressed_token.amount;
+                let owner = compressed_token.owner;
+
+                // Extract rent_recipient from compressible extension
+                let rent_recipient = if let Some(extensions) = compressed_token.extensions.as_ref()
+                {
+                    let mut found_rent_recipient = None;
+                    for extension in extensions {
+                        if let ZExtensionStruct::Compressible(compressible_ext) = extension {
+                            found_rent_recipient = Some(compressible_ext.rent_recipient);
+                            break;
+                        }
+                    }
+
+                    found_rent_recipient.ok_or(TokenSdkError::InvalidAccountData)?
+                } else {
+                    return Err(TokenSdkError::InvalidAccountData);
+                };
+
+                let owner_index = packed_tree_accounts.insert_or_get((*owner).into());
+                let mint_index = packed_tree_accounts.insert_or_get((*mint).into());
+                let rent_recipient_index =
+                    packed_tree_accounts.insert_or_get(rent_recipient.into());
+
+                // Create token account with the full balance
+                let mut token_account = CTokenAccount2::new_empty(
+                    owner_index,
+                    mint_index,
+                    packed_tree_accounts.insert_or_get(input.output_queue),
+                );
+
+                let source_index = packed_tree_accounts.insert_or_get(input.solana_ctoken_account);
+                let authority_index =
+                    packed_tree_accounts.insert_or_get_config(input.authority, true, false);
+
+                // Use compress_and_close method with the actual balance
+                token_account.compress_and_close(
+                    (*balance).into(),
+                    source_index,
+                    authority_index,
+                    rent_recipient_index, // Use the extracted rent_recipient
+                )?;
+
+                token_accounts.push(token_account);
             }
         }
     }

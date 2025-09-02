@@ -54,7 +54,9 @@ fn sum_compressions(
                 .map_err(|_| ErrorCode::SumCheckFailed)?;
         } else {
             // Create new entry if compressing
-            if compression.mode == ZCompressionMode::Compress {
+            if compression.mode == ZCompressionMode::Compress
+                || compression.mode == ZCompressionMode::CompressAndClose
+            {
                 if mint_sums.is_full() {
                     return Err(ErrorCode::TooManyMints);
                 }

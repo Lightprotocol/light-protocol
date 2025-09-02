@@ -52,10 +52,15 @@ pub struct MultiTokenTransferOutputData {
 pub enum CompressionMode {
     Compress,
     Decompress,
+    /// Compresses ctoken account and closes it
+    /// Signer must be owner or rent authority, if rent authority ctoken account must be compressible
+    /// Not implemented for spl token accounts.
+    CompressAndClose,
 }
 
 pub const COMPRESS: u8 = 0u8;
 pub const DECOMPRESS: u8 = 1u8;
+pub const COMPRESS_AND_CLOSE: u8 = 2u8;
 
 impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for CompressionMode {
     type ZeroCopyAtMut = Ref<&'a mut [u8], u8>;
@@ -97,13 +102,50 @@ pub struct Compression {
     pub amount: u64,
     pub mint: u8,
     pub source_or_recipient: u8,
-    pub authority: u8,          // Index of owner or delegate account
+    pub authority: u8, // Index of owner or delegate account
+    /// pool account index for spl token Compression/Decompression
+    /// rent_recipient_index for CompressAndClose
     pub pool_account_index: u8, // This account is not necessary to decompress ctokens because there are no token pools
+    /// pool index for spl token Compression/Decompression
+    /// compressed account index for CompressAndClose
     pub pool_index: u8, // This account is not necessary to decompress ctokens because there are no token pools
     pub bump: u8, // This account is not necessary to decompress ctokens because there are no token pools
 }
 
+impl ZCompression<'_> {
+    pub fn get_rent_recipient_index(&self) -> Result<u8, CTokenError> {
+        match self.mode {
+            ZCompressionMode::CompressAndClose => Ok(self.pool_account_index),
+            _ => Err(CTokenError::InvalidCompressionMode),
+        }
+    }
+    pub fn get_compressed_token_account_index(&self) -> Result<u8, CTokenError> {
+        match self.mode {
+            ZCompressionMode::CompressAndClose => Ok(self.pool_index),
+            _ => Err(CTokenError::InvalidCompressionMode),
+        }
+    }
+}
+
 impl Compression {
+    pub fn compress_and_close(
+        amount: u64,
+        mint: u8,
+        source_or_recipient: u8,
+        authority: u8,
+        rent_recipient_index: u8,
+    ) -> Self {
+        Compression {
+            amount, // the full balance of the ctoken account to be compressed
+            mode: CompressionMode::CompressAndClose,
+            mint,
+            source_or_recipient,
+            authority,
+            pool_account_index: rent_recipient_index,
+            pool_index: 0,
+            bump: 0,
+        }
+    }
     pub fn compress(amount: u64, mint: u8, source_or_recipient: u8, authority: u8) -> Self {
         Compression {
             amount,
@@ -199,6 +241,7 @@ impl ZCompressionMut<'_> {
         match *self.mode {
             COMPRESS => Ok(CompressionMode::Compress),
             DECOMPRESS => Ok(CompressionMode::Decompress),
+            COMPRESS_AND_CLOSE => Ok(CompressionMode::CompressAndClose),
             _ => Err(CTokenError::InvalidCompressionMode),
         }
     }
@@ -207,7 +250,7 @@ impl ZCompressionMut<'_> {
 impl ZCompression<'_> {
     pub fn new_balance_compressed_account(&self, current_balance: u64) -> Result<u64, CTokenError> {
         let new_balance = match self.mode {
-            ZCompressionMode::Compress => {
+            ZCompressionMode::Compress | ZCompressionMode::CompressAndClose => {
                 // Compress: add to balance (tokens are being added to compressed pool)
                 current_balance
                     .checked_add((*self.amount).into())
@@ -225,7 +268,7 @@ impl ZCompression<'_> {
 
     pub fn new_balance_solana_account(&self, current_balance: u64) -> Result<u64, CTokenError> {
         let new_balance = match self.mode {
-            ZCompressionMode::Compress => {
+            ZCompressionMode::Compress | ZCompressionMode::CompressAndClose => {
                 // Compress: add to balance (tokens are being added to compressed pool)
                 current_balance
                     .checked_sub((*self.amount).into())

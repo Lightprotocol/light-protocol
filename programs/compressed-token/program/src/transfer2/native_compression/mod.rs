@@ -34,6 +34,7 @@ pub fn process_token_compression(
             match unsafe { source_or_recipient.owner() } {
                 ID => {
                     native::process_native_compressions(
+                        inputs,
                         compression,
                         source_or_recipient,
                         packed_accounts,
@@ -84,7 +85,7 @@ pub(crate) fn validate_compression_mode_fields(
                 return Err(ProgramError::InvalidInstructionData);
             }
         }
-        ZCompressionMode::Compress => {
+        ZCompressionMode::Compress | ZCompressionMode::CompressAndClose => {
             // No additional validation needed for regular compress
         }
     }

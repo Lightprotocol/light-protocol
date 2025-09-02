@@ -3,7 +3,7 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_ctoken_types::instructions::transfer2::{ZCompression, ZCompressionMode};
 use light_sdk_types::CPI_AUTHORITY_PDA_SEED;
-use pinocchio::{account_info::AccountInfo, instruction::AccountMeta};
+use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, msg};
 
 use super::validate_compression_mode_fields;
 use crate::constants::BUMP_CPI_AUTHORITY;
@@ -54,6 +54,10 @@ pub(super) fn process_spl_compressions(
             cpi_authority,
             u64::from(*compression.amount),
         ),
+        ZCompressionMode::CompressAndClose => {
+            msg!("CompressAndClose is unimplemented for spl token accounts");
+            unimplemented!()
+        }
     }
 }
 

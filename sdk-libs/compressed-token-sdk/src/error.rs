@@ -1,5 +1,7 @@
 use light_compressed_token_types::error::LightTokenSdkTypeError;
 use light_ctoken_types::CTokenError;
+use light_sdk::error::LightSdkError;
+use light_sdk_types::error::LightSdkTypesError;
 use solana_program_error::ProgramError;
 use thiserror::Error;
 
@@ -35,10 +37,20 @@ pub enum TokenSdkError {
     InvalidAccountData,
     #[error("Missing required CPI account")]
     MissingCpiAccount,
+    #[error("Too many accounts")]
+    TooManyAccounts,
+    #[error("PackedAccount indices are not continuous")]
+    NonContinuousIndices,
+    #[error("PackedAccount index out of bounds")]
+    PackedAccountIndexOutOfBounds,
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
     #[error(transparent)]
     CTokenError(#[from] CTokenError),
+    #[error(transparent)]
+    LightSdkError(#[from] LightSdkError),
+    #[error(transparent)]
+    LightSdkTypesError(#[from] LightSdkTypesError),
 }
 #[cfg(feature = "anchor")]
 impl From<TokenSdkError> for anchor_lang::prelude::ProgramError {
@@ -70,8 +82,13 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::AccountBorrowFailed => 17012,
             TokenSdkError::InvalidAccountData => 17013,
             TokenSdkError::MissingCpiAccount => 17014,
+            TokenSdkError::TooManyAccounts => 17015,
+            TokenSdkError::NonContinuousIndices => 17016,
+            TokenSdkError::PackedAccountIndexOutOfBounds => 17017,
             TokenSdkError::CompressedTokenTypes(e) => e.into(),
             TokenSdkError::CTokenError(e) => e.into(),
+            TokenSdkError::LightSdkTypesError(e) => e.into(),
+            TokenSdkError::LightSdkError(e) => e.into(),
         }
     }
 }

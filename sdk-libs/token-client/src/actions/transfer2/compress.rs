@@ -39,7 +39,7 @@ pub async fn compress<R: Rpc + Indexer>(
         .await?
         .ok_or_else(|| RpcError::CustomError("Token account not found".to_string()))?;
 
-    let pod_account = pod_from_bytes::<PodAccount>(&token_account_info.data)
+    let pod_account = pod_from_bytes::<PodAccount>(&token_account_info.data[..165])
         .map_err(|e| RpcError::CustomError(format!("Failed to parse token account: {}", e)))?;
 
     let output_queue = rpc.get_random_state_tree_info()?.get_output_pubkey()?;

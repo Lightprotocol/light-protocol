@@ -13,6 +13,7 @@ light-ctoken-types = { workspace = true }
 light-sdk = { workspace = true }
 light-client = { workspace = true, features = ["v2"] }
 light-compressed-token-sdk = { workspace = true }
+light-zero-copy = { workspace = true }
 
 # Solana dependencies
 solana-pubkey = { workspace = true, features = ["sha2", "curve25519"] }

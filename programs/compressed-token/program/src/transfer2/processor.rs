@@ -5,6 +5,7 @@ use light_ctoken_types::{
     hash_cache::HashCache,
     instructions::transfer2::{
         CompressedTokenInstructionDataTransfer2, ZCompressedTokenInstructionDataTransfer2,
+        ZCompressionMode,
     },
     CTokenError,
 };
@@ -14,6 +15,7 @@ use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
 use crate::{
+    close_token_account::{accounts::CloseTokenAccountAccounts, processor::close_token_account},
     shared::cpi::execute_cpi_invoke,
     transfer2::{
         accounts::Transfer2Accounts, change_account::process_change_lamports,
@@ -50,6 +52,39 @@ pub fn process_transfer2(
     validate_instruction_data(&inputs)?;
     bench_sbf_start!("t_context_and_check_sig");
 
+    // Create configuration from instruction data (replaces manual boolean derivation)
+    let transfer_config = Transfer2Config::from_instruction_data(&inputs)?;
+
+    // Validate accounts using clean config interface
+    let validated_accounts = Transfer2Accounts::validate_and_parse(accounts, &transfer_config)?;
+
+    // // add output token accounts for CompressAndClose compression
+    // if let Some(compressions) = inputs.compressions.as_ref() {
+    //     for compression in compressions
+    //         .iter()
+    //         .filter(|c| c.mode == ZCompressionMode::CompressAndClose)
+    //     {
+    //         let mut token_account_data = validated_accounts
+    //             .packed_accounts
+    //             .get_u8(
+    //                 compression.source_or_recipient,
+    //                 "CompressAndClose: source_or_recipient",
+    //             )?
+    //             .try_borrow_mut_data()
+    //             .map_err(|_| ProgramError::AccountBorrowFailed)?;
+
+    //         let (compressed_token, _) = CompressedToken::zero_copy_at(&mut token_account_data)
+    //             .map_err(|_| ProgramError::InvalidAccountData)?;
+    //         validate_compressed_token_account(
+    //             &inputs,
+    //             &validated_accounts,
+    //             compression,
+    //             &compressed_token,
+    //         )?;
+
+    //     }
+    // }
+
     // Allocate CPI bytes and create zero-copy structure
     let (mut cpi_bytes, config) = allocate_cpi_bytes(&inputs);
 
@@ -62,11 +97,7 @@ pub fn process_transfer2(
         inputs.proof,
         &inputs.cpi_context,
     )?;
-    // Create configuration from instruction data (replaces manual boolean derivation)
-    let transfer_config = Transfer2Config::from_instruction_data(&inputs)?;
 
-    // Validate accounts using clean config interface
-    let validated_accounts = Transfer2Accounts::validate_and_parse(accounts, &transfer_config)?;
     // Create HashCache for hash caching
     let mut hash_cache = HashCache::new();
 
@@ -156,6 +187,31 @@ pub fn process_transfer2(
             system_accounts.cpi_context.map(|x| *x.key()),
             false,
         )?;
+
+        // Close ctoken accounts at the end of the instruction.
+        if let Some(compressions) = inputs.compressions.as_ref() {
+            for compression in compressions
+                .iter()
+                .filter(|c| c.mode == ZCompressionMode::CompressAndClose)
+            {
+                let token_account_info = validated_accounts.packed_accounts.get_u8(
+                    compression.source_or_recipient,
+                    "CompressAndClose: source_or_recipient",
+                )?;
+                let destination = validated_accounts.packed_accounts.get_u8(
+                    compression.get_rent_recipient_index()?,
+                    "CompressAndClose: destination",
+                )?;
+                let authority = validated_accounts
+                    .packed_accounts
+                    .get_u8(compression.authority, "CompressAndClose: authority")?;
+                close_token_account(&CloseTokenAccountAccounts {
+                    token_account: token_account_info,
+                    destination,
+                    authority,
+                })?;
+            }
+        }
     } else if let Some(system_accounts) = validated_accounts.write_to_cpi_context_system.as_ref() {
         if transfer_config.sol_pool_required {
             return Err(ErrorCode::Transfer2CpiContextWriteWithSolPool.into());

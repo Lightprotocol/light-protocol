@@ -380,6 +380,21 @@ pub enum ErrorCode {
     CpiContextExpected,
     #[msg("CPI accounts slice exceeds provided account infos")]
     CpiAccountsSliceOutOfBounds,
+    // CompressAndClose specific errors
+    #[msg("CompressAndClose requires a destination account for rent lamports")]
+    CompressAndCloseDestinationMissing,
+    #[msg("CompressAndClose requires an authority account")]
+    CompressAndCloseAuthorityMissing,
+    #[msg("CompressAndClose: Compressed token owner does not match expected owner")]
+    CompressAndCloseInvalidOwner,
+    #[msg("CompressAndClose: Compression amount must match the full token balance")]
+    CompressAndCloseAmountMismatch,
+    #[msg("CompressAndClose: Token account balance must match compressed output amount")]
+    CompressAndCloseBalanceMismatch,
+    #[msg("CompressAndClose: Compressed token must not have a delegate")]
+    CompressAndCloseDelegateNotAllowed,
+    #[msg("CompressAndClose: Invalid compressed token version")]
+    CompressAndCloseInvalidVersion,
 }
 
 impl From<ErrorCode> for ProgramError {

@@ -1,23 +1,30 @@
 // #![cfg(feature = "test-sbf")]
 
+use anchor_spl::token_2022::spl_token_2022;
 use light_compressed_token_sdk::instructions::{
     close::close_account, create_associated_token_account::derive_ctoken_ata,
     create_associated_token_account_idempotent, create_token_account,
 };
 use light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
-use light_program_test::{LightProgramTest, ProgramTestConfig};
+use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     airdrop_lamports,
     assert_close_token_account::assert_close_token_account,
     assert_create_token_account::{
         assert_create_associated_token_account, assert_create_token_account, CompressibleData,
     },
+    assert_transfer2::assert_transfer2_compress,
     spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens},
     Rpc, RpcError,
 };
-use light_token_client::actions::transfer2;
+use light_token_client::{
+    actions::transfer2::{self, compress, compress_and_close},
+    instructions::transfer2::CompressInput,
+};
 use serial_test::serial;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, system_instruction};
+use solana_sdk::{
+    program_pack::Pack, pubkey::Pubkey, signature::Keypair, signer::Signer, system_instruction,
+};
 use spl_token_2022::pod::PodAccount;
 
 /// Shared test context for account operations
@@ -237,6 +244,59 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
     )
     .await;
 
+    // TEST: Compress 0 tokens from the compressible account (edge case)
+    // This tests whether compression works with an empty compressible account
+    {
+        // Assert expects slot to change since creation.
+        context.rpc.warp_to_slot(1).unwrap();
+
+        let pre_account_data = context
+            .rpc
+            .get_account(token_account_pubkey)
+            .await?
+            .expect("Token account should exist before compression");
+
+        let pre_spl_account = spl_token_2022::state::Account::unpack(&pre_account_data.data[..165])
+            .map_err(|e| {
+                RpcError::AssertRpcError(format!("Failed to parse token account: {}", e))
+            })?;
+
+        let output_queue = context
+            .rpc
+            .get_random_state_tree_info()
+            .map_err(|e| RpcError::AssertRpcError(format!("Failed to get output queue: {}", e)))?
+            .get_output_pubkey()
+            .map_err(|e| RpcError::AssertRpcError(format!("Failed to get output pubkey: {}", e)))?;
+
+        compress(
+            &mut context.rpc,
+            token_account_pubkey,
+            0, // Compress 0 tokens for test
+            context.owner_keypair.pubkey(),
+            &context.owner_keypair,
+            &context.payer,
+        )
+        .await?;
+
+        // Create compress input for assertion
+        let compress_input = CompressInput {
+            compressed_token_account: None,
+            solana_token_account: token_account_pubkey,
+            to: context.owner_keypair.pubkey(),
+            mint: context.mint_pubkey,
+            amount: 0,
+            authority: context.owner_keypair.pubkey(),
+            output_queue,
+        };
+        assert_transfer2_compress(
+            &mut context.rpc,
+            compress_input,
+            pre_spl_account,
+            &pre_account_data.data,
+        )
+        .await;
+    }
+
     // Get initial recipient lamports before closing
     let initial_recipient_lamports = context
         .rpc
@@ -416,6 +476,118 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
 
     Ok(())
 }
+
+/// Test compress_and_close with rent authority:
+/// 1. Create compressible token account with rent authority
+/// 2. Compress and close account using rent authority
+/// 3. Verify rent goes to rent recipient
+#[tokio::test]
+#[serial]
+async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
+    let mut context = setup_account_test().await?;
+    let payer_pubkey = context.payer.pubkey();
+    let token_account_pubkey = context.token_account_keypair.pubkey();
+    let rent_authority_keypair = Keypair::new();
+    let rent_recipient_pubkey = Pubkey::new_unique();
+
+    // Airdrop to rent authority and create mint
+    airdrop_lamports(
+        &mut context.rpc,
+        &rent_authority_keypair.pubkey(),
+        1000000000,
+    )
+    .await?;
+    let mint_pubkey = create_mint_helper(&mut context.rpc, &context.payer).await;
+
+    // Create compressible token account with rent authority
+    let create_account_ix = system_instruction::create_account(
+        &payer_pubkey,
+        &token_account_pubkey,
+        context
+            .rpc
+            .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
+            .await?,
+        COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+        &light_compressed_token::ID,
+    );
+
+    let create_token_account_ix =
+        light_compressed_token_sdk::instructions::create_compressible_token_account(
+            light_compressed_token_sdk::instructions::CreateCompressibleTokenAccount {
+                account_pubkey: token_account_pubkey,
+                mint_pubkey,
+                owner_pubkey: context.owner_keypair.pubkey(),
+                rent_authority: rent_authority_keypair.pubkey(),
+                rent_recipient: rent_recipient_pubkey,
+                slots_until_compression: 0,
+            },
+        )
+        .map_err(|e| RpcError::AssertRpcError(format!("Failed to create instruction: {}", e)))?;
+
+    context
+        .rpc
+        .create_and_send_transaction(
+            &[create_account_ix, create_token_account_ix],
+            &payer_pubkey,
+            &[&context.payer, &context.token_account_keypair],
+        )
+        .await?;
+
+    // Get the token account data and state BEFORE compress_and_close
+    let token_account_data_before = context
+        .rpc
+        .get_account(token_account_pubkey)
+        .await?
+        .expect("Token account should exist")
+        .data;
+
+    let pre_token_account =
+        spl_token_2022::state::Account::unpack(&token_account_data_before[..165])
+            .expect("Failed to unpack token account");
+
+    // Get initial recipient lamports for exact rent validation
+    let initial_recipient_lamports = context
+        .rpc
+        .get_account(rent_recipient_pubkey)
+        .await?
+        .map(|acc| acc.lamports)
+        .unwrap_or(0);
+
+    // Get the output queue for the compress_and_close operation
+    let output_queue = context
+        .rpc
+        .get_random_state_tree_info()?
+        .get_output_pubkey()?;
+
+    // Compress and close using rent authority (with 0 balance)
+    compress_and_close(
+        &mut context.rpc,
+        token_account_pubkey,
+        &rent_authority_keypair,
+        &context.payer,
+    )
+    .await?;
+
+    // Use the new assert_transfer2_compress_and_close for comprehensive validation
+    use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
+    use light_token_client::instructions::transfer2::CompressAndCloseInput;
+
+    assert_transfer2_compress_and_close(
+        &mut context.rpc,
+        CompressAndCloseInput {
+            solana_ctoken_account: token_account_pubkey,
+            authority: rent_authority_keypair.pubkey(),
+            output_queue,
+        },
+        pre_token_account,
+        &token_account_data_before,
+        initial_recipient_lamports,
+    )
+    .await;
+
+    Ok(())
+}
+
 /// Test:
 /// 1. SUCCESS: Create ATA using non-idempotent instruction
 /// 2. FAIL: Attempt to create same ATA again using non-idempotent instruction (should fail)

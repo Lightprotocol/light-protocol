@@ -2,6 +2,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_signer;
 use light_ctoken_types::state::ZCompressedTokenMut;
 use pinocchio::account_info::AccountInfo;
+
 /// Verify owner or delegate signer authorization for token operations
 /// Returns the delegate account info if delegate is used, None otherwise
 pub fn verify_owner_or_delegate_signer<'a>(
@@ -87,10 +88,9 @@ pub fn verify_and_update_token_account_authority_with_compressed_token(
             }
         }
     }
-
-    // Authority is neither owner nor valid delegate
+    // Authority is neither owner, valid delegate, nor rent authority
     anchor_lang::solana_program::msg!(
-        "Authority {:?} is not owner or valid delegate of token account",
+        "Authority {:?} is not owner, valid delegate, or rent authority of token account",
         solana_pubkey::Pubkey::new_from_array(*authority_key)
     );
     Err(ProgramError::InvalidAccountData)

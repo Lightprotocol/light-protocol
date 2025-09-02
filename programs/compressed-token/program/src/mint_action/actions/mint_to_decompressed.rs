@@ -53,10 +53,13 @@ pub fn process_mint_to_decompressed_action(
     // Authority check now performed above - safe to proceed with decompression
     native_compression(
         None, // No authority needed for decompression
+        None,
         amount,
         mint.into(),
         token_account_info,
+        None,
         &ZCompressionMode::Decompress,
+        packed_accounts,
     )?;
     Ok(updated_supply)
 }

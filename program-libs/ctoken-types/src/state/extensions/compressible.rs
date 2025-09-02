@@ -3,7 +3,8 @@ use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use crate::{AnchorDeserialize, AnchorSerialize};
-
+// TODO: add token account version
+// TODO: consider adding externally funded mode
 /// Compressible extension for token accounts
 /// Contains timing data for compression/decompression and rent authority
 #[derive(
@@ -48,7 +49,7 @@ impl CompressibleExtension {
     }
 }
 
-impl ZCompressibleExtension<'_> {
+impl ZCompressibleExtensionMut<'_> {
     /// Get the remaining slots until compression is allowed
     /// Returns 0 if compression is already allowed
     #[cfg(target_os = "solana")]

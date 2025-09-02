@@ -136,6 +136,13 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
         });
     }
 
+    // Determine if mint_signer is needed - matches onchain logic:
+    // with_mint_signer = create_mint() | has_CreateSplMint_action
+    let mint_signer = if create_spl_mint || new_mint.is_some() {
+        Some(mint_seed)
+    } else {
+        None
+    };
     let params = MintActionParams {
         compressed_mint_address,
         mint_seed: mint_seed.pubkey(),
@@ -143,14 +150,6 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
         payer: payer.pubkey(),
         actions,
         new_mint,
-    };
-
-    // Determine if mint_signer is needed - matches onchain logic:
-    // with_mint_signer = create_mint() | has_CreateSplMint_action
-    let mint_signer = if create_spl_mint {
-        Some(mint_seed)
-    } else {
-        None
     };
 
     mint_action(rpc, params, authority, payer, mint_signer).await

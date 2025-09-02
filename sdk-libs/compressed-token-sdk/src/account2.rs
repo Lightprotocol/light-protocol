@@ -20,7 +20,7 @@ use crate::{
 #[derive(Debug, PartialEq, Clone)]
 pub struct CTokenAccount2 {
     inputs: Vec<MultiInputTokenDataWithContext>,
-    output: MultiTokenTransferOutputData,
+    pub(crate) output: MultiTokenTransferOutputData,
     compression: Option<Compression>,
     delegate_is_set: bool,
     pub(crate) method_used: bool,
@@ -320,6 +320,34 @@ impl CTokenAccount2 {
             pool_index: 0,
             bump: 0,
         });
+        self.method_used = true;
+
+        Ok(())
+    }
+
+    pub fn compress_and_close(
+        &mut self,
+        amount: u64,
+        source_or_recipient_index: u8,
+        authority: u8,
+        rent_recipient_index: u8,
+    ) -> Result<(), TokenSdkError> {
+        // Check if there's already a compression set
+        if self.compression.is_some() {
+            return Err(TokenSdkError::CompressionCannotBeSetTwice);
+        }
+
+        // Add the full balance to the output amount
+        self.output.amount += amount;
+
+        // Use the compress_and_close method from Compression
+        self.compression = Some(Compression::compress_and_close(
+            amount,
+            self.output.mint,
+            source_or_recipient_index,
+            authority,
+            rent_recipient_index,
+        ));
         self.method_used = true;
 
         Ok(())
