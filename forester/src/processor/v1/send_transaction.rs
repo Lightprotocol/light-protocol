@@ -22,7 +22,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use tokio::time::Instant;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{error,trace, warn};
 
 use crate::{
     epoch_manager::WorkItem,
@@ -312,7 +312,7 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
                     let send_time = Instant::now();
                     match rpc.send_transaction_with_config(&tx, rpc_send_config).await {
                         Ok(signature) => {
-                            if !cancel_signal_clone.load(Ordering::SeqCst) { // Re-check before incrementing
+                            if !cancel_signal_clone.load(Ordering::SeqCst) {
                                 num_sent_transactions_clone.fetch_add(1, Ordering::SeqCst);
                                 trace!(tx.signature = %signature, elapsed = ?send_time.elapsed(), "Transaction sent successfully");
                                 TransactionSendResult::Success(signature)
@@ -340,9 +340,29 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
         max_concurrent_sends
     );
     let exec_start = Instant::now();
-    let _  = futures::stream::iter(transaction_send_futures)
+    let result = futures::stream::iter(transaction_send_futures)
         .buffer_unordered(max_concurrent_sends) // buffer_unordered for concurrency
         .collect::<Vec<TransactionSendResult>>()
         .await;
+    for res in result {
+        match res {
+            TransactionSendResult::Success(sig) => {
+                trace!(tx.signature = %sig, "Transaction confirmed sent");
+            }
+            TransactionSendResult::Failure(err, sig_opt) => {
+                if let Some(sig) = sig_opt {
+                    warn!(tx.signature = %sig, error = ?err, "Transaction failed to send");
+                } else {
+                    error!(error = ?err, "Transaction failed to send, no signature available");
+                }
+            }
+            TransactionSendResult::Cancelled => {
+                trace!("Transaction send cancelled due to global signal or timeout");
+            }
+            TransactionSendResult::Timeout => {
+                warn!("Transaction send timed out due to global timeout");
+            }
+        }
+    }
     trace!("Finished executing batch in {:?}", exec_start.elapsed());
 }
