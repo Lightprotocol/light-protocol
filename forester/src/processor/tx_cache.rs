@@ -56,7 +56,9 @@ impl ProcessedHashCache {
             if age > Duration::from_secs(60) && age < entry.timeout {
                 trace!(
                     "Cache entry {} has been processing for {:?} (timeout: {:?})",
-                    hash, age, entry.timeout
+                    hash,
+                    age,
+                    entry.timeout
                 );
             }
             true

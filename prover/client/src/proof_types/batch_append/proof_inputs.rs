@@ -57,11 +57,11 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
     {
         let current_index = start_index as usize + i;
         info!(
-                leaf_index = current_index,
-                batch_position = i,
-                batch_size = batch_size,
-                tree_height = HEIGHT,
-                "Processing leaf for batch append"
+            leaf_index = current_index,
+            batch_position = i,
+            batch_size = batch_size,
+            tree_height = HEIGHT,
+            "Processing leaf for batch append"
         );
 
         for change_log_entry in previous_changelogs.iter() {
