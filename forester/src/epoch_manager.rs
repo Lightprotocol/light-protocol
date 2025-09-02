@@ -1179,7 +1179,7 @@ impl<R: Rpc> EpochManager<R> {
         // Check if we're in the active phase before processing v2 transactions
         let current_slot = self.slot_tracker.estimated_current_slot();
         let current_phase_state = epoch_info.phases.get_current_epoch_state(current_slot);
-        
+
         if current_phase_state != EpochState::Active {
             trace!(
                 "Skipping v2 processing: not in active phase (current phase: {:?}, slot: {})",
@@ -1188,7 +1188,7 @@ impl<R: Rpc> EpochManager<R> {
             );
             return Ok(0);
         }
-        
+
         let default_prover_url = "http://127.0.0.1:3001".to_string();
         let batch_context = BatchContext {
             rpc_pool: self.rpc_pool.clone(),

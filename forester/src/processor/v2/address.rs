@@ -57,10 +57,5 @@ pub(crate) async fn process_batch<R: Rpc>(
     };
 
     let stream_future = create_stream_future(context, merkle_tree_data);
-    process_stream(
-        context,
-        stream_future,
-        instruction_builder,
-    )
-    .await
+    process_stream(context, stream_future, instruction_builder).await
 }

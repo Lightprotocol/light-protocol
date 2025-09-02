@@ -96,7 +96,7 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
 
         while remaining_elements > 0 {
             let chunk_size = remaining_elements.min(MAX_ELEMENTS_PER_REQUEST);
-            
+
             let queue_elements_chunk = {
                 let mut connection = rpc_pool.get_connection().await?;
                 let indexer = connection.indexer_mut()?;

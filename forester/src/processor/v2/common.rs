@@ -15,7 +15,10 @@ use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
 use super::{address, state};
-use crate::{errors::ForesterError, processor::tx_cache::ProcessedHashCache, slot_tracker::SlotTracker, Result};
+use crate::{
+    errors::ForesterError, processor::tx_cache::ProcessedHashCache, slot_tracker::SlotTracker,
+    Result,
+};
 
 #[derive(Debug)]
 pub enum BatchReadyState {
@@ -112,7 +115,7 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
     // Check if we're still in the active phase before sending the transaction
     let current_slot = context.slot_tracker.estimated_current_slot();
     let current_phase_state = context.epoch_phases.get_current_epoch_state(current_slot);
-    
+
     if current_phase_state != EpochState::Active {
         trace!(
             "Skipping transaction send: not in active phase (current phase: {:?}, slot: {})",
@@ -121,7 +124,7 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         );
         return Err(ForesterError::NotInActivePhase.into());
     }
-    
+
     info!(
         "Sending transaction with {} instructions...",
         instructions.len()
