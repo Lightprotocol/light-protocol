@@ -94,12 +94,7 @@ pub(crate) async fn perform_nullify<R: Rpc>(
 
     let stream_future = create_nullify_stream_future(context, merkle_tree_data);
 
-    process_stream(
-        context,
-        stream_future,
-        instruction_builder,
-    )
-    .await?;
+    process_stream(context, stream_future, instruction_builder).await?;
     Ok(())
 }
 
@@ -125,11 +120,6 @@ pub(crate) async fn perform_append<R: Rpc>(
     };
 
     let stream_future = create_append_stream_future(context, merkle_tree_data, output_queue_data);
-    process_stream(
-        context,
-        stream_future,
-        instruction_builder,
-    )
-    .await?;
+    process_stream(context, stream_future, instruction_builder).await?;
     Ok(())
 }

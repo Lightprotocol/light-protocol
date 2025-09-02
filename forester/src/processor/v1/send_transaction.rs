@@ -22,7 +22,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use tokio::time::Instant;
-use tracing::{error,trace, warn};
+use tracing::{error, trace, warn};
 
 use crate::{
     epoch_manager::WorkItem,
