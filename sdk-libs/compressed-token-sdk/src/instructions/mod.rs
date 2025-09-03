@@ -1,6 +1,7 @@
 pub mod approve;
 pub mod batch_compress;
 pub mod close;
+pub mod compress_and_close;
 pub mod create_associated_token_account;
 pub mod create_compressed_mint;
 mod create_spl_mint;
@@ -21,6 +22,7 @@ pub use batch_compress::{
     create_batch_compress_instruction, get_batch_compress_instruction_account_metas,
     BatchCompressInputs, BatchCompressMetaConfig, Recipient,
 };
+pub use compress_and_close::compress_and_close_ctoken_accounts;
 pub use create_associated_token_account::*;
 pub use create_compressed_mint::*;
 pub use create_spl_mint::*;

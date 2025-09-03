@@ -29,6 +29,7 @@ spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
 light-account-checks = { workspace = true, features = ["solana"] }
 light-sdk-types = { workspace = true }
+light-zero-copy = { workspace = true }
 
 # Optional Anchor dependency
 anchor-lang = { workspace = true, optional = true }

@@ -9,6 +9,7 @@ mod ctoken_pda;
 mod pda_ctoken;
 mod process_batch_compress_tokens;
 mod process_compress_and_close_cpi;
+mod process_compress_and_close_cpi_indices;
 mod process_compress_full_and_close;
 mod process_compress_tokens;
 mod process_create_compressed_account;
@@ -23,6 +24,7 @@ use light_sdk::{cpi::CpiAccounts, instruction::account_meta::CompressedAccountMe
 pub use pda_ctoken::*;
 use process_batch_compress_tokens::process_batch_compress_tokens;
 use process_compress_and_close_cpi::process_compress_and_close_cpi;
+use process_compress_and_close_cpi_indices::process_compress_and_close_cpi_indices;
 use process_compress_full_and_close::process_compress_full_and_close;
 use process_compress_tokens::process_compress_tokens;
 use process_create_compressed_account::process_create_compressed_account;
@@ -100,8 +102,19 @@ pub mod sdk_token_test {
     }
 
     /// Process compress_and_close using the new CompressAndClose mode
-    /// This atomically compresses tokens and closes the account in a single instruction
+    /// Compress and close using the higher-level SDK function
+    /// This uses compress_and_close_ctoken_accounts which handles all index discovery
     pub fn compress_and_close_cpi<'info>(
+        ctx: Context<'_, '_, '_, 'info, OneCTokenAccount<'info>>,
+        with_rent_authority: bool,
+        system_accounts_offset: u8,
+    ) -> Result<()> {
+        process_compress_and_close_cpi(ctx, with_rent_authority, system_accounts_offset)
+    }
+
+    /// Compress and close with manual indices
+    /// This atomically compresses tokens and closes the account in a single instruction
+    pub fn compress_and_close_cpi_indices<'info>(
         ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
         output_tree_index: u8,
         recipient_index: u8,
@@ -111,7 +124,7 @@ pub mod sdk_token_test {
         rent_recipient_index: u8,
         system_accounts_offset: u8,
     ) -> Result<()> {
-        process_compress_and_close_cpi(
+        process_compress_and_close_cpi_indices(
             ctx,
             output_tree_index,
             recipient_index,
@@ -332,4 +345,13 @@ pub struct GenericWithAuthority<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
     pub authority: AccountInfo<'info>,
+}
+#[derive(Accounts)]
+pub struct OneCTokenAccount<'info> {
+    // fee payer and authority are the same
+    #[account(mut)]
+    pub signer: Signer<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub ctoken_account: UncheckedAccount<'info>,
 }

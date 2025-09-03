@@ -3491,6 +3491,7 @@ dependencies = [
  "light-macros",
  "light-sdk",
  "light-sdk-types",
+ "light-zero-copy",
  "solana-account-info",
  "solana-cpi",
  "solana-instruction",
