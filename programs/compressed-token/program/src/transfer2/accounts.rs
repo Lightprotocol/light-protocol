@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
-use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
+use light_sdk_types::ACCOUNT_COMPRESSION_PROGRAM_ID;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 
@@ -90,17 +90,16 @@ impl<'info> Transfer2Accounts<'info> {
     pub fn cpi_accounts(
         &self,
         all_accounts: &'info [AccountInfo],
-        inputs: &ZCompressedTokenInstructionDataTransfer2,
         packed_accounts: &'info ProgramPackedAccounts<'info, AccountInfo>,
     ) -> Result<(&'info [AccountInfo], Vec<&'info Pubkey>), ProgramError> {
         // Extract tree accounts using highest index approach
-        let (tree_accounts, tree_accounts_count) = extract_tree_accounts(inputs, packed_accounts)?;
+        let tree_accounts = extract_tree_accounts(packed_accounts);
 
         // Calculate static accounts count after skipping index 0 (system accounts only)
         let static_accounts_count = self.static_accounts_count()?;
 
         // Include static CPI accounts + tree accounts based on highest tree index
-        let cpi_accounts_end = 1 + static_accounts_count + tree_accounts_count;
+        let cpi_accounts_end = 1 + static_accounts_count + tree_accounts.len();
         if all_accounts.len() < cpi_accounts_end {
             msg!(
                 "Accounts len {} < expected cpi accounts len {}",
@@ -118,29 +117,13 @@ impl<'info> Transfer2Accounts<'info> {
 // TODO: unit test.
 /// Extract tree accounts by finding the highest tree index and using it as closing offset
 pub fn extract_tree_accounts<'info>(
-    inputs: &ZCompressedTokenInstructionDataTransfer2,
     packed_accounts: &'info ProgramPackedAccounts<'info, AccountInfo>,
-) -> Result<(Vec<&'info Pubkey>, usize), ProgramError> {
-    // Find highest tree index from input and output data to determine tree accounts range
-    let mut highest_tree_index = 0u8;
-    for input_data in inputs.in_token_data.iter() {
-        highest_tree_index =
-            highest_tree_index.max(input_data.merkle_context.merkle_tree_pubkey_index);
-        highest_tree_index = highest_tree_index.max(input_data.merkle_context.queue_pubkey_index);
+) -> Vec<&'info Pubkey> {
+    let mut tree_accounts = Vec::with_capacity(8);
+    for account_info in packed_accounts.accounts {
+        if account_info.is_owned_by(&ACCOUNT_COMPRESSION_PROGRAM_ID) {
+            tree_accounts.push(account_info.key());
+        }
     }
-    for output_data in inputs.out_token_data.iter() {
-        highest_tree_index = highest_tree_index.max(output_data.merkle_tree);
-    }
-
-    // Tree accounts span from index 0 to highest_tree_index in remaining accounts
-    let tree_accounts_count = highest_tree_index + 1;
-    // Extract tree account pubkeys from the determined range
-    // Note: Don't switch to ArrayVec it results in weird memory access with non deterministic values.
-    let mut tree_accounts = Vec::with_capacity(tree_accounts_count.into());
-    for i in 0..tree_accounts_count {
-        let account_key = packed_accounts.get_u8(i, "tree account")?.key();
-        tree_accounts.push(account_key);
-    }
-
-    Ok((tree_accounts, tree_accounts_count.into()))
+    tree_accounts
 }

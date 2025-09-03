@@ -54,6 +54,8 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
         if current_mt_index != merkle_context.merkle_tree_pubkey_index || is_first_iter {
             is_first_iter = false;
             current_mt_index = merkle_context.merkle_tree_pubkey_index;
+            solana_msg::msg!("current_mt_index {}", current_mt_index);
+            solana_msg::msg!("accounts {}", accounts.len());
             current_hashed_mt = match &accounts[current_mt_index as usize] {
                 AcpAccount::BatchedStateTree(tree) => {
                     context.set_network_fee(

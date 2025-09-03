@@ -64,7 +64,7 @@ pub fn process_token_compression(
                         solana_pubkey::Pubkey::new_from_array(*source_or_recipient.key())
                     );
                     msg!("Invalid token program ID {:?}", unsafe {
-                        source_or_recipient.owner()
+                        solana_pubkey::Pubkey::from(*source_or_recipient.owner())
                     });
                     return Err(ProgramError::InvalidInstructionData);
                 }

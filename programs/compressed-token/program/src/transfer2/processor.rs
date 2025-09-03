@@ -161,11 +161,8 @@ pub fn process_transfer2(
     bench_sbf_end!("t_sum_check");
     if let Some(system_accounts) = validated_accounts.system.as_ref() {
         // Get CPI accounts slice and tree accounts for light-system-program invocation
-        let (cpi_accounts, tree_pubkeys) = validated_accounts.cpi_accounts(
-            accounts,
-            &inputs,
-            &validated_accounts.packed_accounts,
-        )?;
+        let (cpi_accounts, tree_pubkeys) =
+            validated_accounts.cpi_accounts(accounts, &validated_accounts.packed_accounts)?;
         // Debug prints keep for now.
         {
             let _solana_tree_accounts = tree_pubkeys
