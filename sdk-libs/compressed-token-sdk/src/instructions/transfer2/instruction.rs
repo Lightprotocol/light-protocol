@@ -4,7 +4,6 @@ use light_ctoken_types::{
 };
 use light_profiler::profile;
 use solana_instruction::{AccountMeta, Instruction};
-use solana_msg::msg;
 use solana_pubkey::Pubkey;
 
 use crate::{
@@ -93,7 +92,6 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
             collected_compressions.push(*compression);
         }
         let (inputs, output) = token_account.into_inputs_and_outputs();
-        msg!("output {:?}", output);
         // Collect inputs directly (they're already in the right format)
         input_token_data_with_context.extend(inputs);
 
@@ -144,16 +142,6 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
         }
     }
 
-    // Moved assignment to account meta config
-    // Add tree accounts first
-    //for tree_pubkey in tree_pubkeys {
-    //     account_metas.push(AccountMeta::new(tree_pubkey, false));
-    // }
-    // Add packed accounts second
-    // for packed_pubkey in packed_pubkeys {
-    //     account_metas.push(AccountMeta::new(packed_pubkey, false));
-    // }
-    println!("account metas {:?}", account_metas);
     Ok(Instruction {
         program_id: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
         accounts: account_metas,

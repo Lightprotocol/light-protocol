@@ -43,7 +43,6 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
 
     let output_queue = rpc.get_random_state_tree_info()?.queue;
 
-    // Derive compressed mint address using utility function
     let compressed_mint_address =
         derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
 

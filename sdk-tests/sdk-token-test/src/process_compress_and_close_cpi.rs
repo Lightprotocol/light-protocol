@@ -1,7 +1,7 @@
 use crate::OneCTokenAccount;
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_compressed_token_sdk::instructions::compress_and_close_ctoken_accounts;
-use light_sdk::cpi::CpiAccounts;
+use light_sdk::cpi::CpiAccountsSmall;
 use light_sdk_types::CpiAccountsConfig;
 
 /// Process compress_and_close operation using the higher-level compress_and_close_ctoken_accounts function
@@ -17,8 +17,11 @@ pub fn process_compress_and_close_cpi<'info>(
         .remaining_accounts
         .split_at(system_accounts_offset as usize);
 
-    let cpi_accounts =
-        CpiAccounts::new_with_config(ctx.accounts.signer.as_ref(), system_account_infos, config);
+    let cpi_accounts = CpiAccountsSmall::new_with_config(
+        ctx.accounts.signer.as_ref(),
+        system_account_infos,
+        config,
+    );
     // Use the higher-level compress_and_close_ctoken_accounts function
     // This function handles:
     // - Deserializing the compressed token accounts
@@ -29,9 +32,8 @@ pub fn process_compress_and_close_cpi<'info>(
         *ctx.accounts.signer.key,                          // fee_payer
         with_rent_authority, // whether to use rent authority from extension
         ctx.accounts.output_queue.to_account_info(), // output queue where compressed accounts will be stored
-        None, // cpi_context_pubkey (not used in this example)
         &[&ctx.accounts.ctoken_account.to_account_info()], // slice of ctoken account infos
-        cpi_accounts.tree_accounts().unwrap(), // packed accounts for the instruction
+        cpi_accounts.tree_accounts().unwrap(),       // packed accounts for the instruction
     )
     .map_err(|_| ProgramError::InvalidInstructionData)?;
 

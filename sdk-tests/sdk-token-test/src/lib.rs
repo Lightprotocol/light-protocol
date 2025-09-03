@@ -6,9 +6,11 @@ use light_compressed_token_sdk::{instructions::Recipient, TokenAccountMeta, Vali
 use light_sdk::instruction::{PackedAddressTreeInfo, ValidityProof as LightValidityProof};
 
 mod ctoken_pda;
+pub mod mint_compressed_tokens_cpi_write;
 mod pda_ctoken;
 mod process_batch_compress_tokens;
 mod process_compress_and_close_cpi;
+mod process_compress_and_close_cpi_context;
 mod process_compress_and_close_cpi_indices;
 mod process_compress_full_and_close;
 mod process_compress_tokens;
@@ -63,7 +65,10 @@ use crate::{
     ctoken_pda::*, process_create_compressed_account::deposit_tokens,
     process_four_transfer2::FourTransfer2Params, process_update_deposit::process_update_deposit,
 };
-
+use crate::{
+    mint_compressed_tokens_cpi_write::MintCompressedTokensCpiWriteParams,
+    process_compress_and_close_cpi_context::process_compress_and_close_cpi_context,
+};
 #[program]
 pub mod sdk_token_test {
 
@@ -110,6 +115,20 @@ pub mod sdk_token_test {
         system_accounts_offset: u8,
     ) -> Result<()> {
         process_compress_and_close_cpi(ctx, with_rent_authority, system_accounts_offset)
+    }
+
+    /// Process compress_and_close using the new CompressAndClose mode
+    /// Compress and close using the higher-level SDK function
+    /// This uses compress_and_close_ctoken_accounts which handles all index discovery
+    pub fn compress_and_close_cpi_with_cpi_context<'info>(
+        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        indices: Vec<
+            light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseIndices,
+        >,
+        system_accounts_offset: u8,
+        params: MintCompressedTokensCpiWriteParams,
+    ) -> Result<()> {
+        process_compress_and_close_cpi_context(ctx, indices, system_accounts_offset, params)
     }
 
     /// Compress and close with manual indices

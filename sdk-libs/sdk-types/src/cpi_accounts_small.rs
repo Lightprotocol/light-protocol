@@ -57,6 +57,13 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
+    pub fn light_system_program(&self) -> Result<&'a T> {
+        let index = CompressionCpiAccountIndexSmall::LightSystemProgram as usize;
+        self.accounts
+            .get(index)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
+    }
+
     pub fn registered_program_pda(&self) -> Result<&'a T> {
         let index = CompressionCpiAccountIndexSmall::RegisteredProgramPda as usize;
         self.accounts

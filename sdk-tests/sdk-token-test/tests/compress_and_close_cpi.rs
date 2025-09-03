@@ -561,7 +561,7 @@ async fn test_compress_and_close_cpi_multiple_with_rent_authority() {
         ctx.owners.iter().map(|x| x.pubkey()).collect::<Vec<_>>()
     );
     println!("rent_authority {:?}", ctx.rent_authority.pubkey());
-    
+
     // Create the compress_and_close_cpi_indices instruction data
     let instruction_data = sdk_token_test::instruction::CompressAndCloseCpiIndices {
         indices: indices_vec,
@@ -674,7 +674,7 @@ async fn test_compress_and_close_cpi_mixed_signers() {
 
     // Create ATA accounts - first 2 without extension, last 2 with extension
     let mut token_account_pubkeys = Vec::with_capacity(4);
-    
+
     use light_compressed_token_sdk::instructions::{
         create_compressible_associated_token_account, derive_ctoken_ata,
         CreateCompressibleAssociatedTokenAccountInputs,
@@ -686,7 +686,7 @@ async fn test_compress_and_close_cpi_mixed_signers() {
         // First 2 accounts: owner is authority (no extension)
         // Last 2 accounts: rent_authority is authority (with extension)
         let with_extension = i >= 2;
-        
+
         let create_token_account_ix = create_compressible_associated_token_account(
             CreateCompressibleAssociatedTokenAccountInputs {
                 payer: payer.pubkey(),
@@ -758,10 +758,10 @@ async fn test_compress_and_close_cpi_mixed_signers() {
             .await
             .unwrap()
             .unwrap();
-        
+
         // First 2 accounts don't have extension, last 2 have extension
         let with_extension = i >= 2;
-        
+
         let indices = pack_for_compress_and_close(
             *token_account_pubkey,
             ctoken_solana_account.data.as_slice(),
@@ -785,7 +785,7 @@ async fn test_compress_and_close_cpi_mixed_signers() {
     println!("  Accounts 0-1: owner as signer");
     println!("  Accounts 2-3: rent_authority as signer");
     println!("  Total account_metas: {}", account_metas.len());
-    
+
     // Create the instruction
     let instruction_data = sdk_token_test::instruction::CompressAndCloseCpiIndices {
         indices: indices_vec,
@@ -801,9 +801,9 @@ async fn test_compress_and_close_cpi_mixed_signers() {
     // Sign with payer, first 2 owners, and rent authority
     let signers = vec![
         &payer,
-        &owners[0],  // Signer for account 0
-        &owners[1],  // Signer for account 1
-        &rent_authority,  // Signer for accounts 2 and 3
+        &owners[0],      // Signer for account 0
+        &owners[1],      // Signer for account 1
+        &rent_authority, // Signer for accounts 2 and 3
     ];
 
     rpc.create_and_send_transaction(&[instruction], &payer_pubkey, &signers)
@@ -847,10 +847,11 @@ async fn test_compress_and_close_cpi_mixed_signers() {
             .unwrap()
             .map(|acc| acc.lamports)
             .unwrap_or(0);
-        
+
         assert!(
             owner_balance >= 10_000_000_000 + rent_exemption,
-            "Owner {} should have received rent", i
+            "Owner {} should have received rent",
+            i
         );
     }
 
@@ -861,11 +862,210 @@ async fn test_compress_and_close_cpi_mixed_signers() {
         .unwrap()
         .map(|acc| acc.lamports)
         .unwrap_or(0);
-    
+
     assert!(
         recipient_balance >= rent_exemption * 2,
         "Rent recipient should have received rent from 2 accounts"
     );
 
     println!("✅ CompressAndClose CPI mixed signers test passed!");
+}
+
+/// Test compress_and_close with CPI context for optimized multi-program transactions
+/// This test uses CPI context to cache signer checks for potential cross-program operations
+#[tokio::test]
+async fn test_compress_and_close_cpi_with_context() {
+    let (mut rpc, ctx) = setup_compress_and_close_test(1, false).await;
+    let payer_pubkey = ctx.payer.pubkey();
+    let token_account_pubkey = ctx.token_account_pubkeys[0];
+
+    // Import required types for minting
+    use anchor_lang::AnchorDeserialize;
+    use light_compressed_token_sdk::instructions::MintToRecipient;
+    use light_ctoken_types::instructions::mint_action::CompressedMintWithContext;
+    use sdk_token_test::mint_compressed_tokens_cpi_write::MintCompressedTokensCpiWriteParams;
+
+    // Get initial rent recipient balance (owner in this case since no extension)
+    let initial_recipient_balance = rpc
+        .get_account(ctx.owners[0].pubkey())
+        .await
+        .unwrap()
+        .map(|acc| acc.lamports)
+        .unwrap_or(0);
+
+    // Prepare accounts for CPI instruction with CPI context
+    let mut remaining_accounts = PackedAccounts::default();
+
+    // Get output tree for compression
+    let output_tree_info = rpc.get_random_state_tree_info().unwrap();
+    let cpi_context_pubkey = output_tree_info
+        .cpi_context
+        .expect("CPI context required for this test");
+    // Add light system program accounts (following the pattern from other tests)
+    use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseAccounts;
+    let config = CompressAndCloseAccounts::new(sdk_token_test::ID, Some(cpi_context_pubkey));
+    remaining_accounts.insert_or_get(output_tree_info.queue);
+    remaining_accounts
+        .add_custom_system_accounts(config)
+        .unwrap();
+
+    // Create mint params to populate CPI context
+    let mint_recipients = vec![MintToRecipient {
+        recipient: ctx.owners[0].pubkey(),
+        amount: 500, // Mint some additional tokens
+    }];
+    // Derive compressed mint address using utility function
+    let address_tree_info = rpc.get_address_tree_v2();
+    let compressed_mint_address =
+        light_compressed_token_sdk::instructions::derive_compressed_mint_address(
+            &ctx.mint_seed.pubkey(),
+            &address_tree_info.tree,
+        );
+
+    // Get the compressed mint account
+    let compressed_mint_account = rpc
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    // Deserialize the mint data
+    use light_ctoken_types::state::CompressedMint;
+    let compressed_mint =
+        CompressedMint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
+            .unwrap();
+
+    // Create CompressedMintWithContext for minting to populate CPI context
+    let compressed_mint_with_context = CompressedMintWithContext {
+        prove_by_index: true,
+        leaf_index: compressed_mint_account.leaf_index,
+        root_index: 0,
+        address: compressed_mint_address,
+        mint: compressed_mint.try_into().unwrap(),
+    };
+    let mint_params = MintCompressedTokensCpiWriteParams {
+        compressed_mint_with_context,
+        recipients: mint_recipients,
+        cpi_context: light_ctoken_types::instructions::mint_action::CpiContext {
+            set_context: false,
+            first_set_context: true, // First operation sets the context
+            in_tree_index: remaining_accounts.insert_or_get(compressed_mint_account.tree_info.tree),
+            in_queue_index: remaining_accounts
+                .insert_or_get(compressed_mint_account.tree_info.queue),
+            out_queue_index: remaining_accounts
+                .insert_or_get(compressed_mint_account.tree_info.queue),
+            token_out_queue_index: remaining_accounts
+                .insert_or_get(compressed_mint_account.tree_info.queue),
+            assigned_account_index: 0,
+        },
+        cpi_context_pubkey,
+    };
+    // Get the ctoken account data
+    let ctoken_solana_account = rpc
+        .get_account(token_account_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+
+    // Debug: Check the actual token account balance
+    use light_ctoken_types::state::CompressedToken;
+    use light_zero_copy::traits::ZeroCopyAt;
+    let (ctoken_account, _) =
+        CompressedToken::zero_copy_at(ctoken_solana_account.data.as_slice()).unwrap();
+    println!(
+        "DEBUG: Token account balance before compress_and_close: {}",
+        ctoken_account.amount
+    );
+    println!("DEBUG: Expected balance: {}", ctx.mint_amount);
+
+    // Generate indices for compress and close operation (following the pattern from test_compress_and_close_cpi_indices)
+    let indices = pack_for_compress_and_close(
+        token_account_pubkey,
+        ctoken_solana_account.data.as_slice(),
+        output_tree_info.queue,
+        &mut remaining_accounts,
+        ctx.with_compressible_extension, // false - using owner as authority
+    )
+    .unwrap();
+
+    let (account_metas, system_accounts_start_offset, _) = remaining_accounts.to_account_metas();
+
+    println!("CPI Context test:");
+    println!("  CPI context account: {:?}", cpi_context_pubkey);
+    println!("  Token account: {:?}", token_account_pubkey);
+    println!("  Output queue: {:?}", output_tree_info.queue);
+    println!(
+        "  System accounts start offset: {}",
+        system_accounts_start_offset
+    );
+    println!("account_metas: {:?}", account_metas);
+
+    // Create the compress_and_close_cpi_with_cpi_context instruction
+    let instruction_data = sdk_token_test::instruction::CompressAndCloseCpiWithCpiContext {
+        indices: vec![indices], // Use generated indices like CompressAndCloseCpiIndices pattern
+        system_accounts_offset: system_accounts_start_offset as u8,
+        params: mint_params,
+    };
+
+    // Create the instruction - TwoCTokenAccounts expects signer, ctoken_account1, ctoken_account2, output_queue
+    // But we're only using one account, so we'll pass the same account twice (second one won't be used)
+    let instruction = Instruction {
+        program_id: sdk_token_test::ID,
+        accounts: [
+            vec![
+                AccountMeta::new(payer_pubkey, true), // signer
+            ],
+            account_metas, // remaining accounts (trees, system accounts, etc.)
+        ]
+        .concat(),
+        data: instruction_data.data(),
+    };
+
+    // Execute transaction - sign with payer and owner
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer_pubkey),
+        &[&ctx.payer, &ctx.owners[0]],
+        rpc.get_latest_blockhash().await.unwrap().0,
+    );
+
+    rpc.process_transaction(transaction).await.unwrap();
+
+    // Verify compressed account was created
+    let compressed_accounts = rpc
+        .get_compressed_token_accounts_by_owner(&ctx.owners[0].pubkey(), None, None)
+        .await
+        .unwrap()
+        .value
+        .items;
+
+    assert_eq!(compressed_accounts.len(), 2);
+    assert_eq!(compressed_accounts[0].token.amount, ctx.mint_amount);
+    assert_eq!(compressed_accounts[0].token.mint, ctx.mint_pubkey);
+    assert_eq!(compressed_accounts[1].token.amount, 500);
+    assert_eq!(compressed_accounts[1].token.mint, ctx.mint_pubkey);
+
+    // Verify source account is closed
+    let closed_account = rpc.get_account(token_account_pubkey).await.unwrap();
+    if let Some(acc) = closed_account {
+        assert_eq!(
+            acc.lamports, 0,
+            "Account should have 0 lamports after closing"
+        );
+    }
+
+    // Verify rent was transferred to owner (no extension, so owner gets rent)
+    let final_recipient_balance = rpc
+        .get_account(ctx.owners[0].pubkey())
+        .await
+        .unwrap()
+        .map(|acc| acc.lamports)
+        .unwrap_or(0);
+
+    assert!(
+        final_recipient_balance > initial_recipient_balance,
+        "Owner should receive rent when no extension is present"
+    );
+
+    println!("✅ CompressAndClose CPI with CPI context test passed!");
 }

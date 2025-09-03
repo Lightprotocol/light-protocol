@@ -4,11 +4,12 @@ use crate::{
     instructions::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
-            Transfer2Inputs,
+            Transfer2Config, Transfer2Inputs,
         },
         CTokenDefaultAccounts,
     },
 };
+use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_ctoken_types::state::{CompressedToken, ZExtensionStruct};
 use light_profiler::profile;
 use light_sdk::{
@@ -175,7 +176,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             idx.source_index,
             idx.authority_index,
             idx.rent_recipient_index,
-            i as u8,  // Pass the index in the output array
+            i as u8, // Pass the index in the output array
         )?;
 
         token_accounts.push(token_account);
@@ -190,19 +191,37 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             is_writable: info.is_writable,
         });
     }
-    let meta_config = if cpi_context_pubkey.is_some() {
-        msg!("cpi_context_pubkey is not supported yet");
-        unimplemented!()
+    let (meta_config, transfer_config) = if let Some(cpi_context) = cpi_context_pubkey {
+        let cpi_context_config = CompressedCpiContext {
+            set_context: false,
+            first_set_context: false,
+            cpi_context_account_index: 0, // unused
+        };
+
+        (
+            Transfer2AccountsMetaConfig {
+                fee_payer: Some(fee_payer),
+                cpi_context: Some(cpi_context),
+                decompressed_accounts_only: false,
+                sol_pool_pda: None,
+                sol_decompression_recipient: None,
+                with_sol_pool: false,
+                packed_accounts: Some(packed_account_metas.to_vec()),
+            },
+            Transfer2Config::default().with_cpi_context(cpi_context, cpi_context_config),
+        )
     } else {
-        Transfer2AccountsMetaConfig::new(fee_payer, packed_account_metas.to_vec())
+        (
+            Transfer2AccountsMetaConfig::new(fee_payer, packed_account_metas.to_vec()),
+            Transfer2Config::default(),
+        )
     };
 
     // Create the transfer2 instruction with all CompressAndClose operations
     let inputs = Transfer2Inputs {
         meta_config,
         token_accounts,
-        //transfer_config: Transfer2Config::default()
-        //    .with_cpi_context(cpi_context_pubkey, cpi_context)
+        transfer_config,
         ..Default::default()
     };
 
@@ -226,7 +245,6 @@ pub fn compress_and_close_ctoken_accounts<'info>(
     fee_payer: Pubkey,
     with_rent_authority: bool,
     output_queue: AccountInfo<'info>,
-    cpi_context_pubkey: Option<Pubkey>,
     ctoken_solana_accounts: &[&AccountInfo<'info>],
     packed_accounts: &[AccountInfo<'info>],
 ) -> Result<Instruction, TokenSdkError> {
@@ -326,7 +344,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
     // Delegate to the with_indices version
     compress_and_close_ctoken_accounts_with_indices(
         fee_payer,
-        cpi_context_pubkey,
+        None,
         &indices_vec,
         packed_accounts_vec.as_slice(),
     )
@@ -361,7 +379,7 @@ impl AccountMetasVec for CompressAndCloseAccounts {
                 cpi_context: self.cpi_context,
                 ..Default::default()
             };
-            accounts.add_system_accounts(config)?;
+            accounts.add_system_accounts_small(config)?;
         }
         // Add both accounts in one operation for better performance
         accounts.pre_accounts.extend_from_slice(&[
