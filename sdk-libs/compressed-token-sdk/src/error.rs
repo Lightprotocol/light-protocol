@@ -2,6 +2,7 @@ use light_compressed_token_types::error::LightTokenSdkTypeError;
 use light_ctoken_types::CTokenError;
 use light_sdk::error::LightSdkError;
 use light_sdk_types::error::LightSdkTypesError;
+use light_zero_copy::errors::ZeroCopyError;
 use solana_program_error::ProgramError;
 use thiserror::Error;
 
@@ -51,6 +52,8 @@ pub enum TokenSdkError {
     LightSdkError(#[from] LightSdkError),
     #[error(transparent)]
     LightSdkTypesError(#[from] LightSdkTypesError),
+    #[error(transparent)]
+    ZeroCopyError(#[from] ZeroCopyError),
 }
 #[cfg(feature = "anchor")]
 impl From<TokenSdkError> for anchor_lang::prelude::ProgramError {
@@ -89,6 +92,7 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::CTokenError(e) => e.into(),
             TokenSdkError::LightSdkTypesError(e) => e.into(),
             TokenSdkError::LightSdkError(e) => e.into(),
+            TokenSdkError::ZeroCopyError(e) => e.into(),
         }
     }
 }

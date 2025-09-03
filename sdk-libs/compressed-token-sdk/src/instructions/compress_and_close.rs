@@ -22,7 +22,6 @@ pub struct CompressAndCloseIndices {
     pub authority_index: u8,
     pub rent_recipient_index: u8,
     pub output_tree_index: u8,
-    pub amount: u64,
 }
 
 /// Find and validate all required account indices from packed_accounts
@@ -34,7 +33,6 @@ fn find_account_indices(
     authority: impl Into<Pubkey>,
     rent_recipient_pubkey: Pubkey,
     output_tree_pubkey: Pubkey,
-    amount: u64,
 ) -> Result<CompressAndCloseIndices, TokenSdkError> {
     let mint_pubkey = mint_pubkey.into();
     let owner_pubkey = owner_pubkey.into();
@@ -77,7 +75,6 @@ fn find_account_indices(
         authority_index,
         rent_recipient_index,
         output_tree_index,
-        amount,
     })
 }
 
@@ -105,13 +102,24 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
     let mut token_accounts = Vec::with_capacity(indices.len());
 
     for idx in indices {
+        // Get the amount from the source token account
+        let source_account = packed_accounts
+            .get(idx.source_index as usize)
+            .ok_or(TokenSdkError::InvalidAccountData)?;
+        
+        let account_data = source_account
+            .try_borrow_data()
+            .map_err(|_| TokenSdkError::AccountBorrowFailed)?;
+        
+        let amount = light_ctoken_types::state::CompressedToken::amount_from_slice(&account_data)?;
+
         // Create CTokenAccount2 for CompressAndClose operation
         let mut token_account =
             CTokenAccount2::new_empty(idx.owner_index, idx.mint_index, idx.output_tree_index);
 
         // Set up compress_and_close with actual indices
         token_account.compress_and_close(
-            idx.amount,
+            amount,
             idx.source_index,
             idx.authority_index,
             idx.rent_recipient_index,
@@ -191,9 +199,6 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             light_ctoken_types::state::CompressedToken::zero_copy_at(&account_data)
                 .map_err(|_| TokenSdkError::InvalidAccountData)?;
 
-        // Get the amount (full balance) - convert from zero-copy type
-        let amount = u64::from(*compressed_token.amount);
-
         // Extract pubkeys from the deserialized account
         let mint_pubkey = Pubkey::from(compressed_token.mint.to_bytes());
         let owner_pubkey = Pubkey::from(compressed_token.owner.to_bytes());
@@ -254,7 +259,6 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             authority,
             rent_recipient_pubkey.ok_or(TokenSdkError::InvalidAccountData)?,
             output_tree_pubkey.ok_or(TokenSdkError::InvalidAccountData)?,
-            amount,
         )?;
 
         indices_vec.push(indices);

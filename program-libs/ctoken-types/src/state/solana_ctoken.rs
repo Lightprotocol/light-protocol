@@ -40,6 +40,38 @@ pub struct CompressedToken {
     pub extensions: Option<Vec<ExtensionStruct>>,
 }
 
+impl CompressedToken {
+    /// Extract amount directly from account data slice using hardcoded offset
+    /// CompressedToken layout: mint (32 bytes) + owner (32 bytes) + amount (8 bytes)
+    pub fn amount_from_slice(data: &[u8]) -> Result<u64, ZeroCopyError> {
+        const AMOUNT_OFFSET: usize = 64; // 32 (mint) + 32 (owner)
+        
+        if data.len() < AMOUNT_OFFSET + 8 {
+            return Err(ZeroCopyError::Size);
+        }
+        
+        let amount_bytes = &data[AMOUNT_OFFSET..AMOUNT_OFFSET + 8];
+        let amount = u64::from_le_bytes(
+            amount_bytes
+                .try_into()
+                .map_err(|_| ZeroCopyError::Size)?
+        );
+        
+        Ok(amount)
+    }
+    
+    /// Extract amount from an AccountInfo
+    #[cfg(feature = "solana")]
+    pub fn amount_from_account_info(
+        account_info: &solana_account_info::AccountInfo,
+    ) -> Result<u64, ZeroCopyError> {
+        let data = account_info
+            .try_borrow_data()
+            .map_err(|_| ZeroCopyError::Size)?;
+        Self::amount_from_slice(&data)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenMeta {
     /// The mint associated with this account
