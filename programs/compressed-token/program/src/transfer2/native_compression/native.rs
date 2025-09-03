@@ -174,6 +174,15 @@ fn validate_compressed_token_account(
             .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
             .key()
     {
+        msg!(
+            "*compressed_token.owner {:?} packed_accounts owner: {:?}",
+            solana_pubkey::Pubkey::new_from_array(compressed_token.owner.to_bytes()),
+            solana_pubkey::Pubkey::new_from_array(
+                *packed_accounts
+                    .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
+                    .key()
+            )
+        );
         return Err(ErrorCode::CompressAndCloseInvalidOwner.into());
     }
     // Compression amount must match the output amount

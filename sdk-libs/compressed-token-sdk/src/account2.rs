@@ -4,6 +4,7 @@ use light_compressed_token_types::ValidityProof;
 use light_ctoken_types::instructions::transfer2::{
     Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
 };
+use light_profiler::profile;
 use solana_account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
@@ -27,6 +28,7 @@ pub struct CTokenAccount2 {
 }
 
 impl CTokenAccount2 {
+    #[profile]
     pub fn new(
         token_data: Vec<MultiInputTokenDataWithContext>,
         output_merkle_tree_index: u8,
@@ -63,6 +65,7 @@ impl CTokenAccount2 {
     /// Input token accounts are delegated and delegate is signer
     /// The change output account is also delegated.
     /// (with new change output account is not delegated even if inputs were)
+    #[profile]
     pub fn new_delegated(
         token_data: Vec<MultiInputTokenDataWithContext>,
         output_merkle_tree_index: u8,
@@ -96,6 +99,7 @@ impl CTokenAccount2 {
         })
     }
 
+    #[profile]
     pub fn new_empty(owner_index: u8, mint_index: u8, output_merkle_tree_index: u8) -> Self {
         Self {
             inputs: vec![],
@@ -116,6 +120,7 @@ impl CTokenAccount2 {
 
     // TODO: consider this might be confusing because it must not be used in combination with fn transfer()
     //     could mark the struct as transferred and throw in fn transfer
+    #[profile]
     pub fn transfer(
         &mut self,
         recipient_index: u8,
@@ -151,6 +156,7 @@ impl CTokenAccount2 {
     /// Similar to transfer, this deducts the amount from the current account
     /// and returns a new CTokenAccount that represents the delegated portion.
     /// The original account balance is reduced by the delegated amount.
+    #[profile]
     pub fn approve(
         &mut self,
         delegate_index: u8,
@@ -187,6 +193,7 @@ impl CTokenAccount2 {
     }
 
     // TODO: consider this might be confusing because it must not be used in combination with fn compress()
+    #[profile]
     pub fn compress(
         &mut self,
         amount: u64,
@@ -210,6 +217,7 @@ impl CTokenAccount2 {
         Ok(())
     }
 
+    #[profile]
     pub fn compress_spl(
         &mut self,
         amount: u64,
@@ -240,6 +248,7 @@ impl CTokenAccount2 {
     }
 
     // TODO: consider this might be confusing because it must not be used in combination with fn decompress()
+    #[profile]
     pub fn decompress(&mut self, amount: u64, source_index: u8) -> Result<(), TokenSdkError> {
         // Check if there's already a compression set
         if self.compression.is_some() {
@@ -261,6 +270,7 @@ impl CTokenAccount2 {
         Ok(())
     }
 
+    #[profile]
     pub fn decompress_spl(
         &mut self,
         amount: u64,
@@ -292,6 +302,7 @@ impl CTokenAccount2 {
         Ok(())
     }
 
+    #[profile]
     pub fn compress_full(
         &mut self,
         source_or_recipient_index: u8,
@@ -325,12 +336,14 @@ impl CTokenAccount2 {
         Ok(())
     }
 
+    #[profile]
     pub fn compress_and_close(
         &mut self,
         amount: u64,
         source_or_recipient_index: u8,
         authority: u8,
         rent_recipient_index: u8,
+        compressed_account_index: u8,
     ) -> Result<(), TokenSdkError> {
         // Check if there's already a compression set
         if self.compression.is_some() {
@@ -347,6 +360,7 @@ impl CTokenAccount2 {
             source_or_recipient_index,
             authority,
             rent_recipient_index,
+            compressed_account_index,
         ));
         self.method_used = true;
 
@@ -411,6 +425,7 @@ impl Deref for CTokenAccount2 {
 }
 
 #[allow(clippy::too_many_arguments)]
+#[profile]
 pub fn create_spl_to_ctoken_transfer_instruction(
     source_spl_token_account: Pubkey,
     to: Pubkey,
@@ -478,6 +493,7 @@ pub fn create_spl_to_ctoken_transfer_instruction(
 }
 
 #[allow(clippy::too_many_arguments)]
+#[profile]
 pub fn create_ctoken_to_spl_transfer_instruction(
     source_ctoken_account: Pubkey,
     destination_spl_token_account: Pubkey,

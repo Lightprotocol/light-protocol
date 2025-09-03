@@ -19,7 +19,6 @@ pub fn process_compress_and_close_cpi<'info>(
 
     let cpi_accounts =
         CpiAccounts::new_with_config(ctx.accounts.signer.as_ref(), system_account_infos, config);
-
     // Use the higher-level compress_and_close_ctoken_accounts function
     // This function handles:
     // - Deserializing the compressed token accounts
@@ -29,7 +28,8 @@ pub fn process_compress_and_close_cpi<'info>(
     let instruction = compress_and_close_ctoken_accounts(
         *ctx.accounts.signer.key,                          // fee_payer
         with_rent_authority, // whether to use rent authority from extension
-        None,                // cpi_context_pubkey (not used in this example)
+        ctx.accounts.output_queue.to_account_info(), // output queue where compressed accounts will be stored
+        None, // cpi_context_pubkey (not used in this example)
         &[&ctx.accounts.ctoken_account.to_account_info()], // slice of ctoken account infos
         cpi_accounts.tree_accounts().unwrap(), // packed accounts for the instruction
     )
@@ -37,7 +37,10 @@ pub fn process_compress_and_close_cpi<'info>(
 
     // Build the account infos for the CPI call
     let account_infos = [
-        &[cpi_accounts.fee_payer().clone()][..],
+        &[
+            cpi_accounts.fee_payer().clone(),
+            ctx.accounts.output_queue.to_account_info(),
+        ][..],
         ctx.remaining_accounts,
     ]
     .concat();

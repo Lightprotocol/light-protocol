@@ -116,24 +116,12 @@ pub mod sdk_token_test {
     /// This atomically compresses tokens and closes the account in a single instruction
     pub fn compress_and_close_cpi_indices<'info>(
         ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
-        output_tree_index: u8,
-        recipient_index: u8,
-        mint_index: u8,
-        source_index: u8,
-        authority_index: u8,
-        rent_recipient_index: u8,
+        indices: Vec<
+            light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseIndices,
+        >,
         system_accounts_offset: u8,
     ) -> Result<()> {
-        process_compress_and_close_cpi_indices(
-            ctx,
-            output_tree_index,
-            recipient_index,
-            mint_index,
-            source_index,
-            authority_index,
-            rent_recipient_index,
-            system_accounts_offset,
-        )
+        process_compress_and_close_cpi_indices(ctx, indices, system_accounts_offset)
     }
 
     pub fn transfer_tokens<'info>(
@@ -354,4 +342,7 @@ pub struct OneCTokenAccount<'info> {
     /// CHECK:
     #[account(mut)]
     pub ctoken_account: UncheckedAccount<'info>,
+    /// CHECK:
+    #[account(mut)]
+    pub output_queue: UncheckedAccount<'info>,
 }

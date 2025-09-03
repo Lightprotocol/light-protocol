@@ -14,6 +14,7 @@ use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_rpc_client_api::config::RpcSendTransactionConfig;
 use solana_signature::Signature;
+use solana_signer::Signer;
 use solana_transaction::Transaction;
 use solana_transaction_status_client_types::TransactionStatus;
 
@@ -170,9 +171,21 @@ pub trait Rpc: Send + Sync + Debug + 'static {
     ) -> Result<Signature, RpcError> {
         let blockhash = self.get_latest_blockhash().await?.0;
         let mut transaction = Transaction::new_with_payer(instructions, Some(payer));
-        transaction
-            .try_sign(signers, blockhash)
-            .map_err(|e| RpcError::CustomError(e.to_string()))?;
+        transaction.try_sign(signers, blockhash).map_err(|e| {
+            println!(
+                "Provided signers: {:?}",
+                signers.iter().map(|s| s.pubkey()).collect::<Vec<_>>()
+            );
+
+            let message = transaction.message();
+            let num_required_signatures = message.header.num_required_signatures as usize;
+            println!(
+                "Expected signers (first {} accounts in message): {:?}",
+                num_required_signatures,
+                message.account_keys[..num_required_signatures].to_vec()
+            );
+            RpcError::CustomError(e.to_string())
+        })?;
         self.process_transaction(transaction).await
     }
 

@@ -2,7 +2,9 @@ use light_compressed_token_types::{constants::TRANSFER2, CompressedCpiContext, V
 use light_ctoken_types::{
     instructions::transfer2::CompressedTokenInstructionDataTransfer2, COMPRESSED_TOKEN_PROGRAM_ID,
 };
+use light_profiler::profile;
 use solana_instruction::{AccountMeta, Instruction};
+use solana_msg::msg;
 use solana_pubkey::Pubkey;
 
 use crate::{
@@ -70,6 +72,7 @@ pub struct Transfer2Inputs {
 }
 
 /// Create the instruction for compressed token multi-transfer operations
+#[profile]
 pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instruction> {
     let Transfer2Inputs {
         token_accounts,
@@ -90,7 +93,7 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
             collected_compressions.push(*compression);
         }
         let (inputs, output) = token_account.into_inputs_and_outputs();
-
+        msg!("output {:?}", output);
         // Collect inputs directly (they're already in the right format)
         input_token_data_with_context.extend(inputs);
 

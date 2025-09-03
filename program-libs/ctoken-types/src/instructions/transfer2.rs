@@ -134,6 +134,7 @@ impl Compression {
         source_or_recipient: u8,
         authority: u8,
         rent_recipient_index: u8,
+        compressed_account_index: u8,
     ) -> Self {
         Compression {
             amount, // the full balance of the ctoken account to be compressed
@@ -142,7 +143,7 @@ impl Compression {
             source_or_recipient,
             authority,
             pool_account_index: rent_recipient_index,
-            pool_index: 0,
+            pool_index: compressed_account_index,
             bump: 0,
         }
     }

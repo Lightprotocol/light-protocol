@@ -22,7 +22,10 @@ pub use batch_compress::{
     create_batch_compress_instruction, get_batch_compress_instruction_account_metas,
     BatchCompressInputs, BatchCompressMetaConfig, Recipient,
 };
-pub use compress_and_close::compress_and_close_ctoken_accounts;
+pub use compress_and_close::{
+    compress_and_close_ctoken_accounts, compress_and_close_ctoken_accounts_with_indices,
+    CompressAndCloseIndices,
+};
 pub use create_associated_token_account::*;
 pub use create_compressed_mint::*;
 pub use create_spl_mint::*;

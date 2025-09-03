@@ -12,6 +12,8 @@ pub type Result<T> = std::result::Result<T, LightSdkError>;
 pub enum LightSdkError {
     #[error("Constraint violation")]
     ConstraintViolation,
+    #[error("System accounts already set")]
+    SystemAccountsAlreadySet,
     #[error("Invalid light-system-program ID")]
     InvalidLightSystemProgram,
     #[error("Expected accounts in the instruction")]
@@ -162,6 +164,7 @@ impl From<LightSdkError> for u32 {
             LightSdkError::InvalidSolPoolPdaAccount => 16033,
             LightSdkError::InvalidCpiAccountsOffset => 16034,
             LightSdkError::CpiContextOrderingViolation => 16035,
+            LightSdkError::SystemAccountsAlreadySet => 16036,
             LightSdkError::AccountError(e) => e.into(),
             LightSdkError::Hasher(e) => e.into(),
             LightSdkError::ZeroCopy(e) => e.into(),

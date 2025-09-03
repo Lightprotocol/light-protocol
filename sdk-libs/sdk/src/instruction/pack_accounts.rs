@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
+    error::LightSdkError,
     instruction::system_accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
     AccountMeta, Pubkey,
 };
@@ -11,6 +12,12 @@ pub struct PackedAccounts {
     system_accounts: Vec<AccountMeta>,
     next_index: u8,
     map: HashMap<Pubkey, (u8, AccountMeta)>,
+    /// Field to sanity check
+    system_accounts_set: bool,
+}
+
+pub trait AccountMetasVec {
+    fn get_account_metas_vec(&self, accounts: &mut PackedAccounts) -> Result<(), LightSdkError>;
 }
 
 impl PackedAccounts {
@@ -18,6 +25,10 @@ impl PackedAccounts {
         let mut remaining_accounts = PackedAccounts::default();
         remaining_accounts.add_system_accounts(config)?;
         Ok(remaining_accounts)
+    }
+
+    pub fn system_accounts_set(&self) -> bool {
+        self.system_accounts_set
     }
 
     pub fn add_pre_accounts_signer(&mut self, pubkey: Pubkey) {
@@ -44,10 +55,20 @@ impl PackedAccounts {
         self.pre_accounts.extend_from_slice(account_metas);
     }
 
+    pub fn add_custom_system_accounts<T: AccountMetasVec>(
+        &mut self,
+        accounts: T,
+    ) -> crate::error::Result<()> {
+        accounts.get_account_metas_vec(self)
+    }
+
     pub fn add_system_accounts(
         &mut self,
         config: SystemAccountMetaConfig,
     ) -> crate::error::Result<()> {
+        if self.system_accounts_set {
+            return Err(LightSdkError::SystemAccountsAlreadySet);
+        }
         self.system_accounts
             .extend(get_light_system_account_metas(config));
         // note cpi context account is part of the system accounts
@@ -57,6 +78,7 @@ impl PackedAccounts {
             }
             self.insert_or_get(pubkey);
         }*/
+        self.system_accounts_set = true;
         Ok(())
     }
 
@@ -65,6 +87,9 @@ impl PackedAccounts {
         &mut self,
         config: SystemAccountMetaConfig,
     ) -> crate::error::Result<()> {
+        if self.system_accounts_set {
+            return Err(LightSdkError::SystemAccountsAlreadySet);
+        }
         self.system_accounts
             .extend(crate::instruction::get_light_system_account_metas_small(
                 config,
@@ -76,6 +101,7 @@ impl PackedAccounts {
             }
             self.insert_or_get(pubkey);
         }*/
+        self.system_accounts_set = true;
         Ok(())
     }
 

@@ -479,11 +479,13 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     packed_tree_accounts.insert_or_get_config(input.authority, true, false);
 
                 // Use compress_and_close method with the actual balance
+                // The compressed_account_index should match the position in token_accounts
                 token_account.compress_and_close(
                     (*balance).into(),
                     source_index,
                     authority_index,
                     rent_recipient_index, // Use the extracted rent_recipient
+                    token_accounts.len() as u8, // Index in the output array
                 )?;
 
                 token_accounts.push(token_account);

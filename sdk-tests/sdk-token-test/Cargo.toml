@@ -15,8 +15,20 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-test-sbf = []
-default = []
+test-sbf = ["profile-program"]
+default = ["profile-program"]
+profile-program = [
+    "light-compressed-token-sdk/profile-program",
+    "light-profiler/profile-program",
+    "light-compressed-account/profile-program",
+    "light-ctoken-types/profile-program",
+]
+profile-heap = [
+    "light-compressed-token-sdk/profile-heap",
+    "light-profiler/profile-heap",
+    "light-compressed-account/profile-heap",
+    "light-ctoken-types/profile-heap",
+]
 
 [dependencies]
 light-compressed-token-sdk = { workspace = true, features = ["anchor"] }
@@ -29,6 +41,7 @@ arrayvec = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-ctoken-types = { workspace = true, features = ["anchor"] }
 light-zero-copy = { workspace = true }
+light-profiler = { workspace = true }
 
 [dev-dependencies]
 light-program-test = { workspace = true, features = ["devenv"] }
