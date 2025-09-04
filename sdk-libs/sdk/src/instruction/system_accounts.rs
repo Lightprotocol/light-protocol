@@ -7,7 +7,7 @@ use crate::{find_cpi_signer_macro, AccountMeta, Pubkey};
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct SystemAccountMetaConfig {
-    pub self_program: Pubkey,
+    pub self_program: Option<Pubkey>,
     pub cpi_context: Option<Pubkey>,
     pub sol_compression_recipient: Option<Pubkey>,
     pub sol_pool_pda: Option<Pubkey>,
@@ -16,7 +16,7 @@ pub struct SystemAccountMetaConfig {
 impl SystemAccountMetaConfig {
     pub fn new(self_program: Pubkey) -> Self {
         Self {
-            self_program,
+            self_program: Some(self_program),
             cpi_context: None,
             sol_compression_recipient: None,
             sol_pool_pda: None,
@@ -25,7 +25,7 @@ impl SystemAccountMetaConfig {
 
     pub fn new_with_cpi_context(self_program: Pubkey, cpi_context: Pubkey) -> Self {
         Self {
-            self_program,
+            self_program: Some(self_program),
             cpi_context: Some(cpi_context),
             sol_compression_recipient: None,
             sol_pool_pda: None,
@@ -71,7 +71,7 @@ impl Default for SystemAccountPubkeys {
 }
 
 pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
-    let cpi_signer = find_cpi_signer_macro!(&config.self_program).0;
+    let cpi_signer = find_cpi_signer_macro!(&config.self_program.unwrap()).0;
     let default_pubkeys = SystemAccountPubkeys::default();
 
     let mut vec = vec![
@@ -81,7 +81,7 @@ pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<Ac
         AccountMeta::new_readonly(default_pubkeys.noop_program, false),
         AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
         AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-        AccountMeta::new_readonly(config.self_program, false),
+        AccountMeta::new_readonly(config.self_program.unwrap(), false),
     ];
 
     if let Some(pubkey) = config.sol_pool_pda {
@@ -124,17 +124,27 @@ pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<Ac
 /// 6. Account Compression Authority
 #[cfg(feature = "v2")]
 pub fn get_light_system_account_metas_small(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
-    let cpi_signer = find_cpi_signer_macro!(&config.self_program).0;
     let default_pubkeys = SystemAccountPubkeys::default();
 
-    let mut vec = vec![
-        AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
-        AccountMeta::new_readonly(cpi_signer, false), // authority (cpi_signer)
-        AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
-        AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
-        AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-        AccountMeta::new_readonly(default_pubkeys.system_program, false),
-    ];
+    let mut vec = if let Some(self_program) = &config.self_program {
+        let cpi_signer = find_cpi_signer_macro!(self_program).0;
+        vec![
+            AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
+            AccountMeta::new_readonly(cpi_signer, false), // authority (cpi_signer)
+            AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
+            AccountMeta::new_readonly(default_pubkeys.system_program, false),
+        ]
+    } else {
+        vec![
+            AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
+            AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
+            AccountMeta::new_readonly(default_pubkeys.system_program, false),
+        ]
+    };
 
     if let Some(pubkey) = config.sol_pool_pda {
         vec.push(AccountMeta {

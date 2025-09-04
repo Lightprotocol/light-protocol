@@ -27,11 +27,13 @@ use light_sdk::{cpi::CpiAccounts, instruction::account_meta::CompressedAccountMe
 pub use pda_ctoken::*;
 use process_batch_compress_tokens::process_batch_compress_tokens;
 use process_compress_and_close_cpi::process_compress_and_close_cpi;
+use process_compress_and_close_cpi_context::process_compress_and_close_cpi_context;
 use process_compress_and_close_cpi_indices::process_compress_and_close_cpi_indices;
 use process_compress_full_and_close::process_compress_full_and_close;
 use process_compress_tokens::process_compress_tokens;
 use process_create_compressed_account::process_create_compressed_account;
 use process_create_escrow_pda::process_create_escrow_pda;
+use process_decompress_full_cpi_context::process_decompress_full_cpi_context;
 use process_decompress_tokens::process_decompress_tokens;
 use process_four_invokes::process_four_invokes;
 pub use process_four_invokes::{CompressParams, FourInvokesParams, TransferParams};
@@ -64,10 +66,8 @@ use light_sdk_types::CpiAccountsConfig;
 
 use crate::{
     ctoken_pda::*, mint_compressed_tokens_cpi_write::MintCompressedTokensCpiWriteParams,
-    process_compress_and_close_cpi_context::process_compress_and_close_cpi_context,
-    process_create_compressed_account::deposit_tokens,
-    process_decompress_full_cpi_context::process_decompress_full_cpi_context,
-    process_four_transfer2::FourTransfer2Params, process_update_deposit::process_update_deposit,
+    process_create_compressed_account::deposit_tokens, process_four_transfer2::FourTransfer2Params,
+    process_update_deposit::process_update_deposit,
 };
 #[program]
 pub mod sdk_token_test {
@@ -121,20 +121,19 @@ pub mod sdk_token_test {
     /// Compress and close using the higher-level SDK function
     /// This uses compress_and_close_ctoken_accounts which handles all index discovery
     pub fn compress_and_close_cpi_with_cpi_context<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        ctx: Context<'_, '_, 'info, 'info, Generic<'info>>,
         indices: Vec<
             light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseIndices,
         >,
-        system_accounts_offset: u8,
         params: MintCompressedTokensCpiWriteParams,
     ) -> Result<()> {
-        process_compress_and_close_cpi_context(ctx, indices, system_accounts_offset, params)
+        process_compress_and_close_cpi_context(ctx, indices, params)
     }
 
     /// Compress and close with manual indices
     /// This atomically compresses tokens and closes the account in a single instruction
     pub fn compress_and_close_cpi_indices<'info>(
-        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        ctx: Context<'_, '_, 'info, 'info, Generic<'info>>,
         indices: Vec<
             light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseIndices,
         >,
@@ -151,15 +150,8 @@ pub mod sdk_token_test {
             light_compressed_token_sdk::instructions::decompress_full::DecompressFullIndices,
         >,
         validity_proof: light_compressed_token_sdk::ValidityProof,
-        system_accounts_offset: u8,
     ) -> Result<()> {
-        process_decompress_full_cpi_context(
-            ctx,
-            indices,
-            validity_proof,
-            system_accounts_offset,
-            None,
-        )
+        process_decompress_full_cpi_context(ctx, indices, validity_proof, None)
     }
 
     /// Decompress full balance from compressed accounts with CPI context
@@ -170,16 +162,9 @@ pub mod sdk_token_test {
             light_compressed_token_sdk::instructions::decompress_full::DecompressFullIndices,
         >,
         validity_proof: light_compressed_token_sdk::ValidityProof,
-        system_accounts_offset: u8,
         params: Option<MintCompressedTokensCpiWriteParams>,
     ) -> Result<()> {
-        process_decompress_full_cpi_context(
-            ctx,
-            indices,
-            validity_proof,
-            system_accounts_offset,
-            params,
-        )
+        process_decompress_full_cpi_context(ctx, indices, validity_proof, params)
     }
 
     pub fn transfer_tokens<'info>(

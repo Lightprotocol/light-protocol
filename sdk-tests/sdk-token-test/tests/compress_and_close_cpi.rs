@@ -213,7 +213,7 @@ async fn test_compress_and_close_cpi_indices() {
     .unwrap();
 
     // Add light system program accounts
-    let config = CompressAndCloseAccounts::new(sdk_token_test::ID, None);
+    let config = CompressAndCloseAccounts::default();
     remaining_accounts
         .add_custom_system_accounts(config)
         .unwrap();
@@ -314,7 +314,7 @@ async fn test_compress_and_close_cpi_high_level() {
     )
     .unwrap();
 
-    let config = CompressAndCloseAccounts::new(sdk_token_test::ID, None);
+    let config = CompressAndCloseAccounts::default();
     remaining_accounts
         .add_custom_system_accounts(config)
         .unwrap();
@@ -430,7 +430,7 @@ async fn test_compress_and_close_cpi_multiple() {
     }
 
     // Add light system program accounts
-    let config = CompressAndCloseAccounts::new(sdk_token_test::ID, None);
+    let config = CompressAndCloseAccounts::default();
     remaining_accounts
         .add_custom_system_accounts(config)
         .unwrap();
@@ -543,7 +543,7 @@ async fn test_compress_and_close_cpi_multiple_with_rent_authority() {
     }
 
     // Add light system program accounts
-    let config = CompressAndCloseAccounts::new(sdk_token_test::ID, None);
+    let config = CompressAndCloseAccounts::default();
     remaining_accounts
         .add_custom_system_accounts(config)
         .unwrap();
@@ -774,7 +774,7 @@ async fn test_compress_and_close_cpi_mixed_signers() {
     }
 
     // Add light system program accounts
-    let config = CompressAndCloseAccounts::new(sdk_token_test::ID, None);
+    let config = CompressAndCloseAccounts::default();
     remaining_accounts
         .add_custom_system_accounts(config)
         .unwrap();
@@ -903,7 +903,7 @@ async fn test_compress_and_close_cpi_with_context() {
         .expect("CPI context required for this test");
     // Add light system program accounts (following the pattern from other tests)
     use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseAccounts;
-    let config = CompressAndCloseAccounts::new(sdk_token_test::ID, Some(cpi_context_pubkey));
+    let config = CompressAndCloseAccounts::new_with_cpi_context(Some(cpi_context_pubkey), None);
     remaining_accounts.insert_or_get(output_tree_info.queue);
     remaining_accounts
         .add_custom_system_accounts(config)
@@ -1003,7 +1003,6 @@ async fn test_compress_and_close_cpi_with_context() {
     // Create the compress_and_close_cpi_with_cpi_context instruction
     let instruction_data = sdk_token_test::instruction::CompressAndCloseCpiWithCpiContext {
         indices: vec![indices], // Use generated indices like CompressAndCloseCpiIndices pattern
-        system_accounts_offset: system_accounts_start_offset as u8,
         params: mint_params,
     };
 

@@ -1,3 +1,4 @@
+use light_account_checks::AccountError;
 use light_compressed_token_types::error::LightTokenSdkTypeError;
 use light_ctoken_types::CTokenError;
 use light_sdk::error::LightSdkError;
@@ -54,6 +55,8 @@ pub enum TokenSdkError {
     LightSdkTypesError(#[from] LightSdkTypesError),
     #[error(transparent)]
     ZeroCopyError(#[from] ZeroCopyError),
+    #[error(transparent)]
+    AccountError(#[from] AccountError),
 }
 #[cfg(feature = "anchor")]
 impl From<TokenSdkError> for anchor_lang::prelude::ProgramError {
@@ -93,6 +96,7 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::LightSdkTypesError(e) => e.into(),
             TokenSdkError::LightSdkError(e) => e.into(),
             TokenSdkError::ZeroCopyError(e) => e.into(),
+            TokenSdkError::AccountError(e) => e.into(),
         }
     }
 }

@@ -190,7 +190,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
     let mut packed_accounts = PackedAccounts::default();
     let config = SystemAccountMetaConfig {
         cpi_context: tree_info.cpi_context,
-        self_program: ID,
+        self_program: Some(ID),
         ..Default::default()
     };
     packed_accounts.add_system_accounts_small(config).unwrap();

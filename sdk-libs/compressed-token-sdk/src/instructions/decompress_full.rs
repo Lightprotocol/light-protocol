@@ -169,11 +169,19 @@ pub struct DecompressFullAccounts {
     pub compressed_token_program: Pubkey,
     pub cpi_authority_pda: Pubkey,
     pub cpi_context: Option<Pubkey>,
-    pub self_program: Pubkey,
+    pub self_program: Option<Pubkey>,
 }
 
 impl DecompressFullAccounts {
-    pub fn new(self_program: Pubkey, cpi_context: Option<Pubkey>) -> Self {
+    pub fn new(cpi_context: Option<Pubkey>) -> Self {
+        Self {
+            compressed_token_program: CTokenDefaultAccounts::default().compressed_token_program,
+            cpi_authority_pda: CTokenDefaultAccounts::default().cpi_authority_pda,
+            cpi_context,
+            self_program: None,
+        }
+    }
+    pub fn new_with_cpi_context(cpi_context: Option<Pubkey>, self_program: Option<Pubkey>) -> Self {
         Self {
             compressed_token_program: CTokenDefaultAccounts::default().compressed_token_program,
             cpi_authority_pda: CTokenDefaultAccounts::default().cpi_authority_pda,

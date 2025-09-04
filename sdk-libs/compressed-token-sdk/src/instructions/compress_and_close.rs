@@ -368,11 +368,22 @@ pub struct CompressAndCloseAccounts {
     pub compressed_token_program: Pubkey,
     pub cpi_authority_pda: Pubkey,
     pub cpi_context: Option<Pubkey>,
-    pub self_program: Pubkey,
+    pub self_program: Option<Pubkey>,
+}
+
+impl Default for CompressAndCloseAccounts {
+    fn default() -> Self {
+        Self {
+            compressed_token_program: CTokenDefaultAccounts::default().compressed_token_program,
+            cpi_authority_pda: CTokenDefaultAccounts::default().cpi_authority_pda,
+            cpi_context: None,
+            self_program: None,
+        }
+    }
 }
 
 impl CompressAndCloseAccounts {
-    pub fn new(self_program: Pubkey, cpi_context: Option<Pubkey>) -> Self {
+    pub fn new_with_cpi_context(cpi_context: Option<Pubkey>, self_program: Option<Pubkey>) -> Self {
         Self {
             compressed_token_program: CTokenDefaultAccounts::default().compressed_token_program,
             cpi_authority_pda: CTokenDefaultAccounts::default().cpi_authority_pda,

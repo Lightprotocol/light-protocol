@@ -1,8 +1,10 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_compressed_token_sdk::instructions::compress_and_close::{
-    compress_and_close_ctoken_accounts_with_indices, CompressAndCloseIndices,
+use light_compressed_token_sdk::instructions::{
+    compress_and_close::{
+        compress_and_close_ctoken_accounts_with_indices, CompressAndCloseIndices,
+    },
+    transfer2::Transfer2CpiAccounts,
 };
-use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall};
 
 use crate::{
     mint_compressed_tokens_cpi_write::{
@@ -16,56 +18,34 @@ use crate::{
 pub fn process_compress_and_close_cpi_context<'info>(
     ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
     indices: Vec<CompressAndCloseIndices>,
-    system_accounts_offset: u8,
     params: MintCompressedTokensCpiWriteParams,
 ) -> Result<()> {
-    // Parse CPI accounts following the established pattern
-    let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
-    let (_token_account_infos, system_account_infos) = ctx
-        .remaining_accounts
-        .split_at(system_accounts_offset as usize);
-
-    let cpi_accounts = CpiAccountsSmall::new_with_config(
+    // Now use Transfer2CpiAccounts for compress_and_close
+    let transfer2_accounts = Transfer2CpiAccounts::try_from_account_infos_cpi_context(
         ctx.accounts.signer.as_ref(),
-        system_account_infos,
-        config,
-    );
+        ctx.remaining_accounts,
+    )
+    .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    process_mint_compressed_tokens_cpi_write(
-        &ctx,
-        params,
-        &_token_account_infos[1], // ctoken cpi authority
-        &cpi_accounts,
-    )?;
+    process_mint_compressed_tokens_cpi_write(&ctx, params, &transfer2_accounts)?;
 
-    // Get the tree accounts (packed accounts) from CPI accounts
-    let packed_accounts = cpi_accounts
-        .tree_accounts()
-        .map_err(|e| ProgramError::Custom(e.into()))?;
-    msg!(
-        "packed_accounts {:?}",
-        packed_accounts
-            .iter()
-            .map(|x| { x.key })
-            .collect::<Vec<_>>()
-    );
+    // Get the packed accounts from Transfer2CpiAccounts
+    let packed_accounts = transfer2_accounts.packed_accounts();
+
     // Use the SDK's compress_and_close function with the provided indices
     let instruction = compress_and_close_ctoken_accounts_with_indices(
         *ctx.accounts.signer.key,
-        Some(*cpi_accounts.cpi_context().unwrap().key), // Use the CPI context from params
+        transfer2_accounts.cpi_context.map(|c| c.key()), // Use the CPI context from Transfer2CpiAccounts
         &indices,
-        &packed_accounts[1..], // skip cpi context account
+        packed_accounts, // Pass complete packed accounts
     )
     .map_err(ProgramError::from)?;
 
-    // Execute the single instruction that handles both compression and closure
-    let account_infos = [
-        &[cpi_accounts.fee_payer().clone()][..],
-        ctx.remaining_accounts,
-    ]
-    .concat();
-
-    invoke(&instruction, account_infos.as_slice())?;
+    // Use Transfer2CpiAccounts to build account infos for invoke
+    invoke(
+        &instruction,
+        transfer2_accounts.to_account_infos().as_slice(),
+    )?;
 
     Ok(())
 }

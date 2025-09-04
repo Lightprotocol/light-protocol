@@ -204,7 +204,7 @@ async fn test_decompress_full_cpi() {
             .value;
 
         let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
-        let config = DecompressFullAccounts::new(sdk_token_test::ID, None);
+        let config = DecompressFullAccounts::new(None);
         remaining_accounts
             .add_custom_system_accounts(config)
             .unwrap();
@@ -236,12 +236,10 @@ async fn test_decompress_full_cpi() {
             .collect();
 
         let validity_proof = rpc_result.proof;
-        let (account_metas, system_accounts_start_offset, _) =
-            remaining_accounts.to_account_metas();
+        let (account_metas, _, _) = remaining_accounts.to_account_metas();
         let instruction_data = sdk_token_test::instruction::DecompressFullCpi {
             indices,
             validity_proof,
-            system_accounts_offset: system_accounts_start_offset as u8,
         };
 
         let instruction = Instruction {
@@ -334,7 +332,7 @@ async fn test_decompress_full_cpi_with_context() {
         let cpi_context_pubkey = output_tree_info
             .cpi_context
             .expect("CPI context required for this test");
-        let config = DecompressFullAccounts::new(sdk_token_test::ID, Some(cpi_context_pubkey));
+        let config = DecompressFullAccounts::new(Some(cpi_context_pubkey));
         remaining_accounts
             .add_custom_system_accounts(config)
             .unwrap();
@@ -443,7 +441,6 @@ async fn test_decompress_full_cpi_with_context() {
         let instruction_data = sdk_token_test::instruction::DecompressFullCpiWithCpiContext {
             indices,
             validity_proof,
-            system_accounts_offset: system_accounts_start_offset as u8,
             params: Some(mint_params),
         };
 
