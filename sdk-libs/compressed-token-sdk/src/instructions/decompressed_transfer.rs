@@ -23,7 +23,7 @@ pub fn create_decompressed_token_transfer_instruction(
     amount: u64,
     authority: Pubkey,
 ) -> Instruction {
-    let transfer_instruction = Instruction {
+    Instruction {
         program_id: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
         accounts: vec![
             AccountMeta::new(source, false),
@@ -36,9 +36,7 @@ pub fn create_decompressed_token_transfer_instruction(
             data.extend_from_slice(&amount.to_le_bytes());
             data
         },
-    };
-
-    transfer_instruction
+    }
 }
 
 /// Transfer decompressed ctokens

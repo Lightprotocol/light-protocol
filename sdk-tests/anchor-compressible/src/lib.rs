@@ -7,19 +7,8 @@ use anchor_lang::{
     },
 };
 use anchor_spl::token_interface::TokenAccount;
-use light_compressed_token_sdk::{
-    account2::CTokenAccount2,
-    instructions::transfer2::{
-        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
-        Transfer2Inputs,
-    },
-};
 use light_ctoken_types::{
-    instructions::{
-        mint_action::CompressedMintWithContext,
-        transfer2::{Compression, MultiTokenTransferOutputData},
-    },
-    COMPRESSED_TOKEN_PROGRAM_ID, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+    instructions::mint_action::CompressedMintWithContext, COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_sdk::{
     account::Size,
@@ -32,11 +21,10 @@ use light_sdk::{
     cpi::CpiInputs,
     derive_light_cpi_signer,
     instruction::{
-        account_meta::{CompressedAccountMeta, CompressedAccountMetaNoLamportsNoAddress},
-        PackedAccounts, PackedAddressTreeInfo, ValidityProof,
+        account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
+        PackedAddressTreeInfo, ValidityProof,
     },
     light_hasher::{DataHasher, Hasher},
-    sha::LightAccount,
     token::{CompressibleTokenDataWithVariant, PackedCompressibleTokenDataWithVariant},
     LightDiscriminator, LightHasher,
 };
@@ -67,8 +55,6 @@ pub fn get_placeholder_record_seeds(placeholder_id: u64) -> (Vec<Vec<u8>>, Pubke
     let seeds_vec = vec![seeds[0].to_vec(), seeds[1].to_vec(), bump_slice];
     (seeds_vec, pda)
 }
-
-use light_compressed_account::address::derive_compressed_address;
 
 use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall, CpiSigner};
 
@@ -101,15 +87,12 @@ pub enum CTokenAccountVariant {
 pub mod anchor_compressible {
 
     use light_compressed_token_sdk::{
-        compress_and_close_token_account, create_compressible_token_account,
+        create_compressible_token_account,
         instructions::{
             create_mint_action_cpi, decompress_full_ctoken_accounts_with_indices,
             find_spl_mint_address, DecompressFullIndices, MintActionInputs,
         },
-        CompressedCpiContext,
     };
-
-    use light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext;
     use light_sdk::compressible::{
         compress_account::prepare_account_for_compression, into_compressed_meta_with_address,
     };
@@ -162,8 +145,8 @@ pub mod anchor_compressible {
     }
 
     /// Compress multiple accounts (PDAs and token accounts) in a single instruction.
-    pub fn compress_accounts_idempotent<'a, 'info>(
-        ctx: Context<'_, 'a, 'info, 'info, CompressAccountsIdempotent<'info>>,
+    pub fn compress_accounts_idempotent<'info>(
+        ctx: Context<'_, '_, 'info, 'info, CompressAccountsIdempotent<'info>>,
         proof: ValidityProof,
         compressed_accounts: Vec<CompressedAccountMetaNoLamportsNoAddress>,
         signer_seeds: Vec<Vec<Vec<u8>>>,
@@ -282,11 +265,11 @@ pub mod anchor_compressible {
                 crate::ID,
                 &ctx.accounts.fee_payer,
                 cpi_accounts.authority().unwrap(),
-                &ctx.accounts
+                ctx.accounts
                     .compressed_token_cpi_authority
                     .as_ref()
                     .unwrap(),
-                &ctx.accounts.compressed_token_program.as_ref().unwrap(),
+                ctx.accounts.compressed_token_program.as_ref().unwrap(),
                 &ctx.accounts.config,
                 &ctx.accounts.rent_recipient,
                 ctx.remaining_accounts,
@@ -371,7 +354,7 @@ pub mod anchor_compressible {
             // accounts.
             let unpacked_data = compressed_data
                 .data
-                .unpack(&cpi_accounts.tree_accounts().unwrap())?;
+                .unpack(cpi_accounts.post_system_accounts().unwrap())?;
 
             match unpacked_data {
                 CompressedAccountVariant::UserRecord(data) => {
@@ -509,18 +492,18 @@ pub mod anchor_compressible {
 
             create_compressible_token_account(
                 authority,
-                &fee_payer,
+                fee_payer,
                 &owner_info,
                 &mint_info,
-                &cpi_accounts.system_program().unwrap(),
-                &ctx.accounts.compressed_token_program.as_ref().unwrap(),
+                cpi_accounts.system_program().unwrap(),
+                ctx.accounts.compressed_token_program.as_ref().unwrap(),
                 &ctoken_signer_seeds
                     .iter()
                     .map(|s| s.as_slice())
                     .collect::<Vec<&[u8]>>(),
-                &fee_payer, // rent_auth
-                &fee_payer, // rent_recipient
-                0,          // slots_until_compression
+                fee_payer, // rent_auth
+                fee_payer, // rent_recipient
+                0,         // slots_until_compression
             )?;
 
             let decompress_index =
@@ -540,7 +523,7 @@ pub mod anchor_compressible {
                     None
                 },
                 &token_decompress_indices,
-                &packed_accounts,
+                packed_accounts,
             )
             .map_err(ProgramError::from)?;
 
@@ -738,7 +721,7 @@ pub mod anchor_compressible {
         // instruction. Creates a unique cPDA to ensure that the account cannot
         // be re-inited only decompressed.
         let user_compressed_infos = prepare_accounts_for_compression_on_init::<UserRecord>(
-            &mut [user_record],
+            &[user_record],
             &[compression_params.user_compressed_address],
             &[user_new_address_params],
             &[compression_params.user_output_state_tree_index],
@@ -755,7 +738,7 @@ pub mod anchor_compressible {
         // decompress_accounts_idempotent instruction. Creates a unique cPDA to
         // ensure that the account cannot be re-inited only decompressed.
         let game_compressed_infos = prepare_accounts_for_compression_on_init::<GameSession>(
-            &mut [game_session],
+            &[game_session],
             &[compression_params.game_compressed_address],
             &[game_new_address_params],
             &[compression_params.game_output_state_tree_index],
@@ -800,7 +783,7 @@ pub mod anchor_compressible {
         let address_tree_pubkey = *cpi_accounts.tree_accounts().unwrap()[1].key; // Same tree as PDA
 
         let mint_action_inputs = MintActionInputs {
-            compressed_mint_inputs: compression_params.mint_with_context.clone().into(),
+            compressed_mint_inputs: compression_params.mint_with_context.clone(),
             mint_seed: ctx.accounts.mint_signer.key(),
             mint_bump: Some(compression_params.mint_bump),
             create_mint: true,

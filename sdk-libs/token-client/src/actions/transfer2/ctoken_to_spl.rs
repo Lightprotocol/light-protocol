@@ -11,6 +11,7 @@ use solana_signature::Signature;
 use solana_signer::Signer;
 
 /// Transfer tokens from a compressed token account to an SPL token account
+#[allow(clippy::too_many_arguments)]
 pub async fn ctoken_to_spl_transfer<R: Rpc + Indexer>(
     rpc: &mut R,
     source_ctoken_account: Pubkey,

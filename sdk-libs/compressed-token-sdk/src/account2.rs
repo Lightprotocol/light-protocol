@@ -437,25 +437,20 @@ pub fn create_spl_to_ctoken_transfer_instruction(
     compressed_token_pool_pda_bump: u8,
     amount: u64,
 ) -> Result<Instruction, TokenSdkError> {
-    let mut packed_accounts = Vec::with_capacity(6);
-
-    // Mint (index 0)
-    packed_accounts.push(AccountMeta::new_readonly(mint, false));
-
-    // Destination token account (index 1)
-    packed_accounts.push(AccountMeta::new(destination_ctoken_account, false));
-
-    // Authority for compression (index 2) - signer
-    packed_accounts.push(AccountMeta::new_readonly(authority, true));
-
-    // Source SPL token account (index 3) - writable
-    packed_accounts.push(AccountMeta::new(source_spl_token_account, false));
-
-    // Token pool PDA (index 4) - writable
-    packed_accounts.push(AccountMeta::new(compressed_token_pool_pda, false));
-
-    // SPL Token program (or T22) (index 5) - needed for CPI
-    packed_accounts.push(AccountMeta::new_readonly(spl_token_program, false));
+    let packed_accounts = vec![
+        // Mint (index 0)
+        AccountMeta::new_readonly(mint, false),
+        // Destination token account (index 1)
+        AccountMeta::new(destination_ctoken_account, false),
+        // Authority for compression (index 2) - signer
+        AccountMeta::new_readonly(authority, true),
+        // Source SPL token account (index 3) - writable
+        AccountMeta::new(source_spl_token_account, false),
+        // Token pool PDA (index 4) - writable
+        AccountMeta::new(compressed_token_pool_pda, false),
+        // SPL Token program (or T22) (index 5) - needed for CPI
+        AccountMeta::new_readonly(spl_token_program, false),
+    ];
 
     let wrap_spl_to_ctoken_account = CTokenAccount2 {
         inputs: vec![],
@@ -511,25 +506,14 @@ pub fn create_ctoken_to_spl_transfer_instruction(
     compressed_token_pool_pda_bump: u8,
     amount: u64,
 ) -> Result<Instruction, TokenSdkError> {
-    let mut packed_accounts = Vec::with_capacity(6);
-
-    // Mint (index 0)
-    packed_accounts.push(AccountMeta::new_readonly(mint, false));
-
-    // Source ctoken account (index 1) - writable
-    packed_accounts.push(AccountMeta::new(source_ctoken_account, false));
-
-    // Destination SPL token account (index 2) - writable
-    packed_accounts.push(AccountMeta::new(destination_spl_token_account, false));
-
-    // Authority (index 3) - signer
-    packed_accounts.push(AccountMeta::new_readonly(authority, true));
-
-    // Token pool PDA (index 4) - writable
-    packed_accounts.push(AccountMeta::new(compressed_token_pool_pda, false));
-
-    // SPL Token program (or T22) (index 5) - needed for CPI
-    packed_accounts.push(AccountMeta::new_readonly(spl_token_program, false));
+    let packed_accounts = vec![
+        AccountMeta::new_readonly(mint, false), // Mint (index 0)
+        AccountMeta::new(source_ctoken_account, false), // Source ctoken account (index 1) - writable
+        AccountMeta::new(destination_spl_token_account, false), // Destination SPL token account (index 2) - writable
+        AccountMeta::new_readonly(authority, true),             // Authority (index 3) - signer
+        AccountMeta::new(compressed_token_pool_pda, false), // Token pool PDA (index 4) - writable
+        AccountMeta::new_readonly(spl_token_program, false), // SPL Token program (index 5) - needed for CPI
+    ];
 
     // First operation: compress from ctoken account to pool using compress_spl
     let compress_to_pool = CTokenAccount2 {

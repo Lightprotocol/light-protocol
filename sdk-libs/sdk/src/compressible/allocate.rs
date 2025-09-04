@@ -1,9 +1,12 @@
 #[cfg(feature = "anchor")]
 use anchor_lang::{system_program::CreateAccount, Result};
+#[cfg(feature = "anchor")]
 use solana_account_info::AccountInfo;
+#[cfg(feature = "anchor")]
 use solana_pubkey::Pubkey;
-
+#[cfg(feature = "anchor")]
 use solana_rent::Rent;
+#[cfg(feature = "anchor")]
 use solana_sysvar::Sysvar;
 
 #[cfg(feature = "anchor")]
@@ -36,7 +39,7 @@ pub fn create_or_allocate_account<'a>(
     } else {
         use anchor_lang::{
             prelude::CpiContext,
-            system_program::{allocate, assign, Allocate, Assign, AssignBumps},
+            system_program::{allocate, assign, Allocate, Assign},
         };
 
         let required_lamports = rent

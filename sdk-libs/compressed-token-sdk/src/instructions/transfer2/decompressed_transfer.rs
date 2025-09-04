@@ -13,6 +13,7 @@ use crate::{
 ///
 /// This function creates the instruction and immediately invokes it.
 /// Similar to SPL Token's transfer wrapper functions.
+#[allow(clippy::too_many_arguments)]
 pub fn transfer_spl_to_ctoken<'info>(
     payer: AccountInfo<'info>,
     authority: AccountInfo<'info>,
@@ -59,6 +60,7 @@ pub fn transfer_spl_to_ctoken<'info>(
 ///
 /// This function creates the instruction and invokes it with the provided
 /// signer seeds.
+#[allow(clippy::too_many_arguments)]
 pub fn transfer_spl_to_ctoken_signed<'info>(
     payer: AccountInfo<'info>,
     authority: AccountInfo<'info>,
@@ -105,6 +107,7 @@ pub fn transfer_spl_to_ctoken_signed<'info>(
 /// Transfer compressed tokens to SPL tokens
 ///
 /// This function creates the instruction and invokes it.
+#[allow(clippy::too_many_arguments)]
 pub fn transfer_ctoken_to_spl<'info>(
     payer: AccountInfo<'info>,
     authority: AccountInfo<'info>,
@@ -149,6 +152,7 @@ pub fn transfer_ctoken_to_spl<'info>(
 ///
 /// This function creates the instruction and invokes it with the provided
 /// signer seeds.
+#[allow(clippy::too_many_arguments)]
 pub fn transfer_ctoken_to_spl_signed<'info>(
     payer: AccountInfo<'info>,
     authority: AccountInfo<'info>,

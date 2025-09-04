@@ -6,10 +6,11 @@ use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSeria
 use light_client::indexer::{CompressedAccount, TreeInfo, ValidityProofWithContext};
 pub use light_sdk::compressible::config::CompressibleConfig;
 use light_sdk::{
-    compressible::{ compression_info::CompressedAccountData, Pack, },
+    compressible::{compression_info::CompressedAccountData, Pack},
     constants::{COMPRESSED_TOKEN_PROGRAM_CPI_AUTHORITY, COMPRESSED_TOKEN_PROGRAM_ID},
     instruction::{
-        account_meta::{CompressedAccountMetaNoLamportsNoAddress}, PackedAccounts, SystemAccountMetaConfig, ValidityProof
+        account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
+        SystemAccountMetaConfig, ValidityProof,
     },
 };
 use solana_account::Account;
@@ -35,7 +36,6 @@ pub struct UpdateCompressionConfigData {
     pub new_address_space: Option<Vec<Pubkey>>,
     pub new_update_authority: Option<Pubkey>,
 }
-
 
 /// Instruction data structure for decompress_accounts_idempotent
 /// This matches the exact format expected by Anchor programs
@@ -223,10 +223,9 @@ impl CompressibleInstruction {
     where
         T: Pack + Clone + std::fmt::Debug,
     {
-
         let mut remaining_accounts = PackedAccounts::default();
-     
-        // check if pdas/tokens 
+
+        // check if pdas/tokens
         let mut has_tokens = false;
         let mut has_pdas = false;
         for (compressed_account, _) in compressed_accounts.iter() {
@@ -248,11 +247,8 @@ impl CompressibleInstruction {
 
         // pack cpi_context_account if required.
         if has_pdas && has_tokens {
-            let cpi_context_of_first_input = compressed_accounts[0]
-                .0
-                .tree_info
-                .cpi_context
-                .unwrap();
+            let cpi_context_of_first_input =
+                compressed_accounts[0].0.tree_info.cpi_context.unwrap();
             let system_config = SystemAccountMetaConfig::new_with_cpi_context(
                 *program_id,
                 cpi_context_of_first_input,
@@ -271,7 +267,6 @@ impl CompressibleInstruction {
         let packed_tree_infos =
             validity_proof_with_context.pack_tree_infos(&mut remaining_accounts);
 
-    
         let config_pda = CompressibleConfig::derive_pda(program_id, 0).0;
 
         // Required instruction accounts.
@@ -290,7 +285,6 @@ impl CompressibleInstruction {
             .map(|(compressed_account, data)| {
                 let queue_index =
                     remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
-                
                 // Create compressed_account_meta
                 let compressed_meta = CompressedAccountMetaNoLamportsNoAddress {
                     tree_info: packed_tree_infos
@@ -309,19 +303,14 @@ impl CompressibleInstruction {
                         )?,
                     output_state_tree_index,
                 };
-                
                 // Pack data. Is standardized for TokenData and user-implemented for other types.
                 let packed_data = data.pack(&mut remaining_accounts);
-                
                 Ok(CompressedAccountData {
                     meta: compressed_meta,
                     data: packed_data,
                 })
             })
             .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
-
-            
-     
 
         // add all packed systemaccounts to anchor metas.
         let (system_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();
@@ -378,7 +367,6 @@ impl CompressibleInstruction {
         validity_proof_with_context: ValidityProofWithContext,
         output_state_tree_info: TreeInfo,
     ) -> Result<Instruction, Box<dyn std::error::Error>> {
-
         if accounts_pubkeys.len() != accounts_to_compress.len() {
             return Err("Accounts pubkeys length must match accounts length".into());
         }
@@ -411,44 +399,48 @@ impl CompressibleInstruction {
                             return Err(format!(
                                 "Failed to derive PDA for account_to_compress at index {}: {}",
                                 i, e
-                            ).into());
+                            )
+                            .into());
                         }
                     }
                 }
             }
         }
 
-
-
         let mut remaining_accounts = PackedAccounts::default();
-        
+
         let system_config = SystemAccountMetaConfig::new(*program_id);
         remaining_accounts.add_system_accounts_small(system_config)?;
 
-
         let output_state_tree_index =
             remaining_accounts.insert_or_get(output_state_tree_info.queue);
-
 
         let packed_tree_infos =
             validity_proof_with_context.pack_tree_infos(&mut remaining_accounts);
 
         let mut compressed_account_metas_no_lamports_no_address = Vec::new();
-   
-        for packed_tree_info in packed_tree_infos.state_trees.as_ref().unwrap().packed_tree_infos.iter() {
-            compressed_account_metas_no_lamports_no_address.push(CompressedAccountMetaNoLamportsNoAddress {
-                tree_info: packed_tree_info.clone(),
-                output_state_tree_index: output_state_tree_index,
-            });
-        }
 
+        for packed_tree_info in packed_tree_infos
+            .state_trees
+            .as_ref()
+            .unwrap()
+            .packed_tree_infos
+            .iter()
+        {
+            compressed_account_metas_no_lamports_no_address.push(
+                CompressedAccountMetaNoLamportsNoAddress {
+                    tree_info: *packed_tree_info,
+                    output_state_tree_index,
+                },
+            );
+        }
 
         let config_pda = CompressibleConfig::derive_pda(program_id, 0).0;
 
         // Required instruction accounts.
         let mut accounts = vec![
             AccountMeta::new(*fee_payer, true),           // fee_payer
-            AccountMeta::new_readonly(config_pda, false), // config  
+            AccountMeta::new_readonly(config_pda, false), // config
             AccountMeta::new(*rent_recipient, false),     // rent_recipient
             AccountMeta::new(*rent_authority, true),      // rent_authority
             AccountMeta::new_readonly(COMPRESSED_TOKEN_PROGRAM_ID.into(), false), // compressed_token_program
@@ -476,7 +468,6 @@ impl CompressibleInstruction {
             signer_seeds,
             system_accounts_offset: system_accounts_offset as u8,
         };
-
 
         let serialized_data = instruction_data.try_to_vec()?;
         let mut data = Vec::new();

@@ -29,7 +29,7 @@ pub fn load_lookup_table(
         key: lookup_table_address.to_bytes().into(),
         addresses: address_lookup_table
             .addresses
-            .into_iter()
+            .iter()
             .map(|p| p.to_bytes().into())
             .collect(),
     };

@@ -1,5 +1,5 @@
 #[cfg(feature = "anchor")]
-use anchor_lang::{prelude::Account, AccountDeserialize, AccountSerialize, AccountsClose, Owner};
+use anchor_lang::{prelude::Account, AccountDeserialize, AccountSerialize};
 #[cfg(feature = "anchor")]
 use light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo;
 use light_hasher::DataHasher;

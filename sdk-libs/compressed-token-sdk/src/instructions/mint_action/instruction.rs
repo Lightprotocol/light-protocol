@@ -42,6 +42,7 @@ pub struct MintActionInputs {
 
 impl MintActionInputs {
     /// Creates a new MintActionInputs for creating a compressed mint
+    #[allow(clippy::too_many_arguments)]
     pub fn new_for_create_mint(
         compressed_mint_inputs: CompressedMintWithContext,
         actions: Vec<MintActionType>,

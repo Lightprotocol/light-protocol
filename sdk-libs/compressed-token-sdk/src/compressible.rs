@@ -1,35 +1,35 @@
-use crate::error::Result;
-use crate::{
-    account2::CTokenAccount2,
-    instructions::transfer2::{
-        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
-        Transfer2Inputs,
-    },
-};
 #[cfg(feature = "anchor")]
 use anchor_lang::{
     prelude::{InterfaceAccount, Signer},
     ToAccountInfo,
 };
 use light_account_checks::AccountInfoTrait;
-use light_ctoken_types::instructions::transfer2::{
-    Compression, CompressionMode, MultiTokenTransferOutputData,
-};
 use light_ctoken_types::{
-    instructions::transfer2::MultiInputTokenDataWithContext, COMPRESSED_TOKEN_PROGRAM_ID,
-    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+    instructions::transfer2::{
+        Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
+    },
+    COMPRESSED_TOKEN_PROGRAM_ID, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_sdk::{
-    compressible::create_or_allocate_account, cpi::CpiSigner,
-    instruction::borsh_compat::ValidityProof, AnchorDeserialize, AnchorSerialize,
-};
-use light_sdk::{
-    compressible::CompressibleConfig, constants::CPI_AUTHORITY_PDA_SEED, cpi::CpiAccountsSmall,
+    compressible::{create_or_allocate_account, CompressibleConfig},
+    constants::CPI_AUTHORITY_PDA_SEED,
+    cpi::{CpiAccountsSmall, CpiSigner},
+    instruction::borsh_compat::ValidityProof,
+    AnchorDeserialize, AnchorSerialize,
 };
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
+
+use crate::{
+    account2::CTokenAccount2,
+    error::Result,
+    instructions::transfer2::{
+        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
+        Transfer2Inputs,
+    },
+};
 
 /// Same as SPL-token discriminator
 pub const CLOSE_TOKEN_ACCOUNT_DISCRIMINATOR: u8 = 9;
@@ -67,7 +67,7 @@ fn add_or_get_index<T: PartialEq>(vec: &mut Vec<T>, item: T) -> u8 {
 
 /// Input parameters for creating a token account with compressible extension
 #[derive(Debug, Clone)]
-pub struct CreateCompressibleTokenAccount {
+pub struct InitializeCompressibleTokenAccount {
     /// The account to be created
     pub account_pubkey: Pubkey,
     /// The mint for the token account
@@ -83,7 +83,7 @@ pub struct CreateCompressibleTokenAccount {
 }
 
 pub fn initialize_compressible_token_account(
-    inputs: CreateCompressibleTokenAccount,
+    inputs: InitializeCompressibleTokenAccount,
 ) -> Result<Instruction> {
     // Format: [18, owner_pubkey_32_bytes, 0]
     // Create compressible extension data manually
@@ -106,6 +106,7 @@ pub fn initialize_compressible_token_account(
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 #[cfg(feature = "anchor")]
 pub fn create_compressible_token_account<'a>(
     authority: &AccountInfo<'a>,
@@ -133,7 +134,7 @@ pub fn create_compressible_token_account<'a>(
         space,
     )?;
 
-    let init_ix = initialize_compressible_token_account(CreateCompressibleTokenAccount {
+    let init_ix = initialize_compressible_token_account(InitializeCompressibleTokenAccount {
         account_pubkey: *token_account.key,
         mint_pubkey: *mint_account.key,
         owner_pubkey: *authority.key,
@@ -216,6 +217,7 @@ pub fn close_compressed_token_account<'info>(
 ///
 /// # Returns
 /// * `Result<()>` - Success or error
+#[allow(clippy::too_many_arguments)]
 #[cfg(feature = "anchor")]
 pub fn compress_and_close_token_account<'info>(
     program_id: Pubkey,
@@ -240,7 +242,7 @@ pub fn compress_and_close_token_account<'info>(
         rent_recipient,
         remaining_accounts,
         vec![TokenAccountToCompress {
-            token_account: token_account,
+            token_account,
             signer_seeds: token_signer_seeds,
         }],
         cpi_signer,
@@ -270,6 +272,7 @@ pub fn compress_and_close_token_account<'info>(
 ///
 /// # Returns
 /// * `Result<()>` - Success or error
+#[allow(clippy::too_many_arguments)]
 #[cfg(feature = "anchor")]
 pub fn compress_and_close_token_accounts<'info>(
     program_id: Pubkey,
@@ -300,8 +303,7 @@ pub fn compress_and_close_token_accounts<'info>(
     let mut account_metas: Vec<AccountMeta> = Vec::new();
 
     // Fee payer (index 0)
-    let _fee_payer_index =
-        account_metas.push(account_meta_from_account_info(&fee_payer.to_account_info()));
+    account_metas.push(account_meta_from_account_info(&fee_payer.to_account_info()));
 
     // Pack token accounts
     let mut ctoken_accounts = Vec::with_capacity(token_accounts_to_compress.len());

@@ -15,4 +15,3 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 pub use compressible::*;
 pub use light_compressed_token_types::*;
-

@@ -5,10 +5,12 @@ use light_sdk::{
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},
     light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
+    sha::LightHasher,
+    LightDiscriminator,
 };
 use solana_program::{account_info::AccountInfo, msg};
 
-use crate::{MyPdaAccount, ARRAY_LEN};
+use crate::ARRAY_LEN;
 
 /// TODO: write test program with A8JgviaEAByMVLBhcebpDQ7NMuZpqBTBigC1b83imEsd (inconvenient program id)
 /// CU usage:

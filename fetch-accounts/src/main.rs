@@ -1,7 +1,6 @@
 use std::{fs::File, io::Write};
 
-use base64::encode;
-use light_client::indexer::Indexer;
+use base64::{engine::general_purpose, Engine as _};
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc};
 use serde_json::json;
 use solana_sdk::pubkey::Pubkey;
@@ -49,7 +48,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!(
         "Wrote account JSON to ./test_batched_cpi_context_{}.json and ./test_batched_cpi_context_{}.json",
-        address_0
+        address_0,
+        address_1
     );
     println!(
         "Account 0: lamports={}, owner={}, executable={}, data_len={}",
@@ -74,7 +74,7 @@ fn write_account_json(
     pubkey: &Pubkey,
     filename: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data_base64 = encode(&account.data);
+    let data_base64 = general_purpose::STANDARD.encode(&account.data);
     let json_obj = json!({
         "pubkey": pubkey.to_string(),
         "account": {

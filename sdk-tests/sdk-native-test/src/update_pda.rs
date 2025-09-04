@@ -26,7 +26,7 @@ pub fn update_pda<const BATCHED: bool>(
         &crate::ID,
         &instruction_data.my_compressed_account.meta,
         MyCompressedAccount {
-            compression_info: None,
+            // compression_info: None,
             data: instruction_data.my_compressed_account.data,
         },
     )?;

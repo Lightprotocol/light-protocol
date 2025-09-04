@@ -6,8 +6,8 @@ use light_profiler::profile;
 use light_sdk::{
     error::LightSdkError,
     instruction::{
-        account_meta::{CompressedAccountMeta, CompressedAccountMetaNoLamportsNoAddress},
-        AccountMetasVec, PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig,
+        account_meta::CompressedAccountMetaNoLamportsNoAddress, AccountMetasVec, PackedAccounts,
+        PackedStateTreeInfo, SystemAccountMetaConfig,
     },
     token::{InputTokenDataCompressible, TokenData},
 };

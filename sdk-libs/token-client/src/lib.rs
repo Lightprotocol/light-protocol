@@ -53,7 +53,7 @@ pub mod compressed_token {
 
     pub fn find_mint_address(mint_signer: Pubkey) -> (Pubkey, u8) {
         Pubkey::find_program_address(
-            &[COMPRESSED_MINT_SEED, &mint_signer.to_bytes().as_ref()],
+            &[COMPRESSED_MINT_SEED, mint_signer.to_bytes().as_ref()],
             &ID,
         )
     }

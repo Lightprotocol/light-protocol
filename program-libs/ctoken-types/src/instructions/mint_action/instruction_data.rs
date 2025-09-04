@@ -1,4 +1,4 @@
-use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
+use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
 use light_zero_copy::ZeroCopy;
 
 use super::{
@@ -11,7 +11,6 @@ use crate::{
     state::{BaseCompressedMint, CompressedMint, ExtensionStruct},
     AnchorDeserialize, AnchorSerialize, CTokenError,
 };
-use light_compressed_account::Pubkey;
 
 #[repr(C)]
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]

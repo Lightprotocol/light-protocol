@@ -11,7 +11,6 @@ use light_compressed_token_sdk::{
     instructions::{derive_compressed_mint_address, find_spl_mint_address},
     CPI_AUTHORITY_PDA,
 };
-
 use light_compressible_client::CompressibleInstruction;
 use light_ctoken_types::{
     instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},

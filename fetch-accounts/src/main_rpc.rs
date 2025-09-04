@@ -1,6 +1,6 @@
 use std::{fs::File, io::Write, str::FromStr};
 
-use base64::encode;
+use base64::{engine::general_purpose, Engine as _};
 use serde_json::json;
 use solana_client::rpc_client::RpcClient;
 use solana_sdk::pubkey::Pubkey;
@@ -93,7 +93,7 @@ fn fetch_and_process_lut(
 
             let filename = format!("modified_lut_{}.json", pubkey);
 
-            let data_base64 = encode(&modified_data);
+            let data_base64 = general_purpose::STANDARD.encode(&modified_data);
             let json_obj = json!({
                 "pubkey": pubkey.to_string(),
                 "account": {
@@ -226,7 +226,7 @@ fn write_account_json(
     pubkey: &Pubkey,
     filename: &str,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let data_base64 = encode(&account.data);
+    let data_base64 = general_purpose::STANDARD.encode(&account.data);
     let json_obj = json!({
         "pubkey": pubkey.to_string(),
         "account": {
