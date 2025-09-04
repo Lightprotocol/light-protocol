@@ -88,7 +88,7 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
 
         trace!("Requesting {} total elements with offset {}", total_elements, offset);
 
-        const MAX_ELEMENTS_PER_REQUEST: usize = 1000;
+        const MAX_ELEMENTS_PER_REQUEST: usize = 250;
         let mut all_queue_elements = Vec::new();
         let mut current_offset = offset;
         let mut remaining_elements = total_elements;
