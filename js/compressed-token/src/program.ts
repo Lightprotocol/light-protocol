@@ -1083,7 +1083,7 @@ export class CompressedTokenProgram {
         remainingAccounts,
     }: CreateTokenProgramLookupTableParams) {
         // Gather all keys into a single deduped array before creating instructions
-        let allKeys: PublicKey[] = [
+        const allKeys: PublicKey[] = [
             SystemProgram.programId,
             ComputeBudgetProgram.programId,
             this.deriveCpiAuthorityPda,

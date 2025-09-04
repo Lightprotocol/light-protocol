@@ -8,6 +8,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq, ZeroCopyMut};
 
 // Test struct with primitive Copy types that should be in meta fields
+#[repr(C)]
 #[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy)]
 pub struct PrimitiveCopyStruct {
     pub a: u8,
@@ -20,6 +21,7 @@ pub struct PrimitiveCopyStruct {
 }
 
 // Test struct with primitive Copy types that should be in meta fields
+#[repr(C)]
 #[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy, ZeroCopyEq, ZeroCopyMut)]
 pub struct PrimitiveCopyStruct2 {
     pub f: Vec<u8>, // Split point - this and following fields go to struct_fields
@@ -32,6 +34,7 @@ pub struct PrimitiveCopyStruct2 {
 }
 
 // Test struct with arrays that use u8 (which supports Unaligned)
+#[repr(C)]
 #[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy)]
 pub struct ArrayCopyStruct {
     pub fixed_u8: [u8; 4],
@@ -41,6 +44,7 @@ pub struct ArrayCopyStruct {
 }
 
 // Test struct with Vec of primitive Copy types
+#[repr(C)]
 #[derive(Debug, PartialEq, BorshSerialize, BorshDeserialize, ZeroCopy)]
 pub struct VecPrimitiveStruct {
     pub header: u32,

@@ -1,6 +1,7 @@
 use light_zero_copy_derive::ZeroCopy;
 
 // Test struct for the MintTo action
+#[repr(C)]
 #[derive(Debug, Clone, PartialEq, ZeroCopy)]
 pub struct MintToAction {
     pub amount: u64,
@@ -8,6 +9,7 @@ pub struct MintToAction {
 }
 
 // Test enum similar to your Action example
+#[repr(C)]
 #[derive(Debug, Clone, ZeroCopy)]
 pub enum Action {
     MintTo(MintToAction),
@@ -24,6 +26,7 @@ mod tests {
 
     #[test]
     fn test_pattern_matching_works() {
+        use light_zero_copy::traits::ZeroCopyAt;
         // Test MintTo variant (discriminant 0)
         let mut data = vec![0u8]; // discriminant 0 for MintTo
 
@@ -56,6 +59,7 @@ mod tests {
 
     #[test]
     fn test_unit_variant_pattern_matching() {
+        use light_zero_copy::traits::ZeroCopyAt;
         // Test Update variant (discriminant 1)
         let data = [1u8];
         let (result, _remaining) = Action::zero_copy_at(&data).unwrap();

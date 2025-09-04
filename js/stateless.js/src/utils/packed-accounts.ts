@@ -209,7 +209,7 @@ export class SystemAccountMetaConfig {
 export function getLightSystemAccountMetas(
     config: SystemAccountMetaConfig,
 ): AccountMeta[] {
-    let signerSeed = new TextEncoder().encode('cpi_authority');
+    const signerSeed = new TextEncoder().encode('cpi_authority');
     const cpiSigner = PublicKey.findProgramAddressSync(
         [signerSeed],
         config.selfProgram,
@@ -373,7 +373,7 @@ export class PackedAccountsSmall {
 export function getLightSystemAccountMetasSmall(
     config: SystemAccountMetaConfig,
 ): AccountMeta[] {
-    let signerSeed = new TextEncoder().encode('cpi_authority');
+    const signerSeed = new TextEncoder().encode('cpi_authority');
     const cpiSigner = PublicKey.findProgramAddressSync(
         [signerSeed],
         config.selfProgram,

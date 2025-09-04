@@ -1,7 +1,7 @@
 use light_account_checks::AccountInfoTrait;
-use light_compressed_account::instruction_data::data::{
-    NewAddressParamsAssignedPacked, NewAddressParamsPacked,
-};
+#[cfg(feature = "v2")]
+use light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked;
+use light_compressed_account::instruction_data::data::NewAddressParamsPacked;
 
 #[cfg(feature = "v2")]
 use crate::CpiAccountsSmall;
