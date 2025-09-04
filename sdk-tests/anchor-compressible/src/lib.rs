@@ -103,7 +103,8 @@ pub mod anchor_compressible {
     use light_compressed_token_sdk::{
         compress_and_close_token_account, create_compressible_token_account,
         instructions::{
-            create_mint_action_cpi, find_spl_mint_address, DecompressFullIndices, MintActionInputs,
+            create_mint_action_cpi, decompress_full_ctoken_accounts_with_indices,
+            find_spl_mint_address, DecompressFullIndices, MintActionInputs,
         },
         CompressedCpiContext,
     };
@@ -465,113 +466,85 @@ pub mod anchor_compressible {
             return Ok(());
         }
 
-        // Execute first CPI. (PDAs)
+        let fee_payer = ctx.accounts.fee_payer.as_ref();
+        let authority = cpi_accounts.authority().unwrap();
+        let cpi_context = cpi_accounts.cpi_context().unwrap();
+
+        // First CPI.
         if has_pdas && has_tokens {
-            // we only need a subset for the first (pda) cpi because we write into
+            // we only need the subset for the first cpi because we write into
             // the cpi_context.
             let system_cpi_accounts = CpiContextWriteAccounts {
-                fee_payer: ctx.accounts.fee_payer.as_ref(),
-                authority: cpi_accounts.authority().unwrap(),
-                cpi_context: cpi_accounts.cpi_context().unwrap(),
+                fee_payer,
+                authority,
+                cpi_context,
                 cpi_signer: LIGHT_CPI_SIGNER,
             };
             let cpi_inputs = CpiInputs::new_first_cpi(compressed_pda_infos, vec![]);
             cpi_inputs.invoke_light_system_program_cpi_context(system_cpi_accounts)?;
         } else if has_pdas {
-            // NO CPI CONTEXT.
             let cpi_inputs = CpiInputs::new(proof, compressed_pda_infos);
             cpi_inputs.invoke_light_system_program_small(cpi_accounts.clone())?;
         }
 
-        // let mut compressed_token_infos = Vec::new();
-        let mut decompress_indices = Vec::new();
-        let mut all_compressed_token_signers_seeds = Vec::new();
+        let mut token_decompress_indices = Vec::new();
+        let mut token_signers_seeds = Vec::new();
+        let packed_accounts = cpi_accounts.post_system_accounts().unwrap();
 
-        // creates account_metas for CPI.
-        let ix_accounts = cpi_accounts.post_system_accounts().unwrap();
-        let mut packed_accounts = Vec::with_capacity(ix_accounts.len());
-        for account_info in ix_accounts {
-            packed_accounts.push(account_meta_from_account_info(account_info));
-        }
+        for (token_data, meta) in compressed_token_accounts.into_iter() {
+            let owner_index: u8 = token_data.token_data.owner;
+            let mint_index: u8 = token_data.token_data.mint;
 
-        // step 2: decompressing the token accounts + settle cpi
-        for (_, compressed_token_account) in compressed_token_accounts.into_iter().enumerate() {
-            let token_data = compressed_token_account.0;
-            let meta = compressed_token_account.1;
-
-            let owner_index = token_data.token_data.owner;
-            let mint_index = token_data.token_data.mint;
-            let token_account = &cpi_accounts.post_system_accounts().unwrap()[owner_index as usize];
-
-            let mint_info =
-                cpi_accounts.post_system_accounts().unwrap()[mint_index as usize].to_account_info();
+            let mint_info = packed_accounts[mint_index as usize].to_account_info();
+            let owner_info = packed_accounts[owner_index as usize].to_account_info();
 
             // seeds for ctoken. match on variant.
             let ctoken_signer_seeds = match token_data.variant {
                 CTokenAccountVariant::CTokenSigner => {
-                    let (seeds, _) =
-                        get_ctoken_signer_seeds(&ctx.accounts.fee_payer.key(), &mint_info.key());
+                    let (seeds, _) = get_ctoken_signer_seeds(&fee_payer.key(), &mint_info.key());
                     seeds
                 }
-                CTokenAccountVariant::AssociatedTokenAccount => unreachable!(), // TODO: add support.
+                CTokenAccountVariant::AssociatedTokenAccount => unreachable!(),
             };
 
             create_compressible_token_account(
-                cpi_accounts.authority().unwrap(),
-                &ctx.accounts.fee_payer.to_account_info(),
-                token_account,
+                authority,
+                &fee_payer,
+                &owner_info,
                 &mint_info,
                 &cpi_accounts.system_program().unwrap(),
-                &ctx.accounts
-                    .compressed_token_program
-                    .as_ref()
-                    .unwrap()
-                    .to_account_info(),
+                &ctx.accounts.compressed_token_program.as_ref().unwrap(),
                 &ctoken_signer_seeds
                     .iter()
                     .map(|s| s.as_slice())
                     .collect::<Vec<&[u8]>>(),
-                &ctx.accounts.fee_payer,
-                &ctx.accounts.fee_payer,
-                COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as u64,
+                &fee_payer, // rent_auth
+                &fee_payer, // rent_recipient
+                0,          // slots_until_compression
             )?;
-            packed_accounts[owner_index as usize].is_signer = true;
 
             let decompress_index =
                 DecompressFullIndices::from((token_data.token_data, meta, owner_index));
 
-            decompress_indices.push(decompress_index);
-            all_compressed_token_signers_seeds.extend(ctoken_signer_seeds);
+            token_decompress_indices.push(decompress_index);
+            token_signers_seeds.extend(ctoken_signer_seeds);
         }
 
-        if has_tokens && has_pdas {
-            // CPI with CPI_CONTEXT
-            let inputs = Transfer2Inputs {
-                validity_proof: proof,
-                transfer_config: Transfer2Config::new()
-                    .with_cpi_context(
-                        cpi_accounts.cpi_context().unwrap().key(),
-                        CompressedCpiContext {
-                            set_context: false,           // settlement.
-                            first_set_context: false,     // settlement.
-                            cpi_context_account_index: 0, // We expect the cpi context to be in index 0.
-                        },
-                    )
-                    .filter_zero_amount_outputs(),
-                meta_config: Transfer2AccountsMetaConfig::new_with_cpi_context(
-                    ctx.accounts.fee_payer.key(),
-                    packed_accounts,
-                    cpi_accounts.cpi_context().unwrap().key(),
-                ),
-                in_lamports: None,
-                out_lamports: None,
-                token_accounts: compressed_token_infos,
-            };
+        if has_tokens {
+            let ctoken_ix = decompress_full_ctoken_accounts_with_indices(
+                fee_payer.key(),
+                proof,
+                if has_pdas {
+                    Some(cpi_context.key())
+                } else {
+                    None
+                },
+                &token_decompress_indices,
+                &packed_accounts,
+            )
+            .map_err(ProgramError::from)?;
 
-            let ctoken_ix = create_transfer2_instruction(inputs).map_err(ProgramError::from)?;
-
-            // account_infos
-            let mut all_account_infos = vec![ctx.accounts.fee_payer.to_account_info()];
+            let mut all_account_infos = vec![fee_payer.to_account_info()];
             all_account_infos.extend(
                 ctx.accounts
                     .compressed_token_cpi_authority
@@ -582,46 +555,7 @@ pub mod anchor_compressible {
             all_account_infos.extend(ctx.accounts.config.to_account_infos());
             all_account_infos.extend(cpi_accounts.to_account_infos());
 
-            // ctoken cpi
-            let seed_refs = all_compressed_token_signers_seeds
-                .iter()
-                .map(|s| s.as_slice())
-                .collect::<Vec<&[u8]>>();
-            invoke_signed(
-                &ctoken_ix,
-                all_account_infos.as_slice(),
-                &[seed_refs.as_slice()],
-            )?;
-        } else if has_tokens {
-            // CPI without CPI_CONTEXT
-            let inputs = Transfer2Inputs {
-                validity_proof: proof,
-                transfer_config: Transfer2Config::new().filter_zero_amount_outputs(),
-                meta_config: Transfer2AccountsMetaConfig::new(
-                    ctx.accounts.fee_payer.key(),
-                    packed_accounts,
-                ),
-                in_lamports: None,
-                out_lamports: None,
-                token_accounts: compressed_token_infos,
-            };
-
-            let ctoken_ix = create_transfer2_instruction(inputs).map_err(ProgramError::from)?;
-
-            // account_infos
-            let mut all_account_infos = vec![ctx.accounts.fee_payer.to_account_info()];
-            all_account_infos.extend(
-                ctx.accounts
-                    .compressed_token_cpi_authority
-                    .to_account_infos(),
-            );
-            all_account_infos.extend(ctx.accounts.compressed_token_program.to_account_infos());
-            all_account_infos.extend(ctx.accounts.rent_payer.to_account_infos());
-            all_account_infos.extend(ctx.accounts.config.to_account_infos());
-            all_account_infos.extend(cpi_accounts.to_account_infos());
-
-            // ctoken cpi
-            let seed_refs = all_compressed_token_signers_seeds
+            let seed_refs = token_signers_seeds
                 .iter()
                 .map(|s| s.as_slice())
                 .collect::<Vec<&[u8]>>();
@@ -633,355 +567,6 @@ pub mod anchor_compressible {
         }
         Ok(())
     }
-
-    // pub fn decompress_accounts_idempotent_backup<'info>(
-    //     ctx: Context<'_, '_, '_, 'info, DecompressAccountsIdempotent<'info>>,
-    //     proof: ValidityProof,
-    //     compressed_accounts: Vec<CompressedAccountData>,
-    //     system_accounts_offset: u8,
-    // ) -> Result<()> {
-    //     // Load config
-    //     let compression_config =
-    //         CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
-    //     let address_space = compression_config.address_space[0];
-
-    //     let (mut has_tokens, mut has_pdas) = (false, false);
-    //     for c in &compressed_accounts {
-    //         match c.data {
-    //             CompressedAccountVariant::CompressibleTokenAccountPacked(_) => has_tokens = true,
-    //             _ => has_pdas = true,
-    //         }
-    //         if has_tokens && has_pdas {
-    //             break;
-    //         }
-    //     }
-
-    //     let cpi_accounts = if has_tokens && has_pdas {
-    //         CpiAccountsSmall::new_with_config(
-    //             ctx.accounts.fee_payer.as_ref(),
-    //             &ctx.remaining_accounts[system_accounts_offset as usize..],
-    //             CpiAccountsConfig::new_with_cpi_context(LIGHT_CPI_SIGNER),
-    //         )
-    //     } else {
-    //         CpiAccountsSmall::new(
-    //             ctx.accounts.fee_payer.as_ref(),
-    //             &ctx.remaining_accounts[system_accounts_offset as usize..],
-    //             LIGHT_CPI_SIGNER,
-    //         )
-    //     };
-
-    //     // the onchain pdas must always be the last accounts.
-    //     let pda_accounts_start = ctx.remaining_accounts.len() - compressed_accounts.len();
-    //     let solana_accounts = &ctx.remaining_accounts[pda_accounts_start..];
-
-    //     let mut compressed_token_accounts = Vec::new();
-    //     let mut compressed_pda_infos = Vec::new();
-
-    //     for (i, compressed_data) in compressed_accounts.clone().into_iter().enumerate() {
-    //         // Implement pack and unpack traits in such a way that unpack always
-    //         // returns the onchain struct as you want it to be stored onchain.
-    //         // The packed version should **only** be used to send over the wire
-    //         // more efficiently. Indices should also only reference the
-    //         // account_infos passed as remaining_accounts **after** the system
-    //         // accounts.
-    //         let unpacked_data = compressed_data
-    //             .data
-    //             .unpack(&cpi_accounts.tree_accounts().unwrap())?;
-
-    //         match unpacked_data {
-    //             CompressedAccountVariant::UserRecord(data) => {
-    //                 let (seeds_vec, _) = get_user_record_seeds(&ctx.accounts.fee_payer.key());
-
-    //                 let compressed_infos =
-    //                     prepare_account_for_decompression_idempotent::<UserRecord>(
-    //                         &crate::ID,
-    //                         data,
-    //                         into_compressed_meta_with_address(
-    //                             &compressed_data.meta,
-    //                             &solana_accounts[i],
-    //                             address_space,
-    //                             &crate::ID,
-    //                         ),
-    //                         &solana_accounts[i],
-    //                         &ctx.accounts.rent_payer,
-    //                         &cpi_accounts,
-    //                         seeds_vec
-    //                             .iter()
-    //                             .map(|v| v.as_slice())
-    //                             .collect::<Vec<&[u8]>>()
-    //                             .as_slice(),
-    //                     )?;
-    //                 compressed_pda_infos.extend(compressed_infos);
-    //             }
-    //             CompressedAccountVariant::GameSession(data) => {
-    //                 let (seeds_vec, _) = get_game_session_seeds(data.session_id);
-
-    //                 let compressed_infos =
-    //                     prepare_account_for_decompression_idempotent::<GameSession>(
-    //                         &crate::ID,
-    //                         data,
-    //                         into_compressed_meta_with_address(
-    //                             &compressed_data.meta,
-    //                             &solana_accounts[i],
-    //                             address_space,
-    //                             &crate::ID,
-    //                         ),
-    //                         &solana_accounts[i],
-    //                         &ctx.accounts.rent_payer,
-    //                         &cpi_accounts,
-    //                         seeds_vec
-    //                             .iter()
-    //                             .map(|v| v.as_slice())
-    //                             .collect::<Vec<&[u8]>>()
-    //                             .as_slice(),
-    //                     )?;
-    //                 compressed_pda_infos.extend(compressed_infos);
-    //             }
-    //             CompressedAccountVariant::PlaceholderRecord(data) => {
-    //                 let (seeds_vec, _) = get_placeholder_record_seeds(data.placeholder_id);
-
-    //                 let compressed_infos =
-    //                     prepare_account_for_decompression_idempotent::<PlaceholderRecord>(
-    //                         &crate::ID,
-    //                         data,
-    //                         into_compressed_meta_with_address(
-    //                             &compressed_data.meta,
-    //                             &solana_accounts[i],
-    //                             address_space,
-    //                             &crate::ID,
-    //                         ),
-    //                         &solana_accounts[i],
-    //                         &ctx.accounts.rent_payer,
-    //                         &cpi_accounts,
-    //                         seeds_vec
-    //                             .iter()
-    //                             .map(|v| v.as_slice())
-    //                             .collect::<Vec<&[u8]>>()
-    //                             .as_slice(),
-    //                     )?;
-    //                 compressed_pda_infos.extend(compressed_infos);
-    //             }
-    //             CompressedAccountVariant::CompressibleTokenAccountPacked(data) => {
-    //                 compressed_token_accounts.push((data, compressed_data.meta));
-    //             }
-    //             CompressedAccountVariant::CompressibleTokenData(_) => {
-    //                 unreachable!();
-    //             }
-    //             CompressedAccountVariant::PackedUserRecord(_) => {
-    //                 unreachable!()
-    //             }
-    //         }
-    //     }
-
-    //     // set new based on actually uninitialized accounts.
-    //     let has_pdas = !compressed_pda_infos.is_empty();
-    //     let has_tokens = !compressed_token_accounts.is_empty();
-    //     if !has_pdas && !has_tokens {
-    //         msg!("All accounts already initialized.");
-    //         return Ok(());
-    //     }
-
-    //     // Execute first CPI. (PDAs)
-    //     if has_pdas && has_tokens {
-    //         // we only need a subset for the first (pda) cpi because we write into
-    //         // the cpi_context.
-    //         let system_cpi_accounts = CpiContextWriteAccounts {
-    //             fee_payer: ctx.accounts.fee_payer.as_ref(),
-    //             authority: cpi_accounts.authority().unwrap(),
-    //             cpi_context: cpi_accounts.cpi_context().unwrap(),
-    //             cpi_signer: LIGHT_CPI_SIGNER,
-    //         };
-    //         let cpi_inputs = CpiInputs::new_first_cpi(compressed_pda_infos, vec![]);
-    //         cpi_inputs.invoke_light_system_program_cpi_context(system_cpi_accounts)?;
-    //     } else if has_pdas {
-    //         // NO CPI CONTEXT.
-    //         let cpi_inputs = CpiInputs::new(proof, compressed_pda_infos);
-    //         cpi_inputs.invoke_light_system_program_small(cpi_accounts.clone())?;
-    //     }
-
-    //     let mut compressed_token_infos = Vec::new();
-    //     let mut all_compressed_token_signers_seeds = Vec::new();
-
-    //     // creates account_metas for CPI.
-    //     let ix_accounts = cpi_accounts.post_system_accounts().unwrap();
-    //     let mut packed_accounts = Vec::with_capacity(ix_accounts.len());
-    //     for account_info in ix_accounts {
-    //         packed_accounts.push(account_meta_from_account_info(account_info));
-    //     }
-
-    //     // step 2: decompressing the token accounts + settle cpi
-    //     for (_, compressed_token_account) in compressed_token_accounts.into_iter().enumerate() {
-    //         let token_data = compressed_token_account.0;
-    //         let meta = compressed_token_account.1;
-
-    //         let owner_index = token_data.token_data.owner;
-    //         let mint_index = token_data.token_data.mint;
-    //         let system_program = cpi_accounts.system_program().unwrap();
-    //         let token_account = &cpi_accounts.post_system_accounts().unwrap()[owner_index as usize];
-
-    //         let mint_info =
-    //             cpi_accounts.post_system_accounts().unwrap()[mint_index as usize].to_account_info();
-
-    //         // seeds for ctoken. match on variant.
-    //         let ctoken_signer_seeds = match token_data.variant {
-    //             CTokenAccountVariant::CTokenSigner => {
-    //                 let (seeds, _) =
-    //                     get_ctoken_signer_seeds(&ctx.accounts.fee_payer.key(), &mint_info.key());
-    //                 seeds
-    //             }
-    //             CTokenAccountVariant::AssociatedTokenAccount => unreachable!(), // TODO: add support.
-    //         };
-
-    //         let in_token_data: light_sdk::token::InputTokenDataCompressible =
-    //             token_data.token_data.clone();
-    //         let amount = in_token_data.amount;
-    //         let mint = in_token_data.mint;
-    //         // because the owner of the compressed token account is the address of the ctoken account
-    //         let source_or_recipient = token_data.token_data.owner;
-
-    //         let compression = Compression::decompress_ctoken(amount, mint, source_or_recipient);
-
-    //         use light_compressed_account::compressed_account::PackedMerkleContext;
-
-    //         // todo: From trait
-    //         let as_multi_input_token_data_with_context = MultiInputTokenDataWithContext {
-    //             owner: in_token_data.owner,
-    //             amount: in_token_data.amount,
-    //             mint: in_token_data.mint,
-    //             version: in_token_data.version,
-    //             has_delegate: in_token_data.has_delegate,
-    //             delegate: in_token_data.delegate,
-    //             merkle_context: PackedMerkleContext {
-    //                 merkle_tree_pubkey_index: meta.tree_info.merkle_tree_pubkey_index,
-    //                 queue_pubkey_index: meta.tree_info.queue_pubkey_index,
-    //                 leaf_index: meta.tree_info.leaf_index,
-    //                 prove_by_index: meta.tree_info.prove_by_index,
-    //             },
-    //             root_index: meta.tree_info.root_index,
-    //         };
-
-    //         let ctoken_account = CTokenAccount2 {
-    //             inputs: vec![as_multi_input_token_data_with_context],
-    //             output: MultiTokenTransferOutputData::default(),
-    //             compression: Some(compression),
-    //             delegate_is_set: false,
-    //             method_used: true,
-    //         };
-
-    //         create_compressible_token_account(
-    //             cpi_accounts.authority().unwrap(),
-    //             &ctx.accounts.fee_payer.to_account_info(),
-    //             token_account,
-    //             &mint_info,
-    //             &system_program.to_account_info(),
-    //             &ctx.accounts
-    //                 .compressed_token_program
-    //                 .as_ref()
-    //                 .unwrap()
-    //                 .to_account_info(),
-    //             &ctoken_signer_seeds
-    //                 .iter()
-    //                 .map(|s| s.as_slice())
-    //                 .collect::<Vec<&[u8]>>(),
-    //             &ctx.accounts.fee_payer,
-    //             &ctx.accounts.fee_payer,
-    //             COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as u64,
-    //         )?;
-    //         packed_accounts[owner_index as usize].is_signer = true;
-
-    //         compressed_token_infos.push(ctoken_account);
-    //         all_compressed_token_signers_seeds.extend(ctoken_signer_seeds);
-    //     }
-
-    //     if has_tokens && has_pdas {
-    //         // CPI with CPI_CONTEXT
-    //         let inputs = Transfer2Inputs {
-    //             validity_proof: proof,
-    //             transfer_config: Transfer2Config::new()
-    //                 .with_cpi_context(
-    //                     cpi_accounts.cpi_context().unwrap().key(),
-    //                     CompressedCpiContext {
-    //                         set_context: false,           // settlement.
-    //                         first_set_context: false,     // settlement.
-    //                         cpi_context_account_index: 0, // We expect the cpi context to be in index 0.
-    //                     },
-    //                 )
-    //                 .filter_zero_amount_outputs(),
-    //             meta_config: Transfer2AccountsMetaConfig::new_with_cpi_context(
-    //                 ctx.accounts.fee_payer.key(),
-    //                 packed_accounts,
-    //                 cpi_accounts.cpi_context().unwrap().key(),
-    //             ),
-    //             in_lamports: None,
-    //             out_lamports: None,
-    //             token_accounts: compressed_token_infos,
-    //         };
-
-    //         let ctoken_ix = create_transfer2_instruction(inputs).map_err(ProgramError::from)?;
-
-    //         // account_infos
-    //         let mut all_account_infos = vec![ctx.accounts.fee_payer.to_account_info()];
-    //         all_account_infos.extend(
-    //             ctx.accounts
-    //                 .compressed_token_cpi_authority
-    //                 .to_account_infos(),
-    //         );
-    //         all_account_infos.extend(ctx.accounts.compressed_token_program.to_account_infos());
-    //         all_account_infos.extend(ctx.accounts.rent_payer.to_account_infos());
-    //         all_account_infos.extend(ctx.accounts.config.to_account_infos());
-    //         all_account_infos.extend(cpi_accounts.to_account_infos());
-
-    //         // ctoken cpi
-    //         let seed_refs = all_compressed_token_signers_seeds
-    //             .iter()
-    //             .map(|s| s.as_slice())
-    //             .collect::<Vec<&[u8]>>();
-    //         invoke_signed(
-    //             &ctoken_ix,
-    //             all_account_infos.as_slice(),
-    //             &[seed_refs.as_slice()],
-    //         )?;
-    //     } else if has_tokens {
-    //         // CPI without CPI_CONTEXT
-    //         let inputs = Transfer2Inputs {
-    //             validity_proof: proof,
-    //             transfer_config: Transfer2Config::new().filter_zero_amount_outputs(),
-    //             meta_config: Transfer2AccountsMetaConfig::new(
-    //                 ctx.accounts.fee_payer.key(),
-    //                 packed_accounts,
-    //             ),
-    //             in_lamports: None,
-    //             out_lamports: None,
-    //             token_accounts: compressed_token_infos,
-    //         };
-
-    //         let ctoken_ix = create_transfer2_instruction(inputs).map_err(ProgramError::from)?;
-
-    //         // account_infos
-    //         let mut all_account_infos = vec![ctx.accounts.fee_payer.to_account_info()];
-    //         all_account_infos.extend(
-    //             ctx.accounts
-    //                 .compressed_token_cpi_authority
-    //                 .to_account_infos(),
-    //         );
-    //         all_account_infos.extend(ctx.accounts.compressed_token_program.to_account_infos());
-    //         all_account_infos.extend(ctx.accounts.rent_payer.to_account_infos());
-    //         all_account_infos.extend(ctx.accounts.config.to_account_infos());
-    //         all_account_infos.extend(cpi_accounts.to_account_infos());
-
-    //         // ctoken cpi
-    //         let seed_refs = all_compressed_token_signers_seeds
-    //             .iter()
-    //             .map(|s| s.as_slice())
-    //             .collect::<Vec<&[u8]>>();
-    //         invoke_signed(
-    //             &ctoken_ix,
-    //             all_account_infos.as_slice(),
-    //             &[seed_refs.as_slice()],
-    //         )?;
-    //     }
-    //     Ok(())
-    // }
 
     pub fn create_record<'info>(
         ctx: Context<'_, '_, '_, 'info, CreateRecord<'info>>,

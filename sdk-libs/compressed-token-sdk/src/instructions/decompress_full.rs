@@ -95,7 +95,6 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
     if indices.is_empty() {
         return Err(TokenSdkError::InvalidAccountData);
     }
-
     // Process each set of indices
     let mut token_accounts = Vec::with_capacity(indices.len());
 
@@ -113,11 +112,18 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
     }
 
     // Convert packed_accounts to AccountMetas
+    //
+    // TODO: we may have to add conditional delegate signers for delegate
+    // support via CPI.
+    let signer_indices: Vec<u8> = indices
+        .iter()
+        .map(|idx| idx.source.owner) // owner is always a signer
+        .collect();
     let mut packed_account_metas = Vec::with_capacity(packed_accounts.len());
-    for info in packed_accounts.iter() {
+    for (i, info) in packed_accounts.iter().enumerate() {
         packed_account_metas.push(AccountMeta {
             pubkey: *info.key,
-            is_signer: info.is_signer,
+            is_signer: info.is_signer || signer_indices.contains(&(i as u8)),
             is_writable: info.is_writable,
         });
     }
