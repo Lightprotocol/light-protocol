@@ -11,6 +11,7 @@ use crate::{
     state::{BaseCompressedMint, CompressedMint, ExtensionStruct},
     AnchorDeserialize, AnchorSerialize, CTokenError,
 };
+use light_compressed_account::Pubkey;
 
 #[repr(C)]
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
@@ -49,13 +50,13 @@ pub struct MintActionCompressedInstructionData {
     /// If proof by index not used.
     pub root_index: u16,
     pub compressed_address: [u8; 32],
+    /// If some -> no input because we create mint
+    pub mint: CompressedMintInstructionData,
     pub token_pool_bump: u8,
     pub token_pool_index: u8,
     pub actions: Vec<Action>,
     pub proof: Option<CompressedProof>,
     pub cpi_context: Option<CpiContext>,
-    /// If some -> no input because we create mint
-    pub mint: CompressedMintInstructionData,
 }
 
 #[repr(C)]
@@ -83,13 +84,15 @@ impl CompressedMintWithContext {
             root_index,
             address: compressed_address,
             mint: CompressedMintInstructionData {
-                version: 0,
-                spl_mint,
-                supply: 0, // TODO: dynamic?
-                decimals,
-                is_decompressed: false,
-                mint_authority,
-                freeze_authority,
+                base: BaseCompressedMint {
+                    version: 0,
+                    spl_mint,
+                    supply: 0, // TODO: dynamic?
+                    decimals,
+                    is_decompressed: false,
+                    mint_authority,
+                    freeze_authority,
+                },
                 extensions: None,
             },
         }
@@ -110,13 +113,15 @@ impl CompressedMintWithContext {
             root_index,
             address: compressed_address,
             mint: CompressedMintInstructionData {
-                version: 0,
-                spl_mint,
-                supply: 0,
-                decimals,
-                is_decompressed: false,
-                mint_authority,
-                freeze_authority,
+                base: BaseCompressedMint {
+                    version: 0,
+                    spl_mint,
+                    supply: 0, // TODO: dynamic?
+                    decimals,
+                    is_decompressed: false,
+                    mint_authority,
+                    freeze_authority,
+                },
                 extensions,
             },
         }

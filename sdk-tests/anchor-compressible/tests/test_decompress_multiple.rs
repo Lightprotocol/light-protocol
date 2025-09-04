@@ -15,6 +15,7 @@ use light_compressed_token_sdk::{
 use light_compressible_client::CompressibleInstruction;
 use light_ctoken_types::{
     instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
+    state::BaseCompressedMint,
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_macros::pubkey;
@@ -1458,14 +1459,16 @@ async fn create_user_record_and_game_session(
                 root_index: mint_address_tree_info.root_index,
                 address: compressed_mint_address,
                 mint: CompressedMintInstructionData {
-                    version: 1,
-                    spl_mint: spl_mint.into(),
-                    supply: 0,
-                    decimals,
-                    mint_authority: Some(mint_authority.into()),
-                    freeze_authority: Some(freeze_authority.into()),
+                    base: BaseCompressedMint {
+                        version: 1,
+                        spl_mint: spl_mint.into(),
+                        supply: 0,
+                        decimals,
+                        mint_authority: Some(mint_authority.into()),
+                        freeze_authority: Some(freeze_authority.into()),
+                        is_decompressed: false,
+                    },
                     extensions: None,
-                    is_decompressed: false,
                 },
             },
         },
