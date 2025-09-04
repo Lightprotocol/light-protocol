@@ -1495,24 +1495,39 @@ pub async fn run_service<R: Rpc>(
 
             let trees = {
                 let rpc = rpc_pool.get_connection().await?;
-                fetch_trees(&*rpc).await?
+                let mut fetched_trees = fetch_trees(&*rpc).await?;
+                if let Some(tree_id) = config.general_config.tree_id {
+                    fetched_trees.retain(|tree| tree.merkle_tree == tree_id);
+                    if fetched_trees.is_empty() {
+                        error!("Specified tree {} not found", tree_id);
+                        return Err(anyhow::anyhow!("Specified tree {} not found", tree_id));
+                    }
+                    info!("Processing only tree: {}", tree_id);
+                }
+                fetched_trees
             };
             trace!("Fetched initial trees: {:?}", trees);
 
             let (new_tree_sender, _) = broadcast::channel(100);
 
-            let mut tree_finder = TreeFinder::new(
-                rpc_pool.clone(),
-                trees.clone(),
-                new_tree_sender.clone(),
-                Duration::from_secs(config.general_config.tree_discovery_interval_seconds),
-            );
+            // Only run tree finder if not filtering by specific tree
+            let _tree_finder_handle = if config.general_config.tree_id.is_none() {
+                let mut tree_finder = TreeFinder::new(
+                    rpc_pool.clone(),
+                    trees.clone(),
+                    new_tree_sender.clone(),
+                    Duration::from_secs(config.general_config.tree_discovery_interval_seconds),
+                );
 
-            let _tree_finder_handle = tokio::spawn(async move {
-                if let Err(e) = tree_finder.run().await {
-                    error!("Tree finder error: {:?}", e);
-                }
-            });
+                Some(tokio::spawn(async move {
+                    if let Err(e) = tree_finder.run().await {
+                        error!("Tree finder error: {:?}", e);
+                    }
+                }))
+            } else {
+                info!("Tree discovery disabled when processing single tree");
+                None
+            };
 
             while retry_count < config.retry_config.max_retries {
                 debug!("Creating EpochManager (attempt {})", retry_count + 1);
