@@ -198,10 +198,11 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                             packed_tree_accounts.insert_or_get(input.output_queue),
                         )?
                     } else {
+                        let output_queue = packed_tree_accounts.insert_or_get(input.output_queue);
                         CTokenAccount2::new_empty(
                             packed_tree_accounts.insert_or_get(input.to),
                             packed_tree_accounts.insert_or_get(input.mint),
-                            packed_tree_accounts.insert_or_get(input.output_queue),
+                            output_queue,
                         )
                     };
 
@@ -461,6 +462,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 } else {
                     return Err(TokenSdkError::InvalidAccountData);
                 };
+                let output_queue = packed_tree_accounts.insert_or_get(input.output_queue);
 
                 let owner_index = packed_tree_accounts.insert_or_get((*owner).into());
                 let mint_index = packed_tree_accounts.insert_or_get((*mint).into());
@@ -468,11 +470,8 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     packed_tree_accounts.insert_or_get(rent_recipient.into());
 
                 // Create token account with the full balance
-                let mut token_account = CTokenAccount2::new_empty(
-                    owner_index,
-                    mint_index,
-                    packed_tree_accounts.insert_or_get(input.output_queue),
-                );
+                let mut token_account =
+                    CTokenAccount2::new_empty(owner_index, mint_index, output_queue);
 
                 let source_index = packed_tree_accounts.insert_or_get(input.solana_ctoken_account);
                 let authority_index =
