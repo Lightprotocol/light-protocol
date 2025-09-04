@@ -4,11 +4,14 @@ use light_compressed_account::instruction_data::with_readonly::ZInstructionDataI
 use light_ctoken_types::{
     hash_cache::HashCache, instructions::transfer2::ZCompressedTokenInstructionDataTransfer2,
 };
+use light_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
 use crate::shared::token_input::set_input_compressed_account;
 
 /// Process input compressed accounts and return total input lamports
+#[profile]
+#[inline(always)]
 pub fn set_input_compressed_accounts(
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut,
     hash_cache: &mut HashCache,

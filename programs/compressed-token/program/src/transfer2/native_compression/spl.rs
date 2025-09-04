@@ -2,13 +2,19 @@ use anchor_compressed_token::check_spl_token_pool_derivation_with_index;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_ctoken_types::instructions::transfer2::{ZCompression, ZCompressionMode};
+use light_profiler::profile;
 use light_sdk_types::CPI_AUTHORITY_PDA_SEED;
-use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, msg};
+use pinocchio::{
+    account_info::AccountInfo,
+    instruction::{AccountMeta, Seed, Signer},
+    msg,
+};
 
 use super::validate_compression_mode_fields;
 use crate::constants::BUMP_CPI_AUTHORITY;
 
 /// Process compression/decompression for SPL token accounts
+#[profile]
 pub(super) fn process_spl_compressions(
     compression: &ZCompression,
     token_program: &[u8; 32],
@@ -60,7 +66,8 @@ pub(super) fn process_spl_compressions(
         }
     }
 }
-
+#[profile]
+#[inline(always)]
 fn spl_token_transfer_invoke_cpi(
     token_program: &[u8; 32],
     from: &AccountInfo,
@@ -70,10 +77,10 @@ fn spl_token_transfer_invoke_cpi(
 ) -> Result<(), ProgramError> {
     let bump_seed = [BUMP_CPI_AUTHORITY];
     let seed_array = [
-        pinocchio::instruction::Seed::from(CPI_AUTHORITY_PDA_SEED),
-        pinocchio::instruction::Seed::from(bump_seed.as_slice()),
+        Seed::from(CPI_AUTHORITY_PDA_SEED),
+        Seed::from(bump_seed.as_slice()),
     ];
-    let signer = pinocchio::instruction::Signer::from(&seed_array);
+    let signer = Signer::from(&seed_array);
 
     spl_token_transfer_common(
         token_program,
@@ -85,6 +92,8 @@ fn spl_token_transfer_invoke_cpi(
     )
 }
 
+#[profile]
+#[inline(always)]
 fn spl_token_transfer_invoke(
     program_id: &[u8; 32],
     from: &AccountInfo,
@@ -95,6 +104,7 @@ fn spl_token_transfer_invoke(
     spl_token_transfer_common(program_id, from, to, authority, amount, None)
 }
 
+#[inline(always)]
 fn spl_token_transfer_common(
     token_program: &[u8; 32],
     from: &AccountInfo,

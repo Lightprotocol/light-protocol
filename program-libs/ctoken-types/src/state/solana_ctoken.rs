@@ -45,21 +45,17 @@ impl CompressedToken {
     /// CompressedToken layout: mint (32 bytes) + owner (32 bytes) + amount (8 bytes)
     pub fn amount_from_slice(data: &[u8]) -> Result<u64, ZeroCopyError> {
         const AMOUNT_OFFSET: usize = 64; // 32 (mint) + 32 (owner)
-        
+
         if data.len() < AMOUNT_OFFSET + 8 {
             return Err(ZeroCopyError::Size);
         }
-        
+
         let amount_bytes = &data[AMOUNT_OFFSET..AMOUNT_OFFSET + 8];
-        let amount = u64::from_le_bytes(
-            amount_bytes
-                .try_into()
-                .map_err(|_| ZeroCopyError::Size)?
-        );
-        
+        let amount = u64::from_le_bytes(amount_bytes.try_into().map_err(|_| ZeroCopyError::Size)?);
+
         Ok(amount)
     }
-    
+
     /// Extract amount from an AccountInfo
     #[cfg(feature = "solana")]
     pub fn amount_from_account_info(
@@ -200,6 +196,8 @@ impl<'a> ZeroCopyAt<'a> for CompressedTokenMeta {
 impl<'a> ZeroCopyAtMut<'a> for CompressedTokenMeta {
     type ZeroCopyAtMut = ZCompressedTokenMetaMut<'a>;
 
+    #[profile]
+    #[inline(always)]
     fn zero_copy_at_mut(
         bytes: &'a mut [u8],
     ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), ZeroCopyError> {
@@ -481,6 +479,8 @@ impl<'a> ZeroCopyAt<'a> for CompressedToken {
 impl<'a> ZeroCopyAtMut<'a> for CompressedToken {
     type ZeroCopyAtMut = ZCompressedTokenMut<'a>;
 
+    #[profile]
+    #[inline(always)]
     fn zero_copy_at_mut(
         bytes: &'a mut [u8],
     ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), ZeroCopyError> {

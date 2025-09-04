@@ -1,6 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
+use light_profiler::profile;
 use light_sdk_types::ACCOUNT_COMPRESSION_PROGRAM_ID;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
@@ -25,6 +26,8 @@ pub struct Transfer2Accounts<'info> {
 
 impl<'info> Transfer2Accounts<'info> {
     /// Validate and parse accounts from the instruction accounts slice
+    #[profile]
+    #[inline(always)]
     pub fn validate_and_parse(
         accounts: &'info [AccountInfo],
         config: &Transfer2Config,
@@ -67,6 +70,7 @@ impl<'info> Transfer2Accounts<'info> {
 
     /// Calculate static accounts count after skipping index 0 (system accounts only)
     /// Returns the count of fixed accounts based on optional features
+    #[profile]
     #[inline(always)]
     pub fn static_accounts_count(&self) -> Result<usize, ProgramError> {
         let system = self
@@ -86,6 +90,7 @@ impl<'info> Transfer2Accounts<'info> {
     /// Extract CPI accounts slice for light-system-program invocation
     /// Includes static accounts + tree accounts based on highest tree index
     /// Returns (cpi_accounts_slice, tree_accounts)
+    #[profile]
     #[inline(always)]
     pub fn cpi_accounts(
         &self,
@@ -116,6 +121,8 @@ impl<'info> Transfer2Accounts<'info> {
 
 // TODO: unit test.
 /// Extract tree accounts by finding the highest tree index and using it as closing offset
+#[profile]
+#[inline(always)]
 pub fn extract_tree_accounts<'info>(
     packed_accounts: &'info ProgramPackedAccounts<'info, AccountInfo>,
 ) -> Vec<&'info Pubkey> {

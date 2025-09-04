@@ -55,7 +55,7 @@ pub fn process_mint_to_decompressed_action(
         None, // No authority needed for decompression
         None,
         amount,
-        mint.into(),
+        &mint.into(),
         token_account_info,
         None,
         &ZCompressionMode::Decompress,

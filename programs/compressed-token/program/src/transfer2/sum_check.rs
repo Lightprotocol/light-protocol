@@ -3,10 +3,12 @@ use arrayvec::ArrayVec;
 use light_ctoken_types::instructions::transfer2::{
     ZCompression, ZCompressionMode, ZMultiInputTokenDataWithContext, ZMultiTokenTransferOutputData,
 };
+use light_profiler::profile;
 use spl_pod::solana_msg::msg;
 
 /// Process inputs and add amounts to mint sums with order validation
 #[inline(always)]
+#[profile]
 fn sum_inputs(
     inputs: &[ZMultiInputTokenDataWithContext],
     mint_sums: &mut ArrayVec<(u8, u64), 5>,
@@ -40,7 +42,8 @@ fn sum_inputs(
 
 /// Process compressions and adjust mint sums (add for compress, subtract for decompress)
 #[inline(always)]
-fn sum_compressions(
+#[profile]
+pub fn sum_compressions(
     compressions: &[ZCompression],
     mint_sums: &mut ArrayVec<(u8, u64), 5>,
 ) -> Result<(), ErrorCode> {
@@ -72,6 +75,7 @@ fn sum_compressions(
 
 /// Process outputs and subtract amounts from mint sums
 #[inline(always)]
+#[profile]
 fn sum_outputs(
     outputs: &[ZMultiTokenTransferOutputData],
     mint_sums: &mut ArrayVec<(u8, u64), 5>,
@@ -94,6 +98,8 @@ fn sum_outputs(
 }
 
 /// Sum check for multi-mint transfers with ordered mint validation and compression support
+#[profile]
+#[inline(always)]
 pub fn sum_check_multi_mint(
     inputs: &[ZMultiInputTokenDataWithContext],
     outputs: &[ZMultiTokenTransferOutputData],

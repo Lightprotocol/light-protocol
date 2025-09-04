@@ -32,6 +32,7 @@ pub fn check_spl_token_pool_derivation_with_index(
     }
 }
 
+#[inline(always)]
 pub fn is_valid_token_pool_pda(
     mint_bytes: &[u8],
     token_pool_pubkey: &Pubkey,
@@ -40,9 +41,8 @@ pub fn is_valid_token_pool_pda(
 ) -> Result<bool> {
     let pool_index = if pool_index[0] == 0 { &[] } else { pool_index };
     let pda = if let Some(bump) = bump {
-        let seeds = [POOL_SEED, mint_bytes, pool_index, &[bump]];
-        Pubkey::create_program_address(&seeds[..], &crate::ID)
-            .map_err(|_| crate::ErrorCode::NoMatchingBumpFound)?
+        let seeds = [POOL_SEED, mint_bytes, pool_index];
+        pinocchio_pubkey::derive_address(&seeds, Some(bump), &crate::ID.to_bytes()).into()
     } else {
         let seeds = [POOL_SEED, mint_bytes, pool_index];
         Pubkey::find_program_address(&seeds[..], &crate::ID).0

@@ -1,12 +1,15 @@
 use arrayvec::ArrayVec;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
 use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
+use light_profiler::profile;
 
 use crate::shared::cpi_bytes_size::{
     allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
 };
 
 /// Build CPI configuration from instruction data
+#[profile]
+#[inline(always)]
 pub fn allocate_cpi_bytes(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
 ) -> (Vec<u8>, InstructionDataInvokeCpiWithReadOnlyConfig) {

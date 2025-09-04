@@ -4,6 +4,7 @@ use light_compressed_account::pubkey::AsPubkey;
 use light_ctoken_types::instructions::transfer2::{
     ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
 };
+use light_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
@@ -19,6 +20,7 @@ const SPL_TOKEN_2022_ID: &[u8; 32] = &spl_token_2022::ID.to_bytes();
 const ID: &[u8; 32] = &LIGHT_CPI_SIGNER.program_id;
 
 /// Process native compressions/decompressions with token accounts
+#[profile]
 pub fn process_token_compression(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
@@ -75,6 +77,8 @@ pub fn process_token_compression(
 }
 
 /// Validate compression fields based on compression mode
+#[profile]
+#[inline(always)]
 pub(crate) fn validate_compression_mode_fields(
     compression: &ZCompression,
 ) -> Result<(), ProgramError> {

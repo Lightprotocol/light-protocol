@@ -9,9 +9,9 @@ use light_ctoken_types::{
     state::{CompressedToken, ZCompressedTokenMut},
     CTokenError,
 };
+use light_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
-use pinocchio::account_info::AccountInfo;
-use solana_pubkey::Pubkey;
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 
 use super::validate_compression_mode_fields;
@@ -21,6 +21,7 @@ use crate::{
 };
 
 /// Process compression/decompression for token accounts using zero-copy PodAccount
+#[profile]
 pub(super) fn process_native_compressions(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
     compression: &ZCompression,
@@ -37,7 +38,7 @@ pub(super) fn process_native_compressions(
         "process_native_compression: authority",
     )?;
 
-    let mint_account = *packed_accounts
+    let mint_account = packed_accounts
         .get_u8(compression.mint, "process_native_compression: token mint")?
         .key();
     let (destination, compressed_token_account) = if *mode == ZCompressionMode::CompressAndClose {
@@ -60,7 +61,7 @@ pub(super) fn process_native_compressions(
         Some(authority_account),
         compressed_token_account,
         (*compression.amount).into(),
-        mint_account.into(),
+        mint_account,
         token_account_info,
         destination,
         mode,
@@ -72,11 +73,12 @@ pub(super) fn process_native_compressions(
 
 /// Perform native compression/decompression on a token account
 #[allow(clippy::too_many_arguments)]
+#[profile]
 pub fn native_compression(
     authority: Option<&AccountInfo>,
     compressed_token_account: Option<&ZMultiTokenTransferOutputData<'_>>,
     amount: u64,
-    mint: Pubkey,
+    mint: &Pubkey,
     token_account_info: &AccountInfo,
     destination: Option<&AccountInfo>,
     mode: &ZCompressionMode,
@@ -90,11 +92,11 @@ pub fn native_compression(
     let (mut compressed_token, _) = CompressedToken::zero_copy_at_mut(&mut token_account_data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
-    if compressed_token.mint.to_bytes() != mint.to_bytes() {
+    if &compressed_token.mint.to_bytes() != mint {
         msg!(
             "mint mismatch account: compressed_token.mint {:?}, mint {:?}",
             solana_pubkey::Pubkey::new_from_array(compressed_token.mint.to_bytes()),
-            solana_pubkey::Pubkey::new_from_array(mint.to_bytes())
+            solana_pubkey::Pubkey::new_from_array(*mint)
         );
         return Err(ProgramError::InvalidAccountData);
     }

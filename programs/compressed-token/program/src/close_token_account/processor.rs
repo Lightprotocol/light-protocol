@@ -2,6 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
 use light_ctoken_types::state::{CompressedToken, ZCompressedTokenMut, ZExtensionStructMut};
+use light_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::account_info::AccountInfo;
 use spl_token_2022::state::AccountState;
@@ -9,6 +10,7 @@ use spl_token_2022::state::AccountState;
 use super::accounts::CloseTokenAccountAccounts;
 
 /// Process the close token account instruction
+#[profile]
 pub fn process_close_token_account(
     account_infos: &[AccountInfo],
     _instruction_data: &[u8],
@@ -27,6 +29,7 @@ pub fn process_close_token_account(
     Ok(())
 }
 
+#[profile]
 pub fn validate_token_account(
     accounts: &CloseTokenAccountAccounts,
     compressed_token: &ZCompressedTokenMut<'_>,

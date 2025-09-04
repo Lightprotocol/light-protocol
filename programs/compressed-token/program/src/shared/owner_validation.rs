@@ -1,10 +1,12 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::checks::check_signer;
 use light_ctoken_types::state::ZCompressedTokenMut;
+use light_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
 /// Verify owner or delegate signer authorization for token operations
 /// Returns the delegate account info if delegate is used, None otherwise
+#[profile]
 pub fn verify_owner_or_delegate_signer<'a>(
     owner_account: &'a AccountInfo,
     delegate_account: Option<&'a AccountInfo>,
@@ -48,6 +50,7 @@ pub fn verify_owner_or_delegate_signer<'a>(
 }
 
 /// Verify and update token account authority using zero-copy compressed token format
+#[profile]
 pub fn verify_and_update_token_account_authority_with_compressed_token(
     compressed_token: &mut ZCompressedTokenMut,
     authority_account: &AccountInfo,

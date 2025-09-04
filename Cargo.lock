@@ -264,6 +264,7 @@ dependencies = [
  "light-system-program-anchor",
  "light-zero-copy",
  "num-bigint 0.4.6",
+ "pinocchio-pubkey 0.3.0",
  "rand 0.8.5",
  "solana-sdk",
  "solana-security-txt",
