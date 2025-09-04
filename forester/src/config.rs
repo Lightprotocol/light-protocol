@@ -270,7 +270,10 @@ impl ForesterConfig {
                 skip_v2_state_trees: args.processor_mode == ProcessorMode::V1,
                 skip_v1_address_trees: args.processor_mode == ProcessorMode::V2,
                 skip_v2_address_trees: args.processor_mode == ProcessorMode::V1,
-                tree_id:  args.tree_id.as_ref().and_then(|id| Pubkey::from_str(id).ok()),
+                tree_id: args
+                    .tree_id
+                    .as_ref()
+                    .and_then(|id| Pubkey::from_str(id).ok()),
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: args.rpc_pool_size,
