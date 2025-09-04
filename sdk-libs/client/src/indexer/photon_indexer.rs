@@ -8,7 +8,7 @@ use photon_api::{
     models::GetCompressedAccountsByOwnerPostRequestParams,
 };
 use solana_pubkey::Pubkey;
-use tracing::{debug, error, warn};
+use tracing::{error, trace, warn};
 
 use super::{
     types::{
@@ -55,17 +55,18 @@ impl PhotonIndexer {
         loop {
             attempts += 1;
 
-            debug!(
+            trace!(
                 "Attempt {}/{}: No rate limiter configured",
-                attempts, max_retries
+                attempts,
+                max_retries
             );
 
-            debug!("Attempt {}/{}: Executing operation", attempts, max_retries);
+            trace!("Attempt {}/{}: Executing operation", attempts, max_retries);
             let result = operation().await;
 
             match result {
                 Ok(value) => {
-                    debug!("Attempt {}/{}: Operation succeeded.", attempts, max_retries);
+                    trace!("Attempt {}/{}: Operation succeeded.", attempts, max_retries);
                     return Ok(value);
                 }
                 Err(e) => {
@@ -1289,11 +1290,6 @@ impl Indexer for PhotonIndexer {
                 request,
             )
             .await;
-
-            match &result {
-                Ok(response) => debug!("Raw API response: {:?}", response),
-                Err(e) => error!("API request failed: {:?}", e),
-            }
 
             let result = result?;
 
