@@ -5,7 +5,7 @@ seeds = false
 skip-lint = false
 
 [programs.localnet]
-sdk_test = "2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt"
+sdk-anchor-test = "2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt"
 
 [registry]
 url = "https://api.apr.dev"

@@ -2,6 +2,8 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, LitStr};
 
+// TODO: review where needed.
+#[allow(dead_code)]
 pub fn derive_light_cpi_signer_pda(input: TokenStream) -> TokenStream {
     // Parse the input - just a program ID string literal
     let program_id_lit = parse_macro_input!(input as LitStr);

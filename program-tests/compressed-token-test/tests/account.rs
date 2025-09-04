@@ -1,9 +1,13 @@
 // #![cfg(feature = "test-sbf")]
 
 use anchor_spl::token_2022::spl_token_2022;
-use light_compressed_token_sdk::instructions::{
-    close::close_account, create_associated_token_account::derive_ctoken_ata,
-    create_associated_token_account_idempotent, create_token_account,
+use light_compressed_token_sdk::{
+    compressible::{initialize_compressible_token_account, InitializeCompressibleTokenAccount},
+    instructions::{
+        close::close_account, create_associated_token_account::derive_ctoken_ata,
+        create_associated_token_account_idempotent, create_token_account,
+    },
+    SPL_TOKEN_PROGRAM_ID,
 };
 use light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
@@ -203,16 +207,14 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
 
     // Initialize compressible token account
     let create_token_account_ix =
-        light_compressed_token_sdk::instructions::create_compressible_token_account(
-            light_compressed_token_sdk::instructions::CreateCompressibleTokenAccount {
-                account_pubkey: token_account_pubkey,
-                mint_pubkey: context.mint_pubkey,
-                owner_pubkey: context.owner_keypair.pubkey(),
-                rent_authority: rent_authority_pubkey,
-                rent_recipient: rent_recipient_pubkey,
-                slots_until_compression: 0,
-            },
-        )
+        initialize_compressible_token_account(InitializeCompressibleTokenAccount {
+            account_pubkey: token_account_pubkey,
+            mint_pubkey: context.mint_pubkey,
+            owner_pubkey: context.owner_keypair.pubkey(),
+            rent_authority: rent_authority_pubkey,
+            rent_recipient: rent_recipient_pubkey,
+            slots_until_compression: 0,
+        })
         .map_err(|e| {
             RpcError::AssertRpcError(format!(
                 "Failed to create compressible token account instruction: {}",
@@ -512,16 +514,14 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
     );
 
     let create_token_account_ix =
-        light_compressed_token_sdk::instructions::create_compressible_token_account(
-            light_compressed_token_sdk::instructions::CreateCompressibleTokenAccount {
-                account_pubkey: token_account_pubkey,
-                mint_pubkey,
-                owner_pubkey: context.owner_keypair.pubkey(),
-                rent_authority: rent_authority_keypair.pubkey(),
-                rent_recipient: rent_recipient_pubkey,
-                slots_until_compression: 0,
-            },
-        )
+        initialize_compressible_token_account(InitializeCompressibleTokenAccount {
+            account_pubkey: token_account_pubkey,
+            mint_pubkey,
+            owner_pubkey: context.owner_keypair.pubkey(),
+            rent_authority: rent_authority_keypair.pubkey(),
+            rent_recipient: rent_recipient_pubkey,
+            slots_until_compression: 0,
+        })
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to create instruction: {}", e)))?;
 
     context
@@ -790,6 +790,7 @@ async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
         &recipient,
         mint,
         &payer,
+        SPL_TOKEN_PROGRAM_ID.into(),
     )
     .await?;
 

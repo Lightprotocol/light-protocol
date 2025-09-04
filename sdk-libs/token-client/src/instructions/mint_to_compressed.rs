@@ -17,7 +17,7 @@ use light_ctoken_types::{
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
-/// Creates a mint_to_compressed instruction that mints compressed tokens to recipients
+/// Creates a mint_to_compressed instruction that mints compressed tokens to recipients, with Rpc.
 pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
     rpc: &mut R,
     spl_mint_pda: Pubkey,

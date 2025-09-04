@@ -1,0 +1,29 @@
+{
+  "name": "@lightprotocol/sdk-tests",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "pnpm build-anchor-compressible && pnpm build-anchor-compressible-derived && pnpm build-native-compressible",
+    "build-anchor-compressible": "cd anchor-compressible/ && cargo build-sbf && cd ..",
+    "build-anchor-compressible-derived": "cd anchor-compressible-derived/ && cargo build-sbf && cd ..",
+    "build-native-compressible": "cd native-compressible/ && cargo build-sbf && cd ..",
+    "test": "RUSTFLAGS=\"-D warnings\" && pnpm test-anchor-compressible && pnpm test-anchor-compressible-derived && pnpm test-native-compressible",
+    "test-anchor-compressible": "cargo test-sbf -p anchor-compressible",
+    "test-anchor-compressible-derived": "cargo test-sbf -p anchor-compressible-derived",
+    "test-native-compressible": "cargo test-sbf -p native-compressible"
+  },
+  "nx": {
+    "targets": {
+      "build": {
+        "outputs": [
+          "{workspaceRoot}/target/deploy",
+          "{workspaceRoot}/target/idl",
+          "{workspaceRoot}/target/types"
+        ]
+      },
+      "test": {
+        "outputs": []
+      }
+    }
+  }
+}
