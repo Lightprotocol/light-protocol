@@ -92,7 +92,7 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
 
         trace!("Requesting {} total elements with offset {}", total_elements, offset);
 
-        const MAX_ELEMENTS_PER_REQUEST: usize = 250;
+        const MAX_ELEMENTS_PER_REQUEST: usize = 500;
         let mut queue_elements = Vec::new();
         let mut current_offset = offset;
         let mut remaining_elements = total_elements;
