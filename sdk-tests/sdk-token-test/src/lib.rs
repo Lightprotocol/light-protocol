@@ -16,6 +16,7 @@ mod process_compress_full_and_close;
 mod process_compress_tokens;
 mod process_create_compressed_account;
 mod process_create_escrow_pda;
+mod process_decompress_full_cpi_context;
 mod process_decompress_tokens;
 mod process_four_invokes;
 pub mod process_four_transfer2;
@@ -62,12 +63,11 @@ use light_sdk::address::v1::derive_address;
 use light_sdk_types::CpiAccountsConfig;
 
 use crate::{
-    ctoken_pda::*, process_create_compressed_account::deposit_tokens,
-    process_four_transfer2::FourTransfer2Params, process_update_deposit::process_update_deposit,
-};
-use crate::{
-    mint_compressed_tokens_cpi_write::MintCompressedTokensCpiWriteParams,
+    ctoken_pda::*, mint_compressed_tokens_cpi_write::MintCompressedTokensCpiWriteParams,
     process_compress_and_close_cpi_context::process_compress_and_close_cpi_context,
+    process_create_compressed_account::deposit_tokens,
+    process_decompress_full_cpi_context::process_decompress_full_cpi_context,
+    process_four_transfer2::FourTransfer2Params, process_update_deposit::process_update_deposit,
 };
 #[program]
 pub mod sdk_token_test {
@@ -141,6 +141,45 @@ pub mod sdk_token_test {
         system_accounts_offset: u8,
     ) -> Result<()> {
         process_compress_and_close_cpi_indices(ctx, indices, system_accounts_offset)
+    }
+
+    /// Decompress full balance from compressed accounts with CPI context
+    /// This decompresses the entire balance to destination ctoken accounts
+    pub fn decompress_full_cpi<'info>(
+        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        indices: Vec<
+            light_compressed_token_sdk::instructions::decompress_full::DecompressFullIndices,
+        >,
+        validity_proof: light_compressed_token_sdk::ValidityProof,
+        system_accounts_offset: u8,
+    ) -> Result<()> {
+        process_decompress_full_cpi_context(
+            ctx,
+            indices,
+            validity_proof,
+            system_accounts_offset,
+            None,
+        )
+    }
+
+    /// Decompress full balance from compressed accounts with CPI context
+    /// This decompresses the entire balance to destination ctoken accounts
+    pub fn decompress_full_cpi_with_cpi_context<'info>(
+        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        indices: Vec<
+            light_compressed_token_sdk::instructions::decompress_full::DecompressFullIndices,
+        >,
+        validity_proof: light_compressed_token_sdk::ValidityProof,
+        system_accounts_offset: u8,
+        params: Option<MintCompressedTokensCpiWriteParams>,
+    ) -> Result<()> {
+        process_decompress_full_cpi_context(
+            ctx,
+            indices,
+            validity_proof,
+            system_accounts_offset,
+            params,
+        )
     }
 
     pub fn transfer_tokens<'info>(

@@ -3557,6 +3557,7 @@ dependencies = [
  "num-bigint 0.4.6",
  "pinocchio 0.8.4",
  "rand 0.8.5",
+ "solana-account-info",
  "solana-msg",
  "solana-program-error",
  "solana-pubkey",

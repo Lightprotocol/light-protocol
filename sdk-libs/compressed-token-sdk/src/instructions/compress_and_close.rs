@@ -1,14 +1,3 @@
-use crate::{
-    account2::CTokenAccount2,
-    error::TokenSdkError,
-    instructions::{
-        transfer2::{
-            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
-            Transfer2Config, Transfer2Inputs,
-        },
-        CTokenDefaultAccounts,
-    },
-};
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_ctoken_types::state::{CompressedToken, ZExtensionStruct};
 use light_profiler::profile;
@@ -21,6 +10,18 @@ use solana_account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_msg::msg;
 use solana_pubkey::Pubkey;
+
+use crate::{
+    account2::CTokenAccount2,
+    error::TokenSdkError,
+    instructions::{
+        transfer2::{
+            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
+            Transfer2Config, Transfer2Inputs,
+        },
+        CTokenDefaultAccounts,
+    },
+};
 
 /// Struct to hold all the indices needed for CompressAndClose operation
 #[derive(Debug, crate::AnchorSerialize, crate::AnchorDeserialize)]
@@ -46,14 +47,22 @@ pub fn pack_for_compress_and_close(
     let output_tree_index = packed_accounts.insert_or_get(output_queue);
     let (ctoken_account, _) = CompressedToken::zero_copy_at(ctoken_account_data)?;
     let source_index = packed_accounts.insert_or_get(ctoken_account_pubkey);
-    let mint_index = packed_accounts.insert_or_get((*ctoken_account.mint).into());
-    let owner_index = packed_accounts.insert_or_get((*ctoken_account.owner).into());
+    let mint_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
+    let owner_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
     let authority_index = if signer_is_rent_authority {
         // Rent authority is separate and will be added as a signer later
-        packed_accounts.insert_or_get_config((*ctoken_account.owner).into(), false, false)
+        packed_accounts.insert_or_get_config(
+            Pubkey::from(ctoken_account.owner.to_bytes()),
+            false,
+            false,
+        )
     } else {
         // Owner is the authority and needs to sign
-        packed_accounts.insert_or_get_config((*ctoken_account.owner).into(), true, false)
+        packed_accounts.insert_or_get_config(
+            Pubkey::from(ctoken_account.owner.to_bytes()),
+            true,
+            false,
+        )
     };
 
     let rent_recipient_index = if signer_is_rent_authority {
@@ -62,8 +71,13 @@ pub fn pack_for_compress_and_close(
         if let Some(extensions) = &ctoken_account.extensions {
             for extension in extensions {
                 if let ZExtensionStruct::Compressible(e) = extension {
-                    packed_accounts.insert_or_get_config((e.rent_authority).into(), true, true);
-                    recipient_index = packed_accounts.insert_or_get((e.rent_recipient).into());
+                    packed_accounts.insert_or_get_config(
+                        Pubkey::from(e.rent_authority.to_bytes()),
+                        true,
+                        true,
+                    );
+                    recipient_index =
+                        packed_accounts.insert_or_get(Pubkey::from(e.rent_recipient.to_bytes()));
                     break;
                 }
             }
@@ -327,7 +341,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
 
         // Find indices for all required accounts
         let indices = find_account_indices(
-            &find_index,
+            find_index,
             ctoken_account_info.key,
             &mint_pubkey,
             &owner_pubkey,

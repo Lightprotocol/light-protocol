@@ -411,7 +411,7 @@ async fn test_compress_and_close_cpi_multiple() {
     // Collect indices for all 4 accounts
     let mut indices_vec = Vec::with_capacity(ctx.token_account_pubkeys.len());
 
-    for (i, token_account_pubkey) in ctx.token_account_pubkeys.iter().enumerate() {
+    for token_account_pubkey in ctx.token_account_pubkeys.iter() {
         let ctoken_solana_account = rpc
             .get_account(*token_account_pubkey)
             .await
@@ -524,7 +524,7 @@ async fn test_compress_and_close_cpi_multiple_with_rent_authority() {
     // Collect indices for all 4 accounts
     let mut indices_vec = Vec::with_capacity(ctx.token_account_pubkeys.len());
 
-    for (_i, token_account_pubkey) in ctx.token_account_pubkeys.iter().enumerate() {
+    for token_account_pubkey in ctx.token_account_pubkeys.iter() {
         let ctoken_solana_account = rpc
             .get_account(*token_account_pubkey)
             .await
@@ -840,9 +840,9 @@ async fn test_compress_and_close_cpi_mixed_signers() {
 
     // Verify rent distribution
     // First 2 accounts: rent goes to owners
-    for i in 0..2 {
+    for (i, owner) in owners.iter().enumerate().take(2) {
         let owner_balance = rpc
-            .get_account(owners[i].pubkey())
+            .get_account(owner.pubkey())
             .await
             .unwrap()
             .map(|acc| acc.lamports)

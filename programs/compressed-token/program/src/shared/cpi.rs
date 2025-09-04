@@ -1,6 +1,7 @@
 use std::mem::MaybeUninit;
 
 use anchor_lang::solana_program::program_error::ProgramError;
+use light_profiler::profile;
 use light_sdk_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA_SEED,
     LIGHT_SYSTEM_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
@@ -29,6 +30,7 @@ use crate::LIGHT_CPI_SIGNER;
 ///
 /// # Returns
 /// * `Result<(), ProgramError>` - Success or error from the CPI call
+#[profile]
 pub fn execute_cpi_invoke(
     accounts: &[AccountInfo],
     cpi_bytes: Vec<u8>,

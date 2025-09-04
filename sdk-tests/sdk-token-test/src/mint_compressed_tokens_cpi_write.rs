@@ -24,8 +24,6 @@ pub fn process_mint_compressed_tokens_cpi_write<'info>(
     token_program_cpi_authority: &AccountInfo<'info>,
     cpi_accounts: &CpiAccountsSmall<'_, 'info>,
 ) -> Result<()> {
-    msg!("Minting compressed tokens with CPI write");
-
     let actions = vec![MintActionType::MintTo {
         recipients: params.recipients,
         lamports: None,
@@ -44,7 +42,6 @@ pub fn process_mint_compressed_tokens_cpi_write<'info>(
         cpi_context: params.cpi_context,
         cpi_context_pubkey: *cpi_accounts.cpi_context().unwrap().key,
     };
-    msg!("mint_action_inputs {:?}", mint_action_inputs);
 
     let mint_action_instruction = mint_action_cpi_write(mint_action_inputs).unwrap();
 
@@ -58,20 +55,11 @@ pub fn process_mint_compressed_tokens_cpi_write<'info>(
         cpi_signer: crate::LIGHT_CPI_SIGNER,
         recipient_token_accounts: vec![],
     };
-    msg!(
-        "mint_action_account_infos.to_account_infos() {:?}",
-        mint_action_account_infos
-            .to_account_infos()
-            .iter()
-            .map(|x| x.key)
-            .collect::<Vec<_>>()
-    );
+
     invoke(
         &mint_action_instruction,
         &mint_action_account_infos.to_account_infos(),
     )?;
-
-    msg!("Minting completed, CPI context populated");
 
     Ok(())
 }

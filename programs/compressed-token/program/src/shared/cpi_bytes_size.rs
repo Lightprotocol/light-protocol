@@ -18,6 +18,7 @@ const MAX_OUTPUT_ACCOUNTS: usize = 35;
 
 /// Calculate data length for a compressed mint account
 #[profile]
+#[inline(always)]
 pub fn mint_data_len(config: &light_ctoken_types::state::CompressedMintConfig) -> u32 {
     use light_ctoken_types::state::CompressedMint;
     CompressedMint::byte_len(config).unwrap() as u32
@@ -25,6 +26,7 @@ pub fn mint_data_len(config: &light_ctoken_types::state::CompressedMintConfig) -
 
 /// Calculate data length for a compressed token account
 #[profile]
+#[inline(always)]
 pub fn token_data_len(has_delegate: bool) -> u32 {
     if has_delegate {
         107
@@ -90,6 +92,7 @@ impl CpiConfigInput {
 // TODO: generalize and move the light-compressed-account
 // TODO: add version of this function with hardcoded values that just calculates the cpi_byte_size, with a randomized test vs this function
 #[profile]
+#[inline(always)]
 pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithReadOnlyConfig {
     let input_compressed_accounts = {
         let mut input_compressed_accounts = Vec::with_capacity(input.input_accounts.len());
@@ -120,10 +123,11 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
 
         outputs
     };
+    let new_address_params = vec![(); input.new_address_params];
     InstructionDataInvokeCpiWithReadOnlyConfig {
         cpi_context: (),
         proof: (input.has_proof, ()),
-        new_address_params: (0..input.new_address_params).map(|_| ()).collect(), // Create required number of new address params
+        new_address_params, // Create required number of new address params
         input_compressed_accounts,
         output_compressed_accounts,
         read_only_addresses: vec![],
@@ -133,6 +137,7 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
 
 /// Allocate CPI instruction bytes with discriminator and length prefix
 #[profile]
+#[inline(always)]
 pub fn allocate_invoke_with_read_only_cpi_bytes(
     config: &InstructionDataInvokeCpiWithReadOnlyConfig,
 ) -> Vec<u8> {

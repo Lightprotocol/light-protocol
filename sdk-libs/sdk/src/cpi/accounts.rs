@@ -29,7 +29,7 @@ pub trait CpiAccountsExt {
     fn get_packed_account_metas(&self) -> Result<Vec<AccountMeta>>;
 }
 
-impl<'c, 'info> CpiAccountsExt for CpiAccounts<'c, 'info> {
+impl CpiAccountsExt for CpiAccounts<'_, '_> {
     fn get_packed_account_metas(&self) -> Result<Vec<AccountMeta>> {
         let tree_accounts = self.tree_accounts()?;
         let mut metas = Vec::with_capacity(tree_accounts.len());

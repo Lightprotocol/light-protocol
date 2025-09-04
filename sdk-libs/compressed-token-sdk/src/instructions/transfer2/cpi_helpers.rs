@@ -1,8 +1,9 @@
+use std::panic::Location;
+
 use arrayvec::ArrayVec;
 use light_sdk::cpi::CpiAccounts;
 use solana_account_info::AccountInfo;
 use solana_instruction::AccountMeta;
-use std::panic::Location;
 
 use crate::{account2::CTokenAccount2, error::TokenSdkError};
 

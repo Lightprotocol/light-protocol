@@ -1,8 +1,9 @@
-use crate::OneCTokenAccount;
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_compressed_token_sdk::instructions::compress_and_close_ctoken_accounts;
 use light_sdk::cpi::CpiAccountsSmall;
 use light_sdk_types::CpiAccountsConfig;
+
+use crate::OneCTokenAccount;
 
 /// Process compress_and_close operation using the higher-level compress_and_close_ctoken_accounts function
 /// This demonstrates using the SDK's abstraction for compress and close operations

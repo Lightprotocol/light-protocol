@@ -11,7 +11,15 @@ use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
 
 #[repr(C)]
 #[derive(
-    Debug, Clone, Default, PartialEq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
+    Debug,
+    Copy,
+    Clone,
+    Default,
+    PartialEq,
+    AnchorSerialize,
+    AnchorDeserialize,
+    ZeroCopy,
+    ZeroCopyMut,
 )]
 pub struct MultiInputTokenDataWithContext {
     pub owner: u8,

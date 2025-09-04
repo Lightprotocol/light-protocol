@@ -1,14 +1,15 @@
+use anchor_lang::{prelude::*, solana_program::program::invoke};
+use light_compressed_token_sdk::instructions::compress_and_close::{
+    compress_and_close_ctoken_accounts_with_indices, CompressAndCloseIndices,
+};
+use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall};
+
 use crate::{
     mint_compressed_tokens_cpi_write::{
         process_mint_compressed_tokens_cpi_write, MintCompressedTokensCpiWriteParams,
     },
     Generic,
 };
-use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_compressed_token_sdk::instructions::compress_and_close::{
-    compress_and_close_ctoken_accounts_with_indices, CompressAndCloseIndices,
-};
-use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall};
 
 /// Process compress_and_close operation using the new CompressAndClose mode with manual indices
 /// This combines token compression and account closure in a single atomic transaction
