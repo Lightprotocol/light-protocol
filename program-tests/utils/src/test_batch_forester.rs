@@ -25,7 +25,9 @@ use light_compressed_account::{
     hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
     QueueType,
 };
-use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
+use light_hasher::{
+    bigint::bigint_to_be_bytes_array, to_byte_array::ToByteArray, Hasher, Poseidon,
+};
 use light_prover_client::{
     proof_client::ProofClient,
     proof_types::{
@@ -269,8 +271,7 @@ pub async fn get_batched_nullify_ix_data<R: Rpc>(
         let proof = bundle.merkle_tree.get_proof_of_leaf(index, true).unwrap();
         merkle_proofs.push(proof.to_vec());
         bundle.input_leaf_indices.remove(0);
-        let index_bytes = index.to_be_bytes();
-        use light_hasher::Hasher;
+        let index_bytes = index.to_byte_array().unwrap();
         let nullifier = Poseidon::hashv(&[&leaf, &index_bytes, &leaf_info.tx_hash]).unwrap();
 
         tx_hashes.push(leaf_info.tx_hash);
