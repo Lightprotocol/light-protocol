@@ -1,6 +1,17 @@
 pub mod account_metas;
+pub mod cpi_accounts;
 pub mod instruction;
 
+pub use account_metas::{
+    get_mint_action_instruction_account_metas, get_mint_action_instruction_account_metas_cpi_write,
+    MintActionMetaConfig, MintActionMetaConfigCpiWrite,
+};
+pub use cpi_accounts::MintActionCpiAccounts;
+pub use instruction::{
+    create_mint_action, create_mint_action_cpi, mint_action_cpi_write, CreateMintCpiWriteInputs,
+    CreateMintInputs, MintActionInputs, MintActionInputsCpiWrite, MintActionType, MintToRecipient,
+    TokenPool, WithMintCpiWriteInputs, WithMintInputs, MINT_ACTION_DISCRIMINATOR,
+};
 use light_account_checks::AccountInfoTrait;
 use light_sdk::cpi::CpiSigner;
 
@@ -58,13 +69,3 @@ impl<T: AccountInfoTrait + Clone> MintActionCpiWriteAccounts<'_, T> {
         refs
     }
 }
-
-pub use account_metas::{
-    get_mint_action_instruction_account_metas, get_mint_action_instruction_account_metas_cpi_write,
-    MintActionMetaConfig, MintActionMetaConfigCpiWrite,
-};
-pub use instruction::{
-    create_mint_action, create_mint_action_cpi, mint_action_cpi_write, MintActionInputs,
-    MintActionInputsCpiWrite, MintActionType, MintToRecipient, TokenPool,
-    MINT_ACTION_DISCRIMINATOR,
-};

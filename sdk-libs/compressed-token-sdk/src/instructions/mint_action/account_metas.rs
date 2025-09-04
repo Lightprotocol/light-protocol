@@ -1,3 +1,4 @@
+use light_profiler::profile;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 use spl_token_2022;
@@ -5,7 +6,7 @@ use spl_token_2022;
 use crate::instructions::CTokenDefaultAccounts;
 
 /// Account metadata configuration for mint action instruction
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct MintActionMetaConfig {
     pub fee_payer: Option<Pubkey>,
     pub mint_signer: Option<Pubkey>,
@@ -24,47 +25,8 @@ pub struct MintActionMetaConfig {
     pub decompressed_token_accounts: Vec<Pubkey>, // For mint_to_decompressed actions
 }
 
-impl MintActionMetaConfig {
-    /// Create a new MintActionMetaConfig for direct invocation
-    #[allow(clippy::too_many_arguments)]
-    pub fn new(
-        fee_payer: Pubkey,
-        mint_signer: Pubkey,
-        authority: Pubkey,
-        tree_pubkey: Pubkey,
-        input_queue: Option<Pubkey>,
-        output_queue: Pubkey,
-        tokens_out_queue: Option<Pubkey>,
-        with_lamports: bool,
-        is_decompressed: bool,
-        has_mint_to_actions: bool,
-        with_cpi_context: Option<Pubkey>,
-        create_mint: bool,
-        with_mint_signer: bool,
-        mint_needs_to_sign: bool,
-        decompressed_token_accounts: Vec<Pubkey>,
-    ) -> Self {
-        Self {
-            fee_payer: Some(fee_payer),
-            mint_signer: Some(mint_signer),
-            authority,
-            tree_pubkey,
-            input_queue,
-            output_queue,
-            tokens_out_queue,
-            with_lamports,
-            is_decompressed,
-            has_mint_to_actions,
-            with_cpi_context,
-            create_mint,
-            with_mint_signer,
-            mint_needs_to_sign,
-            decompressed_token_accounts,
-        }
-    }
-}
-
 /// Get the account metas for a mint action instruction
+#[profile]
 pub fn get_mint_action_instruction_account_metas(
     config: MintActionMetaConfig,
     compressed_mint_inputs: &light_ctoken_types::instructions::mint_action::CompressedMintWithContext,
@@ -213,10 +175,10 @@ pub struct MintActionMetaConfigCpiWrite {
     pub authority: Pubkey,
     pub cpi_context: Pubkey,
     pub mint_needs_to_sign: bool, // Only true when creating new compressed mint
-    pub decompressed_token_accounts: Vec<Pubkey>, // For mint_to_decompressed actions
 }
 
 /// Get the account metas for a mint action CPI write instruction
+#[profile]
 pub fn get_mint_action_instruction_account_metas_cpi_write(
     config: MintActionMetaConfigCpiWrite,
 ) -> Vec<AccountMeta> {
@@ -254,11 +216,6 @@ pub fn get_mint_action_instruction_account_metas_cpi_write(
 
     // cpi_context (mutable) - index 5
     metas.push(AccountMeta::new(config.cpi_context, false));
-
-    // Add decompressed token accounts as remaining accounts for MintToDecompressed actions
-    for token_account in &config.decompressed_token_accounts {
-        metas.push(AccountMeta::new(*token_account, false));
-    }
 
     metas
 }

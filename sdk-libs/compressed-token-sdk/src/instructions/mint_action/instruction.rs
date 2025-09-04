@@ -7,6 +7,7 @@ use light_ctoken_types::{
         UpdateAuthority, UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
     },
 };
+use light_profiler::profile;
 use solana_instruction::Instruction;
 use solana_msg::msg;
 use solana_pubkey::Pubkey;
@@ -23,8 +24,35 @@ use crate::{
 
 pub const MINT_ACTION_DISCRIMINATOR: u8 = 106;
 
+/// Input parameters for creating a new mint
+#[derive(Debug, Clone)]
+pub struct CreateMintInputs {
+    pub compressed_mint_inputs: CompressedMintWithContext,
+    pub mint_seed: Pubkey,
+    pub mint_bump: u8,
+    pub authority: Pubkey,
+    pub payer: Pubkey,
+    pub proof: Option<CompressedProof>,
+    pub address_tree: Pubkey,
+    pub output_queue: Pubkey,
+}
+
+/// Input parameters for working with an existing mint
+#[derive(Debug, Clone)]
+pub struct WithMintInputs {
+    pub compressed_mint_inputs: CompressedMintWithContext,
+    pub mint_seed: Pubkey,
+    pub authority: Pubkey,
+    pub payer: Pubkey,
+    pub proof: Option<CompressedProof>,
+    pub state_tree: Pubkey,
+    pub input_queue: Pubkey,
+    pub output_queue: Pubkey,
+    pub token_pool: Option<TokenPool>, // Required if mint is decompressed
+}
+
 /// Input struct for creating a mint action instruction
-#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
 pub struct MintActionInputs {
     pub compressed_mint_inputs: CompressedMintWithContext,
     pub mint_seed: Pubkey,
@@ -41,8 +69,161 @@ pub struct MintActionInputs {
     pub token_pool: Option<TokenPool>,
 }
 
+impl MintActionInputs {
+    /// Create a new compressed mint (starting point for new mints)
+    pub fn new_create_mint(inputs: CreateMintInputs) -> Self {
+        Self {
+            compressed_mint_inputs: inputs.compressed_mint_inputs,
+            mint_seed: inputs.mint_seed,
+            create_mint: true,
+            mint_bump: Some(inputs.mint_bump),
+            authority: inputs.authority,
+            payer: inputs.payer,
+            proof: inputs.proof,
+            actions: Vec::new(),
+            address_tree_pubkey: inputs.address_tree,
+            input_queue: None,
+            output_queue: inputs.output_queue,
+            tokens_out_queue: None,
+            token_pool: None,
+        }
+    }
+
+    /// Start with an existing mint (starting point for existing mints)
+    pub fn new_with_mint(inputs: WithMintInputs) -> Self {
+        Self {
+            compressed_mint_inputs: inputs.compressed_mint_inputs,
+            mint_seed: inputs.mint_seed,
+            create_mint: false,
+            mint_bump: None,
+            authority: inputs.authority,
+            payer: inputs.payer,
+            proof: inputs.proof,
+            actions: Vec::new(),
+            address_tree_pubkey: inputs.state_tree,
+            input_queue: Some(inputs.input_queue),
+            output_queue: inputs.output_queue,
+            tokens_out_queue: None,
+            token_pool: inputs.token_pool,
+        }
+    }
+
+    /// Add CreateSplMint action - creates SPL mint and token pool
+    pub fn add_create_spl_mint(mut self, mint_bump: u8, token_pool: TokenPool) -> Self {
+        self.actions
+            .push(MintActionType::CreateSplMint { mint_bump });
+        self.token_pool = Some(token_pool);
+        self
+    }
+
+    /// Add MintTo action - mint tokens to compressed token accounts
+    pub fn add_mint_to(
+        mut self,
+        recipients: Vec<MintToRecipient>,
+        token_account_version: u8,
+        tokens_out_queue: Option<Pubkey>,
+    ) -> Self {
+        self.actions.push(MintActionType::MintTo {
+            recipients,
+            lamports: None,
+            token_account_version,
+        });
+        // Set tokens_out_queue if not already set
+        if self.tokens_out_queue.is_none() {
+            self.tokens_out_queue = tokens_out_queue.or(Some(self.output_queue));
+        }
+        self
+    }
+
+    /// Add MintTo action with lamports
+    pub fn add_mint_to_with_lamports(
+        mut self,
+        recipients: Vec<MintToRecipient>,
+        lamports: u64,
+        token_account_version: u8,
+        tokens_out_queue: Option<Pubkey>,
+    ) -> Self {
+        self.actions.push(MintActionType::MintTo {
+            recipients,
+            lamports: Some(lamports),
+            token_account_version,
+        });
+        // Set tokens_out_queue if not already set
+        if self.tokens_out_queue.is_none() {
+            self.tokens_out_queue = tokens_out_queue.or(Some(self.output_queue));
+        }
+        self
+    }
+
+    /// Add MintToDecompressed action - mint to SPL token accounts
+    pub fn add_mint_to_decompressed(mut self, account: Pubkey, amount: u64) -> Self {
+        self.actions
+            .push(MintActionType::MintToDecompressed { account, amount });
+        self
+    }
+
+    /// Add UpdateMintAuthority action
+    pub fn add_update_mint_authority(mut self, new_authority: Option<Pubkey>) -> Self {
+        self.actions
+            .push(MintActionType::UpdateMintAuthority { new_authority });
+        self
+    }
+
+    /// Add UpdateFreezeAuthority action
+    pub fn add_update_freeze_authority(mut self, new_authority: Option<Pubkey>) -> Self {
+        self.actions
+            .push(MintActionType::UpdateFreezeAuthority { new_authority });
+        self
+    }
+
+    /// Add UpdateMetadataField action
+    pub fn add_update_metadata_field(
+        mut self,
+        extension_index: u8,
+        field_type: u8,
+        key: Vec<u8>,
+        value: Vec<u8>,
+    ) -> Self {
+        self.actions.push(MintActionType::UpdateMetadataField {
+            extension_index,
+            field_type,
+            key,
+            value,
+        });
+        self
+    }
+
+    /// Add UpdateMetadataAuthority action
+    pub fn add_update_metadata_authority(
+        mut self,
+        extension_index: u8,
+        new_authority: Pubkey,
+    ) -> Self {
+        self.actions.push(MintActionType::UpdateMetadataAuthority {
+            extension_index,
+            new_authority,
+        });
+        self
+    }
+
+    /// Add RemoveMetadataKey action
+    pub fn add_remove_metadata_key(
+        mut self,
+        extension_index: u8,
+        key: Vec<u8>,
+        idempotent: u8,
+    ) -> Self {
+        self.actions.push(MintActionType::RemoveMetadataKey {
+            extension_index,
+            key,
+            idempotent,
+        });
+        self
+    }
+}
+
 /// High-level action types for the mint action instruction
-#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
 pub enum MintActionType {
     CreateSplMint {
         mint_bump: u8,
@@ -79,13 +260,13 @@ pub enum MintActionType {
     },
 }
 
-#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
 pub struct MintToRecipient {
     pub recipient: Pubkey,
     pub amount: u64,
 }
 
-#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
 pub struct TokenPool {
     pub pubkey: Pubkey,
     pub bump: u8,
@@ -93,6 +274,7 @@ pub struct TokenPool {
 }
 
 /// Creates a mint action instruction
+#[profile]
 pub fn create_mint_action_cpi(
     input: MintActionInputs,
     cpi_context: Option<CpiContext>,
@@ -150,6 +332,7 @@ pub fn create_mint_action_cpi(
                 lamports,
                 token_account_version,
             } => {
+                // TODO: cleanup once lamports are removed.
                 let program_recipients: Vec<_> = recipients
                     .into_iter()
                     .map(|r| Recipient {
@@ -289,7 +472,7 @@ pub fn create_mint_action(input: MintActionInputs) -> Result<Instruction> {
 }
 
 /// Input struct for creating a mint action CPI write instruction
-#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
 pub struct MintActionInputsCpiWrite {
     pub compressed_mint_inputs:
         light_ctoken_types::instructions::mint_action::CompressedMintWithContext,
@@ -299,15 +482,189 @@ pub struct MintActionInputsCpiWrite {
     pub authority: Pubkey,
     pub payer: Pubkey,
     pub actions: Vec<MintActionType>,
-    pub input_queue: Option<Pubkey>, // Input queue for existing compressed mint operations
+    //pub input_queue: Option<Pubkey>, // Input queue for existing compressed mint operations
     pub cpi_context: light_ctoken_types::instructions::mint_action::CpiContext,
     pub cpi_context_pubkey: Pubkey,
+}
+
+/// Input parameters for creating a new mint in CPI write mode
+#[derive(Debug, Clone)]
+pub struct CreateMintCpiWriteInputs {
+    pub compressed_mint_inputs:
+        light_ctoken_types::instructions::mint_action::CompressedMintWithContext,
+    pub mint_seed: Pubkey,
+    pub mint_bump: u8,
+    pub authority: Pubkey,
+    pub payer: Pubkey,
+    pub cpi_context_pubkey: Pubkey,
+    pub first_set_context: bool,
+    pub address_tree_index: u8,
+    pub output_queue_index: u8,
+    pub assigned_account_index: u8,
+}
+
+/// Input parameters for working with an existing mint in CPI write mode
+#[derive(Debug, Clone)]
+pub struct WithMintCpiWriteInputs {
+    pub compressed_mint_inputs:
+        light_ctoken_types::instructions::mint_action::CompressedMintWithContext,
+    pub authority: Pubkey,
+    pub payer: Pubkey,
+    pub cpi_context_pubkey: Pubkey,
+    pub first_set_context: bool,
+    pub state_tree_index: u8,
+    pub input_queue_index: u8,
+    pub output_queue_index: u8,
+    pub assigned_account_index: u8,
+}
+
+impl MintActionInputsCpiWrite {
+    /// Create a new compressed mint for CPI write (starting point for new mints)
+    pub fn new_create_mint(inputs: CreateMintCpiWriteInputs) -> Self {
+        let cpi_context = light_ctoken_types::instructions::mint_action::CpiContext {
+            set_context: false, // For CPI write, we're reading from context
+            first_set_context: inputs.first_set_context,
+            in_tree_index: inputs.address_tree_index, // For create_mint, this is the address tree
+            in_queue_index: 0,                        // Not used for create_mint
+            out_queue_index: inputs.output_queue_index,
+            token_out_queue_index: 0, // Set when adding MintTo action
+            assigned_account_index: inputs.assigned_account_index,
+        };
+
+        Self {
+            compressed_mint_inputs: inputs.compressed_mint_inputs,
+            mint_seed: Some(inputs.mint_seed),
+            mint_bump: Some(inputs.mint_bump),
+            create_mint: true,
+            authority: inputs.authority,
+            payer: inputs.payer,
+            actions: Vec::new(),
+            cpi_context,
+            cpi_context_pubkey: inputs.cpi_context_pubkey,
+        }
+    }
+
+    /// Start with an existing mint for CPI write (starting point for existing mints)
+    pub fn new_with_mint(inputs: WithMintCpiWriteInputs) -> Self {
+        let cpi_context = light_ctoken_types::instructions::mint_action::CpiContext {
+            set_context: false, // For CPI write, we're reading from context
+            first_set_context: inputs.first_set_context,
+            in_tree_index: inputs.state_tree_index,
+            in_queue_index: inputs.input_queue_index,
+            out_queue_index: inputs.output_queue_index,
+            token_out_queue_index: 0, // Set when adding MintTo action
+            assigned_account_index: inputs.assigned_account_index,
+        };
+
+        Self {
+            compressed_mint_inputs: inputs.compressed_mint_inputs,
+            mint_seed: None,
+            mint_bump: None,
+            create_mint: false,
+            authority: inputs.authority,
+            payer: inputs.payer,
+            actions: Vec::new(),
+            cpi_context,
+            cpi_context_pubkey: inputs.cpi_context_pubkey,
+        }
+    }
+
+    /// Add MintTo action - mint tokens to compressed token accounts
+    /// Returns error if mint is decompressed (no SPL mint modifications in CPI write)
+    pub fn add_mint_to(
+        mut self,
+        recipients: Vec<MintToRecipient>,
+        token_account_version: u8,
+        token_out_queue_index: u8, // Index for token output queue
+    ) -> Result<Self> {
+        // Cannot mint if the mint is decompressed
+        // In CPI write, we cannot modify SPL mint supply
+        if self.compressed_mint_inputs.mint.base.is_decompressed {
+            return Err(TokenSdkError::CannotMintWithDecompressedInCpiWrite);
+        }
+
+        // Set token_out_queue_index for the MintTo action
+        self.cpi_context.token_out_queue_index = token_out_queue_index;
+
+        self.actions.push(MintActionType::MintTo {
+            recipients,
+            lamports: None, // Always None in CPI write
+            token_account_version,
+        });
+        Ok(self)
+    }
+
+    /// Add UpdateMintAuthority action
+    pub fn add_update_mint_authority(mut self, new_authority: Option<Pubkey>) -> Self {
+        self.actions
+            .push(MintActionType::UpdateMintAuthority { new_authority });
+        self
+    }
+
+    /// Add UpdateFreezeAuthority action
+    pub fn add_update_freeze_authority(mut self, new_authority: Option<Pubkey>) -> Self {
+        self.actions
+            .push(MintActionType::UpdateFreezeAuthority { new_authority });
+        self
+    }
+
+    /// Add UpdateMetadataField action
+    pub fn add_update_metadata_field(
+        mut self,
+        extension_index: u8,
+        field_type: u8,
+        key: Vec<u8>,
+        value: Vec<u8>,
+    ) -> Self {
+        self.actions.push(MintActionType::UpdateMetadataField {
+            extension_index,
+            field_type,
+            key,
+            value,
+        });
+        self
+    }
+
+    /// Add UpdateMetadataAuthority action
+    pub fn add_update_metadata_authority(
+        mut self,
+        extension_index: u8,
+        new_authority: Pubkey,
+    ) -> Self {
+        self.actions.push(MintActionType::UpdateMetadataAuthority {
+            extension_index,
+            new_authority,
+        });
+        self
+    }
+
+    /// Add RemoveMetadataKey action
+    pub fn add_remove_metadata_key(
+        mut self,
+        extension_index: u8,
+        key: Vec<u8>,
+        idempotent: u8,
+    ) -> Self {
+        self.actions.push(MintActionType::RemoveMetadataKey {
+            extension_index,
+            key,
+            idempotent,
+        });
+        self
+    }
 }
 
 /// Creates a mint action CPI write instruction (for use in CPI context)
 pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruction> {
     use light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData;
-
+    if input.compressed_mint_inputs.mint.base.is_decompressed
+        || input
+            .actions
+            .iter()
+            .any(|action| matches!(action, MintActionType::CreateSplMint { .. }))
+    {
+        return Err(TokenSdkError::CannotMintWithDecompressedInCpiWrite);
+    }
     // Validate CPI context
     if !input.cpi_context.first_set_context && !input.cpi_context.set_context {
         return Err(TokenSdkError::InvalidAccountData);
@@ -318,30 +675,13 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
     let create_mint = input.create_mint;
     let mint_bump = input.mint_bump.unwrap_or(0u8);
 
-    let with_mint_signer = create_mint
-        || input
-            .actions
-            .iter()
-            .any(|action| matches!(action, MintActionType::CreateSplMint { .. }));
+    let with_mint_signer = create_mint;
 
     // Only require mint to sign when creating a new compressed mint
     let mint_needs_to_sign = create_mint;
 
-    // Collect decompressed accounts for account index mapping (CPI write version)
-    let mut decompressed_accounts: Vec<Pubkey> = Vec::new();
-    let mut decompressed_account_index = 0u8;
-
     for action in input.actions {
         match action {
-            MintActionType::CreateSplMint { mint_bump: bump } => {
-                program_actions.push(
-                    light_ctoken_types::instructions::mint_action::Action::CreateSplMint(
-                        light_ctoken_types::instructions::mint_action::CreateSplMintAction {
-                            mint_bump: bump,
-                        },
-                    ),
-                );
-            }
             MintActionType::MintTo {
                 recipients,
                 lamports,
@@ -381,27 +721,6 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
                     light_ctoken_types::instructions::mint_action::Action::UpdateFreezeAuthority(
                         light_ctoken_types::instructions::mint_action::UpdateAuthority {
                             new_authority: new_authority.map(|auth| auth.to_bytes().into()),
-                        },
-                    ),
-                );
-            }
-            MintActionType::MintToDecompressed { account, amount } => {
-                use light_ctoken_types::instructions::mint_action::{
-                    DecompressedRecipient, MintToDecompressedAction,
-                };
-
-                // Add account to decompressed accounts list and get its index
-                decompressed_accounts.push(account);
-                let current_index = decompressed_account_index;
-                decompressed_account_index += 1;
-
-                program_actions.push(
-                    light_ctoken_types::instructions::mint_action::Action::MintToDecompressed(
-                        MintToDecompressedAction {
-                            recipient: DecompressedRecipient {
-                                account_index: current_index,
-                                amount,
-                            },
                         },
                     ),
                 );
@@ -451,6 +770,7 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
                     ),
                 );
             }
+            _ => return Err(TokenSdkError::CannotMintWithDecompressedInCpiWrite),
         }
     }
 
@@ -480,7 +800,6 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
         authority: input.authority,
         cpi_context: input.cpi_context_pubkey,
         mint_needs_to_sign,
-        decompressed_token_accounts: decompressed_accounts,
     };
 
     // Get account metas

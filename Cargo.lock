@@ -3495,6 +3495,7 @@ dependencies = [
  "light-sdk",
  "light-sdk-types",
  "light-zero-copy",
+ "pinocchio 0.8.4",
  "solana-account-info",
  "solana-cpi",
  "solana-instruction",

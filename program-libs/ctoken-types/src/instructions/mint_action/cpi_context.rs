@@ -4,7 +4,7 @@ use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use crate::{AnchorDeserialize, AnchorSerialize};
 
 #[repr(C)]
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut, PartialEq)]
 pub struct CpiContext {
     pub set_context: bool,
     pub first_set_context: bool,

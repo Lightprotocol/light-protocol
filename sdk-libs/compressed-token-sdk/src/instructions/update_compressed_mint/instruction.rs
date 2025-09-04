@@ -144,7 +144,6 @@ pub fn create_update_compressed_mint_cpi_write(
         authority: inputs.authority,
         payer: inputs.payer,
         actions,
-        input_queue: None, // Not needed for CPI write mode
         cpi_context: mint_action_cpi_context,
         cpi_context_pubkey: inputs.cpi_context_pubkey,
     };

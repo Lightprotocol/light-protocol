@@ -45,6 +45,8 @@ pub enum TokenSdkError {
     NonContinuousIndices,
     #[error("PackedAccount index out of bounds")]
     PackedAccountIndexOutOfBounds,
+    #[error("Cannot mint with decompressed mint in CPI write mode")]
+    CannotMintWithDecompressedInCpiWrite,
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
     #[error(transparent)]
@@ -91,6 +93,7 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::TooManyAccounts => 17015,
             TokenSdkError::NonContinuousIndices => 17016,
             TokenSdkError::PackedAccountIndexOutOfBounds => 17017,
+            TokenSdkError::CannotMintWithDecompressedInCpiWrite => 17018,
             TokenSdkError::CompressedTokenTypes(e) => e.into(),
             TokenSdkError::CTokenError(e) => e.into(),
             TokenSdkError::LightSdkTypesError(e) => e.into(),

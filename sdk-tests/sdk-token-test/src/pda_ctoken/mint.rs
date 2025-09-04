@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_compressed_token_sdk::instructions::{
-    create_mint_action_cpi, mint_action::MintActionType, MintActionInputs,
+    create_mint_action_cpi, CreateMintInputs, MintActionInputs,
 };
 use light_sdk::cpi::CpiAccountsSmall;
 
@@ -11,50 +11,31 @@ pub fn process_mint_action<'c, 'info>(
     input: &ChainedCtokenInstructionData,
     cpi_accounts: &CpiAccountsSmall<'c, 'info>,
 ) -> Result<()> {
-    let actions = vec![
-        MintActionType::MintTo {
-            recipients: input.token_recipients.clone(),
-            lamports: input.lamports,
-            token_account_version: 2,
-        },
-        MintActionType::UpdateMintAuthority {
-            new_authority: input.final_mint_authority,
-        },
-        MintActionType::MintToDecompressed {
-            account: ctx.accounts.token_account.key(),
-            amount: input.token_recipients[0].amount,
-        },
-    ];
-
     // Derive the output queue pubkey - use the same tree as the PDA creation
     let address_tree_pubkey = *cpi_accounts.tree_accounts().unwrap()[0].key; // Same tree as PDA
     let output_queue = *cpi_accounts.tree_accounts().unwrap()[1].key; // Same tree as PDA
 
-    let mint_action_inputs = MintActionInputs {
+    // Build using the new builder pattern
+    let mint_action_inputs = MintActionInputs::new_create_mint(CreateMintInputs {
         compressed_mint_inputs: input.compressed_mint_with_context.clone(),
         mint_seed: ctx.accounts.mint_seed.key(),
-        create_mint: true,
-        mint_bump: Some(input.mint_bump),
+        mint_bump: input.mint_bump,
         authority: ctx.accounts.mint_authority.key(),
         payer: ctx.accounts.payer.key(),
         proof: input.pda_creation.proof.into(),
-        actions,
-        address_tree_pubkey, // Use same tree as PDA
-        input_queue: None,   // Not needed for create_mint: true
+        address_tree: address_tree_pubkey,
         output_queue,
-        tokens_out_queue: Some(output_queue), // For MintTo actions
-        token_pool: None,                     // Not needed for compressed mint creation
-                                              /*  cpi_context: Some(light_ctoken_types::instructions::mint_action::CpiContext {
-                                                  set_context: false,       // Read from CPI context written in PDA creation
-                                                  first_set_context: false, // Not the first, we're reading
-                                                  in_tree_index: 1,
-                                                  in_queue_index: 0,
-                                                  out_queue_index: 0,
-                                                  token_out_queue_index: 0,
-                                                  // Compressed output account order: 0. escrow account 1. mint, 2. token account
-                                                  assigned_account_index: 1, // mint
-                                              }),*/
-    };
+    })
+    .add_mint_to(
+        input.token_recipients.clone(),
+        2, // token_account_version
+        Some(output_queue),
+    )
+    .add_update_mint_authority(input.final_mint_authority)
+    .add_mint_to_decompressed(
+        ctx.accounts.token_account.key(),
+        input.token_recipients[0].amount,
+    );
 
     let mint_action_instruction = create_mint_action_cpi(
         mint_action_inputs,

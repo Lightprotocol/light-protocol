@@ -46,9 +46,10 @@ light-profiler = { workspace = true }
 anchor-lang = { workspace = true, optional = true }
 
 [dev-dependencies]
-light-account-checks = { workspace = true, features = ["test-only", "solana"] }
+light-account-checks = { workspace = true, features = ["test-only", "pinocchio"] }
 anchor-lang = { workspace = true }
 light-compressed-token = { workspace = true }
+pinocchio = { workspace = true }
 
 
 [lints.rust.unexpected_cfgs]

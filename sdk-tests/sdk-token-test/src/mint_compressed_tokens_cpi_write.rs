@@ -38,7 +38,6 @@ pub fn process_mint_compressed_tokens_cpi_write<'info>(
         authority: ctx.accounts.signer.key(),
         payer: ctx.accounts.signer.key(),
         actions,
-        input_queue: None,
         cpi_context: params.cpi_context,
         cpi_context_pubkey: *cpi_accounts.cpi_context.unwrap().key,
     };

@@ -59,7 +59,7 @@ pub struct MintActionCompressedInstructionData {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
+#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, PartialEq)]
 pub struct CompressedMintWithContext {
     pub leaf_index: u32,
     pub prove_by_index: bool,

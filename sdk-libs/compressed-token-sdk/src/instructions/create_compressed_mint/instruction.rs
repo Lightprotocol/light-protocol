@@ -175,7 +175,6 @@ pub fn create_compressed_mint_cpi_write(
         authority: input.mint_authority,
         payer: input.payer,
         actions: Vec::new(), // Empty - just creating mint, no additional actions
-        input_queue: None,   // Not needed for create_mint: true
         cpi_context: mint_action_cpi_context,
         cpi_context_pubkey: input.cpi_context_pubkey,
     };
