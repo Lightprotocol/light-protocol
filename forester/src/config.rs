@@ -81,6 +81,7 @@ pub struct GeneralConfig {
     pub skip_v1_address_trees: bool,
     pub skip_v2_state_trees: bool,
     pub skip_v2_address_trees: bool,
+    pub tree_id: Option<Pubkey>,
 }
 
 impl Default for GeneralConfig {
@@ -93,6 +94,7 @@ impl Default for GeneralConfig {
             skip_v1_address_trees: false,
             skip_v2_state_trees: false,
             skip_v2_address_trees: false,
+            tree_id: None,
         }
     }
 }
@@ -107,6 +109,7 @@ impl GeneralConfig {
             skip_v1_address_trees: true,
             skip_v2_state_trees: true,
             skip_v2_address_trees: false,
+            tree_id: None,
         }
     }
 
@@ -119,6 +122,7 @@ impl GeneralConfig {
             skip_v1_address_trees: true,
             skip_v2_state_trees: false,
             skip_v2_address_trees: true,
+            tree_id: None,
         }
     }
 }
@@ -266,6 +270,7 @@ impl ForesterConfig {
                 skip_v2_state_trees: args.processor_mode == ProcessorMode::V1,
                 skip_v1_address_trees: args.processor_mode == ProcessorMode::V2,
                 skip_v2_address_trees: args.processor_mode == ProcessorMode::V1,
+                tree_id:  args.tree_id.as_ref().and_then(|id| Pubkey::from_str(id).ok()),
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: args.rpc_pool_size,
@@ -320,6 +325,7 @@ impl ForesterConfig {
                 skip_v2_state_trees: false,
                 skip_v1_address_trees: false,
                 skip_v2_address_trees: false,
+                tree_id: None,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: 10,
