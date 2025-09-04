@@ -1067,7 +1067,7 @@ impl<R: Rpc> EpochManager<R> {
     ) -> Result<bool> {
         let current_slot = self.slot_tracker.estimated_current_slot();
         let current_phase_state = epoch_info.phases.get_current_epoch_state(current_slot);
-        
+
         if current_phase_state != EpochState::Active {
             trace!(
                 "Skipping processing: not in active phase (current phase: {:?}, slot: {})",
