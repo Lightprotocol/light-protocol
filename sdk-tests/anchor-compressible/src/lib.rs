@@ -25,7 +25,7 @@ use light_sdk::{
     account::Size,
     compressible::{
         compress_account_on_init, compress_empty_account_on_init,
-        prepare_accounts_for_compression_on_init, prepare_accounts_for_decompress_idempotent,
+        prepare_account_for_decompression_idempotent, prepare_accounts_for_compression_on_init,
         process_initialize_compression_config_checked, process_update_compression_config,
         CompressAs, CompressibleConfig, CompressionInfo, HasCompressionInfo, Pack, Unpack,
     },
@@ -70,56 +70,6 @@ pub fn get_placeholder_record_seeds(placeholder_id: u64) -> (Vec<Vec<u8>>, Pubke
 
 use light_compressed_account::address::derive_compressed_address;
 
-// Generic helper function that handles the common decompression logic after seeds are obtained
-#[inline(never)]
-fn process_pda_decompression<'a, 'b, 'info, T>(
-    data: T,
-    compressed_meta: CompressedAccountMetaNoLamportsNoAddress,
-    solana_account: &AccountInfo<'info>,
-    rent_payer: &AccountInfo<'info>,
-    cpi_accounts: &CpiAccountsSmall<'b, AccountInfo<'info>>,
-    address_space: Pubkey,
-    signer_seeds: &[&[u8]],
-) -> Result<Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>>
-where
-    T: Clone
-        + Size
-        + DataHasher
-        + LightDiscriminator
-        + Default
-        + AnchorSerialize
-        + AnchorDeserialize
-        + HasCompressionInfo
-        + 'info,
-{
-    let derived_c_pda = derive_compressed_address(
-        &solana_account.key.into(),
-        &address_space.into(),
-        &crate::ID.into(),
-    );
-
-    let meta_with_address = CompressedAccountMeta {
-        tree_info: compressed_meta.tree_info,
-        address: derived_c_pda,
-        output_state_tree_index: compressed_meta.output_state_tree_index,
-    };
-
-    let light_account = LightAccount::<'_, T>::new_mut(&crate::ID, &meta_with_address, data)?;
-
-    let cpi_accounts_box = Box::new(cpi_accounts.clone());
-    let compressed_infos = prepare_accounts_for_decompress_idempotent::<T>(
-        vec![solana_account],
-        vec![light_account],
-        &[signer_seeds],
-        &cpi_accounts_box,
-        rent_payer,
-        address_space,
-    )?;
-    msg!("compressed_infos {:?}", compressed_infos);
-
-    Ok(compressed_infos)
-}
-
 use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall, CpiSigner};
 
 declare_id!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
@@ -157,7 +107,9 @@ pub mod anchor_compressible {
     };
 
     use light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext;
-    use light_sdk::compressible::compress_account::prepare_account_for_compression;
+    use light_sdk::compressible::{
+        compress_account::prepare_account_for_compression, into_compressed_meta_with_address,
+    };
     use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
 
     use super::*;
@@ -374,19 +326,17 @@ pub mod anchor_compressible {
         let compression_config =
             CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
         let address_space = compression_config.address_space[0];
-        // create cpi_accounts
-        let has_tokens = compressed_accounts.iter().any(|c| {
-            matches!(
-                c.data,
-                CompressedAccountVariant::CompressibleTokenAccountPacked(_)
-            )
-        });
-        let has_pdas = compressed_accounts.iter().any(|c| {
-            !matches!(
-                c.data,
-                CompressedAccountVariant::CompressibleTokenAccountPacked(_)
-            )
-        });
+
+        let (mut has_tokens, mut has_pdas) = (false, false);
+        for c in &compressed_accounts {
+            match c.data {
+                CompressedAccountVariant::CompressibleTokenAccountPacked(_) => has_tokens = true,
+                _ => has_pdas = true,
+            }
+            if has_tokens && has_pdas {
+                break;
+            }
+        }
 
         let cpi_accounts = if has_tokens && has_pdas {
             CpiAccountsSmall::new_with_config(
@@ -411,10 +361,11 @@ pub mod anchor_compressible {
 
         for (i, compressed_data) in compressed_accounts.clone().into_iter().enumerate() {
             // Implement pack and unpack traits in such a way that unpack always
-            // returns the onchian strcut as you want it onchain. The packed
-            // veersion should always only be used to send over the wire more
-            // efficiently. Indices should also only reference the accounts
-            // after the system accounts.
+            // returns the onchain struct as you want it to be stored onchain.
+            // The packed version should **only** be used to send over the wire
+            // more efficiently. Indices should also only reference the
+            // account_infos passed as remaining_accounts **after** the system
+            // accounts.
             let unpacked_data = compressed_data
                 .data
                 .unpack(&cpi_accounts.tree_accounts().unwrap())?;
@@ -423,55 +374,79 @@ pub mod anchor_compressible {
                 CompressedAccountVariant::UserRecord(data) => {
                     let (seeds_vec, _) = get_user_record_seeds(&ctx.accounts.fee_payer.key());
 
-                    let compressed_infos = process_pda_decompression::<UserRecord>(
-                        data,
-                        compressed_data.meta,
+                    let compressed_meta = into_compressed_meta_with_address(
+                        &compressed_data.meta,
                         &solana_accounts[i],
-                        &ctx.accounts.rent_payer,
-                        &cpi_accounts,
                         address_space,
-                        seeds_vec
-                            .iter()
-                            .map(|v| v.as_slice())
-                            .collect::<Vec<&[u8]>>()
-                            .as_slice(),
-                    )?;
+                        &crate::ID,
+                    );
+
+                    let compressed_infos =
+                        prepare_account_for_decompression_idempotent::<UserRecord>(
+                            &crate::ID,
+                            data,
+                            compressed_meta,
+                            &solana_accounts[i],
+                            &ctx.accounts.rent_payer,
+                            &cpi_accounts,
+                            seeds_vec
+                                .iter()
+                                .map(|v| v.as_slice())
+                                .collect::<Vec<&[u8]>>()
+                                .as_slice(),
+                        )?;
                     compressed_pda_infos.extend(compressed_infos);
                 }
                 CompressedAccountVariant::GameSession(data) => {
                     let (seeds_vec, _) = get_game_session_seeds(data.session_id);
 
-                    let compressed_infos = process_pda_decompression::<GameSession>(
-                        data,
-                        compressed_data.meta,
+                    let compressed_meta = into_compressed_meta_with_address(
+                        &compressed_data.meta,
                         &solana_accounts[i],
-                        &ctx.accounts.rent_payer,
-                        &cpi_accounts,
                         address_space,
-                        seeds_vec
-                            .iter()
-                            .map(|v| v.as_slice())
-                            .collect::<Vec<&[u8]>>()
-                            .as_slice(),
-                    )?;
+                        &crate::ID,
+                    );
+
+                    let compressed_infos =
+                        prepare_account_for_decompression_idempotent::<GameSession>(
+                            &crate::ID,
+                            data,
+                            compressed_meta,
+                            &solana_accounts[i],
+                            &ctx.accounts.rent_payer,
+                            &cpi_accounts,
+                            seeds_vec
+                                .iter()
+                                .map(|v| v.as_slice())
+                                .collect::<Vec<&[u8]>>()
+                                .as_slice(),
+                        )?;
                     compressed_pda_infos.extend(compressed_infos);
                 }
                 CompressedAccountVariant::PlaceholderRecord(data) => {
                     let (seeds_vec, _) = get_placeholder_record_seeds(data.placeholder_id);
 
-                    let compressed_infos = process_pda_decompression::<PlaceholderRecord>(
-                        data,
-                        compressed_data.meta,
+                    let compressed_meta = into_compressed_meta_with_address(
+                        &compressed_data.meta,
                         &solana_accounts[i],
-                        &ctx.accounts.rent_payer,
-                        &cpi_accounts,
                         address_space,
-                        seeds_vec
-                            .iter()
-                            .map(|v| v.as_slice())
-                            .collect::<Vec<&[u8]>>()
-                            .as_slice(),
-                    )?;
+                        &crate::ID,
+                    );
+
+                    let compressed_infos =
+                        prepare_account_for_decompression_idempotent::<PlaceholderRecord>(
+                            &crate::ID,
+                            data,
+                            compressed_meta,
+                            &solana_accounts[i],
+                            &ctx.accounts.rent_payer,
+                            &cpi_accounts,
+                            seeds_vec
+                                .iter()
+                                .map(|v| v.as_slice())
+                                .collect::<Vec<&[u8]>>()
+                                .as_slice(),
+                        )?;
                     compressed_pda_infos.extend(compressed_infos);
                 }
                 CompressedAccountVariant::CompressibleTokenAccountPacked(data) => {
@@ -486,11 +461,11 @@ pub mod anchor_compressible {
             }
         }
 
-        // set new based on actually collected accounts.
+        // set new based on actually uninitialized accounts.
         let has_pdas = !compressed_pda_infos.is_empty();
         let has_tokens = !compressed_token_accounts.is_empty();
         if !has_pdas && !has_tokens {
-            msg!("All PDAs and tokens already initialized.");
+            msg!("All accounts already initialized.");
             return Ok(());
         }
 
@@ -516,9 +491,9 @@ pub mod anchor_compressible {
         let mut all_compressed_token_signers_seeds = Vec::new();
 
         // creates account_metas for CPI.
-        let tree_accounts = cpi_accounts.tree_accounts().unwrap();
-        let mut packed_accounts = Vec::with_capacity(tree_accounts.len());
-        for account_info in tree_accounts {
+        let ix_accounts = cpi_accounts.post_system_accounts().unwrap();
+        let mut packed_accounts = Vec::with_capacity(ix_accounts.len());
+        for account_info in ix_accounts {
             packed_accounts.push(account_meta_from_account_info(account_info));
         }
 
@@ -530,10 +505,10 @@ pub mod anchor_compressible {
             let owner_index = token_data.token_data.owner;
             let mint_index = token_data.token_data.mint;
             let system_program = cpi_accounts.system_program().unwrap();
-            let token_account = &cpi_accounts.tree_accounts().unwrap()[owner_index as usize];
+            let token_account = &cpi_accounts.post_system_accounts().unwrap()[owner_index as usize];
 
             let mint_info =
-                cpi_accounts.tree_accounts().unwrap()[mint_index as usize].to_account_info();
+                cpi_accounts.post_system_accounts().unwrap()[mint_index as usize].to_account_info();
 
             // seeds for ctoken. match on variant.
             let ctoken_signer_seeds = match token_data.variant {

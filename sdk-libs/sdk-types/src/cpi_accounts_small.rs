@@ -161,6 +161,17 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
             ))
     }
 
+    /// Returns accounts after the system accounts; instruction-specific
+    /// remaining_accounts start at this offset.
+    pub fn post_system_accounts(&self) -> Result<&'a [T]> {
+        let system_offset = self.system_accounts_end_offset();
+        self.accounts
+            .get(system_offset..)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(
+                system_offset,
+            ))
+    }
+
     pub fn get_tree_account_info(&self, tree_index: usize) -> Result<&'a T> {
         let tree_accounts = self.tree_accounts()?;
         tree_accounts

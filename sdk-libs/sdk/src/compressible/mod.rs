@@ -28,4 +28,6 @@ pub use config::{
     process_initialize_compression_config_checked, process_update_compression_config,
     CompressibleConfig, COMPRESSIBLE_CONFIG_SEED, MAX_ADDRESS_TREES_PER_SPACE,
 };
-pub use decompress_idempotent::prepare_accounts_for_decompress_idempotent;
+pub use decompress_idempotent::{
+    into_compressed_meta_with_address, prepare_account_for_decompression_idempotent,
+};
