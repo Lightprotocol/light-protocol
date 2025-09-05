@@ -137,8 +137,10 @@ pub use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorS
 pub use light_account_checks::{self, discriminator::Discriminator as LightDiscriminator};
 pub use light_hasher;
 pub use light_sdk_macros::{
-    derive_light_cpi_signer, light_system_accounts, LightDiscriminator, LightDiscriminatorSha,
-    LightHasher, LightHasherSha, LightTraits,
+    add_compressible_instructions_enhanced, compressed_account_variant,
+    compressed_account_variant_with_instructions, derive_light_cpi_signer, generate_seed_functions,
+    light_system_accounts, Compressible, CompressiblePack, DeriveSeeds, LightDiscriminator,
+    LightDiscriminatorSha, LightHasher, LightHasherSha, LightTraits,
 };
 pub use light_sdk_types::constants;
 use solana_account_info::AccountInfo;

@@ -7,15 +7,26 @@ use syn::{parse_macro_input, DeriveInput, ItemStruct};
 use traits::process_light_traits;
 
 mod account;
+mod account_seeds;
 mod accounts;
 mod compress_as;
 mod compressible;
+mod compressible_derive;
+mod compressible_instructions;
 mod cpi_signer;
+mod derive_seeds;
 mod discriminator;
 mod hasher;
+mod instruction_generator;
+mod instruction_generator_simple;
 mod native_compressible;
+mod pack_unpack;
 mod program;
 mod traits;
+mod variant_enum;
+
+#[cfg(test)]
+mod test_modular_macros;
 
 /// Adds required fields to your anchor instruction for applying a zk-compressed
 /// state transition.
@@ -294,7 +305,7 @@ pub fn has_compression_info(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// Automatically implements the CompressAs trait for structs with custom compression logic.
+/// Legacy CompressAs trait implementation (use Compressible instead).
 ///
 /// This derive macro allows you to specify which fields should be reset/overridden
 /// during compression while keeping other fields as-is. Only the specified fields
@@ -304,15 +315,13 @@ pub fn has_compression_info(input: TokenStream) -> TokenStream {
 ///
 /// ```ignore
 /// use light_sdk::compressible::{CompressAs, CompressionInfo, HasCompressionInfo};
-/// use light_sdk_macros::Compressible;
+/// use light_sdk_macros::CompressAs;
 ///
-/// #[derive(Compressible)]  // Automatically derives HasCompressionInfo too!
+/// #[derive(CompressAs)]
 /// #[compress_as(
 ///     start_time = 0,
 ///     end_time = None,
 ///     score = 0
-///     // All other fields (session_id, player, game_type, compression_info)
-///     // are kept as-is automatically
 /// )]
 /// pub struct GameSession {
 ///     #[skip]
@@ -326,24 +335,11 @@ pub fn has_compression_info(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
-/// ## Usage with add_compressible_instructions
-///
-/// When a struct implements CompressAs (via this derive), the `add_compressible_instructions`
-/// macro will ONLY generate the custom compression instruction (`compress_mystruct_with_custom_data`).
-/// The regular compression instruction (`compress_mystruct`) will NOT be generated.
-///
-/// ## Requirements
-///
-/// - The struct must have named fields
-/// - The struct must have a `compression_info: Option<CompressionInfo>` field
-/// - All overridden field values must be valid expressions for the field types
-/// - Optionally include `#[compress_as(...)]` attribute with field overrides
-///
 /// ## Note
 ///
-/// This macro automatically derives `HasCompressionInfo` - no need to derive it manually!
-#[proc_macro_derive(Compressible, attributes(compress_as))]
-pub fn compressible(input: TokenStream) -> TokenStream {
+/// Use the new `Compressible` derive instead - it includes this functionality plus more.
+#[proc_macro_derive(CompressAs, attributes(compress_as))]
+pub fn compress_as_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
 
     compress_as::derive_compress_as(input)
@@ -403,6 +399,278 @@ pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
 
     account::account(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Automatically implements all required traits for compressible accounts.
+///
+/// This derive macro generates HasCompressionInfo, Size, and CompressAs trait implementations.
+/// It supports optional compress_as attribute for custom compression behavior.
+///
+/// ## Example - Basic Usage
+///
+/// ```ignore
+/// use light_sdk_macros::Compressible;
+/// use light_sdk::compressible::CompressionInfo;
+///
+/// #[derive(Compressible)]
+/// pub struct UserRecord {
+///     #[skip]
+///     pub compression_info: Option<CompressionInfo>,
+///     pub owner: Pubkey,
+///     pub name: String,
+///     pub score: u64,
+/// }
+/// ```
+///
+/// ## Example - Custom Compression
+///
+/// ```ignore
+/// #[derive(Compressible)]
+/// #[compress_as(start_time = 0, end_time = None, score = 0)]
+/// pub struct GameSession {
+///     #[skip]
+///     pub compression_info: Option<CompressionInfo>,
+///     pub session_id: u64,        // KEPT
+///     pub player: Pubkey,         // KEPT  
+///     pub game_type: String,      // KEPT
+///     pub start_time: u64,        // RESET to 0
+///     pub end_time: Option<u64>,  // RESET to None
+///     pub score: u64,             // RESET to 0
+/// }
+/// ```
+#[proc_macro_derive(Compressible, attributes(compress_as, light_seeds))]
+pub fn compressible_derive(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    compressible_derive::derive_compressible(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Automatically implements Pack and Unpack traits for compressible accounts.
+///
+/// For types with Pubkey fields, generates a PackedXxx struct and proper packing.
+/// For types without Pubkeys, generates identity Pack/Unpack implementations.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk_macros::CompressiblePack;
+///
+/// #[derive(CompressiblePack)]
+/// pub struct UserRecord {
+///     pub compression_info: Option<CompressionInfo>,
+///     pub owner: Pubkey,  // Will be packed as u8 index
+///     pub name: String,   // Kept as-is
+///     pub score: u64,     // Kept as-is
+/// }
+/// // This generates PackedUserRecord struct + Pack/Unpack implementations
+/// ```
+#[proc_macro_derive(CompressiblePack)]
+pub fn compressible_pack(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    pack_unpack::derive_compressible_pack(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Generates CompressedAccountVariant enum and CompressedAccountData struct.
+///
+/// Creates a unified enum that can hold any of the specified account types plus
+/// token account variants, with all required trait implementations.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk_macros::compressed_account_variant;
+///
+/// compressed_account_variant!(UserRecord, GameSession, PlaceholderRecord);
+/// ```
+///
+/// This generates:
+/// - CompressedAccountVariant enum with variants for each type + token variants
+/// - All trait implementations: Default, DataHasher, LightDiscriminator, HasCompressionInfo, Size, Pack, Unpack
+/// - CompressedAccountData struct for instruction data
+#[proc_macro]
+pub fn compressed_account_variant(input: TokenStream) -> TokenStream {
+    variant_enum::compressed_account_variant(input.into())
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Generates complete compressible instructions with auto-generated seed derivation.
+///
+/// This is a drop-in replacement for manual decompress_accounts_idempotent and
+/// compress_accounts_idempotent instructions. It reads #[light_seeds(...)] attributes
+/// from account types and generates complete instructions with inline seed derivation.
+///
+/// ## Example
+///
+/// Add #[light_seeds(...)] to your account types:
+/// ```ignore
+/// #[derive(Compressible, CompressiblePack)]
+/// #[light_seeds(b"user_record", owner.as_ref())]
+/// pub struct UserRecord {
+///     pub owner: Pubkey,
+///     // ...
+/// }
+///
+/// #[derive(Compressible, CompressiblePack)]  
+/// #[light_seeds(b"game_session", session_id.to_le_bytes().as_ref())]
+/// pub struct GameSession {
+///     pub session_id: u64,
+///     // ...
+/// }
+/// ```
+///
+/// Then generate complete instructions:
+/// ```ignore
+/// compressed_account_variant_with_instructions!(UserRecord, GameSession, PlaceholderRecord);
+/// ```
+///
+/// This generates:
+/// - CompressedAccountVariant enum + all trait implementations
+/// - Complete decompress_accounts_idempotent instruction with auto-generated seed derivation
+/// - Complete compress_accounts_idempotent instruction with auto-generated seed derivation
+/// - CompressedAccountData struct
+///
+/// The generated instructions automatically handle seed derivation for each account type
+/// without requiring manual seed function calls.
+#[proc_macro]
+pub fn compressed_account_variant_with_instructions(input: TokenStream) -> TokenStream {
+    instruction_generator_simple::compressed_account_variant_with_instructions_simple(input.into())
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Generates seed getter functions by analyzing Anchor account structs.
+///
+/// This macro scans account structs for `#[account(seeds = [...], ...)]` attributes
+/// and generates corresponding public seed getter functions that can be used by
+/// both the program and external clients.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk_macros::generate_seed_functions;
+///
+/// generate_seed_functions! {
+///     #[derive(Accounts)]
+///     pub struct CreateRecord<'info> {
+///         #[account(
+///             init,
+///             seeds = [b"user_record", user.key().as_ref()],
+///             bump,
+///         )]
+///         pub user_record: Account<'info, UserRecord>,
+///         pub user: Signer<'info>,
+///     }
+///
+///     #[derive(Accounts)]
+///     #[instruction(session_id: u64)]
+///     pub struct CreateGameSession<'info> {
+///         #[account(
+///             init,
+///             seeds = [b"game_session", session_id.to_le_bytes().as_ref()],
+///             bump,
+///         )]
+///         pub game_session: Account<'info, GameSession>,
+///         pub player: Signer<'info>,
+///     }
+/// }
+/// ```
+///
+/// This generates:
+/// - `get_user_record_seeds(user: &Pubkey) -> (Vec<Vec<u8>>, Pubkey)`
+/// - `get_game_session_seeds(session_id: u64) -> (Vec<Vec<u8>>, Pubkey)`
+///
+/// The functions extract parameters from the seeds expressions and create
+/// public functions that match the exact same seed derivation logic.
+#[proc_macro]
+pub fn generate_seed_functions(input: TokenStream) -> TokenStream {
+    account_seeds::generate_seed_functions(input.into())
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Enhanced version of add_compressible_instructions that generates complete compress/decompress instructions.
+///
+/// This attribute macro modifies the program module to add auto-generated instructions
+/// based on the specified account types.
+///
+/// ## Example
+///
+/// ```ignore
+/// use light_sdk_macros::add_compressible_instructions_enhanced;
+///
+/// #[add_compressible_instructions_enhanced(UserRecord, GameSession, PlaceholderRecord)]
+/// #[program]
+/// pub mod my_program {
+///     // Your manual instructions...
+///     
+///     // Auto-generated:
+///     // - decompress_accounts_idempotent
+///     // - DecompressAccountsIdempotent accounts struct
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn add_compressible_instructions_enhanced(
+    args: TokenStream,
+    input: TokenStream,
+) -> TokenStream {
+    let module = syn::parse_macro_input!(input as syn::ItemMod);
+    compressible_instructions::add_compressible_instructions_enhanced(args.into(), module)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Automatically generates seed getter functions for PDA and token accounts.
+///
+/// This derive macro generates public functions that can be used by both the program
+/// and external clients to get PDA seeds and addresses.
+///
+/// ## Example - PDA Account
+///
+/// ```ignore
+/// use light_sdk_macros::DeriveSeeds;
+///
+/// #[derive(DeriveSeeds)]
+/// #[seeds("user_record", owner)]
+/// pub struct UserRecord {
+///     pub owner: Pubkey,
+///     pub name: String,
+///     pub score: u64,
+/// }
+/// // Generates: get_user_record_seeds(owner: &Pubkey) -> (Vec<Vec<u8>>, Pubkey)
+/// ```
+///
+/// ## Example - Token Account
+///
+/// ```ignore
+/// #[derive(DeriveSeeds)]
+/// #[seeds("ctoken_signer", user, mint)]
+/// #[token_account]
+/// pub struct CTokenSigner {
+///     pub user: Pubkey,
+///     pub mint: Pubkey,
+/// }
+/// // Generates: get_c_token_signer_seeds(user: &Pubkey, mint: &Pubkey) -> (Vec<Vec<u8>>, Pubkey)
+/// ```
+///
+/// ## Supported Seed Types
+///
+/// - String literals: `"user_record"` -> `b"user_record".as_ref()`
+/// - Pubkey fields: `owner` -> `owner.as_ref()`
+/// - u64 fields: `session_id` -> `session_id.to_le_bytes().as_ref()`
+/// - Custom expressions: `custom_expr` -> `custom_expr`
+#[proc_macro_derive(DeriveSeeds, attributes(seeds, token_account))]
+pub fn derive_seeds(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    derive_seeds::derive_seeds(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
