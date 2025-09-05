@@ -269,6 +269,7 @@ pub fn process_actions<'a>(
             ZAction::MintToDecompressed(mint_to_decompressed_action) => {
                 msg!("Processing MintToDecompressed action");
                 let new_supply = process_mint_to_decompressed_action(
+                    validated_accounts.authority,
                     mint_to_decompressed_action,
                     u64::from(compressed_mint.base.supply),
                     compressed_mint,

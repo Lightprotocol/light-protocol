@@ -9,7 +9,10 @@ use light_zero_copy::{
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    state::{ExtensionStruct, ExtensionStructConfig, ZExtensionStruct, ZExtensionStructMut},
+    state::{
+        CompressibleExtensionConfig, ExtensionStruct, ExtensionStructConfig, ZExtensionStruct,
+        ZExtensionStructMut,
+    },
     AnchorDeserialize, AnchorSerialize,
 };
 
@@ -341,16 +344,59 @@ impl PartialEq<CompressedToken> for ZCompressedToken<'_> {
                             crate::state::extensions::ZExtensionStruct::Compressible(zc_comp),
                             crate::state::extensions::ExtensionStruct::Compressible(regular_comp),
                         ) => {
-                            if u64::from(zc_comp.last_written_slot)
-                                != regular_comp.last_written_slot
-                                || u64::from(zc_comp.slots_until_compression)
-                                    != regular_comp.slots_until_compression
-                                || zc_comp.rent_authority.to_bytes()
-                                    != regular_comp.rent_authority.to_bytes()
-                                || zc_comp.rent_recipient.to_bytes()
-                                    != regular_comp.rent_recipient.to_bytes()
+                            // Compare version
+                            if zc_comp.version != regular_comp.version {
+                                return false;
+                            }
+
+                            // Compare last_claimed_slot
+                            if u64::from(*zc_comp.last_claimed_slot)
+                                != regular_comp.last_claimed_slot
                             {
                                 return false;
+                            }
+
+                            // Compare lamports_at_last_claimed_slot
+                            if u64::from(*zc_comp.lamports_at_last_claimed_slot)
+                                != regular_comp.lamports_at_last_claimed_slot
+                            {
+                                return false;
+                            }
+
+                            // Compare rent_authority (Option<[u8; 32]>)
+                            match (&zc_comp.rent_authority, &regular_comp.rent_authority) {
+                                (Some(zc_auth), Some(regular_auth)) => {
+                                    if **zc_auth != *regular_auth {
+                                        return false;
+                                    }
+                                }
+                                (None, None) => {}
+                                _ => return false,
+                            }
+
+                            // Compare rent_recipient (Option<[u8; 32]>)
+                            match (&zc_comp.rent_recipient, &regular_comp.rent_recipient) {
+                                (Some(zc_recip), Some(regular_recip)) => {
+                                    if **zc_recip != *regular_recip {
+                                        return false;
+                                    }
+                                }
+                                (None, None) => {}
+                                _ => return false,
+                            }
+
+                            // Compare write_top_up_lamports (Option<u32>)
+                            match (
+                                &zc_comp.write_top_up_lamports,
+                                &regular_comp.write_top_up_lamports,
+                            ) {
+                                (Some(zc_topup), Some(regular_topup)) => {
+                                    if u32::from(**zc_topup) != *regular_topup {
+                                        return false;
+                                    }
+                                }
+                                (None, None) => {}
+                                _ => return false,
                             }
                         }
                         (
@@ -426,29 +472,6 @@ impl<'a> Deref for ZCompressedTokenMut<'a> {
 impl DerefMut for ZCompressedTokenMut<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.__meta
-    }
-}
-
-impl ZCompressedTokenMut<'_> {
-    /// Update the last_written_slot for compressible extensions to current slot
-    #[inline(always)]
-    #[profile]
-    pub fn update_compressible_last_written_slot(&mut self) -> Result<(), crate::CTokenError> {
-        #[cfg(target_os = "solana")]
-        if let Some(extensions) = self.extensions.as_deref_mut() {
-            for extension in extensions.iter_mut() {
-                if let ZExtensionStructMut::Compressible(compressible_extension) = extension {
-                    {
-                        use pinocchio::sysvars::{clock::Clock, Sysvar};
-                        let current_slot = Clock::get()
-                            .map_err(|_| crate::CTokenError::SysvarAccessError)?
-                            .slot;
-                        compressible_extension.last_written_slot = current_slot.into();
-                    }
-                }
-            }
-        }
-        Ok(())
     }
 }
 
@@ -629,12 +652,23 @@ impl CompressedTokenConfig {
             extensions: vec![],
         }
     }
-    pub fn new_compressible(delegate: bool, is_native: bool, close_authority: bool) -> Self {
+    pub fn new_compressible(
+        delegate: bool,
+        is_native: bool,
+        close_authority: bool,
+        rent_authority: bool,
+        write_top_up_lamports: bool,
+    ) -> Self {
+        let config = CompressibleExtensionConfig {
+            rent_authority: (rent_authority, ()),
+            rent_recipient: (rent_authority, ()),
+            write_top_up_lamports,
+        };
         Self {
             delegate,
             is_native,
             close_authority,
-            extensions: vec![ExtensionStructConfig::Compressible],
+            extensions: vec![ExtensionStructConfig::Compressible(config)],
         }
     }
 }

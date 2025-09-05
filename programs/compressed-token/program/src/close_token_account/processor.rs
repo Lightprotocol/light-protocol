@@ -6,6 +6,7 @@ use light_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::account_info::AccountInfo;
 use spl_token_2022::state::AccountState;
+use zerocopy::IntoBytes;
 
 use super::accounts::CloseTokenAccountAccounts;
 
@@ -23,14 +24,15 @@ pub fn process_close_token_account(
             &mut AccountInfoTrait::try_borrow_mut_data(accounts.token_account)?;
         let (compressed_token, _) = CompressedToken::zero_copy_at_mut(token_account_data)?;
         // validate_and_close_token_account(&accounts, &compressed_token)?;
-        validate_token_account(&accounts, &compressed_token)?;
+        // The rent authority cannot close the account.
+        validate_token_account::<false>(&accounts, &compressed_token)?;
     }
     close_token_account(&accounts)?;
     Ok(())
 }
 
 #[profile]
-pub fn validate_token_account(
+pub fn validate_token_account<const CHECK_RENT_AUTH: bool>(
     accounts: &CloseTokenAccountAccounts,
     compressed_token: &ZCompressedTokenMut<'_>,
 ) -> Result<(), ProgramError> {
@@ -51,29 +53,54 @@ pub fn validate_token_account(
     }
 
     // Verify the authority matches the account owner or rent authority (if compressible)
-    if compressed_token.owner.to_bytes() == *accounts.authority.key() {
-        return Ok(());
-    } else if let Some(extensions) = compressed_token.extensions.as_ref() {
+    let owner_matches = if compressed_token.owner.to_bytes() != *accounts.authority.key() {
+        return Err(ErrorCode::OwnerMismatch.into());
+    } else {
+        true
+    };
+
+    if let Some(extensions) = compressed_token.extensions.as_ref() {
         // Look for compressible extension
         for extension in extensions {
             if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
-                // Check if authority is the rent authority && rent_recipient is the destination account
-                if compressible_ext.rent_authority.to_bytes() == *accounts.authority.key()
-                    && compressible_ext.rent_recipient.to_bytes() == *accounts.destination.key()
-                {
-                    // For rent authority, check timing constraints
-                    #[cfg(target_os = "solana")]
-                    if !compressible_ext.is_compressible()? {
+                if let Some(rent_recipient) = compressible_ext.rent_recipient.as_ref() {
+                    if rent_recipient.as_bytes() != *accounts.destination.key() {
                         return Err(ProgramError::InvalidAccountData);
-                    } else {
-                        return Ok(());
                     }
                 }
+
+                if CHECK_RENT_AUTH {
+                    if let Some(rent_authority) = compressible_ext.rent_authority.as_ref() {
+                        if rent_authority.as_bytes() != *accounts.authority.key() {
+                            return Err(ProgramError::InvalidAccountData);
+                        }
+                        #[cfg(target_os = "solana")]
+                        let current_slot = Clock::get()
+                            .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?
+                            .slot;
+
+                        // For rent authority, check timing constraints
+                        #[cfg(target_os = "solana")]
+                        if !compressible_ext.is_compressible(
+                            accounts.token_account.data_len() as u64,
+                            current_slot,
+                            accounts.token_account.lamports(),
+                        ) {
+                            return Err(ProgramError::InvalidAccountData);
+                        } else {
+                            return Ok(());
+                        }
+                    } else if !owner_matches {
+                        // If we have no rent authority owner must match
+                        return Err(ErrorCode::OwnerMismatch.into());
+                    }
+                }
+                // Check if authority is the rent authority && rent_recipient is the destination account
             }
         }
     }
 
-    Err(ErrorCode::OwnerMismatch.into())
+    Ok(())
 }
 
 pub fn close_token_account(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(), ProgramError> {

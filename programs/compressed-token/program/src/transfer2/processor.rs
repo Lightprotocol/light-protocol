@@ -64,6 +64,7 @@ pub fn process_transfer2(
     // Process token compressions/decompressions (native tokens supported, SPL framework added)
     if let Some(system) = validated_accounts.system.as_ref() {
         process_token_compression(
+            system.fee_payer,
             &inputs,
             &validated_accounts.packed_accounts,
             system.cpi_authority_pda,
@@ -73,6 +74,7 @@ pub fn process_transfer2(
         .as_ref()
     {
         process_token_compression(
+            &validated_accounts.packed_accounts.accounts[0], // TODO: add fee payer for decompressed only instructions
             &inputs,
             &validated_accounts.packed_accounts,
             cpi_authority_pda,

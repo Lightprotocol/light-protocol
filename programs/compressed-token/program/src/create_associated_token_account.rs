@@ -89,9 +89,39 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
         owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
         derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
     };
+    let seeds2 = [b"pool".as_slice()];
+    let config_2 = if let Some(config) = instruction_inputs.compressible_config.as_ref() {
+        let derived_pool_pda = pinocchio_pubkey::derive_address(
+            &seeds2,
+            Some(config.payer_pda_bump),
+            crate::ID.as_array(),
+        );
+        // TODO: also compare the rent recipient and rent authority
+        if config.has_rent_recipient != 0
+            && config.rent_authority == derived_pool_pda
+            && config.rent_recipient == derived_pool_pda
+        {
+            Some(CreatePdaAccountConfig {
+                seeds: seeds2.as_slice(),
+                bump: instruction_inputs.bump,
+                account_size: token_account_size,
+                owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
+                derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
+            })
+        } else {
+            None
+        }
+    } else {
+        None
+    };
 
-    create_pda_account(fee_payer, associated_token_account, system_program, config)?;
-
+    create_pda_account(
+        fee_payer,
+        associated_token_account,
+        system_program,
+        config,
+        config_2,
+    )?;
     initialize_token_account(
         associated_token_account,
         &mint_bytes,

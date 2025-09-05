@@ -1,7 +1,8 @@
+use account_compression::utils::transfer_lamports::transfer_lamports;
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
-use light_ctoken_types::state::CompressedToken;
+use light_ctoken_types::state::{CompressedToken, ZExtensionStruct};
 use light_profiler::profile;
-use light_zero_copy::traits::ZeroCopyAtMut;
+use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::account_info::AccountInfo;
 use spl_token::instruction::TokenInstruction;
 
@@ -57,13 +58,58 @@ fn process_light_token_transfer(
 fn update_compressible_accounts_last_written_slot(
     accounts: &[anchor_lang::prelude::AccountInfo],
 ) -> Result<(), ProgramError> {
+    let payer = accounts.get(2);
     // Update sender (accounts[0]) and recipient (accounts[1])
     // if these have extensions.
     for account in &accounts[..2] {
         if account.data_len() > light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize {
-            let mut account_data = account.try_borrow_mut_data()?;
-            let (mut token, _) = CompressedToken::zero_copy_at_mut(&mut account_data)?;
-            token.update_compressible_last_written_slot()?;
+            let account_data = account.try_borrow_data()?;
+            let (token, _) = CompressedToken::zero_copy_at(&account_data)?;
+            if let Some(extensions) = token.extensions.as_ref() {
+                for extension in extensions.iter() {
+                    if let ZExtensionStruct::Compressible(compressible_extension) = extension {
+                        {
+                            if let Some(write_top_up_lamports) =
+                                compressible_extension.write_top_up_lamports.as_ref()
+                            {
+                                let payer = payer.ok_or(ProgramError::NotEnoughAccountKeys)?;
+                                transfer_lamports(
+                                    payer,
+                                    account,
+                                    write_top_up_lamports.get() as u64,
+                                )?;
+                            }
+
+                            #[cfg(any(test, targe_os = "solana"))]
+                            {
+                                #[cfg(target_os = "solana")]
+                                use pinocchio::sysvars::{clock::Clock, Sysvar};
+                                #[cfg(target_os = "solana")]
+                                let current_slot = Clock::get()
+                                    .map_err(|_| crate::CTokenError::SysvarAccessError)?
+                                    .slot;
+                                #[cfg(test)]
+                                let current_slot =
+                                    crate::create_token_account::processor::test::CURRENT_SLOT
+                                        .load(std::sync::atomic::Ordering::SeqCst);
+                                let is_compressible = compressible_extension.is_compressible(
+                                    account.data_len() as u64,
+                                    current_slot,
+                                    account.lamports(),
+                                );
+                                if is_compressible {
+                                    let payer = payer.ok_or(ProgramError::NotEnoughAccountKeys)?;
+                                    let required_funds = light_ctoken_types::state::get_rent(
+                                        account.data_len() as u64,
+                                        1,
+                                    ) - account.lamports();
+                                    transfer_lamports(payer, account, required_funds)?;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     Ok(())

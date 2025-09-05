@@ -22,6 +22,7 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 #[profile]
 pub fn process_mint_to_decompressed_action(
+    fee_payer: &AccountInfo,
     action: &ZMintToDecompressedAction,
     current_supply: u64,
     compressed_mint: &ZCompressedMintMut<'_>,
@@ -52,6 +53,7 @@ pub fn process_mint_to_decompressed_action(
 
     // Authority check now performed above - safe to proceed with decompression
     native_compression(
+        fee_payer,
         None, // No authority needed for decompression
         None,
         amount,

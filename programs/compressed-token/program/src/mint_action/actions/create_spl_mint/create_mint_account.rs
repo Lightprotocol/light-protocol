@@ -38,6 +38,7 @@ pub fn create_mint_account(
         mint_account,
         executing_accounts.system.system_program,
         config,
+        None,
     )
 }
 

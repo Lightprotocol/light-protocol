@@ -36,6 +36,10 @@ light-heap = { workspace = true, optional = true }
 rand = { workspace = true }
 num-bigint = { workspace = true }
 light-compressed-account = { workspace = true, features = ["new-unique"] }
+light-account-checks = { workspace = true, features = [
+    "test-only",
+    "pinocchio",
+] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
