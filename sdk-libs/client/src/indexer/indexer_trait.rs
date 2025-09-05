@@ -185,8 +185,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
     ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError>;
 
     // TODO: in different pr:
-    //      replace num_elements & start_offset with PaginatedOptions
-    //      - startoffset is not robust, we should use a queue index as cursor instead
+    //      replace num_elements & start_queue_index with PaginatedOptions
     //      - return type should be ItemsWithCursor
     /// Returns queue elements from the queue with the given merkle tree pubkey. For input
     /// queues account compression program does not store queue elements in the
@@ -197,9 +196,9 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         merkle_tree_pubkey: [u8; 32],
         queue_type: QueueType,
         num_elements: u16,
-        start_offset: Option<u64>,
+        start_queue_index: Option<u64>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<MerkleProofWithContext>>, IndexerError>;
+    ) -> Result<Response<(Vec<MerkleProofWithContext>, Option<u64>)>, IndexerError>;
 
     async fn get_subtrees(
         &self,
