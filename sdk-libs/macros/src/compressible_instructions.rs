@@ -150,7 +150,13 @@ impl Parse for EnhancedMacroArgs {
 /// 
 /// Usage:
 /// ```rust
-/// #[add_compressible_instructions_enhanced(UserRecord, GameSession, CTokenSigner = ("ctoken_signer", ctx.fee_payer, ctx.mint))]
+/// #[add_compressible_instructions(
+///     MyAccount = ("my_account", data.field),
+///     AnotherAccount = ("another", data.id.to_le_bytes()),
+///     MyToken = ("my_token", ctx.fee_payer, ctx.mint),
+///     field = Pubkey,
+///     id = u64
+/// )]
 /// #[program]
 /// pub mod my_program {
 ///     // Your other instructions...

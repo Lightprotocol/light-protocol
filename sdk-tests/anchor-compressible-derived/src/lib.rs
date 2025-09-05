@@ -22,14 +22,13 @@ use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall, CpiSigner};
 pub mod instructions;
 pub mod state;
 
-// Import all types from state module so they're available for the macro and program
 use crate::state::*;
 
 declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
-// Simple anchor program retrofitted with compressible accounts.
+
 #[add_compressible_instructions(
     UserRecord = ("user_record", data.owner),
     GameSession = ("game_session", data.session_id.to_le_bytes()),

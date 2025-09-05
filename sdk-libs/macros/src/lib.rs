@@ -14,13 +14,11 @@ mod compressible;
 mod compressible_derive;
 mod compressible_instructions;
 mod cpi_signer;
-mod ctoken_seeds_macro;
-mod derive_ctoken_seeds;
+// Legacy CToken and instruction generator modules removed - functionality integrated into compressible_instructions
 mod derive_seeds;
 mod discriminator;
 mod hasher;
-mod instruction_generator;
-mod instruction_generator_simple;
+// Legacy instruction generators removed - functionality integrated into compressible_instructions
 mod native_compressible;
 mod pack_unpack;
 mod program;
@@ -485,29 +483,8 @@ pub fn compressible_pack(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// Generates CompressedAccountVariant enum and CompressedAccountData struct.
-///
-/// Creates a unified enum that can hold any of the specified account types plus
-/// token account variants, with all required trait implementations.
-///
-/// ## Example
-///
-/// ```ignore
-/// use light_sdk_macros::compressed_account_variant;
-///
-/// compressed_account_variant!(UserRecord, GameSession, PlaceholderRecord);
-/// ```
-///
-/// This generates:
-/// - CompressedAccountVariant enum with variants for each type + token variants
-/// - All trait implementations: Default, DataHasher, LightDiscriminator, HasCompressionInfo, Size, Pack, Unpack
-/// - CompressedAccountData struct for instruction data
-#[proc_macro]
-pub fn compressed_account_variant(input: TokenStream) -> TokenStream {
-    variant_enum::compressed_account_variant(input.into())
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
+// DEPRECATED: compressed_account_variant macro is now integrated into add_compressible_instructions
+// Use add_compressible_instructions instead for complete automation
 
 /// Generates complete compressible instructions with auto-generated seed derivation.
 ///
@@ -547,12 +524,8 @@ pub fn compressed_account_variant(input: TokenStream) -> TokenStream {
 ///
 /// The generated instructions automatically handle seed derivation for each account type
 /// without requiring manual seed function calls.
-#[proc_macro]
-pub fn compressed_account_variant_with_instructions(input: TokenStream) -> TokenStream {
-    instruction_generator_simple::compressed_account_variant_with_instructions_simple(input.into())
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
+// DEPRECATED: compressed_account_variant_with_instructions macro is now integrated into add_compressible_instructions
+// Use add_compressible_instructions instead for complete automation with declarative seed syntax
 
 /// Generates seed getter functions by analyzing Anchor account structs.
 ///
@@ -606,33 +579,8 @@ pub fn generate_seed_functions(input: TokenStream) -> TokenStream {
 
 // Legacy add_compressible_instructions_enhanced macro removed - now just use add_compressible_instructions!
 
-/// Automatically generates CTokenSeedProvider implementation for token account variants.
-///
-/// This attribute macro should be placed BEFORE the `add_compressible_instructions_enhanced` macro
-/// to ensure the CTokenSeedProvider trait is available.
-///
-/// ## Usage
-/// ```rust
-/// #[ctoken_seeds(CTokenSigner = ("ctoken_signer", ctx.fee_payer, ctx.mint))]
-/// #[add_compressible_instructions_enhanced(UserRecord, GameSession)]
-/// #[program]
-/// pub mod my_program {
-///     // Your instructions...
-/// }
-/// ```
-///
-/// ## Seed Element Types
-/// - String literals: `"ctoken_signer"` -> literal seed bytes
-/// - Context fields: `ctx.fee_payer`, `ctx.mint`, `ctx.owner` -> access to standard context
-/// - Account fields: `ctx.accounts.user` -> access to instruction accounts
-/// - Expressions: `some_id.to_le_bytes()` -> custom expressions
-#[proc_macro_attribute]
-pub fn ctoken_seeds(args: TokenStream, input: TokenStream) -> TokenStream {
-    let module = syn::parse_macro_input!(input as syn::ItemMod);
-    ctoken_seeds_macro::ctoken_seeds(args.into(), module)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
+// DEPRECATED: ctoken_seeds macro is now integrated into add_compressible_instructions
+// Use add_compressible_instructions with CToken seed specifications instead
 
 /// Automatically generates seed getter functions for PDA and token accounts.
 ///
@@ -682,47 +630,8 @@ pub fn derive_seeds(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// Derive CTokenSeedProvider implementation for token account variant enums
-///
-/// This macro automatically implements the `ctoken_seed_system::CTokenSeedProvider` trait
-/// for your CToken variant enum, allowing you to declaratively specify seed derivation
-/// logic for each variant.
-///
-/// ## Usage
-/// ```rust
-/// #[derive(DeriveCTokenSeeds)]
-/// #[token_seeds(
-///     CTokenSigner = ("ctoken_signer", ctx.fee_payer, ctx.mint),
-///     UserVault = ("user_vault", ctx.accounts.user, ctx.mint),
-///     CustomVault = ("custom", ctx.accounts.custom_seed, some_id.to_le_bytes())
-/// )]
-/// pub enum CTokenAccountVariant {
-///     CTokenSigner,
-///     UserVault,
-///     CustomVault,
-///     AssociatedTokenAccount, // Can be left without seeds if not implemented
-/// }
-/// ```
-///
-/// ## Seed Element Types
-/// - String literals: `"ctoken_signer"` -> literal seed bytes
-/// - Context fields: `ctx.fee_payer`, `ctx.mint`, `ctx.owner` -> access to standard context
-/// - Account fields: `ctx.accounts.user` -> access to instruction accounts
-/// - Expressions: `some_id.to_le_bytes()` -> custom expressions
-///
-/// ## Generated Implementation
-/// The macro generates a match statement that:
-/// - Calls `Pubkey::find_program_address` with the specified seeds
-/// - Returns `(Vec<Vec<u8>>, Pubkey)` tuple with seeds and derived PDA
-/// - Uses `unreachable!()` for variants without seed specifications
-#[proc_macro_derive(DeriveCTokenSeeds, attributes(token_seeds))]
-pub fn derive_ctoken_seeds(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-
-    derive_ctoken_seeds::derive_ctoken_seeds(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
+// DEPRECATED: DeriveCTokenSeeds is now integrated into add_compressible_instructions
+// Use add_compressible_instructions with CToken seed specifications instead
 
 /// Derive the CPI signer from the program ID. The program ID must be a string
 /// literal.
