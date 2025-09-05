@@ -10,19 +10,64 @@ use syn::{
 struct TokenSeedSpec {
     variant: Ident,
     _eq: Token![=],
+    is_token: Option<bool>, // Optional explicit token flag
     seeds: Punctuated<SeedElement, Token![,]>,
 }
 
 impl Parse for TokenSeedSpec {
     fn parse(input: ParseStream) -> Result<Self> {
+        let variant = input.parse()?;
+        let _eq = input.parse()?;
+        
+        let content;
+        syn::parenthesized!(content in input);
+        
+        // Check if first element is an explicit token flag
+        let (is_token, seeds) = if content.peek(Ident) {
+            let first_ident: Ident = content.parse()?;
+            
+            match first_ident.to_string().as_str() {
+                "is_token" | "true" => {
+                    // Explicit token flag
+                    let _comma: Token![,] = content.parse()?;
+                    let seeds = Punctuated::parse_terminated(&content)?;
+                    (Some(true), seeds)
+                }
+                "is_pda" | "false" => {
+                    // Explicit PDA flag  
+                    let _comma: Token![,] = content.parse()?;
+                    let seeds = Punctuated::parse_terminated(&content)?;
+                    (Some(false), seeds)
+                }
+                _ => {
+                    // Not a flag, treat as first seed element
+                    let mut seeds = Punctuated::new();
+                    seeds.push(SeedElement::Expression(syn::Expr::Path(syn::ExprPath {
+                        attrs: vec![],
+                        qself: None,
+                        path: syn::Path::from(first_ident),
+                    })));
+                    
+                    if content.peek(Token![,]) {
+                        let _comma: Token![,] = content.parse()?;
+                        let rest: Punctuated<SeedElement, Token![,]> = Punctuated::parse_terminated(&content)?;
+                        seeds.extend(rest);
+                    }
+                    
+                    (None, seeds)
+                }
+            }
+        } else {
+            // No identifier first, parse all as seeds
+            let seeds = Punctuated::parse_terminated(&content)?;
+            (None, seeds)
+        };
+        
         Ok(TokenSeedSpec {
-            variant: input.parse()?,
-            _eq: input.parse()?,
-            seeds: {
-                let content;
-                syn::parenthesized!(content in input);
-                Punctuated::parse_terminated(&content)?
-            },
+            variant,
+            _eq,
+            is_token,
+            seeds,
         })
     }
 }
@@ -89,21 +134,57 @@ impl Parse for EnhancedMacroArgs {
                 
                 if input.peek(syn::token::Paren) {
                     // This is a seed specification (either PDA or CToken)
-                    let seeds = {
-                        let content;
-                        syn::parenthesized!(content in input);
-                        Punctuated::parse_terminated(&content)?
+                    let content;
+                    syn::parenthesized!(content in input);
+                    
+                    // Check for explicit token flag as first element
+                    let (is_token_explicit, seeds) = if content.peek(Ident) {
+                        let first_ident: Ident = content.parse()?;
+                        
+                        if first_ident == "is_token" {
+                            let _comma: Token![,] = content.parse()?;
+                            let seeds = Punctuated::parse_terminated(&content)?;
+                            (Some(true), seeds)
+                        } else if first_ident == "is_pda" {
+                            let _comma: Token![,] = content.parse()?;
+                            let seeds = Punctuated::parse_terminated(&content)?;
+                            (Some(false), seeds)
+                        } else {
+                            // Not a flag, treat as first seed element
+                            let mut seeds = Punctuated::new();
+                            seeds.push(SeedElement::Expression(syn::Expr::Path(syn::ExprPath {
+                                attrs: vec![],
+                                qself: None,
+                                path: syn::Path::from(first_ident),
+                            })));
+                            
+                            if content.peek(Token![,]) {
+                                let _comma: Token![,] = content.parse()?;
+                                let rest: Punctuated<SeedElement, Token![,]> = Punctuated::parse_terminated(&content)?;
+                                seeds.extend(rest);
+                            }
+                            
+                            (None, seeds)
+                        }
+                    } else {
+                        // No identifier first, parse all as seeds
+                        let seeds = Punctuated::parse_terminated(&content)?;
+                        (None, seeds)
                     };
                     
                     let seed_spec = TokenSeedSpec {
                         variant: ident.clone(),
                         _eq: Token![=]([proc_macro2::Span::call_site()]),
+                        is_token: is_token_explicit,
                         seeds,
                     };
                     
-                    // Distinguish between PDA seeds and CToken seeds based on naming convention
-                    let ident_str = ident.to_string();
-                    if ident_str.contains("Token") || ident_str.starts_with("CToken") {
+                    let is_token_account = is_token_explicit.unwrap_or_else(|| {
+                        // Default to PDA if no explicit flag provided
+                        false
+                    });
+                    
+                    if is_token_account {
                         token_seeds.push(seed_spec);
                     } else {
                         // This is a PDA seed specification
@@ -153,7 +234,7 @@ impl Parse for EnhancedMacroArgs {
 /// #[add_compressible_instructions(
 ///     MyAccount = ("my_account", data.field),
 ///     AnotherAccount = ("another", data.id.to_le_bytes()),
-///     MyToken = ("my_token", ctx.fee_payer, ctx.mint),
+///     MyToken = (is_token, "my_token", ctx.fee_payer, ctx.mint),
 ///     field = Pubkey,
 ///     id = u64
 /// )]
@@ -162,6 +243,11 @@ impl Parse for EnhancedMacroArgs {
 ///     // Your other instructions...
 /// }
 /// ```
+///
+/// ## Explicit Token/PDA Flags:
+/// - Use `is_token` as first element for token accounts (REQUIRED for tokens!)
+/// - Use `is_pda` as first element for PDA accounts (optional, defaults to PDA)
+/// - NO naming convention fallbacks - be explicit!
 pub fn add_compressible_instructions(
     args: TokenStream,
     mut module: ItemMod,
