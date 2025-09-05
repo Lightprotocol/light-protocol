@@ -483,11 +483,88 @@ pub fn add_compressible_instructions_enhanced(
         }
     };
 
-    // Add the generated items to the module
+    // Generate compression config instructions (same as old add_compressible_instructions macro)
+    let init_config_accounts: syn::ItemStruct = syn::parse_quote! {
+        #[derive(Accounts)]
+        pub struct InitializeCompressionConfig<'info> {
+            #[account(mut)]
+            pub payer: Signer<'info>,
+            /// CHECK: Config PDA is created and validated by the SDK
+            #[account(mut)]
+            pub config: AccountInfo<'info>,
+            /// The program's data account
+            /// CHECK: Program data account is validated by the SDK
+            pub program_data: AccountInfo<'info>,
+            /// The program's upgrade authority (must sign)
+            pub authority: Signer<'info>,
+            pub system_program: Program<'info, System>,
+        }
+    };
+
+    let update_config_accounts: syn::ItemStruct = syn::parse_quote! {
+        #[derive(Accounts)]
+        pub struct UpdateCompressionConfig<'info> {
+            /// CHECK: config account is validated by the SDK
+            #[account(mut)]
+            pub config: AccountInfo<'info>,
+            /// CHECK: authority must be the current update authority
+            pub authority: Signer<'info>,
+        }
+    };
+
+    let init_config_instruction: syn::ItemFn = syn::parse_quote! {
+        /// Initialize compression config for the program
+        pub fn initialize_compression_config<'info>(
+            ctx: Context<'_, '_, '_, 'info, InitializeCompressionConfig<'info>>,
+            compression_delay: u32,
+            rent_recipient: Pubkey,
+            address_space: Vec<Pubkey>,
+        ) -> Result<()> {
+            light_sdk::compressible::process_initialize_compression_config_checked(
+                &ctx.accounts.config.to_account_info(),
+                &ctx.accounts.authority.to_account_info(),
+                &ctx.accounts.program_data.to_account_info(),
+                &rent_recipient,
+                address_space,
+                compression_delay,
+                0, // one global config for now, so bump is 0.
+                &ctx.accounts.payer.to_account_info(),
+                &ctx.accounts.system_program.to_account_info(),
+                &crate::ID,
+            ).map_err(|e| anchor_lang::error::Error::from(e))
+        }
+    };
+
+    let update_config_instruction: syn::ItemFn = syn::parse_quote! {
+        /// Update compression config for the program
+        pub fn update_compression_config<'info>(
+            ctx: Context<'_, '_, '_, 'info, UpdateCompressionConfig<'info>>,
+            new_compression_delay: Option<u32>,
+            new_rent_recipient: Option<Pubkey>,
+            new_address_space: Option<Vec<Pubkey>>,
+            new_update_authority: Option<Pubkey>,
+        ) -> Result<()> {
+            light_sdk::compressible::process_update_compression_config(
+                ctx.accounts.config.as_ref(),
+                ctx.accounts.authority.as_ref(),
+                new_update_authority.as_ref(),
+                new_rent_recipient.as_ref(),
+                new_address_space,
+                new_compression_delay,
+                &crate::ID,
+            ).map_err(|e| anchor_lang::error::Error::from(e))
+        }
+    };
+
+    // Add all generated items to the module
     content.1.push(Item::Struct(decompress_accounts));
     content.1.push(Item::Fn(decompress_instruction));
     content.1.push(Item::Struct(compress_accounts));
     content.1.push(Item::Fn(compress_instruction));
+    content.1.push(Item::Struct(init_config_accounts));
+    content.1.push(Item::Struct(update_config_accounts));
+    content.1.push(Item::Fn(init_config_instruction));
+    content.1.push(Item::Fn(update_config_instruction));
 
     Ok(quote! {
         // Generate the trait system OUTSIDE the module so users can implement it
@@ -496,6 +573,8 @@ pub fn add_compressible_instructions_enhanced(
         // Users must implement CTokenSeedProvider trait for their CTokenAccountVariant enum
         // This provides complete flexibility for any custom seed logic with access to ALL instruction accounts
         
+        // Suppress snake_case warnings for account type names in macro usage
+        #[allow(non_snake_case)]
         #module
     })
 }

@@ -64,5 +64,5 @@ pub struct PlaceholderRecord {
 #[repr(u8)]
 pub enum CTokenAccountVariant {
     CTokenSigner = 0,
-    AssociatedTokenAccount = 255, // TODO: add support.
+    AssociatedTokenAccount = 255, // Not supported yet.
 }
