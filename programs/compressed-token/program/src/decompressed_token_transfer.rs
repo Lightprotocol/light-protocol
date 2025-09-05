@@ -1,7 +1,11 @@
+use account_compression::utils::transfer_lamports::transfer_lamports_cpi;
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
-use light_ctoken_types::state::CompressedToken;
+use light_ctoken_types::{
+    state::{CompressedToken, ZExtensionStruct},
+    CTokenError,
+};
 use light_profiler::profile;
-use light_zero_copy::traits::ZeroCopyAtMut;
+use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::account_info::AccountInfo;
 use spl_token::instruction::TokenInstruction;
 
@@ -13,9 +17,9 @@ pub fn process_decompressed_token_transfer(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    if accounts.len() != 3 {
+    if accounts.len() < 3 {
         msg!(
-            "Decompressed transfer: expected 3 accounts received {}",
+            "Decompressed transfer: expected at least 3 accounts received {}",
             accounts.len()
         );
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -26,7 +30,16 @@ pub fn process_decompressed_token_transfer(
             let account_infos = unsafe { convert_account_infos::<MAX_ACCOUNTS>(accounts)? };
 
             process_light_token_transfer(&crate::ID, &account_infos, amount)?;
-            update_compressible_accounts_last_written_slot(account_infos.as_slice())?;
+            let transfer_amounts =
+                update_compressible_accounts_last_written_slot(account_infos.as_slice())?;
+            for (amount, account) in transfer_amounts.iter().zip(account_infos.iter().take(2)) {
+                if *amount > 0 {
+                    let payer = account_infos
+                        .get(2)
+                        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+                    transfer_lamports_cpi(payer, account, *amount)?;
+                }
+            }
         }
         _ => return Err(ProgramError::InvalidInstructionData),
     }
@@ -56,15 +69,43 @@ fn process_light_token_transfer(
 #[profile]
 fn update_compressible_accounts_last_written_slot(
     accounts: &[anchor_lang::prelude::AccountInfo],
-) -> Result<(), ProgramError> {
+) -> Result<[u64; 2], ProgramError> {
+    let mut transfers = [0u64; 2];
     // Update sender (accounts[0]) and recipient (accounts[1])
     // if these have extensions.
-    for account in &accounts[..2] {
+    for (i, account) in accounts.iter().take(2).enumerate() {
         if account.data_len() > light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize {
-            let mut account_data = account.try_borrow_mut_data()?;
-            let (mut token, _) = CompressedToken::zero_copy_at_mut(&mut account_data)?;
-            token.update_compressible_last_written_slot()?;
+            let account_data = account.try_borrow_data()?;
+            let (token, _) = CompressedToken::zero_copy_at(&account_data)?;
+            if let Some(extensions) = token.extensions.as_ref() {
+                for extension in extensions.iter() {
+                    if let ZExtensionStruct::Compressible(compressible_extension) = extension {
+                        {
+                            if let Some(write_top_up_lamports) =
+                                compressible_extension.write_top_up_lamports.as_ref()
+                            {
+                                transfers[i] = write_top_up_lamports.get() as u64;
+                            }
+
+                            use pinocchio::sysvars::{clock::Clock, Sysvar};
+                            let current_slot = Clock::get()
+                                .map_err(|_| CTokenError::SysvarAccessError)?
+                                .slot;
+
+                            let (is_compressible, required_funds) = compressible_extension
+                                .is_compressible(
+                                    account.data_len() as u64,
+                                    current_slot,
+                                    account.lamports(),
+                                );
+                            if is_compressible {
+                                transfers[i] += required_funds;
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
-    Ok(())
+    Ok(transfers)
 }

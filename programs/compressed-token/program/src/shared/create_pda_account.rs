@@ -9,6 +9,7 @@ use pinocchio::{
 };
 
 /// Configuration for creating a PDA account
+#[derive(Debug)]
 pub struct CreatePdaAccountConfig<'a> {
     /// The seeds used to derive the PDA (without bump)
     pub seeds: &'a [&'a [u8]],
@@ -37,10 +38,13 @@ pub fn create_pda_account(
     new_account: &AccountInfo,
     system_program: &AccountInfo,
     config: CreatePdaAccountConfig,
+    fee_payer_config: Option<CreatePdaAccountConfig>,
+    additional_lamports: Option<u64>,
 ) -> Result<(), ProgramError> {
     // Calculate rent
     let rent = Rent::get()?;
-    let lamports = rent.minimum_balance(config.account_size);
+    let lamports =
+        rent.minimum_balance(config.account_size) + additional_lamports.unwrap_or_default();
 
     let bump_bytes = [config.bump];
     let mut seed_vec: ArrayVec<Seed, 8> = ArrayVec::new();
@@ -68,11 +72,31 @@ pub fn create_pda_account(
         ],
         data: &create_account_ix.data,
     };
+    let bump_bytes;
+    let mut seed_vec: ArrayVec<Seed, 8> = ArrayVec::new();
+    let signers: ArrayVec<Signer, 2> = if let Some(config) = fee_payer_config {
+        bump_bytes = [config.bump];
+
+        for &seed in config.seeds {
+            seed_vec.push(Seed::from(seed));
+        }
+        seed_vec.push(Seed::from(bump_bytes.as_ref()));
+
+        let signer0 = Signer::from(seed_vec.as_slice());
+        let mut signers: ArrayVec<Signer, 2> = ArrayVec::new();
+        signers.push(signer0);
+        signers.push(signer);
+        signers
+    } else {
+        let mut signers: ArrayVec<Signer, 2> = ArrayVec::new();
+        signers.push(signer);
+        signers
+    };
 
     match pinocchio::program::invoke_signed(
         &pinocchio_instruction,
         &[fee_payer, new_account, system_program],
-        &[signer],
+        signers.as_slice(),
     ) {
         Ok(()) => Ok(()),
         Err(e) => Err(ProgramError::Custom(u64::from(e) as u32)),

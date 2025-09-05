@@ -12,7 +12,8 @@ use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 pub struct CompressibleData {
     pub rent_authority: Pubkey,
     pub rent_recipient: Pubkey,
-    pub slots_until_compression: u64,
+    pub initial_lamports: u64,
+    pub write_top_up_lamports: Option<u32>,
 }
 
 /// Assert that a token account was created correctly.
@@ -65,10 +66,12 @@ pub async fn assert_create_token_account<R: Rpc>(
                 extensions: Some(vec![
                     light_ctoken_types::state::extensions::ExtensionStruct::Compressible(
                         CompressibleExtension {
-                            last_written_slot: current_slot,
-                            slots_until_compression: compressible_info.slots_until_compression,
-                            rent_authority: compressible_info.rent_authority.into(),
-                            rent_recipient: compressible_info.rent_recipient.into(),
+                            version: 1,
+                            last_claimed_slot: current_slot,
+                            lamports_at_last_claimed_slot: compressible_info.initial_lamports,
+                            write_top_up_lamports: compressible_info.write_top_up_lamports,
+                            rent_authority: Some(compressible_info.rent_authority.to_bytes()),
+                            rent_recipient: Some(compressible_info.rent_recipient.to_bytes()),
                         },
                     ),
                 ]),

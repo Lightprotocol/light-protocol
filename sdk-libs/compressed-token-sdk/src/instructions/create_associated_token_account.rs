@@ -20,8 +20,12 @@ pub struct CreateCompressibleAssociatedTokenAccountInputs {
     pub rent_authority: Pubkey,
     /// The recipient of lamports when the account is closed by rent authority
     pub rent_recipient: Pubkey,
-    /// Number of slots that must pass before compression is allowed
-    pub slots_until_compression: u64,
+    /// Number of epochs of rent to prepay
+    pub pre_pay_num_epochs: u64,
+    /// Initial lamports to top up for rent payments (optional)
+    pub write_top_up_lamports: Option<u32>,
+    /// Bump seed for the pool PDA
+    pub payer_pda_bump: u8,
 }
 
 /// Creates a compressible associated token account instruction (non-idempotent)
@@ -72,9 +76,11 @@ pub fn create_compressible_associated_token_account_with_bump_and_mode<const IDE
         ata_pubkey,
         bump,
         Some((
-            inputs.slots_until_compression,
+            inputs.pre_pay_num_epochs,
+            inputs.write_top_up_lamports,
             inputs.rent_authority,
             inputs.rent_recipient,
+            inputs.payer_pda_bump,
         )),
     )
 }
@@ -140,7 +146,7 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
     mint: Pubkey,
     ata_pubkey: Pubkey,
     bump: u8,
-    compressible_config: Option<(u64, Pubkey, Pubkey)>, // (slots_until_compression, rent_authority, rent_recipient)
+    compressible_config: Option<(u64, Option<u32>, Pubkey, Pubkey, u8)>, // (slots_until_compression, rent_authority, rent_recipient)
 ) -> Result<Instruction> {
     // Select discriminator based on idempotent mode
     let discriminator = if IDEMPOTENT {
@@ -151,7 +157,7 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
 
     // Calculate data size based on whether it's compressible
     let data_size = if COMPRESSIBLE {
-        1 + 32 + 32 + 1 + 1 + 8 + 32 + 32 // With compressible config
+        1 + 32 + 32 + 1 + 1 + 8 + 1 + 32 + 1 + 32 + 1 + 4 + 1 // With CompressibleExtensionInstructionData
     } else {
         1 + 32 + 32 + 1 + 1 // Without compressible config
     };
@@ -164,12 +170,35 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
     data.push(bump); // bump: 1 byte
 
     if COMPRESSIBLE {
-        if let Some((slots_until_compression, rent_authority, rent_recipient)) = compressible_config
+        if let Some((
+            pre_pay_num_epochs,
+            write_top_up_lamports,
+            rent_authority,
+            rent_recipient,
+            payer_pda_bump,
+        )) = compressible_config
         {
             data.push(1u8); // Some option byte for compressible_config
-            data.extend_from_slice(&slots_until_compression.to_le_bytes()); // slots_until_compression: 8 bytes
-            data.extend_from_slice(&rent_authority.to_bytes()); // rent_authority: 32 bytes
-            data.extend_from_slice(&rent_recipient.to_bytes()); // rent_recipient: 32 bytes
+
+            // CompressibleExtensionInstructionData fields:
+            data.extend_from_slice(&pre_pay_num_epochs.to_le_bytes()); // rent_payment in epochs
+            data.push(1); // has_rent_authority = true
+            data.extend_from_slice(&rent_authority.to_bytes());
+            data.push(1); // has_rent_recipient = true
+            data.extend_from_slice(&rent_recipient.to_bytes());
+
+            // Handle write_top_up_lamports
+            match write_top_up_lamports {
+                Some(lamports) => {
+                    data.push(1); // has_top_up = true
+                    data.extend_from_slice(&lamports.to_le_bytes());
+                }
+                None => {
+                    data.push(0); // has_top_up = false
+                    data.extend_from_slice(&0u32.to_le_bytes()); // write_top_up = 0
+                }
+            }
+            data.push(payer_pda_bump); // payer_pda_bump
         } else {
             // This should never happen if the const generic is used correctly
             return Err(TokenSdkError::InvalidAccountData);

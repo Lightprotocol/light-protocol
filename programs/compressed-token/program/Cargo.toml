@@ -70,6 +70,7 @@ light-account-checks = { workspace = true, features = [
     "pinocchio",
     "test-only",
 ] }
+lazy_static = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

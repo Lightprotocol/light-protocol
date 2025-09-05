@@ -1,4 +1,6 @@
-use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
+use light_compressed_account::{
+    instruction_data::cpi_context::CompressedCpiContext, pubkey::AsPubkey,
+};
 use light_ctoken_types::state::{CompressedToken, ZExtensionStruct};
 use light_profiler::profile;
 use light_sdk::{
@@ -72,12 +74,12 @@ pub fn pack_for_compress_and_close(
             for extension in extensions {
                 if let ZExtensionStruct::Compressible(e) = extension {
                     packed_accounts.insert_or_get_config(
-                        Pubkey::from(e.rent_authority.to_bytes()),
+                        Pubkey::from(*e.rent_authority.unwrap()),
                         true,
                         true,
                     );
                     recipient_index =
-                        packed_accounts.insert_or_get(Pubkey::from(e.rent_recipient.to_bytes()));
+                        packed_accounts.insert_or_get(Pubkey::from(*e.rent_recipient.unwrap()));
                     break;
                 }
             }
@@ -302,7 +304,8 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             if let Some(extensions) = &compressed_token.extensions {
                 for extension in extensions {
                     if let ZExtensionStruct::Compressible(extension) = extension {
-                        rent_authority = Pubkey::from(extension.rent_authority.to_bytes());
+                        rent_authority =
+                            Pubkey::from(extension.rent_authority.unwrap().to_pubkey_bytes());
                         break;
                     }
                 }
@@ -319,7 +322,8 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             if let Some(extensions) = &compressed_token.extensions {
                 for extension in extensions {
                     if let ZExtensionStruct::Compressible(ext) = extension {
-                        rent_recipient_pubkey = Some(Pubkey::from(ext.rent_recipient.to_bytes()));
+                        rent_recipient_pubkey =
+                            Some(Pubkey::from(ext.rent_recipient.unwrap().to_pubkey_bytes()));
                         break;
                     }
                 }

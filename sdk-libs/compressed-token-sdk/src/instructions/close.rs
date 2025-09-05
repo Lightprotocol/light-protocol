@@ -14,7 +14,7 @@ pub fn close_account(
     let accounts = vec![
         AccountMeta::new(*account_pubkey, false),
         AccountMeta::new(*destination_pubkey, false),
-        AccountMeta::new_readonly(*owner_pubkey, true), // signer
+        AccountMeta::new(*owner_pubkey, true), // signer, mutable to receive write_top_up
     ];
 
     Instruction {

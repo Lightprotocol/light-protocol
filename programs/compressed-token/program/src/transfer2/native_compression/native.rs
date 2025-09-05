@@ -6,7 +6,7 @@ use light_ctoken_types::{
         ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
         ZMultiTokenTransferOutputData,
     },
-    state::{CompressedToken, ZCompressedTokenMut},
+    state::{CompressedToken, ZCompressedTokenMut, ZExtensionStructMut},
     CTokenError,
 };
 use light_profiler::profile;
@@ -17,12 +17,14 @@ use spl_pod::solana_msg::msg;
 use super::validate_compression_mode_fields;
 use crate::{
     close_token_account::{accounts::CloseTokenAccountAccounts, processor::validate_token_account},
+    create_token_account::processor::transfer_lamports_via_cpi,
     shared::owner_validation::verify_and_update_token_account_authority_with_compressed_token,
 };
 
 /// Process compression/decompression for token accounts using zero-copy PodAccount
 #[profile]
 pub(super) fn process_native_compressions(
+    fee_payer: &AccountInfo,
     inputs: &ZCompressedTokenInstructionDataTransfer2,
     compression: &ZCompression,
     token_account_info: &AccountInfo,
@@ -57,7 +59,7 @@ pub(super) fn process_native_compressions(
         (None, None)
     };
 
-    native_compression(
+    let transfers = native_compression(
         Some(authority_account),
         compressed_token_account,
         (*compression.amount).into(),
@@ -67,7 +69,11 @@ pub(super) fn process_native_compressions(
         mode,
         packed_accounts,
     )?;
-
+    for transfer_amount in transfers.iter() {
+        if *transfer_amount != 0 {
+            transfer_lamports_via_cpi(*transfer_amount, fee_payer, token_account_info)?;
+        }
+    }
     Ok(())
 }
 
@@ -83,7 +89,7 @@ pub fn native_compression(
     destination: Option<&AccountInfo>,
     mode: &ZCompressionMode,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
-) -> Result<(), ProgramError> {
+) -> Result<Vec<u64>, ProgramError> {
     check_owner(&crate::LIGHT_CPI_SIGNER.program_id, token_account_info)?;
     let mut token_account_data = token_account_info
         .try_borrow_mut_data()
@@ -100,6 +106,7 @@ pub fn native_compression(
         );
         return Err(ProgramError::InvalidAccountData);
     }
+    let mut transfers = Vec::new();
 
     // Get current balance
     let current_balance: u64 = u64::from(*compressed_token.amount);
@@ -121,9 +128,35 @@ pub fn native_compression(
             // Update the balance in the compressed token account
             *compressed_token.amount = new_balance.into();
 
-            compressed_token
-                .update_compressible_last_written_slot()
-                .map_err(|_| ProgramError::InvalidAccountData)?;
+            if let Some(extensions) = compressed_token.extensions.as_ref() {
+                for extension in extensions.iter() {
+                    if let ZExtensionStructMut::Compressible(compressible_extension) = extension {
+                        {
+                            let mut transfer_amount: u64 = if let Some(write_top_up_lamports) =
+                                compressible_extension.write_top_up_lamports.as_deref()
+                            {
+                                u32::from(*write_top_up_lamports) as u64
+                            } else {
+                                0
+                            };
+
+                            use pinocchio::sysvars::{clock::Clock, Sysvar};
+                            let current_slot = Clock::get()
+                                .map_err(|_| CTokenError::SysvarAccessError)?
+                                .slot;
+
+                            let data_len = token_account_info.data_len() as u64;
+                            let lamports = token_account_info.lamports();
+                            let (is_compressible, rent_deficit) = compressible_extension
+                                .is_compressible(data_len, current_slot, lamports);
+                            if is_compressible {
+                                transfer_amount += rent_deficit;
+                            }
+                            transfers.push(transfer_amount);
+                        }
+                    }
+                }
+            }
         }
         ZCompressionMode::Decompress => {
             // Decompress: add to solana account
@@ -133,9 +166,38 @@ pub fn native_compression(
             // Update the balance in the compressed token account
             *compressed_token.amount = new_balance.into();
 
-            compressed_token
-                .update_compressible_last_written_slot()
-                .map_err(|_| ProgramError::InvalidAccountData)?;
+            if let Some(extensions) = compressed_token.extensions.as_ref() {
+                for extension in extensions.iter() {
+                    if let ZExtensionStructMut::Compressible(compressible_extension) = extension {
+                        {
+                            let mut transfer_amount: u64 = if let Some(write_top_up_lamports) =
+                                compressible_extension.write_top_up_lamports.as_ref()
+                            {
+                                write_top_up_lamports.get() as u64
+                            } else {
+                                0
+                            };
+
+                            use pinocchio::sysvars::{clock::Clock, Sysvar};
+                            let current_slot = Clock::get()
+                                .map_err(|_| CTokenError::SysvarAccessError)?
+                                .slot;
+
+                            let (is_compressible, rent_deficit) = compressible_extension
+                                .is_compressible(
+                                    token_account_info.data_len() as u64,
+                                    current_slot,
+                                    token_account_info.lamports(),
+                                );
+                            if is_compressible {
+                                transfer_amount += rent_deficit;
+                            }
+
+                            transfers.push(transfer_amount);
+                        }
+                    }
+                }
+            }
         }
         ZCompressionMode::CompressAndClose => {
             {
@@ -148,7 +210,7 @@ pub fn native_compression(
                 )?;
                 *compressed_token.amount = 0.into();
             }
-            validate_token_account(
+            validate_token_account::<true>(
                 &CloseTokenAccountAccounts {
                     token_account: token_account_info,
                     destination: destination
@@ -157,11 +219,11 @@ pub fn native_compression(
                 },
                 &compressed_token,
             )?;
-            return Ok(());
+            return Ok(vec![0u64]);
         }
     };
 
-    Ok(())
+    Ok(transfers)
 }
 
 fn validate_compressed_token_account(

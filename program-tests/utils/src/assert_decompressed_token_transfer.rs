@@ -8,6 +8,8 @@ use solana_sdk::pubkey::Pubkey;
 pub fn assert_compressible_for_account(
     name: &str,
     data_before: &[u8],
+    lamports_before: u64,
+    lamports_after: u64,
     data_after: &[u8],
     current_slot: u64,
 ) {
@@ -53,18 +55,13 @@ pub fn assert_compressible_for_account(
                         panic!("{} should have compressible extension after transfer", name)
                     });
 
-                assert_ne!(
-                    current_slot,
-                    u64::from(compressible_before.last_written_slot),
-                    "{} last_written_slot should be different from current slot before transfer",
-                    name
-                );
                 assert_eq!(
-                    current_slot,
-                    u64::from(compressible_after.last_written_slot),
-                    "{} last_written_slot should be updated to current slot",
+                    u64::from(*compressible_after.last_claimed_slot),
+                    u64::from(*compressible_before.last_claimed_slot),
+                    "{} last_claimed_slot should be different from current slot before transfer",
                     name
                 );
+
                 assert_eq!(
                     compressible_before.rent_authority, compressible_after.rent_authority,
                     "{} rent_authority should not change",
@@ -76,11 +73,16 @@ pub fn assert_compressible_for_account(
                     name
                 );
                 assert_eq!(
-                    compressible_before.slots_until_compression,
-                    compressible_after.slots_until_compression,
-                    "{} slots_until_compression should not change",
+                    compressible_before.version, compressible_after.version,
+                    "{} version should not change",
                     name
                 );
+                if let Some(write_top_up_lamports) = compressible_before.write_top_up_lamports {
+                    assert_eq!(
+                        lamports_before + write_top_up_lamports.get() as u64,
+                        lamports_after
+                    );
+                }
                 println!("{:?} compressible_before", compressible_before);
                 println!("{:?} compressible_after", compressible_after);
             }
@@ -106,6 +108,7 @@ pub fn assert_compressible_for_account(
 /// * All other fields remain unchanged (mint, owner, delegate, etc.)
 /// * Extensions are preserved (including compressible extensions)
 /// * If compressible extensions exist, last_written_slot should be updated to current slot
+#[allow(clippy::too_many_arguments)]
 pub async fn assert_decompressed_token_transfer<R: Rpc>(
     rpc: &mut R,
     sender_account: Pubkey,
@@ -113,6 +116,8 @@ pub async fn assert_decompressed_token_transfer<R: Rpc>(
     transfer_amount: u64,
     sender_data_before: &[u8],
     recipient_data_before: &[u8],
+    sender_lamports_before: u64,
+    recipient_lamports_before: u64,
 ) {
     // Fetch updated account data
     let sender_account_data = rpc.get_account(sender_account).await.unwrap().unwrap();
@@ -126,12 +131,16 @@ pub async fn assert_decompressed_token_transfer<R: Rpc>(
     assert_compressible_for_account(
         "Sender",
         sender_data_before,
+        sender_lamports_before,
+        sender_account_data.lamports,
         sender_account_data_after,
         current_slot,
     );
     assert_compressible_for_account(
         "Recipient",
         recipient_data_before,
+        recipient_lamports_before,
+        recipient_account_data.lamports,
         recipient_account_data_after,
         current_slot,
     );

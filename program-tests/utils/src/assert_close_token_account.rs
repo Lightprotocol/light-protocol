@@ -1,5 +1,7 @@
 use light_client::rpc::Rpc;
-use light_ctoken_types::state::solana_ctoken::CompressedToken;
+use light_ctoken_types::state::{
+    extensions::compressible::calculate_close_lamports, solana_ctoken::CompressedToken,
+};
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::pubkey::Pubkey;
 
@@ -10,6 +12,7 @@ pub async fn assert_close_token_account<R: Rpc>(
     rpc: &mut R,
     token_account_pubkey: Pubkey,
     account_data_before_close: Option<&[u8]>,
+    account_lamports_before_close: u64,
     destination_pubkey: Pubkey,
     initial_destination_lamports: u64,
 ) {
@@ -48,14 +51,8 @@ pub async fn assert_close_token_account<R: Rpc>(
             })
             .expect("Should have compressible extension");
 
-        // Calculate rent exemption based on account data length
-        let rent_exemption = rpc
-            .get_minimum_balance_for_rent_exemption(account_data.len())
-            .await
-            .expect("Failed to get rent exemption");
-
         // Verify the destination matches the rent recipient from the extension
-        let expected_destination = Pubkey::from(compressible_extension.rent_recipient.to_bytes());
+        let expected_destination = Pubkey::from(*compressible_extension.rent_recipient.unwrap());
         assert_eq!(
             destination_pubkey, expected_destination,
             "Destination should match rent recipient from compressible extension"
@@ -64,21 +61,30 @@ pub async fn assert_close_token_account<R: Rpc>(
         // Verify compressible extension fields are valid
         let current_slot = rpc.get_slot().await.expect("Failed to get current slot");
         assert!(
-            compressible_extension.last_written_slot <= current_slot,
-            "Last written slot ({}) should not be greater than current slot ({})",
-            compressible_extension.last_written_slot,
+            u64::from(*compressible_extension.last_claimed_slot) <= current_slot,
+            "Last claimed slot ({}) should not be greater than current slot ({})",
+            u64::from(*compressible_extension.last_claimed_slot),
             current_slot
         );
 
-        // Verify slots_until_compression is a valid value (should be >= 0)
-        // Note: This is a u64 so it's always >= 0, but we can check it's reasonable
+        // Verify version is initialized
         assert!(
-            compressible_extension.slots_until_compression < 1_000_000, // Reasonable upper bound
-            "Slots until compression ({}) should be a reasonable value",
-            compressible_extension.slots_until_compression
+            compressible_extension.version == 1,
+            "Version should be 1 (initialized), got {}",
+            compressible_extension.version
         );
 
-        // Verify lamports were transferred to destination
+        // Calculate expected lamport distribution using the same function as the program
+        let account_size = account_data.len() as u64;
+        let (lamports_to_destination, _lamports_to_authority) = calculate_close_lamports(
+            account_size,
+            current_slot,
+            account_lamports_before_close,
+            *compressible_extension.last_claimed_slot,
+            *compressible_extension.lamports_at_last_claimed_slot,
+        );
+
+        // Verify lamports were transferred to destination (rent recipient)
         let final_destination_lamports = rpc
             .get_account(destination_pubkey)
             .await
@@ -88,8 +94,8 @@ pub async fn assert_close_token_account<R: Rpc>(
 
         assert_eq!(
             final_destination_lamports,
-            initial_destination_lamports + rent_exemption,
-            "Destination should receive rent exemption lamports from closed account"
+            initial_destination_lamports + lamports_to_destination,
+            "Destination should receive calculated rent lamports"
         );
     } else {
         // Basic account closure - verify lamports were transferred to destination
@@ -100,16 +106,10 @@ pub async fn assert_close_token_account<R: Rpc>(
             .expect("Destination account should exist")
             .lamports;
 
-        // Calculate rent exemption based on basic account size
-        let rent_exemption = rpc
-            .get_minimum_balance_for_rent_exemption(165) // Basic SPL token account size
-            .await
-            .expect("Failed to get rent exemption");
-
         assert_eq!(
             final_destination_lamports,
-            initial_destination_lamports + rent_exemption,
-            "Destination should receive rent exemption lamports from closed account"
+            initial_destination_lamports + account_lamports_before_close,
+            "Destination should receive all lamports from closed account"
         );
     }
 }

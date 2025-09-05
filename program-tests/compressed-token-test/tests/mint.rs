@@ -353,6 +353,7 @@ async fn test_create_compressed_mint() {
         },
         pre_compress_spl_account,
         &pre_compress_account_data.data,
+        pre_compress_account_data.lamports,
     )
     .await;
 
@@ -877,7 +878,9 @@ async fn test_decompressed_token_transfer() {
             mint: spl_mint_pda,
             rent_authority: solana_sdk::pubkey::Pubkey::new_unique(),
             rent_recipient: solana_sdk::pubkey::Pubkey::new_unique(),
-            slots_until_compression: 1000,
+            pre_pay_num_epochs: 1,
+            write_top_up_lamports: Some(1000),
+            payer_pda_bump: 0,
         },
     )
     .unwrap();
@@ -997,6 +1000,8 @@ async fn test_decompressed_token_transfer() {
                 transfer_amount,
                 &sender_account_data.data,
                 &recipient_account_data.data,
+                sender_account_data.lamports,
+                recipient_account_data.lamports,
             )
             .await;
         }
@@ -1078,6 +1083,7 @@ async fn test_decompressed_token_transfer() {
         },
         pre_compress_spl_account,
         &pre_compress_account_data.data,
+        pre_compress_account_data.lamports,
     )
     .await;
 

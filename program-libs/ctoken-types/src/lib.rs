@@ -25,7 +25,7 @@ pub const COMPRESSED_TOKEN_PROGRAM_ID: [u8; 32] =
 pub const BASE_TOKEN_ACCOUNT_SIZE: u64 = 165;
 
 /// Size of a token account with compressible extension
-pub const COMPRESSIBLE_TOKEN_ACCOUNT_SIZE: u64 = 257;
+pub const COMPRESSIBLE_TOKEN_ACCOUNT_SIZE: u64 = 261;
 
 /// Size of a Token-2022 mint account
 pub const MINT_ACCOUNT_SIZE: u64 = 82;

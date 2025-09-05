@@ -38,7 +38,9 @@ fn test_compressible_discriminator_selection() {
         mint: Pubkey::new_unique(),
         rent_authority: Pubkey::new_unique(),
         rent_recipient: Pubkey::new_unique(),
-        slots_until_compression: 100,
+        pre_pay_num_epochs: 1,
+        write_top_up_lamports: Some(100),
+        payer_pda_bump: 0,
     };
 
     // Test non-idempotent variant

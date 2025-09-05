@@ -218,7 +218,9 @@ pub async fn create_mint<R: Rpc + Indexer>(
             mint: spl_mint,
             rent_authority: Pubkey::new_unique(),
             rent_recipient: Pubkey::new_unique(),
-            slots_until_compression: 1000,
+            pre_pay_num_epochs: 1,
+            write_top_up_lamports: Some(1000),
+            payer_pda_bump: 0,
         },
     )
     .unwrap();

@@ -452,6 +452,7 @@ pub async fn assert_transfer2_compress<R: Rpc + Indexer>(
     compress_input: CompressInput<'_>,
     pre_spl_token_account: spl_token_2022::state::Account,
     pre_spl_account_data: &[u8],
+    pre_spl_account_lamports: u64,
 ) {
     // Get current slot for compressible extension assertion
     let current_slot = rpc.get_slot().await.unwrap();
@@ -474,6 +475,8 @@ pub async fn assert_transfer2_compress<R: Rpc + Indexer>(
     assert_compressible_for_account(
         "SPL source account",
         pre_spl_account_data,
+        pre_spl_account_lamports,
+        spl_account_data_after.lamports,
         &spl_account_data_after.data,
         current_slot,
     );
@@ -485,6 +488,7 @@ pub async fn assert_transfer2_compress_and_close<R: Rpc + Indexer>(
     compress_and_close_input: light_token_client::instructions::transfer2::CompressAndCloseInput,
     pre_spl_token_account: spl_token_2022::state::Account,
     pre_spl_account_data: &[u8],
+    account_lamports_before_close: u64,
     initial_recipient_lamports: u64,
 ) {
     use light_ctoken_types::state::{CompressedToken, ZExtensionStruct};
@@ -502,7 +506,7 @@ pub async fn assert_transfer2_compress_and_close<R: Rpc + Indexer>(
         .and_then(|extensions| {
             extensions.iter().find_map(|ext| {
                 if let ZExtensionStruct::Compressible(comp) = ext {
-                    Some(Pubkey::from(comp.rent_recipient.to_bytes()))
+                    Some(Pubkey::from(*comp.rent_recipient.unwrap()))
                 } else {
                     None
                 }
@@ -525,6 +529,7 @@ pub async fn assert_transfer2_compress_and_close<R: Rpc + Indexer>(
         rpc,
         compress_and_close_input.solana_ctoken_account,
         Some(pre_spl_account_data),
+        account_lamports_before_close,
         rent_recipient,
         initial_recipient_lamports,
     )

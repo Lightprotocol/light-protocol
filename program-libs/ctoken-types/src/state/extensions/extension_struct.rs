@@ -2,8 +2,11 @@ use light_zero_copy::ZeroCopy;
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    state::extensions::{
-        CompressibleExtension, TokenMetadata, TokenMetadataConfig, ZTokenMetadataMut,
+    state::{
+        extensions::{
+            CompressibleExtension, TokenMetadata, TokenMetadataConfig, ZTokenMetadataMut,
+        },
+        CompressibleExtensionConfig,
     },
     AnchorDeserialize, AnchorSerialize,
 };
@@ -126,9 +129,9 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                 // 1 byte for discriminant + TokenMetadata size
                 1 + TokenMetadata::byte_len(token_metadata_config)?
             }
-            ExtensionStructConfig::Compressible => {
+            ExtensionStructConfig::Compressible(config) => {
                 // 1 byte for discriminant + CompressibleExtension size
-                1 + std::mem::size_of::<CompressibleExtension>()
+                1 + CompressibleExtension::byte_len(config)?
             }
             _ => {
                 msg!("Invalid extension type returning 0");
@@ -159,7 +162,7 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
-            ExtensionStructConfig::Compressible => {
+            ExtensionStructConfig::Compressible(config) => {
                 // Write discriminant (26 for Compressible)
                 if bytes.is_empty() {
                     return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
@@ -170,7 +173,7 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                 bytes[0] = 26u8;
 
                 let (compressible_ext, remaining_bytes) =
-                    CompressibleExtension::new_zero_copy(&mut bytes[1..], ())?;
+                    CompressibleExtension::new_zero_copy(&mut bytes[1..], config)?;
                 Ok((
                     ZExtensionStructMut::Compressible(compressible_ext),
                     remaining_bytes,
@@ -209,5 +212,5 @@ pub enum ExtensionStructConfig {
     Placeholder23,
     Placeholder24,
     Placeholder25,
-    Compressible,
+    Compressible(CompressibleExtensionConfig),
 }

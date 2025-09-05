@@ -63,9 +63,10 @@ pub fn create_decompressed_token_transfer_instruction(
     let transfer_instruction = Instruction {
         program_id: Pubkey::from(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
         accounts: vec![
-            AccountMeta::new(source, false),            // Source token account
-            AccountMeta::new(destination, false),       // Destination token account
-            AccountMeta::new_readonly(authority, true), // Owner/Authority (signer)
+            AccountMeta::new(source, false),      // Source token account
+            AccountMeta::new(destination, false), // Destination token account
+            AccountMeta::new(authority, true), // Owner/Authority (signer, writable for lamport transfers)
+            AccountMeta::new_readonly(Pubkey::default(), false), // System program for CPI transfers
         ],
         data: {
             let mut data = vec![3u8]; // DecompressedTransfer discriminator

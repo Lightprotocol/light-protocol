@@ -110,7 +110,9 @@ async fn setup_compress_and_close_test(
                 } else {
                     owner.pubkey()
                 },
-                slots_until_compression: 0,
+                pre_pay_num_epochs: 0,
+                write_top_up_lamports: None,
+                payer_pda_bump: 0,
             },
         )
         .unwrap();
@@ -702,7 +704,9 @@ async fn test_compress_and_close_cpi_mixed_signers() {
                 } else {
                     owner.pubkey()
                 },
-                slots_until_compression: 0,
+                pre_pay_num_epochs: 0,
+                write_top_up_lamports: None,
+                payer_pda_bump: 0,
             },
         )
         .unwrap();

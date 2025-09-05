@@ -1,12 +1,19 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountIterator;
-use light_ctoken_types::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
+use light_ctoken_types::{
+    instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
+    state::{get_rent_with_compression_cost, COMPRESSION_COST, COMPRESSION_INCENTIVE},
+};
 use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::account_info::AccountInfo;
+use spl_pod::solana_msg::msg;
 
-use crate::shared::{
-    create_pda_account, initialize_token_account::initialize_token_account,
-    validate_ata_derivation, CreatePdaAccountConfig,
+use crate::{
+    create_token_account::processor::transfer_lamports_via_cpi,
+    shared::{
+        create_pda_account, initialize_token_account::initialize_token_account,
+        validate_ata_derivation, CreatePdaAccountConfig,
+    },
 };
 
 /// Process the create associated token account instruction (non-idempotent)
@@ -89,14 +96,84 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
         owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
         derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
     };
+    let seeds2 = [b"pool".as_slice(), fee_payer.key().as_ref()];
+    msg!(
+        "instruction_inputs.compressible_config {:?}",
+        instruction_inputs.compressible_config
+    );
+    let (config_2, fee_payer) =
+        if let Some(config) = instruction_inputs.compressible_config.as_ref() {
+            let derived_pool_pda = pinocchio_pubkey::derive_address(
+                &seeds2,
+                Some(config.payer_pda_bump),
+                crate::ID.as_array(),
+            );
+            // TODO: also compare the rent recipient and rent authority
+            if config.has_rent_recipient != 0
+                //&& config.rent_authority == derived_pool_pda
+                && config.rent_recipient == derived_pool_pda
+            {
+                let fee_payer =
+                    iter.next_mut("rent recipient account info missing to fund account creation")?;
+                (
+                    Some(CreatePdaAccountConfig {
+                        seeds: seeds2.as_slice(),
+                        bump: config.payer_pda_bump,
+                        account_size: token_account_size,
+                        owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
+                        derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
+                    }),
+                    fee_payer,
+                )
+            } else {
+                (None, fee_payer)
+            }
+        } else {
+            (None, fee_payer)
+        };
+    msg!("config_2 {:?}", config_2);
 
-    create_pda_account(fee_payer, associated_token_account, system_program, config)?;
+    // Create the PDA account (with rent-exempt balance only)
+    create_pda_account(
+        fee_payer,
+        associated_token_account,
+        system_program,
+        config,
+        config_2,
+        None, // No additional lamports from PDA
+    )?;
+
+    // Calculate and transfer additional rent for compressible accounts
+    let rent = if let Some(compressible_config) = instruction_inputs.compressible_config.as_ref() {
+        let rent = get_rent_with_compression_cost(
+            token_account_size as u64,
+            compressible_config.rent_payment.get(),
+        );
+        msg!(
+            "Calculating rent for {} bytes, {} epochs: {} lamports",
+            token_account_size,
+            compressible_config.rent_payment.get(),
+            rent
+        );
+
+        // Get the actual payer account (first account is always the payer in ATA creation)
+        let payer = account_infos
+            .first()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+
+        // Payer transfers the additional rent (compression incentive)
+        transfer_lamports_via_cpi(rent, payer, associated_token_account)?;
+        rent - COMPRESSION_COST - COMPRESSION_INCENTIVE
+    } else {
+        0
+    };
 
     initialize_token_account(
         associated_token_account,
         &mint_bytes,
         &owner_bytes,
         instruction_inputs.compressible_config,
+        Some(rent),
     )?;
 
     Ok(())

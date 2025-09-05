@@ -22,6 +22,7 @@ const ID: &[u8; 32] = &LIGHT_CPI_SIGNER.program_id;
 /// Process native compressions/decompressions with token accounts
 #[profile]
 pub fn process_token_compression(
+    fee_payer: &AccountInfo,
     inputs: &ZCompressedTokenInstructionDataTransfer2,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     cpi_authority: &AccountInfo,
@@ -36,6 +37,7 @@ pub fn process_token_compression(
             match unsafe { source_or_recipient.owner() } {
                 ID => {
                     native::process_native_compressions(
+                        fee_payer,
                         inputs,
                         compression,
                         source_or_recipient,
