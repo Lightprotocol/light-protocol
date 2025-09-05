@@ -1,57 +1,191 @@
 use proc_macro2::TokenStream;
-use quote::quote;
+use quote::{format_ident, quote};
 use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    Ident, Item, ItemFn, ItemStruct, ItemMod, Result, Token,
+    Expr, Ident, Item, ItemFn, ItemStruct, ItemMod, LitStr, Result, Token,
 };
 
-/// Parse a comma-separated list of account type identifiers
-struct AccountTypeList {
-    types: Punctuated<Ident, Token![,]>,
+/// Parse seed specification for a token account variant
+struct TokenSeedSpec {
+    variant: Ident,
+    _eq: Token![=],
+    seeds: Punctuated<SeedElement, Token![,]>,
 }
 
-impl Parse for AccountTypeList {
+impl Parse for TokenSeedSpec {
     fn parse(input: ParseStream) -> Result<Self> {
-        Ok(AccountTypeList {
-            types: Punctuated::parse_terminated(input)?,
+        Ok(TokenSeedSpec {
+            variant: input.parse()?,
+            _eq: input.parse()?,
+            seeds: {
+                let content;
+                syn::parenthesized!(content in input);
+                Punctuated::parse_terminated(&content)?
+            },
         })
     }
 }
 
+enum SeedElement {
+    /// String literal like "user_record"
+    Literal(LitStr),
+    /// Any expression: data.owner, ctx.fee_payer, data.session_id.to_le_bytes(), etc.
+    Expression(Expr),
+}
+
+impl Parse for SeedElement {
+    fn parse(input: ParseStream) -> Result<Self> {
+        if input.peek(LitStr) {
+            Ok(SeedElement::Literal(input.parse()?))
+        } else {
+            // Parse everything else as an expression
+            // This will handle ctx.fee_payer, data.session_id.to_le_bytes(), etc.
+            Ok(SeedElement::Expression(input.parse()?))
+        }
+    }
+}
+
+/// Parse instruction data field specification: field_name = Type
+struct InstructionDataSpec {
+    field_name: Ident,
+    field_type: syn::Type,
+}
+
+impl Parse for InstructionDataSpec {
+    fn parse(input: ParseStream) -> Result<Self> {
+        // Parse: field_name = Type (e.g., session_id = u64)
+        let field_name: Ident = input.parse()?;
+        let _eq: Token![=] = input.parse()?;
+        let field_type: syn::Type = input.parse()?;
+        
+        Ok(InstructionDataSpec {
+            field_name,
+            field_type,
+        })
+    }
+}
+
+/// Parse enhanced macro arguments with mixed account types, PDA seeds, token seeds, and instruction data
+struct EnhancedMacroArgs {
+    account_types: Vec<Ident>,
+    pda_seeds: Vec<TokenSeedSpec>,
+    token_seeds: Vec<TokenSeedSpec>,
+    instruction_data: Vec<InstructionDataSpec>,
+}
+
+impl Parse for EnhancedMacroArgs {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut account_types = Vec::new();
+        let mut pda_seeds = Vec::new();
+        let mut token_seeds = Vec::new();
+        let mut instruction_data = Vec::new();
+        
+        while !input.is_empty() {
+            let ident: Ident = input.parse()?;
+            
+            if input.peek(Token![=]) {
+                let _eq: Token![=] = input.parse()?;
+                
+                if input.peek(syn::token::Paren) {
+                    // This is a seed specification (either PDA or CToken)
+                    let seeds = {
+                        let content;
+                        syn::parenthesized!(content in input);
+                        Punctuated::parse_terminated(&content)?
+                    };
+                    
+                    let seed_spec = TokenSeedSpec {
+                        variant: ident.clone(),
+                        _eq: Token![=]([proc_macro2::Span::call_site()]),
+                        seeds,
+                    };
+                    
+                    // Distinguish between PDA seeds and CToken seeds based on naming convention
+                    let ident_str = ident.to_string();
+                    if ident_str.contains("Token") || ident_str.starts_with("CToken") {
+                        token_seeds.push(seed_spec);
+                    } else {
+                        // This is a PDA seed specification
+                        pda_seeds.push(seed_spec);
+                        account_types.push(ident);
+                    }
+                } else {
+                    // This is an instruction data type specification: field_name = Type
+                    let field_type: syn::Type = input.parse()?;
+                    instruction_data.push(InstructionDataSpec {
+                        field_name: ident,
+                        field_type,
+                    });
+                }
+            } else {
+                // This is a regular account type without seed specification
+                account_types.push(ident);
+            }
+            
+            if input.peek(Token![,]) {
+                let _comma: Token![,] = input.parse()?;
+            } else {
+                break;
+            }
+        }
+
+        Ok(EnhancedMacroArgs {
+            account_types,
+            pda_seeds,
+            token_seeds,
+            instruction_data,
+        })
+    }
+}
+
+// Legacy parsing removed - only declarative syntax supported now! 🎉
+
 /// Enhanced version of add_compressible_instructions that generates both compress and decompress instructions
 /// 
-/// Supports completely generic CToken variant handling:
-/// - ANY CToken variant can be added to CTokenAccountVariant enum
-/// - User implements get_{variant_name_snake_case}_seeds function with ANY custom parameters
-/// - Macro generates dynamic dispatch that calls the appropriate seed function
-/// - Fully extensible without modifying the macro
+/// Now supports automatic CToken seed derivation:
+/// - Specify token seeds directly in the macro
+/// - Eliminates need for manual CTokenSeedProvider implementation
+/// - Completely automatic seed generation
 /// 
 /// Usage:
 /// ```rust
-/// #[add_compressible_instructions_enhanced(UserRecord, GameSession, PlaceholderRecord)]
+/// #[add_compressible_instructions_enhanced(UserRecord, GameSession, CTokenSigner = ("ctoken_signer", ctx.fee_payer, ctx.mint))]
 /// #[program]
 /// pub mod my_program {
 ///     // Your other instructions...
 /// }
 /// ```
-pub fn add_compressible_instructions_enhanced(
+pub fn add_compressible_instructions(
     args: TokenStream,
     mut module: ItemMod,
 ) -> Result<TokenStream> {
-    let type_list = syn::parse2::<AccountTypeList>(args)?;
+    // Parse with enhanced format - no legacy fallback!
+    let enhanced_args = syn::parse2::<EnhancedMacroArgs>(args)?;
+    let account_types = enhanced_args.account_types;
+    let pda_seeds = Some(enhanced_args.pda_seeds);
+    let token_seeds = Some(enhanced_args.token_seeds);
+    let instruction_data = enhanced_args.instruction_data;
 
     if module.content.is_none() {
         return Err(syn::Error::new_spanned(&module, "Module must have a body"));
     }
-
-    let account_types: Vec<&Ident> = type_list.types.iter().collect();
     
     if account_types.is_empty() {
         return Err(syn::Error::new_spanned(&module, "At least one account type must be specified"));
     }
 
     let content = module.content.as_mut().unwrap();
+
+    // Generate the compressed_account_variant enum automatically
+    let mut account_types_stream = TokenStream::new();
+    for (i, account_type) in account_types.iter().enumerate() {
+        if i > 0 {
+            account_types_stream.extend(quote! { , });
+        }
+        account_types_stream.extend(quote! { #account_type });
+    }
+    let enum_and_traits = crate::variant_enum::compressed_account_variant(account_types_stream)?;
 
     // Generate the DecompressAccountsIdempotent accounts struct
     let decompress_accounts: ItemStruct = syn::parse_quote! {
@@ -75,20 +209,28 @@ pub fn add_compressible_instructions_enhanced(
     };
 
     // Generate match arms for decompress instruction using the account types
-    let decompress_match_arms = account_types.iter().map(|name| {
+    let decompress_match_arms: Result<Vec<_>> = account_types.iter().map(|name| {
         let name_str = name.to_string();
         
-        // Generate the appropriate seed function call based on the account type name
-        let seed_call = match name_str.as_str() {
-            "UserRecord" => quote! { get_user_record_seeds(&data.owner) },
-            "GameSession" => quote! { get_game_session_seeds(data.session_id) },
-            "PlaceholderRecord" => quote! { get_placeholder_record_seeds(data.placeholder_id) },
-            _ => quote! { 
-                return Err(anchor_lang::error::ErrorCode::AccountDidNotDeserialize.into())
-            },
+        // Generate seed derivation from PDA seed specification - NO FALLBACKS!
+        let seed_call = if let Some(ref pda_seed_specs) = pda_seeds {
+            if let Some(spec) = pda_seed_specs.iter().find(|s| s.variant.to_string() == name_str) {
+                // Generate dynamic seed derivation from the specification
+                generate_pda_seed_derivation(spec)?
+            } else {
+                return Err(syn::Error::new_spanned(
+                    name,
+                    format!("No seed specification provided for account type '{}'. All accounts must have seed specifications.", name_str)
+                ))
+            }
+        } else {
+            return Err(syn::Error::new_spanned(
+                name,
+                "No seed specifications provided. Use the new syntax: AccountType = (\"seed\", data.field)"
+            ))
         };
         
-        quote! {
+        Ok(quote! {
             CompressedAccountVariant::#name(data) => {
                 let (seeds_vec, _) = #seed_call;
 
@@ -111,6 +253,17 @@ pub fn add_compressible_instructions_enhanced(
                         .as_slice(),
                 )?;
                 compressed_pda_infos.extend(compressed_infos);
+            }
+        })
+    }).collect();
+    let decompress_match_arms = decompress_match_arms?;
+
+    // Generate unreachable match arms for Packed variants (PDA types are unpacked, not packed)
+    let packed_unreachable_arms = account_types.iter().map(|name| {
+        let packed_name = format_ident!("Packed{}", name);
+        quote! {
+            CompressedAccountVariant::#packed_name(_) => {
+                unreachable!();
             }
         }
     });
@@ -196,15 +349,7 @@ pub fn add_compressible_instructions_enhanced(
 
                 match unpacked_data {
                     #(#decompress_match_arms)*
-                    CompressedAccountVariant::PackedUserRecord(_) => {
-                        unreachable!();
-                    }
-                    CompressedAccountVariant::PackedGameSession(_) => {
-                        unreachable!();
-                    }
-                    CompressedAccountVariant::PackedPlaceholderRecord(_) => {
-                        unreachable!();
-                    }
+                    #(#packed_unreachable_arms)*
                     CompressedAccountVariant::CompressibleTokenAccountPacked(data) => {
                         compressed_token_accounts.push((data, compressed_data.meta));
                     }
@@ -566,15 +711,316 @@ pub fn add_compressible_instructions_enhanced(
     content.1.push(Item::Fn(init_config_instruction));
     content.1.push(Item::Fn(update_config_instruction));
 
+    // Generate automatic CTokenSeedProvider implementation
+    let ctoken_implementation = if let Some(ref seeds) = token_seeds {
+        if !seeds.is_empty() {
+            generate_ctoken_seed_provider_implementation(seeds)?
+        } else {
+            quote! {
+                // No CToken variants specified - implementation not needed
+            }
+        }
+    } else {
+        quote! {
+            // No CToken variants specified - implementation not needed
+        }
+    };
+
+    // Generate public client-side seed functions for external consumption
+    let client_seed_functions = generate_client_seed_functions(&account_types, &pda_seeds, &token_seeds, &instruction_data)?;
+
     Ok(quote! {
+        // Auto-generated CompressedAccountVariant enum and traits
+        #enum_and_traits
+        
+        // Auto-generated public seed functions for client consumption
+        #client_seed_functions
+        
         // Generate the trait system OUTSIDE the module so users can implement it
         #ctoken_trait_system
         
-        // Users must implement CTokenSeedProvider trait for their CTokenAccountVariant enum
-        // This provides complete flexibility for any custom seed logic with access to ALL instruction accounts
+        // Auto-generated CTokenSeedProvider implementation
+        #ctoken_implementation
         
         // Suppress snake_case warnings for account type names in macro usage
         #[allow(non_snake_case)]
         #module
     })
 }
+
+/// Generate CTokenSeedProvider implementation from token seed specifications
+fn generate_ctoken_seed_provider_implementation(
+    token_seeds: &[TokenSeedSpec],
+) -> Result<TokenStream> {
+    let mut match_arms = Vec::new();
+
+    for spec in token_seeds {
+        let variant_name = &spec.variant;
+        let seed_expressions = generate_seed_expressions(&spec.seeds)?;
+
+        let match_arm = quote! {
+            CTokenAccountVariant::#variant_name => {
+                let seeds = [#(#seed_expressions),*];
+                let (pda, bump) = anchor_lang::prelude::Pubkey::find_program_address(&seeds, &crate::ID);
+                let seeds_vec = vec![
+                    #(
+                        (#seed_expressions).to_vec(),
+                    )*
+                    vec![bump],
+                ];
+                (seeds_vec, pda)
+            }
+        };
+        match_arms.push(match_arm);
+    }
+
+    Ok(quote! {
+        /// Auto-generated CTokenSeedProvider implementation
+        impl ctoken_seed_system::CTokenSeedProvider for CTokenAccountVariant {
+            fn get_seeds<'a, 'info>(
+                &self,
+                ctx: &ctoken_seed_system::CTokenSeedContext<'a, 'info>,
+            ) -> (Vec<Vec<u8>>, anchor_lang::prelude::Pubkey) {
+                match self {
+                    #(#match_arms)*
+                    _ => {
+                        unreachable!("CToken variant not configured with seeds")
+                    }
+                }
+            }
+        }
+    })
+}
+
+/// Generate seed expressions from SeedElement specifications
+fn generate_seed_expressions(
+    seeds: &Punctuated<SeedElement, Token![,]>,
+) -> Result<Vec<TokenStream>> {
+    let mut expressions = Vec::new();
+
+    for seed in seeds {
+        let expr = match seed {
+            SeedElement::Literal(lit) => {
+                let value = lit.value();
+                quote! { #value.as_bytes() }
+            }
+            SeedElement::Expression(expr) => {
+                quote! { (#expr).as_ref() }
+            }
+        };
+        expressions.push(expr);
+    }
+
+    Ok(expressions)
+}
+
+/// Generate PDA seed derivation from specification
+fn generate_pda_seed_derivation(spec: &TokenSeedSpec) -> Result<TokenStream> {
+    let seed_expressions = generate_seed_expressions(&spec.seeds)?;
+    
+    Ok(quote! {
+        {
+            // Create temporary bindings to avoid lifetime issues
+            let seed_values: Vec<Vec<u8>> = vec![
+                #(
+                    (#seed_expressions).to_vec(),
+                )*
+            ];
+            let seed_slices: Vec<&[u8]> = seed_values.iter().map(|v| v.as_slice()).collect();
+            let (pda, bump) = anchor_lang::prelude::Pubkey::find_program_address(&seed_slices, &crate::ID);
+            let mut seeds_vec = seed_values;
+            seeds_vec.push(vec![bump]);
+            (seeds_vec, pda)
+        }
+    })
+}
+
+/// Generate public client-side seed functions for external consumption
+fn generate_client_seed_functions(
+    _account_types: &[Ident],
+    pda_seeds: &Option<Vec<TokenSeedSpec>>,
+    token_seeds: &Option<Vec<TokenSeedSpec>>,
+    instruction_data: &[InstructionDataSpec],
+) -> Result<TokenStream> {
+    let mut functions = Vec::new();
+
+    // Generate PDA seed functions - FULLY GENERIC based on seed specifications
+    if let Some(pda_seed_specs) = pda_seeds {
+        for spec in pda_seed_specs {
+            let variant_name = &spec.variant;
+            let function_name = format_ident!("get_{}_seeds", variant_name.to_string().to_lowercase());
+            
+            // Extract parameters and expressions from the seed specification
+            let (parameters, seed_expressions) = analyze_seed_spec_for_client(spec, instruction_data)?;
+            
+            let function = quote! {
+                /// Auto-generated client-side seed function
+                pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, anchor_lang::prelude::Pubkey) {
+                    let seed_values: Vec<Vec<u8>> = vec![
+                        #(
+                            (#seed_expressions).to_vec(),
+                        )*
+                    ];
+                    let seed_slices: Vec<&[u8]> = seed_values.iter().map(|v| v.as_slice()).collect();
+                    let (pda, bump) = anchor_lang::prelude::Pubkey::find_program_address(&seed_slices, &crate::ID);
+                    let mut seeds_vec = seed_values;
+                    seeds_vec.push(vec![bump]);
+                    (seeds_vec, pda)
+                }
+            };
+            functions.push(function);
+        }
+    }
+
+    // Generate CToken seed functions - FULLY GENERIC based on seed specifications
+    if let Some(token_seed_specs) = token_seeds {
+        for spec in token_seed_specs {
+            let variant_name = &spec.variant;
+            let function_name = format_ident!("get_{}_seeds", variant_name.to_string().to_lowercase());
+            
+            // Extract parameters and expressions from the seed specification
+            let (parameters, seed_expressions) = analyze_seed_spec_for_client(spec, instruction_data)?;
+            
+            let function = quote! {
+                /// Auto-generated client-side CToken seed function
+                pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, anchor_lang::prelude::Pubkey) {
+                    let seed_values: Vec<Vec<u8>> = vec![
+                        #(
+                            (#seed_expressions).to_vec(),
+                        )*
+                    ];
+                    let seed_slices: Vec<&[u8]> = seed_values.iter().map(|v| v.as_slice()).collect();
+                    let (pda, bump) = anchor_lang::prelude::Pubkey::find_program_address(&seed_slices, &crate::ID);
+                    let mut seeds_vec = seed_values;
+                    seeds_vec.push(vec![bump]);
+                    (seeds_vec, pda)
+                }
+            };
+            functions.push(function);
+        }
+    }
+
+    Ok(quote! {
+        #(#functions)*
+    })
+}
+
+/// Analyze seed specification and generate parameters + expressions for client functions
+fn analyze_seed_spec_for_client(
+    spec: &TokenSeedSpec, 
+    instruction_data: &[InstructionDataSpec]
+) -> Result<(Vec<TokenStream>, Vec<TokenStream>)> {
+    let mut parameters = Vec::new();
+    let mut expressions = Vec::new();
+    
+    for seed in &spec.seeds {
+        match seed {
+            SeedElement::Literal(lit) => {
+                // String literals don't need parameters
+                let value = lit.value();
+                expressions.push(quote! { #value.as_bytes() });
+            }
+            SeedElement::Expression(expr) => {
+                // Analyze the expression to extract parameter and generate client expression
+                match expr {
+                    syn::Expr::Field(field_expr) => {
+                        // Handle data.field or ctx.field
+                        if let syn::Member::Named(field_name) = &field_expr.member {
+                            if let syn::Expr::Path(path) = &*field_expr.base {
+                                if let Some(segment) = path.path.segments.first() {
+                                    if segment.ident == "data" {
+                                        // This is a data field - look up the type from instruction_data
+                                        if let Some(data_spec) = instruction_data.iter().find(|d| d.field_name == *field_name) {
+                                            let param_type = &data_spec.field_type;
+                                            // Use references for Pubkey, direct values for numeric types
+                                            let param_with_ref = if is_pubkey_type(param_type) {
+                                                quote! { #field_name: &#param_type }
+                                            } else {
+                                                quote! { #field_name: #param_type }
+                                            };
+                                            parameters.push(param_with_ref);
+                                            expressions.push(quote! { #field_name.as_ref() });
+                                        } else {
+                                            return Err(syn::Error::new_spanned(
+                                                field_name,
+                                                format!("data.{} used in seeds but no type specified. Add: {} = Pubkey (or u8, u16, u64)", field_name, field_name)
+                                            ));
+                                        }
+                                    } else {
+                                        // ctx.field - determine type by field name
+                                        let param_type = if field_name.to_string().contains("owner") || 
+                                                          field_name.to_string().contains("fee_payer") || 
+                                                          field_name.to_string().contains("mint") {
+                                            quote! { &anchor_lang::prelude::Pubkey }
+                                        } else {
+                                            quote! { &anchor_lang::prelude::Pubkey } // Default to Pubkey
+                                        };
+                                        parameters.push(quote! { #field_name: #param_type });
+                                        expressions.push(quote! { #field_name.as_ref() });
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    syn::Expr::MethodCall(method_call) => {
+                        // Handle data.session_id.to_le_bytes() etc.
+                        if let syn::Expr::Field(field_expr) = &*method_call.receiver {
+                            if let syn::Member::Named(field_name) = &field_expr.member {
+                                if let syn::Expr::Path(path) = &*field_expr.base {
+                                    if let Some(segment) = path.path.segments.first() {
+                                        if segment.ident == "data" {
+                                            // This is a data field - look up the type from instruction_data
+                                            if let Some(data_spec) = instruction_data.iter().find(|d| d.field_name == *field_name) {
+                                                let param_type = &data_spec.field_type;
+                                                // Use references for Pubkey, direct values for numeric types
+                                                let param_with_ref = if is_pubkey_type(param_type) {
+                                                    quote! { #field_name: &#param_type }
+                                                } else {
+                                                    quote! { #field_name: #param_type }
+                                                };
+                                                parameters.push(param_with_ref);
+                                                
+                                                // Generate expression for client function  
+                                                let method_name = &method_call.method;
+                                                expressions.push(quote! { #field_name.#method_name().as_ref() });
+                                            } else {
+                                                return Err(syn::Error::new_spanned(
+                                                    field_name,
+                                                    format!("data.{} used in seeds but no type specified. Add: {} = Pubkey (or u8, u16, u64)", field_name, field_name)
+                                                ));
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => {
+                        // For other expressions, try to use as-is
+                        expressions.push(quote! { (#expr).as_ref() });
+                    }
+                }
+            }
+        }
+    }
+    
+    Ok((parameters, expressions))
+}
+
+/// Check if a type is Pubkey-like
+fn is_pubkey_type(ty: &syn::Type) -> bool {
+    if let syn::Type::Path(type_path) = ty {
+        if let Some(segment) = type_path.path.segments.last() {
+            let type_name = segment.ident.to_string();
+            type_name == "Pubkey" || type_name.contains("Pubkey")
+        } else {
+            false
+        }
+    } else {
+        false
+    }
+}
+
+// Client seed function generation complete! 🎉
+
+// No more hardcoded fallbacks! Everything is now auto-generated! 🎉

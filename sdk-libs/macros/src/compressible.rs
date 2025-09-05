@@ -32,8 +32,8 @@ impl Parse for CompressibleTypeList {
     }
 }
 
-/// Generate compress instructions for the specified account types (Anchor version)
-pub(crate) fn add_compressible_instructions(
+/// Legacy compress instructions function (deprecated - use new declarative syntax)
+pub(crate) fn add_compressible_instructions_legacy(
     args: TokenStream,
     mut module: ItemMod,
 ) -> Result<TokenStream> {

@@ -1,7 +1,8 @@
 use anchor_compressible_derived::state::{
     CTokenAccountVariant, GameSession, PlaceholderRecord, UserRecord,
 };
-use anchor_compressible_derived::{get_ctoken_signer_seeds, CompressedAccountVariant};
+
+use anchor_compressible_derived::CompressedAccountVariant;
 use anchor_lang::{
     AccountDeserialize, AnchorDeserialize, Discriminator, InstructionData, ToAccountMetas,
 };
@@ -103,11 +104,10 @@ async fn test_create_and_decompress_two_accounts() {
 
     rpc.warp_to_slot(200).unwrap();
 
-    let (_, compressed_token_account_address) =
-        anchor_compressible_derived::get_ctoken_signer_seeds(
-            &combined_user.pubkey(),
-            &compressed_token_account.token.mint,
-        );
+    let (_, compressed_token_account_address) = anchor_compressible_derived::get_ctokensigner_seeds(
+        &combined_user.pubkey(),
+        &compressed_token_account.token.mint,
+    );
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
@@ -1586,7 +1586,7 @@ async fn create_user_record_and_game_session(
     assert_eq!(game_session.score, 0);
 
     // SAME AS OWNER
-    let token_account_address = get_ctoken_signer_seeds(
+    let token_account_address = anchor_compressible_derived::get_ctokensigner_seeds(
         &user.pubkey(),
         &find_spl_mint_address(&mint_signer.pubkey()).0,
     )
@@ -1671,7 +1671,7 @@ async fn compress_record(
         &RENT_RECIPIENT, // rent_recipient
         &[*user_record_pda],
         &[account],
-        vec![anchor_compressible_derived::get_user_record_seeds(&payer.pubkey()).0], // compressed_account
+        vec![anchor_compressible_derived::get_userrecord_seeds(&payer.pubkey()).0], // compressed_account
         rpc_result,             // validity_proof_with_context
         output_state_tree_info, // output_state_tree_info
     )
@@ -1951,7 +1951,7 @@ async fn compress_placeholder_record(
         .value;
 
     let placeholder_seeds =
-        anchor_compressible_derived::get_placeholder_record_seeds(placeholder_id);
+        anchor_compressible_derived::get_placeholderrecord_seeds(placeholder_id);
 
     let account = rpc
         .get_account(*placeholder_record_pda)
@@ -2043,7 +2043,7 @@ async fn compress_placeholder_record_for_double_test(
         .value;
 
     let placeholder_seeds =
-        anchor_compressible_derived::get_placeholder_record_seeds(placeholder_id);
+        anchor_compressible_derived::get_placeholderrecord_seeds(placeholder_id);
 
     let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
@@ -2436,11 +2436,11 @@ async fn compress_token_account_after_decompress(
     );
 
     let (user_record_seeds, user_record_pubkey) =
-        anchor_compressible_derived::get_user_record_seeds(&user.pubkey());
+        anchor_compressible_derived::get_userrecord_seeds(&user.pubkey());
     let (game_session_seeds, game_session_pubkey) =
-        anchor_compressible_derived::get_game_session_seeds(session_id);
+        anchor_compressible_derived::get_gamesession_seeds(session_id);
     let (token_account_seeds, token_account_address) =
-        get_ctoken_signer_seeds(&user.pubkey(), &mint);
+        anchor_compressible_derived::get_ctokensigner_seeds(&user.pubkey(), &mint);
 
     let mut accounts: Vec<Account> = vec![];
 

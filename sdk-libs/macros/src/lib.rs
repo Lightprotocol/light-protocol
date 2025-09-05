@@ -14,6 +14,8 @@ mod compressible;
 mod compressible_derive;
 mod compressible_instructions;
 mod cpi_signer;
+mod ctoken_seeds_macro;
+mod derive_ctoken_seeds;
 mod derive_seeds;
 mod discriminator;
 mod hasher;
@@ -347,24 +349,30 @@ pub fn compress_as_derive(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// Adds compress instructions for the specified account types (Anchor version)
+/// Adds compressible account support with automatic seed generation.
 ///
-/// This macro must be placed BEFORE the #[program] attribute to ensure
-/// the generated instructions are visible to Anchor's macro processing.
+/// This macro generates everything needed for compressible accounts:
+/// - CompressedAccountVariant enum with all trait implementations  
+/// - Compress and decompress instructions with auto-generated seed derivation
+/// - CTokenSeedProvider implementation for token accounts
+/// - All required account structs and functions
 ///
 /// ## Usage
 /// ```
-/// #[add_compressible_instructions(UserRecord, GameSession)]
+/// #[add_compressible_instructions(
+///     UserRecord = ("user_record", data.owner),
+///     GameSession = ("game_session", data.session_id.to_le_bytes()),
+///     CTokenSigner = ("ctoken_signer", ctx.fee_payer, ctx.mint)
+/// )]
 /// #[program]
 /// pub mod my_program {
-///     // Your regular instructions here
+///     // Your regular instructions here - everything else is auto-generated!
 /// }
 /// ```
 #[proc_macro_attribute]
 pub fn add_compressible_instructions(args: TokenStream, input: TokenStream) -> TokenStream {
-    let input = syn::parse_macro_input!(input as syn::ItemMod);
-
-    compressible::add_compressible_instructions(args.into(), input)
+    let module = syn::parse_macro_input!(input as syn::ItemMod);
+    compressible_instructions::add_compressible_instructions(args.into(), module)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
@@ -596,33 +604,32 @@ pub fn generate_seed_functions(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// Enhanced version of add_compressible_instructions that generates complete compress/decompress instructions.
+// Legacy add_compressible_instructions_enhanced macro removed - now just use add_compressible_instructions!
+
+/// Automatically generates CTokenSeedProvider implementation for token account variants.
 ///
-/// This attribute macro modifies the program module to add auto-generated instructions
-/// based on the specified account types.
+/// This attribute macro should be placed BEFORE the `add_compressible_instructions_enhanced` macro
+/// to ensure the CTokenSeedProvider trait is available.
 ///
-/// ## Example
-///
-/// ```ignore
-/// use light_sdk_macros::add_compressible_instructions_enhanced;
-///
-/// #[add_compressible_instructions_enhanced(UserRecord, GameSession, PlaceholderRecord)]
+/// ## Usage
+/// ```rust
+/// #[ctoken_seeds(CTokenSigner = ("ctoken_signer", ctx.fee_payer, ctx.mint))]
+/// #[add_compressible_instructions_enhanced(UserRecord, GameSession)]
 /// #[program]
 /// pub mod my_program {
-///     // Your manual instructions...
-///     
-///     // Auto-generated:
-///     // - decompress_accounts_idempotent
-///     // - DecompressAccountsIdempotent accounts struct
+///     // Your instructions...
 /// }
 /// ```
+///
+/// ## Seed Element Types
+/// - String literals: `"ctoken_signer"` -> literal seed bytes
+/// - Context fields: `ctx.fee_payer`, `ctx.mint`, `ctx.owner` -> access to standard context
+/// - Account fields: `ctx.accounts.user` -> access to instruction accounts
+/// - Expressions: `some_id.to_le_bytes()` -> custom expressions
 #[proc_macro_attribute]
-pub fn add_compressible_instructions_enhanced(
-    args: TokenStream,
-    input: TokenStream,
-) -> TokenStream {
+pub fn ctoken_seeds(args: TokenStream, input: TokenStream) -> TokenStream {
     let module = syn::parse_macro_input!(input as syn::ItemMod);
-    compressible_instructions::add_compressible_instructions_enhanced(args.into(), module)
+    ctoken_seeds_macro::ctoken_seeds(args.into(), module)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
@@ -671,6 +678,48 @@ pub fn derive_seeds(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
     derive_seeds::derive_seeds(input)
+        .unwrap_or_else(|err| err.to_compile_error())
+        .into()
+}
+
+/// Derive CTokenSeedProvider implementation for token account variant enums
+///
+/// This macro automatically implements the `ctoken_seed_system::CTokenSeedProvider` trait
+/// for your CToken variant enum, allowing you to declaratively specify seed derivation
+/// logic for each variant.
+///
+/// ## Usage
+/// ```rust
+/// #[derive(DeriveCTokenSeeds)]
+/// #[token_seeds(
+///     CTokenSigner = ("ctoken_signer", ctx.fee_payer, ctx.mint),
+///     UserVault = ("user_vault", ctx.accounts.user, ctx.mint),
+///     CustomVault = ("custom", ctx.accounts.custom_seed, some_id.to_le_bytes())
+/// )]
+/// pub enum CTokenAccountVariant {
+///     CTokenSigner,
+///     UserVault,
+///     CustomVault,
+///     AssociatedTokenAccount, // Can be left without seeds if not implemented
+/// }
+/// ```
+///
+/// ## Seed Element Types
+/// - String literals: `"ctoken_signer"` -> literal seed bytes
+/// - Context fields: `ctx.fee_payer`, `ctx.mint`, `ctx.owner` -> access to standard context
+/// - Account fields: `ctx.accounts.user` -> access to instruction accounts
+/// - Expressions: `some_id.to_le_bytes()` -> custom expressions
+///
+/// ## Generated Implementation
+/// The macro generates a match statement that:
+/// - Calls `Pubkey::find_program_address` with the specified seeds
+/// - Returns `(Vec<Vec<u8>>, Pubkey)` tuple with seeds and derived PDA
+/// - Uses `unreachable!()` for variants without seed specifications
+#[proc_macro_derive(DeriveCTokenSeeds, attributes(token_seeds))]
+pub fn derive_ctoken_seeds(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as DeriveInput);
+
+    derive_ctoken_seeds::derive_ctoken_seeds(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }

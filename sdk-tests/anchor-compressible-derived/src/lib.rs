@@ -5,7 +5,7 @@ use anchor_lang::{
 
 use light_ctoken_types::instructions::mint_action::CompressedMintWithContext;
 use light_sdk::{
-    add_compressible_instructions_enhanced, compressed_account_variant,
+    add_compressible_instructions,
     compressible::{
         compress_account_on_init, compress_empty_account_on_init,
         prepare_accounts_for_compression_on_init, CompressibleConfig, CompressionInfo,
@@ -29,66 +29,16 @@ declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
-// You can implement this for each of your token account derivation paths.
-pub fn get_ctoken_signer_seeds<'a>(user: &'a Pubkey, mint: &'a Pubkey) -> (Vec<Vec<u8>>, Pubkey) {
-    let mut seeds = vec![
-        b"ctoken_signer".to_vec(),
-        user.to_bytes().to_vec(),
-        mint.to_bytes().to_vec(),
-    ];
-    let seeds_slice = seeds.iter().map(|s| s.as_slice()).collect::<Vec<_>>();
-    let (pda, bump) = Pubkey::find_program_address(seeds_slice.as_slice(), &crate::ID);
-    seeds.push(vec![bump]);
-    (seeds, pda)
-}
-
-// Manual seed functions - can be replaced with DeriveSeeds macro later
-pub fn get_user_record_seeds(user: &Pubkey) -> (Vec<Vec<u8>>, Pubkey) {
-    let seeds = [b"user_record".as_ref(), user.as_ref()];
-    let (pda, bump) = Pubkey::find_program_address(&seeds, &crate::ID);
-    let bump_slice = vec![bump];
-    let seeds_vec = vec![seeds[0].to_vec(), seeds[1].to_vec(), bump_slice];
-    (seeds_vec, pda)
-}
-
-pub fn get_game_session_seeds(session_id: u64) -> (Vec<Vec<u8>>, Pubkey) {
-    let session_id_le = session_id.to_le_bytes();
-    let seeds = [b"game_session".as_ref(), session_id_le.as_ref()];
-    let (pda, bump) = Pubkey::find_program_address(&seeds, &crate::ID);
-    let bump_slice = vec![bump];
-    let seeds_vec = vec![seeds[0].to_vec(), seeds[1].to_vec(), bump_slice];
-    (seeds_vec, pda)
-}
-
-pub fn get_placeholder_record_seeds(placeholder_id: u64) -> (Vec<Vec<u8>>, Pubkey) {
-    let placeholder_id_le = placeholder_id.to_le_bytes();
-    let seeds = [b"placeholder_record".as_ref(), placeholder_id_le.as_ref()];
-    let (pda, bump) = Pubkey::find_program_address(&seeds, &crate::ID);
-    let bump_slice = vec![bump];
-    let seeds_vec = vec![seeds[0].to_vec(), seeds[1].to_vec(), bump_slice];
-    (seeds_vec, pda)
-}
-
-// Generate CompressedAccountVariant enum and CompressedAccountData struct with all trait implementations
-compressed_account_variant!(UserRecord, GameSession, PlaceholderRecord);
-
-// Implement the CTokenSeedProvider trait for our CTokenAccountVariant enum
-impl ctoken_seed_system::CTokenSeedProvider for CTokenAccountVariant {
-    fn get_seeds<'a, 'info>(
-        &self,
-        ctx: &ctoken_seed_system::CTokenSeedContext<'a, 'info>,
-    ) -> (Vec<Vec<u8>>, Pubkey) {
-        match self {
-            CTokenAccountVariant::CTokenSigner => get_ctoken_signer_seeds(ctx.fee_payer, ctx.mint),
-            CTokenAccountVariant::AssociatedTokenAccount => {
-                unreachable!()
-            }
-        }
-    }
-}
-
 // Simple anchor program retrofitted with compressible accounts.
-#[add_compressible_instructions_enhanced(UserRecord, GameSession, PlaceholderRecord)]
+#[add_compressible_instructions(
+    UserRecord = ("user_record", data.owner),
+    GameSession = ("game_session", data.session_id.to_le_bytes()),
+    PlaceholderRecord = ("placeholder_record", data.placeholder_id.to_le_bytes()),
+    CTokenSigner = ("ctoken_signer", ctx.fee_payer, ctx.mint),
+    owner = Pubkey,
+    session_id = u64,
+    placeholder_id = u64
+)]
 #[program]
 pub mod anchor_compressible_derived {
 
@@ -312,7 +262,12 @@ pub mod anchor_compressible_derived {
         // these are custom seeds of the caller program that are used to derive the program owned onchain tokenb account PDA.
         // dual use: as owner of the compressed token account.
         let mint = find_spl_mint_address(&ctx.accounts.mint_signer.key()).0;
-        let (_, token_account_address) = get_ctoken_signer_seeds(&ctx.accounts.user.key(), &mint);
+        let token_account_address = {
+            let user_key = ctx.accounts.user.key();
+            let seeds = [b"ctoken_signer".as_ref(), user_key.as_ref(), mint.as_ref()];
+            let (pda, _bump) = Pubkey::find_program_address(&seeds, &crate::ID);
+            pda
+        };
 
         let actions = vec![
             light_compressed_token_sdk::instructions::mint_action::MintActionType::MintTo {
