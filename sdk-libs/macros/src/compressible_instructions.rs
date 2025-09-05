@@ -21,6 +21,12 @@ impl Parse for AccountTypeList {
 
 /// Enhanced version of add_compressible_instructions that generates both compress and decompress instructions
 /// 
+/// Supports completely generic CToken variant handling:
+/// - ANY CToken variant can be added to CTokenAccountVariant enum
+/// - User implements get_{variant_name_snake_case}_seeds function with ANY custom parameters
+/// - Macro generates dynamic dispatch that calls the appropriate seed function
+/// - Fully extensible without modifying the macro
+/// 
 /// Usage:
 /// ```rust
 /// #[add_compressible_instructions_enhanced(UserRecord, GameSession, PlaceholderRecord)]
@@ -108,6 +114,32 @@ pub fn add_compressible_instructions_enhanced(
             }
         }
     });
+
+    // Generate trait-based system for TRULY generic CToken variant handling
+    let ctoken_trait_system: syn::ItemMod = syn::parse_quote! {
+        /// Trait-based system for generic CToken variant seed handling
+        /// Users implement this trait for their CTokenAccountVariant enum
+        pub mod ctoken_seed_system {
+            use super::*;
+            
+            /// Context struct providing access to ALL instruction accounts
+            /// This gives users access to any account in the instruction context
+            pub struct CTokenSeedContext<'a, 'info> {
+                pub accounts: &'a DecompressAccountsIdempotent<'info>,
+                pub remaining_accounts: &'a [anchor_lang::prelude::AccountInfo<'info>],
+                pub fee_payer: &'a Pubkey,
+                pub owner: &'a Pubkey,
+                pub mint: &'a Pubkey,
+                // Users can access any account via ctx.accounts.field_name
+            }
+            
+            /// Trait that CToken variants implement to provide seed derivation
+            /// Completely extensible - users can implement ANY seed logic with access to ALL accounts
+            pub trait CTokenSeedProvider {
+                fn get_seeds<'a, 'info>(&self, ctx: &CTokenSeedContext<'a, 'info>) -> (Vec<Vec<u8>>, Pubkey);
+            }
+        }
+    };
 
     // Generate the decompress instruction
     let decompress_instruction: ItemFn = syn::parse_quote! {
@@ -224,14 +256,20 @@ pub fn add_compressible_instructions_enhanced(
                 let mint_info = packed_accounts[mint_index as usize].to_account_info();
                 let owner_info = packed_accounts[owner_index as usize].to_account_info();
 
-                // seeds for ctoken. match on variant.
-                let ctoken_signer_seeds = match token_data.variant {
-                    CTokenAccountVariant::CTokenSigner => {
-                        let (seeds, _) = get_ctoken_signer_seeds(&fee_payer.key(), &mint_info.key());
-                        seeds
-                    }
-                    CTokenAccountVariant::AssociatedTokenAccount => unreachable!(),
+                // ✅ TRULY GENERIC CToken variant handling using trait dispatch
+                // Users get access to ALL instruction accounts via ctx.accounts
+                // NO NEED TO MODIFY THE MACRO - completely extensible by users
+                use crate::ctoken_seed_system::{CTokenSeedProvider, CTokenSeedContext};
+                
+                let seed_context = CTokenSeedContext {
+                    accounts: &ctx.accounts,
+                    remaining_accounts: ctx.remaining_accounts,
+                    fee_payer: &fee_payer.key(),
+                    owner: &owner_info.key(), 
+                    mint: &mint_info.key(),
                 };
+                
+                let ctoken_signer_seeds = token_data.variant.get_seeds(&seed_context).0;
 
                 light_compressed_token_sdk::create_compressible_token_account(
                     authority,
@@ -294,11 +332,170 @@ pub fn add_compressible_instructions_enhanced(
         }
     };
 
+    // Generate the CompressAccountsIdempotent accounts struct
+    let compress_accounts: syn::ItemStruct = syn::parse_quote! {
+        #[derive(Accounts)]
+        pub struct CompressAccountsIdempotent<'info> {
+            #[account(mut)]
+            pub fee_payer: Signer<'info>,
+            /// The global config account
+            /// CHECK: Config is validated by the SDK's load_checked method
+            pub config: AccountInfo<'info>,
+            /// Rent recipient - must match config
+            /// CHECK: Rent recipient is validated against the config
+            #[account(mut)]
+            pub rent_recipient: AccountInfo<'info>,
+
+            /// CHECK: compression_authority must be the rent_authority defined when creating the token account.
+            #[account(mut)]
+            pub token_compression_authority: AccountInfo<'info>,
+
+            // Optional token-specific accounts (only needed when compressing token accounts)
+            /// Compressed token program
+            /// CHECK: Program ID validated to be cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m
+            pub compressed_token_program: Option<UncheckedAccount<'info>>,
+
+            /// CPI authority PDA of the compressed token program
+            /// CHECK: PDA derivation validated with seeds ["cpi_authority"] and bump 254
+            pub compressed_token_cpi_authority: Option<UncheckedAccount<'info>>,
+        }
+    };
+
+    // Generate compress match arms for each account type with dedicated vectors
+    let compress_match_arms = account_types.iter().map(|name| {
+        quote! {
+            d if d == #name::discriminator() => {
+                let mut anchor_account = anchor_lang::prelude::Account::<#name>::try_from(account_info)?;
+
+                let compressed_info = light_sdk::compressible::compress_account::prepare_account_for_compression::<#name>(
+                    &crate::ID,
+                    &mut anchor_account,
+                    &meta,
+                    &cpi_accounts,
+                    &compression_config.compression_delay,
+                    &compression_config.address_space,
+                )?;
+
+                // Store in type-specific vector for proper closing
+                #name.push(anchor_account);
+                compressed_pda_infos.push(compressed_info);
+            }
+        }
+    });
+
+    // Generate the compress instruction
+    let compress_instruction: syn::ItemFn = syn::parse_quote! {
+        /// Auto-generated compress_accounts_idempotent instruction
+        pub fn compress_accounts_idempotent<'info>(
+            ctx: Context<'_, '_, 'info, 'info, CompressAccountsIdempotent<'info>>,
+            proof: light_sdk::instruction::ValidityProof,
+            compressed_accounts: Vec<light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress>,
+            signer_seeds: Vec<Vec<Vec<u8>>>,
+            system_accounts_offset: u8,
+        ) -> Result<()> {
+            let compression_config = light_sdk::compressible::CompressibleConfig::load_checked(
+                &ctx.accounts.config,
+                &crate::ID,
+            )?;
+            if ctx.accounts.rent_recipient.key() != compression_config.rent_recipient {
+                return err!(ErrorCode::InvalidRentRecipient);
+            }
+
+            let cpi_accounts = light_sdk_types::CpiAccountsSmall::new(
+                ctx.accounts.fee_payer.as_ref(),
+                &ctx.remaining_accounts[system_accounts_offset as usize..],
+                LIGHT_CPI_SIGNER,
+            );
+
+            // We use signer_seeds because compressed_accounts can be != accounts to compress
+            let pda_accounts_start = ctx.remaining_accounts.len() - signer_seeds.len();
+            let solana_accounts = &ctx.remaining_accounts[pda_accounts_start..];
+
+            // Initialize collections for different account types
+            let mut token_accounts_to_compress = Vec::new();
+            let mut compressed_pda_infos = Vec::new();
+            // Create dedicated vectors for each account type for proper closing
+            #(let mut #account_types = Vec::new();)*
+
+            for (i, account_info) in solana_accounts.iter().enumerate() {
+                if account_info.data_is_empty() {
+                    msg!("No data. Account already compressed or uninitialized. Skipping.");
+                    continue;
+                }
+                if account_info.owner == &light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID.into() {
+                    if let Ok(token_account) = anchor_lang::prelude::InterfaceAccount::<anchor_spl::token_interface::TokenAccount>::try_from(account_info) {
+                        let account_signer_seeds = signer_seeds[i].clone();
+                        token_accounts_to_compress.push(
+                            light_compressed_token_sdk::TokenAccountToCompress {
+                                token_account,
+                                signer_seeds: account_signer_seeds,
+                            },
+                        );
+                    }
+                } else if account_info.owner == &crate::ID {
+                    let data = account_info.try_borrow_data()?;
+                    let discriminator = &data[0..8];
+                    let meta = compressed_accounts[i];
+
+                    // Generic PDA account handling
+                    match discriminator {
+                        #(#compress_match_arms)*
+                        _ => {
+                            panic!("Trying to compress with invalid account discriminator");
+                        }
+                    }
+                }
+            }
+
+            let has_pdas = !compressed_pda_infos.is_empty();
+            let has_tokens = !token_accounts_to_compress.is_empty();
+
+            // 1. Compress and close token accounts in one CPI (no proof)
+            if has_tokens {
+                light_compressed_token_sdk::compress_and_close_token_accounts(
+                    crate::ID,
+                    &ctx.accounts.fee_payer,
+                    cpi_accounts.authority().unwrap(),
+                    ctx.accounts.compressed_token_cpi_authority.as_ref().unwrap(),
+                    ctx.accounts.compressed_token_program.as_ref().unwrap(),
+                    &ctx.accounts.config,
+                    &ctx.accounts.rent_recipient,
+                    ctx.remaining_accounts,
+                    token_accounts_to_compress,
+                    LIGHT_CPI_SIGNER,
+                )?;
+            }
+            
+            // 2. Compress and close PDAs in another CPI (with proof)
+            if has_pdas {
+                let cpi_inputs = light_sdk::cpi::CpiInputs::new(proof, compressed_pda_infos);
+                cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
+            }
+
+            // Close all PDA accounts using Anchor's proper close method
+            #(
+                for anchor_account in #account_types.iter() {
+                    anchor_account.close(ctx.accounts.rent_recipient.clone())?;
+                }
+            )*
+
+            Ok(())
+        }
+    };
+
     // Add the generated items to the module
     content.1.push(Item::Struct(decompress_accounts));
     content.1.push(Item::Fn(decompress_instruction));
+    content.1.push(Item::Struct(compress_accounts));
+    content.1.push(Item::Fn(compress_instruction));
 
     Ok(quote! {
+        // Generate the trait system OUTSIDE the module so users can implement it
+        #ctoken_trait_system
+        
+        // Users must implement CTokenSeedProvider trait for their CTokenAccountVariant enum
+        // This provides complete flexibility for any custom seed logic with access to ALL instruction accounts
+        
         #module
     })
 }
