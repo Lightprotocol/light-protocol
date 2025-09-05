@@ -8,7 +8,7 @@ use photon_api::{
     models::GetCompressedAccountsByOwnerPostRequestParams,
 };
 use solana_pubkey::Pubkey;
-use tracing::{debug, error, warn};
+use tracing::{error, trace, warn};
 
 use super::{
     types::{CompressedAccount, OwnerBalance, SignatureWithMetadata, TokenAccount, TokenBalance},
@@ -52,17 +52,18 @@ impl PhotonIndexer {
         loop {
             attempts += 1;
 
-            debug!(
+            trace!(
                 "Attempt {}/{}: No rate limiter configured",
-                attempts, max_retries
+                attempts,
+                max_retries
             );
 
-            debug!("Attempt {}/{}: Executing operation", attempts, max_retries);
+            trace!("Attempt {}/{}: Executing operation", attempts, max_retries);
             let result = operation().await;
 
             match result {
                 Ok(value) => {
-                    debug!("Attempt {}/{}: Operation succeeded.", attempts, max_retries);
+                    trace!("Attempt {}/{}: Operation succeeded.", attempts, max_retries);
                     return Ok(value);
                 }
                 Err(e) => {
@@ -901,7 +902,9 @@ impl Indexer for PhotonIndexer {
                 context: Context {
                     slot: api_response.context.slot,
                 },
-                value: Items { items: signatures },
+                value: Items { 
+                    items: signatures,
+                },
             })
         })
         .await
@@ -1198,7 +1201,9 @@ impl Indexer for PhotonIndexer {
                 context: Context {
                     slot: photon_proofs.context.slot,
                 },
-                value: Items { items: proofs },
+                value: Items { 
+                    items: proofs,
+                },
             })
         })
         .await
@@ -1249,7 +1254,9 @@ impl Indexer for PhotonIndexer {
                 context: Context {
                     slot: api_response.context.slot,
                 },
-                value: Items { items: accounts },
+                value: Items { 
+                    items: accounts,
+                },
             })
         })
         .await
@@ -1281,11 +1288,6 @@ impl Indexer for PhotonIndexer {
                 request,
             )
             .await;
-
-            match &result {
-                Ok(response) => debug!("Raw API response: {:?}", response),
-                Err(e) => error!("API request failed: {:?}", e),
-            }
 
             let result = result?;
 
@@ -1362,7 +1364,9 @@ impl Indexer for PhotonIndexer {
                 context: Context {
                     slot: api_response.context.slot,
                 },
-                value: Items { items: proofs },
+                value: Items { 
+                    items: proofs,
+                },
             })
         })
         .await
@@ -1579,9 +1583,9 @@ impl Indexer for PhotonIndexer {
         _pubkey: [u8; 32],
         _queue_type: QueueType,
         _num_elements: u16,
-        _start_offset: Option<u64>,
+        _start_queue_index: Option<u64>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<MerkleProofWithContext>>, IndexerError> {
+    ) -> Result<Response<(Vec<MerkleProofWithContext>, Option<u64>)>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!("get_queue_elements");
         #[cfg(feature = "v2")]
@@ -1589,7 +1593,7 @@ impl Indexer for PhotonIndexer {
             let pubkey = _pubkey;
             let queue_type = _queue_type;
             let limit = _num_elements;
-            let start_queue_index = _start_offset;
+            let start_queue_index = _start_queue_index;
             let config = _config.unwrap_or_default();
             self.retry(config.retry_config, || async {
                 let request: photon_api::models::GetQueueElementsPostRequest =
@@ -1602,13 +1606,13 @@ impl Indexer for PhotonIndexer {
                         }),
                         ..Default::default()
                     };
+
                 let result = photon_api::apis::default_api::get_queue_elements_post(
                     &self.configuration,
                     request,
                 )
                 .await;
-
-                let result: Result<Response<Items<MerkleProofWithContext>>, IndexerError> =
+                let result: Result<Response<(Vec<MerkleProofWithContext>, Option<u64>)>, IndexerError> =
                     match result {
                         Ok(api_response) => match api_response.result {
                             Some(api_result) => {
@@ -1651,7 +1655,7 @@ impl Indexer for PhotonIndexer {
                                     context: Context {
                                         slot: api_result.context.slot,
                                     },
-                                    value: Items { items: proofs },
+                                    value: (proofs, Some(api_result.first_value_queue_index as u64)),
                                 })
                             }
                             None => {

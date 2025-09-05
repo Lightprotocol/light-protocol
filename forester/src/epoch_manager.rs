@@ -20,7 +20,7 @@ use light_client::{
 };
 use light_compressed_account::TreeType;
 use light_registry::{
-    protocol_config::state::ProtocolConfig,
+    protocol_config::state::{EpochState, ProtocolConfig},
     sdk::{create_finalize_registration_instruction, create_report_work_instruction},
     utils::{get_epoch_pda_address, get_forester_epoch_pda_from_authority},
     EpochPda, ForesterEpochPda,
@@ -906,7 +906,6 @@ impl<R: Rpc> EpochManager<R> {
         epoch_pda: &ForesterEpochPda,
         mut tree_schedule: TreeForesterSchedule,
     ) -> Result<()> {
-        info!("enter process_queue");
         let mut current_slot = self.slot_tracker.estimated_current_slot();
         'outer_slot_loop: while current_slot < epoch_info.phases.active.end {
             let next_slot_to_process = tree_schedule
@@ -1008,6 +1007,7 @@ impl<R: Rpc> EpochManager<R> {
                     current_light_slot,
                     &tree_accounts.queue,
                     epoch_info.epoch,
+                    epoch_info,
                 )
                 .await?
             {
@@ -1063,7 +1063,20 @@ impl<R: Rpc> EpochManager<R> {
         current_light_slot: u64,
         queue_pubkey: &Pubkey,
         current_epoch_num: u64,
+        epoch_info: &Epoch,
     ) -> Result<bool> {
+        let current_slot = self.slot_tracker.estimated_current_slot();
+        let current_phase_state = epoch_info.phases.get_current_epoch_state(current_slot);
+
+        if current_phase_state != EpochState::Active {
+            trace!(
+                "Skipping processing: not in active phase (current phase: {:?}, slot: {})",
+                current_phase_state,
+                current_slot
+            );
+            return Ok(false);
+        }
+
         let total_epoch_weight = epoch_pda.total_epoch_weight.ok_or_else(|| {
             anyhow::anyhow!(
                 "Total epoch weight not available in ForesterEpochPda for epoch {}",
@@ -1104,10 +1117,6 @@ impl<R: Rpc> EpochManager<R> {
     ) -> Result<usize> {
         match tree_accounts.tree_type {
             TreeType::StateV1 | TreeType::AddressV1 => {
-                info!(
-                    "Processing V1 tree: {} (type: {:?}, epoch: {})",
-                    tree_accounts.merkle_tree, tree_accounts.tree_type, epoch_info.epoch
-                );
                 self.process_v1(
                     epoch_info,
                     epoch_pda,
@@ -1118,10 +1127,6 @@ impl<R: Rpc> EpochManager<R> {
                 .await
             }
             TreeType::StateV2 | TreeType::AddressV2 => {
-                info!(
-                    "Processing V2 tree: {} (type: {:?}, epoch: {})",
-                    tree_accounts.merkle_tree, tree_accounts.tree_type, epoch_info.epoch
-                );
                 self.process_v2(epoch_info, tree_accounts).await
             }
         }
@@ -1214,8 +1219,10 @@ impl<R: Rpc> EpochManager<R> {
                 .unwrap_or_else(|| default_prover_url.clone()),
             prover_api_key: self.config.external_services.prover_api_key.clone(),
             prover_polling_interval: Duration::from_secs(1),
-            prover_max_wait_time: Duration::from_secs(120),
+            prover_max_wait_time: Duration::from_secs(600),
             ops_cache: self.ops_cache.clone(),
+            epoch_phases: epoch_info.phases.clone(),
+            slot_tracker: self.slot_tracker.clone(),
         };
 
         process_batched_operations(batch_context, tree_accounts.tree_type)
@@ -1488,24 +1495,39 @@ pub async fn run_service<R: Rpc>(
 
             let trees = {
                 let rpc = rpc_pool.get_connection().await?;
-                fetch_trees(&*rpc).await?
+                let mut fetched_trees = fetch_trees(&*rpc).await?;
+                if let Some(tree_id) = config.general_config.tree_id {
+                    fetched_trees.retain(|tree| tree.merkle_tree == tree_id);
+                    if fetched_trees.is_empty() {
+                        error!("Specified tree {} not found", tree_id);
+                        return Err(anyhow::anyhow!("Specified tree {} not found", tree_id));
+                    }
+                    info!("Processing only tree: {}", tree_id);
+                }
+                fetched_trees
             };
             trace!("Fetched initial trees: {:?}", trees);
 
             let (new_tree_sender, _) = broadcast::channel(100);
 
-            let mut tree_finder = TreeFinder::new(
-                rpc_pool.clone(),
-                trees.clone(),
-                new_tree_sender.clone(),
-                Duration::from_secs(config.general_config.tree_discovery_interval_seconds),
-            );
+            // Only run tree finder if not filtering by specific tree
+            let _tree_finder_handle = if config.general_config.tree_id.is_none() {
+                let mut tree_finder = TreeFinder::new(
+                    rpc_pool.clone(),
+                    trees.clone(),
+                    new_tree_sender.clone(),
+                    Duration::from_secs(config.general_config.tree_discovery_interval_seconds),
+                );
 
-            let _tree_finder_handle = tokio::spawn(async move {
-                if let Err(e) = tree_finder.run().await {
-                    error!("Tree finder error: {:?}", e);
-                }
-            });
+                Some(tokio::spawn(async move {
+                    if let Err(e) = tree_finder.run().await {
+                        error!("Tree finder error: {:?}", e);
+                    }
+                }))
+            } else {
+                info!("Tree discovery disabled when processing single tree");
+                None
+            };
 
             while retry_count < config.retry_config.max_retries {
                 debug!("Creating EpochManager (attempt {})", retry_count + 1);

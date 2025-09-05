@@ -74,6 +74,7 @@ pub async fn perform_batch_append<R: Rpc>(
         .create_and_send_transaction(&[instruction], &forester.pubkey(), &[forester])
         .await?;
     bundle.merkle_tree.num_root_updates += 1;
+
     Ok(res)
 }
 
