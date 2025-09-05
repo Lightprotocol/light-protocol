@@ -1,7 +1,7 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
 use borsh::BorshSerialize;
-use forester_utils::{forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool};
+use forester_utils::{forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
 pub use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
 use futures::{pin_mut, stream::StreamExt, Stream};
 use light_batched_merkle_tree::{
@@ -97,6 +97,13 @@ where
 
         send_transaction_batch(context, instructions).await?;
         total_instructions_processed += instruction_batch.len();
+
+        {
+            let rpc = context.rpc_pool.get_connection().await?;
+            wait_for_indexer(&*rpc).await.map_err(|e| {
+                anyhow::anyhow!("Error: {:?}", e)
+            })?;
+        }
     }
 
     if total_instructions_processed == 0 {

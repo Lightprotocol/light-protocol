@@ -157,7 +157,9 @@ impl Indexer for TestIndexer {
             context: Context {
                 slot: self.get_current_slot(),
             },
-            value: Items { items: proofs },
+            value: Items { 
+                items: proofs,
+            },
         })
     }
 
@@ -350,7 +352,7 @@ impl Indexer for TestIndexer {
                     .iter()
                     .map(|addr| {
                         self.compressed_accounts
-                            .iter()
+                    .iter()
                             .find(|acc| acc.compressed_account.address == Some(*addr))
                             .map(|acc| acc.clone().try_into())
                             .transpose()
@@ -368,9 +370,9 @@ impl Indexer for TestIndexer {
                     .iter()
                     .map(|hash| {
                         self.compressed_accounts
-                            .iter()
+                    .iter()
                             .find(|acc| acc.hash() == Ok(*hash))
-                            .map(|acc| acc.clone().try_into())
+                    .map(|acc| acc.clone().try_into())
                             .transpose()
                     })
                     .collect();
@@ -440,7 +442,9 @@ impl Indexer for TestIndexer {
             context: Context {
                 slot: self.get_current_slot(),
             },
-            value: Items { items: proofs },
+            value: Items { 
+                items: proofs,
+            },
         })
     }
 
@@ -609,7 +613,7 @@ impl Indexer for TestIndexer {
         _num_elements: u16,
         _start_offset: Option<u64>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<MerkleProofWithContext>>, IndexerError> {
+    ) -> Result<Response<(Vec<MerkleProofWithContext>, Option<u64>)>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!("get_queue_elements");
         #[cfg(feature = "v2")]
@@ -646,9 +650,7 @@ impl Indexer for TestIndexer {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: Items {
-                        items: merkle_proofs_with_context,
-                    },
+                    value: (merkle_proofs_with_context, None),
                 });
             }
 
@@ -719,9 +721,7 @@ impl Indexer for TestIndexer {
                         context: Context {
                             slot: self.get_current_slot(),
                         },
-                        value: Items {
-                            items: merkle_proofs_with_context,
-                        },
+                        value: (merkle_proofs_with_context, None),
                     });
                 }
             }
@@ -890,8 +890,8 @@ impl Indexer for TestIndexer {
                 .map_err(|_| IndexerError::Unknown("Failed to get queue elements".into()))?
                 .value;
 
-            let addresses: Vec<AddressQueueIndex> = address_proofs
-                .items
+            let (address_proof_items, _) = address_proofs;
+            let addresses: Vec<AddressQueueIndex> = address_proof_items
                 .iter()
                 .enumerate()
                 .map(|(i, proof)| AddressQueueIndex {
@@ -902,8 +902,7 @@ impl Indexer for TestIndexer {
             let non_inclusion_proofs = self
                 .get_multiple_new_address_proofs(
                     merkle_tree_pubkey.to_bytes(),
-                    address_proofs
-                        .items
+                    address_proof_items
                         .iter()
                         .map(|x| x.account_hash)
                         .collect(),
@@ -998,6 +997,10 @@ impl Indexer for TestIndexer {
 
 #[async_trait]
 impl TestIndexerExtensions for TestIndexer {
+    fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
+        &self.address_merkle_trees
+    }
+
     fn get_address_merkle_tree(
         &self,
         merkle_tree_pubkey: Pubkey,
@@ -1088,10 +1091,6 @@ impl TestIndexerExtensions for TestIndexer {
 
     fn get_state_merkle_trees_mut(&mut self) -> &mut Vec<StateMerkleTreeBundle> {
         &mut self.state_merkle_trees
-    }
-
-    fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
-        &self.address_merkle_trees
     }
 
     fn get_address_merkle_trees_mut(&mut self) -> &mut Vec<AddressMerkleTreeBundle> {

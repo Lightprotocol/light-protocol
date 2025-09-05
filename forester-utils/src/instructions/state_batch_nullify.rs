@@ -17,7 +17,7 @@ use light_prover_client::{
     proof_client::ProofClient,
     proof_types::batch_update::{get_batch_update_inputs, BatchUpdateCircuitInputs},
 };
-use tracing::{debug, trace};
+use tracing::{debug, warn};
 
 use crate::{
     error::ForesterUtilsError, rpc_pool::SolanaRpcPool, utils::wait_for_indexer,
@@ -66,7 +66,7 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
     ),
     ForesterUtilsError,
 > {
-    let (mut current_root, leaves_hash_chains, num_inserted_zkps, zkp_batch_size) = (
+    let (mut current_root, leaves_hash_chains, _num_inserted_zkps, zkp_batch_size) = (
         merkle_tree_data.current_root,
         merkle_tree_data.leaves_hash_chains,
         merkle_tree_data.num_inserted_zkps,
@@ -83,74 +83,68 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
     drop(rpc);
 
     let stream = stream! {
-        let total_elements = zkp_batch_size as usize * leaves_hash_chains.len();
-        let offset = num_inserted_zkps * zkp_batch_size as u64;
-
-        trace!("Requesting {} total elements with offset {}", total_elements, offset);
-
-        const MAX_ELEMENTS_PER_REQUEST: usize = 500;
-        let mut all_queue_elements = Vec::new();
-        let mut current_offset = offset;
-        let mut remaining_elements = total_elements;
-
-        while remaining_elements > 0 {
-            let chunk_size = remaining_elements.min(MAX_ELEMENTS_PER_REQUEST);
-
-            let queue_elements_chunk = {
-                let mut connection = rpc_pool.get_connection().await?;
-                let indexer = connection.indexer_mut()?;
-                indexer.get_queue_elements(
-                    merkle_tree_pubkey.to_bytes(),
-                    QueueType::InputStateV2,
-                    chunk_size as u16,
-                    Some(current_offset),
-                    None,
-                )
-                .await
-            };
-
-            match queue_elements_chunk {
-                Ok(res) => {
-                    let chunk_items = res.value.items;
-                    trace!("Got {} queue elements in chunk (offset: {})", chunk_items.len(), current_offset);
-                    all_queue_elements.extend(chunk_items);
-                    current_offset += chunk_size as u64;
-                    remaining_elements -= chunk_size;
-                },
-                Err(e) => {
-                    yield Err(ForesterUtilsError::Indexer(format!("Failed to get queue elements: {}", e)));
-                    return;
-                }
-            }
-        }
-
-        trace!("Got {} queue elements in total", all_queue_elements.len());
-        if all_queue_elements.len() != total_elements {
-            yield Err(ForesterUtilsError::Indexer(format!(
-                "Expected {} elements, got {}",
-                total_elements, all_queue_elements.len()
-            )));
-            return;
-        }
-
-        if let Some(first_element) = all_queue_elements.first() {
-            if first_element.root != current_root {
-                yield Err(ForesterUtilsError::Indexer("Root mismatch between indexer and on-chain state".into()));
-                return;
-            }
-        }
+        let mut next_queue_index: Option<u64> = None;
 
         let mut all_changelogs = Vec::new();
         let proof_client = Arc::new(ProofClient::with_config(prover_url.clone(), polling_interval, max_wait_time, prover_api_key.clone()));
         let mut futures_ordered = FuturesOrdered::new();
         let mut pending_count = 0;
-
         let mut proof_buffer = Vec::new();
 
-        for (batch_offset, leaves_hash_chain) in leaves_hash_chains.iter().enumerate() {
-            let start_idx = batch_offset * zkp_batch_size as usize;
-            let end_idx = start_idx + zkp_batch_size as usize;
-            let batch_elements = &all_queue_elements[start_idx..end_idx];
+        // Process each batch one at a time, fetching only the data needed for that batch
+        for (batch_idx, leaves_hash_chain) in leaves_hash_chains.iter().enumerate() {
+            debug!(
+                "Fetching batch {} - tree: {}, start_queue_index: {:?}, limit: {}",
+                batch_idx, merkle_tree_pubkey, next_queue_index, zkp_batch_size
+            );
+
+            // Fetch only the queue elements needed for this batch
+            let queue_elements_result = {
+                let mut connection = rpc_pool.get_connection().await?;
+                let indexer = connection.indexer_mut()?;
+                indexer.get_queue_elements(
+                    merkle_tree_pubkey.to_bytes(),
+                    QueueType::InputStateV2,
+                    zkp_batch_size,
+                    next_queue_index,
+                    None,
+                )
+                .await
+            };
+
+            let (batch_elements, batch_first_queue_idx) = match queue_elements_result {
+                Ok(res) => {
+                    let (items, first_idx) = res.value;
+                    if items.len() != zkp_batch_size as usize {
+                        warn!(
+                            "Got {} elements but expected {}, stopping",
+                            items.len(), zkp_batch_size
+                        );
+                        break;
+                    }
+                    
+                    (items, first_idx)
+                },
+                Err(e) => {
+                    yield Err(ForesterUtilsError::Indexer(format!("Failed to get queue elements for batch {}: {}", batch_idx, e)));
+                    return;
+                }
+            };
+
+            if let Some(first_element) = batch_elements.first() {
+                if first_element.root != current_root {
+                    yield Err(ForesterUtilsError::Indexer("Root mismatch between indexer and on-chain state".into()));
+                    return;
+                }
+            }
+
+
+            // Set next queue index based on first_value_queue_index + batch size
+            // Since queue indices have no gaps: first + zkp_batch_size = last + 1
+            if let Some(first_idx) = batch_first_queue_idx {
+                next_queue_index = Some(first_idx + zkp_batch_size as u64);
+                debug!("Next batch will start at queue index: {}", first_idx + zkp_batch_size as u64);
+            }
 
             let mut leaves = Vec::new();
             let mut tx_hashes = Vec::new();
