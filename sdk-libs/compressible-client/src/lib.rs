@@ -217,7 +217,7 @@ impl CompressibleInstruction {
         rent_payer: &Pubkey,
         solana_accounts: &[Pubkey],
         compressed_accounts: &[(CompressedAccount, T)],
-        additional_accounts: &[Pubkey],
+        program_accounts: &[AccountMeta],
         validity_proof_with_context: ValidityProofWithContext,
         output_state_tree_info: TreeInfo,
     ) -> Result<Instruction, Box<dyn std::error::Error>>
@@ -278,10 +278,18 @@ impl CompressibleInstruction {
             AccountMeta::new_readonly(COMPRESSED_TOKEN_PROGRAM_ID.into(), false),
             AccountMeta::new_readonly(COMPRESSED_TOKEN_PROGRAM_CPI_AUTHORITY.into(), false),
         ];
+        // Add program accounts.
+        for account in program_accounts[accounts.len()..].iter() {
+            accounts.push(AccountMeta::new_readonly(account.pubkey, false));
+        }
 
-        // Add the dynamic accounts required for seed derivation
-        for account in additional_accounts {
-            accounts.push(AccountMeta::new_readonly(*account, false));
+        println!("feepayer: {:?}", accounts[0]);
+        println!("rent_payer: {:?}", accounts[1]);
+        println!("config: {:?}", accounts[2]);
+        println!("compressed_token_program: {:?}", accounts[3]);
+        println!("compressed_token_cpi_authority: {:?}", accounts[4]);
+        for account in program_accounts[accounts.len()..].iter() {
+            println!("program account (): {:?}", account);
         }
         // Pack all account data using the Pack trait. This converts types with
         // Pubkeys to their packed versions with u8 indices. PDAs must implement
@@ -339,6 +347,10 @@ impl CompressibleInstruction {
         data.extend_from_slice(discriminator);
         data.extend_from_slice(&serialized_data);
 
+        for account in accounts.iter() {
+            println!("account: {:?}", account);
+        }
+
         Ok(Instruction {
             program_id: *program_id,
             accounts,
@@ -365,8 +377,9 @@ impl CompressibleInstruction {
         program_id: &Pubkey,
         discriminator: &[u8],
         fee_payer: &Pubkey,
-        rent_authority: &Pubkey,
+        config_pda: &Pubkey,
         rent_recipient: &Pubkey,
+        token_compression_authority: &Pubkey,
         accounts_pubkeys: &[Pubkey],
         accounts_to_compress: &[Account],
         signer_seeds: Vec<Vec<Vec<u8>>>,
@@ -441,14 +454,14 @@ impl CompressibleInstruction {
             );
         }
 
-        let config_pda = CompressibleConfig::derive_pda(program_id, 0).0;
+        // let config_pda = CompressibleConfig::derive_pda(program_id, 0).0;
 
         // Required instruction accounts.
         let mut accounts = vec![
-            AccountMeta::new(*fee_payer, true),           // fee_payer
-            AccountMeta::new_readonly(config_pda, false), // config
-            AccountMeta::new(*rent_recipient, false),     // rent_recipient
-            AccountMeta::new(*rent_authority, true),      // rent_authority
+            AccountMeta::new(*fee_payer, true),                   // fee_payer
+            AccountMeta::new_readonly(*config_pda, false),        // config
+            AccountMeta::new(*rent_recipient, false),             // rent_recipient
+            AccountMeta::new(*token_compression_authority, true), // token_compression_authority
             AccountMeta::new_readonly(COMPRESSED_TOKEN_PROGRAM_ID.into(), false), // compressed_token_program
             AccountMeta::new_readonly(COMPRESSED_TOKEN_PROGRAM_CPI_AUTHORITY.into(), false), // compressed_token_cpi_authority
         ];

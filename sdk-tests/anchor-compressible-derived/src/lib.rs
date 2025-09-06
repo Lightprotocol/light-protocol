@@ -28,11 +28,16 @@ declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
+// Test const seeds
+pub const POOL_VAULT_SEED: &str = "pool_vault";
+pub const USER_RECORD_SEED: &str = "user_record";
+pub const CTOKEN_SIGNER_SEED: &str = "ctoken_signer";
+
 #[add_compressible_instructions(
-    UserRecord = ("user_record", data.owner),
+    UserRecord = (USER_RECORD_SEED, data.owner),
     GameSession = ("game_session", data.session_id.to_le_bytes()),
     PlaceholderRecord = ("placeholder_record", data.placeholder_id.to_le_bytes()),
-    CTokenSigner = (is_token, "ctoken_signer", ctx.fee_payer, ctx.accounts.some_mint),
+    CTokenSigner = (is_token, CTOKEN_SIGNER_SEED, ctx.fee_payer, ctx.accounts.some_mint),
     owner = Pubkey,
     session_id = u64,
     placeholder_id = u64

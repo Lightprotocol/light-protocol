@@ -1459,7 +1459,7 @@ async fn create_user_record_and_game_session(
                 address: compressed_mint_address,
                 mint: CompressedMintInstructionData {
                     base: BaseCompressedMint {
-                        version: 1,
+                        version: 2,
                         spl_mint: spl_mint.into(),
                         supply: 0,
                         decimals,

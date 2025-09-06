@@ -30,7 +30,7 @@ use light_sdk::{
     token::CompressibleTokenDataWithVariant,
 };
 use solana_account::Account;
-use solana_instruction::Instruction;
+use solana_instruction::{AccountMeta, Instruction};
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
@@ -306,16 +306,16 @@ async fn test_double_decompression_attack() {
 
     let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
-    let named_accounts = anchor_compressible_derived::accounts::DecompressAccountsIdempotent {
+    let program_accounts = anchor_compressible_derived::accounts::DecompressAccountsIdempotent {
         fee_payer: payer.pubkey(),
         rent_payer: payer.pubkey(),
         config: CompressibleConfig::derive_pda(&program_id, 0).0,
         compressed_token_program: None,
         compressed_token_cpi_authority: None,
-        // The macro should have auto-added mint from ctx.accounts.mint:
-        some_mint: payer.pubkey(), // Should be auto-added by the macro!
-    };
-    let named_accounts_metas = named_accounts.to_account_metas(None);
+        some_mint: payer.pubkey(),
+    }
+    .to_account_metas(None);
+
     // Second decompression instruction - should still work (idempotent)
     let instruction =
         light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
@@ -328,6 +328,7 @@ async fn test_double_decompression_attack() {
                 c_user_pda,
                 CompressedAccountVariant::UserRecord(c_user_record),
             )],
+            &program_accounts,
             rpc_result,
             output_state_tree_info,
         )
@@ -1027,9 +1028,6 @@ async fn decompress_multiple_pdas_with_ctoken(
             &CompressibleInstruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
             &payer.pubkey(),
             &payer.pubkey(),
-            // must be same order as the compressed_accounts!
-            // &[*user_record_pda, *game_session_pda],
-            // &[native_token_account],
             &[*user_record_pda, *game_session_pda, native_token_account],
             &[
                 // gets packed internally and never unpacked onchain:
@@ -1051,6 +1049,15 @@ async fn decompress_multiple_pdas_with_ctoken(
                     ),
                 ),
             ],
+            &anchor_compressible_derived::accounts::DecompressAccountsIdempotent {
+                fee_payer: payer.pubkey(),
+                rent_payer: payer.pubkey(),
+                config: CompressibleConfig::derive_pda(&program_id, 0).0,
+                compressed_token_program: None,
+                compressed_token_cpi_authority: None,
+                some_mint: compressed_token_account.token.mint,
+            }
+            .to_account_metas(None),
             rpc_result,
             output_state_tree_info,
         )
@@ -1252,6 +1259,15 @@ async fn decompress_multiple_pdas(
                     CompressedAccountVariant::GameSession(c_game_session),
                 ),
             ],
+            &anchor_compressible_derived::accounts::DecompressAccountsIdempotent {
+                fee_payer: payer.pubkey(),
+                rent_payer: payer.pubkey(),
+                config: CompressibleConfig::derive_pda(&program_id, 0).0,
+                compressed_token_program: None,
+                compressed_token_cpi_authority: None,
+                some_mint: payer.pubkey(),
+            }
+            .to_account_metas(None),
             rpc_result,
             output_state_tree_info,
         )
@@ -1487,7 +1503,7 @@ async fn create_user_record_and_game_session(
                     address: compressed_mint_address,
                     mint: CompressedMintInstructionData {
                         base: BaseCompressedMint {
-                            version: 1,
+                            version: 3,
                             spl_mint: spl_mint.into(),
                             supply: 0,
                             decimals,
@@ -1675,8 +1691,9 @@ async fn compress_record(
         program_id,
         anchor_compressible_derived::instruction::CompressAccountsIdempotent::DISCRIMINATOR,
         &payer.pubkey(),
-        &payer.pubkey(),
+        &CompressibleConfig::derive_pda(&program_id, 0).0,
         &RENT_RECIPIENT, // rent_recipient
+        &payer.pubkey(),
         &[*user_record_pda],
         &[account],
         vec![anchor_compressible_derived::get_userrecord_seeds(&payer.pubkey()).0], // compressed_account
@@ -1784,6 +1801,15 @@ async fn decompress_single_user_record(
                 c_user_pda,
                 CompressedAccountVariant::UserRecord(c_user_record),
             )],
+            &anchor_compressible_derived::accounts::DecompressAccountsIdempotent {
+                fee_payer: payer.pubkey(),
+                rent_payer: payer.pubkey(),
+                config: CompressibleConfig::derive_pda(&program_id, 0).0,
+                compressed_token_program: None,
+                compressed_token_cpi_authority: None,
+                some_mint: payer.pubkey(),
+            }
+            .to_account_metas(None),
             rpc_result,
             output_state_tree_info,
         )
@@ -1973,8 +1999,9 @@ async fn compress_placeholder_record(
             program_id,
             &anchor_compressible_derived::instruction::CompressAccountsIdempotent::DISCRIMINATOR,
             &payer.pubkey(),
-            &payer.pubkey(),
+            &CompressibleConfig::derive_pda(&program_id, 0).0,
             &RENT_RECIPIENT,
+            &payer.pubkey(),
             &[*placeholder_record_pda],
             &[account],
             vec![placeholder_seeds.0],
@@ -2065,8 +2092,9 @@ async fn compress_placeholder_record_for_double_test(
             program_id,
             &anchor_compressible_derived::instruction::CompressAccountsIdempotent::DISCRIMINATOR,
             &payer.pubkey(),
-            &payer.pubkey(),
+            &CompressibleConfig::derive_pda(&program_id, 0).0,
             &RENT_RECIPIENT,
+            &payer.pubkey(),
             &[*placeholder_record_pda],
             &accounts_to_compress,
             vec![placeholder_seeds.0],
@@ -2129,6 +2157,15 @@ async fn decompress_single_game_session(
                 c_game_pda,
                 anchor_compressible_derived::CompressedAccountVariant::GameSession(c_game_session),
             )],
+            &anchor_compressible_derived::accounts::DecompressAccountsIdempotent {
+                fee_payer: payer.pubkey(),
+                rent_payer: payer.pubkey(),
+                config: CompressibleConfig::derive_pda(&program_id, 0).0,
+                compressed_token_program: None,
+                compressed_token_cpi_authority: None,
+                some_mint: payer.pubkey(),
+            }
+            .to_account_metas(None),
             rpc_result,
             output_state_tree_info,
         )
@@ -2508,6 +2545,7 @@ async fn compress_token_account_after_decompress(
         .await
         .unwrap()
         .value;
+    println!("user.pubkey() {:?}", user.pubkey());
 
     let random_tree_info = rpc.get_random_state_tree_info().unwrap();
     let instruction =
@@ -2515,8 +2553,9 @@ async fn compress_token_account_after_decompress(
             program_id,
             &anchor_compressible_derived::instruction::CompressAccountsIdempotent::DISCRIMINATOR,
             &user.pubkey(),
-            &user.pubkey(),
+            &CompressibleConfig::derive_pda(&program_id, 0).0,
             &RENT_RECIPIENT,
+            &user.pubkey(),
             &[
                 user_record_pubkey,
                 game_session_pubkey,

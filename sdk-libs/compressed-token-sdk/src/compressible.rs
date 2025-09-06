@@ -302,8 +302,8 @@ pub fn compress_and_close_token_accounts<'info>(
 
     let mut account_metas: Vec<AccountMeta> = Vec::new();
 
-    // Fee payer (index 0)
-    account_metas.push(account_meta_from_account_info(&fee_payer.to_account_info()));
+    // // Fee payer (index 0)
+    // account_metas.push(account_meta_from_account_info(&fee_payer.to_account_info()));
 
     // Pack token accounts
     let mut ctoken_accounts = Vec::with_capacity(token_accounts_to_compress.len());

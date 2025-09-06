@@ -76,7 +76,7 @@ impl Parse for TokenSeedSpec {
 enum SeedElement {
     /// String literal like "user_record"
     Literal(LitStr),
-    /// Any expression: data.owner, ctx.fee_payer, data.session_id.to_le_bytes(), etc.
+    /// Any expression: data.owner, ctx.fee_payer, data.session_id.to_le_bytes(), CONST_NAME, etc.
     Expression(Expr),
 }
 
@@ -562,6 +562,10 @@ pub fn add_compressible_instructions(
                 all_account_infos.extend(ctx.accounts.config.to_account_infos());
                 all_account_infos.extend(cpi_accounts.to_account_infos());
 
+                for account in all_account_infos.iter() {
+                    println!("account_info {:?}", account);
+                }
+            
                 let seed_refs = token_signers_seeds
                     .iter()
                     .map(|s| s.as_slice())
@@ -885,12 +889,25 @@ fn generate_ctoken_seed_provider_implementation(
         
         for (i, seed) in spec.seeds.iter().enumerate() {
             match seed {
-                SeedElement::Literal(lit) => {
-                    let value = lit.value();
-                    seed_refs.push(quote! { #value.as_bytes() });
+            SeedElement::Literal(lit) => {
+                let value = lit.value();
+                seed_refs.push(quote! { #value.as_bytes() });
+            }
+            SeedElement::Expression(expr) => {
+                // Check if this is a simple const identifier (like POOL_VAULT_SEED)
+                if let syn::Expr::Path(path_expr) = expr {
+                    if let Some(ident) = path_expr.path.get_ident() {
+                        // Check if it's all uppercase (likely a const)
+                        let ident_str = ident.to_string();
+                        if ident_str.chars().all(|c| c.is_uppercase() || c == '_') {
+                            // This looks like a const - use it as a seed
+                            seed_refs.push(quote! { #ident.as_bytes() });
+                            continue;
+                        }
+                    }
                 }
-                SeedElement::Expression(expr) => {
-                    // For CToken seeds, we need to handle account references specially
+                
+                // For CToken seeds, we need to handle account references specially
                     // ctx.accounts.mint -> ctx.accounts.mint.key().as_ref()
                     let mut handled = false;
                     
@@ -1001,6 +1018,19 @@ fn generate_seed_expressions(
                 quote! { #value.as_bytes() }
             }
             SeedElement::Expression(expr) => {
+                // Check if this is a simple const identifier (like POOL_VAULT_SEED)
+                if let syn::Expr::Path(path_expr) = expr {
+                    if let Some(ident) = path_expr.path.get_ident() {
+                        // Check if it's all uppercase (likely a const)
+                        let ident_str = ident.to_string();
+                        if ident_str.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit()) {
+                            // This looks like a const - use it as a seed
+                            expressions.push(quote! { #ident.as_bytes() });
+                            continue;
+                        }
+                    }
+                }
+                
                 // Handle ctx.accounts.field_name specially
                 match expr {
                     syn::Expr::Field(field_expr) => {
@@ -1178,6 +1208,19 @@ fn generate_pda_seed_derivation(spec: &TokenSeedSpec, _instruction_data: &[Instr
                 seed_refs.push(quote! { #value.as_bytes() });
             }
             SeedElement::Expression(expr) => {
+                // Check if this is a simple const identifier (like POOL_VAULT_SEED)
+                if let syn::Expr::Path(path_expr) = expr {
+                    if let Some(ident) = path_expr.path.get_ident() {
+                        // Check if it's all uppercase (likely a const)
+                        let ident_str = ident.to_string();
+                        if ident_str.chars().all(|c| c.is_uppercase() || c == '_') {
+                            // This looks like a const - use it as a seed
+                            seed_refs.push(quote! { #ident.as_bytes() });
+                            continue;
+                        }
+                    }
+                }
+                
                 // We need to handle different types of expressions differently
                 let mut handled = false;
                 
@@ -1491,50 +1534,84 @@ fn analyze_seed_spec_for_client(
                 // Analyze the expression to extract parameter and generate client expression
                 match expr {
                     syn::Expr::Field(field_expr) => {
-                        // Handle data.field or ctx.field
+                        // Handle data.field, ctx.field, or ctx.accounts.field
                         if let syn::Member::Named(field_name) = &field_expr.member {
-                            if let syn::Expr::Path(path) = &*field_expr.base {
-                                if let Some(segment) = path.path.segments.first() {
-                                    if segment.ident == "data" {
-                                        // This is a data field - look up the type from instruction_data
-                                        if let Some(data_spec) = instruction_data.iter().find(|d| d.field_name == *field_name) {
-                                            let param_type = &data_spec.field_type;
-                                            // Use references for Pubkey, direct values for numeric types
-                                            let param_with_ref = if is_pubkey_type(param_type) {
-                                                quote! { #field_name: &#param_type }
+                            match &*field_expr.base {
+                                syn::Expr::Field(nested_field) => {
+                                    // Handle ctx.accounts.field_name
+                                    if let syn::Member::Named(base_name) = &nested_field.member {
+                                        if base_name == "accounts" {
+                                            if let syn::Expr::Path(path) = &*nested_field.base {
+                                                if let Some(segment) = path.path.segments.first() {
+                                                    if segment.ident == "ctx" {
+                                                        // This is ctx.accounts.field_name
+                                                        parameters.push(quote! { #field_name: &anchor_lang::prelude::Pubkey });
+                                                        expressions.push(quote! { #field_name.as_ref() });
+                                                    } else {
+                                                        // Other nested field
+                                                        parameters.push(quote! { #field_name: &anchor_lang::prelude::Pubkey });
+                                                        expressions.push(quote! { #field_name.as_ref() });
+                                                    }
+                                                } else {
+                                                    parameters.push(quote! { #field_name: &anchor_lang::prelude::Pubkey });
+                                                    expressions.push(quote! { #field_name.as_ref() });
+                                                }
                                             } else {
-                                                quote! { #field_name: #param_type }
-                                            };
-                                            parameters.push(param_with_ref);
-                                            expressions.push(quote! { #field_name.as_ref() });
+                                                parameters.push(quote! { #field_name: &anchor_lang::prelude::Pubkey });
+                                                expressions.push(quote! { #field_name.as_ref() });
+                                            }
                                         } else {
-                                            return Err(syn::Error::new_spanned(
-                                                field_name,
-                                                format!("data.{} used in seeds but no type specified. Add: {} = Pubkey (or u8, u16, u64)", field_name, field_name)
-                                            ));
+                                            // Other nested field
+                                            parameters.push(quote! { #field_name: &anchor_lang::prelude::Pubkey });
+                                            expressions.push(quote! { #field_name.as_ref() });
                                         }
                                     } else {
-                                        // ctx.field - determine type by field name
-                                        let param_type = if field_name.to_string().contains("owner") || 
-                                                          field_name.to_string().contains("fee_payer") || 
-                                                          field_name.to_string().contains("mint") {
-                                            quote! { &anchor_lang::prelude::Pubkey }
-                                        } else {
-                                            quote! { &anchor_lang::prelude::Pubkey } // Default to Pubkey
-                                        };
-                                        parameters.push(quote! { #field_name: #param_type });
+                                        parameters.push(quote! { #field_name: &anchor_lang::prelude::Pubkey });
                                         expressions.push(quote! { #field_name.as_ref() });
                                     }
                                 }
+                                syn::Expr::Path(path) => {
+                                    if let Some(segment) = path.path.segments.first() {
+                                        if segment.ident == "data" {
+                                            // This is a data field - look up the type from instruction_data
+                                            if let Some(data_spec) = instruction_data.iter().find(|d| d.field_name == *field_name) {
+                                                let param_type = &data_spec.field_type;
+                                                // Use references for Pubkey, direct values for numeric types
+                                                let param_with_ref = if is_pubkey_type(param_type) {
+                                                    quote! { #field_name: &#param_type }
+                                                } else {
+                                                    quote! { #field_name: #param_type }
+                                                };
+                                                parameters.push(param_with_ref);
+                                                expressions.push(quote! { #field_name.as_ref() });
+                                            } else {
+                                                return Err(syn::Error::new_spanned(
+                                                    field_name,
+                                                    format!("data.{} used in seeds but no type specified. Add: {} = Pubkey (or u8, u16, u64)", field_name, field_name)
+                                                ));
+                                            }
+                                        } else {
+                                            // ctx.field - determine type by field name
+                                            let param_type = if field_name.to_string().contains("owner") || 
+                                                              field_name.to_string().contains("fee_payer") || 
+                                                              field_name.to_string().contains("mint") {
+                                                quote! { &anchor_lang::prelude::Pubkey }
+                                            } else {
+                                                quote! { &anchor_lang::prelude::Pubkey } // Default to Pubkey
+                                            };
+                                            parameters.push(quote! { #field_name: #param_type });
+                                            expressions.push(quote! { #field_name.as_ref() });
+                                        }
+                                    } else {
+                                        parameters.push(quote! { #field_name: &anchor_lang::prelude::Pubkey });
+                                        expressions.push(quote! { #field_name.as_ref() });
+                                    }
+                                }
+                                _ => {
+                                    parameters.push(quote! { #field_name: &anchor_lang::prelude::Pubkey });
+                                    expressions.push(quote! { #field_name.as_ref() });
+                                }
                             }
-                        }
-                    }
-                    syn::Expr::Path(path_expr) => {
-                        // Handle direct account field references like: amm_config, token_0_mint, pool_state
-                        if let Some(ident) = path_expr.path.get_ident() {
-                            // This is an account field reference - assume it's a Pubkey for client functions
-                            parameters.push(quote! { #ident: &anchor_lang::prelude::Pubkey });
-                            expressions.push(quote! { #ident.as_ref() });
                         }
                     }
                     syn::Expr::MethodCall(method_call) => {
@@ -1575,6 +1652,24 @@ fn analyze_seed_spec_for_client(
                                 parameters.push(quote! { #ident: &anchor_lang::prelude::Pubkey });
                                 expressions.push(quote! { #ident.as_ref() });
                             }
+                        }
+                    }
+                    syn::Expr::Path(path_expr) => {
+                        // Handle direct identifiers (could be const or account)
+                        if let Some(ident) = path_expr.path.get_ident() {
+                            let ident_str = ident.to_string();
+                            // Check if it's an uppercase const
+                            if ident_str.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit()) {
+                                // This is a const - use it directly, no parameter needed
+                                expressions.push(quote! { #ident.as_bytes() });
+                            } else {
+                                // This is an account reference - add as parameter
+                                parameters.push(quote! { #ident: &anchor_lang::prelude::Pubkey });
+                                expressions.push(quote! { #ident.as_ref() });
+                            }
+                        } else {
+                            // Complex path - use as-is
+                            expressions.push(quote! { (#expr).as_ref() });
                         }
                     }
                     _ => {
@@ -1672,8 +1767,9 @@ fn extract_account_from_expr(
             // Handle direct account references (just an identifier)
             if let Some(ident) = path_expr.path.get_ident() {
                 let name = ident.to_string();
-                // Skip "ctx" and "data" as they're not accounts
-                if name != "ctx" && name != "data" {
+                // Skip "ctx", "data", and uppercase consts (like POOL_VAULT_SEED)
+                if name != "ctx" && name != "data" && 
+                   !name.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit()) {
                     required_accounts.insert(name);
                 }
             }
