@@ -79,6 +79,112 @@ impl CompressibleInstruction {
     pub const COMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR: [u8; 8] =
         [89, 130, 165, 88, 12, 207, 178, 185];
 
+    /// Reorders and validates the first 5 accounts for compressible instructions.
+    ///
+    /// This helper function handles the common pattern of reordering accounts based on:
+    /// - Known constants (compressed_token_program, compressed_token_cpi_authority)
+    /// - Config PDA derivation
+    /// - Signer+writable detection for fee_payer and rent_payer
+    ///
+    /// # Arguments
+    /// * `program_id` - The program ID for config PDA derivation
+    /// * `program_accounts` - Raw program accounts that may be in wrong order
+    ///
+    /// # Returns
+    /// * `Ok((reordered_accounts, remaining_accounts))` - First 5 accounts in correct order, plus remaining accounts
+    /// * `Err(...)` - If required accounts are missing or have wrong flags
+    fn reorder_compressible_accounts(
+        program_id: &Pubkey,
+        program_accounts: &[AccountMeta],
+    ) -> Result<(Vec<AccountMeta>, Vec<AccountMeta>), Box<dyn std::error::Error>> {
+        // Replace program_id placeholders with correct constants
+        let mut replaced_count = 0;
+        let program_accounts: Vec<AccountMeta> = program_accounts
+            .iter()
+            .map(|acc| {
+                let mut acc = acc.clone();
+                if acc.pubkey == *program_id {
+                    acc.pubkey = if replaced_count == 0 {
+                        replaced_count += 1;
+                        COMPRESSED_TOKEN_PROGRAM_ID.into()
+                    } else {
+                        COMPRESSED_TOKEN_PROGRAM_CPI_AUTHORITY.into()
+                    };
+                }
+                acc
+            })
+            .collect();
+
+        let (config_pda, _) = CompressibleConfig::derive_pda(program_id, 0);
+        let expected_pubkeys = [
+            None, // fee_payer - will be found by signer+writable
+            None, // rent_payer - will be found by signer+writable
+            Some(config_pda),
+            Some(COMPRESSED_TOKEN_PROGRAM_ID.into()),
+            Some(COMPRESSED_TOKEN_PROGRAM_CPI_AUTHORITY.into()),
+        ];
+        let expected_flags = [
+            (true, true),   // fee_payer
+            (true, true),   // rent_payer
+            (false, false), // config
+            (false, false), // compressed_token_program
+            (false, false), // compressed_token_cpi_authority
+        ];
+
+        let mut accounts = vec![None; 5];
+        let mut signer_writable = Vec::new();
+
+        // Find accounts by pubkey or flags
+        for account in program_accounts.iter() {
+            if let Some(pos) = expected_pubkeys
+                .iter()
+                .position(|&pk| pk == Some(account.pubkey))
+            {
+                accounts[pos] = Some(account.clone());
+            } else if account.is_signer && account.is_writable {
+                signer_writable.push(account.clone());
+            }
+        }
+
+        // Assign signer+writable accounts to fee_payer and rent_payer
+        if signer_writable.len() >= 2 {
+            accounts[0] = Some(signer_writable[0].clone());
+            accounts[1] = Some(signer_writable[1].clone());
+        }
+
+        // Validate and extract accounts
+        let account_names = [
+            "fee_payer",
+            "rent_payer",
+            "config",
+            "compressed_token_program",
+            "compressed_token_cpi_authority",
+        ];
+        let mut final_accounts = Vec::new();
+        for (i, (account_opt, (expected_signer, expected_writable))) in
+            accounts.iter().zip(expected_flags.iter()).enumerate()
+        {
+            let account = account_opt.as_ref().ok_or_else(|| {
+                format!(
+                    "Missing required account '{}' in program_accounts",
+                    account_names[i]
+                )
+            })?;
+
+            if account.is_signer != *expected_signer || account.is_writable != *expected_writable {
+                return Err(format!(
+                    "Account '{}': flags mismatch (expected signer={}, writable={}, got signer={}, writable={})",
+                    account_names[i], expected_signer, expected_writable, account.is_signer, account.is_writable
+                ).into());
+            }
+            final_accounts.push(account.clone());
+        }
+
+        // Return reordered accounts and remaining accounts
+        let remaining_accounts = program_accounts[5..].to_vec();
+        Ok((final_accounts, remaining_accounts))
+    }
+
     /// Creates an initialize_compression_config instruction
     ///
     /// Following Solana SDK patterns like system_instruction::transfer()
@@ -213,11 +319,9 @@ impl CompressibleInstruction {
     pub fn decompress_accounts_idempotent<T>(
         program_id: &Pubkey,
         discriminator: &[u8],
-        fee_payer: &Pubkey,
-        rent_payer: &Pubkey,
-        solana_accounts: &[Pubkey],
+        decompressed_account_addresses: &[Pubkey],
         compressed_accounts: &[(CompressedAccount, T)],
-        program_accounts: &[AccountMeta],
+        program_account_metas: &[AccountMeta],
         validity_proof_with_context: ValidityProofWithContext,
         output_state_tree_info: TreeInfo,
     ) -> Result<Instruction, Box<dyn std::error::Error>>
@@ -242,7 +346,7 @@ impl CompressibleInstruction {
         if !has_tokens && !has_pdas {
             return Err("No tokens or PDAs found in compressed accounts".into());
         };
-        if solana_accounts.len() != compressed_accounts.len() {
+        if decompressed_account_addresses.len() != compressed_accounts.len() {
             return Err("PDA accounts and compressed accounts must have the same length".into());
         }
 
@@ -268,29 +372,13 @@ impl CompressibleInstruction {
         let packed_tree_infos =
             validity_proof_with_context.pack_tree_infos(&mut remaining_accounts);
 
-        let config_pda = CompressibleConfig::derive_pda(program_id, 0).0;
+        // Reorder and validate the first 5 accounts
+        let (mut accounts, remaining_program_accounts) =
+            Self::reorder_compressible_accounts(program_id, program_account_metas)?;
 
-        // Required instruction accounts.
-        let mut accounts = vec![
-            AccountMeta::new(*fee_payer, true),           // fee_payer
-            AccountMeta::new(*rent_payer, true),          // rent_payer
-            AccountMeta::new_readonly(config_pda, false), // config
-            AccountMeta::new_readonly(COMPRESSED_TOKEN_PROGRAM_ID.into(), false),
-            AccountMeta::new_readonly(COMPRESSED_TOKEN_PROGRAM_CPI_AUTHORITY.into(), false),
-        ];
-        // Add program accounts.
-        for account in program_accounts[accounts.len()..].iter() {
-            accounts.push(AccountMeta::new_readonly(account.pubkey, false));
-        }
+        // Add remaining program accounts
+        accounts.extend(remaining_program_accounts);
 
-        println!("feepayer: {:?}", accounts[0]);
-        println!("rent_payer: {:?}", accounts[1]);
-        println!("config: {:?}", accounts[2]);
-        println!("compressed_token_program: {:?}", accounts[3]);
-        println!("compressed_token_cpi_authority: {:?}", accounts[4]);
-        for account in program_accounts[accounts.len()..].iter() {
-            println!("program account (): {:?}", account);
-        }
         // Pack all account data using the Pack trait. This converts types with
         // Pubkeys to their packed versions with u8 indices. PDAs must implement
         // pack trait. Tokens have a standard implementation.
@@ -330,8 +418,8 @@ impl CompressibleInstruction {
         let (system_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();
         accounts.extend(system_accounts);
 
-        // Onchain Accounts must be the last accounts.
-        for account in solana_accounts {
+        // decompressed account addresses must be the last metas.
+        for account in decompressed_account_addresses {
             accounts.push(AccountMeta::new(*account, false));
         }
 
@@ -346,10 +434,6 @@ impl CompressibleInstruction {
         let mut data = Vec::new();
         data.extend_from_slice(discriminator);
         data.extend_from_slice(&serialized_data);
-
-        for account in accounts.iter() {
-            println!("account: {:?}", account);
-        }
 
         Ok(Instruction {
             program_id: *program_id,

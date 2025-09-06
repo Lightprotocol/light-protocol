@@ -312,7 +312,7 @@ async fn test_double_decompression_attack() {
         config: CompressibleConfig::derive_pda(&program_id, 0).0,
         compressed_token_program: None,
         compressed_token_cpi_authority: None,
-        some_mint: payer.pubkey(),
+        some_mint: payer.pubkey(), // doesnt actually get used.
     }
     .to_account_metas(None);
 
@@ -321,8 +321,6 @@ async fn test_double_decompression_attack() {
         light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
             &program_id,
             &CompressibleInstruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
-            &payer.pubkey(),
-            &payer.pubkey(),
             &[user_record_pda],
             &[(
                 c_user_pda,
@@ -1026,8 +1024,6 @@ async fn decompress_multiple_pdas_with_ctoken(
         light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
             program_id,
             &CompressibleInstruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
-            &payer.pubkey(),
-            &payer.pubkey(),
             &[*user_record_pda, *game_session_pda, native_token_account],
             &[
                 // gets packed internally and never unpacked onchain:
@@ -1246,8 +1242,6 @@ async fn decompress_multiple_pdas(
         light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
             program_id,
             &CompressibleInstruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
-            &payer.pubkey(),
-            &payer.pubkey(), // rent_payer can be the same as fee_payer
             &[*user_record_pda, *game_session_pda],
             &[
                 (
@@ -1794,8 +1788,6 @@ async fn decompress_single_user_record(
         light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
             program_id,
             &CompressibleInstruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
-            &payer.pubkey(),
-            &payer.pubkey(), // rent_payer can be the same as fee_payer
             &[*user_record_pda],
             &[(
                 c_user_pda,
@@ -2150,8 +2142,6 @@ async fn decompress_single_game_session(
         light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
             program_id,
             &CompressibleInstruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
-            &payer.pubkey(),
-            &payer.pubkey(), // rent_payer can be the same as fee_payer
             &[*game_session_pda],
             &[(
                 c_game_pda,
