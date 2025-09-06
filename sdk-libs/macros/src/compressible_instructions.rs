@@ -3,6 +3,7 @@ use quote::{format_ident, quote};
 use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
+    spanned::Spanned,
     Expr, Ident, Item, ItemFn, ItemStruct, ItemMod, LitStr, Result, Token,
 };
 
@@ -269,6 +270,27 @@ pub fn add_compressible_instructions(
 
     let content = module.content.as_mut().unwrap();
 
+    // Generate the CTokenAccountVariant enum automatically from token_seeds
+    let ctoken_enum = if let Some(ref token_seed_specs) = token_seeds {
+        if !token_seed_specs.is_empty() {
+            generate_ctoken_account_variant_enum(token_seed_specs)?
+        } else {
+            quote! {
+                // No CToken variants - generate empty enum for compatibility
+                #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
+                #[repr(u8)]
+                pub enum CTokenAccountVariant {}
+            }
+        }
+    } else {
+        quote! {
+            // No CToken variants - generate empty enum for compatibility
+            #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
+            #[repr(u8)]
+            pub enum CTokenAccountVariant {}
+        }
+    };
+
     // Generate the compressed_account_variant enum automatically
     let mut account_types_stream = TokenStream::new();
     for (i, account_type) in account_types.iter().enumerate() {
@@ -279,26 +301,11 @@ pub fn add_compressible_instructions(
     }
     let enum_and_traits = crate::variant_enum::compressed_account_variant(account_types_stream)?;
 
-    // Generate the DecompressAccountsIdempotent accounts struct
-    let decompress_accounts: ItemStruct = syn::parse_quote! {
-        #[derive(Accounts)]
-        pub struct DecompressAccountsIdempotent<'info> {
-            #[account(mut)]
-            pub fee_payer: Signer<'info>,
-            /// UNCHECKED: Anyone can pay to init.
-            #[account(mut)]
-            pub rent_payer: Signer<'info>,
-            /// The global config account
-            /// CHECK: load_checked.
-            pub config: AccountInfo<'info>,
-            /// Compressed token program
-            /// CHECK: Program ID validated to be cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m
-            pub compressed_token_program: Option<UncheckedAccount<'info>>,
-            /// CPI authority PDA of the compressed token program
-            /// CHECK: PDA derivation validated with seeds ["cpi_authority"] and bump 254
-            pub compressed_token_cpi_authority: Option<UncheckedAccount<'info>>,
-        }
-    };
+    // Extract required accounts from seed expressions
+    let required_accounts = extract_required_accounts_from_seeds(&pda_seeds, &token_seeds)?;
+
+    // Generate the DecompressAccountsIdempotent accounts struct with required accounts
+    let decompress_accounts = generate_decompress_accounts_struct(&required_accounts)?;
 
     // Generate match arms for decompress instruction using the account types
     let decompress_match_arms: Result<Vec<_>> = account_types.iter().map(|name| {
@@ -308,7 +315,7 @@ pub fn add_compressible_instructions(
         let seed_call = if let Some(ref pda_seed_specs) = pda_seeds {
             if let Some(spec) = pda_seed_specs.iter().find(|s| s.variant.to_string() == name_str) {
                 // Generate dynamic seed derivation from the specification
-                generate_pda_seed_derivation(spec)?
+                generate_pda_seed_derivation(spec, &instruction_data)?
             } else {
                 return Err(syn::Error::new_spanned(
                     name,
@@ -822,6 +829,9 @@ pub fn add_compressible_instructions(
     let client_seed_functions = generate_client_seed_functions(&account_types, &pda_seeds, &token_seeds, &instruction_data)?;
 
     Ok(quote! {
+        // Auto-generated CTokenAccountVariant enum
+        #ctoken_enum
+        
         // Auto-generated CompressedAccountVariant enum and traits
         #enum_and_traits
         
@@ -840,6 +850,26 @@ pub fn add_compressible_instructions(
     })
 }
 
+/// Generate CTokenAccountVariant enum automatically from token seed specifications
+fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Result<TokenStream> {
+    let variants = token_seeds.iter().enumerate().map(|(index, spec)| {
+        let variant_name = &spec.variant;
+        let index_u8 = index as u8;
+        quote! {
+            #variant_name = #index_u8,
+        }
+    });
+
+    Ok(quote! {
+        /// Auto-generated CTokenAccountVariant enum from token seed specifications
+        #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
+        #[repr(u8)]
+        pub enum CTokenAccountVariant {
+            #(#variants)*
+        }
+    })
+}
+
 /// Generate CTokenSeedProvider implementation from token seed specifications
 fn generate_ctoken_seed_provider_implementation(
     token_seeds: &[TokenSeedSpec],
@@ -848,18 +878,92 @@ fn generate_ctoken_seed_provider_implementation(
 
     for spec in token_seeds {
         let variant_name = &spec.variant;
-        let seed_expressions = generate_seed_expressions(&spec.seeds)?;
+        
+        // Generate bindings for any expressions that need them
+        let mut bindings = Vec::new();
+        let mut seed_refs = Vec::new();
+        
+        for (i, seed) in spec.seeds.iter().enumerate() {
+            match seed {
+                SeedElement::Literal(lit) => {
+                    let value = lit.value();
+                    seed_refs.push(quote! { #value.as_bytes() });
+                }
+                SeedElement::Expression(expr) => {
+                    // For CToken seeds, we need to handle account references specially
+                    // ctx.accounts.mint -> ctx.accounts.mint.key().as_ref()
+                    let mut handled = false;
+                    
+                    match expr {
+                        syn::Expr::Field(field_expr) => {
+                            // Check if this is ctx.accounts.field_name
+                            if let syn::Member::Named(field_name) = &field_expr.member {
+                                if let syn::Expr::Field(nested_field) = &*field_expr.base {
+                                    if let syn::Member::Named(base_name) = &nested_field.member {
+                                        if base_name == "accounts" {
+                                            if let syn::Expr::Path(path) = &*nested_field.base {
+                                                if let Some(segment) = path.path.segments.first() {
+                                                    if segment.ident == "ctx" {
+                                                        // This is ctx.accounts.field_name
+                                                        // In CTokenSeedContext, accounts are accessed via ctx.accounts.field_name
+                                                        let binding_name = syn::Ident::new(&format!("seed_{}", i), expr.span());
+                                                        bindings.push(quote! {
+                                                            let #binding_name = ctx.accounts.#field_name.key().to_bytes();
+                                                        });
+                                                        seed_refs.push(quote! { &#binding_name });
+                                                        handled = true;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if let syn::Expr::Path(path) = &*field_expr.base {
+                                    if let Some(segment) = path.path.segments.first() {
+                                        if segment.ident == "ctx" {
+                                            // This is ctx.field_name
+                                            let field_str = field_name.to_string();
+                                            
+                                            // Check if it's a standard CTokenSeedContext field
+                                            if field_str == "fee_payer" || field_str == "owner" || field_str == "mint" {
+                                                // Standard field - use directly from ctx
+                                                let binding_name = syn::Ident::new(&format!("seed_{}", i), expr.span());
+                                                bindings.push(quote! {
+                                                    let #binding_name = ctx.#field_name.to_bytes();
+                                                });
+                                                seed_refs.push(quote! { &#binding_name });
+                                            } else {
+                                                // Custom field - access via ctx.accounts
+                                                let binding_name = syn::Ident::new(&format!("seed_{}", i), expr.span());
+                                                bindings.push(quote! {
+                                                    let #binding_name = ctx.accounts.#field_name.key().to_bytes();
+                                                });
+                                                seed_refs.push(quote! { &#binding_name });
+                                            }
+                                            handled = true;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                    
+                    if !handled {
+                        // Not a ctx.accounts reference, use as-is
+                        seed_refs.push(quote! { (#expr).as_ref() });
+                    }
+                }
+            }
+        }
 
         let match_arm = quote! {
             CTokenAccountVariant::#variant_name => {
-                let seeds = [#(#seed_expressions),*];
-                let (pda, bump) = anchor_lang::prelude::Pubkey::find_program_address(&seeds, &crate::ID);
-                let seeds_vec = vec![
-                    #(
-                        (#seed_expressions).to_vec(),
-                    )*
-                    vec![bump],
-                ];
+                #(#bindings)*
+                let seeds: &[&[u8]] = &[#(#seed_refs),*];
+                let (pda, bump) = anchor_lang::prelude::Pubkey::find_program_address(seeds, &crate::ID);
+                let seeds_vec = seeds.iter().map(|s| s.to_vec()).collect::<Vec<_>>();
+                let mut seeds_vec = seeds_vec;
+                seeds_vec.push(vec![bump]);
                 (seeds_vec, pda)
             }
         };
@@ -897,7 +1001,162 @@ fn generate_seed_expressions(
                 quote! { #value.as_bytes() }
             }
             SeedElement::Expression(expr) => {
-                quote! { (#expr).as_ref() }
+                // Handle ctx.accounts.field_name specially
+                match expr {
+                    syn::Expr::Field(field_expr) => {
+                        if let syn::Member::Named(field_name) = &field_expr.member {
+                            if let syn::Expr::Field(nested_field) = &*field_expr.base {
+                                if let syn::Member::Named(base_name) = &nested_field.member {
+                                    if base_name == "accounts" {
+                                        if let syn::Expr::Path(path) = &*nested_field.base {
+                                            if let Some(segment) = path.path.segments.first() {
+                                                if segment.ident == "ctx" {
+                                                    // This is ctx.accounts.field_name - convert to key
+                                                    quote! { ctx.accounts.#field_name.key().as_ref() }
+                                                } else {
+                                                    quote! { (#expr).as_ref() }
+                                                }
+                                            } else {
+                                                quote! { (#expr).as_ref() }
+                                            }
+                                        } else {
+                                            quote! { (#expr).as_ref() }
+                                        }
+                                    } else {
+                                        quote! { (#expr).as_ref() }
+                                    }
+                                } else {
+                                    quote! { (#expr).as_ref() }
+                                }
+                            } else if let syn::Expr::Path(path) = &*field_expr.base {
+                                if let Some(segment) = path.path.segments.first() {
+                                    if segment.ident == "ctx" {
+                                        // This is ctx.field_name - convert to key
+                                        quote! { ctx.accounts.#field_name.key().as_ref() }
+                                    } else {
+                                        quote! { (#expr).as_ref() }
+                                    }
+                                } else {
+                                    quote! { (#expr).as_ref() }
+                                }
+                            } else {
+                                quote! { (#expr).as_ref() }
+                            }
+                        } else {
+                            quote! { (#expr).as_ref() }
+                        }
+                    }
+                    syn::Expr::Path(path_expr) => {
+                        if let Some(ident) = path_expr.path.get_ident() {
+                            // This is a direct account reference - convert to key
+                            quote! { ctx.accounts.#ident.key().as_ref() }
+                        } else {
+                            quote! { (#expr).as_ref() }
+                        }
+                    }
+                    _ => {
+                        quote! { (#expr).as_ref() }
+                    }
+                }
+            }
+        };
+        expressions.push(expr);
+    }
+
+    Ok(expressions)
+}
+
+/// Generate seed expressions with proper type handling
+fn generate_seed_expressions_with_types(
+    seeds: &Punctuated<SeedElement, Token![,]>,
+    instruction_data: &[InstructionDataSpec],
+) -> Result<Vec<TokenStream>> {
+    let mut expressions = Vec::new();
+
+    for seed in seeds {
+        let expr = match seed {
+            SeedElement::Literal(lit) => {
+                let value = lit.value();
+                quote! { #value.as_bytes() }
+            }
+            SeedElement::Expression(expr) => {
+                match expr {
+                    syn::Expr::Field(field_expr) => {
+                        // Handle ctx.accounts.field_name, ctx.field_name, data.field
+                        if let syn::Member::Named(field_name) = &field_expr.member {
+                            match &*field_expr.base {
+                                syn::Expr::Field(nested_field) => {
+                                    // Handle ctx.accounts.field_name
+                                    if let syn::Member::Named(base_name) = &nested_field.member {
+                                        if base_name == "accounts" {
+                                            if let syn::Expr::Path(path) = &*nested_field.base {
+                                                if let Some(segment) = path.path.segments.first() {
+                                                    if segment.ident == "ctx" {
+                                                        // This is ctx.accounts.field_name
+                                                        quote! { ctx.accounts.#field_name.key().as_ref() }
+                                                    } else {
+                                                        quote! { (#expr).as_ref() }
+                                                    }
+                                                } else {
+                                                    quote! { (#expr).as_ref() }
+                                                }
+                                            } else {
+                                                quote! { (#expr).as_ref() }
+                                            }
+                                        } else {
+                                            quote! { (#expr).as_ref() }
+                                        }
+                                    } else {
+                                        quote! { (#expr).as_ref() }
+                                    }
+                                }
+                                syn::Expr::Path(path) => {
+                                    if let Some(segment) = path.path.segments.first() {
+                                        if segment.ident == "ctx" {
+                                            // This is ctx.field_name
+                                            quote! { ctx.accounts.#field_name.key().as_ref() }
+                                        } else if segment.ident == "data" {
+                                            // This is data.field - check type from instruction_data
+                                            if let Some(data_spec) = instruction_data.iter().find(|d| d.field_name == *field_name) {
+                                                if is_pubkey_type(&data_spec.field_type) {
+                                                    quote! { data.#field_name.as_ref() }
+                                                } else {
+                                                    // Numeric type needs to_le_bytes
+                                                    quote! { data.#field_name.to_le_bytes().as_ref() }
+                                                }
+                                            } else {
+                                                // Default to as_ref if type not found
+                                                quote! { data.#field_name.as_ref() }
+                                            }
+                                        } else {
+                                            // Other
+                                            quote! { (#expr).as_ref() }
+                                        }
+                                    } else {
+                                        quote! { (#expr).as_ref() }
+                                    }
+                                }
+                                _ => {
+                                    quote! { (#expr).as_ref() }
+                                }
+                            }
+                        } else {
+                            quote! { (#expr).as_ref() }
+                        }
+                    }
+                    syn::Expr::Path(path_expr) => {
+                        // Handle direct account references
+                        if let Some(ident) = path_expr.path.get_ident() {
+                            // This is a direct account reference
+                            quote! { ctx.accounts.#ident.key().as_ref() }
+                        } else {
+                            quote! { (#expr).as_ref() }
+                        }
+                    }
+                    _ => {
+                        quote! { (#expr).as_ref() }
+                    }
+                }
             }
         };
         expressions.push(expr);
@@ -907,24 +1166,240 @@ fn generate_seed_expressions(
 }
 
 /// Generate PDA seed derivation from specification
-fn generate_pda_seed_derivation(spec: &TokenSeedSpec) -> Result<TokenStream> {
-    let seed_expressions = generate_seed_expressions(&spec.seeds)?;
+fn generate_pda_seed_derivation(spec: &TokenSeedSpec, _instruction_data: &[InstructionDataSpec]) -> Result<TokenStream> {
+    // First, generate bindings for any expressions that need them
+    let mut bindings = Vec::new();
+    let mut seed_refs = Vec::new();
+    
+    for (i, seed) in spec.seeds.iter().enumerate() {
+        match seed {
+            SeedElement::Literal(lit) => {
+                let value = lit.value();
+                seed_refs.push(quote! { #value.as_bytes() });
+            }
+            SeedElement::Expression(expr) => {
+                // We need to handle different types of expressions differently
+                let mut handled = false;
+                
+                // Check for expressions that need special handling
+                match expr {
+                    syn::Expr::MethodCall(mc) if mc.method == "to_le_bytes" => {
+                        // This creates a temporary array, needs binding
+                        let binding_name = syn::Ident::new(&format!("seed_binding_{}", i), expr.span());
+                        bindings.push(quote! {
+                            let #binding_name = #expr;
+                        });
+                        seed_refs.push(quote! { #binding_name.as_ref() });
+                        handled = true;
+                    }
+                    syn::Expr::Field(field_expr) => {
+                        // Check if this is ctx.accounts.field_name
+                        if let syn::Member::Named(field_name) = &field_expr.member {
+                            if let syn::Expr::Field(nested_field) = &*field_expr.base {
+                                if let syn::Member::Named(base_name) = &nested_field.member {
+                                    if base_name == "accounts" {
+                                        if let syn::Expr::Path(path) = &*nested_field.base {
+                                            if let Some(segment) = path.path.segments.first() {
+                                                if segment.ident == "ctx" {
+                                                    // This is ctx.accounts.field_name - create binding for the key
+                                                    let binding_name = syn::Ident::new(&format!("seed_binding_{}", i), expr.span());
+                                                    bindings.push(quote! {
+                                                        let #binding_name = ctx.accounts.#field_name.key().to_bytes();
+                                                    });
+                                                    seed_refs.push(quote! { &#binding_name });
+                                                    handled = true;
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            } else if let syn::Expr::Path(path) = &*field_expr.base {
+                                if let Some(segment) = path.path.segments.first() {
+                                    if segment.ident == "ctx" {
+                                        // This is ctx.field_name - create binding
+                                        let binding_name = syn::Ident::new(&format!("seed_binding_{}", i), expr.span());
+                                        bindings.push(quote! {
+                                            let #binding_name = ctx.accounts.#field_name.key().to_bytes();
+                                        });
+                                        seed_refs.push(quote! { &#binding_name });
+                                        handled = true;
+                                    } else if segment.ident == "data" {
+                                        // This is data.field - might need to_le_bytes
+                                        // Just use the expression as-is, will be handled by generate_seed_expressions
+                                        seed_refs.push(quote! { (#expr).as_ref() });
+                                        handled = true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                
+                if !handled {
+                    // Other expressions - use as-is
+                    seed_refs.push(quote! { (#expr).as_ref() });
+                }
+            }
+        }
+    }
+    
+    // Generate indices for accessing seeds array
+    let indices: Vec<usize> = (0..seed_refs.len()).collect();
     
     Ok(quote! {
         {
-            // Create temporary bindings to avoid lifetime issues
-            let seed_values: Vec<Vec<u8>> = vec![
-                #(
-                    (#seed_expressions).to_vec(),
-                )*
+            #(#bindings)*
+            let seeds: &[&[u8]] = &[
+                #(#seed_refs,)*
             ];
-            let seed_slices: Vec<&[u8]> = seed_values.iter().map(|v| v.as_slice()).collect();
-            let (pda, bump) = anchor_lang::prelude::Pubkey::find_program_address(&seed_slices, &crate::ID);
-            let mut seeds_vec = seed_values;
-            seeds_vec.push(vec![bump]);
+            let (pda, bump) = anchor_lang::prelude::Pubkey::find_program_address(seeds, &crate::ID);
+            let seeds_vec: Vec<Vec<u8>> = vec![
+                #(
+                    seeds[#indices].to_vec(),
+                )*
+                vec![bump],
+            ];
             (seeds_vec, pda)
         }
     })
+}
+
+/// Generate temporary bindings and references for seeds to avoid lifetime issues
+fn generate_seed_bindings(
+    seeds: &Punctuated<SeedElement, Token![,]>,
+) -> Result<(Vec<TokenStream>, Vec<TokenStream>)> {
+    let mut temp_bindings = Vec::new();
+    let mut seed_refs = Vec::new();
+
+    for (i, seed) in seeds.iter().enumerate() {
+        let temp_var = syn::Ident::new(&format!("seed_{}", i), proc_macro2::Span::call_site());
+        
+        match seed {
+            SeedElement::Literal(lit) => {
+                let value = lit.value();
+                temp_bindings.push(quote! {
+                    let #temp_var = #value.as_bytes();
+                });
+                seed_refs.push(quote! { #temp_var });
+            }
+            SeedElement::Expression(expr) => {
+                match expr {
+                    syn::Expr::Field(field_expr) => {
+                        // Handle ctx.accounts.field_name, ctx.field_name, data.field
+                        if let syn::Member::Named(field_name) = &field_expr.member {
+                            match &*field_expr.base {
+                                syn::Expr::Field(nested_field) => {
+                                    // Handle ctx.accounts.field_name
+                                    if let syn::Member::Named(base_name) = &nested_field.member {
+                                        if base_name == "accounts" {
+                                            if let syn::Expr::Path(path) = &*nested_field.base {
+                                                if let Some(segment) = path.path.segments.first() {
+                                                    if segment.ident == "ctx" {
+                                                        // This is ctx.accounts.field_name
+                                                        temp_bindings.push(quote! {
+                                                            let #temp_var = ctx.accounts.#field_name.key().to_bytes();
+                                                        });
+                                                        seed_refs.push(quote! { #temp_var.as_ref() });
+                                                    } else {
+                                                        temp_bindings.push(quote! {
+                                                            let #temp_var = (#expr).as_ref();
+                                                        });
+                                                        seed_refs.push(quote! { #temp_var });
+                                                    }
+                                                } else {
+                                                    temp_bindings.push(quote! {
+                                                        let #temp_var = (#expr).as_ref();
+                                                    });
+                                                    seed_refs.push(quote! { #temp_var });
+                                                }
+                                            } else {
+                                                temp_bindings.push(quote! {
+                                                    let #temp_var = (#expr).as_ref();
+                                                });
+                                                seed_refs.push(quote! { #temp_var });
+                                            }
+                                        } else {
+                                            temp_bindings.push(quote! {
+                                                let #temp_var = (#expr).as_ref();
+                                            });
+                                            seed_refs.push(quote! { #temp_var });
+                                        }
+                                    } else {
+                                        temp_bindings.push(quote! {
+                                            let #temp_var = (#expr).as_ref();
+                                        });
+                                        seed_refs.push(quote! { #temp_var });
+                                    }
+                                }
+                                syn::Expr::Path(path) => {
+                                    if let Some(segment) = path.path.segments.first() {
+                                        if segment.ident == "ctx" {
+                                            // This is ctx.field_name
+                                            temp_bindings.push(quote! {
+                                                let #temp_var = ctx.accounts.#field_name.key().to_bytes();
+                                            });
+                                            seed_refs.push(quote! { #temp_var.as_ref() });
+                                        } else if segment.ident == "data" {
+                                            // This is data.field - use as-ref for Pubkey, to_le_bytes for numbers
+                                            temp_bindings.push(quote! {
+                                                let #temp_var = (#expr).as_ref();
+                                            });
+                                            seed_refs.push(quote! { #temp_var });
+                                        } else {
+                                            // Other expressions
+                                            temp_bindings.push(quote! {
+                                                let #temp_var = (#expr).as_ref();
+                                            });
+                                            seed_refs.push(quote! { #temp_var });
+                                        }
+                                    } else {
+                                        temp_bindings.push(quote! {
+                                            let #temp_var = (#expr).as_ref();
+                                        });
+                                        seed_refs.push(quote! { #temp_var });
+                                    }
+                                }
+                                _ => {
+                                    temp_bindings.push(quote! {
+                                        let #temp_var = (#expr).as_ref();
+                                    });
+                                    seed_refs.push(quote! { #temp_var });
+                                }
+                            }
+                        } else {
+                            temp_bindings.push(quote! {
+                                let #temp_var = (#expr).as_ref();
+                            });
+                            seed_refs.push(quote! { #temp_var });
+                        }
+                    }
+                    syn::Expr::Path(path_expr) => {
+                        // Handle direct account references
+                        if let Some(ident) = path_expr.path.get_ident() {
+                            temp_bindings.push(quote! {
+                                let #temp_var = ctx.accounts.#ident.key().to_bytes();
+                            });
+                            seed_refs.push(quote! { #temp_var.as_ref() });
+                        } else {
+                            temp_bindings.push(quote! {
+                                let #temp_var = (#expr).as_ref();
+                            });
+                            seed_refs.push(quote! { #temp_var });
+                        }
+                    }
+                    _ => {
+                        temp_bindings.push(quote! {
+                            let #temp_var = (#expr).as_ref();
+                        });
+                        seed_refs.push(quote! { #temp_var });
+                    }
+                }
+            }
+        }
+    }
+
+    Ok((temp_bindings, seed_refs))
 }
 
 /// Generate public client-side seed functions for external consumption
@@ -1054,8 +1529,16 @@ fn analyze_seed_spec_for_client(
                             }
                         }
                     }
+                    syn::Expr::Path(path_expr) => {
+                        // Handle direct account field references like: amm_config, token_0_mint, pool_state
+                        if let Some(ident) = path_expr.path.get_ident() {
+                            // This is an account field reference - assume it's a Pubkey for client functions
+                            parameters.push(quote! { #ident: &anchor_lang::prelude::Pubkey });
+                            expressions.push(quote! { #ident.as_ref() });
+                        }
+                    }
                     syn::Expr::MethodCall(method_call) => {
-                        // Handle data.session_id.to_le_bytes() etc.
+                        // Handle method calls like amm_config.key().as_ref(), data.session_id.to_le_bytes(), etc.
                         if let syn::Expr::Field(field_expr) = &*method_call.receiver {
                             if let syn::Member::Named(field_name) = &field_expr.member {
                                 if let syn::Expr::Path(path) = &*field_expr.base {
@@ -1085,6 +1568,13 @@ fn analyze_seed_spec_for_client(
                                     }
                                 }
                             }
+                        } else if let syn::Expr::Path(path_expr) = &*method_call.receiver {
+                            // Handle direct account method calls like amm_config.key().as_ref()
+                            if let Some(ident) = path_expr.path.get_ident() {
+                                // This is an account field reference - assume it's a Pubkey for client functions
+                                parameters.push(quote! { #ident: &anchor_lang::prelude::Pubkey });
+                                expressions.push(quote! { #ident.as_ref() });
+                            }
                         }
                     }
                     _ => {
@@ -1111,6 +1601,168 @@ fn is_pubkey_type(ty: &syn::Type) -> bool {
     } else {
         false
     }
+}
+
+/// Extract required account names from seed expressions
+fn extract_required_accounts_from_seeds(
+    pda_seeds: &Option<Vec<TokenSeedSpec>>,
+    token_seeds: &Option<Vec<TokenSeedSpec>>,
+) -> Result<Vec<String>> {
+    let mut required_accounts = std::collections::HashSet::new();
+
+    // Extract from PDA seeds
+    if let Some(pda_seed_specs) = pda_seeds {
+        for spec in pda_seed_specs {
+            extract_accounts_from_seed_spec(spec, &mut required_accounts)?;
+        }
+    }
+
+    // Extract from token seeds
+    if let Some(token_seed_specs) = token_seeds {
+        for spec in token_seed_specs {
+            extract_accounts_from_seed_spec(spec, &mut required_accounts)?;
+        }
+    }
+
+    Ok(required_accounts.into_iter().collect())
+}
+
+/// Extract account names from a single seed specification
+/// Extract account name from an expression, handling method chains
+/// Simply looks for ctx.accounts.FIELD_NAME pattern and extracts FIELD_NAME
+fn extract_account_from_expr(
+    expr: &syn::Expr,
+    required_accounts: &mut std::collections::HashSet<String>,
+) {
+    match expr {
+        syn::Expr::MethodCall(method_call) => {
+            // For method calls, check the receiver
+            // e.g., ctx.accounts.mint.key().as_ref() -> check ctx.accounts.mint.key()
+            extract_account_from_expr(&*method_call.receiver, required_accounts);
+        }
+        syn::Expr::Field(field_expr) => {
+            // Check if this is ctx.accounts.FIELD_NAME
+            if let syn::Member::Named(field_name) = &field_expr.member {
+                if let syn::Expr::Field(nested_field) = &*field_expr.base {
+                    if let syn::Member::Named(base_name) = &nested_field.member {
+                        if base_name == "accounts" {
+                            if let syn::Expr::Path(path) = &*nested_field.base {
+                                if let Some(segment) = path.path.segments.first() {
+                                    if segment.ident == "ctx" {
+                                        // Found ctx.accounts.FIELD_NAME - extract FIELD_NAME
+                                        required_accounts.insert(field_name.to_string());
+                                        return; // Found it, no need to recurse further
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else if let syn::Expr::Path(path) = &*field_expr.base {
+                    if let Some(segment) = path.path.segments.first() {
+                        if segment.ident == "ctx" && field_name != "accounts" {
+                            // Found ctx.FIELD_NAME (shorthand) - treat as account
+                            required_accounts.insert(field_name.to_string());
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+        syn::Expr::Path(path_expr) => {
+            // Handle direct account references (just an identifier)
+            if let Some(ident) = path_expr.path.get_ident() {
+                let name = ident.to_string();
+                // Skip "ctx" and "data" as they're not accounts
+                if name != "ctx" && name != "data" {
+                    required_accounts.insert(name);
+                }
+            }
+        }
+        _ => {}
+    }
+}
+
+fn extract_accounts_from_seed_spec(
+    spec: &TokenSeedSpec,
+    required_accounts: &mut std::collections::HashSet<String>,
+) -> Result<()> {
+    for seed in &spec.seeds {
+        match seed {
+            SeedElement::Literal(_) => {
+                // String literals don't require accounts
+            }
+            SeedElement::Expression(expr) => {
+                match expr {
+                    syn::Expr::MethodCall(method_call) => {
+                        // Recursively find the base account through method call chains
+                        // e.g., ctx.accounts.mint.key().as_ref() -> extract "mint"
+                        extract_account_from_expr(&*method_call.receiver, required_accounts);
+                    }
+                    syn::Expr::Path(_) | syn::Expr::Field(_) => {
+                        // Use the helper function for all expressions
+                        extract_account_from_expr(expr, required_accounts);
+                    }
+                    _ => {
+                        // Other expressions - try to extract identifiers
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Generate DecompressAccountsIdempotent struct with required accounts
+fn generate_decompress_accounts_struct(required_accounts: &[String]) -> Result<syn::ItemStruct> {
+    let mut account_fields = vec![
+        // Standard fields
+        quote! {
+            #[account(mut)]
+            pub fee_payer: Signer<'info>
+        },
+        quote! {
+            /// UNCHECKED: Anyone can pay to init.
+            #[account(mut)]
+            pub rent_payer: Signer<'info>
+        },
+        quote! {
+            /// The global config account
+            /// CHECK: load_checked.
+            pub config: AccountInfo<'info>
+        },
+        quote! {
+            /// Compressed token program
+            /// CHECK: Program ID validated to be cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m
+            pub compressed_token_program: Option<UncheckedAccount<'info>>
+        },
+        quote! {
+            /// CPI authority PDA of the compressed token program
+            /// CHECK: PDA derivation validated with seeds ["cpi_authority"] and bump 254
+            pub compressed_token_cpi_authority: Option<UncheckedAccount<'info>>
+        },
+    ];
+
+    // Add required accounts as unchecked accounts (skip standard fields)
+    let standard_fields = ["fee_payer", "rent_payer", "config", "compressed_token_program", "compressed_token_cpi_authority"];
+    
+    for account_name in required_accounts {
+        if !standard_fields.contains(&account_name.as_str()) {
+            let account_ident = syn::Ident::new(account_name, proc_macro2::Span::call_site());
+            account_fields.push(quote! {
+                /// CHECK: Required for seed derivation - validated by program logic
+                pub #account_ident: UncheckedAccount<'info>
+            });
+        }
+    }
+
+    let struct_def = quote! {
+        #[derive(Accounts)]
+        pub struct DecompressAccountsIdempotent<'info> {
+            #(#account_fields,)*
+        }
+    };
+
+    Ok(syn::parse2(struct_def)?)
 }
 
 // Client seed function generation complete! 🎉

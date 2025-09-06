@@ -1,8 +1,6 @@
-use anchor_compressible_derived::state::{
-    CTokenAccountVariant, GameSession, PlaceholderRecord, UserRecord,
-};
+use anchor_compressible_derived::state::{GameSession, PlaceholderRecord, UserRecord};
 
-use anchor_compressible_derived::CompressedAccountVariant;
+use anchor_compressible_derived::{CTokenAccountVariant, CompressedAccountVariant};
 use anchor_lang::{
     AccountDeserialize, AnchorDeserialize, Discriminator, InstructionData, ToAccountMetas,
 };
@@ -308,6 +306,16 @@ async fn test_double_decompression_attack() {
 
     let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
+    let named_accounts = anchor_compressible_derived::accounts::DecompressAccountsIdempotent {
+        fee_payer: payer.pubkey(),
+        rent_payer: payer.pubkey(),
+        config: CompressibleConfig::derive_pda(&program_id, 0).0,
+        compressed_token_program: None,
+        compressed_token_cpi_authority: None,
+        // The macro should have auto-added mint from ctx.accounts.mint:
+        some_mint: payer.pubkey(), // Should be auto-added by the macro!
+    };
+    let named_accounts_metas = named_accounts.to_account_metas(None);
     // Second decompression instruction - should still work (idempotent)
     let instruction =
         light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(

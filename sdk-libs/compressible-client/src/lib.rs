@@ -204,7 +204,7 @@ impl CompressibleInstruction {
     /// * `rent_payer` - Rent payer signer
     /// * `solana_accounts` - PDAs to decompress into
     /// * `compressed_accounts` - Compressed accounts with their data (which implements Pack trait)
-    /// * `solana_token_accounts` - Token accounts to decompress into (if any)
+    /// * `additional_accounts` - Additional accounts required for seed derivation (e.g., amm_config, token_mints)
     /// * `validity_proof_with_context` - Validity proof with context
     /// * `output_state_tree_info` - Output state tree info
     ///
@@ -217,6 +217,7 @@ impl CompressibleInstruction {
         rent_payer: &Pubkey,
         solana_accounts: &[Pubkey],
         compressed_accounts: &[(CompressedAccount, T)],
+        additional_accounts: &[Pubkey],
         validity_proof_with_context: ValidityProofWithContext,
         output_state_tree_info: TreeInfo,
     ) -> Result<Instruction, Box<dyn std::error::Error>>
@@ -277,6 +278,11 @@ impl CompressibleInstruction {
             AccountMeta::new_readonly(COMPRESSED_TOKEN_PROGRAM_ID.into(), false),
             AccountMeta::new_readonly(COMPRESSED_TOKEN_PROGRAM_CPI_AUTHORITY.into(), false),
         ];
+
+        // Add the dynamic accounts required for seed derivation
+        for account in additional_accounts {
+            accounts.push(AccountMeta::new_readonly(*account, false));
+        }
         // Pack all account data using the Pack trait. This converts types with
         // Pubkeys to their packed versions with u8 indices. PDAs must implement
         // pack trait. Tokens have a standard implementation.

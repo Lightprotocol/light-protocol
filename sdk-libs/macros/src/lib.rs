@@ -360,11 +360,13 @@ pub fn compress_as_derive(input: TokenStream) -> TokenStream {
 /// #[add_compressible_instructions(
 ///     UserRecord = ("user_record", data.owner),
 ///     GameSession = ("game_session", data.session_id.to_le_bytes()),
-///     CTokenSigner = ("ctoken_signer", ctx.fee_payer, ctx.mint)
+///     CTokenSigner = (is_token, "ctoken_signer", ctx.fee_payer, ctx.mint)
 /// )]
 /// #[program]
 /// pub mod my_program {
 ///     // Your regular instructions here - everything else is auto-generated!
+///     // CTokenAccountVariant enum is automatically generated with:
+///     // - CTokenSigner = 0
 /// }
 /// ```
 #[proc_macro_attribute]

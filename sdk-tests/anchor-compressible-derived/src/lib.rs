@@ -28,12 +28,11 @@ declare_id!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
-
 #[add_compressible_instructions(
     UserRecord = ("user_record", data.owner),
     GameSession = ("game_session", data.session_id.to_le_bytes()),
     PlaceholderRecord = ("placeholder_record", data.placeholder_id.to_le_bytes()),
-    CTokenSigner = (is_token, "ctoken_signer", ctx.fee_payer, ctx.mint),
+    CTokenSigner = (is_token, "ctoken_signer", ctx.fee_payer, ctx.accounts.some_mint),
     owner = Pubkey,
     session_id = u64,
     placeholder_id = u64
