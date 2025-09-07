@@ -1,4 +1,5 @@
 use std::{sync::Arc, time::Duration};
+
 use forester::{
     config::{ForesterConfig, GeneralConfig},
     run_pipeline,
@@ -19,9 +20,9 @@ use light_compressed_account::{
     TreeType,
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
-use light_test_utils::register_test_forester;
 use light_test_utils::{
     e2e_test_env::{init_program_test_env, E2ETestEnv},
+    register_test_forester,
     system_program::create_invoke_instruction,
 };
 use serial_test::serial;
@@ -37,7 +38,6 @@ use tracing::{error, info, warn};
 
 mod test_utils;
 use test_utils::{forester_config, init};
-
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 32)]
 #[serial]
@@ -342,8 +342,7 @@ async fn run_forester(config: &ForesterConfig, duration: Duration) {
 async fn get_onchain_root(rpc: &LightClient, tree_pubkey: Pubkey) -> (String, u64, u64) {
     let mut account = rpc.get_account(tree_pubkey).await.unwrap().unwrap();
     let merkle_tree =
-        BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &tree_pubkey.into())
-            .unwrap();
+        BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &tree_pubkey.into()).unwrap();
 
     let root = bs58::encode(merkle_tree.get_root().unwrap()).into_string();
     let seq = merkle_tree.get_metadata().sequence_number;
@@ -405,10 +404,7 @@ async fn verify_roots<I: Indexer>(
                     }
                 }
             } else {
-                warn!(
-                        "No accounts found in tree {} for verification",
-                        tree_pubkey
-                    );
+                warn!("No accounts found in tree {} for verification", tree_pubkey);
             }
         }
         _ => {
