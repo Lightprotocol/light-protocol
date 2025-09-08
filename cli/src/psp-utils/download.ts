@@ -1,7 +1,7 @@
 import axios from "axios";
 import * as fs from "fs";
 import { promisify } from "util";
-import cliProgress from "cli-progress";
+// Removed cli-progress due to security concerns; using simple logging instead
 import * as path from "path";
 import * as tar from "tar";
 import * as zlib from "zlib";
@@ -159,19 +159,29 @@ export async function downloadFile({
         responseType: "stream",
       });
 
-      const totalLength = headers["content-length"];
-      const progressBar = new cliProgress.SingleBar(
-        {},
-        cliProgress.Presets.shades_classic,
-      );
-      progressBar.start(totalLength, 0);
+      const totalLengthHeader = headers["content-length"];
+      const totalLength = totalLengthHeader
+        ? Number(totalLengthHeader)
+        : undefined;
+      let downloadedBytes = 0;
+      const logProgress = () => {
+        if (typeof totalLength === "number" && totalLength > 0) {
+          const percent = ((downloadedBytes / totalLength) * 100).toFixed(1);
+          process.stdout.write(
+            `\r📥 Downloaded ${downloadedBytes}/${totalLength} bytes (${percent}%)`,
+          );
+        } else {
+          process.stdout.write(`\r📥 Downloaded ${downloadedBytes} bytes`);
+        }
+      };
 
       data.on("data", (chunk: any) => {
-        progressBar.increment(chunk.length);
+        downloadedBytes += chunk.length;
+        logProgress();
       });
 
       data.on("end", () => {
-        progressBar.stop();
+        process.stdout.write("\n");
       });
 
       // If the file is a tar.gz file, decompress it while it's being written.

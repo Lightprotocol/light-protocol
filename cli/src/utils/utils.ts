@@ -8,7 +8,7 @@ import { confirmConfig, createRpc, Rpc } from "@lightprotocol/stateless.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "./constants";
 import { getKeypairFromFile } from "@solana-developers/helpers";
-import spinner from "cli-spinners";
+// Removed cli-spinners due to security concerns; use plain logging instead
 
 require("dotenv").config();
 
@@ -166,11 +166,7 @@ export class CustomLoader {
 
   start() {
     this.startTime = Date.now();
-    process.stdout.write(
-      `\n${spinner.dots.frames[Math.floor(Math.random() * 10)]} ${
-        this.message
-      }\n`,
-    );
+    process.stdout.write(`\n⏳ ${this.message}\n`);
     this.logInterval = setInterval(() => {}, this.logInterval);
   }
 

@@ -55,10 +55,9 @@
     "@oclif/plugin-plugins": "^5.0.7",
     "@solana-developers/helpers": "^1.5.1",
     "@solana/web3.js": "1.98.0",
-    "axios": "^1.6.8",
+    "axios": "^1.8.2",
     "case-anything": "^2.1.13",
-    "cli-progress": "^3.12.0",
-    "cli-spinners": "^2.9.2",
+    
     "dotenv": "^16.4.5",
     "ffjavascript": "^0.3.0",
     "find-process": "^1.4.7",
@@ -66,7 +65,7 @@
     "snake-case": "^3.0.4",
     "tar": "^6.2.1",
     "tweetnacl": "^1.0.3",
-    "wait-on": "^7.2.0",
+    "wait-on": "^8.0.4",
     "which": "^4.0.0"
   },
   "devDependencies": {
@@ -75,7 +74,7 @@
     "@solana/spl-token": "^0.3.11",
     "@types/bn.js": "^5.1.5",
     "@types/chai": "^4.3.16",
-    "@types/cli-progress": "^3.11.5",
+    
     "@types/mocha": "^10.0.7",
     "@types/node": "^20.12.8",
     "@types/tar": "^6.1.12",
@@ -163,6 +162,31 @@
           "{workspaceRoot}/test_bin"
         ]
       }
+    }
+  },
+  "pnpm": {
+    "overrides": {
+      "ansi-regex": "6.0.1",
+      "strip-ansi": "7.1.0",
+      "ansi-styles": "6.2.1",
+      "supports-color": "8.1.1",
+      "wrap-ansi": "8.1.0",
+      "slice-ansi": "4.0.0",
+      "chalk": "4.1.2",
+      "color-convert": "2.0.1",
+      "color-name": "1.1.4",
+      "string-width": "5.1.2",
+      "ejs": "3.1.10",
+      "ws": "8.18.3",
+      "micromatch": "4.0.8",
+      "@babel/runtime": "7.26.10",
+      "axios": "1.8.2",
+      "form-data": "4.0.4",
+      "brace-expansion@^1": "1.1.12",
+      "brace-expansion@^2": "2.0.2",
+      "base-x@^3": "3.0.11",
+      "base-x@^4": "4.0.1",
+      "base-x@^5": "5.0.1"
     }
   }
 }
