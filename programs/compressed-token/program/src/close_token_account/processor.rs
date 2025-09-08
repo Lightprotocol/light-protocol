@@ -150,7 +150,7 @@ pub fn close_token_account_inner(
                             current_slot,
                             token_account_lamports,
                             *compressible_ext.last_claimed_slot,
-                            *compressible_ext.lamports_at_last_claimed_slot,
+                            *compressible_ext.base_lamports_balance,
                         );
                     // If rent authority is signer transfer all unused lamports to rent recipient
                     // else transfer unused lamports to fee payer

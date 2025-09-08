@@ -356,9 +356,9 @@ impl PartialEq<CompressedToken> for ZCompressedToken<'_> {
                                 return false;
                             }
 
-                            // Compare lamports_at_last_claimed_slot
-                            if u64::from(*zc_comp.lamports_at_last_claimed_slot)
-                                != regular_comp.lamports_at_last_claimed_slot
+                            // Compare base_lamports_balance
+                            if u64::from(*zc_comp.base_lamports_balance)
+                                != regular_comp.base_lamports_balance
                             {
                                 return false;
                             }

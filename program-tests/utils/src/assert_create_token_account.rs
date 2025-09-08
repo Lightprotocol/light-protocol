@@ -59,7 +59,7 @@ pub async fn assert_create_token_account<R: Rpc>(
                 COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
                 compressible_info.num_prepaid_epochs,
             );
-            let lamports_at_last_claimed_slot = get_compression_cost() + rent_exemption;
+            let base_lamports_balance = get_compression_cost() + rent_exemption;
             let expected_lamports = rent_exemption + rent_with_compression;
 
             assert_eq!(
@@ -90,7 +90,7 @@ pub async fn assert_create_token_account<R: Rpc>(
                         CompressibleExtension {
                             version: 1,
                             last_claimed_slot: current_slot,
-                            lamports_at_last_claimed_slot,
+                            base_lamports_balance,
                             write_top_up_lamports: compressible_info.write_top_up_lamports,
                             rent_authority: Some(compressible_info.rent_authority.to_bytes()),
                             rent_recipient: Some(compressible_info.rent_recipient.to_bytes()),

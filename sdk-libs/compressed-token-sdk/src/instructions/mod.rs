@@ -1,5 +1,6 @@
 pub mod approve;
 pub mod batch_compress;
+pub mod claim;
 pub mod close;
 pub mod compress_and_close;
 pub mod create_associated_token_account;
@@ -23,6 +24,7 @@ pub use batch_compress::{
     create_batch_compress_instruction, get_batch_compress_instruction_account_metas,
     BatchCompressInputs, BatchCompressMetaConfig, Recipient,
 };
+pub use claim::{claim, derive_pool_pda};
 pub use compress_and_close::{
     compress_and_close_ctoken_accounts, compress_and_close_ctoken_accounts_with_indices,
     CompressAndCloseIndices,

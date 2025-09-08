@@ -51,7 +51,7 @@ impl LightProgramTest {
     /// - registers a forester
     /// - advances to the active phase slot 2
     /// - active phase doesn't end
-    /// Get an account from the pre-transaction context (before the last transaction)
+    ///   Get an account from the pre-transaction context (before the last transaction)
     pub fn get_pre_transaction_account(&self, pubkey: &Pubkey) -> Option<solana_account::Account> {
         self.pre_context
             .as_ref()

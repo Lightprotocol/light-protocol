@@ -5,6 +5,7 @@ use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
 use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
 use pinocchio::{account_info::AccountInfo, msg};
 
+pub mod claim;
 pub mod close_token_account;
 pub mod convert_account_infos;
 pub mod create_associated_token_account;
@@ -17,6 +18,7 @@ pub mod transfer2;
 
 // Reexport the wrapped anchor program.
 pub use ::anchor_compressed_token::*;
+use claim::process_claim;
 use close_token_account::processor::process_close_token_account;
 use create_associated_token_account::{
     process_create_associated_token_account, process_create_associated_token_account_idempotent,
@@ -58,6 +60,8 @@ pub enum InstructionType {
     ///     8. UpdateMetadataAuthority
     ///     9. RemoveMetadataKey
     MintAction = 106,
+    /// Claim rent for past completed epochs from compressible token account
+    Claim = 107,
     Other,
 }
 
@@ -72,6 +76,7 @@ impl From<u8> for InstructionType {
             104 => InstructionType::Transfer2,
             105 => InstructionType::CreateAssociatedTokenAccountIdempotent,
             106 => InstructionType::MintAction,
+            107 => InstructionType::Claim,
             _ => InstructionType::Other,
         }
     }
@@ -122,6 +127,10 @@ pub fn process_instruction(
         InstructionType::MintAction => {
             msg!("MintAction");
             process_mint_action(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::Claim => {
+            msg!("Claim");
+            process_claim(accounts, &instruction_data[1..])?;
         }
         // anchor instructions have no discriminator conflicts with InstructionType
         // TODO: add test for discriminator conflict

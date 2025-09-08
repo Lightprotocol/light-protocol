@@ -98,7 +98,7 @@ pub fn initialize_token_account(
                 #[cfg(not(target_os = "solana"))]
                 let current_slot = 1;
                 *compressible_extension.last_claimed_slot = current_slot.into();
-                *compressible_extension.lamports_at_last_claimed_slot =
+                *compressible_extension.base_lamports_balance =
                     (current_lamports - rent_paid.unwrap()).into();
                 if let Some(rent_authority) = compressible_extension.rent_authority.as_deref_mut() {
                     *rent_authority = compressible_config.rent_authority.to_bytes();

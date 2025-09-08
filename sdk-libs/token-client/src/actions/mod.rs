@@ -1,9 +1,11 @@
+mod create_compressible_token_account;
 mod create_mint;
 mod create_spl_mint;
 mod decompressed_token_transfer;
 mod mint_action;
 mod mint_to_compressed;
 pub mod transfer2;
+pub use create_compressible_token_account::*;
 pub use create_mint::*;
 pub use create_spl_mint::*;
 pub use decompressed_token_transfer::*;

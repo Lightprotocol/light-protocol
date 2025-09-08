@@ -66,9 +66,7 @@ pub fn process_create_token_account(
                 Some(compressible_config.payer_pda_bump),
                 crate::ID.as_array(),
             );
-            // TODO: also compare the rent recipient and rent authority
             let config = if compressible_config.has_rent_recipient != 0
-                // && compressible_config.rent_authority == derived_pool_pda
                 && compressible_config.rent_recipient == derived_pool_pda
             {
                 CreatePdaAccountConfig {

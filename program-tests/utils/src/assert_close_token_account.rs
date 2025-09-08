@@ -147,7 +147,7 @@ async fn assert_compressible_extension(
         current_slot,
         account_lamports_before_close,
         *compressible_extension.last_claimed_slot,
-        *compressible_extension.lamports_at_last_claimed_slot,
+        *compressible_extension.base_lamports_balance,
     );
 
     // Check if rent authority is the signer

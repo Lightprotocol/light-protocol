@@ -114,7 +114,7 @@ async fn setup_compress_and_close_test(
                     mint: mint_pubkey,
                     owner: owner.pubkey(),
                     rent_authority: rent_authority.pubkey(),
-                    rent_recipient: rent_recipient,
+                    rent_recipient,
                     pre_pay_num_epochs,
                     write_top_up_lamports: None,
                     payer_pda_bump: 0,
