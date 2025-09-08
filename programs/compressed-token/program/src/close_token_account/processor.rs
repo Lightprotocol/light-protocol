@@ -71,32 +71,34 @@ pub fn validate_token_account<const CHECK_RENT_AUTH: bool>(
                 }
 
                 if CHECK_RENT_AUTH {
-                    if let Some(rent_authority) = compressible_ext.rent_authority.as_ref() {
-                        if rent_authority.as_bytes() != *accounts.authority.key() {
-                            msg!("rent authority missmatch");
-                            return Err(ProgramError::InvalidAccountData);
-                        }
-                        #[cfg(target_os = "solana")]
-                        use pinocchio::sysvars::Sysvar;
-                        #[cfg(target_os = "solana")]
-                        let current_slot = pinocchio::sysvars::clock::Clock::get()
-                            .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?
-                            .slot;
+                    if !owner_matches {
+                        if let Some(rent_authority) = compressible_ext.rent_authority.as_ref() {
+                            if rent_authority.as_bytes() != *accounts.authority.key() {
+                                msg!("rent authority missmatch");
+                                return Err(ProgramError::InvalidAccountData);
+                            }
+                            #[cfg(target_os = "solana")]
+                            use pinocchio::sysvars::Sysvar;
+                            #[cfg(target_os = "solana")]
+                            let current_slot = pinocchio::sysvars::clock::Clock::get()
+                                .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?
+                                .slot;
 
-                        // For rent authority, check timing constraints
-                        #[cfg(target_os = "solana")]
-                        if !compressible_ext
-                            .is_compressible(
-                                accounts.token_account.data_len() as u64,
-                                current_slot,
-                                accounts.token_account.lamports(),
-                            )
-                            .0
-                        {
-                            msg!("account not compressible");
-                            return Err(ProgramError::InvalidAccountData);
-                        } else {
-                            return Ok(());
+                            // For rent authority, check timing constraints
+                            #[cfg(target_os = "solana")]
+                            if !compressible_ext
+                                .is_compressible(
+                                    accounts.token_account.data_len() as u64,
+                                    current_slot,
+                                    accounts.token_account.lamports(),
+                                )
+                                .0
+                            {
+                                msg!("account not compressible");
+                                return Err(ProgramError::InvalidAccountData);
+                            } else {
+                                return Ok(());
+                            }
                         }
                     }
                 }

@@ -5,7 +5,10 @@ use light_compressed_token_sdk::instructions::{
     compress_and_close::{pack_for_compress_and_close, CompressAndCloseAccounts},
     find_spl_mint_address,
 };
-use light_ctoken_types::{instructions::mint_action::Recipient, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
+use light_ctoken_types::{
+    instructions::mint_action::Recipient, state::get_rent_with_compression_cost,
+    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+};
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::airdrop_lamports;
@@ -76,12 +79,13 @@ async fn setup_compress_and_close_test(
         // Use first owner as both rent authority and recipient
         (owners[0].insecure_clone(), owners[0].pubkey())
     };
-
+    let pre_pay_num_epochs = 1;
     // Get rent exemption
     let rent_exemption = rpc
         .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
         .await
-        .unwrap();
+        .unwrap()
+        + get_rent_with_compression_cost(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, pre_pay_num_epochs);
 
     // Create ATA accounts for each owner
     let mut token_account_pubkeys = Vec::with_capacity(num_ctoken_accounts);
@@ -110,7 +114,7 @@ async fn setup_compress_and_close_test(
                 } else {
                     owner.pubkey()
                 },
-                pre_pay_num_epochs: 0,
+                pre_pay_num_epochs,
                 write_top_up_lamports: None,
                 payer_pda_bump: 0,
             },
