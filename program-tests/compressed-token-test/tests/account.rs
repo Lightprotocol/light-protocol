@@ -1011,88 +1011,128 @@ async fn test_claim_multiple_accounts_different_epochs() -> Result<(), RpcError>
     )
     .await?;
     assert_claim(&mut rpc, &token_accounts, pool_pda, rent_authority_pubkey).await;
+    Ok(())
+}
 
-    // // Verify claims for each account
-    // let data_len = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
-    // let rent_per_epoch = 5000 + (data_len * 10);
+#[tokio::test]
+async fn test_withdraw_funding_pool() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
+    let payer = rpc.get_payer().insecure_clone();
+    let payer_pubkey = payer.pubkey();
 
-    // // After warping 2 epochs forward, expected epochs claimable for each account
-    // // Account 1 (1 epoch prepaid): 0 (would become compressible)
-    // // Account 2 (2 epochs prepaid): 1 (can claim 1 without becoming compressible)
-    // // Account 3+ (3+ epochs prepaid): 2 (can claim all 2 completed epochs)
-    // let expected_first_claim_epochs = vec![0, 1, 2, 2, 2, 2, 2, 2, 2, 2];
+    // Create rent authority
+    let rent_authority_keypair = Keypair::new();
+    let rent_authority_pubkey = rent_authority_keypair.pubkey();
 
-    // for (i, account) in token_accounts.iter().enumerate() {
-    //     let account_data = rpc.get_account(*account).await?.unwrap();
-    //     let epochs_prepaid = (i + 1) as u64;
-    //     let expected_epochs = expected_first_claim_epochs[i];
-    //     let expected_claimed = expected_epochs * rent_per_epoch;
-    //     let actual_difference = initial_lamports[i] - account_data.lamports;
+    // Airdrop to rent authority
+    airdrop_lamports(&mut rpc, &rent_authority_pubkey, 10_000_000_000).await?;
 
-    //     assert_eq!(
-    //         actual_difference, expected_claimed,
-    //         "Account {} (prepaid {} epochs): expected to claim {} lamports ({} epochs), but claimed {}",
-    //         i + 1, epochs_prepaid, expected_claimed, expected_epochs, actual_difference
-    //     );
+    // Derive pool PDA and fund it
+    let (pool_pda, pool_pda_bump) =
+        light_compressed_token_sdk::instructions::derive_pool_pda(&rent_authority_pubkey);
 
-    //     println!(
-    //         "Account {} (prepaid {} epochs): claimed {} lamports ({} epochs)",
-    //         i + 1,
-    //         epochs_prepaid,
-    //         actual_difference,
-    //         expected_epochs
-    //     );
-    // }
+    // Fund pool PDA with 5 SOL
+    let initial_pool_balance = 5_000_000_000u64;
+    rpc.context
+        .airdrop(&pool_pda, initial_pool_balance)
+        .map_err(|_| RpcError::AssertRpcError("Failed to airdrop to pool PDA".to_string()))?;
 
-    // // Verify total lamports transferred to pool
-    // let final_pool_lamports = rpc.get_account(pool_pda).await?.unwrap().lamports;
-    // let mut total_claimed = 0u64;
-    // for (i, initial) in initial_lamports.iter().enumerate() {
-    //     let account_data = rpc.get_account(token_accounts[i]).await?.unwrap();
-    //     total_claimed += initial - account_data.lamports;
-    // }
+    // Create a destination account for withdrawal
+    let destination_keypair = Keypair::new();
+    let destination_pubkey = destination_keypair.pubkey();
 
-    // assert_eq!(
-    //     final_pool_lamports - initial_pool_lamports,
-    //     total_claimed,
-    //     "Pool PDA should receive total claimed amount"
-    // );
+    // Fund destination with minimum rent exemption
+    airdrop_lamports(&mut rpc, &destination_pubkey, 1_000_000).await?;
 
-    // println!("\n✓ Successfully claimed from 10 accounts in single transaction:");
-    // println!("  - Total claimed: {} lamports", total_claimed);
-    // println!(
-    //     "  - Pool PDA balance increase: {} -> {}",
-    //     initial_pool_lamports, final_pool_lamports
-    // );
+    // Get initial balances
+    let initial_destination_balance = rpc.get_account(destination_pubkey).await?.unwrap().lamports;
+    let pool_balance_before = rpc.get_account(pool_pda).await?.unwrap().lamports;
 
-    // // Now warp forward more epochs and claim again
-    // println!("\n--- Second claim after warping 3 more epochs ---");
+    // Withdraw 1 SOL from pool to destination
+    let withdraw_amount = 1_000_000_000u64;
+    let withdraw_instruction = light_compressed_token_sdk::instructions::withdraw_funding_pool(
+        pool_pda,
+        pool_pda_bump,
+        rent_authority_pubkey,
+        destination_pubkey,
+        withdraw_amount,
+    );
 
-    // let current_slot = rpc.get_slot().await?;
-    // let target_slot = current_slot + (SLOTS_PER_EPOCH * 3);
-    // rpc.warp_to_slot(target_slot)?;
+    // Execute withdrawal
+    rpc.create_and_send_transaction(
+        &[withdraw_instruction],
+        &payer_pubkey,
+        &[&payer, &rent_authority_keypair],
+    )
+    .await?;
 
-    // // Store lamports before second claim
-    // let mut before_second_claim = Vec::new();
-    // for account in &token_accounts {
-    //     let account_data = rpc.get_account(*account).await?.unwrap();
-    //     before_second_claim.push(account_data.lamports);
-    // }
+    // Verify balances after withdrawal
+    let pool_balance_after = rpc.get_account(pool_pda).await?.unwrap().lamports;
+    let destination_balance_after = rpc.get_account(destination_pubkey).await?.unwrap().lamports;
 
-    // // Execute second claim
-    // let claim_instruction = light_compressed_token_sdk::instructions::claim(
-    //     pool_pda,
-    //     pool_pda_bump,
-    //     rent_authority_pubkey,
-    //     &token_accounts,
-    // );
+    assert_eq!(
+        pool_balance_after,
+        pool_balance_before - withdraw_amount,
+        "Pool balance should decrease by withdrawn amount"
+    );
 
-    // rpc.create_and_send_transaction(
-    //     &[claim_instruction],
-    //     &payer_pubkey,
-    //     &[&payer, &rent_authority_keypair],
-    // )
-    // .await?;
+    assert_eq!(
+        destination_balance_after,
+        initial_destination_balance + withdraw_amount,
+        "Destination balance should increase by withdrawn amount"
+    );
+
+    // Test: Try to withdraw with wrong authority (should fail)
+    let wrong_authority = Keypair::new();
+    airdrop_lamports(&mut rpc, &wrong_authority.pubkey(), 1_000_000).await?;
+
+    let wrong_withdraw_instruction =
+        light_compressed_token_sdk::instructions::withdraw_funding_pool(
+            pool_pda,
+            pool_pda_bump,
+            wrong_authority.pubkey(),
+            destination_pubkey,
+            100_000_000,
+        );
+
+    let result = rpc
+        .create_and_send_transaction(
+            &[wrong_withdraw_instruction],
+            &payer_pubkey,
+            &[&payer, &wrong_authority],
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "Should fail when withdrawing with wrong authority"
+    );
+
+    // Test: Try to withdraw more than available (should fail)
+    let remaining_balance = rpc.get_account(pool_pda).await?.unwrap().lamports;
+    let excessive_amount = remaining_balance + 1_000_000;
+
+    let excessive_withdraw_instruction =
+        light_compressed_token_sdk::instructions::withdraw_funding_pool(
+            pool_pda,
+            pool_pda_bump,
+            rent_authority_pubkey,
+            destination_pubkey,
+            excessive_amount,
+        );
+
+    let result = rpc
+        .create_and_send_transaction(
+            &[excessive_withdraw_instruction],
+            &payer_pubkey,
+            &[&payer, &rent_authority_keypair],
+        )
+        .await;
+
+    assert!(
+        result.is_err(),
+        "Should fail when withdrawing more than available balance"
+    );
 
     Ok(())
 }

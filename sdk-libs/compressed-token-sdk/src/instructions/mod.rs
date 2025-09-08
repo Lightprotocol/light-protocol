@@ -14,6 +14,7 @@ pub mod mint_to_compressed;
 pub mod transfer;
 pub mod transfer2;
 pub mod update_compressed_mint;
+pub mod withdraw_funding_pool;
 
 // Re-export all instruction utilities
 pub use approve::{
@@ -52,6 +53,7 @@ pub use update_compressed_mint::{
     update_compressed_mint, update_compressed_mint_cpi, UpdateCompressedMintInputs,
     UPDATE_COMPRESSED_MINT_DISCRIMINATOR,
 };
+pub use withdraw_funding_pool::withdraw_funding_pool;
 
 /// Derive token pool information for a given mint
 pub fn derive_token_pool(mint: &solana_pubkey::Pubkey, index: u8) -> mint_action::TokenPool {
