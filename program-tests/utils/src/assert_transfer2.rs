@@ -1,6 +1,7 @@
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_program_test::LightProgramTest;
 use light_token_client::instructions::transfer2::{
     CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
 };
@@ -14,25 +15,14 @@ use crate::assert_decompressed_token_transfer::assert_compressible_for_account;
 /// - Decompression creates correct SPL token amounts in target accounts
 /// - Compression creates correct compressed tokens from SPL sources
 /// - Delegate field preservation when delegate performs the transfer
-pub async fn assert_transfer2_with_delegate<R: Rpc + Indexer>(
-    rpc: &mut R,
+pub async fn assert_transfer2_with_delegate(
+    rpc: &mut LightProgramTest,
     actions: Vec<Transfer2InstructionType<'_>>,
-    pre_token_accounts: Vec<Option<spl_token_2022::state::Account>>,
     authority: Option<Pubkey>, // The actual signer (owner or delegate)
 ) {
-    assert_eq!(
-        actions.len(),
-        pre_token_accounts.len(),
-        "Actions and pre_token_accounts must have same length"
-    );
-
-    for (action, pre_account) in actions.iter().zip(pre_token_accounts.iter()) {
+    for action in actions.iter() {
         match action {
             Transfer2InstructionType::Transfer(transfer_input) => {
-                assert!(
-                    pre_account.is_none(),
-                    "Transfer actions should have None for pre_token_account"
-                );
                 // Get recipient's compressed token accounts
                 let recipient_accounts = rpc
                     .indexer()
@@ -119,10 +109,14 @@ pub async fn assert_transfer2_with_delegate<R: Rpc + Indexer>(
                 }
             }
             Transfer2InstructionType::Decompress(decompress_input) => {
-                let pre_spl_account = pre_account
-                    .as_ref()
-                    .ok_or("Decompress actions require pre_token_account")
-                    .unwrap();
+                // Get pre-transaction SPL account from cache
+                let pre_account_data = rpc
+                    .get_pre_transaction_account(&decompress_input.solana_token_account)
+                    .expect("SPL token account should exist in pre-transaction context");
+
+                use spl_token_2022::state::Account as SplTokenAccount;
+                let pre_spl_account = SplTokenAccount::unpack(&pre_account_data.data)
+                    .expect("Failed to unpack SPL token account");
                 // Verify SPL token account received tokens
                 let spl_account_data = rpc
                     .get_account(decompress_input.solana_token_account)
@@ -139,7 +133,7 @@ pub async fn assert_transfer2_with_delegate<R: Rpc + Indexer>(
                 let source_owner = decompress_input.compressed_token_account[0].token.owner;
 
                 // Create expected SPL token account state
-                let mut expected_spl_token_account = *pre_spl_account;
+                let mut expected_spl_token_account = pre_spl_account;
                 expected_spl_token_account.amount += decompress_input.amount;
 
                 // Assert complete SPL token account
@@ -204,10 +198,6 @@ pub async fn assert_transfer2_with_delegate<R: Rpc + Indexer>(
             }
 
             Transfer2InstructionType::Approve(approve_input) => {
-                assert!(
-                    pre_account.is_none(),
-                    "Approve actions should have None for pre_token_account"
-                );
                 let source_mint = approve_input.compressed_token_account[0].token.mint;
                 let source_owner = approve_input.compressed_token_account[0].token.owner;
 
@@ -259,10 +249,14 @@ pub async fn assert_transfer2_with_delegate<R: Rpc + Indexer>(
             }
 
             Transfer2InstructionType::Compress(compress_input) => {
-                let pre_spl_account = pre_account
-                    .as_ref()
-                    .ok_or("Compress actions require pre_token_account")
-                    .unwrap();
+                // Get pre-transaction SPL account from cache
+                let pre_account_data = rpc
+                    .get_pre_transaction_account(&compress_input.solana_token_account)
+                    .expect("SPL token account should exist in pre-transaction context");
+
+                use spl_token_2022::state::Account as SplTokenAccount;
+                let pre_spl_account = SplTokenAccount::unpack(&pre_account_data.data[..165])
+                    .expect("Failed to unpack SPL token account");
                 // Verify recipient received compressed tokens
                 let recipient_accounts = rpc
                     .indexer()
@@ -305,7 +299,7 @@ pub async fn assert_transfer2_with_delegate<R: Rpc + Indexer>(
                         .expect("Failed to unpack SPL source account");
 
                 // Create expected SPL token account state (amount reduced by compression)
-                let mut expected_spl_token_account = *pre_spl_account;
+                let mut expected_spl_token_account = pre_spl_account;
                 expected_spl_token_account.amount -= compress_input.amount;
 
                 // Assert complete SPL source account
@@ -315,8 +309,14 @@ pub async fn assert_transfer2_with_delegate<R: Rpc + Indexer>(
                 );
             }
             Transfer2InstructionType::CompressAndClose(compress_and_close_input) => {
-                let pre_token_account =
-                    pre_account.expect("CompressAndClose requires pre_token_account");
+                // Get pre-transaction account from cache
+                let pre_account_data = rpc
+                    .get_pre_transaction_account(&compress_and_close_input.solana_ctoken_account)
+                    .expect("Token account should exist in pre-transaction context");
+
+                use spl_token_2022::state::Account as SplTokenAccount;
+                let pre_token_account = SplTokenAccount::unpack(&pre_account_data.data[..165])
+                    .expect("Failed to unpack SPL token account");
 
                 // Get the compressed token accounts by owner
                 let owner_accounts = rpc
@@ -411,117 +411,71 @@ pub async fn assert_transfer2_with_delegate<R: Rpc + Indexer>(
 
 /// Backwards compatibility wrapper for assert_transfer2_with_delegate
 /// Uses None for authority (assumes owner is signer)
-pub async fn assert_transfer2<R: Rpc + Indexer>(
-    rpc: &mut R,
+pub async fn assert_transfer2(
+    rpc: &mut LightProgramTest,
     actions: Vec<Transfer2InstructionType<'_>>,
-    pre_token_accounts: Vec<Option<spl_token_2022::state::Account>>,
 ) {
-    assert_transfer2_with_delegate(rpc, actions, pre_token_accounts, None).await;
+    assert_transfer2_with_delegate(rpc, actions, None).await;
 }
 
 /// Assert transfer operation that transfers compressed tokens to a new recipient
-pub async fn assert_transfer2_transfer<R: Rpc + Indexer>(
-    rpc: &mut R,
+pub async fn assert_transfer2_transfer(
+    rpc: &mut LightProgramTest,
     transfer_input: TransferInput<'_>,
 ) {
     assert_transfer2(
         rpc,
         vec![Transfer2InstructionType::Transfer(transfer_input)],
-        vec![None],
     )
     .await;
 }
 
 /// Assert decompress operation that converts compressed tokens to SPL tokens
-pub async fn assert_transfer2_decompress<R: Rpc + Indexer>(
-    rpc: &mut R,
+pub async fn assert_transfer2_decompress(
+    rpc: &mut LightProgramTest,
     decompress_input: DecompressInput<'_>,
-    pre_spl_token_account: spl_token_2022::state::Account,
 ) {
     assert_transfer2(
         rpc,
         vec![Transfer2InstructionType::Decompress(decompress_input)],
-        vec![Some(pre_spl_token_account)],
     )
     .await;
 }
 
 /// Assert compress operation that converts SPL or solana decompressed ctokens to compressed tokens
-pub async fn assert_transfer2_compress<R: Rpc + Indexer>(
-    rpc: &mut R,
+pub async fn assert_transfer2_compress(
+    rpc: &mut LightProgramTest,
     compress_input: CompressInput<'_>,
-    pre_spl_token_account: spl_token_2022::state::Account,
-    pre_token_account_data: &[u8],
-    pre_spl_account_lamports: u64,
 ) {
-    // Get current slot for compressible extension assertion
-    let current_slot = rpc.get_slot().await.unwrap();
-
     assert_transfer2(
         rpc,
         vec![Transfer2InstructionType::Compress(compress_input.clone())],
-        vec![Some(pre_spl_token_account)],
     )
     .await;
 
-    // Get the account data after compression to check compressible extensions
-    let spl_account_data_after = rpc
-        .get_account(compress_input.solana_token_account)
-        .await
-        .expect("Failed to get SPL token account after compression")
-        .expect("SPL token account should exist after compression");
-
     // Assert compressible extension was updated if it exists
     assert_compressible_for_account(
+        rpc,
         "SPL source account",
-        pre_token_account_data,
-        pre_spl_account_lamports,
-        spl_account_data_after.lamports,
-        &spl_account_data_after.data,
-        current_slot,
-    );
+        compress_input.solana_token_account,
+    )
+    .await;
 }
 
 /// Assert compress_and_close operation that compresses all tokens and closes the account
-pub async fn assert_transfer2_compress_and_close<R: Rpc + Indexer>(
-    rpc: &mut R,
+/// Automatically retrieves pre-state from the cached context
+pub async fn assert_transfer2_compress_and_close(
+    rpc: &mut LightProgramTest,
     compress_and_close_input: light_token_client::instructions::transfer2::CompressAndCloseInput,
-    pre_token_account_data: &[u8],
-    account_lamports_before_close: u64,
-    initial_recipient_lamports: u64,
 ) {
-    use light_ctoken_types::state::{CompressedToken, ZExtensionStruct};
-    use light_zero_copy::traits::ZeroCopyAt;
-
     use crate::assert_close_token_account::assert_close_token_account;
 
-    // Parse to extract rent_recipient from compressible extension
-    let (compressed_token, _) = CompressedToken::zero_copy_at(pre_token_account_data)
-        .expect("Failed to parse compressed token account");
-
-    let rent_recipient = compressed_token
-        .extensions
-        .as_ref()
-        .and_then(|extensions| {
-            extensions.iter().find_map(|ext| {
-                if let ZExtensionStruct::Compressible(comp) = ext {
-                    Some(Pubkey::from(*comp.rent_recipient.unwrap()))
-                } else {
-                    None
-                }
-            })
-        })
-        .expect("Should have compressible extension with rent_recipient");
-    // Parse as SPL token account for assertion
-    use spl_token_2022::state::Account as SplTokenAccount;
-    let pre_spl_token_account = SplTokenAccount::unpack(&pre_token_account_data[..165]).unwrap();
     // Use the existing assert_transfer2 for CompressAndClose validation
     assert_transfer2(
         rpc,
         vec![Transfer2InstructionType::CompressAndClose(
             compress_and_close_input.clone(),
         )],
-        vec![Some(pre_spl_token_account)],
     )
     .await;
 
@@ -529,10 +483,7 @@ pub async fn assert_transfer2_compress_and_close<R: Rpc + Indexer>(
     assert_close_token_account(
         rpc,
         compress_and_close_input.solana_ctoken_account,
-        Some(pre_token_account_data),
-        account_lamports_before_close,
-        rent_recipient,
-        initial_recipient_lamports,
+        compress_and_close_input.authority,
     )
     .await;
 }

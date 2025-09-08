@@ -72,6 +72,7 @@ pub fn validate_token_account<const CHECK_RENT_AUTH: bool>(
                 }
 
                 if CHECK_RENT_AUTH {
+                    #[allow(clippy::collapsible_if)]
                     if !owner_matches {
                         if let Some(rent_authority) = compressible_ext.rent_authority.as_ref() {
                             if rent_authority.as_bytes() != *accounts.authority.key() {

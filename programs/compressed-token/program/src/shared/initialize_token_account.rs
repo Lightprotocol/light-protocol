@@ -34,6 +34,14 @@ pub fn initialize_token_account(
 
     // Create configuration for the compressed token
     let extensions = if let Some(compressible_config) = compressible_config.as_ref() {
+        if compressible_config.has_rent_authority != 1 {
+            msg!("Ctoken account with compressible extension must have rent authority and rent recipient");
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        if compressible_config.has_rent_authority != compressible_config.has_rent_recipient {
+            msg!("Ctoken account with compressible extension must have rent authority and rent recipient");
+            return Err(ProgramError::InvalidInstructionData);
+        }
         vec![ExtensionStructConfig::Compressible(
             CompressibleExtensionConfig {
                 rent_authority: (compressible_config.has_rent_authority != 0, ()),

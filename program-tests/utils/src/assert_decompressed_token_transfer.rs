@@ -1,18 +1,37 @@
 use anchor_spl::token_2022::spl_token_2022::{self, solana_program::program_pack::Pack};
 use light_client::rpc::Rpc;
 use light_ctoken_types::state::CompressedToken;
+use light_program_test::LightProgramTest;
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::pubkey::Pubkey;
 
-/// Assert compressible extension properties for one token account pair (before/after)
-pub fn assert_compressible_for_account(
+/// Assert compressible extension properties for an account, using cached pre-transaction state
+pub async fn assert_compressible_for_account(
+    rpc: &mut LightProgramTest,
     name: &str,
-    data_before: &[u8],
-    lamports_before: u64,
-    lamports_after: u64,
-    data_after: &[u8],
-    current_slot: u64,
+    account_pubkey: Pubkey,
 ) {
+    // Get pre-transaction state from cache
+    let pre_account = rpc
+        .get_pre_transaction_account(&account_pubkey)
+        .expect("Account should exist in pre-transaction context");
+
+    let data_before = pre_account.data.as_slice();
+    let lamports_before = pre_account.lamports;
+
+    // Get post-transaction state
+    let post_account = rpc
+        .get_account(account_pubkey)
+        .await
+        .expect("Failed to get account after transaction")
+        .expect("Account should exist after transaction");
+
+    let data_after = post_account.data.as_slice();
+    let lamports_after = post_account.lamports;
+
+    // Get current slot
+    let current_slot = rpc.get_slot().await.unwrap();
+
     println!("{} current_slot", current_slot);
     // Parse tokens
     let token_before = if data_before.len() > 165 {
@@ -91,16 +110,13 @@ pub fn assert_compressible_for_account(
 }
 
 /// Assert that a decompressed token transfer was successful by checking complete account state including extensions.
+/// Automatically retrieves pre-transaction state from the cached context.
 ///
 /// # Arguments
-/// * `rpc` - RPC client to fetch account data
+/// * `rpc` - RPC client to fetch account data (must be LightProgramTest)
 /// * `sender_account` - Source token account pubkey
 /// * `recipient_account` - Destination token account pubkey
 /// * `transfer_amount` - Amount that was transferred
-/// * `sender_before` - Complete sender account state before transfer
-/// * `recipient_before` - Complete recipient account state before transfer
-/// * `sender_data_before` - Complete sender account data before transfer (for extension comparison)
-/// * `recipient_data_before` - Complete recipient account data before transfer (for extension comparison)
 ///
 /// # Assertions
 /// * Sender balance decreased by transfer amount
@@ -108,42 +124,30 @@ pub fn assert_compressible_for_account(
 /// * All other fields remain unchanged (mint, owner, delegate, etc.)
 /// * Extensions are preserved (including compressible extensions)
 /// * If compressible extensions exist, last_written_slot should be updated to current slot
-#[allow(clippy::too_many_arguments)]
-pub async fn assert_decompressed_token_transfer<R: Rpc>(
-    rpc: &mut R,
+pub async fn assert_decompressed_token_transfer(
+    rpc: &mut LightProgramTest,
     sender_account: Pubkey,
     recipient_account: Pubkey,
     transfer_amount: u64,
-    sender_data_before: &[u8],
-    recipient_data_before: &[u8],
-    sender_lamports_before: u64,
-    recipient_lamports_before: u64,
 ) {
+    // Get pre-transaction state from cache for both accounts
+    let sender_before = rpc
+        .get_pre_transaction_account(&sender_account)
+        .expect("Sender account should exist in pre-transaction context");
+    let recipient_before = rpc
+        .get_pre_transaction_account(&recipient_account)
+        .expect("Recipient account should exist in pre-transaction context");
+
+    let sender_data_before = sender_before.data.as_slice();
+    let recipient_data_before = recipient_before.data.as_slice();
+
     // Fetch updated account data
     let sender_account_data = rpc.get_account(sender_account).await.unwrap().unwrap();
     let recipient_account_data = rpc.get_account(recipient_account).await.unwrap().unwrap();
-    let sender_account_data_after = sender_account_data.data.as_slice();
-    let recipient_account_data_after = recipient_account_data.data.as_slice();
-
-    let current_slot = rpc.get_slot().await.unwrap();
 
     // Check compressible extensions for both sender and recipient
-    assert_compressible_for_account(
-        "Sender",
-        sender_data_before,
-        sender_lamports_before,
-        sender_account_data.lamports,
-        sender_account_data_after,
-        current_slot,
-    );
-    assert_compressible_for_account(
-        "Recipient",
-        recipient_data_before,
-        recipient_lamports_before,
-        recipient_account_data.lamports,
-        recipient_account_data_after,
-        current_slot,
-    );
+    assert_compressible_for_account(rpc, "Sender", sender_account).await;
+    assert_compressible_for_account(rpc, "Recipient", recipient_account).await;
 
     {
         // Parse as SPL token accounts first

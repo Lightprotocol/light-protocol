@@ -2,8 +2,11 @@ use anchor_spl::token_2022::spl_token_2022;
 use light_client::rpc::Rpc;
 use light_compressed_token_sdk::instructions::create_associated_token_account::derive_ctoken_ata;
 use light_ctoken_types::{
-    state::{extensions::CompressibleExtension, solana_ctoken::CompressedToken},
-    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+    state::{
+        extensions::CompressibleExtension, get_compression_cost, get_rent_with_compression_cost,
+        solana_ctoken::CompressedToken,
+    },
+    BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
@@ -12,7 +15,7 @@ use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 pub struct CompressibleData {
     pub rent_authority: Pubkey,
     pub rent_recipient: Pubkey,
-    pub initial_lamports: u64,
+    pub num_prepaid_epochs: u64,
     pub write_top_up_lamports: Option<u32>,
 }
 
@@ -46,6 +49,25 @@ pub async fn assert_create_token_account<R: Rpc>(
                 COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
             );
 
+            // Calculate expected lamports balance
+            let rent_exemption = rpc
+                .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
+                .await
+                .expect("Failed to get rent exemption");
+
+            let rent_with_compression = get_rent_with_compression_cost(
+                COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+                compressible_info.num_prepaid_epochs,
+            );
+            let lamports_at_last_claimed_slot = get_compression_cost() + rent_exemption;
+            let expected_lamports = rent_exemption + rent_with_compression;
+
+            assert_eq!(
+                account_info.lamports, expected_lamports,
+                "Account should have rent-exempt balance ({}) plus prepaid rent with compression cost ({}) = {} lamports, but has {}",
+                rent_exemption, rent_with_compression, expected_lamports, account_info.lamports
+            );
+
             // Use zero-copy deserialization for compressible account
             let (actual_token_account, _) = CompressedToken::zero_copy_at(&account_info.data)
                 .expect("Failed to deserialize compressible token account with zero-copy");
@@ -68,7 +90,7 @@ pub async fn assert_create_token_account<R: Rpc>(
                         CompressibleExtension {
                             version: 1,
                             last_claimed_slot: current_slot,
-                            lamports_at_last_claimed_slot: compressible_info.initial_lamports,
+                            lamports_at_last_claimed_slot,
                             write_top_up_lamports: compressible_info.write_top_up_lamports,
                             rent_authority: Some(compressible_info.rent_authority.to_bytes()),
                             rent_recipient: Some(compressible_info.rent_recipient.to_bytes()),
@@ -101,6 +123,18 @@ pub async fn assert_create_token_account<R: Rpc>(
             };
 
             assert_eq!(actual_spl_token_account, expected_spl_token_account);
+            assert_eq!(account_info.data.len(), BASE_TOKEN_ACCOUNT_SIZE as usize);
+
+            // Calculate expected lamports balance
+            let rent_exemption = rpc
+                .get_minimum_balance_for_rent_exemption(BASE_TOKEN_ACCOUNT_SIZE as usize)
+                .await
+                .expect("Failed to get rent exemption");
+            assert_eq!(
+                account_info.lamports, rent_exemption,
+                "Account should have rent-exempt balance ({}) lamports, but has {}",
+                rent_exemption, account_info.lamports
+            );
         }
     }
 }

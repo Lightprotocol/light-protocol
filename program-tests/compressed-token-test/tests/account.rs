@@ -6,7 +6,8 @@ use light_compressed_token_sdk::instructions::{
     create_associated_token_account_idempotent, create_token_account,
 };
 use light_ctoken_types::{
-    state::extensions::compressible::SLOTS_PER_EPOCH, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+    state::{extensions::compressible::SLOTS_PER_EPOCH, get_rent},
+    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
@@ -24,9 +25,7 @@ use light_token_client::{
     instructions::transfer2::CompressInput,
 };
 use serial_test::serial;
-use solana_sdk::{
-    program_pack::Pack, pubkey::Pubkey, signature::Keypair, signer::Signer, system_instruction,
-};
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, system_instruction};
 use spl_token_2022::pod::PodAccount;
 
 /// Shared test context for account operations
@@ -129,17 +128,8 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
     .await;
 
     // Setup destination account for closure
-    let (destination_keypair, initial_destination_lamports) =
-        setup_destination_account(&mut context.rpc).await?;
+    let (destination_keypair, _) = setup_destination_account(&mut context.rpc).await?;
     let destination_pubkey = destination_keypair.pubkey();
-
-    // Get account lamports before closing
-    let account_lamports_before_close = context
-        .rpc
-        .get_account(token_account_pubkey)
-        .await?
-        .unwrap()
-        .lamports;
 
     // Close account using SPL SDK compatible instruction
     let close_account_ix = close_account(
@@ -159,15 +149,7 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
         .await?;
 
     // Verify account closure using existing assertion helper
-    assert_close_token_account(
-        &mut context.rpc,
-        token_account_pubkey,
-        None,
-        account_lamports_before_close,
-        destination_pubkey,
-        initial_destination_lamports,
-    )
-    .await;
+    assert_close_token_account(&mut context.rpc, token_account_pubkey, destination_pubkey).await;
 
     Ok(())
 }
@@ -220,6 +202,8 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
         .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
         .await?;
 
+    let num_prepaid_epochs = 1;
+    let write_top_up_lamports = Some(100);
     // Initialize compressible token account
     let create_token_account_ix =
         light_compressed_token_sdk::instructions::create_compressible_token_account(
@@ -229,8 +213,8 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
                 owner_pubkey: context.owner_keypair.pubkey(),
                 rent_authority: rent_authority_pubkey,
                 rent_recipient: rent_recipient_pubkey,
-                pre_pay_num_epochs: 1,
-                write_top_up_lamports: Some(100),
+                pre_pay_num_epochs: num_prepaid_epochs,
+                write_top_up_lamports,
                 payer_pda_bump,
                 payer: payer_pubkey,
             },
@@ -252,10 +236,6 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
         )
         .await?;
 
-    // Verify compressible account creation using existing assertion helper
-    // Account should have rent-exempt balance + get_rent for 1 epoch
-    // get_rent(261 bytes, 1 epoch) = (1220 + 261 * 10) * 1 + 11000 = 3830 + 11000 = 14830
-    let expected_lamports = rent_exemption + 11_000;
     assert_create_token_account(
         &mut context.rpc,
         token_account_pubkey,
@@ -264,8 +244,8 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
         Some(CompressibleData {
             rent_authority: rent_authority_pubkey,
             rent_recipient: rent_recipient_pubkey,
-            initial_lamports: expected_lamports,
-            write_top_up_lamports: Some(100),
+            num_prepaid_epochs,
+            write_top_up_lamports,
         }),
     )
     .await;
@@ -308,17 +288,6 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
         // Assert expects slot to change since creation.
         context.rpc.warp_to_slot(1).unwrap();
 
-        let pre_account_data = context
-            .rpc
-            .get_account(token_account_pubkey)
-            .await?
-            .expect("Token account should exist before compression");
-
-        let pre_spl_account = spl_token_2022::state::Account::unpack(&pre_account_data.data[..165])
-            .map_err(|e| {
-                RpcError::AssertRpcError(format!("Failed to parse token account: {}", e))
-            })?;
-
         let output_queue = context
             .rpc
             .get_random_state_tree_info()
@@ -346,32 +315,8 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
             authority: context.owner_keypair.pubkey(),
             output_queue,
         };
-        assert_transfer2_compress(
-            &mut context.rpc,
-            compress_input,
-            pre_spl_account,
-            &pre_account_data.data,
-            pre_account_data.lamports,
-        )
-        .await;
+        assert_transfer2_compress(&mut context.rpc, compress_input).await;
     }
-
-    // Get initial recipient lamports before closing
-    let initial_recipient_lamports = context
-        .rpc
-        .get_account(rent_recipient_pubkey)
-        .await?
-        .unwrap()
-        .lamports;
-
-    // Get account data before closing for assertion helper
-    let account_before_close = context
-        .rpc
-        .get_account(token_account_pubkey)
-        .await?
-        .unwrap();
-    let account_data_before_close = account_before_close.data.clone();
-    let account_lamports_before_close = account_before_close.lamports;
 
     // Close account using owner
     let close_account_ix = close_account(
@@ -394,10 +339,7 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
     assert_close_token_account(
         &mut context.rpc,
         token_account_pubkey,
-        Some(&account_data_before_close),
-        account_lamports_before_close,
-        rent_recipient_pubkey,
-        initial_recipient_lamports,
+        context.owner_keypair.pubkey(),
     )
     .await;
 
@@ -455,6 +397,8 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
         .airdrop(&rent_recipient_pubkey, 1_000_000)
         .map_err(|_| RpcError::AssertRpcError("Failed to airdrop to rent recipient".to_string()))?;
 
+    let num_prepaid_epochs = 0;
+    let write_top_up_lamports = Some(150);
     // Create compressible ATA
     let compressible_instruction = light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
         light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
@@ -463,8 +407,8 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
             mint: context.mint_pubkey,
             rent_authority: rent_authority_pubkey,
             rent_recipient: rent_recipient_pubkey,
-            pre_pay_num_epochs: 0,
-            write_top_up_lamports: Some(150),
+            pre_pay_num_epochs: num_prepaid_epochs,
+            write_top_up_lamports,
             payer_pda_bump: 0,
         }
     ).map_err(|e| RpcError::AssertRpcError(format!("Failed to create compressible ATA instruction: {}", e)))?;
@@ -478,42 +422,6 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
         )
         .await?;
 
-    // Calculate rent exemption for compressible token account
-    // Use the constant from ctoken-types
-    let compressible_account_size = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
-    let rent_exemption = context
-        .rpc
-        .get_minimum_balance_for_rent_exemption(compressible_account_size)
-        .await?;
-
-    // Get the actual compressible ATA to verify its size and lamports
-    let (compressible_ata_pubkey, _) =
-        derive_ctoken_ata(&compressible_owner_pubkey, &context.mint_pubkey);
-    let compressible_account = context
-        .rpc
-        .get_account(compressible_ata_pubkey)
-        .await?
-        .expect("Compressible ATA should exist");
-
-    // Assert the account size is what we expect
-    assert_eq!(
-        compressible_account.data.len(),
-        compressible_account_size,
-        "Compressible token account should be {} bytes, but was {} bytes",
-        compressible_account_size,
-        compressible_account.data.len()
-    );
-
-    // The account should have rent-exempt balance plus additional rent for 1 epoch
-    // Additional rent = (1220 + 261 * 10) * 1 + 10000 + 1000 = 3830 + 11000 = 14830
-    // But only the actual rent without compression costs is added to lamports
-    let expected_lamports = rent_exemption + 11_000;
-    assert_eq!(
-        compressible_account.lamports, expected_lamports,
-        "Account should have rent-exempt balance plus rent payment ({} lamports), but has {}",
-        expected_lamports, compressible_account.lamports
-    );
-
     // Verify compressible ATA creation using existing assertion helper
     assert_create_associated_token_account(
         &mut context.rpc,
@@ -522,8 +430,8 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
         Some(CompressibleData {
             rent_authority: rent_authority_pubkey,
             rent_recipient: rent_recipient_pubkey,
-            initial_lamports: expected_lamports, // Use actual balance with rent
-            write_top_up_lamports: Some(150),
+            num_prepaid_epochs, // Use actual balance with rent
+            write_top_up_lamports,
         }),
     )
     .await;
@@ -531,22 +439,6 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
     // Test closing compressible ATA
     let (compressible_ata_pubkey, _) =
         derive_ctoken_ata(&compressible_owner_pubkey, &context.mint_pubkey);
-
-    let initial_recipient_lamports = context
-        .rpc
-        .get_account(rent_recipient_pubkey)
-        .await?
-        .unwrap()
-        .lamports;
-
-    // Get account data before closing for assertion helper
-    let account_before_close = context
-        .rpc
-        .get_account(compressible_ata_pubkey)
-        .await?
-        .unwrap();
-    let account_data_before_close = account_before_close.data.clone();
-    let account_lamports_before_close = account_before_close.lamports;
 
     // Close compressible ATA
     let close_account_ix = close_account(
@@ -569,10 +461,7 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
     assert_close_token_account(
         &mut context.rpc,
         compressible_ata_pubkey,
-        Some(&account_data_before_close),
-        account_lamports_before_close,
-        rent_recipient_pubkey,
-        initial_recipient_lamports,
+        compressible_owner_keypair.pubkey(),
     )
     .await;
 
@@ -639,27 +528,20 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
         .await?;
 
     // Get the token account data and state BEFORE compress_and_close
-    let token_account_before = context
-        .rpc
-        .get_account(token_account_pubkey)
-        .await?
-        .expect("Token account should exist");
-    let token_account_data_before = token_account_before.data.clone();
-    let token_account_lamports_before = token_account_before.lamports;
-
-    // Get initial recipient lamports for exact rent validation
-    let initial_recipient_lamports = context
-        .rpc
-        .get_account(rent_recipient_pubkey)
-        .await?
-        .map(|acc| acc.lamports)
-        .unwrap_or(0);
-
     // Get the output queue for the compress_and_close operation
     let output_queue = context
         .rpc
         .get_random_state_tree_info()?
         .get_output_pubkey()?;
+    // Top up rent for one more epoch
+    context
+        .rpc
+        .airdrop_lamports(
+            &token_account_pubkey,
+            get_rent(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, 1),
+        )
+        .await
+        .unwrap();
 
     // Advance to epoch 1 to make the account compressible
     // Account was created with 0 epochs of rent prepaid, so it's instantly compressible
@@ -667,14 +549,36 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
     context.rpc.warp_to_slot(SLOTS_PER_EPOCH + 1).unwrap();
 
     // Compress and close using rent authority (with 0 balance)
+    let result = compress_and_close(
+        &mut context.rpc,
+        token_account_pubkey,
+        &rent_authority_keypair,
+        &context.payer,
+    )
+    .await;
+
+    assert!(
+        result
+            .as_ref()
+            .unwrap_err()
+            .to_string()
+            .contains("invalid account data for instruction"),
+        "{}",
+        result.unwrap_err().to_string()
+    );
+    // Advance to epoch 1 to make the account compressible
+    // Account was created with 0 epochs of rent prepaid, so it's instantly compressible
+    // But we still need to advance time to trigger the rent authority logic
+    context.rpc.warp_to_slot((SLOTS_PER_EPOCH * 2) + 1).unwrap();
+
     compress_and_close(
         &mut context.rpc,
         token_account_pubkey,
         &rent_authority_keypair,
         &context.payer,
     )
-    .await?;
-
+    .await
+    .unwrap();
     // Use the new assert_transfer2_compress_and_close for comprehensive validation
     use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
     use light_token_client::instructions::transfer2::CompressAndCloseInput;
@@ -686,9 +590,6 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
             authority: rent_authority_keypair.pubkey(),
             output_queue,
         },
-        &token_account_data_before,
-        token_account_lamports_before,
-        initial_recipient_lamports,
     )
     .await;
 

@@ -252,11 +252,6 @@ async fn test_create_compressed_mint() {
         .await
         .unwrap();
 
-    // Get pre-decompress SPL token account state
-    let pre_decompress_account_data = rpc.get_account(ctoken_ata_pubkey).await.unwrap().unwrap();
-    let pre_decompress_spl_account =
-        spl_token_2022::state::Account::unpack(&pre_decompress_account_data.data).unwrap();
-
     // Create decompression instruction using the wrapper
     let decompress_instruction = create_decompress_instruction(
         &mut rpc,
@@ -290,7 +285,6 @@ async fn test_create_compressed_mint() {
                     solana_token_account: ctoken_ata_pubkey,
                     amount: decompress_amount,
                 },
-                pre_decompress_spl_account,
             )
             .await;
 
@@ -307,11 +301,6 @@ async fn test_create_compressed_mint() {
 
     let compress_recipient = Keypair::new();
     let compress_amount = 100u64; // Compress 100 tokens
-
-    // Get pre-compress SPL token account state
-    let pre_compress_account_data = rpc.get_account(ctoken_ata_pubkey).await.unwrap().unwrap();
-    let pre_compress_spl_account =
-        spl_token_2022::state::Account::unpack(&pre_compress_account_data.data).unwrap();
 
     // Create compress instruction using the multi-transfer functionality
     let compress_instruction = create_generic_transfer2_instruction(
@@ -351,9 +340,6 @@ async fn test_create_compressed_mint() {
             authority: new_recipient_keypair.pubkey(),
             output_queue,
         },
-        pre_compress_spl_account,
-        &pre_compress_account_data.data,
-        pre_compress_account_data.lamports,
     )
     .await;
 
@@ -465,14 +451,6 @@ async fn test_create_compressed_mint() {
         // Get output queues for the operations
         let multi_output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
-        // Get pre-account states for SPL token accounts
-        let pre_compress_source_data = rpc.get_account(compress_source_ata).await.unwrap().unwrap();
-        let pre_compress_source_account =
-            spl_token_2022::state::Account::unpack(&pre_compress_source_data.data).unwrap();
-
-        let pre_decompress_dest_data = rpc.get_account(decompress_dest_ata).await.unwrap().unwrap();
-        let pre_decompress_dest_account =
-            spl_token_2022::state::Account::unpack(&pre_decompress_dest_data.data).unwrap();
         let instruction_actions = vec![
             // 1. Transfer compressed tokens to a new recipient
             Transfer2InstructionType::Transfer(TransferInput {
@@ -527,13 +505,7 @@ async fn test_create_compressed_mint() {
         .await
         .unwrap();
 
-        let pre_token_accounts = vec![
-            None,                              // Transfer operation - no pre-account needed
-            Some(pre_decompress_dest_account), // Decompress operation - needs pre-account
-            Some(pre_compress_source_account), // Compress operation - needs pre-account
-        ];
-
-        assert_transfer2(&mut rpc, instruction_actions, pre_token_accounts).await;
+        assert_transfer2(&mut rpc, instruction_actions).await;
     }
 }
 
@@ -998,10 +970,6 @@ async fn test_decompressed_token_transfer() {
                 recipient_ata,
                 second_recipient_ata,
                 transfer_amount,
-                &sender_account_data.data,
-                &recipient_account_data.data,
-                sender_account_data.lamports,
-                recipient_account_data.lamports,
             )
             .await;
         }
@@ -1081,9 +1049,6 @@ async fn test_decompressed_token_transfer() {
             authority: second_recipient_keypair.pubkey(),
             output_queue,
         },
-        pre_compress_spl_account,
-        &pre_compress_account_data.data,
-        pre_compress_account_data.lamports,
     )
     .await;
 

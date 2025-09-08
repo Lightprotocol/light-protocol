@@ -146,7 +146,6 @@ async fn test_transfer2_delegated_partial() {
             amount: transfer_amount,
             is_delegate_transfer: true, // This was a delegate transfer
         })],
-        vec![None],
         Some(delegate),
     )
     .await;
@@ -194,7 +193,6 @@ async fn test_transfer2_delegated_partial() {
             amount: owner_transfer_amount,
             is_delegate_transfer: false, // Owner is transferring, not delegate
         })],
-        vec![None],
     )
     .await;
 

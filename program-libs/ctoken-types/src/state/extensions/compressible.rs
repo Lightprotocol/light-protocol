@@ -1,4 +1,5 @@
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopy, ZeroCopyMut};
+use solana_msg::msg;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
 
@@ -34,7 +35,11 @@ pub fn get_rent(bytes: u64, epochs: u64) -> u64 {
 }
 
 pub fn get_rent_with_compression_cost(bytes: u64, epochs: u64) -> u64 {
-    rent_curve_per_epoch(bytes) * epochs + COMPRESSION_COST + COMPRESSION_INCENTIVE
+    rent_curve_per_epoch(bytes) * epochs + get_compression_cost()
+}
+
+pub const fn get_compression_cost() -> u64 {
+    COMPRESSION_COST + COMPRESSION_INCENTIVE
 }
 
 macro_rules! impl_is_compressible {
@@ -77,14 +82,18 @@ fn calculate_rent_and_balance(
     last_claimed_slot: impl ZeroCopyNumTrait,
     lamports_at_last_claimed_slot: impl ZeroCopyNumTrait,
 ) -> (bool, u64) {
-    let (required_epochs, rent_per_epoch, epochs_paid, unutilized_lamports) =
-        calculate_rent_details(
-            bytes,
-            current_slot,
-            current_lamports,
-            last_claimed_slot,
-            lamports_at_last_claimed_slot,
-        );
+    let (required_epochs, rent_per_epoch, epochs_paid, unutilized_lamports) = calculate_rent_inner(
+        bytes,
+        current_slot,
+        current_lamports,
+        last_claimed_slot,
+        lamports_at_last_claimed_slot,
+    );
+    msg!(
+        "remaining epochs paid {}",
+        epochs_paid.saturating_sub(required_epochs)
+    );
+    msg!("remaining epochs paid {} {}", epochs_paid, required_epochs);
     let is_compressible = epochs_paid < required_epochs;
     if is_compressible {
         let epochs_payable = required_epochs.saturating_sub(epochs_paid);
@@ -97,7 +106,7 @@ fn calculate_rent_and_balance(
 }
 
 #[inline(always)]
-fn calculate_rent_details(
+fn calculate_rent_inner(
     bytes: u64,
     current_slot: u64,
     current_lamports: u64,
@@ -130,7 +139,7 @@ pub fn calculate_close_lamports(
     last_claimed_slot: impl ZeroCopyNumTrait,
     lamports_at_last_claimed_slot: impl ZeroCopyNumTrait,
 ) -> (u64, u64) {
-    let (_, _, _, unutilized_lamports) = calculate_rent_details(
+    let (_, _, _, unutilized_lamports) = calculate_rent_inner(
         bytes,
         current_slot,
         current_lamports,
