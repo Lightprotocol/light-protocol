@@ -138,10 +138,13 @@ impl Rpc for LightProgramTest {
     ) -> Result<Signature, RpcError> {
         let sig = *transaction.signatures.first().unwrap();
         if self.indexer.is_some() {
-            // Delegate to _send_transaction_with_batched_event which handles counter and logging
+            // Delegate to _send_transaction_with_batched_event which handles counter, logging and pre_context
             self._send_transaction_with_batched_event(transaction)
                 .await?;
         } else {
+            // Cache the current context before transaction execution
+            let pre_context_snapshot = self.context.clone();
+
             // Handle transaction directly without logging (logging should be done elsewhere)
             self.transaction_counter += 1;
             let _res = self.context.send_transaction(transaction).map_err(|x| {
@@ -153,6 +156,9 @@ impl Rpc for LightProgramTest {
             })?;
 
             self.maybe_print_logs(_res.pretty_logs());
+
+            // Update pre_context only after successful transaction execution
+            self.pre_context = Some(pre_context_snapshot);
         }
         Ok(sig)
     }
@@ -162,6 +168,10 @@ impl Rpc for LightProgramTest {
         transaction: Transaction,
     ) -> Result<(Signature, Slot), RpcError> {
         let sig = *transaction.signatures.first().unwrap();
+
+        // Cache the current context before transaction execution
+        let pre_context_snapshot = self.context.clone();
+
         self.transaction_counter += 1;
         let _res = self.context.send_transaction(transaction).map_err(|x| {
             if self.config.log_failed_tx {
@@ -172,6 +182,9 @@ impl Rpc for LightProgramTest {
 
         let slot = self.context.get_sysvar::<Clock>().slot;
         self.maybe_print_logs(_res.pretty_logs());
+
+        // Update pre_context only after successful transaction execution
+        self.pre_context = Some(pre_context_snapshot);
 
         Ok((sig, slot))
     }
@@ -328,9 +341,13 @@ impl LightProgramTest {
 
         let signature = transaction.signatures[0];
         let transaction_for_logging = transaction.clone(); // Clone for logging
-                                                           // Simulate the transaction. Currently, in banks-client/server, only
-                                                           // simulations are able to track CPIs. Therefore, simulating is the
-                                                           // only way to retrieve the event.
+
+        // Cache the current context before transaction execution
+        let pre_context_snapshot = self.context.clone();
+
+        // Simulate the transaction. Currently, in banks-client/server, only
+        // simulations are able to track CPIs. Therefore, simulating is the
+        // only way to retrieve the event.
         let simulation_result = self.context.simulate_transaction(transaction.clone());
 
         // Transaction was successful, execute it.
@@ -474,6 +491,9 @@ impl LightProgramTest {
             }
         }
 
+        // Update pre_context only after successful transaction execution
+        self.pre_context = Some(pre_context_snapshot);
+
         Ok(event)
     }
 
@@ -494,6 +514,10 @@ impl LightProgramTest {
         );
 
         let signature = transaction.signatures[0];
+
+        // Cache the current context before transaction execution
+        let pre_context_snapshot = self.context.clone();
+
         // Simulate the transaction. Currently, in banks-client/server, only
         // simulations are able to track CPIs. Therefore, simulating is the
         // only way to retrieve the event.
@@ -519,6 +543,9 @@ impl LightProgramTest {
             RpcError::TransactionError(x.err)
         })?;
         self.maybe_print_logs(_res.pretty_logs());
+
+        // Update pre_context only after successful transaction execution
+        self.pre_context = Some(pre_context_snapshot);
 
         let slot = self.get_slot().await?;
         let result = event.map(|event| (event, signature, slot));
