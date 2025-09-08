@@ -647,10 +647,6 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
     let token_account_data_before = token_account_before.data.clone();
     let token_account_lamports_before = token_account_before.lamports;
 
-    let pre_token_account =
-        spl_token_2022::state::Account::unpack(&token_account_data_before[..165])
-            .expect("Failed to unpack token account");
-
     // Get initial recipient lamports for exact rent validation
     let initial_recipient_lamports = context
         .rpc
@@ -690,7 +686,6 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
             authority: rent_authority_keypair.pubkey(),
             output_queue,
         },
-        pre_token_account,
         &token_account_data_before,
         token_account_lamports_before,
         initial_recipient_lamports,

@@ -51,43 +51,53 @@ pub fn pack_for_compress_and_close(
     let source_index = packed_accounts.insert_or_get(ctoken_account_pubkey);
     let mint_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
     let owner_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
-    let authority_index = if signer_is_rent_authority {
-        // Rent authority is separate and will be added as a signer later
-        packed_accounts.insert_or_get_config(
-            Pubkey::from(ctoken_account.owner.to_bytes()),
-            false,
-            false,
-        )
-    } else {
-        // Owner is the authority and needs to sign
-        packed_accounts.insert_or_get_config(
-            Pubkey::from(ctoken_account.owner.to_bytes()),
-            true,
-            false,
-        )
-    };
 
-    let rent_recipient_index = if signer_is_rent_authority {
+    let (rent_recipient_index, authority_index) = if signer_is_rent_authority {
         // When using rent authority from extension, find the rent recipient from extension
         let mut recipient_index = owner_index; // Default to owner if no extension found
+        let mut authority_index = owner_index; // Default to owner if no extension found
         if let Some(extensions) = &ctoken_account.extensions {
             for extension in extensions {
                 if let ZExtensionStruct::Compressible(e) = extension {
-                    packed_accounts.insert_or_get_config(
-                        Pubkey::from(*e.rent_authority.unwrap()),
+                    let rent_authority =
+                        e.rent_authority.ok_or(TokenSdkError::RentAuthorityIsNone)?;
+                    authority_index = packed_accounts.insert_or_get_config(
+                        Pubkey::from(*rent_authority),
                         true,
                         true,
                     );
-                    recipient_index =
-                        packed_accounts.insert_or_get(Pubkey::from(*e.rent_recipient.unwrap()));
+                    if let Some(rent_recipient) = e.rent_recipient.as_deref() {
+                        recipient_index =
+                            packed_accounts.insert_or_get(Pubkey::from(*rent_recipient));
+                    }
                     break;
                 }
             }
         }
-        recipient_index
+        (recipient_index, authority_index)
     } else {
-        // When not using rent authority, rent goes back to the owner
-        owner_index
+        // Owner is the authority and needs to sign
+        // Check if there's a compressible extension to get the rent_recipient
+        let mut recipient_index = owner_index; // Default to owner if no extension
+        if let Some(extensions) = &ctoken_account.extensions {
+            for extension in extensions {
+                if let ZExtensionStruct::Compressible(e) = extension {
+                    if let Some(rent_recipient) = e.rent_recipient.as_deref() {
+                        recipient_index =
+                            packed_accounts.insert_or_get(Pubkey::from(*rent_recipient));
+                    }
+                    break;
+                }
+            }
+        }
+        (
+            recipient_index,
+            packed_accounts.insert_or_get_config(
+                Pubkey::from(ctoken_account.owner.to_bytes()),
+                true,
+                false,
+            ),
+        )
     };
     Ok(CompressAndCloseIndices {
         source_index,

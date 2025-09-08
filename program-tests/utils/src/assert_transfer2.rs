@@ -451,7 +451,7 @@ pub async fn assert_transfer2_compress<R: Rpc + Indexer>(
     rpc: &mut R,
     compress_input: CompressInput<'_>,
     pre_spl_token_account: spl_token_2022::state::Account,
-    pre_spl_account_data: &[u8],
+    pre_token_account_data: &[u8],
     pre_spl_account_lamports: u64,
 ) {
     // Get current slot for compressible extension assertion
@@ -474,7 +474,7 @@ pub async fn assert_transfer2_compress<R: Rpc + Indexer>(
     // Assert compressible extension was updated if it exists
     assert_compressible_for_account(
         "SPL source account",
-        pre_spl_account_data,
+        pre_token_account_data,
         pre_spl_account_lamports,
         spl_account_data_after.lamports,
         &spl_account_data_after.data,
@@ -486,8 +486,7 @@ pub async fn assert_transfer2_compress<R: Rpc + Indexer>(
 pub async fn assert_transfer2_compress_and_close<R: Rpc + Indexer>(
     rpc: &mut R,
     compress_and_close_input: light_token_client::instructions::transfer2::CompressAndCloseInput,
-    pre_spl_token_account: spl_token_2022::state::Account,
-    pre_spl_account_data: &[u8],
+    pre_token_account_data: &[u8],
     account_lamports_before_close: u64,
     initial_recipient_lamports: u64,
 ) {
@@ -497,7 +496,7 @@ pub async fn assert_transfer2_compress_and_close<R: Rpc + Indexer>(
     use crate::assert_close_token_account::assert_close_token_account;
 
     // Parse to extract rent_recipient from compressible extension
-    let (compressed_token, _) = CompressedToken::zero_copy_at(pre_spl_account_data)
+    let (compressed_token, _) = CompressedToken::zero_copy_at(pre_token_account_data)
         .expect("Failed to parse compressed token account");
 
     let rent_recipient = compressed_token
@@ -513,7 +512,9 @@ pub async fn assert_transfer2_compress_and_close<R: Rpc + Indexer>(
             })
         })
         .expect("Should have compressible extension with rent_recipient");
-
+    // Parse as SPL token account for assertion
+    use spl_token_2022::state::Account as SplTokenAccount;
+    let pre_spl_token_account = SplTokenAccount::unpack(&pre_token_account_data[..165]).unwrap();
     // Use the existing assert_transfer2 for CompressAndClose validation
     assert_transfer2(
         rpc,
@@ -528,7 +529,7 @@ pub async fn assert_transfer2_compress_and_close<R: Rpc + Indexer>(
     assert_close_token_account(
         rpc,
         compress_and_close_input.solana_ctoken_account,
-        Some(pre_spl_account_data),
+        Some(pre_token_account_data),
         account_lamports_before_close,
         rent_recipient,
         initial_recipient_lamports,

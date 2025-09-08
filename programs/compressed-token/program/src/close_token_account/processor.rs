@@ -1,6 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
-use light_account_checks::AccountInfoTrait;
+use light_account_checks::{checks::check_signer, AccountInfoTrait};
+use light_compressed_account::pubkey::AsPubkey;
 use light_ctoken_types::state::{CompressedToken, ZCompressedTokenMut, ZExtensionStructMut};
 use light_profiler::profile;
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
@@ -120,7 +121,10 @@ pub fn close_token_account_inner(
     accounts: &CloseTokenAccountAccounts<'_>,
 ) -> Result<(), ProgramError> {
     let token_account_lamports = AccountInfoTrait::lamports(accounts.token_account);
-
+    check_signer(accounts.authority).map_err(|e| {
+        anchor_lang::solana_program::msg!("Authority signer check failed: {:?}", e);
+        ProgramError::from(e)
+    })?;
     // Check for compressible extension and handle lamport distribution
     {
         let token_account_data = AccountInfoTrait::try_borrow_data(accounts.token_account)?;
@@ -139,7 +143,7 @@ pub fn close_token_account_inner(
                     #[cfg(not(target_os = "solana"))]
                     let current_slot = 0;
 
-                    let (lamports_to_destination, lamports_to_authority) =
+                    let (mut lamports_to_destination,mut lamports_to_authority) =
                         light_ctoken_types::state::extensions::compressible::calculate_close_lamports(
                             accounts.token_account.data_len() as u64,
                             current_slot,
@@ -147,6 +151,24 @@ pub fn close_token_account_inner(
                             *compressible_ext.last_claimed_slot,
                             *compressible_ext.lamports_at_last_claimed_slot,
                         );
+                    // If rent authority is signer transfer all unused lamports to rent recipient
+                    // else transfer unused lamports to fee payer
+                    if let Some(rent_authority) = compressible_ext.rent_authority.as_ref() {
+                        msg!(
+                            "accounts.authority.key() {:?}",
+                            solana_pubkey::Pubkey::new_from_array(*accounts.authority.key())
+                        );
+                        msg!(
+                            "rent_authority.as_bytes() {:?}",
+                            solana_pubkey::Pubkey::new_from_array(
+                                (*rent_authority).to_pubkey_bytes()
+                            )
+                        );
+                        if accounts.authority.key() == rent_authority.as_bytes() {
+                            lamports_to_destination += lamports_to_authority;
+                            lamports_to_authority = 0;
+                        }
+                    }
                     msg!("lamports_to_destination {}", lamports_to_destination);
 
                     // Transfer lamports to destination (rent recipient)

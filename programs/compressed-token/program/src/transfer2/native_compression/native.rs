@@ -1,6 +1,9 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
-use light_account_checks::{checks::check_owner, packed_accounts::ProgramPackedAccounts};
+use light_account_checks::{
+    checks::{check_owner, check_signer},
+    packed_accounts::ProgramPackedAccounts,
+};
 use light_ctoken_types::{
     instructions::transfer2::{
         ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
@@ -210,12 +213,17 @@ pub fn native_compression(
                 )?;
                 *compressed_token.amount = 0.into();
             }
+            let authority = authority.ok_or(ErrorCode::CompressAndCloseAuthorityMissing)?;
+            check_signer(authority).map_err(|e| {
+                anchor_lang::solana_program::msg!("Authority signer check failed: {:?}", e);
+                ProgramError::from(e)
+            })?;
             validate_token_account::<true>(
                 &CloseTokenAccountAccounts {
                     token_account: token_account_info,
                     destination: destination
                         .ok_or(ErrorCode::CompressAndCloseDestinationMissing)?,
-                    authority: authority.ok_or(ErrorCode::CompressAndCloseAuthorityMissing)?,
+                    authority,
                 },
                 &compressed_token,
             )?;
