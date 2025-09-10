@@ -404,21 +404,14 @@ impl PartialEq<CompressedToken> for ZCompressedToken<'_> {
                             crate::state::extensions::ExtensionStruct::TokenMetadata(regular_tm),
                         ) => {
                             if zc_tm.mint.to_bytes() != regular_tm.mint.to_bytes()
-                                || zc_tm.metadata.name != regular_tm.metadata.name.as_slice()
-                                || zc_tm.metadata.symbol != regular_tm.metadata.symbol.as_slice()
-                                || zc_tm.metadata.uri != regular_tm.metadata.uri.as_slice()
-                                || zc_tm.version != regular_tm.version
+                                || zc_tm.name != regular_tm.name.as_slice()
+                                || zc_tm.symbol != regular_tm.symbol.as_slice()
+                                || zc_tm.uri != regular_tm.uri.as_slice()
                             {
                                 return false;
                             }
-                            match (&zc_tm.update_authority, &regular_tm.update_authority) {
-                                (Some(zc_auth), Some(regular_auth)) => {
-                                    if zc_auth.to_bytes() != regular_auth.to_bytes() {
-                                        return false;
-                                    }
-                                }
-                                (None, None) => {}
-                                _ => return false,
+                            if zc_tm.update_authority != regular_tm.update_authority {
+                                return false;
                             }
                             if zc_tm.additional_metadata.len()
                                 != regular_tm.additional_metadata.len()

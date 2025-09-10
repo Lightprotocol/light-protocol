@@ -3,9 +3,7 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::instruction_data::{
     data::ZOutputCompressedAccountWithPackedContextMut,
-    with_readonly::{
-        InstructionDataInvokeCpiWithReadOnly, ZInstructionDataInvokeCpiWithReadOnlyMut,
-    },
+    with_readonly::InstructionDataInvokeCpiWithReadOnly,
 };
 use light_ctoken_types::{
     hash_cache::HashCache,
@@ -99,10 +97,7 @@ pub fn process_mint_action(
     let mut hash_cache = HashCache::new();
     // TODO: unify with cpi context
     let queue_indices = QueueIndices::new(&parsed_instruction_data, &validated_accounts)?;
-    set_compressed_lamports(
-        &parsed_instruction_data.actions,
-        &mut cpi_instruction_struct,
-    )?;
+
     // If create mint
     // 1. derive spl mint pda
     // 2. set create address
@@ -145,8 +140,6 @@ pub fn process_mint_action(
         &queue_indices,
     )?;
 
-    sol_log_compute_units();
-
     let cpi_accounts = validated_accounts.get_cpi_accounts(queue_indices.deduplicated, accounts)?;
     if let Some(executing) = validated_accounts.executing.as_ref() {
         // Execute CPI to light-system-program
@@ -156,7 +149,7 @@ pub fn process_mint_action(
             validated_accounts
                 .tree_pubkeys(queue_indices.deduplicated)
                 .as_slice(),
-            accounts_config.with_lamports,
+            false, // no sol_pool_pda
             None,
             executing.system.cpi_context.map(|x| *x.key()),
             false, // write to cpi context account
@@ -169,7 +162,7 @@ pub fn process_mint_action(
             cpi_accounts,
             cpi_bytes,
             &[],
-            false, // no sol_pool_pda for create_compressed_mint
+            false, // no sol_pool_pda
             None,
             validated_accounts
                 .write_to_cpi_context_system
@@ -334,26 +327,5 @@ pub fn process_actions<'a>(
         }
     }
 
-    Ok(())
-}
-
-/// Sets compressed lamports by summing all MintTo action lamports
-#[profile]
-fn set_compressed_lamports(
-    actions: &[ZAction],
-    cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
-) -> Result<(), ProgramError> {
-    let mut compressed_lamports: u64 = 0;
-    for action in actions.iter() {
-        if let ZAction::MintTo(action) = action {
-            if let Some(lamports) = action.lamports {
-                compressed_lamports = compressed_lamports
-                    .checked_add(u64::from(*lamports))
-                    .ok_or(ProgramError::InvalidInstructionData)?;
-            }
-        }
-    }
-    cpi_instruction_struct.compress_or_decompress_lamports = compressed_lamports.into();
-    cpi_instruction_struct.is_compress = if compressed_lamports > 0 { 1 } else { 0 };
     Ok(())
 }

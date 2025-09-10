@@ -8,22 +8,22 @@ use light_ctoken_types::{
     state::{ZCompressedMintMut, ZExtensionStructMut},
 };
 use light_profiler::profile;
-use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
+use light_zero_copy::traits::ZeroCopyAt;
 use spl_pod::solana_msg::msg;
 
 /// Simple authority check helper - validates that authority is Some (signer was validated)
 #[profile]
 fn check_validated_metadata_authority(
     validated_metadata_authority: &Option<Pubkey>,
-    authority: &<Option<Pubkey> as ZeroCopyAtMut<'_>>::ZeroCopyAtMut,
+    authority: &Pubkey,
     operation_name: &str,
 ) -> Result<(), ProgramError> {
     if let Some(validated_metadata_authority) = validated_metadata_authority {
-        let authority = authority.as_ref().ok_or(ProgramError::from(
-            ErrorCode::MintActionInvalidMintAuthority,
-        ))?;
+        if authority == &Pubkey::new_from_array([0u8; 32]) {
+            return Err(ErrorCode::MintActionInvalidMintAuthority.into());
+        }
 
-        if *validated_metadata_authority != **authority {
+        if *validated_metadata_authority != *authority {
             return Err(ErrorCode::MintActionInvalidMintAuthority.into());
         }
     } else {
@@ -87,13 +87,13 @@ pub fn process_update_metadata_field_action(
             // Update metadata fields - only apply if allocated size matches action value size
             match action.field_type {
                 0 => {
-                    conditional_metadata_update(metadata.metadata.name, action.value);
+                    conditional_metadata_update(metadata.name, action.value);
                 }
                 1 => {
-                    conditional_metadata_update(metadata.metadata.symbol, action.value);
+                    conditional_metadata_update(metadata.symbol, action.value);
                 }
                 2 => {
-                    conditional_metadata_update(metadata.metadata.uri, action.value);
+                    conditional_metadata_update(metadata.uri, action.value);
                 }
                 _ => {
                     // Find existing key and conditionally update
@@ -151,27 +151,27 @@ fn validate_metadata_invariants(
 /// Updates metadata authority field when allocation and action match
 #[profile]
 fn update_metadata_authority_field(
-    metadata_authority: &mut <Option<light_compressed_account::Pubkey> as ZeroCopyAtMut<'_>>::ZeroCopyAtMut,
+    metadata_authority: &mut light_compressed_account::Pubkey,
     new_authority: Option<light_compressed_account::Pubkey>,
 ) -> Result<(), ProgramError> {
-    match (metadata_authority.as_mut(), new_authority) {
-        (Some(field_ref), Some(new_auth)) => {
+    match (new_authority, metadata_authority.to_bytes() == [0u8; 32]) {
+        (Some(new_auth), false) => {
             // Update existing authority to new value
-            **field_ref = new_auth;
+            *metadata_authority = new_auth;
             msg!("Authority updated successfully");
         }
-        (None, None) => {
+        (None, false) => {
             // Authority was correctly revoked during allocation - nothing to do
             msg!("Authority successfully revoked");
         }
-        (Some(_), None) => {
-            // This should never happen with correct allocation logic
-            msg!("Internal error: authority field allocated but should be revoked");
-            return Err(ErrorCode::MintActionUnsupportedOperation.into());
-        }
-        (None, Some(_)) => {
+        (Some(_), true) => {
             // This should never happen with correct allocation logic
             msg!("Internal error: no authority field allocated but trying to set authority");
+            return Err(ErrorCode::MintActionUnsupportedOperation.into());
+        }
+        (None, true) => {
+            // This should never happen with correct allocation logic
+            msg!("Internal error: authority field allocated but should be revoked");
             return Err(ErrorCode::MintActionUnsupportedOperation.into());
         }
     }
@@ -208,7 +208,7 @@ pub fn process_update_metadata_authority_action(
                 Some(action.new_authority)
             };
 
-            if metadata.update_authority.is_none() {
+            if metadata.update_authority == Pubkey::new_from_array([0u8; 32]) {
                 let instruction_data_mint_authority = instruction_data_mint_authority
                     .ok_or(ErrorCode::MintActionInvalidMintAuthority)?;
                 {

@@ -4,7 +4,7 @@ use light_compressed_token::shared::cpi_bytes_size::{
     allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
 };
 use light_ctoken_types::state::{
-    extensions::{AdditionalMetadataConfig, MetadataConfig, TokenMetadataConfig},
+    extensions::{AdditionalMetadataConfig, TokenMetadataConfig},
     BaseCompressedMintConfig, CompressedMint, CompressedMintConfig, ExtensionStructConfig,
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
@@ -25,12 +25,9 @@ fn test_exact_allocation_assertion() {
     ];
 
     let extensions_config = vec![ExtensionStructConfig::TokenMetadata(TokenMetadataConfig {
-        update_authority: (true, ()),
-        metadata: MetadataConfig {
-            name: name_len,
-            symbol: symbol_len,
-            uri: uri_len,
-        },
+        name: name_len,
+        symbol: symbol_len,
+        uri: uri_len,
         additional_metadata: additional_metadata_configs.clone(),
     })];
 
@@ -292,12 +289,9 @@ fn test_allocation_with_various_metadata_sizes() {
             .collect();
 
         let extensions_config = vec![ExtensionStructConfig::TokenMetadata(TokenMetadataConfig {
-            update_authority: (true, ()),
-            metadata: MetadataConfig {
-                name: *name_len,
-                symbol: *symbol_len,
-                uri: *uri_len,
-            },
+            name: *name_len,
+            symbol: *symbol_len,
+            uri: *uri_len,
             additional_metadata: additional_metadata_configs,
         })];
 

@@ -16,7 +16,7 @@ use light_ctoken_types::{
     },
     state::{
         AdditionalMetadata, AdditionalMetadataConfig, BaseCompressedMint, CompressedMint,
-        ExtensionStruct, Metadata, TokenMetadata, ZCompressedMint, ZExtensionStruct,
+        ExtensionStruct, TokenMetadata, ZCompressedMint, ZExtensionStruct,
     },
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
@@ -87,11 +87,9 @@ fn test_rnd_create_compressed_mint_account() {
             Some(vec![ExtensionInstructionData::TokenMetadata(
                 TokenMetadataInstructionData {
                     update_authority: Some(mint_authority),
-                    metadata: Metadata {
-                        name: name.into_bytes(),
-                        symbol: symbol.into_bytes(),
-                        uri: uri.into_bytes(),
-                    },
+                    name: name.into_bytes(),
+                    symbol: symbol.into_bytes(),
+                    uri: uri.into_bytes(),
                     additional_metadata: if additional_metadata_configs.is_empty() {
                         None
                     } else {
@@ -105,7 +103,6 @@ fn test_rnd_create_compressed_mint_account() {
                                 .collect(),
                         )
                     },
-                    version,
                 },
             )])
         } else {
@@ -237,9 +234,9 @@ fn test_rnd_create_compressed_mint_account() {
                         light_ctoken_types::instructions::extensions::ZExtensionInstructionData::TokenMetadata(zc_metadata),
                         ExtensionInstructionData::TokenMetadata(orig_metadata),
                     ) => {
-                        assert_eq!(zc_metadata.metadata.name, orig_metadata.metadata.name.as_slice());
-                        assert_eq!(zc_metadata.metadata.symbol, orig_metadata.metadata.symbol.as_slice());
-                        assert_eq!(zc_metadata.metadata.uri, orig_metadata.metadata.uri.as_slice());
+                        assert_eq!(zc_metadata.name, orig_metadata.name.as_slice());
+                        assert_eq!(zc_metadata.symbol, orig_metadata.symbol.as_slice());
+                        assert_eq!(zc_metadata.uri, orig_metadata.uri.as_slice());
 
                         if let (Some(zc_update_auth), Some(orig_update_auth)) = (zc_metadata.update_authority, orig_metadata.update_authority) {
                             assert_eq!(zc_update_auth.to_bytes(), orig_update_auth.to_bytes());
@@ -351,15 +348,12 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
 
     // Create CompressedMint with token metadata extension
     let token_metadata = TokenMetadata {
-        update_authority: Some(Pubkey::new_from_array([1; 32])),
+        update_authority: Pubkey::new_from_array([1; 32]),
         mint: Pubkey::new_from_array([2; 32]),
-        metadata: Metadata {
-            name: b"TestToken".to_vec(),
-            symbol: b"TT".to_vec(),
-            uri: b"https://test.com".to_vec(),
-        },
+        name: b"TestToken".to_vec(),
+        symbol: b"TT".to_vec(),
+        uri: b"https://test.com".to_vec(),
         additional_metadata: vec![],
-        version: 3,
     };
 
     let compressed_mint = CompressedMint {
@@ -404,15 +398,12 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
                         match zc_ext {
                             ZExtensionStruct::TokenMetadata(z_metadata) => {
                                 ExtensionStruct::TokenMetadata(TokenMetadata {
-                                    update_authority: z_metadata.update_authority.map(|x| *x),
-                                    mint: *z_metadata.mint,
-                                    metadata: Metadata {
-                                        name: z_metadata.metadata.name.to_vec(),
-                                        symbol: z_metadata.metadata.symbol.to_vec(),
-                                        uri: z_metadata.metadata.uri.to_vec(),
-                                    },
+                                    update_authority: z_metadata.update_authority,
+                                    mint: z_metadata.mint,
+                                    name: z_metadata.name.to_vec(),
+                                    symbol: z_metadata.symbol.to_vec(),
+                                    uri: z_metadata.uri.to_vec(),
                                     additional_metadata: vec![], // Simplified for test
-                                    version: z_metadata.version,
                                 })
                             }
                             _ => panic!("Unsupported extension type in test"),

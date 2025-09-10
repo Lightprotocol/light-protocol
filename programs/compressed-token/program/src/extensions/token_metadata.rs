@@ -1,5 +1,4 @@
-use anchor_compressed_token::ErrorCode;
-use anchor_lang::{prelude::ProgramError, solana_program::msg};
+use anchor_lang::prelude::ProgramError;
 use light_compressed_account::Pubkey;
 use light_ctoken_types::{
     instructions::extensions::token_metadata::ZTokenMetadataInstructionData,
@@ -16,52 +15,36 @@ pub fn create_output_token_metadata(
 ) -> Result<(), ProgramError> {
     // We assume token_metadata is allocated correctly.
     // We cannot fail on None since if we remove the update authority we allocate None.
-    if let Some(authority) = token_metadata.update_authority.as_deref_mut() {
-        *authority = *token_metadata_data
-            .update_authority
-            .ok_or(ProgramError::InvalidInstructionData)?;
+    if let Some(authority) = token_metadata_data.update_authority.as_deref() {
+        token_metadata.update_authority = *authority;
     }
 
     // Only copy field data if allocated size exactly matches instruction data size
     // If sizes don't match, there must be an update action that will populate this field
-    if token_metadata.metadata.name.len() == token_metadata_data.metadata.name.len() {
+    if token_metadata.name.len() == token_metadata_data.name.len() {
         // Sizes match: no action will update this field, copy instruction data directly
         token_metadata
-            .metadata
             .name
-            .copy_from_slice(token_metadata_data.metadata.name);
+            .copy_from_slice(token_metadata_data.name);
     }
     // Size mismatch: an action will update this field, leave uninitialized
 
-    if token_metadata.metadata.symbol.len() == token_metadata_data.metadata.symbol.len() {
+    if token_metadata.symbol.len() == token_metadata_data.symbol.len() {
         // Sizes match: no action will update this field, copy instruction data directly
         token_metadata
-            .metadata
             .symbol
-            .copy_from_slice(token_metadata_data.metadata.symbol);
+            .copy_from_slice(token_metadata_data.symbol);
     }
     // Size mismatch: an action will update this field, leave uninitialized
 
-    if token_metadata.metadata.uri.len() == token_metadata_data.metadata.uri.len() {
+    if token_metadata.uri.len() == token_metadata_data.uri.len() {
         // Sizes match: no action will update this field, copy instruction data directly
-        token_metadata
-            .metadata
-            .uri
-            .copy_from_slice(token_metadata_data.metadata.uri);
+        token_metadata.uri.copy_from_slice(token_metadata_data.uri);
     }
     // Size mismatch: an action will update this field, leave uninitialized
 
     // Set mint
-    *token_metadata.mint = mint;
-    if token_metadata_data.version != 3 {
-        msg!(
-            "unsupported token metadata version only shaflat version 3 is supported {}",
-            token_metadata_data.version
-        );
-        return Err(ErrorCode::MintActionUnsupportedVersion.into());
-    }
-    // Set version
-    *token_metadata.version = token_metadata_data.version;
+    token_metadata.mint = mint;
 
     // Set additional metadata if provided
     if let Some(ref additional_metadata) = token_metadata_data.additional_metadata {

@@ -3567,6 +3567,7 @@ dependencies = [
  "solana-sysvar",
  "spl-pod",
  "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-token-metadata-interface",
  "thiserror 2.0.16",
  "zerocopy",
 ]

@@ -17,6 +17,7 @@ use crate::{
 )]
 pub struct CompressedMint {
     pub base: BaseCompressedMint,
+    // maybe I can add placeholders that add padding so that option vec is recognized as an extension type by token22
     pub extensions: Option<Vec<ExtensionStruct>>,
 }
 

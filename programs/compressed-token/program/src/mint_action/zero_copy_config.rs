@@ -6,7 +6,7 @@ use light_ctoken_types::{
         extensions::ZExtensionInstructionData,
         mint_action::{ZAction, ZMintActionCompressedInstructionData},
     },
-    state::{BaseCompressedMintConfig, CompressedMintConfig, ExtensionStructConfig},
+    state::{BaseCompressedMintConfig, CompressedMintConfig},
 };
 use light_profiler::profile;
 use spl_pod::solana_msg::msg;
@@ -27,7 +27,7 @@ pub fn get_zero_copy_configs(
     ProgramError,
 > {
     // Generate output config based on final state after all actions (without modifying instruction data)
-    let (_, mut output_extensions_config, _) =
+    let (_, output_extensions_config, _) =
         crate::extensions::process_extensions_config_with_actions(
             parsed_instruction_data.mint.extensions.as_ref(),
             &parsed_instruction_data.actions,
@@ -57,11 +57,6 @@ pub fn get_zero_copy_configs(
                             anchor_compressed_token::ErrorCode::MintActionInvalidExtensionIndex
                                 .into(),
                         );
-                    }
-                    if let ExtensionStructConfig::TokenMetadata(ref mut metadata_config) =
-                        &mut output_extensions_config[extension_index]
-                    {
-                        metadata_config.update_authority = (false, ());
                     }
                 }
             }

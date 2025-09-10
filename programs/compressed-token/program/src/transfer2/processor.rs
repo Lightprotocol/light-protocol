@@ -20,7 +20,6 @@ use crate::{
     shared::cpi::execute_cpi_invoke,
     transfer2::{
         accounts::Transfer2Accounts,
-        change_account::process_change_lamports,
         config::Transfer2Config,
         cpi::allocate_cpi_bytes,
         native_compression::process_token_compression,
@@ -148,12 +147,12 @@ pub fn process_transfer2(
             &validated_accounts.packed_accounts,
         )?;
 
-        process_change_lamports(
-            &inputs,
-            &validated_accounts.packed_accounts,
-            cpi_instruction_struct,
-            &transfer_config,
-        )?;
+        // process_change_lamports(
+        //     &inputs,
+        //     &validated_accounts.packed_accounts,
+        //     cpi_instruction_struct,
+        //     &transfer_config,
+        // )?;
 
         sum_check_multi_mint(
             &inputs.in_token_data,

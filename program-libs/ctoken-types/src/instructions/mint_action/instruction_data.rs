@@ -88,10 +88,12 @@ impl TryFrom<CompressedMint> for CompressedMintInstructionData {
                         ExtensionStruct::TokenMetadata(token_metadata) => {
                             Ok(ExtensionInstructionData::TokenMetadata(
                                 crate::instructions::extensions::token_metadata::TokenMetadataInstructionData {
-                                    update_authority: token_metadata.update_authority,
-                                    metadata: token_metadata.metadata,
+                                    update_authority: if token_metadata.update_authority == [0u8;32] {None}else {Some(token_metadata.update_authority)},
+                                    name: token_metadata.name,
+                                    symbol: token_metadata.symbol,
+                                    uri: token_metadata.uri,
                                     additional_metadata: Some(token_metadata.additional_metadata),
-                                    version: token_metadata.version,
+
                                 },
                             ))
                         }

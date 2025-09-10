@@ -4,10 +4,7 @@ pub mod token_metadata;
 // Import from ctoken-types instead of local modules
 use light_ctoken_types::{
     instructions::{extensions::ZExtensionInstructionData, mint_action::ZAction},
-    state::{
-        AdditionalMetadataConfig, ExtensionStructConfig, MetadataConfig, TokenMetadata,
-        TokenMetadataConfig,
-    },
+    state::{AdditionalMetadataConfig, ExtensionStructConfig, TokenMetadata, TokenMetadataConfig},
     CTokenError,
 };
 use light_profiler::profile;
@@ -52,9 +49,9 @@ fn process_token_metadata_config_with_actions(
     extension_index: usize,
 ) -> Result<(), CTokenError> {
     // Calculate final sizes by applying actions sequentially to determine the actual final state
-    let mut final_name_len = token_metadata_data.metadata.name.len();
-    let mut final_symbol_len = token_metadata_data.metadata.symbol.len();
-    let mut final_uri_len = token_metadata_data.metadata.uri.len();
+    let mut final_name_len = token_metadata_data.name.len();
+    let mut final_symbol_len = token_metadata_data.symbol.len();
+    let mut final_uri_len = token_metadata_data.uri.len();
     // TODO: test
     // Apply actions sequentially to determine final field sizes (last action wins)
     for action in actions.iter() {
@@ -101,12 +98,9 @@ fn process_token_metadata_config_with_actions(
         };
 
     let config = TokenMetadataConfig {
-        update_authority: (token_metadata_data.update_authority.is_some(), ()),
-        metadata: MetadataConfig {
-            name: final_name_len as u32,
-            symbol: final_symbol_len as u32,
-            uri: final_uri_len as u32,
-        },
+        name: final_name_len as u32,
+        symbol: final_symbol_len as u32,
+        uri: final_uri_len as u32,
         additional_metadata: additional_metadata_configs,
     };
     let byte_len = TokenMetadata::byte_len(&config)?;

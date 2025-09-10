@@ -135,7 +135,7 @@ impl<'info> MintActionAccounts<'info> {
 
             let system = LightSystemAccounts::validate_and_parse(
                 &mut iter,
-                config.with_lamports,
+                false,
                 false,
                 config.with_cpi_context,
             )?;
@@ -296,8 +296,6 @@ pub struct AccountsConfig {
     pub with_cpi_context: bool,
     /// 2. cpi context.first_set() || cpi context.set()
     pub write_to_cpi_context: bool,
-    /// 3. MintToAction with lamports
-    pub with_lamports: bool,
     // TODO: rename is_decompressed, spl_mint_initialized
     /// 4. Mint is either:
     ///    4.1. already decompressed
@@ -326,11 +324,6 @@ impl AccountsConfig {
             .map(|x| x.first_set_context() || x.set_context())
             .unwrap_or_default();
 
-        // 3. MintToAction with lamports
-        let with_lamports = parsed_instruction_data
-        .actions
-        .iter()
-        .any(|action| matches!(action, ZAction::MintTo(mint_to_action) if mint_to_action.lamports.is_some()));
         // For MintTo or MintToDecompressed actions
         // - needed for tokens_out_queue and authority validation
         let has_mint_to_actions = parsed_instruction_data
@@ -352,7 +345,6 @@ impl AccountsConfig {
         AccountsConfig {
             with_cpi_context,
             write_to_cpi_context,
-            with_lamports,
             is_decompressed,
             has_mint_to_actions,
             with_mint_signer,

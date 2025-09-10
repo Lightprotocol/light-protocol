@@ -1,13 +1,13 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use borsh::BorshSerialize;
-use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
+use light_compressed_account::{instruction_data::with_readonly::ZInAccountMut, Pubkey};
 use light_ctoken_types::{
     instructions::{
         extensions::ZExtensionInstructionData, mint_action::ZMintActionCompressedInstructionData,
     },
     state::{
         AdditionalMetadata, BaseCompressedMint, BaseCompressedMintConfig, CompressedMint,
-        CompressedMintConfig, ExtensionStruct, Metadata, TokenMetadata,
+        CompressedMintConfig, ExtensionStruct, TokenMetadata,
     },
     CTokenError,
 };
@@ -38,12 +38,6 @@ pub fn create_input_compressed_mint_account(
         for ext in extensions {
             match ext {
                 ZExtensionInstructionData::TokenMetadata(metadata_ix) => {
-                    let metadata = Metadata {
-                        name: metadata_ix.metadata.name.to_vec(),
-                        symbol: metadata_ix.metadata.symbol.to_vec(),
-                        uri: metadata_ix.metadata.uri.to_vec(),
-                    };
-
                     let additional_metadata = metadata_ix
                         .additional_metadata
                         .as_ref()
@@ -58,11 +52,16 @@ pub fn create_input_compressed_mint_account(
                         .unwrap_or_default();
 
                     let token_metadata = TokenMetadata {
-                        update_authority: metadata_ix.update_authority.map(|x| *x),
+                        update_authority: metadata_ix
+                            .update_authority
+                            .as_ref()
+                            .map(|data| **data)
+                            .unwrap_or_else(|| Pubkey::new_from_array([0u8; 32])),
                         mint: mint_instruction_data.mint.base.spl_mint,
-                        metadata,
+                        name: metadata_ix.name.to_vec(),
+                        symbol: metadata_ix.symbol.to_vec(),
+                        uri: metadata_ix.uri.to_vec(),
                         additional_metadata,
-                        version: metadata_ix.version,
                     };
 
                     ext_structs.push(ExtensionStruct::TokenMetadata(token_metadata));
@@ -104,6 +103,7 @@ pub fn create_input_compressed_mint_account(
 
     Ok(())
 }
+
 #[inline(always)]
 pub fn get_zero_copy_config(
     parsed_instruction_data: &ZMintActionCompressedInstructionData,

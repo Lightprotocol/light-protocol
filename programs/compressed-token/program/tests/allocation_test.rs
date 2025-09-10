@@ -4,8 +4,8 @@ use light_compressed_token::shared::cpi_bytes_size::{
     allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
 };
 use light_ctoken_types::state::{
-    extensions::{MetadataConfig, TokenMetadataConfig},
-    BaseCompressedMintConfig, CompressedMint, CompressedMintConfig, ExtensionStructConfig,
+    extensions::TokenMetadataConfig, BaseCompressedMintConfig, CompressedMint,
+    CompressedMintConfig, ExtensionStructConfig,
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 
@@ -41,12 +41,9 @@ fn test_extension_allocation_only() {
 
     // Test 2: With minimal token metadata extension
     let extensions_config = vec![ExtensionStructConfig::TokenMetadata(TokenMetadataConfig {
-        update_authority: (true, ()),
-        metadata: MetadataConfig {
-            name: 5,   // 5 bytes
-            symbol: 3, // 3 bytes
-            uri: 10,   // 10 bytes
-        },
+        name: 5,                     // 5 bytes
+        symbol: 3,                   // 3 bytes
+        uri: 10,                     // 10 bytes
         additional_metadata: vec![], // No additional metadata
     })];
 
@@ -157,12 +154,9 @@ fn test_progressive_extension_sizes() {
         );
 
         let extensions_config = vec![ExtensionStructConfig::TokenMetadata(TokenMetadataConfig {
-            update_authority: (true, ()),
-            metadata: MetadataConfig {
-                name: name_len,
-                symbol: symbol_len,
-                uri: uri_len,
-            },
+            name: name_len,
+            symbol: symbol_len,
+            uri: uri_len,
             additional_metadata: vec![],
         })];
 

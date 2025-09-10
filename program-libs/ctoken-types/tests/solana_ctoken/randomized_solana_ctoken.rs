@@ -6,7 +6,7 @@
 // use light_ctoken_types::state::{
 //     extensions::ExtensionStructConfig,
 //     solana_ctoken::{CompressedToken, CompressedTokenConfig},
-//     ZExtensionStruct, ZExtensionStructMut,
+//     CompressibleExtensionConfig, ZExtensionStruct, ZExtensionStructMut,
 // };
 // use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
 // use rand::{distributions::Standard, prelude::Distribution, Rng};
@@ -124,7 +124,13 @@
 //         is_native: data.is_native.is_some(),
 //         close_authority: data.close_authority.is_some(),
 //         extensions: if data.has_extensions {
-//             vec![ExtensionStructConfig::Compressible]
+//             vec![ExtensionStructConfig::Compressible(
+//                 CompressibleExtensionConfig {
+//                     write_top_up_lamports: true,
+//                     rent_authority: (true, ()),
+//                     rent_recipient: (true, ()),
+//                 },
+//             )]
 //         } else {
 //             vec![]
 //         },

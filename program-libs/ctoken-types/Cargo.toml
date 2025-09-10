@@ -40,6 +40,7 @@ light-account-checks = { workspace = true, features = [
     "test-only",
     "pinocchio",
 ] }
+spl-token-metadata-interface = "0.6.0"
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

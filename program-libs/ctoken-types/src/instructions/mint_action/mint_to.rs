@@ -14,6 +14,5 @@ pub struct Recipient {
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct MintToAction {
     pub token_account_version: u8,
-    pub lamports: Option<u64>,
     pub recipients: Vec<Recipient>,
 }

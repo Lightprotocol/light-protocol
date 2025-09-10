@@ -113,9 +113,6 @@ fn create_output_compressed_token_accounts(
 ) -> Result<(), ProgramError> {
     let hashed_mint = hash_cache.get_or_hash_mint(&mint.to_bytes())?;
 
-    let lamports = parsed_instruction_data
-        .lamports
-        .map(|lamports| u64::from(*lamports));
     for (recipient, output_account) in parsed_instruction_data
         .recipients
         .iter()
@@ -128,7 +125,7 @@ fn create_output_compressed_token_accounts(
             recipient.recipient,
             output_delegate,
             recipient.amount,
-            lamports,
+            None::<u64>,
             mint,
             &hashed_mint,
             queue_pubkey_index,
