@@ -37,7 +37,6 @@ where
         ctx.prover_polling_interval,
         ctx.prover_max_wait_time,
         merkle_tree_data,
-        ctx.ixs_per_tx,
     )
     .await
     .map_err(Error::from)?;
@@ -65,7 +64,6 @@ where
         ctx.prover_max_wait_time,
         merkle_tree_data,
         output_queue_data,
-        ctx.ixs_per_tx,
     )
     .await
     .map_err(Error::from)?;

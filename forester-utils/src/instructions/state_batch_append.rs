@@ -2,10 +2,7 @@ use std::{pin::Pin, sync::Arc, time::Duration};
 
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_stream::stream;
-use futures::{
-    stream::{FuturesOrdered, Stream},
-    StreamExt,
-};
+use futures::stream::Stream;
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT, merkle_tree::InstructionDataBatchAppendInputs,
 };
@@ -24,6 +21,8 @@ use crate::{
     error::ForesterUtilsError, rpc_pool::SolanaRpcPool, utils::wait_for_indexer,
     ParsedMerkleTreeData, ParsedQueueData,
 };
+
+const MAX_PROOFS_PER_TX: usize = 3;
 
 async fn generate_zkp_proof(
     circuit_inputs: BatchAppendsCircuitInputs,
@@ -53,7 +52,6 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
     max_wait_time: Duration,
     merkle_tree_data: ParsedMerkleTreeData,
     output_queue_data: ParsedQueueData,
-    yield_batch_size: usize,
 ) -> Result<
     (
         Pin<
@@ -87,20 +85,35 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
     drop(rpc);
 
     let stream = stream! {
-        // Start without specifying queue index - let the indexer tell us where to start
         let mut next_queue_index: Option<u64> = None;
-        
+
         let mut all_changelogs: Vec<ChangelogEntry<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>> = Vec::new();
 
         let proof_client = Arc::new(ProofClient::with_config(prover_url.clone(), polling_interval, max_wait_time, prover_api_key.clone()));
-        let mut futures_ordered = FuturesOrdered::new();
-        let mut pending_count = 0;
 
-        let mut proof_buffer = Vec::new();
+        let mut expected_indexer_root = current_root;
+        let mut proofs_buffer = Vec::new();
 
-        // Process each batch one at a time, fetching only the data needed for that batch
         for (batch_idx, leaves_hash_chain) in leaves_hash_chains.iter().enumerate() {
-            // Fetch only the queue elements needed for this batch
+            if !proofs_buffer.is_empty() && batch_idx > 0 {
+                debug!("Have {} accumulated proofs before fetching batch {}", proofs_buffer.len(), batch_idx);
+                yield Ok(proofs_buffer.clone());
+                proofs_buffer.clear();
+                debug!("Waiting for transaction to land and indexer to sync...");
+                let rpc = rpc_pool.get_connection().await?;
+                match wait_for_indexer(&*rpc).await {
+                    Ok(_) => {
+                        expected_indexer_root = current_root;
+                        debug!("Transaction landed, updated expected root for batch {}", batch_idx);
+                    }
+                    Err(e) => {
+                        debug!("Could not sync with indexer, likely phase ended: {}", e);
+                        return;
+                    }
+                }
+                drop(rpc);
+            }
+
             let queue_elements_result = {
                 let mut connection = rpc_pool.get_connection().await?;
                 let indexer = connection.indexer_mut()?;
@@ -125,7 +138,7 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
                         );
                         break;
                     }
-                    
+
                     (items, first_idx)
                 },
                 Err(e) => {
@@ -135,20 +148,19 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
             };
 
             if let Some(first_element) = batch_elements.first() {
-                if first_element.root != current_root {
+                if first_element.root != expected_indexer_root {
                     error!(
-                        "Root mismatch! Indexer root: {:?}, On-chain root: {:?}, indexer seq: {}, first_element.leaf_index: {}",
+                        "Root mismatch! Indexer root: {:?}, Expected root: {:?}, indexer seq: {}, first_element.leaf_index: {}",
                         first_element.root,
-                        current_root,
+                        expected_indexer_root,
                         first_element.root_seq,
                         first_element.leaf_index
                     );
-                    yield Err(ForesterUtilsError::Indexer("Root mismatch between indexer and on-chain state".into()));
+                    yield Err(ForesterUtilsError::Indexer("Root mismatch between indexer and expected state".into()));
                     return;
                 }
             }
 
-            // Update queue index for next batch using the first queue index + batch size
             if let Some(first_idx) = batch_first_queue_idx {
                 next_queue_index = Some(first_idx + zkp_batch_size as u64);
                 debug!("Next batch will start at queue index: {:?}", next_queue_index);
@@ -164,7 +176,7 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
             use light_hasher::hash_chain::create_hash_chain_from_slice;
             let indexer_hashchain = create_hash_chain_from_slice(&leaves)
                 .map_err(|e| ForesterUtilsError::Prover(format!("Failed to calculate hashchain: {}", e)))?;
-            
+
             if indexer_hashchain != *leaves_hash_chain {
                 error!("Hashchain mismatch! On-chain: {:?}, indexer: {:?}",
                     leaves_hash_chain,
@@ -172,7 +184,7 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
                 );
                 yield Err(ForesterUtilsError::Indexer("Hashchain mismatch between indexer and on-chain state".into()))
             }
-            
+
             let (circuit_inputs, batch_changelogs) = match get_batch_append_inputs::<32>(
                 current_root, adjusted_start_index, leaves, *leaves_hash_chain, old_leaves, merkle_proofs, zkp_batch_size as u32, &all_changelogs,
             ) {
@@ -190,38 +202,27 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
             all_changelogs.extend(batch_changelogs);
 
             let client = Arc::clone(&proof_client);
-            futures_ordered.push_back(generate_zkp_proof(circuit_inputs, client));
-            pending_count += 1;
+            match generate_zkp_proof(circuit_inputs, client).await {
+                Ok(proof) => {
+                    debug!("Generated proof for batch {}", batch_idx);
+                    proofs_buffer.push(proof);
 
-            while pending_count >= yield_batch_size {
-                for _ in 0..yield_batch_size.min(pending_count) {
-                    if let Some(result) = futures_ordered.next().await {
-                        match result {
-                            Ok(proof) => proof_buffer.push(proof),
-                            Err(e) => {
-                                yield Err(e);
+                    if proofs_buffer.len() >= MAX_PROOFS_PER_TX {
+                        debug!("Buffer full with {} proofs, yielding for transaction", proofs_buffer.len());
+                        yield Ok(proofs_buffer.clone());
+                        proofs_buffer.clear();
+
+                        if batch_idx < leaves_hash_chains.len() - 1 {
+                            debug!("Waiting for transaction to land before continuing...");
+                            let rpc = rpc_pool.get_connection().await?;
+                            if let Err(e) = wait_for_indexer(&*rpc).await {
+                                yield Err(ForesterUtilsError::Indexer(format!("Failed to wait for indexer sync: {}", e)));
                                 return;
                             }
+                            drop(rpc);
+                            expected_indexer_root = current_root;
+                            debug!("Transaction landed, continuing with next batches");
                         }
-                        pending_count -= 1;
-                    }
-                }
-
-                if !proof_buffer.is_empty() {
-                    yield Ok(proof_buffer.clone());
-                    proof_buffer.clear();
-                }
-            }
-        }
-
-        while let Some(result) = futures_ordered.next().await {
-            match result {
-                Ok(proof) => {
-                    proof_buffer.push(proof);
-
-                    if proof_buffer.len() >= yield_batch_size {
-                        yield Ok(proof_buffer.clone());
-                        proof_buffer.clear();
                     }
                 },
                 Err(e) => {
@@ -231,9 +232,9 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
             }
         }
 
-        // Yield any remaining proofs
-        if !proof_buffer.is_empty() {
-            yield Ok(proof_buffer);
+        if !proofs_buffer.is_empty() {
+            debug!("Sending final {} proofs", proofs_buffer.len());
+            yield Ok(proofs_buffer);
         }
     };
 
