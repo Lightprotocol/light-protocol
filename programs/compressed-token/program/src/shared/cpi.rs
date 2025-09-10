@@ -138,6 +138,7 @@ pub fn execute_cpi_invoke(
 /// 1. account_infos: &[&AccountInfo] ->  &[AccountInfo]
 /// 2. Error prints
 #[inline]
+#[profile]
 pub fn slice_invoke_signed(
     instruction: &Instruction,
     account_infos: &[AccountInfo],

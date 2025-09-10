@@ -3,7 +3,6 @@ use arrayvec::ArrayVec;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::{
     compressed_account::{CompressedAccount, CompressedAccountData},
-    hash_to_bn254_field_size_be,
     instruction_data::{
         data::OutputCompressedAccountWithPackedContext,
         with_readonly::InstructionDataInvokeCpiWithReadOnly,
@@ -31,7 +30,6 @@ fn test_rnd_create_output_compressed_accounts() {
     let iter = 1000;
     for _ in 0..iter {
         let mint_pubkey = Pubkey::new_from_array(rng.gen::<[u8; 32]>());
-        let hashed_mint = hash_to_bn254_field_size_be(mint_pubkey.to_bytes().as_slice());
 
         // Random number of output accounts (0-35 max)
         let num_outputs = rng.gen_range(0..=35);
@@ -109,7 +107,6 @@ fn test_rnd_create_output_compressed_accounts() {
                 amounts[index],
                 lamports.as_ref().and_then(|l| l[index]),
                 mint_pubkey,
-                &hashed_mint,
                 merkle_tree_indices[index],
                 2,
             )

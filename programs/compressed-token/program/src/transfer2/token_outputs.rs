@@ -31,7 +31,6 @@ pub fn set_output_compressed_accounts(
 
         let mint_index = output_data.mint;
         let mint_account = packed_accounts.get_u8(mint_index, "out token mint")?;
-        let hashed_mint = hash_cache.get_or_hash_pubkey(mint_account.key());
 
         // Get owner account using owner index
         let owner_account = packed_accounts.get_u8(output_data.owner, "out token owner")?;
@@ -61,7 +60,6 @@ pub fn set_output_compressed_accounts(
             output_data.amount,
             output_lamports,
             mint_account.key().into(),
-            &hashed_mint,
             output_data.merkle_tree,
             output_data.version,
         )?;

@@ -147,13 +147,6 @@ pub fn process_transfer2(
             &validated_accounts.packed_accounts,
         )?;
 
-        // process_change_lamports(
-        //     &inputs,
-        //     &validated_accounts.packed_accounts,
-        //     cpi_instruction_struct,
-        //     &transfer_config,
-        // )?;
-
         sum_check_multi_mint(
             &inputs.in_token_data,
             &inputs.out_token_data,

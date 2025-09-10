@@ -7,6 +7,7 @@ use light_ctoken_types::{
     hash_cache::HashCache,
     state::{AccountState, TokenData, TokenDataConfig, TokenDataVersion},
 };
+use light_hasher::{sha256::Sha256BE, Hasher};
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyNew};
 
 /// 1. Set token account data
@@ -21,19 +22,17 @@ pub fn set_output_compressed_account<const IS_FROZEN: bool>(
     amount: impl ZeroCopyNumTrait,
     lamports: Option<impl ZeroCopyNumTrait>,
     mint_pubkey: Pubkey,
-    hashed_mint: &[u8; 32],
     merkle_tree_index: u8,
     version: u8,
 ) -> Result<(), ProgramError> {
+    // Get compressed account data from CPI struct to temporarily create TokenData
+    let compressed_account_data = output_compressed_account
+        .compressed_account
+        .data
+        .as_mut()
+        .ok_or(ProgramError::InvalidAccountData)?;
     // 1. Set token account data
     {
-        // Get compressed account data from CPI struct to temporarily create TokenData
-        let compressed_account_data = output_compressed_account
-            .compressed_account
-            .data
-            .as_mut()
-            .ok_or(ProgramError::InvalidAccountData)?;
-
         // Create token data config based on delegate presence
         let token_config = TokenDataConfig {
             delegate: (delegate.is_some(), ()),
@@ -55,28 +54,35 @@ pub fn set_output_compressed_account<const IS_FROZEN: bool>(
     let token_version = TokenDataVersion::try_from(version)?;
     // 2. Create TokenData using zero-copy to compute the data hash
     let data_hash = {
-        let hashed_owner = hash_cache.get_or_hash_pubkey(&owner.into());
-        let amount_bytes = token_version.serialize_amount_bytes(amount.into());
+        match token_version {
+            TokenDataVersion::ShaFlat => Sha256BE::hash(compressed_account_data.data)?,
+            _ => {
+                let hashed_owner = hash_cache.get_or_hash_pubkey(&owner.into());
+                let hashed_mint = hash_cache.get_or_hash_mint(&mint_pubkey.to_bytes())?;
 
-        let hashed_delegate =
-            delegate.map(|delegate_pubkey| hash_cache.get_or_hash_pubkey(&delegate_pubkey.into()));
+                let amount_bytes = token_version.serialize_amount_bytes(amount.into())?;
 
-        if !IS_FROZEN {
-            TokenData::hash_with_hashed_values(
-                hashed_mint,
-                &hashed_owner,
-                &amount_bytes,
-                &hashed_delegate.as_ref(),
-            )
-        } else {
-            TokenData::hash_frozen_with_hashed_values(
-                hashed_mint,
-                &hashed_owner,
-                &amount_bytes,
-                &hashed_delegate.as_ref(),
-            )
+                let hashed_delegate = delegate
+                    .map(|delegate_pubkey| hash_cache.get_or_hash_pubkey(&delegate_pubkey.into()));
+
+                if !IS_FROZEN {
+                    TokenData::hash_with_hashed_values(
+                        &hashed_mint,
+                        &hashed_owner,
+                        &amount_bytes,
+                        &hashed_delegate.as_ref(),
+                    )
+                } else {
+                    TokenData::hash_frozen_with_hashed_values(
+                        &hashed_mint,
+                        &hashed_owner,
+                        &amount_bytes,
+                        &hashed_delegate.as_ref(),
+                    )
+                }
+            }?,
         }
-    }?;
+    };
     // 3. Set output compressed account
     let lamports_value = lamports.unwrap_or(0u64.into()).into();
     output_compressed_account.set(

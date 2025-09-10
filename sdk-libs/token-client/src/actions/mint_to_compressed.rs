@@ -2,7 +2,7 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_ctoken_types::instructions::mint_action::Recipient;
+use light_ctoken_types::{instructions::mint_action::Recipient, state::TokenDataVersion};
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
@@ -23,6 +23,7 @@ pub async fn mint_to_compressed<R: Rpc + Indexer>(
     rpc: &mut R,
     spl_mint_pda: Pubkey,
     recipients: Vec<Recipient>,
+    token_data_version: TokenDataVersion,
     mint_authority: &Keypair,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
@@ -31,6 +32,7 @@ pub async fn mint_to_compressed<R: Rpc + Indexer>(
         rpc,
         spl_mint_pda,
         recipients,
+        token_data_version,
         mint_authority.pubkey(),
         payer.pubkey(),
     )

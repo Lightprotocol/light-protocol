@@ -5,6 +5,7 @@ use crate::{AnchorDeserialize, AnchorSerialize, Pubkey};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize, Default)]
 #[repr(u8)]
 pub enum AccountState {
+    //Uninitialized,
     #[default]
     Initialized,
     Frozen,

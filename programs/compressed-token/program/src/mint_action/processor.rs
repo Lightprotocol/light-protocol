@@ -198,11 +198,9 @@ pub fn process_actions<'a>(
 
     // Start metadata authority with same value as mint authority
     let mut validated_metadata_authority = Some(light_compressed_account::Pubkey::from(signer_key));
-    for (index, action) in parsed_instruction_data.actions.iter().enumerate() {
-        msg!("Action {}", index);
+    for action in parsed_instruction_data.actions.iter() {
         match action {
             ZAction::MintTo(action) => {
-                msg!("Processing MintTo action");
                 let new_supply = process_mint_to_action(
                     action,
                     compressed_mint,

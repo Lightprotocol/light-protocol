@@ -1,4 +1,5 @@
 use anchor_lang::solana_program::program_error::ProgramError;
+use arrayvec::ArrayVec;
 use borsh::BorshSerialize;
 use light_compressed_account::{instruction_data::with_readonly::ZInAccountMut, Pubkey};
 use light_ctoken_types::{
@@ -92,7 +93,9 @@ pub fn create_input_compressed_mint_account(
         },
         extensions: extensions_vec,
     };
-    let input_data_hash = Sha256BE::hash(compressed_mint.try_to_vec().unwrap().as_slice())?;
+    let mut bytes = ArrayVec::<u8, 1024>::new();
+    compressed_mint.serialize(&mut bytes)?;
+    let input_data_hash = Sha256BE::hash(bytes.as_slice())?;
 
     // 2. Set InAccount fields
     input_compressed_account.set(

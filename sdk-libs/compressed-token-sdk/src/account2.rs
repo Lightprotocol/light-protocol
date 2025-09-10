@@ -44,13 +44,14 @@ impl CTokenAccount2 {
         // Use the indices from the first token data (assuming they're all the same mint/owner)
         let mint_index = token_data[0].mint;
         let owner_index = token_data[0].owner;
+        let version = token_data[0].version; // Take version from input
         let output = MultiTokenTransferOutputData {
             owner: owner_index,
             amount,
             merkle_tree: output_merkle_tree_index,
             delegate: 0, // Default delegate index
             mint: mint_index,
-            version: 2, // V2 for batched Merkle trees
+            version, // Use version from input accounts
             has_delegate: false,
         };
         Ok(Self {
@@ -81,13 +82,14 @@ impl CTokenAccount2 {
         // Use the indices from the first token data (assuming they're all the same mint/owner)
         let mint_index = token_data[0].mint;
         let owner_index = token_data[0].owner;
+        let version = token_data[0].version; // Take version from input
         let output = MultiTokenTransferOutputData {
             owner: owner_index,
             amount,
             merkle_tree: output_merkle_tree_index,
             delegate: token_data[0].delegate, // Default delegate index
             mint: mint_index,
-            version: 2, // V2 for batched Merkle trees
+            version, // Use version from input accounts
             has_delegate: true,
         };
         Ok(Self {
@@ -109,7 +111,7 @@ impl CTokenAccount2 {
                 merkle_tree: output_merkle_tree_index,
                 delegate: 0, // Default delegate index
                 mint: mint_index,
-                version: 2, // V2 for batched Merkle trees
+                version: 3, // V2 for batched Merkle trees
                 has_delegate: false,
             },
             compression: None,

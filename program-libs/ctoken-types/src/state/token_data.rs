@@ -9,8 +9,8 @@ use crate::{AnchorDeserialize, AnchorSerialize, CTokenError, NATIVE_MINT};
 #[repr(u8)]
 pub enum AccountState {
     //Uninitialized,
-    Initialized,
-    Frozen,
+    Initialized = 0,
+    Frozen = 1,
 }
 
 impl TryFrom<u8> for AccountState {

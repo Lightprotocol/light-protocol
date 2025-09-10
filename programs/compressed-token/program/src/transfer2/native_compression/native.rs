@@ -282,8 +282,8 @@ fn validate_compressed_token_account(
     if compressed_token_account.delegate != 0 {
         return Err(ErrorCode::CompressAndCloseDelegateNotAllowed.into());
     }
-    // Version should be 2
-    if compressed_token_account.version != 2 {
+    // Version should be ShaFlat
+    if compressed_token_account.version != 3 {
         return Err(ErrorCode::CompressAndCloseInvalidVersion.into());
     }
     Ok(())

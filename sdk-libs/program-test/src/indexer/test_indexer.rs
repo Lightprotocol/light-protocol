@@ -1633,10 +1633,11 @@ impl TestIndexer {
                     // Check for both V1 and V2 token account discriminators
                     let is_v1_token = data.discriminator == light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR; // [2, 0, 0, 0, 0, 0, 0, 0]
                     let is_v2_token = data.discriminator == [0, 0, 0, 0, 0, 0, 0, 3]; // V2 discriminator
+                    let is_v3_token = data.discriminator == [0, 0, 0, 0, 0, 0, 0, 4]; // ShaFlat discriminator
 
                     if compressed_account.compressed_account.owner
                         == light_compressed_token::ID.to_bytes()
-                        && (is_v1_token || is_v2_token)
+                        && (is_v1_token || is_v2_token || is_v3_token)
                     {
                         if let Ok(token_data) = TokenData::deserialize(&mut data.data.as_slice()) {
                             let token_account = TokenDataWithMerkleContext {

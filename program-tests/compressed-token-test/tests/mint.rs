@@ -14,7 +14,10 @@ use light_ctoken_types::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData, mint_action::Recipient,
     },
-    state::{extensions::AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata},
+    state::{
+        extensions::AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata,
+        TokenDataVersion,
+    },
     COMPRESSED_MINT_SEED,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
@@ -135,6 +138,7 @@ async fn test_create_compressed_mint() {
                 recipient: recipient.into(),
                 amount: mint_amount,
             }],
+            TokenDataVersion::V2,
             &mint_authority_keypair,
             &payer,
         )
@@ -647,6 +651,7 @@ async fn test_create_compressed_mint_with_token_metadata_poseidon() {
                 recipient: recipient.into(),
                 amount: mint_amount,
             }],
+            TokenDataVersion::ShaFlat,
             &mint_authority_keypair,
             &payer,
         )
@@ -1156,6 +1161,7 @@ async fn test_spl_compression_decompression_functional() {
             recipient: initial_recipient.into(),
             amount: initial_mint_amount,
         }],
+        TokenDataVersion::ShaFlat,
         &mint_authority_keypair,
         &payer,
     )
@@ -1907,6 +1913,7 @@ async fn test_create_compressed_mint_with_token_metadata_sha() {
                 recipient: recipient.into(),
                 amount: mint_amount,
             }],
+            TokenDataVersion::ShaFlat,
             &mint_authority_keypair,
             &payer,
         )

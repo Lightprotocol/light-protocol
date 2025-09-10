@@ -12,7 +12,8 @@ use light_compressed_token_sdk::{
     token_pool::find_token_pool_pda_with_index,
 };
 use light_ctoken_types::{
-    instructions::transfer2::MultiInputTokenDataWithContext, COMPRESSED_TOKEN_PROGRAM_ID,
+    instructions::transfer2::MultiInputTokenDataWithContext, state::TokenDataVersion,
+    COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
 use solana_instruction::Instruction;
@@ -24,6 +25,7 @@ pub fn pack_input_token_account(
     packed_accounts: &mut PackedAccounts,
     in_lamports: &mut Vec<u64>,
     is_delegate_transfer: bool, // Explicitly specify if delegate is signing
+    token_data_version: TokenDataVersion,
 ) -> MultiInputTokenDataWithContext {
     // Check if account has a delegate
     let has_delegate = account.token.delegate.is_some();
@@ -55,7 +57,7 @@ pub fn pack_input_token_account(
         owner: packed_accounts.insert_or_get_config(account.token.owner, owner_is_signer, false),
         has_delegate, // Indicates if account has a delegate set
         delegate: delegate_index,
-        version: 2, // V2 for batched Merkle trees
+        version: token_data_version as u8, // V2 for batched Merkle trees
     }
 }
 
@@ -189,6 +191,10 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                                     &mut packed_tree_accounts,
                                     &mut in_lamports,
                                     false, // Compress is always owner-signed
+                                    TokenDataVersion::from_discriminator(
+                                        account.account.data.as_ref().unwrap().discriminator,
+                                    )
+                                    .unwrap(),
                                 ))
                             })
                             .collect::<Result<Vec<_>, _>>()?;
@@ -265,6 +271,10 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                             &mut packed_tree_accounts,
                             &mut in_lamports,
                             false, // Decompress is always owner-signed
+                            TokenDataVersion::from_discriminator(
+                                account.account.data.as_ref().unwrap().discriminator,
+                            )
+                            .unwrap(),
                         )
                     })
                     .collect::<Vec<_>>();
@@ -342,6 +352,10 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                             &mut packed_tree_accounts,
                             &mut in_lamports,
                             input.is_delegate_transfer, // Use the flag from TransferInput
+                            TokenDataVersion::from_discriminator(
+                                account.account.data.as_ref().unwrap().discriminator,
+                            )
+                            .unwrap(),
                         )
                     })
                     .collect::<Vec<_>>();
@@ -401,6 +415,10 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                             &mut packed_tree_accounts,
                             &mut in_lamports,
                             false, // Approve is always owner-signed
+                            TokenDataVersion::from_discriminator(
+                                account.account.data.as_ref().unwrap().discriminator,
+                            )
+                            .unwrap(),
                         )
                     })
                     .collect::<Vec<_>>();

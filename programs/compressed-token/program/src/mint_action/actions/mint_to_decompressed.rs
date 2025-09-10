@@ -89,10 +89,6 @@ pub fn handle_decompressed_mint_to_token_pool(
                 .token_program
                 .ok_or(ErrorCode::MintActionMissingTokenProgram)?;
 
-            msg!(
-                "Minting {} tokens to token pool for decompressed action",
-                amount
-            );
             mint_to_token_pool(
                 mint_account,
                 token_pool_account,

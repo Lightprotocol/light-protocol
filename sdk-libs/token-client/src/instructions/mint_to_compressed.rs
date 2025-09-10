@@ -12,7 +12,7 @@ use light_compressed_token_sdk::{
 };
 use light_ctoken_types::{
     instructions::mint_action::{CompressedMintWithContext, Recipient},
-    state::CompressedMint,
+    state::{CompressedMint, TokenDataVersion},
 };
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
@@ -22,6 +22,7 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
     rpc: &mut R,
     spl_mint_pda: Pubkey,
     recipients: Vec<Recipient>,
+    token_account_version: TokenDataVersion,
     mint_authority: Pubkey,
     payer: Pubkey,
 ) -> Result<Instruction, RpcError> {
@@ -96,7 +97,7 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
             output_queue_tokens: state_tree_info.queue,
             decompressed_mint_config,
             proof: rpc_proof_result.proof.into(),
-            token_account_version: 2, // V2 for batched merkle trees
+            token_account_version: token_account_version as u8, // V2 for batched merkle trees
             token_pool,
         },
         None,

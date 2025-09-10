@@ -110,8 +110,6 @@ fn create_output_compressed_token_accounts(
     mint: Pubkey,
     queue_pubkey_index: u8,
 ) -> Result<(), ProgramError> {
-    let hashed_mint = hash_cache.get_or_hash_mint(&mint.to_bytes())?;
-
     for (recipient, output_account) in parsed_instruction_data
         .recipients
         .iter()
@@ -126,7 +124,6 @@ fn create_output_compressed_token_accounts(
             recipient.amount,
             None::<u64>,
             mint,
-            &hashed_mint,
             queue_pubkey_index,
             parsed_instruction_data.token_account_version,
         )?;
