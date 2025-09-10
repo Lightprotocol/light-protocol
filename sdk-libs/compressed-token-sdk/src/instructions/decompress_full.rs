@@ -101,7 +101,7 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
             },
             Transfer2Config::default()
                 .filter_zero_amount_outputs()
-                .with_cpi_context(cpi_context, cpi_context_config),
+                .with_cpi_context(cpi_context_config),
         )
     } else {
         (

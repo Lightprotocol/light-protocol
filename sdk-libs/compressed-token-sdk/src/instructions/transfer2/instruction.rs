@@ -3,7 +3,7 @@ use light_ctoken_types::{
     instructions::transfer2::CompressedTokenInstructionDataTransfer2, COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_profiler::profile;
-use solana_instruction::{AccountMeta, Instruction};
+use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
 use crate::{
@@ -17,7 +17,6 @@ use crate::{
 
 #[derive(Debug, Default, PartialEq, Copy, Clone)]
 pub struct Transfer2Config {
-    pub cpi_context_pubkey: Option<Pubkey>,
     pub cpi_context: Option<CompressedCpiContext>,
     pub with_transaction_hash: bool,
     pub sol_pool_pda: bool,
@@ -30,12 +29,7 @@ impl Transfer2Config {
         Default::default()
     }
 
-    pub fn with_cpi_context(
-        mut self,
-        cpi_context_pubkey: Pubkey,
-        cpi_context: CompressedCpiContext,
-    ) -> Self {
-        self.cpi_context_pubkey = Some(cpi_context_pubkey);
+    pub fn with_cpi_context(mut self, cpi_context: CompressedCpiContext) -> Self {
         self.cpi_context = Some(cpi_context);
         self
     }
@@ -134,14 +128,7 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
     data.extend(serialized);
 
     // Get account metas
-    let mut account_metas = get_transfer2_instruction_account_metas(meta_config);
-
-    // Add CPI context account if configured
-    if let Some(cpi_context_pubkey) = transfer_config.cpi_context_pubkey {
-        if transfer_config.cpi_context.is_some() {
-            account_metas.push(AccountMeta::new(cpi_context_pubkey, false));
-        }
-    }
+    let account_metas = get_transfer2_instruction_account_metas(meta_config);
 
     Ok(Instruction {
         program_id: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),

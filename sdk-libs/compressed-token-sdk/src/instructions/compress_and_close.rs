@@ -234,7 +234,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
                 with_sol_pool: false,
                 packed_accounts: Some(packed_account_metas.to_vec()),
             },
-            Transfer2Config::default().with_cpi_context(cpi_context, cpi_context_config),
+            Transfer2Config::default().with_cpi_context(cpi_context_config),
         )
     } else {
         (
