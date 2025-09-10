@@ -66,7 +66,6 @@ async fn test_create_v2_address() {
 
     let env = TestAccounts::get_local_test_validator_accounts();
     let mut config = forester_config();
-    config.transaction_config.batch_ixs_per_tx = 1;
     config.payer_keypair = env.protocol.forester.insecure_clone();
     config.derivation_pubkey = env.protocol.forester.pubkey();
     config.general_config = GeneralConfig::test_address_v2();

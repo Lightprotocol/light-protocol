@@ -1,7 +1,9 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
 use borsh::BorshSerialize;
-use forester_utils::{forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
+use forester_utils::{
+    forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool, utils::wait_for_indexer,
+};
 pub use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
 use futures::{pin_mut, stream::StreamExt, Stream};
 use light_batched_merkle_tree::{
@@ -43,7 +45,6 @@ pub struct BatchContext<R: Rpc> {
     pub epoch: u64,
     pub merkle_tree: Pubkey,
     pub output_queue: Pubkey,
-    pub ixs_per_tx: usize,
     pub prover_append_url: String,
     pub prover_update_url: String,
     pub prover_address_append_url: String,
@@ -92,17 +93,46 @@ where
             continue;
         }
 
+        let current_slot = context.slot_tracker.estimated_current_slot();
+        let phase_end_slot = context.epoch_phases.active.end;
+        let slots_remaining = phase_end_slot.saturating_sub(current_slot);
+
+        const MIN_SLOTS_FOR_TRANSACTION: u64 = 30;
+        if slots_remaining < MIN_SLOTS_FOR_TRANSACTION {
+            info!(
+                "Only {} slots remaining in active phase (need at least {}), stopping batch processing",
+                slots_remaining, MIN_SLOTS_FOR_TRANSACTION
+            );
+            if !instruction_batch.is_empty() {
+                let instructions: Vec<Instruction> =
+                    instruction_batch.iter().map(&instruction_builder).collect();
+                let _ = send_transaction_batch(context, instructions).await;
+            }
+            break;
+        }
+
         let instructions: Vec<Instruction> =
             instruction_batch.iter().map(&instruction_builder).collect();
 
-        send_transaction_batch(context, instructions).await?;
-        total_instructions_processed += instruction_batch.len();
+        match send_transaction_batch(context, instructions).await {
+            Ok(_) => {
+                total_instructions_processed += instruction_batch.len();
 
-        {
-            let rpc = context.rpc_pool.get_connection().await?;
-            wait_for_indexer(&*rpc).await.map_err(|e| {
-                anyhow::anyhow!("Error: {:?}", e)
-            })?;
+                {
+                    let rpc = context.rpc_pool.get_connection().await?;
+                    wait_for_indexer(&*rpc)
+                        .await
+                        .map_err(|e| anyhow::anyhow!("Error: {:?}", e))?;
+                }
+            }
+            Err(e) => {
+                if let Some(ForesterError::NotInActivePhase) = e.downcast_ref::<ForesterError>() {
+                    info!("Active phase ended while processing batches, stopping gracefully");
+                    break;
+                } else {
+                    return Err(e);
+                }
+            }
         }
     }
 

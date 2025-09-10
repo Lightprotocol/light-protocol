@@ -428,9 +428,38 @@ impl<R: Rpc> EpochManager<R> {
             tx.send(previous_epoch).await?;
         }
 
-        // Process current epoch
-        debug!("Processing current epoch: {}", current_epoch);
-        tx.send(current_epoch).await?;
+        // Only process current epoch if we can still register or are already registered
+        // If registration has ended and we haven't registered, skip it to avoid errors
+        if slot < current_phases.registration.end {
+            debug!(
+                "Processing current epoch: {} (registration still open)",
+                current_epoch
+            );
+            tx.send(current_epoch).await?;
+        } else {
+            // Check if we're already registered for this epoch
+            let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
+                &self.config.derivation_pubkey,
+                current_epoch,
+            )
+            .0;
+            let rpc = self.rpc_pool.get_connection().await?;
+            if let Ok(Some(_)) = rpc
+                .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
+                .await
+            {
+                debug!(
+                    "Processing current epoch: {} (already registered)",
+                    current_epoch
+                );
+                tx.send(current_epoch).await?;
+            } else {
+                warn!(
+                    "Skipping current epoch {} - registration ended at slot {} (current slot: {})",
+                    current_epoch, current_phases.registration.end, slot
+                );
+            }
+        }
 
         debug!("Finished processing current and previous epochs");
         Ok(())
@@ -463,8 +492,32 @@ impl<R: Rpc> EpochManager<R> {
             Err(e) => {
                 warn!("Failed to recover registration info: {:?}", e);
                 // If recovery fails, attempt to register
-                self.register_for_epoch_with_retry(epoch, 100, Duration::from_millis(1000))
-                    .await?
+                match self
+                    .register_for_epoch_with_retry(epoch, 100, Duration::from_millis(1000))
+                    .await
+                {
+                    Ok(info) => info,
+                    Err(e) => {
+                        // Check if this is a RegistrationPhaseEnded error by downcasting
+                        if let Some(forester_error) = e.downcast_ref::<ForesterError>() {
+                            if let ForesterError::Registration(
+                                RegistrationError::RegistrationPhaseEnded {
+                                    epoch: failed_epoch,
+                                    current_slot,
+                                    registration_end,
+                                },
+                            ) = forester_error
+                            {
+                                info!(
+                                    "Registration period ended for epoch {} (current slot: {}, registration ended at: {}). Will retry when next epoch registration opens.",
+                                    failed_epoch, current_slot, registration_end
+                                );
+                                return Ok(());
+                            }
+                        }
+                        return Err(e.into());
+                    }
+                }
             }
         };
         debug!("Recovered registration info for epoch {}", epoch);
@@ -1198,7 +1251,6 @@ impl<R: Rpc> EpochManager<R> {
             epoch: epoch_info.epoch,
             merkle_tree: tree_accounts.merkle_tree,
             output_queue: tree_accounts.queue,
-            ixs_per_tx: self.config.transaction_config.batch_ixs_per_tx,
             prover_append_url: self
                 .config
                 .external_services

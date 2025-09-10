@@ -2,10 +2,7 @@ use std::{pin::Pin, sync::Arc, time::Duration};
 
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_stream::stream;
-use futures::{
-    stream::{FuturesOrdered, Stream},
-    StreamExt,
-};
+use futures::stream::Stream;
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT, merkle_tree::InstructionDataBatchNullifyInputs,
 };
@@ -51,7 +48,6 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
     polling_interval: Duration,
     max_wait_time: Duration,
     merkle_tree_data: ParsedMerkleTreeData,
-    yield_batch_size: usize,
 ) -> Result<
     (
         Pin<
@@ -84,21 +80,34 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
 
     let stream = stream! {
         let mut next_queue_index: Option<u64> = None;
-
         let mut all_changelogs = Vec::new();
         let proof_client = Arc::new(ProofClient::with_config(prover_url.clone(), polling_interval, max_wait_time, prover_api_key.clone()));
-        let mut futures_ordered = FuturesOrdered::new();
-        let mut pending_count = 0;
-        let mut proof_buffer = Vec::new();
 
-        // Process each batch one at a time, fetching only the data needed for that batch
+        let mut expected_indexer_root = current_root;
+        let mut proofs_buffer = Vec::new();
+        const MAX_PROOFS_PER_TX: usize = 3;  // Bundle up to 3 proofs per transaction
+
         for (batch_idx, leaves_hash_chain) in leaves_hash_chains.iter().enumerate() {
             debug!(
                 "Fetching batch {} - tree: {}, start_queue_index: {:?}, limit: {}",
                 batch_idx, merkle_tree_pubkey, next_queue_index, zkp_batch_size
             );
 
-            // Fetch only the queue elements needed for this batch
+            if !proofs_buffer.is_empty() && batch_idx > 0 {
+                debug!("Sending {} accumulated proofs before fetching batch {}", proofs_buffer.len(), batch_idx);
+                yield Ok(proofs_buffer.clone());
+                proofs_buffer.clear();
+                debug!("Waiting for transaction to land and indexer to sync...");
+                let rpc = rpc_pool.get_connection().await?;
+                if let Err(e) = wait_for_indexer(&*rpc).await {
+                    yield Err(ForesterUtilsError::Indexer(format!("Failed to wait for indexer sync after transaction: {}", e)));
+                    return;
+                }
+                drop(rpc);
+                expected_indexer_root = current_root;
+                debug!("Transaction landed, updated expected root for batch {}", batch_idx);
+            }
+
             let queue_elements_result = {
                 let mut connection = rpc_pool.get_connection().await?;
                 let indexer = connection.indexer_mut()?;
@@ -122,7 +131,7 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
                         );
                         break;
                     }
-                    
+
                     (items, first_idx)
                 },
                 Err(e) => {
@@ -132,15 +141,16 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
             };
 
             if let Some(first_element) = batch_elements.first() {
-                if first_element.root != current_root {
-                    yield Err(ForesterUtilsError::Indexer("Root mismatch between indexer and on-chain state".into()));
+                if first_element.root != expected_indexer_root {
+                    debug!(
+                        "Root mismatch for batch {}: indexer root {:?} != expected root {:?}",
+                        batch_idx, first_element.root, expected_indexer_root
+                    );
+                    yield Err(ForesterUtilsError::Indexer("Root mismatch between indexer and expected state".into()));
                     return;
                 }
             }
 
-
-            // Set next queue index based on first_value_queue_index + batch size
-            // Since queue indices have no gaps: first + zkp_batch_size = last + 1
             if let Some(first_idx) = batch_first_queue_idx {
                 next_queue_index = Some(first_idx + zkp_batch_size as u64);
                 debug!("Next batch will start at queue index: {}", first_idx + zkp_batch_size as u64);
@@ -174,38 +184,34 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
             current_root = bigint_to_be_bytes_array::<32>(&circuit_inputs.new_root.to_biguint().unwrap()).unwrap();
 
             let client = Arc::clone(&proof_client);
-            futures_ordered.push_back(generate_nullify_zkp_proof(circuit_inputs, client));
-            pending_count += 1;
+            match generate_nullify_zkp_proof(circuit_inputs, client).await {
+                Ok(proof) => {
+                    debug!("Generated proof for batch {}", batch_idx);
+                    proofs_buffer.push(proof);
 
-            while pending_count >= yield_batch_size {
-                for _ in 0..yield_batch_size.min(pending_count) {
-                    if let Some(result) = futures_ordered.next().await {
-                        match result {
-                            Ok(proof) => proof_buffer.push(proof),
-                            Err(e) => {
-                                yield Err(e);
+                    let should_send = if proofs_buffer.len() >= MAX_PROOFS_PER_TX {
+                        debug!("Buffer full with {} proofs, sending transaction", proofs_buffer.len());
+                        true
+                    } else {
+                        false
+                    };
+
+                    if should_send {
+                        debug!("Yielding {} proofs for transaction", proofs_buffer.len());
+                        yield Ok(proofs_buffer.clone());
+                        proofs_buffer.clear();
+
+                        if batch_idx < leaves_hash_chains.len() - 1 {
+                            debug!("Waiting for transaction to land before continuing...");
+                            let rpc = rpc_pool.get_connection().await?;
+                            if let Err(e) = wait_for_indexer(&*rpc).await {
+                                yield Err(ForesterUtilsError::Indexer(format!("Failed to wait for indexer sync: {}", e)));
                                 return;
                             }
+                            drop(rpc);
+                            expected_indexer_root = current_root;
+                            debug!("Transaction landed, continuing with next batches");
                         }
-                        pending_count -= 1;
-                    }
-                }
-
-                if !proof_buffer.is_empty() {
-                    yield Ok(proof_buffer.clone());
-                    proof_buffer.clear();
-                }
-            }
-        }
-
-        while let Some(result) = futures_ordered.next().await {
-            match result {
-                Ok(proof) => {
-                    proof_buffer.push(proof);
-
-                    if proof_buffer.len() >= yield_batch_size {
-                        yield Ok(proof_buffer.clone());
-                        proof_buffer.clear();
                     }
                 },
                 Err(e) => {
@@ -215,8 +221,9 @@ pub async fn get_nullify_instruction_stream<'a, R: Rpc>(
             }
         }
 
-        if !proof_buffer.is_empty() {
-            yield Ok(proof_buffer);
+        if !proofs_buffer.is_empty() {
+            debug!("Sending final {} proofs", proofs_buffer.len());
+            yield Ok(proofs_buffer);
         }
     };
 
