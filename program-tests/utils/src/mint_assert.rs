@@ -21,11 +21,12 @@ pub fn assert_compressed_mint_account(
     let expected_extensions = metadata.map(|meta| {
         vec![ExtensionStruct::TokenMetadata(
             light_ctoken_types::state::extensions::TokenMetadata {
-                update_authority: meta.update_authority,
+                update_authority: meta.update_authority.unwrap_or_else(|| Pubkey::from([0u8; 32]).into()),
                 mint: spl_mint_pda.into(),
-                metadata: meta.metadata,
+                name: meta.name,
+                symbol: meta.symbol,
+                uri: meta.uri,
                 additional_metadata: meta.additional_metadata.unwrap_or_default(),
-                version: meta.version,
             },
         )]
     });

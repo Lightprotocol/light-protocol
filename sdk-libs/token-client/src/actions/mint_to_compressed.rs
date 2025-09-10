@@ -25,7 +25,6 @@ pub async fn mint_to_compressed<R: Rpc + Indexer>(
     recipients: Vec<Recipient>,
     mint_authority: &Keypair,
     payer: &Keypair,
-    lamports: Option<u64>,
 ) -> Result<Signature, RpcError> {
     // Create the instruction
     let instruction = mint_to_compressed_instruction(
@@ -34,7 +33,6 @@ pub async fn mint_to_compressed<R: Rpc + Indexer>(
         recipients,
         mint_authority.pubkey(),
         payer.pubkey(),
-        lamports,
     )
     .await?;
 

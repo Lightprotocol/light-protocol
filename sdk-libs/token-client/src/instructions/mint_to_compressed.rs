@@ -24,7 +24,6 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
     recipients: Vec<Recipient>,
     mint_authority: Pubkey,
     payer: Pubkey,
-    lamports: Option<u64>,
 ) -> Result<Instruction, RpcError> {
     // Derive compressed mint address from SPL mint PDA
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
@@ -88,7 +87,6 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
         MintToCompressedInputs {
             cpi_context_pubkey: None,
             compressed_mint_inputs,
-            lamports,
             recipients,
             mint_authority,
             payer,

@@ -19,7 +19,6 @@ pub const MINT_TO_COMPRESSED_DISCRIMINATOR: u8 = 101;
 #[derive(Debug, Clone)]
 pub struct MintToCompressedInputs {
     pub compressed_mint_inputs: CompressedMintWithContext,
-    pub lamports: Option<u64>,
     pub recipients: Vec<Recipient>,
     pub mint_authority: Pubkey,
     pub payer: Pubkey,
@@ -43,7 +42,6 @@ pub fn create_mint_to_compressed_instruction(
 ) -> Result<Instruction> {
     let MintToCompressedInputs {
         compressed_mint_inputs,
-        lamports,
         recipients,
         mint_authority,
         payer,
@@ -80,7 +78,6 @@ pub fn create_mint_to_compressed_instruction(
         proof,
         actions: vec![MintActionType::MintTo {
             recipients: mint_to_recipients,
-            lamports,
             token_account_version, // From inputs parameter
         }],
         address_tree_pubkey: state_merkle_tree, // State tree where compressed mint is stored

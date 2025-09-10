@@ -4,7 +4,7 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_ctoken_types::state::{
-    extensions::{AdditionalMetadata, ExtensionStruct, Metadata, TokenMetadata},
+    extensions::{AdditionalMetadata, ExtensionStruct, TokenMetadata},
     CompressedMint,
 };
 use light_hasher::{sha256::Sha256BE, Hasher, HasherError};
@@ -14,9 +14,10 @@ use solana_sdk::{pubkey::Pubkey, signature::Signature};
 #[derive(Debug, PartialEq, Clone)]
 pub struct ExpectedMetadataState {
     pub update_authority: Option<Pubkey>,
-    pub metadata: Metadata,
+    pub name: Vec<u8>,
+    pub symbol: Vec<u8>,
+    pub uri: Vec<u8>,
     pub additional_metadata: Vec<AdditionalMetadata>,
-    pub version: u8,
 }
 
 /// Assert complete metadata state matches expected values
@@ -74,11 +75,12 @@ pub async fn assert_metadata_state<R: Rpc + Indexer>(
 
     // Create expected TokenMetadata for complete struct comparison
     let expected_metadata = TokenMetadata {
-        update_authority: expected.update_authority.map(|auth| auth.into()),
+        update_authority: expected.update_authority.map(|p| p.into()).unwrap_or_else(|| light_compressed_account::Pubkey::from([0u8; 32])),
         mint: actual_metadata.mint, // Copy from actual since mint address is derived
-        metadata: expected.metadata.clone(),
+        name: expected.name.clone(),
+        symbol: expected.symbol.clone(),
+        uri: expected.uri.clone(),
         additional_metadata: expected.additional_metadata.clone(),
-        version: expected.version,
     };
 
     // Single comprehensive assertion comparing complete structs
@@ -175,13 +177,10 @@ pub fn create_expected_metadata_state(
 ) -> ExpectedMetadataState {
     ExpectedMetadataState {
         update_authority,
-        metadata: Metadata {
-            name: name.as_bytes().to_vec(),
-            symbol: symbol.as_bytes().to_vec(),
-            uri: uri.as_bytes().to_vec(),
-        },
+        name: name.as_bytes().to_vec(),
+        symbol: symbol.as_bytes().to_vec(),
+        uri: uri.as_bytes().to_vec(),
         additional_metadata,
-        version: 3,
     }
 }
 

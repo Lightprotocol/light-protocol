@@ -125,7 +125,6 @@ impl MintActionInputs {
     ) -> Self {
         self.actions.push(MintActionType::MintTo {
             recipients,
-            lamports: None,
             token_account_version,
         });
         // Set tokens_out_queue if not already set
@@ -135,25 +134,6 @@ impl MintActionInputs {
         self
     }
 
-    /// Add MintTo action with lamports
-    pub fn add_mint_to_with_lamports(
-        mut self,
-        recipients: Vec<MintToRecipient>,
-        lamports: u64,
-        token_account_version: u8,
-        tokens_out_queue: Option<Pubkey>,
-    ) -> Self {
-        self.actions.push(MintActionType::MintTo {
-            recipients,
-            lamports: Some(lamports),
-            token_account_version,
-        });
-        // Set tokens_out_queue if not already set
-        if self.tokens_out_queue.is_none() {
-            self.tokens_out_queue = tokens_out_queue.or(Some(self.output_queue));
-        }
-        self
-    }
 
     /// Add MintToDecompressed action - mint to SPL token accounts
     pub fn add_mint_to_decompressed(mut self, account: Pubkey, amount: u64) -> Self {
@@ -230,7 +210,6 @@ pub enum MintActionType {
     },
     MintTo {
         recipients: Vec<MintToRecipient>,
-        lamports: Option<u64>,
         token_account_version: u8,
     },
     UpdateMintAuthority {
@@ -286,15 +265,7 @@ pub fn create_mint_action_cpi(
     let mint_bump = input.mint_bump.unwrap_or(0u8);
 
     // Check for lamports, decompressed status, and mint actions before moving
-    let with_lamports = input.actions.iter().any(|action| {
-        matches!(
-            action,
-            MintActionType::MintTo {
-                lamports: Some(_),
-                ..
-            }
-        )
-    });
+    let with_lamports = false;
     let is_decompressed = input
         .actions
         .iter()
@@ -329,7 +300,6 @@ pub fn create_mint_action_cpi(
             }
             MintActionType::MintTo {
                 recipients,
-                lamports,
                 token_account_version,
             } => {
                 // TODO: cleanup once lamports are removed.
@@ -344,7 +314,6 @@ pub fn create_mint_action_cpi(
                 program_actions.push(Action::MintTo(MintToAction {
                     token_account_version,
                     recipients: program_recipients,
-                    lamports,
                 }));
             }
             MintActionType::UpdateMintAuthority { new_authority } => {
@@ -588,7 +557,6 @@ impl MintActionInputsCpiWrite {
 
         self.actions.push(MintActionType::MintTo {
             recipients,
-            lamports: None, // Always None in CPI write
             token_account_version,
         });
         Ok(self)
@@ -684,7 +652,6 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
         match action {
             MintActionType::MintTo {
                 recipients,
-                lamports,
                 token_account_version,
             } => {
                 let program_recipients: Vec<_> = recipients
@@ -702,7 +669,6 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
                         light_ctoken_types::instructions::mint_action::MintToAction {
                             token_account_version,
                             recipients: program_recipients,
-                            lamports,
                         },
                     ),
                 );

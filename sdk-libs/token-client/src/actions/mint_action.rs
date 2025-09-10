@@ -74,7 +74,6 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     mint_to_decompressed_recipients: Vec<Recipient>,
     update_mint_authority: Option<Pubkey>,
     update_freeze_authority: Option<Pubkey>,
-    lamports: Option<u64>,
     // Parameters for mint creation (required if create_spl_mint is true)
     new_mint: Option<crate::instructions::mint_action::NewMint>,
 ) -> Result<Signature, RpcError> {
@@ -103,7 +102,6 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
 
         actions.push(MintActionType::MintTo {
             recipients,
-            lamports,
             token_account_version: 2, // V2 for batched merkle trees
         });
     }
