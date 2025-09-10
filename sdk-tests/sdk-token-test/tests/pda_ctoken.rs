@@ -22,7 +22,7 @@ use light_ctoken_types::{
         mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     },
     state::{
-        extensions::{AdditionalMetadata, Metadata},
+        extensions::AdditionalMetadata,
         BaseCompressedMint,
     },
     COMPRESSED_TOKEN_PROGRAM_ID,
@@ -68,13 +68,10 @@ async fn test_pda_ctoken() {
 
     let token_metadata = TokenMetadataInstructionData {
         update_authority: Some(mint_authority.into()),
-        metadata: Metadata {
-            name: token_name.clone().into_bytes(),
-            symbol: token_symbol.clone().into_bytes(),
-            uri: token_uri.clone().into_bytes(),
-        },
+        name: token_name.clone().into_bytes(),
+        symbol: token_symbol.clone().into_bytes(),
+        uri: token_uri.clone().into_bytes(),
         additional_metadata: Some(additional_metadata),
-        version: 3,
     };
 
     // Create the compressed mint (with chained operations including update mint)
@@ -330,7 +327,6 @@ pub async fn create_mint<R: Rpc + Indexer>(
             compressed_mint_with_context,
             mint_bump,
             token_recipients,
-            lamports: None,
             final_mint_authority: None, // Revoke mint authority (set to None)
             pda_creation,
             output_tree_index,

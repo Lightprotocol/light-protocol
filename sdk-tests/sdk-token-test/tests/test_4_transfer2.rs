@@ -264,7 +264,6 @@ async fn mint_compressed_tokens(
             output_queue_cmint: output_queue,
             output_queue_tokens: output_queue,
             decompressed_mint_config: None,
-            lamports: None,
             token_account_version: 2,
             token_pool: None,
         },

@@ -141,7 +141,6 @@ async fn test_compress_full_and_close() {
             cpi_context_pubkey: None,
             proof: None,
             compressed_mint_inputs,
-            lamports: Some(10000u64),
             recipients: vec![Recipient {
                 recipient: recipient.into(),
                 amount: mint_amount,

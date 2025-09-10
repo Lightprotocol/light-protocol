@@ -26,7 +26,6 @@ pub fn process_mint_compressed_tokens_cpi_write<'info>(
 ) -> Result<()> {
     let actions = vec![MintActionType::MintTo {
         recipients: params.recipients,
-        lamports: None,
         token_account_version: 2,
     }];
 

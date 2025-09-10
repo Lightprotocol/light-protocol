@@ -155,7 +155,6 @@ async fn setup_compress_and_close_test(
         decompressed_recipients, // Mint to owners - ATAs already exist
         None,
         None,
-        None,
         Some(NewMint {
             decimals,
             mint_authority,
@@ -829,7 +828,6 @@ async fn test_compress_and_close_cpi_mixed_signers() {
         false,
         Vec::new(),
         decompressed_recipients,
-        None,
         None,
         None,
         Some(NewMint {

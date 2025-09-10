@@ -16,7 +16,6 @@ pub fn process_mint_action<'c, 'info>(
     let actions = vec![
         MintActionType::MintTo {
             recipients: input.token_recipients.clone(),
-            lamports: input.lamports,
             token_account_version: 2,
         },
         MintActionType::UpdateMintAuthority {

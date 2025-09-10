@@ -5,7 +5,7 @@ use light_compressed_token_sdk::instructions::{
 };
 use light_ctoken_types::{
     instructions::extensions::token_metadata::TokenMetadataInstructionData,
-    state::{extensions::Metadata, ExtensionStruct},
+    state::ExtensionStruct,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc};
 use light_test_utils::assert_metadata::{
@@ -93,13 +93,10 @@ fn create_test_metadata(update_authority: Option<Pubkey>) -> TokenMetadataInstru
 
     TokenMetadataInstructionData {
         update_authority: update_authority.map(|auth| auth.into()),
-        metadata: Metadata {
-            name: b"Test Token".to_vec(),
-            symbol: b"TEST".to_vec(),
-            uri: b"https://example.com/token.json".to_vec(),
-        },
+        name: b"Test Token".to_vec(),
+        symbol: b"TEST".to_vec(),
+        uri: b"https://example.com/token.json".to_vec(),
         additional_metadata: Some(additional_metadata),
-        version: 3,
     }
 }
 
@@ -143,8 +140,8 @@ async fn test_metadata_create_with_additional_keys() -> Result<(), light_client:
         "Should have exactly 4 additional metadata entries"
     );
     assert!(
-        actual_metadata.update_authority.is_some(),
-        "Update authority should be set"
+        actual_metadata.update_authority != light_compressed_account::Pubkey::from([0u8; 32]),
+        "Update authority should be set (non-zero)"
     );
     Ok(())
 }
@@ -202,7 +199,7 @@ async fn test_metadata_field_updates() -> Result<(), light_client::rpc::RpcError
                 if let Some(ExtensionStruct::TokenMetadata(ref mut metadata)) =
                     extensions.get_mut(0)
                 {
-                    metadata.metadata.name = b"Updated Test Token".to_vec();
+                    metadata.name = b"Updated Test Token".to_vec();
                 }
             }
         },
@@ -250,7 +247,7 @@ async fn test_metadata_field_updates() -> Result<(), light_client::rpc::RpcError
                 if let Some(ExtensionStruct::TokenMetadata(ref mut metadata)) =
                     extensions.get_mut(0)
                 {
-                    metadata.metadata.symbol = b"UPDT".to_vec();
+                    metadata.symbol = b"UPDT".to_vec();
                 }
             }
         },
@@ -323,7 +320,7 @@ async fn test_metadata_authority_management() -> Result<(), light_client::rpc::R
                 if let Some(ExtensionStruct::TokenMetadata(ref mut metadata)) =
                     extensions.get_mut(0)
                 {
-                    metadata.update_authority = Some(second_authority.pubkey().into());
+                    metadata.update_authority = second_authority.pubkey().into();
                 }
             }
         },
@@ -373,7 +370,7 @@ async fn test_metadata_authority_management() -> Result<(), light_client::rpc::R
     // === ACT & ASSERT - Revoke authority (C to None) ===
     let revoke_authority_actions = vec![MintActionType::UpdateMetadataAuthority {
         extension_index: 0,
-        new_authority: Pubkey::default(), // None equivalent
+        new_authority: solana_sdk::pubkey::Pubkey::from([0u8; 32]), // Zero pubkey for None
     }];
 
     let params = MintActionParams {

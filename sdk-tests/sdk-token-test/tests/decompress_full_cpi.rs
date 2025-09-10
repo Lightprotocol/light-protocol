@@ -120,7 +120,6 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
         Vec::new(),
         None,
         None,
-        None,
         Some(NewMint {
             decimals,
             mint_authority,

@@ -161,7 +161,8 @@ fn update_metadata_authority_field(
             msg!("Authority updated successfully");
         }
         (None, false) => {
-            // Authority was correctly revoked during allocation - nothing to do
+            // Revoke authority by setting to zero
+            *metadata_authority = light_compressed_account::Pubkey::from([0u8; 32]);
             msg!("Authority successfully revoked");
         }
         (Some(_), true) => {

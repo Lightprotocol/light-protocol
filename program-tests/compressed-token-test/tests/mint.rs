@@ -15,7 +15,7 @@ use light_ctoken_types::{
         extensions::token_metadata::TokenMetadataInstructionData, mint_action::Recipient,
     },
     state::{
-        extensions::{AdditionalMetadata, Metadata},
+        extensions::AdditionalMetadata,
         BaseCompressedMint, CompressedMint,
     },
     COMPRESSED_MINT_SEED,
@@ -115,7 +115,6 @@ async fn test_create_compressed_mint() {
     let recipient_keypair = Keypair::new();
     let recipient = recipient_keypair.pubkey();
     let mint_amount = 1000u64;
-    let lamports = Some(10000u64);
 
     // Use our mint_to_compressed action helper
     {
@@ -141,7 +140,6 @@ async fn test_create_compressed_mint() {
             }],
             &mint_authority_keypair,
             &payer,
-            lamports,
         )
         .await
         .unwrap();
@@ -549,13 +547,10 @@ async fn test_create_compressed_mint_with_token_metadata_poseidon() {
 
     let token_metadata = TokenMetadataInstructionData {
         update_authority: None,
-        metadata: Metadata {
-            name: b"Test Token".to_vec(),
-            symbol: b"TEST".to_vec(),
-            uri: b"https://example.com/token.json".to_vec(),
-        },
+        name: b"Test Token".to_vec(),
+        symbol: b"TEST".to_vec(),
+        uri: b"https://example.com/token.json".to_vec(),
         additional_metadata: Some(additional_metadata.clone()),
-        version: 3, // Poseidon hash version
     };
     light_token_client::actions::create_mint(
         &mut rpc,
@@ -657,7 +652,6 @@ async fn test_create_compressed_mint_with_token_metadata_poseidon() {
             }],
             &mint_authority_keypair,
             &payer,
-            None, // No lamports
         )
         .await
         .unwrap();
@@ -876,7 +870,6 @@ async fn test_decompressed_token_transfer() {
         decompressed_recipients, // mint to decompressed recipients
         None,                    // no mint authority update
         None,                    // no freeze authority update
-        None,                    // no lamports
         Some(light_token_client::instructions::mint_action::NewMint {
             decimals,
             supply: 0,
@@ -1168,7 +1161,6 @@ async fn test_spl_compression_decompression_functional() {
         }],
         &mint_authority_keypair,
         &payer,
-        Some(10000u64), // lamports
     )
     .await
     .unwrap();
@@ -1520,7 +1512,6 @@ async fn test_mint_actions_comprehensive() {
         vec![],                              // mint_to_decompressed_recipients
         Some(new_mint_authority.pubkey()),   // update_mint_authority
        None,// Some(new_freeze_authority.pubkey()), // update_freeze_authority
-        None,                                // no lamports
         Some(light_token_client::instructions::mint_action::NewMint {
             decimals,
             supply:0,
@@ -1528,13 +1519,10 @@ async fn test_mint_actions_comprehensive() {
             freeze_authority: Some(freeze_authority.pubkey()),
             metadata: Some(light_ctoken_types::instructions::extensions::token_metadata::TokenMetadataInstructionData {
                 update_authority: Some(mint_authority.pubkey().into()),
-                metadata: light_ctoken_types::state::Metadata {
-                    name: "Test Token".as_bytes().to_vec(),
-                    symbol: "TEST".as_bytes().to_vec(),
-                    uri: "https://example.com/token.json".as_bytes().to_vec(),
-                },
+                name: "Test Token".as_bytes().to_vec(),
+                symbol: "TEST".as_bytes().to_vec(),
+                uri: "https://example.com/token.json".as_bytes().to_vec(),
                 additional_metadata: None,
-                version: 3,
             }),
             version: 3,
         }),
@@ -1563,15 +1551,12 @@ async fn test_mint_actions_comprehensive() {
         extensions: Some(vec![
             light_ctoken_types::state::extensions::ExtensionStruct::TokenMetadata(
                 light_ctoken_types::state::extensions::TokenMetadata {
-                    update_authority: Some(mint_authority.pubkey().into()), // Original authority in metadata
+                    update_authority: mint_authority.pubkey().into(), // Original authority in metadata
                     mint: spl_mint_pda.into(),
-                    metadata: light_ctoken_types::state::Metadata {
-                        name: "Test Token".as_bytes().to_vec(),
-                        symbol: "TEST".as_bytes().to_vec(),
-                        uri: "https://example.com/token.json".as_bytes().to_vec(),
-                    },
+                    name: "Test Token".as_bytes().to_vec(),
+                    symbol: "TEST".as_bytes().to_vec(),
+                    uri: "https://example.com/token.json".as_bytes().to_vec(),
                     additional_metadata: vec![], // No additional metadata in our test
-                    version: 3,
                 },
             ),
         ]), // Match the metadata we're creating
@@ -1726,7 +1711,6 @@ async fn test_mint_actions_comprehensive() {
         vec![],                              // mint_to_decompressed_recipients
         Some(newer_mint_authority.pubkey()), // update_mint_authority to newer authority
         None,                                // update_freeze_authority (no change)
-        None,                                // no lamports
         None,                                // no new mint data (already exists)
     )
     .await
@@ -1820,13 +1804,10 @@ async fn test_create_compressed_mint_with_token_metadata_sha() {
 
     let token_metadata = TokenMetadataInstructionData {
         update_authority: None,
-        metadata: Metadata {
-            name: b"Test Token".to_vec(),
-            symbol: b"TEST".to_vec(),
-            uri: b"https://example.com/token.json".to_vec(),
-        },
+        name: b"Test Token".to_vec(),
+        symbol: b"TEST".to_vec(),
+        uri: b"https://example.com/token.json".to_vec(),
         additional_metadata: Some(additional_metadata.clone()),
-        version: 3, // Sha hash version
     };
     light_token_client::actions::create_mint(
         &mut rpc,
@@ -1928,7 +1909,6 @@ async fn test_create_compressed_mint_with_token_metadata_sha() {
             }],
             &mint_authority_keypair,
             &payer,
-            None, // No lamports
         )
         .await
         .unwrap();

@@ -42,7 +42,6 @@ async fn test_transfer2_delegated_partial() {
     let recipient_keypair = Keypair::new();
     let recipient = recipient_keypair.pubkey();
     let mint_amount = 1000u64;
-    let lamports = Some(10000u64);
 
     mint_to_compressed(
         &mut rpc,
@@ -53,7 +52,6 @@ async fn test_transfer2_delegated_partial() {
         }],
         &mint_authority_keypair,
         &payer,
-        lamports,
     )
     .await
     .unwrap();
