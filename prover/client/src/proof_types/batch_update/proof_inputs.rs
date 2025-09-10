@@ -1,4 +1,6 @@
-use light_hasher::{hash_chain::create_hash_chain_from_array, Hasher, Poseidon};
+use light_hasher::{
+    hash_chain::create_hash_chain_from_array, to_byte_array::ToByteArray, Hasher, Poseidon,
+};
 use light_sparse_merkle_tree::changelog::ChangelogEntry;
 use num_bigint::{BigInt, Sign};
 
@@ -91,7 +93,7 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
         let merkle_proof_array = merkle_proof.try_into().unwrap();
 
         // Use the adjusted index bytes for computing the nullifier.
-        let index_bytes = (*index).to_be_bytes();
+        let index_bytes = index.to_byte_array().unwrap();
         let nullifier = Poseidon::hashv(&[leaf, &index_bytes, &tx_hashes[i]]).unwrap();
         let (root, changelog_entry) =
             compute_root_from_merkle_proof(nullifier, &merkle_proof_array, *index);

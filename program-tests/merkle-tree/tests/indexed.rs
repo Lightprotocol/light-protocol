@@ -1,4 +1,6 @@
-use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
+use light_hasher::{
+    bigint::bigint_to_be_bytes_array, to_byte_array::ToByteArray, Hasher, Poseidon,
+};
 use light_merkle_tree_reference::indexed::IndexedMerkleTree;
 use num_bigint::ToBigUint;
 
@@ -38,16 +40,16 @@ pub fn functional_non_inclusion_test() {
     assert_eq!(
         leaf_0,
         Poseidon::hashv(&[
-            &0_u32.to_biguint().unwrap().to_bytes_be(),
-            &30_u32.to_biguint().unwrap().to_bytes_be()
+            &0_u32.to_byte_array().unwrap(),
+            &30_u32.to_byte_array().unwrap(),
         ])
         .unwrap()
     );
     assert_eq!(
         leaf_1,
         Poseidon::hashv(&[
-            &30_u32.to_biguint().unwrap().to_bytes_be(),
-            &0_u32.to_biguint().unwrap().to_bytes_be()
+            &30_u32.to_byte_array().unwrap(),
+            &0_u32.to_byte_array().unwrap(),
         ])
         .unwrap()
     );

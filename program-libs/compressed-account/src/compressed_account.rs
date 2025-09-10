@@ -378,7 +378,7 @@ impl ZCompressedAccount<'_> {
 #[cfg(not(feature = "pinocchio"))]
 #[cfg(test)]
 mod tests {
-    use light_hasher::Poseidon;
+    use light_hasher::{to_byte_array::ToByteArray, Poseidon};
     use light_zero_copy::traits::ZeroCopyAt;
     use num_bigint::BigUint;
     use rand::Rng;
@@ -750,7 +750,7 @@ mod tests {
                     Some(CompressedAccountData {
                         discriminator: rng.gen(),
                         data: Vec::new(), // not used in hash
-                        data_hash: Poseidon::hash(rng.gen::<u64>().to_be_bytes().as_slice())
+                        data_hash: Poseidon::hash(&rng.gen::<u64>().to_byte_array().unwrap())
                             .unwrap(),
                     })
                 } else {
