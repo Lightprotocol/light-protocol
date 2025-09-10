@@ -212,7 +212,6 @@ async fn e2e_test() {
         queue_config: Default::default(),
         indexer_config: Default::default(),
         transaction_config: TransactionConfig {
-            batch_ixs_per_tx: 4,
             ..Default::default()
         },
         general_config: GeneralConfig {
