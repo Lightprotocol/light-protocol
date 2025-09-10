@@ -73,15 +73,15 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
 
         let mint_data =
             light_ctoken_types::instructions::mint_action::CompressedMintInstructionData {
-                base: light_ctoken_types::state::BaseCompressedMint {
+                supply: new_mint.supply,
+                decimals: new_mint.decimals,
+                metadata: light_ctoken_types::state::CompressedMintMetadata {
                     version: new_mint.version,
                     spl_mint: find_spl_mint_address(&params.mint_seed).0.to_bytes().into(),
-                    supply: new_mint.supply,
-                    decimals: new_mint.decimals,
                     is_decompressed: false, // Will be set to true if CreateSplMint action is present
-                    mint_authority: Some(new_mint.mint_authority.to_bytes().into()),
-                    freeze_authority: new_mint.freeze_authority.map(|auth| auth.to_bytes().into()),
                 },
+                mint_authority: Some(new_mint.mint_authority.to_bytes().into()),
+                freeze_authority: new_mint.freeze_authority.map(|auth| auth.to_bytes().into()),
                 extensions: new_mint
                     .metadata
                     .as_ref()
@@ -144,7 +144,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
             action,
             MintActionType::CreateSplMint { .. } | MintActionType::MintToDecompressed { .. }
         )
-    }) || compressed_mint_inputs.mint.base.is_decompressed;
+    }) || compressed_mint_inputs.mint.metadata.is_decompressed;
 
     let token_pool = if needs_token_pool {
         let spl_mint = find_spl_mint_address(&params.mint_seed).0;

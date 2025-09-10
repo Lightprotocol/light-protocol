@@ -4,8 +4,7 @@ use light_compressed_token::shared::cpi_bytes_size::{
     allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
 };
 use light_ctoken_types::state::{
-    extensions::TokenMetadataConfig, BaseCompressedMintConfig, CompressedMint,
-    CompressedMintConfig, ExtensionStructConfig,
+    extensions::TokenMetadataConfig, CompressedMint, CompressedMintConfig, ExtensionStructConfig,
 };
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 
@@ -13,10 +12,8 @@ use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 fn test_extension_allocation_only() {
     // Test 1: No extensions - should work
     let mint_config_no_ext = CompressedMintConfig {
-        base: BaseCompressedMintConfig {
-            mint_authority: (true, ()),
-            freeze_authority: (false, ()),
-        },
+        base: (),
+        metadata: (),
         extensions: (false, vec![]),
     };
     let expected_mint_size_no_ext = CompressedMint::byte_len(&mint_config_no_ext).unwrap();
@@ -48,10 +45,8 @@ fn test_extension_allocation_only() {
     })];
 
     let mint_config_with_ext = CompressedMintConfig {
-        base: BaseCompressedMintConfig {
-            mint_authority: (true, ()),
-            freeze_authority: (false, ()),
-        },
+        base: (),
+        metadata: (),
         extensions: (true, extensions_config.clone()),
     };
     let expected_mint_size_with_ext = CompressedMint::byte_len(&mint_config_with_ext).unwrap();
@@ -161,10 +156,8 @@ fn test_progressive_extension_sizes() {
         })];
 
         let mint_config = CompressedMintConfig {
-            base: BaseCompressedMintConfig {
-                mint_authority: (true, ()),
-                freeze_authority: (false, ()),
-            },
+            base: (),
+            metadata: (),
             extensions: (true, extensions_config),
         };
 

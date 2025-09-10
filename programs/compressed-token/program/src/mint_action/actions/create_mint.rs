@@ -41,7 +41,7 @@ pub fn process_create_mint_action(
     )?
     .into();
 
-    if spl_mint_pda.to_bytes() != parsed_instruction_data.mint.base.spl_mint.to_bytes() {
+    if spl_mint_pda.to_bytes() != parsed_instruction_data.mint.metadata.spl_mint.to_bytes() {
         msg!("Invalid mint PDA derivation");
         return Err(ErrorCode::MintActionInvalidMintPda.into());
     }
@@ -59,22 +59,22 @@ pub fn process_create_mint_action(
         address_merkle_tree_account_index,
     );
     // Validate mint parameters
-    if u64::from(parsed_instruction_data.mint.base.supply) != 0 {
+    if parsed_instruction_data.mint.supply != 0 {
         msg!("Initial supply must be 0 for new mint creation");
         return Err(ErrorCode::MintActionInvalidInitialSupply.into());
     }
 
     // Validate version is supported
-    if parsed_instruction_data.mint.base.version != 3 {
+    if parsed_instruction_data.mint.metadata.version != 3 {
         msg!(
             "Unsupported mint version {}",
-            parsed_instruction_data.mint.base.version
+            parsed_instruction_data.mint.metadata.version
         );
         return Err(ErrorCode::MintActionUnsupportedVersion.into());
     }
 
     // Validate is_decompressed is false for new mint creation
-    if parsed_instruction_data.mint.base.is_decompressed() {
+    if parsed_instruction_data.mint.metadata.is_decompressed != 0 {
         msg!("New mint must start as compressed (is_decompressed=false)");
         return Err(ErrorCode::MintActionInvalidCompressionState.into());
     }

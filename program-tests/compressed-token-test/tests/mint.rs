@@ -14,10 +14,7 @@ use light_ctoken_types::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData, mint_action::Recipient,
     },
-    state::{
-        extensions::AdditionalMetadata,
-        BaseCompressedMint, CompressedMint,
-    },
+    state::{extensions::AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata},
     COMPRESSED_MINT_SEED,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
@@ -1539,14 +1536,17 @@ async fn test_mint_actions_comprehensive() {
 
     // Create empty pre-states since everything was created from scratch
     let empty_pre_compressed_mint = CompressedMint {
-        base: BaseCompressedMint {
-            spl_mint: spl_mint_pda.into(),
+        base: BaseMint {
+            mint_authority: Some(new_mint_authority.pubkey().into()),
             supply: 0,
             decimals,
-            mint_authority: Some(new_mint_authority.pubkey().into()),
+            is_initialized: true,
             freeze_authority: Some(freeze_authority.pubkey().into()), // We didn't update freeze authority
+        },
+        metadata: CompressedMintMetadata {
+            version: 3, // With metadata
+            spl_mint: spl_mint_pda.into(),
             is_decompressed: true, // Should be true after CreateSplMint action
-            version: 3,            // With metadata
         },
         extensions: Some(vec![
             light_ctoken_types::state::extensions::ExtensionStruct::TokenMetadata(
@@ -1637,7 +1637,7 @@ async fn test_mint_actions_comprehensive() {
         "Supply should match minted amount"
     );
     assert!(
-        updated_compressed_mint.base.is_decompressed,
+        updated_compressed_mint.metadata.is_decompressed,
         "Mint should be decompressed after CreateSplMint"
     );
 
@@ -1759,7 +1759,7 @@ async fn test_mint_actions_comprehensive() {
         "Supply should include both mintings"
     );
     assert!(
-        final_compressed_mint.base.is_decompressed,
+        final_compressed_mint.metadata.is_decompressed,
         "Mint should remain decompressed"
     );
 

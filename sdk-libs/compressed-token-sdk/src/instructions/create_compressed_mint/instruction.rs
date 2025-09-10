@@ -49,18 +49,18 @@ pub fn create_compressed_mint_cpi(
     let compressed_mint_with_context = CompressedMintWithContext {
         address: mint_address,
         mint: light_ctoken_types::instructions::mint_action::CompressedMintInstructionData {
-            base: light_ctoken_types::state::BaseCompressedMint {
-                decimals: input.decimals,
-                mint_authority: Some(input.mint_authority.to_bytes().into()),
-                freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
+            supply: 0,
+            decimals: input.decimals,
+            metadata: light_ctoken_types::state::CompressedMintMetadata {
+                version: input.version,
                 spl_mint: find_spl_mint_address(&input.mint_signer)
                     .0
                     .to_bytes()
                     .into(),
-                supply: 0,
-                version: input.version,
                 is_decompressed: false,
             },
+            mint_authority: Some(input.mint_authority.to_bytes().into()),
+            freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
             extensions: input.extensions,
         },
         leaf_index: 0, // Default value for new mint
@@ -136,18 +136,18 @@ pub fn create_compressed_mint_cpi_write(
     let compressed_mint_with_context = CompressedMintWithContext {
         address: input.mint_address,
         mint: light_ctoken_types::instructions::mint_action::CompressedMintInstructionData {
-            base: light_ctoken_types::state::BaseCompressedMint {
-                decimals: input.decimals,
-                mint_authority: Some(input.mint_authority.to_bytes().into()),
-                freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
+            supply: 0,
+            decimals: input.decimals,
+            metadata: light_ctoken_types::state::CompressedMintMetadata {
+                version: input.version,
                 spl_mint: find_spl_mint_address(&input.mint_signer)
                     .0
                     .to_bytes()
                     .into(),
-                supply: 0,
-                version: input.version,
                 is_decompressed: false,
             },
+            mint_authority: Some(input.mint_authority.to_bytes().into()),
+            freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
             extensions: input.extensions,
         },
         leaf_index: 0, // Default value for new mint

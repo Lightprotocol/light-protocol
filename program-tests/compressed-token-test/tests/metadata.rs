@@ -4,8 +4,7 @@ use light_compressed_token_sdk::instructions::{
     derive_compressed_mint_address, mint_action::MintActionType,
 };
 use light_ctoken_types::{
-    instructions::extensions::token_metadata::TokenMetadataInstructionData,
-    state::ExtensionStruct,
+    instructions::extensions::token_metadata::TokenMetadataInstructionData, state::ExtensionStruct,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc};
 use light_test_utils::assert_metadata::{

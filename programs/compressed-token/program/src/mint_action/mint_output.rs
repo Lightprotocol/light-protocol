@@ -83,7 +83,7 @@ pub fn process_output_compressed_account<'a>(
                 extensions_state_in_output_compressed_account(
                     extensions,
                     z_extensions.as_mut_slice(),
-                    parsed_instruction_data.mint.base.spl_mint,
+                    parsed_instruction_data.mint.metadata.spl_mint,
                 )?;
             }
         }

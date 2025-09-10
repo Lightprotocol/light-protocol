@@ -69,7 +69,7 @@ pub fn process_mint_action(
     let validated_accounts = MintActionAccounts::validate_and_parse(
         accounts,
         &accounts_config,
-        &parsed_instruction_data.mint.base.spl_mint.into(),
+        &parsed_instruction_data.mint.metadata.spl_mint.into(),
         parsed_instruction_data.token_pool_index,
         parsed_instruction_data.token_pool_bump,
     )?;
@@ -190,7 +190,7 @@ pub fn process_actions<'a>(
 
     // Validate mint authority
     let mut _validated_mint_authority = None;
-    if let Some(current_mint_auth) = parsed_instruction_data.mint.base.mint_authority.as_ref() {
+    if let Some(current_mint_auth) = parsed_instruction_data.mint.mint_authority.as_ref() {
         if current_mint_auth.to_bytes() == signer_key {
             _validated_mint_authority = Some(**current_mint_auth);
         }
@@ -210,46 +210,49 @@ pub fn process_actions<'a>(
                     accounts_config,
                     cpi_instruction_struct,
                     hash_cache,
-                    parsed_instruction_data.mint.base.spl_mint,
+                    parsed_instruction_data.mint.metadata.spl_mint,
                     queue_indices.out_token_queue_index,
                     parsed_instruction_data
                         .mint
-                        .base
                         .mint_authority
                         .as_ref()
                         .map(|a| **a),
                 )?;
-                compressed_mint.base.supply = new_supply.into();
+                *compressed_mint.base.supply = new_supply.into();
             }
             ZAction::UpdateMintAuthority(update_action) => {
                 msg!("Processing UpdateMintAuthority action");
                 validate_and_update_authority(
-                    &mut compressed_mint.base.mint_authority,
+                    compressed_mint.base.mint_authority(),
                     parsed_instruction_data
                         .mint
-                        .base
                         .mint_authority
                         .as_ref()
                         .map(|a| **a),
-                    update_action,
+                    // update_action,
                     validated_accounts.authority.key(),
                     "mint authority",
                 )?;
+                compressed_mint
+                    .base
+                    .set_mint_authority(update_action.new_authority.map(|e| *e));
             }
             ZAction::UpdateFreezeAuthority(update_action) => {
                 msg!("Processing UpdateFreezeAuthority action");
                 validate_and_update_authority(
-                    &mut compressed_mint.base.freeze_authority,
+                    compressed_mint.base.freeze_authority(),
                     parsed_instruction_data
                         .mint
-                        .base
                         .freeze_authority
                         .as_ref()
                         .map(|a| **a),
-                    update_action,
+                    // update_action,
                     validated_accounts.authority.key(),
                     "freeze authority",
                 )?;
+                compressed_mint
+                    .base
+                    .set_freeze_authority(update_action.new_authority.map(|e| *e));
             }
             ZAction::CreateSplMint(create_spl_action) => {
                 msg!("Processing CreateSplMint action");
@@ -263,20 +266,19 @@ pub fn process_actions<'a>(
                 msg!("Processing MintToDecompressed action");
                 let new_supply = process_mint_to_decompressed_action(
                     mint_to_decompressed_action,
-                    u64::from(compressed_mint.base.supply),
+                    compressed_mint.base.supply.get(),
                     compressed_mint,
                     validated_accounts,
                     accounts_config,
                     packed_accounts,
-                    parsed_instruction_data.mint.base.spl_mint,
+                    parsed_instruction_data.mint.metadata.spl_mint,
                     parsed_instruction_data
                         .mint
-                        .base
                         .mint_authority
                         .as_ref()
                         .map(|a| **a),
                 )?;
-                compressed_mint.base.supply = new_supply.into();
+                *compressed_mint.base.supply = new_supply.into();
                 msg!("done Processing MintToDecompressed action");
             }
             ZAction::UpdateMetadataField(update_metadata_action) => {

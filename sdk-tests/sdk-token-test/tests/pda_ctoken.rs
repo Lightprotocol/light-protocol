@@ -21,10 +21,7 @@ use light_ctoken_types::{
         extensions::token_metadata::TokenMetadataInstructionData,
         mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     },
-    state::{
-        extensions::AdditionalMetadata,
-        BaseCompressedMint,
-    },
+    state::{extensions::AdditionalMetadata, CompressedMintMetadata},
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
@@ -109,7 +106,7 @@ async fn test_pda_ctoken() {
     .unwrap();
 
     println!("✅ Compressed mint created:");
-    println!("   - SPL mint: {:?}", compressed_mint.base.spl_mint);
+    println!("   - SPL mint: {:?}", compressed_mint.metadata.spl_mint);
     println!("   - Decimals: {}", compressed_mint.base.decimals);
     println!("   - Supply: {}", compressed_mint.base.supply);
     println!(
@@ -273,17 +270,16 @@ pub async fn create_mint<R: Rpc + Indexer>(
         root_index: rpc_result.addresses[0].root_index,
         address: compressed_mint_address,
         mint: CompressedMintInstructionData {
-           base: BaseCompressedMint {
-            version: 3,
-            spl_mint: spl_mint.into(),
             supply: 0,
             decimals,
+            metadata: CompressedMintMetadata {
+                version: 3,
+                spl_mint: spl_mint.into(),
+                is_decompressed: false,
+            },
             mint_authority: Some(mint_authority.pubkey().into()),
             freeze_authority: freeze_authority.map(|fa| fa.into()),
-            is_decompressed:false,
-            },
             extensions: metadata.map(|m| vec![light_ctoken_types::instructions::extensions::ExtensionInstructionData::TokenMetadata(m)]),
-
         },
     };
 

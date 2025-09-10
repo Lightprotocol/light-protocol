@@ -240,25 +240,13 @@ pub fn process_transfer2(
 pub fn validate_instruction_data(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
 ) -> Result<(), CTokenError> {
-    if let Some(ref in_lamports) = inputs.in_lamports {
-        if in_lamports.len() != inputs.in_token_data.len() {
-            msg!(
-                "in_lamports {} != inputs in_token_data {}",
-                in_lamports.len(),
-                inputs.in_token_data.len()
-            );
-            return Err(CTokenError::InputAccountsLamportsLengthMismatch);
-        }
+    if inputs.in_lamports.is_some() {
+        msg!("in_lamports are unimplemented",);
+        return Err(CTokenError::TokenDataTlvUnimplemented);
     }
-    if let Some(ref out_lamports) = inputs.out_lamports {
-        if out_lamports.len() != inputs.out_token_data.len() {
-            msg!(
-                "outlamports {} != inputs out_token_data {}",
-                out_lamports.len(),
-                inputs.out_token_data.len()
-            );
-            return Err(CTokenError::OutputAccountsLamportsLengthMismatch);
-        }
+    if inputs.out_lamports.is_some() {
+        msg!("outlamports are unimplemented",);
+        return Err(CTokenError::TokenDataTlvUnimplemented);
     }
     if inputs.in_tlv.is_some() {
         return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);

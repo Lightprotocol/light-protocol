@@ -75,7 +75,10 @@ pub async fn assert_metadata_state<R: Rpc + Indexer>(
 
     // Create expected TokenMetadata for complete struct comparison
     let expected_metadata = TokenMetadata {
-        update_authority: expected.update_authority.map(|p| p.into()).unwrap_or_else(|| light_compressed_account::Pubkey::from([0u8; 32])),
+        update_authority: expected
+            .update_authority
+            .map(|p| p.into())
+            .unwrap_or_else(|| light_compressed_account::Pubkey::from([0u8; 32])),
         mint: actual_metadata.mint, // Copy from actual since mint address is derived
         name: expected.name.clone(),
         symbol: expected.symbol.clone(),
@@ -154,7 +157,10 @@ pub async fn get_actual_mint_state<R: Rpc + Indexer>(
         .await
         .expect("Failed to get compressed mint account")
         .value;
-
+    println!(
+        "compressed_mint_account.data {:?}",
+        compressed_mint_account.data
+    );
     BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
         .expect("Failed to deserialize CompressedMint")
 }

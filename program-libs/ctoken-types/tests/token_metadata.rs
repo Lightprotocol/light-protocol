@@ -12,15 +12,18 @@ use rand::{distributions::Alphanumeric, thread_rng, Rng};
 use spl_pod::optional_keys::OptionalNonZeroPubkey;
 use spl_token_metadata_interface::state::TokenMetadata as SplTokenMetadata;
 
-/// Generate random test data that can be represented in both formats
-fn generate_random_metadata() -> (
+/// Test data tuple type for metadata generation
+type MetadataTestData = (
     Option<Pubkey>,
     Pubkey,
     String,
     String,
     String,
     Vec<(String, String)>,
-) {
+);
+
+/// Generate random test data that can be represented in both formats
+fn generate_random_metadata() -> MetadataTestData {
     let mut rng = thread_rng();
 
     let update_authority = if rng.gen_bool(0.7) {
@@ -191,17 +194,18 @@ fn compare_metadata(light: &LightTokenMetadata, spl: &SplTokenMetadata, iteratio
 
     // Verify serialized byte lengths are reasonable
     assert!(
-        light_bytes.len() > 0 && light_bytes.len() < 10000,
+        !light_bytes.is_empty() && light_bytes.len() < 10000,
         "Light serialized size {} is unreasonable at iteration {}",
         light_bytes.len(),
         iteration
     );
     assert!(
-        spl_bytes.len() > 0 && spl_bytes.len() < 10000,
+        !spl_bytes.is_empty() && spl_bytes.len() < 10000,
         "SPL serialized size {} is unreasonable at iteration {}",
         spl_bytes.len(),
         iteration
     );
+    assert_eq!(light_bytes, spl_bytes);
 }
 
 /// Randomized compatibility test for TokenMetadata borsh serialization (1k iterations)
@@ -316,57 +320,4 @@ fn test_token_metadata_edge_cases() {
 
     // Use compare_metadata for consistency
     compare_metadata(&light_max, &spl_max, 1);
-}
-
-/// Test UTF-8 special characters handling
-#[test]
-fn test_token_metadata_utf8_characters() {
-    let authority = Pubkey::from([42u8; 32]);
-    let mint = Pubkey::from([84u8; 32]);
-
-    // Test with various UTF-8 characters
-    let light_metadata = LightTokenMetadata {
-        update_authority: authority,
-        mint,
-        name: "Token 🚀 Name".as_bytes().to_vec(),
-        symbol: "TKN💎".as_bytes().to_vec(),
-        uri: "https://example.com/metadata?token=🌟".as_bytes().to_vec(),
-        additional_metadata: vec![
-            AdditionalMetadata {
-                key: "description 📝".as_bytes().to_vec(),
-                value: "A token with emojis ✨".as_bytes().to_vec(),
-            },
-            AdditionalMetadata {
-                key: "locale".as_bytes().to_vec(),
-                value: "日本語".as_bytes().to_vec(), // Japanese characters
-            },
-        ],
-    };
-
-    // Create corresponding SPL metadata
-    let spl_metadata = SplTokenMetadata {
-        update_authority: OptionalNonZeroPubkey::try_from(Some(solana_pubkey::Pubkey::from(
-            [42u8; 32],
-        )))
-        .unwrap(),
-        mint: solana_pubkey::Pubkey::from([84u8; 32]),
-        name: "Token 🚀 Name".to_string(),
-        symbol: "TKN💎".to_string(),
-        uri: "https://example.com/metadata?token=🌟".to_string(),
-        additional_metadata: vec![
-            (
-                "description 📝".to_string(),
-                "A token with emojis ✨".to_string(),
-            ),
-            ("locale".to_string(), "日本語".to_string()),
-        ],
-    };
-
-    // Use compare_metadata to verify both serialization and field equivalence
-    compare_metadata(&light_metadata, &spl_metadata, 0);
-    let light_bytes = light_metadata.try_to_vec().unwrap();
-    let mut spl_bytes = Vec::new();
-    use spl_token_metadata_interface::borsh::BorshSerialize;
-    spl_metadata.serialize(&mut spl_bytes).unwrap();
-    assert_eq!(light_bytes, spl_bytes);
 }

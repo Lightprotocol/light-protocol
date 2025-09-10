@@ -1,4 +1,4 @@
-use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
+use light_compressed_account::{instruction_data::compressed_proof::CompressedProof, Pubkey};
 use light_zero_copy::ZeroCopy;
 
 use super::{
@@ -8,7 +8,7 @@ use super::{
 };
 use crate::{
     instructions::extensions::ExtensionInstructionData,
-    state::{BaseCompressedMint, CompressedMint, ExtensionStruct},
+    state::{CompressedMint, CompressedMintMetadata, ExtensionStruct},
     AnchorDeserialize, AnchorSerialize, CTokenError,
 };
 
@@ -71,7 +71,20 @@ pub struct CompressedMintWithContext {
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct CompressedMintInstructionData {
-    pub base: BaseCompressedMint,
+    /// Total supply of tokens.
+    pub supply: u64,
+    /// Number of base 10 digits to the right of the decimal place.
+    pub decimals: u8,
+    /// Light Protocol-specific metadata
+    pub metadata: CompressedMintMetadata,
+    /// Optional authority used to mint new tokens. The mint authority may only
+    /// be provided during mint creation. If no mint authority is present
+    /// then the mint has a fixed supply and no further tokens may be
+    /// minted.
+    pub mint_authority: Option<Pubkey>,
+    /// Optional authority to freeze token accounts.
+    pub freeze_authority: Option<Pubkey>,
+    /// Extensions for additional functionality
     pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
 
@@ -108,7 +121,11 @@ impl TryFrom<CompressedMint> for CompressedMintInstructionData {
         };
 
         Ok(Self {
-            base: mint.base,
+            supply: mint.base.supply,
+            decimals: mint.base.decimals,
+            metadata: mint.metadata,
+            mint_authority: mint.base.mint_authority,
+            freeze_authority: mint.base.freeze_authority,
             extensions,
         })
     }

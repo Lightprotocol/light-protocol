@@ -8,7 +8,7 @@ use light_compressed_token_sdk::instructions::{
 };
 use light_ctoken_types::{
     instructions::mint_action::{CompressedMintWithContext, Recipient},
-    state::{BaseCompressedMint, CompressedMint},
+    state::{BaseMint, CompressedMint, CompressedMintMetadata},
     COMPRESSED_MINT_SEED, COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
@@ -112,14 +112,17 @@ async fn test_compress_full_and_close() {
         .value;
 
     let expected_compressed_mint = CompressedMint {
-        base: BaseCompressedMint {
-            spl_mint: mint_pda.into(),
+        base: BaseMint {
+            mint_authority: Some(mint_authority.into()),
             supply: 0,
             decimals,
-            is_decompressed: false,
-            mint_authority: Some(mint_authority.into()),
+            is_initialized: true,
             freeze_authority: Some(freeze_authority.into()),
+        },
+        metadata: CompressedMintMetadata {
             version: 3,
+            spl_mint: mint_pda.into(),
+            is_decompressed: false,
         },
         extensions: None,
     };

@@ -338,9 +338,10 @@ impl AccountsConfig {
         // Scenarios:
         // 1. mint is already decompressed
         // 2. mint is decompressed in this instruction
-        let is_decompressed = parsed_instruction_data.mint.base.is_decompressed() | create_spl_mint;
+        let is_decompressed =
+            parsed_instruction_data.mint.metadata.is_decompressed != 0 || create_spl_mint;
         // We need mint signer if create mint, and create spl mint.
-        let with_mint_signer = parsed_instruction_data.create_mint() | create_spl_mint;
+        let with_mint_signer = parsed_instruction_data.create_mint() || create_spl_mint;
 
         AccountsConfig {
             with_cpi_context,

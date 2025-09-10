@@ -6,8 +6,8 @@ use light_ctoken_types::{
         extensions::ZExtensionInstructionData, mint_action::ZMintActionCompressedInstructionData,
     },
     state::{
-        AdditionalMetadata, BaseCompressedMint, BaseCompressedMintConfig, CompressedMint,
-        CompressedMintConfig, ExtensionStruct, TokenMetadata,
+        AdditionalMetadata, BaseMint, CompressedMint, CompressedMintConfig, CompressedMintMetadata,
+        ExtensionStruct, TokenMetadata,
     },
     CTokenError,
 };
@@ -57,7 +57,7 @@ pub fn create_input_compressed_mint_account(
                             .as_ref()
                             .map(|data| **data)
                             .unwrap_or_else(|| Pubkey::new_from_array([0u8; 32])),
-                        mint: mint_instruction_data.mint.base.spl_mint,
+                        mint: mint_instruction_data.mint.metadata.spl_mint,
                         name: metadata_ix.name.to_vec(),
                         symbol: metadata_ix.symbol.to_vec(),
                         uri: metadata_ix.uri.to_vec(),
@@ -78,14 +78,17 @@ pub fn create_input_compressed_mint_account(
     }
 
     let compressed_mint = CompressedMint {
-        base: BaseCompressedMint {
-            version: mint_instruction_data.mint.base.version,
-            spl_mint: mint_instruction_data.mint.base.spl_mint,
-            supply: mint_instruction_data.mint.base.supply.into(),
-            decimals: mint_instruction_data.mint.base.decimals,
-            is_decompressed: mint_instruction_data.mint.base.is_decompressed(),
-            mint_authority: mint_instruction_data.mint.base.mint_authority.map(|x| *x),
-            freeze_authority: mint_instruction_data.mint.base.freeze_authority.map(|x| *x),
+        base: BaseMint {
+            mint_authority: mint_instruction_data.mint.mint_authority.map(|x| *x),
+            supply: mint_instruction_data.mint.supply.into(),
+            decimals: mint_instruction_data.mint.decimals,
+            is_initialized: true,
+            freeze_authority: mint_instruction_data.mint.freeze_authority.map(|x| *x),
+        },
+        metadata: CompressedMintMetadata {
+            version: mint_instruction_data.mint.metadata.version,
+            spl_mint: mint_instruction_data.mint.metadata.spl_mint,
+            is_decompressed: mint_instruction_data.mint.metadata.is_decompressed(),
         },
         extensions: extensions_vec,
     };
@@ -108,9 +111,6 @@ pub fn create_input_compressed_mint_account(
 pub fn get_zero_copy_config(
     parsed_instruction_data: &ZMintActionCompressedInstructionData,
 ) -> Result<CompressedMintConfig, CTokenError> {
-    // Calculate final authority states and modify output config without touching instruction data
-    let final_mint_authority = parsed_instruction_data.mint.base.mint_authority.is_some();
-    let final_freeze_authority = parsed_instruction_data.mint.base.freeze_authority.is_some();
     let (_, output_extensions_config, _) =
         crate::extensions::process_extensions_config_with_actions(
             parsed_instruction_data.mint.extensions.as_ref(),
@@ -118,10 +118,8 @@ pub fn get_zero_copy_config(
         )?;
 
     Ok(CompressedMintConfig {
-        base: BaseCompressedMintConfig {
-            mint_authority: (final_mint_authority, ()),
-            freeze_authority: (final_freeze_authority, ()),
-        },
+        base: (),
+        metadata: (),
         extensions: (
             !output_extensions_config.is_empty(),
             output_extensions_config,

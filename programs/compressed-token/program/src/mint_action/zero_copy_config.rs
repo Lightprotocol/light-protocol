@@ -6,7 +6,7 @@ use light_ctoken_types::{
         extensions::ZExtensionInstructionData,
         mint_action::{ZAction, ZMintActionCompressedInstructionData},
     },
-    state::{BaseCompressedMintConfig, CompressedMintConfig},
+    state::CompressedMintConfig,
 };
 use light_profiler::profile;
 use spl_pod::solana_msg::msg;
@@ -33,19 +33,11 @@ pub fn get_zero_copy_configs(
             &parsed_instruction_data.actions,
         )?;
 
-    // Calculate final authority states and modify output config without touching instruction data
-    let mut final_mint_authority = parsed_instruction_data.mint.base.mint_authority.is_some();
-    let mut final_freeze_authority = parsed_instruction_data.mint.base.freeze_authority.is_some();
-
     // Process actions to determine final output state (no instruction data modification)
     for action in parsed_instruction_data.actions.iter() {
         match action {
-            ZAction::UpdateMintAuthority(update_action) => {
-                final_mint_authority = update_action.new_authority.is_some();
-            }
-            ZAction::UpdateFreezeAuthority(update_action) => {
-                final_freeze_authority = update_action.new_authority.is_some();
-            }
+            ZAction::UpdateMintAuthority(_) => {}
+            ZAction::UpdateFreezeAuthority(_) => {}
             ZAction::RemoveMetadataKey(_) => {}
             ZAction::UpdateMetadataAuthority(auth_action) => {
                 // Update output config for authority revocation
@@ -66,10 +58,8 @@ pub fn get_zero_copy_configs(
 
     // Output mint config (always present) with final authority states
     let output_mint_config = CompressedMintConfig {
-        base: BaseCompressedMintConfig {
-            mint_authority: (final_mint_authority, ()),
-            freeze_authority: (final_freeze_authority, ()),
-        },
+        base: (),
+        metadata: (),
         extensions: (
             !output_extensions_config.is_empty(),
             output_extensions_config,

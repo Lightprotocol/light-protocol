@@ -1,7 +1,7 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_ctoken_types::{
     instructions::extensions::TokenMetadataInstructionData,
-    state::{BaseCompressedMint, CompressedMint, ExtensionStruct},
+    state::{BaseMint, CompressedMint, CompressedMintMetadata, ExtensionStruct},
 };
 use solana_sdk::pubkey::Pubkey;
 
@@ -21,7 +21,9 @@ pub fn assert_compressed_mint_account(
     let expected_extensions = metadata.map(|meta| {
         vec![ExtensionStruct::TokenMetadata(
             light_ctoken_types::state::extensions::TokenMetadata {
-                update_authority: meta.update_authority.unwrap_or_else(|| Pubkey::from([0u8; 32]).into()),
+                update_authority: meta
+                    .update_authority
+                    .unwrap_or_else(|| Pubkey::from([0u8; 32]).into()),
                 mint: spl_mint_pda.into(),
                 name: meta.name,
                 symbol: meta.symbol,
@@ -33,14 +35,17 @@ pub fn assert_compressed_mint_account(
 
     // Create expected compressed mint for comparison
     let expected_compressed_mint = CompressedMint {
-        base: BaseCompressedMint {
-            spl_mint: spl_mint_pda.into(),
+        base: BaseMint {
+            mint_authority: Some(mint_authority.into()),
             supply: 0,
             decimals,
-            is_decompressed: false,
-            mint_authority: Some(mint_authority.into()),
+            is_initialized: true,
             freeze_authority: Some(freeze_authority.into()),
+        },
+        metadata: CompressedMintMetadata {
             version: 3,
+            spl_mint: spl_mint_pda.into(),
+            is_decompressed: false,
         },
         extensions: expected_extensions,
     };
