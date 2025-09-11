@@ -86,7 +86,6 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
             collected_compressions.push(*compression);
         }
         let (inputs, output) = token_account.into_inputs_and_outputs();
-        println!("output {:?}", output);
         // Collect inputs directly (they're already in the right format)
         input_token_data_with_context.extend(inputs);
 

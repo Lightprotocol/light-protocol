@@ -19,6 +19,7 @@ pub struct TestKeypairs {
     pub nullifier_queue_2: Keypair,
     pub cpi_context_2: Keypair,
     pub group_pda_seed: Keypair,
+    pub rent_authority: Keypair,
 }
 
 impl TestKeypairs {
@@ -46,6 +47,7 @@ impl TestKeypairs {
             nullifier_queue_2: Keypair::new(),
             cpi_context_2: Keypair::new(),
             group_pda_seed: Keypair::from_bytes(&GROUP_PDA_SEED_TEST_KEYPAIR).unwrap(),
+            rent_authority: Keypair::from_bytes(RENT_AUTHORITY_TEST_KEYPAIR.as_slice()).unwrap(),
         }
     }
 }
@@ -151,4 +153,12 @@ pub const BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR: [u8; 64] = [
     39, 24, 219, 214, 174, 34, 141, 22, 238, 96, 128, 5, 244, 12, 239, 3, 45, 61, 42, 53, 92, 87,
     28, 24, 35, 87, 72, 11, 158, 224, 210, 70, 207, 214, 165, 6, 152, 46, 60, 129, 118, 32, 27,
     128, 68, 73, 71, 250, 6, 83, 176, 199, 153, 140, 237, 11, 55, 237, 3, 179, 242, 138, 37, 12,
+];
+
+// 9vzTmRJtRMrFbNhvRxYyFZjChaWBJsHkcsS83W4d4m9L
+pub const RENT_AUTHORITY_TEST_KEYPAIR: [u8; 64] = [
+    253, 123, 228, 43, 145, 59, 11, 26, 94, 5, 114, 159, 57, 51, 13, 227, 41, 45, 141, 211, 166,
+    108, 8, 66, 248, 202, 43, 128, 226, 226, 193, 237, 132, 178, 64, 12, 191, 30, 209, 111, 175,
+    242, 71, 218, 238, 157, 216, 4, 60, 162, 152, 212, 5, 219, 55, 73, 121, 56, 53, 153, 3, 180,
+    84, 235,
 ];

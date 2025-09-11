@@ -3,7 +3,7 @@ use std::fmt::{self, Debug, Formatter};
 use account_compression::{AddressMerkleTreeAccount, QueueAccount};
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    rpc::{merkle_tree::MerkleTreeExt, RpcError},
+    rpc::{merkle_tree::MerkleTreeExt, Rpc, RpcError},
 };
 use light_prover_client::prover::{spawn_prover, ProverConfig};
 use litesvm::LiteSVM;
@@ -128,6 +128,19 @@ impl LightProgramTest {
         }
         // reset tx counter after program setup.
         context.transaction_counter = 0;
+
+        let rent_authority_pubkey = context
+            .test_accounts
+            .funding_pool_config
+            .rent_authority_pubkey;
+        context
+            .airdrop_lamports(&rent_authority_pubkey, 1_000_000_000_000)
+            .await?;
+        let pool_pda_pubkey = context.test_accounts.funding_pool_config.pool_pda;
+        context
+            .airdrop_lamports(&pool_pda_pubkey, 1_000_000_000_000)
+            .await?;
+
         // Will always start a prover server.
         #[cfg(feature = "devenv")]
         let prover_config = if config.prover_config.is_none() {

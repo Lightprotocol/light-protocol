@@ -30,6 +30,7 @@ use crate::{
         test_accounts::{ProtocolAccounts, StateMerkleTreeAccountsV2, TestAccounts},
         test_keypairs::*,
     },
+    compressible::FundingPoolConfig,
     program_test::TestRpc,
     ProgramTestConfig,
 };
@@ -217,6 +218,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
             cpi_context: keypairs.batched_cpi_context.pubkey(),
         }],
         v2_address_trees: vec![keypairs.batch_address_merkle_tree.pubkey()],
+        funding_pool_config: FundingPoolConfig::get_local_test_validator(),
     })
 }
 

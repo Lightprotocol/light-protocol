@@ -20,6 +20,8 @@ light-concurrent-merkle-tree = { workspace = true }
 light-hasher = { workspace = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
+light-compressed-token-sdk = { workspace = true }
+light-ctoken-types = { workspace = true }
 
 # unreleased
 light-client = { workspace = true, features = ["program-test"] }

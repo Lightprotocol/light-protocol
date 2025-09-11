@@ -69,7 +69,6 @@ pub fn create_compressible_token_account(
         inputs.rent_recipient,
         false,
     ));
-    println!("accounts {:?}", accounts);
     Ok(Instruction {
         program_id: Pubkey::from(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
         accounts,

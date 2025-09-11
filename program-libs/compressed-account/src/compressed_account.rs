@@ -250,7 +250,9 @@ pub struct InCompressedAccount {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
+#[derive(
+    Debug, Eq, Hash, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut,
+)]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
     pub data: Vec<u8>,

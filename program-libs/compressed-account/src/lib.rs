@@ -155,7 +155,7 @@ pub const ADDRESS_MERKLE_TREE_TYPE_V2: u64 = 4;
 
 #[repr(u64)]
 #[derive(
-    Debug, Ord, PartialEq, PartialOrd, Eq, Clone, Copy, AnchorSerialize, AnchorDeserialize,
+    Debug, Ord, PartialEq, Hash, PartialOrd, Eq, Clone, Copy, AnchorSerialize, AnchorDeserialize,
 )]
 pub enum TreeType {
     StateV1 = STATE_MERKLE_TREE_TYPE_V1,
