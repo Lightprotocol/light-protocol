@@ -489,7 +489,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 let owner_index = packed_tree_accounts.insert_or_get((*owner).into());
                 let mint_index = packed_tree_accounts.insert_or_get((*mint).into());
                 let rent_recipient_index =
-                    packed_tree_accounts.insert_or_get((*rent_recipient.unwrap()).into());
+                    packed_tree_accounts.insert_or_get(rent_recipient.into());
 
                 // Create token account with the full balance
                 let mut token_account =

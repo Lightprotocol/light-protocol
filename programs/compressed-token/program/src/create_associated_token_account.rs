@@ -2,7 +2,10 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountIterator;
 use light_ctoken_types::{
     instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
-    state::{get_rent_with_compression_cost, COMPRESSION_COST, COMPRESSION_INCENTIVE},
+    state::extensions::compressible::{
+        get_rent_with_compression_cost, COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT,
+        RENT_PER_BYTE,
+    },
 };
 use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::account_info::AccountInfo;
@@ -109,10 +112,7 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
                 crate::ID.as_array(),
             );
             // TODO: also compare the rent recipient and rent authority
-            if config.has_rent_recipient != 0
-                //&& config.rent_authority == derived_pool_pda
-                && config.rent_recipient == derived_pool_pda
-            {
+            if config.has_rent_recipient != 0 && config.rent_recipient == derived_pool_pda {
                 let fee_payer =
                     iter.next_mut("rent recipient account info missing to fund account creation")?;
                 (
@@ -144,10 +144,13 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     )?;
 
     // Calculate and transfer additional rent for compressible accounts
-    let rent = if let Some(compressible_config) = instruction_inputs.compressible_config.as_ref() {
+    if let Some(compressible_config) = instruction_inputs.compressible_config.as_ref() {
         let rent = get_rent_with_compression_cost(
+            MIN_RENT as u64,
+            RENT_PER_BYTE as u64,
             token_account_size as u64,
             compressible_config.rent_payment.get(),
+            (COMPRESSION_COST + COMPRESSION_INCENTIVE) as u64,
         );
         msg!(
             "Calculating rent for {} bytes, {} epochs: {} lamports",
@@ -163,17 +166,13 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
 
         // Payer transfers the additional rent (compression incentive)
         transfer_lamports_via_cpi(rent, payer, associated_token_account)?;
-        rent - COMPRESSION_COST - COMPRESSION_INCENTIVE
-    } else {
-        0
-    };
+    }
 
     initialize_token_account(
         associated_token_account,
         &mint_bytes,
         &owner_bytes,
         instruction_inputs.compressible_config,
-        Some(rent),
     )?;
 
     Ok(())

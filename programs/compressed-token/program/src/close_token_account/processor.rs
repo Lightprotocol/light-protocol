@@ -1,7 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_signer, AccountInfoTrait};
-use light_compressed_account::pubkey::AsPubkey;
 use light_ctoken_types::state::{CompressedToken, ZCompressedTokenMut, ZExtensionStructMut};
 use light_profiler::profile;
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
@@ -10,7 +9,6 @@ use pinocchio::account_info::AccountInfo;
 use pinocchio::sysvars::Sysvar;
 use spl_pod::solana_msg::msg;
 use spl_token_2022::state::AccountState;
-use zerocopy::IntoBytes;
 
 use super::accounts::CloseTokenAccountAccounts;
 use crate::create_token_account::processor::transfer_lamports;
@@ -64,18 +62,20 @@ pub fn validate_token_account<const CHECK_RENT_AUTH: bool>(
         // Look for compressible extension
         for extension in extensions {
             if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
-                if let Some(rent_recipient) = compressible_ext.rent_recipient.as_ref() {
-                    if rent_recipient.as_bytes() != *accounts.destination.key() {
-                        msg!("rent recipient missmatch");
-                        return Err(ProgramError::InvalidAccountData);
-                    }
+                // Check if rent_recipient is set (non-zero) and matches destination
+                if compressible_ext.rent_recipient != [0u8; 32]
+                    && compressible_ext.rent_recipient != *accounts.destination.key()
+                {
+                    msg!("rent recipient missmatch");
+                    return Err(ProgramError::InvalidAccountData);
                 }
 
                 if CHECK_RENT_AUTH {
                     #[allow(clippy::collapsible_if)]
                     if !owner_matches {
-                        if let Some(rent_authority) = compressible_ext.rent_authority.as_ref() {
-                            if rent_authority.as_bytes() != *accounts.authority.key() {
+                        // Check if rent_authority is set (non-zero)
+                        if compressible_ext.rent_authority != [0u8; 32] {
+                            if compressible_ext.rent_authority != *accounts.authority.key() {
                                 msg!("rent authority missmatch");
                                 return Err(ProgramError::InvalidAccountData);
                             }
@@ -88,18 +88,21 @@ pub fn validate_token_account<const CHECK_RENT_AUTH: bool>(
 
                             // For rent authority, check timing constraints
                             #[cfg(target_os = "solana")]
-                            if !compressible_ext
-                                .is_compressible(
-                                    accounts.token_account.data_len() as u64,
-                                    current_slot,
-                                    accounts.token_account.lamports(),
-                                )
-                                .0
                             {
-                                msg!("account not compressible");
-                                return Err(ProgramError::InvalidAccountData);
-                            } else {
-                                return Ok(());
+                                let (is_compressible, _) = compressible_ext
+                                    .is_compressible(
+                                        accounts.token_account.data_len() as u64,
+                                        current_slot,
+                                        accounts.token_account.lamports(),
+                                    )
+                                    .map_err(|_| ProgramError::InvalidAccountData)?;
+
+                                if !is_compressible {
+                                    msg!("account not compressible");
+                                    return Err(ProgramError::InvalidAccountData);
+                                } else {
+                                    return Ok(());
+                                }
                             }
                         }
                     }
@@ -144,28 +147,41 @@ pub fn close_token_account_inner(
                     #[cfg(not(target_os = "solana"))]
                     let current_slot = 0;
 
+                    let base_lamports = light_ctoken_types::state::extensions::compressible::get_rent_exemption_lamports(
+                        accounts.token_account.data_len() as u64
+                    ).map_err(|_| ProgramError::InvalidAccountData)?;
+
+                    let min_rent: u64 = compressible_ext.rent_config.min_rent.into();
+                    let rent_per_byte: u64 = compressible_ext.rent_config.rent_per_byte.into();
+                    let full_compression_incentive: u64 = compressible_ext
+                        .rent_config
+                        .full_compression_incentive
+                        .into();
+
                     let (mut lamports_to_destination,mut lamports_to_authority) =
                         light_ctoken_types::state::extensions::compressible::calculate_close_lamports(
                             accounts.token_account.data_len() as u64,
                             current_slot,
                             token_account_lamports,
-                            *compressible_ext.last_claimed_slot,
-                            *compressible_ext.base_lamports_balance,
+                            compressible_ext.last_claimed_slot,
+                            base_lamports,
+                            min_rent,
+                            rent_per_byte,
+                            full_compression_incentive,
                         );
                     // If rent authority is signer transfer all unused lamports to rent recipient
                     // else transfer unused lamports to fee payer
-                    if let Some(rent_authority) = compressible_ext.rent_authority.as_ref() {
+                    // Check if rent_authority is non-zero (i.e., is set)
+                    if compressible_ext.rent_authority != [0u8; 32] {
                         msg!(
                             "accounts.authority.key() {:?}",
                             solana_pubkey::Pubkey::new_from_array(*accounts.authority.key())
                         );
                         msg!(
-                            "rent_authority.as_bytes() {:?}",
-                            solana_pubkey::Pubkey::new_from_array(
-                                (*rent_authority).to_pubkey_bytes()
-                            )
+                            "rent_authority {:?}",
+                            solana_pubkey::Pubkey::new_from_array(compressible_ext.rent_authority)
                         );
-                        if accounts.authority.key() == rent_authority.as_bytes() {
+                        if accounts.authority.key() == &compressible_ext.rent_authority {
                             lamports_to_destination += lamports_to_authority;
                             lamports_to_authority = 0;
                         }

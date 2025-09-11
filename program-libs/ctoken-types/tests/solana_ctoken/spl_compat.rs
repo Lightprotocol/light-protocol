@@ -391,11 +391,7 @@ fn test_compressed_token_with_compressible_extension() {
         is_native: false,
         close_authority: false,
         extensions: vec![ExtensionStructConfig::Compressible(
-            CompressibleExtensionConfig {
-                write_top_up_lamports: true,
-                rent_authority: (true, ()),
-                rent_recipient: (true, ()),
-            },
+            CompressibleExtensionConfig { rent_config: () },
         )],
     };
 
@@ -457,11 +453,7 @@ fn test_account_type_compatibility_with_spl_parsing() {
         is_native: false,
         close_authority: false,
         extensions: vec![ExtensionStructConfig::Compressible(
-            CompressibleExtensionConfig {
-                write_top_up_lamports: true,
-                rent_authority: (true, ()),
-                rent_recipient: (true, ()),
-            },
+            CompressibleExtensionConfig { rent_config: () },
         )],
     };
 

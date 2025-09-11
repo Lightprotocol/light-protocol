@@ -6,7 +6,7 @@ use light_compressed_token_sdk::instructions::{
     create_associated_token_account_idempotent, create_token_account,
 };
 use light_ctoken_types::{
-    state::{extensions::compressible::SLOTS_PER_EPOCH, get_rent},
+    state::extensions::compressible::{get_rent, MIN_RENT, RENT_PER_BYTE, SLOTS_PER_EPOCH},
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
@@ -538,7 +538,12 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
         .rpc
         .airdrop_lamports(
             &token_account_pubkey,
-            get_rent(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, 1),
+            get_rent(
+                MIN_RENT as u64,
+                RENT_PER_BYTE as u64,
+                COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+                1,
+            ),
         )
         .await
         .unwrap();

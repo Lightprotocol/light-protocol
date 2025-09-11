@@ -498,53 +498,44 @@ impl PartialEq<CompressedToken> for ZCompressedToken<'_> {
                             }
 
                             // Compare last_claimed_slot
-                            if u64::from(*zc_comp.last_claimed_slot)
+                            if u64::from(zc_comp.last_claimed_slot)
                                 != regular_comp.last_claimed_slot
                             {
                                 return false;
                             }
 
-                            // Compare base_lamports_balance
-                            if u64::from(*zc_comp.base_lamports_balance)
-                                != regular_comp.base_lamports_balance
+                            // Compare rent_config fields
+                            if u16::from(zc_comp.rent_config.min_rent)
+                                != regular_comp.rent_config.min_rent
+                            {
+                                return false;
+                            }
+                            if u16::from(zc_comp.rent_config.full_compression_incentive)
+                                != regular_comp.rent_config.full_compression_incentive
+                            {
+                                return false;
+                            }
+                            if zc_comp.rent_config.rent_per_byte
+                                != regular_comp.rent_config.rent_per_byte
                             {
                                 return false;
                             }
 
-                            // Compare rent_authority (Option<[u8; 32]>)
-                            match (&zc_comp.rent_authority, &regular_comp.rent_authority) {
-                                (Some(zc_auth), Some(regular_auth)) => {
-                                    if **zc_auth != *regular_auth {
-                                        return false;
-                                    }
-                                }
-                                (None, None) => {}
-                                _ => return false,
+                            // Compare rent_authority ([u8; 32])
+                            if zc_comp.rent_authority != regular_comp.rent_authority {
+                                return false;
                             }
 
-                            // Compare rent_recipient (Option<[u8; 32]>)
-                            match (&zc_comp.rent_recipient, &regular_comp.rent_recipient) {
-                                (Some(zc_recip), Some(regular_recip)) => {
-                                    if **zc_recip != *regular_recip {
-                                        return false;
-                                    }
-                                }
-                                (None, None) => {}
-                                _ => return false,
+                            // Compare rent_recipient ([u8; 32])
+                            if zc_comp.rent_recipient != regular_comp.rent_recipient {
+                                return false;
                             }
 
-                            // Compare write_top_up_lamports (Option<u32>)
-                            match (
-                                &zc_comp.write_top_up_lamports,
-                                &regular_comp.write_top_up_lamports,
-                            ) {
-                                (Some(zc_topup), Some(regular_topup)) => {
-                                    if u32::from(**zc_topup) != *regular_topup {
-                                        return false;
-                                    }
-                                }
-                                (None, None) => {}
-                                _ => return false,
+                            // Compare write_top_up_lamports (u32)
+                            if u32::from(zc_comp.write_top_up_lamports)
+                                != regular_comp.write_top_up_lamports
+                            {
+                                return false;
                             }
                         }
                         (
@@ -793,23 +784,14 @@ impl CompressedTokenConfig {
             extensions: vec![],
         }
     }
-    pub fn new_compressible(
-        delegate: bool,
-        is_native: bool,
-        close_authority: bool,
-        rent_authority: bool,
-        write_top_up_lamports: bool,
-    ) -> Self {
-        let config = CompressibleExtensionConfig {
-            rent_authority: (rent_authority, ()),
-            rent_recipient: (rent_authority, ()),
-            write_top_up_lamports,
-        };
+    pub fn new_compressible(delegate: bool, is_native: bool, close_authority: bool) -> Self {
         Self {
             delegate,
             is_native,
             close_authority,
-            extensions: vec![ExtensionStructConfig::Compressible(config)],
+            extensions: vec![ExtensionStructConfig::Compressible(
+                CompressibleExtensionConfig { rent_config: () },
+            )],
         }
     }
 }

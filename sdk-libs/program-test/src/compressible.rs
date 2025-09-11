@@ -8,7 +8,10 @@ use light_compressed_token_sdk::{
         account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Inputs,
     },
 };
-use light_ctoken_types::state::{CompressedToken, ExtensionStruct, SLOTS_PER_EPOCH};
+use light_ctoken_types::{
+    state::{CompressedToken, ExtensionStruct, SLOTS_PER_EPOCH},
+    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+};
 use light_sdk::instruction::PackedAccounts;
 use solana_pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
@@ -86,8 +89,19 @@ pub async fn claim_and_compress(
         if let Some(extensions) = des_account.extensions.as_ref() {
             for extension in extensions.iter() {
                 if let ExtensionStruct::Compressible(e) = extension {
-                    let last_paid_epoch =
-                        e.get_last_paid_epoch(account.1.data.len() as u64, account.1.lamports);
+                    let base_lamports = rpc
+                        .get_minimum_balance_for_rent_exemption(
+                            COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,
+                        )
+                        .await
+                        .unwrap();
+                    let last_paid_epoch = e
+                        .get_last_paid_epoch(
+                            account.1.data.len() as u64,
+                            account.1.lamports,
+                            base_lamports,
+                        )
+                        .unwrap();
                     let last_paid_slot = last_paid_epoch * SLOTS_PER_EPOCH;
                     stored_compressible_accounts.insert(
                         account.0,
@@ -204,11 +218,11 @@ async fn compress_and_close_batch(
 
                 for extension in extensions {
                     if let ExtensionStruct::Compressible(ext) = extension {
-                        if let Some(auth) = ext.rent_authority {
-                            authority = Pubkey::from(auth);
+                        if ext.rent_authority != [0u8; 32] {
+                            authority = Pubkey::from(ext.rent_authority);
                         }
-                        if let Some(recip) = ext.rent_recipient {
-                            recipient = Pubkey::from(recip);
+                        if ext.rent_recipient != [0u8; 32] {
+                            recipient = Pubkey::from(ext.rent_recipient);
                         }
                         break;
                     }

@@ -81,11 +81,8 @@ fn update_compressible_accounts_last_written_slot(
                 for extension in extensions.iter() {
                     if let ZExtensionStruct::Compressible(compressible_extension) = extension {
                         {
-                            if let Some(write_top_up_lamports) =
-                                compressible_extension.write_top_up_lamports.as_ref()
-                            {
-                                transfers[i] = write_top_up_lamports.get() as u64;
-                            }
+                            transfers[i] =
+                                u32::from(compressible_extension.write_top_up_lamports) as u64;
 
                             use pinocchio::sysvars::{clock::Clock, Sysvar};
                             let current_slot = Clock::get()
@@ -97,7 +94,8 @@ fn update_compressible_accounts_last_written_slot(
                                     account.data_len() as u64,
                                     current_slot,
                                     account.lamports(),
-                                );
+                                )
+                                .map_err(|_| CTokenError::InvalidAccountData)?;
                             if is_compressible {
                                 transfers[i] += required_funds;
                             }

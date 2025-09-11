@@ -1,7 +1,10 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountIterator;
 use light_ctoken_types::{
-    state::{get_rent_with_compression_cost, COMPRESSION_COST, COMPRESSION_INCENTIVE},
+    state::extensions::compressible::{
+        get_rent_with_compression_cost, COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT,
+        RENT_PER_BYTE,
+    },
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_zero_copy::traits::ZeroCopyAt;
@@ -36,13 +39,16 @@ pub fn process_create_token_account(
     let mint: &AccountInfo = iter.next_non_mut("mint")?;
 
     // Create account via cpi
-    let rent = if let Some(compressible_config) = inputs.compressible_config.as_ref() {
+    if let Some(compressible_config) = inputs.compressible_config.as_ref() {
         // Not os solana we assume that the accoun already exists and just transfer funds
         let payer = iter.next_signer_mut("payer")?;
         let account_size = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
         let rent = get_rent_with_compression_cost(
+            MIN_RENT as u64,
+            RENT_PER_BYTE as u64,
             account_size as u64,
             compressible_config.rent_payment.get(),
+            (COMPRESSION_COST + COMPRESSION_INCENTIVE) as u64,
         );
         msg!(
             "Calculating rent for {} bytes, {} epochs: {} lamports",
@@ -93,10 +99,7 @@ pub fn process_create_token_account(
 
         // Payer transfers the additional rent (compression incentive)
         transfer_lamports_via_cpi(rent, payer, token_account)?;
-        rent - COMPRESSION_COST - COMPRESSION_INCENTIVE
-    } else {
-        0
-    };
+    }
 
     // Initialize the token account (assumes account already exists and is owned by our program)
     initialize_token_account(
@@ -104,7 +107,6 @@ pub fn process_create_token_account(
         mint.key(),
         &inputs.owner.to_bytes(),
         inputs.compressible_config,
-        Some(rent),
     )?;
 
     Ok(())

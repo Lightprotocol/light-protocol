@@ -25,7 +25,10 @@ pub async fn assert_claim(
         let mut pre_token_account = rpc
             .get_pre_transaction_account(token_account_pubkey)
             .expect("Token account should exist in pre-transaction context");
-
+        assert_eq!(
+            pre_token_account.data.len(),
+            COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
+        );
         // Parse pre-transaction token account data
         let (mut pre_compressed_token, _) =
             CompressedToken::zero_copy_at_mut(&mut pre_token_account.data)
@@ -33,7 +36,6 @@ pub async fn assert_claim(
 
         // Find and extract pre-transaction compressible extension data
         let mut pre_last_claimed_slot = 0u64;
-        let mut pre_base_lamports_balance = 0u64;
         let mut pre_rent_authority: Option<Pubkey> = None;
         let mut pre_rent_recipient: Option<Pubkey> = None;
         let mut not_claimed_was_none = false;
@@ -41,23 +43,36 @@ pub async fn assert_claim(
         if let Some(extensions) = pre_compressed_token.extensions.as_mut() {
             for extension in extensions {
                 if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
-                    pre_last_claimed_slot = u64::from(*compressible_ext.last_claimed_slot);
-                    pre_base_lamports_balance = u64::from(*compressible_ext.base_lamports_balance);
-                    pre_rent_authority = compressible_ext
-                        .rent_authority
-                        .as_ref()
-                        .map(|k| Pubkey::from(**k));
-                    pre_rent_recipient = compressible_ext
-                        .rent_recipient
-                        .as_ref()
-                        .map(|k| Pubkey::from(**k));
-                    let lamports = compressible_ext.claim(
+                    pre_last_claimed_slot = u64::from(compressible_ext.last_claimed_slot);
+                    // Check if rent_authority is set (non-zero)
+                    pre_rent_authority = if compressible_ext.rent_authority != [0u8; 32] {
+                        Some(Pubkey::from(compressible_ext.rent_authority))
+                    } else {
+                        None
+                    };
+                    // Check if rent_recipient is set (non-zero)
+                    pre_rent_recipient = if compressible_ext.rent_recipient != [0u8; 32] {
+                        Some(Pubkey::from(compressible_ext.rent_recipient))
+                    } else {
+                        None
+                    };
+                    let current_slot = rpc.pre_context.as_ref().unwrap().get_sysvar::<Clock>().slot;
+                    let base_lamports = rpc
+                        .get_minimum_balance_for_rent_exemption(
+                            COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize,
+                        )
+                        .await
+                        .unwrap();
+                    let lamports_result = compressible_ext.claim(
                         COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-                        rpc.pre_context.as_ref().unwrap().get_sysvar::<Clock>().slot,
+                        current_slot,
                         pre_token_account.lamports,
+                        base_lamports,
                     );
-                    not_claimed_was_none = lamports.is_none();
-                    expected_lamports_claimed += lamports.unwrap_or_default();
+                    not_claimed_was_none = lamports_result.is_err();
+                    if let Ok(Some(lamports)) = lamports_result {
+                        expected_lamports_claimed += lamports;
+                    }
 
                     break;
                 }
@@ -91,14 +106,12 @@ pub async fn assert_claim(
 
         // Find and extract post-transaction compressible extension data
         let mut post_last_claimed_slot = 0u64;
-        let mut post_base_lamports_balance = 0u64;
 
         if let Some(extensions) = post_compressed_token.extensions.as_ref() {
             for extension in extensions {
                 if let ZExtensionStruct::Compressible(compressible_ext) = extension {
-                    post_last_claimed_slot = u64::from(*compressible_ext.last_claimed_slot);
+                    post_last_claimed_slot = u64::from(compressible_ext.last_claimed_slot);
                     println!("post_last_claimed_slot {}", post_last_claimed_slot);
-                    post_base_lamports_balance = u64::from(*compressible_ext.base_lamports_balance);
 
                     break;
                 }
@@ -121,12 +134,6 @@ pub async fn assert_claim(
                 post_last_claimed_slot, pre_last_claimed_slot
             );
         }
-
-        // Verify base_lamports_balance remains unchanged
-        assert_eq!(
-            post_base_lamports_balance, pre_base_lamports_balance,
-            "base_lamports_balance should remain unchanged after claim"
-        );
     }
     let post_pool_lamports = rpc
         .get_account(pool_pda)

@@ -3,6 +3,9 @@ use light_account_checks::AccountInfoTrait;
 use light_ctoken_types::{
     instructions::extensions::compressible::ZCompressibleExtensionInstructionData,
     state::{
+        extensions::compressible::{
+            COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT, RENT_PER_BYTE,
+        },
         CompressedToken, CompressedTokenConfig, CompressibleExtensionConfig, ExtensionStructConfig,
         ZExtensionStructMut,
     },
@@ -20,7 +23,6 @@ pub fn initialize_token_account(
     mint_pubkey: &[u8; 32],
     owner_pubkey: &[u8; 32],
     compressible_config: Option<ZCompressibleExtensionInstructionData>,
-    rent_paid: Option<u64>,
 ) -> Result<(), ProgramError> {
     let current_lamports: u64 = *token_account_info
         .try_borrow_lamports()
@@ -43,11 +45,7 @@ pub fn initialize_token_account(
             return Err(ProgramError::InvalidInstructionData);
         }
         vec![ExtensionStructConfig::Compressible(
-            CompressibleExtensionConfig {
-                rent_authority: (compressible_config.has_rent_authority != 0, ()),
-                rent_recipient: (compressible_config.has_rent_recipient != 0, ()),
-                write_top_up_lamports: compressible_config.has_top_up != 0,
-            },
+            CompressibleExtensionConfig { rent_config: () },
         )]
     } else {
         vec![]
@@ -97,20 +95,19 @@ pub fn initialize_token_account(
                     .slot;
                 #[cfg(not(target_os = "solana"))]
                 let current_slot = 1;
-                *compressible_extension.last_claimed_slot = current_slot.into();
-                *compressible_extension.base_lamports_balance =
-                    (current_lamports - rent_paid.unwrap()).into();
-                if let Some(rent_authority) = compressible_extension.rent_authority.as_deref_mut() {
-                    *rent_authority = compressible_config.rent_authority.to_bytes();
-                }
-                if let Some(rent_recipient) = compressible_extension.rent_recipient.as_deref_mut() {
-                    *rent_recipient = compressible_config.rent_recipient.to_bytes();
-                }
-                if let Some(write_top_up_lamports) =
-                    compressible_extension.write_top_up_lamports.as_deref_mut()
-                {
-                    *write_top_up_lamports = compressible_config.write_top_up;
-                }
+                compressible_extension.last_claimed_slot = current_slot.into();
+                // Initialize RentConfig with default values
+                compressible_extension.rent_config.min_rent = MIN_RENT.into();
+                compressible_extension
+                    .rent_config
+                    .full_compression_incentive = (COMPRESSION_COST + COMPRESSION_INCENTIVE).into();
+                compressible_extension.rent_config.rent_per_byte = RENT_PER_BYTE;
+                // Set the rent_authority, rent_recipient and write_top_up_lamports
+                compressible_extension.rent_authority =
+                    compressible_config.rent_authority.to_bytes();
+                compressible_extension.rent_recipient =
+                    compressible_config.rent_recipient.to_bytes();
+                compressible_extension.write_top_up_lamports = compressible_config.write_top_up;
             }
             _ => {
                 return Err(ErrorCode::InvalidExtensionInstructionData.into());

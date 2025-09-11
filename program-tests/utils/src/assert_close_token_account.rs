@@ -98,10 +98,12 @@ async fn assert_compressible_extension(
             _ => None,
         })
         .expect("If a token account has extensions it must be a compressible extension");
-    let destination_pubkey = compressible_extension
-        .rent_recipient
-        .map(|r| Pubkey::from(*r))
-        .unwrap_or(authority_pubkey);
+    // Check if rent_recipient is set (non-zero)
+    let destination_pubkey = if compressible_extension.rent_recipient != [0u8; 32] {
+        Pubkey::from(compressible_extension.rent_recipient)
+    } else {
+        authority_pubkey
+    };
 
     // Get initial destination balance from pre-transaction context
     let initial_destination_lamports = rpc
@@ -127,9 +129,9 @@ async fn assert_compressible_extension(
     // Verify compressible extension fields are valid
     let current_slot = rpc.get_slot().await.expect("Failed to get current slot");
     assert!(
-        u64::from(*compressible_extension.last_claimed_slot) <= current_slot,
+        u64::from(compressible_extension.last_claimed_slot) <= current_slot,
         "Last claimed slot ({}) should not be greater than current slot ({})",
-        u64::from(*compressible_extension.last_claimed_slot),
+        u64::from(compressible_extension.last_claimed_slot),
         current_slot
     );
 
@@ -142,17 +144,33 @@ async fn assert_compressible_extension(
 
     // Calculate expected lamport distribution using the same function as the program
     let account_size = account_data_before_close.len() as u64;
+    // Extract rent config values
+    let min_rent: u64 = compressible_extension.rent_config.min_rent.into();
+    let rent_per_byte: u64 = compressible_extension.rent_config.rent_per_byte.into();
+    let full_compression_incentive: u64 = compressible_extension
+        .rent_config
+        .full_compression_incentive
+        .into();
+    let base_lamports = rpc
+        .get_minimum_balance_for_rent_exemption(account_size as usize)
+        .await
+        .unwrap();
+
     let (mut lamports_to_destination, mut lamports_to_authority) = calculate_close_lamports(
         account_size,
         current_slot,
         account_lamports_before_close,
-        *compressible_extension.last_claimed_slot,
-        *compressible_extension.base_lamports_balance,
+        u64::from(compressible_extension.last_claimed_slot),
+        base_lamports,
+        min_rent,
+        rent_per_byte,
+        full_compression_incentive,
     );
 
     // Check if rent authority is the signer
-    let is_rent_authority_signer = if let Some(rent_auth) = compressible_extension.rent_authority {
-        authority_pubkey == Pubkey::from(*rent_auth)
+    // Check if rent_authority is set (non-zero)
+    let is_rent_authority_signer = if compressible_extension.rent_authority != [0u8; 32] {
+        authority_pubkey == Pubkey::from(compressible_extension.rent_authority)
     } else {
         false
     };

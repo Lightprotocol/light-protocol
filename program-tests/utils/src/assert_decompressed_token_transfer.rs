@@ -75,8 +75,8 @@ pub async fn assert_compressible_for_account(
                     });
 
                 assert_eq!(
-                    u64::from(*compressible_after.last_claimed_slot),
-                    u64::from(*compressible_before.last_claimed_slot),
+                    u64::from(compressible_after.last_claimed_slot),
+                    u64::from(compressible_before.last_claimed_slot),
                     "{} last_claimed_slot should be different from current slot before transfer",
                     name
                 );
@@ -96,9 +96,10 @@ pub async fn assert_compressible_for_account(
                     "{} version should not change",
                     name
                 );
-                if let Some(write_top_up_lamports) = compressible_before.write_top_up_lamports {
+                // Check if write_top_up_lamports is non-zero
+                if compressible_before.write_top_up_lamports != 0 {
                     assert_eq!(
-                        lamports_before + write_top_up_lamports.get() as u64,
+                        lamports_before + u64::from(compressible_before.write_top_up_lamports),
                         lamports_after
                     );
                 }

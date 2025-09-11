@@ -11,8 +11,7 @@ use light_compressed_token_sdk::instructions::{
     CreateCompressibleAssociatedTokenAccountInputs,
 };
 use light_ctoken_types::{
-    instructions::mint_action::Recipient, state::get_rent_with_compression_cost,
-    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+    instructions::mint_action::Recipient, state::RentConfig, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
@@ -93,7 +92,8 @@ async fn setup_compress_and_close_test(
         .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
         .await
         .unwrap()
-        + get_rent_with_compression_cost(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, pre_pay_num_epochs);
+        + RentConfig::default()
+            .get_rent_with_compression_cost(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, pre_pay_num_epochs);
 
     // Create ATA accounts for each owner
     let mut token_account_pubkeys = Vec::with_capacity(num_ctoken_accounts);

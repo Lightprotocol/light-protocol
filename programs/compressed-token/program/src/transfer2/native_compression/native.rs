@@ -135,13 +135,8 @@ pub fn native_compression(
                 for extension in extensions.iter() {
                     if let ZExtensionStructMut::Compressible(compressible_extension) = extension {
                         {
-                            let mut transfer_amount: u64 = if let Some(write_top_up_lamports) =
-                                compressible_extension.write_top_up_lamports.as_deref()
-                            {
-                                u32::from(*write_top_up_lamports) as u64
-                            } else {
-                                0
-                            };
+                            let mut transfer_amount: u64 =
+                                u32::from(compressible_extension.write_top_up_lamports) as u64;
 
                             use pinocchio::sysvars::{clock::Clock, Sysvar};
                             let current_slot = Clock::get()
@@ -151,7 +146,8 @@ pub fn native_compression(
                             let data_len = token_account_info.data_len() as u64;
                             let lamports = token_account_info.lamports();
                             let (is_compressible, rent_deficit) = compressible_extension
-                                .is_compressible(data_len, current_slot, lamports);
+                                .is_compressible(data_len, current_slot, lamports)
+                                .map_err(|_| CTokenError::InvalidAccountData)?;
                             if is_compressible {
                                 transfer_amount += rent_deficit;
                             }
@@ -173,13 +169,8 @@ pub fn native_compression(
                 for extension in extensions.iter() {
                     if let ZExtensionStructMut::Compressible(compressible_extension) = extension {
                         {
-                            let mut transfer_amount: u64 = if let Some(write_top_up_lamports) =
-                                compressible_extension.write_top_up_lamports.as_ref()
-                            {
-                                write_top_up_lamports.get() as u64
-                            } else {
-                                0
-                            };
+                            let mut transfer_amount: u64 =
+                                u32::from(compressible_extension.write_top_up_lamports) as u64;
 
                             use pinocchio::sysvars::{clock::Clock, Sysvar};
                             let current_slot = Clock::get()
@@ -191,7 +182,8 @@ pub fn native_compression(
                                     token_account_info.data_len() as u64,
                                     current_slot,
                                     token_account_info.lamports(),
-                                );
+                                )
+                                .map_err(|_| CTokenError::InvalidAccountData)?;
                             if is_compressible {
                                 transfer_amount += rent_deficit;
                             }

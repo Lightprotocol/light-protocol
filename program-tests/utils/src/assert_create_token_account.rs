@@ -3,7 +3,13 @@ use light_client::rpc::Rpc;
 use light_compressed_token_sdk::instructions::create_associated_token_account::derive_ctoken_ata;
 use light_ctoken_types::{
     state::{
-        extensions::CompressibleExtension, get_compression_cost, get_rent_with_compression_cost,
+        extensions::{
+            compressible::{
+                get_rent_with_compression_cost, COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT,
+                RENT_PER_BYTE,
+            },
+            CompressibleExtension, RentConfig,
+        },
         solana_ctoken::CompressedToken,
     },
     BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
@@ -56,10 +62,12 @@ pub async fn assert_create_token_account<R: Rpc>(
                 .expect("Failed to get rent exemption");
 
             let rent_with_compression = get_rent_with_compression_cost(
+                MIN_RENT as u64,
+                RENT_PER_BYTE as u64,
                 COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
                 compressible_info.num_prepaid_epochs,
+                (COMPRESSION_COST + COMPRESSION_INCENTIVE) as u64,
             );
-            let base_lamports_balance = get_compression_cost() + rent_exemption;
             let expected_lamports = rent_exemption + rent_with_compression;
 
             assert_eq!(
@@ -90,10 +98,12 @@ pub async fn assert_create_token_account<R: Rpc>(
                         CompressibleExtension {
                             version: 1,
                             last_claimed_slot: current_slot,
-                            base_lamports_balance,
-                            write_top_up_lamports: compressible_info.write_top_up_lamports,
-                            rent_authority: Some(compressible_info.rent_authority.to_bytes()),
-                            rent_recipient: Some(compressible_info.rent_recipient.to_bytes()),
+                            rent_config: RentConfig::default(),
+                            write_top_up_lamports: compressible_info
+                                .write_top_up_lamports
+                                .unwrap_or(0),
+                            rent_authority: compressible_info.rent_authority.to_bytes(),
+                            rent_recipient: compressible_info.rent_recipient.to_bytes(),
                         },
                     ),
                 ]),

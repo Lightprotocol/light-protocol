@@ -1,6 +1,4 @@
-use light_compressed_account::{
-    instruction_data::cpi_context::CompressedCpiContext, pubkey::AsPubkey,
-};
+use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_ctoken_types::state::{CompressedToken, ZExtensionStruct};
 use light_profiler::profile;
 use light_sdk::{
@@ -59,16 +57,19 @@ pub fn pack_for_compress_and_close(
         if let Some(extensions) = &ctoken_account.extensions {
             for extension in extensions {
                 if let ZExtensionStruct::Compressible(e) = extension {
-                    let rent_authority =
-                        e.rent_authority.ok_or(TokenSdkError::RentAuthorityIsNone)?;
+                    // Check if rent_authority is set (non-zero)
+                    if e.rent_authority == [0u8; 32] {
+                        return Err(TokenSdkError::RentAuthorityIsNone);
+                    }
                     authority_index = packed_accounts.insert_or_get_config(
-                        Pubkey::from(*rent_authority),
+                        Pubkey::from(e.rent_authority),
                         true,
                         true,
                     );
-                    if let Some(rent_recipient) = e.rent_recipient.as_deref() {
+                    // Check if rent_recipient is set (non-zero)
+                    if e.rent_recipient != [0u8; 32] {
                         recipient_index =
-                            packed_accounts.insert_or_get(Pubkey::from(*rent_recipient));
+                            packed_accounts.insert_or_get(Pubkey::from(e.rent_recipient));
                     }
                     break;
                 }
@@ -82,9 +83,10 @@ pub fn pack_for_compress_and_close(
         if let Some(extensions) = &ctoken_account.extensions {
             for extension in extensions {
                 if let ZExtensionStruct::Compressible(e) = extension {
-                    if let Some(rent_recipient) = e.rent_recipient.as_deref() {
+                    // Check if rent_recipient is set (non-zero)
+                    if e.rent_recipient != [0u8; 32] {
                         recipient_index =
-                            packed_accounts.insert_or_get(Pubkey::from(*rent_recipient));
+                            packed_accounts.insert_or_get(Pubkey::from(e.rent_recipient));
                     }
                     break;
                 }
@@ -314,8 +316,10 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             if let Some(extensions) = &compressed_token.extensions {
                 for extension in extensions {
                     if let ZExtensionStruct::Compressible(extension) = extension {
-                        rent_authority =
-                            Pubkey::from(extension.rent_authority.unwrap().to_pubkey_bytes());
+                        // Check if rent_authority is set (non-zero)
+                        if extension.rent_authority != [0u8; 32] {
+                            rent_authority = Pubkey::from(extension.rent_authority);
+                        }
                         break;
                     }
                 }
@@ -332,8 +336,10 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             if let Some(extensions) = &compressed_token.extensions {
                 for extension in extensions {
                     if let ZExtensionStruct::Compressible(ext) = extension {
-                        rent_recipient_pubkey =
-                            Some(Pubkey::from(ext.rent_recipient.unwrap().to_pubkey_bytes()));
+                        // Check if rent_recipient is set (non-zero)
+                        if ext.rent_recipient != [0u8; 32] {
+                            rent_recipient_pubkey = Some(Pubkey::from(ext.rent_recipient));
+                        }
                         break;
                     }
                 }

@@ -1,6 +1,8 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{AccountInfoTrait, AccountIterator};
-use light_ctoken_types::state::{CompressedToken, ZExtensionStructMut};
+use light_ctoken_types::state::{
+    get_rent_exemption_lamports, CompressedToken, ZExtensionStructMut,
+};
 use light_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
@@ -90,29 +92,30 @@ fn validate_and_claim(
     if let Some(extensions) = compressed_token.extensions.as_mut() {
         for extension in extensions {
             if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
-                // Verify rent authority
-                if let Some(rent_authority) = compressible_ext.rent_authority.as_ref() {
-                    if **rent_authority != *accounts.rent_authority.key() {
-                        msg!("Rent authority mismatch");
-                        return Ok(None);
-                    }
-                } else {
+                // Verify rent authority (check if non-zero and matches)
+                if compressible_ext.rent_authority == [0u8; 32] {
                     msg!("No rent authority set");
                     return Ok(None);
                 }
-
-                // Verify pool PDA matches rent recipient
-                if let Some(rent_recipient) = compressible_ext.rent_recipient.as_ref() {
-                    if **rent_recipient != *accounts.pool_pda.key() {
-                        msg!("Pool PDA does not match rent recipient");
-                        return Ok(None);
-                    }
-                } else {
-                    msg!("No rent recipient set");
+                if compressible_ext.rent_authority != *accounts.rent_authority.key() {
+                    msg!("Rent authority mismatch");
                     return Ok(None);
                 }
 
-                return Ok(compressible_ext.claim(bytes, current_slot, current_lamports));
+                // Verify pool PDA matches rent recipient (check if non-zero and matches)
+                if compressible_ext.rent_recipient == [0u8; 32] {
+                    msg!("No rent recipient set");
+                    return Ok(None);
+                }
+                if compressible_ext.rent_recipient != *accounts.pool_pda.key() {
+                    msg!("Pool PDA does not match rent recipient");
+                    return Ok(None);
+                }
+                let base_lamports = get_rent_exemption_lamports(bytes).unwrap();
+
+                return compressible_ext
+                    .claim(bytes, current_slot, current_lamports, base_lamports)
+                    .map_err(|_| ProgramError::InvalidAccountData);
             }
         }
     }
