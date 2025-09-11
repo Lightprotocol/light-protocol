@@ -448,6 +448,10 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 token_accounts.push(delegated_token_account);
             }
             Transfer2InstructionType::CompressAndClose(input) => {
+                println!(
+                    "input.solana_ctoken_account {:?}",
+                    input.solana_ctoken_account
+                );
                 // Get token account info to extract mint, balance, owner, and rent_recipient
                 let token_account_info = rpc
                     .get_account(input.solana_ctoken_account)

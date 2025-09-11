@@ -7,7 +7,7 @@ use crate::{AnchorDeserialize, AnchorSerialize};
 /// Used for onchain serialization
 #[repr(C)]
 #[derive(
-    Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
+    Debug, Clone, Hash, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
 )]
 pub struct TokenMetadata {
     /// The authority that can sign to update the metadata
@@ -29,7 +29,7 @@ pub struct TokenMetadata {
 
 #[repr(C)]
 #[derive(
-    Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
+    Debug, Clone, Hash, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
 )]
 pub struct AdditionalMetadata {
     /// The key of the metadata

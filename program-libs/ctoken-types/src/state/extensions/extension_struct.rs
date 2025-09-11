@@ -11,7 +11,7 @@ use crate::{
     AnchorDeserialize, AnchorSerialize,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 #[repr(C)]
 pub enum ExtensionStruct {
     Placeholder0,

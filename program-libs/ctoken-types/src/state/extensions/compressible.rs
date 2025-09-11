@@ -9,7 +9,16 @@ pub const SLOTS_PER_EPOCH: u64 = 432_000;
 /// Compressible extension for token accounts
 /// Contains timing data for compression/decompression and rent authority
 #[derive(
-    Debug, Clone, Copy, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut,
+    Debug,
+    Clone,
+    Hash,
+    Copy,
+    PartialEq,
+    Eq,
+    AnchorSerialize,
+    AnchorDeserialize,
+    ZeroCopy,
+    ZeroCopyMut,
 )]
 #[repr(C)]
 pub struct CompressibleExtension {
@@ -74,6 +83,71 @@ impl_is_compressible!(ZCompressibleExtension<'_>, *);
 
 impl_is_compressible!(ZCompressibleExtensionMut<'_>, *);
 
+/// Calculate the last epoch that has been paid for.
+/// Returns the epoch number through which rent has been prepaid.
+///
+/// # Returns
+/// The last epoch number that is covered by rent payments.
+/// This is calculated as: last_claimed_epoch + epochs_paid - 1
+///
+/// # Example
+/// If an account was created in epoch 0 and paid for 3 epochs of rent,
+/// the last paid epoch would be 2 (epochs 0, 1, and 2 are covered).
+#[inline(always)]
+pub fn get_last_paid_epoch(
+    bytes: u64,
+    current_lamports: u64,
+    last_claimed_slot: impl ZeroCopyNumTrait,
+    base_lamports_balance: impl ZeroCopyNumTrait,
+) -> u64 {
+    // Reuse the existing calculate_rent_inner function with INCLUDE_CURRENT=false
+    // to get epochs_paid calculation
+    let (_, _, epochs_paid, _) = calculate_rent_inner::<false>(
+        bytes,
+        0, // current_slot not needed for epochs_paid calculation
+        current_lamports,
+        last_claimed_slot,
+        base_lamports_balance,
+    );
+
+    let last_claimed_epoch: u64 = last_claimed_slot.into() / SLOTS_PER_EPOCH;
+
+    // The last paid epoch is the last claimed epoch plus epochs paid minus 1
+    // If no epochs are paid, the account is immediately compressible
+    if epochs_paid > 0 {
+        last_claimed_epoch + epochs_paid - 1
+    } else {
+        // No rent paid, last paid epoch is before last claimed
+        last_claimed_epoch.saturating_sub(1)
+    }
+}
+
+/// Macro to implement get_last_paid_epoch for all extension types
+macro_rules! impl_get_last_paid_epoch {
+    ($struct_name:ty $(, $deref:tt)?) => {
+        impl $struct_name {
+            /// Get the last epoch that has been paid for.
+            /// Returns the epoch number through which rent has been prepaid.
+            pub fn get_last_paid_epoch(
+                &self,
+                bytes: u64,
+                current_lamports: u64,
+            ) -> u64 {
+                get_last_paid_epoch(
+                    bytes,
+                    current_lamports,
+                    $($deref)? self.last_claimed_slot,
+                    $($deref)? self.base_lamports_balance,
+                )
+            }
+        }
+    };
+}
+
+impl_get_last_paid_epoch!(CompressibleExtension);
+impl_get_last_paid_epoch!(ZCompressibleExtension<'_>, *);
+impl_get_last_paid_epoch!(ZCompressibleExtensionMut<'_>, *);
+
 #[inline(always)]
 fn calculate_rent_and_balance(
     bytes: u64,
@@ -90,6 +164,7 @@ fn calculate_rent_and_balance(
             last_claimed_slot,
             base_lamports_balance,
         );
+
     let is_compressible = epochs_paid < required_epochs;
     if is_compressible {
         let epochs_payable = required_epochs.saturating_sub(epochs_paid);
@@ -237,7 +312,7 @@ impl ZCompressibleExtensionMut<'_> {
 
 #[cfg(test)]
 mod test {
-    use light_zero_copy::traits::ZeroCopyAtMut;
+    use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 
     use super::*;
 
@@ -566,6 +641,126 @@ mod test {
             1000 + FULL_COMPRESSION_COSTS,
         );
         assert_eq!(claimable, None, "Should only claim available rent");
+    }
+
+    #[test]
+    fn test_get_last_paid_epoch() {
+        // Test the get_last_paid_epoch function with various scenarios
+
+        // Test case 1: Account created in epoch 0 with 3 epochs of rent
+        let extension = CompressibleExtension {
+            version: 1,
+            rent_authority: None,
+            rent_recipient: None,
+            last_claimed_slot: 0, // Created in epoch 0
+            base_lamports_balance: 1000,
+            write_top_up_lamports: None,
+        };
+
+        // Has 3 epochs of rent
+        let current_lamports = 1000 + (RENT_PER_EPOCH * 3);
+        let last_paid = extension.get_last_paid_epoch(TEST_BYTES, current_lamports);
+        assert_eq!(
+            last_paid, 2,
+            "Should be paid through epoch 2 (epochs 0, 1, 2)"
+        );
+
+        // Test case 2: Account created in epoch 1 with 2 epochs of rent
+        let extension = CompressibleExtension {
+            version: 1,
+            rent_authority: None,
+            rent_recipient: None,
+            last_claimed_slot: SLOTS_PER_EPOCH, // Created in epoch 1
+            base_lamports_balance: 1000,
+            write_top_up_lamports: None,
+        };
+
+        let current_lamports = 1000 + (RENT_PER_EPOCH * 2);
+        let last_paid = extension.get_last_paid_epoch(TEST_BYTES, current_lamports);
+        assert_eq!(last_paid, 2, "Should be paid through epoch 2 (epochs 1, 2)");
+
+        // Test case 3: Account with no rent paid (immediately compressible)
+        let extension = CompressibleExtension {
+            version: 1,
+            rent_authority: None,
+            rent_recipient: None,
+            last_claimed_slot: SLOTS_PER_EPOCH * 2, // Created in epoch 2
+            base_lamports_balance: 1000,
+            write_top_up_lamports: None,
+        };
+
+        let current_lamports = 1000; // No rent paid
+        let last_paid = extension.get_last_paid_epoch(TEST_BYTES, current_lamports);
+        assert_eq!(
+            last_paid, 1,
+            "With no rent, last paid epoch should be epoch 1 (before creation)"
+        );
+
+        // Test case 4: Account with 1 epoch of rent
+        let extension = CompressibleExtension {
+            version: 1,
+            rent_authority: None,
+            rent_recipient: None,
+            last_claimed_slot: 0,
+            base_lamports_balance: 1000,
+            write_top_up_lamports: None,
+        };
+
+        let current_lamports = 1000 + RENT_PER_EPOCH;
+        let last_paid = extension.get_last_paid_epoch(TEST_BYTES, current_lamports);
+        assert_eq!(last_paid, 0, "Should be paid through epoch 0 only");
+
+        // Test case 5: Account with massive prepayment (100 epochs)
+        let extension = CompressibleExtension {
+            version: 1,
+            rent_authority: None,
+            rent_recipient: None,
+            last_claimed_slot: SLOTS_PER_EPOCH * 5, // Created in epoch 5
+            base_lamports_balance: 1000,
+            write_top_up_lamports: None,
+        };
+
+        let current_lamports = 1000 + (RENT_PER_EPOCH * 100);
+        let last_paid = extension.get_last_paid_epoch(TEST_BYTES, current_lamports);
+        assert_eq!(
+            last_paid, 104,
+            "Should be paid through epoch 104 (5 + 100 - 1)"
+        );
+
+        // Test case 6: Account with partial epoch payment (1.5 epochs)
+        let extension = CompressibleExtension {
+            version: 1,
+            rent_authority: None,
+            rent_recipient: None,
+            last_claimed_slot: 0,
+            base_lamports_balance: 1000,
+            write_top_up_lamports: None,
+        };
+
+        let current_lamports = 1000 + (RENT_PER_EPOCH * 3 / 2); // 1.5 epochs
+        let last_paid = extension.get_last_paid_epoch(TEST_BYTES, current_lamports);
+        assert_eq!(
+            last_paid, 0,
+            "Partial epochs round down, so only epoch 0 is paid"
+        );
+
+        // Test case 7: Zero-copy version test
+        let extension_data = CompressibleExtension {
+            version: 1,
+            rent_authority: Some([1; 32]),
+            rent_recipient: Some([2; 32]),
+            last_claimed_slot: SLOTS_PER_EPOCH * 3, // Epoch 3
+            base_lamports_balance: 2000,
+            write_top_up_lamports: Some(100),
+        };
+
+        let extension_bytes = extension_data.try_to_vec().unwrap();
+        let (z_extension, _) = CompressibleExtension::zero_copy_at(&extension_bytes)
+            .expect("Failed to create zero-copy extension");
+
+        let current_lamports = 2000 + (RENT_PER_EPOCH * 5);
+        let last_paid = z_extension.get_last_paid_epoch(TEST_BYTES, current_lamports);
+        assert_eq!(last_paid, 7, "Should be paid through epoch 7 (3 + 5 - 1)");
     }
 
     #[test]

@@ -1,5 +1,18 @@
-use light_ctoken_types::state::extensions::compressible::SLOTS_PER_EPOCH;
+use std::collections::HashMap;
+
+use anchor_lang::AnchorDeserialize;
+use light_compressed_token_sdk::{
+    account2::CTokenAccount2,
+    instructions::transfer2::{
+        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
+        Transfer2Inputs,
+    },
+};
+use light_ctoken_types::state::{
+    extensions::compressible::SLOTS_PER_EPOCH, CompressedToken, ExtensionStruct,
+};
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
+use light_sdk::instruction::PackedAccounts;
 use light_test_utils::{
     airdrop_lamports, assert_claim::assert_claim, spl::create_mint_helper, Rpc, RpcError,
 };
@@ -86,7 +99,6 @@ async fn test_claim_rent_for_completed_epochs() -> Result<(), RpcError> {
 async fn test_claim_multiple_accounts_different_epochs() -> Result<(), RpcError> {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
     let payer = rpc.get_payer().insecure_clone();
-    let payer_pubkey = payer.pubkey();
     let mint = create_mint_helper(&mut rpc, &payer).await;
 
     // Create rent authority
@@ -155,22 +167,251 @@ async fn test_claim_multiple_accounts_different_epochs() -> Result<(), RpcError>
     let target_slot = current_slot + (SLOTS_PER_EPOCH * 2);
     rpc.warp_to_slot(target_slot)?;
 
-    // Build claim instruction for all 10 accounts
-    let claim_instruction = light_compressed_token_sdk::instructions::claim(
+    let mut stored_compressible_accounts = HashMap::<Pubkey, StoredCompressibleAccount>::new();
+
+    claim_and_compress(
+        &mut rpc,
+        &mut stored_compressible_accounts,
         pool_pda,
         pool_pda_bump,
         rent_authority_pubkey,
-        &token_accounts,
-    );
-
-    // Execute claim transaction
-    rpc.create_and_send_transaction(
-        &[claim_instruction],
-        &payer_pubkey,
-        &[&payer, &rent_authority_keypair],
+        &rent_authority_keypair,
+        &payer,
     )
     .await?;
-    assert_claim(&mut rpc, &token_accounts, pool_pda, rent_authority_pubkey).await;
+    let target_slot = current_slot + (SLOTS_PER_EPOCH * 2);
+    rpc.warp_to_slot(target_slot)?;
+    claim_and_compress(
+        &mut rpc,
+        &mut stored_compressible_accounts,
+        pool_pda,
+        pool_pda_bump,
+        rent_authority_pubkey,
+        &rent_authority_keypair,
+        &payer,
+    )
+    .await?;
+    Ok(())
+}
+
+#[derive(Eq, Hash, PartialEq)]
+pub struct StoredCompressibleAccount {
+    pub pubkey: Pubkey,
+    pub last_paid_slot: u64,
+    pub account: CompressedToken,
+}
+
+/// Manual implementation of compress_and_close for a slice of token accounts
+/// Uses the already deserialized account data from stored_compressible_accounts
+async fn compress_and_close_batch(
+    rpc: &mut LightProgramTest,
+    compressible_token_accounts: &[&StoredCompressibleAccount],
+    rent_authority_keypair: &Keypair,
+    payer: &Keypair,
+) -> Result<(), RpcError> {
+    if compressible_token_accounts.is_empty() {
+        return Ok(());
+    }
+
+    // Get output queue for compression
+    let output_queue = rpc.get_random_state_tree_info()?.get_output_pubkey()?;
+
+    // Build packed accounts and token accounts for all accounts to compress
+    let mut packed_accounts = PackedAccounts::default();
+    let mut token_accounts = Vec::with_capacity(compressible_token_accounts.len());
+
+    // Add output queue first
+    let output_queue_index = packed_accounts.insert_or_get(output_queue);
+
+    for StoredCompressibleAccount {
+        pubkey,
+        last_paid_slot: _,
+        account,
+    } in compressible_token_accounts
+    {
+        let compressed_token = account;
+
+        // Extract necessary data (convert from light_compressed_account::Pubkey to solana_sdk::Pubkey)
+        let mint = Pubkey::from(compressed_token.mint.to_bytes());
+        let owner = Pubkey::from(compressed_token.owner.to_bytes());
+        let amount = compressed_token.amount;
+
+        // Get rent authority and recipient from compressible extension
+        let (rent_authority, rent_recipient) =
+            if let Some(extensions) = &compressed_token.extensions {
+                let mut authority = owner;
+                let mut recipient = owner;
+
+                for extension in extensions {
+                    if let ExtensionStruct::Compressible(ext) = extension {
+                        if let Some(auth) = ext.rent_authority {
+                            authority = Pubkey::from(auth);
+                        }
+                        if let Some(recip) = ext.rent_recipient {
+                            recipient = Pubkey::from(recip);
+                        }
+                        break;
+                    }
+                }
+                (authority, recipient)
+            } else {
+                (owner, owner)
+            };
+
+        // Verify the rent authority matches the expected signer
+        if rent_authority != rent_authority_keypair.pubkey() {
+            return Err(RpcError::CustomError(format!(
+                "Rent authority mismatch for account {}: expected {}, got {}",
+                pubkey,
+                rent_authority_keypair.pubkey(),
+                rent_authority
+            )));
+        }
+
+        // Add accounts to packed_accounts
+        let source_index = packed_accounts.insert_or_get(*pubkey);
+        let mint_index = packed_accounts.insert_or_get(mint);
+        let owner_index = packed_accounts.insert_or_get(owner);
+        let authority_index = packed_accounts.insert_or_get_config(rent_authority, true, false);
+        let rent_recipient_index = packed_accounts.insert_or_get(rent_recipient);
+
+        // Create CTokenAccount2 for CompressAndClose operation
+        let mut token_account =
+            CTokenAccount2::new_empty(owner_index, mint_index, output_queue_index);
+
+        // Set up compress_and_close
+        token_account
+            .compress_and_close(
+                amount,
+                source_index,
+                authority_index,
+                rent_recipient_index,
+                token_accounts.len() as u8, // Index in the output array
+            )
+            .map_err(|e| {
+                RpcError::CustomError(format!("Failed to setup compress_and_close: {:?}", e))
+            })?;
+
+        token_accounts.push(token_account);
+    }
+
+    // Create the transfer2 instruction
+    let meta_config =
+        Transfer2AccountsMetaConfig::new(payer.pubkey(), packed_accounts.to_account_metas().0);
+
+    let transfer_config = Transfer2Config::default();
+
+    let inputs = Transfer2Inputs {
+        meta_config,
+        token_accounts,
+        transfer_config,
+        ..Default::default()
+    };
+
+    let instruction = create_transfer2_instruction(inputs)
+        .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {:?}", e)))?;
+
+    // Prepare signers
+    let mut signers = vec![payer];
+    if rent_authority_keypair.pubkey() != payer.pubkey() {
+        signers.push(rent_authority_keypair);
+    }
+
+    // Send transaction
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &signers)
+        .await?;
+
+    Ok(())
+}
+
+async fn claim_and_compress(
+    rpc: &mut LightProgramTest,
+    stored_compressible_accounts: &mut HashMap<Pubkey, StoredCompressibleAccount>,
+    pool_pda: Pubkey,
+    pool_pda_bump: u8,
+    rent_authority_pubkey: Pubkey,
+    rent_authority_keypair: &Keypair,
+    payer: &Keypair,
+) -> Result<(), RpcError> {
+    let payer_pubkey = payer.pubkey();
+    let compressible_ctoken_accounts = rpc
+        .context
+        .get_program_accounts(&light_compressed_token::ID);
+
+    for account in compressible_ctoken_accounts
+        .iter()
+        .filter(|e| e.1.data.len() > 200 && e.1.lamports > 0)
+    {
+        let des_account = CompressedToken::deserialize(&mut account.1.data.as_slice()).unwrap();
+        if let Some(extensions) = des_account.extensions.as_ref() {
+            for extension in extensions.iter() {
+                if let ExtensionStruct::Compressible(e) = extension {
+                    let last_paid_epoch =
+                        e.get_last_paid_epoch(account.1.data.len() as u64, account.1.lamports);
+                    let last_paid_slot = last_paid_epoch * SLOTS_PER_EPOCH;
+                    stored_compressible_accounts.insert(
+                        account.0,
+                        StoredCompressibleAccount {
+                            pubkey: account.0,
+                            last_paid_slot,
+                            account: des_account.clone(),
+                        },
+                    );
+                }
+            }
+        }
+    }
+
+    let current_slot = rpc.get_slot().await.unwrap();
+    let compressible_accounts = {
+        stored_compressible_accounts
+            .iter()
+            .filter(|a| a.1.last_paid_slot < current_slot)
+            .map(|e| e.1)
+            .collect::<Vec<_>>()
+    };
+
+    let claim_able_accounts = stored_compressible_accounts
+        .iter()
+        .filter(|a| a.1.last_paid_slot >= current_slot)
+        .map(|e| *e.0)
+        .collect::<Vec<_>>();
+
+    for token_accounts in claim_able_accounts.as_slice().chunks(20) {
+        // Build claim instruction for all 10 accounts
+        let claim_instruction = light_compressed_token_sdk::instructions::claim(
+            pool_pda,
+            pool_pda_bump,
+            rent_authority_pubkey,
+            token_accounts,
+        );
+
+        // Execute claim transaction
+        rpc.create_and_send_transaction(
+            &[claim_instruction],
+            &payer_pubkey,
+            &[payer, rent_authority_keypair],
+        )
+        .await?;
+        assert_claim(rpc, token_accounts, pool_pda, rent_authority_pubkey).await;
+    }
+
+    // Process compressible accounts in batches
+    const BATCH_SIZE: usize = 10; // Process up to 10 accounts at a time
+    let mut pubkeys = Vec::new();
+    for chunk in compressible_accounts.chunks(BATCH_SIZE) {
+        // Call manual implementation for batch processing
+        compress_and_close_batch(rpc, chunk, rent_authority_keypair, payer).await?;
+
+        // Remove processed accounts from the HashMap
+        for account_pubkey in chunk {
+            pubkeys.push(account_pubkey.pubkey);
+        }
+    }
+    for pubkey in pubkeys {
+        stored_compressible_accounts.remove(&pubkey);
+    }
+
     Ok(())
 }
 

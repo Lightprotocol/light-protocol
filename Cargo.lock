@@ -4048,8 +4048,7 @@ checksum = "241eaef5fd12c88705a01fc1066c48c4b36e0dd4377dcdc7ec3942cea7a69956"
 [[package]]
 name = "litesvm"
 version = "0.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bb7e5f4462f34439adcfcab58099bc7a89c67a17f8240b84a993b8b705c1becb"
+source = "git+https://github.com/Lightprotocol/litesvm?rev=d4f7ffb0025b73cb75ef2f198121a4e51b725b5d#d4f7ffb0025b73cb75ef2f198121a4e51b725b5d"
 dependencies = [
  "ansi_term",
  "bincode",
