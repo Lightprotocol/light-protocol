@@ -1,6 +1,7 @@
-use crate::{error::CompressibleError, AnchorDeserialize, AnchorSerialize};
 use bytemuck::{Pod, Zeroable};
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopy, ZeroCopyMut};
+
+use crate::{error::CompressibleError, AnchorDeserialize, AnchorSerialize};
 
 pub const COMPRESSION_COST: u16 = 10_000;
 pub const COMPRESSION_INCENTIVE: u16 = 1000;

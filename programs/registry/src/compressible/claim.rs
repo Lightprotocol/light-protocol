@@ -4,6 +4,7 @@ use light_compressible::config::CompressibleConfig;
 #[derive(Accounts)]
 pub struct ClaimContext<'info> {
     /// Transaction authority (for wrapper access control)
+    #[account(mut)]
     pub authority: Signer<'info>,
 
     /// Forester PDA for tracking work

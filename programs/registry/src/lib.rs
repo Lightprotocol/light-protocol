@@ -15,14 +15,13 @@ pub use account_compression_cpi::{
     rollover_batched_address_tree::*, rollover_batched_state_tree::*, rollover_state_tree::*,
     update_address_tree::*,
 };
+pub use compressible::{
+    claim::*, compress_and_close::*, create_config::*, create_config_counter::*, update_config::*,
+    withdraw_funding_pool::*,
+};
 pub use protocol_config::{initialize::*, update::*};
 
 pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work::*};
-pub use compressible::claim::*;
-pub use compressible::create_config::*;
-pub use compressible::create_config_counter::*;
-pub use compressible::update_config::*;
-pub use compressible::withdraw_funding_pool::*;
 pub mod compressible;
 pub mod constants;
 pub mod epoch;
@@ -38,11 +37,11 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 use light_compressible::rent::RentConfig;
-
 use protocol_config::state::ProtocolConfig;
 pub use selection::forester::*;
 #[cfg(not(target_os = "solana"))]
 pub mod sdk;
+use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseIndices;
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
@@ -763,20 +762,33 @@ pub mod light_registry {
 
     /// Claims rent from compressible token accounts
     pub fn claim<'info>(ctx: Context<'_, '_, '_, 'info, ClaimContext<'info>>) -> Result<()> {
-        // Count the number of token accounts to claim from (for work tracking)
-        let num_token_accounts = ctx.remaining_accounts.len() as u64;
-
         // Check forester and track work
         // Using [0u8; 32] as the queue pubkey since claim doesn't have a specific queue
         ForesterEpochPda::check_forester_in_program(
             &mut ctx.accounts.registered_forester_pda,
             &ctx.accounts.authority.key(),
             &Pubkey::default(),
-            num_token_accounts,
+            0,
         )?;
 
         // Process the claim CPI
         process_claim(&ctx)
+    }
+
+    /// Compress and close token accounts via transfer2
+    pub fn compress_and_close<'info>(
+        ctx: Context<'_, '_, '_, 'info, CompressAndCloseContext<'info>>,
+        indices: Vec<CompressAndCloseIndices>,
+    ) -> Result<()> {
+        // Check forester and track work
+        // Using [0u8; 32] as the queue pubkey since compress_and_close doesn't have a specific queue
+        ForesterEpochPda::check_forester_in_program(
+            &mut ctx.accounts.registered_forester_pda,
+            &ctx.accounts.authority.key(),
+            &Pubkey::default(),
+            0,
+        )?;
+        process_compress_and_close(&ctx, indices)
     }
 }
 

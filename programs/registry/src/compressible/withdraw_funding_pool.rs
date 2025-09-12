@@ -1,8 +1,10 @@
-use crate::errors::RegistryError;
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::program::invoke_signed;
-use anchor_lang::solana_program::system_instruction;
+use anchor_lang::{
+    prelude::*,
+    solana_program::{program::invoke_signed, system_instruction},
+};
 use light_compressible::config::CompressibleConfig;
+
+use crate::errors::RegistryError;
 
 /// Context for withdrawing funds from compressed token pool
 #[derive(Accounts)]

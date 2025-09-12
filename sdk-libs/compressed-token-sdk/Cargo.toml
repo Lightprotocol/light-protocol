@@ -5,7 +5,7 @@ edition = { workspace = true }
 
 [features]
 
-anchor = ["anchor-lang", "light-compressed-token-types/anchor"]
+anchor = ["anchor-lang", "light-compressed-token-types/anchor",  "light-ctoken-types/anchor"]
 profile-program = [
     "light-profiler/profile-program",
     "light-compressed-account/profile-program",

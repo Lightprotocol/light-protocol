@@ -3543,6 +3543,7 @@ dependencies = [
  "solana-msg",
  "solana-program-error",
  "solana-pubkey",
+ "solana-sysvar",
  "thiserror 2.0.16",
  "zerocopy",
 ]
@@ -3824,6 +3825,7 @@ dependencies = [
  "aligned-sized",
  "anchor-lang",
  "light-batched-merkle-tree",
+ "light-compressed-token-sdk",
  "light-compressible",
  "light-merkle-tree-metadata",
  "light-system-program-anchor",

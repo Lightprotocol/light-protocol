@@ -5,7 +5,7 @@ edition = "2021"
 
 [features]
 default = []
-solana = ["dep:solana-program-error", "light-compressed-account/solana"]
+solana = ["dep:solana-program-error", "light-compressed-account/solana", "solana-sysvar"]
 anchor = ["anchor-lang", "light-compressed-account/anchor"]
 pinocchio = ["dep:pinocchio", "light-compressed-account/pinocchio"]
 profile-program = []
@@ -30,6 +30,7 @@ light-profiler = { workspace = true }
 light-heap = { workspace = true, optional = true }
 light-account-checks = { workspace= true }
 light-compressed-account = { workspace= true }
+solana-sysvar = {workspace = true, optional = true}
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
