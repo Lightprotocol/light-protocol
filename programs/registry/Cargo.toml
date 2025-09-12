@@ -24,6 +24,7 @@ sdk = []
 aligned-sized = { workspace = true }
 anchor-lang = { workspace = true, features = ["init-if-needed"] }
 account-compression = { workspace = true }
+light-compressible = { workspace = true, features = ["anchor"] }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 solana-security-txt = "1.1.0"
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }

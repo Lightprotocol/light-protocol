@@ -3821,6 +3821,7 @@ dependencies = [
  "aligned-sized",
  "anchor-lang",
  "light-batched-merkle-tree",
+ "light-compressible",
  "light-merkle-tree-metadata",
  "light-system-program-anchor",
  "solana-sdk",

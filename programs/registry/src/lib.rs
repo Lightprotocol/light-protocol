@@ -18,7 +18,9 @@ pub use account_compression_cpi::{
 pub use protocol_config::{initialize::*, update::*};
 
 pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work::*};
+pub use compressible::create_config::*;
 pub use compressible::create_config_counter::*;
+pub use compressible::update_config::*;
 pub mod compressible;
 pub mod constants;
 pub mod epoch;
@@ -33,6 +35,8 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
+use light_compressible::rent::RentConfig;
+
 use protocol_config::state::ProtocolConfig;
 pub use selection::forester::*;
 #[cfg(not(target_os = "solana"))]
@@ -53,6 +57,7 @@ declare_id!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
 pub mod light_registry {
 
     use constants::DEFAULT_WORK_V1;
+    use light_compressible::config::CompressibleConfig;
 
     use super::*;
 
@@ -660,6 +665,92 @@ pub mod light_registry {
 
     /// Creates the config counter PDA
     pub fn create_config_counter(_ctx: Context<CreateConfigCounter>) -> Result<()> {
+        Ok(())
+    }
+
+    /// Creates a new compressible config
+    pub fn create_compressible_config(
+        ctx: Context<CreateCompressibleConfig>,
+        rent_config: RentConfig,
+        update_authority: Pubkey,
+        withdrawal_authority: Pubkey,
+        active: bool,
+    ) -> Result<()> {
+        // Increment the counter
+        ctx.accounts.config_counter.counter += 1;
+        let version: u16 = ctx
+            .accounts
+            .config_counter
+            .counter
+            .try_into()
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+        let (rent_recipient, rent_recipient_bump) = Pubkey::find_program_address(
+            &[
+                b"rent_recipient".as_slice(),
+                version.to_le_bytes().as_slice(),
+                &[0],
+            ],
+            &crate::ID_CONST,
+        );
+        let (rent_authority, rent_authority_bump) = Pubkey::find_program_address(
+            &[
+                b"rent_authority".as_slice(),
+                version.to_le_bytes().as_slice(),
+                &[0],
+            ],
+            &crate::ID_CONST,
+        );
+        let mut address_space = [Pubkey::default(); 4];
+        address_space[0] = pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK");
+
+        let config = CompressibleConfig {
+            active: active as u8,
+            version,
+            rent_config,
+            update_authority,
+            withdrawal_authority,
+            rent_recipient,
+            rent_recipient_bump,
+            rent_authority,
+            rent_authority_bump,
+            bump: ctx.bumps.compressible_config,
+            address_space,
+            _place_holder: [0u8; 32],
+        };
+        // Set the config data
+        ctx.accounts.compressible_config.set_inner(config);
+
+        Ok(())
+    }
+
+    /// Updates an existing compressible config
+    pub fn update_compressible_config(
+        ctx: Context<UpdateCompressibleConfig>,
+        new_update_authority: Option<Pubkey>,
+        new_withdrawal_authority: Option<Pubkey>,
+    ) -> Result<()> {
+        // Update the update_authority if provided
+        if let Some(authority) = new_update_authority {
+            ctx.accounts.compressible_config.update_authority = authority;
+        }
+
+        // Update the withdrawal_authority if provided
+        if let Some(authority) = new_withdrawal_authority {
+            ctx.accounts.compressible_config.withdrawal_authority = authority;
+        }
+
+        Ok(())
+    }
+
+    /// Pauses the compressible config
+    pub fn pause_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
+        ctx.accounts.compressible_config.active = 0;
+        Ok(())
+    }
+
+    /// Unpauses the compressible config
+    pub fn unpause_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
+        ctx.accounts.compressible_config.active = 1;
         Ok(())
     }
 }
