@@ -1,4 +1,4 @@
-use light_ctoken_types::state::extensions::compressible::SLOTS_PER_EPOCH;
+use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     airdrop_lamports, assert_claim::assert_claim, spl::create_mint_helper, Rpc, RpcError,

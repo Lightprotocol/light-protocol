@@ -54,6 +54,7 @@ light-sdk = { workspace = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }
 light-client = { workspace = true, features = ["devenv"] }
 light-token-client = { workspace = true }
+light-compressible = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

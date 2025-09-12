@@ -1,6 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_signer, AccountInfoTrait};
+use light_compressible::rent::{calculate_close_lamports, get_rent_exemption_lamports};
 use light_ctoken_types::state::{CompressedToken, ZCompressedTokenMut, ZExtensionStructMut};
 use light_profiler::profile;
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
@@ -147,9 +148,9 @@ pub fn close_token_account_inner(
                     #[cfg(not(target_os = "solana"))]
                     let current_slot = 0;
 
-                    let base_lamports = light_ctoken_types::state::extensions::compressible::get_rent_exemption_lamports(
-                        accounts.token_account.data_len() as u64
-                    ).map_err(|_| ProgramError::InvalidAccountData)?;
+                    let base_lamports =
+                        get_rent_exemption_lamports(accounts.token_account.data_len() as u64)
+                            .map_err(|_| ProgramError::InvalidAccountData)?;
 
                     let min_rent: u64 = compressible_ext.rent_config.min_rent.into();
                     let rent_per_byte: u64 = compressible_ext.rent_config.rent_per_byte.into();
@@ -158,8 +159,8 @@ pub fn close_token_account_inner(
                         .full_compression_incentive
                         .into();
 
-                    let (mut lamports_to_destination,mut lamports_to_authority) =
-                        light_ctoken_types::state::extensions::compressible::calculate_close_lamports(
+                    let (mut lamports_to_destination, mut lamports_to_authority) =
+                        calculate_close_lamports(
                             accounts.token_account.data_len() as u64,
                             current_slot,
                             token_account_lamports,

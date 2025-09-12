@@ -1,8 +1,7 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{AccountInfoTrait, AccountIterator};
-use light_ctoken_types::state::{
-    get_rent_exemption_lamports, CompressedToken, ZExtensionStructMut,
-};
+use light_compressible::rent::get_rent_exemption_lamports;
+use light_ctoken_types::state::{CompressedToken, ZExtensionStructMut};
 use light_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};

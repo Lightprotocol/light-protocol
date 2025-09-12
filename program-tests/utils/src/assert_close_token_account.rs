@@ -1,8 +1,6 @@
 use light_client::rpc::Rpc;
-use light_ctoken_types::state::{
-    extensions::compressible::calculate_close_lamports, solana_ctoken::CompressedToken,
-    ZExtensionStruct,
-};
+use light_compressible::rent::calculate_close_lamports;
+use light_ctoken_types::state::{solana_ctoken::CompressedToken, ZExtensionStruct};
 use light_program_test::LightProgramTest;
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::pubkey::Pubkey;

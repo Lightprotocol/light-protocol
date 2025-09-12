@@ -8,8 +8,9 @@ use light_compressed_token_sdk::{
         account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Inputs,
     },
 };
+use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_ctoken_types::{
-    state::{CompressedToken, ExtensionStruct, SLOTS_PER_EPOCH},
+    state::{CompressedToken, ExtensionStruct},
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_sdk::instruction::PackedAccounts;

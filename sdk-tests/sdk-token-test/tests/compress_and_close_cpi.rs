@@ -10,9 +10,8 @@ use light_compressed_token_sdk::instructions::{
     create_compressible_associated_token_account, derive_ctoken_ata,
     CreateCompressibleAssociatedTokenAccountInputs,
 };
-use light_ctoken_types::{
-    instructions::mint_action::Recipient, state::RentConfig, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-};
+use light_compressible::rent::RentConfig;
+use light_ctoken_types::{instructions::mint_action::Recipient, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::{airdrop_lamports, assert_transfer2::assert_transfer2_compress_and_close};

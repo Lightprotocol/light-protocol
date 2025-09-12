@@ -1,17 +1,12 @@
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::rpc::Rpc;
 use light_compressed_token_sdk::instructions::create_associated_token_account::derive_ctoken_ata;
+use light_compressible::rent::{
+    get_rent_with_compression_cost, RentConfig, COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT,
+    RENT_PER_BYTE,
+};
 use light_ctoken_types::{
-    state::{
-        extensions::{
-            compressible::{
-                get_rent_with_compression_cost, COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT,
-                RENT_PER_BYTE,
-            },
-            CompressibleExtension, RentConfig,
-        },
-        solana_ctoken::CompressedToken,
-    },
+    state::{extensions::CompressibleExtension, solana_ctoken::CompressedToken},
     BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_zero_copy::traits::ZeroCopyAt;

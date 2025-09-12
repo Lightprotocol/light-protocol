@@ -43,4 +43,5 @@ account-compression = { workspace = true }
 light-compressed-account = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-registry = { workspace = true }
+light-compressible = { workspace = true }
 solana-sdk = { workspace = true }

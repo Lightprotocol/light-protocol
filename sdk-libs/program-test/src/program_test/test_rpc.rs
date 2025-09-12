@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use light_client::rpc::{LightClient, Rpc, RpcError};
-use light_ctoken_types::state::extensions::compressible::SLOTS_PER_EPOCH;
+use light_compressible::rent::SLOTS_PER_EPOCH;
 use solana_account::Account;
 use solana_sdk::{
     clock::{Clock, Slot},

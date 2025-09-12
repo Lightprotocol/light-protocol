@@ -1,5 +1,7 @@
 use anchor_lang::{prelude::ProgramError, solana_program::system_instruction};
+use borsh::BorshDeserialize;
 use light_account_checks::{AccountInfoTrait, AccountIterator};
+use light_compressible::config::CompressibleConfig;
 use light_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
@@ -18,33 +20,40 @@ pub struct WithdrawFundingPoolAccounts<'a> {
     pub destination: &'a AccountInfo,
     /// System program
     pub system_program: &'a AccountInfo,
+    pub config: &'a AccountInfo,
 }
 
 impl<'a> WithdrawFundingPoolAccounts<'a> {
     #[inline(always)]
-    pub fn validate_and_parse(
-        accounts: &'a [AccountInfo],
-        pool_pda_bump: u8,
-    ) -> Result<Self, ProgramError> {
+    pub fn validate_and_parse(accounts: &'a [AccountInfo]) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
         let accounts = Self {
             pool_pda: iter.next_mut("pool_pda")?,
             authority: iter.next_signer("authority")?,
             destination: iter.next_mut("destination")?,
             system_program: iter.next_account("system_program")?,
+            config: iter.next_non_mut("config")?,
         };
-
-        // Verify pool PDA derivation with authority and provided bump
-        // The pool PDA should be derived as: [b"pool", authority]
-        let seeds = [b"pool".as_slice(), accounts.authority.key().as_ref()];
-
-        let derived_pda =
-            pinocchio_pubkey::derive_address(&seeds, Some(pool_pda_bump), crate::ID.as_array());
-
-        if derived_pda != *accounts.pool_pda.key() {
-            msg!("Invalid pool PDA derivation with bump {}", pool_pda_bump);
-            return Err(ProgramError::InvalidSeeds);
+        let data = accounts
+            .config
+            .try_borrow_data()
+            .map_err(|_| ProgramError::AccountBorrowFailed)?;
+        let config = CompressibleConfig::deserialize(&mut data.as_ref())
+            .map_err(|_| ProgramError::InvalidAccountData)?;
+        if *config.rent_authority.as_array() != *accounts.authority.key() {
+            return Err(ProgramError::InvalidAccountOwner);
         }
+        // // Verify pool PDA derivation with authority and provided bump
+        // // The pool PDA should be derived as: [b"pool", authority]
+        // let seeds = [b"pool".as_slice(), accounts.authority.key().as_ref()];
+
+        // let derived_pda =
+        //     pinocchio_pubkey::derive_address(&seeds, Some(pool_pda_bump), crate::ID.as_array());
+
+        // if derived_pda != *accounts.pool_pda.key() {
+        //     msg!("Invalid pool PDA derivation with bump {}", pool_pda_bump);
+        //     return Err(ProgramError::InvalidSeeds);
+        // }
 
         Ok(accounts)
     }
@@ -70,7 +79,7 @@ pub fn process_withdraw_funding_pool(
     );
 
     // Validate accounts and check PDA derivation
-    let accounts = WithdrawFundingPoolAccounts::validate_and_parse(account_infos, pool_pda_bump)?;
+    let accounts = WithdrawFundingPoolAccounts::validate_and_parse(account_infos)?;
 
     // Check that pool has sufficient funds
     let pool_lamports = AccountInfoTrait::lamports(accounts.pool_pda);

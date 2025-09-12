@@ -1,12 +1,10 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountIterator;
-use light_ctoken_types::{
-    instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
-    state::extensions::compressible::{
-        get_rent_with_compression_cost, COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT,
-        RENT_PER_BYTE,
-    },
+use light_compressible::rent::{
+    get_rent_with_compression_cost, COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT,
+    RENT_PER_BYTE,
 };
+use light_ctoken_types::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
 use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;

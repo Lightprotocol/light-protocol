@@ -1,11 +1,9 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
+use light_compressible::rent::{COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT, RENT_PER_BYTE};
 use light_ctoken_types::{
     instructions::extensions::compressible::ZCompressibleExtensionInstructionData,
     state::{
-        extensions::compressible::{
-            COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT, RENT_PER_BYTE,
-        },
         CompressedToken, CompressedTokenConfig, CompressibleExtensionConfig, ExtensionStructConfig,
         ZExtensionStructMut,
     },

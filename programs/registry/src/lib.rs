@@ -21,6 +21,7 @@ pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work:
 pub use compressible::create_config::*;
 pub use compressible::create_config_counter::*;
 pub use compressible::update_config::*;
+pub use compressible::withdraw_funding_pool::*;
 pub mod compressible;
 pub mod constants;
 pub mod epoch;
@@ -752,6 +753,11 @@ pub mod light_registry {
     pub fn unpause_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
         ctx.accounts.compressible_config.active = 1;
         Ok(())
+    }
+
+    /// Withdraws funds from compressed token pool
+    pub fn withdraw_funding_pool(ctx: Context<WithdrawFundingPool>, amount: u64) -> Result<()> {
+        process_withdraw_funding_pool(&ctx, amount)
     }
 }
 

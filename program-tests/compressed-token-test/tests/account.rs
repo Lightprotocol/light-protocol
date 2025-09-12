@@ -5,10 +5,8 @@ use light_compressed_token_sdk::instructions::{
     close::close_account, create_associated_token_account::derive_ctoken_ata,
     create_associated_token_account_idempotent, create_token_account,
 };
-use light_ctoken_types::{
-    state::extensions::compressible::{get_rent, MIN_RENT, RENT_PER_BYTE, SLOTS_PER_EPOCH},
-    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-};
+use light_compressible::rent::{get_rent, MIN_RENT, RENT_PER_BYTE, SLOTS_PER_EPOCH};
+use light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
 use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     airdrop_lamports,
