@@ -18,6 +18,7 @@ pub use account_compression_cpi::{
 pub use protocol_config::{initialize::*, update::*};
 
 pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work::*};
+pub use compressible::claim::*;
 pub use compressible::create_config::*;
 pub use compressible::create_config_counter::*;
 pub use compressible::update_config::*;
@@ -758,6 +759,24 @@ pub mod light_registry {
     /// Withdraws funds from compressed token pool
     pub fn withdraw_funding_pool(ctx: Context<WithdrawFundingPool>, amount: u64) -> Result<()> {
         process_withdraw_funding_pool(&ctx, amount)
+    }
+
+    /// Claims rent from compressible token accounts
+    pub fn claim<'info>(ctx: Context<'_, '_, '_, 'info, ClaimContext<'info>>) -> Result<()> {
+        // Count the number of token accounts to claim from (for work tracking)
+        let num_token_accounts = ctx.remaining_accounts.len() as u64;
+
+        // Check forester and track work
+        // Using [0u8; 32] as the queue pubkey since claim doesn't have a specific queue
+        ForesterEpochPda::check_forester_in_program(
+            &mut ctx.accounts.registered_forester_pda,
+            &ctx.accounts.authority.key(),
+            &Pubkey::default(),
+            num_token_accounts,
+        )?;
+
+        // Process the claim CPI
+        process_claim(&ctx)
     }
 }
 

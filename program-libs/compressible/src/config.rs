@@ -1,4 +1,5 @@
 use bytemuck::{Pod, Zeroable};
+use light_account_checks::discriminator::Discriminator;
 use solana_pubkey::Pubkey;
 
 use crate::{rent::RentConfig, AnchorDeserialize, AnchorSerialize};
@@ -72,6 +73,11 @@ impl anchor_lang::Owner for CompressibleConfig {
         // For now, return a default - this should be set to your actual program ID
         anchor_lang::prelude::Pubkey::default()
     }
+}
+
+impl Discriminator for CompressibleConfig {
+    const LIGHT_DISCRIMINATOR: [u8; 8] = [1u8; 8];
+    const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = Self::LIGHT_DISCRIMINATOR.as_slice();
 }
 
 impl CompressibleConfig {

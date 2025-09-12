@@ -1,6 +1,10 @@
-use anchor_lang::prelude::ProgramError;
-use light_account_checks::{AccountInfoTrait, AccountIterator};
-use light_compressible::rent::get_rent_exemption_lamports;
+use anchor_lang::{prelude::ProgramError, pubkey};
+use borsh::BorshDeserialize;
+use light_account_checks::{
+    checks::{check_discriminator, check_owner},
+    AccountInfoTrait, AccountIterator,
+};
+use light_compressible::{config::CompressibleConfig, rent::get_rent_exemption_lamports};
 use light_ctoken_types::state::{CompressedToken, ZExtensionStructMut};
 use light_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
@@ -12,9 +16,10 @@ use crate::create_token_account::processor::transfer_lamports;
 /// Accounts required for the claim instruction
 pub struct ClaimAccounts<'a> {
     /// The pool PDA that receives the claimed rent
-    pub pool_pda: &'a AccountInfo,
+    pub rent_recipient: &'a AccountInfo,
     /// The rent authority (must be signer)
     pub rent_authority: &'a AccountInfo,
+    pub config: &'a AccountInfo,
 }
 
 impl<'a> ClaimAccounts<'a> {
@@ -25,17 +30,24 @@ impl<'a> ClaimAccounts<'a> {
     ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
         let accounts = Self {
-            pool_pda: iter.next_mut("pool_pda")?,
+            rent_recipient: iter.next_mut("pool_pda")?,
             rent_authority: iter.next_signer("rent_authority")?,
+            config: iter.next_non_mut("compressible config")?,
         };
-        // Verify pool PDA derivation with provided bump
-        // The pool PDA should be derived as: [b"pool", rent_authority]
-        let seeds = [b"pool".as_slice(), accounts.rent_authority.key().as_ref()];
 
-        let derived_pda =
-            pinocchio_pubkey::derive_address(&seeds, Some(pool_pda_bump), crate::ID.as_array());
-
-        if derived_pda != *accounts.pool_pda.key() {
+        check_owner(
+            &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").to_bytes(),
+            accounts.config,
+        )?;
+        let data = accounts.config.try_borrow_data().unwrap();
+        check_discriminator::<CompressibleConfig>(&data[..])?;
+        // TODO: deserialize with bytemuck
+        let account = CompressibleConfig::deserialize(&mut data[0..8].as_ref()).unwrap();
+        if *account.rent_authority.as_array() != *accounts.rent_authority.key() {
+            msg!("invalid rent authority");
+            return Err(ProgramError::InvalidSeeds);
+        }
+        if *account.rent_recipient.as_array() != *accounts.rent_recipient.key() {
             msg!("Invalid pool PDA derivation with bump {}", pool_pda_bump);
             return Err(ProgramError::InvalidSeeds);
         }
@@ -65,10 +77,10 @@ pub fn process_claim(
         .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?
         .slot;
 
-    for token_account in account_infos.iter().skip(2) {
+    for token_account in account_infos.iter().skip(3) {
         let amount = validate_and_claim(&accounts, token_account, current_slot)?;
         if let Some(amount) = amount {
-            transfer_lamports(amount, token_account, accounts.pool_pda)?;
+            transfer_lamports(amount, token_account, accounts.rent_recipient)?;
         }
     }
     Ok(())
@@ -106,7 +118,7 @@ fn validate_and_claim(
                     msg!("No rent recipient set");
                     return Ok(None);
                 }
-                if compressible_ext.rent_recipient != *accounts.pool_pda.key() {
+                if compressible_ext.rent_recipient != *accounts.rent_recipient.key() {
                     msg!("Pool PDA does not match rent recipient");
                     return Ok(None);
                 }
