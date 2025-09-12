@@ -408,7 +408,18 @@ impl<R: Rpc> BatchProcessor<R> {
             cache.add(&batch_hash);
         }
 
-        state::perform_nullify(&self.context, merkle_tree_data).await?;
+        // For nullify-only operations, create empty append data
+        let empty_append_data = ParsedQueueData {
+            zkp_batch_size: 0,
+            pending_batch_index: 0,
+            num_inserted_zkps: 0,
+            current_zkp_batch_index: 0,
+            leaves_hash_chains: Vec::new(), // No append operations
+        };
+        
+        // Use the parallel processing approach even for nullify-only
+        // This ensures proper changelog handling for multiple nullify batches
+        let result = self.process_parallel(merkle_tree_data, empty_append_data).await;
 
         trace!(
             "State nullify operation (hybrid) completed for tree: {}",
@@ -418,7 +429,7 @@ impl<R: Rpc> BatchProcessor<R> {
         cache.cleanup_by_key(&batch_hash);
         trace!("Cache cleaned up for batch: {}", batch_hash);
 
-        Ok(zkp_batch_size)
+        result
     }
 
     async fn process_state_append_hybrid(
@@ -443,7 +454,23 @@ impl<R: Rpc> BatchProcessor<R> {
             }
             cache.add(&batch_hash);
         }
-        state::perform_append(&self.context, merkle_tree_data, output_queue_data).await?;
+        // For append-only operations, we still need to handle multiple batches properly
+        // Create empty nullify data and use the parallel processing approach
+        let empty_nullify_data = ParsedMerkleTreeData {
+            next_index: merkle_tree_data.next_index,
+            current_root: merkle_tree_data.current_root,
+            root_history: merkle_tree_data.root_history.clone(),
+            zkp_batch_size: merkle_tree_data.zkp_batch_size,
+            pending_batch_index: merkle_tree_data.pending_batch_index,
+            num_inserted_zkps: merkle_tree_data.num_inserted_zkps,
+            current_zkp_batch_index: merkle_tree_data.current_zkp_batch_index,
+            leaves_hash_chains: Vec::new(), // No nullify operations
+        };
+        
+        // Use the parallel processing approach even for append-only
+        // This ensures proper changelog handling for multiple append batches
+        let result = self.process_parallel(empty_nullify_data, output_queue_data).await;
+        
         trace!(
             "State append operation (hybrid) completed for tree: {}",
             self.context.merkle_tree
@@ -452,7 +479,7 @@ impl<R: Rpc> BatchProcessor<R> {
         let mut cache = self.context.ops_cache.lock().await;
         cache.cleanup_by_key(&batch_hash);
 
-        Ok(zkp_batch_size)
+        result
     }
 
     /// Parse merkle tree account and check if batch is ready

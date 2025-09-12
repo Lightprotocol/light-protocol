@@ -342,6 +342,7 @@ pub async fn prepare_proofs_with_sequential_changelogs<R: Rpc>(
     // Step 3: Calculate nullify changelogs first (sequential)
     let mut all_changelogs: Vec<ChangelogEntry<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>> = previous_changelogs.clone();
     let mut nullify_circuit_inputs = Vec::new();
+    let mut current_root = merkle_tree_data.current_root;
     
     for (batch_offset, leaves_hash_chain) in nullify_leaves_hash_chains.iter().enumerate() {
         let start_idx = batch_offset * nullify_zkp_batch_size as usize;
@@ -367,7 +368,7 @@ pub async fn prepare_proofs_with_sequential_changelogs<R: Rpc>(
         let (circuit_inputs, batch_changelog) = get_batch_update_inputs::<
             { DEFAULT_BATCH_STATE_TREE_HEIGHT as usize },
         >(
-            merkle_tree_data.current_root,
+            current_root,  // Use the current root, which gets updated after each batch
             tx_hashes,
             leaves,
             *leaves_hash_chain,
@@ -378,6 +379,20 @@ pub async fn prepare_proofs_with_sequential_changelogs<R: Rpc>(
             &all_changelogs,  // Use accumulated changelogs
         )?;
         
+        // Update current_root to the new root from this batch for the next iteration
+        // The new root is in the circuit_inputs, convert from BigInt back to bytes
+        let new_root_bytes = circuit_inputs.new_root.to_bytes_be().1;
+        if new_root_bytes.len() == 32 {
+            current_root.copy_from_slice(&new_root_bytes);
+            debug!("Updated root after nullify batch {}: {:?}", batch_offset, current_root);
+        } else {
+            // Pad or truncate to 32 bytes if necessary
+            current_root = [0u8; 32];
+            let offset = 32usize.saturating_sub(new_root_bytes.len());
+            current_root[offset..].copy_from_slice(&new_root_bytes[..new_root_bytes.len().min(32)]);
+            debug!("Updated root after nullify batch {} (padded): {:?}", batch_offset, current_root);
+        }
+        
         all_changelogs.extend(batch_changelog);
         nullify_circuit_inputs.push(circuit_inputs);
     }
@@ -385,6 +400,7 @@ pub async fn prepare_proofs_with_sequential_changelogs<R: Rpc>(
     info!("Calculated {} nullify changelogs", all_changelogs.len() - previous_changelogs.len());
     
     // Step 4: Calculate append inputs with nullify's changelogs
+    // Continue using the current_root from where nullify left off
     let mut append_circuit_inputs = Vec::new();
     
     for (batch_idx, leaves_hash_chain) in append_leaves_hash_chains.iter().enumerate() {
@@ -400,7 +416,7 @@ pub async fn prepare_proofs_with_sequential_changelogs<R: Rpc>(
         let (circuit_inputs, batch_changelog) = get_batch_append_inputs::<
             { DEFAULT_BATCH_STATE_TREE_HEIGHT as usize },
         >(
-            merkle_tree_data.current_root,
+            current_root,  // Use the current root, which was updated by nullify operations
             adjusted_start_index,
             new_leaves,
             *leaves_hash_chain,
@@ -409,6 +425,20 @@ pub async fn prepare_proofs_with_sequential_changelogs<R: Rpc>(
             append_zkp_batch_size as u32,
             &all_changelogs,  // Use changelogs including nullify's
         )?;
+        
+        // Update current_root for the next append batch
+        // The new root is in the circuit_inputs, convert from BigInt back to bytes
+        let new_root_bytes = circuit_inputs.new_root.to_bytes_be().1;
+        if new_root_bytes.len() == 32 {
+            current_root.copy_from_slice(&new_root_bytes);
+            debug!("Updated root after append batch {}: {:?}", batch_idx, current_root);
+        } else {
+            // Pad or truncate to 32 bytes if necessary
+            current_root = [0u8; 32];
+            let offset = 32usize.saturating_sub(new_root_bytes.len());
+            current_root[offset..].copy_from_slice(&new_root_bytes[..new_root_bytes.len().min(32)]);
+            debug!("Updated root after append batch {} (padded): {:?}", batch_idx, current_root);
+        }
         
         all_changelogs.extend(batch_changelog);
         append_circuit_inputs.push(circuit_inputs);
