@@ -5,6 +5,7 @@ members = [
     "program-libs/aligned-sized",
     "program-libs/batched-merkle-tree",
     "program-libs/bloom-filter",
+    "program-libs/compressible",
     "program-libs/hasher",
     "program-libs/verifier",
     "program-libs/merkle-tree-metadata",
@@ -174,6 +175,7 @@ light-sdk-macros = { path = "sdk-libs/macros", version = "0.13.0" }
 light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.13.0" }
 light-compressed-account = { path = "program-libs/compressed-account", version = "0.3.0" }
 light-account-checks = { path = "program-libs/account-checks", version = "0.3.0" }
+light-compressible = { path = "program-libs/compressible", version = "0.1.0" }
 light-verifier = { path = "program-libs/verifier", version = "2.1.0" }
 light-zero-copy = { path = "program-libs/zero-copy", version = "0.2.0" }
 light-zero-copy-derive = { path = "program-libs/zero-copy-derive", version = "0.1.0" }

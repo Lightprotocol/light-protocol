@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = { workspace = true }
 
 [features]
-anchor = ["light-compressed-account/anchor", "dep:anchor-lang"]
+anchor = ["light-compressed-account/anchor", "dep:anchor-lang", "light-compressible/anchor"]
 solana = ["dep:solana-program-error", "dep:solana-sysvar"]
 default = []
 profile-program = []
@@ -31,6 +31,7 @@ spl-token-2022 = { workspace = true }
 solana-msg = { workspace = true }
 light-profiler = { workspace = true }
 light-heap = { workspace = true, optional = true }
+light-compressible = {workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

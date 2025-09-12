@@ -3523,6 +3523,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-compressible"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "borsh 0.10.4",
+ "bytemuck",
+ "light-account-checks",
+ "light-compressed-account",
+ "light-hasher",
+ "light-heap",
+ "light-macros",
+ "light-profiler",
+ "light-zero-copy",
+ "pinocchio 0.8.4",
+ "pinocchio-pubkey 0.3.0",
+ "solana-msg",
+ "solana-program-error",
+ "solana-pubkey",
+ "thiserror 2.0.16",
+ "zerocopy",
+]
+
+[[package]]
 name = "light-concurrent-merkle-tree"
 version = "2.1.0"
 dependencies = [
@@ -3552,6 +3575,7 @@ dependencies = [
  "borsh 0.10.4",
  "light-account-checks",
  "light-compressed-account",
+ "light-compressible",
  "light-hasher",
  "light-heap",
  "light-macros",
