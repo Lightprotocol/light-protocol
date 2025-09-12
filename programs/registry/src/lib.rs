@@ -18,6 +18,8 @@ pub use account_compression_cpi::{
 pub use protocol_config::{initialize::*, update::*};
 
 pub use crate::epoch::{finalize_registration::*, register_epoch::*, report_work::*};
+pub use compressible::create_config_counter::*;
+pub mod compressible;
 pub mod constants;
 pub mod epoch;
 pub mod protocol_config;
@@ -654,6 +656,11 @@ pub mod light_registry {
             DEFAULT_WORK_V1,
         )?;
         process_migrate_state(&ctx, bump, inputs)
+    }
+
+    /// Creates the config counter PDA
+    pub fn create_config_counter(_ctx: Context<CreateConfigCounter>) -> Result<()> {
+        Ok(())
     }
 }
 
