@@ -15,7 +15,6 @@ pub mod extensions;
 pub mod mint_action;
 pub mod shared;
 pub mod transfer2;
-pub mod withdraw_funding_pool;
 
 // Reexport the wrapped anchor program.
 pub use ::anchor_compressed_token::*;
@@ -26,7 +25,6 @@ use create_associated_token_account::{
 };
 use create_token_account::processor::process_create_token_account;
 use decompressed_token_transfer::process_decompressed_token_transfer;
-use withdraw_funding_pool::process_withdraw_funding_pool;
 
 use crate::{
     convert_account_infos::convert_account_infos, mint_action::processor::process_mint_action,
@@ -64,8 +62,6 @@ pub enum InstructionType {
     MintAction = 106,
     /// Claim rent for past completed epochs from compressible token account
     Claim = 107,
-    /// Withdraw funds from pool PDA
-    WithdrawFundingPool = 108,
     Other,
 }
 
@@ -81,7 +77,6 @@ impl From<u8> for InstructionType {
             105 => InstructionType::CreateAssociatedTokenAccountIdempotent,
             106 => InstructionType::MintAction,
             107 => InstructionType::Claim,
-            108 => InstructionType::WithdrawFundingPool,
             _ => InstructionType::Other,
         }
     }
@@ -136,10 +131,6 @@ pub fn process_instruction(
         InstructionType::Claim => {
             msg!("Claim");
             process_claim(accounts, &instruction_data[1..])?;
-        }
-        InstructionType::WithdrawFundingPool => {
-            msg!("WithdrawFundingPool");
-            process_withdraw_funding_pool(accounts, &instruction_data[1..])?;
         }
         // anchor instructions have no discriminator conflicts with InstructionType
         // TODO: add test for discriminator conflict
