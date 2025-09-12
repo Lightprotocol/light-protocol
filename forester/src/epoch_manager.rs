@@ -106,6 +106,7 @@ pub struct EpochManager<R: Rpc> {
     new_tree_sender: broadcast::Sender<TreeAccounts>,
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
+    registration_cache: Arc<DashMap<u64, ForesterEpochInfo>>,
 }
 
 impl<R: Rpc> Clone for EpochManager<R> {
@@ -122,6 +123,7 @@ impl<R: Rpc> Clone for EpochManager<R> {
             new_tree_sender: self.new_tree_sender.clone(),
             tx_cache: self.tx_cache.clone(),
             ops_cache: self.ops_cache.clone(),
+            registration_cache: self.registration_cache.clone(),
         }
     }
 }
@@ -151,6 +153,7 @@ impl<R: Rpc> EpochManager<R> {
             new_tree_sender,
             tx_cache,
             ops_cache,
+            registration_cache: Arc::new(DashMap::new()),
         })
     }
 
@@ -337,6 +340,8 @@ impl<R: Rpc> EpochManager<R> {
                         "Next epoch {} registration phase already started, sending for processing",
                         next_epoch
                     );
+                    // Spawn registration task immediately without blocking
+                    self.spawn_registration_task(next_epoch);
                     tx.send(next_epoch).await?;
                     last_epoch = Some(next_epoch);
                     continue; // Check for further epochs immediately
@@ -365,6 +370,8 @@ impl<R: Rpc> EpochManager<R> {
                     "Next epoch {} registration phase started, sending for processing",
                     next_epoch
                 );
+                // Spawn registration task immediately without blocking
+                self.spawn_registration_task(next_epoch);
                 if let Err(e) = tx.send(next_epoch).await {
                     error!(
                         "Failed to send next epoch {} for processing: {:?}",
@@ -385,6 +392,67 @@ impl<R: Rpc> EpochManager<R> {
         counts
             .get(&epoch)
             .map_or(0, |count| count.load(Ordering::Relaxed))
+    }
+
+    fn spawn_registration_task(&self, epoch: u64) {
+        let self_clone = self.clone();
+        tokio::spawn(async move {
+            info!("Spawning independent registration task for epoch {}", epoch);
+            match self_clone.handle_epoch_registration(epoch).await {
+                Ok(_) => info!("Successfully handled registration for epoch {}", epoch),
+                Err(e) => error!("Failed to handle registration for epoch {}: {:?}", epoch, e),
+            }
+        });
+    }
+
+    async fn handle_epoch_registration(&self, epoch: u64) -> Result<()> {
+        // Check if already cached
+        if self.registration_cache.contains_key(&epoch) {
+            debug!("Registration already cached for epoch {}", epoch);
+            return Ok(());
+        }
+
+        // Try to recover existing registration first
+        let forester_epoch_pda_pubkey =
+            get_forester_epoch_pda_from_authority(&self.config.derivation_pubkey, epoch).0;
+        let rpc = self.rpc_pool.get_connection().await?;
+        
+        if let Ok(Some(existing_pda)) = rpc
+            .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
+            .await
+        {
+            // Already registered, cache the info
+            match self
+                .recover_registration_info_internal(epoch, forester_epoch_pda_pubkey, existing_pda)
+                .await
+            {
+                Ok(info) => {
+                    self.registration_cache.insert(epoch, info);
+                    info!("Recovered and cached existing registration for epoch {}", epoch);
+                    return Ok(());
+                }
+                Err(e) => {
+                    warn!("Failed to recover registration info for epoch {}: {:?}", epoch, e);
+                }
+            }
+        }
+
+        // Attempt new registration with limited retries
+        info!("Attempting to register for epoch {}", epoch);
+        match self
+            .register_for_epoch_with_retry(epoch, 10, Duration::from_millis(500))
+            .await
+        {
+            Ok(info) => {
+                self.registration_cache.insert(epoch, info);
+                info!("Successfully registered and cached for epoch {}", epoch);
+                Ok(())
+            }
+            Err(e) => {
+                error!("Failed to register for epoch {}: {:?}", epoch, e);
+                Err(e)
+            }
+        }
     }
 
     async fn increment_processed_items_count(&self, epoch: u64, increment_by: usize) {
@@ -485,37 +553,69 @@ impl<R: Rpc> EpochManager<R> {
         }
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
-        // Attempt to recover registration info
-        debug!("Recovering registration info for epoch {}", epoch);
-        let mut registration_info = match self.recover_registration_info(epoch).await {
-            Ok(info) => info,
-            Err(e) => {
-                warn!("Failed to recover registration info: {:?}", e);
-                // If recovery fails, attempt to register
-                match self
-                    .register_for_epoch_with_retry(epoch, 100, Duration::from_millis(1000))
-                    .await
-                {
-                    Ok(info) => info,
-                    Err(e) => {
-                        // Check if this is a RegistrationPhaseEnded error by downcasting
-                        if let Some(forester_error) = e.downcast_ref::<ForesterError>() {
-                            if let ForesterError::Registration(
-                                RegistrationError::RegistrationPhaseEnded {
-                                    epoch: failed_epoch,
-                                    current_slot,
-                                    registration_end,
-                                },
-                            ) = forester_error
-                            {
-                                info!(
-                                    "Registration period ended for epoch {} (current slot: {}, registration ended at: {}). Will retry when next epoch registration opens.",
-                                    failed_epoch, current_slot, registration_end
-                                );
-                                return Ok(());
+        // First check the cache for registration info
+        let mut registration_info = if let Some(cached_info) = self.registration_cache.get(&epoch) {
+            debug!("Using cached registration info for epoch {}", epoch);
+            cached_info.clone()
+        } else {
+            // Attempt to recover registration info
+            debug!("Recovering registration info for epoch {}", epoch);
+            match self.recover_registration_info(epoch).await {
+                Ok(info) => {
+                    // Cache the recovered info
+                    self.registration_cache.insert(epoch, info.clone());
+                    info
+                },
+                Err(e) => {
+                    warn!("Failed to recover registration info: {:?}", e);
+                    // Check if we're still in registration window
+                    let current_slot = self.slot_tracker.estimated_current_slot();
+                    if current_slot >= phases.registration.end {
+                        info!(
+                            "Registration period ended for epoch {} (current slot: {}, registration ended at: {}). Will retry when next epoch registration opens.",
+                            epoch, current_slot, phases.registration.end
+                        );
+                        return Ok(());
+                    }
+                    // If recovery fails and we're still in registration window, wait for parallel registration to complete
+                    // or attempt registration if it hasn't been started
+                    tokio::time::sleep(Duration::from_millis(500)).await;
+                    
+                    // Check cache again after waiting
+                    if let Some(cached_info) = self.registration_cache.get(&epoch) {
+                        debug!("Found cached registration info after waiting for epoch {}", epoch);
+                        cached_info.clone()
+                    } else {
+                        // Last resort: try to register
+                        match self
+                            .register_for_epoch_with_retry(epoch, 10, Duration::from_millis(500))
+                            .await
+                        {
+                            Ok(info) => {
+                                self.registration_cache.insert(epoch, info.clone());
+                                info
+                            },
+                            Err(e) => {
+                                // Check if this is a RegistrationPhaseEnded error by downcasting
+                                if let Some(forester_error) = e.downcast_ref::<ForesterError>() {
+                                    if let ForesterError::Registration(
+                                        RegistrationError::RegistrationPhaseEnded {
+                                            epoch: failed_epoch,
+                                            current_slot,
+                                            registration_end,
+                                        },
+                                    ) = forester_error
+                                    {
+                                        info!(
+                                            "Registration period ended for epoch {} (current slot: {}, registration ended at: {}). Will retry when next epoch registration opens.",
+                                            failed_epoch, current_slot, registration_end
+                                        );
+                                        return Ok(());
+                                    }
+                                }
+                                return Err(e.into());
                             }
                         }
-                        return Err(e.into());
                     }
                 }
             }

@@ -35,6 +35,10 @@ pub enum BatchReadyState {
     StateReadyForNullify {
         merkle_tree_data: ParsedMerkleTreeData,
     },
+    BothReady {
+        merkle_tree_data: ParsedMerkleTreeData,
+        output_queue_data: ParsedQueueData,
+    },
 }
 
 #[derive(Debug)]
@@ -257,6 +261,16 @@ impl<R: Rpc> BatchProcessor<R> {
                 }
                 result
             }
+            BatchReadyState::BothReady {
+                merkle_tree_data,
+                output_queue_data,
+            } => {
+                info!(
+                    "Processing both nullify and append in parallel for tree: {}",
+                    self.context.merkle_tree
+                );
+                self.process_parallel(merkle_tree_data, output_queue_data).await
+            }
             BatchReadyState::NotReady => {
                 trace!(
                     "Batch not ready for processing, tree: {}",
@@ -335,30 +349,14 @@ impl<R: Rpc> BatchProcessor<R> {
         match (input_ready, output_ready) {
             (true, true) => {
                 if let (Some(mt_data), Some(oq_data)) = (merkle_tree_data, output_queue_data) {
-                    // If both queues are ready, check their fill levels
-                    let input_fill = Self::calculate_completion_from_parsed(
-                        mt_data.num_inserted_zkps,
-                        mt_data.current_zkp_batch_index,
+                    // Both queues are ready - process in parallel for maximum throughput
+                    debug!(
+                        "Both input and output queues ready for tree {}",
+                        self.context.merkle_tree
                     );
-                    let output_fill = Self::calculate_completion_from_parsed(
-                        oq_data.num_inserted_zkps,
-                        oq_data.current_zkp_batch_index,
-                    );
-
-                    trace!(
-                        "Input queue fill: {:.2}, Output queue fill: {:.2}",
-                        input_fill,
-                        output_fill
-                    );
-                    if input_fill > output_fill {
-                        BatchReadyState::StateReadyForNullify {
-                            merkle_tree_data: mt_data,
-                        }
-                    } else {
-                        BatchReadyState::StateReadyForAppend {
-                            merkle_tree_data: mt_data,
-                            output_queue_data: oq_data,
-                        }
+                    BatchReadyState::BothReady {
+                        merkle_tree_data: mt_data,
+                        output_queue_data: oq_data,
                     }
                 } else {
                     BatchReadyState::NotReady
@@ -544,16 +542,50 @@ impl<R: Rpc> BatchProcessor<R> {
         Ok((parsed_data, is_ready))
     }
 
-    /// Calculate completion percentage from parsed data
-    fn calculate_completion_from_parsed(
-        num_inserted_zkps: u64,
-        current_zkp_batch_index: u64,
-    ) -> f64 {
-        let total = current_zkp_batch_index;
-        if total == 0 {
-            return 0.0;
+    /// Process both append and nullify operations with sequential changelog updates
+    /// but parallel proof generation for optimal performance
+    async fn process_parallel(
+        &self,
+        merkle_tree_data: ParsedMerkleTreeData,
+        output_queue_data: ParsedQueueData,
+    ) -> Result<usize> {
+        info!("Processing state operations with hybrid approach: sequential changelogs, parallel proofs");
+        
+        // Initialize the changelog cache
+        let _ = super::changelog_cache::get_changelog_cache().await;
+        
+        // First, prepare both nullify and append data with proper changelog sequencing
+        let (nullify_proofs, append_proofs) = state::prepare_and_generate_proofs_parallel(
+            &self.context,
+            merkle_tree_data,
+            output_queue_data,
+        ).await?;
+        
+        let mut success_count = 0;
+        
+        // Submit nullify transaction
+        if let Err(e) = state::submit_nullify_transaction(&self.context, nullify_proofs).await {
+            error!("Nullify transaction failed: {:?}", e);
+            // If nullify fails, we shouldn't proceed with append
+            return Err(anyhow::anyhow!("Cannot proceed with append after nullify failure: {:?}", e));
+        } else {
+            success_count += 1;
+            debug!("Nullify transaction completed successfully");
         }
-        let remaining = total - num_inserted_zkps;
-        remaining as f64 / total as f64
+        
+        // Submit append transaction  
+        if let Err(e) = state::submit_append_transaction(&self.context, append_proofs).await {
+            error!("Append transaction failed: {:?}", e);
+        } else {
+            success_count += 1;
+            debug!("Append transaction completed successfully");
+        }
+        
+        info!(
+            "Hybrid processing completed for tree {}, {} operations succeeded",
+            self.context.merkle_tree, success_count
+        );
+        
+        Ok(success_count)
     }
 }
