@@ -181,8 +181,8 @@ async fn test_pda_ctoken() {
     println!("   4. ✅ Created escrow PDA");
 }
 
-pub async fn create_mint<R: Rpc + Indexer>(
-    rpc: &mut R,
+pub async fn create_mint(
+    rpc: &mut LightProgramTest,
     mint_seed: &Keypair,
     decimals: u8,
     mint_authority: &Keypair,
@@ -210,11 +210,13 @@ pub async fn create_mint<R: Rpc + Indexer>(
             payer: payer.pubkey(),
             owner: mint_authority.pubkey(),
             mint: spl_mint,
-            rent_authority: Pubkey::new_unique(),
-            rent_recipient: Pubkey::new_unique(),
+            rent_recipient: rpc.test_accounts.funding_pool_config.rent_recipient_pda,
             pre_pay_num_epochs: 1,
             write_top_up_lamports: Some(1000),
-            payer_pda_bump: 0,
+            compressible_config: rpc
+                .test_accounts
+                .funding_pool_config
+                .compressible_config_pda,
         },
     )
     .unwrap();

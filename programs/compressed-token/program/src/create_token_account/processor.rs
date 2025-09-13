@@ -75,7 +75,7 @@ pub fn process_create_token_account(
                 let version_bytes = account.version.to_le_bytes();
                 let seeds = &[b"rent_recipient".as_slice(), version_bytes.as_slice(), &[0]];
                 let config = CreatePdaAccountConfig {
-                    seeds: seeds,
+                    seeds,
                     bump: account.rent_recipient_bump,
                     account_size,
                     owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,

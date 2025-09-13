@@ -310,7 +310,6 @@ pub fn new_testnet_setup() -> TestKeypairs {
         nullifier_queue_2: Keypair::new(),
         cpi_context_2: Keypair::new(),
         group_pda_seed: Keypair::new(),
-        rent_authority: Keypair::new(),
     }
 }
 

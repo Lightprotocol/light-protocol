@@ -35,6 +35,7 @@ pub fn process_compress_and_close_cpi_context<'info>(
     // Use the SDK's compress_and_close function with the provided indices
     let instruction = compress_and_close_ctoken_accounts_with_indices(
         *ctx.accounts.signer.key,
+        false,
         transfer2_accounts.cpi_context.map(|c| c.key()), // Use the CPI context from Transfer2CpiAccounts
         &indices,
         packed_accounts, // Pass complete packed accounts

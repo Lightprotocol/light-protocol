@@ -1,5 +1,4 @@
 use anchor_lang::{prelude::ProgramError, pubkey};
-use borsh::BorshDeserialize;
 use light_account_checks::{
     checks::{check_discriminator, check_owner},
     AccountInfoTrait, AccountIterator,

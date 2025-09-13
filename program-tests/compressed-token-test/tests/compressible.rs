@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
@@ -17,7 +19,6 @@ use solana_sdk::{
     signer::Signer,
     transaction::Transaction,
 };
-use std::str::FromStr;
 
 /// Withdraw funds from the compressed token pool via the registry program
 /// This function invokes the registry program's withdraw_funding_pool instruction,

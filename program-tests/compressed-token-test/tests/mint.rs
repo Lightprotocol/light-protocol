@@ -844,11 +844,13 @@ async fn test_decompressed_token_transfer() {
             payer: payer.pubkey(),
             owner: recipient_keypair.pubkey(),
             mint: spl_mint_pda,
-            rent_authority: solana_sdk::pubkey::Pubkey::new_unique(),
-            rent_recipient: solana_sdk::pubkey::Pubkey::new_unique(),
+            rent_recipient: rpc.test_accounts.funding_pool_config.rent_recipient_pda,
             pre_pay_num_epochs: 1,
             write_top_up_lamports: Some(1000),
-            payer_pda_bump: 0,
+            compressible_config: rpc
+                .test_accounts
+                .funding_pool_config
+                .compressible_config_pda,
         },
     )
     .unwrap();

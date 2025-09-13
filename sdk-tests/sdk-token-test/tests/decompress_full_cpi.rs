@@ -79,11 +79,13 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
                 payer: payer.pubkey(),
                 mint: mint_pubkey,
                 owner: destination_owner,
-                rent_authority: destination_owner,
-                rent_recipient: destination_owner,
+                rent_recipient: rpc.test_accounts.funding_pool_config.rent_recipient_pda,
                 pre_pay_num_epochs: 0,
                 write_top_up_lamports: None,
-                payer_pda_bump: 0,
+                compressible_config: rpc
+                    .test_accounts
+                    .funding_pool_config
+                    .compressible_config_pda,
             },
         )
         .unwrap();

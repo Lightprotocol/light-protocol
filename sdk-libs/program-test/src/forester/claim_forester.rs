@@ -1,11 +1,12 @@
+use std::str::FromStr;
+
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
 use light_registry::{
-    accounts::ClaimContext as ClaimAccounts,
-    utils::get_forester_epoch_pda_from_authority,
+    accounts::ClaimContext as ClaimAccounts, utils::get_forester_epoch_pda_from_authority,
 };
 use solana_sdk::{
     instruction::Instruction,
@@ -13,7 +14,6 @@ use solana_sdk::{
     signature::{Keypair, Signature},
     signer::Signer,
 };
-use std::str::FromStr;
 
 /// Claim rent from compressible token accounts via the registry program
 ///
@@ -88,7 +88,10 @@ pub async fn claim_forester<R: Rpc + Indexer>(
 
     // Add token accounts as remaining accounts
     for token_account in token_accounts {
-        accounts.push(solana_sdk::instruction::AccountMeta::new(*token_account, false));
+        accounts.push(solana_sdk::instruction::AccountMeta::new(
+            *token_account,
+            false,
+        ));
     }
 
     // Create Anchor instruction with proper discriminator

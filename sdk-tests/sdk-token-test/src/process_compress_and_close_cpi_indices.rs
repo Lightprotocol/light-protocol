@@ -28,6 +28,7 @@ pub fn process_compress_and_close_cpi_indices<'info>(
     // Use the signer from ctx.accounts as fee_payer since it's passed separately in the test
     let instruction = compress_and_close_ctoken_accounts_with_indices(
         *ctx.accounts.signer.key,
+        false,
         None, // cpi_context_pubkey
         &indices,
         packed_accounts,

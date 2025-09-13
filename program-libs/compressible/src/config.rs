@@ -1,8 +1,8 @@
-use crate::{rent::RentConfig, AnchorDeserialize, AnchorSerialize};
 use bytemuck::{Pod, Zeroable};
 use light_account_checks::discriminator::Discriminator;
-use solana_pubkey::pubkey;
-use solana_pubkey::Pubkey;
+use solana_pubkey::{pubkey, Pubkey};
+
+use crate::{rent::RentConfig, AnchorDeserialize, AnchorSerialize};
 
 pub const COMPRESSIBLE_CONFIG_SEED: &[u8] = b"compressible_config";
 

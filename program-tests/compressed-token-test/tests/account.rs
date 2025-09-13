@@ -1,28 +1,23 @@
 // #![cfg(feature = "test-sbf")]
 
-use anchor_lang::{pubkey, AnchorDeserialize, InstructionData, ToAccountMetas};
 use anchor_spl::token_2022::spl_token_2022;
 use light_compressed_token_sdk::instructions::{
     close::close_account, create_associated_token_account::derive_ctoken_ata,
     create_associated_token_account_idempotent, create_token_account,
 };
-use light_compressible::{
-    config::CompressibleConfig,
-    rent::{get_rent, RentConfig, SLOTS_PER_EPOCH},
-};
+use light_compressible::rent::{get_rent, RentConfig, SLOTS_PER_EPOCH};
 use light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
 use light_program_test::{
     forester::compress_and_close_forester, program_test::TestRpc, LightProgramTest,
     ProgramTestConfig,
 };
-use light_registry::utils::get_protocol_config_pda_address;
 use light_test_utils::{
     airdrop_lamports,
     assert_close_token_account::assert_close_token_account,
     assert_create_token_account::{
         assert_create_associated_token_account, assert_create_token_account, CompressibleData,
     },
-    assert_transfer2::{assert_transfer2_compress, assert_transfer2_compress_and_close},
+    assert_transfer2::assert_transfer2_compress,
     spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens},
     Rpc, RpcError,
 };
@@ -48,15 +43,11 @@ struct AccountTestContext {
 
 /// Set up test environment with common accounts and context
 async fn setup_account_test() -> Result<AccountTestContext, RpcError> {
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
+    let rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
     let payer = rpc.get_payer().insecure_clone();
     let mint_pubkey = Pubkey::new_unique();
     let owner_keypair = Keypair::new();
     let token_account_keypair = Keypair::new();
-
-    // // Create the CompressibleConfig that will be used by all tests
-    // let (compressible_config, rent_recipient, rent_authority) =
-    //     create_compressible_config(&mut rpc).await?;
 
     Ok(AccountTestContext {
         compressible_config: rpc

@@ -1,14 +1,12 @@
-use crate::LightProgramTest;
-use anchor_lang::pubkey;
-use anchor_lang::{InstructionData, ToAccountMetas};
+use anchor_lang::{pubkey, InstructionData, ToAccountMetas};
 use borsh::BorshDeserialize;
-use light_client::rpc::Rpc;
-use light_client::rpc::RpcError;
-use light_compressible::config::CompressibleConfig;
-use light_compressible::rent::RentConfig;
+use light_client::rpc::{Rpc, RpcError};
+use light_compressible::{config::CompressibleConfig, rent::RentConfig};
 use light_registry::utils::get_protocol_config_pda_address;
 use solana_pubkey::Pubkey;
 use solana_sdk::signer::Signer;
+
+use crate::LightProgramTest;
 
 /// Helper function to create CompressibleConfig
 pub async fn create_compressible_config(
@@ -143,8 +141,8 @@ pub async fn create_compressible_config(
         bump: config_bump,
         update_authority: payer.pubkey(),
         withdrawal_authority: payer.pubkey(),
-        rent_recipient: rent_recipient,
-        rent_authority: rent_authority,
+        rent_recipient,
+        rent_authority,
         rent_recipient_bump,
         rent_authority_bump,
         rent_config: RentConfig::default(),

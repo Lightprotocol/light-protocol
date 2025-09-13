@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_client::{
     indexer::Indexer,
@@ -17,7 +19,6 @@ use solana_sdk::{
     signature::{Keypair, Signature},
     signer::Signer,
 };
-use std::str::FromStr;
 
 /// Compress and close token accounts via the registry program
 ///
@@ -69,7 +70,9 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
 
     // Validate input
     if solana_ctoken_accounts.is_empty() {
-        return Err(RpcError::CustomError("No token accounts provided".to_string()));
+        return Err(RpcError::CustomError(
+            "No token accounts provided".to_string(),
+        ));
     }
 
     // Get output tree for compression
@@ -92,22 +95,39 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
 
     // Process each token account and build indices
     let mut indices_vec = Vec::with_capacity(solana_ctoken_accounts.len());
-    
+
     for solana_ctoken_account in solana_ctoken_accounts {
         // Get the ctoken account data
         let ctoken_solana_account = rpc
             .get_account(*solana_ctoken_account)
             .await
-            .map_err(|e| RpcError::CustomError(format!("Failed to get ctoken account {}: {}", solana_ctoken_account, e)))?
-            .ok_or_else(|| RpcError::CustomError(format!("CToken account {} not found", solana_ctoken_account)))?;
+            .map_err(|e| {
+                RpcError::CustomError(format!(
+                    "Failed to get ctoken account {}: {}",
+                    solana_ctoken_account, e
+                ))
+            })?
+            .ok_or_else(|| {
+                RpcError::CustomError(format!(
+                    "CToken account {} not found",
+                    solana_ctoken_account
+                ))
+            })?;
 
-        let (ctoken_account, _) = CompressedToken::zero_copy_at(ctoken_solana_account.data.as_slice())
-            .map_err(|e| RpcError::CustomError(format!("Failed to parse ctoken account {}: {:?}", solana_ctoken_account, e)))?;
+        let (ctoken_account, _) =
+            CompressedToken::zero_copy_at(ctoken_solana_account.data.as_slice()).map_err(|e| {
+                RpcError::CustomError(format!(
+                    "Failed to parse ctoken account {}: {:?}",
+                    solana_ctoken_account, e
+                ))
+            })?;
 
         // Pack the basic accounts
         let source_index = packed_accounts.insert_or_get(*solana_ctoken_account);
-        let mint_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
-        let owner_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
+        let mint_index =
+            packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
+        let owner_index =
+            packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
 
         // For registry flow: rent_authority is a PDA (not a signer in transaction)
         // Find rent_authority and rent_recipient from extension
@@ -144,7 +164,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
             rent_recipient_index,
             output_tree_index,
         };
-        
+
         indices_vec.push(indices);
     }
 

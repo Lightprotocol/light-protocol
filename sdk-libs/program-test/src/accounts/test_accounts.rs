@@ -170,7 +170,7 @@ impl Clone for TestAccounts {
             v1_address_trees: self.v1_address_trees.clone(),
             v2_state_trees: self.v2_state_trees.clone(),
             v2_address_trees: self.v2_address_trees.clone(),
-            funding_pool_config: self.funding_pool_config.clone(),
+            funding_pool_config: self.funding_pool_config,
         }
     }
 }

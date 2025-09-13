@@ -36,11 +36,10 @@ fn test_compressible_discriminator_selection() {
         payer: Pubkey::new_unique(),
         owner: Pubkey::new_unique(),
         mint: Pubkey::new_unique(),
-        rent_authority: Pubkey::new_unique(),
         rent_recipient: Pubkey::new_unique(),
         pre_pay_num_epochs: 1,
         write_top_up_lamports: Some(100),
-        payer_pda_bump: 0,
+        compressible_config: Pubkey::new_unique(),
     };
 
     // Test non-idempotent variant
