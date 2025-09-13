@@ -202,9 +202,9 @@ impl Indexer for LightProgramTest {
         merkle_tree_pubkey: [u8; 32],
         queue_type: QueueType,
         num_elements: u16,
-        start_offset: Option<u64>,
+        start_queue_index: Option<u64>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<MerkleProofWithContext>>, IndexerError> {
+    ) -> Result<Response<(Vec<MerkleProofWithContext>, Option<u64>)>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()
@@ -213,7 +213,7 @@ impl Indexer for LightProgramTest {
                 merkle_tree_pubkey,
                 queue_type,
                 num_elements,
-                start_offset,
+                start_queue_index,
                 config,
             )
             .await?)

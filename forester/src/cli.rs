@@ -80,10 +80,6 @@ pub struct StartArgs {
 
     #[arg(long, env = "FORESTER_LEGACY_XS_PER_TX", default_value = "1")]
     pub legacy_ixs_per_tx: usize,
-
-    #[arg(long, env = "FORESTER_BATCH_IXS_PER_TX", default_value = "4")]
-    pub batch_ixs_per_tx: usize,
-
     #[arg(
         long,
         env = "FORESTER_TRANSACTION_MAX_CONCURRENT_BATCHES",
@@ -206,6 +202,13 @@ pub struct StartArgs {
            help = "Processor mode: v1 (process only v1 trees), v2 (process only v2 trees), all (process all trees)"
        )]
     pub processor_mode: ProcessorMode,
+
+    #[arg(
+        long,
+        env = "FORESTER_TREE_ID",
+        help = "Process only the specified tree (Pubkey). If specified, forester will process only this tree and ignore all others"
+    )]
+    pub tree_id: Option<String>,
 }
 
 #[derive(Parser, Clone, Debug)]

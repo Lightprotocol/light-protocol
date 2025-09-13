@@ -21,9 +21,10 @@ use light_prover_client::{
 use light_sparse_merkle_tree::SparseMerkleTree;
 use tracing::{debug, error, info, warn};
 
-use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool};
+use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
 
 const MAX_PHOTON_ELEMENTS_PER_CALL: usize = 500;
+const MAX_PROOFS_PER_TX: usize = 3;
 
 pub struct AddressUpdateConfig<R: Rpc> {
     pub rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -32,7 +33,6 @@ pub struct AddressUpdateConfig<R: Rpc> {
     pub prover_api_key: Option<String>,
     pub polling_interval: Duration,
     pub max_wait_time: Duration,
-    pub ixs_per_tx: usize,
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -47,7 +47,6 @@ async fn stream_instruction_data<'a, R: Rpc>(
     start_index: u64,
     zkp_batch_size: u16,
     mut current_root: [u8; 32],
-    yield_batch_size: usize,
 ) -> impl Stream<Item = Result<Vec<InstructionDataAddressAppendInputs>, ForesterUtilsError>> + Send + 'a
 {
     stream! {
@@ -62,6 +61,17 @@ async fn stream_instruction_data<'a, R: Rpc>(
 
             let elements_for_chunk = chunk_hash_chains.len() * zkp_batch_size as usize;
             let processed_items_offset = chunk_start * zkp_batch_size as usize;
+
+            {
+                if chunk_idx > 0 {
+                    debug!("Waiting for indexer to sync before fetching chunk {} data", chunk_idx);
+                }
+                let connection = rpc_pool.get_connection().await?;
+                wait_for_indexer(&*connection).await?;
+                if chunk_idx > 0 {
+                    debug!("Indexer synced, proceeding with chunk {} fetch", chunk_idx);
+                }
+            }
 
             let indexer_update_info = {
                 let mut connection = rpc_pool.get_connection().await?;
@@ -125,8 +135,8 @@ async fn stream_instruction_data<'a, R: Rpc>(
                 });
                 pending_count += 1;
 
-                if pending_count >= yield_batch_size {
-                    for _ in 0..yield_batch_size.min(pending_count) {
+                if pending_count >= MAX_PROOFS_PER_TX {
+                    for _ in 0..MAX_PROOFS_PER_TX.min(pending_count) {
                         if let Some((idx, result)) = futures_ordered.next().await {
                             match result {
                                 Ok((compressed_proof, new_root)) => {
@@ -173,7 +183,7 @@ async fn stream_instruction_data<'a, R: Rpc>(
                         };
                         proof_buffer.push(instruction_data);
 
-                        if proof_buffer.len() >= yield_batch_size {
+                        if proof_buffer.len() >= MAX_PROOFS_PER_TX {
                             yield Ok(proof_buffer.clone());
                             proof_buffer.clear();
                         }
@@ -333,7 +343,6 @@ pub async fn get_address_update_instruction_stream<'a, R: Rpc>(
         start_index,
         zkp_batch_size,
         current_root,
-        config.ixs_per_tx,
     )
     .await;
 
