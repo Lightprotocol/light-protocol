@@ -1,20 +1,103 @@
+use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_program_test::{
     forester::claim_forester, program_test::TestRpc, LightProgramTest, ProgramTestConfig,
 };
+use light_registry::accounts::WithdrawFundingPool as WithdrawFundingPoolAccounts;
 use light_test_utils::{
     airdrop_lamports, assert_claim::assert_claim, spl::create_mint_helper, Rpc, RpcError,
 };
 use light_token_client::actions::{
     create_compressible_token_account, CreateCompressibleTokenAccountInputs,
 };
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+use solana_sdk::{
+    instruction::Instruction,
+    pubkey::Pubkey,
+    signature::{Keypair, Signature},
+    signer::Signer,
+    transaction::Transaction,
+};
+use std::str::FromStr;
+
+/// Withdraw funds from the compressed token pool via the registry program
+/// This function invokes the registry program's withdraw_funding_pool instruction,
+/// which then CPIs to the compressed token program with the rent_authority PDA as signer.
+async fn withdraw_funding_pool_via_registry<R: Rpc>(
+    rpc: &mut R,
+    withdrawal_authority: &Keypair,
+    destination: Pubkey,
+    amount: u64,
+    payer: &Keypair,
+) -> Result<Signature, RpcError> {
+    // Registry and compressed token program IDs
+    let registry_program_id =
+        Pubkey::from_str("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").unwrap();
+    let compressed_token_program_id =
+        Pubkey::from_str("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m").unwrap();
+
+    // Derive CompressibleConfig PDA (version 1)
+    let version: u64 = 1;
+    let (compressible_config, _) = Pubkey::find_program_address(
+        &[b"compressible_config", &version.to_le_bytes()],
+        &registry_program_id,
+    );
+
+    // Derive rent_authority PDA (uses u16 version)
+    let (rent_authority, _) = Pubkey::find_program_address(
+        &[
+            b"rent_authority".as_slice(),
+            (version as u16).to_le_bytes().as_slice(),
+            &[0],
+        ],
+        &registry_program_id,
+    );
+
+    // Derive rent_recipient PDA from the compressed token program
+    let (rent_recipient, _) = Pubkey::find_program_address(
+        &[
+            b"rent_recipient".as_slice(),
+            (version as u16).to_le_bytes().as_slice(),
+            &[0],
+        ],
+        &compressed_token_program_id,
+    );
+
+    // Build accounts using Anchor's account abstraction
+    let withdraw_accounts = WithdrawFundingPoolAccounts {
+        fee_payer: payer.pubkey(),
+        withdrawal_authority: withdrawal_authority.pubkey(),
+        compressible_config,
+        rent_recipient,
+        rent_authority,
+        destination,
+        system_program: solana_sdk::system_program::id(),
+        compressed_token_program: compressed_token_program_id,
+    };
+
+    // Build the instruction
+    let instruction = Instruction {
+        program_id: registry_program_id,
+        accounts: withdraw_accounts.to_account_metas(None),
+        data: light_registry::instruction::WithdrawFundingPool { amount }.data(),
+    };
+
+    // Send transaction
+    let (blockhash, _) = rpc.get_latest_blockhash().await?;
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &[payer, withdrawal_authority],
+        blockhash,
+    );
+
+    rpc.process_transaction(transaction).await
+}
 
 #[tokio::test]
 async fn test_claim_rent_for_completed_epochs() -> Result<(), RpcError> {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
     let payer = rpc.get_payer().insecure_clone();
-    let payer_pubkey = payer.pubkey();
+    let _payer_pubkey = payer.pubkey();
     let mint = Pubkey::new_unique();
 
     let compressible_owner_keypair = Keypair::new();
@@ -119,24 +202,16 @@ async fn test_claim_multiple_accounts_different_epochs() -> Result<(), RpcError>
 async fn test_withdraw_funding_pool() -> Result<(), RpcError> {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
     let payer = rpc.get_payer().insecure_clone();
-    let payer_pubkey = payer.pubkey();
 
-    // Create rent authority
-    let rent_authority_keypair = Keypair::new();
-    let rent_authority_pubkey = rent_authority_keypair.pubkey();
+    // The withdrawal authority is the payer (as configured in the CompressibleConfig)
+    let withdrawal_authority = payer.insecure_clone();
 
-    // Airdrop to rent authority
-    airdrop_lamports(&mut rpc, &rent_authority_pubkey, 10_000_000_000).await?;
+    // Get the rent_recipient PDA from funding pool config
+    let rent_recipient = rpc.test_accounts.funding_pool_config.rent_recipient_pda;
 
-    // Derive pool PDA and fund it
-    let (pool_pda, pool_pda_bump) =
-        light_compressed_token_sdk::instructions::derive_pool_pda(&rent_authority_pubkey);
-
-    // Fund pool PDA with 5 SOL
+    // Fund the pool with 5 SOL
     let initial_pool_balance = 5_000_000_000u64;
-    rpc.context
-        .airdrop(&pool_pda, initial_pool_balance)
-        .map_err(|_| RpcError::AssertRpcError("Failed to airdrop to pool PDA".to_string()))?;
+    airdrop_lamports(&mut rpc, &rent_recipient, initial_pool_balance).await?;
 
     // Create a destination account for withdrawal
     let destination_keypair = Keypair::new();
@@ -147,28 +222,21 @@ async fn test_withdraw_funding_pool() -> Result<(), RpcError> {
 
     // Get initial balances
     let initial_destination_balance = rpc.get_account(destination_pubkey).await?.unwrap().lamports;
-    let pool_balance_before = rpc.get_account(pool_pda).await?.unwrap().lamports;
+    let pool_balance_before = rpc.get_account(rent_recipient).await?.unwrap().lamports;
 
-    // Withdraw 1 SOL from pool to destination
+    // Withdraw 1 SOL from pool to destination using registry program
     let withdraw_amount = 1_000_000_000u64;
-    let withdraw_instruction = light_compressed_token_sdk::instructions::withdraw_funding_pool(
-        pool_pda,
-        pool_pda_bump,
-        rent_authority_pubkey,
+    withdraw_funding_pool_via_registry(
+        &mut rpc,
+        &withdrawal_authority,
         destination_pubkey,
         withdraw_amount,
-    );
-
-    // Execute withdrawal
-    rpc.create_and_send_transaction(
-        &[withdraw_instruction],
-        &payer_pubkey,
-        &[&payer, &rent_authority_keypair],
+        &payer,
     )
     .await?;
 
     // Verify balances after withdrawal
-    let pool_balance_after = rpc.get_account(pool_pda).await?.unwrap().lamports;
+    let pool_balance_after = rpc.get_account(rent_recipient).await?.unwrap().lamports;
     let destination_balance_after = rpc.get_account(destination_pubkey).await?.unwrap().lamports;
 
     assert_eq!(
@@ -186,23 +254,14 @@ async fn test_withdraw_funding_pool() -> Result<(), RpcError> {
     // Test: Try to withdraw with wrong authority (should fail)
     let wrong_authority = Keypair::new();
     airdrop_lamports(&mut rpc, &wrong_authority.pubkey(), 1_000_000).await?;
-
-    let wrong_withdraw_instruction =
-        light_compressed_token_sdk::instructions::withdraw_funding_pool(
-            pool_pda,
-            pool_pda_bump,
-            wrong_authority.pubkey(),
-            destination_pubkey,
-            100_000_000,
-        );
-
-    let result = rpc
-        .create_and_send_transaction(
-            &[wrong_withdraw_instruction],
-            &payer_pubkey,
-            &[&payer, &wrong_authority],
-        )
-        .await;
+    let result = withdraw_funding_pool_via_registry(
+        &mut rpc,
+        &wrong_authority,
+        destination_pubkey,
+        withdraw_amount,
+        &payer,
+    )
+    .await;
 
     assert!(
         result.is_err(),
@@ -210,30 +269,33 @@ async fn test_withdraw_funding_pool() -> Result<(), RpcError> {
     );
 
     // Test: Try to withdraw more than available (should fail)
-    let remaining_balance = rpc.get_account(pool_pda).await?.unwrap().lamports;
-    let excessive_amount = remaining_balance + 1_000_000;
-
-    let excessive_withdraw_instruction =
-        light_compressed_token_sdk::instructions::withdraw_funding_pool(
-            pool_pda,
-            pool_pda_bump,
-            rent_authority_pubkey,
-            destination_pubkey,
-            excessive_amount,
-        );
-
-    let result = rpc
-        .create_and_send_transaction(
-            &[excessive_withdraw_instruction],
-            &payer_pubkey,
-            &[&payer, &rent_authority_keypair],
-        )
-        .await;
+    let remaining_balance = rpc.get_account(rent_recipient).await?.unwrap().lamports;
+    let excessive_amount = remaining_balance + 1;
+    let result = withdraw_funding_pool_via_registry(
+        &mut rpc,
+        &withdrawal_authority,
+        destination_pubkey,
+        excessive_amount,
+        &payer,
+    )
+    .await;
 
     assert!(
         result.is_err(),
         "Should fail when withdrawing more than available balance"
     );
+
+    // Withdraw everything
+    withdraw_funding_pool_via_registry(
+        &mut rpc,
+        &withdrawal_authority,
+        destination_pubkey,
+        remaining_balance,
+        &payer,
+    )
+    .await?;
+    let pool_balance_after = rpc.get_account(rent_recipient).await?.unwrap().lamports;
+    assert_eq!(pool_balance_after, 0, "Pool balance should be 0");
 
     Ok(())
 }

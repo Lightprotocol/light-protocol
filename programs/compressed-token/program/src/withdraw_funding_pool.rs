@@ -1,6 +1,8 @@
-use anchor_lang::{prelude::ProgramError, solana_program::system_instruction};
-use borsh::BorshDeserialize;
-use light_account_checks::{AccountInfoTrait, AccountIterator};
+use anchor_lang::{prelude::ProgramError, pubkey, solana_program::system_instruction};
+use light_account_checks::{
+    checks::{check_discriminator, check_owner},
+    AccountInfoTrait, AccountIterator,
+};
 use light_compressible::config::CompressibleConfig;
 use light_profiler::profile;
 use pinocchio::{
@@ -8,14 +10,14 @@ use pinocchio::{
     instruction::{Seed, Signer},
     program::invoke_signed,
 };
-use spl_pod::solana_msg::msg;
+use spl_pod::{bytemuck, solana_msg::msg};
 
 /// Accounts required for the withdraw funding pool instruction
 pub struct WithdrawFundingPoolAccounts<'a> {
     /// The pool PDA that holds the funds
-    pub pool_pda: &'a AccountInfo,
-    /// The authority (must be signer and match PDA derivation)
-    pub authority: &'a AccountInfo,
+    pub rent_recipient: &'a AccountInfo,
+    /// The rent_authority (must be signer and match PDA derivation)
+    pub rent_authority: &'a AccountInfo,
     /// The destination account to receive the withdrawn funds
     pub destination: &'a AccountInfo,
     /// System program
@@ -25,37 +27,43 @@ pub struct WithdrawFundingPoolAccounts<'a> {
 
 impl<'a> WithdrawFundingPoolAccounts<'a> {
     #[inline(always)]
-    pub fn validate_and_parse(accounts: &'a [AccountInfo]) -> Result<Self, ProgramError> {
+    pub fn validate_and_parse(
+        accounts: &'a [AccountInfo],
+    ) -> Result<(Self, u8, [u8; 2]), ProgramError> {
         let mut iter = AccountIterator::new(accounts);
-        let accounts = Self {
-            pool_pda: iter.next_mut("pool_pda")?,
-            authority: iter.next_signer("authority")?,
-            destination: iter.next_mut("destination")?,
-            system_program: iter.next_account("system_program")?,
-            config: iter.next_non_mut("config")?,
-        };
-        let data = accounts
-            .config
-            .try_borrow_data()
-            .map_err(|_| ProgramError::AccountBorrowFailed)?;
-        let config = CompressibleConfig::deserialize(&mut data.as_ref())
+        let rent_recipient = iter.next_mut("rent_recipient")?;
+        let rent_authority = iter.next_signer("rent_authority")?;
+        let destination = iter.next_mut("destination")?;
+        let system_program = iter.next_account("system_program")?;
+        let config = iter.next_non_mut("config")?;
+
+        check_owner(
+            &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").to_bytes(),
+            config,
+        )?;
+        let data = config.try_borrow_data().unwrap();
+        check_discriminator::<CompressibleConfig>(&data[..])?;
+        let account = bytemuck::pod_from_bytes::<CompressibleConfig>(&data[8..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
-        if *config.rent_authority.as_array() != *accounts.authority.key() {
-            return Err(ProgramError::InvalidAccountOwner);
+        if *account.rent_authority.as_array() != *rent_authority.key() {
+            msg!("invalid rent rent_authority");
+            return Err(ProgramError::InvalidSeeds);
         }
-        // // Verify pool PDA derivation with authority and provided bump
-        // // The pool PDA should be derived as: [b"pool", authority]
-        // let seeds = [b"pool".as_slice(), accounts.authority.key().as_ref()];
-
-        // let derived_pda =
-        //     pinocchio_pubkey::derive_address(&seeds, Some(pool_pda_bump), crate::ID.as_array());
-
-        // if derived_pda != *accounts.pool_pda.key() {
-        //     msg!("Invalid pool PDA derivation with bump {}", pool_pda_bump);
-        //     return Err(ProgramError::InvalidSeeds);
-        // }
-
-        Ok(accounts)
+        if *account.rent_recipient.as_array() != *rent_recipient.key() {
+            msg!("Invalid rent_recipient");
+            return Err(ProgramError::InvalidSeeds);
+        }
+        Ok((
+            Self {
+                rent_recipient,
+                rent_authority,
+                destination,
+                system_program,
+                config,
+            },
+            account.rent_recipient_bump,
+            account.version.to_le_bytes(),
+        ))
     }
 }
 
@@ -66,23 +74,23 @@ pub fn process_withdraw_funding_pool(
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     // Parse instruction data: [bump: u8][amount: u64]
-    if instruction_data.len() < 9 {
+    if instruction_data.len() < 8 {
         msg!("Invalid instruction data length");
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    let pool_pda_bump = instruction_data[0];
     let amount = u64::from_le_bytes(
-        instruction_data[1..9]
+        instruction_data[0..8]
             .try_into()
             .map_err(|_| ProgramError::InvalidInstructionData)?,
     );
 
     // Validate accounts and check PDA derivation
-    let accounts = WithdrawFundingPoolAccounts::validate_and_parse(account_infos)?;
+    let (accounts, rent_recipient_bump, version_bytes) =
+        WithdrawFundingPoolAccounts::validate_and_parse(account_infos)?;
 
     // Check that pool has sufficient funds
-    let pool_lamports = AccountInfoTrait::lamports(accounts.pool_pda);
+    let pool_lamports = AccountInfoTrait::lamports(accounts.rent_recipient);
     if pool_lamports < amount {
         msg!(
             "Insufficient funds in pool. Available: {}, Requested: {}",
@@ -94,7 +102,7 @@ pub fn process_withdraw_funding_pool(
 
     // Create system transfer instruction
     let transfer_ix = system_instruction::transfer(
-        &solana_pubkey::Pubkey::new_from_array(*accounts.pool_pda.key()),
+        &solana_pubkey::Pubkey::new_from_array(*accounts.rent_recipient.key()),
         &solana_pubkey::Pubkey::new_from_array(*accounts.destination.key()),
         amount,
     );
@@ -103,18 +111,18 @@ pub fn process_withdraw_funding_pool(
     let pinocchio_ix = pinocchio::instruction::Instruction {
         program_id: accounts.system_program.key(),
         accounts: &[
-            pinocchio::instruction::AccountMeta::writable_signer(accounts.pool_pda.key()),
+            pinocchio::instruction::AccountMeta::writable_signer(accounts.rent_recipient.key()),
             pinocchio::instruction::AccountMeta::writable(accounts.destination.key()),
         ],
         data: &transfer_ix.data,
     };
 
-    // Prepare seeds for invoke_signed - the pool PDA is derived from [b"pool", authority]
-    let authority_bytes = accounts.authority.key();
-    let bump_bytes = [pool_pda_bump];
+    // Prepare seeds for invoke_signed - the pool PDA is derived from [b"pool", rent_authority]
+    let bump_bytes = [rent_recipient_bump];
     let seed_array = [
-        Seed::from(b"pool".as_slice()),
-        Seed::from(authority_bytes.as_ref()),
+        Seed::from(b"rent_recipient".as_slice()),
+        Seed::from(version_bytes.as_slice()),
+        Seed::from(&[0]),
         Seed::from(&bump_bytes),
     ];
     let signer = Signer::from(&seed_array);
@@ -122,7 +130,7 @@ pub fn process_withdraw_funding_pool(
     // Invoke the system program to transfer lamports with PDA as signer
     invoke_signed(
         &pinocchio_ix,
-        &[accounts.pool_pda, accounts.destination],
+        &[accounts.rent_recipient, accounts.destination],
         &[signer],
     )
     .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
