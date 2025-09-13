@@ -342,7 +342,7 @@ impl CTokenAccount2 {
     pub fn compress_and_close(
         &mut self,
         amount: u64,
-        source_or_recipient_index: u8,
+        recipient_index: u8,
         authority: u8,
         rent_recipient_index: u8,
         compressed_account_index: u8,
@@ -354,12 +354,13 @@ impl CTokenAccount2 {
 
         // Add the full balance to the output amount
         self.output.amount += amount;
+        self.output.owner = recipient_index;
 
         // Use the compress_and_close method from Compression
         self.compression = Some(Compression::compress_and_close(
             amount,
             self.output.mint,
-            source_or_recipient_index,
+            recipient_index,
             authority,
             rent_recipient_index,
             compressed_account_index,

@@ -51,7 +51,7 @@ pub struct CreateCompressibleTokenAccountSigned<'info> {
     /// Bump seed for the pool PDA
     pub payer_pda_bump: u8,
 
-    // Owned seeds; converted to &[&[&[u8]]] just for invoke_signed
+    // Owned seeds
     pub signer_seeds: Vec<Vec<Vec<u8>>>,
 }
 pub fn create_compressible_token_account_signed<'info>(

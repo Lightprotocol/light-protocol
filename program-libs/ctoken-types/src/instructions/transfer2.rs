@@ -140,7 +140,7 @@ impl Compression {
     pub fn compress_and_close(
         amount: u64,
         mint: u8,
-        source_or_recipient: u8,
+        recipient_index: u8,
         authority: u8,
         rent_recipient_index: u8,
         compressed_account_index: u8,
@@ -149,7 +149,7 @@ impl Compression {
             amount, // the full balance of the ctoken account to be compressed
             mode: CompressionMode::CompressAndClose,
             mint,
-            source_or_recipient,
+            source_or_recipient: recipient_index,
             authority,
             pool_account_index: rent_recipient_index,
             pool_index: compressed_account_index,

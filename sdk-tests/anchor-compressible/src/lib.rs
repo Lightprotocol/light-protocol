@@ -210,15 +210,18 @@ pub enum CTokenAccountVariant {
 #[program]
 pub mod anchor_compressible {
 
-    use light_compressed_token_sdk::instructions::{
-        compress_and_close::compress_and_close_ctoken_accounts_signed,
-        create_mint_action_cpi,
-        create_token_account::{
-            create_compressible_token_account_signed, CreateCompressibleTokenAccount,
-            CreateCompressibleTokenAccountSigned,
+    use light_compressed_token_sdk::{
+        instructions::{
+            compress_and_close::compress_and_close_ctoken_accounts_signed,
+            create_mint_action_cpi,
+            create_token_account::{
+                create_compressible_token_account_signed, CreateCompressibleTokenAccount,
+                CreateCompressibleTokenAccountSigned,
+            },
+            decompress_full_ctoken_accounts_with_indices, derive_pool_pda, find_spl_mint_address,
+            DecompressFullIndices, MintActionInputs,
         },
-        decompress_full_ctoken_accounts_with_indices, find_spl_mint_address, DecompressFullIndices,
-        MintActionInputs,
+        CPI_AUTHORITY_PDA_SEED,
     };
     use light_sdk::compressible::{
         compress_account::prepare_account_for_compression, into_compressed_meta_with_address,
@@ -403,17 +406,20 @@ pub mod anchor_compressible {
                 let output_queue_info = cpi_accounts.tree_accounts().unwrap()[0].clone();
 
                 // Split CPI accounts into system base and packed accounts
-                let system_len = cpi_accounts.system_accounts_end_offset();
-                let all_cpi_infos = cpi_accounts.account_infos();
-                let system_infos = &all_cpi_infos[..system_len];
-                let packed_infos = &all_cpi_infos[system_len..];
+                let all_cpi_infos = cpi_accounts.post_system_accounts().unwrap();
 
-                let signer_seeds: Vec<Vec<&[u8]>> = token_accounts_to_compress
+                // Add LIGHT_CPI_SIGNER seeds as the first entry
+                let mut signer_seeds: Vec<Vec<&[u8]>> = token_accounts_to_compress
                     .iter()
                     .map(|t| t.signer_seeds.iter().map(|v| v.as_slice()).collect())
                     .collect();
-                let signer_seeds: Vec<&[&[u8]]> =
-                    signer_seeds.iter().map(|v| v.as_slice()).collect();
+                // LIGHT_CPI_SIGNER seeds constant, e.g. &[b"light-cpi-signer"]
+                let mut all_signer_seeds: Vec<&[&[u8]]> =
+                    Vec::with_capacity(signer_seeds.len() + 1);
+                let authority_seeds = &[CPI_AUTHORITY_PDA_SEED, &[LIGHT_CPI_SIGNER.bump]];
+                all_signer_seeds.push(authority_seeds);
+                all_signer_seeds.extend(signer_seeds.iter().map(|v| v.as_slice()));
+                let signer_seeds = all_signer_seeds;
 
                 let ctoken_infos: Vec<anchor_lang::prelude::AccountInfo<'info>> =
                     token_accounts_to_compress
@@ -421,14 +427,40 @@ pub mod anchor_compressible {
                         .map(|t| t.token_account.to_account_info())
                         .collect();
 
+                msg!("authority, {:?}", cpi_accounts.authority().unwrap());
+
+                // Validate and forward compressed token rent recipient derived from authority
+                let compressed_token_rent_recipient_info = ctx
+                    .accounts
+                    .compressed_token_rent_recipient
+                    .to_account_info();
+
+                let rent_auth_info = &ctx.accounts.compressed_token_rent_authority;
+
+                let (derived_recipient, _bump) = derive_pool_pda(&rent_auth_info.key());
+                if derived_recipient != *compressed_token_rent_recipient_info.key {
+                    panic!("Derived compressed token rent recipient must match passed recipient");
+                }
+
                 // Invoke the signed variant (authority = token owner, no rent authority)
                 compress_and_close_ctoken_accounts_signed(
                     ctx.accounts.fee_payer.to_account_info(),
+                    cpi_accounts.authority().unwrap().to_account_info(),
                     false,
                     output_queue_info,
                     &ctoken_infos,
-                    system_infos,
+                    all_cpi_infos,
                     &signer_seeds,
+                    compressed_token_rent_recipient_info,
+                    ctx.accounts
+                        .compressed_token_cpi_authority
+                        .to_account_info(),
+                    ctx.accounts.compressed_token_program.to_account_info(),
+                    cpi_accounts
+                        .registered_program_pda()
+                        .unwrap()
+                        .to_account_info(),
+                    cpi_accounts.to_account_infos().as_slice(),
                 )?;
             }
             msg!("token accounts compressed and closed");
@@ -495,6 +527,7 @@ pub mod anchor_compressible {
             compressed_token_program: &anchor_lang::prelude::UncheckedAccount<'info>,
             compressed_token_rent_payer: &anchor_lang::prelude::AccountInfo<'info>,
             compressed_token_rent_recipient: &anchor_lang::prelude::AccountInfo<'info>,
+            compressed_token_rent_authority: &anchor_lang::prelude::AccountInfo<'info>,
             compressed_token_cpi_authority: &anchor_lang::prelude::UncheckedAccount<'info>,
             config: &anchor_lang::prelude::AccountInfo<'info>,
             compressed_token_accounts: Vec<(
@@ -518,6 +551,26 @@ pub mod anchor_compressible {
             };
             let authority = cpi_accounts.authority().unwrap();
             let cpi_context = cpi_accounts.cpi_context().unwrap();
+
+            let (derived_compressed_token_rent_recipient, payer_pda_bump) =
+                derive_pool_pda(&compressed_token_rent_authority.key());
+
+            msg!(
+                "derived_compressed_token_rent_recipient: {:?}",
+                derived_compressed_token_rent_recipient
+            );
+            msg!(
+                "compressed_token_rent_recipient.key: {:?}",
+                compressed_token_rent_recipient.key
+            );
+            msg!(
+                "compressed_token_rent_payer.key: {:?}",
+                compressed_token_rent_payer.key
+            );
+            msg!("payer_pda_bump: {:?}", payer_pda_bump);
+            if derived_compressed_token_rent_recipient != *compressed_token_rent_recipient.key {
+                panic!("Derived compressed token rent recipient must match compressed token rent recipient");
+            }
             for (token_data, meta) in compressed_token_accounts.into_iter() {
                 let owner_index: u8 = token_data.token_data.owner;
                 let mint_index: u8 = token_data.token_data.mint;
@@ -547,20 +600,14 @@ pub mod anchor_compressible {
                         token_account: owner_info.clone(),
                         mint: mint_info.clone(),
                         owner: authority.clone().to_account_info(),
-                        rent_authority: compressed_token_rent_payer.clone().to_account_info(),
+                        rent_authority: compressed_token_rent_authority.clone().to_account_info(),
                         rent_recipient: compressed_token_rent_recipient.clone().to_account_info(),
                         pre_pay_num_epochs: 1,
                         write_top_up_lamports: None,
-                        payer_pda_bump: 0,
+                        payer_pda_bump,
                         signer_seeds: vec![owned_signer_seeds], // TODO: add seeds for the payer pda.
                     };
                     create_compressible_token_account_signed(inputs)?;
-                    // compressed_token_program.as_ref(),
-                    // &seed_slices,
-                    // compressed_token_rent_payer.as_ref(),
-                    // compressed_token_rent_recipient.as_ref(),
-                    // 0,
-                    // }
                 }
                 let decompress_index =
                     light_compressed_token_sdk::instructions::DecompressFullIndices::from((
@@ -786,6 +833,7 @@ pub mod anchor_compressible {
                 &ctx.accounts.compressed_token_program,
                 &ctx.accounts.compressed_token_rent_payer.to_account_info(),
                 &compressed_token_rent_recipient,
+                &ctx.accounts.compressed_token_rent_authority, // recipient and payer are same and derived from rent_authority!
                 &ctx.accounts.compressed_token_cpi_authority,
                 &ctx.accounts.config,
                 compressed_token_accounts,
@@ -1430,18 +1478,23 @@ pub struct CompressAccountsIdempotent<'info> {
     #[account(mut)]
     pub rent_recipient: AccountInfo<'info>,
 
-    /// CHECK: compression_authority must be the rent_authority defined when creating the token account.
-    #[account(mut)]
-    pub token_compression_authority: AccountInfo<'info>,
-
-    // Optional token-specific accounts (only needed when compressing token accounts)
+    // Required token-specific accounts (always needed for mixed compression)
     /// Compressed token program
     /// CHECK: Program ID validated to be cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m
-    pub compressed_token_program: Option<UncheckedAccount<'info>>,
+    pub compressed_token_program: UncheckedAccount<'info>,
 
     /// CPI authority PDA of the compressed token program
     /// CHECK: PDA derivation validated with seeds ["cpi_authority"] and bump 254
-    pub compressed_token_cpi_authority: Option<UncheckedAccount<'info>>,
+    pub compressed_token_cpi_authority: UncheckedAccount<'info>,
+
+    /// Compressed token rent recipient when token accounts are present
+    /// CHECK: Must equal PDA derived from compressed_token_rent_authority
+    #[account(mut)]
+    pub compressed_token_rent_recipient: UncheckedAccount<'info>,
+
+    /// Compressed token rent authority when token accounts are present
+    /// CHECK: Authority used to derive rent recipient PDA
+    pub compressed_token_rent_authority: UncheckedAccount<'info>,
     // Remaining accounts:
     // - After system_accounts_offset: Light Protocol system accounts for CPI and tree accounts,... subject to packing.
     // - Last N accounts: Accounts to compress (PDAs and/or token accounts)
@@ -1484,6 +1537,8 @@ pub struct DecompressAccountsIdempotent<'info> {
     /// UNCHECKED: Anyone can pay to init compressed tokens.
     #[account(mut)]
     pub compressed_token_rent_payer: UncheckedAccount<'info>,
+    /// CHECK: Required for seed derivation - validated by program logic
+    pub compressed_token_rent_authority: AccountInfo<'info>,
     /// Compressed token program (always required in mixed variant)
     /// CHECK: Program ID validated to be cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m
     pub compressed_token_program: UncheckedAccount<'info>,
