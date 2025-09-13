@@ -9,7 +9,6 @@ use light_ctoken_types::{
 };
 use light_profiler::profile;
 use solana_instruction::Instruction;
-use solana_msg::msg;
 use solana_pubkey::Pubkey;
 
 use crate::{
@@ -406,7 +405,7 @@ pub fn create_mint_action_cpi(
     // Get account metas (before moving compressed_mint_inputs)
     let accounts =
         get_mint_action_instruction_account_metas(meta_config, &input.compressed_mint_inputs);
-    msg!("account metas {:?}", accounts);
+
     let instruction_data = MintActionCompressedInstructionData {
         create_mint,
         mint_bump,

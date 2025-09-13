@@ -11,6 +11,7 @@ use solana_signature::Signature;
 use solana_signer::Signer;
 
 /// Transfer tokens from a compressed token account to an SPL token account
+#[allow(clippy::too_many_arguments)]
 pub async fn ctoken_to_spl_transfer<R: Rpc + Indexer>(
     rpc: &mut R,
     source_ctoken_account: Pubkey,
@@ -19,20 +20,22 @@ pub async fn ctoken_to_spl_transfer<R: Rpc + Indexer>(
     authority: &Keypair,
     mint: Pubkey,
     payer: &Keypair,
+    spl_token_program: Pubkey,
 ) -> Result<Signature, RpcError> {
     // Derive token pool PDA with bump
     let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
 
     // Create the transfer instruction
     let transfer_ix = create_ctoken_to_spl_transfer_instruction(
+        payer.pubkey(),
+        authority.pubkey(),
         source_ctoken_account,
         destination_spl_token_account,
-        amount,
-        authority.pubkey(),
         mint,
-        payer.pubkey(),
+        spl_token_program,
         token_pool_pda,
         token_pool_pda_bump,
+        amount,
     )
     .map_err(|e| RpcError::AssertRpcError(format!("Failed to create instruction: {:?}", e)))?;
 

@@ -51,14 +51,15 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
 
     // Create the SPL to CToken transfer instruction
     let ix = create_spl_to_ctoken_transfer_instruction(
+        payer.pubkey(),
+        authority.pubkey(),
         source_spl_token_account,
         to,
-        amount,
-        authority.pubkey(),
         mint,
-        payer.pubkey(),
+        authority.pubkey(),
         token_pool_pda,
         bump,
+        amount,
     )
     .map_err(|e| RpcError::CustomError(e.to_string()))?;
 

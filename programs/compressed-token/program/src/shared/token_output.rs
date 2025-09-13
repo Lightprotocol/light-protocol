@@ -9,6 +9,7 @@ use light_ctoken_types::{
 };
 use light_hasher::{sha256::Sha256BE, Hasher};
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyNew};
+use spl_pod::solana_msg::msg;
 
 /// 1. Set token account data
 /// 2. Create token account data hash
@@ -25,6 +26,17 @@ pub fn set_output_compressed_account<const IS_FROZEN: bool>(
     merkle_tree_index: u8,
     version: u8,
 ) -> Result<(), ProgramError> {
+    // ADD DEBUG PRINTS HERE - just before compressed account gets emitted
+    msg!(
+        "EMIT DEBUG: owner {:?}",
+        solana_pubkey::Pubkey::new_from_array(owner.to_bytes())
+    );
+    msg!(
+        "EMIT DEBUG: mint {:?}",
+        solana_pubkey::Pubkey::new_from_array(mint_pubkey.to_bytes())
+    );
+    msg!("EMIT DEBUG: amount {}", amount.into());
+
     // Get compressed account data from CPI struct to temporarily create TokenData
     let compressed_account_data = output_compressed_account
         .compressed_account

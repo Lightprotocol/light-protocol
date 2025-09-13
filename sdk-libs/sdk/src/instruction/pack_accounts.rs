@@ -61,7 +61,7 @@ impl PackedAccounts {
     ) -> crate::error::Result<()> {
         accounts.get_account_metas_vec(self)
     }
-
+    #[inline(never)]
     pub fn add_system_accounts(
         &mut self,
         config: SystemAccountMetaConfig,
@@ -83,6 +83,7 @@ impl PackedAccounts {
     }
 
     #[cfg(feature = "v2")]
+    #[inline(never)]
     pub fn add_system_accounts_small(
         &mut self,
         config: SystemAccountMetaConfig,

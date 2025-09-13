@@ -1,9 +1,14 @@
 // #![cfg(feature = "test-sbf")]
 
 use anchor_spl::token_2022::spl_token_2022;
-use light_compressed_token_sdk::instructions::{
-    close::close_account, create_associated_token_account::derive_ctoken_ata,
-    create_associated_token_account_idempotent, create_token_account,
+use light_compressed_token::withdraw_funding_pool::WithdrawFundingPoolAccounts;
+use light_compressed_token_sdk::{
+    compressible::{initialize_compressible_token_account, InitializeCompressibleTokenAccount},
+    instructions::{
+        close::close_account, create_associated_token_account::derive_ctoken_ata,
+        create_associated_token_account_idempotent, create_token_account,
+    },
+    SPL_TOKEN_PROGRAM_ID,
 };
 use light_ctoken_types::{
     state::extensions::compressible::{get_rent, MIN_RENT, RENT_PER_BYTE, SLOTS_PER_EPOCH},
@@ -168,6 +173,7 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
     let token_account_pubkey = context.token_account_keypair.pubkey();
     // Create rent authority and recipient
     let rent_authority_keypair = Keypair::new();
+
     let rent_authority_pubkey = rent_authority_keypair.pubkey();
     let seeds2 = [b"pool".as_slice(), rent_authority_pubkey.as_ref()];
     let (derived_pool_pda, payer_pda_bump) =
@@ -803,6 +809,7 @@ async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
         &recipient,
         mint,
         &payer,
+        SPL_TOKEN_PROGRAM_ID.into(),
     )
     .await?;
 

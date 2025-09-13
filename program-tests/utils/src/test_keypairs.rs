@@ -65,10 +65,15 @@ pub fn from_target_folder() -> TestKeypairs {
         cpi_context_2: Keypair::new(),
         group_pda_seed: Keypair::new(),
         rent_authority: Keypair::from_bytes(&RENT_AUTHORITY_TEST_KEYPAIR).unwrap(),
+        batched_state_merkle_tree_2: Keypair::from_bytes(&BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR_2)
+            .unwrap(),
+        batched_output_queue_2: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR_2).unwrap(),
+        batched_cpi_context_2: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR_2).unwrap(),
     }
 }
 
 pub fn for_regenerate_accounts() -> TestKeypairs {
+    // Note: this requries your machine to have the light-keypairs dir with the correct keypairs.
     let prefix = String::from("../../../light-keypairs/");
     let state_merkle_tree = read_keypair_file(format!(
         "{}smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT.json",
@@ -146,5 +151,9 @@ pub fn for_regenerate_accounts() -> TestKeypairs {
         cpi_context_2,
         group_pda_seed: Keypair::new(),
         rent_authority: Keypair::from_bytes(&RENT_AUTHORITY_TEST_KEYPAIR).unwrap(),
+        batched_state_merkle_tree_2: Keypair::from_bytes(&BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR_2)
+            .unwrap(),
+        batched_output_queue_2: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR_2).unwrap(),
+        batched_cpi_context_2: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR_2).unwrap(),
     }
 }
