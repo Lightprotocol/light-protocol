@@ -114,6 +114,7 @@
 
 pub mod accounts;
 pub mod compressible;
+pub mod forester;
 pub mod indexer;
 pub mod logging;
 pub mod program_test;

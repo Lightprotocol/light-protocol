@@ -167,13 +167,7 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
     data.push(bump); // bump: 1 byte
 
     if COMPRESSIBLE {
-        if let Some((
-            pre_pay_num_epochs,
-            write_top_up_lamports,
-            rent_recipient,
-            compressible_config_account,
-        )) = compressible_config
-        {
+        if let Some((pre_pay_num_epochs, write_top_up_lamports, _, _)) = compressible_config {
             data.push(1u8); // Some option byte for compressible_config
 
             // CompressibleExtensionInstructionData fields (must match the struct exactly):

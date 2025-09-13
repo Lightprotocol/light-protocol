@@ -7,6 +7,7 @@ use crate::errors::RegistryError;
 #[derive(Accounts)]
 pub struct CompressAndCloseContext<'info> {
     /// Transaction authority (for wrapper access control)
+    #[account(mut)]
     pub authority: Signer<'info>,
 
     /// Forester PDA for tracking work
@@ -15,6 +16,7 @@ pub struct CompressAndCloseContext<'info> {
 
     /// Rent authority PDA (derived from config)
     /// CHECK: PDA derivation is validated via has_one constraint
+    #[account(mut)]
     pub rent_authority: AccountInfo<'info>,
 
     /// CompressibleConfig account
@@ -49,8 +51,9 @@ pub fn process_compress_and_close<'info>(
 
     // Use the SDK's compress_and_close function with the provided indices
     // Use the authority as fee_payer
-    let instruction = light_compressed_token_sdk::instructions::compress_and_close::compress_and_close_ctoken_accounts_with_indices(
+    let  instruction = light_compressed_token_sdk::instructions::compress_and_close::compress_and_close_ctoken_accounts_with_indices(
         ctx.accounts.authority.key(),
+        true,
         None, // cpi_context_pubkey
         &indices,
         packed_accounts,

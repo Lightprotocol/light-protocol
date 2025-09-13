@@ -11,7 +11,10 @@ use light_compressible::{
     rent::{get_rent, RentConfig, SLOTS_PER_EPOCH},
 };
 use light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
-use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
+use light_program_test::{
+    forester::compress_and_close_forester, program_test::TestRpc, LightProgramTest,
+    ProgramTestConfig,
+};
 use light_registry::utils::get_protocol_config_pda_address;
 use light_test_utils::{
     airdrop_lamports,
@@ -667,15 +670,18 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
     // Account was created with 0 epochs of rent prepaid, so it's instantly compressible
     // But we still need to advance time to trigger the rent authority logic
     context.rpc.warp_to_slot(SLOTS_PER_EPOCH + 1).unwrap();
+    context.rpc.warp_to_slot((SLOTS_PER_EPOCH * 2) + 1).unwrap();
+    let forster_keypair = context.rpc.test_accounts.protocol.forester.insecure_clone();
     // This doesnt work anymore we need to invoke the registry program now
     // // Compress and close using rent authority (with 0 balance)
-    // let result = compress_and_close(
-    //     &mut context.rpc,
-    //     token_account_pubkey,
-    //     &rent_authority_keypair,
-    //     &context.payer,
-    // )
-    // .await;
+    let result = compress_and_close_forester(
+        &mut context.rpc,
+        token_account_pubkey,
+        &forster_keypair,
+        &context.payer,
+    )
+    .await
+    .unwrap();
 
     // assert!(
     //     result

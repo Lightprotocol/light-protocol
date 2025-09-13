@@ -171,6 +171,7 @@ fn find_account_indices(
 #[profile]
 pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
     fee_payer: Pubkey,
+    rent_recipient_is_signer: bool,
     cpi_context_pubkey: Option<Pubkey>,
     indices: &[CompressAndCloseIndices],
     packed_accounts: &[AccountInfo<'info>],
@@ -178,7 +179,15 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
     if indices.is_empty() {
         return Err(TokenSdkError::InvalidAccountData);
     }
-
+    // Convert packed_accounts to AccountMetas using ArrayVec to avoid heap allocation
+    let mut packed_account_metas = arrayvec::ArrayVec::<AccountMeta, 32>::new();
+    for info in packed_accounts.iter() {
+        packed_account_metas.push(AccountMeta {
+            pubkey: *info.key,
+            is_signer: info.is_signer,
+            is_writable: info.is_writable,
+        });
+    }
     // Process each set of indices
     let mut token_accounts = Vec::with_capacity(indices.len());
 
@@ -206,19 +215,15 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             idx.rent_recipient_index,
             i as u8, // Pass the index in the output array
         )?;
+        if rent_recipient_is_signer {
+            packed_account_metas[idx.authority_index as usize].is_signer = true;
+        } else {
+            packed_account_metas[idx.owner_index as usize].is_signer = true;
+        }
 
         token_accounts.push(token_account);
     }
 
-    // Convert packed_accounts to AccountMetas using ArrayVec to avoid heap allocation
-    let mut packed_account_metas = arrayvec::ArrayVec::<AccountMeta, 32>::new();
-    for info in packed_accounts.iter() {
-        packed_account_metas.push(AccountMeta {
-            pubkey: *info.key,
-            is_signer: info.is_signer,
-            is_writable: info.is_writable,
-        });
-    }
     let (meta_config, transfer_config) = if let Some(cpi_context) = cpi_context_pubkey {
         let cpi_context_config = CompressedCpiContext {
             set_context: false,
@@ -378,6 +383,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
     // Delegate to the with_indices version
     compress_and_close_ctoken_accounts_with_indices(
         fee_payer,
+        with_rent_authority,
         None,
         &indices_vec,
         packed_accounts_vec.as_slice(),

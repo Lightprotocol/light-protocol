@@ -38,6 +38,8 @@ pub struct ProgramTestConfig {
     pub log_light_protocol_events: bool,
     /// Enhanced transaction logging configuration
     pub enhanced_logging: EnhancedLoggingConfig,
+    /// Register a forester for epoch 0 during setup
+    pub with_forester: bool,
 }
 
 impl ProgramTestConfig {
@@ -129,6 +131,7 @@ impl Default for ProgramTestConfig {
             skip_startup_logs: true,
             log_light_protocol_events: false, // Disabled by default
             enhanced_logging: EnhancedLoggingConfig::from_env(),
+            with_forester: true,
         }
     }
 }

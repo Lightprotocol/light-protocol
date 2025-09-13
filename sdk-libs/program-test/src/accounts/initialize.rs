@@ -190,6 +190,12 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
         .await?;
     }
 
+    // Register forester for epoch 0 if enabled
+    if config.with_forester {
+        use crate::forester::register_forester::register_forester_for_compress_and_close;
+        register_forester_for_compress_and_close(context, &keypairs.forester).await?;
+    }
+
     let registered_system_program_pda =
         get_registered_program_pda(&Pubkey::from(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID));
     let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);

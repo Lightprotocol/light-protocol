@@ -58,7 +58,6 @@ declare_id!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
 pub mod light_registry {
 
     use constants::DEFAULT_WORK_V1;
-    use light_compressible::config::CompressibleConfig;
 
     use super::*;
 

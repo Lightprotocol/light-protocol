@@ -23,10 +23,10 @@ light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
 light-compressed-token-sdk = { workspace = true }
 light-ctoken-types = { workspace = true }
 light-compressible = {workspace = true}
-# unreleased
 light-client = { workspace = true, features = ["program-test"] }
 light-prover-client = { workspace = true }
 litesvm = { workspace = true }
+light-zero-copy = {workspace = true}
 
 light-registry = { workspace = true, features = ["cpi"] }
 light-compressed-token = { workspace = true, features = ["cpi"] }
