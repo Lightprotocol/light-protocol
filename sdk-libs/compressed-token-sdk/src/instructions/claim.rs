@@ -9,6 +9,7 @@ use solana_pubkey::Pubkey;
 ///
 /// # Returns
 /// Tuple of (pool_pda, bump_seed)
+#[deprecated] // TODO: remove
 pub fn derive_pool_pda(rent_authority: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[b"pool", rent_authority.as_ref()],

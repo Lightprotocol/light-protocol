@@ -15,7 +15,8 @@ use solana_sdk::{
 
 use crate::{
     accounts::{
-        initialize::initialize_accounts, test_accounts::TestAccounts, test_keypairs::TestKeypairs,
+        compressible_config::create_compressible_config, initialize::initialize_accounts,
+        test_accounts::TestAccounts, test_keypairs::TestKeypairs,
     },
     indexer::TestIndexer,
     program_test::TestRpc,
@@ -90,6 +91,8 @@ impl LightProgramTest {
                 context.config.no_logs = true;
             }
             initialize_accounts(&mut context, &config, &keypairs).await?;
+            create_compressible_config(&mut context).await?;
+
             if context.config.skip_startup_logs {
                 context.config.no_logs = restore_logs;
             }
@@ -126,17 +129,11 @@ impl LightProgramTest {
                 context.set_account(address_queue_pubkey, account);
             }
         }
+
         // reset tx counter after program setup.
         context.transaction_counter = 0;
 
-        let rent_authority_pubkey = context
-            .test_accounts
-            .funding_pool_config
-            .rent_authority_pubkey;
-        context
-            .airdrop_lamports(&rent_authority_pubkey, 1_000_000_000_000)
-            .await?;
-        let pool_pda_pubkey = context.test_accounts.funding_pool_config.pool_pda;
+        let pool_pda_pubkey = context.test_accounts.funding_pool_config.rent_recipient_pda;
         context
             .airdrop_lamports(&pool_pda_pubkey, 1_000_000_000_000)
             .await?;

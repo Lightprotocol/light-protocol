@@ -87,7 +87,7 @@ impl TestAccounts {
                 output_queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
                 cpi_context: pubkey!("7Hp52chxaew8bW1ApR4fck2bh6Y8qA1pu3qwH6N9zaLj"),
             }],
-            funding_pool_config: FundingPoolConfig::get_local_test_validator(),
+            funding_pool_config: FundingPoolConfig::get_v1(),
         }
     }
 
@@ -146,7 +146,7 @@ impl TestAccounts {
                     .unwrap()
                     .pubkey(),
             ],
-            funding_pool_config: FundingPoolConfig::get_local_test_validator(),
+            funding_pool_config: FundingPoolConfig::get_v1(),
         }
     }
 }

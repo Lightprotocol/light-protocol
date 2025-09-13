@@ -1,9 +1,13 @@
 use light_compressible::rent::SLOTS_PER_EPOCH;
-use light_program_test::{program_test::TestRpc, LightProgramTest, ProgramTestConfig};
+use light_program_test::{
+    forester::claim_forester, program_test::TestRpc, LightProgramTest, ProgramTestConfig,
+};
 use light_test_utils::{
     airdrop_lamports, assert_claim::assert_claim, spl::create_mint_helper, Rpc, RpcError,
 };
-use light_token_client::actions::create_compressible_token_account;
+use light_token_client::actions::{
+    create_compressible_token_account, CreateCompressibleTokenAccountInputs,
+};
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 #[tokio::test]
@@ -13,23 +17,8 @@ async fn test_claim_rent_for_completed_epochs() -> Result<(), RpcError> {
     let payer_pubkey = payer.pubkey();
     let mint = Pubkey::new_unique();
 
-    // Create rent authority and compressible owner
-    let rent_authority_keypair = Keypair::new();
-    let rent_authority_pubkey = rent_authority_keypair.pubkey();
     let compressible_owner_keypair = Keypair::new();
     let compressible_owner_pubkey = compressible_owner_keypair.pubkey();
-
-    // Airdrop to rent authority to cover fees
-    airdrop_lamports(&mut rpc, &rent_authority_pubkey, 1_000_000_000).await?;
-
-    // Derive pool PDA to fund it
-    let (pool_pda, pool_pda_bump) =
-        light_compressed_token_sdk::instructions::derive_pool_pda(&rent_authority_pubkey);
-
-    // Fund pool PDA to receive rent
-    rpc.context
-        .airdrop(&pool_pda, 1_000_000_000)
-        .map_err(|_| RpcError::AssertRpcError("Failed to airdrop to pool PDA".to_string()))?;
 
     // Create compressible token account with 2 epochs of rent prepaid
     let prepaid_epochs = 2u64;
@@ -38,13 +27,14 @@ async fn test_claim_rent_for_completed_epochs() -> Result<(), RpcError> {
     // Use the new action to create the compressible token account
     let token_account_pubkey = create_compressible_token_account(
         &mut rpc,
-        rent_authority_pubkey,
-        compressible_owner_pubkey,
-        mint,
-        prepaid_epochs,
-        &payer,
-        None,
-        write_top_up_lamports,
+        CreateCompressibleTokenAccountInputs {
+            owner: compressible_owner_pubkey,
+            mint,
+            num_prepaid_epochs: prepaid_epochs,
+            payer: &payer,
+            token_account_keypair: None,
+            write_top_up_lamports,
+        },
     )
     .await?;
 
@@ -53,29 +43,21 @@ async fn test_claim_rent_for_completed_epochs() -> Result<(), RpcError> {
     let target_slot = current_slot + SLOTS_PER_EPOCH;
     rpc.warp_to_slot(target_slot)?;
 
-    // Build claim instruction using the SDK
-    let claim_instruction = light_compressed_token_sdk::instructions::claim(
-        pool_pda,
-        pool_pda_bump,
-        rent_authority_pubkey,
-        &[token_account_pubkey],
-    );
+    // Get the forester keypair from test accounts
+    let forester_keypair = rpc.test_accounts.protocol.forester.insecure_clone();
 
-    // Execute claim transaction
-    rpc.create_and_send_transaction(
-        &[claim_instruction],
-        &payer_pubkey,
-        &[&payer, &rent_authority_keypair],
-    )
-    .await?;
+    // Use the claim_forester function to claim via registry program
+    claim_forester(&mut rpc, &[token_account_pubkey], &forester_keypair, &payer).await?;
 
     // Verify the claim using the assert function
     // We warped forward 1 epoch, so we expect to claim 1 epoch of rent
+    let config = rpc.test_accounts.funding_pool_config;
+
     assert_claim(
         &mut rpc,
         &[token_account_pubkey],
-        pool_pda,
-        rent_authority_pubkey,
+        config.rent_recipient_pda,
+        config.rent_authority_pda,
     )
     .await;
 
@@ -87,7 +69,6 @@ async fn test_claim_multiple_accounts_different_epochs() -> Result<(), RpcError>
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
     let payer = rpc.get_payer().insecure_clone();
     let mint = create_mint_helper(&mut rpc, &payer).await;
-    let rent_authority_pubkey = rpc.test_accounts.funding_pool_config.rent_authority_pubkey;
 
     // Create 10 token accounts with varying prepaid epochs (1 to 10)
     let mut token_accounts = Vec::new();
@@ -97,17 +78,16 @@ async fn test_claim_multiple_accounts_different_epochs() -> Result<(), RpcError>
         let owner_keypair = Keypair::new();
         let owner_pubkey = owner_keypair.pubkey();
         owners.push(owner_keypair);
-
-        // Create token account with i epochs prepaid
         let token_account_pubkey = create_compressible_token_account(
             &mut rpc,
-            rent_authority_pubkey,
-            owner_pubkey,
-            mint,
-            i as u64, // Prepay i epochs
-            &payer,
-            None,
-            Some(100),
+            CreateCompressibleTokenAccountInputs {
+                owner: owner_pubkey,
+                mint,
+                num_prepaid_epochs: i as u64,
+                payer: &payer,
+                token_account_keypair: None,
+                write_top_up_lamports: Some(100),
+            },
         )
         .await?;
 

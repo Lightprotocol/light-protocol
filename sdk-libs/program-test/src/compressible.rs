@@ -1,23 +1,16 @@
 use std::collections::HashMap;
 
+use anchor_lang::pubkey;
 use borsh::BorshDeserialize;
 use light_client::rpc::{Rpc, RpcError};
-use light_compressed_token_sdk::{
-    account2::CTokenAccount2,
-    instructions::transfer2::{
-        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Inputs,
-    },
-};
 use light_compressible::rent::SLOTS_PER_EPOCH;
 use light_ctoken_types::{
     state::{CompressedToken, ExtensionStruct},
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
-use light_sdk::instruction::PackedAccounts;
 use solana_pubkey::Pubkey;
-use solana_sdk::signature::{Keypair, Signer};
 
-use crate::{accounts::test_keypairs::RENT_AUTHORITY_TEST_KEYPAIR, LightProgramTest};
+use crate::LightProgramTest;
 
 pub type CompressibleAccountStore = HashMap<Pubkey, StoredCompressibleAccount>;
 
@@ -28,43 +21,52 @@ pub struct StoredCompressibleAccount {
     pub account: CompressedToken,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Copy, Clone)]
 pub struct FundingPoolConfig {
-    pub rent_authority_keypair: Keypair,
-    pub rent_authority_pubkey: Pubkey,
-    pub pool_pda: Pubkey,
-    pub pool_pda_bump: u8,
+    pub compressible_config_pda: Pubkey,
+    pub rent_authority_pda: Pubkey,
+    pub rent_authority_pda_bump: u8,
+    /// rent_recipient == pool pda
+    pub rent_recipient_pda: Pubkey,
+    pub rent_recipient_pda_bump: u8,
 }
 
 impl FundingPoolConfig {
-    pub fn new(rent_authority_keypair: Keypair) -> Self {
-        // Derive pool PDA to fund it
-        let (pool_pda, pool_pda_bump) = light_compressed_token_sdk::instructions::derive_pool_pda(
-            &rent_authority_keypair.pubkey(),
+    pub fn new(version: u64) -> Self {
+        let registry_program_id =
+            solana_sdk::pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
+        let (compressible_config_pda, _config_bump) = Pubkey::find_program_address(
+            &[b"compressible_config", &version.to_le_bytes()],
+            &registry_program_id,
+        );
+        let (rent_recipient_pda, rent_recipient_pda_bump) = Pubkey::find_program_address(
+            &[
+                b"rent_recipient".as_slice(),
+                (version as u16).to_le_bytes().as_slice(),
+                &[0],
+            ],
+            &pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
         );
 
+        let (rent_authority_pda, rent_authority_pda_bump) = Pubkey::find_program_address(
+            &[
+                b"rent_authority".as_slice(),
+                (version as u16).to_le_bytes().as_slice(),
+                &[0],
+            ],
+            &registry_program_id,
+        );
         Self {
-            rent_authority_pubkey: rent_authority_keypair.pubkey(),
-            rent_authority_keypair,
-            pool_pda,
-            pool_pda_bump,
+            compressible_config_pda,
+            rent_recipient_pda,
+            rent_recipient_pda_bump,
+            rent_authority_pda,
+            rent_authority_pda_bump,
         }
     }
 
-    pub fn get_local_test_validator() -> Self {
-        Self::new(Keypair::from_bytes(RENT_AUTHORITY_TEST_KEYPAIR.as_slice()).unwrap())
-    }
-}
-
-impl Clone for FundingPoolConfig {
-    fn clone(&self) -> Self {
-        Self {
-            rent_authority_keypair: Keypair::from_bytes(&self.rent_authority_keypair.to_bytes())
-                .expect("Failed to clone Keypair"),
-            rent_authority_pubkey: self.rent_authority_pubkey,
-            pool_pda: self.pool_pda,
-            pool_pda_bump: self.pool_pda_bump,
-        }
+    pub fn get_v1() -> Self {
+        Self::new(1)
     }
 }
 
@@ -72,12 +74,12 @@ pub async fn claim_and_compress(
     rpc: &mut LightProgramTest,
     stored_compressible_accounts: &mut CompressibleAccountStore,
 ) -> Result<(), RpcError> {
-    let funding_pool_config = rpc.test_accounts.funding_pool_config.clone();
-    let payer_pubkey = rpc
-        .test_accounts
-        .funding_pool_config
-        .rent_authority_keypair
-        .pubkey();
+    use crate::forester::{claim_forester, compress_and_close_forester};
+
+    let forester_keypair = rpc.test_accounts.protocol.forester.insecure_clone();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Get all compressible token accounts
     let compressible_ctoken_accounts = rpc
         .context
         .get_program_accounts(&light_compressed_token::ID);
@@ -132,37 +134,22 @@ pub async fn claim_and_compress(
         .map(|e| *e.0)
         .collect::<Vec<_>>();
 
+    // Process claimable accounts in batches
     for token_accounts in claim_able_accounts.as_slice().chunks(20) {
         println!("Claim from : {:?}", token_accounts);
-        // Build claim instruction for all 10 accounts
-        let claim_instruction = light_compressed_token_sdk::instructions::claim(
-            funding_pool_config.pool_pda,
-            funding_pool_config.pool_pda_bump,
-            funding_pool_config.rent_authority_pubkey,
-            token_accounts,
-        );
-        let signers = [&funding_pool_config.rent_authority_keypair];
-        // Execute claim transaction
-        rpc.create_and_send_transaction(&[claim_instruction], &payer_pubkey, &signers)
-            .await?;
+        // Use the new claim_forester function to claim via registry program
+        claim_forester(rpc, token_accounts, &forester_keypair, &payer).await?;
     }
 
     // Process compressible accounts in batches
     const BATCH_SIZE: usize = 10; // Process up to 10 accounts at a time
     let mut pubkeys = Vec::with_capacity(compressible_accounts.len());
     for chunk in compressible_accounts.chunks(BATCH_SIZE) {
-        println!(
-            "Compress and close: {:?}",
-            chunk.iter().map(|e| e.pubkey).collect::<Vec<_>>()
-        );
-        // Call manual implementation for batch processing
-        compress_and_close_batch(
-            rpc,
-            chunk,
-            &funding_pool_config.rent_authority_keypair,
-            &funding_pool_config.rent_authority_keypair,
-        )
-        .await?;
+        let chunk_pubkeys: Vec<Pubkey> = chunk.iter().map(|e| e.pubkey).collect();
+        println!("Compress and close: {:?}", chunk_pubkeys);
+
+        // Use the new compress_and_close_forester function via registry program
+        compress_and_close_forester(rpc, &chunk_pubkeys, &forester_keypair, &payer).await?;
 
         // Remove processed accounts from the HashMap
         for account_pubkey in chunk {
@@ -172,126 +159,6 @@ pub async fn claim_and_compress(
     for pubkey in pubkeys {
         stored_compressible_accounts.remove(&pubkey);
     }
-
-    Ok(())
-}
-
-/// Manual implementation of compress_and_close for a slice of token accounts
-/// Uses the already deserialized account data from stored_compressible_accounts
-async fn compress_and_close_batch(
-    rpc: &mut LightProgramTest,
-    compressible_token_accounts: &[&StoredCompressibleAccount],
-    rent_authority_keypair: &Keypair,
-    payer: &Keypair,
-) -> Result<(), RpcError> {
-    if compressible_token_accounts.is_empty() {
-        return Ok(());
-    }
-
-    // Get output queue for compression
-    let output_queue = rpc.get_random_state_tree_info()?.get_output_pubkey()?;
-
-    // Build packed accounts and token accounts for all accounts to compress
-    let mut packed_accounts = PackedAccounts::default();
-    let mut token_accounts = Vec::with_capacity(compressible_token_accounts.len());
-
-    // Add output queue first
-    let output_queue_index = packed_accounts.insert_or_get(output_queue);
-
-    for StoredCompressibleAccount {
-        pubkey,
-        last_paid_slot: _,
-        account,
-    } in compressible_token_accounts
-    {
-        let compressed_token = account;
-
-        // Extract necessary data (convert from light_compressed_account::Pubkey to solana_sdk::Pubkey)
-        let mint = Pubkey::from(compressed_token.mint.to_bytes());
-        let owner = Pubkey::from(compressed_token.owner.to_bytes());
-        let amount = compressed_token.amount;
-
-        // Get rent authority and recipient from compressible extension
-        let (rent_authority, rent_recipient) =
-            if let Some(extensions) = &compressed_token.extensions {
-                let mut authority = owner;
-                let mut recipient = owner;
-
-                for extension in extensions {
-                    if let ExtensionStruct::Compressible(ext) = extension {
-                        if ext.rent_authority != [0u8; 32] {
-                            authority = Pubkey::from(ext.rent_authority);
-                        }
-                        if ext.rent_recipient != [0u8; 32] {
-                            recipient = Pubkey::from(ext.rent_recipient);
-                        }
-                        break;
-                    }
-                }
-                (authority, recipient)
-            } else {
-                (owner, owner)
-            };
-
-        // Verify the rent authority matches the expected signer
-        if rent_authority != rent_authority_keypair.pubkey() {
-            return Err(RpcError::CustomError(format!(
-                "Rent authority mismatch for account {}: expected {}, got {}",
-                pubkey,
-                rent_authority_keypair.pubkey(),
-                rent_authority
-            )));
-        }
-
-        // Add accounts to packed_accounts
-        let source_index = packed_accounts.insert_or_get(*pubkey);
-        let mint_index = packed_accounts.insert_or_get(mint);
-        let owner_index = packed_accounts.insert_or_get(owner);
-        let authority_index = packed_accounts.insert_or_get_config(rent_authority, true, false);
-        let rent_recipient_index = packed_accounts.insert_or_get(rent_recipient);
-
-        // Create CTokenAccount2 for CompressAndClose operation
-        let mut token_account =
-            CTokenAccount2::new_empty(owner_index, mint_index, output_queue_index);
-
-        // Set up compress_and_close
-        token_account
-            .compress_and_close(
-                amount,
-                source_index,
-                authority_index,
-                rent_recipient_index,
-                token_accounts.len() as u8, // Index in the output array
-            )
-            .map_err(|e| {
-                RpcError::CustomError(format!("Failed to setup compress_and_close: {:?}", e))
-            })?;
-
-        token_accounts.push(token_account);
-    }
-
-    // Create the transfer2 instruction
-    let meta_config =
-        Transfer2AccountsMetaConfig::new(payer.pubkey(), packed_accounts.to_account_metas().0);
-
-    let inputs = Transfer2Inputs {
-        meta_config,
-        token_accounts,
-        ..Default::default()
-    };
-
-    let instruction = create_transfer2_instruction(inputs)
-        .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {:?}", e)))?;
-
-    // Prepare signers
-    let mut signers = vec![payer];
-    if rent_authority_keypair.pubkey() != payer.pubkey() {
-        signers.push(rent_authority_keypair);
-    }
-
-    // Send transaction
-    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &signers)
-        .await?;
 
     Ok(())
 }

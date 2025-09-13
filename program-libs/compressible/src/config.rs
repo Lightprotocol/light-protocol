@@ -41,20 +41,20 @@ impl anchor_lang::AccountDeserialize for CompressibleConfig {
         Self::deserialize(&mut data)
             .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize.into())
     }
-    
+
     fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
         use anchor_lang::Discriminator;
-        
+
         // Check discriminator first
         if buf.len() < 8 {
             return Err(anchor_lang::error::ErrorCode::AccountDiscriminatorNotFound.into());
         }
-        
+
         let given_disc = &buf[..8];
         if given_disc != Self::DISCRIMINATOR {
             return Err(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into());
         }
-        
+
         Self::try_deserialize_unchecked(buf)
     }
 }
@@ -63,12 +63,12 @@ impl anchor_lang::AccountDeserialize for CompressibleConfig {
 impl anchor_lang::AccountSerialize for CompressibleConfig {
     fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> anchor_lang::Result<()> {
         use anchor_lang::Discriminator;
-        
+
         // Write discriminator first
         if writer.write_all(Self::DISCRIMINATOR).is_err() {
             return Err(anchor_lang::error::ErrorCode::AccountDidNotSerialize.into());
         }
-        
+
         // Then serialize the actual account data
         if self.serialize(writer).is_err() {
             return Err(anchor_lang::error::ErrorCode::AccountDidNotSerialize.into());
@@ -90,7 +90,7 @@ impl anchor_lang::Space for CompressibleConfig {
 }
 
 impl Discriminator for CompressibleConfig {
-    const LIGHT_DISCRIMINATOR: [u8; 8] = [1u8; 8];
+    const LIGHT_DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
     const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = Self::LIGHT_DISCRIMINATOR.as_slice();
 }
 

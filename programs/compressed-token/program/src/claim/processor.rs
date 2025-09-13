@@ -9,7 +9,7 @@ use light_ctoken_types::state::{CompressedToken, ZExtensionStructMut};
 use light_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
-use spl_pod::solana_msg::msg;
+use spl_pod::{bytemuck, solana_msg::msg};
 
 use crate::create_token_account::processor::transfer_lamports;
 
@@ -41,8 +41,8 @@ impl<'a> ClaimAccounts<'a> {
         )?;
         let data = accounts.config.try_borrow_data().unwrap();
         check_discriminator::<CompressibleConfig>(&data[..])?;
-        // TODO: deserialize with bytemuck
-        let account = CompressibleConfig::deserialize(&mut data[0..8].as_ref()).unwrap();
+        let account = bytemuck::pod_from_bytes::<CompressibleConfig>(&data[8..])
+            .map_err(|_| ProgramError::InvalidAccountData)?;
         if *account.rent_authority.as_array() != *accounts.rent_authority.key() {
             msg!("invalid rent authority");
             return Err(ProgramError::InvalidSeeds);

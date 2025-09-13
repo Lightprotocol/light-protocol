@@ -22,7 +22,7 @@ use light_test_utils::{
     assert_create_token_account::{
         assert_create_associated_token_account, assert_create_token_account, CompressibleData,
     },
-    assert_transfer2::assert_transfer2_compress,
+    assert_transfer2::{assert_transfer2_compress, assert_transfer2_compress_and_close},
     spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens},
     Rpc, RpcError,
 };
@@ -46,163 +46,6 @@ struct AccountTestContext {
     pub rent_authority: Pubkey,
 }
 
-/// Helper function to create CompressibleConfig
-async fn create_compressible_config(
-    rpc: &mut LightProgramTest,
-) -> Result<(Pubkey, Pubkey, Pubkey), RpcError> {
-    let payer = rpc.get_payer().insecure_clone();
-    let registry_program_id = solana_sdk::pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
-    let governance_authority = rpc
-        .test_accounts
-        .protocol
-        .governance_authority
-        .insecure_clone();
-    // First, create the config counter if it doesn't exist
-    let (config_counter_pda, _counter_bump) =
-        Pubkey::find_program_address(&[b"compressible_config_counter"], &registry_program_id);
-    let protocol_config_pda = get_protocol_config_pda_address().0;
-
-    // Check if counter exists, if not create it
-    if rpc.get_account(config_counter_pda).await?.is_none() {
-        let instruction_data = light_registry::instruction::CreateConfigCounter {}; // Create config instruction
-
-        // Create counter instruction
-        let create_counter_ix = solana_sdk::instruction::Instruction {
-            program_id: registry_program_id,
-            accounts: vec![
-                solana_sdk::instruction::AccountMeta::new(payer.pubkey(), true),
-                solana_sdk::instruction::AccountMeta::new_readonly(
-                    rpc.test_accounts.protocol.governance_authority.pubkey(),
-                    true,
-                ), // authority
-                solana_sdk::instruction::AccountMeta::new_readonly(protocol_config_pda, false),
-                solana_sdk::instruction::AccountMeta::new(config_counter_pda, false),
-                solana_sdk::instruction::AccountMeta::new_readonly(
-                    solana_sdk::system_program::id(),
-                    false,
-                ),
-            ],
-            data: instruction_data.data(), // create_config_counter discriminator
-        };
-        let governance_authority = rpc
-            .test_accounts
-            .protocol
-            .governance_authority
-            .insecure_clone();
-        rpc.create_and_send_transaction(
-            &[create_counter_ix],
-            &payer.pubkey(),
-            &[&payer, &governance_authority],
-        )
-        .await?;
-    }
-
-    // Now create the config with version 1
-    let version: u64 = 1;
-    let (compressible_config_pda, _config_bump) = Pubkey::find_program_address(
-        &[b"compressible_config", &version.to_le_bytes()],
-        &registry_program_id,
-    );
-
-    let instruction_data = light_registry::instruction::CreateCompressibleConfig {
-        rent_config: RentConfig::default(),
-        update_authority: payer.pubkey(),
-        withdrawal_authority: payer.pubkey(),
-        active: true,
-    }; // Create config instruction
-
-    let accounts = light_registry::accounts::CreateCompressibleConfig {
-        fee_payer: payer.pubkey(),
-        authority: governance_authority.pubkey(),
-        system_program: Pubkey::default(),
-        compressible_config: compressible_config_pda,
-        protocol_config_pda,
-        config_counter: config_counter_pda,
-    };
-    let create_config_ix = solana_sdk::instruction::Instruction {
-        program_id: registry_program_id,
-        accounts: accounts.to_account_metas(Some(true)),
-        data: instruction_data.data(), // create_compressible_config discriminator
-    };
-
-    rpc.create_and_send_transaction(
-        &[create_config_ix],
-        &payer.pubkey(),
-        &[&payer, &governance_authority],
-    )
-    .await?;
-    let compressible_config_account = rpc
-        .get_account(compressible_config_pda)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // Based on create_compressible_config logic, version is the counter value before increment
-    let version: u64 = 1; // Counter was 1 before this config was created
-
-    let (rent_recipient, rent_recipient_bump) = Pubkey::find_program_address(
-        &[
-            b"rent_recipient".as_slice(),
-            (version as u16).to_le_bytes().as_slice(),
-            &[0],
-        ],
-        &pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
-    );
-
-    let (rent_authority, rent_authority_bump) = Pubkey::find_program_address(
-        &[
-            b"rent_authority".as_slice(),
-            (version as u16).to_le_bytes().as_slice(),
-            &[0],
-        ],
-        &registry_program_id,
-    );
-
-    let mut address_space = [Pubkey::default(); 4];
-    address_space[0] = pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK");
-
-    // Fund the rent_recipient PDA so it can act as a fee payer in CPIs
-    // This PDA needs funds to pay for account creation
-    rpc.airdrop_lamports(&rent_recipient, 1_000_000_000)
-        .await
-        .map_err(|e| RpcError::AssertRpcError(format!("Failed to fund rent_recipient: {:?}", e)))?;
-
-    // Get the bump for the config PDA
-    let (_, config_bump) = Pubkey::find_program_address(
-        &[b"compressible_config", &version.to_le_bytes()],
-        &registry_program_id,
-    );
-
-    let expected_config_account = CompressibleConfig {
-        version: version as u16,
-        active: 1, // true as u8
-        bump: config_bump,
-        update_authority: payer.pubkey(),
-        withdrawal_authority: payer.pubkey(),
-        rent_recipient: rent_recipient,
-        rent_authority: rent_authority,
-        rent_recipient_bump,
-        rent_authority_bump,
-        rent_config: RentConfig::default(),
-        address_space,
-        _place_holder: [0u8; 32],
-    };
-
-    // Check the discriminator is correct
-    assert_eq!(
-        compressible_config_account.data[0..8],
-        [1, 2, 3, 4, 5, 6, 7, 8]
-    );
-
-    // Deserialize and verify the account
-    let deserialized_account =
-        CompressibleConfig::deserialize(&mut &compressible_config_account.data[8..]).unwrap();
-    assert_eq!(expected_config_account, deserialized_account);
-
-    // Return config PDA, rent_recipient, and rent_authority
-    Ok((compressible_config_pda, rent_recipient, rent_authority))
-}
-
 /// Set up test environment with common accounts and context
 async fn setup_account_test() -> Result<AccountTestContext, RpcError> {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
@@ -211,19 +54,22 @@ async fn setup_account_test() -> Result<AccountTestContext, RpcError> {
     let owner_keypair = Keypair::new();
     let token_account_keypair = Keypair::new();
 
-    // Create the CompressibleConfig that will be used by all tests
-    let (compressible_config, rent_recipient, rent_authority) =
-        create_compressible_config(&mut rpc).await?;
+    // // Create the CompressibleConfig that will be used by all tests
+    // let (compressible_config, rent_recipient, rent_authority) =
+    //     create_compressible_config(&mut rpc).await?;
 
     Ok(AccountTestContext {
+        compressible_config: rpc
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
+        rent_recipient: rpc.test_accounts.funding_pool_config.rent_recipient_pda,
+        rent_authority: rpc.test_accounts.funding_pool_config.rent_authority_pda,
         rpc,
         payer,
         mint_pubkey,
         owner_keypair,
         token_account_keypair,
-        compressible_config,
-        rent_recipient,
-        rent_authority,
     })
 }
 
@@ -444,7 +290,7 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
     // This tests whether compression works with an empty compressible account
     {
         // Assert expects slot to change since creation.
-        context.rpc.warp_to_slot(1).unwrap();
+        context.rpc.warp_to_slot(4).unwrap();
 
         let output_queue = context
             .rpc
@@ -670,54 +516,52 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
     // Account was created with 0 epochs of rent prepaid, so it's instantly compressible
     // But we still need to advance time to trigger the rent authority logic
     context.rpc.warp_to_slot(SLOTS_PER_EPOCH + 1).unwrap();
-    context.rpc.warp_to_slot((SLOTS_PER_EPOCH * 2) + 1).unwrap();
     let forster_keypair = context.rpc.test_accounts.protocol.forester.insecure_clone();
     // This doesnt work anymore we need to invoke the registry program now
     // // Compress and close using rent authority (with 0 balance)
     let result = compress_and_close_forester(
         &mut context.rpc,
-        token_account_pubkey,
+        &[token_account_pubkey],
+        &forster_keypair,
+        &context.payer,
+    )
+    .await;
+
+    assert!(
+        result
+            .as_ref()
+            .unwrap_err()
+            .to_string()
+            .contains("invalid account data for instruction"),
+        "{}",
+        result.unwrap_err().to_string()
+    );
+    // Advance to epoch 1 to make the account compressible
+    // Account was created with 0 epochs of rent prepaid, so it's instantly compressible
+    // But we still need to advance time to trigger the rent authority logic
+    context.rpc.warp_to_slot((SLOTS_PER_EPOCH * 2) + 1).unwrap();
+
+    compress_and_close_forester(
+        &mut context.rpc,
+        &[token_account_pubkey],
         &forster_keypair,
         &context.payer,
     )
     .await
     .unwrap();
-
-    // assert!(
-    //     result
-    //         .as_ref()
-    //         .unwrap_err()
-    //         .to_string()
-    //         .contains("invalid account data for instruction"),
-    //     "{}",
-    //     result.unwrap_err().to_string()
-    // );
-    // // Advance to epoch 1 to make the account compressible
-    // // Account was created with 0 epochs of rent prepaid, so it's instantly compressible
-    // // But we still need to advance time to trigger the rent authority logic
-    // context.rpc.warp_to_slot((SLOTS_PER_EPOCH * 2) + 1).unwrap();
-
-    // compress_and_close(
-    //     &mut context.rpc,
-    //     token_account_pubkey,
-    //     &rent_authority_keypair,
-    //     &context.payer,
-    // )
-    // .await
-    // .unwrap();
-    // // Use the new assert_transfer2_compress_and_close for comprehensive validation
-    // use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
-    // use light_token_client::instructions::transfer2::CompressAndCloseInput;
-
-    // assert_transfer2_compress_and_close(
-    //     &mut context.rpc,
-    //     CompressAndCloseInput {
-    //         solana_ctoken_account: token_account_pubkey,
-    //         authority: rent_authority_keypair.pubkey(),
-    //         output_queue,
-    //     },
-    // )
-    // .await;
+    // Use the new assert_transfer2_compress_and_close for comprehensive validation
+    use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
+    use light_token_client::instructions::transfer2::CompressAndCloseInput;
+    let output_queue = context.rpc.get_random_state_tree_info().unwrap().queue;
+    assert_transfer2_compress_and_close(
+        &mut context.rpc,
+        CompressAndCloseInput {
+            solana_ctoken_account: token_account_pubkey,
+            authority: context.rent_authority,
+            output_queue,
+        },
+    )
+    .await;
 
     Ok(())
 }

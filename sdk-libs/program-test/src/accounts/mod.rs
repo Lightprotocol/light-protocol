@@ -8,6 +8,8 @@ pub mod registered_program_accounts;
 pub mod state_tree_v2;
 
 pub mod address_tree;
+#[cfg(feature = "v2")]
+pub mod compressible_config;
 pub mod state_tree;
 pub mod test_accounts;
 pub mod test_keypairs;

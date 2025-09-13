@@ -64,7 +64,6 @@ pub fn from_target_folder() -> TestKeypairs {
         nullifier_queue_2: Keypair::new(),
         cpi_context_2: Keypair::new(),
         group_pda_seed: Keypair::new(),
-        rent_authority: Keypair::from_bytes(&RENT_AUTHORITY_TEST_KEYPAIR).unwrap(),
     }
 }
 
@@ -145,6 +144,5 @@ pub fn for_regenerate_accounts() -> TestKeypairs {
         nullifier_queue_2,
         cpi_context_2,
         group_pda_seed: Keypair::new(),
-        rent_authority: Keypair::from_bytes(&RENT_AUTHORITY_TEST_KEYPAIR).unwrap(),
     }
 }
