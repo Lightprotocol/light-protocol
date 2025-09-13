@@ -340,8 +340,6 @@ impl<R: Rpc> EpochManager<R> {
                         "Next epoch {} registration phase already started, sending for processing",
                         next_epoch
                     );
-                    // Spawn registration task immediately without blocking
-                    self.spawn_registration_task(next_epoch);
                     tx.send(next_epoch).await?;
                     last_epoch = Some(next_epoch);
                     continue; // Check for further epochs immediately
@@ -370,8 +368,7 @@ impl<R: Rpc> EpochManager<R> {
                     "Next epoch {} registration phase started, sending for processing",
                     next_epoch
                 );
-                // Spawn registration task immediately without blocking
-                self.spawn_registration_task(next_epoch);
+                // Only send to the main processing channel, don't spawn a separate task
                 if let Err(e) = tx.send(next_epoch).await {
                     error!(
                         "Failed to send next epoch {} for processing: {:?}",
@@ -392,67 +389,6 @@ impl<R: Rpc> EpochManager<R> {
         counts
             .get(&epoch)
             .map_or(0, |count| count.load(Ordering::Relaxed))
-    }
-
-    fn spawn_registration_task(&self, epoch: u64) {
-        let self_clone = self.clone();
-        tokio::spawn(async move {
-            info!("Spawning independent registration task for epoch {}", epoch);
-            match self_clone.handle_epoch_registration(epoch).await {
-                Ok(_) => info!("Successfully handled registration for epoch {}", epoch),
-                Err(e) => error!("Failed to handle registration for epoch {}: {:?}", epoch, e),
-            }
-        });
-    }
-
-    async fn handle_epoch_registration(&self, epoch: u64) -> Result<()> {
-        // Check if already cached
-        if self.registration_cache.contains_key(&epoch) {
-            debug!("Registration already cached for epoch {}", epoch);
-            return Ok(());
-        }
-
-        // Try to recover existing registration first
-        let forester_epoch_pda_pubkey =
-            get_forester_epoch_pda_from_authority(&self.config.derivation_pubkey, epoch).0;
-        let rpc = self.rpc_pool.get_connection().await?;
-        
-        if let Ok(Some(existing_pda)) = rpc
-            .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
-            .await
-        {
-            // Already registered, cache the info
-            match self
-                .recover_registration_info_internal(epoch, forester_epoch_pda_pubkey, existing_pda)
-                .await
-            {
-                Ok(info) => {
-                    self.registration_cache.insert(epoch, info);
-                    info!("Recovered and cached existing registration for epoch {}", epoch);
-                    return Ok(());
-                }
-                Err(e) => {
-                    warn!("Failed to recover registration info for epoch {}: {:?}", epoch, e);
-                }
-            }
-        }
-
-        // Attempt new registration with limited retries
-        info!("Attempting to register for epoch {}", epoch);
-        match self
-            .register_for_epoch_with_retry(epoch, 10, Duration::from_millis(500))
-            .await
-        {
-            Ok(info) => {
-                self.registration_cache.insert(epoch, info);
-                info!("Successfully registered and cached for epoch {}", epoch);
-                Ok(())
-            }
-            Err(e) => {
-                error!("Failed to register for epoch {}: {:?}", epoch, e);
-                Err(e)
-            }
-        }
     }
 
     async fn increment_processed_items_count(&self, epoch: u64, increment_by: usize) {
@@ -565,7 +501,7 @@ impl<R: Rpc> EpochManager<R> {
                     // Cache the recovered info
                     self.registration_cache.insert(epoch, info.clone());
                     info
-                },
+                }
                 Err(e) => {
                     warn!("Failed to recover registration info: {:?}", e);
                     // Check if we're still in registration window
@@ -580,40 +516,41 @@ impl<R: Rpc> EpochManager<R> {
                     // If recovery fails and we're still in registration window, wait for parallel registration to complete
                     // or attempt registration if it hasn't been started
                     tokio::time::sleep(Duration::from_millis(500)).await;
-                    
+
                     // Check cache again after waiting
                     if let Some(cached_info) = self.registration_cache.get(&epoch) {
-                        debug!("Found cached registration info after waiting for epoch {}", epoch);
+                        debug!(
+                            "Found cached registration info after waiting for epoch {}",
+                            epoch
+                        );
                         cached_info.clone()
                     } else {
                         // Last resort: try to register
                         match self
-                            .register_for_epoch_with_retry(epoch, 10, Duration::from_millis(500))
+                            .register_for_epoch(epoch, Some((10, Duration::from_millis(500))))
                             .await
                         {
                             Ok(info) => {
                                 self.registration_cache.insert(epoch, info.clone());
                                 info
-                            },
+                            }
                             Err(e) => {
                                 // Check if this is a RegistrationPhaseEnded error by downcasting
-                                if let Some(forester_error) = e.downcast_ref::<ForesterError>() {
-                                    if let ForesterError::Registration(
-                                        RegistrationError::RegistrationPhaseEnded {
-                                            epoch: failed_epoch,
-                                            current_slot,
-                                            registration_end,
-                                        },
-                                    ) = forester_error
-                                    {
-                                        info!(
-                                            "Registration period ended for epoch {} (current slot: {}, registration ended at: {}). Will retry when next epoch registration opens.",
-                                            failed_epoch, current_slot, registration_end
-                                        );
-                                        return Ok(());
-                                    }
+                                if let Some(ForesterError::Registration(
+                                    RegistrationError::RegistrationPhaseEnded {
+                                        epoch: failed_epoch,
+                                        current_slot,
+                                        registration_end,
+                                    },
+                                )) = e.downcast_ref::<ForesterError>()
+                                {
+                                    info!(
+                                        "Registration period ended for epoch {} (current slot: {}, registration ended at: {}). Will retry when next epoch registration opens.",
+                                        failed_epoch, current_slot, registration_end
+                                    );
+                                    return Ok(());
                                 }
-                                return Err(e.into());
+                                return Err(e);
                             }
                         }
                     }
@@ -658,78 +595,81 @@ impl<R: Rpc> EpochManager<R> {
 
     #[instrument(level = "debug", skip(self), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch
     ))]
-    async fn register_for_epoch_with_retry(
+    async fn register_for_epoch(
         &self,
         epoch: u64,
-        max_retries: u32,
-        retry_delay: Duration,
+        retry_config: Option<(u32, Duration)>,
     ) -> Result<ForesterEpochInfo> {
-        let rpc = LightClient::new(LightClientConfig {
-            url: self.config.external_services.rpc_url.to_string(),
-            photon_url: self.config.external_services.indexer_url.clone(),
-            api_key: self.config.external_services.photon_api_key.clone(),
-            commitment_config: None,
-            fetch_active_tree: false,
-        })
-        .await?;
-        let slot = rpc.get_slot().await?;
-        let phases = get_epoch_phases(&self.protocol_config, epoch);
+        // If retry config is provided, implement retry logic
+        if let Some((max_retries, retry_delay)) = retry_config {
+            let rpc = LightClient::new(LightClientConfig {
+                url: self.config.external_services.rpc_url.to_string(),
+                photon_url: self.config.external_services.indexer_url.clone(),
+                api_key: self.config.external_services.photon_api_key.clone(),
+                commitment_config: None,
+                fetch_active_tree: false,
+            })
+            .await?;
+            let slot = rpc.get_slot().await?;
+            let phases = get_epoch_phases(&self.protocol_config, epoch);
 
-        // Check if it's already too late to register
-        if slot >= phases.registration.end {
-            return Err(RegistrationError::RegistrationPhaseEnded {
-                epoch,
-                current_slot: slot,
-                registration_end: phases.registration.end,
+            // Check if it's already too late to register
+            if slot >= phases.registration.end {
+                return Err(RegistrationError::RegistrationPhaseEnded {
+                    epoch,
+                    current_slot: slot,
+                    registration_end: phases.registration.end,
+                }
+                .into());
             }
-            .into());
-        }
 
-        for attempt in 0..max_retries {
-            match self.register_for_epoch(epoch).await {
-                Ok(registration_info) => return Ok(registration_info),
-                Err(e) => {
-                    warn!(
-                        "Failed to register for epoch {} (attempt {}): {:?}",
-                        epoch,
-                        attempt + 1,
-                        e
-                    );
-                    if attempt < max_retries - 1 {
-                        sleep(retry_delay).await;
-                    } else {
-                        if let Some(pagerduty_key) =
-                            self.config.external_services.pagerduty_routing_key.clone()
-                        {
-                            if let Err(alert_err) = send_pagerduty_alert(
-                                &pagerduty_key,
-                                &format!(
-                                    "Forester failed to register for epoch {} after {} attempts",
-                                    epoch, max_retries
-                                ),
-                                "critical",
-                                &format!("Forester {}", self.config.payer_keypair.pubkey()),
-                            )
-                            .await
+            for attempt in 0..max_retries {
+                match self.register_for_epoch_internal(epoch).await {
+                    Ok(registration_info) => return Ok(registration_info),
+                    Err(e) => {
+                        warn!(
+                            "Failed to register for epoch {} (attempt {}): {:?}",
+                            epoch,
+                            attempt + 1,
+                            e
+                        );
+                        if attempt < max_retries - 1 {
+                            sleep(retry_delay).await;
+                        } else {
+                            if let Some(pagerduty_key) =
+                                self.config.external_services.pagerduty_routing_key.clone()
                             {
-                                error!("Failed to send PagerDuty alert: {:?}", alert_err);
+                                if let Err(alert_err) = send_pagerduty_alert(
+                                    &pagerduty_key,
+                                    &format!(
+                                        "Forester failed to register for epoch {} after {} attempts",
+                                        epoch, max_retries
+                                    ),
+                                    "critical",
+                                    &format!("Forester {}", self.config.payer_keypair.pubkey()),
+                                )
+                                .await
+                                {
+                                    error!("Failed to send PagerDuty alert: {:?}", alert_err);
+                                }
                             }
+                            return Err(e);
                         }
-                        return Err(e);
                     }
                 }
             }
+            Err(RegistrationError::MaxRetriesExceeded {
+                epoch,
+                attempts: max_retries,
+            }
+            .into())
+        } else {
+            // No retry config, just call the internal function once
+            self.register_for_epoch_internal(epoch).await
         }
-        Err(RegistrationError::MaxRetriesExceeded {
-            epoch,
-            attempts: max_retries,
-        }
-        .into())
     }
 
-    #[instrument(level = "debug", skip(self), fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch
-    ))]
-    async fn register_for_epoch(&self, epoch: u64) -> Result<ForesterEpochInfo> {
+    async fn register_for_epoch_internal(&self, epoch: u64) -> Result<ForesterEpochInfo> {
         info!("Registering for epoch: {}", epoch);
         let mut rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
@@ -913,20 +853,47 @@ impl<R: Rpc> EpochManager<R> {
             .await?;
 
         if let Some(registration) = existing_registration {
-            if registration.total_epoch_weight.is_none() {
-                // TODO: we can put this ix into every tx of the first batch of the current active phase
+            // Only finalize if:
+            // 1. We are actually registered (registration exists and has our authority)
+            // 2. The total_epoch_weight hasn't been set yet (not finalized)
+            if registration.total_epoch_weight.is_none()
+                && registration.authority == self.config.derivation_pubkey
+            {
+                debug!(
+                    "Finalizing registration for epoch {}",
+                    epoch_info.epoch.epoch
+                );
                 let ix = create_finalize_registration_instruction(
                     &self.config.payer_keypair.pubkey(),
                     &self.config.derivation_pubkey,
                     epoch_info.epoch.epoch,
                 );
-                rpc.create_and_send_transaction(
-                    &[ix],
-                    &self.config.payer_keypair.pubkey(),
-                    &[&self.config.payer_keypair],
-                )
-                .await?;
+                match rpc
+                    .create_and_send_transaction(
+                        &[ix],
+                        &self.config.payer_keypair.pubkey(),
+                        &[&self.config.payer_keypair],
+                    )
+                    .await
+                {
+                    Ok(_) => {
+                        info!(
+                            "Successfully finalized registration for epoch {}",
+                            epoch_info.epoch.epoch
+                        );
+                    }
+                    Err(e) => {
+                        warn!("Failed to finalize registration for epoch {}: {:?}. This may be normal if not registered or already finalized.", epoch_info.epoch.epoch, e);
+                    }
+                }
+            } else if registration.total_epoch_weight.is_none() {
+                debug!("Skipping finalization - ForesterEpochPda exists but not for our authority");
             }
+        } else {
+            debug!(
+                "No ForesterEpochPda found for epoch {} - not registered",
+                epoch_info.epoch.epoch
+            );
         }
 
         let mut epoch_info = (*epoch_info).clone();
@@ -1344,38 +1311,35 @@ impl<R: Rpc> EpochManager<R> {
 
     async fn process_v2(&self, epoch_info: &Epoch, tree_accounts: &TreeAccounts) -> Result<usize> {
         let default_prover_url = "http://127.0.0.1:3001".to_string();
-        let batch_context = BatchContext {
-            rpc_pool: self.rpc_pool.clone(),
-            authority: self.config.payer_keypair.insecure_clone(),
-            derivation: self.config.derivation_pubkey,
-            epoch: epoch_info.epoch,
-            merkle_tree: tree_accounts.merkle_tree,
-            output_queue: tree_accounts.queue,
-            prover_append_url: self
-                .config
+        let batch_context = BatchContext::from_params(
+            self.rpc_pool.clone(),
+            self.config.payer_keypair.insecure_clone(),
+            self.config.derivation_pubkey,
+            epoch_info.epoch,
+            tree_accounts.merkle_tree,
+            tree_accounts.queue,
+            self.config
                 .external_services
                 .prover_append_url
                 .clone()
                 .unwrap_or_else(|| default_prover_url.clone()),
-            prover_update_url: self
-                .config
+            self.config
                 .external_services
                 .prover_update_url
                 .clone()
                 .unwrap_or_else(|| default_prover_url.clone()),
-            prover_address_append_url: self
-                .config
+            self.config
                 .external_services
                 .prover_address_append_url
                 .clone()
                 .unwrap_or_else(|| default_prover_url.clone()),
-            prover_api_key: self.config.external_services.prover_api_key.clone(),
-            prover_polling_interval: Duration::from_secs(1),
-            prover_max_wait_time: Duration::from_secs(600),
-            ops_cache: self.ops_cache.clone(),
-            epoch_phases: epoch_info.phases.clone(),
-            slot_tracker: self.slot_tracker.clone(),
-        };
+            self.config.external_services.prover_api_key.clone(),
+            Duration::from_secs(1),
+            Duration::from_secs(600),
+            self.ops_cache.clone(),
+            epoch_info.phases.clone(),
+            self.slot_tracker.clone(),
+        );
 
         process_batched_operations(batch_context, tree_accounts.tree_type)
             .await

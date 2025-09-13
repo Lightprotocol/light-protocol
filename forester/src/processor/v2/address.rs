@@ -11,7 +11,7 @@ use solana_program::instruction::Instruction;
 use solana_sdk::signer::Signer;
 use tracing::instrument;
 
-use super::common::{process_stream, BatchContext, ParsedMerkleTreeData};
+use super::{common::ParsedMerkleTreeData, context::BatchContext, utils::process_stream};
 use crate::Result;
 
 async fn create_stream_future<R>(
@@ -27,10 +27,10 @@ where
     let config = AddressUpdateConfig {
         rpc_pool: ctx.rpc_pool.clone(),
         merkle_tree_pubkey: ctx.merkle_tree,
-        prover_url: ctx.prover_address_append_url.clone(),
-        prover_api_key: ctx.prover_api_key.clone(),
-        polling_interval: ctx.prover_polling_interval,
-        max_wait_time: ctx.prover_max_wait_time,
+        prover_url: ctx.config.prover_address_append_url.clone(),
+        prover_api_key: ctx.config.prover_api_key.clone(),
+        polling_interval: ctx.config.prover_polling_interval,
+        max_wait_time: ctx.config.prover_max_wait_time,
     };
     let (stream, size) = get_address_update_instruction_stream(config, merkle_tree_data)
         .await
