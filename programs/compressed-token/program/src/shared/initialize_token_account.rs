@@ -1,6 +1,9 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
-use light_compressible::rent::{COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT, RENT_PER_BYTE};
+use light_compressible::{
+    config::CompressibleConfig,
+    rent::{COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT, RENT_PER_BYTE},
+};
 use light_ctoken_types::{
     instructions::extensions::compressible::ZCompressibleExtensionInstructionData,
     state::{
@@ -21,6 +24,7 @@ pub fn initialize_token_account(
     mint_pubkey: &[u8; 32],
     owner_pubkey: &[u8; 32],
     compressible_config: Option<ZCompressibleExtensionInstructionData>,
+    compressible_config_account: Option<CompressibleConfig>,
 ) -> Result<(), ProgramError> {
     let current_lamports: u64 = *token_account_info
         .try_borrow_lamports()
@@ -33,15 +37,7 @@ pub fn initialize_token_account(
     let mut token_account_data = AccountInfoTrait::try_borrow_mut_data(token_account_info)?;
 
     // Create configuration for the compressed token
-    let extensions = if let Some(compressible_config) = compressible_config.as_ref() {
-        if compressible_config.has_rent_authority != 1 {
-            msg!("Ctoken account with compressible extension must have rent authority and rent recipient");
-            return Err(ProgramError::InvalidInstructionData);
-        }
-        if compressible_config.has_rent_authority != compressible_config.has_rent_recipient {
-            msg!("Ctoken account with compressible extension must have rent authority and rent recipient");
-            return Err(ProgramError::InvalidInstructionData);
-        }
+    let extensions = if compressible_config.is_some() {
         vec![ExtensionStructConfig::Compressible(
             CompressibleExtensionConfig { rent_config: () },
         )]
@@ -84,6 +80,8 @@ pub fn initialize_token_account(
             compressible_config.ok_or(ErrorCode::InvalidExtensionInstructionData)?;
         match deref_compressible_config.get_mut(0) {
             Some(ZExtensionStructMut::Compressible(compressible_extension)) => {
+                let compressible_config_account =
+                    compressible_config_account.ok_or(ErrorCode::InvalidCompressAuthority)?;
                 // Set version to 1 (initialized)
                 compressible_extension.version = 1;
 
@@ -102,9 +100,9 @@ pub fn initialize_token_account(
                 compressible_extension.rent_config.rent_per_byte = RENT_PER_BYTE;
                 // Set the rent_authority, rent_recipient and write_top_up_lamports
                 compressible_extension.rent_authority =
-                    compressible_config.rent_authority.to_bytes();
+                    compressible_config_account.rent_authority.to_bytes();
                 compressible_extension.rent_recipient =
-                    compressible_config.rent_recipient.to_bytes();
+                    compressible_config_account.rent_recipient.to_bytes();
                 compressible_extension.write_top_up_lamports = compressible_config.write_top_up;
             }
             _ => {

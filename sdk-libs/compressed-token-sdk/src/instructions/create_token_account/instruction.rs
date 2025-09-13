@@ -6,7 +6,6 @@ use crate::error::Result;
 /// Input parameters for creating a token account with compressible extension
 #[derive(Debug, Clone)]
 pub struct CreateCompressibleTokenAccount {
-    /// The account to be created
     pub payer: Pubkey,
     /// The account to be created
     pub account_pubkey: Pubkey,
@@ -14,16 +13,14 @@ pub struct CreateCompressibleTokenAccount {
     pub mint_pubkey: Pubkey,
     /// The owner of the token account
     pub owner_pubkey: Pubkey,
-    /// The authority that can close this account (in addition to owner)
-    pub rent_authority: Pubkey,
-    /// The recipient of lamports when the account is closed by rent authority
+    /// The CompressibleConfig account
+    pub compressible_config: Pubkey,
+    /// The rent recipient PDA (fee_payer_pda in processor)
     pub rent_recipient: Pubkey,
     /// Number of epochs of rent to prepay
     pub pre_pay_num_epochs: u64,
     /// Initial lamports to top up for rent payments (optional)
     pub write_top_up_lamports: Option<u32>,
-    /// Bump seed for the pool PDA
-    pub payer_pda_bump: u8,
 }
 
 pub fn create_compressible_token_account(
@@ -35,12 +32,8 @@ pub fn create_compressible_token_account(
     data.extend_from_slice(&inputs.owner_pubkey.to_bytes());
     data.push(1); // Some option byte for compressible_config
 
-    // CompressibleExtensionInstructionData fields:
+    // CompressibleExtensionInstructionData fields (simplified - no rent_authority/recipient)
     data.extend_from_slice(&inputs.pre_pay_num_epochs.to_le_bytes()); // rent_payment in epochs
-    data.push(1); // has_rent_authority = true
-    data.extend_from_slice(&inputs.rent_authority.to_bytes());
-    data.push(1); // has_rent_recipient = true
-    data.extend_from_slice(&inputs.rent_recipient.to_bytes());
 
     // Handle write_top_up_lamports
     match inputs.write_top_up_lamports {
@@ -53,22 +46,23 @@ pub fn create_compressible_token_account(
             data.extend_from_slice(&0u32.to_le_bytes()); // write_top_up = 0
         }
     }
-    data.push(inputs.payer_pda_bump); // payer_pda_bump
-    let mut accounts = vec![
+
+    // Account order based on processor:
+    // 1. token_account (signer)
+    // 2. mint
+    // 3. payer (signer)
+    // 4. compressible_config
+    // 5. system_program
+    // 6. fee_payer_pda (rent_recipient)
+    let accounts = vec![
         solana_instruction::AccountMeta::new(inputs.account_pubkey, true),
         solana_instruction::AccountMeta::new_readonly(inputs.mint_pubkey, false),
+        solana_instruction::AccountMeta::new(inputs.payer, true),
+        solana_instruction::AccountMeta::new_readonly(inputs.compressible_config, false),
+        solana_instruction::AccountMeta::new_readonly(Pubkey::default(), false),
+        solana_instruction::AccountMeta::new(inputs.rent_recipient, false), // fee_payer_pda
     ];
-    accounts.push(solana_instruction::AccountMeta::new(inputs.payer, true));
 
-    accounts.push(solana_instruction::AccountMeta::new_readonly(
-        Pubkey::default(),
-        false,
-    ));
-    // pda that funds account creation
-    accounts.push(solana_instruction::AccountMeta::new(
-        inputs.rent_recipient,
-        false,
-    ));
     Ok(Instruction {
         program_id: Pubkey::from(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
         accounts,

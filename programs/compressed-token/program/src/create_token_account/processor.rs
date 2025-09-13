@@ -1,9 +1,6 @@
-use anchor_lang::prelude::ProgramError;
-use light_account_checks::AccountIterator;
-use light_compressible::rent::{
-    get_rent_with_compression_cost, COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT,
-    RENT_PER_BYTE,
-};
+use anchor_lang::{prelude::ProgramError, pubkey};
+use light_account_checks::{checks::check_owner, AccountIterator};
+use light_compressible::{config::CompressibleConfig, rent::get_rent_with_compression_cost};
 use light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
 use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::account_info::AccountInfo;
@@ -37,67 +34,71 @@ pub fn process_create_token_account(
     let mint: &AccountInfo = iter.next_non_mut("mint")?;
 
     // Create account via cpi
-    if let Some(compressible_config) = inputs.compressible_config.as_ref() {
-        // Not os solana we assume that the accoun already exists and just transfer funds
-        let payer = iter.next_signer_mut("payer")?;
-        let account_size = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
-        let rent = get_rent_with_compression_cost(
-            MIN_RENT as u64,
-            RENT_PER_BYTE as u64,
-            account_size as u64,
-            compressible_config.rent_payment.get(),
-            (COMPRESSION_COST + COMPRESSION_INCENTIVE) as u64,
-        );
-        msg!(
-            "Calculating rent for {} bytes, {} epochs: {} lamports",
-            token_account.data_len(),
-            compressible_config.rent_payment.get(),
-            rent
-        );
-        #[cfg(target_os = "solana")]
-        {
-            use crate::shared::{create_pda_account, CreatePdaAccountConfig};
-            let system_program = iter.next_account("system program")?;
-            let fee_payer_pda = iter.next_account("fee payer pda")?;
-            // Check derivation
-            // payer pda pays for account creation
-            let seeds2 = [
-                b"pool".as_slice(),
-                compressible_config.rent_authority.as_ref(),
-            ];
-            let derived_pool_pda = pinocchio_pubkey::derive_address(
-                &seeds2,
-                Some(compressible_config.payer_pda_bump),
-                crate::ID.as_array(),
+    let compressible_config_account =
+        if let Some(compressible_config) = inputs.compressible_config.as_ref() {
+            // Not os solana we assume that the accoun already exists and just transfer funds
+            let payer = iter.next_signer_mut("payer")?;
+            let config_account = iter.next_non_mut("compressible config")?;
+            check_owner(
+                &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").to_bytes(),
+                config_account,
+            )?;
+            let data = config_account.try_borrow_data().unwrap();
+
+            // Skip Anchor's 8-byte discriminator and deserialize the actual CompressibleConfig
+            use borsh::BorshDeserialize;
+            // Anchor accounts have an 8-byte discriminator at the beginning
+            let account = CompressibleConfig::deserialize(&mut &data[8..]).map_err(|e| {
+                msg!("Failed to deserialize CompressibleConfig: {:?}", e);
+                ProgramError::InvalidAccountData
+            })?;
+
+            let account_size = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
+            let rent = get_rent_with_compression_cost(
+                account.rent_config.min_rent as u64,
+                account.rent_config.rent_per_byte as u64,
+                account_size as u64,
+                compressible_config.rent_payment.get(),
+                account.rent_config.full_compression_incentive as u64,
             );
-            let config = if compressible_config.has_rent_recipient != 0
-                && compressible_config.rent_recipient == derived_pool_pda
+            msg!(
+                "Calculating rent for {} bytes, {} epochs: {} lamports",
+                token_account.data_len(),
+                compressible_config.rent_payment.get(),
+                rent
+            );
             {
-                CreatePdaAccountConfig {
-                    seeds: seeds2.as_slice(),
-                    bump: compressible_config.payer_pda_bump,
+                use crate::shared::{create_pda_account, CreatePdaAccountConfig};
+                let system_program = iter.next_account("system program")?;
+                let fee_payer_pda = iter.next_account("fee payer pda")?;
+
+                let version_bytes = account.version.to_le_bytes();
+                let seeds = &[b"rent_recipient".as_slice(), version_bytes.as_slice(), &[0]];
+                let config = CreatePdaAccountConfig {
+                    seeds: seeds,
+                    bump: account.rent_recipient_bump,
                     account_size,
                     owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
                     derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
-                }
-            } else {
-                return Err(ProgramError::InvalidInstructionData);
-            };
+                };
 
-            // PDA creates account with only rent-exempt balance
-            create_pda_account(
-                fee_payer_pda,
-                token_account,
-                system_program,
-                config,
-                None,
-                None, // No additional lamports from PDA
-            )?;
-        }
+                // PDA creates account with only rent-exempt balance
+                create_pda_account(
+                    fee_payer_pda,
+                    token_account,
+                    system_program,
+                    config,
+                    None,
+                    None, // No additional lamports from PDA
+                )?;
+            }
 
-        // Payer transfers the additional rent (compression incentive)
-        transfer_lamports_via_cpi(rent, payer, token_account)?;
-    }
+            // Payer transfers the additional rent (compression incentive)
+            transfer_lamports_via_cpi(rent, payer, token_account)?;
+            Some(account)
+        } else {
+            None
+        };
 
     // Initialize the token account (assumes account already exists and is owned by our program)
     initialize_token_account(
@@ -105,6 +106,7 @@ pub fn process_create_token_account(
         mint.key(),
         &inputs.owner.to_bytes(),
         inputs.compressible_config,
+        compressible_config_account,
     )?;
 
     Ok(())

@@ -36,6 +36,8 @@ pub struct WithdrawFundingPool<'info> {
     pub system_program: Program<'info, System>,
 }
 
+// TODO: need to revert the ctoken program removal and invoke it via cpi
+// the rent recipient must sign the cpi to fund token account creation
 pub fn process_withdraw_funding_pool(
     ctx: &Context<WithdrawFundingPool>,
     amount: u64,

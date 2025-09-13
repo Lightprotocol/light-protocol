@@ -7,6 +7,7 @@ use pinocchio::{
     instruction::{AccountMeta, Seed, Signer},
     pubkey::Pubkey,
 };
+use spl_pod::solana_msg::msg;
 
 /// Configuration for creating a PDA account
 #[derive(Debug)]
@@ -53,6 +54,7 @@ pub fn create_pda_account(
         seed_vec.push(Seed::from(seed));
     }
     seed_vec.push(Seed::from(bump_bytes.as_ref()));
+    msg!("seed_vec {:?}", seed_vec);
 
     let signer = Signer::from(seed_vec.as_slice());
     let create_account_ix = system_instruction::create_account(
@@ -92,7 +94,8 @@ pub fn create_pda_account(
         signers.push(signer);
         signers
     };
-
+    msg!("seed_vec {:?}", seed_vec);
+    msg!("signers {:?}", signers);
     match pinocchio::program::invoke_signed(
         &pinocchio_instruction,
         &[fee_payer, new_account, system_program],

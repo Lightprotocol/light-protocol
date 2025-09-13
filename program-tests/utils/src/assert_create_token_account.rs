@@ -57,11 +57,11 @@ pub async fn assert_create_token_account<R: Rpc>(
                 .expect("Failed to get rent exemption");
 
             let rent_with_compression = get_rent_with_compression_cost(
-                MIN_RENT as u64,
-                RENT_PER_BYTE as u64,
+                RentConfig::default().min_rent as u64,
+                RentConfig::default().rent_per_byte as u64,
                 COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
                 compressible_info.num_prepaid_epochs,
-                (COMPRESSION_COST + COMPRESSION_INCENTIVE) as u64,
+                RentConfig::default().full_compression_incentive as u64,
             );
             let expected_lamports = rent_exemption + rent_with_compression;
 

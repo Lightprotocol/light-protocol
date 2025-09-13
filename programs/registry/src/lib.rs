@@ -665,7 +665,8 @@ pub mod light_registry {
     }
 
     /// Creates the config counter PDA
-    pub fn create_config_counter(_ctx: Context<CreateConfigCounter>) -> Result<()> {
+    pub fn create_config_counter(ctx: Context<CreateConfigCounter>) -> Result<()> {
+        ctx.accounts.config_counter.counter += 1;
         Ok(())
     }
 
@@ -677,8 +678,6 @@ pub mod light_registry {
         withdrawal_authority: Pubkey,
         active: bool,
     ) -> Result<()> {
-        // Increment the counter
-        ctx.accounts.config_counter.counter += 1;
         let version: u16 = ctx
             .accounts
             .config_counter
@@ -691,7 +690,7 @@ pub mod light_registry {
                 version.to_le_bytes().as_slice(),
                 &[0],
             ],
-            &crate::ID_CONST,
+            &pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
         );
         let (rent_authority, rent_authority_bump) = Pubkey::find_program_address(
             &[
@@ -704,23 +703,21 @@ pub mod light_registry {
         let mut address_space = [Pubkey::default(); 4];
         address_space[0] = pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK");
 
-        let config = CompressibleConfig {
-            active: active as u8,
-            version,
-            rent_config,
-            update_authority,
-            withdrawal_authority,
-            rent_recipient,
-            rent_recipient_bump,
-            rent_authority,
-            rent_authority_bump,
-            bump: ctx.bumps.compressible_config,
-            address_space,
-            _place_holder: [0u8; 32],
-        };
-        // Set the config data
-        ctx.accounts.compressible_config.set_inner(config);
+        ctx.accounts.compressible_config.active = active as u8;
+        ctx.accounts.compressible_config.version = version;
+        ctx.accounts.compressible_config.rent_config = rent_config;
+        ctx.accounts.compressible_config.update_authority = update_authority;
+        ctx.accounts.compressible_config.withdrawal_authority = withdrawal_authority;
+        ctx.accounts.compressible_config.rent_recipient = rent_recipient;
+        ctx.accounts.compressible_config.rent_recipient_bump = rent_recipient_bump;
+        ctx.accounts.compressible_config.rent_authority = rent_authority;
+        ctx.accounts.compressible_config.rent_authority_bump = rent_authority_bump;
+        ctx.accounts.compressible_config.bump = ctx.bumps.compressible_config;
+        ctx.accounts.compressible_config.address_space = address_space;
+        ctx.accounts.compressible_config._place_holder = [0u8; 32];
 
+        // Increment the counter
+        ctx.accounts.config_counter.counter += 1;
         Ok(())
     }
 

@@ -23,9 +23,18 @@ pub struct CreateCompressibleConfig<'info> {
         seeds = [COMPRESSIBLE_CONFIG_SEED, &config_counter.counter.to_le_bytes()],
         bump,
         space = 8 + std::mem::size_of::<CompressibleConfig>(),
-        payer = fee_payer
+        payer = fee_payer,
     )]
     pub compressible_config: Account<'info, CompressibleConfig>,
 
     pub system_program: Program<'info, System>,
+}
+
+#[test]
+fn test() {
+    use anchor_lang::Discriminator;
+    println!(
+        "CompressibleConfig::DISCRIMINATOR {:?}",
+        CompressibleConfig::DISCRIMINATOR
+    );
 }

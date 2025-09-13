@@ -2,36 +2,41 @@ use light_client::rpc::{Rpc, RpcError};
 use light_compressed_token_sdk::instructions::{
     create_compressible_token_account as create_instruction, CreateCompressibleTokenAccount,
 };
-use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
+
+/// Input parameters for creating a compressible token account
+pub struct CreateCompressibleTokenAccountInputs<'a> {
+    pub owner: Pubkey,
+    pub mint: Pubkey,
+    pub num_prepaid_epochs: u64,
+    pub payer: &'a Keypair,
+    pub token_account_keypair: Option<&'a Keypair>,
+    pub write_top_up_lamports: Option<u32>,
+}
 
 /// Creates a compressible token account with a pool PDA as rent recipient
 ///
 /// # Arguments
 /// * `rpc` - The RPC client
-/// * `rent_authority` - The rent authority pubkey
-/// * `owner` - The owner of the token account
-/// * `mint` - The mint for the token account
-/// * `num_prepaid_epochs` - Number of epochs to prepay rent for
-/// * `payer` - The payer keypair for the transaction
-/// * `token_account_keypair` - Optional token account keypair. If None, a new one will be created
-/// * `write_top_up_lamports` - Optional additional lamports for write operations
+/// * `inputs` - The input parameters for creating the token account
 ///
 /// # Returns
 /// The pubkey of the created token account
-#[allow(clippy::too_many_arguments)]
 pub async fn create_compressible_token_account<R: Rpc>(
     rpc: &mut R,
-    rent_authority: Pubkey,
-    owner: Pubkey,
-    mint: Pubkey,
-    num_prepaid_epochs: u64,
-    payer: &Keypair,
-    token_account_keypair: Option<&Keypair>,
-    write_top_up_lamports: Option<u32>,
+    inputs: CreateCompressibleTokenAccountInputs<'_>,
 ) -> Result<Pubkey, RpcError> {
+    let CreateCompressibleTokenAccountInputs {
+        owner,
+        mint,
+        num_prepaid_epochs,
+        payer,
+        token_account_keypair,
+        write_top_up_lamports,
+    } = inputs;
+
     // Create or use provided token account keypair
     let token_account_keypair_owned = if token_account_keypair.is_none() {
         Some(Keypair::new())
@@ -46,23 +51,33 @@ pub async fn create_compressible_token_account<R: Rpc>(
     };
     let token_account_pubkey = token_account_keypair.pubkey();
 
-    // Derive pool PDA (both for rent recipient and payer)
-    let (pool_pda, pool_pda_bump) = Pubkey::find_program_address(
-        &[b"pool", rent_authority.as_ref()],
-        &Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
+    // Derive the CompressibleConfig PDA (version 1)
+    let registry_program_id = solana_pubkey::pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
+    let version: u16 = 1;
+    let (compressible_config, _config_bump) = Pubkey::find_program_address(
+        &[b"compressible_config", &version.to_le_bytes()],
+        &registry_program_id,
     );
-    let payer_pda_bump = pool_pda_bump; // Same PDA is used for both
+
+    // Derive the rent_recipient PDA
+    let (rent_recipient, _rent_recipient_bump) = Pubkey::find_program_address(
+        &[
+            b"rent_recipient".as_slice(),
+            version.to_le_bytes().as_slice(),
+            &[0],
+        ],
+        &solana_pubkey::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
+    );
 
     // Create the instruction
     let create_token_account_ix = create_instruction(CreateCompressibleTokenAccount {
         account_pubkey: token_account_pubkey,
         mint_pubkey: mint,
         owner_pubkey: owner,
-        rent_authority,
-        rent_recipient: pool_pda,
+        compressible_config,
+        rent_recipient,
         pre_pay_num_epochs: num_prepaid_epochs,
         write_top_up_lamports,
-        payer_pda_bump,
         payer: payer.pubkey(),
     })
     .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;

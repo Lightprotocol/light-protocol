@@ -1,13 +1,12 @@
+use crate::{rent::RentConfig, AnchorDeserialize, AnchorSerialize};
 use bytemuck::{Pod, Zeroable};
 use light_account_checks::discriminator::Discriminator;
+use solana_pubkey::pubkey;
 use solana_pubkey::Pubkey;
 
-use crate::{rent::RentConfig, AnchorDeserialize, AnchorSerialize};
-
 pub const COMPRESSIBLE_CONFIG_SEED: &[u8] = b"compressible_config";
-pub const MAX_ADDRESS_TREES_PER_SPACE: usize = 1;
 
-#[derive(Clone, AnchorDeserialize, AnchorSerialize, Copy, Pod, Zeroable)]
+#[derive(Clone, Debug, AnchorDeserialize, PartialEq, AnchorSerialize, Copy, Pod, Zeroable)]
 #[repr(C)]
 pub struct CompressibleConfig {
     /// Config version for future upgrades
@@ -30,30 +29,64 @@ pub struct CompressibleConfig {
 }
 
 #[cfg(feature = "anchor")]
+impl anchor_lang::Discriminator for CompressibleConfig {
+    const DISCRIMINATOR: &'static [u8] = &[1, 2, 3, 4, 5, 6, 7, 8];
+}
+
+#[cfg(feature = "anchor")]
 impl anchor_lang::AccountDeserialize for CompressibleConfig {
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
-        // Use the AnchorDeserialize implementation
-        Self::deserialize(buf)
+        // Skip the discriminator (first 8 bytes) and deserialize the rest
+        let mut data: &[u8] = &buf[8..];
+        Self::deserialize(&mut data)
             .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotDeserialize.into())
+    }
+    
+    fn try_deserialize(buf: &mut &[u8]) -> anchor_lang::Result<Self> {
+        use anchor_lang::Discriminator;
+        
+        // Check discriminator first
+        if buf.len() < 8 {
+            return Err(anchor_lang::error::ErrorCode::AccountDiscriminatorNotFound.into());
+        }
+        
+        let given_disc = &buf[..8];
+        if given_disc != Self::DISCRIMINATOR {
+            return Err(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into());
+        }
+        
+        Self::try_deserialize_unchecked(buf)
     }
 }
 
 #[cfg(feature = "anchor")]
 impl anchor_lang::AccountSerialize for CompressibleConfig {
     fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> anchor_lang::Result<()> {
-        // Use the AnchorSerialize implementation
-        self.serialize(writer)
-            .map_err(|_| anchor_lang::error::ErrorCode::AccountDidNotSerialize.into())
+        use anchor_lang::Discriminator;
+        
+        // Write discriminator first
+        if writer.write_all(Self::DISCRIMINATOR).is_err() {
+            return Err(anchor_lang::error::ErrorCode::AccountDidNotSerialize.into());
+        }
+        
+        // Then serialize the actual account data
+        if self.serialize(writer).is_err() {
+            return Err(anchor_lang::error::ErrorCode::AccountDidNotSerialize.into());
+        }
+        Ok(())
     }
 }
 
 #[cfg(feature = "anchor")]
 impl anchor_lang::Owner for CompressibleConfig {
     fn owner() -> anchor_lang::prelude::Pubkey {
-        // This should return the program ID that owns this account type
-        // For now, return a default - this should be set to your actual program ID
-        anchor_lang::prelude::Pubkey::default()
+        pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX")
     }
+}
+
+#[cfg(feature = "anchor")]
+impl anchor_lang::Space for CompressibleConfig {
+    const INIT_SPACE: usize = 8 + std::mem::size_of::<Self>(); // 8 bytes for discriminator + struct size
 }
 
 impl Discriminator for CompressibleConfig {
@@ -63,7 +96,6 @@ impl Discriminator for CompressibleConfig {
 
 impl CompressibleConfig {
     pub const LEN: usize = std::mem::size_of::<Self>();
-    pub const DISCRIMINATOR: [u8; 8] = [1u8; 8];
 
     /// Derives the config PDA address with config bump
     pub fn derive_pda(program_id: &Pubkey, config_bump: u8) -> (Pubkey, u8) {
