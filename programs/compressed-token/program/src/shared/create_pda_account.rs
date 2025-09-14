@@ -7,8 +7,6 @@ use pinocchio::{
     instruction::{AccountMeta, Seed, Signer},
     pubkey::Pubkey,
 };
-use spl_pod::solana_msg::msg;
-
 /// Configuration for creating a PDA account
 #[derive(Debug)]
 pub struct CreatePdaAccountConfig<'a> {
@@ -47,15 +45,6 @@ pub fn create_pda_account(
     let lamports =
         rent.minimum_balance(config.account_size) + additional_lamports.unwrap_or_default();
 
-    let bump_bytes = [config.bump];
-    let mut seed_vec: ArrayVec<Seed, 8> = ArrayVec::new();
-
-    for &seed in config.seeds {
-        seed_vec.push(Seed::from(seed));
-    }
-    seed_vec.push(Seed::from(bump_bytes.as_ref()));
-
-    let signer = Signer::from(seed_vec.as_slice());
     let create_account_ix = system_instruction::create_account(
         &solana_pubkey::Pubkey::new_from_array(*fee_payer.key()),
         &solana_pubkey::Pubkey::new_from_array(*new_account.key()),
@@ -73,6 +62,17 @@ pub fn create_pda_account(
         ],
         data: &create_account_ix.data,
     };
+
+    let bump_bytes = [config.bump];
+    let mut seed_vec: ArrayVec<Seed, 8> = ArrayVec::new();
+
+    for &seed in config.seeds {
+        seed_vec.push(Seed::from(seed));
+    }
+    seed_vec.push(Seed::from(bump_bytes.as_ref()));
+
+    let signer = Signer::from(seed_vec.as_slice());
+
     let bump_bytes;
     let mut seed_vec: ArrayVec<Seed, 8> = ArrayVec::new();
     let signers: ArrayVec<Signer, 2> = if let Some(config) = fee_payer_config {
@@ -93,8 +93,6 @@ pub fn create_pda_account(
         signers.push(signer);
         signers
     };
-    msg!("seed_vec {:?}", seed_vec);
-    msg!("signers {:?}", signers);
     match pinocchio::program::invoke_signed(
         &pinocchio_instruction,
         &[fee_payer, new_account, system_program],

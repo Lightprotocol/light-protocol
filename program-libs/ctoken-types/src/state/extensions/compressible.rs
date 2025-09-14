@@ -33,7 +33,7 @@ pub enum AccountError {
 )]
 #[repr(C)]
 pub struct CompressibleExtension {
-    pub version: u8, // version 0 is uninitialized, default is 1
+    pub version: u16, // version 0 is uninitialized, default is 1
     /// Compress to account pubkey instead of account owner.
     pub compress_to_pubkey: bool,
     pub rent_authority: [u8; 32],

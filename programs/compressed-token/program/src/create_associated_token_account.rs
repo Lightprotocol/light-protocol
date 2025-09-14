@@ -6,7 +6,7 @@ use light_ctoken_types::instructions::{
     create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
     extensions::compressible::CompressibleExtensionInstructionData,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 
 use crate::{
@@ -98,10 +98,10 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
         derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
     };
 
-    let compressible_config_account = if let Some(compressible_config_ix_data) =
+    let (compressible_config_account, custom_fee_payer) = if let Some(compressible_config_ix_data) =
         instruction_inputs.compressible_config.as_ref()
     {
-        let compressible_config_account = process_compressible_config(
+        let (compressible_config_account, custom_fee_payer) = process_compressible_config(
             compressible_config_ix_data,
             &mut iter,
             token_account_size,
@@ -110,7 +110,7 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
             system_program,
             config,
         )?;
-        Some(compressible_config_account)
+        (Some(compressible_config_account), custom_fee_payer)
     } else {
         // Create the PDA account (with rent-exempt balance only)
         // fee_payer_for_create will be the rent_recipient PDA for compressible accounts
@@ -122,7 +122,7 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
             None,
             None, // No additional lamports from PDA
         )?;
-        None
+        (None, None)
     };
 
     initialize_token_account(
@@ -131,6 +131,7 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
         &owner_bytes,
         instruction_inputs.compressible_config,
         compressible_config_account,
+        custom_fee_payer,
     )?;
 
     Ok(())
@@ -144,7 +145,7 @@ fn process_compressible_config(
     associated_token_account: &AccountInfo,
     system_program: &AccountInfo,
     config: CreatePdaAccountConfig,
-) -> Result<CompressibleConfig, ProgramError> {
+) -> Result<(CompressibleConfig, Option<Pubkey>), ProgramError> {
     if compressible_config_ix_data
         .compress_to_account_pubkey
         .is_some()
@@ -176,24 +177,29 @@ fn process_compressible_config(
     // The rent_recipient is a PDA derived as: [b"rent_recipient", version, 0]
     let version_bytes = compressible_config_account.version.to_le_bytes();
     let pda_seeds = &[b"rent_recipient".as_slice(), version_bytes.as_slice()];
-
-    // If compressible, set up the PDA config for the rent_recipient to pay for account creation
-    let config_2 = crate::shared::CreatePdaAccountConfig {
-        seeds: pda_seeds,
-        bump: compressible_config_account.rent_recipient_bump,
-        account_size: token_account_size,
-        owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
-        derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
+    let custom_fee_payer =
+        *fee_payer_for_create.key() != compressible_config_account.rent_recipient.to_bytes();
+    let (config_2, custom_fee_payer) = if custom_fee_payer {
+        (None, Some(*fee_payer_for_create.key()))
+    } else {
+        // If compressible, set up the PDA config for the rent_recipient to pay for account creation
+        let config_2 = crate::shared::CreatePdaAccountConfig {
+            seeds: pda_seeds,
+            bump: compressible_config_account.rent_recipient_bump,
+            account_size: token_account_size,
+            owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
+            derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
+        };
+        (Some(config_2), None)
     };
-
     // Create the PDA account (with rent-exempt balance only)
     // fee_payer_for_create will be the rent_recipient PDA for compressible accounts
     create_pda_account(
         fee_payer_for_create,
         associated_token_account,
         system_program,
+        config,
         config_2,
-        Some(config),
         None, // No additional lamports from PDA
     )?;
 
@@ -215,5 +221,6 @@ fn process_compressible_config(
 
     // Payer transfers the additional rent (compression incentive)
     transfer_lamports_via_cpi(rent, fee_payer, associated_token_account)?;
-    Ok(compressible_config_account)
+
+    Ok((compressible_config_account, custom_fee_payer))
 }

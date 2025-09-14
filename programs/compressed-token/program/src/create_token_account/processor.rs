@@ -6,10 +6,12 @@ use light_ctoken_types::{
     instructions::create_ctoken_account::CreateTokenAccountInstructionData,
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
-use pinocchio::account_info::AccountInfo;
+use pinocchio::{account_info::AccountInfo, instruction::AccountMeta};
 use spl_pod::solana_msg::msg;
 
-use crate::shared::initialize_token_account::initialize_token_account;
+use crate::shared::{
+    create_pda_account, initialize_token_account::initialize_token_account, CreatePdaAccountConfig,
+};
 
 /// Process the create token account instruction
 pub fn process_create_token_account(
@@ -36,7 +38,7 @@ pub fn process_create_token_account(
     let mint: &AccountInfo = iter.next_non_mut("mint")?;
 
     // Create account via cpi
-    let compressible_config_account = if let Some(compressible_config) =
+    let (compressible_config_account, custom_fee_payer) = if let Some(compressible_config) =
         inputs.compressible_config.as_ref()
     {
         if let Some(compress_to_pubkey) = compressible_config.compress_to_account_pubkey.as_ref() {
@@ -74,35 +76,71 @@ pub fn process_create_token_account(
             rent
         );
 
-        use crate::shared::{create_pda_account, CreatePdaAccountConfig};
         let system_program = iter.next_account("system program")?;
         let fee_payer_pda = iter.next_account("fee payer pda")?;
+        let custom_fee_payer = *fee_payer_pda.key() != account.rent_recipient.to_bytes();
+        let custom_fee_payer = if custom_fee_payer {
+            use anchor_lang::solana_program::{
+                program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
+            };
+            // custom fee payer for account creation -> pays rent exemption
+            // Calculate rent
+            let solana_rent = Rent::get()?;
+            let lamports = solana_rent.minimum_balance(account_size) + rent;
+            let create_account_ix = system_instruction::create_account(
+                &solana_pubkey::Pubkey::new_from_array(*fee_payer_pda.key()),
+                &solana_pubkey::Pubkey::new_from_array(*token_account.key()),
+                lamports,
+                account_size as u64,
+                &solana_pubkey::Pubkey::new_from_array(crate::LIGHT_CPI_SIGNER.program_id),
+            );
+            let pinocchio_instruction = pinocchio::instruction::Instruction {
+                program_id: &create_account_ix.program_id.to_bytes(),
+                accounts: &[
+                    AccountMeta::new(fee_payer_pda.key(), true, true),
+                    AccountMeta::new(token_account.key(), true, true),
+                    pinocchio::instruction::AccountMeta::readonly(system_program.key()),
+                ],
+                data: &create_account_ix.data,
+            };
 
-        let version_bytes = account.version.to_le_bytes();
-        let seeds = &[b"rent_recipient".as_slice(), version_bytes.as_slice()];
-        let config = CreatePdaAccountConfig {
-            seeds,
-            bump: account.rent_recipient_bump,
-            account_size,
-            owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
-            derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
+            match pinocchio::program::invoke(
+                &pinocchio_instruction,
+                &[fee_payer_pda, token_account, system_program],
+            ) {
+                Ok(()) => Ok(()),
+                Err(e) => Err(ProgramError::Custom(u64::from(e) as u32)),
+            }?;
+            Some(*fee_payer_pda.key())
+        } else {
+            // Rent recipient is fee payer for account creation -> pays rent exemption
+            let version_bytes = account.version.to_le_bytes();
+            let seeds = &[b"rent_recipient".as_slice(), version_bytes.as_slice()];
+            let config = CreatePdaAccountConfig {
+                seeds,
+                bump: account.rent_recipient_bump,
+                account_size,
+                owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
+                derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
+            };
+
+            // PDA creates account with only rent-exempt balance
+            create_pda_account(
+                fee_payer_pda,
+                token_account,
+                system_program,
+                config,
+                None,
+                None, // No additional lamports from PDA
+            )?;
+
+            // Payer transfers the additional rent (compression incentive)
+            transfer_lamports_via_cpi(rent, payer, token_account)?;
+            None
         };
-
-        // PDA creates account with only rent-exempt balance
-        create_pda_account(
-            fee_payer_pda,
-            token_account,
-            system_program,
-            config,
-            None,
-            None, // No additional lamports from PDA
-        )?;
-
-        // Payer transfers the additional rent (compression incentive)
-        transfer_lamports_via_cpi(rent, payer, token_account)?;
-        Some(account)
+        (Some(account), custom_fee_payer)
     } else {
-        None
+        (None, None)
     };
 
     // Initialize the token account (assumes account already exists and is owned by our program)
@@ -112,6 +150,7 @@ pub fn process_create_token_account(
         &inputs.owner.to_bytes(),
         inputs.compressible_config,
         compressible_config_account,
+        custom_fee_payer,
     )?;
 
     Ok(())

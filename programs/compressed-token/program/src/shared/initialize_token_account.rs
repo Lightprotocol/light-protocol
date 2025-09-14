@@ -1,9 +1,6 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
-use light_compressible::{
-    config::CompressibleConfig,
-    rent::{COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT, RENT_PER_BYTE},
-};
+use light_compressible::config::CompressibleConfig;
 use light_ctoken_types::{
     instructions::extensions::compressible::CompressibleExtensionInstructionData,
     state::{
@@ -14,7 +11,7 @@ use light_ctoken_types::{
 use light_zero_copy::ZeroCopyNew;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::{clock::Clock, Sysvar};
-use pinocchio::{account_info::AccountInfo, msg};
+use pinocchio::{account_info::AccountInfo, msg, pubkey::Pubkey};
 
 use crate::ErrorCode;
 
@@ -25,6 +22,8 @@ pub fn initialize_token_account(
     owner_pubkey: &[u8; 32],
     compressible_config: Option<CompressibleExtensionInstructionData>,
     compressible_config_account: Option<CompressibleConfig>,
+    // account is compressible but with custom fee payer -> rent recipient is fee payer
+    custom_fee_payer: Option<Pubkey>,
 ) -> Result<(), ProgramError> {
     let current_lamports: u64 = *token_account_info
         .try_borrow_lamports()
@@ -83,7 +82,7 @@ pub fn initialize_token_account(
                 let compressible_config_account =
                     compressible_config_account.ok_or(ErrorCode::InvalidCompressAuthority)?;
                 // Set version to 1 (initialized)
-                compressible_extension.version = 1;
+                compressible_extension.version = compressible_config_account.version.into();
 
                 #[cfg(target_os = "solana")]
                 let current_slot = Clock::get()
@@ -93,16 +92,30 @@ pub fn initialize_token_account(
                 let current_slot = 1;
                 compressible_extension.last_claimed_slot = current_slot.into();
                 // Initialize RentConfig with default values
-                compressible_extension.rent_config.min_rent = MIN_RENT.into();
+                compressible_extension.rent_config.min_rent =
+                    compressible_config_account.rent_config.min_rent.into();
                 compressible_extension
                     .rent_config
-                    .full_compression_incentive = (COMPRESSION_COST + COMPRESSION_INCENTIVE).into();
-                compressible_extension.rent_config.rent_per_byte = RENT_PER_BYTE;
+                    .full_compression_incentive = compressible_config_account
+                    .rent_config
+                    .full_compression_incentive
+                    .into();
+                compressible_extension.rent_config.rent_per_byte =
+                    compressible_config_account.rent_config.rent_per_byte;
                 // Set the rent_authority, rent_recipient and write_top_up_lamports
                 compressible_extension.rent_authority =
                     compressible_config_account.rent_authority.to_bytes();
-                compressible_extension.rent_recipient =
-                    compressible_config_account.rent_recipient.to_bytes();
+                if let Some(custom_fee_payer) = custom_fee_payer {
+                    // If the fee payer is a custom fee payer it becomes the rent recipient.
+                    // In this case the rent mechanism stay the same,
+                    // the account can be compressed and closed by a forester,
+                    // rent rewards cannot be claimed by the forester.
+                    compressible_extension.rent_recipient = custom_fee_payer;
+                } else {
+                    compressible_extension.rent_recipient =
+                        compressible_config_account.rent_recipient.to_bytes();
+                }
+
                 compressible_extension
                     .write_top_up_lamports
                     .set(compressible_config.write_top_up);
