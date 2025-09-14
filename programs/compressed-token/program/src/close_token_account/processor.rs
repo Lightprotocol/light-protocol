@@ -39,7 +39,7 @@ pub fn process_close_token_account(
 pub fn validate_token_account<const CHECK_RENT_AUTH: bool>(
     accounts: &CloseTokenAccountAccounts,
     compressed_token: &ZCompressedTokenMut<'_>,
-) -> Result<(), ProgramError> {
+) -> Result<(bool, bool), ProgramError> {
     if accounts.token_account.key() == accounts.destination.key() {
         return Err(ProgramError::InvalidAccountData);
     }
@@ -58,15 +58,11 @@ pub fn validate_token_account<const CHECK_RENT_AUTH: bool>(
 
     // Verify the authority matches the account owner or rent authority (if compressible)
     let owner_matches = compressed_token.owner.to_bytes() == *accounts.authority.key();
-
     if let Some(extensions) = compressed_token.extensions.as_ref() {
         // Look for compressible extension
         for extension in extensions {
             if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
-                // Check if rent_recipient is set (non-zero) and matches destination
-                if compressible_ext.rent_recipient != [0u8; 32]
-                    && compressible_ext.rent_recipient != *accounts.destination.key()
-                {
+                if compressible_ext.rent_recipient != *accounts.destination.key() {
                     msg!("rent recipient missmatch");
                     return Err(ProgramError::InvalidAccountData);
                 }
@@ -74,36 +70,33 @@ pub fn validate_token_account<const CHECK_RENT_AUTH: bool>(
                 if CHECK_RENT_AUTH {
                     #[allow(clippy::collapsible_if)]
                     if !owner_matches {
-                        // Check if rent_authority is set (non-zero)
-                        if compressible_ext.rent_authority != [0u8; 32] {
-                            if compressible_ext.rent_authority != *accounts.authority.key() {
-                                msg!("rent authority missmatch");
+                        if compressible_ext.rent_authority != *accounts.authority.key() {
+                            msg!("rent authority missmatch");
+                            return Err(ProgramError::InvalidAccountData);
+                        }
+                        #[cfg(target_os = "solana")]
+                        use pinocchio::sysvars::Sysvar;
+                        #[cfg(target_os = "solana")]
+                        let current_slot = pinocchio::sysvars::clock::Clock::get()
+                            .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?
+                            .slot;
+
+                        // For rent authority, check timing constraints
+                        #[cfg(target_os = "solana")]
+                        {
+                            let (is_compressible, _) = compressible_ext
+                                .is_compressible(
+                                    accounts.token_account.data_len() as u64,
+                                    current_slot,
+                                    accounts.token_account.lamports(),
+                                )
+                                .map_err(|_| ProgramError::InvalidAccountData)?;
+
+                            if !is_compressible {
+                                msg!("account not compressible");
                                 return Err(ProgramError::InvalidAccountData);
-                            }
-                            #[cfg(target_os = "solana")]
-                            use pinocchio::sysvars::Sysvar;
-                            #[cfg(target_os = "solana")]
-                            let current_slot = pinocchio::sysvars::clock::Clock::get()
-                                .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?
-                                .slot;
-
-                            // For rent authority, check timing constraints
-                            #[cfg(target_os = "solana")]
-                            {
-                                let (is_compressible, _) = compressible_ext
-                                    .is_compressible(
-                                        accounts.token_account.data_len() as u64,
-                                        current_slot,
-                                        accounts.token_account.lamports(),
-                                    )
-                                    .map_err(|_| ProgramError::InvalidAccountData)?;
-
-                                if !is_compressible {
-                                    msg!("account not compressible");
-                                    return Err(ProgramError::InvalidAccountData);
-                                } else {
-                                    return Ok(());
-                                }
+                            } else {
+                                return Ok((true, compressible_ext.compress_to_pubkey()));
                             }
                         }
                     }
@@ -116,8 +109,9 @@ pub fn validate_token_account<const CHECK_RENT_AUTH: bool>(
         // If we have no rent authority owner must match
         return Err(ErrorCode::OwnerMismatch.into());
     }
-    Ok(())
+    Ok((false, false))
 }
+
 pub fn close_token_account(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(), ProgramError> {
     close_token_account_inner(accounts)?;
     finalize_account_closure(accounts)
@@ -170,24 +164,11 @@ pub fn close_token_account_inner(
                             rent_per_byte,
                             full_compression_incentive,
                         );
-                    // If rent authority is signer transfer all unused lamports to rent recipient
-                    // else transfer unused lamports to fee payer
-                    // Check if rent_authority is non-zero (i.e., is set)
-                    if compressible_ext.rent_authority != [0u8; 32] {
-                        msg!(
-                            "accounts.authority.key() {:?}",
-                            solana_pubkey::Pubkey::new_from_array(*accounts.authority.key())
-                        );
-                        msg!(
-                            "rent_authority {:?}",
-                            solana_pubkey::Pubkey::new_from_array(compressible_ext.rent_authority)
-                        );
-                        if accounts.authority.key() == &compressible_ext.rent_authority {
-                            lamports_to_destination += lamports_to_authority;
-                            lamports_to_authority = 0;
-                        }
+
+                    if accounts.authority.key() == &compressible_ext.rent_authority {
+                        lamports_to_destination += lamports_to_authority;
+                        lamports_to_authority = 0;
                     }
-                    msg!("lamports_to_destination {}", lamports_to_destination);
 
                     // Transfer lamports to destination (rent recipient)
                     if lamports_to_destination > 0 {
@@ -197,7 +178,6 @@ pub fn close_token_account_inner(
                             accounts.destination,
                         )?;
                     }
-                    msg!("lamports_to_authority {}", lamports_to_authority);
 
                     // Transfer lamports to authority (fee payer) if any write_top_up
                     if lamports_to_authority > 0 {

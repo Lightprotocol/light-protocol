@@ -32,6 +32,7 @@ solana-msg = { workspace = true }
 light-profiler = { workspace = true }
 light-heap = { workspace = true, optional = true }
 light-compressible = {workspace = true }
+pinocchio-pubkey = {workspace = true}
 
 [dev-dependencies]
 rand = { workspace = true }

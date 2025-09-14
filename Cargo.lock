@@ -3586,6 +3586,7 @@ dependencies = [
  "light-zero-copy",
  "num-bigint 0.4.6",
  "pinocchio 0.8.4",
+ "pinocchio-pubkey 0.3.0",
  "rand 0.8.5",
  "solana-account-info",
  "solana-msg",
@@ -4044,6 +4045,7 @@ dependencies = [
 name = "light-zero-copy"
 version = "0.2.0"
 dependencies = [
+ "arrayvec",
  "borsh 0.10.4",
  "light-zero-copy-derive",
  "pinocchio 0.8.4",

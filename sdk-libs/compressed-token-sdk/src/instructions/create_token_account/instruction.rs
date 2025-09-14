@@ -1,7 +1,12 @@
+use borsh::BorshSerialize;
+use light_ctoken_types::instructions::{
+    create_ctoken_account::CreateTokenAccountInstructionData,
+    extensions::compressible::{CompressToPubkey, CompressibleExtensionInstructionData},
+};
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
-use crate::error::Result;
+use crate::error::{Result, TokenSdkError};
 
 /// Input parameters for creating a token account with compressible extension
 #[derive(Debug, Clone)]
@@ -21,31 +26,36 @@ pub struct CreateCompressibleTokenAccount {
     pub pre_pay_num_epochs: u64,
     /// Initial lamports to top up for rent payments (optional)
     pub write_top_up_lamports: Option<u32>,
+    pub compress_to_account_pubkey: Option<CompressToPubkey>,
 }
 
 pub fn create_compressible_token_account(
     inputs: CreateCompressibleTokenAccount,
 ) -> Result<Instruction> {
-    // Format: [opcode, owner_pubkey, option_byte, CompressibleExtensionInstructionData]
+    // Create the CompressibleExtensionInstructionData
+    let compressible_extension = CompressibleExtensionInstructionData {
+        rent_payment: inputs.pre_pay_num_epochs,
+        has_top_up: if inputs.write_top_up_lamports.is_some() {
+            1
+        } else {
+            0
+        },
+        write_top_up: inputs.write_top_up_lamports.unwrap_or(0),
+        compress_to_account_pubkey: inputs.compress_to_account_pubkey, // Not used for regular create_token_account
+    };
+
+    // Create the instruction data struct
+    let instruction_data = CreateTokenAccountInstructionData {
+        owner: light_compressed_account::Pubkey::from(inputs.owner_pubkey.to_bytes()),
+        compressible_config: Some(compressible_extension),
+    };
+
+    // Serialize with Borsh
     let mut data = Vec::new();
     data.push(18u8); // InitializeAccount3 opcode
-    data.extend_from_slice(&inputs.owner_pubkey.to_bytes());
-    data.push(1); // Some option byte for compressible_config
-
-    // CompressibleExtensionInstructionData fields (simplified - no rent_authority/recipient)
-    data.extend_from_slice(&inputs.pre_pay_num_epochs.to_le_bytes()); // rent_payment in epochs
-
-    // Handle write_top_up_lamports
-    match inputs.write_top_up_lamports {
-        Some(lamports) => {
-            data.push(1); // has_top_up = true
-            data.extend_from_slice(&lamports.to_le_bytes());
-        }
-        None => {
-            data.push(0); // has_top_up = false
-            data.extend_from_slice(&0u32.to_le_bytes()); // write_top_up = 0
-        }
-    }
+    instruction_data
+        .serialize(&mut data)
+        .map_err(|_| TokenSdkError::SerializationError)?;
 
     // Account order based on processor:
     // 1. token_account (signer)
@@ -75,11 +85,18 @@ pub fn create_token_account(
     mint_pubkey: Pubkey,
     owner_pubkey: Pubkey,
 ) -> Result<Instruction> {
-    // Create InitializeAccount3 instruction data manually
-    // Format: [18, owner_pubkey_32_bytes, 0]
-    let mut data = Vec::with_capacity(1 + 32);
+    // Create the instruction data struct without compressible config
+    let instruction_data = CreateTokenAccountInstructionData {
+        owner: light_compressed_account::Pubkey::from(owner_pubkey.to_bytes()),
+        compressible_config: None,
+    };
+
+    // Serialize with Borsh
+    let mut data = Vec::new();
     data.push(18u8); // InitializeAccount3 opcode
-    data.extend_from_slice(&owner_pubkey.to_bytes());
+    instruction_data
+        .serialize(&mut data)
+        .map_err(|_| TokenSdkError::SerializationError)?;
 
     Ok(Instruction {
         program_id: Pubkey::from(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),

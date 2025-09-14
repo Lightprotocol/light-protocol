@@ -9,7 +9,7 @@ pub const COMPRESSION_INCENTIVE: u16 = 1000;
 pub const MIN_RENT: u16 = 1220;
 pub const RENT_PER_BYTE: u8 = 10;
 pub const SLOTS_PER_EPOCH: u64 = 432_000;
-
+// TODO: look at solana rent curve
 #[derive(
     Debug,
     Clone,
@@ -43,6 +43,7 @@ impl RentConfig {
         self.rent_curve_per_epoch(bytes) * epochs + self.full_compression_incentive as u64
     }
 }
+
 pub fn rent_curve_per_epoch(min_rent: u64, rent_per_byte: u64, bytes: u64) -> u64 {
     min_rent + bytes * rent_per_byte
 }

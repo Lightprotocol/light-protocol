@@ -1,3 +1,8 @@
+use borsh::BorshSerialize;
+use light_ctoken_types::instructions::{
+    create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
+    extensions::compressible::CompressibleExtensionInstructionData,
+};
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
@@ -152,45 +157,39 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
         CREATE_ATA_DISCRIMINATOR
     };
 
-    // Calculate data size based on whether it's compressible
-    let data_size = if COMPRESSIBLE {
-        1 + 32 + 32 + 1 + 1 + 8 + 1 + 4 // With CompressibleExtensionInstructionData (rent_payment + has_top_up + write_top_up)
-    } else {
-        1 + 32 + 32 + 1 + 1 // Without compressible config
-    };
-
-    // Manual serialization: [discriminator, owner, mint, bump, compressible_config]
-    let mut data = Vec::with_capacity(data_size);
-    data.push(discriminator);
-    data.extend_from_slice(&owner.to_bytes()); // owner: 32 bytes
-    data.extend_from_slice(&mint.to_bytes()); // mint: 32 bytes
-    data.push(bump); // bump: 1 byte
-
-    if COMPRESSIBLE {
+    // Create the instruction data struct
+    let compressible_extension = if COMPRESSIBLE {
         if let Some((pre_pay_num_epochs, write_top_up_lamports, _, _)) = compressible_config {
-            data.push(1u8); // Some option byte for compressible_config
-
-            // CompressibleExtensionInstructionData fields (must match the struct exactly):
-            data.extend_from_slice(&pre_pay_num_epochs.to_le_bytes()); // rent_payment: u64
-
-            // Handle write_top_up_lamports
-            match write_top_up_lamports {
-                Some(lamports) => {
-                    data.push(1); // has_top_up: u8 = true
-                    data.extend_from_slice(&lamports.to_le_bytes()); // write_top_up: u32
-                }
-                None => {
-                    data.push(0); // has_top_up: u8 = false
-                    data.extend_from_slice(&0u32.to_le_bytes()); // write_top_up: u32 = 0
-                }
-            }
+            Some(CompressibleExtensionInstructionData {
+                rent_payment: pre_pay_num_epochs,
+                has_top_up: if write_top_up_lamports.is_some() {
+                    1
+                } else {
+                    0
+                },
+                write_top_up: write_top_up_lamports.unwrap_or(0),
+                compress_to_account_pubkey: None, // Not used for ATA creation
+            })
         } else {
-            // This should never happen if the const generic is used correctly
             return Err(TokenSdkError::InvalidAccountData);
         }
     } else {
-        data.push(0u8); // None option byte for compressible_config
-    }
+        None
+    };
+
+    let instruction_data = CreateAssociatedTokenAccountInstructionData {
+        owner: light_compressed_account::Pubkey::from(owner.to_bytes()),
+        mint: light_compressed_account::Pubkey::from(mint.to_bytes()),
+        bump,
+        compressible_config: compressible_extension,
+    };
+
+    // Serialize with Borsh
+    let mut data = Vec::new();
+    data.push(discriminator);
+    instruction_data
+        .serialize(&mut data)
+        .map_err(|_| TokenSdkError::SerializationError)?;
 
     // Build accounts list based on whether it's compressible
     let mut accounts = vec![

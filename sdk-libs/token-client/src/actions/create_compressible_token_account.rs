@@ -79,6 +79,7 @@ pub async fn create_compressible_token_account<R: Rpc>(
         pre_pay_num_epochs: num_prepaid_epochs,
         write_top_up_lamports,
         payer: payer.pubkey(),
+        compress_to_account_pubkey: None, // Not used for regular token account creation
     })
     .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
 

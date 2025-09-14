@@ -195,22 +195,12 @@ pub fn native_compression(
             }
         }
         ZCompressionMode::CompressAndClose => {
-            {
-                // Compress the complete balance to this compressed token account.
-                validate_compressed_token_account(
-                    packed_accounts,
-                    amount,
-                    compressed_token_account.ok_or(CTokenError::InvalidCompressionMode)?,
-                    &compressed_token,
-                )?;
-                *compressed_token.amount = 0.into();
-            }
             let authority = authority.ok_or(ErrorCode::CompressAndCloseAuthorityMissing)?;
             check_signer(authority).map_err(|e| {
                 anchor_lang::solana_program::msg!("Authority signer check failed: {:?}", e);
                 ProgramError::from(e)
             })?;
-            validate_token_account::<true>(
+            let (rent_authority_is_signer, compress_to_pubkey) = validate_token_account::<true>(
                 &CloseTokenAccountAccounts {
                     token_account: token_account_info,
                     destination: destination
@@ -219,6 +209,19 @@ pub fn native_compression(
                 },
                 &compressed_token,
             )?;
+            if rent_authority_is_signer {
+                // Compress the complete balance to this compressed token account.
+                validate_compressed_token_account(
+                    packed_accounts,
+                    amount,
+                    compressed_token_account.ok_or(CTokenError::InvalidCompressionMode)?,
+                    &compressed_token,
+                    compress_to_pubkey,
+                    token_account_info.key(),
+                )?;
+                *compressed_token.amount = 0.into();
+            }
+
             return Ok(vec![0u64]);
         }
     };
@@ -231,12 +234,15 @@ fn validate_compressed_token_account(
     compression_amount: u64,
     compressed_token_account: &ZMultiTokenTransferOutputData<'_>,
     compressed_token: &ZCompressedTokenMut,
+    compress_to_pubkey: bool,
+    token_account_pubkey: &Pubkey,
 ) -> Result<(), ProgramError> {
-    // Owner should match
-    if *compressed_token.owner
-        != *packed_accounts
-            .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
-            .key()
+    // Owners should match if not compressing to pubkey
+    if !compress_to_pubkey
+        && *compressed_token.owner
+            != *packed_accounts
+                .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
+                .key()
     {
         msg!(
             "*compressed_token.owner {:?} packed_accounts owner: {:?}",
@@ -246,6 +252,24 @@ fn validate_compressed_token_account(
                     .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
                     .key()
             )
+        );
+        return Err(ErrorCode::CompressAndCloseInvalidOwner.into());
+    }
+    // Owner should match token account pubkey if compressing to pubkey
+    if compress_to_pubkey
+        && *packed_accounts
+            .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
+            .key()
+            != *token_account_pubkey
+    {
+        msg!(
+            "compress_to_pubkey: packed_accounts owner {:?} should match token_account_pubkey: {:?}",
+            solana_pubkey::Pubkey::new_from_array(
+                *packed_accounts
+                    .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
+                    .key()
+            ),
+            solana_pubkey::Pubkey::new_from_array(*token_account_pubkey)
         );
         return Err(ErrorCode::CompressAndCloseInvalidOwner.into());
     }

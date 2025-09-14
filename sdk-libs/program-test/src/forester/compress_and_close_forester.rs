@@ -96,21 +96,21 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     // Process each token account and build indices
     let mut indices_vec = Vec::with_capacity(solana_ctoken_accounts.len());
 
-    for solana_ctoken_account in solana_ctoken_accounts {
+    for solana_ctoken_account_pubkey in solana_ctoken_accounts {
         // Get the ctoken account data
         let ctoken_solana_account = rpc
-            .get_account(*solana_ctoken_account)
+            .get_account(*solana_ctoken_account_pubkey)
             .await
             .map_err(|e| {
                 RpcError::CustomError(format!(
                     "Failed to get ctoken account {}: {}",
-                    solana_ctoken_account, e
+                    solana_ctoken_account_pubkey, e
                 ))
             })?
             .ok_or_else(|| {
                 RpcError::CustomError(format!(
                     "CToken account {} not found",
-                    solana_ctoken_account
+                    solana_ctoken_account_pubkey
                 ))
             })?;
 
@@ -118,21 +118,22 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
             CompressedToken::zero_copy_at(ctoken_solana_account.data.as_slice()).map_err(|e| {
                 RpcError::CustomError(format!(
                     "Failed to parse ctoken account {}: {:?}",
-                    solana_ctoken_account, e
+                    solana_ctoken_account_pubkey, e
                 ))
             })?;
 
         // Pack the basic accounts
-        let source_index = packed_accounts.insert_or_get(*solana_ctoken_account);
+        let source_index = packed_accounts.insert_or_get(*solana_ctoken_account_pubkey);
         let mint_index =
             packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
-        let owner_index =
-            packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
+
+        // Default owner is the ctoken account owner
+        let mut compressed_token_owner = Pubkey::from(ctoken_account.owner.to_bytes());
 
         // For registry flow: rent_authority is a PDA (not a signer in transaction)
-        // Find rent_authority and rent_recipient from extension
+        // Find rent_authority, rent_recipient, and compress_to_pubkey from extension
         let mut rent_authority_pubkey = Pubkey::from(ctoken_account.owner.to_bytes());
-        let mut rent_recipient_index = owner_index;
+        let mut rent_recipient_pubkey = Pubkey::from(ctoken_account.owner.to_bytes());
 
         if let Some(extensions) = &ctoken_account.extensions {
             for extension in extensions {
@@ -141,13 +142,22 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
                         rent_authority_pubkey = Pubkey::from(e.rent_authority);
                     }
                     if e.rent_recipient != [0u8; 32] {
-                        rent_recipient_index =
-                            packed_accounts.insert_or_get(Pubkey::from(e.rent_recipient));
+                        rent_recipient_pubkey = Pubkey::from(e.rent_recipient);
+                    }
+                    println!("compress to pubkey {}", e.compress_to_pubkey());
+                    // Check if compress_to_pubkey is set
+                    if e.compress_to_pubkey() {
+                        // Use the compress_to_pubkey as the owner for compressed tokens
+                        compressed_token_owner = *solana_ctoken_account_pubkey;
                     }
                     break;
                 }
             }
         }
+
+        // Pack the owner and rent_recipient indices
+        let owner_index = packed_accounts.insert_or_get(compressed_token_owner);
+        let rent_recipient_index = packed_accounts.insert_or_get(rent_recipient_pubkey);
 
         // Add rent_authority as non-signer (registry will sign with PDA)
         let authority_index = packed_accounts.insert_or_get_config(

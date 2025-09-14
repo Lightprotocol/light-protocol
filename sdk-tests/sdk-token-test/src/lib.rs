@@ -15,6 +15,7 @@ mod process_compress_and_close_cpi_indices;
 mod process_compress_full_and_close;
 mod process_compress_tokens;
 mod process_create_compressed_account;
+mod process_create_ctoken_with_compress_to_pubkey;
 mod process_create_escrow_pda;
 mod process_decompress_full_cpi_context;
 mod process_decompress_tokens;
@@ -32,6 +33,7 @@ use process_compress_and_close_cpi_indices::process_compress_and_close_cpi_indic
 use process_compress_full_and_close::process_compress_full_and_close;
 use process_compress_tokens::process_compress_tokens;
 use process_create_compressed_account::process_create_compressed_account;
+use process_create_ctoken_with_compress_to_pubkey::process_create_ctoken_with_compress_to_pubkey;
 use process_create_escrow_pda::process_create_escrow_pda;
 use process_decompress_full_cpi_context::process_decompress_full_cpi_context;
 use process_decompress_tokens::process_decompress_tokens;
@@ -82,6 +84,22 @@ pub mod sdk_token_test {
         amount: u64,
     ) -> Result<()> {
         process_compress_tokens(ctx, output_tree_index, recipient, mint, amount)
+    }
+
+    pub fn create_ctoken_with_compress_to_pubkey<'info>(
+        ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
+        mint: Pubkey,
+        token_account_pubkey: Pubkey,
+        compressible_config: Pubkey,
+        rent_recipient: Pubkey,
+    ) -> Result<()> {
+        process_create_ctoken_with_compress_to_pubkey(
+            ctx,
+            mint,
+            token_account_pubkey,
+            compressible_config,
+            rent_recipient,
+        )
     }
 
     pub fn compress_full_and_close<'info>(

@@ -205,6 +205,7 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
                 pre_pay_num_epochs: num_prepaid_epochs,
                 write_top_up_lamports,
                 payer: payer_pubkey,
+                compress_to_account_pubkey: None,
             },
         )
         .map_err(|e| {
@@ -475,6 +476,7 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
                 pre_pay_num_epochs: 1,
                 write_top_up_lamports: Some(150),
                 payer: payer_pubkey,
+                compress_to_account_pubkey: None,
             },
         )
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to create instruction: {}", e)))?;

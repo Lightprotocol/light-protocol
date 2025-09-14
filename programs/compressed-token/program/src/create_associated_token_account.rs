@@ -1,8 +1,11 @@
 use anchor_lang::prelude::ProgramError;
+use borsh::BorshDeserialize;
 use light_account_checks::AccountIterator;
-use light_compressible::rent::get_rent_with_compression_cost;
-use light_ctoken_types::instructions::create_associated_token_account::CreateAssociatedTokenAccountInstructionData;
-use light_zero_copy::traits::ZeroCopyAt;
+use light_compressible::{config::CompressibleConfig, rent::get_rent_with_compression_cost};
+use light_ctoken_types::instructions::{
+    create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
+    extensions::compressible::CompressibleExtensionInstructionData,
+};
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
@@ -41,10 +44,10 @@ pub fn process_create_associated_token_account_idempotent(
 #[inline(always)]
 fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     account_infos: &[AccountInfo],
-    instruction_data: &[u8],
+    mut instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    let (instruction_inputs, _) =
-        CreateAssociatedTokenAccountInstructionData::zero_copy_at(instruction_data)
+    let instruction_inputs =
+        CreateAssociatedTokenAccountInstructionData::deserialize(&mut instruction_data)
             .map_err(ProgramError::from)?;
     let mut iter = AccountIterator::new(account_infos);
 
@@ -98,71 +101,15 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     let compressible_config_account = if let Some(compressible_config_ix_data) =
         instruction_inputs.compressible_config.as_ref()
     {
-        let config_account = iter.next_non_mut("compressible config")?;
-        use anchor_lang::pubkey;
-        use light_account_checks::checks::check_owner;
-        check_owner(
-            &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").to_bytes(),
-            config_account,
-        )?;
-        let data = config_account.try_borrow_data().unwrap();
-
-        // Skip Anchor's 8-byte discriminator and deserialize the actual CompressibleConfig
-        use borsh::BorshDeserialize;
-        use light_compressible::config::CompressibleConfig;
-        let compressible_config_account = CompressibleConfig::deserialize(&mut &data[8..])
-            .map_err(|e| {
-                msg!("Failed to deserialize CompressibleConfig: {:?}", e);
-                ProgramError::InvalidAccountData
-            })?;
-
-        // Get fee_payer_pda account for rent recipient (this will pay for account creation)
-        let fee_payer_for_create = iter.next_account("fee payer pda")?;
-
-        // The rent_recipient is a PDA derived as: [b"rent_recipient", version, 0]
-        let version_bytes = compressible_config_account.version.to_le_bytes();
-        let pda_seeds = &[b"rent_recipient".as_slice(), version_bytes.as_slice(), &[0]];
-
-        // If compressible, set up the PDA config for the rent_recipient to pay for account creation
-        let config_2 = {
-            Some(crate::shared::CreatePdaAccountConfig {
-                seeds: pda_seeds,
-                bump: compressible_config_account.rent_recipient_bump,
-                account_size: token_account_size,
-                owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
-                derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
-            })
-        };
-
-        // Create the PDA account (with rent-exempt balance only)
-        // fee_payer_for_create will be the rent_recipient PDA for compressible accounts
-        create_pda_account(
-            fee_payer_for_create,
+        let compressible_config_account = process_compressible_config(
+            compressible_config_ix_data,
+            &mut iter,
+            token_account_size,
+            fee_payer,
             associated_token_account,
             system_program,
             config,
-            config_2,
-            None, // No additional lamports from PDA
         )?;
-
-        let rent = get_rent_with_compression_cost(
-            compressible_config_account.rent_config.min_rent as u64,
-            compressible_config_account.rent_config.rent_per_byte as u64,
-            token_account_size as u64,
-            compressible_config_ix_data.rent_payment.get(),
-            compressible_config_account
-                .rent_config
-                .full_compression_incentive as u64,
-        );
-        msg!(
-            "Calculating rent for {} bytes, {} epochs: {} lamports",
-            token_account_size,
-            compressible_config_ix_data.rent_payment.get(),
-            rent
-        );
-
-        // Payer transfers the additional rent (compression incentive)
-        transfer_lamports_via_cpi(rent, fee_payer, associated_token_account)?;
         Some(compressible_config_account)
     } else {
         // Create the PDA account (with rent-exempt balance only)
@@ -187,4 +134,86 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     )?;
 
     Ok(())
+}
+
+fn process_compressible_config(
+    compressible_config_ix_data: &CompressibleExtensionInstructionData,
+    iter: &mut AccountIterator<AccountInfo>,
+    token_account_size: usize,
+    fee_payer: &AccountInfo,
+    associated_token_account: &AccountInfo,
+    system_program: &AccountInfo,
+    config: CreatePdaAccountConfig,
+) -> Result<CompressibleConfig, ProgramError> {
+    if compressible_config_ix_data
+        .compress_to_account_pubkey
+        .is_some()
+    {
+        msg!("Associated token accounts must not compress to pubkey");
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    let config_account = iter.next_non_mut("compressible config")?;
+    use anchor_lang::pubkey;
+    use light_account_checks::checks::check_owner;
+    check_owner(
+        &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").to_bytes(),
+        config_account,
+    )?;
+    let data = config_account.try_borrow_data().unwrap();
+
+    // Skip Anchor's 8-byte discriminator and deserialize the actual CompressibleConfig
+    use borsh::BorshDeserialize;
+    use light_compressible::config::CompressibleConfig;
+    let compressible_config_account =
+        CompressibleConfig::deserialize(&mut &data[8..]).map_err(|e| {
+            msg!("Failed to deserialize CompressibleConfig: {:?}", e);
+            ProgramError::InvalidAccountData
+        })?;
+
+    // Get fee_payer_pda account for rent recipient (this will pay for account creation)
+    let fee_payer_for_create = iter.next_account("fee payer pda")?;
+
+    // The rent_recipient is a PDA derived as: [b"rent_recipient", version, 0]
+    let version_bytes = compressible_config_account.version.to_le_bytes();
+    let pda_seeds = &[b"rent_recipient".as_slice(), version_bytes.as_slice(), &[0]];
+
+    // If compressible, set up the PDA config for the rent_recipient to pay for account creation
+    let config_2 = crate::shared::CreatePdaAccountConfig {
+        seeds: pda_seeds,
+        bump: compressible_config_account.rent_recipient_bump,
+        account_size: token_account_size,
+        owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
+        derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
+    };
+
+    // Create the PDA account (with rent-exempt balance only)
+    // fee_payer_for_create will be the rent_recipient PDA for compressible accounts
+    create_pda_account(
+        fee_payer_for_create,
+        associated_token_account,
+        system_program,
+        config_2,
+        Some(config),
+        None, // No additional lamports from PDA
+    )?;
+
+    let rent = get_rent_with_compression_cost(
+        compressible_config_account.rent_config.min_rent as u64,
+        compressible_config_account.rent_config.rent_per_byte as u64,
+        token_account_size as u64,
+        compressible_config_ix_data.rent_payment,
+        compressible_config_account
+            .rent_config
+            .full_compression_incentive as u64,
+    );
+    msg!(
+        "Calculating rent for {} bytes, {} epochs: {} lamports",
+        token_account_size,
+        compressible_config_ix_data.rent_payment,
+        rent
+    );
+
+    // Payer transfers the additional rent (compression incentive)
+    transfer_lamports_via_cpi(rent, fee_payer, associated_token_account)?;
+    Ok(compressible_config_account)
 }

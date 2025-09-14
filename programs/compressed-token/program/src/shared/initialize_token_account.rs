@@ -5,7 +5,7 @@ use light_compressible::{
     rent::{COMPRESSION_COST, COMPRESSION_INCENTIVE, MIN_RENT, RENT_PER_BYTE},
 };
 use light_ctoken_types::{
-    instructions::extensions::compressible::ZCompressibleExtensionInstructionData,
+    instructions::extensions::compressible::CompressibleExtensionInstructionData,
     state::{
         CompressedToken, CompressedTokenConfig, CompressibleExtensionConfig, ExtensionStructConfig,
         ZExtensionStructMut,
@@ -23,7 +23,7 @@ pub fn initialize_token_account(
     token_account_info: &AccountInfo,
     mint_pubkey: &[u8; 32],
     owner_pubkey: &[u8; 32],
-    compressible_config: Option<ZCompressibleExtensionInstructionData>,
+    compressible_config: Option<CompressibleExtensionInstructionData>,
     compressible_config_account: Option<CompressibleConfig>,
 ) -> Result<(), ProgramError> {
     let current_lamports: u64 = *token_account_info
@@ -103,7 +103,11 @@ pub fn initialize_token_account(
                     compressible_config_account.rent_authority.to_bytes();
                 compressible_extension.rent_recipient =
                     compressible_config_account.rent_recipient.to_bytes();
-                compressible_extension.write_top_up_lamports = compressible_config.write_top_up;
+                compressible_extension
+                    .write_top_up_lamports
+                    .set(compressible_config.write_top_up);
+                compressible_extension.compress_to_pubkey =
+                    compressible_config.compress_to_account_pubkey.is_some() as u8;
             }
             _ => {
                 return Err(ErrorCode::InvalidExtensionInstructionData.into());
