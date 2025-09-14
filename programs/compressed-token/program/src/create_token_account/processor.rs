@@ -79,7 +79,7 @@ pub fn process_create_token_account(
         let fee_payer_pda = iter.next_account("fee payer pda")?;
 
         let version_bytes = account.version.to_le_bytes();
-        let seeds = &[b"rent_recipient".as_slice(), version_bytes.as_slice(), &[0]];
+        let seeds = &[b"rent_recipient".as_slice(), version_bytes.as_slice()];
         let config = CreatePdaAccountConfig {
             seeds,
             bump: account.rent_recipient_bump,

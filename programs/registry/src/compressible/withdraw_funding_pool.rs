@@ -46,7 +46,7 @@ pub fn process_withdraw_funding_pool(
 ) -> Result<()> {
     // Build instruction data: [discriminator(108), pool_pda_bump, amount]
     let mut instruction_data = vec![108u8]; // WithdrawFundingPool instruction discriminator
-                                            //instruction_data.push(ctx.accounts.compressible_config.rent_recipient_bump);
+
     instruction_data.extend_from_slice(&amount.to_le_bytes());
 
     // Prepare CPI accounts in the exact order expected by withdraw processor
@@ -88,7 +88,6 @@ pub fn process_withdraw_funding_pool(
     let signer_seeds = &[
         b"rent_authority".as_slice(),
         version_bytes.as_slice(),
-        &[0],
         &[rent_authority_bump],
     ];
 

@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use anchor_lang::pubkey;
 use borsh::BorshDeserialize;
 use light_client::rpc::{Rpc, RpcError};
-use light_compressible::rent::SLOTS_PER_EPOCH;
+use light_compressible::{
+    config::CompressibleConfig,
+    rent::{RentConfig, SLOTS_PER_EPOCH},
+};
 use light_ctoken_types::{
     state::{CompressedToken, ExtensionStruct},
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
@@ -32,36 +35,25 @@ pub struct FundingPoolConfig {
 }
 
 impl FundingPoolConfig {
-    pub fn new(version: u64) -> Self {
-        let registry_program_id =
-            solana_sdk::pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
-        let (compressible_config_pda, _config_bump) = Pubkey::find_program_address(
-            &[b"compressible_config", &version.to_le_bytes()],
-            &registry_program_id,
+    pub fn new(version: u16) -> Self {
+        let config = CompressibleConfig::new_ctoken(
+            version,
+            true,
+            Pubkey::default(),
+            Pubkey::default(),
+            RentConfig::default(),
         );
-        let (rent_recipient_pda, rent_recipient_pda_bump) = Pubkey::find_program_address(
-            &[
-                b"rent_recipient".as_slice(),
-                (version as u16).to_le_bytes().as_slice(),
-                &[0],
-            ],
-            &pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
-        );
-
-        let (rent_authority_pda, rent_authority_pda_bump) = Pubkey::find_program_address(
-            &[
-                b"rent_authority".as_slice(),
-                (version as u16).to_le_bytes().as_slice(),
-                &[0],
-            ],
-            &registry_program_id,
-        );
+        let compressible_config = CompressibleConfig::derive_pda(
+            &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX"),
+            version,
+        )
+        .0;
         Self {
-            compressible_config_pda,
-            rent_recipient_pda,
-            rent_recipient_pda_bump,
-            rent_authority_pda,
-            rent_authority_pda_bump,
+            compressible_config_pda: compressible_config,
+            rent_recipient_pda: config.rent_recipient,
+            rent_recipient_pda_bump: config.rent_recipient_bump,
+            rent_authority_pda: config.rent_authority,
+            rent_authority_pda_bump: config.rent_authority_bump,
         }
     }
 

@@ -58,6 +58,7 @@ declare_id!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
 pub mod light_registry {
 
     use constants::DEFAULT_WORK_V1;
+    use light_compressible::config::CompressibleConfig;
 
     use super::*;
 
@@ -677,45 +678,15 @@ pub mod light_registry {
         withdrawal_authority: Pubkey,
         active: bool,
     ) -> Result<()> {
-        let version: u16 = ctx
-            .accounts
-            .config_counter
-            .counter
-            .try_into()
-            .map_err(|_| ProgramError::InvalidAccountData)?;
-        let (rent_recipient, rent_recipient_bump) = Pubkey::find_program_address(
-            &[
-                b"rent_recipient".as_slice(),
-                version.to_le_bytes().as_slice(),
-                &[0],
-            ],
-            &pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
-        );
-        let (rent_authority, rent_authority_bump) = Pubkey::find_program_address(
-            &[
-                b"rent_authority".as_slice(),
-                version.to_le_bytes().as_slice(),
-                &[0],
-            ],
-            &crate::ID_CONST,
-        );
-        let mut address_space = [Pubkey::default(); 4];
-        address_space[0] = pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK");
-
-        ctx.accounts.compressible_config.active = active as u8;
-        ctx.accounts.compressible_config.version = version;
-        ctx.accounts.compressible_config.rent_config = rent_config;
-        ctx.accounts.compressible_config.update_authority = update_authority;
-        ctx.accounts.compressible_config.withdrawal_authority = withdrawal_authority;
-        ctx.accounts.compressible_config.rent_recipient = rent_recipient;
-        ctx.accounts.compressible_config.rent_recipient_bump = rent_recipient_bump;
-        ctx.accounts.compressible_config.rent_authority = rent_authority;
-        ctx.accounts.compressible_config.rent_authority_bump = rent_authority_bump;
-        ctx.accounts.compressible_config.bump = ctx.bumps.compressible_config;
-        ctx.accounts.compressible_config.address_space = address_space;
-        ctx.accounts.compressible_config._place_holder = [0u8; 32];
-
-        // Increment the counter
+        ctx.accounts
+            .compressible_config
+            .set_inner(CompressibleConfig::new_ctoken(
+                ctx.accounts.config_counter.counter,
+                active,
+                update_authority,
+                withdrawal_authority,
+                rent_config,
+            ));
         ctx.accounts.config_counter.counter += 1;
         Ok(())
     }

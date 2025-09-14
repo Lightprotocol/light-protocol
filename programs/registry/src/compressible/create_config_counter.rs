@@ -9,7 +9,7 @@ pub const COMPRESSIBLE_CONFIG_COUNTER_SEED: &[u8] = b"compressible_config_counte
 #[derive(Debug)]
 pub struct ConfigCounter {
     /// The counter value tracking number of configs
-    pub counter: u64,
+    pub counter: u16,
 }
 
 /// Context for creating the config counter PDA

@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressible::rent::SLOTS_PER_EPOCH;
+use light_compressible::{config::CompressibleConfig, rent::SLOTS_PER_EPOCH};
 use light_program_test::{
     forester::claim_forester, program_test::TestRpc, LightProgramTest, ProgramTestConfig,
 };
@@ -35,33 +35,34 @@ async fn withdraw_funding_pool_via_registry<R: Rpc>(
         Pubkey::from_str("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").unwrap();
     let compressed_token_program_id =
         Pubkey::from_str("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m").unwrap();
+    let config = CompressibleConfig::ctoken_v1(Default::default(), Default::default());
+    let rent_authority = config.rent_authority;
+    let rent_recipient = config.rent_recipient;
+    let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
+    // // Derive CompressibleConfig PDA (version 1)
+    // let version: u16 = 1;
+    // let (compressible_config, _) = Pubkey::find_program_address(
+    //     &[b"compressible_config", &version.to_le_bytes()],
+    //     &registry_program_id,
+    // );
 
-    // Derive CompressibleConfig PDA (version 1)
-    let version: u64 = 1;
-    let (compressible_config, _) = Pubkey::find_program_address(
-        &[b"compressible_config", &version.to_le_bytes()],
-        &registry_program_id,
-    );
+    // // Derive rent_authority PDA (uses u16 version)
+    // let (rent_authority, _) = Pubkey::find_program_address(
+    //     &[
+    //         b"rent_authority".as_slice(),
+    //         (version as u16).to_le_bytes().as_slice(),
+    //     ],
+    //     &registry_program_id,
+    // );
 
-    // Derive rent_authority PDA (uses u16 version)
-    let (rent_authority, _) = Pubkey::find_program_address(
-        &[
-            b"rent_authority".as_slice(),
-            (version as u16).to_le_bytes().as_slice(),
-            &[0],
-        ],
-        &registry_program_id,
-    );
-
-    // Derive rent_recipient PDA from the compressed token program
-    let (rent_recipient, _) = Pubkey::find_program_address(
-        &[
-            b"rent_recipient".as_slice(),
-            (version as u16).to_le_bytes().as_slice(),
-            &[0],
-        ],
-        &compressed_token_program_id,
-    );
+    // // Derive rent_recipient PDA from the compressed token program
+    // let (rent_recipient, _) = Pubkey::find_program_address(
+    //     &[
+    //         b"rent_recipient".as_slice(),
+    //         (version as u16).to_le_bytes().as_slice(),
+    //     ],
+    //     &compressed_token_program_id,
+    // );
 
     // Build accounts using Anchor's account abstraction
     let withdraw_accounts = WithdrawFundingPoolAccounts {

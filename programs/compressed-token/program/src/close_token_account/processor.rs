@@ -50,12 +50,12 @@ pub fn validate_token_account<const CHECK_RENT_AUTH: bool>(
         state if state == AccountState::Frozen as u8 => return Err(ErrorCode::AccountFrozen.into()),
         _ => return Err(ProgramError::UninitializedAccount),
     }
-
-    // Check that the account has zero balance
-    if u64::from(*compressed_token.amount) != 0 {
-        return Err(ErrorCode::NonNativeHasBalance.into());
+    if !CHECK_RENT_AUTH {
+        // Check that the account has zero balance
+        if u64::from(*compressed_token.amount) != 0 {
+            return Err(ErrorCode::NonNativeHasBalance.into());
+        }
     }
-
     // Verify the authority matches the account owner or rent authority (if compressible)
     let owner_matches = compressed_token.owner.to_bytes() == *accounts.authority.key();
     if let Some(extensions) = compressed_token.extensions.as_ref() {
@@ -106,6 +106,11 @@ pub fn validate_token_account<const CHECK_RENT_AUTH: bool>(
         }
     }
     if !owner_matches {
+        msg!(
+            "owner: compressed_token.owner {:?} != {:?} authority",
+            solana_pubkey::Pubkey::from(compressed_token.owner.to_bytes()),
+            solana_pubkey::Pubkey::from(*accounts.authority.key())
+        );
         // If we have no rent authority owner must match
         return Err(ErrorCode::OwnerMismatch.into());
     }

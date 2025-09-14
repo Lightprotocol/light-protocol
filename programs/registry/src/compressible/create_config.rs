@@ -29,12 +29,3 @@ pub struct CreateCompressibleConfig<'info> {
 
     pub system_program: Program<'info, System>,
 }
-
-#[test]
-fn test() {
-    use anchor_lang::Discriminator;
-    println!(
-        "CompressibleConfig::DISCRIMINATOR {:?}",
-        CompressibleConfig::DISCRIMINATOR
-    );
-}

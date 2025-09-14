@@ -5,6 +5,7 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
+use light_compressible::config::CompressibleConfig;
 use light_registry::{
     accounts::ClaimContext as ClaimAccounts, utils::get_forester_epoch_pda_from_authority,
 };
@@ -45,33 +46,10 @@ pub async fn claim_forester<R: Rpc + Indexer>(
     // Derive registered forester PDA for the current epoch
     let (registered_forester_pda, _) =
         get_forester_epoch_pda_from_authority(&authority.pubkey(), current_epoch);
-
-    // Derive CompressibleConfig PDA (version 1)
-    let version: u64 = 1;
-    let (compressible_config, _) = Pubkey::find_program_address(
-        &[b"compressible_config", &version.to_le_bytes()],
-        &registry_program_id,
-    );
-
-    // Derive rent_authority PDA (uses u16 version)
-    let (rent_authority, _) = Pubkey::find_program_address(
-        &[
-            b"rent_authority".as_slice(),
-            (version as u16).to_le_bytes().as_slice(),
-            &[0],
-        ],
-        &registry_program_id,
-    );
-
-    // Derive rent_recipient PDA from the compressed token program (not registry)
-    let (rent_recipient, _) = Pubkey::find_program_address(
-        &[
-            b"rent_recipient".as_slice(),
-            (version as u16).to_le_bytes().as_slice(),
-            &[0],
-        ],
-        &compressed_token_program_id,
-    );
+    let config = CompressibleConfig::ctoken_v1(Default::default(), Default::default());
+    let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
+    let rent_recipient = config.rent_recipient;
+    let rent_authority = config.rent_authority;
 
     // Build accounts using Anchor's account abstraction
     let claim_accounts = ClaimAccounts {

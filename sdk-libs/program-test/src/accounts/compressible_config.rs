@@ -60,8 +60,8 @@ pub async fn create_compressible_config(
     }
 
     // Now create the config with version 1
-    let version: u64 = 1;
-    let (compressible_config_pda, _config_bump) = Pubkey::find_program_address(
+    let version: u16 = 1;
+    let (compressible_config_pda, config_bump) = Pubkey::find_program_address(
         &[b"compressible_config", &version.to_le_bytes()],
         &registry_program_id,
     );
@@ -99,14 +99,10 @@ pub async fn create_compressible_config(
         .unwrap()
         .unwrap();
 
-    // Based on create_compressible_config logic, version is the counter value before increment
-    let version: u64 = 1; // Counter was 1 before this config was created
-
     let (rent_recipient, rent_recipient_bump) = Pubkey::find_program_address(
         &[
             b"rent_recipient".as_slice(),
-            (version as u16).to_le_bytes().as_slice(),
-            &[0],
+            version.to_le_bytes().as_slice(),
         ],
         &pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
     );
@@ -114,8 +110,7 @@ pub async fn create_compressible_config(
     let (rent_authority, rent_authority_bump) = Pubkey::find_program_address(
         &[
             b"rent_authority".as_slice(),
-            (version as u16).to_le_bytes().as_slice(),
-            &[0],
+            version.to_le_bytes().as_slice(),
         ],
         &registry_program_id,
     );
@@ -129,14 +124,8 @@ pub async fn create_compressible_config(
         .await
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to fund rent_recipient: {:?}", e)))?;
 
-    // Get the bump for the config PDA
-    let (_, config_bump) = Pubkey::find_program_address(
-        &[b"compressible_config", &version.to_le_bytes()],
-        &registry_program_id,
-    );
-
     let expected_config_account = CompressibleConfig {
-        version: version as u16,
+        version,
         active: 1, // true as u8
         bump: config_bump,
         update_authority: payer.pubkey(),
@@ -159,6 +148,8 @@ pub async fn create_compressible_config(
     // Deserialize and verify the account
     let deserialized_account =
         CompressibleConfig::deserialize(&mut &compressible_config_account.data[8..]).unwrap();
+    println!("deserialized_account {:?}", deserialized_account);
+    println!("compressible_config_pda {:?}", compressible_config_pda);
     assert_eq!(expected_config_account, deserialized_account);
 
     // Return config PDA, rent_recipient, and rent_authority

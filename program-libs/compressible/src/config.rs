@@ -97,11 +97,101 @@ impl Discriminator for CompressibleConfig {
 impl CompressibleConfig {
     pub const LEN: usize = std::mem::size_of::<Self>();
 
-    /// Derives the config PDA address with config bump
-    pub fn derive_pda(program_id: &Pubkey, config_bump: u8) -> (Pubkey, u8) {
-        Pubkey::find_program_address(&[COMPRESSIBLE_CONFIG_SEED, &[config_bump]], program_id)
+    pub fn ctoken_v1(update_authority: Pubkey, withdrawal_authority: Pubkey) -> Self {
+        Self::new_ctoken(
+            1,
+            true,
+            update_authority,
+            withdrawal_authority,
+            RentConfig::default(),
+        )
     }
 
+    pub fn new_ctoken(
+        version: u16,
+        active: bool,
+        update_authority: Pubkey,
+        withdrawal_authority: Pubkey,
+        rent_config: RentConfig,
+    ) -> Self {
+        let mut address_space = [Pubkey::default(); 4];
+        address_space[0] = pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK");
+        Self::new(
+            version,
+            active,
+            update_authority,
+            withdrawal_authority,
+            &pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
+            &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX"),
+            address_space,
+            rent_config,
+        )
+    }
+
+    pub fn get_rent_authority_seeds(version: u16) -> [Vec<u8>; 2] {
+        [b"rent_authority".to_vec(), version.to_le_bytes().to_vec()]
+    }
+
+    pub fn get_rent_recipient_seeds(version: u16) -> [Vec<u8>; 2] {
+        [b"rent_recipient".to_vec(), version.to_le_bytes().to_vec()]
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn new(
+        version: u16,
+        active: bool,
+        update_authority: Pubkey,
+        withdrawal_authority: Pubkey,
+        rent_recipient_program_id: &Pubkey,
+        owner_program_id: &Pubkey,
+        address_space: [Pubkey; 4],
+        rent_config: RentConfig,
+    ) -> Self {
+        let version_bytes = version.to_le_bytes();
+        let rent_authority_seeds = [b"rent_authority".as_slice(), version_bytes.as_slice()];
+        let rent_recipient_seeds = [b"rent_recipient".as_slice(), version_bytes.as_slice()];
+        let (rent_authority, rent_authority_bump) = solana_pubkey::Pubkey::find_program_address(
+            rent_authority_seeds.as_slice(),
+            owner_program_id,
+        );
+        let (rent_recipient, rent_recipient_bump) = solana_pubkey::Pubkey::find_program_address(
+            rent_recipient_seeds.as_slice(),
+            rent_recipient_program_id,
+        );
+        let (_, bump) = Self::derive_pda(owner_program_id, version);
+
+        Self {
+            version,
+            active: active as u8,
+            bump,
+            update_authority,
+            withdrawal_authority,
+            rent_recipient,
+            rent_authority,
+            rent_recipient_bump,
+            rent_authority_bump,
+            rent_config,
+            address_space,
+            _place_holder: [0u8; 32],
+        }
+    }
+
+    /// Derives the config PDA address with config bump
+    pub fn derive_pda(program_id: &Pubkey, config_bump: u16) -> (Pubkey, u8) {
+        Pubkey::find_program_address(
+            &[COMPRESSIBLE_CONFIG_SEED, &config_bump.to_le_bytes()],
+            program_id,
+        )
+    }
+    /// Derives the default config PDA address (config_bump = 1)
+    pub fn ctoken_v1_config_pda() -> Pubkey {
+        Self::derive_pda(&pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX"), 1).0
+    }
+
+    /// Derives the default config PDA address (config_bump = 1)
+    pub fn derive_v1_config_pda(program_id: &Pubkey) -> (Pubkey, u8) {
+        Self::derive_pda(program_id, 1)
+    }
     /// Derives the default config PDA address (config_bump = 0)
     pub fn derive_default_pda(program_id: &Pubkey) -> (Pubkey, u8) {
         Self::derive_pda(program_id, 0)

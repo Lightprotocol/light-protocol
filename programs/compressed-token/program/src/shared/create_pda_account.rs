@@ -54,7 +54,6 @@ pub fn create_pda_account(
         seed_vec.push(Seed::from(seed));
     }
     seed_vec.push(Seed::from(bump_bytes.as_ref()));
-    msg!("seed_vec {:?}", seed_vec);
 
     let signer = Signer::from(seed_vec.as_slice());
     let create_account_ix = system_instruction::create_account(

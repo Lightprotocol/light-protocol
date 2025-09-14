@@ -89,22 +89,26 @@ async fn test_compress_to_pubkey() {
     );
     println!("Account data length: {}", token_account_data.data.len());
 
+    // Compresses the account.
     rpc.warp_epoch_forward(2).await.unwrap();
-    let closed_token_account_data = rpc.get_account(token_account_pubkey).await.unwrap();
-    if let Some(token_account) = closed_token_account_data {
-        assert_eq!(
-            token_account.lamports, 0,
-            "Token account not closed and compressed"
-        );
+    // Assert that the ctoken account is closed and the compressed account exists.
+    {
+        let closed_token_account_data = rpc.get_account(token_account_pubkey).await.unwrap();
+        if let Some(token_account) = closed_token_account_data {
+            assert_eq!(
+                token_account.lamports, 0,
+                "Token account not closed and compressed"
+            );
+        }
+        let compressed_token_account = rpc
+            .get_compressed_token_accounts_by_owner(&token_account_pubkey, None, None)
+            .await
+            .unwrap()
+            .value
+            .items[0]
+            .clone();
+        println!("compressed_token_account {:?}", compressed_token_account);
+        assert_eq!(compressed_token_account.token.owner, token_account_pubkey);
+        assert_eq!(compressed_token_account.token.amount, 0);
     }
-    let compressed_token_account = rpc
-        .get_compressed_token_accounts_by_owner(&token_account_pubkey, None, None)
-        .await
-        .unwrap()
-        .value
-        .items[0]
-        .clone();
-    println!("compressed_token_account {:?}", compressed_token_account);
-    assert_eq!(compressed_token_account.token.owner, token_account_pubkey);
-    assert_eq!(compressed_token_account.token.amount, 0);
 }

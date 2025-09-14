@@ -65,7 +65,6 @@ pub fn process_compress_and_close<'info>(
     let signer_seeds = &[
         b"rent_authority".as_slice(),
         version_bytes.as_slice(),
-        &[0],
         &[rent_authority_bump],
     ];
 

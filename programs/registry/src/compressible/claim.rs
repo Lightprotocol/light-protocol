@@ -72,7 +72,6 @@ pub fn process_claim<'info>(ctx: &Context<'_, '_, '_, 'info, ClaimContext<'info>
     let signer_seeds = &[
         b"rent_authority".as_slice(),
         version_bytes.as_slice(),
-        &[0],
         &[rent_authority_bump],
     ];
 

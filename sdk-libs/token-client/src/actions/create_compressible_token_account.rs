@@ -53,7 +53,7 @@ pub async fn create_compressible_token_account<R: Rpc>(
 
     // Derive the CompressibleConfig PDA (version 1)
     let registry_program_id = solana_pubkey::pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
-    let version: u64 = 1;
+    let version: u16 = 1;
     let (compressible_config, _config_bump) = Pubkey::find_program_address(
         &[b"compressible_config", &version.to_le_bytes()],
         &registry_program_id,
@@ -63,8 +63,7 @@ pub async fn create_compressible_token_account<R: Rpc>(
     let (rent_recipient, _rent_recipient_bump) = Pubkey::find_program_address(
         &[
             b"rent_recipient".as_slice(),
-            (version as u16).to_le_bytes().as_slice(),
-            &[0],
+            version.to_le_bytes().as_slice(),
         ],
         &solana_pubkey::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
     );

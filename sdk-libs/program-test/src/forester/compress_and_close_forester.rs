@@ -8,6 +8,7 @@ use light_client::{
 use light_compressed_token_sdk::instructions::compress_and_close::{
     CompressAndCloseAccounts as CTokenCompressAndCloseAccounts, CompressAndCloseIndices,
 };
+use light_compressible::config::CompressibleConfig;
 use light_registry::{
     accounts::CompressAndCloseContext as CompressAndCloseAccounts, instruction::CompressAndClose,
     utils::get_forester_epoch_pda_from_authority,
@@ -51,22 +52,13 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     let (registered_forester_pda, _) =
         get_forester_epoch_pda_from_authority(&authority.pubkey(), current_epoch);
 
-    // Derive CompressibleConfig PDA (version 1)
-    let version: u64 = 1;
-    let (compressible_config, _) = Pubkey::find_program_address(
-        &[b"compressible_config", &version.to_le_bytes()],
-        &registry_program_id,
-    );
+    let config = CompressibleConfig::ctoken_v1(Pubkey::default(), Pubkey::default());
+
+    let compressible_config = CompressibleConfig::derive_v1_config_pda(&registry_program_id).0;
 
     // Derive rent_authority PDA (uses u16 version)
-    let (rent_authority, _) = Pubkey::find_program_address(
-        &[
-            b"rent_authority".as_slice(),
-            (version as u16).to_le_bytes().as_slice(),
-            &[0],
-        ],
-        &registry_program_id,
-    );
+    let rent_authority = config.rent_authority;
+    println!("config rent_authority {:?}", rent_authority);
 
     // Validate input
     if solana_ctoken_accounts.is_empty() {
@@ -138,12 +130,10 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
         if let Some(extensions) = &ctoken_account.extensions {
             for extension in extensions {
                 if let ZExtensionStruct::Compressible(e) = extension {
-                    if e.rent_authority != [0u8; 32] {
-                        rent_authority_pubkey = Pubkey::from(e.rent_authority);
-                    }
-                    if e.rent_recipient != [0u8; 32] {
-                        rent_recipient_pubkey = Pubkey::from(e.rent_recipient);
-                    }
+                    rent_authority_pubkey = Pubkey::from(e.rent_authority);
+                    rent_recipient_pubkey = Pubkey::from(e.rent_recipient);
+                    println!("rent_authority_pubkey {:?}", rent_authority_pubkey);
+
                     println!("compress to pubkey {}", e.compress_to_pubkey());
                     // Check if compress_to_pubkey is set
                     if e.compress_to_pubkey() {

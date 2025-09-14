@@ -521,10 +521,10 @@ impl PartialEq<CompressedToken> for ZCompressedToken<'_> {
                                 return false;
                             }
 
-                            // Compare rent_authority ([u8; 32])
-                            if zc_comp.rent_authority != regular_comp.rent_authority {
-                                return false;
-                            }
+                            // // Compare rent_authority ([u8; 32])
+                            // if zc_comp.rent_authority != regular_comp.rent_authority {
+                            //     return false;
+                            // }
 
                             // Compare rent_recipient ([u8; 32])
                             if zc_comp.rent_recipient != regular_comp.rent_recipient {

@@ -102,19 +102,8 @@ fn validate_and_claim(
     if let Some(extensions) = compressed_token.extensions.as_mut() {
         for extension in extensions {
             if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
-                // Verify rent authority (check if non-zero and matches)
-                if compressible_ext.rent_authority == [0u8; 32] {
-                    msg!("No rent authority set");
-                    return Ok(None);
-                }
                 if compressible_ext.rent_authority != *accounts.rent_authority.key() {
                     msg!("Rent authority mismatch");
-                    return Ok(None);
-                }
-
-                // Verify pool PDA matches rent recipient (check if non-zero and matches)
-                if compressible_ext.rent_recipient == [0u8; 32] {
-                    msg!("No rent recipient set");
                     return Ok(None);
                 }
                 if compressible_ext.rent_recipient != *accounts.rent_recipient.key() {

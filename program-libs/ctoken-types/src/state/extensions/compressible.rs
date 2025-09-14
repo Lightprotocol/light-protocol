@@ -34,13 +34,12 @@ pub enum AccountError {
 #[repr(C)]
 pub struct CompressibleExtension {
     pub version: u8, // version 0 is uninitialized, default is 1
-    // TODO: check if necessary
+    /// Compress to account pubkey instead of account owner.
+    pub compress_to_pubkey: bool,
     pub rent_authority: [u8; 32],
     pub rent_recipient: [u8; 32],
     pub last_claimed_slot: u64,
     pub write_top_up_lamports: u32,
-    /// Compress to account pubkey instead of account owner.
-    pub compress_to_pubkey: bool,
     pub rent_config: RentConfig,
 }
 

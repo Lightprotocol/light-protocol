@@ -122,7 +122,6 @@ pub fn process_withdraw_funding_pool(
     let seed_array = [
         Seed::from(b"rent_recipient".as_slice()),
         Seed::from(version_bytes.as_slice()),
-        Seed::from(&[0]),
         Seed::from(&bump_bytes),
     ];
     let signer = Signer::from(&seed_array);

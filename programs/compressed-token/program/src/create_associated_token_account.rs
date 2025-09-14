@@ -175,7 +175,7 @@ fn process_compressible_config(
 
     // The rent_recipient is a PDA derived as: [b"rent_recipient", version, 0]
     let version_bytes = compressible_config_account.version.to_le_bytes();
-    let pda_seeds = &[b"rent_recipient".as_slice(), version_bytes.as_slice(), &[0]];
+    let pda_seeds = &[b"rent_recipient".as_slice(), version_bytes.as_slice()];
 
     // If compressible, set up the PDA config for the rent_recipient to pay for account creation
     let config_2 = crate::shared::CreatePdaAccountConfig {
