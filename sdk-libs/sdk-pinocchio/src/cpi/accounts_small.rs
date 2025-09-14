@@ -1,3 +1,5 @@
+#![allow(clippy::all)] // TODO: Remove.
+
 use light_sdk_types::{
     CpiAccountsSmall as GenericCpiAccountsSmall, ACCOUNT_COMPRESSION_AUTHORITY_PDA,
     ACCOUNT_COMPRESSION_PROGRAM_ID, REGISTERED_PROGRAM_PDA, SMALL_SYSTEM_ACCOUNTS_LEN,

@@ -500,7 +500,7 @@ async fn test_compress_and_close_cpi_with_context() {
     // Derive compressed mint address using utility function
     let address_tree_info = rpc.get_address_tree_v2();
     let compressed_mint_address =
-        light_compressed_token_sdk::instructions::derive_compressed_mint_address(
+        light_compressed_token_sdk::instructions::derive_ctoken_mint_address(
             &ctx.mint_seed.pubkey(),
             &address_tree_info.tree,
         );

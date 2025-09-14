@@ -198,6 +198,8 @@ export function spawnBinary(command: string, args: string[] = []) {
   const logDir = "test-ledger";
   const binaryName = path.basename(command);
 
+  console.log("command", command);
+  console.log("args", args);
   const dir = path.join(__dirname, "../..", logDir);
   try {
     if (!fs.existsSync(dir)) {

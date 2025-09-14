@@ -33,3 +33,4 @@ solana-client = { workspace = true }
 solana-transaction-status = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-registry = { workspace = true }
+base64 = { workspace = true }

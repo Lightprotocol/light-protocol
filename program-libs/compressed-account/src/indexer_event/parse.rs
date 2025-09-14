@@ -1,5 +1,6 @@
 use borsh::BorshDeserialize;
 use light_zero_copy::traits::ZeroCopyAt;
+use log;
 
 use super::{
     error::ParseIndexerEventError,
@@ -85,26 +86,54 @@ pub fn event_from_light_transaction(
     instructions: &[Vec<u8>],
     accounts: Vec<Vec<Pubkey>>,
 ) -> Result<Option<Vec<BatchPublicTransactionEvent>>, ParseIndexerEventError> {
+    // Log the raw transaction data being parsed
+    log::info!(
+        "Parsing light transaction - program_ids: {:?}, instructions: {:?}, accounts: {:?}",
+        program_ids,
+        instructions,
+        accounts
+    );
+
     // 0. Wrap program ids of instructions to filter but not change the pattern.
     let program_ids = wrap_program_ids(program_ids, instructions, &accounts);
     // 1. Find associated instructions by cpi pattern.
     let mut patterns = find_cpi_patterns(&program_ids);
     if patterns.is_empty() {
+        log::debug!("No CPI patterns found in transaction");
         return Ok(None);
     }
     // We searched from the last pattern to the first.
     //      -> reverse to be in order
     patterns.reverse();
+    log::debug!("Found CPI patterns: {:?}", patterns);
+
     // 2. Deserialize associated instructions.
     let associated_instructions = patterns
         .iter()
         .map(|pattern| deserialize_associated_instructions(pattern, instructions, &accounts))
         .collect::<Result<Vec<_>, _>>()?;
+    log::debug!(
+        "Deserialized associated instructions: {:?}",
+        associated_instructions
+    );
+
     // 3. Create batched transaction events.
     let batched_transaction_events = associated_instructions
         .iter()
         .map(|associated_instruction| create_batched_transaction_event(associated_instruction))
         .collect::<Result<Vec<_>, _>>()?;
+
+    // Log the final parsed batched transaction events
+    log::info!(
+        "Successfully parsed {} batched transaction events",
+        batched_transaction_events.len()
+    );
+    batched_transaction_events
+        .iter()
+        .enumerate()
+        .for_each(|(i, event)| {
+            log::info!("Batched transaction event #{}: {:?}", i, event);
+        });
 
     // // Sanity checks:
     // // - this must not throw in production because indexing just works if all instructions are in the same transaction.
@@ -461,6 +490,10 @@ fn deserialize_instruction<'a>(
 fn create_batched_transaction_event(
     associated_instructions: &AssociatedInstructions,
 ) -> Result<BatchPublicTransactionEvent, ParseIndexerEventError> {
+    log::debug!(
+        "Creating batched transaction event from associated instructions: {:?}",
+        associated_instructions
+    );
     let input_sequence_numbers = associated_instructions
         .insert_into_queues_instruction
         .input_sequence_numbers

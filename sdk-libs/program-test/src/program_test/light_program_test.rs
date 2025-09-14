@@ -1,12 +1,18 @@
-use std::fmt::{self, Debug, Formatter};
+use std::{
+    fmt::{self, Debug, Formatter},
+    fs::File,
+    io::Write,
+};
 
 use account_compression::{AddressMerkleTreeAccount, QueueAccount};
+use base64::{engine::general_purpose, Engine as _};
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::{merkle_tree::MerkleTreeExt, Rpc, RpcError},
 };
 use light_prover_client::prover::{spawn_prover, ProverConfig};
 use litesvm::LiteSVM;
+use serde_json::json;
 use solana_account::WritableAccount;
 use solana_sdk::{
     pubkey::Pubkey,
@@ -199,6 +205,41 @@ impl LightProgramTest {
             .as_ref()
             .ok_or(RpcError::IndexerNotInitialized)?)
         .clone())
+    }
+
+    /// Save account to JSON file in CLI accounts directory
+    /// Filename will be the pubkey + ".json"
+    pub async fn save_account_to_cli(
+        &mut self,
+        pubkey: &Pubkey,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let account = self.get_account(*pubkey).await?;
+
+        if let Some(account) = account {
+            let data_base64 = general_purpose::STANDARD.encode(&account.data);
+            let json_obj = json!({
+                "pubkey": pubkey.to_string(),
+                "account": {
+                    "lamports": account.lamports,
+                    "data": [data_base64, "base64"],
+                    "owner": account.owner.to_string(),
+                    "executable": account.executable,
+                    "rentEpoch": account.rent_epoch,
+                    "space": account.data.len(),
+                }
+            });
+
+            // Save to CLI accounts directory using pubkey as filename
+            let filename = format!("{}.json", pubkey);
+            let cli_path = format!("../../cli/accounts/{}", filename);
+            let mut file = File::create(&cli_path)?;
+            file.write_all(json_obj.to_string().as_bytes())?;
+
+            println!("✅ Saved account {} to {}", pubkey, cli_path);
+            Ok(())
+        } else {
+            Err(format!("❌ Account {} not found", pubkey).into())
+        }
     }
 }
 

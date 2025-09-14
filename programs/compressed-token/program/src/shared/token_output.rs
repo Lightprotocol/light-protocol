@@ -9,6 +9,7 @@ use light_ctoken_types::{
 };
 use light_hasher::{sha256::Sha256BE, Hasher};
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyNew};
+use spl_pod::solana_msg::msg;
 
 /// 1. Set token account data
 /// 2. Create token account data hash

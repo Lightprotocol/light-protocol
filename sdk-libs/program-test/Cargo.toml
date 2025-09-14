@@ -6,7 +6,7 @@ license = "MIT"
 edition = "2021"
 
 [features]
-default = []
+default = ["v2"]
 devenv = ["v2", "light-client/devenv", "light-prover-client/devenv"]
 v2 = ["light-client/v2"]
 
@@ -23,6 +23,9 @@ light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
 light-compressed-token-sdk = { workspace = true }
 light-ctoken-types = { workspace = true }
 light-compressible = {workspace = true}
+light-compressible-client = { workspace = true, features = ["anchor"] }
+
+# unreleased
 light-client = { workspace = true, features = ["program-test"] }
 light-prover-client = { workspace = true }
 litesvm = { workspace = true }
@@ -55,6 +58,7 @@ rand = { workspace = true }
 bytemuck = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+base64 = "0.22"
 solana-transaction-status = { workspace = true }
 bs58 = { workspace = true }
 light-sdk-types = { workspace = true }

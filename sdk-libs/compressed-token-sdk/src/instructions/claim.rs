@@ -1,4 +1,4 @@
-use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_sdk_types::CTOKEN_PROGRAM_ID;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
@@ -13,7 +13,7 @@ use solana_pubkey::Pubkey;
 pub fn derive_pool_pda(compression_authority: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[b"pool", compression_authority.as_ref()],
-        &Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
+        &Pubkey::from(CTOKEN_PROGRAM_ID),
     )
 }
 
@@ -49,7 +49,7 @@ pub fn claim(
     }
 
     Instruction {
-        program_id: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
         accounts,
         data: instruction_data,
     }

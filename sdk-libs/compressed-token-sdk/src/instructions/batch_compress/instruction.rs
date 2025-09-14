@@ -81,7 +81,7 @@ pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<
     let account_metas = get_batch_compress_instruction_account_metas(meta_config);
 
     Ok(Instruction {
-        program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(light_sdk_types::CTOKEN_PROGRAM_ID),
         accounts: account_metas,
         data,
     })

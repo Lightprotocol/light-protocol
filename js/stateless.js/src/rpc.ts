@@ -1,4 +1,5 @@
 import {
+    AccountInfo,
     Connection,
     ConnectionConfig,
     PublicKey,
@@ -65,6 +66,7 @@ import {
     TreeType,
     AddressTreeInfo,
     CompressedAccount,
+    MerkleContext,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import {
@@ -74,6 +76,7 @@ import {
     defaultStateTreeLookupTables,
     versionedEndpoint,
     featureFlags,
+    CTOKEN_PROGRAM_ID,
 } from './constants';
 import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
@@ -82,14 +85,18 @@ import {
     proofFromJsonStruct,
     negateAndCompressProof,
 } from './utils/parse-validity-proof';
-import { LightWasm } from './test-helpers';
+import {
+    LightWasm,
+    parseTokenData,
+    parseTokenLayoutWithIdl,
+} from './test-helpers';
 import {
     getAllStateTreeInfos,
     getStateTreeInfoByPubkey,
     getTreeInfoByPubkey,
 } from './utils/get-state-tree-infos';
 import { TreeInfo } from './state/types';
-import { validateNumbersForProof } from './utils';
+import { deriveAddressV2, validateNumbersForProof } from './utils';
 
 /** @internal */
 export function parseAccountData({
@@ -101,10 +108,12 @@ export function parseAccountData({
     data: string;
     dataHash: BN;
 }) {
+    const discriminatorBytes = Buffer.from(discriminator.toArray('le', 8));
+
     return {
-        discriminator: discriminator.toArray('le', 8),
+        discriminator: Array.from(discriminatorBytes),
         data: Buffer.from(data, 'base64'),
-        dataHash: dataHash.toArray('le', 32),
+        dataHash: dataHash.toArray('be', 32),
     };
 }
 
@@ -127,6 +136,9 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
         cursor: options.cursor,
     });
     let res;
+
+    console.log('unsafeRes', unsafeRes);
+    console.log('JSON unsafeRes', JSON.stringify(unsafeRes));
     if (featureFlags.isV2()) {
         res = create(
             unsafeRes,
@@ -142,6 +154,7 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
             ),
         );
     }
+    console.log('res', res);
     if ('error' in res) {
         throw new SolanaJSONRPCError(
             res.error,
@@ -727,6 +740,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         );
 
         let res;
+
         if (featureFlags.isV2()) {
             res = create(
                 unsafeRes,
@@ -1937,5 +1951,195 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 context: res.result.context,
             };
         }
+    }
+
+    /**
+     * Get account info from either compressed or onchain storage.
+     * @param address         The account address to fetch.
+     * @param programId       The owner program ID.
+     * @param addressTreeInfo The address tree info used to store the account.
+     *
+     * @returns               Account info with compression info, or null if
+     *                        account doesn't exist. if merkleContext is
+     *                        undefined and isCompressed is false, the account
+     *                        is not compressible. MerkleContext is always some
+     *                        if the account is compressible. isCompressed
+     *                        indicates the current state of the account.
+     */
+    async getCompressibleAccountInfo(
+        address: PublicKey,
+        programId: PublicKey,
+        addressTreeInfo: TreeInfo,
+    ): Promise<{
+        accountInfo: AccountInfo<Buffer>;
+        isCompressed: boolean;
+        merkleContext?: MerkleContext;
+    } | null> {
+        const cAddress = deriveAddressV2(
+            address.toBytes(),
+            addressTreeInfo.tree.toBytes(),
+            programId.toBytes(),
+        );
+
+        const [onchainResult, compressedResult] = await Promise.allSettled([
+            this.getAccountInfo(address),
+            this.getCompressedAccount(bn(Array.from(cAddress))),
+        ]);
+
+        const onchainAccount =
+            onchainResult.status === 'fulfilled' ? onchainResult.value : null;
+        const compressedAccount =
+            compressedResult.status === 'fulfilled'
+                ? compressedResult.value
+                : null;
+
+        if (onchainAccount) {
+            if (compressedAccount) {
+                return {
+                    accountInfo: onchainAccount,
+                    merkleContext: {
+                        treeInfo: addressTreeInfo,
+                        hash: compressedAccount.hash,
+                        leafIndex: compressedAccount.leafIndex,
+                        proveByIndex: compressedAccount.proveByIndex,
+                    },
+                    isCompressed: false,
+                };
+            }
+            return {
+                accountInfo: onchainAccount,
+                merkleContext: undefined,
+                isCompressed: false,
+            };
+        }
+
+        // is compressed.
+        if (
+            compressedAccount &&
+            compressedAccount.data &&
+            compressedAccount.data.data.length > 0
+        ) {
+            const accountInfo: AccountInfo<Buffer> = {
+                executable: false,
+                owner: compressedAccount.owner,
+                lamports: compressedAccount.lamports.toNumber(),
+                data: Buffer.concat([
+                    Buffer.from(compressedAccount.data!.discriminator),
+                    compressedAccount.data!.data,
+                ]),
+            };
+            return {
+                accountInfo,
+                merkleContext: {
+                    treeInfo: addressTreeInfo,
+                    hash: compressedAccount.hash,
+                    leafIndex: compressedAccount.leafIndex,
+                    proveByIndex: compressedAccount.proveByIndex,
+                },
+                isCompressed: true,
+            };
+        }
+
+        // account does not exist.
+        return null;
+    }
+    /**
+     * Get account info from either compressed or onchain storage.
+     * @param address         The account address to fetch.
+     * @param tokenProgramId  The token program ID. Default to
+     * CompressedTokenProgram
+     *
+     * @returns               Account info with compression info, or null if
+     *                        account doesn't exist. if merkleContext is
+     *                        undefined and isCompressed is false, the account
+     *                        is not currently compressed.
+     */
+    async getCompressibleTokenAccount(
+        address: PublicKey,
+        tokenProgramId: PublicKey = CTOKEN_PROGRAM_ID,
+    ): Promise<{
+        accountInfo: AccountInfo<Buffer>;
+        parsed: TokenData;
+        isCompressed: boolean;
+        merkleContext?: MerkleContext;
+    } | null> {
+        const [onchainResult, compressedResult] = await Promise.allSettled([
+            this.getAccountInfo(address),
+            this.getCompressedTokenAccountsByOwner(address),
+        ]);
+
+        const onchainAccount =
+            onchainResult.status === 'fulfilled' ? onchainResult.value : null;
+        const compressedAccount =
+            compressedResult.status === 'fulfilled' &&
+            compressedResult.value.items.length > 0
+                ? compressedResult.value.items[0].compressedAccount
+                : null;
+
+        console.log('onchainAccount', onchainAccount);
+        console.log('compressedAccount', compressedAccount);
+
+        if (onchainAccount) {
+            if (!onchainAccount.owner.equals(tokenProgramId)) {
+                throw new Error(
+                    `Invalid owner ${onchainAccount.owner.toBase58()} for token layout`,
+                );
+            }
+
+            const parsed = parseTokenData(onchainAccount.data);
+            if (!parsed) {
+                throw new Error('Invalid token data');
+            }
+
+            if (compressedAccount) {
+                throw Error('Expected no compressed token account');
+            }
+            return {
+                accountInfo: onchainAccount,
+                merkleContext: undefined,
+                parsed: parsed,
+                isCompressed: false,
+            };
+        }
+
+        // is compressed.
+        if (
+            compressedAccount &&
+            compressedAccount.data &&
+            compressedAccount.data.data.length > 0
+        ) {
+            const accountInfo: AccountInfo<Buffer> = {
+                executable: false,
+                owner: compressedAccount.owner,
+                lamports: compressedAccount.lamports.toNumber(),
+                data: Buffer.concat([
+                    Buffer.from(compressedAccount.data!.discriminator),
+                    compressedAccount.data!.data,
+                ]),
+            };
+            if (compressedAccount.owner !== tokenProgramId) {
+                throw new Error(
+                    `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
+                );
+            }
+            const parsed = parseTokenData(compressedAccount.data!.data);
+            if (!parsed) {
+                throw new Error('Invalid token data');
+            }
+            return {
+                accountInfo,
+                merkleContext: {
+                    treeInfo: compressedAccount.treeInfo,
+                    hash: compressedAccount.hash,
+                    leafIndex: compressedAccount.leafIndex,
+                    proveByIndex: compressedAccount.proveByIndex,
+                },
+                parsed: parsed,
+                isCompressed: true,
+            };
+        }
+
+        // account does not exist.
+        return null;
     }
 }

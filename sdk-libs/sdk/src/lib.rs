@@ -103,8 +103,21 @@
 
 /// Compressed account abstraction similar to anchor Account.
 pub mod account;
+pub use account::LightAccount;
+
+/// SHA256-based variants
+pub mod sha {
+    pub use light_sdk_macros::{
+        LightDiscriminatorSha as LightDiscriminator, LightHasherSha as LightHasher,
+    };
+
+    pub use crate::account::sha::LightAccount;
+}
+
 /// Functions to derive compressed account addresses.
 pub mod address;
+/// SDK helpers for compressing and decompressing PDAs.
+pub mod compressible;
 /// Utilities to invoke the light-system-program via cpi.
 pub mod cpi;
 pub mod error;
@@ -116,16 +129,20 @@ pub mod token;
 pub mod transfer;
 pub mod utils;
 
+pub use account::Size;
 #[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
+pub use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+pub use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 pub use light_account_checks::{self, discriminator::Discriminator as LightDiscriminator};
 pub use light_hasher;
 pub use light_sdk_macros::{
-    derive_light_cpi_signer, light_system_accounts, LightDiscriminator, LightHasher, LightTraits,
+    add_compressible_instructions, derive_light_cpi_signer, generate_seed_functions,
+    light_system_accounts, Compressible, CompressiblePack, DeriveSeeds, LightDiscriminator,
+    LightDiscriminatorSha, LightHasher, LightHasherSha, LightTraits,
 };
 pub use light_sdk_types::constants;
+use light_sdk_types::CPI_AUTHORITY_PDA_SEED;
 use solana_account_info::AccountInfo;
 use solana_cpi::invoke_signed;
 use solana_instruction::{AccountMeta, Instruction};

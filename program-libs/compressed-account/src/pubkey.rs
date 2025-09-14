@@ -173,6 +173,22 @@ impl From<Pubkey> for anchor_lang::prelude::Pubkey {
     }
 }
 
+#[cfg(feature = "solana")]
+#[cfg(not(feature = "anchor"))]
+impl From<solana_pubkey::Pubkey> for Pubkey {
+    fn from(pubkey: solana_pubkey::Pubkey) -> Self {
+        Self::new_from_array(pubkey.to_bytes())
+    }
+}
+
+#[cfg(feature = "solana")]
+#[cfg(not(feature = "anchor"))]
+impl From<&solana_pubkey::Pubkey> for Pubkey {
+    fn from(pubkey: &solana_pubkey::Pubkey) -> Self {
+        Self::new_from_array(pubkey.to_bytes())
+    }
+}
+
 #[cfg(feature = "anchor")]
 impl From<&Pubkey> for anchor_lang::prelude::Pubkey {
     fn from(pubkey: &Pubkey) -> Self {

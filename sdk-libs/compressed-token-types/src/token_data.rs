@@ -1,13 +1,13 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use crate::{AnchorDeserialize, AnchorSerialize};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, BorshSerialize, BorshDeserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 #[repr(u8)]
 pub enum AccountState {
     Initialized,
     Frozen,
 }
 
-#[derive(Debug, PartialEq, Eq, BorshSerialize, BorshDeserialize, Clone)]
+#[derive(Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone)]
 pub struct TokenData {
     /// The mint associated with this account
     pub mint: [u8; 32],

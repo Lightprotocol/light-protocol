@@ -30,11 +30,12 @@ pub fn process_compress_and_close_cpi<'info>(
     // - Finding all required indices
     // - Building the compress_and_close instruction
     let instruction = compress_and_close_ctoken_accounts(
-        *ctx.accounts.signer.key,                          // fee_payer
+        *ctx.accounts.signer.key,                         // fee_payer
         with_compression_authority, // whether to use rent authority from extension
         ctx.accounts.output_queue.to_account_info(), // output queue where compressed accounts will be stored
-        &[&ctx.accounts.ctoken_account.to_account_info()], // slice of ctoken account infos
+        &[ctx.accounts.ctoken_account.to_account_info()], // slice of ctoken account infos
         cpi_accounts.tree_accounts().unwrap(),       // packed accounts for the instruction
+        None,
     )
     .map_err(|_| ProgramError::InvalidInstructionData)?;
 

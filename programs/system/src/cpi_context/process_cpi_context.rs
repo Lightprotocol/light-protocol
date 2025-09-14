@@ -81,6 +81,7 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
                 return Err(SystemProgramError::CpiContextEmpty.into());
             }
             if (*cpi_context_account.fee_payer).to_bytes() != fee_payer {
+                msg!("fee payer mismatch");
                 msg!(format!(" {:?} != {:?}", fee_payer, cpi_context_account.fee_payer).as_str());
                 return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
             }
@@ -90,6 +91,7 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
             return Ok(Some((1, instruction_data)));
         }
     }
+    msg!("cpi context is none");
     Ok(Some((0, instruction_data)))
 }
 
@@ -161,7 +163,7 @@ pub fn copy_cpi_context_outputs(
                 compressed_account: CompressedAccountConfig {
                     address: (output_account.address().is_some(), ()),
                     data: (
-                        !output_data.is_empty(),
+                        output_account.has_data(),
                         CompressedAccountDataConfig {
                             data: output_data.len() as u32,
                         },

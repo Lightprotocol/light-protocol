@@ -54,6 +54,7 @@ pinocchio-pubkey = { workspace = true }
 solana-msg = { workspace = true }
 light-profiler = { workspace = true }
 light-heap = { workspace = true, optional = true }
+
 [dev-dependencies]
 rand = { workspace = true }
 light-compressed-account = { workspace = true, features = [

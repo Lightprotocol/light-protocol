@@ -9,6 +9,7 @@ edition = "2021"
 [lib]
 crate-type = ["cdylib", "lib"]
 name = "sdk_native_test"
+doctest = false
 
 [features]
 no-entrypoint = []
@@ -19,17 +20,21 @@ test-sbf = []
 default = []
 
 [dependencies]
-light-sdk = { workspace = true }
-light-sdk-types = { workspace = true }
-light-hasher = { workspace = true, features = ["solana"] }
+light-sdk = { workspace = true, default-features = false, features = ["borsh"] }
+light-sdk-types = { workspace = true, default-features = false }
+light-hasher = { workspace = true, features = ["solana"], default-features = false }
 solana-program = { workspace = true }
-light-macros = { workspace = true, features = ["solana"] }
+light-macros = { workspace = true, features = ["solana"], default-features = false }
 borsh = { workspace = true }
-light-compressed-account = { workspace = true, features = ["solana"] }
+light-compressed-account = { workspace = true, features = ["solana"], default-features = false }
 light-zero-copy = { workspace = true }
+solana-clock = { workspace = true }
+solana-sysvar = { workspace = true }
 
 [dev-dependencies]
-light-program-test = { workspace = true, features = ["devenv"] }
+light-program-test = { workspace = true, features = ["v2"], default-features = false }
+light-client = { workspace = true }
+light-compressible-client = { workspace = true }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }
 
@@ -39,3 +44,4 @@ check-cfg = [
     'cfg(target_os, values("solana"))',
     'cfg(feature, values("frozen-abi", "no-entrypoint"))',
 ]
+

@@ -82,11 +82,18 @@ impl TestAccounts {
             }],
 
             v2_address_trees: vec![pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK")],
-            v2_state_trees: vec![StateMerkleTreeAccountsV2 {
-                merkle_tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
-                output_queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
-                cpi_context: pubkey!("7Hp52chxaew8bW1ApR4fck2bh6Y8qA1pu3qwH6N9zaLj"),
-            }],
+            v2_state_trees: vec![
+                StateMerkleTreeAccountsV2 {
+                    merkle_tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
+                    output_queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
+                    cpi_context: pubkey!("7Hp52chxaew8bW1ApR4fck2bh6Y8qA1pu3qwH6N9zaLj"),
+                },
+                StateMerkleTreeAccountsV2 {
+                    merkle_tree: pubkey!("2Yb3fGo2E9aWLjY8KuESaqurYpGGhEeJr7eynKrSgXwS"),
+                    output_queue: pubkey!("12wJT3xYd46rtjeqDU6CrtT8unqLjPiheggzqhN9YsyB"),
+                    cpi_context: pubkey!("HwtjxDvFEXiWnzeMeWkMBzpQN45A95rTJNZmz1Z3pe8R"), // TODO: replace.
+                },
+            ],
             funding_pool_config: FundingPoolConfig::get_v1(),
         }
     }
@@ -130,17 +137,30 @@ impl TestAccounts {
                 merkle_tree: pubkey!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2"),
                 queue: pubkey!("aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F"),
             }],
-            v2_state_trees: vec![StateMerkleTreeAccountsV2 {
-                merkle_tree: Keypair::from_bytes(&BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR)
-                    .unwrap()
-                    .pubkey(),
-                output_queue: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR)
-                    .unwrap()
-                    .pubkey(),
-                cpi_context: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR)
-                    .unwrap()
-                    .pubkey(),
-            }],
+            v2_state_trees: vec![
+                StateMerkleTreeAccountsV2 {
+                    merkle_tree: Keypair::from_bytes(&BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR)
+                        .unwrap()
+                        .pubkey(),
+                    output_queue: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR)
+                        .unwrap()
+                        .pubkey(),
+                    cpi_context: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR)
+                        .unwrap()
+                        .pubkey(),
+                },
+                StateMerkleTreeAccountsV2 {
+                    merkle_tree: Keypair::from_bytes(&BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR_2)
+                        .unwrap()
+                        .pubkey(),
+                    output_queue: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR_2)
+                        .unwrap()
+                        .pubkey(),
+                    cpi_context: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR_2)
+                        .unwrap()
+                        .pubkey(),
+                },
+            ],
             v2_address_trees: vec![
                 Keypair::from_bytes(&BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR)
                     .unwrap()

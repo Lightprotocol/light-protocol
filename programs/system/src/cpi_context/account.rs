@@ -127,7 +127,7 @@ impl OutputAccount<'_> for CpiContextOutAccount {
     }
 
     fn has_data(&self) -> bool {
-        self.discriminator != [0; 8]
+        self.discriminator != [0; 8] || self.data_hash != [0; 32]
     }
 
     fn skip(&self) -> bool {

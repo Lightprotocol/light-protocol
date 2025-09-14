@@ -40,6 +40,7 @@ pub fn insert_addresses(
     for &(tree_index, queue_index) in &visited {
         let queue_account = &mut accounts[queue_index as usize];
 
+        // msg!(&format!("queue_index: {:?}", queue_index));
         match queue_account {
             AcpAccount::BatchedAddressTree(address_tree) => {
                 inserted_addresses +=

@@ -3,7 +3,7 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::instructions::{
-    derive_compressed_mint_address,
+    derive_ctoken_mint_address,
     mint_action::{MintActionType, MintToRecipient},
 };
 use light_ctoken_types::instructions::mint_action::Recipient;
@@ -82,7 +82,7 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     // Derive addresses
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_ctoken_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Build actions
     let mut actions = Vec::new();

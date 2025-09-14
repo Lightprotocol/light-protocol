@@ -342,7 +342,7 @@ impl CTokenAccount2 {
     pub fn compress_and_close(
         &mut self,
         amount: u64,
-        source_or_recipient_index: u8,
+        recipient_index: u8,
         authority: u8,
         rent_sponsor_index: u8,
         compressed_account_index: u8,
@@ -355,12 +355,13 @@ impl CTokenAccount2 {
 
         // Add the full balance to the output amount
         self.output.amount += amount;
+        self.output.owner = recipient_index;
 
         // Use the compress_and_close method from Compression
         self.compression = Some(Compression::compress_and_close(
             amount,
             self.output.mint,
-            source_or_recipient_index,
+            recipient_index,
             authority,
             rent_sponsor_index,
             compressed_account_index,
@@ -439,6 +440,7 @@ pub fn create_spl_to_ctoken_transfer_instruction(
     payer: Pubkey,
     token_pool_pda: Pubkey,
     token_pool_pda_bump: u8,
+    spl_token_program: Pubkey,
 ) -> Result<Instruction, TokenSdkError> {
     let packed_accounts = vec![
         // Mint (index 0)
@@ -451,11 +453,8 @@ pub fn create_spl_to_ctoken_transfer_instruction(
         AccountMeta::new(source_spl_token_account, false),
         // Token pool PDA (index 4) - writable
         AccountMeta::new(token_pool_pda, false),
-        // SPL Token program (index 5) - needed for CPI
-        AccountMeta::new_readonly(
-            Pubkey::from(light_compressed_token_types::constants::SPL_TOKEN_PROGRAM_ID),
-            false,
-        ),
+        // SPL Token program (or T22) (index 5) - needed for CPI
+        AccountMeta::new_readonly(spl_token_program, false),
     ];
 
     let wrap_spl_to_ctoken_account = CTokenAccount2 {
@@ -464,7 +463,7 @@ pub fn create_spl_to_ctoken_transfer_instruction(
         compression: Some(Compression::compress_spl(
             amount,
             0, // mint
-            3, // source or recpient
+            3, // source
             2, // authority
             4, // pool_account_index:
             0, // pool_index
@@ -510,23 +509,15 @@ pub fn create_ctoken_to_spl_transfer_instruction(
     payer: Pubkey,
     token_pool_pda: Pubkey,
     token_pool_pda_bump: u8,
+    spl_token_program: Pubkey,
 ) -> Result<Instruction, TokenSdkError> {
     let packed_accounts = vec![
-        // Mint (index 0)
-        AccountMeta::new_readonly(mint, false),
-        // Source ctoken account (index 1) - writable
-        AccountMeta::new(source_ctoken_account, false),
-        // Destination SPL token account (index 2) - writable
-        AccountMeta::new(destination_spl_token_account, false),
-        // Authority (index 3) - signer
-        AccountMeta::new_readonly(authority, true),
-        // Token pool PDA (index 4) - writable
-        AccountMeta::new(token_pool_pda, false),
-        // SPL Token program (index 5) - needed for CPI
-        AccountMeta::new_readonly(
-            Pubkey::from(light_compressed_token_types::constants::SPL_TOKEN_PROGRAM_ID),
-            false,
-        ),
+        AccountMeta::new_readonly(mint, false), // Mint (index 0)
+        AccountMeta::new(source_ctoken_account, false), // Source ctoken account (index 1) - writable
+        AccountMeta::new(destination_spl_token_account, false), // Destination SPL token account (index 2) - writable
+        AccountMeta::new_readonly(authority, true),             // Authority (index 3) - signer
+        AccountMeta::new(token_pool_pda, false), // Token pool PDA (index 4) - writable
+        AccountMeta::new_readonly(spl_token_program, false), // SPL Token program (index 5) - needed for CPI
     ];
 
     // First operation: compress from ctoken account to pool using compress_spl

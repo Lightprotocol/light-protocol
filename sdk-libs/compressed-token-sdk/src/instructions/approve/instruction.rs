@@ -2,7 +2,7 @@ use borsh::BorshSerialize;
 use light_compressed_token_types::{
     instruction::delegation::CompressedTokenInstructionDataApprove, ValidityProof,
 };
-use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_sdk_types::CTOKEN_PROGRAM_ID;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
@@ -79,7 +79,7 @@ pub fn create_approve_instruction(inputs: ApproveInputs) -> Result<Instruction> 
     let account_metas = get_approve_instruction_account_metas(meta_config);
 
     Ok(Instruction {
-        program_id: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
         accounts: account_metas,
         data: serialized_data,
     })

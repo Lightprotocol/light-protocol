@@ -86,8 +86,9 @@ use crate::accounts::{
 use crate::{
     accounts::{
         address_tree::create_address_merkle_tree_and_queue_account,
-        state_tree::create_state_merkle_tree_and_queue_account, test_accounts::TestAccounts,
-        test_keypairs::BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR,
+        state_tree::create_state_merkle_tree_and_queue_account,
+        test_accounts::TestAccounts,
+        test_keypairs::{BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR, BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR_2},
     },
     indexer::TestIndexerExtensions,
 };
@@ -193,12 +194,10 @@ impl Indexer for TestIndexer {
         let account = self
             .compressed_accounts
             .iter()
-            .find(|acc| acc.compressed_account.address == Some(address));
+            .find(|acc| acc.compressed_account.address == Some(address))
+            .ok_or(IndexerError::AccountNotFound)?;
 
-        let account_data = account
-            .ok_or(IndexerError::AccountNotFound)?
-            .clone()
-            .try_into()?;
+        let account_data: CompressedAccount = account.clone().try_into()?;
 
         Ok(Response {
             context: Context {
@@ -453,9 +452,10 @@ impl Indexer for TestIndexer {
                 let account = self.get_compressed_account_by_hash(*hash, None).await?;
                 state_merkle_tree_pubkeys.push(account.value.tree_info.tree);
             }
-            let mut proof_inputs = vec![];
 
+            let mut proof_inputs = vec![];
             let mut indices_to_remove = Vec::new();
+
             // for all accounts in batched trees, check whether values are in tree or queue
             let compressed_accounts = if !hashes.is_empty() && !state_merkle_tree_pubkeys.is_empty()
             {
@@ -474,6 +474,7 @@ impl Indexer for TestIndexer {
                             .output_queue_elements
                             .iter()
                             .find(|(hash, _)| hash == compressed_account);
+
                         if let Some((_, index)) = queue_element {
                             if accounts.output_queue_batch_size.is_some()
                                 && accounts.leaf_index_in_queue_range(*index as usize)?
@@ -551,7 +552,7 @@ impl Indexer for TestIndexer {
                 #[cfg(debug_assertions)]
                 {
                     if std::env::var("RUST_BACKTRACE").is_ok() {
-                        println!("get_validit_proof: rpc_result {:?}", rpc_result);
+                        println!("get_validity_proof: rpc_result {:?}", rpc_result);
                     }
                 }
 
@@ -1287,9 +1288,12 @@ impl TestIndexer {
         for state_merkle_tree_account in state_merkle_tree_accounts.iter() {
             let test_batched_output_queue =
                 Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap();
+            let test_batched_output_queue_2 =
+                Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR_2).unwrap();
             let (tree_type, merkle_tree, output_queue_batch_size) = if state_merkle_tree_account
                 .nullifier_queue
                 == test_batched_output_queue.pubkey()
+                || state_merkle_tree_account.nullifier_queue == test_batched_output_queue_2.pubkey()
             {
                 let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
                     DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
@@ -2261,28 +2265,47 @@ impl TestIndexer {
                     .body(json_payload.clone())
                     .send()
                     .await;
-                if let Ok(response_result) = response_result {
-                    if response_result.status().is_success() {
-                        let body = response_result.text().await.unwrap();
-                        let proof_json = deserialize_gnark_proof_json(&body).unwrap();
-                        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-                        let (proof_a, proof_b, proof_c) =
-                            compress_proof(&proof_a, &proof_b, &proof_c);
-                        return Ok(ValidityProofWithContext {
-                            accounts: account_proof_inputs,
-                            addresses: address_proof_inputs,
-                            proof: CompressedProof {
-                                a: proof_a,
-                                b: proof_b,
-                                c: proof_c,
-                            }
-                            .into(),
-                        });
+
+                match response_result {
+                    Ok(resp) => {
+                        let status = resp.status();
+                        if status.is_success() {
+                            let body = resp.text().await.unwrap();
+                            let proof_json = deserialize_gnark_proof_json(&body).unwrap();
+                            let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
+                            let (proof_a, proof_b, proof_c) =
+                                compress_proof(&proof_a, &proof_b, &proof_c);
+                            return Ok(ValidityProofWithContext {
+                                accounts: account_proof_inputs,
+                                addresses: address_proof_inputs,
+                                proof: CompressedProof {
+                                    a: proof_a,
+                                    b: proof_b,
+                                    c: proof_c,
+                                }
+                                .into(),
+                            });
+                        }
+
+                        // Non-success HTTP response. Read body for diagnostics and decide whether to retry.
+                        let body = resp.text().await.unwrap_or_default();
+                        // Fail fast on 4xx (client errors are usually non-retryable: bad params or missing circuit)
+                        if status.is_client_error() {
+                            return Err(IndexerError::CustomError(format!(
+                                "Prover client error {}: {}",
+                                status, body
+                            )));
+                        }
+                        // Otherwise, treat as transient and backoff
+                        println!("Prover non-success {}: {}", status, body);
+                        retries -= 1;
+                        tokio::time::sleep(Duration::from_secs(5)).await;
                     }
-                } else {
-                    println!("Error: {:#?}", response_result);
-                    tokio::time::sleep(Duration::from_secs(5)).await;
-                    retries -= 1;
+                    Err(err) => {
+                        println!("Request error: {:?}", err);
+                        retries -= 1;
+                        tokio::time::sleep(Duration::from_secs(5)).await;
+                    }
                 }
             }
             Err(IndexerError::CustomError(

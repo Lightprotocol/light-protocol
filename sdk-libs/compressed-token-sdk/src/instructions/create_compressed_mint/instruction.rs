@@ -184,20 +184,16 @@ pub fn create_compressed_mint_cpi_write(
 
 /// Creates a compressed mint instruction with automatic mint address derivation
 pub fn create_compressed_mint(input: CreateCompressedMintInputs) -> Result<Instruction> {
-    let mint_address =
-        derive_compressed_mint_address(&input.mint_signer, &input.address_tree_pubkey);
+    let mint_address = derive_ctoken_mint_address(&input.mint_signer, &input.address_tree_pubkey);
     create_compressed_mint_cpi(input, mint_address, None, None)
 }
 
 /// Derives the compressed mint address from the mint seed and address tree
-pub fn derive_compressed_mint_address(
-    mint_seed: &Pubkey,
-    address_tree_pubkey: &Pubkey,
-) -> [u8; 32] {
+pub fn derive_ctoken_mint_address(mint_seed: &Pubkey, address_tree_pubkey: &Pubkey) -> [u8; 32] {
     light_compressed_account::address::derive_address(
         &find_spl_mint_address(mint_seed).0.to_bytes(),
         &address_tree_pubkey.to_bytes(),
-        &light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
+        &light_sdk_types::CTOKEN_PROGRAM_ID,
     )
 }
 
@@ -208,13 +204,13 @@ pub fn derive_compressed_mint_from_spl_mint(
     light_compressed_account::address::derive_address(
         &spl_mint.to_bytes(),
         &address_tree_pubkey.to_bytes(),
-        &light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
+        &light_sdk_types::CTOKEN_PROGRAM_ID,
     )
 }
 
 pub fn find_spl_mint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_seed.as_ref()],
-        &Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        &Pubkey::new_from_array(light_sdk_types::CTOKEN_PROGRAM_ID),
     )
 }

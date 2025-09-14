@@ -9,7 +9,7 @@ use light_compressed_token_sdk::instructions::{
 use light_ctoken_types::{
     instructions::mint_action::{CompressedMintWithContext, Recipient},
     state::{BaseMint, CompressedMint, CompressedMintMetadata},
-    COMPRESSED_MINT_SEED, COMPRESSED_TOKEN_PROGRAM_ID,
+    COMPRESSED_MINT_SEED, CTOKEN_PROGRAM_ID,
 };
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
@@ -44,7 +44,7 @@ async fn test_compress_full_and_close() {
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
 
     let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID);
+        Pubkey::new_from_array(light_sdk_types::CTOKEN_PROGRAM_ID);
     let (mint_pda, mint_bump) = Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
         &compressed_token_program_id,
@@ -251,12 +251,12 @@ async fn test_compress_full_and_close() {
     // Create remaining accounts following four_multi_transfer pattern
     let mut remaining_accounts = PackedAccounts::default();
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new_readonly(
-        Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+        Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
         false,
     ));
     remaining_accounts
         .add_system_accounts(SystemAccountMetaConfig::new(Pubkey::new_from_array(
-            COMPRESSED_TOKEN_PROGRAM_ID,
+            CTOKEN_PROGRAM_ID,
         )))
         .unwrap();
     let output_tree_index =

@@ -519,10 +519,18 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
         let hash = account
             .hash()
             .map_err(|_| IndexerError::InvalidResponseData)?;
-        // Breaks light-program-test
-        // let tree_info = QUEUE_TREE_MAPPING
-        //     .get(&account.merkle_context.merkle_tree_pubkey.to_string())
-        //     .ok_or(IndexerError::InvalidResponseData)?;
+
+        let tree_pubkey =
+            Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes());
+        let tree_info = QUEUE_TREE_MAPPING
+            .get(&tree_pubkey.to_string())
+            .ok_or_else(|| {
+                println!(
+                    "ERROR: No tree_info found for tree pubkey: {:?}",
+                    tree_pubkey.to_string()
+                );
+                IndexerError::InvalidResponseData
+            })?;
 
         Ok(CompressedAccount {
             address: account.compressed_account.address,
@@ -531,10 +539,10 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
             lamports: account.compressed_account.lamports,
             leaf_index: account.merkle_context.leaf_index,
             tree_info: TreeInfo {
-                tree: Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes()),
+                tree: tree_pubkey,
                 queue: Pubkey::new_from_array(account.merkle_context.queue_pubkey.to_bytes()),
                 tree_type: account.merkle_context.tree_type,
-                cpi_context: None,
+                cpi_context: tree_info.cpi_context,
                 next_tree_info: None,
             },
             owner: Pubkey::new_from_array(account.compressed_account.owner.to_bytes()),
@@ -581,6 +589,18 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
             Ok::<Option<CompressedAccountData>, IndexerError>(None)
         }?;
 
+        let tree_pubkey =
+            Pubkey::new_from_array(decode_base58_to_fixed_array(&account.merkle_context.tree)?);
+        let tree_info = QUEUE_TREE_MAPPING
+            .get(&tree_pubkey.to_string())
+            .ok_or_else(|| {
+                println!(
+                    "ERROR: No tree_info found for tree pubkey: {}",
+                    account.merkle_context.tree
+                );
+                IndexerError::InvalidResponseData
+            })?;
+
         let owner = Pubkey::new_from_array(decode_base58_to_fixed_array(&account.owner)?);
         let address = account
             .address
@@ -590,14 +610,12 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
         let hash = decode_base58_to_fixed_array(&account.hash)?;
 
         let tree_info = TreeInfo {
-            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(
-                &account.merkle_context.tree,
-            )?),
+            tree: tree_pubkey,
             queue: Pubkey::new_from_array(decode_base58_to_fixed_array(
                 &account.merkle_context.queue,
             )?),
             tree_type: TreeType::from(account.merkle_context.tree_type as u64),
-            cpi_context: decode_base58_option_to_pubkey(&account.merkle_context.cpi_context)?,
+            cpi_context: tree_info.cpi_context,
             next_tree_info: account
                 .merkle_context
                 .next_tree_context

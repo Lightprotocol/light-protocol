@@ -7,15 +7,15 @@ use crate::{
 
 #[repr(usize)]
 pub enum CompressionCpiAccountIndexSmall {
-    LightSystemProgram,
-    Authority, // index 0 - Cpi authority of the custom program, used to invoke the light system program.
-    RegisteredProgramPda, // index 1 - registered_program_pda
-    AccountCompressionAuthority, // index 2 - account_compression_authority
-    AccountCompressionProgram, // index 3 - account_compression_program
-    SystemProgram, // index 4 - system_program
-    SolPoolPda, // index 5 - Optional
-    DecompressionRecipient, // index 6 - Optional
-    CpiContext, // index 7 - Optional
+    LightSystemProgram,          // index 0 - hardcoded in cpi hence no getter.
+    Authority, // index 1 - Cpi authority of the custom program, used to invoke the light system program.
+    RegisteredProgramPda, // index 2 - registered_program_pda
+    AccountCompressionAuthority, // index 3 - account_compression_authority
+    AccountCompressionProgram, // index 4 - account_compression_program
+    SystemProgram, // index 5 - system_program
+    SolPoolPda, // index 6 - Optional
+    DecompressionRecipient, // index 7 - Optional
+    CpiContext, // index 8 - Optional
 }
 
 pub const PROGRAM_ACCOUNTS_LEN: usize = 0; // No program accounts in CPI
@@ -30,6 +30,7 @@ pub struct CpiAccountsSmall<'a, T: AccountInfoTrait + Clone> {
 }
 
 impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
+    #[inline(never)]
     pub fn new(fee_payer: &'a T, accounts: &'a [T], cpi_signer: CpiSigner) -> Self {
         Self {
             fee_payer,
@@ -37,7 +38,8 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
             config: CpiAccountsConfig::new(cpi_signer),
         }
     }
-
+    #[inline(never)]
+    #[cold]
     pub fn new_with_config(fee_payer: &'a T, accounts: &'a [T], config: CpiAccountsConfig) -> Self {
         Self {
             fee_payer,
@@ -160,6 +162,17 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
             ))
     }
 
+    /// Returns accounts after the system accounts; instruction-specific
+    /// remaining_accounts start at this offset.
+    pub fn post_system_accounts(&self) -> Result<&'a [T]> {
+        let system_offset = self.system_accounts_end_offset();
+        self.accounts
+            .get(system_offset..)
+            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(
+                system_offset,
+            ))
+    }
+
     pub fn get_tree_account_info(&self, tree_index: usize) -> Result<&'a T> {
         let tree_accounts = self.tree_accounts()?;
         tree_accounts
@@ -167,6 +180,16 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(
                 self.system_accounts_end_offset() + tree_index,
             ))
+    }
+
+    // TODO: unify with get_tree_account_info
+    pub fn get_tree_address(&self, tree_index: u8) -> Result<&'a T> {
+        let tree_accounts = self.tree_accounts()?;
+        tree_accounts.get(tree_index as usize).ok_or(
+            LightSdkTypesError::CpiAccountsIndexOutOfBounds(
+                self.system_accounts_end_offset() + tree_index as usize,
+            ),
+        )
     }
 
     /// Create a vector of account info references

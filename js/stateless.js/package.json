@@ -1,6 +1,6 @@
 {
     "name": "@lightprotocol/stateless.js",
-    "version": "0.22.0",
+    "version": "0.22.1-alpha.0",
     "description": "JavaScript API for Light & ZK Compression",
     "sideEffects": false,
     "main": "dist/cjs/node/index.cjs",
@@ -35,12 +35,12 @@
     ],
     "license": "Apache-2.0",
     "peerDependencies": {
-        "@solana/web3.js": ">=1.73.5"
+        "@solana/web3.js": ">=1.73.5",
+        "bn.js": "^5.1.2"
     },
     "dependencies": {
         "@coral-xyz/borsh": "^0.29.0",
         "@noble/hashes": "1.5.0",
-        "bn.js": "^5.2.1",
         "bs58": "^6.0.0",
         "buffer": "6.0.3",
         "buffer-layout": "^1.2.2",
@@ -49,6 +49,7 @@
         "superstruct": "2.0.2"
     },
     "devDependencies": {
+        "bn.js": "^5.1.2",
         "@coral-xyz/anchor": "0.29.0",
         "@coral-xyz/borsh": "^0.29.0",
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",

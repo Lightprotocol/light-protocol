@@ -25,6 +25,7 @@ light-macros = { workspace = true }
 pinocchio = { workspace = true, optional = true }
 solana-program-error = { workspace = true, optional = true }
 solana-msg = { workspace = true }
+log = { workspace = true }
 # Feature-gated dependencies
 anchor-lang = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true, features = ["derive"] }

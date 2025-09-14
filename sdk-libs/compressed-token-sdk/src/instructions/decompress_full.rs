@@ -5,8 +5,11 @@ use light_ctoken_types::instructions::transfer2::{
 use light_profiler::profile;
 use light_sdk::{
     error::LightSdkError,
-    instruction::{AccountMetasVec, PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
-    token::TokenData,
+    instruction::{
+        account_meta::CompressedAccountMetaNoLamportsNoAddress, AccountMetasVec, PackedAccounts,
+        PackedStateTreeInfo, SystemAccountMetaConfig,
+    },
+    token::{InputTokenDataCompressible, TokenData},
 };
 use solana_account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction};
@@ -33,6 +36,44 @@ pub struct DecompressFullIndices {
     pub destination_index: u8,                  // Destination ctoken Solana account (must exist)
 }
 
+impl
+    From<(
+        InputTokenDataCompressible,
+        CompressedAccountMetaNoLamportsNoAddress,
+        u8,
+    )> for DecompressFullIndices
+{
+    #[inline(never)]
+    fn from(
+        (token_data, meta, destination_index): (
+            InputTokenDataCompressible,
+            CompressedAccountMetaNoLamportsNoAddress,
+            u8,
+        ),
+    ) -> Self {
+        let source = MultiInputTokenDataWithContext {
+            owner: token_data.owner,
+            amount: token_data.amount,
+            has_delegate: token_data.has_delegate,
+            delegate: token_data.delegate,
+            mint: token_data.mint,
+            version: token_data.version,
+            merkle_context: PackedMerkleContext {
+                merkle_tree_pubkey_index: meta.tree_info.merkle_tree_pubkey_index,
+                queue_pubkey_index: meta.tree_info.queue_pubkey_index,
+                leaf_index: meta.tree_info.leaf_index,
+                prove_by_index: meta.tree_info.prove_by_index,
+            },
+            root_index: meta.tree_info.root_index,
+        };
+
+        DecompressFullIndices {
+            source,
+            destination_index,
+        }
+    }
+}
+
 /// Decompress full balance from compressed token accounts with pre-computed indices
 ///
 /// # Arguments
@@ -44,7 +85,8 @@ pub struct DecompressFullIndices {
 ///
 /// # Returns
 /// An instruction that decompresses the full balance of all provided token accounts
-#[profile]
+#[inline(never)]
+#[cold]
 pub fn decompress_full_ctoken_accounts_with_indices<'info>(
     fee_payer: Pubkey,
     validity_proof: ValidityProof,
@@ -55,7 +97,6 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
     if indices.is_empty() {
         return Err(TokenSdkError::InvalidAccountData);
     }
-
     // Process each set of indices
     let mut token_accounts = Vec::with_capacity(indices.len());
 
@@ -73,11 +114,18 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
     }
 
     // Convert packed_accounts to AccountMetas
+    //
+    // TODO: we may have to add conditional delegate signers for delegate
+    // support via CPI.
+    let signer_indices: Vec<u8> = indices
+        .iter()
+        .map(|idx| idx.source.owner) // owner is always a signer
+        .collect();
     let mut packed_account_metas = Vec::with_capacity(packed_accounts.len());
-    for info in packed_accounts.iter() {
+    for (i, info) in packed_accounts.iter().enumerate() {
         packed_account_metas.push(AccountMeta {
             pubkey: *info.key,
-            is_signer: info.is_signer,
+            is_signer: info.is_signer || signer_indices.contains(&(i as u8)),
             is_writable: info.is_writable,
         });
     }
@@ -132,7 +180,7 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
 ///
 /// # Returns
 /// Vec of DecompressFullIndices ready to use with decompress_full_ctoken_accounts_with_indices
-#[profile]
+#[inline(never)]
 pub fn pack_for_decompress_full(
     token: &TokenData,
     tree_info: &PackedStateTreeInfo,
@@ -194,6 +242,7 @@ impl AccountMetasVec for DecompressFullAccounts {
     /// Adds:
     /// 1. system accounts if not set
     /// 2. compressed token program and ctoken cpi authority pda to pre accounts
+    #[inline(never)]
     fn get_account_metas_vec(&self, accounts: &mut PackedAccounts) -> Result<(), LightSdkError> {
         if !accounts.system_accounts_set() {
             let config = SystemAccountMetaConfig {

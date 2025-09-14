@@ -89,7 +89,7 @@ pub fn process_compress_full_and_close<'info>(
     invoke(&instruction, account_infos.as_slice())?;
 
     let compressed_token_program_id =
-        Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID);
+        Pubkey::new_from_array(light_sdk_types::CTOKEN_PROGRAM_ID);
     let close_instruction = close_account(
         &compressed_token_program_id,
         token_account_info.key,

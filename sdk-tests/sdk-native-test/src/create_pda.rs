@@ -1,11 +1,12 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
-    cpi::{CpiAccounts, CpiAccountsConfig, CpiInputs},
+    cpi::{CpiAccountsConfig, CpiAccountsSmall, CpiInputs},
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},
     light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
-    LightDiscriminator, LightHasher,
+    sha::LightHasher,
+    LightDiscriminator,
 };
 use solana_program::{account_info::AccountInfo, msg};
 
@@ -25,12 +26,7 @@ pub fn create_pda<const BATCHED: bool>(
         .map_err(|_| LightSdkError::Borsh)?;
     msg!("pre config");
     let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
-    let cpi_accounts = CpiAccounts::try_new_with_config(
-        &accounts[0],
-        &accounts[instruction_data.system_accounts_offset as usize..],
-        config,
-    )
-    .unwrap();
+    let cpi_accounts = CpiAccountsSmall::new_with_config(&accounts[0], &accounts[1..], config);
 
     let address_tree_info = instruction_data.address_tree_info;
     let (address, address_seed) = if BATCHED {
@@ -40,7 +36,9 @@ pub fn create_pda<const BATCHED: bool>(
         ])
         .unwrap();
         // to_bytes will go away as soon as we have a light_sdk::address::v2::derive_address
-        let address_tree_pubkey = address_tree_info.get_tree_pubkey(&cpi_accounts)?.to_bytes();
+        let address_tree_pubkey = address_tree_info
+            .get_tree_pubkey_small(&cpi_accounts)?
+            .to_bytes();
         let address = light_compressed_account::address::derive_address(
             &address_seed,
             &address_tree_pubkey,
@@ -50,7 +48,7 @@ pub fn create_pda<const BATCHED: bool>(
     } else {
         light_sdk::address::v1::derive_address(
             &[b"compressed", instruction_data.data.as_slice()],
-            &address_tree_info.get_tree_pubkey(&cpi_accounts)?,
+            &address_tree_info.get_tree_pubkey_small(&cpi_accounts)?,
             &crate::ID,
         )
     };
@@ -69,7 +67,7 @@ pub fn create_pda<const BATCHED: bool>(
         vec![my_compressed_account.to_account_info()?],
         vec![new_address_params],
     );
-    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+    cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
     Ok(())
 }
 
