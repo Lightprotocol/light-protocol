@@ -15,7 +15,7 @@ impl From<CompressibleError> for u32 {
     fn from(e: CompressibleError) -> u32 {
         match e {
             CompressibleError::ConstraintViolation => 19001,
-            CompressibleError::FailedBorrowRentSysvar => 19001,
+            CompressibleError::FailedBorrowRentSysvar => 19002,
             CompressibleError::HasherError(e) => u32::from(e),
         }
     }

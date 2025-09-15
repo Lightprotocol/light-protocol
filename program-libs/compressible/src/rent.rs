@@ -10,7 +10,10 @@ pub const COMPRESSION_INCENTIVE: u16 = 1000;
 pub const MIN_RENT: u16 = 1220;
 pub const RENT_PER_BYTE: u8 = 10;
 pub const SLOTS_PER_EPOCH: u64 = 432_000;
+
 // TODO: look at solana rent curve
+/// Rent function parameters,
+/// used to calculate whether the account is compressible.
 #[derive(
     Debug,
     Clone,
@@ -211,6 +214,7 @@ fn calculate_rent_with_current_epoch(
     )
 }
 
+// TODO: return Result
 #[inline(always)]
 #[allow(clippy::too_many_arguments)]
 pub fn calculate_rent_inner<const INCLUDE_CURRENT: bool>(

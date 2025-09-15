@@ -82,7 +82,7 @@ impl From<u8> for InstructionType {
             106 => InstructionType::MintAction,
             107 => InstructionType::Claim,
             108 => InstructionType::WithdrawFundingPool,
-            _ => InstructionType::Other,
+            _ => InstructionType::Other, // anchor instructions
         }
     }
 }

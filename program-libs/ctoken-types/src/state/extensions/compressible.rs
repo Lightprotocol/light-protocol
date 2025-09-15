@@ -10,15 +10,8 @@ use zerocopy::U64;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum AccountError {
-    FailedBorrowRentSysvar,
-}
-
 // TODO: add token account version
-// TODO: consider adding externally funded mode
-/// Compressible extension for token accounts
-/// Contains timing data for compression/decompression and rent authority
+/// Compressible extension for ctoken accounts.
 #[derive(
     Debug,
     Clone,
@@ -36,10 +29,20 @@ pub struct CompressibleExtension {
     pub version: u16, // version 0 is uninitialized, default is 1
     /// Compress to account pubkey instead of account owner.
     pub compress_to_pubkey: bool,
+    /// Version of the compressed token account when ctoken account is
+    /// compressed and closed. (The version specifies the hashing scheme.)
+    pub token_account_version: u8,
+    /// Authority that can compress and close the account.
     pub rent_authority: [u8; 32],
+    /// Recipient for rent exemption lamports up on account closure.
     pub rent_recipient: [u8; 32],
+    /// Last slot rent was claimed from this account.
     pub last_claimed_slot: u64,
+    /// Lamports amount the account is topped up with at every write
+    /// by the fee payer.
     pub write_top_up_lamports: u32,
+    /// Rent function parameters,
+    /// used to calculate whether the account is compressible.
     pub rent_config: RentConfig,
 }
 
@@ -126,7 +129,7 @@ impl ZCompressibleExtensionMut<'_> {
         current_slot: u64,
         current_lamports: u64,
         rent_exemption_lamports: u64,
-    ) -> Result<Option<u64>, AccountError> {
+    ) -> Result<Option<u64>, CompressibleError> {
         let min_rent: u64 = self.rent_config.min_rent.into();
         let rent_per_byte: u64 = self.rent_config.rent_per_byte.into();
         let full_compression_incentive: u64 = self.rent_config.full_compression_incentive.into();

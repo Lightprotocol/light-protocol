@@ -11,16 +11,28 @@ pub const COMPRESSIBLE_CONFIG_SEED: &[u8] = b"compressible_config";
 pub struct CompressibleConfig {
     /// Config version for future upgrades
     pub version: u16,
+    /// 1 Compressible Config pda is active, 0 is inactive, 2 is deprecated.
+    /// - inactive, config cannot be used
+    /// - active, config can be used
+    /// - deprecated, no new ctoken account can be created with this config, other instructions work.
     pub active: u8,
-    /// PDA bump seed
+    /// CompressibleConfig PDA bump seed
     pub bump: u8,
+    /// Update authority can update the CompressibleConfig.
     pub update_authority: Pubkey,
+    /// Withdrawal authority can withdraw funds from the rent recipient pda.
     pub withdrawal_authority: Pubkey,
-    // rent_recipient, rent_authority have fixed derivation
+    /// CToken program pda:
+    /// 1. pays rent exemption at compressible ctoken account creation
+    /// 2. receives rent exemption at compressible ctoken account closure
+    /// 3. receives rent from compressible ctoken accounts with Claim, or compress and close instructions.
     pub rent_recipient: Pubkey,
+    /// Registry program pda, can Claim from and compress and close compressible ctoken accounts.
     pub rent_authority: Pubkey,
     pub rent_recipient_bump: u8,
     pub rent_authority_bump: u8,
+    /// Rent function parameters,
+    /// used to calculate whether the account is compressible.
     pub rent_config: RentConfig,
 
     /// Address space for compressed accounts (currently 1 address_tree allowed)
@@ -30,6 +42,7 @@ pub struct CompressibleConfig {
 
 #[cfg(feature = "anchor")]
 impl anchor_lang::Discriminator for CompressibleConfig {
+    // TODO: derive proper anchor discriminator
     const DISCRIMINATOR: &'static [u8] = &[1, 2, 3, 4, 5, 6, 7, 8];
 }
 
@@ -183,6 +196,7 @@ impl CompressibleConfig {
             program_id,
         )
     }
+
     /// Derives the default config PDA address (config_bump = 1)
     pub fn ctoken_v1_config_pda() -> Pubkey {
         Self::derive_pda(&pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX"), 1).0
@@ -192,6 +206,7 @@ impl CompressibleConfig {
     pub fn derive_v1_config_pda(program_id: &Pubkey) -> (Pubkey, u8) {
         Self::derive_pda(program_id, 1)
     }
+
     /// Derives the default config PDA address (config_bump = 0)
     pub fn derive_default_pda(program_id: &Pubkey) -> (Pubkey, u8) {
         Self::derive_pda(program_id, 0)

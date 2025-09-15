@@ -137,6 +137,11 @@ pub fn process_create_token_account(
             .ok_or(ProgramError::InvalidInstructionData)?;
 
         if let Some(compress_to_pubkey) = compressible_config.compress_to_account_pubkey.as_ref() {
+            // Compress to pubkey specifies compression to account pubkey instead of the owner.
+            // This is useful for pda token accounts that rely on pubkey derivation but have a program wide
+            // authority pda as owner.
+            // To prevent compressing ctokens to owners that cannot sign, prevent misconfiguration,
+            // we check that the account is a pda and can be signer with known seeds.
             compress_to_pubkey.check_seeds(accounts.token_account.key())?;
         }
 
@@ -152,7 +157,7 @@ pub fn process_create_token_account(
 
         let custom_fee_payer =
             *compressible.rent_payer_pda.key() != account.rent_recipient.to_bytes();
-        let custom_fee_payer = if custom_fee_payer {
+        if custom_fee_payer {
             // custom fee payer for account creation -> pays rent exemption
             create_account_with_custom_fee_payer(
                 compressible.rent_payer_pda,
@@ -161,7 +166,8 @@ pub fn process_create_token_account(
                 rent,
             )
             .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-            Some(*compressible.rent_payer_pda.key())
+
+            (Some(*account), Some(*compressible.rent_payer_pda.key()))
         } else {
             // Rent recipient is fee payer for account creation -> pays rent exemption
             let version_bytes = account.version.to_le_bytes();
@@ -185,9 +191,8 @@ pub fn process_create_token_account(
 
             // Payer transfers the additional rent (compression incentive)
             transfer_lamports_via_cpi(rent, compressible.payer, accounts.token_account)?;
-            None
-        };
-        (Some(*account), custom_fee_payer)
+            (Some(*account), None)
+        }
     } else {
         (None, None)
     };
