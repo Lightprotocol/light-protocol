@@ -1,5 +1,6 @@
 #![allow(unexpected_cfgs)]
 #![allow(clippy::too_many_arguments)]
+#![allow(deprecated)]
 
 use anchor_lang::prelude::*;
 use light_compressed_token_sdk::{instructions::Recipient, TokenAccountMeta, ValidityProof};

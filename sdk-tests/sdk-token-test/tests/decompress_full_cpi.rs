@@ -86,6 +86,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
                     .test_accounts
                     .funding_pool_config
                     .compressible_config_pda,
+                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
             },
         )
         .unwrap();

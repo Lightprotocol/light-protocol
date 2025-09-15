@@ -150,5 +150,14 @@ fn configure_compressible_extension(
         .set(compressible_config.write_top_up);
     compressible_extension.compress_to_pubkey =
         compressible_config.compress_to_account_pubkey.is_some() as u8;
+    // Validate token_account_version is ShaFlat (3)
+    if compressible_config.token_account_version != 3 {
+        msg!(
+            "Invalid token_account_version: {}. Only version 3 (ShaFlat) is supported",
+            compressible_config.token_account_version
+        );
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    compressible_extension.token_account_version = compressible_config.token_account_version;
     Ok(())
 }

@@ -12,6 +12,9 @@ use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
 )]
 #[repr(C)]
 pub struct CompressibleExtensionInstructionData {
+    /// Version of the compressed token account when ctoken account is
+    /// compressed and closed. (The version specifies the hashing scheme.)
+    pub token_account_version: u8,
     /// In Epochs. (could do in slots as well)
     pub rent_payment: u64,
     pub has_top_up: u8,

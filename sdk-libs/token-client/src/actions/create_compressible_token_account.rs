@@ -2,6 +2,7 @@ use light_client::rpc::{Rpc, RpcError};
 use light_compressed_token_sdk::instructions::{
     create_compressible_token_account as create_instruction, CreateCompressibleTokenAccount,
 };
+use light_ctoken_types::state::TokenDataVersion;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
@@ -14,6 +15,7 @@ pub struct CreateCompressibleTokenAccountInputs<'a> {
     pub payer: &'a Keypair,
     pub token_account_keypair: Option<&'a Keypair>,
     pub write_top_up_lamports: Option<u32>,
+    pub token_account_version: TokenDataVersion,
 }
 
 /// Creates a compressible token account with a pool PDA as rent recipient
@@ -35,6 +37,7 @@ pub async fn create_compressible_token_account<R: Rpc>(
         payer,
         token_account_keypair,
         write_top_up_lamports,
+        token_account_version,
     } = inputs;
 
     // Create or use provided token account keypair
@@ -79,6 +82,7 @@ pub async fn create_compressible_token_account<R: Rpc>(
         write_top_up_lamports,
         payer: payer.pubkey(),
         compress_to_account_pubkey: None, // Not used for regular token account creation
+        token_account_version,
     })
     .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {}", e)))?;
 

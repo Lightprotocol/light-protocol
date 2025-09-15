@@ -119,6 +119,7 @@ async fn test_claim_rent_for_completed_epochs() -> Result<(), RpcError> {
             payer: &payer,
             token_account_keypair: None,
             write_top_up_lamports,
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
         },
     )
     .await?;
@@ -172,6 +173,7 @@ async fn test_claim_multiple_accounts_different_epochs() -> Result<(), RpcError>
                 payer: &payer,
                 token_account_keypair: None,
                 write_top_up_lamports: Some(100),
+                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
             },
         )
         .await?;

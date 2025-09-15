@@ -10,7 +10,6 @@ use zerocopy::U64;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
 
-// TODO: add token account version
 /// Compressible extension for ctoken accounts.
 #[derive(
     Debug,
@@ -29,10 +28,9 @@ pub struct CompressibleExtension {
     pub version: u16, // version 0 is uninitialized, default is 1
     /// Compress to account pubkey instead of account owner.
     pub compress_to_pubkey: bool,
-    // TODO: add token_account_version
-    // /// Version of the compressed token account when ctoken account is
-    // /// compressed and closed. (The version specifies the hashing scheme.)
-    // pub token_account_version: u8,
+    /// Version of the compressed token account when ctoken account is
+    /// compressed and closed. (The version specifies the hashing scheme.)
+    pub token_account_version: u8,
     /// Authority that can compress and close the account.
     pub rent_authority: [u8; 32],
     /// Recipient for rent exemption lamports up on account closure.
@@ -190,6 +188,7 @@ mod test {
     fn test_claim_method() {
         // Test the claim method updates state correctly
         let extension_data = CompressibleExtension {
+            token_account_version: 3,
             version: 1,
             rent_authority: [1; 32],
             rent_recipient: [2; 32],
@@ -303,6 +302,7 @@ mod test {
 
         // Test case 1: Account created in epoch 0 with 3 epochs of rent
         let extension = CompressibleExtension {
+            token_account_version: 3,
             version: 1,
             rent_authority: [0u8; 32],
             rent_recipient: [0u8; 32],
@@ -328,6 +328,7 @@ mod test {
 
         // Test case 2: Account created in epoch 1 with 2 epochs of rent
         let extension = CompressibleExtension {
+            token_account_version: 3,
             version: 1,
             rent_authority: [0u8; 32],
             rent_recipient: [0u8; 32],
@@ -347,6 +348,7 @@ mod test {
 
         // Test case 3: Account with no rent paid (immediately compressible)
         let extension = CompressibleExtension {
+            token_account_version: 3,
             version: 1,
             rent_authority: [0u8; 32],
             rent_recipient: [0u8; 32],
@@ -368,6 +370,7 @@ mod test {
 
         // Test case 4: Account with 1 epoch of rent
         let extension = CompressibleExtension {
+            token_account_version: 3,
             version: 1,
             rent_authority: [0u8; 32],
             rent_recipient: [0u8; 32],
@@ -387,6 +390,7 @@ mod test {
 
         // Test case 5: Account with massive prepayment (100 epochs)
         let extension = CompressibleExtension {
+            token_account_version: 3,
             version: 1,
             rent_authority: [0u8; 32],
             rent_recipient: [0u8; 32],
@@ -409,6 +413,7 @@ mod test {
 
         // Test case 6: Account with partial epoch payment (1.5 epochs)
         let extension = CompressibleExtension {
+            token_account_version: 3,
             version: 1,
             rent_authority: [0u8; 32],
             rent_recipient: [0u8; 32],
@@ -431,6 +436,7 @@ mod test {
 
         // Test case 7: Zero-copy version test
         let extension_data = CompressibleExtension {
+            token_account_version: 3,
             version: 1,
             rent_authority: [1; 32],
             rent_recipient: [2; 32],

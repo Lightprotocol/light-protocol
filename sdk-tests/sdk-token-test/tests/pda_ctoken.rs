@@ -217,6 +217,7 @@ pub async fn create_mint(
                 .test_accounts
                 .funding_pool_config
                 .compressible_config_pda,
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
         },
     )
     .unwrap();

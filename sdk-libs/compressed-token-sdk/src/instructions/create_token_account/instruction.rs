@@ -1,7 +1,10 @@
 use borsh::BorshSerialize;
-use light_ctoken_types::instructions::{
-    create_ctoken_account::CreateTokenAccountInstructionData,
-    extensions::compressible::{CompressToPubkey, CompressibleExtensionInstructionData},
+use light_ctoken_types::{
+    instructions::{
+        create_ctoken_account::CreateTokenAccountInstructionData,
+        extensions::compressible::{CompressToPubkey, CompressibleExtensionInstructionData},
+    },
+    state::TokenDataVersion,
 };
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
@@ -27,6 +30,9 @@ pub struct CreateCompressibleTokenAccount {
     /// Initial lamports to top up for rent payments (optional)
     pub write_top_up_lamports: Option<u32>,
     pub compress_to_account_pubkey: Option<CompressToPubkey>,
+    /// Version of the compressed token account when ctoken account is
+    /// compressed and closed. (The version specifies the hashing scheme.)
+    pub token_account_version: TokenDataVersion,
 }
 
 pub fn create_compressible_token_account(
@@ -34,6 +40,7 @@ pub fn create_compressible_token_account(
 ) -> Result<Instruction> {
     // Create the CompressibleExtensionInstructionData
     let compressible_extension = CompressibleExtensionInstructionData {
+        token_account_version: inputs.token_account_version as u8,
         rent_payment: inputs.pre_pay_num_epochs,
         has_top_up: if inputs.write_top_up_lamports.is_some() {
             1

@@ -10,15 +10,17 @@ use light_ctoken_types::{
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_profiler::profile;
-use pinocchio::account_info::AccountInfo;
+use pinocchio::{
+    account_info::AccountInfo,
+    sysvars::{rent::Rent, Sysvar},
+};
+use pinocchio_system::instructions::CreateAccount;
 use spl_pod::{bytemuck, solana_msg::msg};
 
 use crate::shared::{
     create_pda_account, initialize_token_account::initialize_token_account,
     transfer_lamports_via_cpi, CreatePdaAccountConfig,
 };
-use pinocchio::sysvars::{rent::Rent, Sysvar};
-use pinocchio_system::instructions::CreateAccount;
 
 /// Validated accounts for the create token account instruction
 pub struct CreateCTokenAccounts<'info> {
@@ -97,9 +99,9 @@ pub fn next_config_account<'info>(
     )?;
     // Parse config data
     let data = unsafe { config_account.borrow_data_unchecked() };
-    check_discriminator::<CompressibleConfig>(&data[..])?;
+    check_discriminator::<CompressibleConfig>(data)?;
     Ok(
-        bytemuck::pod_from_bytes::<CompressibleConfig>(&mut &data[8..]).map_err(|e| {
+        bytemuck::pod_from_bytes::<CompressibleConfig>(&data[8..]).map_err(|e| {
             msg!("Failed to deserialize CompressibleConfig: {:?}", e);
             ProgramError::InvalidAccountData
         })?,

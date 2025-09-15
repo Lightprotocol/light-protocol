@@ -1,7 +1,10 @@
 use borsh::BorshSerialize;
-use light_ctoken_types::instructions::{
-    create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
-    extensions::compressible::CompressibleExtensionInstructionData,
+use light_ctoken_types::{
+    instructions::{
+        create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
+        extensions::compressible::CompressibleExtensionInstructionData,
+    },
+    state::TokenDataVersion,
 };
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
@@ -29,6 +32,9 @@ pub struct CreateCompressibleAssociatedTokenAccountInputs {
     pub pre_pay_num_epochs: u64,
     /// Initial lamports to top up for rent payments (optional)
     pub write_top_up_lamports: Option<u32>,
+    /// Version of the compressed token account when ctoken account is
+    /// compressed and closed. (The version specifies the hashing scheme.)
+    pub token_account_version: TokenDataVersion,
 }
 
 /// Creates a compressible associated token account instruction (non-idempotent)
@@ -83,6 +89,7 @@ pub fn create_compressible_associated_token_account_with_bump_and_mode<const IDE
             inputs.write_top_up_lamports,
             inputs.rent_recipient,
             inputs.compressible_config,
+            inputs.token_account_version,
         )),
     )
 }
@@ -148,7 +155,7 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
     mint: Pubkey,
     ata_pubkey: Pubkey,
     bump: u8,
-    compressible_config: Option<(u64, Option<u32>, Pubkey, Pubkey)>, // (pre_pay_num_epochs, write_top_up_lamports, rent_recipient, compressible_config_account)
+    compressible_config: Option<(u64, Option<u32>, Pubkey, Pubkey, TokenDataVersion)>, // (pre_pay_num_epochs, write_top_up_lamports, rent_recipient, compressible_config_account, token_account_version)
 ) -> Result<Instruction> {
     // Select discriminator based on idempotent mode
     let discriminator = if IDEMPOTENT {
@@ -159,8 +166,11 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
 
     // Create the instruction data struct
     let compressible_extension = if COMPRESSIBLE {
-        if let Some((pre_pay_num_epochs, write_top_up_lamports, _, _)) = compressible_config {
+        if let Some((pre_pay_num_epochs, write_top_up_lamports, _, _, token_account_version)) =
+            compressible_config
+        {
             Some(CompressibleExtensionInstructionData {
+                token_account_version: token_account_version as u8,
                 rent_payment: pre_pay_num_epochs,
                 has_top_up: if write_top_up_lamports.is_some() {
                     1
@@ -200,7 +210,7 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
 
     // Add compressible-specific accounts
     if COMPRESSIBLE {
-        if let Some((_, _, rent_recipient, compressible_config_account)) = compressible_config {
+        if let Some((_, _, rent_recipient, compressible_config_account, _)) = compressible_config {
             accounts.push(solana_instruction::AccountMeta::new_readonly(
                 compressible_config_account,
                 false,

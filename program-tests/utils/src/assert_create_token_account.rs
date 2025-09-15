@@ -97,6 +97,7 @@ pub async fn assert_create_token_account<R: Rpc>(
                             rent_authority: compressible_info.rent_authority.to_bytes(),
                             rent_recipient: compressible_info.rent_recipient.to_bytes(),
                             compress_to_pubkey: false,
+                            token_account_version: 3, // Default to ShaFlat version
                         },
                     ),
                 ]),

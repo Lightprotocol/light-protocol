@@ -35,6 +35,7 @@ pub fn process_create_ctoken_with_compress_to_pubkey<'info>(
         pre_pay_num_epochs: 1,       // Pre-pay for 1 epoch as requested
         write_top_up_lamports: None, // No additional top-up
         compress_to_account_pubkey: Some(compress_to_pubkey),
+        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
     };
 
     let instruction =

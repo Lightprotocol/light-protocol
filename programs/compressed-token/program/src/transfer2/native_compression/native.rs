@@ -305,5 +305,22 @@ fn validate_compressed_token_account(
     if compressed_token_account.version != 3 {
         return Err(ErrorCode::CompressAndCloseInvalidVersion.into());
     }
+
+    // Version should also match what's specified in the compressible extension
+    let expected_version = compressed_token
+        .extensions
+        .as_ref()
+        .and_then(|ext| {
+            if let Some(ZExtensionStructMut::Compressible(ext)) = ext.get(0) {
+                Some(ext.token_account_version)
+            } else {
+                None
+            }
+        })
+        .ok_or(ErrorCode::CompressAndCloseInvalidVersion)?;
+
+    if compressed_token_account.version != expected_version {
+        return Err(ErrorCode::CompressAndCloseInvalidVersion.into());
+    }
     Ok(())
 }

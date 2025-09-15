@@ -96,6 +96,7 @@ async fn setup_compress_and_close_test(
                         .test_accounts
                         .funding_pool_config
                         .compressible_config_pda,
+                    token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
                 },
             )
             .unwrap()
