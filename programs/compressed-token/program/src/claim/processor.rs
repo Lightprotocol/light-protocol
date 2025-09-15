@@ -44,7 +44,9 @@ impl<'a> ClaimAccounts<'a> {
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         // Validate config is not inactive (active or deprecated allowed for claim)
-        account.validate_not_inactive().map_err(ProgramError::from)?;
+        account
+            .validate_not_inactive()
+            .map_err(ProgramError::from)?;
 
         if *account.rent_authority.as_array() != *accounts.rent_authority.key() {
             msg!("invalid rent authority");

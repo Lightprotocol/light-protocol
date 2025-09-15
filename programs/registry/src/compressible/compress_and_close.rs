@@ -35,7 +35,8 @@ pub fn process_compress_and_close<'info>(
     indices: Vec<CompressAndCloseIndices>,
 ) -> Result<()> {
     // Validate config is not inactive (active or deprecated allowed for compress and close)
-    ctx.accounts.compressible_config
+    ctx.accounts
+        .compressible_config
         .validate_not_inactive()
         .map_err(ProgramError::from)?;
 

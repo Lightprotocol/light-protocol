@@ -24,7 +24,7 @@ impl From<CompressibleError> for u32 {
     }
 }
 
-#[cfg(feature = "solana")]
+#[cfg(all(feature = "solana", not(feature = "anchor")))]
 impl From<CompressibleError> for solana_program_error::ProgramError {
     fn from(e: CompressibleError) -> Self {
         solana_program_error::ProgramError::Custom(e.into())

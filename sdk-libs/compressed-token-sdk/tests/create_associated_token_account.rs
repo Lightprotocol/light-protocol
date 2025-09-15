@@ -40,6 +40,7 @@ fn test_compressible_discriminator_selection() {
         pre_pay_num_epochs: 1,
         write_top_up_lamports: Some(100),
         compressible_config: Pubkey::new_unique(),
+        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
     };
 
     // Test non-idempotent variant

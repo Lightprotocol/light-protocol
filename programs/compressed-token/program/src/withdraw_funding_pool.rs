@@ -47,7 +47,9 @@ impl<'a> WithdrawFundingPoolAccounts<'a> {
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         // Validate config is not inactive (active or deprecated allowed for withdraw)
-        account.validate_not_inactive().map_err(ProgramError::from)?;
+        account
+            .validate_not_inactive()
+            .map_err(ProgramError::from)?;
 
         if *account.rent_authority.as_array() != *rent_authority.key() {
             msg!("invalid rent rent_authority");
