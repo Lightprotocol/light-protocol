@@ -2,9 +2,30 @@ use bytemuck::{Pod, Zeroable};
 use light_account_checks::discriminator::Discriminator;
 use solana_pubkey::{pubkey, Pubkey};
 
-use crate::{rent::RentConfig, AnchorDeserialize, AnchorSerialize};
+use crate::{error::CompressibleError, rent::RentConfig, AnchorDeserialize, AnchorSerialize};
 
 pub const COMPRESSIBLE_CONFIG_SEED: &[u8] = b"compressible_config";
+
+#[derive(Debug, PartialEq)]
+#[repr(u8)]
+pub enum CompressibleConfigState {
+    InActive,
+    Active,
+    Depreacted,
+}
+
+impl TryFrom<u8> for CompressibleConfigState {
+    type Error = CompressibleError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(CompressibleConfigState::InActive),
+            1 => Ok(CompressibleConfigState::Active),
+            2 => Ok(CompressibleConfigState::Depreacted),
+            _ => Err(CompressibleError::InvalidState(value)),
+        }
+    }
+}
 
 #[derive(Clone, Debug, AnchorDeserialize, PartialEq, AnchorSerialize, Copy, Pod, Zeroable)]
 #[repr(C)]
@@ -38,6 +59,26 @@ pub struct CompressibleConfig {
     /// Address space for compressed accounts (currently 1 address_tree allowed)
     pub address_space: [Pubkey; 4],
     pub _place_holder: [u8; 32],
+}
+
+impl CompressibleConfig {
+    /// Validates that the config is active (can be used for all operations)
+    pub fn validate_active(&self) -> Result<(), CompressibleError> {
+        let state = CompressibleConfigState::try_from(self.active)?;
+        if state != CompressibleConfigState::Active {
+            return Err(CompressibleError::InvalidState(self.active));
+        }
+        Ok(())
+    }
+
+    /// Validates that the config is not inactive (can be used for new account creation)
+    pub fn validate_not_inactive(&self) -> Result<(), CompressibleError> {
+        let state = CompressibleConfigState::try_from(self.active)?;
+        if state == CompressibleConfigState::InActive {
+            return Err(CompressibleError::InvalidState(self.active));
+        }
+        Ok(())
+    }
 }
 
 #[cfg(feature = "anchor")]

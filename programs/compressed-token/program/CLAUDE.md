@@ -167,6 +167,7 @@ The compressed token program supports 2 extensions.
   1. Deserialize instruction data
     - if instruction data len == 32 bytes add 1 byte padding for spl token compatibility
   2. Parse and check accounts
+    - Validate CompressibleConfig is active (not inactive or deprecated)
   3. if with compressible account
     3.1. if with compress to pubkey
         Compress to pubkey specifies compression to account pubkey instead of the owner.
@@ -248,6 +249,7 @@ The compressed token program supports 2 extensions.
     - Validate PDA derivation matches [owner, program_id, mint] with provided bump
     - Return success if account already owned by program
   3. Verify account is system-owned (uninitialized)
+    - Validate CompressibleConfig is active (not inactive or deprecated) if compressible
   4. If compressible:
     - Reject if compress_to_account_pubkey is Some (not allowed for ATAs)
     - Calculate rent (prepaid epochs rent + compression incentive, no rent exemption)

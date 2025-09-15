@@ -100,12 +100,15 @@ pub fn next_config_account<'info>(
     // Parse config data
     let data = unsafe { config_account.borrow_data_unchecked() };
     check_discriminator::<CompressibleConfig>(data)?;
-    Ok(
-        bytemuck::pod_from_bytes::<CompressibleConfig>(&data[8..]).map_err(|e| {
-            msg!("Failed to deserialize CompressibleConfig: {:?}", e);
-            ProgramError::InvalidAccountData
-        })?,
-    )
+    let config = bytemuck::pod_from_bytes::<CompressibleConfig>(&data[8..]).map_err(|e| {
+        msg!("Failed to deserialize CompressibleConfig: {:?}", e);
+        ProgramError::InvalidAccountData
+    })?;
+
+    // Validate config is inactive (only active allowed for account creation)
+    config.validate_active().map_err(ProgramError::from)?;
+
+    Ok(config)
 }
 
 /// Process the create token account instruction

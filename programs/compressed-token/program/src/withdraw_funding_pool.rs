@@ -45,6 +45,10 @@ impl<'a> WithdrawFundingPoolAccounts<'a> {
         check_discriminator::<CompressibleConfig>(&data[..])?;
         let account = bytemuck::pod_from_bytes::<CompressibleConfig>(&data[8..])
             .map_err(|_| ProgramError::InvalidAccountData)?;
+
+        // Validate config is not inactive (active or deprecated allowed for withdraw)
+        account.validate_not_inactive().map_err(ProgramError::from)?;
+
         if *account.rent_authority.as_array() != *rent_authority.key() {
             msg!("invalid rent rent_authority");
             return Err(ProgramError::InvalidSeeds);
