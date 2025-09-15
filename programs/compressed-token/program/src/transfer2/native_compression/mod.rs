@@ -34,7 +34,7 @@ pub fn process_token_compression(
                 "compression source or recipient",
             )?;
 
-            match unsafe { source_or_recipient.owner() } {
+            match source_or_recipient.owner() {
                 ID => {
                     native::process_native_compressions(
                         fee_payer,
@@ -67,9 +67,10 @@ pub fn process_token_compression(
                         "source_or_recipient {:?}",
                         solana_pubkey::Pubkey::new_from_array(*source_or_recipient.key())
                     );
-                    msg!("Invalid token program ID {:?}", unsafe {
+                    msg!(
+                        "Invalid token program ID {:?}",
                         solana_pubkey::Pubkey::from(*source_or_recipient.owner())
-                    });
+                    );
                     return Err(ProgramError::InvalidInstructionData);
                 }
             }

@@ -67,7 +67,7 @@ pub fn process_resize_registered_program_pda<'info>(
             ],
         )?;
 
-        account_info.realloc(RegisteredProgram::LEN, false)?;
+        account_info.resize(RegisteredProgram::LEN)?;
     }
 
     // Initialize registered_program_signer_pda with derived signer pda.

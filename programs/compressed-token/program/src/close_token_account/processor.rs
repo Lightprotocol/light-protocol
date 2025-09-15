@@ -214,7 +214,7 @@ fn finalize_account_closure(accounts: &CloseTokenAccountAccounts<'_>) -> Result<
         accounts.token_account.assign(&[0u8; 32]);
     }
     // Prevent account revival attack by reallocating to 0 bytes
-    match accounts.token_account.realloc(0, false) {
+    match accounts.token_account.resize(0) {
         Ok(()) => Ok(()),
         Err(e) => Err(ProgramError::Custom(u64::from(e) as u32)),
     }
