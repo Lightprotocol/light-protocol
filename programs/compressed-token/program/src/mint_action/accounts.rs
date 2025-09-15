@@ -1,8 +1,9 @@
 use anchor_compressed_token::{check_spl_token_pool_derivation_with_index, ErrorCode};
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
-use light_ctoken_types::instructions::mint_action::{
-    ZAction, ZMintActionCompressedInstructionData,
+use light_ctoken_types::{
+    instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
+    CMINT_ADDRESS_TREE,
 };
 use light_profiler::profile;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
@@ -144,6 +145,14 @@ impl<'info> MintActionAccounts<'info> {
             // When create mint this is the address tree
             // When mint exists this is the in merkle tree.
             let in_merkle_tree = iter.next_account("in_merkle_tree")?;
+            if config.create_mint && *in_merkle_tree.key() != CMINT_ADDRESS_TREE {
+                msg!(
+                    "Create mint action expects address Merkle tree {:?} received: {:?}",
+                    solana_pubkey::Pubkey::from(CMINT_ADDRESS_TREE),
+                    solana_pubkey::Pubkey::from(*in_merkle_tree.key())
+                );
+                return Err(ErrorCode::InvalidAddressTree.into());
+            }
             let in_output_queue = iter.next_option("in_output_queue", !config.create_mint)?;
             // Only needed for minting to compressed token accounts
             let tokens_out_queue =

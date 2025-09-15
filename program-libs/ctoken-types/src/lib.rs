@@ -31,3 +31,6 @@ pub const COMPRESSIBLE_TOKEN_ACCOUNT_SIZE: u64 = 261;
 pub const MINT_ACCOUNT_SIZE: u64 = 82;
 pub const COMPRESSED_MINT_SEED: &[u8] = b"compressed_mint";
 pub const NATIVE_MINT: [u8; 32] = pubkey_array!("So11111111111111111111111111111111111111112");
+
+pub const CMINT_ADDRESS_TREE: [u8; 32] =
+    pubkey_array!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK");

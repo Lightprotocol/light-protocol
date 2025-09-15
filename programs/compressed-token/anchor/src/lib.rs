@@ -395,6 +395,8 @@ pub enum ErrorCode {
     CompressAndCloseDelegateNotAllowed,
     #[msg("CompressAndClose: Invalid compressed token version")]
     CompressAndCloseInvalidVersion,
+    #[msg("InvalidAddressTree")]
+    InvalidAddressTree,
 }
 
 impl From<ErrorCode> for ProgramError {
