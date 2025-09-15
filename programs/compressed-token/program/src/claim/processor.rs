@@ -10,7 +10,7 @@ use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
 use spl_pod::{bytemuck, solana_msg::msg};
 
-use crate::create_token_account::transfer_lamports;
+use crate::shared::transfer_lamports;
 
 /// Accounts required for the claim instruction
 pub struct ClaimAccounts<'a> {
@@ -79,7 +79,8 @@ pub fn process_claim(
     for token_account in account_infos.iter().skip(3) {
         let amount = validate_and_claim(&accounts, token_account, current_slot)?;
         if let Some(amount) = amount {
-            transfer_lamports(amount, token_account, accounts.rent_recipient)?;
+            transfer_lamports(amount, token_account, accounts.rent_recipient)
+                .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
         }
     }
     Ok(())

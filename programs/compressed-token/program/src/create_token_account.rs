@@ -14,10 +14,11 @@ use pinocchio::account_info::AccountInfo;
 use spl_pod::{bytemuck, solana_msg::msg};
 
 use crate::shared::{
-    create_pda_account, initialize_token_account::initialize_token_account, CreatePdaAccountConfig,
+    create_pda_account, initialize_token_account::initialize_token_account,
+    transfer_lamports_via_cpi, CreatePdaAccountConfig,
 };
 use pinocchio::sysvars::{rent::Rent, Sysvar};
-use pinocchio_system::instructions::{CreateAccount, Transfer};
+use pinocchio_system::instructions::CreateAccount;
 
 /// Validated accounts for the create token account instruction
 pub struct CreateCTokenAccounts<'info> {
@@ -33,8 +34,6 @@ pub struct CreateCTokenAccounts<'info> {
 pub struct CompressibleAccounts<'info> {
     /// Pays for the compression incentive rent when rent_payer_pda is the rent recipient (signer, mutable)
     pub payer: &'info AccountInfo,
-    // /// Contains rent configuration and authority settings
-    // pub config: &'info AccountInfo,
     /// Used for account creation CPI
     pub system_program: &'info AccountInfo,
     /// Either the rent recipient PDA or a custom fee payer
@@ -190,7 +189,8 @@ pub fn process_create_token_account(
             )?;
 
             // Payer transfers the additional rent (compression incentive)
-            transfer_lamports_via_cpi(rent, compressible.payer, accounts.token_account)?;
+            transfer_lamports_via_cpi(rent, compressible.payer, accounts.token_account)
+                .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
             (Some(*account), None)
         }
     } else {
@@ -206,61 +206,6 @@ pub fn process_create_token_account(
         compressible_config_account,
         custom_fee_payer,
     )?;
-
-    Ok(())
-}
-
-#[profile]
-pub fn transfer_lamports(
-    amount: u64,
-    from: &AccountInfo,
-    to: &AccountInfo,
-) -> Result<(), ProgramError> {
-    let from_lamports: u64 = *from
-        .try_borrow_lamports()
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-    let to_lamports: u64 = *to
-        .try_borrow_lamports()
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-    if from_lamports < amount {
-        msg!("payer lamports {}", from_lamports);
-        msg!("required lamports {}", amount);
-        return Err(ProgramError::InsufficientFunds);
-    }
-
-    let from_lamports = from_lamports
-        .checked_sub(amount)
-        .ok_or(ProgramError::InsufficientFunds)?;
-    let to_lamports = to_lamports
-        .checked_add(amount)
-        .ok_or(ProgramError::InsufficientFunds)?;
-    *from
-        .try_borrow_mut_lamports()
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))? = from_lamports;
-    *to.try_borrow_mut_lamports()
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))? = to_lamports;
-    Ok(())
-}
-
-/// Transfer lamports using CPI to system program
-/// This is needed when transferring from accounts not owned by our program
-#[profile]
-pub fn transfer_lamports_via_cpi(
-    amount: u64,
-    from: &AccountInfo,
-    to: &AccountInfo,
-) -> Result<(), ProgramError> {
-    // Use pinocchio_system's Transfer directly - no type conversions needed
-    let transfer = Transfer {
-        from,
-        to,
-        lamports: amount,
-    };
-
-    transfer.invoke().map_err(|e| {
-        msg!("Failed to transfer lamports: {:?}", e);
-        ProgramError::Custom(u64::from(e) as u32)
-    })?;
 
     Ok(())
 }

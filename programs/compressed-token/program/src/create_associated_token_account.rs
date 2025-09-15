@@ -11,10 +11,10 @@ use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    create_token_account::{next_config_account, transfer_lamports_via_cpi},
+    create_token_account::next_config_account,
     shared::{
         create_pda_account, initialize_token_account::initialize_token_account,
-        validate_ata_derivation, CreatePdaAccountConfig,
+        transfer_lamports_via_cpi, validate_ata_derivation, CreatePdaAccountConfig,
     },
 };
 
@@ -197,7 +197,8 @@ fn process_compressible_config<'info>(
     );
 
     // Payer transfers the additional rent (compression incentive)
-    transfer_lamports_via_cpi(rent, fee_payer, associated_token_account)?;
+    transfer_lamports_via_cpi(rent, fee_payer, associated_token_account)
+        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
 
     Ok((compressible_config_account, custom_fee_payer))
 }

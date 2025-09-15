@@ -29,9 +29,10 @@ pub struct CompressibleExtension {
     pub version: u16, // version 0 is uninitialized, default is 1
     /// Compress to account pubkey instead of account owner.
     pub compress_to_pubkey: bool,
-    /// Version of the compressed token account when ctoken account is
-    /// compressed and closed. (The version specifies the hashing scheme.)
-    pub token_account_version: u8,
+    // TODO: add token_account_version
+    // /// Version of the compressed token account when ctoken account is
+    // /// compressed and closed. (The version specifies the hashing scheme.)
+    // pub token_account_version: u8,
     /// Authority that can compress and close the account.
     pub rent_authority: [u8; 32],
     /// Recipient for rent exemption lamports up on account closure.

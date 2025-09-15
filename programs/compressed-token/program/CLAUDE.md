@@ -114,6 +114,8 @@ The compressed token program supports 2 extensions.
 
 ## 1. create ctoken account
 
+  **discriminator:** 18
+  **enum:** `CTokenInstruction::CreateTokenAccount`
   **path:** programs/compressed-token/src/create_token_account.rs
 
   **description:**
@@ -199,3 +201,64 @@ The compressed token program supports 2 extensions.
   9. `ErrorCode::InsufficientAccountSize` - token_account data length < 165 bytes (non-compressible) or < COMPRESSIBLE_TOKEN_ACCOUNT_SIZE (compressible)
   10. `ErrorCode::InvalidCompressAuthority` - compressible_config is Some but compressible_config_account is None during extension initialization
   11. `ProgramError::Custom` - System program CPI failures for CreateAccount or Transfer instructions
+
+
+## 2. create associated ctoken account
+
+  **discriminator:** 6 (non-idempotent), 101 (idempotent)
+  **enum:** `CTokenInstruction::CreateAssociatedTokenAccount` (non-idempotent), `CTokenInstruction::CreateAssociatedTokenAccountIdempotent` (idempotent)
+  **path:** programs/compressed-token/program/src/create_associated_token_account.rs
+
+  **description:**
+  1. Creates deterministic ctoken PDA accounts derived from [owner, ctoken_program_id, mint]
+  2. Supports both non-idempotent (fails if exists) and idempotent (succeeds if exists) modes
+  3. Account layout same as create ctoken account: `CompressedToken` with optional `CompressibleExtension`
+  4. Associated token accounts cannot use compress_to_pubkey (always compress to owner)
+  5. Mint is provided via instruction data only - no account validation for compressed mint compatibility
+  6. Token account must be uninitialized (owned by system program) unless idempotent mode
+
+  **Instruction data:**
+  1. instruction data is defined in path: program-libs/ctoken-types/src/instructions/create_associated_token_account.rs
+    - `owner`: Owner pubkey for the associated token account
+    - `mint`: Mint pubkey for the token account
+    - `bump`: PDA bump seed for derivation
+    - `compressible_config`: Optional, same as create ctoken account but compress_to_account_pubkey must be None
+
+  **Accounts:**
+  1. fee_payer
+    - (signer, mutable)
+    - Pays for account creation and compression incentive
+  2. associated_token_account
+    - mutable, NOT signer (it's a PDA being created)
+    - Must be system-owned (uninitialized) unless idempotent
+  3. system_program
+    - non-mutable
+    - Required for account creation
+
+  Optional accounts for compressible extension (same as create ctoken account):
+  4. config
+    - non-mutable, owned by LightRegistry program
+  5. fee_payer_pda
+    - mutable
+    - Either rent_recipient PDA or custom fee payer
+
+  **Instruction Logic and Checks:**
+  1. Deserialize instruction data
+  2. If idempotent mode:
+    - Validate PDA derivation matches [owner, program_id, mint] with provided bump
+    - Return success if account already owned by program
+  3. Verify account is system-owned (uninitialized)
+  4. If compressible:
+    - Reject if compress_to_account_pubkey is Some (not allowed for ATAs)
+    - Calculate rent (prepaid epochs rent + compression incentive, no rent exemption)
+    - Check if custom fee payer (fee_payer_pda != config.rent_recipient)
+    - Create PDA with fee_payer_pda (either rent_recipient PDA or custom fee payer) paying rent exemption
+    - Always transfer calculated rent from fee_payer to account via CPI
+  5. If not compressible:
+    - Create PDA with rent-exempt balance only
+  6. Initialize token account (same as ## 1. create ctoken account step 3.6)
+
+  **Errors:**
+  Same as ## 1. create ctoken account with additions:
+  - `ProgramError::IllegalOwner` - Associated token account not owned by system program when creating
+  - `ProgramError::InvalidInstructionData` - compress_to_account_pubkey is Some (forbidden for ATAs)

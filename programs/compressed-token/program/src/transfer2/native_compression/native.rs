@@ -20,8 +20,10 @@ use spl_pod::solana_msg::msg;
 use super::validate_compression_mode_fields;
 use crate::{
     close_token_account::{accounts::CloseTokenAccountAccounts, processor::validate_token_account},
-    create_token_account::transfer_lamports_via_cpi,
-    shared::owner_validation::verify_and_update_token_account_authority_with_compressed_token,
+    shared::{
+        owner_validation::verify_and_update_token_account_authority_with_compressed_token,
+        transfer_lamports_via_cpi,
+    },
 };
 
 /// Process compression/decompression for token accounts using zero-copy PodAccount
@@ -74,7 +76,8 @@ pub(super) fn process_native_compressions(
     )?;
     for transfer_amount in transfers.iter() {
         if *transfer_amount != 0 {
-            transfer_lamports_via_cpi(*transfer_amount, fee_payer, token_account_info)?;
+            transfer_lamports_via_cpi(*transfer_amount, fee_payer, token_account_info)
+                .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
         }
     }
     Ok(())

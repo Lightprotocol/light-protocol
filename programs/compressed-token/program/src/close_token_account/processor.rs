@@ -12,7 +12,7 @@ use spl_pod::solana_msg::msg;
 use spl_token_2022::state::AccountState;
 
 use super::accounts::CloseTokenAccountAccounts;
-use crate::create_token_account::transfer_lamports;
+use crate::shared::transfer_lamports;
 
 /// Process the close token account instruction
 #[profile]
@@ -181,7 +181,8 @@ pub fn close_token_account_inner(
                             lamports_to_destination,
                             accounts.token_account,
                             accounts.destination,
-                        )?;
+                        )
+                        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
                     }
 
                     // Transfer lamports to authority (fee payer) if any write_top_up
@@ -190,7 +191,8 @@ pub fn close_token_account_inner(
                             lamports_to_authority,
                             accounts.token_account,
                             accounts.authority,
-                        )?;
+                        )
+                        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
                     }
                     return Ok(());
                 }
@@ -204,7 +206,8 @@ pub fn close_token_account_inner(
             token_account_lamports,
             accounts.token_account,
             accounts.destination,
-        )?;
+        )
+        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
     }
     Ok(())
 }
