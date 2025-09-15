@@ -12,6 +12,83 @@ use spl_pod::solana_msg::msg;
 use crate::shared::{
     create_pda_account, initialize_token_account::initialize_token_account, CreatePdaAccountConfig,
 };
+use anchor_lang::solana_program::{rent::Rent, system_instruction, sysvar::Sysvar};
+
+/// Validated accounts for the create token account instruction
+pub struct CreateCTokenAccounts<'info> {
+    /// The token account being created (signer, mutable)
+    pub token_account: &'info AccountInfo,
+    /// The mint for the token account (not actually used, kept for SPL compatibility)
+    pub mint: &'info AccountInfo,
+    /// Optional compressible configuration accounts
+    pub compressible: Option<CompressibleAccounts<'info>>,
+}
+
+/// Accounts required when creating a compressible token account
+pub struct CompressibleAccounts<'info> {
+    /// Pays for the account creation (signer, mutable)
+    pub payer: &'info AccountInfo,
+    /// Contains rent configuration and authority settings
+    pub config: &'info AccountInfo,
+    /// Used for account creation CPI
+    pub system_program: &'info AccountInfo,
+    /// Either the rent recipient PDA or a custom fee payer
+    pub fee_payer_pda: &'info AccountInfo,
+    /// Parsed configuration from the config account
+    pub parsed_config: CompressibleConfig,
+}
+
+impl<'info> CreateCTokenAccounts<'info> {
+    /// Parse and validate accounts from the provided account infos
+    pub fn parse(
+        account_infos: &'info [AccountInfo],
+        inputs: &CreateTokenAccountInstructionData,
+    ) -> Result<Self, ProgramError> {
+        let mut iter = AccountIterator::new(account_infos);
+
+        // Required accounts
+        let token_account = iter.next_signer_mut("token_account")?;
+        let mint = iter.next_non_mut("mint")?;
+
+        // Parse optional compressible accounts
+        let compressible = if inputs.compressible_config.is_some() {
+            let payer = iter.next_signer_mut("payer")?;
+            let config_account = iter.next_non_mut("compressible config")?;
+
+            // Validate config account owner
+            check_owner(
+                &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").to_bytes(),
+                config_account,
+            )?;
+
+            // Parse config data
+            let data = config_account.try_borrow_data().unwrap();
+            let parsed_config = CompressibleConfig::deserialize(&mut &data[8..]).map_err(|e| {
+                msg!("Failed to deserialize CompressibleConfig: {:?}", e);
+                ProgramError::InvalidAccountData
+            })?;
+
+            let system_program = iter.next_account("system program")?;
+            let fee_payer_pda = iter.next_account("fee payer pda")?;
+
+            Some(CompressibleAccounts {
+                payer,
+                config: config_account,
+                system_program,
+                fee_payer_pda,
+                parsed_config,
+            })
+        } else {
+            None
+        };
+
+        Ok(Self {
+            token_account,
+            mint,
+            compressible,
+        })
+    }
+}
 
 /// Process the create token account instruction
 pub fn process_create_token_account(
@@ -29,38 +106,23 @@ pub fn process_create_token_account(
             .map_err(ProgramError::from)?
     };
 
-    let mut iter = AccountIterator::new(account_infos);
-    let token_account = iter.next_signer_mut("token_account")?;
-    // Mint is not required and not used.
-    // Mint is specified for compatibility with solana.
-    // TODO: provide either mint or decimals. our trick with pubkey derivation based on mint
-    // only works for compressed not for spl mints.
-    let mint: &AccountInfo = iter.next_non_mut("mint")?;
+    // Parse and validate accounts
+    let accounts = CreateCTokenAccounts::parse(account_infos, &inputs)?;
 
     // Create account via cpi
-    let (compressible_config_account, custom_fee_payer) = if let Some(compressible_config) =
-        inputs.compressible_config.as_ref()
+    let (compressible_config_account, custom_fee_payer) = if let Some(compressible) =
+        accounts.compressible.as_ref()
     {
+        let compressible_config = inputs
+            .compressible_config
+            .as_ref()
+            .ok_or(ProgramError::InvalidInstructionData)?;
+
         if let Some(compress_to_pubkey) = compressible_config.compress_to_account_pubkey.as_ref() {
-            compress_to_pubkey.check_seeds(token_account.key())?;
+            compress_to_pubkey.check_seeds(accounts.token_account.key())?;
         }
-        // Not os solana we assume that the accoun already exists and just transfer funds
-        let payer = iter.next_signer_mut("payer")?;
-        let config_account = iter.next_non_mut("compressible config")?;
-        check_owner(
-            &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").to_bytes(),
-            config_account,
-        )?;
-        let data = config_account.try_borrow_data().unwrap();
 
-        // Skip Anchor's 8-byte discriminator and deserialize the actual CompressibleConfig
-        use borsh::BorshDeserialize;
-        // Anchor accounts have an 8-byte discriminator at the beginning
-        let account = CompressibleConfig::deserialize(&mut &data[8..]).map_err(|e| {
-            msg!("Failed to deserialize CompressibleConfig: {:?}", e);
-            ProgramError::InvalidAccountData
-        })?;
-
+        let account = &compressible.parsed_config;
         let account_size = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
         let rent = get_rent_with_compression_cost(
             account.rent_config.min_rent as u64,
@@ -69,27 +131,17 @@ pub fn process_create_token_account(
             compressible_config.rent_payment,
             account.rent_config.full_compression_incentive as u64,
         );
-        msg!(
-            "Calculating rent for {} bytes, {} epochs: {} lamports",
-            token_account.data_len(),
-            compressible_config.rent_payment,
-            rent
-        );
 
-        let system_program = iter.next_account("system program")?;
-        let fee_payer_pda = iter.next_account("fee payer pda")?;
-        let custom_fee_payer = *fee_payer_pda.key() != account.rent_recipient.to_bytes();
+        let custom_fee_payer =
+            *compressible.fee_payer_pda.key() != account.rent_recipient.to_bytes();
         let custom_fee_payer = if custom_fee_payer {
-            use anchor_lang::solana_program::{
-                program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
-            };
             // custom fee payer for account creation -> pays rent exemption
             // Calculate rent
             let solana_rent = Rent::get()?;
             let lamports = solana_rent.minimum_balance(account_size) + rent;
             let create_account_ix = system_instruction::create_account(
-                &solana_pubkey::Pubkey::new_from_array(*fee_payer_pda.key()),
-                &solana_pubkey::Pubkey::new_from_array(*token_account.key()),
+                &solana_pubkey::Pubkey::new_from_array(*compressible.fee_payer_pda.key()),
+                &solana_pubkey::Pubkey::new_from_array(*accounts.token_account.key()),
                 lamports,
                 account_size as u64,
                 &solana_pubkey::Pubkey::new_from_array(crate::LIGHT_CPI_SIGNER.program_id),
@@ -97,21 +149,27 @@ pub fn process_create_token_account(
             let pinocchio_instruction = pinocchio::instruction::Instruction {
                 program_id: &create_account_ix.program_id.to_bytes(),
                 accounts: &[
-                    AccountMeta::new(fee_payer_pda.key(), true, true),
-                    AccountMeta::new(token_account.key(), true, true),
-                    pinocchio::instruction::AccountMeta::readonly(system_program.key()),
+                    AccountMeta::new(compressible.fee_payer_pda.key(), true, true),
+                    AccountMeta::new(accounts.token_account.key(), true, true),
+                    pinocchio::instruction::AccountMeta::readonly(
+                        compressible.system_program.key(),
+                    ),
                 ],
                 data: &create_account_ix.data,
             };
 
             match pinocchio::program::invoke(
                 &pinocchio_instruction,
-                &[fee_payer_pda, token_account, system_program],
+                &[
+                    compressible.fee_payer_pda,
+                    accounts.token_account,
+                    compressible.system_program,
+                ],
             ) {
                 Ok(()) => Ok(()),
                 Err(e) => Err(ProgramError::Custom(u64::from(e) as u32)),
             }?;
-            Some(*fee_payer_pda.key())
+            Some(*compressible.fee_payer_pda.key())
         } else {
             // Rent recipient is fee payer for account creation -> pays rent exemption
             let version_bytes = account.version.to_le_bytes();
@@ -126,27 +184,27 @@ pub fn process_create_token_account(
 
             // PDA creates account with only rent-exempt balance
             create_pda_account(
-                fee_payer_pda,
-                token_account,
-                system_program,
+                compressible.fee_payer_pda,
+                accounts.token_account,
+                compressible.system_program,
                 config,
                 None,
                 None, // No additional lamports from PDA
             )?;
 
             // Payer transfers the additional rent (compression incentive)
-            transfer_lamports_via_cpi(rent, payer, token_account)?;
+            transfer_lamports_via_cpi(rent, compressible.payer, accounts.token_account)?;
             None
         };
-        (Some(account), custom_fee_payer)
+        (Some(*account), custom_fee_payer)
     } else {
         (None, None)
     };
 
     // Initialize the token account (assumes account already exists and is owned by our program)
     initialize_token_account(
-        token_account,
-        mint.key(),
+        accounts.token_account,
+        accounts.mint.key(),
         &inputs.owner.to_bytes(),
         inputs.compressible_config,
         compressible_config_account,

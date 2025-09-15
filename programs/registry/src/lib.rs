@@ -1,3 +1,6 @@
+// Allow deprecated to suppress warnings from anchor_lang::AccountInfo::realloc
+// which is used in the #[program] macro but we don't directly control
+#![allow(deprecated)]
 #![allow(clippy::too_many_arguments)]
 use account_compression::{
     utils::constants::CPI_AUTHORITY_PDA_SEED, AddressMerkleTreeConfig, AddressQueueConfig,

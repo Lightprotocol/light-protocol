@@ -13,8 +13,7 @@ use crate::{
     instructions::mint_action::CompressedMintInstructionData, state::ExtensionStruct,
     AnchorDeserialize, AnchorSerialize, CTokenError,
 };
-// Order is optimized for hashing.
-// freeze_authority option is skipped if None.
+
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, BorshSerialize, BorshDeserialize, ZeroCopyMut, ZeroCopy)]
 pub struct CompressedMint {
@@ -27,8 +26,6 @@ pub struct CompressedMint {
 #[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct BaseMint {
-    // /// Padding to align with SPL's COption discriminator (3 bytes padding + 1 byte Option)
-    // pub _padding_mint_auth: [u8; 3],
     /// Optional authority used to mint new tokens. The mint authority may only
     /// be provided during mint creation. If no mint authority is present
     /// then the mint has a fixed supply and no further tokens may be
@@ -40,8 +37,6 @@ pub struct BaseMint {
     pub decimals: u8,
     /// Is initialized - for SPL compatibility
     pub is_initialized: bool,
-    // /// Padding to align with SPL's COption discriminator (3 bytes padding + 1 byte Option)
-    // pub _padding_freeze_auth: [u8; 3],
     /// Optional authority to freeze token accounts.
     pub freeze_authority: Option<Pubkey>,
 }
@@ -126,13 +121,6 @@ impl BorshDeserialize for BaseMint {
             freeze_authority,
         })
     }
-
-    // fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
-    //     let mut buf = Vec::new();
-    //     reader.read_to_end(&mut buf)?;
-    //     let mut slice = buf.as_slice();
-    //     Self::deserialize(&mut slice)
-    // }
 }
 
 // Manual implementation of ZeroCopyAt for BaseMint with SPL COption compatibility

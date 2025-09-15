@@ -12,7 +12,7 @@ use spl_pod::solana_msg::msg;
 use spl_token_2022::state::AccountState;
 
 use super::accounts::CloseTokenAccountAccounts;
-use crate::create_token_account::processor::transfer_lamports;
+use crate::create_token_account::transfer_lamports;
 
 /// Process the close token account instruction
 #[profile]

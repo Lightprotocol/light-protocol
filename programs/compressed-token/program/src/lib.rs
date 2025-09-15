@@ -24,7 +24,7 @@ use close_token_account::processor::process_close_token_account;
 use create_associated_token_account::{
     process_create_associated_token_account, process_create_associated_token_account_idempotent,
 };
-use create_token_account::processor::process_create_token_account;
+use create_token_account::process_create_token_account;
 use decompressed_token_transfer::process_decompressed_token_transfer;
 use withdraw_funding_pool::process_withdraw_funding_pool;
 

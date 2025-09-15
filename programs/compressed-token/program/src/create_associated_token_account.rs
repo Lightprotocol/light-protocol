@@ -10,7 +10,7 @@ use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    create_token_account::processor::transfer_lamports_via_cpi,
+    create_token_account::transfer_lamports_via_cpi,
     shared::{
         create_pda_account, initialize_token_account::initialize_token_account,
         validate_ata_derivation, CreatePdaAccountConfig,

@@ -10,7 +10,7 @@ use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
 use spl_pod::{bytemuck, solana_msg::msg};
 
-use crate::create_token_account::processor::transfer_lamports;
+use crate::create_token_account::transfer_lamports;
 
 /// Accounts required for the claim instruction
 pub struct ClaimAccounts<'a> {

@@ -20,7 +20,7 @@ use spl_pod::solana_msg::msg;
 use super::validate_compression_mode_fields;
 use crate::{
     close_token_account::{accounts::CloseTokenAccountAccounts, processor::validate_token_account},
-    create_token_account::processor::transfer_lamports_via_cpi,
+    create_token_account::transfer_lamports_via_cpi,
     shared::owner_validation::verify_and_update_token_account_authority_with_compressed_token,
 };
 
