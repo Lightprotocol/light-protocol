@@ -1,18 +1,23 @@
 use anchor_lang::{prelude::ProgramError, pubkey};
 use borsh::BorshDeserialize;
-use light_account_checks::{checks::check_owner, AccountIterator};
-use light_compressible::{config::CompressibleConfig, rent::get_rent_with_compression_cost};
+use light_account_checks::{
+    checks::{check_discriminator, check_owner},
+    AccountIterator,
+};
+use light_compressible::config::CompressibleConfig;
 use light_ctoken_types::{
     instructions::create_ctoken_account::CreateTokenAccountInstructionData,
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
-use pinocchio::{account_info::AccountInfo, instruction::AccountMeta};
-use spl_pod::solana_msg::msg;
+use light_profiler::profile;
+use pinocchio::account_info::AccountInfo;
+use spl_pod::{bytemuck, solana_msg::msg};
 
 use crate::shared::{
     create_pda_account, initialize_token_account::initialize_token_account, CreatePdaAccountConfig,
 };
-use anchor_lang::solana_program::{rent::Rent, system_instruction, sysvar::Sysvar};
+use pinocchio::sysvars::{rent::Rent, Sysvar};
+use pinocchio_system::instructions::{CreateAccount, Transfer};
 
 /// Validated accounts for the create token account instruction
 pub struct CreateCTokenAccounts<'info> {
@@ -26,20 +31,22 @@ pub struct CreateCTokenAccounts<'info> {
 
 /// Accounts required when creating a compressible token account
 pub struct CompressibleAccounts<'info> {
-    /// Pays for the account creation (signer, mutable)
+    /// Pays for the compression incentive rent when rent_payer_pda is the rent recipient (signer, mutable)
     pub payer: &'info AccountInfo,
-    /// Contains rent configuration and authority settings
-    pub config: &'info AccountInfo,
+    // /// Contains rent configuration and authority settings
+    // pub config: &'info AccountInfo,
     /// Used for account creation CPI
     pub system_program: &'info AccountInfo,
     /// Either the rent recipient PDA or a custom fee payer
-    pub fee_payer_pda: &'info AccountInfo,
+    pub rent_payer_pda: &'info AccountInfo,
     /// Parsed configuration from the config account
-    pub parsed_config: CompressibleConfig,
+    pub parsed_config: &'info CompressibleConfig,
 }
 
 impl<'info> CreateCTokenAccounts<'info> {
     /// Parse and validate accounts from the provided account infos
+    #[profile]
+    #[inline(always)]
     pub fn parse(
         account_infos: &'info [AccountInfo],
         inputs: &CreateTokenAccountInstructionData,
@@ -53,30 +60,17 @@ impl<'info> CreateCTokenAccounts<'info> {
         // Parse optional compressible accounts
         let compressible = if inputs.compressible_config.is_some() {
             let payer = iter.next_signer_mut("payer")?;
-            let config_account = iter.next_non_mut("compressible config")?;
 
-            // Validate config account owner
-            check_owner(
-                &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").to_bytes(),
-                config_account,
-            )?;
-
-            // Parse config data
-            let data = config_account.try_borrow_data().unwrap();
-            let parsed_config = CompressibleConfig::deserialize(&mut &data[8..]).map_err(|e| {
-                msg!("Failed to deserialize CompressibleConfig: {:?}", e);
-                ProgramError::InvalidAccountData
-            })?;
+            let parsed_config = next_config_account(&mut iter)?;
 
             let system_program = iter.next_account("system program")?;
-            let fee_payer_pda = iter.next_account("fee payer pda")?;
+            let rent_payer_pda = iter.next_account("fee payer pda")?;
 
             Some(CompressibleAccounts {
                 payer,
-                config: config_account,
-                system_program,
-                fee_payer_pda,
                 parsed_config,
+                system_program,
+                rent_payer_pda,
             })
         } else {
             None
@@ -90,7 +84,31 @@ impl<'info> CreateCTokenAccounts<'info> {
     }
 }
 
+#[profile]
+#[inline(always)]
+pub fn next_config_account<'info>(
+    iter: &mut AccountIterator<'info, AccountInfo>,
+) -> Result<&'info CompressibleConfig, ProgramError> {
+    let config_account = iter.next_non_mut("compressible config")?;
+
+    // Validate config account owner
+    check_owner(
+        &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").to_bytes(),
+        config_account,
+    )?;
+    // Parse config data
+    let data = unsafe { config_account.borrow_data_unchecked() };
+    check_discriminator::<CompressibleConfig>(&data[..])?;
+    Ok(
+        bytemuck::pod_from_bytes::<CompressibleConfig>(&mut &data[8..]).map_err(|e| {
+            msg!("Failed to deserialize CompressibleConfig: {:?}", e);
+            ProgramError::InvalidAccountData
+        })?,
+    )
+}
+
 /// Process the create token account instruction
+#[profile]
 pub fn process_create_token_account(
     account_infos: &[AccountInfo],
     mut instruction_data: &[u8],
@@ -123,53 +141,27 @@ pub fn process_create_token_account(
         }
 
         let account = &compressible.parsed_config;
+        let rent = compressible
+            .parsed_config
+            .rent_config
+            .get_rent_with_compression_cost(
+                COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+                compressible_config.rent_payment,
+            );
         let account_size = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
-        let rent = get_rent_with_compression_cost(
-            account.rent_config.min_rent as u64,
-            account.rent_config.rent_per_byte as u64,
-            account_size as u64,
-            compressible_config.rent_payment,
-            account.rent_config.full_compression_incentive as u64,
-        );
 
         let custom_fee_payer =
-            *compressible.fee_payer_pda.key() != account.rent_recipient.to_bytes();
+            *compressible.rent_payer_pda.key() != account.rent_recipient.to_bytes();
         let custom_fee_payer = if custom_fee_payer {
             // custom fee payer for account creation -> pays rent exemption
-            // Calculate rent
-            let solana_rent = Rent::get()?;
-            let lamports = solana_rent.minimum_balance(account_size) + rent;
-            let create_account_ix = system_instruction::create_account(
-                &solana_pubkey::Pubkey::new_from_array(*compressible.fee_payer_pda.key()),
-                &solana_pubkey::Pubkey::new_from_array(*accounts.token_account.key()),
-                lamports,
-                account_size as u64,
-                &solana_pubkey::Pubkey::new_from_array(crate::LIGHT_CPI_SIGNER.program_id),
-            );
-            let pinocchio_instruction = pinocchio::instruction::Instruction {
-                program_id: &create_account_ix.program_id.to_bytes(),
-                accounts: &[
-                    AccountMeta::new(compressible.fee_payer_pda.key(), true, true),
-                    AccountMeta::new(accounts.token_account.key(), true, true),
-                    pinocchio::instruction::AccountMeta::readonly(
-                        compressible.system_program.key(),
-                    ),
-                ],
-                data: &create_account_ix.data,
-            };
-
-            match pinocchio::program::invoke(
-                &pinocchio_instruction,
-                &[
-                    compressible.fee_payer_pda,
-                    accounts.token_account,
-                    compressible.system_program,
-                ],
-            ) {
-                Ok(()) => Ok(()),
-                Err(e) => Err(ProgramError::Custom(u64::from(e) as u32)),
-            }?;
-            Some(*compressible.fee_payer_pda.key())
+            create_account_with_custom_fee_payer(
+                compressible.rent_payer_pda,
+                accounts.token_account,
+                account_size,
+                rent,
+            )
+            .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+            Some(*compressible.rent_payer_pda.key())
         } else {
             // Rent recipient is fee payer for account creation -> pays rent exemption
             let version_bytes = account.version.to_le_bytes();
@@ -184,9 +176,8 @@ pub fn process_create_token_account(
 
             // PDA creates account with only rent-exempt balance
             create_pda_account(
-                compressible.fee_payer_pda,
+                compressible.rent_payer_pda,
                 accounts.token_account,
-                compressible.system_program,
                 config,
                 None,
                 None, // No additional lamports from PDA
@@ -214,6 +205,7 @@ pub fn process_create_token_account(
     Ok(())
 }
 
+#[profile]
 pub fn transfer_lamports(
     amount: u64,
     from: &AccountInfo,
@@ -247,40 +239,44 @@ pub fn transfer_lamports(
 
 /// Transfer lamports using CPI to system program
 /// This is needed when transferring from accounts not owned by our program
+#[profile]
 pub fn transfer_lamports_via_cpi(
     amount: u64,
     from: &AccountInfo,
     to: &AccountInfo,
 ) -> Result<(), ProgramError> {
-    use anchor_lang::solana_program::system_instruction;
-    use pinocchio::program::invoke;
-
-    // Create system transfer instruction
-    let transfer_ix = system_instruction::transfer(
-        &solana_pubkey::Pubkey::new_from_array(*from.key()),
-        &solana_pubkey::Pubkey::new_from_array(*to.key()),
-        amount,
-    );
-
-    // Convert to pinocchio instruction format
-    let pinocchio_ix = pinocchio::instruction::Instruction {
-        program_id: &transfer_ix.program_id.to_bytes(),
-        accounts: &[
-            pinocchio::instruction::AccountMeta::new(from.key(), true, true),
-            pinocchio::instruction::AccountMeta::new(to.key(), true, false),
-        ],
-        data: &transfer_ix.data,
+    // Use pinocchio_system's Transfer directly - no type conversions needed
+    let transfer = Transfer {
+        from,
+        to,
+        lamports: amount,
     };
 
-    // Invoke the system program to transfer lamports
-    match invoke(&pinocchio_ix, &[from, to]) {
-        Ok(()) => {
-            msg!("Successfully transferred {} lamports", amount);
-            Ok(())
-        }
-        Err(e) => {
-            msg!("Failed to transfer lamports: {:?}", e);
-            Err(ProgramError::Custom(u64::from(e) as u32))
-        }
-    }
+    transfer.invoke().map_err(|e| {
+        msg!("Failed to transfer lamports: {:?}", e);
+        ProgramError::Custom(u64::from(e) as u32)
+    })?;
+
+    Ok(())
+}
+
+#[profile]
+#[inline(always)]
+fn create_account_with_custom_fee_payer(
+    rent_payer_pda: &AccountInfo,
+    token_account: &AccountInfo,
+    account_size: usize,
+    rent: u64,
+) -> pinocchio::ProgramResult {
+    let solana_rent = Rent::get()?;
+    let lamports = solana_rent.minimum_balance(account_size) + rent;
+
+    let create_account = CreateAccount {
+        from: rent_payer_pda,
+        to: token_account,
+        lamports,
+        space: account_size as u64,
+        owner: &crate::LIGHT_CPI_SIGNER.program_id,
+    };
+    create_account.invoke()
 }

@@ -62,6 +62,7 @@ pinocchio = { workspace = true, features = ["std"] }
 light-sdk-pinocchio = { workspace = true }
 light-ctoken-types = { workspace = true, features = ["anchor"] }
 pinocchio-pubkey = { workspace = true }
+pinocchio-system = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

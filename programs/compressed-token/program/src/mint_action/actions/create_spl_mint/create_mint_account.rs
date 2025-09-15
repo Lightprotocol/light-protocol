@@ -36,7 +36,6 @@ pub fn create_mint_account(
     crate::shared::create_pda_account(
         executing_accounts.system.fee_payer,
         mint_account,
-        executing_accounts.system.system_program,
         config,
         None,
         None,

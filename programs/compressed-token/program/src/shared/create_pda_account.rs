@@ -1,12 +1,14 @@
-use anchor_lang::solana_program::{
-    program_error::ProgramError, rent::Rent, system_instruction, sysvar::Sysvar,
-};
+use anchor_lang::solana_program::program_error::ProgramError;
 use arrayvec::ArrayVec;
+use light_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
-    instruction::{AccountMeta, Seed, Signer},
+    instruction::{Seed, Signer},
     pubkey::Pubkey,
+    sysvars::{rent::Rent, Sysvar},
 };
+use pinocchio_system::instructions::CreateAccount;
+
 /// Configuration for creating a PDA account
 #[derive(Debug)]
 pub struct CreatePdaAccountConfig<'a> {
@@ -17,9 +19,9 @@ pub struct CreatePdaAccountConfig<'a> {
     /// Size of the account in bytes
     pub account_size: usize,
     /// Program that will own the created account
-    pub owner_program_id: &'a pinocchio::pubkey::Pubkey,
+    pub owner_program_id: &'a Pubkey,
     /// Program used to derive the PDA (usually our program ID)
-    pub derivation_program_id: &'a pinocchio::pubkey::Pubkey,
+    pub derivation_program_id: &'a Pubkey,
 }
 
 /// Creates a PDA account with the specified configuration.
@@ -32,35 +34,25 @@ pub struct CreatePdaAccountConfig<'a> {
 /// 2. Builds seed array with bump
 /// 3. Creates account via system program with specified owner
 /// 4. Signs transaction with derived PDA seeds
+#[profile]
 pub fn create_pda_account(
     fee_payer: &AccountInfo,
     new_account: &AccountInfo,
-    system_program: &AccountInfo,
     config: CreatePdaAccountConfig,
     fee_payer_config: Option<CreatePdaAccountConfig>,
     additional_lamports: Option<u64>,
 ) -> Result<(), ProgramError> {
     // Calculate rent
-    let rent = Rent::get()?;
+    let rent = Rent::get().map_err(|_| ProgramError::UnsupportedSysvar)?;
     let lamports =
         rent.minimum_balance(config.account_size) + additional_lamports.unwrap_or_default();
 
-    let create_account_ix = system_instruction::create_account(
-        &solana_pubkey::Pubkey::new_from_array(*fee_payer.key()),
-        &solana_pubkey::Pubkey::new_from_array(*new_account.key()),
+    let create_account = CreateAccount {
+        from: fee_payer,
+        to: new_account,
         lamports,
-        config.account_size as u64,
-        &solana_pubkey::Pubkey::new_from_array(*config.owner_program_id),
-    );
-
-    let pinocchio_instruction = pinocchio::instruction::Instruction {
-        program_id: &create_account_ix.program_id.to_bytes(),
-        accounts: &[
-            AccountMeta::new(fee_payer.key(), true, true),
-            AccountMeta::new(new_account.key(), true, true),
-            pinocchio::instruction::AccountMeta::readonly(system_program.key()),
-        ],
-        data: &create_account_ix.data,
+        space: config.account_size as u64,
+        owner: config.owner_program_id,
     };
 
     let bump_bytes = [config.bump];
@@ -84,23 +76,16 @@ pub fn create_pda_account(
         seed_vec.push(Seed::from(bump_bytes.as_ref()));
 
         let signer0 = Signer::from(seed_vec.as_slice());
-        let mut signers: ArrayVec<Signer, 2> = ArrayVec::new();
-        signers.push(signer0);
-        signers.push(signer);
-        signers
+        let signers = [signer0, signer];
+        signers.into()
     } else {
         let mut signers: ArrayVec<Signer, 2> = ArrayVec::new();
         signers.push(signer);
         signers
     };
-    match pinocchio::program::invoke_signed(
-        &pinocchio_instruction,
-        &[fee_payer, new_account, system_program],
-        signers.as_slice(),
-    ) {
-        Ok(()) => Ok(()),
-        Err(e) => Err(ProgramError::Custom(u64::from(e) as u32)),
-    }
+    create_account
+        .invoke_signed(signers.as_slice())
+        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
 }
 
 /// Verifies that the provided account matches the expected PDA

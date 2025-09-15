@@ -38,7 +38,29 @@
   program-libs/ctoken-types/src/instructions/extensions/compressible.rs
 
   **Accounts:**
-  1.
+  1. token_account
+    - (signer, mutable)
+    - The ctoken account being created (signer, mutable)
+  2. mint
+    - non mutable
+    - Unused account kept for spl program compatibility
+
+  Optional accounts required to initialize ctoken account with compressible extension
+  3. payer
+    - (signer, mutable)
+    - User account, pays for the ctoken account rent and compression incentive
+  4. config
+    - mutable, owned by LightRegistry program, CompressibleConfig::discriminator matches
+    - used to read RentConfig, rent recipient, and rent authority
+  5. system_program
+    - non mut
+    - required for account creation and rent transfer
+  6. rent_payer_pda
+    - signer, mutable
+    - Pays rent exemption for the compressible token account creation.
 
   **Instruction Logic and Checks:**
-  1.
+  1. Deserialize instruction data
+    - if instruction data len == 32 bytes add 1 byte padding for spl token compatibility
+  2. Parse and check accounts
+  3.

@@ -49,7 +49,6 @@ pub fn create_token_pool_account_manual(
     crate::shared::create_pda_account(
         executing_accounts.system.fee_payer,
         token_pool_pda,
-        executing_accounts.system.system_program,
         config,
         None,
         None,

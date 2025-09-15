@@ -1,4 +1,5 @@
 use anchor_lang::prelude::ProgramError;
+use light_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
 /// Validates that an account is the correct Associated Token Account PDA
@@ -6,6 +7,7 @@ use pinocchio::account_info::AccountInfo;
 /// Returns Ok(()) if the account key matches the expected PDA derivation.
 /// This is used by both the regular and idempotent create ATA instructions.
 #[inline(always)]
+#[profile]
 pub fn validate_ata_derivation(
     account: &AccountInfo,
     owner: &[u8; 32],

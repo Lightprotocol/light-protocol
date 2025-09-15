@@ -6,11 +6,12 @@ use light_ctoken_types::instructions::{
     create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
     extensions::compressible::CompressibleExtensionInstructionData,
 };
+use light_profiler::profile;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    create_token_account::transfer_lamports_via_cpi,
+    create_token_account::{next_config_account, transfer_lamports_via_cpi},
     shared::{
         create_pda_account, initialize_token_account::initialize_token_account,
         validate_ata_derivation, CreatePdaAccountConfig,
@@ -42,6 +43,7 @@ pub fn process_create_associated_token_account_idempotent(
 /// - it is possible to create an associated token account for non existing mints
 /// - accounts with non existing mints can never have a balance
 #[inline(always)]
+#[profile]
 fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     account_infos: &[AccountInfo],
     mut instruction_data: &[u8],
@@ -53,7 +55,7 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
 
     let fee_payer = iter.next_signer_mut("fee_payer")?;
     let associated_token_account = iter.next_mut("associated_token_account")?;
-    let system_program = iter.next_non_mut("system_program")?;
+    let _system_program = iter.next_non_mut("system_program")?;
 
     let owner_bytes = instruction_inputs.owner.to_bytes();
     let mint_bytes = instruction_inputs.mint.to_bytes();
@@ -107,7 +109,6 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
             token_account_size,
             fee_payer,
             associated_token_account,
-            system_program,
             config,
         )?;
         (Some(compressible_config_account), custom_fee_payer)
@@ -117,7 +118,6 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
         create_pda_account(
             fee_payer,
             associated_token_account,
-            system_program,
             config,
             None,
             None, // No additional lamports from PDA
@@ -133,19 +133,18 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
         compressible_config_account,
         custom_fee_payer,
     )?;
-
     Ok(())
 }
 
-fn process_compressible_config(
+#[profile]
+fn process_compressible_config<'info>(
     compressible_config_ix_data: &CompressibleExtensionInstructionData,
-    iter: &mut AccountIterator<AccountInfo>,
+    iter: &mut AccountIterator<'info, AccountInfo>,
     token_account_size: usize,
-    fee_payer: &AccountInfo,
-    associated_token_account: &AccountInfo,
-    system_program: &AccountInfo,
+    fee_payer: &'info AccountInfo,
+    associated_token_account: &'info AccountInfo,
     config: CreatePdaAccountConfig,
-) -> Result<(CompressibleConfig, Option<Pubkey>), ProgramError> {
+) -> Result<(&'info CompressibleConfig, Option<Pubkey>), ProgramError> {
     if compressible_config_ix_data
         .compress_to_account_pubkey
         .is_some()
@@ -153,23 +152,8 @@ fn process_compressible_config(
         msg!("Associated token accounts must not compress to pubkey");
         return Err(ProgramError::InvalidInstructionData);
     }
-    let config_account = iter.next_non_mut("compressible config")?;
-    use anchor_lang::pubkey;
-    use light_account_checks::checks::check_owner;
-    check_owner(
-        &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").to_bytes(),
-        config_account,
-    )?;
-    let data = config_account.try_borrow_data().unwrap();
 
-    // Skip Anchor's 8-byte discriminator and deserialize the actual CompressibleConfig
-    use borsh::BorshDeserialize;
-    use light_compressible::config::CompressibleConfig;
-    let compressible_config_account =
-        CompressibleConfig::deserialize(&mut &data[8..]).map_err(|e| {
-            msg!("Failed to deserialize CompressibleConfig: {:?}", e);
-            ProgramError::InvalidAccountData
-        })?;
+    let compressible_config_account = next_config_account(iter)?;
 
     // Get fee_payer_pda account for rent recipient (this will pay for account creation)
     let fee_payer_for_create = iter.next_account("fee payer pda")?;
@@ -197,7 +181,6 @@ fn process_compressible_config(
     create_pda_account(
         fee_payer_for_create,
         associated_token_account,
-        system_program,
         config,
         config_2,
         None, // No additional lamports from PDA
@@ -211,12 +194,6 @@ fn process_compressible_config(
         compressible_config_account
             .rent_config
             .full_compression_incentive as u64,
-    );
-    msg!(
-        "Calculating rent for {} bytes, {} epochs: {} lamports",
-        token_account_size,
-        compressible_config_ix_data.rent_payment,
-        rent
     );
 
     // Payer transfers the additional rent (compression incentive)

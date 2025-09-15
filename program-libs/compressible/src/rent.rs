@@ -1,4 +1,5 @@
 use bytemuck::{Pod, Zeroable};
+use light_profiler::profile;
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopy, ZeroCopyMut};
 
 use crate::{error::CompressibleError, AnchorDeserialize, AnchorSerialize};
@@ -51,6 +52,8 @@ pub fn rent_curve_per_epoch(min_rent: u64, rent_per_byte: u64, bytes: u64) -> u6
 pub fn get_rent(min_rent: u64, rent_per_byte: u64, bytes: u64, epochs: u64) -> u64 {
     rent_curve_per_epoch(min_rent, rent_per_byte, bytes) * epochs
 }
+
+#[profile]
 pub fn get_rent_with_compression_cost(
     min_rent: u64,
     rent_per_byte: u64,
