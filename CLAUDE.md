@@ -1,3 +1,20 @@
+
+
+
+# Repository Structure
+1. Solana programs (programs/*)
+2. crates used in programs (program-libs/)
+3. integration tests and test utilities for programs (program-tests)
+4. sdks for programs (sdk-libs/)
+5. integration tests for sdks (sdk-tests/)
+6. circuits used in programs, prover server, and rust prover client crate (prover/)
+7. forester server (forester/)
+
+
+
+
+
+
 # Testing
 
 This repository uses a comprehensive two-tier testing strategy:

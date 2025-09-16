@@ -1,0 +1,183 @@
+# Documentation Guidelines
+
+## 1. Crate Documentation Structure
+
+### 1.1 Root CLAUDE.md File
+Every crate must have a `CLAUDE.md` file containing:
+
+**Required sections:**
+- **Summary** - 2-5 bullet points describing crate functionality and purpose
+- **Used in** - List of crates/programs that use this crate with one-liner descriptions
+- **Navigation** - Instructions for navigating the documentation structure
+- **High-level sections** - Major components organized by type:
+  - For Solana programs: Accounts, Instructions, Source Code Structure
+  - For libraries: Core Types, Public APIs, Utilities
+  - For SDKs: Client Functions, Instruction Builders, Types
+  - For test utilities: Test Helpers, Mock Accounts, Fixtures
+
+**Optional sections:**
+- **Config Requirements** - For programs with configuration state
+- **Security Considerations** - Critical security notes
+
+**Source Code Structure:**
+Document the `src/` directory organization based on crate type:
+
+For programs:
+- **Core Instructions** - Main program operations
+- **Account State** - Account structures and data layouts
+- **Shared Components** - Utilities and helpers
+
+For libraries:
+- **Core Types** - Main data structures and traits
+- **Public APIs** - Exported functions and modules
+- **Internal** - Private implementation details
+
+For SDKs:
+- **Client Functions** - Public API methods
+- **Instruction Builders** - Transaction construction
+- **Types** - Shared data structures
+
+For each module include:
+- File/directory name
+- Brief description of functionality
+- Related features or dependencies
+
+Example: See `programs/compressed-token/program/CLAUDE.md` Source Code Structure section
+
+### 1.2 docs/ Directory
+When documentation is extensive, create a `docs/` directory with:
+- `CLAUDE.md` - Navigation guide for the docs folder
+- Subdirectories for major sections (e.g., `instructions/`, `accounts/`)
+- Individual `.md` files for detailed documentation
+
+## 2. Topic-Specific Documentation
+
+### 2.1 Account Documentation
+
+Every account must include:
+
+**Required fields:**
+- **description** - What the account represents and its role in the program
+- **state layout** - Path to struct definition and field descriptions
+- **associated instructions** - List of instructions that create/read/update/delete this account with discriminators
+
+**For Solana accounts:**
+- **discriminator** - The 8-byte discriminator value if applicable
+- **size** - Account data size in bytes
+- **ownership** - Expected program owner
+- **serialization** - Zero-copy (programs) and Borsh (clients) examples with code snippets
+
+**For PDAs:**
+- **derivation** - Seeds used to derive the account (e.g., `[owner, program_id, mint]`)
+- **bump** - Whether bump is stored or derived
+
+**For compressed accounts:**
+- **version** - Versioning scheme for data format changes
+- **hashing** - Hash method (Poseidon/SHA256) and discriminator encoding
+- **data layout** - Compressed data structure
+
+**Optional fields:**
+- **extensions** - Supported extension types and their layouts
+- **security notes** - Critical validation requirements
+
+**Examples:**
+- `programs/compressed-token/program/docs/ACCOUNTS.md`
+
+### 2.2 Instruction Documentation
+
+Every instruction must include:
+
+**Required sections:**
+- **discriminator** - The instruction discriminator value (e.g., `18`)
+- **enum** - The instruction enum variant (e.g., `CTokenInstruction::CreateTokenAccount`)
+- **path** - Path to instruction processor code in the program
+- **description** - High-level overview including:
+  - What the instruction does
+  - Key state changes
+  - Usage scenarios
+  - Config validation requirements (if applicable)
+
+- **instruction_data** - Path to instruction data struct with field descriptions
+
+- **Accounts** - Ordered list with for each account:
+  - Name and type
+  - Signer/writable requirements
+  - Validation checks performed
+  - Purpose in the instruction
+
+- **instruction logic and checks** - Step-by-step processing:
+  1. Input validation
+  2. State deserialization
+  3. Business logic
+  4. State updates
+  5. CPIs (if any)
+
+- **Errors** - Comprehensive error list:
+  - Error code/type
+  - Triggering condition
+  - Example scenario
+
+**Optional sections:**
+- **CPIs** - Cross-program invocations with target programs and data
+- **Events** - Emitted events and their data
+- **Security considerations** - Attack vectors and mitigations
+
+**Examples:**
+- `programs/compressed-token/program/docs/instructions/`
+
+### 2.3 Error Documentation
+
+Document all custom error codes:
+
+**Required for each error:**
+- **Error name** - The error variant name
+- **Error code** - Numeric code if applicable
+- **Description** - What the error indicates
+- **Common causes** - Typical scenarios that trigger this error
+- **Resolution** - How to fix or avoid the error
+
+### 2.4 Serialization Documentation
+
+When documenting serialization:
+
+**Zero-copy (for programs):**
+```rust
+use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
+let (data, _) = DataType::zero_copy_at(&bytes)?;
+```
+
+**Borsh (for clients):**
+```rust
+use borsh::BorshDeserialize;
+let data = DataType::deserialize(&mut &bytes[..])?;
+```
+
+**Note:** Always specify which method to use in which context
+
+### 2.5 CPI Documentation
+
+For wrapper programs and CPI patterns:
+
+**Required elements:**
+- **Target program** - Program being called
+- **PDA signer** - Seeds and bump for CPI authority
+- **Account mapping** - How accounts are passed through
+- **Data passthrough** - Instruction data handling
+- **Example code** - Complete CPI invocation
+
+## 3. Documentation Standards
+- be concise and precise
+
+### 3.1 Path References
+- Always use absolute paths from repository root
+- Example: `program-libs/ctoken-types/src/state/solana_ctoken.rs`
+
+### 3.2 Code Examples
+- Include working code snippets
+- Show both correct usage and common mistakes
+- Add inline comments explaining key points
+
+### 3.3 Cross-References
+- Link to related documentation
+- Reference source files with specific line numbers when relevant
+- Use relative links within the same crate
