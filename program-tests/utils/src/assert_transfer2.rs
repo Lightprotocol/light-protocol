@@ -7,6 +7,7 @@ use light_token_client::instructions::transfer2::{
 };
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
+use crate::assert_close_token_account::assert_close_token_account;
 use crate::assert_decompressed_token_transfer::assert_compressible_for_account;
 
 /// Comprehensive assertion for transfer2 operations that verifies all expected outcomes
@@ -468,7 +469,10 @@ pub async fn assert_transfer2_compress_and_close(
     rpc: &mut LightProgramTest,
     compress_and_close_input: light_token_client::instructions::transfer2::CompressAndCloseInput,
 ) {
-    use crate::assert_close_token_account::assert_close_token_account;
+    // Get the destination account
+    let destination_pubkey = compress_and_close_input
+        .destination
+        .unwrap_or(compress_and_close_input.authority);
 
     // Use the existing assert_transfer2 for CompressAndClose validation
     assert_transfer2(
@@ -480,10 +484,19 @@ pub async fn assert_transfer2_compress_and_close(
     .await;
 
     // Use the existing assert_close_token_account for exact rent validation
+    // This now includes the compression incentive check for rent authority closes
     assert_close_token_account(
         rpc,
         compress_and_close_input.solana_ctoken_account,
         compress_and_close_input.authority,
+        destination_pubkey,
     )
     .await;
+
+    // Verify the account is closed
+    let token_account_info = rpc
+        .get_account(compress_and_close_input.solana_ctoken_account)
+        .await
+        .unwrap();
+    assert!(token_account_info.is_none() || token_account_info.unwrap().data.is_empty());
 }

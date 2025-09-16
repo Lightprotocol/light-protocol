@@ -715,13 +715,13 @@ pub mod light_registry {
 
     /// Pauses the compressible config
     pub fn pause_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
-        ctx.accounts.compressible_config.active = 0;
+        ctx.accounts.compressible_config.state = 0;
         Ok(())
     }
 
     /// Unpauses the compressible config
     pub fn unpause_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
-        ctx.accounts.compressible_config.active = 1;
+        ctx.accounts.compressible_config.state = 1;
         Ok(())
     }
 

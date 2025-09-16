@@ -112,6 +112,7 @@ pub struct CompressAndCloseInput {
     pub solana_ctoken_account: Pubkey,
     pub authority: Pubkey,
     pub output_queue: Pubkey,
+    pub destination: Option<Pubkey>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -470,7 +471,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 let owner = compressed_token.owner;
 
                 // Extract rent_recipient and rent_authority from compressible extension
-                let (rent_recipient, rent_authority) =
+                let (rent_recipient, _rent_authority) =
                     if let Some(extensions) = compressed_token.extensions.as_ref() {
                         let mut found_rent_recipient = None;
                         let mut found_rent_authority = None;
@@ -506,17 +507,10 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
 
                 // Use compress_and_close method with the actual balance
                 // The compressed_account_index should match the position in token_accounts
-                // When closing with owner authority, user funds go to owner
-                // When closing with rent authority, everything goes to rent recipient
-                let is_rent_authority_close = rent_authority
-                    .map(|ra| Pubkey::from(ra) == input.authority)
-                    .unwrap_or(false);
-
-                let destination_index = if is_rent_authority_close {
-                    rent_recipient_index // Everything goes to rent recipient
-                } else {
-                    owner_index // User funds go to owner
-                };
+                // Destination always receives the compression incentive (11k lamports)
+                let destination_index = input.destination
+                    .map(|d| packed_tree_accounts.insert_or_get(d))
+                    .unwrap_or(authority_index); // Default to authority if no destination specified
 
                 token_account.compress_and_close(
                     (*balance).into(),

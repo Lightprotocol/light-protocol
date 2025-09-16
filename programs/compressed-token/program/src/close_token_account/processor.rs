@@ -96,11 +96,11 @@ fn validate_token_account<const CHECK_RENT_AUTH: bool>(
                             return Err(ProgramError::InvalidAccountData);
                         }
 
-                        // When rent authority closes, destination must equal rent_recipient
-                        if accounts.destination.key() != rent_recipient.key() {
-                            msg!("rent authority close requires destination == rent_recipient");
-                            return Err(ProgramError::InvalidAccountData);
-                        }
+                        // // When rent authority closes, destination must equal rent_recipient
+                        // if accounts.rent_recipient.key() != rent_recipient.key() {
+                        //     msg!("rent authority close requires destination == rent_recipient");
+                        //     return Err(ProgramError::InvalidAccountData);
+                        // }
 
                         #[cfg(target_os = "solana")]
                         use pinocchio::sysvars::Sysvar;
@@ -204,8 +204,16 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                     .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
                 if accounts.authority.key() == &compressible_ext.rent_authority {
+                    // When compressing via rent_authority:
+                    // Extract compression incentive from rent_recipient portion to give to forester
+                    // The compression incentive is included in lamports_to_rent_recipient
+                    lamports_to_rent_recipient = lamports_to_rent_recipient
+                        .checked_sub(full_compression_incentive)
+                        .ok_or(ProgramError::InsufficientFunds)?;
+
+                    // User funds also go to rent_recipient
                     lamports_to_rent_recipient += lamports_to_destination;
-                    lamports_to_destination = 0;
+                    lamports_to_destination = full_compression_incentive; // This will go to fee_payer (forester)
                 }
 
                 // Transfer lamports to rent recipient

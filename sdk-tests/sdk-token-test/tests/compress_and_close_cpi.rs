@@ -223,6 +223,7 @@ async fn test_compress_and_close_cpi_indices_owner() {
         solana_ctoken_account: token_account_pubkey,
         authority: ctx.owners[0].pubkey(), // Owner is the authority in this test
         output_queue: output_tree_info.queue,
+        destination: None, // Owner is the authority and destination in this test
     };
 
     assert_transfer2_compress_and_close(&mut rpc, compress_and_close_input).await;

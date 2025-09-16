@@ -31,6 +31,7 @@ use solana_sdk::{
 /// * `solana_ctoken_accounts` - List of compressible token accounts to compress and close
 /// * `authority` - Authority that can execute the compress and close
 /// * `payer` - Transaction fee payer
+/// * `destination` - Optional destination for compression incentive (defaults to payer)
 ///
 /// # Returns
 /// `Result<Signature, RpcError>` - Transaction signature
@@ -39,6 +40,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     solana_ctoken_accounts: &[Pubkey],
     authority: &Keypair,
     payer: &Keypair,
+    destination: Option<Pubkey>,
 ) -> Result<Signature, RpcError> {
     // Registry and compressed token program IDs
     let registry_program_id =
@@ -156,13 +158,22 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
             true,  // is_writable
         );
 
+        // Add destination for compression incentive (defaults to payer if not specified)
+        let destination_pubkey = destination.unwrap_or_else(|| payer.pubkey());
+        println!("compress_and_close_forester destination pubkey: {:?}", destination_pubkey);
+        let destination_index = packed_accounts.insert_or_get_config(
+            destination_pubkey,
+            false, // Already signed at transaction level if it's the payer
+            true,  // is_writable to receive lamports
+        );
+
         let indices = CompressAndCloseIndices {
             source_index,
             mint_index,
             owner_index,
             authority_index,
             rent_recipient_index,
-            destination_index: rent_recipient_index, // Everything goes to rent recipient when rent authority closes
+            destination_index, // Compression incentive goes to destination (forester)
             output_tree_index,
         };
 

@@ -90,7 +90,7 @@ impl Rpc for LightProgramTest {
     }
 
     async fn get_balance(&self, pubkey: &Pubkey) -> Result<u64, RpcError> {
-        Ok(self.context.get_balance(pubkey).unwrap())
+        Ok(self.context.get_balance(pubkey).unwrap_or_default())
     }
 
     async fn get_latest_blockhash(&mut self) -> Result<(Hash, u64), RpcError> {

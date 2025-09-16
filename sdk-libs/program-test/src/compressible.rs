@@ -141,7 +141,7 @@ pub async fn claim_and_compress(
         println!("Compress and close: {:?}", chunk_pubkeys);
 
         // Use the new compress_and_close_forester function via registry program
-        compress_and_close_forester(rpc, &chunk_pubkeys, &forester_keypair, &payer).await?;
+        compress_and_close_forester(rpc, &chunk_pubkeys, &forester_keypair, &payer, None).await?;
 
         // Remove processed accounts from the HashMap
         for account_pubkey in chunk {

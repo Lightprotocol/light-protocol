@@ -111,8 +111,9 @@
       - Returns (lamports_to_rent_recipient, lamports_to_destination)
       - Get rent_recipient account from accounts (error if missing)
       - Special case: if authority.key() == rent_authority:
+        - Extract compression incentive from lamports_to_rent_recipient
         - Add lamports_to_destination to lamports_to_rent_recipient
-        - Set lamports_to_destination = 0
+        - Set lamports_to_destination = full_compression_incentive (goes to forester)
       - Transfer lamports_to_rent_recipient to rent_recipient via `transfer_lamports` (if > 0)
       - Transfer lamports_to_destination to destination via `transfer_lamports` (if > 0)
       - Return early (skip non-compressible path)

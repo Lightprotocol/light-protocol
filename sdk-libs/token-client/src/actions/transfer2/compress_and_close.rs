@@ -18,6 +18,7 @@ use crate::instructions::transfer2::{
 /// * `solana_ctoken_account` - The compressible token account to compress from and close
 /// * `authority` - Authority that can spend from and close the token account (owner or rent authority)
 /// * `payer` - Transaction fee payer
+/// * `destination` - Optional destination for compression incentive (defaults to authority)
 ///
 /// # Returns
 /// `Result<Signature, RpcError>` - Transaction signature
@@ -26,6 +27,7 @@ pub async fn compress_and_close<R: Rpc + Indexer>(
     solana_ctoken_account: Pubkey,
     authority: &Keypair,
     payer: &Keypair,
+    destination: Option<Pubkey>,
 ) -> Result<Signature, RpcError> {
     // Get output queue for compression
     let output_queue = rpc.get_random_state_tree_info()?.get_output_pubkey()?;
@@ -38,6 +40,7 @@ pub async fn compress_and_close<R: Rpc + Indexer>(
                 solana_ctoken_account,
                 authority: authority.pubkey(),
                 output_queue,
+                destination,
             },
         )],
         payer.pubkey(),

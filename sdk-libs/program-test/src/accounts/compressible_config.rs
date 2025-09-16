@@ -126,7 +126,7 @@ pub async fn create_compressible_config(
 
     let expected_config_account = CompressibleConfig {
         version,
-        active: 1, // true as u8
+        state: 1, // true as u8
         bump: config_bump,
         update_authority: payer.pubkey(),
         withdrawal_authority: payer.pubkey(),

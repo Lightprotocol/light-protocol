@@ -2,8 +2,6 @@ use light_hasher::HasherError;
 use thiserror::Error;
 #[derive(Debug, Error, PartialEq)]
 pub enum CompressibleError {
-    #[error("ConstraintViolation")]
-    ConstraintViolation,
     #[error("FailedBorrowRentSysvar")]
     FailedBorrowRentSysvar,
     #[error("InvalidState{0}")]
@@ -16,9 +14,8 @@ pub enum CompressibleError {
 impl From<CompressibleError> for u32 {
     fn from(e: CompressibleError) -> u32 {
         match e {
-            CompressibleError::ConstraintViolation => 19001,
-            CompressibleError::FailedBorrowRentSysvar => 19002,
-            CompressibleError::InvalidState(_) => 19003,
+            CompressibleError::FailedBorrowRentSysvar => 19001,
+            CompressibleError::InvalidState(_) => 19002,
             CompressibleError::HasherError(e) => u32::from(e),
         }
     }

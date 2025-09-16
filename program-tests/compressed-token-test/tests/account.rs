@@ -160,7 +160,13 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
         .await?;
 
     // Verify account closure using existing assertion helper
-    assert_close_token_account(&mut context.rpc, token_account_pubkey, destination_pubkey).await;
+    assert_close_token_account(
+        &mut context.rpc,
+        token_account_pubkey,
+        context.owner_keypair.pubkey(),
+        destination_pubkey,
+    )
+    .await;
 
     Ok(())
 }
@@ -316,11 +322,19 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
         assert_transfer2_compress(&mut context.rpc, compress_input).await;
     }
 
+    // Create a separate destination account
+    let destination = Keypair::new();
+    context
+        .rpc
+        .airdrop_lamports(&destination.pubkey(), 1_000_000)
+        .await
+        .unwrap();
+
     // Close compressible account using owner
     let close_account_ix = close_compressible_account(
         &light_compressed_token::ID,
         &token_account_pubkey,
-        &context.owner_keypair.pubkey(), // destination for user funds
+        &destination.pubkey(),           // destination for user funds
         &context.owner_keypair.pubkey(), // authority
         &context.rent_recipient,         // rent_recipient
     );
@@ -339,6 +353,7 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
         &mut context.rpc,
         token_account_pubkey,
         context.owner_keypair.pubkey(),
+        destination.pubkey(), // destination
     )
     .await;
 
@@ -483,11 +498,19 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_owner() -> 
         assert_transfer2_compress(&mut context.rpc, compress_input).await;
     }
 
+    // Create a separate destination account
+    let destination = Keypair::new();
+    context
+        .rpc
+        .airdrop_lamports(&destination.pubkey(), 1_000_000)
+        .await
+        .unwrap();
+
     // Close compressible account using owner
     let close_account_ix = close_compressible_account(
         &light_compressed_token::ID,
         &token_account_pubkey,
-        &context.owner_keypair.pubkey(), // destination for user funds
+        &destination.pubkey(),           // destination for user funds
         &context.owner_keypair.pubkey(), // authority
         &payer_pubkey,                   // rent_recipient (custom rent payer)
     );
@@ -506,6 +529,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_owner() -> 
         &mut context.rpc,
         token_account_pubkey,
         context.owner_keypair.pubkey(),
+        destination.pubkey(), // destination
     )
     .await;
 
@@ -622,8 +646,8 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_rent_author
             .await?
             .expect("Payer should exist")
             .lamports;
-        let rent = RentConfig::default()
-            .get_rent_with_compression_cost(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs);
+        let rent =
+            RentConfig::default().get_rent(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs);
         assert_eq!(
             payer_balance_after,
             payer_balance_before + rent_exemption + rent,
@@ -726,11 +750,19 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
     let (compressible_ata_pubkey, _) =
         derive_ctoken_ata(&compressible_owner_pubkey, &context.mint_pubkey);
 
+    // Create a separate destination account
+    let destination = Keypair::new();
+    context
+        .rpc
+        .airdrop_lamports(&destination.pubkey(), 1_000_000)
+        .await
+        .unwrap();
+
     // Close compressible ATA
     let close_account_ix = close_compressible_account(
         &light_compressed_token::ID,
         &compressible_ata_pubkey,
-        &compressible_owner_keypair.pubkey(), // destination for user funds
+        &destination.pubkey(),                // destination for user funds
         &compressible_owner_keypair.pubkey(), // authority
         &context.rent_recipient,              // rent_recipient
     );
@@ -749,6 +781,7 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
         &mut context.rpc,
         compressible_ata_pubkey,
         compressible_owner_keypair.pubkey(),
+        destination.pubkey(), // destination
     )
     .await;
 
@@ -821,6 +854,7 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
         &[token_account_pubkey],
         &forster_keypair,
         &context.payer,
+        None,
     )
     .await;
 
@@ -838,11 +872,23 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
     // But we still need to advance time to trigger the rent authority logic
     context.rpc.warp_to_slot((SLOTS_PER_EPOCH * 2) + 1).unwrap();
 
+    // Create a fresh destination pubkey to receive the compression incentive
+    let destination = solana_sdk::signature::Keypair::new();
+    println!("Test destination pubkey: {:?}", destination.pubkey());
+
+    // Airdrop lamports to destination so it exists and can receive the compression incentive
+    context
+        .rpc
+        .airdrop_lamports(&destination.pubkey(), 1_000_000)
+        .await
+        .unwrap();
+
     compress_and_close_forester(
         &mut context.rpc,
         &[token_account_pubkey],
         &forster_keypair,
         &context.payer,
+        Some(destination.pubkey()),
     )
     .await
     .unwrap();
@@ -850,12 +896,14 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
     use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
     use light_token_client::instructions::transfer2::CompressAndCloseInput;
     let output_queue = context.rpc.get_random_state_tree_info().unwrap().queue;
+
     assert_transfer2_compress_and_close(
         &mut context.rpc,
         CompressAndCloseInput {
             solana_ctoken_account: token_account_pubkey,
             authority: context.rent_authority,
             output_queue,
+            destination: Some(destination.pubkey()),
         },
     )
     .await;

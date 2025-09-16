@@ -29,8 +29,6 @@ For programs:
 
 For libraries:
 - **Core Types** - Main data structures and traits
-- **Public APIs** - Exported functions and modules
-- **Internal** - Private implementation details
 
 For SDKs:
 - **Client Functions** - Public API methods
@@ -57,7 +55,7 @@ When documentation is extensive, create a `docs/` directory with:
 Every account must include:
 
 **Required fields:**
-- **description** - What the account represents and its role in the program
+- **description** - What the account represents and its role in the program. Key concepts should be integrated here, NOT in a separate section
 - **state layout** - Path to struct definition and field descriptions
 - **associated instructions** - List of instructions that create/read/update/delete this account with discriminators
 
@@ -80,8 +78,16 @@ Every account must include:
 - **extensions** - Supported extension types and their layouts
 - **security notes** - Critical validation requirements
 
+**Methods/Implementations:**
+For accounts with associated methods, add a Methods section with:
+- Group methods by purpose (Validation, Constructors, PDA Derivation, etc.)
+- Use concise parameter names in signatures
+- One-line action-oriented descriptions
+- Include concrete values where helpful (constants, defaults)
+
 **Examples:**
 - `programs/compressed-token/program/docs/ACCOUNTS.md`
+- `program-libs/compressible/docs/CONFIG_ACCOUNT.md`
 
 ### 2.2 Instruction Documentation
 
@@ -91,7 +97,7 @@ Every instruction must include:
 - **discriminator** - The instruction discriminator value (e.g., `18`)
 - **enum** - The instruction enum variant (e.g., `CTokenInstruction::CreateTokenAccount`)
 - **path** - Path to instruction processor code in the program
-- **description** - High-level overview including:
+- **description** - High-level overview including key concepts integrated within (NOT as separate section):
   - What the instruction does
   - Key state changes
   - Usage scenarios
@@ -136,6 +142,10 @@ Document all custom error codes:
 - **Common causes** - Typical scenarios that trigger this error
 - **Resolution** - How to fix or avoid the error
 
+**DON'Ts:**
+- **DON'T document external crate errors in detail** - For errors from other crates (e.g., HasherError from light-hasher), only note the conversion exists and reference the source crate's documentation
+- **DON'T include generic "best practices" sections** - Avoid preachy or overly general advice. Focus on specific, actionable information for each error
+
 ### 2.4 Serialization Documentation
 
 When documenting serialization:
@@ -176,6 +186,8 @@ For wrapper programs and CPI patterns:
 - Include working code snippets
 - Show both correct usage and common mistakes
 - Add inline comments explaining key points
+- DON'T include print/log statements unless essential to the demonstrated functionality
+- Focus on the core logic without debugging output
 
 ### 3.3 Cross-References
 - Link to related documentation

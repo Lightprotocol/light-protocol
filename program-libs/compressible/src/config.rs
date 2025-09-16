@@ -36,7 +36,7 @@ pub struct CompressibleConfig {
     /// - inactive, config cannot be used
     /// - active, config can be used
     /// - deprecated, no new ctoken account can be created with this config, other instructions work.
-    pub active: u8,
+    pub state: u8,
     /// CompressibleConfig PDA bump seed
     pub bump: u8,
     /// Update authority can update the CompressibleConfig.
@@ -64,18 +64,18 @@ pub struct CompressibleConfig {
 impl CompressibleConfig {
     /// Validates that the config is active (can be used for all operations)
     pub fn validate_active(&self) -> Result<(), CompressibleError> {
-        let state = CompressibleConfigState::try_from(self.active)?;
+        let state = CompressibleConfigState::try_from(self.state)?;
         if state != CompressibleConfigState::Active {
-            return Err(CompressibleError::InvalidState(self.active));
+            return Err(CompressibleError::InvalidState(self.state));
         }
         Ok(())
     }
 
     /// Validates that the config is not inactive (can be used for new account creation)
     pub fn validate_not_inactive(&self) -> Result<(), CompressibleError> {
-        let state = CompressibleConfigState::try_from(self.active)?;
+        let state = CompressibleConfigState::try_from(self.state)?;
         if state == CompressibleConfigState::InActive {
-            return Err(CompressibleError::InvalidState(self.active));
+            return Err(CompressibleError::InvalidState(self.state));
         }
         Ok(())
     }
@@ -216,7 +216,7 @@ impl CompressibleConfig {
 
         Self {
             version,
-            active: active as u8,
+            state: active as u8,
             bump,
             update_authority,
             withdrawal_authority,

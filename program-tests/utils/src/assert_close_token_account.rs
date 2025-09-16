@@ -10,6 +10,7 @@ pub async fn assert_close_token_account(
     token_account_pubkey: Pubkey,
     // authority with compressible, destination without compressible ext
     authority_pubkey: Pubkey,
+    destination: Pubkey,
 ) {
     // Get pre-transaction state from cached context
     let pre_account = rpc
@@ -60,15 +61,37 @@ pub async fn assert_close_token_account(
             account_data_before_close,
             account_lamports_before_close,
             initial_authority_lamports,
+            destination,
         )
         .await;
     } else {
         // For non-compressible accounts, all lamports go to the destination
+        // Get initial destination balance from pre-transaction context
+        let initial_destination_lamports = rpc
+            .get_pre_transaction_account(&destination)
+            .map(|acc| acc.lamports)
+            .unwrap_or(0);
+
+        // Get final destination balance
+        let final_destination_lamports = rpc
+            .get_account(destination)
+            .await
+            .expect("Failed to get destination account")
+            .expect("Destination account should exist")
+            .lamports;
+
+        assert_eq!(
+            final_destination_lamports,
+            initial_destination_lamports + account_lamports_before_close,
+            "Destination should receive all {} lamports from closed account",
+            account_lamports_before_close
+        );
+
+        // Authority shouldn't receive anything
         assert_eq!(
             final_authority_lamports,
-            initial_authority_lamports + account_lamports_before_close,
-            "Authority should receive all {} lamports from closed account",
-            account_lamports_before_close
+            initial_authority_lamports,
+            "Authority should not receive any lamports for non-compressible account closure"
         );
     };
 }
@@ -86,6 +109,7 @@ async fn assert_compressible_extension(
     account_data_before_close: &[u8],
     account_lamports_before_close: u64,
     initial_authority_lamports: u64,
+    destination_pubkey: Pubkey,
 ) {
     let compressible_extension = extension
         .iter()
@@ -96,12 +120,6 @@ async fn assert_compressible_extension(
             _ => None,
         })
         .expect("If a token account has extensions it must be a compressible extension");
-    // Check if rent_recipient is set (non-zero)
-    let destination_pubkey = if compressible_extension.rent_recipient != [0u8; 32] {
-        Pubkey::from(compressible_extension.rent_recipient)
-    } else {
-        authority_pubkey
-    };
 
     // Get initial destination balance from pre-transaction context
     let initial_destination_lamports = rpc
@@ -154,7 +172,7 @@ async fn assert_compressible_extension(
         .await
         .unwrap();
 
-    let (mut lamports_to_destination, mut lamports_to_authority) = calculate_close_lamports(
+    let (mut lamports_to_rent_recipient, mut lamports_to_destination) = calculate_close_lamports(
         account_size,
         current_slot,
         account_lamports_before_close,
@@ -165,6 +183,9 @@ async fn assert_compressible_extension(
         full_compression_incentive,
     );
 
+    // Get the rent recipient from the extension
+    let rent_recipient = Pubkey::from(compressible_extension.rent_recipient);
+
     // Check if rent authority is the signer
     // Check if rent_authority is set (non-zero)
     let is_rent_authority_signer = if compressible_extension.rent_authority != [0u8; 32] {
@@ -173,24 +194,83 @@ async fn assert_compressible_extension(
         false
     };
 
-    // Adjust distribution based on who signed
+    // Adjust distribution based on who signed (matching processor logic)
     if is_rent_authority_signer {
-        // Rent authority gets everything
-        lamports_to_destination += lamports_to_authority;
-        lamports_to_authority = 0;
+        // When rent authority closes:
+        // - Extract compression incentive from rent_recipient portion
+        // - User funds also go to rent_recipient
+        // - Compression incentive goes to destination (forester)
+        lamports_to_rent_recipient = lamports_to_rent_recipient
+            .checked_sub(full_compression_incentive)
+            .expect("Rent recipient should have enough for compression incentive");
+        lamports_to_rent_recipient += lamports_to_destination;
+        lamports_to_destination = full_compression_incentive;
     }
 
-    assert_eq!(
-        final_destination_lamports,
-        initial_destination_lamports + lamports_to_destination,
-        "Destination should receive calculated rent lamports"
-    );
+    // Now verify the actual transfers
+    if is_rent_authority_signer {
+        // When rent authority closes, destination gets compression incentive
+        assert_eq!(
+            final_destination_lamports,
+            initial_destination_lamports + lamports_to_destination,
+            "Destination should receive compression incentive ({} lamports) when rent authority closes",
+            full_compression_incentive
+        );
 
+        // Get the rent recipient's initial and final balances
+        let initial_rent_recipient_lamports = rpc
+            .get_pre_transaction_account(&rent_recipient)
+            .map(|acc| acc.lamports)
+            .unwrap_or(0);
+
+        let final_rent_recipient_lamports = rpc
+            .get_account(rent_recipient)
+            .await
+            .expect("Failed to get rent recipient account")
+            .expect("Rent recipient account should exist")
+            .lamports;
+
+        assert_eq!(
+            final_rent_recipient_lamports,
+            initial_rent_recipient_lamports + lamports_to_rent_recipient,
+            "Rent recipient should receive {} lamports",
+            lamports_to_rent_recipient
+        );
+    } else {
+        // When owner closes, normal distribution
+        assert_eq!(
+            final_destination_lamports,
+            initial_destination_lamports + lamports_to_destination,
+            "Destination should receive user funds ({} lamports) when owner closes",
+            lamports_to_destination
+        );
+
+        // Rent recipient still gets their portion
+        let initial_rent_recipient_lamports = rpc
+            .get_pre_transaction_account(&rent_recipient)
+            .map(|acc| acc.lamports)
+            .unwrap_or(0);
+
+        let final_rent_recipient_lamports = rpc
+            .get_account(rent_recipient)
+            .await
+            .expect("Failed to get rent recipient account")
+            .expect("Rent recipient account should exist")
+            .lamports;
+
+        assert_eq!(
+            final_rent_recipient_lamports,
+            initial_rent_recipient_lamports + lamports_to_rent_recipient,
+            "Rent recipient should receive {} lamports",
+            lamports_to_rent_recipient
+        );
+    }
+
+    // Authority shouldn't receive anything in either case
     assert_eq!(
         final_authority_lamports,
-        initial_authority_lamports + lamports_to_authority,
-        "Authority should receive {} lamports (rent authority signer: {})",
-        lamports_to_authority,
+        initial_authority_lamports,
+        "Authority should not receive any lamports (rent authority signer: {})",
         is_rent_authority_signer
     );
 }
