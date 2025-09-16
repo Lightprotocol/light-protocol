@@ -100,8 +100,12 @@ pub fn process_transfer2(
                     "CompressAndClose: source_or_recipient",
                 )?;
                 let destination = validated_accounts.packed_accounts.get_u8(
-                    compression.get_rent_recipient_index()?,
+                    compression.get_destination_index()?,
                     "CompressAndClose: destination",
+                )?;
+                let rent_recipient = validated_accounts.packed_accounts.get_u8(
+                    compression.get_rent_recipient_index()?,
+                    "CompressAndClose: rent_recipient",
                 )?;
                 let authority = validated_accounts
                     .packed_accounts
@@ -110,6 +114,7 @@ pub fn process_transfer2(
                     token_account: token_account_info,
                     destination,
                     authority,
+                    rent_recipient: Some(rent_recipient),
                 })?;
             }
         }
@@ -191,8 +196,12 @@ pub fn process_transfer2(
                         "CompressAndClose: source_or_recipient",
                     )?;
                     let destination = validated_accounts.packed_accounts.get_u8(
-                        compression.get_rent_recipient_index()?,
+                        compression.get_destination_index()?,
                         "CompressAndClose: destination",
+                    )?;
+                    let rent_recipient = validated_accounts.packed_accounts.get_u8(
+                        compression.get_rent_recipient_index()?,
+                        "CompressAndClose: rent_recipient",
                     )?;
                     let authority = validated_accounts
                         .packed_accounts
@@ -201,6 +210,7 @@ pub fn process_transfer2(
                         token_account: token_account_info,
                         destination,
                         authority,
+                        rent_recipient: Some(rent_recipient),
                     })?;
                 }
             }

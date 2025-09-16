@@ -8,6 +8,7 @@ pub struct CloseTokenAccountAccounts<'info> {
     pub token_account: &'info AccountInfo,
     pub destination: &'info AccountInfo,
     pub authority: &'info AccountInfo,
+    pub rent_recipient: Option<&'info AccountInfo>,
 }
 
 impl<'info> CloseTokenAccountAccounts<'info> {
@@ -19,6 +20,11 @@ impl<'info> CloseTokenAccountAccounts<'info> {
             token_account: iter.next_mut("token_account")?,
             destination: iter.next_mut("destination")?,
             authority: iter.next_signer("authority")?,
+            rent_recipient: if accounts.len() >= 4 {
+                Some(iter.next_mut("rent_recipient")?)
+            } else {
+                None
+            },
         })
     }
 }

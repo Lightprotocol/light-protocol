@@ -133,6 +133,12 @@ impl ZCompression<'_> {
             _ => Err(CTokenError::InvalidCompressionMode),
         }
     }
+    pub fn get_destination_index(&self) -> Result<u8, CTokenError> {
+        match self.mode {
+            ZCompressionMode::CompressAndClose => Ok(self.bump),
+            _ => Err(CTokenError::InvalidCompressionMode),
+        }
+    }
 }
 
 impl Compression {
@@ -143,6 +149,7 @@ impl Compression {
         authority: u8,
         rent_recipient_index: u8,
         compressed_account_index: u8,
+        destination_index: u8,
     ) -> Self {
         Compression {
             amount, // the full balance of the ctoken account to be compressed
@@ -152,7 +159,7 @@ impl Compression {
             authority,
             pool_account_index: rent_recipient_index,
             pool_index: compressed_account_index,
-            bump: 0,
+            bump: destination_index,
         }
     }
     pub fn compress(amount: u64, mint: u8, source_or_recipient: u8, authority: u8) -> Self {

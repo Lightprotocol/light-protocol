@@ -2,7 +2,8 @@
 
 use anchor_spl::token_2022::spl_token_2022;
 use light_compressed_token_sdk::instructions::{
-    close::close_account, create_associated_token_account::derive_ctoken_ata,
+    close::{close_account, close_compressible_account},
+    create_associated_token_account::derive_ctoken_ata,
     create_associated_token_account_idempotent, create_token_account,
 };
 use light_compressible::rent::{get_rent, RentConfig, SLOTS_PER_EPOCH};
@@ -315,12 +316,13 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
         assert_transfer2_compress(&mut context.rpc, compress_input).await;
     }
 
-    // Close account using owner
-    let close_account_ix = close_account(
+    // Close compressible account using owner
+    let close_account_ix = close_compressible_account(
         &light_compressed_token::ID,
         &token_account_pubkey,
-        &context.rent_recipient,
-        &context.owner_keypair.pubkey(),
+        &context.owner_keypair.pubkey(), // destination for user funds
+        &context.owner_keypair.pubkey(), // authority
+        &context.rent_recipient,         // rent_recipient
     );
 
     context
@@ -481,12 +483,13 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_owner() -> 
         assert_transfer2_compress(&mut context.rpc, compress_input).await;
     }
 
-    // Close account using owner
-    let close_account_ix = close_account(
+    // Close compressible account using owner
+    let close_account_ix = close_compressible_account(
         &light_compressed_token::ID,
         &token_account_pubkey,
-        &payer_pubkey,
-        &context.owner_keypair.pubkey(),
+        &context.owner_keypair.pubkey(), // destination for user funds
+        &context.owner_keypair.pubkey(), // authority
+        &payer_pubkey,                   // rent_recipient (custom rent payer)
     );
 
     context
@@ -724,11 +727,12 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
         derive_ctoken_ata(&compressible_owner_pubkey, &context.mint_pubkey);
 
     // Close compressible ATA
-    let close_account_ix = close_account(
+    let close_account_ix = close_compressible_account(
         &light_compressed_token::ID,
         &compressible_ata_pubkey,
-        &context.rent_recipient,
-        &compressible_owner_keypair.pubkey(),
+        &compressible_owner_keypair.pubkey(), // destination for user funds
+        &compressible_owner_keypair.pubkey(), // authority
+        &context.rent_recipient,              // rent_recipient
     );
 
     context

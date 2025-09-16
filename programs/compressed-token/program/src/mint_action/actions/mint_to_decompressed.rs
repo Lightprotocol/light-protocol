@@ -57,7 +57,8 @@ pub fn process_mint_to_decompressed_action(
         amount,
         &mint.into(),
         token_account_info,
-        None,
+        None, // destination
+        None, // rent_recipient
         &ZCompressionMode::Decompress,
         packed_accounts,
     )?;

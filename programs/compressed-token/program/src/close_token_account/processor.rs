@@ -80,7 +80,10 @@ fn validate_token_account<const CHECK_RENT_AUTH: bool>(
         // Look for compressible extension
         for extension in extensions {
             if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
-                if compressible_ext.rent_recipient != *accounts.destination.key() {
+                let rent_recipient = accounts
+                    .rent_recipient
+                    .ok_or(ProgramError::NotEnoughAccountKeys)?;
+                if compressible_ext.rent_recipient != *rent_recipient.key() {
                     msg!("rent recipient missmatch");
                     return Err(ProgramError::InvalidAccountData);
                 }
@@ -92,6 +95,13 @@ fn validate_token_account<const CHECK_RENT_AUTH: bool>(
                             msg!("rent authority missmatch");
                             return Err(ProgramError::InvalidAccountData);
                         }
+
+                        // When rent authority closes, destination must equal rent_recipient
+                        if accounts.destination.key() != rent_recipient.key() {
+                            msg!("rent authority close requires destination == rent_recipient");
+                            return Err(ProgramError::InvalidAccountData);
+                        }
+
                         #[cfg(target_os = "solana")]
                         use pinocchio::sysvars::Sysvar;
                         #[cfg(target_os = "solana")]
@@ -177,7 +187,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                     .full_compression_incentive
                     .into();
 
-                let (mut lamports_to_destination, mut lamports_to_authority) =
+                let (mut lamports_to_rent_recipient, mut lamports_to_destination) =
                     calculate_close_lamports(
                         accounts.token_account.data_len() as u64,
                         current_slot,
@@ -189,31 +199,31 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                         full_compression_incentive,
                     );
 
-                // Remaining lamports (not rent, not rent exemption)
-                // are transferred to the authority if the authority is not the rent authority.
-                // TODO: add an optional additional key in the close account instruction to allow the destination to be user set
-                // and a separate rent recipient to preserve the spl token close instruction functionality
+                let rent_recipient = accounts
+                    .rent_recipient
+                    .ok_or(ProgramError::NotEnoughAccountKeys)?;
+
                 if accounts.authority.key() == &compressible_ext.rent_authority {
-                    lamports_to_destination += lamports_to_authority;
-                    lamports_to_authority = 0;
+                    lamports_to_rent_recipient += lamports_to_destination;
+                    lamports_to_destination = 0;
                 }
 
-                // Transfer lamports to destination (rent recipient)
+                // Transfer lamports to rent recipient
+                if lamports_to_rent_recipient > 0 {
+                    transfer_lamports(
+                        lamports_to_rent_recipient,
+                        accounts.token_account,
+                        rent_recipient,
+                    )
+                    .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+                }
+
+                // Transfer lamports to destination (user funds)
                 if lamports_to_destination > 0 {
                     transfer_lamports(
                         lamports_to_destination,
                         accounts.token_account,
                         accounts.destination,
-                    )
-                    .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-                }
-
-                // Transfer lamports to authority (fee payer) if any write_top_up
-                if lamports_to_authority > 0 {
-                    transfer_lamports(
-                        lamports_to_authority,
-                        accounts.token_account,
-                        accounts.authority,
                     )
                     .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
                 }

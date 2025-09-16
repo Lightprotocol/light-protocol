@@ -162,6 +162,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
             owner_index,
             authority_index,
             rent_recipient_index,
+            destination_index: rent_recipient_index, // Everything goes to rent recipient when rent authority closes
             output_tree_index,
         };
 

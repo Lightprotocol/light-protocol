@@ -31,6 +31,7 @@ pub struct CompressAndCloseIndices {
     pub owner_index: u8,
     pub authority_index: u8,
     pub rent_recipient_index: u8,
+    pub destination_index: u8,
     pub output_tree_index: u8,
 }
 
@@ -50,7 +51,7 @@ pub fn pack_for_compress_and_close(
     let mint_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
     let owner_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
 
-    let (rent_recipient_index, authority_index) = if signer_is_rent_authority {
+    let (rent_recipient_index, authority_index, destination_index) = if signer_is_rent_authority {
         // When using rent authority from extension, find the rent recipient from extension
         let mut recipient_index = owner_index; // Default to owner if no extension found
         let mut authority_index = owner_index; // Default to owner if no extension found
@@ -68,7 +69,8 @@ pub fn pack_for_compress_and_close(
                 }
             }
         }
-        (recipient_index, authority_index)
+        // When rent authority closes, everything goes to rent recipient
+        (recipient_index, authority_index, recipient_index)
     } else {
         // Owner is the authority and needs to sign
         // Check if there's a compressible extension to get the rent_recipient
@@ -89,6 +91,7 @@ pub fn pack_for_compress_and_close(
                 true,
                 false,
             ),
+            owner_index, // User funds go to owner
         )
     };
     Ok(CompressAndCloseIndices {
@@ -97,6 +100,7 @@ pub fn pack_for_compress_and_close(
         owner_index,
         authority_index,
         rent_recipient_index,
+        destination_index,
         output_tree_index,
     })
 }
@@ -111,6 +115,7 @@ fn find_account_indices(
     owner_pubkey: &Pubkey,
     authority: &Pubkey,
     rent_recipient_pubkey: &Pubkey,
+    destination_pubkey: &Pubkey,
     // output_tree_pubkey: &Pubkey,
 ) -> Result<CompressAndCloseIndices, TokenSdkError> {
     let source_index = find_index(ctoken_account_key).ok_or_else(|| {
@@ -138,12 +143,18 @@ fn find_account_indices(
         TokenSdkError::InvalidAccountData
     })?;
 
+    let destination_index = find_index(destination_pubkey).ok_or_else(|| {
+        msg!("Destination not found in packed_accounts");
+        TokenSdkError::InvalidAccountData
+    })?;
+
     Ok(CompressAndCloseIndices {
         source_index,
         mint_index,
         owner_index,
         authority_index,
         rent_recipient_index,
+        destination_index,
         output_tree_index: 0,
     })
 }
@@ -203,7 +214,8 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             idx.source_index,
             idx.authority_index,
             idx.rent_recipient_index,
-            i as u8, // Pass the index in the output array
+            i as u8,               // Pass the index in the output array
+            idx.destination_index, // destination for user funds
         )?;
         if rent_recipient_is_signer {
             packed_account_metas[idx.authority_index as usize].is_signer = true;
@@ -354,6 +366,15 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             rent_recipient_pubkey.unwrap()
         };
 
+        // Determine destination based on authority type
+        let destination_pubkey = if with_rent_authority {
+            // When rent authority closes, everything goes to rent recipient
+            actual_rent_recipient
+        } else {
+            // When owner closes, user funds go to owner
+            owner_pubkey
+        };
+
         // Find indices for all required accounts
         let indices = find_account_indices(
             find_index,
@@ -362,6 +383,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             &owner_pubkey,
             &authority,
             &actual_rent_recipient,
+            &destination_pubkey,
             // &output_queue_pubkey,
         )?;
         indices_vec.push(indices);

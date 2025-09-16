@@ -50,21 +50,26 @@ pub(super) fn process_native_compressions(
     let mint_account = packed_accounts
         .get_u8(compression.mint, "process_native_compression: token mint")?
         .key();
-    let (destination, compressed_token_account) = if *mode == ZCompressionMode::CompressAndClose {
-        let compressed_token_account = inputs
-            .out_token_data
-            .get(compression.get_compressed_token_account_index()? as usize)
-            .ok_or(CTokenError::AccountFrozen)?;
-        (
-            Some(packed_accounts.get_u8(
-                compression.get_rent_recipient_index()?,
-                "process_native_compression: token mint",
-            )?),
-            Some(compressed_token_account),
-        )
-    } else {
-        (None, None)
-    };
+    let (destination, rent_recipient, compressed_token_account) =
+        if *mode == ZCompressionMode::CompressAndClose {
+            let compressed_token_account = inputs
+                .out_token_data
+                .get(compression.get_compressed_token_account_index()? as usize)
+                .ok_or(CTokenError::AccountFrozen)?;
+            (
+                Some(packed_accounts.get_u8(
+                    compression.get_destination_index()?,
+                    "process_native_compression: destination",
+                )?),
+                Some(packed_accounts.get_u8(
+                    compression.get_rent_recipient_index()?,
+                    "process_native_compression: rent_recipient",
+                )?),
+                Some(compressed_token_account),
+            )
+        } else {
+            (None, None, None)
+        };
 
     let transfers = native_compression(
         Some(authority_account),
@@ -73,6 +78,7 @@ pub(super) fn process_native_compressions(
         mint_account,
         token_account_info,
         destination,
+        rent_recipient,
         mode,
         packed_accounts,
     )?;
@@ -95,6 +101,7 @@ pub fn native_compression(
     mint: &Pubkey,
     token_account_info: &AccountInfo,
     destination: Option<&AccountInfo>,
+    rent_recipient: Option<&AccountInfo>,
     mode: &ZCompressionMode,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
 ) -> Result<Vec<u64>, ProgramError> {
@@ -212,6 +219,7 @@ pub fn native_compression(
                         destination: destination
                             .ok_or(ErrorCode::CompressAndCloseDestinationMissing)?,
                         authority,
+                        rent_recipient,
                     },
                     &compressed_token,
                 )?;

@@ -346,6 +346,7 @@ impl CTokenAccount2 {
         authority: u8,
         rent_recipient_index: u8,
         compressed_account_index: u8,
+        destination_index: u8,
     ) -> Result<(), TokenSdkError> {
         // Check if there's already a compression set
         if self.compression.is_some() {
@@ -363,6 +364,7 @@ impl CTokenAccount2 {
             authority,
             rent_recipient_index,
             compressed_account_index,
+            destination_index,
         ));
         self.method_used = true;
 

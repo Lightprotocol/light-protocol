@@ -469,21 +469,26 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 let balance = compressed_token.amount;
                 let owner = compressed_token.owner;
 
-                // Extract rent_recipient from compressible extension
-                let rent_recipient = if let Some(extensions) = compressed_token.extensions.as_ref()
-                {
-                    let mut found_rent_recipient = None;
-                    for extension in extensions {
-                        if let ZExtensionStruct::Compressible(compressible_ext) = extension {
-                            found_rent_recipient = Some(compressible_ext.rent_recipient);
-                            break;
+                // Extract rent_recipient and rent_authority from compressible extension
+                let (rent_recipient, rent_authority) =
+                    if let Some(extensions) = compressed_token.extensions.as_ref() {
+                        let mut found_rent_recipient = None;
+                        let mut found_rent_authority = None;
+                        for extension in extensions {
+                            if let ZExtensionStruct::Compressible(compressible_ext) = extension {
+                                found_rent_recipient = Some(compressible_ext.rent_recipient);
+                                found_rent_authority = Some(compressible_ext.rent_authority);
+                                break;
+                            }
                         }
-                    }
 
-                    found_rent_recipient.ok_or(TokenSdkError::InvalidAccountData)?
-                } else {
-                    return Err(TokenSdkError::InvalidAccountData);
-                };
+                        (
+                            found_rent_recipient.ok_or(TokenSdkError::InvalidAccountData)?,
+                            found_rent_authority,
+                        )
+                    } else {
+                        return Err(TokenSdkError::InvalidAccountData);
+                    };
                 let output_queue = packed_tree_accounts.insert_or_get(input.output_queue);
 
                 let owner_index = packed_tree_accounts.insert_or_get((*owner).into());
@@ -501,12 +506,25 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
 
                 // Use compress_and_close method with the actual balance
                 // The compressed_account_index should match the position in token_accounts
+                // When closing with owner authority, user funds go to owner
+                // When closing with rent authority, everything goes to rent recipient
+                let is_rent_authority_close = rent_authority
+                    .map(|ra| Pubkey::from(ra) == input.authority)
+                    .unwrap_or(false);
+
+                let destination_index = if is_rent_authority_close {
+                    rent_recipient_index // Everything goes to rent recipient
+                } else {
+                    owner_index // User funds go to owner
+                };
+
                 token_account.compress_and_close(
                     (*balance).into(),
                     source_index,
                     authority_index,
                     rent_recipient_index, // Use the extracted rent_recipient
                     token_accounts.len() as u8, // Index in the output array
+                    destination_index,
                 )?;
 
                 token_accounts.push(token_account);
