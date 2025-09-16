@@ -27,16 +27,34 @@ pub fn process_close_token_account(
         let token_account_data =
             &mut AccountInfoTrait::try_borrow_mut_data(accounts.token_account)?;
         let (compressed_token, _) = CompressedToken::zero_copy_at_mut(token_account_data)?;
-        // validate_and_close_token_account(&accounts, &compressed_token)?;
-        // The rent authority cannot close the account.
-        validate_token_account::<false>(&accounts, &compressed_token)?;
+        validate_token_account_close_instruction(&accounts, &compressed_token)?;
     }
     close_token_account(&accounts)?;
     Ok(())
 }
 
+/// Validates that a ctoken solana account is ready to be closed.
+/// The rent authority cannot close the account.
 #[profile]
-pub fn validate_token_account<const CHECK_RENT_AUTH: bool>(
+pub fn validate_token_account_close_instruction(
+    accounts: &CloseTokenAccountAccounts,
+    compressed_token: &ZCompressedTokenMut<'_>,
+) -> Result<(bool, bool), ProgramError> {
+    validate_token_account::<false>(accounts, compressed_token)
+}
+
+/// Validates that a ctoken solana account is ready to be closed.
+/// The rent authority can close the account.
+#[profile]
+pub fn validate_token_account_for_close_transfer2(
+    accounts: &CloseTokenAccountAccounts,
+    compressed_token: &ZCompressedTokenMut<'_>,
+) -> Result<(bool, bool), ProgramError> {
+    validate_token_account::<true>(accounts, compressed_token)
+}
+
+#[inline(always)]
+fn validate_token_account<const CHECK_RENT_AUTH: bool>(
     accounts: &CloseTokenAccountAccounts,
     compressed_token: &ZCompressedTokenMut<'_>,
 ) -> Result<(bool, bool), ProgramError> {
@@ -118,84 +136,88 @@ pub fn validate_token_account<const CHECK_RENT_AUTH: bool>(
 }
 
 pub fn close_token_account(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(), ProgramError> {
-    close_token_account_inner(accounts)?;
+    distribute_lamports(accounts)?;
     finalize_account_closure(accounts)
 }
-pub fn close_token_account_inner(
-    accounts: &CloseTokenAccountAccounts<'_>,
-) -> Result<(), ProgramError> {
+
+#[profile]
+pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(), ProgramError> {
     let token_account_lamports = AccountInfoTrait::lamports(accounts.token_account);
+    // Additional signer check is necessary for usage in transfer2.
     check_signer(accounts.authority).map_err(|e| {
         anchor_lang::solana_program::msg!("Authority signer check failed: {:?}", e);
         ProgramError::from(e)
     })?;
     // Check for compressible extension and handle lamport distribution
-    {
-        let token_account_data = AccountInfoTrait::try_borrow_data(accounts.token_account)?;
-        let (compressed_token, _) = CompressedToken::zero_copy_at(&token_account_data)?;
 
-        if let Some(extensions) = compressed_token.extensions.as_ref() {
-            for extension in extensions {
-                if let light_ctoken_types::state::ZExtensionStruct::Compressible(compressible_ext) =
-                    extension
-                {
-                    // Calculate distribution based on rent and write_top_up
-                    #[cfg(target_os = "solana")]
-                    let current_slot = pinocchio::sysvars::clock::Clock::get()
-                        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?
-                        .slot;
-                    #[cfg(not(target_os = "solana"))]
-                    let current_slot = 0;
+    let token_account_data = AccountInfoTrait::try_borrow_data(accounts.token_account)?;
+    let (compressed_token, _) = CompressedToken::zero_copy_at(&token_account_data)?;
 
-                    let base_lamports =
-                        get_rent_exemption_lamports(accounts.token_account.data_len() as u64)
-                            .map_err(|_| ProgramError::InvalidAccountData)?;
+    if let Some(extensions) = compressed_token.extensions.as_ref() {
+        for extension in extensions {
+            if let light_ctoken_types::state::ZExtensionStruct::Compressible(compressible_ext) =
+                extension
+            {
+                // Calculate distribution based on rent and write_top_up
+                #[cfg(target_os = "solana")]
+                let current_slot = pinocchio::sysvars::clock::Clock::get()
+                    .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?
+                    .slot;
+                #[cfg(not(target_os = "solana"))]
+                let current_slot = 0;
 
-                    let min_rent: u64 = compressible_ext.rent_config.min_rent.into();
-                    let rent_per_byte: u64 = compressible_ext.rent_config.rent_per_byte.into();
-                    let full_compression_incentive: u64 = compressible_ext
-                        .rent_config
-                        .full_compression_incentive
-                        .into();
+                let base_lamports =
+                    get_rent_exemption_lamports(accounts.token_account.data_len() as u64)
+                        .map_err(|_| ProgramError::InvalidAccountData)?;
 
-                    let (mut lamports_to_destination, mut lamports_to_authority) =
-                        calculate_close_lamports(
-                            accounts.token_account.data_len() as u64,
-                            current_slot,
-                            token_account_lamports,
-                            compressible_ext.last_claimed_slot,
-                            base_lamports,
-                            min_rent,
-                            rent_per_byte,
-                            full_compression_incentive,
-                        );
+                let min_rent: u64 = compressible_ext.rent_config.min_rent.into();
+                let rent_per_byte: u64 = compressible_ext.rent_config.rent_per_byte.into();
+                let full_compression_incentive: u64 = compressible_ext
+                    .rent_config
+                    .full_compression_incentive
+                    .into();
 
-                    if accounts.authority.key() == &compressible_ext.rent_authority {
-                        lamports_to_destination += lamports_to_authority;
-                        lamports_to_authority = 0;
-                    }
+                let (mut lamports_to_destination, mut lamports_to_authority) =
+                    calculate_close_lamports(
+                        accounts.token_account.data_len() as u64,
+                        current_slot,
+                        token_account_lamports,
+                        compressible_ext.last_claimed_slot,
+                        base_lamports,
+                        min_rent,
+                        rent_per_byte,
+                        full_compression_incentive,
+                    );
 
-                    // Transfer lamports to destination (rent recipient)
-                    if lamports_to_destination > 0 {
-                        transfer_lamports(
-                            lamports_to_destination,
-                            accounts.token_account,
-                            accounts.destination,
-                        )
-                        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-                    }
-
-                    // Transfer lamports to authority (fee payer) if any write_top_up
-                    if lamports_to_authority > 0 {
-                        transfer_lamports(
-                            lamports_to_authority,
-                            accounts.token_account,
-                            accounts.authority,
-                        )
-                        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-                    }
-                    return Ok(());
+                // Remaining lamports (not rent, not rent exemption)
+                // are transferred to the authority if the authority is not the rent authority.
+                // TODO: add an optional additional key in the close account instruction to allow the destination to be user set
+                // and a separate rent recipient to preserve the spl token close instruction functionality
+                if accounts.authority.key() == &compressible_ext.rent_authority {
+                    lamports_to_destination += lamports_to_authority;
+                    lamports_to_authority = 0;
                 }
+
+                // Transfer lamports to destination (rent recipient)
+                if lamports_to_destination > 0 {
+                    transfer_lamports(
+                        lamports_to_destination,
+                        accounts.token_account,
+                        accounts.destination,
+                    )
+                    .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+                }
+
+                // Transfer lamports to authority (fee payer) if any write_top_up
+                if lamports_to_authority > 0 {
+                    transfer_lamports(
+                        lamports_to_authority,
+                        accounts.token_account,
+                        accounts.authority,
+                    )
+                    .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+                }
+                return Ok(());
             }
         }
     }

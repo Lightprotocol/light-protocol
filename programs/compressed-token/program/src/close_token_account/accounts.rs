@@ -1,5 +1,5 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_account_checks::checks::{check_mut, check_signer};
+use light_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
 use crate::shared::AccountIterator;
@@ -11,22 +11,14 @@ pub struct CloseTokenAccountAccounts<'info> {
 }
 
 impl<'info> CloseTokenAccountAccounts<'info> {
+    #[profile]
+    #[inline(always)]
     pub fn validate_and_parse(accounts: &'info [AccountInfo]) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
-
-        let token_account = iter.next_account("token_account")?;
-        let destination = iter.next_account("destination")?;
-        let authority = iter.next_account("authority")?;
-
-        // Basic validations using light_account_checks
-        check_mut(token_account)?;
-        check_mut(destination)?;
-        check_signer(authority)?;
-
         Ok(CloseTokenAccountAccounts {
-            token_account,
-            destination,
-            authority,
+            token_account: iter.next_mut("token_account")?,
+            destination: iter.next_mut("destination")?,
+            authority: iter.next_signer("authority")?,
         })
     }
 }

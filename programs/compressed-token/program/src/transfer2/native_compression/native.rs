@@ -19,7 +19,9 @@ use spl_pod::solana_msg::msg;
 
 use super::validate_compression_mode_fields;
 use crate::{
-    close_token_account::{accounts::CloseTokenAccountAccounts, processor::validate_token_account},
+    close_token_account::{
+        accounts::CloseTokenAccountAccounts, processor::validate_token_account_for_close_transfer2,
+    },
     shared::{
         owner_validation::verify_and_update_token_account_authority_with_compressed_token,
         transfer_lamports_via_cpi,
@@ -203,15 +205,16 @@ pub fn native_compression(
                 anchor_lang::solana_program::msg!("Authority signer check failed: {:?}", e);
                 ProgramError::from(e)
             })?;
-            let (rent_authority_is_signer, compress_to_pubkey) = validate_token_account::<true>(
-                &CloseTokenAccountAccounts {
-                    token_account: token_account_info,
-                    destination: destination
-                        .ok_or(ErrorCode::CompressAndCloseDestinationMissing)?,
-                    authority,
-                },
-                &compressed_token,
-            )?;
+            let (rent_authority_is_signer, compress_to_pubkey) =
+                validate_token_account_for_close_transfer2(
+                    &CloseTokenAccountAccounts {
+                        token_account: token_account_info,
+                        destination: destination
+                            .ok_or(ErrorCode::CompressAndCloseDestinationMissing)?,
+                        authority,
+                    },
+                    &compressed_token,
+                )?;
             if rent_authority_is_signer {
                 // Compress the complete balance to this compressed token account.
                 validate_compressed_token_account(
