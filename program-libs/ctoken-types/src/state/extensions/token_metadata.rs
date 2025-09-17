@@ -3,6 +3,7 @@ use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
 use crate::{AnchorDeserialize, AnchorSerialize};
 
+// TODO: bench zero copy vs borsh
 // TODO: test deserialization equivalence
 /// Used for onchain serialization
 #[repr(C)]

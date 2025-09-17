@@ -1,3 +1,4 @@
+use bytemuck::{Pod, Zeroable};
 use light_compressible::{
     error::CompressibleError,
     rent::{
@@ -9,7 +10,11 @@ use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use zerocopy::U64;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
+use aligned_sized::aligned_sized;
 
+// TODO: move to light-compressible, rename to CompressionInfo
+// TODO: rename token_account_version -> account version
+// TODO: rename version -> config_account_version
 /// Compressible extension for ctoken accounts.
 #[derive(
     Debug,
@@ -22,24 +27,27 @@ use crate::{AnchorDeserialize, AnchorSerialize};
     AnchorDeserialize,
     ZeroCopy,
     ZeroCopyMut,
+    Pod,
+    Zeroable,
 )]
 #[repr(C)]
+#[aligned_sized]
 pub struct CompressibleExtension {
     pub version: u16, // version 0 is uninitialized, default is 1
     /// Compress to account pubkey instead of account owner.
-    pub compress_to_pubkey: bool,
+    pub compress_to_pubkey: u8,
     /// Version of the compressed token account when ctoken account is
     /// compressed and closed. (The version specifies the hashing scheme.)
     pub token_account_version: u8,
+    /// Lamports amount the account is topped up with at every write
+    /// by the fee payer.
+    pub write_top_up_lamports: u32,
     /// Authority that can compress and close the account.
     pub rent_authority: [u8; 32],
     /// Recipient for rent exemption lamports up on account closure.
     pub rent_recipient: [u8; 32],
     /// Last slot rent was claimed from this account.
     pub last_claimed_slot: u64,
-    /// Lamports amount the account is topped up with at every write
-    /// by the fee payer.
-    pub write_top_up_lamports: u32,
     /// Rent function parameters,
     /// used to calculate whether the account is compressible.
     pub rent_config: RentConfig,
@@ -76,6 +84,11 @@ macro_rules! impl_is_compressible {
                     rent_per_byte,
                     full_compression_incentive,
                 ))
+            }
+
+            /// Converts the `compress_to_pubkey` field into a boolean.
+            pub fn compress_to_pubkey(&self) -> bool {
+                self.compress_to_pubkey != 0
             }
         }
     };
@@ -194,7 +207,7 @@ mod test {
             rent_recipient: [2; 32],
             last_claimed_slot: 0,
             write_top_up_lamports: 0,
-            compress_to_pubkey: false,
+            compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
 
@@ -308,7 +321,7 @@ mod test {
             rent_recipient: [0u8; 32],
             last_claimed_slot: 0, // Created in epoch 0
             write_top_up_lamports: 0,
-            compress_to_pubkey: false,
+            compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
 
@@ -334,7 +347,7 @@ mod test {
             rent_recipient: [0u8; 32],
             last_claimed_slot: SLOTS_PER_EPOCH, // Created in epoch 1
             write_top_up_lamports: 0,
-            compress_to_pubkey: false,
+            compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
 
@@ -354,7 +367,7 @@ mod test {
             rent_recipient: [0u8; 32],
             last_claimed_slot: SLOTS_PER_EPOCH * 2, // Created in epoch 2
             write_top_up_lamports: 0,
-            compress_to_pubkey: false,
+            compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
 
@@ -376,7 +389,7 @@ mod test {
             rent_recipient: [0u8; 32],
             last_claimed_slot: 0,
             write_top_up_lamports: 0,
-            compress_to_pubkey: false,
+            compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
 
@@ -396,7 +409,7 @@ mod test {
             rent_recipient: [0u8; 32],
             last_claimed_slot: SLOTS_PER_EPOCH * 5, // Created in epoch 5
             write_top_up_lamports: 0,
-            compress_to_pubkey: false,
+            compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
 
@@ -419,7 +432,7 @@ mod test {
             rent_recipient: [0u8; 32],
             last_claimed_slot: 0,
             write_top_up_lamports: 0,
-            compress_to_pubkey: false,
+            compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
 
@@ -442,7 +455,7 @@ mod test {
             rent_recipient: [2; 32],
             last_claimed_slot: SLOTS_PER_EPOCH * 3, // Epoch 3
             write_top_up_lamports: 100,
-            compress_to_pubkey: false,
+            compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
 

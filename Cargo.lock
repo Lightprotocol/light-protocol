@@ -3524,6 +3524,7 @@ dependencies = [
 name = "light-compressible"
 version = "0.1.0"
 dependencies = [
+ "aligned-sized",
  "anchor-lang",
  "borsh 0.10.4",
  "bytemuck",
@@ -3569,9 +3570,11 @@ dependencies = [
 name = "light-ctoken-types"
 version = "0.1.0"
 dependencies = [
+ "aligned-sized",
  "anchor-lang",
  "arrayvec",
  "borsh 0.10.4",
+ "bytemuck",
  "light-account-checks",
  "light-compressed-account",
  "light-compressible",

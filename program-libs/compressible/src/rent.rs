@@ -10,6 +10,7 @@ pub const COMPRESSION_INCENTIVE: u16 = 1000;
 pub const MIN_RENT: u16 = 1220;
 pub const RENT_PER_BYTE: u8 = 10;
 pub const SLOTS_PER_EPOCH: u64 = 432_000;
+use aligned_sized::aligned_sized;
 
 // TODO: look at solana rent curve
 /// Rent function parameters,
@@ -29,11 +30,15 @@ pub const SLOTS_PER_EPOCH: u64 = 432_000;
     Zeroable,
 )]
 #[repr(C)]
+#[aligned_sized]
 pub struct RentConfig {
     pub min_rent: u16,
     pub full_compression_incentive: u16,
-    pub rent_per_byte: u8,
+    pub rent_per_byte: u8, // could hardcode to 1
     _place_holder_bytes: [u8; 3],
+    // slots_per_epoch: u32,
+    // max_write_top_up: u16, maximum amount per top up write
+    // max_auto_topped_up_epochs: u8, once the account is funded for max_auto_topped_up_epochs top up per write is not executed
 }
 
 impl RentConfig {

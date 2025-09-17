@@ -117,3 +117,6 @@ All state and instruction data structures are defined in **`program-libs/ctoken-
 ## SDKs (`sdk-libs/`)
 - **`compressed-token-sdk/`** - SDK for programs to interact with compressed tokens (CPIs, instruction builders)
 - **`token-client/`** - Client SDK for Rust applications (test helpers, transaction builders)
+
+# TODOs:
+- If owner compresses herself should she get the compression incentive back? (Should not get it back if the account is compressible)

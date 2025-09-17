@@ -508,7 +508,8 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 // Use compress_and_close method with the actual balance
                 // The compressed_account_index should match the position in token_accounts
                 // Destination always receives the compression incentive (11k lamports)
-                let destination_index = input.destination
+                let destination_index = input
+                    .destination
                     .map(|d| packed_tree_accounts.insert_or_get(d))
                     .unwrap_or(authority_index); // Default to authority if no destination specified
 

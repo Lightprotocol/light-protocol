@@ -8,7 +8,6 @@ use solana_sdk::pubkey::Pubkey;
 pub async fn assert_close_token_account(
     rpc: &mut LightProgramTest,
     token_account_pubkey: Pubkey,
-    // authority with compressible, destination without compressible ext
     authority_pubkey: Pubkey,
     destination: Pubkey,
 ) {
@@ -89,8 +88,7 @@ pub async fn assert_close_token_account(
 
         // Authority shouldn't receive anything
         assert_eq!(
-            final_authority_lamports,
-            initial_authority_lamports,
+            final_authority_lamports, initial_authority_lamports,
             "Authority should not receive any lamports for non-compressible account closure"
         );
     };
@@ -268,8 +266,7 @@ async fn assert_compressible_extension(
 
     // Authority shouldn't receive anything in either case
     assert_eq!(
-        final_authority_lamports,
-        initial_authority_lamports,
+        final_authority_lamports, initial_authority_lamports,
         "Authority should not receive any lamports (rent authority signer: {})",
         is_rent_authority_signer
     );

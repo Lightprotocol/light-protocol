@@ -160,7 +160,10 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
 
         // Add destination for compression incentive (defaults to payer if not specified)
         let destination_pubkey = destination.unwrap_or_else(|| payer.pubkey());
-        println!("compress_and_close_forester destination pubkey: {:?}", destination_pubkey);
+        println!(
+            "compress_and_close_forester destination pubkey: {:?}",
+            destination_pubkey
+        );
         let destination_index = packed_accounts.insert_or_get_config(
             destination_pubkey,
             false, // Already signed at transaction level if it's the payer

@@ -7,8 +7,10 @@ use light_token_client::instructions::transfer2::{
 };
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
-use crate::assert_close_token_account::assert_close_token_account;
-use crate::assert_decompressed_token_transfer::assert_compressible_for_account;
+use crate::{
+    assert_close_token_account::assert_close_token_account,
+    assert_decompressed_token_transfer::assert_compressible_for_account,
+};
 
 /// Comprehensive assertion for transfer2 operations that verifies all expected outcomes
 /// based on the actions performed. This validates:

@@ -74,7 +74,7 @@ let v1_pda = CompressibleConfig::ctoken_v1_config_pda();
 
 **Compressed Token Program (uses config):**
 - `CreateTokenAccount` (discriminator: 18) - Creates ctoken with compressible extension
-- `CreateAssociatedTokenAccount` (discriminator: 6) - Creates ATA with compressible
+- `CreateAssociatedTokenAccount` (discriminator: 103) - Creates ATA with compressible
 - `Claim` (discriminator: 107) - Claims rent using config parameters
 - `CompressAndClose` (via Transfer2) - Uses rent_authority from config
 

@@ -38,3 +38,8 @@
   - FailedBorrowRentSysvar (19001), InvalidState (19002)
   - HasherError propagation from light-hasher (7xxx codes)
   - ProgramError conversions (Anchor, Pinocchio, Solana)
+
+## TODO:
+- try to refactor so that 1 lamport is the minimum rent payment
+- update config, max write fee, max funded epoch
+- update RentConfig at claim
