@@ -1,8 +1,16 @@
 use light_profiler::profile;
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
-use pinocchio_system::instructions::Transfer;
+use pinocchio::account_info::AccountInfo;
+use pinocchio::program_error::ProgramError;
+use pinocchio_system::instructions::Transfer as SystemTransfer;
 use spl_pod::solana_msg::msg;
 
+/// A transfer instruction containing the recipient account and amount
+pub struct Transfer<'a> {
+    pub account: &'a AccountInfo,
+    pub amount: u64,
+}
+
+#[inline(always)]
 #[profile]
 pub fn transfer_lamports(
     amount: u64,
@@ -30,18 +38,58 @@ pub fn transfer_lamports(
 
 /// Transfer lamports using CPI to system program
 /// This is needed when transferring from accounts not owned by our program
+#[inline(always)]
 #[profile]
 pub fn transfer_lamports_via_cpi(
     amount: u64,
     from: &AccountInfo,
     to: &AccountInfo,
 ) -> Result<(), ProgramError> {
-    // Use pinocchio_system's Transfer directly - no type conversions needed
-    let transfer = Transfer {
+    let transfer = SystemTransfer {
         from,
         to,
         lamports: amount,
     };
 
     transfer.invoke()
+}
+
+/// Multi-transfer optimization that performs a single CPI and manual transfers (pinocchio version)
+///
+/// Transfers the total amount to the first recipient via CPI, then manually
+/// transfers from the first recipient to subsequent recipients. This reduces
+/// the number of CPIs from N to 1.
+#[inline(always)]
+#[profile]
+pub fn multi_transfer_lamports(
+    payer: &AccountInfo,
+    transfers: &[Transfer],
+) -> Result<(), ProgramError> {
+    if transfers.is_empty() {
+        return Ok(());
+    }
+
+    // Calculate total amount needed
+    let total_amount: u64 = transfers
+        .iter()
+        .map(|t| t.amount)
+        .try_fold(0u64, |acc, amt| acc.checked_add(amt))
+        .ok_or(ProgramError::ArithmeticOverflow)?;
+
+    if total_amount == 0 {
+        return Ok(());
+    }
+
+    // Single CPI to transfer total amount to first recipient
+    let first_recipient = transfers[0].account;
+    transfer_lamports_via_cpi(total_amount, payer, first_recipient)?;
+
+    // Manual transfers from first recipient to subsequent recipients
+    for transfer in transfers.iter().skip(1) {
+        if transfer.amount > 0 {
+            transfer_lamports(transfer.amount, first_recipient, transfer.account)?;
+        }
+    }
+
+    Ok(())
 }

@@ -401,6 +401,8 @@ pub enum ErrorCode {
     CompressAndCloseInvalidVersion,
     #[msg("InvalidAddressTree")]
     InvalidAddressTree,
+    #[msg("Too many compression transfers. Maximum 40 transfers allowed per instruction")]
+    TooManyCompressionTransfers,
 }
 
 impl From<ErrorCode> for ProgramError {

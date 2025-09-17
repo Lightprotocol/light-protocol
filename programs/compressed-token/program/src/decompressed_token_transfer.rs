@@ -1,4 +1,3 @@
-use account_compression::utils::transfer_lamports::transfer_lamports_cpi;
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_ctoken_types::{
     state::{CompressedToken, ZExtensionStruct},
@@ -9,12 +8,16 @@ use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::account_info::AccountInfo;
 use spl_token::instruction::TokenInstruction;
 
-use crate::{convert_account_infos::convert_account_infos, MAX_ACCOUNTS};
+use crate::{
+    convert_account_infos::convert_account_infos,
+    shared::transfer_lamports::{multi_transfer_lamports, Transfer},
+    MAX_ACCOUNTS,
+};
 
 /// Process decompressed token transfer instruction
 #[profile]
-pub fn process_decompressed_token_transfer(
-    accounts: &[AccountInfo],
+pub fn process_decompressed_token_transfer<'a>(
+    accounts: &'a [AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     if accounts.len() < 3 {
@@ -28,21 +31,12 @@ pub fn process_decompressed_token_transfer(
     match instruction {
         TokenInstruction::Transfer { amount } => {
             let account_infos = unsafe { convert_account_infos::<MAX_ACCOUNTS>(accounts)? };
-
             process_light_token_transfer(&crate::ID, &account_infos, amount)?;
-            let transfer_amounts =
-                update_compressible_accounts_last_written_slot(account_infos.as_slice())?;
-            for (amount, account) in transfer_amounts.iter().zip(account_infos.iter().take(2)) {
-                if *amount > 0 {
-                    let payer = account_infos
-                        .get(2)
-                        .ok_or(ProgramError::NotEnoughAccountKeys)?;
-                    transfer_lamports_cpi(payer, account, *amount)?;
-                }
-            }
         }
         _ => return Err(ProgramError::InvalidInstructionData),
-    }
+    };
+    // Calculate and execute top-up transfers using original pinocchio accounts
+    calculate_and_execute_top_up_transfers(accounts)?;
     Ok(())
 }
 
@@ -63,40 +57,69 @@ fn process_light_token_transfer(
         None,
     )
 }
-/// Update last_written_slot for token accounts with compressible extensions
-/// SPL token transfer uses accounts[0] as source and accounts[1] as destination
+
+/// Calculate and execute top-up transfers for compressible accounts
 #[inline(always)]
 #[profile]
-fn update_compressible_accounts_last_written_slot(
-    accounts: &[anchor_lang::prelude::AccountInfo],
-) -> Result<[u64; 2], ProgramError> {
-    let mut transfers = [0u64; 2];
-    // Update sender (accounts[0]) and recipient (accounts[1])
-    // if these have extensions.
-    for (i, account) in accounts.iter().take(2).enumerate() {
-        if account.data_len() > light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize {
-            let account_data = account.try_borrow_data()?;
+fn calculate_and_execute_top_up_transfers(
+    accounts: &[pinocchio::account_info::AccountInfo],
+) -> Result<(), ProgramError> {
+    // Initialize transfers array with account references, amounts will be updated
+    let account0 = accounts.first().ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let account1 = accounts.get(1).ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let mut transfers = [
+        Transfer {
+            account: account0,
+            amount: 0,
+        },
+        Transfer {
+            account: account1,
+            amount: 0,
+        },
+    ];
+    let mut current_slot = 0;
+    // Calculate transfer amounts for accounts with compressible extensions
+    for transfer in transfers.iter_mut() {
+        if transfer.account.data_len() > light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize {
+            let account_data = transfer
+                .account
+                .try_borrow_data()
+                .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
             let (token, _) = CompressedToken::zero_copy_at(&account_data)?;
             if let Some(extensions) = token.extensions.as_ref() {
                 for extension in extensions.iter() {
                     if let ZExtensionStruct::Compressible(compressible_extension) = extension {
-                        use pinocchio::sysvars::{clock::Clock, Sysvar};
-                        let current_slot = Clock::get()
-                            .map_err(|_| CTokenError::SysvarAccessError)?
-                            .slot;
+                        if current_slot == 0 {
+                            use pinocchio::sysvars::{clock::Clock, Sysvar};
+                            current_slot = Clock::get()
+                                .map_err(|_| CTokenError::SysvarAccessError)?
+                                .slot;
+                        }
 
-                        transfers[i] = compressible_extension
+                        transfer.amount = compressible_extension
                             .calculate_top_up_lamports(
-                                account.data_len() as u64,
+                                transfer.account.data_len() as u64,
                                 current_slot,
-                                account.lamports(),
+                                transfer.account.lamports(),
                                 compressible_extension.write_top_up_lamports.into(),
                             )
                             .map_err(|_| CTokenError::InvalidAccountData)?;
                     }
                 }
+            } else {
+                // Only Compressible extensions are implemented for ctoken accounts.
+                return Err(CTokenError::InvalidAccountData.into());
             }
         }
     }
-    Ok(transfers)
+    // Exit early in case none of the accounts is compressible.
+    if current_slot == 0 {
+        return Ok(());
+    }
+
+    let payer = accounts.get(2).ok_or(ProgramError::NotEnoughAccountKeys)?;
+    multi_transfer_lamports(payer, &transfers)
+        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+
+    Ok(())
 }

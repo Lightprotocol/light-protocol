@@ -1,5 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
+use arrayvec::ArrayVec;
 use light_account_checks::{
     checks::{check_owner, check_signer},
     packed_accounts::ProgramPackedAccounts,
@@ -24,7 +25,7 @@ use crate::{
     },
     shared::{
         owner_validation::verify_and_update_token_account_authority_with_compressed_token,
-        transfer_lamports_via_cpi,
+        transfer_lamports::{multi_transfer_lamports, Transfer},
     },
 };
 
@@ -82,11 +83,28 @@ pub(super) fn process_native_compressions(
         mode,
         packed_accounts,
     )?;
-    for transfer_amount in transfers.iter() {
-        if *transfer_amount != 0 {
-            transfer_lamports_via_cpi(*transfer_amount, fee_payer, token_account_info)
-                .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-        }
+
+    if transfers.len() > 40 {
+        msg!(
+            "Too many compression transfers: {}, max 40 allowed",
+            transfers.len()
+        );
+        return Err(ErrorCode::TooManyCompressionTransfers.into());
+    }
+    // Build transfers for non-zero amounts
+    let transfers: ArrayVec<Transfer, 40> = transfers
+        .into_iter()
+        .filter(|amount| *amount != 0)
+        .map(|amount| Transfer {
+            account: token_account_info,
+            amount,
+        })
+        .collect();
+
+    // Perform multi-transfer optimization if there are transfers
+    if !transfers.is_empty() {
+        multi_transfer_lamports(fee_payer, &transfers)
+            .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
     }
     Ok(())
 }
