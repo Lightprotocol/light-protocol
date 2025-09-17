@@ -38,11 +38,11 @@ pub struct CompressionInfo {
     pub account_version: u8,
     /// Lamports amount the account is topped up with at every write
     /// by the fee payer.
-    pub write_top_up_lamports: u32,
+    pub lamports_per_write: u32,
     /// Authority that can compress and close the account.
-    pub rent_authority: [u8; 32],
+    pub compression_authority: [u8; 32],
     /// Recipient for rent exemption lamports up on account closure.
-    pub rent_recipient: [u8; 32],
+    pub rent_sponsor: [u8; 32],
     /// Last slot rent was claimed from this account.
     pub last_claimed_slot: u64,
     /// Rent function parameters,
@@ -66,11 +66,10 @@ macro_rules! impl_is_compressible {
                 current_lamports: u64,
             ) -> Result<(bool, u64), CompressibleError> {
                 let rent_exemption_lamports = get_rent_exemption_lamports(bytes)?;
-                let min_rent: u64 = self.rent_config.min_rent.into();
+                let base_rent: u64 = self.rent_config.base_rent.into();
                 let lamports_per_byte_per_epoch: u64 =
                     self.rent_config.lamports_per_byte_per_epoch.into();
-                let full_compression_incentive: u64 =
-                    self.rent_config.full_compression_incentive.into();
+                let compression_cost: u64 = self.rent_config.compression_cost.into();
 
                 Ok(calculate_rent_and_balance(
                     bytes,
@@ -78,9 +77,9 @@ macro_rules! impl_is_compressible {
                     current_lamports,
                     self.last_claimed_slot,
                     rent_exemption_lamports,
-                    min_rent,
+                    base_rent,
                     lamports_per_byte_per_epoch,
-                    full_compression_incentive,
+                    compression_cost,
                 ))
             }
 
@@ -98,14 +97,13 @@ macro_rules! impl_is_compressible {
                 bytes: u64,
                 current_slot: u64,
                 current_lamports: u64,
-                write_top_up_lamports: u32,
+                lamports_per_write: u32,
             ) -> Result<u64, CompressibleError> {
                 let rent_exemption_lamports = get_rent_exemption_lamports(bytes)?;
-                let min_rent: u64 = self.rent_config.min_rent.into();
+                let base_rent: u64 = self.rent_config.base_rent.into();
                 let lamports_per_byte_per_epoch: u64 =
                     self.rent_config.lamports_per_byte_per_epoch.into();
-                let full_compression_incentive: u64 =
-                    self.rent_config.full_compression_incentive.into();
+                let compression_cost: u64 = self.rent_config.compression_cost.into();
 
                 // Calculate rent status using the internal function to avoid duplication
                 let (required_epochs, rent_per_epoch, epochs_paid, unutilized_lamports) =
@@ -115,9 +113,9 @@ macro_rules! impl_is_compressible {
                         current_lamports,
                         self.last_claimed_slot,
                         rent_exemption_lamports,
-                        min_rent,
+                        base_rent,
                         lamports_per_byte_per_epoch,
-                        full_compression_incentive,
+                        compression_cost,
                     );
 
                 let is_compressible = epochs_paid < required_epochs;
@@ -125,18 +123,18 @@ macro_rules! impl_is_compressible {
                 if is_compressible {
                     // Account is compressible, return write_top_up + rent deficit
                     let epochs_payable = required_epochs.saturating_sub(epochs_paid);
-                    let payable = epochs_payable * rent_per_epoch + full_compression_incentive;
+                    let payable = epochs_payable * rent_per_epoch + compression_cost;
                     let rent_deficit = payable.saturating_sub(unutilized_lamports);
-                    Ok(write_top_up_lamports as u64 + rent_deficit)
+                    Ok(lamports_per_write as u64 + rent_deficit)
                 } else {
                     // Account is not compressible, check if we should still top up
                     let epochs_funded_ahead = epochs_paid.saturating_sub(required_epochs);
 
-                    // Skip top-up if already funded for max_auto_topped_up_epochs or more
-                    if epochs_funded_ahead >= self.rent_config.max_auto_topped_up_epochs as u64 {
+                    // Skip top-up if already funded for max_funded_epochs or more
+                    if epochs_funded_ahead >= self.rent_config.max_funded_epochs as u64 {
                         Ok(0)
                     } else {
-                        Ok(write_top_up_lamports as u64)
+                        Ok(lamports_per_write as u64)
                     }
                 }
             }
@@ -159,20 +157,19 @@ macro_rules! impl_get_last_paid_epoch {
                 current_lamports: u64,
                 rent_exemption_lamports: u64,
             ) -> Result<u64, CompressibleError> {
-                let min_rent: u64 = self.rent_config.min_rent.into();
+                let base_rent: u64 = self.rent_config.base_rent.into();
                 let lamports_per_byte_per_epoch: u64 =
                     self.rent_config.lamports_per_byte_per_epoch.into();
-                let full_compression_incentive: u64 =
-                    self.rent_config.full_compression_incentive.into();
+                let compression_cost: u64 = self.rent_config.compression_cost.into();
 
                 Ok(get_last_paid_epoch(
                     bytes,
                     current_lamports,
                     self.last_claimed_slot,
                     rent_exemption_lamports,
-                    min_rent,
+                    base_rent,
                     lamports_per_byte_per_epoch,
-                    full_compression_incentive,
+                    compression_cost,
                 ))
             }
         }
@@ -193,9 +190,9 @@ impl ZCompressionInfoMut<'_> {
         current_lamports: u64,
         rent_exemption_lamports: u64,
     ) -> Result<Option<u64>, CompressibleError> {
-        let min_rent: u64 = self.rent_config.min_rent.into();
+        let base_rent: u64 = self.rent_config.base_rent.into();
         let lamports_per_byte_per_epoch: u64 = self.rent_config.lamports_per_byte_per_epoch.into();
-        let full_compression_incentive: u64 = self.rent_config.full_compression_incentive.into();
+        let compression_cost: u64 = self.rent_config.compression_cost.into();
 
         // Calculate claimable amount
         let claimed = claimable_lamports(
@@ -204,9 +201,9 @@ impl ZCompressionInfoMut<'_> {
             current_lamports,
             self.last_claimed_slot,
             rent_exemption_lamports,
-            min_rent,
+            base_rent,
             lamports_per_byte_per_epoch,
-            full_compression_incentive,
+            compression_cost,
         );
 
         if let Some(claimed_amount) = claimed {
@@ -217,9 +214,9 @@ impl ZCompressionInfoMut<'_> {
                     current_lamports,
                     self.last_claimed_slot,
                     rent_exemption_lamports,
-                    min_rent,
+                    base_rent,
                     lamports_per_byte_per_epoch,
-                    full_compression_incentive,
+                    compression_cost,
                 );
 
                 self.last_claimed_slot += U64::from(completed_epochs * SLOTS_PER_EPOCH);
@@ -254,10 +251,10 @@ mod test {
         let extension_data = CompressionInfo {
             account_version: 3,
             config_account_version: 1,
-            rent_authority: [1; 32],
-            rent_recipient: [2; 32],
+            compression_authority: [1; 32],
+            rent_sponsor: [2; 32],
             last_claimed_slot: 0,
-            write_top_up_lamports: 0,
+            lamports_per_write: 0,
             compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
@@ -368,10 +365,10 @@ mod test {
         let extension = CompressionInfo {
             account_version: 3,
             config_account_version: 1,
-            rent_authority: [0u8; 32],
-            rent_recipient: [0u8; 32],
+            compression_authority: [0u8; 32],
+            rent_sponsor: [0u8; 32],
             last_claimed_slot: 0, // Created in epoch 0
-            write_top_up_lamports: 0,
+            lamports_per_write: 0,
             compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
@@ -394,10 +391,10 @@ mod test {
         let extension = CompressionInfo {
             account_version: 3,
             config_account_version: 1,
-            rent_authority: [0u8; 32],
-            rent_recipient: [0u8; 32],
+            compression_authority: [0u8; 32],
+            rent_sponsor: [0u8; 32],
             last_claimed_slot: SLOTS_PER_EPOCH, // Created in epoch 1
-            write_top_up_lamports: 0,
+            lamports_per_write: 0,
             compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
@@ -414,10 +411,10 @@ mod test {
         let extension = CompressionInfo {
             account_version: 3,
             config_account_version: 1,
-            rent_authority: [0u8; 32],
-            rent_recipient: [0u8; 32],
+            compression_authority: [0u8; 32],
+            rent_sponsor: [0u8; 32],
             last_claimed_slot: SLOTS_PER_EPOCH * 2, // Created in epoch 2
-            write_top_up_lamports: 0,
+            lamports_per_write: 0,
             compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
@@ -436,10 +433,10 @@ mod test {
         let extension = CompressionInfo {
             account_version: 3,
             config_account_version: 1,
-            rent_authority: [0u8; 32],
-            rent_recipient: [0u8; 32],
+            compression_authority: [0u8; 32],
+            rent_sponsor: [0u8; 32],
             last_claimed_slot: 0,
-            write_top_up_lamports: 0,
+            lamports_per_write: 0,
             compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
@@ -456,10 +453,10 @@ mod test {
         let extension = CompressionInfo {
             account_version: 3,
             config_account_version: 1,
-            rent_authority: [0u8; 32],
-            rent_recipient: [0u8; 32],
+            compression_authority: [0u8; 32],
+            rent_sponsor: [0u8; 32],
             last_claimed_slot: SLOTS_PER_EPOCH * 5, // Created in epoch 5
-            write_top_up_lamports: 0,
+            lamports_per_write: 0,
             compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
@@ -479,10 +476,10 @@ mod test {
         let extension = CompressionInfo {
             account_version: 3,
             config_account_version: 1,
-            rent_authority: [0u8; 32],
-            rent_recipient: [0u8; 32],
+            compression_authority: [0u8; 32],
+            rent_sponsor: [0u8; 32],
             last_claimed_slot: 0,
-            write_top_up_lamports: 0,
+            lamports_per_write: 0,
             compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };
@@ -502,10 +499,10 @@ mod test {
         let extension_data = CompressionInfo {
             account_version: 3,
             config_account_version: 1,
-            rent_authority: [1; 32],
-            rent_recipient: [2; 32],
+            compression_authority: [1; 32],
+            rent_sponsor: [2; 32],
             last_claimed_slot: SLOTS_PER_EPOCH * 3, // Epoch 3
-            write_top_up_lamports: 100,
+            lamports_per_write: 100,
             compress_to_pubkey: 0,
             rent_config: test_rent_config(),
         };

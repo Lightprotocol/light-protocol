@@ -5,14 +5,14 @@ use solana_pubkey::Pubkey;
 /// Derives the pool PDA and bump seed for a given rent authority
 ///
 /// # Arguments
-/// * `rent_authority` - The rent authority pubkey
+/// * `compression_authority` - The rent authority pubkey
 ///
 /// # Returns
 /// Tuple of (pool_pda, bump_seed)
 #[deprecated] // TODO: remove
-pub fn derive_pool_pda(rent_authority: &Pubkey) -> (Pubkey, u8) {
+pub fn derive_pool_pda(compression_authority: &Pubkey) -> (Pubkey, u8) {
     Pubkey::find_program_address(
-        &[b"pool", rent_authority.as_ref()],
+        &[b"pool", compression_authority.as_ref()],
         &Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
     )
 }
@@ -22,7 +22,7 @@ pub fn derive_pool_pda(rent_authority: &Pubkey) -> (Pubkey, u8) {
 /// # Arguments
 /// * `pool_pda` - The pool PDA that will receive the claimed rent
 /// * `pool_pda_bump` - The bump seed for the pool PDA
-/// * `rent_authority` - The rent authority (must be a signer)
+/// * `compression_authority` - The rent authority (must be a signer)
 /// * `token_accounts` - List of token accounts to claim from
 ///
 /// # Returns
@@ -30,7 +30,7 @@ pub fn derive_pool_pda(rent_authority: &Pubkey) -> (Pubkey, u8) {
 pub fn claim(
     pool_pda: Pubkey,
     pool_pda_bump: u8,
-    rent_authority: Pubkey,
+    compression_authority: Pubkey,
     token_accounts: &[Pubkey],
 ) -> Instruction {
     let mut instruction_data = vec![107u8]; // Claim instruction discriminator
@@ -40,7 +40,7 @@ pub fn claim(
         // Pool PDA (receives claimed rent) - must be writable to receive lamports
         AccountMeta::new(pool_pda, false),
         // Rent authority (signer only, not mutable)
-        AccountMeta::new_readonly(rent_authority, true),
+        AccountMeta::new_readonly(compression_authority, true),
     ];
 
     // Add all token accounts to claim from

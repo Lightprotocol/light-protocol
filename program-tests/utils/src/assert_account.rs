@@ -172,8 +172,8 @@ pub async fn create_compressible_token_account_data<R: Rpc>(
     _rpc: &mut R,
     _mint_pubkey: Pubkey,
     _owner_pubkey: Pubkey,
-    _rent_authority: Pubkey,
-    _rent_recipient: Pubkey,
+    _compression_authority: Pubkey,
+    _rent_sponsor: Pubkey,
     _slots_until_compression: u64,
 ) -> Result<Vec<u8>, RpcError> {
     // Return placeholder data for now - compressible accounts are complex

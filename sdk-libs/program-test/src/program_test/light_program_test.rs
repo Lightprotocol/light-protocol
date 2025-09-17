@@ -133,7 +133,7 @@ impl LightProgramTest {
         // reset tx counter after program setup.
         context.transaction_counter = 0;
 
-        let pool_pda_pubkey = context.test_accounts.funding_pool_config.rent_recipient_pda;
+        let pool_pda_pubkey = context.test_accounts.funding_pool_config.rent_sponsor_pda;
         context
             .airdrop_lamports(&pool_pda_pubkey, 1_000_000_000_000)
             .await?;

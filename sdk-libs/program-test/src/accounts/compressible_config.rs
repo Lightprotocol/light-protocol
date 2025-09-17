@@ -99,17 +99,14 @@ pub async fn create_compressible_config(
         .unwrap()
         .unwrap();
 
-    let (rent_recipient, rent_recipient_bump) = Pubkey::find_program_address(
-        &[
-            b"rent_recipient".as_slice(),
-            version.to_le_bytes().as_slice(),
-        ],
+    let (rent_sponsor, rent_sponsor_bump) = Pubkey::find_program_address(
+        &[b"rent_sponsor".as_slice(), version.to_le_bytes().as_slice()],
         &pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
     );
 
-    let (rent_authority, rent_authority_bump) = Pubkey::find_program_address(
+    let (compression_authority, compression_authority_bump) = Pubkey::find_program_address(
         &[
-            b"rent_authority".as_slice(),
+            b"compression_authority".as_slice(),
             version.to_le_bytes().as_slice(),
         ],
         &registry_program_id,
@@ -118,11 +115,11 @@ pub async fn create_compressible_config(
     let mut address_space = [Pubkey::default(); 4];
     address_space[0] = pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK");
 
-    // Fund the rent_recipient PDA so it can act as a fee payer in CPIs
+    // Fund the rent_sponsor PDA so it can act as a fee payer in CPIs
     // This PDA needs funds to pay for account creation
-    rpc.airdrop_lamports(&rent_recipient, 1_000_000_000)
+    rpc.airdrop_lamports(&rent_sponsor, 1_000_000_000)
         .await
-        .map_err(|e| RpcError::AssertRpcError(format!("Failed to fund rent_recipient: {:?}", e)))?;
+        .map_err(|e| RpcError::AssertRpcError(format!("Failed to fund rent_sponsor: {:?}", e)))?;
 
     let expected_config_account = CompressibleConfig {
         version,
@@ -130,10 +127,10 @@ pub async fn create_compressible_config(
         bump: config_bump,
         update_authority: payer.pubkey(),
         withdrawal_authority: payer.pubkey(),
-        rent_recipient,
-        rent_authority,
-        rent_recipient_bump,
-        rent_authority_bump,
+        rent_sponsor,
+        compression_authority,
+        rent_sponsor_bump,
+        compression_authority_bump,
         rent_config: RentConfig::default(),
         address_space,
         _place_holder: [0u8; 32],
@@ -152,6 +149,6 @@ pub async fn create_compressible_config(
     println!("compressible_config_pda {:?}", compressible_config_pda);
     assert_eq!(expected_config_account, deserialized_account);
 
-    // Return config PDA, rent_recipient, and rent_authority
-    Ok((compressible_config_pda, rent_recipient, rent_authority))
+    // Return config PDA, rent_sponsor, and compression_authority
+    Ok((compressible_config_pda, rent_sponsor, compression_authority))
 }

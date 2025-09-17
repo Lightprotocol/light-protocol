@@ -19,7 +19,7 @@ use solana_sdk::{
 /// Claim rent from compressible token accounts via the registry program
 ///
 /// This function invokes the registry program's claim instruction,
-/// which then CPIs to the compressed token program with the correct rent_authority PDA signer.
+/// which then CPIs to the compressed token program with the correct compression_authority PDA signer.
 ///
 /// # Arguments
 /// * `rpc` - RPC client with indexer capabilities
@@ -48,15 +48,15 @@ pub async fn claim_forester<R: Rpc + Indexer>(
         get_forester_epoch_pda_from_authority(&authority.pubkey(), current_epoch);
     let config = CompressibleConfig::ctoken_v1(Default::default(), Default::default());
     let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
-    let rent_recipient = config.rent_recipient;
-    let rent_authority = config.rent_authority;
+    let rent_sponsor = config.rent_sponsor;
+    let compression_authority = config.compression_authority;
 
     // Build accounts using Anchor's account abstraction
     let claim_accounts = ClaimAccounts {
         authority: authority.pubkey(),
         registered_forester_pda,
-        rent_recipient,
-        rent_authority,
+        rent_sponsor,
+        compression_authority,
         compressible_config,
         compressed_token_program: compressed_token_program_id,
     };

@@ -506,13 +506,13 @@ impl PartialEq<CompressedToken> for ZCompressedToken<'_> {
                             }
 
                             // Compare rent_config fields
-                            if u16::from(zc_comp.rent_config.min_rent)
-                                != regular_comp.rent_config.min_rent
+                            if u16::from(zc_comp.rent_config.base_rent)
+                                != regular_comp.rent_config.base_rent
                             {
                                 return false;
                             }
-                            if u16::from(zc_comp.rent_config.full_compression_incentive)
-                                != regular_comp.rent_config.full_compression_incentive
+                            if u16::from(zc_comp.rent_config.compression_cost)
+                                != regular_comp.rent_config.compression_cost
                             {
                                 return false;
                             }
@@ -521,29 +521,29 @@ impl PartialEq<CompressedToken> for ZCompressedToken<'_> {
                             {
                                 return false;
                             }
-                            if zc_comp.rent_config.max_write_top_up
-                                != regular_comp.rent_config.max_write_top_up
+                            if zc_comp.rent_config.max_lamports_per_write
+                                != regular_comp.rent_config.max_lamports_per_write
                             {
                                 return false;
                             }
-                            if zc_comp.rent_config.max_auto_topped_up_epochs
-                                != regular_comp.rent_config.max_auto_topped_up_epochs
+                            if zc_comp.rent_config.max_funded_epochs
+                                != regular_comp.rent_config.max_funded_epochs
                             {
                                 return false;
                             }
-                            // Compare rent_authority ([u8; 32])
-                            if zc_comp.rent_authority != regular_comp.rent_authority {
+                            // Compare compression_authority ([u8; 32])
+                            if zc_comp.compression_authority != regular_comp.compression_authority {
                                 return false;
                             }
 
-                            // Compare rent_recipient ([u8; 32])
-                            if zc_comp.rent_recipient != regular_comp.rent_recipient {
+                            // Compare rent_sponsor ([u8; 32])
+                            if zc_comp.rent_sponsor != regular_comp.rent_sponsor {
                                 return false;
                             }
 
-                            // Compare write_top_up_lamports (u32)
-                            if u32::from(zc_comp.write_top_up_lamports)
-                                != regular_comp.write_top_up_lamports
+                            // Compare lamports_per_write (u32)
+                            if u32::from(zc_comp.lamports_per_write)
+                                != regular_comp.lamports_per_write
                             {
                                 return false;
                             }

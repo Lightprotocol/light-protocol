@@ -160,7 +160,7 @@ pub fn process_create_token_account(
         let account_size = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
 
         let custom_fee_payer =
-            *compressible.rent_payer_pda.key() != account.rent_recipient.to_bytes();
+            *compressible.rent_payer_pda.key() != account.rent_sponsor.to_bytes();
         if custom_fee_payer {
             // custom fee payer for account creation -> pays rent exemption
             create_account_with_custom_fee_payer(
@@ -175,10 +175,10 @@ pub fn process_create_token_account(
         } else {
             // Rent recipient is fee payer for account creation -> pays rent exemption
             let version_bytes = account.version.to_le_bytes();
-            let seeds = &[b"rent_recipient".as_slice(), version_bytes.as_slice()];
+            let seeds = &[b"rent_sponsor".as_slice(), version_bytes.as_slice()];
             let config = CreatePdaAccountConfig {
                 seeds,
-                bump: account.rent_recipient_bump,
+                bump: account.rent_sponsor_bump,
                 account_size,
                 owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
                 derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,

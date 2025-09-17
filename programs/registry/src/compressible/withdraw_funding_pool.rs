@@ -10,22 +10,22 @@ pub struct WithdrawFundingPool<'info> {
     /// Authority that can withdraw - must match the config's withdrawal_authority
     pub withdrawal_authority: Signer<'info>,
 
-    /// The compressible config that contains the withdrawal authority and rent_recipient
+    /// The compressible config that contains the withdrawal authority and rent_sponsor
     #[account(
         has_one = withdrawal_authority,
-        has_one = rent_recipient,
-        has_one = rent_authority
+        has_one = rent_sponsor,
+        has_one = compression_authority
     )]
     pub compressible_config: Account<'info, CompressibleConfig>,
 
-    /// The pool PDA (rent_recipient) that holds the funds
+    /// The pool PDA (rent_sponsor) that holds the funds
     /// CHECK: Validated via has_one
     #[account(mut)]
-    pub rent_recipient: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 
     /// Rent authority PDA (derived from config) that will sign the CPI
     /// CHECK: PDA derivation is validated via has_one constraint
-    pub rent_authority: AccountInfo<'info>,
+    pub compression_authority: AccountInfo<'info>,
 
     /// The destination account to receive the withdrawn funds
     /// CHECK: Can be any account that can receive SOL
@@ -51,21 +51,21 @@ pub fn process_withdraw_funding_pool(
 
     // Prepare CPI accounts in the exact order expected by withdraw processor
     let cpi_accounts = vec![
-        ctx.accounts.rent_recipient.to_account_info(), // pool_pda
-        ctx.accounts.rent_authority.to_account_info(), // authority (will be signed by registry)
-        ctx.accounts.destination.to_account_info(),    // destination
-        ctx.accounts.system_program.to_account_info(), // system_program
-        ctx.accounts.compressible_config.to_account_info(), // config
+        ctx.accounts.rent_sponsor.to_account_info(), // pool_pda
+        ctx.accounts.compression_authority.to_account_info(), // authority (will be signed by registry)
+        ctx.accounts.destination.to_account_info(),           // destination
+        ctx.accounts.system_program.to_account_info(),        // system_program
+        ctx.accounts.compressible_config.to_account_info(),   // config
     ];
 
     let cpi_account_metas = vec![
         anchor_lang::solana_program::instruction::AccountMeta::new(
-            ctx.accounts.rent_recipient.key(),
+            ctx.accounts.rent_sponsor.key(),
             false,
         ),
         anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-            ctx.accounts.rent_authority.key(),
-            true, // rent_authority needs to be marked as signer
+            ctx.accounts.compression_authority.key(),
+            true, // compression_authority needs to be marked as signer
         ),
         anchor_lang::solana_program::instruction::AccountMeta::new(
             ctx.accounts.destination.key(),
@@ -81,17 +81,17 @@ pub fn process_withdraw_funding_pool(
         ),
     ];
 
-    // Prepare signer seeds for rent_authority PDA
-    // The rent_authority is derived as: [b"rent_authority", version, 0]
+    // Prepare signer seeds for compression_authority PDA
+    // The compression_authority is derived as: [b"compression_authority", version, 0]
     let version_bytes = ctx.accounts.compressible_config.version.to_le_bytes();
-    let rent_authority_bump = ctx.accounts.compressible_config.rent_authority_bump;
+    let compression_authority_bump = ctx.accounts.compressible_config.compression_authority_bump;
     let signer_seeds = &[
-        b"rent_authority".as_slice(),
+        b"compression_authority".as_slice(),
         version_bytes.as_slice(),
-        &[rent_authority_bump],
+        &[compression_authority_bump],
     ];
 
-    // Execute CPI with rent_authority PDA as signer
+    // Execute CPI with compression_authority PDA as signer
     anchor_lang::solana_program::program::invoke_signed(
         &anchor_lang::solana_program::instruction::Instruction {
             program_id: pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),

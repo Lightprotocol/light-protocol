@@ -27,11 +27,11 @@ pub struct CreateCompressibleAssociatedTokenAccountInputs {
     /// The CompressibleConfig account
     pub compressible_config: Pubkey,
     /// The recipient of lamports when the account is closed by rent authority (fee_payer_pda)
-    pub rent_recipient: Pubkey,
+    pub rent_sponsor: Pubkey,
     /// Number of epochs of rent to prepay
     pub pre_pay_num_epochs: u64,
     /// Initial lamports to top up for rent payments (optional)
-    pub write_top_up_lamports: Option<u32>,
+    pub lamports_per_write: Option<u32>,
     /// Version of the compressed token account when ctoken account is
     /// compressed and closed. (The version specifies the hashing scheme.)
     pub token_account_version: TokenDataVersion,
@@ -86,8 +86,8 @@ pub fn create_compressible_associated_token_account_with_bump_and_mode<const IDE
         bump,
         Some((
             inputs.pre_pay_num_epochs,
-            inputs.write_top_up_lamports,
-            inputs.rent_recipient,
+            inputs.lamports_per_write,
+            inputs.rent_sponsor,
             inputs.compressible_config,
             inputs.token_account_version,
         )),
@@ -155,7 +155,7 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
     mint: Pubkey,
     ata_pubkey: Pubkey,
     bump: u8,
-    compressible_config: Option<(u64, Option<u32>, Pubkey, Pubkey, TokenDataVersion)>, // (pre_pay_num_epochs, write_top_up_lamports, rent_recipient, compressible_config_account, token_account_version)
+    compressible_config: Option<(u64, Option<u32>, Pubkey, Pubkey, TokenDataVersion)>, // (pre_pay_num_epochs, lamports_per_write, rent_sponsor, compressible_config_account, token_account_version)
 ) -> Result<Instruction> {
     // Select discriminator based on idempotent mode
     let discriminator = if IDEMPOTENT {
@@ -166,18 +166,14 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
 
     // Create the instruction data struct
     let compressible_extension = if COMPRESSIBLE {
-        if let Some((pre_pay_num_epochs, write_top_up_lamports, _, _, token_account_version)) =
+        if let Some((pre_pay_num_epochs, lamports_per_write, _, _, token_account_version)) =
             compressible_config
         {
             Some(CompressibleExtensionInstructionData {
                 token_account_version: token_account_version as u8,
                 rent_payment: pre_pay_num_epochs,
-                has_top_up: if write_top_up_lamports.is_some() {
-                    1
-                } else {
-                    0
-                },
-                write_top_up: write_top_up_lamports.unwrap_or(0),
+                has_top_up: if lamports_per_write.is_some() { 1 } else { 0 },
+                write_top_up: lamports_per_write.unwrap_or(0),
                 compress_to_account_pubkey: None, // Not used for ATA creation
             })
         } else {
@@ -210,13 +206,13 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
 
     // Add compressible-specific accounts
     if COMPRESSIBLE {
-        if let Some((_, _, rent_recipient, compressible_config_account, _)) = compressible_config {
+        if let Some((_, _, rent_sponsor, compressible_config_account, _)) = compressible_config {
             accounts.push(solana_instruction::AccountMeta::new_readonly(
                 compressible_config_account,
                 false,
             )); // compressible_config
-            accounts.push(solana_instruction::AccountMeta::new(rent_recipient, false));
-            // fee_payer_pda (rent_recipient)
+            accounts.push(solana_instruction::AccountMeta::new(rent_sponsor, false));
+            // fee_payer_pda (rent_sponsor)
         }
     }
 

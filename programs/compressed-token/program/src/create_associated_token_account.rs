@@ -114,7 +114,7 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
         (Some(compressible_config_account), custom_fee_payer)
     } else {
         // Create the PDA account (with rent-exempt balance only)
-        // fee_payer_for_create will be the rent_recipient PDA for compressible accounts
+        // fee_payer_for_create will be the rent_sponsor PDA for compressible accounts
         create_pda_account(
             fee_payer,
             associated_token_account,
@@ -158,18 +158,18 @@ fn process_compressible_config<'info>(
     // Get fee_payer_pda account for rent recipient (this will pay for account creation)
     let fee_payer_for_create = iter.next_account("fee payer pda")?;
 
-    // The rent_recipient is a PDA derived as: [b"rent_recipient", version, 0]
+    // The rent_sponsor is a PDA derived as: [b"rent_sponsor", version, 0]
     let version_bytes = compressible_config_account.version.to_le_bytes();
-    let pda_seeds = &[b"rent_recipient".as_slice(), version_bytes.as_slice()];
+    let pda_seeds = &[b"rent_sponsor".as_slice(), version_bytes.as_slice()];
     let custom_fee_payer =
-        *fee_payer_for_create.key() != compressible_config_account.rent_recipient.to_bytes();
+        *fee_payer_for_create.key() != compressible_config_account.rent_sponsor.to_bytes();
     let (config_2, custom_fee_payer) = if custom_fee_payer {
         (None, Some(*fee_payer_for_create.key()))
     } else {
-        // If compressible, set up the PDA config for the rent_recipient to pay for account creation
+        // If compressible, set up the PDA config for the rent_sponsor to pay for account creation
         let config_2 = crate::shared::CreatePdaAccountConfig {
             seeds: pda_seeds,
-            bump: compressible_config_account.rent_recipient_bump,
+            bump: compressible_config_account.rent_sponsor_bump,
             account_size: token_account_size,
             owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
             derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
@@ -177,7 +177,7 @@ fn process_compressible_config<'info>(
         (Some(config_2), None)
     };
     // Create the PDA account (with rent-exempt balance only)
-    // fee_payer_for_create will be the rent_recipient PDA for compressible accounts
+    // fee_payer_for_create will be the rent_sponsor PDA for compressible accounts
     create_pda_account(
         fee_payer_for_create,
         associated_token_account,
@@ -187,15 +187,13 @@ fn process_compressible_config<'info>(
     )?;
 
     let rent = get_rent_with_compression_cost(
-        compressible_config_account.rent_config.min_rent as u64,
+        compressible_config_account.rent_config.base_rent as u64,
         compressible_config_account
             .rent_config
             .lamports_per_byte_per_epoch as u64,
         token_account_size as u64,
         compressible_config_ix_data.rent_payment,
-        compressible_config_account
-            .rent_config
-            .full_compression_incentive as u64,
+        compressible_config_account.rent_config.compression_cost as u64,
     );
 
     // Payer transfers the additional rent (compression incentive)

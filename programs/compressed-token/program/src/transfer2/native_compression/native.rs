@@ -51,7 +51,7 @@ pub(super) fn process_native_compressions(
     let mint_account = packed_accounts
         .get_u8(compression.mint, "process_native_compression: token mint")?
         .key();
-    let (destination, rent_recipient, compressed_token_account) =
+    let (destination, rent_sponsor, compressed_token_account) =
         if *mode == ZCompressionMode::CompressAndClose {
             let compressed_token_account = inputs
                 .out_token_data
@@ -63,8 +63,8 @@ pub(super) fn process_native_compressions(
                     "process_native_compression: destination",
                 )?),
                 Some(packed_accounts.get_u8(
-                    compression.get_rent_recipient_index()?,
-                    "process_native_compression: rent_recipient",
+                    compression.get_rent_sponsor_index()?,
+                    "process_native_compression: rent_sponsor",
                 )?),
                 Some(compressed_token_account),
             )
@@ -79,7 +79,7 @@ pub(super) fn process_native_compressions(
         mint_account,
         token_account_info,
         destination,
-        rent_recipient,
+        rent_sponsor,
         mode,
         packed_accounts,
     )?;
@@ -119,7 +119,7 @@ pub fn native_compression(
     mint: &Pubkey,
     token_account_info: &AccountInfo,
     destination: Option<&AccountInfo>,
-    rent_recipient: Option<&AccountInfo>,
+    rent_sponsor: Option<&AccountInfo>,
     mode: &ZCompressionMode,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
 ) -> Result<Vec<u64>, ProgramError> {
@@ -174,7 +174,7 @@ pub fn native_compression(
                                 token_account_info.data_len() as u64,
                                 current_slot,
                                 token_account_info.lamports(),
-                                compressible_extension.write_top_up_lamports.into(),
+                                compressible_extension.lamports_per_write.into(),
                             )
                             .map_err(|_| CTokenError::InvalidAccountData)?;
                         transfers.push(transfer_amount);
@@ -203,7 +203,7 @@ pub fn native_compression(
                                 token_account_info.data_len() as u64,
                                 current_slot,
                                 token_account_info.lamports(),
-                                compressible_extension.write_top_up_lamports.into(),
+                                compressible_extension.lamports_per_write.into(),
                             )
                             .map_err(|_| CTokenError::InvalidAccountData)?;
 
@@ -218,18 +218,18 @@ pub fn native_compression(
                 anchor_lang::solana_program::msg!("Authority signer check failed: {:?}", e);
                 ProgramError::from(e)
             })?;
-            let (rent_authority_is_signer, compress_to_pubkey) =
+            let (compression_authority_is_signer, compress_to_pubkey) =
                 validate_token_account_for_close_transfer2(
                     &CloseTokenAccountAccounts {
                         token_account: token_account_info,
                         destination: destination
                             .ok_or(ErrorCode::CompressAndCloseDestinationMissing)?,
                         authority,
-                        rent_recipient,
+                        rent_sponsor,
                     },
                     &compressed_token,
                 )?;
-            if rent_authority_is_signer {
+            if compression_authority_is_signer {
                 // Compress the complete balance to this compressed token account.
                 validate_compressed_token_account(
                     packed_accounts,

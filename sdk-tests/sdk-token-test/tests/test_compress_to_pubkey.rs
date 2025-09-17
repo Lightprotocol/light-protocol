@@ -31,7 +31,7 @@ async fn test_compress_to_pubkey() {
         .test_accounts
         .funding_pool_config
         .compressible_config_pda;
-    let rent_recipient = rpc.test_accounts.funding_pool_config.rent_recipient_pda;
+    let rent_sponsor = rpc.test_accounts.funding_pool_config.rent_sponsor_pda;
 
     // Calculate the PDA that tokens will compress to
     let seeds = &[b"compress_target", mint_pubkey.as_ref()];
@@ -51,7 +51,7 @@ async fn test_compress_to_pubkey() {
         solana_sdk::system_program::id(),
         false,
     )); // System program
-    remaining_accounts.add_pre_accounts_meta(AccountMeta::new(rent_recipient, false)); // Rent recipient
+    remaining_accounts.add_pre_accounts_meta(AccountMeta::new(rent_sponsor, false)); // Rent recipient
     remaining_accounts.add_pre_accounts_meta(AccountMeta::new_readonly(
         COMPRESSED_TOKEN_PROGRAM_ID.into(),
         false,
@@ -62,7 +62,7 @@ async fn test_compress_to_pubkey() {
         mint: mint_pubkey,
         token_account_pubkey,
         compressible_config,
-        rent_recipient,
+        rent_sponsor,
     };
 
     let instruction = Instruction {

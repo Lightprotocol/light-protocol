@@ -92,14 +92,14 @@ pub mod sdk_token_test {
         mint: Pubkey,
         token_account_pubkey: Pubkey,
         compressible_config: Pubkey,
-        rent_recipient: Pubkey,
+        rent_sponsor: Pubkey,
     ) -> Result<()> {
         process_create_ctoken_with_compress_to_pubkey(
             ctx,
             mint,
             token_account_pubkey,
             compressible_config,
-            rent_recipient,
+            rent_sponsor,
         )
     }
 
@@ -130,10 +130,10 @@ pub mod sdk_token_test {
     /// This uses compress_and_close_ctoken_accounts which handles all index discovery
     pub fn compress_and_close_cpi<'info>(
         ctx: Context<'_, '_, '_, 'info, OneCTokenAccount<'info>>,
-        with_rent_authority: bool,
+        with_compression_authority: bool,
         system_accounts_offset: u8,
     ) -> Result<()> {
-        process_compress_and_close_cpi(ctx, with_rent_authority, system_accounts_offset)
+        process_compress_and_close_cpi(ctx, with_compression_authority, system_accounts_offset)
     }
 
     /// Process compress_and_close using the new CompressAndClose mode

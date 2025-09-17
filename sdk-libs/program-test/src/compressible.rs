@@ -27,11 +27,11 @@ pub struct StoredCompressibleAccount {
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct FundingPoolConfig {
     pub compressible_config_pda: Pubkey,
-    pub rent_authority_pda: Pubkey,
-    pub rent_authority_pda_bump: u8,
-    /// rent_recipient == pool pda
-    pub rent_recipient_pda: Pubkey,
-    pub rent_recipient_pda_bump: u8,
+    pub compression_authority_pda: Pubkey,
+    pub compression_authority_pda_bump: u8,
+    /// rent_sponsor == pool pda
+    pub rent_sponsor_pda: Pubkey,
+    pub rent_sponsor_pda_bump: u8,
 }
 
 impl FundingPoolConfig {
@@ -50,10 +50,10 @@ impl FundingPoolConfig {
         .0;
         Self {
             compressible_config_pda: compressible_config,
-            rent_recipient_pda: config.rent_recipient,
-            rent_recipient_pda_bump: config.rent_recipient_bump,
-            rent_authority_pda: config.rent_authority,
-            rent_authority_pda_bump: config.rent_authority_bump,
+            rent_sponsor_pda: config.rent_sponsor,
+            rent_sponsor_pda_bump: config.rent_sponsor_bump,
+            compression_authority_pda: config.compression_authority,
+            compression_authority_pda_bump: config.compression_authority_bump,
         }
     }
 

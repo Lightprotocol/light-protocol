@@ -112,7 +112,7 @@ pub struct Compression {
     pub source_or_recipient: u8,
     pub authority: u8, // Index of owner or delegate account
     /// pool account index for spl token Compression/Decompression
-    /// rent_recipient_index for CompressAndClose
+    /// rent_sponsor_index for CompressAndClose
     pub pool_account_index: u8, // This account is not necessary to decompress ctokens because there are no token pools
     /// pool index for spl token Compression/Decompression
     /// compressed account index for CompressAndClose
@@ -121,7 +121,7 @@ pub struct Compression {
 }
 
 impl ZCompression<'_> {
-    pub fn get_rent_recipient_index(&self) -> Result<u8, CTokenError> {
+    pub fn get_rent_sponsor_index(&self) -> Result<u8, CTokenError> {
         match self.mode {
             ZCompressionMode::CompressAndClose => Ok(self.pool_account_index),
             _ => Err(CTokenError::InvalidCompressionMode),
@@ -147,7 +147,7 @@ impl Compression {
         mint: u8,
         source_or_recipient: u8,
         authority: u8,
-        rent_recipient_index: u8,
+        rent_sponsor_index: u8,
         compressed_account_index: u8,
         destination_index: u8,
     ) -> Self {
@@ -157,7 +157,7 @@ impl Compression {
             mint,
             source_or_recipient,
             authority,
-            pool_account_index: rent_recipient_index,
+            pool_account_index: rent_sponsor_index,
             pool_index: compressed_account_index,
             bump: destination_index,
         }

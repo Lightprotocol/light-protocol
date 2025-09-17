@@ -39,19 +39,19 @@
    - Either the account owner OR rent authority (for compressible accounts)
    - For compressible accounts closed by rent authority:
      - Account must be compressible (past rent expiry)
-     - Authority must match rent_authority in extension
+     - Authority must match compression_authority in extension
 
-4. rent_recipient (required for compressible accounts)
+4. rent_sponsor (required for compressible accounts)
    - (mutable)
    - Receives rent exemption for compressible accounts
-   - Must match the rent_recipient in the compressible extension
+   - Must match the rent_sponsor in the compressible extension
    - Not required for non-compressible accounts
 
 **Instruction Logic and Checks:**
 
 1. **Parse and validate accounts** (`validate_and_parse` in `accounts.rs`):
    - Extract token_account (index 0), destination (index 1), authority (index 2)
-   - Extract rent_recipient (index 3) if accounts.len() >= 4 (required for compressible accounts)
+   - Extract rent_sponsor (index 3) if accounts.len() >= 4 (required for compressible accounts)
    - Verify token_account is mutable via `check_mut`
    - Verify destination is mutable via `check_mut`
    - Verify authority is a signer via `check_signer`
@@ -77,10 +77,10 @@
       - If account has extensions vector:
         3.3.1. Iterate through extensions looking for `ZExtensionStructMut::Compressible`
         3.3.2. If compressible extension found:
-          - Get rent_recipient from accounts (returns error if missing)
-          - Verify compressible_ext.rent_recipient == rent_recipient.key()
+          - Get rent_sponsor from accounts (returns error if missing)
+          - Verify compressible_ext.rent_sponsor == rent_sponsor.key()
           - If not owner_matches and CHECK_RENT_AUTH=true:
-            - Verify compressible_ext.rent_authority == authority.key()
+            - Verify compressible_ext.compression_authority == authority.key()
             - Get current slot from Clock sysvar
             - Call `compressible_ext.is_compressible(data_len, current_slot, lamports)`
             - If not compressible: return error
@@ -101,20 +101,20 @@
       - Get current_slot from Clock::get() sysvar
       - Calculate base_lamports using `get_rent_exemption_lamports(account.data_len)`
       - Extract from compressible_ext.rent_config:
-        - min_rent (u16 -> u64)
+        - base_rent (u16 -> u64)
         - lamports_per_byte_per_epoch (u8 -> u64)
-        - full_compression_incentive (u16 -> u64)
+        - compression_cost (u16 -> u64)
       - Call `calculate_close_lamports` with:
         - data_len, current_slot, total_lamports
         - last_claimed_slot, base_lamports
-        - min_rent, lamports_per_byte_per_epoch, full_compression_incentive
-      - Returns (lamports_to_rent_recipient, lamports_to_destination)
-      - Get rent_recipient account from accounts (error if missing)
-      - Special case: if authority.key() == rent_authority:
-        - Extract compression incentive from lamports_to_rent_recipient
-        - Add lamports_to_destination to lamports_to_rent_recipient
-        - Set lamports_to_destination = full_compression_incentive (goes to forester)
-      - Transfer lamports_to_rent_recipient to rent_recipient via `transfer_lamports` (if > 0)
+        - base_rent, lamports_per_byte_per_epoch, compression_cost
+      - Returns (lamports_to_rent_sponsor, lamports_to_destination)
+      - Get rent_sponsor account from accounts (error if missing)
+      - Special case: if authority.key() == compression_authority:
+        - Extract compression incentive from lamports_to_rent_sponsor
+        - Add lamports_to_destination to lamports_to_rent_sponsor
+        - Set lamports_to_destination = compression_cost (goes to forester)
+      - Transfer lamports_to_rent_sponsor to rent_sponsor via `transfer_lamports` (if > 0)
       - Transfer lamports_to_destination to destination via `transfer_lamports` (if > 0)
       - Return early (skip non-compressible path)
 
@@ -134,12 +134,12 @@
 **Errors:**
 1. `ProgramError::InvalidAccountData`
    - token_account == destination
-   - rent_recipient doesn't match compressible extension's rent_recipient
-   - rent_authority doesn't match authority when closing as rent authority
+   - rent_sponsor doesn't match compressible extension's rent_sponsor
+   - compression_authority doesn't match authority when closing as rent authority
    - Account not compressible when rent authority tries to close
 
 2. `ProgramError::NotEnoughAccountKeys`
-   - Missing rent_recipient account for compressible accounts
+   - Missing rent_sponsor account for compressible accounts
 
 3. `ErrorCode::AccountFrozen`
    - Account state is Frozen
@@ -162,9 +162,9 @@
    - Account resize failures
 
 **Edge Cases and Considerations:**
-- When rent authority closes an account, all funds (including user funds) go to rent_recipient
+- When rent authority closes an account, all funds (including user funds) go to rent_sponsor
 - Compressible accounts require 4 accounts, non-compressible require only 3
 - The timing check for compressibility uses current slot vs last_claimed_slot
 - The instruction handles accounts with no extensions gracefully (non-compressible path)
 - Zero-lamport accounts are handled without attempting transfers
-- Separation of rent_recipient from destination allows users to specify where their funds go while ensuring rent goes to the protocol
+- Separation of rent_sponsor from destination allows users to specify where their funds go while ensuring rent goes to the protocol

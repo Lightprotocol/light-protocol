@@ -24,11 +24,11 @@ pub struct CreateCompressibleTokenAccount {
     /// The CompressibleConfig account
     pub compressible_config: Pubkey,
     /// The rent recipient PDA (fee_payer_pda in processor)
-    pub rent_recipient: Pubkey,
+    pub rent_sponsor: Pubkey,
     /// Number of epochs of rent to prepay
     pub pre_pay_num_epochs: u64,
     /// Initial lamports to top up for rent payments (optional)
-    pub write_top_up_lamports: Option<u32>,
+    pub lamports_per_write: Option<u32>,
     pub compress_to_account_pubkey: Option<CompressToPubkey>,
     /// Version of the compressed token account when ctoken account is
     /// compressed and closed. (The version specifies the hashing scheme.)
@@ -42,12 +42,12 @@ pub fn create_compressible_token_account(
     let compressible_extension = CompressibleExtensionInstructionData {
         token_account_version: inputs.token_account_version as u8,
         rent_payment: inputs.pre_pay_num_epochs,
-        has_top_up: if inputs.write_top_up_lamports.is_some() {
+        has_top_up: if inputs.lamports_per_write.is_some() {
             1
         } else {
             0
         },
-        write_top_up: inputs.write_top_up_lamports.unwrap_or(0),
+        write_top_up: inputs.lamports_per_write.unwrap_or(0),
         compress_to_account_pubkey: inputs.compress_to_account_pubkey, // Not used for regular create_token_account
     };
 
@@ -70,14 +70,14 @@ pub fn create_compressible_token_account(
     // 3. payer (signer)
     // 4. compressible_config
     // 5. system_program
-    // 6. fee_payer_pda (rent_recipient)
+    // 6. fee_payer_pda (rent_sponsor)
     let accounts = vec![
         solana_instruction::AccountMeta::new(inputs.account_pubkey, true),
         solana_instruction::AccountMeta::new_readonly(inputs.mint_pubkey, false),
         solana_instruction::AccountMeta::new(inputs.payer, true),
         solana_instruction::AccountMeta::new_readonly(inputs.compressible_config, false),
         solana_instruction::AccountMeta::new_readonly(Pubkey::default(), false),
-        solana_instruction::AccountMeta::new(inputs.rent_recipient, false), // fee_payer_pda
+        solana_instruction::AccountMeta::new(inputs.rent_sponsor, false), // fee_payer_pda
     ];
 
     Ok(Instruction {

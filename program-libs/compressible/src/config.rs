@@ -47,11 +47,11 @@ pub struct CompressibleConfig {
     /// 1. pays rent exemption at compressible ctoken account creation
     /// 2. receives rent exemption at compressible ctoken account closure
     /// 3. receives rent from compressible ctoken accounts with Claim, or compress and close instructions.
-    pub rent_recipient: Pubkey,
+    pub rent_sponsor: Pubkey,
     /// Registry program pda, can Claim from and compress and close compressible ctoken accounts.
-    pub rent_authority: Pubkey,
-    pub rent_recipient_bump: u8,
-    pub rent_authority_bump: u8,
+    pub compression_authority: Pubkey,
+    pub rent_sponsor_bump: u8,
+    pub compression_authority_bump: u8,
     /// Rent function parameters,
     /// used to calculate whether the account is compressible.
     pub rent_config: RentConfig,
@@ -182,12 +182,15 @@ impl CompressibleConfig {
         )
     }
 
-    pub fn get_rent_authority_seeds(version: u16) -> [Vec<u8>; 2] {
-        [b"rent_authority".to_vec(), version.to_le_bytes().to_vec()]
+    pub fn get_compression_authority_seeds(version: u16) -> [Vec<u8>; 2] {
+        [
+            b"compression_authority".to_vec(),
+            version.to_le_bytes().to_vec(),
+        ]
     }
 
-    pub fn get_rent_recipient_seeds(version: u16) -> [Vec<u8>; 2] {
-        [b"rent_recipient".to_vec(), version.to_le_bytes().to_vec()]
+    pub fn get_rent_sponsor_seeds(version: u16) -> [Vec<u8>; 2] {
+        [b"rent_sponsor".to_vec(), version.to_le_bytes().to_vec()]
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -196,21 +199,25 @@ impl CompressibleConfig {
         active: bool,
         update_authority: Pubkey,
         withdrawal_authority: Pubkey,
-        rent_recipient_program_id: &Pubkey,
+        rent_sponsor_program_id: &Pubkey,
         owner_program_id: &Pubkey,
         address_space: [Pubkey; 4],
         rent_config: RentConfig,
     ) -> Self {
         let version_bytes = version.to_le_bytes();
-        let rent_authority_seeds = [b"rent_authority".as_slice(), version_bytes.as_slice()];
-        let rent_recipient_seeds = [b"rent_recipient".as_slice(), version_bytes.as_slice()];
-        let (rent_authority, rent_authority_bump) = solana_pubkey::Pubkey::find_program_address(
-            rent_authority_seeds.as_slice(),
-            owner_program_id,
-        );
-        let (rent_recipient, rent_recipient_bump) = solana_pubkey::Pubkey::find_program_address(
-            rent_recipient_seeds.as_slice(),
-            rent_recipient_program_id,
+        let compression_authority_seeds = [
+            b"compression_authority".as_slice(),
+            version_bytes.as_slice(),
+        ];
+        let rent_sponsor_seeds = [b"rent_sponsor".as_slice(), version_bytes.as_slice()];
+        let (compression_authority, compression_authority_bump) =
+            solana_pubkey::Pubkey::find_program_address(
+                compression_authority_seeds.as_slice(),
+                owner_program_id,
+            );
+        let (rent_sponsor, rent_sponsor_bump) = solana_pubkey::Pubkey::find_program_address(
+            rent_sponsor_seeds.as_slice(),
+            rent_sponsor_program_id,
         );
         let (_, bump) = Self::derive_pda(owner_program_id, version);
 
@@ -220,10 +227,10 @@ impl CompressibleConfig {
             bump,
             update_authority,
             withdrawal_authority,
-            rent_recipient,
-            rent_authority,
-            rent_recipient_bump,
-            rent_authority_bump,
+            rent_sponsor,
+            compression_authority,
+            rent_sponsor_bump,
+            compression_authority_bump,
             rent_config,
             address_space,
             _place_holder: [0u8; 32],

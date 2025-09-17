@@ -36,9 +36,9 @@ fn test_compressible_discriminator_selection() {
         payer: Pubkey::new_unique(),
         owner: Pubkey::new_unique(),
         mint: Pubkey::new_unique(),
-        rent_recipient: Pubkey::new_unique(),
+        rent_sponsor: Pubkey::new_unique(),
         pre_pay_num_epochs: 1,
-        write_top_up_lamports: Some(100),
+        lamports_per_write: Some(100),
         compressible_config: Pubkey::new_unique(),
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
     };

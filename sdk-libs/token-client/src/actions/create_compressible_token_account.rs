@@ -14,7 +14,7 @@ pub struct CreateCompressibleTokenAccountInputs<'a> {
     pub num_prepaid_epochs: u64,
     pub payer: &'a Keypair,
     pub token_account_keypair: Option<&'a Keypair>,
-    pub write_top_up_lamports: Option<u32>,
+    pub lamports_per_write: Option<u32>,
     pub token_account_version: TokenDataVersion,
 }
 
@@ -36,7 +36,7 @@ pub async fn create_compressible_token_account<R: Rpc>(
         num_prepaid_epochs,
         payer,
         token_account_keypair,
-        write_top_up_lamports,
+        lamports_per_write,
         token_account_version,
     } = inputs;
 
@@ -62,12 +62,9 @@ pub async fn create_compressible_token_account<R: Rpc>(
         &registry_program_id,
     );
 
-    // Derive the rent_recipient PDA
-    let (rent_recipient, _rent_recipient_bump) = Pubkey::find_program_address(
-        &[
-            b"rent_recipient".as_slice(),
-            version.to_le_bytes().as_slice(),
-        ],
+    // Derive the rent_sponsor PDA
+    let (rent_sponsor, _rent_sponsor_bump) = Pubkey::find_program_address(
+        &[b"rent_sponsor".as_slice(), version.to_le_bytes().as_slice()],
         &solana_pubkey::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
     );
 
@@ -77,9 +74,9 @@ pub async fn create_compressible_token_account<R: Rpc>(
         mint_pubkey: mint,
         owner_pubkey: owner,
         compressible_config,
-        rent_recipient,
+        rent_sponsor,
         pre_pay_num_epochs: num_prepaid_epochs,
-        write_top_up_lamports,
+        lamports_per_write,
         payer: payer.pubkey(),
         compress_to_account_pubkey: None, // Not used for regular token account creation
         token_account_version,

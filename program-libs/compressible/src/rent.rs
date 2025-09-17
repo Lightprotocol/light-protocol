@@ -12,7 +12,6 @@ pub const RENT_PER_BYTE: u8 = 1;
 pub const SLOTS_PER_EPOCH: u64 = 36_000; // 4h
 use aligned_sized::aligned_sized;
 
-// TODO: look at solana rent curve
 /// Rent function parameters,
 /// used to calculate whether the account is compressible.
 #[derive(
@@ -32,18 +31,18 @@ use aligned_sized::aligned_sized;
 #[repr(C)]
 #[aligned_sized]
 pub struct RentConfig {
-    pub min_rent: u16,
-    pub full_compression_incentive: u16,
+    pub base_rent: u16,
+    pub compression_cost: u16,
     pub lamports_per_byte_per_epoch: u8,
-    pub max_write_top_up: u8,          // maximum amount per top up write
-    pub max_auto_topped_up_epochs: u8, // once the account is funded for max_auto_topped_up_epochs top up per write is not executed
+    pub max_lamports_per_write: u8, // maximum amount per top up write
+    pub max_funded_epochs: u8, // once the account is funded for max_funded_epochs top up per write is not executed
     pub _padding: u8,
 }
 
 impl RentConfig {
     pub fn rent_curve_per_epoch(&self, num_bytes: u64) -> u64 {
         rent_curve_per_epoch(
-            self.min_rent as u64,
+            self.base_rent as u64,
             self.lamports_per_byte_per_epoch as u64,
             num_bytes,
         )
@@ -52,36 +51,36 @@ impl RentConfig {
         self.rent_curve_per_epoch(num_bytes) * epochs
     }
     pub fn get_rent_with_compression_cost(&self, num_bytes: u64, epochs: u64) -> u64 {
-        self.rent_curve_per_epoch(num_bytes) * epochs + self.full_compression_incentive as u64
+        self.rent_curve_per_epoch(num_bytes) * epochs + self.compression_cost as u64
     }
 }
 
 pub fn rent_curve_per_epoch(
-    min_rent: u64,
+    base_rent: u64,
     lamports_per_byte_per_epoch: u64,
     num_bytes: u64,
 ) -> u64 {
-    min_rent + num_bytes * lamports_per_byte_per_epoch
+    base_rent + num_bytes * lamports_per_byte_per_epoch
 }
 
 pub fn get_rent(
-    min_rent: u64,
+    base_rent: u64,
     lamports_per_byte_per_epoch: u64,
     num_bytes: u64,
     epochs: u64,
 ) -> u64 {
-    rent_curve_per_epoch(min_rent, lamports_per_byte_per_epoch, num_bytes) * epochs
+    rent_curve_per_epoch(base_rent, lamports_per_byte_per_epoch, num_bytes) * epochs
 }
 
 #[profile]
 pub fn get_rent_with_compression_cost(
-    min_rent: u64,
+    base_rent: u64,
     lamports_per_byte_per_epoch: u64,
     num_bytes: u64,
     epochs: u64,
     compression_costs: u64,
 ) -> u64 {
-    get_rent(min_rent, lamports_per_byte_per_epoch, num_bytes, epochs) + compression_costs
+    get_rent(base_rent, lamports_per_byte_per_epoch, num_bytes, epochs) + compression_costs
 }
 
 #[track_caller]
@@ -119,11 +118,11 @@ pub fn get_rent_exemption_lamports(_num_bytes: u64) -> Result<u64, CompressibleE
 impl Default for RentConfig {
     fn default() -> Self {
         Self {
-            min_rent: MIN_RENT,
-            full_compression_incentive: COMPRESSION_COST + COMPRESSION_INCENTIVE,
+            base_rent: MIN_RENT,
+            compression_cost: COMPRESSION_COST + COMPRESSION_INCENTIVE,
             lamports_per_byte_per_epoch: RENT_PER_BYTE,
-            max_write_top_up: 1, // maximum lamports per top up write * 1000
-            max_auto_topped_up_epochs: 2, // once the account is funded for max_auto_topped_up_epochs top up per write is not executed
+            max_lamports_per_write: 1, // maximum lamports per top up write * 1000
+            max_funded_epochs: 2, // once the account is funded for max_funded_epochs top up per write is not executed
             _padding: 0,
         }
     }
@@ -131,7 +130,7 @@ impl Default for RentConfig {
 
 impl RentConfig {
     pub fn get_max_top_up_per_lamport(&self) -> u32 {
-        self.max_write_top_up as u32 * 1000
+        self.max_lamports_per_write as u32 * 1000
     }
 }
 
@@ -151,9 +150,9 @@ pub fn get_last_paid_epoch(
     current_lamports: u64,
     last_claimed_slot: impl ZeroCopyNumTrait,
     rent_exemption_lamports: u64,
-    min_rent: u64,
+    base_rent: u64,
     lamports_per_byte_per_epoch: u64,
-    full_compression_incentive: u64,
+    compression_cost: u64,
 ) -> u64 {
     // Reuse the existing calculate_rent_inner function with INCLUDE_CURRENT=false
     // to get epochs_paid calculation
@@ -163,9 +162,9 @@ pub fn get_last_paid_epoch(
         current_lamports,
         last_claimed_slot,
         rent_exemption_lamports,
-        min_rent,
+        base_rent,
         lamports_per_byte_per_epoch,
-        full_compression_incentive,
+        compression_cost,
     );
 
     let last_claimed_epoch: u64 = last_claimed_slot.into() / SLOTS_PER_EPOCH;
@@ -188,9 +187,9 @@ pub fn calculate_rent_and_balance(
     current_lamports: u64,
     last_claimed_slot: impl ZeroCopyNumTrait,
     rent_exemption_lamports: u64,
-    min_rent: u64,
+    base_rent: u64,
     lamports_per_byte_per_epoch: u64,
-    full_compression_incentive: u64,
+    compression_cost: u64,
 ) -> (bool, u64) {
     let (required_epochs, rent_per_epoch, epochs_paid, unutilized_lamports) =
         calculate_rent_with_current_epoch(
@@ -199,15 +198,15 @@ pub fn calculate_rent_and_balance(
             current_lamports,
             last_claimed_slot,
             rent_exemption_lamports,
-            min_rent,
+            base_rent,
             lamports_per_byte_per_epoch,
-            full_compression_incentive,
+            compression_cost,
         );
 
     let is_compressible = epochs_paid < required_epochs;
     if is_compressible {
         let epochs_payable = required_epochs.saturating_sub(epochs_paid);
-        let payable = epochs_payable * rent_per_epoch + full_compression_incentive;
+        let payable = epochs_payable * rent_per_epoch + compression_cost;
         let net_payable = payable.saturating_sub(unutilized_lamports);
         (true, net_payable)
     } else {
@@ -223,9 +222,9 @@ fn calculate_rent_with_current_epoch(
     current_lamports: u64,
     last_claimed_slot: impl ZeroCopyNumTrait,
     rent_exemption_lamports: u64,
-    min_rent: u64,
+    base_rent: u64,
     lamports_per_byte_per_epoch: u64,
-    full_compression_incentive: u64,
+    compression_cost: u64,
 ) -> (u64, u64, u64, u64) {
     calculate_rent_inner::<true>(
         num_bytes,
@@ -233,9 +232,9 @@ fn calculate_rent_with_current_epoch(
         current_lamports,
         last_claimed_slot,
         rent_exemption_lamports,
-        min_rent,
+        base_rent,
         lamports_per_byte_per_epoch,
-        full_compression_incentive,
+        compression_cost,
     )
 }
 
@@ -248,12 +247,12 @@ pub fn calculate_rent_inner<const INCLUDE_CURRENT: bool>(
     current_lamports: u64,
     last_claimed_slot: impl ZeroCopyNumTrait,
     rent_exemption_lamports: u64,
-    min_rent: u64,
+    base_rent: u64,
     lamports_per_byte_per_epoch: u64,
-    full_compression_incentive: u64,
+    compression_cost: u64,
 ) -> (u64, u64, u64, u64) {
     let available_balance = current_lamports
-        .checked_sub(rent_exemption_lamports + full_compression_incentive)
+        .checked_sub(rent_exemption_lamports + compression_cost)
         .unwrap();
     let current_epoch = if INCLUDE_CURRENT {
         current_slot / SLOTS_PER_EPOCH + 1
@@ -263,7 +262,7 @@ pub fn calculate_rent_inner<const INCLUDE_CURRENT: bool>(
     let last_claimed_epoch: u64 = last_claimed_slot.into() / SLOTS_PER_EPOCH;
     let required_epochs = current_epoch.saturating_sub(last_claimed_epoch);
 
-    let rent_per_epoch = rent_curve_per_epoch(min_rent, lamports_per_byte_per_epoch, num_bytes);
+    let rent_per_epoch = rent_curve_per_epoch(base_rent, lamports_per_byte_per_epoch, num_bytes);
     let epochs_paid = available_balance / rent_per_epoch;
     let unutilized_lamports = available_balance % rent_per_epoch;
     (
@@ -282,9 +281,9 @@ pub fn calculate_close_lamports(
     current_lamports: u64,
     last_claimed_slot: impl ZeroCopyNumTrait,
     rent_exemption_lamports: u64,
-    min_rent: u64,
+    base_rent: u64,
     lamports_per_byte_per_epoch: u64,
-    full_compression_incentive: u64,
+    compression_cost: u64,
 ) -> (u64, u64) {
     let (_, _, _, unutilized_lamports) = calculate_rent_with_current_epoch(
         num_bytes,
@@ -292,9 +291,9 @@ pub fn calculate_close_lamports(
         current_lamports,
         last_claimed_slot,
         rent_exemption_lamports,
-        min_rent,
+        base_rent,
         lamports_per_byte_per_epoch,
-        full_compression_incentive,
+        compression_cost,
     );
     (current_lamports - unutilized_lamports, unutilized_lamports)
 }
@@ -311,9 +310,9 @@ pub fn claimable_lamports(
     current_lamports: u64,
     last_claimed_slot: impl ZeroCopyNumTrait,
     rent_exemption_lamports: u64,
-    min_rent: u64,
+    base_rent: u64,
     lamports_per_byte_per_epoch: u64,
-    full_compression_incentive: u64,
+    compression_cost: u64,
 ) -> Option<u64> {
     // First check if account is compressible
     let (is_compressible, _) = calculate_rent_and_balance(
@@ -322,9 +321,9 @@ pub fn claimable_lamports(
         current_lamports,
         last_claimed_slot,
         rent_exemption_lamports,
-        min_rent,
+        base_rent,
         lamports_per_byte_per_epoch,
-        full_compression_incentive,
+        compression_cost,
     );
 
     if is_compressible {
@@ -339,9 +338,9 @@ pub fn claimable_lamports(
         current_lamports,
         last_claimed_slot,
         rent_exemption_lamports,
-        min_rent,
+        base_rent,
         lamports_per_byte_per_epoch,
-        full_compression_incentive,
+        compression_cost,
     );
 
     // Calculate how much rent we can claim for completed epochs
@@ -611,9 +610,9 @@ mod test {
 
         let rent_config = test_rent_config();
         let rent_exemption_lamports = get_rent_exemption_lamports(TEST_BYTES).unwrap();
-        let min_rent = rent_config.min_rent as u64;
+        let base_rent = rent_config.base_rent as u64;
         let lamports_per_byte_per_epoch = rent_config.lamports_per_byte_per_epoch as u64;
-        let full_compression_incentive = rent_config.full_compression_incentive as u64;
+        let compression_cost = rent_config.compression_cost as u64;
 
         for test_case in test_cases {
             let (is_compressible, deficit) = calculate_rent_and_balance(
@@ -622,9 +621,9 @@ mod test {
                 test_case.input.current_lamports,
                 test_case.input.last_claimed_slot,
                 rent_exemption_lamports,
-                min_rent,
+                base_rent,
                 lamports_per_byte_per_epoch,
-                full_compression_incentive,
+                compression_cost,
             );
 
             assert_eq!(
@@ -645,9 +644,9 @@ mod test {
         // Test claiming rent for completed epochs only
         let rent_config = test_rent_config();
         let rent_exemption_lamports = get_rent_exemption_lamports(TEST_BYTES).unwrap();
-        let min_rent = rent_config.min_rent as u64;
+        let base_rent = rent_config.base_rent as u64;
         let lamports_per_byte_per_epoch = rent_config.lamports_per_byte_per_epoch as u64;
-        let full_compression_incentive = rent_config.full_compression_incentive as u64;
+        let compression_cost = rent_config.compression_cost as u64;
 
         // Scenario 1: No completed epochs (same epoch)
         let claimable = claimable_lamports(
@@ -656,9 +655,9 @@ mod test {
             rent_exemption_lamports + RENT_PER_EPOCH + FULL_COMPRESSION_COSTS,
             0, // Last claimed in epoch 0
             rent_exemption_lamports,
-            min_rent,
+            base_rent,
             lamports_per_byte_per_epoch,
-            full_compression_incentive,
+            compression_cost,
         );
         assert_eq!(claimable, Some(0), "Should not claim in same epoch");
 
@@ -669,9 +668,9 @@ mod test {
             rent_exemption_lamports + RENT_PER_EPOCH * 2 + FULL_COMPRESSION_COSTS,
             0, // Last claimed in epoch 0
             rent_exemption_lamports,
-            min_rent,
+            base_rent,
             lamports_per_byte_per_epoch,
-            full_compression_incentive,
+            compression_cost,
         );
         assert_eq!(
             claimable,
@@ -686,9 +685,9 @@ mod test {
             rent_exemption_lamports + (RENT_PER_EPOCH * 3) + FULL_COMPRESSION_COSTS,
             0, // Last claimed in epoch 0
             rent_exemption_lamports,
-            min_rent,
+            base_rent,
             lamports_per_byte_per_epoch,
-            full_compression_incentive,
+            compression_cost,
         );
         assert_eq!(
             claimable,
@@ -703,9 +702,9 @@ mod test {
             rent_exemption_lamports + (RENT_PER_EPOCH * 5) + FULL_COMPRESSION_COSTS,
             0, // Last claimed in epoch 0
             rent_exemption_lamports,
-            min_rent,
+            base_rent,
             lamports_per_byte_per_epoch,
-            full_compression_incentive,
+            compression_cost,
         );
         assert_eq!(
             claimable,
@@ -720,9 +719,9 @@ mod test {
             rent_exemption_lamports + RENT_PER_EPOCH + FULL_COMPRESSION_COSTS, // Only 1 epoch of rent available
             0, // Last claimed in epoch 0
             rent_exemption_lamports,
-            min_rent,
+            base_rent,
             lamports_per_byte_per_epoch,
-            full_compression_incentive,
+            compression_cost,
         );
         assert_eq!(claimable, None, "Should only claim available rent");
     }

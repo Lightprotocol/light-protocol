@@ -75,7 +75,7 @@
         Validates: derives address from provided seeds/bump and verifies it matches token_account pubkey
         Security: ensures account is a derivable PDA, preventing compression to non-signable addresses
     3.2. calculate rent (rent exemption + compression incentive)
-    3.3. check whether fee payer is custom fee payer (rent_payer_pda != config.rent_recipient)
+    3.3. check whether fee payer is custom fee payer (rent_payer_pda != config.rent_sponsor)
     3.4. if custom fee payer
         create account with custom fee payer via cpi (pays both rent exemption + compression incentive)
     3.5. else
@@ -140,7 +140,7 @@
     - non-mutable, owned by LightRegistry program
   5. fee_payer_pda
     - mutable
-    - Either rent_recipient PDA or custom fee payer
+    - Either rent_sponsor PDA or custom fee payer
 
   **Instruction Logic and Checks:**
   1. Deserialize instruction data
@@ -152,8 +152,8 @@
   4. If compressible:
     - Reject if compress_to_account_pubkey is Some (not allowed for ATAs)
     - Calculate rent (prepaid epochs rent + compression incentive, no rent exemption)
-    - Check if custom fee payer (fee_payer_pda != config.rent_recipient)
-    - Create PDA with fee_payer_pda (either rent_recipient PDA or custom fee payer) paying rent exemption
+    - Check if custom fee payer (fee_payer_pda != config.rent_sponsor)
+    - Create PDA with fee_payer_pda (either rent_sponsor PDA or custom fee payer) paying rent exemption
     - Always transfer calculated rent from fee_payer to account via CPI
   5. If not compressible:
     - Create PDA with rent-exempt balance only

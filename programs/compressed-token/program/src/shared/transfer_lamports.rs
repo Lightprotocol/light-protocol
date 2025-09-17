@@ -1,6 +1,5 @@
 use light_profiler::profile;
-use pinocchio::account_info::AccountInfo;
-use pinocchio::program_error::ProgramError;
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 use pinocchio_system::instructions::Transfer as SystemTransfer;
 use spl_pod::solana_msg::msg;
 

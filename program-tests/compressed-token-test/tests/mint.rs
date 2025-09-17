@@ -844,9 +844,9 @@ async fn test_decompressed_token_transfer() {
             payer: payer.pubkey(),
             owner: recipient_keypair.pubkey(),
             mint: spl_mint_pda,
-            rent_recipient: rpc.test_accounts.funding_pool_config.rent_recipient_pda,
+            rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
             pre_pay_num_epochs: 1,
-            write_top_up_lamports: Some(1000),
+            lamports_per_write: Some(1000),
             compressible_config: rpc
                 .test_accounts
                 .funding_pool_config

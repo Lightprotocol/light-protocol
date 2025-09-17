@@ -30,7 +30,7 @@ pub struct CompressAndCloseIndices {
     pub mint_index: u8,
     pub owner_index: u8,
     pub authority_index: u8,
-    pub rent_recipient_index: u8,
+    pub rent_sponsor_index: u8,
     pub destination_index: u8,
     pub output_tree_index: u8,
 }
@@ -42,7 +42,7 @@ pub fn pack_for_compress_and_close(
     ctoken_account_data: &[u8],
     output_queue: Pubkey,
     packed_accounts: &mut PackedAccounts,
-    signer_is_rent_authority: bool, // if yes rent authority must be signer
+    signer_is_compression_authority: bool, // if yes rent authority must be signer
 ) -> Result<CompressAndCloseIndices, TokenSdkError> {
     // Add output queue first so it's at index 0
     let output_tree_index = packed_accounts.insert_or_get(output_queue);
@@ -51,55 +51,58 @@ pub fn pack_for_compress_and_close(
     let mint_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
     let owner_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
 
-    let (rent_recipient_index, authority_index, destination_index) = if signer_is_rent_authority {
-        // When using rent authority from extension, find the rent recipient from extension
-        let mut recipient_index = owner_index; // Default to owner if no extension found
-        let mut authority_index = owner_index; // Default to owner if no extension found
-        if let Some(extensions) = &ctoken_account.extensions {
-            for extension in extensions {
-                if let ZExtensionStruct::Compressible(e) = extension {
-                    authority_index = packed_accounts.insert_or_get_config(
-                        Pubkey::from(e.rent_authority),
-                        true,
-                        true,
-                    );
-                    recipient_index = packed_accounts.insert_or_get(Pubkey::from(e.rent_recipient));
+    let (rent_sponsor_index, authority_index, destination_index) =
+        if signer_is_compression_authority {
+            // When using rent authority from extension, find the rent recipient from extension
+            let mut recipient_index = owner_index; // Default to owner if no extension found
+            let mut authority_index = owner_index; // Default to owner if no extension found
+            if let Some(extensions) = &ctoken_account.extensions {
+                for extension in extensions {
+                    if let ZExtensionStruct::Compressible(e) = extension {
+                        authority_index = packed_accounts.insert_or_get_config(
+                            Pubkey::from(e.compression_authority),
+                            true,
+                            true,
+                        );
+                        recipient_index =
+                            packed_accounts.insert_or_get(Pubkey::from(e.rent_sponsor));
 
-                    break;
+                        break;
+                    }
                 }
             }
-        }
-        // When rent authority closes, everything goes to rent recipient
-        (recipient_index, authority_index, recipient_index)
-    } else {
-        // Owner is the authority and needs to sign
-        // Check if there's a compressible extension to get the rent_recipient
-        let mut recipient_index = owner_index; // Default to owner if no extension
-        if let Some(extensions) = &ctoken_account.extensions {
-            for extension in extensions {
-                if let ZExtensionStruct::Compressible(e) = extension {
-                    recipient_index = packed_accounts.insert_or_get(Pubkey::from(e.rent_recipient));
+            // When rent authority closes, everything goes to rent recipient
+            (recipient_index, authority_index, recipient_index)
+        } else {
+            // Owner is the authority and needs to sign
+            // Check if there's a compressible extension to get the rent_sponsor
+            let mut recipient_index = owner_index; // Default to owner if no extension
+            if let Some(extensions) = &ctoken_account.extensions {
+                for extension in extensions {
+                    if let ZExtensionStruct::Compressible(e) = extension {
+                        recipient_index =
+                            packed_accounts.insert_or_get(Pubkey::from(e.rent_sponsor));
 
-                    break;
+                        break;
+                    }
                 }
             }
-        }
-        (
-            recipient_index,
-            packed_accounts.insert_or_get_config(
-                Pubkey::from(ctoken_account.owner.to_bytes()),
-                true,
-                false,
-            ),
-            owner_index, // User funds go to owner
-        )
-    };
+            (
+                recipient_index,
+                packed_accounts.insert_or_get_config(
+                    Pubkey::from(ctoken_account.owner.to_bytes()),
+                    true,
+                    false,
+                ),
+                owner_index, // User funds go to owner
+            )
+        };
     Ok(CompressAndCloseIndices {
         source_index,
         mint_index,
         owner_index,
         authority_index,
-        rent_recipient_index,
+        rent_sponsor_index,
         destination_index,
         output_tree_index,
     })
@@ -114,7 +117,7 @@ fn find_account_indices(
     mint_pubkey: &Pubkey,
     owner_pubkey: &Pubkey,
     authority: &Pubkey,
-    rent_recipient_pubkey: &Pubkey,
+    rent_sponsor_pubkey: &Pubkey,
     destination_pubkey: &Pubkey,
     // output_tree_pubkey: &Pubkey,
 ) -> Result<CompressAndCloseIndices, TokenSdkError> {
@@ -138,7 +141,7 @@ fn find_account_indices(
         TokenSdkError::InvalidAccountData
     })?;
 
-    let rent_recipient_index = find_index(rent_recipient_pubkey).ok_or_else(|| {
+    let rent_sponsor_index = find_index(rent_sponsor_pubkey).ok_or_else(|| {
         msg!("Rent recipient not found in packed_accounts");
         TokenSdkError::InvalidAccountData
     })?;
@@ -153,7 +156,7 @@ fn find_account_indices(
         mint_index,
         owner_index,
         authority_index,
-        rent_recipient_index,
+        rent_sponsor_index,
         destination_index,
         output_tree_index: 0,
     })
@@ -172,7 +175,7 @@ fn find_account_indices(
 #[profile]
 pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
     fee_payer: Pubkey,
-    rent_recipient_is_signer: bool,
+    rent_sponsor_is_signer: bool,
     cpi_context_pubkey: Option<Pubkey>,
     indices: &[CompressAndCloseIndices],
     packed_accounts: &[AccountInfo<'info>],
@@ -213,11 +216,11 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             amount,
             idx.source_index,
             idx.authority_index,
-            idx.rent_recipient_index,
+            idx.rent_sponsor_index,
             i as u8,               // Pass the index in the output array
             idx.destination_index, // destination for user funds
         )?;
-        if rent_recipient_is_signer {
+        if rent_sponsor_is_signer {
             packed_account_metas[idx.authority_index as usize].is_signer = true;
         } else {
             packed_account_metas[idx.owner_index as usize].is_signer = true;
@@ -267,7 +270,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
 ///
 /// # Arguments
 /// * `fee_payer` - The fee payer pubkey
-/// * `with_rent_authority` - If true, use rent authority from compressible token extension
+/// * `with_compression_authority` - If true, use rent authority from compressible token extension
 /// * `output_queue_pubkey` - The output queue pubkey where compressed accounts will be stored
 /// * `cpi_context_pubkey` - Optional CPI context account for optimized multi-program transactions
 /// * `ctoken_solana_accounts` - Slice of ctoken Solana account infos to compress and close
@@ -278,7 +281,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
 #[profile]
 pub fn compress_and_close_ctoken_accounts<'info>(
     fee_payer: Pubkey,
-    with_rent_authority: bool,
+    with_compression_authority: bool,
     output_queue: AccountInfo<'info>,
     ctoken_solana_accounts: &[&AccountInfo<'info>],
     packed_accounts: &[AccountInfo<'info>],
@@ -301,7 +304,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
     let mut indices_vec = Vec::with_capacity(ctoken_solana_accounts.len());
 
     for ctoken_account_info in ctoken_solana_accounts.iter() {
-        let mut rent_recipient_pubkey: Option<Pubkey> = None;
+        let mut rent_sponsor_pubkey: Option<Pubkey> = None;
         // Deserialize the ctoken Solana account using light zero copy
         let account_data = ctoken_account_info
             .try_borrow_data()
@@ -317,35 +320,35 @@ pub fn compress_and_close_ctoken_accounts<'info>(
         let owner_pubkey = Pubkey::from(compressed_token.owner.to_bytes());
 
         // Check if there's a compressible token extension to get the rent authority
-        let authority = if with_rent_authority {
+        let authority = if with_compression_authority {
             // Find the compressible token extension
-            let mut rent_authority = owner_pubkey;
+            let mut compression_authority = owner_pubkey;
             if let Some(extensions) = &compressed_token.extensions {
                 for extension in extensions {
                     if let ZExtensionStruct::Compressible(extension) = extension {
-                        // Check if rent_authority is set (non-zero)
-                        if extension.rent_authority != [0u8; 32] {
-                            rent_authority = Pubkey::from(extension.rent_authority);
+                        // Check if compression_authority is set (non-zero)
+                        if extension.compression_authority != [0u8; 32] {
+                            compression_authority = Pubkey::from(extension.compression_authority);
                         }
                         break;
                     }
                 }
             }
-            rent_authority
+            compression_authority
         } else {
             // If not using rent authority, always use the owner
             owner_pubkey
         };
 
         // Determine rent recipient from extension or use default
-        let actual_rent_recipient = if rent_recipient_pubkey.is_none() {
+        let actual_rent_sponsor = if rent_sponsor_pubkey.is_none() {
             // Check if there's a rent recipient in the compressible extension
             if let Some(extensions) = &compressed_token.extensions {
                 for extension in extensions {
                     if let ZExtensionStruct::Compressible(ext) = extension {
-                        // Check if rent_recipient is set (non-zero)
-                        if ext.rent_recipient != [0u8; 32] {
-                            rent_recipient_pubkey = Some(Pubkey::from(ext.rent_recipient));
+                        // Check if rent_sponsor is set (non-zero)
+                        if ext.rent_sponsor != [0u8; 32] {
+                            rent_sponsor_pubkey = Some(Pubkey::from(ext.rent_sponsor));
                         }
                         break;
                     }
@@ -353,23 +356,23 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             }
 
             // If still no rent recipient, find the fee payer (first signer)
-            if rent_recipient_pubkey.is_none() {
+            if rent_sponsor_pubkey.is_none() {
                 for account in packed_accounts.iter() {
                     if account.is_signer {
-                        rent_recipient_pubkey = Some(*account.key);
+                        rent_sponsor_pubkey = Some(*account.key);
                         break;
                     }
                 }
             }
-            rent_recipient_pubkey.ok_or(TokenSdkError::InvalidAccountData)?
+            rent_sponsor_pubkey.ok_or(TokenSdkError::InvalidAccountData)?
         } else {
-            rent_recipient_pubkey.unwrap()
+            rent_sponsor_pubkey.unwrap()
         };
 
         // Determine destination based on authority type
-        let destination_pubkey = if with_rent_authority {
+        let destination_pubkey = if with_compression_authority {
             // When rent authority closes, everything goes to rent recipient
-            actual_rent_recipient
+            actual_rent_sponsor
         } else {
             // When owner closes, user funds go to owner
             owner_pubkey
@@ -382,7 +385,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             &mint_pubkey,
             &owner_pubkey,
             &authority,
-            &actual_rent_recipient,
+            &actual_rent_sponsor,
             &destination_pubkey,
             // &output_queue_pubkey,
         )?;
@@ -395,7 +398,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
     // Delegate to the with_indices version
     compress_and_close_ctoken_accounts_with_indices(
         fee_payer,
-        with_rent_authority,
+        with_compression_authority,
         None,
         &indices_vec,
         packed_accounts_vec.as_slice(),

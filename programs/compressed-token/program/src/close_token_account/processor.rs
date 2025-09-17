@@ -80,10 +80,10 @@ fn validate_token_account<const CHECK_RENT_AUTH: bool>(
         // Look for compressible extension
         for extension in extensions {
             if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
-                let rent_recipient = accounts
-                    .rent_recipient
+                let rent_sponsor = accounts
+                    .rent_sponsor
                     .ok_or(ProgramError::NotEnoughAccountKeys)?;
-                if compressible_ext.rent_recipient != *rent_recipient.key() {
+                if compressible_ext.rent_sponsor != *rent_sponsor.key() {
                     msg!("rent recipient missmatch");
                     return Err(ProgramError::InvalidAccountData);
                 }
@@ -91,14 +91,14 @@ fn validate_token_account<const CHECK_RENT_AUTH: bool>(
                 if CHECK_RENT_AUTH {
                     #[allow(clippy::collapsible_if)]
                     if !owner_matches {
-                        if compressible_ext.rent_authority != *accounts.authority.key() {
+                        if compressible_ext.compression_authority != *accounts.authority.key() {
                             msg!("rent authority missmatch");
                             return Err(ProgramError::InvalidAccountData);
                         }
 
-                        // // When rent authority closes, destination must equal rent_recipient
-                        // if accounts.rent_recipient.key() != rent_recipient.key() {
-                        //     msg!("rent authority close requires destination == rent_recipient");
+                        // // When rent authority closes, destination must equal rent_sponsor
+                        // if accounts.rent_sponsor.key() != rent_sponsor.key() {
+                        //     msg!("rent authority close requires destination == rent_sponsor");
                         //     return Err(ProgramError::InvalidAccountData);
                         // }
 
@@ -129,7 +129,7 @@ fn validate_token_account<const CHECK_RENT_AUTH: bool>(
                         }
                     }
                 }
-                // Check if authority is the rent authority && rent_recipient is the destination account
+                // Check if authority is the rent authority && rent_sponsor is the destination account
             }
         }
     }
@@ -180,51 +180,48 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                     get_rent_exemption_lamports(accounts.token_account.data_len() as u64)
                         .map_err(|_| ProgramError::InvalidAccountData)?;
 
-                let min_rent: u64 = compressible_ext.rent_config.min_rent.into();
+                let base_rent: u64 = compressible_ext.rent_config.base_rent.into();
                 let lamports_per_byte_per_epoch: u64 = compressible_ext
                     .rent_config
                     .lamports_per_byte_per_epoch
                     .into();
-                let full_compression_incentive: u64 = compressible_ext
-                    .rent_config
-                    .full_compression_incentive
-                    .into();
+                let compression_cost: u64 = compressible_ext.rent_config.compression_cost.into();
 
-                let (mut lamports_to_rent_recipient, mut lamports_to_destination) =
+                let (mut lamports_to_rent_sponsor, mut lamports_to_destination) =
                     calculate_close_lamports(
                         accounts.token_account.data_len() as u64,
                         current_slot,
                         token_account_lamports,
                         compressible_ext.last_claimed_slot,
                         base_lamports,
-                        min_rent,
+                        base_rent,
                         lamports_per_byte_per_epoch,
-                        full_compression_incentive,
+                        compression_cost,
                     );
 
-                let rent_recipient = accounts
-                    .rent_recipient
+                let rent_sponsor = accounts
+                    .rent_sponsor
                     .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-                if accounts.authority.key() == &compressible_ext.rent_authority {
-                    // When compressing via rent_authority:
-                    // Extract compression incentive from rent_recipient portion to give to forester
-                    // The compression incentive is included in lamports_to_rent_recipient
-                    lamports_to_rent_recipient = lamports_to_rent_recipient
-                        .checked_sub(full_compression_incentive)
+                if accounts.authority.key() == &compressible_ext.compression_authority {
+                    // When compressing via compression_authority:
+                    // Extract compression incentive from rent_sponsor portion to give to forester
+                    // The compression incentive is included in lamports_to_rent_sponsor
+                    lamports_to_rent_sponsor = lamports_to_rent_sponsor
+                        .checked_sub(compression_cost)
                         .ok_or(ProgramError::InsufficientFunds)?;
 
-                    // User funds also go to rent_recipient
-                    lamports_to_rent_recipient += lamports_to_destination;
-                    lamports_to_destination = full_compression_incentive; // This will go to fee_payer (forester)
+                    // User funds also go to rent_sponsor
+                    lamports_to_rent_sponsor += lamports_to_destination;
+                    lamports_to_destination = compression_cost; // This will go to fee_payer (forester)
                 }
 
                 // Transfer lamports to rent recipient
-                if lamports_to_rent_recipient > 0 {
+                if lamports_to_rent_sponsor > 0 {
                     transfer_lamports(
-                        lamports_to_rent_recipient,
+                        lamports_to_rent_sponsor,
                         accounts.token_account,
-                        rent_recipient,
+                        rent_sponsor,
                     )
                     .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
                 }

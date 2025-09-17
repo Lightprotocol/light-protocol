@@ -18,18 +18,18 @@ pub struct CompressibleConfig {
     pub bump: u8,                         // 1 byte - PDA bump seed
     pub update_authority: Pubkey,        // 32 bytes - Can update config state
     pub withdrawal_authority: Pubkey,    // 32 bytes - Can withdraw from rent recipient pool
-    pub rent_recipient: Pubkey,          // 32 bytes - CToken program PDA receiving rent
-    pub rent_authority: Pubkey,          // 32 bytes - Registry PDA that can claim/compress
-    pub rent_recipient_bump: u8,         // 1 byte - Bump for rent_recipient PDA
-    pub rent_authority_bump: u8,         // 1 byte - Bump for rent_authority PDA
+    pub rent_sponsor: Pubkey,          // 32 bytes - CToken program PDA receiving rent
+    pub compression_authority: Pubkey,          // 32 bytes - Registry PDA that can claim/compress
+    pub rent_sponsor_bump: u8,         // 1 byte - Bump for rent_sponsor PDA
+    pub compression_authority_bump: u8,         // 1 byte - Bump for compression_authority PDA
     pub rent_config: RentConfig,         // 8 bytes - Rent curve parameters
     pub address_space: [Pubkey; 4],      // 128 bytes - Allowed address trees
     pub _place_holder: [u8; 32],         // 32 bytes - Reserved for future use
 }
 
 pub struct RentConfig {
-    pub min_rent: u16,                   // 2 bytes - Minimum rent per epoch
-    pub full_compression_incentive: u16, // 2 bytes - Compression cost + incentive
+    pub base_rent: u16,                   // 2 bytes - Minimum rent per epoch
+    pub compression_cost: u16, // 2 bytes - Compression cost + incentive
     pub lamports_per_byte_per_epoch: u8,               // 1 byte - Rent per byte per epoch
     _place_holder_bytes: [u8; 3],       // 3 bytes - Padding for alignment
 }
@@ -70,16 +70,16 @@ let v1_pda = CompressibleConfig::ctoken_v1_config_pda();
 
 **Light Registry Program:**
 - `update_compressible_config` - Updates config state and parameters
-- `withdraw_funding_pool` (discriminator: 108) - Withdraws from rent_recipient pool
+- `withdraw_funding_pool` (discriminator: 108) - Withdraws from rent_sponsor pool
 
 **Compressed Token Program (uses config):**
 - `CreateTokenAccount` (discriminator: 18) - Creates ctoken with compressible extension
 - `CreateAssociatedTokenAccount` (discriminator: 103) - Creates ATA with compressible
 - `Claim` (discriminator: 107) - Claims rent using config parameters
-- `CompressAndClose` (via Transfer2) - Uses rent_authority from config
+- `CompressAndClose` (via Transfer2) - Uses compression_authority from config
 
 **Registry Program (via wrapper):**
-- `compress_and_close` - Registry-authorized compression using rent_authority
+- `compress_and_close` - Registry-authorized compression using compression_authority
 
 ### Serialization
 
@@ -119,7 +119,7 @@ let config = CompressibleConfig::try_deserialize(&mut &account_data[..])?;
 
 ### Security Notes
 - Update authority can modify config state but cannot withdraw funds
-- Withdrawal authority can only withdraw from rent_recipient PDA pool
+- Withdrawal authority can only withdraw from rent_sponsor PDA pool
 - Rent authority (Registry PDA) enables permissionless compression by a forester node when conditions met
 - Config state determines instruction availability:
   - Active: All operations allowed
@@ -130,8 +130,8 @@ let config = CompressibleConfig::try_deserialize(&mut &account_data[..])?;
 ```rust
 // CToken V1 defaults
 RentConfig {
-    min_rent: 1220,                    // MIN_RENT constant
-    full_compression_incentive: 11000, // COMPRESSION_COST + COMPRESSION_INCENTIVE
+    base_rent: 1220,                    // MIN_RENT constant
+    compression_cost: 11000, // COMPRESSION_COST + COMPRESSION_INCENTIVE
     lamports_per_byte_per_epoch: 10,                  // RENT_PER_BYTE constant
 }
 
@@ -160,5 +160,5 @@ address_space[0] = pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK")
 - `derive_default_pda(program_id)` - Get V0 config for any program
 
 **Seed Helpers:**
-- `get_rent_authority_seeds(version)` - Seeds for rent authority PDA
-- `get_rent_recipient_seeds(version)` - Seeds for rent recipient PDA
+- `get_compression_authority_seeds(version)` - Seeds for rent authority PDA
+- `get_rent_sponsor_seeds(version)` - Seeds for rent recipient PDA

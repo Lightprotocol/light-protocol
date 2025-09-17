@@ -453,7 +453,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     "input.solana_ctoken_account {:?}",
                     input.solana_ctoken_account
                 );
-                // Get token account info to extract mint, balance, owner, and rent_recipient
+                // Get token account info to extract mint, balance, owner, and rent_sponsor
                 let token_account_info = rpc
                     .get_account(input.solana_ctoken_account)
                     .await
@@ -470,22 +470,23 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 let balance = compressed_token.amount;
                 let owner = compressed_token.owner;
 
-                // Extract rent_recipient and rent_authority from compressible extension
-                let (rent_recipient, _rent_authority) =
+                // Extract rent_sponsor and compression_authority from compressible extension
+                let (rent_sponsor, _compression_authority) =
                     if let Some(extensions) = compressed_token.extensions.as_ref() {
-                        let mut found_rent_recipient = None;
-                        let mut found_rent_authority = None;
+                        let mut found_rent_sponsor = None;
+                        let mut found_compression_authority = None;
                         for extension in extensions {
                             if let ZExtensionStruct::Compressible(compressible_ext) = extension {
-                                found_rent_recipient = Some(compressible_ext.rent_recipient);
-                                found_rent_authority = Some(compressible_ext.rent_authority);
+                                found_rent_sponsor = Some(compressible_ext.rent_sponsor);
+                                found_compression_authority =
+                                    Some(compressible_ext.compression_authority);
                                 break;
                             }
                         }
 
                         (
-                            found_rent_recipient.ok_or(TokenSdkError::InvalidAccountData)?,
-                            found_rent_authority,
+                            found_rent_sponsor.ok_or(TokenSdkError::InvalidAccountData)?,
+                            found_compression_authority,
                         )
                     } else {
                         return Err(TokenSdkError::InvalidAccountData);
@@ -494,8 +495,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
 
                 let owner_index = packed_tree_accounts.insert_or_get((*owner).into());
                 let mint_index = packed_tree_accounts.insert_or_get((*mint).into());
-                let rent_recipient_index =
-                    packed_tree_accounts.insert_or_get(rent_recipient.into());
+                let rent_sponsor_index = packed_tree_accounts.insert_or_get(rent_sponsor.into());
 
                 // Create token account with the full balance
                 let mut token_account =
@@ -517,7 +517,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     (*balance).into(),
                     source_index,
                     authority_index,
-                    rent_recipient_index, // Use the extracted rent_recipient
+                    rent_sponsor_index,         // Use the extracted rent_sponsor
                     token_accounts.len() as u8, // Index in the output array
                     destination_index,
                 )?;

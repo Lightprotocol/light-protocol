@@ -15,9 +15,9 @@ use crate::shared::transfer_lamports;
 /// Accounts required for the claim instruction
 pub struct ClaimAccounts<'a> {
     /// The pool PDA that receives the claimed rent
-    pub rent_recipient: &'a AccountInfo,
+    pub rent_sponsor: &'a AccountInfo,
     /// The rent authority (must be signer)
-    pub rent_authority: &'a AccountInfo,
+    pub compression_authority: &'a AccountInfo,
     pub config: &'a AccountInfo,
 }
 
@@ -29,8 +29,8 @@ impl<'a> ClaimAccounts<'a> {
     ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
         let accounts = Self {
-            rent_recipient: iter.next_mut("pool_pda")?,
-            rent_authority: iter.next_signer("rent_authority")?,
+            rent_sponsor: iter.next_mut("pool_pda")?,
+            compression_authority: iter.next_signer("compression_authority")?,
             config: iter.next_non_mut("compressible config")?,
         };
 
@@ -48,11 +48,11 @@ impl<'a> ClaimAccounts<'a> {
             .validate_not_inactive()
             .map_err(ProgramError::from)?;
 
-        if *account.rent_authority.as_array() != *accounts.rent_authority.key() {
+        if *account.compression_authority.as_array() != *accounts.compression_authority.key() {
             msg!("invalid rent authority");
             return Err(ProgramError::InvalidSeeds);
         }
-        if *account.rent_recipient.as_array() != *accounts.rent_recipient.key() {
+        if *account.rent_sponsor.as_array() != *accounts.rent_sponsor.key() {
             msg!("Invalid pool PDA derivation with bump {}", pool_pda_bump);
             return Err(ProgramError::InvalidSeeds);
         }
@@ -85,7 +85,7 @@ pub fn process_claim(
     for token_account in account_infos.iter().skip(3) {
         let amount = validate_and_claim(&accounts, token_account, current_slot)?;
         if let Some(amount) = amount {
-            transfer_lamports(amount, token_account, accounts.rent_recipient)
+            transfer_lamports(amount, token_account, accounts.rent_sponsor)
                 .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
         }
     }
@@ -109,11 +109,11 @@ fn validate_and_claim(
     if let Some(extensions) = compressed_token.extensions.as_mut() {
         for extension in extensions {
             if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
-                if compressible_ext.rent_authority != *accounts.rent_authority.key() {
+                if compressible_ext.compression_authority != *accounts.compression_authority.key() {
                     msg!("Rent authority mismatch");
                     return Ok(None);
                 }
-                if compressible_ext.rent_recipient != *accounts.rent_recipient.key() {
+                if compressible_ext.rent_sponsor != *accounts.rent_sponsor.key() {
                     msg!("Pool PDA does not match rent recipient");
                     return Ok(None);
                 }

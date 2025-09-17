@@ -121,40 +121,38 @@ fn configure_compressible_extension(
     let current_slot = 1;
     compressible_extension.last_claimed_slot = current_slot.into();
     // Initialize RentConfig with default values
-    compressible_extension.rent_config.min_rent =
-        compressible_config_account.rent_config.min_rent.into();
-    compressible_extension
+    compressible_extension.rent_config.base_rent =
+        compressible_config_account.rent_config.base_rent.into();
+    compressible_extension.rent_config.compression_cost = compressible_config_account
         .rent_config
-        .full_compression_incentive = compressible_config_account
-        .rent_config
-        .full_compression_incentive
+        .compression_cost
         .into();
     compressible_extension
         .rent_config
         .lamports_per_byte_per_epoch = compressible_config_account
         .rent_config
         .lamports_per_byte_per_epoch;
-    compressible_extension.rent_config.max_write_top_up =
-        compressible_config_account.rent_config.max_write_top_up;
-    compressible_extension.rent_config.max_auto_topped_up_epochs = compressible_config_account
+    compressible_extension.rent_config.max_lamports_per_write = compressible_config_account
         .rent_config
-        .max_auto_topped_up_epochs;
+        .max_lamports_per_write;
+    compressible_extension.rent_config.max_funded_epochs =
+        compressible_config_account.rent_config.max_funded_epochs;
 
-    // Set the rent_authority, rent_recipient and write_top_up_lamports
-    compressible_extension.rent_authority = compressible_config_account.rent_authority.to_bytes();
+    // Set the compression_authority, rent_sponsor and lamports_per_write
+    compressible_extension.compression_authority =
+        compressible_config_account.compression_authority.to_bytes();
     if let Some(custom_fee_payer) = custom_fee_payer {
         // If the fee payer is a custom fee payer it becomes the rent recipient.
         // In this case the rent mechanism stay the same,
         // the account can be compressed and closed by a forester,
         // rent rewards cannot be claimed by the forester.
-        compressible_extension.rent_recipient = custom_fee_payer;
+        compressible_extension.rent_sponsor = custom_fee_payer;
     } else {
-        compressible_extension.rent_recipient =
-            compressible_config_account.rent_recipient.to_bytes();
+        compressible_extension.rent_sponsor = compressible_config_account.rent_sponsor.to_bytes();
     }
 
-    // Validate write_top_up doesn't exceed max_write_top_up limit
-    // The write_top_up is in lamports, while max_write_top_up is in kilolamports
+    // Validate write_top_up doesn't exceed max_lamports_per_write limit
+    // The write_top_up is in lamports, while max_lamports_per_write is in kilolamports
     let max_write_top_up_lamports = compressible_config_account
         .rent_config
         .get_max_top_up_per_lamport();
@@ -168,7 +166,7 @@ fn configure_compressible_extension(
     }
 
     compressible_extension
-        .write_top_up_lamports
+        .lamports_per_write
         .set(compressible_config.write_top_up);
     compressible_extension.compress_to_pubkey =
         compressible_config.compress_to_account_pubkey.is_some() as u8;

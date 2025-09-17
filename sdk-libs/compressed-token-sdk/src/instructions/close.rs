@@ -25,13 +25,13 @@ pub fn close_account(
 }
 
 /// Creates a `CloseAccount` instruction for compressible accounts (4 accounts).
-/// For compressible accounts, a rent_recipient account is required.
+/// For compressible accounts, a rent_sponsor account is required.
 pub fn close_compressible_account(
     token_program_id: &Pubkey,
     account_pubkey: &Pubkey,
     destination_pubkey: &Pubkey,
     owner_pubkey: &Pubkey,
-    rent_recipient_pubkey: &Pubkey,
+    rent_sponsor_pubkey: &Pubkey,
 ) -> Instruction {
     // TODO: do manual serialization
     let data = spl_token_2022::instruction::TokenInstruction::CloseAccount.pack();
@@ -39,8 +39,8 @@ pub fn close_compressible_account(
     let accounts = vec![
         AccountMeta::new(*account_pubkey, false),
         AccountMeta::new(*destination_pubkey, false),
-        AccountMeta::new(*owner_pubkey, true), // signer
-        AccountMeta::new(*rent_recipient_pubkey, false), // rent_recipient for compressible accounts
+        AccountMeta::new(*owner_pubkey, true),         // signer
+        AccountMeta::new(*rent_sponsor_pubkey, false), // rent_sponsor for compressible accounts
     ];
 
     Instruction {

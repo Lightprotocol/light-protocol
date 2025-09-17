@@ -35,7 +35,6 @@ pub fn process_decompressed_token_transfer<'a>(
         }
         _ => return Err(ProgramError::InvalidInstructionData),
     };
-    // Calculate and execute top-up transfers using original pinocchio accounts
     calculate_and_execute_top_up_transfers(accounts)?;
     Ok(())
 }
@@ -101,7 +100,7 @@ fn calculate_and_execute_top_up_transfers(
                                 transfer.account.data_len() as u64,
                                 current_slot,
                                 transfer.account.lamports(),
-                                compressible_extension.write_top_up_lamports.into(),
+                                compressible_extension.lamports_per_write.into(),
                             )
                             .map_err(|_| CTokenError::InvalidAccountData)?;
                     }

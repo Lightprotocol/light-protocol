@@ -9,7 +9,7 @@ use crate::OneCTokenAccount;
 /// This demonstrates using the SDK's abstraction for compress and close operations
 pub fn process_compress_and_close_cpi<'info>(
     ctx: Context<'_, '_, '_, 'info, OneCTokenAccount<'info>>,
-    with_rent_authority: bool,
+    with_compression_authority: bool,
     system_accounts_offset: u8,
 ) -> Result<()> {
     // Parse CPI accounts following the established pattern
@@ -31,7 +31,7 @@ pub fn process_compress_and_close_cpi<'info>(
     // - Building the compress_and_close instruction
     let instruction = compress_and_close_ctoken_accounts(
         *ctx.accounts.signer.key,                          // fee_payer
-        with_rent_authority, // whether to use rent authority from extension
+        with_compression_authority, // whether to use rent authority from extension
         ctx.accounts.output_queue.to_account_info(), // output queue where compressed accounts will be stored
         &[&ctx.accounts.ctoken_account.to_account_info()], // slice of ctoken account infos
         cpi_accounts.tree_accounts().unwrap(),       // packed accounts for the instruction

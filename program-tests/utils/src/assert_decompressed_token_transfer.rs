@@ -82,13 +82,14 @@ pub async fn assert_compressible_for_account(
                 );
 
                 assert_eq!(
-                    compressible_before.rent_authority, compressible_after.rent_authority,
-                    "{} rent_authority should not change",
+                    compressible_before.compression_authority,
+                    compressible_after.compression_authority,
+                    "{} compression_authority should not change",
                     name
                 );
                 assert_eq!(
-                    compressible_before.rent_recipient, compressible_after.rent_recipient,
-                    "{} rent_recipient should not change",
+                    compressible_before.rent_sponsor, compressible_after.rent_sponsor,
+                    "{} rent_sponsor should not change",
                     name
                 );
                 assert_eq!(
@@ -97,10 +98,10 @@ pub async fn assert_compressible_for_account(
                     "{} config_account_version should not change",
                     name
                 );
-                // Check if write_top_up_lamports is non-zero
-                if compressible_before.write_top_up_lamports != 0 {
+                // Check if lamports_per_write is non-zero
+                if compressible_before.lamports_per_write != 0 {
                     assert_eq!(
-                        lamports_before + u64::from(compressible_before.write_top_up_lamports),
+                        lamports_before + u64::from(compressible_before.lamports_per_write),
                         lamports_after
                     );
                 }

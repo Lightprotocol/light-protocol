@@ -34,7 +34,7 @@ pub async fn assert_close_token_account(
         );
     }
 
-    // Parse to find destination (rent_recipient) from compressible extension
+    // Parse to find destination (rent_sponsor) from compressible extension
     let (compressed_token, _) = CompressedToken::zero_copy_at(account_data_before_close)
         .expect("Failed to deserialize compressible token account");
 
@@ -159,83 +159,81 @@ async fn assert_compressible_extension(
     // Calculate expected lamport distribution using the same function as the program
     let account_size = account_data_before_close.len() as u64;
     // Extract rent config values
-    let min_rent: u64 = compressible_extension.rent_config.min_rent.into();
+    let base_rent: u64 = compressible_extension.rent_config.base_rent.into();
     let lamports_per_byte_per_epoch: u64 = compressible_extension
         .rent_config
         .lamports_per_byte_per_epoch
         .into();
-    let full_compression_incentive: u64 = compressible_extension
-        .rent_config
-        .full_compression_incentive
-        .into();
+    let compression_cost: u64 = compressible_extension.rent_config.compression_cost.into();
     let base_lamports = rpc
         .get_minimum_balance_for_rent_exemption(account_size as usize)
         .await
         .unwrap();
 
-    let (mut lamports_to_rent_recipient, mut lamports_to_destination) = calculate_close_lamports(
+    let (mut lamports_to_rent_sponsor, mut lamports_to_destination) = calculate_close_lamports(
         account_size,
         current_slot,
         account_lamports_before_close,
         u64::from(compressible_extension.last_claimed_slot),
         base_lamports,
-        min_rent,
+        base_rent,
         lamports_per_byte_per_epoch,
-        full_compression_incentive,
+        compression_cost,
     );
 
     // Get the rent recipient from the extension
-    let rent_recipient = Pubkey::from(compressible_extension.rent_recipient);
+    let rent_sponsor = Pubkey::from(compressible_extension.rent_sponsor);
 
     // Check if rent authority is the signer
-    // Check if rent_authority is set (non-zero)
-    let is_rent_authority_signer = if compressible_extension.rent_authority != [0u8; 32] {
-        authority_pubkey == Pubkey::from(compressible_extension.rent_authority)
-    } else {
-        false
-    };
+    // Check if compression_authority is set (non-zero)
+    let is_compression_authority_signer =
+        if compressible_extension.compression_authority != [0u8; 32] {
+            authority_pubkey == Pubkey::from(compressible_extension.compression_authority)
+        } else {
+            false
+        };
 
     // Adjust distribution based on who signed (matching processor logic)
-    if is_rent_authority_signer {
+    if is_compression_authority_signer {
         // When rent authority closes:
-        // - Extract compression incentive from rent_recipient portion
-        // - User funds also go to rent_recipient
+        // - Extract compression incentive from rent_sponsor portion
+        // - User funds also go to rent_sponsor
         // - Compression incentive goes to destination (forester)
-        lamports_to_rent_recipient = lamports_to_rent_recipient
-            .checked_sub(full_compression_incentive)
+        lamports_to_rent_sponsor = lamports_to_rent_sponsor
+            .checked_sub(compression_cost)
             .expect("Rent recipient should have enough for compression incentive");
-        lamports_to_rent_recipient += lamports_to_destination;
-        lamports_to_destination = full_compression_incentive;
+        lamports_to_rent_sponsor += lamports_to_destination;
+        lamports_to_destination = compression_cost;
     }
 
     // Now verify the actual transfers
-    if is_rent_authority_signer {
+    if is_compression_authority_signer {
         // When rent authority closes, destination gets compression incentive
         assert_eq!(
             final_destination_lamports,
             initial_destination_lamports + lamports_to_destination,
             "Destination should receive compression incentive ({} lamports) when rent authority closes",
-            full_compression_incentive
+            compression_cost
         );
 
         // Get the rent recipient's initial and final balances
-        let initial_rent_recipient_lamports = rpc
-            .get_pre_transaction_account(&rent_recipient)
+        let initial_rent_sponsor_lamports = rpc
+            .get_pre_transaction_account(&rent_sponsor)
             .map(|acc| acc.lamports)
             .unwrap_or(0);
 
-        let final_rent_recipient_lamports = rpc
-            .get_account(rent_recipient)
+        let final_rent_sponsor_lamports = rpc
+            .get_account(rent_sponsor)
             .await
             .expect("Failed to get rent recipient account")
             .expect("Rent recipient account should exist")
             .lamports;
 
         assert_eq!(
-            final_rent_recipient_lamports,
-            initial_rent_recipient_lamports + lamports_to_rent_recipient,
+            final_rent_sponsor_lamports,
+            initial_rent_sponsor_lamports + lamports_to_rent_sponsor,
             "Rent recipient should receive {} lamports",
-            lamports_to_rent_recipient
+            lamports_to_rent_sponsor
         );
     } else {
         // When owner closes, normal distribution
@@ -247,23 +245,23 @@ async fn assert_compressible_extension(
         );
 
         // Rent recipient still gets their portion
-        let initial_rent_recipient_lamports = rpc
-            .get_pre_transaction_account(&rent_recipient)
+        let initial_rent_sponsor_lamports = rpc
+            .get_pre_transaction_account(&rent_sponsor)
             .map(|acc| acc.lamports)
             .unwrap_or(0);
 
-        let final_rent_recipient_lamports = rpc
-            .get_account(rent_recipient)
+        let final_rent_sponsor_lamports = rpc
+            .get_account(rent_sponsor)
             .await
             .expect("Failed to get rent recipient account")
             .expect("Rent recipient account should exist")
             .lamports;
 
         assert_eq!(
-            final_rent_recipient_lamports,
-            initial_rent_recipient_lamports + lamports_to_rent_recipient,
+            final_rent_sponsor_lamports,
+            initial_rent_sponsor_lamports + lamports_to_rent_sponsor,
             "Rent recipient should receive {} lamports",
-            lamports_to_rent_recipient
+            lamports_to_rent_sponsor
         );
     }
 
@@ -271,6 +269,6 @@ async fn assert_compressible_extension(
     assert_eq!(
         final_authority_lamports, initial_authority_lamports,
         "Authority should not receive any lamports (rent authority signer: {})",
-        is_rent_authority_signer
+        is_compression_authority_signer
     );
 }

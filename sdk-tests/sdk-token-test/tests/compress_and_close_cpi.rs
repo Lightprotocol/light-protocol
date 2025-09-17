@@ -64,8 +64,8 @@ async fn setup_compress_and_close_test(
     }
 
     // Set up rent authority using the first owner
-    let rent_recipient = if with_compressible_extension {
-        rpc.test_accounts.funding_pool_config.rent_recipient_pda
+    let rent_sponsor = if with_compressible_extension {
+        rpc.test_accounts.funding_pool_config.rent_sponsor_pda
     } else {
         // Use first owner as both rent authority and recipient
         owners[0].pubkey()
@@ -89,9 +89,9 @@ async fn setup_compress_and_close_test(
                     payer: payer.pubkey(),
                     mint: mint_pubkey,
                     owner: owner.pubkey(),
-                    rent_recipient,
+                    rent_sponsor,
                     pre_pay_num_epochs,
-                    write_top_up_lamports: None,
+                    lamports_per_write: None,
                     compressible_config: rpc
                         .test_accounts
                         .funding_pool_config
@@ -212,7 +212,7 @@ async fn test_compress_and_close_cpi_indices_owner() {
         data: instruction_data.data(),
     };
 
-    // Sign with payer and rent_authority (which is owner when no extension)
+    // Sign with payer and compression_authority (which is owner when no extension)
     let signers = vec![&ctx.payer, &ctx.owners[0]];
 
     rpc.create_and_send_transaction(&[instruction], &payer_pubkey, &signers)
@@ -269,7 +269,7 @@ async fn test_compress_and_close_cpi_high_level() {
 
     // Create the compress_and_close_cpi instruction data for high-level function
     let instruction_data = sdk_token_test::instruction::CompressAndCloseCpi {
-        with_rent_authority: false, // Don't use rent authority from extension
+        with_compression_authority: false, // Don't use rent authority from extension
         system_accounts_offset: system_accounts_start_offset as u8, // No accounts before system accounts in remaining_accounts
     };
 

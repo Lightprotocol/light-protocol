@@ -344,7 +344,7 @@ impl CTokenAccount2 {
         amount: u64,
         source_or_recipient_index: u8,
         authority: u8,
-        rent_recipient_index: u8,
+        rent_sponsor_index: u8,
         compressed_account_index: u8,
         destination_index: u8,
     ) -> Result<(), TokenSdkError> {
@@ -362,7 +362,7 @@ impl CTokenAccount2 {
             self.output.mint,
             source_or_recipient_index,
             authority,
-            rent_recipient_index,
+            rent_sponsor_index,
             compressed_account_index,
             destination_index,
         ));

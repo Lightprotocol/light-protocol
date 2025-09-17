@@ -11,7 +11,7 @@ pub fn process_create_ctoken_with_compress_to_pubkey<'info>(
     mint: Pubkey,
     token_account_pubkey: Pubkey,
     compressible_config: Pubkey,
-    rent_recipient: Pubkey,
+    rent_sponsor: Pubkey,
 ) -> Result<()> {
     // Derive the PDA that tokens will compress to
     let seeds = &[b"compress_target", mint.as_ref()];
@@ -31,9 +31,9 @@ pub fn process_create_ctoken_with_compress_to_pubkey<'info>(
         mint_pubkey: mint,
         owner_pubkey: *ctx.accounts.signer.key, // Owner is the signer
         compressible_config,
-        rent_recipient,
-        pre_pay_num_epochs: 1,       // Pre-pay for 1 epoch as requested
-        write_top_up_lamports: None, // No additional top-up
+        rent_sponsor,
+        pre_pay_num_epochs: 1,    // Pre-pay for 1 epoch as requested
+        lamports_per_write: None, // No additional top-up
         compress_to_account_pubkey: Some(compress_to_pubkey),
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
     };

@@ -38,8 +38,8 @@ struct AccountTestContext {
     pub owner_keypair: Keypair,
     pub token_account_keypair: Keypair,
     pub compressible_config: Pubkey,
-    pub rent_recipient: Pubkey,
-    pub rent_authority: Pubkey,
+    pub rent_sponsor: Pubkey,
+    pub compression_authority: Pubkey,
 }
 
 /// Set up test environment with common accounts and context
@@ -55,8 +55,11 @@ async fn setup_account_test() -> Result<AccountTestContext, RpcError> {
             .test_accounts
             .funding_pool_config
             .compressible_config_pda,
-        rent_recipient: rpc.test_accounts.funding_pool_config.rent_recipient_pda,
-        rent_authority: rpc.test_accounts.funding_pool_config.rent_authority_pda,
+        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+        compression_authority: rpc
+            .test_accounts
+            .funding_pool_config
+            .compression_authority_pda,
         rpc,
         payer,
         mint_pubkey,
@@ -179,7 +182,7 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
 /// 5. SUCCESS: Verify lamports transferred to rent recipient using existing assertion helper
 #[tokio::test]
 #[serial]
-async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(), RpcError> {
+async fn test_compressible_account_with_compression_authority_lifecycle() -> Result<(), RpcError> {
     let mut context = setup_account_test().await?;
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
@@ -198,7 +201,7 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
         .await?;
 
     let num_prepaid_epochs = 1;
-    let write_top_up_lamports = Some(100);
+    let lamports_per_write = Some(100);
 
     // Initialize compressible token account
     let create_token_account_ix =
@@ -208,9 +211,9 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
                 mint_pubkey: context.mint_pubkey,
                 owner_pubkey: context.owner_keypair.pubkey(),
                 compressible_config: context.compressible_config,
-                rent_recipient: context.rent_recipient,
+                rent_sponsor: context.rent_sponsor,
                 pre_pay_num_epochs: num_prepaid_epochs,
-                write_top_up_lamports,
+                lamports_per_write,
                 payer: payer_pubkey,
                 compress_to_account_pubkey: None,
                 token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
@@ -225,7 +228,7 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
     // Verify pool PDA balance decreased by only the rent-exempt amount (not the additional rent)
     let pool_balance_before = context
         .rpc
-        .get_account(context.rent_recipient)
+        .get_account(context.rent_sponsor)
         .await?
         .expect("Pool PDA should exist")
         .lamports;
@@ -246,10 +249,10 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
         context.mint_pubkey,
         context.owner_keypair.pubkey(),
         Some(CompressibleData {
-            rent_authority: context.rent_authority,
-            rent_recipient: context.rent_recipient,
+            compression_authority: context.compression_authority,
+            rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs,
-            write_top_up_lamports,
+            lamports_per_write,
         }),
     )
     .await;
@@ -257,7 +260,7 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
     // Verify pool PDA balance decreased by only the rent-exempt amount (not the additional rent)
     let pool_balance_after = context
         .rpc
-        .get_account(context.rent_recipient)
+        .get_account(context.rent_sponsor)
         .await?
         .expect("Pool PDA should exist")
         .lamports;
@@ -336,7 +339,7 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
         &token_account_pubkey,
         &destination.pubkey(),           // destination for user funds
         &context.owner_keypair.pubkey(), // authority
-        &context.rent_recipient,         // rent_recipient
+        &context.rent_sponsor,           // rent_sponsor
     );
 
     context
@@ -387,7 +390,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_owner() -> 
         .await?;
 
     let num_prepaid_epochs = 1;
-    let write_top_up_lamports = Some(100);
+    let lamports_per_write = Some(100);
 
     // Initialize compressible token account
     let create_token_account_ix =
@@ -397,9 +400,9 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_owner() -> 
                 mint_pubkey: context.mint_pubkey,
                 owner_pubkey: context.owner_keypair.pubkey(),
                 compressible_config: context.compressible_config,
-                rent_recipient: payer_pubkey,
+                rent_sponsor: payer_pubkey,
                 pre_pay_num_epochs: num_prepaid_epochs,
-                write_top_up_lamports,
+                lamports_per_write,
                 payer: payer_pubkey,
                 compress_to_account_pubkey: None,
                 token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
@@ -435,10 +438,10 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_owner() -> 
         context.mint_pubkey,
         context.owner_keypair.pubkey(),
         Some(CompressibleData {
-            rent_authority: context.rent_authority,
-            rent_recipient: payer_pubkey,
+            compression_authority: context.compression_authority,
+            rent_sponsor: payer_pubkey,
             num_prepaid_epochs,
-            write_top_up_lamports,
+            lamports_per_write,
         }),
     )
     .await;
@@ -512,7 +515,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_owner() -> 
         &token_account_pubkey,
         &destination.pubkey(),           // destination for user funds
         &context.owner_keypair.pubkey(), // authority
-        &payer_pubkey,                   // rent_recipient (custom rent payer)
+        &payer_pubkey,                   // rent_sponsor (custom rent payer)
     );
 
     context
@@ -538,7 +541,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_owner() -> 
 
 #[tokio::test]
 #[serial]
-async fn test_compressible_account_with_custom_rent_payer_close_with_rent_authority(
+async fn test_compressible_account_with_custom_rent_payer_close_with_compression_authority(
 ) -> Result<(), RpcError> {
     let mut context = setup_account_test().await?;
     let first_tx_payer = Keypair::new();
@@ -557,7 +560,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_rent_author
         .await?;
 
     let num_prepaid_epochs = 1;
-    let write_top_up_lamports = Some(100);
+    let lamports_per_write = Some(100);
 
     // Initialize compressible token account
     let create_token_account_ix =
@@ -567,9 +570,9 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_rent_author
                 mint_pubkey: context.mint_pubkey,
                 owner_pubkey: context.owner_keypair.pubkey(),
                 compressible_config: context.compressible_config,
-                rent_recipient: payer_pubkey,
+                rent_sponsor: payer_pubkey,
                 pre_pay_num_epochs: num_prepaid_epochs,
-                write_top_up_lamports,
+                lamports_per_write,
                 payer: payer_pubkey,
                 compress_to_account_pubkey: None,
                 token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
@@ -605,10 +608,10 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_rent_author
         context.mint_pubkey,
         context.owner_keypair.pubkey(),
         Some(CompressibleData {
-            rent_authority: context.rent_authority,
-            rent_recipient: payer_pubkey,
+            compression_authority: context.compression_authority,
+            rent_sponsor: payer_pubkey,
             num_prepaid_epochs,
-            write_top_up_lamports,
+            lamports_per_write,
         }),
     )
     .await;
@@ -708,7 +711,7 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
     let compressible_owner_pubkey = compressible_owner_keypair.pubkey();
 
     let num_prepaid_epochs = 0;
-    let write_top_up_lamports = Some(150);
+    let lamports_per_write = Some(150);
     // Create compressible ATA
     let compressible_instruction = light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
         light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
@@ -716,9 +719,9 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
             owner: compressible_owner_pubkey,
             mint: context.mint_pubkey,
             compressible_config: context.compressible_config,
-            rent_recipient: context.rent_recipient,
+            rent_sponsor: context.rent_sponsor,
             pre_pay_num_epochs: num_prepaid_epochs,
-            write_top_up_lamports,
+            lamports_per_write,
             token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
         }
     ).map_err(|e| RpcError::AssertRpcError(format!("Failed to create compressible ATA instruction: {}", e)))?;
@@ -738,10 +741,10 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
         compressible_owner_pubkey,
         context.mint_pubkey,
         Some(CompressibleData {
-            rent_authority: context.rent_authority,
-            rent_recipient: context.rent_recipient,
+            compression_authority: context.compression_authority,
+            rent_sponsor: context.rent_sponsor,
             num_prepaid_epochs, // Use actual balance with rent
-            write_top_up_lamports,
+            lamports_per_write,
         }),
     )
     .await;
@@ -764,7 +767,7 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
         &compressible_ata_pubkey,
         &destination.pubkey(),                // destination for user funds
         &compressible_owner_keypair.pubkey(), // authority
-        &context.rent_recipient,              // rent_recipient
+        &context.rent_sponsor,                // rent_sponsor
     );
 
     context
@@ -794,7 +797,7 @@ async fn test_associated_token_account_operations() -> Result<(), RpcError> {
 /// 3. Verify rent goes to rent recipient
 #[tokio::test]
 #[serial]
-async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
+async fn test_compress_and_close_with_compression_authority() -> Result<(), RpcError> {
     let mut context = setup_account_test().await?;
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
@@ -808,9 +811,9 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
                 mint_pubkey,
                 owner_pubkey: context.owner_keypair.pubkey(),
                 compressible_config: context.compressible_config,
-                rent_recipient: context.rent_recipient,
+                rent_sponsor: context.rent_sponsor,
                 pre_pay_num_epochs: 1,
-                write_top_up_lamports: Some(150),
+                lamports_per_write: Some(150),
                 payer: payer_pubkey,
                 compress_to_account_pubkey: None,
                 token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
@@ -833,7 +836,7 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
         .airdrop_lamports(
             &token_account_pubkey,
             get_rent(
-                RentConfig::default().min_rent as u64,
+                RentConfig::default().base_rent as u64,
                 RentConfig::default().lamports_per_byte_per_epoch as u64,
                 COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
                 1,
@@ -901,7 +904,7 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
         &mut context.rpc,
         CompressAndCloseInput {
             solana_ctoken_account: token_account_pubkey,
-            authority: context.rent_authority,
+            authority: context.compression_authority,
             output_queue,
             destination: Some(destination.pubkey()),
         },

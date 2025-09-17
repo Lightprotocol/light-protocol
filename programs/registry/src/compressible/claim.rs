@@ -14,17 +14,17 @@ pub struct ClaimContext<'info> {
     /// Pool PDA that receives the claimed rent (writable)
     /// CHECK: This account is validated in the compressed token program
     #[account(mut)]
-    pub rent_recipient: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 
     /// Rent authority PDA (derived from config)
     /// CHECK: PDA derivation is validated via has_one constraint
-    pub rent_authority: AccountInfo<'info>,
+    pub compression_authority: AccountInfo<'info>,
 
     /// CompressibleConfig account
     /// CHECK: Validated in the compressed token program
     #[account(
-        has_one = rent_authority,
-        has_one = rent_recipient
+        has_one = compression_authority,
+        has_one = rent_sponsor
     )]
     pub compressible_config: Account<'info, CompressibleConfig>,
 
@@ -36,21 +36,21 @@ pub struct ClaimContext<'info> {
 pub fn process_claim<'info>(ctx: &Context<'_, '_, '_, 'info, ClaimContext<'info>>) -> Result<()> {
     // Build instruction data: discriminator (107u8) + pool_pda_bump
     let mut instruction_data = vec![107u8]; // Claim instruction discriminator
-    instruction_data.push(ctx.accounts.compressible_config.rent_recipient_bump);
+    instruction_data.push(ctx.accounts.compressible_config.rent_sponsor_bump);
 
     // Prepare CPI accounts in the exact order expected by claim processor
     let mut cpi_accounts = vec![
-        ctx.accounts.rent_recipient.to_account_info(),
-        ctx.accounts.rent_authority.to_account_info(),
+        ctx.accounts.rent_sponsor.to_account_info(),
+        ctx.accounts.compression_authority.to_account_info(),
         ctx.accounts.compressible_config.to_account_info(),
     ];
     let mut cpi_account_metas = vec![
         anchor_lang::solana_program::instruction::AccountMeta::new(
-            ctx.accounts.compressible_config.rent_recipient,
+            ctx.accounts.compressible_config.rent_sponsor,
             false,
         ),
         anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
-            ctx.accounts.compressible_config.rent_authority,
+            ctx.accounts.compressible_config.compression_authority,
             true,
         ),
         anchor_lang::solana_program::instruction::AccountMeta::new_readonly(
@@ -65,17 +65,17 @@ pub fn process_claim<'info>(ctx: &Context<'_, '_, '_, 'info, ClaimContext<'info>
         cpi_accounts.push(account.to_account_info());
     }
 
-    // Prepare signer seeds for rent_authority PDA
-    // The rent_authority is derived as: [b"rent_authority", version, 0]
+    // Prepare signer seeds for compression_authority PDA
+    // The compression_authority is derived as: [b"compression_authority", version, 0]
     let version_bytes = ctx.accounts.compressible_config.version.to_le_bytes();
-    let rent_authority_bump = ctx.accounts.compressible_config.rent_authority_bump;
+    let compression_authority_bump = ctx.accounts.compressible_config.compression_authority_bump;
     let signer_seeds = &[
-        b"rent_authority".as_slice(),
+        b"compression_authority".as_slice(),
         version_bytes.as_slice(),
-        &[rent_authority_bump],
+        &[compression_authority_bump],
     ];
 
-    // Execute CPI with rent_authority PDA as signer
+    // Execute CPI with compression_authority PDA as signer
     anchor_lang::solana_program::program::invoke_signed(
         &anchor_lang::solana_program::instruction::Instruction {
             program_id: pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),

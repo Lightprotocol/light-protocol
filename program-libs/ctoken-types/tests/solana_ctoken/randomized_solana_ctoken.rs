@@ -29,8 +29,8 @@
 //     // Extension data
 //     last_written_slot: u64,
 //     slots_until_compression: u64,
-//     rent_authority: Pubkey,
-//     rent_recipient: Pubkey,
+//     compression_authority: Pubkey,
+//     rent_sponsor: Pubkey,
 // }
 
 // impl Distribution<RandomTokenData> for Standard {
@@ -60,8 +60,8 @@
 //             // Extension data
 //             last_written_slot: rng.gen::<u64>(),
 //             slots_until_compression: rng.gen::<u64>(),
-//             rent_authority: rng.gen::<[u8; 32]>().into(),
-//             rent_recipient: rng.gen::<[u8; 32]>().into(),
+//             compression_authority: rng.gen::<[u8; 32]>().into(),
+//             rent_sponsor: rng.gen::<[u8; 32]>().into(),
 //         }
 //     }
 // }
@@ -108,11 +108,11 @@
 //         account_data.push(1u8); // Some extensions
 //         account_data.extend_from_slice(&1u32.to_le_bytes()); // Vec length = 1
 //         account_data.push(26u8); // Compressible discriminant
-//                                  // CompressionInfo: last_written_slot(8) + slots_until_compression(8) + rent_authority(32) + rent_recipient(32) = 80 bytes
+//                                  // CompressionInfo: last_written_slot(8) + slots_until_compression(8) + compression_authority(32) + rent_sponsor(32) = 80 bytes
 //         account_data.extend_from_slice(&data.last_written_slot.to_le_bytes());
 //         account_data.extend_from_slice(&data.slots_until_compression.to_le_bytes());
-//         account_data.extend_from_slice(&data.rent_authority.to_bytes());
-//         account_data.extend_from_slice(&data.rent_recipient.to_bytes());
+//         account_data.extend_from_slice(&data.compression_authority.to_bytes());
+//         account_data.extend_from_slice(&data.rent_sponsor.to_bytes());
 //     }
 
 //     account_data
@@ -126,9 +126,9 @@
 //         extensions: if data.has_extensions {
 //             vec![ExtensionStructConfig::Compressible(
 //                 CompressionInfoConfig {
-//                     write_top_up_lamports: true,
-//                     rent_authority: (true, ()),
-//                     rent_recipient: (true, ()),
+//                     lamports_per_write: true,
+//                     compression_authority: (true, ()),
+//                     rent_sponsor: (true, ()),
 //                 },
 //             )]
 //         } else {
@@ -185,8 +185,8 @@
 //                 match &extension[0] {
 //                     ZExtensionStruct::Compressible(e) => {
 //                         assert_eq!(u64::from(e.last_written_slot), data.last_written_slot);
-//                         assert_eq!(e.rent_authority.to_bytes(), data.rent_authority.to_bytes());
-//                         assert_eq!(e.rent_recipient.to_bytes(), data.rent_recipient.to_bytes());
+//                         assert_eq!(e.compression_authority.to_bytes(), data.compression_authority.to_bytes());
+//                         assert_eq!(e.rent_sponsor.to_bytes(), data.rent_sponsor.to_bytes());
 //                         assert_eq!(
 //                             u64::from(e.slots_until_compression),
 //                             data.slots_until_compression
@@ -238,8 +238,8 @@
 //                 match &extension[0] {
 //                     ZExtensionStructMut::Compressible(e) => {
 //                         assert_eq!(u64::from(e.last_written_slot), data.last_written_slot);
-//                         assert_eq!(e.rent_authority.to_bytes(), data.rent_authority.to_bytes());
-//                         assert_eq!(e.rent_recipient.to_bytes(), data.rent_recipient.to_bytes());
+//                         assert_eq!(e.compression_authority.to_bytes(), data.compression_authority.to_bytes());
+//                         assert_eq!(e.rent_sponsor.to_bytes(), data.rent_sponsor.to_bytes());
 //                         assert_eq!(
 //                             u64::from(e.slots_until_compression),
 //                             data.slots_until_compression

@@ -24,7 +24,7 @@ use solana_sdk::{
 /// Compress and close token accounts via the registry program
 ///
 /// This function invokes the registry program's compress_and_close instruction,
-/// which then CPIs to the compressed token program with the correct rent_authority PDA signer.
+/// which then CPIs to the compressed token program with the correct compression_authority PDA signer.
 ///
 /// # Arguments
 /// * `rpc` - RPC client with indexer capabilities
@@ -58,9 +58,9 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
 
     let compressible_config = CompressibleConfig::derive_v1_config_pda(&registry_program_id).0;
 
-    // Derive rent_authority PDA (uses u16 version)
-    let rent_authority = config.rent_authority;
-    println!("config rent_authority {:?}", rent_authority);
+    // Derive compression_authority PDA (uses u16 version)
+    let compression_authority = config.compression_authority;
+    println!("config compression_authority {:?}", compression_authority);
 
     // Validate input
     if solana_ctoken_accounts.is_empty() {
@@ -124,17 +124,20 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
         // Default owner is the ctoken account owner
         let mut compressed_token_owner = Pubkey::from(ctoken_account.owner.to_bytes());
 
-        // For registry flow: rent_authority is a PDA (not a signer in transaction)
-        // Find rent_authority, rent_recipient, and compress_to_pubkey from extension
-        let mut rent_authority_pubkey = Pubkey::from(ctoken_account.owner.to_bytes());
-        let mut rent_recipient_pubkey = Pubkey::from(ctoken_account.owner.to_bytes());
+        // For registry flow: compression_authority is a PDA (not a signer in transaction)
+        // Find compression_authority, rent_sponsor, and compress_to_pubkey from extension
+        let mut compression_authority_pubkey = Pubkey::from(ctoken_account.owner.to_bytes());
+        let mut rent_sponsor_pubkey = Pubkey::from(ctoken_account.owner.to_bytes());
 
         if let Some(extensions) = &ctoken_account.extensions {
             for extension in extensions {
                 if let ZExtensionStruct::Compressible(e) = extension {
-                    rent_authority_pubkey = Pubkey::from(e.rent_authority);
-                    rent_recipient_pubkey = Pubkey::from(e.rent_recipient);
-                    println!("rent_authority_pubkey {:?}", rent_authority_pubkey);
+                    compression_authority_pubkey = Pubkey::from(e.compression_authority);
+                    rent_sponsor_pubkey = Pubkey::from(e.rent_sponsor);
+                    println!(
+                        "compression_authority_pubkey {:?}",
+                        compression_authority_pubkey
+                    );
 
                     println!("compress to pubkey {}", e.compress_to_pubkey());
                     // Check if compress_to_pubkey is set
@@ -147,13 +150,13 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
             }
         }
 
-        // Pack the owner and rent_recipient indices
+        // Pack the owner and rent_sponsor indices
         let owner_index = packed_accounts.insert_or_get(compressed_token_owner);
-        let rent_recipient_index = packed_accounts.insert_or_get(rent_recipient_pubkey);
+        let rent_sponsor_index = packed_accounts.insert_or_get(rent_sponsor_pubkey);
 
-        // Add rent_authority as non-signer (registry will sign with PDA)
+        // Add compression_authority as non-signer (registry will sign with PDA)
         let authority_index = packed_accounts.insert_or_get_config(
-            rent_authority_pubkey,
+            compression_authority_pubkey,
             false, // is_signer = false (registry PDA will sign during CPI)
             true,  // is_writable
         );
@@ -175,7 +178,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
             mint_index,
             owner_index,
             authority_index,
-            rent_recipient_index,
+            rent_sponsor_index,
             destination_index, // Compression incentive goes to destination (forester)
             output_tree_index,
         };
@@ -195,7 +198,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     let compress_and_close_accounts = CompressAndCloseAccounts {
         authority: authority.pubkey(),
         registered_forester_pda,
-        rent_authority,
+        compression_authority,
         compressible_config,
         compressed_token_program: compressed_token_program_id,
     };

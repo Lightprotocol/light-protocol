@@ -11,7 +11,7 @@ pub async fn assert_claim(
     rpc: &mut LightProgramTest,
     token_account_pubkeys: &[Pubkey],
     pool_pda: Pubkey,
-    rent_authority: Pubkey,
+    compression_authority: Pubkey,
 ) {
     let pre_pool_lamports = rpc
         .get_pre_transaction_account(&pool_pda)
@@ -36,23 +36,24 @@ pub async fn assert_claim(
 
         // Find and extract pre-transaction compressible extension data
         let mut pre_last_claimed_slot = 0u64;
-        let mut pre_rent_authority: Option<Pubkey> = None;
-        let mut pre_rent_recipient: Option<Pubkey> = None;
+        let mut pre_compression_authority: Option<Pubkey> = None;
+        let mut pre_rent_sponsor: Option<Pubkey> = None;
         let mut not_claimed_was_none = false;
 
         if let Some(extensions) = pre_compressed_token.extensions.as_mut() {
             for extension in extensions {
                 if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
                     pre_last_claimed_slot = u64::from(compressible_ext.last_claimed_slot);
-                    // Check if rent_authority is set (non-zero)
-                    pre_rent_authority = if compressible_ext.rent_authority != [0u8; 32] {
-                        Some(Pubkey::from(compressible_ext.rent_authority))
-                    } else {
-                        None
-                    };
-                    // Check if rent_recipient is set (non-zero)
-                    pre_rent_recipient = if compressible_ext.rent_recipient != [0u8; 32] {
-                        Some(Pubkey::from(compressible_ext.rent_recipient))
+                    // Check if compression_authority is set (non-zero)
+                    pre_compression_authority =
+                        if compressible_ext.compression_authority != [0u8; 32] {
+                            Some(Pubkey::from(compressible_ext.compression_authority))
+                        } else {
+                            None
+                        };
+                    // Check if rent_sponsor is set (non-zero)
+                    pre_rent_sponsor = if compressible_ext.rent_sponsor != [0u8; 32] {
+                        Some(Pubkey::from(compressible_ext.rent_sponsor))
                     } else {
                         None
                     };
@@ -82,14 +83,14 @@ pub async fn assert_claim(
         }
         // Verify rent authority matches
         assert_eq!(
-            pre_rent_authority,
-            Some(rent_authority),
+            pre_compression_authority,
+            Some(compression_authority),
             "Rent authority should match the one in the extension"
         );
 
         // Verify rent recipient matches pool PDA
         assert_eq!(
-            pre_rent_recipient,
+            pre_rent_sponsor,
             Some(pool_pda),
             "Rent recipient should match the pool PDA"
         );

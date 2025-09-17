@@ -17,11 +17,11 @@ pub struct CompressAndCloseContext<'info> {
     /// Rent authority PDA (derived from config)
     /// CHECK: PDA derivation is validated via has_one constraint
     #[account(mut)]
-    pub rent_authority: AccountInfo<'info>,
+    pub compression_authority: AccountInfo<'info>,
 
     /// CompressibleConfig account
     #[account(
-        has_one = rent_authority
+        has_one = compression_authority
     )]
     pub compressible_config: Account<'info, CompressibleConfig>,
 
@@ -65,16 +65,16 @@ pub fn process_compress_and_close<'info>(
         packed_accounts,
     ).map_err(ProgramError::from)?;
 
-    // Prepare signer seeds for rent_authority PDA
+    // Prepare signer seeds for compression_authority PDA
     let version_bytes = ctx.accounts.compressible_config.version.to_le_bytes();
-    let rent_authority_bump = ctx.accounts.compressible_config.rent_authority_bump;
+    let compression_authority_bump = ctx.accounts.compressible_config.compression_authority_bump;
     let signer_seeds = &[
-        b"rent_authority".as_slice(),
+        b"compression_authority".as_slice(),
         version_bytes.as_slice(),
-        &[rent_authority_bump],
+        &[compression_authority_bump],
     ];
 
-    // Execute CPI with rent_authority PDA as signer
+    // Execute CPI with compression_authority PDA as signer
     anchor_lang::solana_program::program::invoke_signed(
         &instruction,
         transfer2_accounts.to_account_infos().as_slice(),

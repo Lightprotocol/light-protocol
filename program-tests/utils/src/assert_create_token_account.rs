@@ -11,10 +11,10 @@ use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 #[derive(Debug, Clone)]
 pub struct CompressibleData {
-    pub rent_authority: Pubkey,
-    pub rent_recipient: Pubkey,
+    pub compression_authority: Pubkey,
+    pub rent_sponsor: Pubkey,
     pub num_prepaid_epochs: u64,
-    pub write_top_up_lamports: Option<u32>,
+    pub lamports_per_write: Option<u32>,
 }
 
 /// Assert that a token account was created correctly.
@@ -54,11 +54,11 @@ pub async fn assert_create_token_account<R: Rpc>(
                 .expect("Failed to get rent exemption");
 
             let rent_with_compression = get_rent_with_compression_cost(
-                RentConfig::default().min_rent as u64,
+                RentConfig::default().base_rent as u64,
                 RentConfig::default().lamports_per_byte_per_epoch as u64,
                 COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
                 compressible_info.num_prepaid_epochs,
-                RentConfig::default().full_compression_incentive as u64,
+                RentConfig::default().compression_cost as u64,
             );
             let expected_lamports = rent_exemption + rent_with_compression;
 
@@ -91,11 +91,11 @@ pub async fn assert_create_token_account<R: Rpc>(
                             config_account_version: 1,
                             last_claimed_slot: current_slot,
                             rent_config: RentConfig::default(),
-                            write_top_up_lamports: compressible_info
-                                .write_top_up_lamports
-                                .unwrap_or(0),
-                            rent_authority: compressible_info.rent_authority.to_bytes(),
-                            rent_recipient: compressible_info.rent_recipient.to_bytes(),
+                            lamports_per_write: compressible_info.lamports_per_write.unwrap_or(0),
+                            compression_authority: compressible_info
+                                .compression_authority
+                                .to_bytes(),
+                            rent_sponsor: compressible_info.rent_sponsor.to_bytes(),
                             compress_to_pubkey: 0,
                             account_version: 3, // Default to ShaFlat version
                         },
