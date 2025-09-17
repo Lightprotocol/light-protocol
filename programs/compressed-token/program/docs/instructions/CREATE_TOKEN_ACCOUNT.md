@@ -20,7 +20,7 @@
   **description:**
   1. creates ctoken solana accounts with and without Compressible extension
   2. account layout `CompressedToken` is defined in path: program-libs/ctoken-types/src/state/solana_ctoken.rs
-  3. extension layout `CompressibleExtension` is defined in path:
+  3. extension layout `CompressionInfo` is defined in path:
   program-libs/ctoken-types/src/state/extensions/compressible.rs
   4. A compressible token means that the ctoken solana account can be compressed by the rent authority as soon as the account balance is insufficient.
   5. Account creation without the compressible extension:
@@ -112,7 +112,7 @@
   **description:**
   1. Creates deterministic ctoken PDA accounts derived from [owner, ctoken_program_id, mint]
   2. Supports both non-idempotent (fails if exists) and idempotent (succeeds if exists) modes
-  3. Account layout same as create ctoken account: `CompressedToken` with optional `CompressibleExtension`
+  3. Account layout same as create ctoken account: `CompressedToken` with optional `CompressionInfo`
   4. Associated token accounts cannot use compress_to_pubkey (always compress to owner)
   5. Mint is provided via instruction data only - no account validation for compressed mint compatibility
   6. Token account must be uninitialized (owned by system program) unless idempotent mode

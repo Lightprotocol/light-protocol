@@ -102,12 +102,12 @@
       - Calculate base_lamports using `get_rent_exemption_lamports(account.data_len)`
       - Extract from compressible_ext.rent_config:
         - min_rent (u16 -> u64)
-        - rent_per_byte (u8 -> u64)
+        - lamports_per_byte_per_epoch (u8 -> u64)
         - full_compression_incentive (u16 -> u64)
       - Call `calculate_close_lamports` with:
         - data_len, current_slot, total_lamports
         - last_claimed_slot, base_lamports
-        - min_rent, rent_per_byte, full_compression_incentive
+        - min_rent, lamports_per_byte_per_epoch, full_compression_incentive
       - Returns (lamports_to_rent_recipient, lamports_to_destination)
       - Get rent_recipient account from accounts (error if missing)
       - Special case: if authority.key() == rent_authority:

@@ -1,20 +1,17 @@
+use aligned_sized::aligned_sized;
 use bytemuck::{Pod, Zeroable};
-use light_compressible::{
+use light_zero_copy::{ZeroCopy, ZeroCopyMut};
+use zerocopy::U64;
+
+use crate::{
     error::CompressibleError,
     rent::{
         calculate_rent_and_balance, calculate_rent_inner, claimable_lamports, get_last_paid_epoch,
         get_rent_exemption_lamports, RentConfig, SLOTS_PER_EPOCH,
     },
+    AnchorDeserialize, AnchorSerialize,
 };
-use light_zero_copy::{ZeroCopy, ZeroCopyMut};
-use zerocopy::U64;
 
-use crate::{AnchorDeserialize, AnchorSerialize};
-use aligned_sized::aligned_sized;
-
-// TODO: move to light-compressible, rename to CompressionInfo
-// TODO: rename token_account_version -> account version
-// TODO: rename version -> config_account_version
 /// Compressible extension for ctoken accounts.
 #[derive(
     Debug,
@@ -32,13 +29,13 @@ use aligned_sized::aligned_sized;
 )]
 #[repr(C)]
 #[aligned_sized]
-pub struct CompressibleExtension {
-    pub version: u16, // version 0 is uninitialized, default is 1
+pub struct CompressionInfo {
+    pub config_account_version: u16, // config_account_version 0 is uninitialized, default is 1
     /// Compress to account pubkey instead of account owner.
     pub compress_to_pubkey: u8,
     /// Version of the compressed token account when ctoken account is
-    /// compressed and closed. (The version specifies the hashing scheme.)
-    pub token_account_version: u8,
+    /// compressed and closed. (The account_version specifies the hashing scheme.)
+    pub account_version: u8,
     /// Lamports amount the account is topped up with at every write
     /// by the fee payer.
     pub write_top_up_lamports: u32,
@@ -70,7 +67,8 @@ macro_rules! impl_is_compressible {
             ) -> Result<(bool, u64), CompressibleError> {
                 let rent_exemption_lamports = get_rent_exemption_lamports(bytes)?;
                 let min_rent: u64 = self.rent_config.min_rent.into();
-                let rent_per_byte: u64 = self.rent_config.rent_per_byte.into();
+                let lamports_per_byte_per_epoch: u64 =
+                    self.rent_config.lamports_per_byte_per_epoch.into();
                 let full_compression_incentive: u64 =
                     self.rent_config.full_compression_incentive.into();
 
@@ -81,7 +79,7 @@ macro_rules! impl_is_compressible {
                     self.last_claimed_slot,
                     rent_exemption_lamports,
                     min_rent,
-                    rent_per_byte,
+                    lamports_per_byte_per_epoch,
                     full_compression_incentive,
                 ))
             }
@@ -93,9 +91,9 @@ macro_rules! impl_is_compressible {
         }
     };
 }
-impl_is_compressible!(CompressibleExtension);
-impl_is_compressible!(ZCompressibleExtension<'_>);
-impl_is_compressible!(ZCompressibleExtensionMut<'_>);
+impl_is_compressible!(CompressionInfo);
+impl_is_compressible!(ZCompressionInfo<'_>);
+impl_is_compressible!(ZCompressionInfoMut<'_>);
 
 // Unified macro to implement get_last_paid_epoch for all extension types
 macro_rules! impl_get_last_paid_epoch {
@@ -110,7 +108,8 @@ macro_rules! impl_get_last_paid_epoch {
                 rent_exemption_lamports: u64,
             ) -> Result<u64, CompressibleError> {
                 let min_rent: u64 = self.rent_config.min_rent.into();
-                let rent_per_byte: u64 = self.rent_config.rent_per_byte.into();
+                let lamports_per_byte_per_epoch: u64 =
+                    self.rent_config.lamports_per_byte_per_epoch.into();
                 let full_compression_incentive: u64 =
                     self.rent_config.full_compression_incentive.into();
 
@@ -120,7 +119,7 @@ macro_rules! impl_get_last_paid_epoch {
                     self.last_claimed_slot,
                     rent_exemption_lamports,
                     min_rent,
-                    rent_per_byte,
+                    lamports_per_byte_per_epoch,
                     full_compression_incentive,
                 ))
             }
@@ -128,11 +127,11 @@ macro_rules! impl_get_last_paid_epoch {
     };
 }
 
-impl_get_last_paid_epoch!(CompressibleExtension);
-impl_get_last_paid_epoch!(ZCompressibleExtension<'_>);
-impl_get_last_paid_epoch!(ZCompressibleExtensionMut<'_>);
+impl_get_last_paid_epoch!(CompressionInfo);
+impl_get_last_paid_epoch!(ZCompressionInfo<'_>);
+impl_get_last_paid_epoch!(ZCompressionInfoMut<'_>);
 
-impl ZCompressibleExtensionMut<'_> {
+impl ZCompressionInfoMut<'_> {
     /// Claim rent for past completed epochs and update the extension state.
     /// Returns the amount of lamports claimed, or None if account should be compressed.
     pub fn claim(
@@ -143,7 +142,7 @@ impl ZCompressibleExtensionMut<'_> {
         rent_exemption_lamports: u64,
     ) -> Result<Option<u64>, CompressibleError> {
         let min_rent: u64 = self.rent_config.min_rent.into();
-        let rent_per_byte: u64 = self.rent_config.rent_per_byte.into();
+        let lamports_per_byte_per_epoch: u64 = self.rent_config.lamports_per_byte_per_epoch.into();
         let full_compression_incentive: u64 = self.rent_config.full_compression_incentive.into();
 
         // Calculate claimable amount
@@ -154,7 +153,7 @@ impl ZCompressibleExtensionMut<'_> {
             self.last_claimed_slot,
             rent_exemption_lamports,
             min_rent,
-            rent_per_byte,
+            lamports_per_byte_per_epoch,
             full_compression_incentive,
         );
 
@@ -167,7 +166,7 @@ impl ZCompressibleExtensionMut<'_> {
                     self.last_claimed_slot,
                     rent_exemption_lamports,
                     min_rent,
-                    rent_per_byte,
+                    lamports_per_byte_per_epoch,
                     full_compression_incentive,
                 );
 
@@ -184,10 +183,10 @@ impl ZCompressibleExtensionMut<'_> {
 
 #[cfg(test)]
 mod test {
-    use light_compressible::rent::{COMPRESSION_COST, COMPRESSION_INCENTIVE, SLOTS_PER_EPOCH};
     use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 
     use super::*;
+    use crate::rent::{COMPRESSION_COST, COMPRESSION_INCENTIVE, SLOTS_PER_EPOCH};
 
     const TEST_BYTES: u64 = 261;
     const RENT_PER_EPOCH: u64 = 3830;
@@ -200,9 +199,9 @@ mod test {
     #[test]
     fn test_claim_method() {
         // Test the claim method updates state correctly
-        let extension_data = CompressibleExtension {
-            token_account_version: 3,
-            version: 1,
+        let extension_data = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
             rent_authority: [1; 32],
             rent_recipient: [2; 32],
             last_claimed_slot: 0,
@@ -212,7 +211,7 @@ mod test {
         };
 
         let mut extension_bytes = extension_data.try_to_vec().unwrap();
-        let (mut z_extension, _) = CompressibleExtension::zero_copy_at_mut(&mut extension_bytes)
+        let (mut z_extension, _) = CompressionInfo::zero_copy_at_mut(&mut extension_bytes)
             .expect("Failed to create zero-copy extension");
 
         // Claim in epoch 2 (should claim for epochs 0 and 1)
@@ -314,9 +313,9 @@ mod test {
         // Test the get_last_paid_epoch function with various scenarios
 
         // Test case 1: Account created in epoch 0 with 3 epochs of rent
-        let extension = CompressibleExtension {
-            token_account_version: 3,
-            version: 1,
+        let extension = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
             rent_authority: [0u8; 32],
             rent_recipient: [0u8; 32],
             last_claimed_slot: 0, // Created in epoch 0
@@ -340,9 +339,9 @@ mod test {
         );
 
         // Test case 2: Account created in epoch 1 with 2 epochs of rent
-        let extension = CompressibleExtension {
-            token_account_version: 3,
-            version: 1,
+        let extension = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
             rent_authority: [0u8; 32],
             rent_recipient: [0u8; 32],
             last_claimed_slot: SLOTS_PER_EPOCH, // Created in epoch 1
@@ -360,9 +359,9 @@ mod test {
         assert_eq!(last_paid, 2, "Should be paid through epoch 2 (epochs 1, 2)");
 
         // Test case 3: Account with no rent paid (immediately compressible)
-        let extension = CompressibleExtension {
-            token_account_version: 3,
-            version: 1,
+        let extension = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
             rent_authority: [0u8; 32],
             rent_recipient: [0u8; 32],
             last_claimed_slot: SLOTS_PER_EPOCH * 2, // Created in epoch 2
@@ -382,9 +381,9 @@ mod test {
         );
 
         // Test case 4: Account with 1 epoch of rent
-        let extension = CompressibleExtension {
-            token_account_version: 3,
-            version: 1,
+        let extension = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
             rent_authority: [0u8; 32],
             rent_recipient: [0u8; 32],
             last_claimed_slot: 0,
@@ -402,9 +401,9 @@ mod test {
         assert_eq!(last_paid, 0, "Should be paid through epoch 0 only");
 
         // Test case 5: Account with massive prepayment (100 epochs)
-        let extension = CompressibleExtension {
-            token_account_version: 3,
-            version: 1,
+        let extension = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
             rent_authority: [0u8; 32],
             rent_recipient: [0u8; 32],
             last_claimed_slot: SLOTS_PER_EPOCH * 5, // Created in epoch 5
@@ -425,9 +424,9 @@ mod test {
         );
 
         // Test case 6: Account with partial epoch payment (1.5 epochs)
-        let extension = CompressibleExtension {
-            token_account_version: 3,
-            version: 1,
+        let extension = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
             rent_authority: [0u8; 32],
             rent_recipient: [0u8; 32],
             last_claimed_slot: 0,
@@ -447,10 +446,10 @@ mod test {
             "Partial epochs round down, so only epoch 0 is paid"
         );
 
-        // Test case 7: Zero-copy version test
-        let extension_data = CompressibleExtension {
-            token_account_version: 3,
-            version: 1,
+        // Test case 7: Zero-copy config_account_version test
+        let extension_data = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
             rent_authority: [1; 32],
             rent_recipient: [2; 32],
             last_claimed_slot: SLOTS_PER_EPOCH * 3, // Epoch 3
@@ -460,7 +459,7 @@ mod test {
         };
 
         let extension_bytes = extension_data.try_to_vec().unwrap();
-        let (z_extension, _) = CompressibleExtension::zero_copy_at(&extension_bytes)
+        let (z_extension, _) = CompressionInfo::zero_copy_at(&extension_bytes)
             .expect("Failed to create zero-copy extension");
 
         let current_lamports = get_rent_exemption_lamports(TEST_BYTES).unwrap()

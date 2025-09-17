@@ -42,7 +42,7 @@ Light Protocol's rent system is designed for **compressible token accounts** wit
 | **Exemption** | Permanent with sufficient balance | Temporary, epoch-by-epoch |
 | **Collection** | Automatic by runtime | Manual via Claim instruction |
 | **Distribution** | 50% burned, 50% to validators | 100% to rent recipient (protocol) |
-| **Rent-Specific Data** | None (uses account balance) | 88 bytes (CompressibleExtension) |
+| **Rent-Specific Data** | None (uses account balance) | 88 bytes (CompressionInfo) |
 | **Compression** | N/A | Incentivized with 11,000 lamport bonus |
 
 ### Rent Calculation Comparison

@@ -149,18 +149,21 @@ async fn assert_compressible_extension(
         current_slot
     );
 
-    // Verify version is initialized
+    // Verify config_account_version is initialized
     assert!(
-        compressible_extension.version == 1,
-        "Version should be 1 (initialized), got {}",
-        compressible_extension.version
+        compressible_extension.config_account_version == 1,
+        "Config account version should be 1 (initialized), got {}",
+        compressible_extension.config_account_version
     );
 
     // Calculate expected lamport distribution using the same function as the program
     let account_size = account_data_before_close.len() as u64;
     // Extract rent config values
     let min_rent: u64 = compressible_extension.rent_config.min_rent.into();
-    let rent_per_byte: u64 = compressible_extension.rent_config.rent_per_byte.into();
+    let lamports_per_byte_per_epoch: u64 = compressible_extension
+        .rent_config
+        .lamports_per_byte_per_epoch
+        .into();
     let full_compression_incentive: u64 = compressible_extension
         .rent_config
         .full_compression_incentive
@@ -177,7 +180,7 @@ async fn assert_compressible_extension(
         u64::from(compressible_extension.last_claimed_slot),
         base_lamports,
         min_rent,
-        rent_per_byte,
+        lamports_per_byte_per_epoch,
         full_compression_incentive,
     );
 

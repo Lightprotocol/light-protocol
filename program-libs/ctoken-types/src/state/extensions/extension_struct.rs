@@ -3,10 +3,8 @@ use spl_pod::solana_msg::msg;
 
 use crate::{
     state::{
-        extensions::{
-            CompressibleExtension, TokenMetadata, TokenMetadataConfig, ZTokenMetadataMut,
-        },
-        CompressibleExtensionConfig,
+        extensions::{CompressionInfo, TokenMetadata, TokenMetadataConfig, ZTokenMetadataMut},
+        CompressionInfoConfig,
     },
     AnchorDeserialize, AnchorSerialize,
 };
@@ -41,7 +39,7 @@ pub enum ExtensionStruct {
     Placeholder24,
     Placeholder25,
     /// Account contains compressible timing data and rent authority
-    Compressible(CompressibleExtension),
+    Compressible(CompressionInfo),
 }
 // TODO: replace with macro call once ZeroCopyMut supports enums
 #[derive(Debug)]
@@ -73,9 +71,7 @@ pub enum ZExtensionStructMut<'a> {
     Placeholder24,
     Placeholder25,
     /// Account contains compressible timing data and rent authority
-    Compressible(
-        <CompressibleExtension as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
-    ),
+    Compressible(<CompressionInfo as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut),
 }
 
 impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
@@ -106,7 +102,7 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
             26 => {
                 // Compressible variant
                 let (compressible_ext, remaining_bytes) =
-                    CompressibleExtension::zero_copy_at_mut(remaining_data)?;
+                    CompressionInfo::zero_copy_at_mut(remaining_data)?;
                 Ok((
                     ZExtensionStructMut::Compressible(compressible_ext),
                     remaining_bytes,
@@ -130,8 +126,8 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                 1 + TokenMetadata::byte_len(token_metadata_config)?
             }
             ExtensionStructConfig::Compressible(config) => {
-                // 1 byte for discriminant + CompressibleExtension size
-                1 + CompressibleExtension::byte_len(config)?
+                // 1 byte for discriminant + CompressionInfo size
+                1 + CompressionInfo::byte_len(config)?
             }
             _ => {
                 msg!("Invalid extension type returning 0");
@@ -173,7 +169,7 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                 bytes[0] = 26u8;
 
                 let (compressible_ext, remaining_bytes) =
-                    CompressibleExtension::new_zero_copy(&mut bytes[1..], config)?;
+                    CompressionInfo::new_zero_copy(&mut bytes[1..], config)?;
                 Ok((
                     ZExtensionStructMut::Compressible(compressible_ext),
                     remaining_bytes,
@@ -212,5 +208,5 @@ pub enum ExtensionStructConfig {
     Placeholder23,
     Placeholder24,
     Placeholder25,
-    Compressible(CompressibleExtensionConfig),
+    Compressible(CompressionInfoConfig),
 }

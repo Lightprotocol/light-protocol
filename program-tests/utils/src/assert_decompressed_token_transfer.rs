@@ -92,8 +92,9 @@ pub async fn assert_compressible_for_account(
                     name
                 );
                 assert_eq!(
-                    compressible_before.version, compressible_after.version,
-                    "{} version should not change",
+                    compressible_before.config_account_version,
+                    compressible_after.config_account_version,
+                    "{} config_account_version should not change",
                     name
                 );
                 // Check if write_top_up_lamports is non-zero

@@ -11,7 +11,7 @@ use spl_pod::solana_msg::msg;
 
 use crate::{
     state::{
-        CompressibleExtensionConfig, ExtensionStruct, ExtensionStructConfig, ZExtensionStruct,
+        CompressionInfoConfig, ExtensionStruct, ExtensionStructConfig, ZExtensionStruct,
         ZExtensionStructMut,
     },
     AnchorDeserialize, AnchorSerialize,
@@ -492,8 +492,9 @@ impl PartialEq<CompressedToken> for ZCompressedToken<'_> {
                             crate::state::extensions::ZExtensionStruct::Compressible(zc_comp),
                             crate::state::extensions::ExtensionStruct::Compressible(regular_comp),
                         ) => {
-                            // Compare version
-                            if zc_comp.version != regular_comp.version {
+                            // Compare config_account_version
+                            if zc_comp.config_account_version != regular_comp.config_account_version
+                            {
                                 return false;
                             }
 
@@ -515,12 +516,21 @@ impl PartialEq<CompressedToken> for ZCompressedToken<'_> {
                             {
                                 return false;
                             }
-                            if zc_comp.rent_config.rent_per_byte
-                                != regular_comp.rent_config.rent_per_byte
+                            if zc_comp.rent_config.lamports_per_byte_per_epoch
+                                != regular_comp.rent_config.lamports_per_byte_per_epoch
                             {
                                 return false;
                             }
-
+                            if zc_comp.rent_config.max_write_top_up
+                                != regular_comp.rent_config.max_write_top_up
+                            {
+                                return false;
+                            }
+                            if zc_comp.rent_config.max_auto_topped_up_epochs
+                                != regular_comp.rent_config.max_auto_topped_up_epochs
+                            {
+                                return false;
+                            }
                             // Compare rent_authority ([u8; 32])
                             if zc_comp.rent_authority != regular_comp.rent_authority {
                                 return false;
@@ -789,9 +799,9 @@ impl CompressedTokenConfig {
             delegate,
             is_native,
             close_authority,
-            extensions: vec![ExtensionStructConfig::Compressible(
-                CompressibleExtensionConfig { rent_config: () },
-            )],
+            extensions: vec![ExtensionStructConfig::Compressible(CompressionInfoConfig {
+                rent_config: (),
+            })],
         }
     }
 }

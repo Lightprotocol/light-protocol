@@ -281,7 +281,7 @@ async fn test_compressible_account_with_rent_authority_lifecycle() -> Result<(),
     let tx_fee = 10_000; // Standard transaction fee
     assert_eq!(
         payer_balance_before - payer_balance_after,
-        14_830 + tx_fee,
+        11_348 + tx_fee,
         "Payer should have paid exactly 14,830 lamports for additional rent (1 epoch) plus {} tx fee",
         tx_fee
     );
@@ -834,7 +834,7 @@ async fn test_compress_and_close_with_rent_authority() -> Result<(), RpcError> {
             &token_account_pubkey,
             get_rent(
                 RentConfig::default().min_rent as u64,
-                RentConfig::default().rent_per_byte as u64,
+                RentConfig::default().lamports_per_byte_per_epoch as u64,
                 COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
                 1,
             ),

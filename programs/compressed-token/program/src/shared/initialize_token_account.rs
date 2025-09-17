@@ -1,10 +1,9 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::AccountInfoTrait;
-use light_compressible::config::CompressibleConfig;
+use light_compressible::{compression_info::ZCompressionInfoMut, config::CompressibleConfig};
 use light_ctoken_types::{
     instructions::extensions::compressible::CompressibleExtensionInstructionData,
-    state::{CompressibleExtension, ZCompressibleExtensionMut},
-    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+    state::CompressionInfo, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
@@ -66,7 +65,7 @@ pub fn initialize_token_account(
     if let Some(compressible_config) = compressible_config {
         let compressible_config_account =
             compressible_config_account.ok_or(ErrorCode::InvalidCompressAuthority)?;
-        // Split to get the actual CompressibleExtension data starting at byte 7
+        // Split to get the actual CompressionInfo data starting at byte 7
         let (extension_bytes, compressible_data) = extension_bytes.split_at_mut(7);
 
         // Manually set extension metadata
@@ -82,11 +81,11 @@ pub fn initialize_token_account(
         // Byte 6: Compressible enum discriminator = 26
         extension_bytes[6] = 26;
 
-        // Create zero-copy mutable reference to CompressibleExtension
-        let (mut compressible_extension, _) =
-            CompressibleExtension::zero_copy_at_mut(compressible_data).map_err(|e| {
+        // Create zero-copy mutable reference to CompressionInfo
+        let (mut compressible_extension, _) = CompressionInfo::zero_copy_at_mut(compressible_data)
+            .map_err(|e| {
                 msg!(
-                    "Failed to create CompressibleExtension zero-copy reference: {:?}",
+                    "Failed to create CompressionInfo zero-copy reference: {:?}",
                     e
                 );
                 ProgramError::InvalidAccountData
@@ -106,13 +105,13 @@ pub fn initialize_token_account(
 #[profile]
 #[inline(always)]
 fn configure_compressible_extension(
-    compressible_extension: &mut ZCompressibleExtensionMut<'_>,
+    compressible_extension: &mut ZCompressionInfoMut<'_>,
     compressible_config: CompressibleExtensionInstructionData,
     compressible_config_account: &CompressibleConfig,
     custom_fee_payer: Option<Pubkey>,
 ) -> Result<(), ProgramError> {
-    // Set version to 1 (initialized)
-    compressible_extension.version = compressible_config_account.version.into();
+    // Set config_account_version
+    compressible_extension.config_account_version = compressible_config_account.version.into();
 
     #[cfg(target_os = "solana")]
     let current_slot = Clock::get()
@@ -130,8 +129,17 @@ fn configure_compressible_extension(
         .rent_config
         .full_compression_incentive
         .into();
-    compressible_extension.rent_config.rent_per_byte =
-        compressible_config_account.rent_config.rent_per_byte;
+    compressible_extension
+        .rent_config
+        .lamports_per_byte_per_epoch = compressible_config_account
+        .rent_config
+        .lamports_per_byte_per_epoch;
+    compressible_extension.rent_config.max_write_top_up =
+        compressible_config_account.rent_config.max_write_top_up;
+    compressible_extension.rent_config.max_auto_topped_up_epochs = compressible_config_account
+        .rent_config
+        .max_auto_topped_up_epochs;
+
     // Set the rent_authority, rent_recipient and write_top_up_lamports
     compressible_extension.rent_authority = compressible_config_account.rent_authority.to_bytes();
     if let Some(custom_fee_payer) = custom_fee_payer {
@@ -143,6 +151,20 @@ fn configure_compressible_extension(
     } else {
         compressible_extension.rent_recipient =
             compressible_config_account.rent_recipient.to_bytes();
+    }
+
+    // Validate write_top_up doesn't exceed max_write_top_up limit
+    // The write_top_up is in lamports, while max_write_top_up is in kilolamports
+    let max_write_top_up_lamports = compressible_config_account
+        .rent_config
+        .get_max_top_up_per_lamport();
+    if compressible_config.write_top_up > max_write_top_up_lamports {
+        msg!(
+            "Write top up {} lamports exceeds maximum allowed value {} lamports",
+            compressible_config.write_top_up,
+            max_write_top_up_lamports
+        );
+        return Err(ProgramError::InvalidInstructionData);
     }
 
     compressible_extension
@@ -158,6 +180,6 @@ fn configure_compressible_extension(
         );
         return Err(ProgramError::InvalidInstructionData);
     }
-    compressible_extension.token_account_version = compressible_config.token_account_version;
+    compressible_extension.account_version = compressible_config.token_account_version;
     Ok(())
 }

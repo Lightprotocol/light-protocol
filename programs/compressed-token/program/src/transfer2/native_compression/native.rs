@@ -323,7 +323,7 @@ fn validate_compressed_token_account(
         .as_ref()
         .and_then(|ext| {
             if let Some(ZExtensionStructMut::Compressible(ext)) = ext.first() {
-                Some(ext.token_account_version)
+                Some(ext.account_version)
             } else {
                 None
             }

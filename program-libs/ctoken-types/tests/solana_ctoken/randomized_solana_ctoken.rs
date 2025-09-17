@@ -6,7 +6,7 @@
 // use light_ctoken_types::state::{
 //     extensions::ExtensionStructConfig,
 //     solana_ctoken::{CompressedToken, CompressedTokenConfig},
-//     CompressibleExtensionConfig, ZExtensionStruct, ZExtensionStructMut,
+//     CompressionInfoConfig, ZExtensionStruct, ZExtensionStructMut,
 // };
 // use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
 // use rand::{distributions::Standard, prelude::Distribution, Rng};
@@ -108,7 +108,7 @@
 //         account_data.push(1u8); // Some extensions
 //         account_data.extend_from_slice(&1u32.to_le_bytes()); // Vec length = 1
 //         account_data.push(26u8); // Compressible discriminant
-//                                  // CompressibleExtension: last_written_slot(8) + slots_until_compression(8) + rent_authority(32) + rent_recipient(32) = 80 bytes
+//                                  // CompressionInfo: last_written_slot(8) + slots_until_compression(8) + rent_authority(32) + rent_recipient(32) = 80 bytes
 //         account_data.extend_from_slice(&data.last_written_slot.to_le_bytes());
 //         account_data.extend_from_slice(&data.slots_until_compression.to_le_bytes());
 //         account_data.extend_from_slice(&data.rent_authority.to_bytes());
@@ -125,7 +125,7 @@
 //         close_authority: data.close_authority.is_some(),
 //         extensions: if data.has_extensions {
 //             vec![ExtensionStructConfig::Compressible(
-//                 CompressibleExtensionConfig {
+//                 CompressionInfoConfig {
 //                     write_top_up_lamports: true,
 //                     rent_authority: (true, ()),
 //                     rent_recipient: (true, ()),

@@ -30,7 +30,7 @@ pub struct CompressibleConfig {
 pub struct RentConfig {
     pub min_rent: u16,                   // 2 bytes - Minimum rent per epoch
     pub full_compression_incentive: u16, // 2 bytes - Compression cost + incentive
-    pub rent_per_byte: u8,               // 1 byte - Rent per byte per epoch
+    pub lamports_per_byte_per_epoch: u8,               // 1 byte - Rent per byte per epoch
     _place_holder_bytes: [u8; 3],       // 3 bytes - Padding for alignment
 }
 ```
@@ -132,7 +132,7 @@ let config = CompressibleConfig::try_deserialize(&mut &account_data[..])?;
 RentConfig {
     min_rent: 1220,                    // MIN_RENT constant
     full_compression_incentive: 11000, // COMPRESSION_COST + COMPRESSION_INCENTIVE
-    rent_per_byte: 10,                  // RENT_PER_BYTE constant
+    lamports_per_byte_per_epoch: 10,                  // RENT_PER_BYTE constant
 }
 
 // Default address space (V1)

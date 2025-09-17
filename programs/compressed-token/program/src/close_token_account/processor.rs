@@ -181,7 +181,10 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                         .map_err(|_| ProgramError::InvalidAccountData)?;
 
                 let min_rent: u64 = compressible_ext.rent_config.min_rent.into();
-                let rent_per_byte: u64 = compressible_ext.rent_config.rent_per_byte.into();
+                let lamports_per_byte_per_epoch: u64 = compressible_ext
+                    .rent_config
+                    .lamports_per_byte_per_epoch
+                    .into();
                 let full_compression_incentive: u64 = compressible_ext
                     .rent_config
                     .full_compression_incentive
@@ -195,7 +198,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                         compressible_ext.last_claimed_slot,
                         base_lamports,
                         min_rent,
-                        rent_per_byte,
+                        lamports_per_byte_per_epoch,
                         full_compression_incentive,
                     );
 

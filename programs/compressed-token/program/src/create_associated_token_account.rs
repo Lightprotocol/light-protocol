@@ -188,7 +188,9 @@ fn process_compressible_config<'info>(
 
     let rent = get_rent_with_compression_cost(
         compressible_config_account.rent_config.min_rent as u64,
-        compressible_config_account.rent_config.rent_per_byte as u64,
+        compressible_config_account
+            .rent_config
+            .lamports_per_byte_per_epoch as u64,
         token_account_size as u64,
         compressible_config_ix_data.rent_payment,
         compressible_config_account

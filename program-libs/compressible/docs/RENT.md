@@ -29,7 +29,7 @@ pub const SLOTS_PER_EPOCH: u64 = 432_000;       // Solana slots per epoch
 pub struct RentConfig {
     pub min_rent: u16,                   // Minimum rent per epoch
     pub full_compression_incentive: u16, // Total compression cost + incentive
-    pub rent_per_byte: u8,               // Rent per byte per epoch
+    pub lamports_per_byte_per_epoch: u8,               // Rent per byte per epoch
     _place_holder_bytes: [u8; 3],       // Padding
 }
 ```
@@ -46,11 +46,11 @@ pub struct RentConfig {
 
 #### `rent_curve_per_epoch`
 ```rust
-pub fn rent_curve_per_epoch(min_rent: u64, rent_per_byte: u64, num_bytes: u64) -> u64
+pub fn rent_curve_per_epoch(min_rent: u64, lamports_per_byte_per_epoch: u64, num_bytes: u64) -> u64
 ```
 Calculates rent required per epoch for an account of given size.
 
-**Formula:** `min_rent + (num_bytes * rent_per_byte)`
+**Formula:** `min_rent + (num_bytes * lamports_per_byte_per_epoch)`
 
 **Use:** Base calculation for all rent operations
 
@@ -58,7 +58,7 @@ Calculates rent required per epoch for an account of given size.
 
 #### `get_rent`
 ```rust
-pub fn get_rent(min_rent: u64, rent_per_byte: u64, num_bytes: u64, epochs: u64) -> u64
+pub fn get_rent(min_rent: u64, lamports_per_byte_per_epoch: u64, num_bytes: u64, epochs: u64) -> u64
 ```
 Calculates total rent for multiple epochs.
 
@@ -89,7 +89,7 @@ pub fn calculate_rent_and_balance(
     last_claimed_slot: impl ZeroCopyNumTrait,
     rent_exemption_lamports: u64,
     min_rent: u64,
-    rent_per_byte: u64,
+    lamports_per_byte_per_epoch: u64,
     full_compression_incentive: u64,
 ) -> (bool, u64)
 ```
@@ -118,7 +118,7 @@ pub fn claimable_lamports(
     last_claimed_slot: impl ZeroCopyNumTrait,
     rent_exemption_lamports: u64,
     min_rent: u64,
-    rent_per_byte: u64,
+    lamports_per_byte_per_epoch: u64,
     full_compression_incentive: u64,
 ) -> Option<u64>
 ```
@@ -146,7 +146,7 @@ pub fn calculate_close_lamports(
     last_claimed_slot: impl ZeroCopyNumTrait,
     rent_exemption_lamports: u64,
     min_rent: u64,
-    rent_per_byte: u64,
+    lamports_per_byte_per_epoch: u64,
     full_compression_incentive: u64,
 ) -> (u64, u64)
 ```
@@ -172,7 +172,7 @@ pub fn calculate_rent_inner<const INCLUDE_CURRENT: bool>(
     last_claimed_slot: impl ZeroCopyNumTrait,
     rent_exemption_lamports: u64,
     min_rent: u64,
-    rent_per_byte: u64,
+    lamports_per_byte_per_epoch: u64,
     full_compression_incentive: u64,
 ) -> (u64, u64, u64, u64)
 ```
@@ -196,7 +196,7 @@ pub fn get_last_paid_epoch(
     last_claimed_slot: impl ZeroCopyNumTrait,
     rent_exemption_lamports: u64,
     min_rent: u64,
-    rent_per_byte: u64,
+    lamports_per_byte_per_epoch: u64,
     full_compression_incentive: u64,
 ) -> u64
 ```

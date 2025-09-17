@@ -3,7 +3,7 @@ use light_client::rpc::Rpc;
 use light_compressed_token_sdk::instructions::create_associated_token_account::derive_ctoken_ata;
 use light_compressible::rent::{get_rent_with_compression_cost, RentConfig};
 use light_ctoken_types::{
-    state::{extensions::CompressibleExtension, solana_ctoken::CompressedToken},
+    state::{extensions::CompressionInfo, solana_ctoken::CompressedToken},
     BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_zero_copy::traits::ZeroCopyAt;
@@ -55,7 +55,7 @@ pub async fn assert_create_token_account<R: Rpc>(
 
             let rent_with_compression = get_rent_with_compression_cost(
                 RentConfig::default().min_rent as u64,
-                RentConfig::default().rent_per_byte as u64,
+                RentConfig::default().lamports_per_byte_per_epoch as u64,
                 COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
                 compressible_info.num_prepaid_epochs,
                 RentConfig::default().full_compression_incentive as u64,
@@ -87,8 +87,8 @@ pub async fn assert_create_token_account<R: Rpc>(
                 close_authority: None,
                 extensions: Some(vec![
                     light_ctoken_types::state::extensions::ExtensionStruct::Compressible(
-                        CompressibleExtension {
-                            version: 1,
+                        CompressionInfo {
+                            config_account_version: 1,
                             last_claimed_slot: current_slot,
                             rent_config: RentConfig::default(),
                             write_top_up_lamports: compressible_info
@@ -97,7 +97,7 @@ pub async fn assert_create_token_account<R: Rpc>(
                             rent_authority: compressible_info.rent_authority.to_bytes(),
                             rent_recipient: compressible_info.rent_recipient.to_bytes(),
                             compress_to_pubkey: 0,
-                            token_account_version: 3, // Default to ShaFlat version
+                            account_version: 3, // Default to ShaFlat version
                         },
                     ),
                 ]),

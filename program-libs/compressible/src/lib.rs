@@ -1,3 +1,4 @@
+pub mod compression_info;
 pub mod config;
 pub mod error;
 pub mod rent;
