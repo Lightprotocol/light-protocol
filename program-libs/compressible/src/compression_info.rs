@@ -88,6 +88,58 @@ macro_rules! impl_is_compressible {
             pub fn compress_to_pubkey(&self) -> bool {
                 self.compress_to_pubkey != 0
             }
+
+            /// Calculate the amount of lamports to top up during a write operation.
+            /// Returns 0 if no top-up is needed (account is well-funded).
+            /// Returns write_top_up + rent_deficit if account is compressible.
+            /// Returns write_top_up if account needs more funding but isn't compressible yet.
+            pub fn calculate_top_up_lamports(
+                &self,
+                bytes: u64,
+                current_slot: u64,
+                current_lamports: u64,
+                write_top_up_lamports: u32,
+            ) -> Result<u64, CompressibleError> {
+                let rent_exemption_lamports = get_rent_exemption_lamports(bytes)?;
+                let min_rent: u64 = self.rent_config.min_rent.into();
+                let lamports_per_byte_per_epoch: u64 =
+                    self.rent_config.lamports_per_byte_per_epoch.into();
+                let full_compression_incentive: u64 =
+                    self.rent_config.full_compression_incentive.into();
+
+                // Calculate rent status using the internal function to avoid duplication
+                let (required_epochs, rent_per_epoch, epochs_paid, unutilized_lamports) =
+                    calculate_rent_inner::<true>(
+                        bytes,
+                        current_slot,
+                        current_lamports,
+                        self.last_claimed_slot,
+                        rent_exemption_lamports,
+                        min_rent,
+                        lamports_per_byte_per_epoch,
+                        full_compression_incentive,
+                    );
+
+                let is_compressible = epochs_paid < required_epochs;
+
+                if is_compressible {
+                    // Account is compressible, return write_top_up + rent deficit
+                    let epochs_payable = required_epochs.saturating_sub(epochs_paid);
+                    let payable = epochs_payable * rent_per_epoch + full_compression_incentive;
+                    let rent_deficit = payable.saturating_sub(unutilized_lamports);
+                    Ok(write_top_up_lamports as u64 + rent_deficit)
+                } else {
+                    // Account is not compressible, check if we should still top up
+                    let epochs_funded_ahead = epochs_paid.saturating_sub(required_epochs);
+
+                    // Skip top-up if already funded for max_auto_topped_up_epochs or more
+                    if epochs_funded_ahead >= self.rent_config.max_auto_topped_up_epochs as u64 {
+                        Ok(0)
+                    } else {
+                        Ok(write_top_up_lamports as u64)
+                    }
+                }
+            }
         }
     };
 }

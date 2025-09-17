@@ -80,26 +80,19 @@ fn update_compressible_accounts_last_written_slot(
             if let Some(extensions) = token.extensions.as_ref() {
                 for extension in extensions.iter() {
                     if let ZExtensionStruct::Compressible(compressible_extension) = extension {
-                        {
-                            transfers[i] =
-                                u32::from(compressible_extension.write_top_up_lamports) as u64;
+                        use pinocchio::sysvars::{clock::Clock, Sysvar};
+                        let current_slot = Clock::get()
+                            .map_err(|_| CTokenError::SysvarAccessError)?
+                            .slot;
 
-                            use pinocchio::sysvars::{clock::Clock, Sysvar};
-                            let current_slot = Clock::get()
-                                .map_err(|_| CTokenError::SysvarAccessError)?
-                                .slot;
-
-                            let (is_compressible, required_funds) = compressible_extension
-                                .is_compressible(
-                                    account.data_len() as u64,
-                                    current_slot,
-                                    account.lamports(),
-                                )
-                                .map_err(|_| CTokenError::InvalidAccountData)?;
-                            if is_compressible {
-                                transfers[i] += required_funds;
-                            }
-                        }
+                        transfers[i] = compressible_extension
+                            .calculate_top_up_lamports(
+                                account.data_len() as u64,
+                                current_slot,
+                                account.lamports(),
+                                compressible_extension.write_top_up_lamports.into(),
+                            )
+                            .map_err(|_| CTokenError::InvalidAccountData)?;
                     }
                 }
             }

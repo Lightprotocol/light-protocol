@@ -146,25 +146,20 @@ pub fn native_compression(
             if let Some(extensions) = compressed_token.extensions.as_ref() {
                 for extension in extensions.iter() {
                     if let ZExtensionStructMut::Compressible(compressible_extension) = extension {
-                        {
-                            let mut transfer_amount: u64 =
-                                u32::from(compressible_extension.write_top_up_lamports) as u64;
+                        use pinocchio::sysvars::{clock::Clock, Sysvar};
+                        let current_slot = Clock::get()
+                            .map_err(|_| CTokenError::SysvarAccessError)?
+                            .slot;
 
-                            use pinocchio::sysvars::{clock::Clock, Sysvar};
-                            let current_slot = Clock::get()
-                                .map_err(|_| CTokenError::SysvarAccessError)?
-                                .slot;
-
-                            let data_len = token_account_info.data_len() as u64;
-                            let lamports = token_account_info.lamports();
-                            let (is_compressible, rent_deficit) = compressible_extension
-                                .is_compressible(data_len, current_slot, lamports)
-                                .map_err(|_| CTokenError::InvalidAccountData)?;
-                            if is_compressible {
-                                transfer_amount += rent_deficit;
-                            }
-                            transfers.push(transfer_amount);
-                        }
+                        let transfer_amount = compressible_extension
+                            .calculate_top_up_lamports(
+                                token_account_info.data_len() as u64,
+                                current_slot,
+                                token_account_info.lamports(),
+                                compressible_extension.write_top_up_lamports.into(),
+                            )
+                            .map_err(|_| CTokenError::InvalidAccountData)?;
+                        transfers.push(transfer_amount);
                     }
                 }
             }
@@ -180,28 +175,21 @@ pub fn native_compression(
             if let Some(extensions) = compressed_token.extensions.as_ref() {
                 for extension in extensions.iter() {
                     if let ZExtensionStructMut::Compressible(compressible_extension) = extension {
-                        {
-                            let mut transfer_amount: u64 =
-                                u32::from(compressible_extension.write_top_up_lamports) as u64;
+                        use pinocchio::sysvars::{clock::Clock, Sysvar};
+                        let current_slot = Clock::get()
+                            .map_err(|_| CTokenError::SysvarAccessError)?
+                            .slot;
 
-                            use pinocchio::sysvars::{clock::Clock, Sysvar};
-                            let current_slot = Clock::get()
-                                .map_err(|_| CTokenError::SysvarAccessError)?
-                                .slot;
+                        let transfer_amount = compressible_extension
+                            .calculate_top_up_lamports(
+                                token_account_info.data_len() as u64,
+                                current_slot,
+                                token_account_info.lamports(),
+                                compressible_extension.write_top_up_lamports.into(),
+                            )
+                            .map_err(|_| CTokenError::InvalidAccountData)?;
 
-                            let (is_compressible, rent_deficit) = compressible_extension
-                                .is_compressible(
-                                    token_account_info.data_len() as u64,
-                                    current_slot,
-                                    token_account_info.lamports(),
-                                )
-                                .map_err(|_| CTokenError::InvalidAccountData)?;
-                            if is_compressible {
-                                transfer_amount += rent_deficit;
-                            }
-
-                            transfers.push(transfer_amount);
-                        }
+                        transfers.push(transfer_amount);
                     }
                 }
             }
