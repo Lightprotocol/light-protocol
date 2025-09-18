@@ -99,7 +99,7 @@ fn test_rnd_create_output_compressed_accounts() {
                 None
             };
 
-            set_output_compressed_account::<false>(
+            set_output_compressed_account(
                 output_account,
                 &mut hash_cache,
                 owner_pubkeys[index],

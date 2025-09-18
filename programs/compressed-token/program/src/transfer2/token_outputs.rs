@@ -49,7 +49,7 @@ pub fn set_output_compressed_accounts(
         } else {
             None
         };
-        set_output_compressed_account::<false>(
+        set_output_compressed_account(
             cpi_instruction_struct
                 .output_compressed_accounts
                 .get_mut(i)

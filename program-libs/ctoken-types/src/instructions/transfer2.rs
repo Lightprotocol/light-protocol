@@ -318,5 +318,6 @@ pub struct CompressedTokenInstructionDataTransfer2 {
     pub in_tlv: Option<Vec<Vec<u8>>>,
     pub out_tlv: Option<Vec<Vec<u8>>>,
     pub compressions: Option<Vec<Compression>>,
+    // TODO: add new cpi context that doesn't include the cpi context account index
     pub cpi_context: Option<CompressedCpiContext>,
 }

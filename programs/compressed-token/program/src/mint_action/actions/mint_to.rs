@@ -116,7 +116,7 @@ fn create_output_compressed_token_accounts(
         .zip(output_compressed_accounts.iter_mut())
     {
         let output_delegate = None;
-        set_output_compressed_account::<false>(
+        set_output_compressed_account(
             output_account,
             hash_cache,
             recipient.recipient,

@@ -436,7 +436,7 @@ pub fn create_spl_to_ctoken_transfer_instruction(
     amount: u64,
     authority: Pubkey,
     mint: Pubkey,
-    _payer: Pubkey,
+    payer: Pubkey,
     token_pool_pda: Pubkey,
     token_pool_pda_bump: u8,
 ) -> Result<Instruction, TokenSdkError> {
@@ -466,8 +466,8 @@ pub fn create_spl_to_ctoken_transfer_instruction(
             0, // mint
             3, // source or recpient
             2, // authority
-            4, //
-            0,
+            4, // pool_account_index:
+            0, // pool_index
             token_pool_pda_bump,
         )),
         delegate_is_set: false,
@@ -486,7 +486,10 @@ pub fn create_spl_to_ctoken_transfer_instruction(
     let inputs = Transfer2Inputs {
         validity_proof: ValidityProof::default(),
         transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
-        meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(packed_accounts),
+        meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
+            payer,
+            packed_accounts,
+        ),
         in_lamports: None,
         out_lamports: None,
         token_accounts: vec![wrap_spl_to_ctoken_account, ctoken_account],
@@ -504,7 +507,7 @@ pub fn create_ctoken_to_spl_transfer_instruction(
     amount: u64,
     authority: Pubkey,
     mint: Pubkey,
-    _payer: Pubkey,
+    payer: Pubkey,
     token_pool_pda: Pubkey,
     token_pool_pda_bump: u8,
 ) -> Result<Instruction, TokenSdkError> {
@@ -559,7 +562,10 @@ pub fn create_ctoken_to_spl_transfer_instruction(
     let inputs = Transfer2Inputs {
         validity_proof: ValidityProof::default(),
         transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
-        meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(packed_accounts),
+        meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
+            payer,
+            packed_accounts,
+        ),
         in_lamports: None,
         out_lamports: None,
         token_accounts: vec![compress_to_pool, decompress_to_spl],

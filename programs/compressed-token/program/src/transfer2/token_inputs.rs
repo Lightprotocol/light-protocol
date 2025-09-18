@@ -29,7 +29,7 @@ pub fn set_input_compressed_accounts(
             0
         };
 
-        set_input_compressed_account::<false>(
+        set_input_compressed_account(
             cpi_instruction_struct
                 .input_compressed_accounts
                 .get_mut(i)

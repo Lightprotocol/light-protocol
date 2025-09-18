@@ -403,6 +403,10 @@ pub enum ErrorCode {
     InvalidAddressTree,
     #[msg("Too many compression transfers. Maximum 40 transfers allowed per instruction")]
     TooManyCompressionTransfers,
+    #[msg("Missing fee payer for compressions-only operation")]
+    CompressionsOnlyMissingFeePayer,
+    #[msg("Missing CPI authority PDA for compressions-only operation")]
+    CompressionsOnlyMissingCpiAuthority,
 }
 
 impl From<ErrorCode> for ProgramError {

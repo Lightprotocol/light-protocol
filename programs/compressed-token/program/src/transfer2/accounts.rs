@@ -18,7 +18,8 @@ pub struct Transfer2Accounts<'info> {
     //_light_system_program: &'info AccountInfo,
     pub system: Option<LightSystemAccounts<'info>>,
     pub write_to_cpi_context_system: Option<CpiContextLightSystemAccounts<'info>>,
-    pub decompressed_only_cpi_authority_pda: Option<&'info AccountInfo>,
+    pub compressions_only_fee_payer: Option<&'info AccountInfo>,
+    pub compressions_only_cpi_authority_pda: Option<&'info AccountInfo>,
     /// Contains mint, owner, delegate, merkle tree, and queue accounts
     /// tree and queue accounts come last.
     pub packed_accounts: ProgramPackedAccounts<'info, AccountInfo>,
@@ -54,14 +55,19 @@ impl<'info> Transfer2Accounts<'info> {
             } else {
                 None
             };
-        let decompressed_only_cpi_authority_pda =
-            iter.next_option("cpi authority pda", config.no_compressed_accounts)?;
+        let compressions_only_cpi_authority_pda = iter.next_option(
+            "compressions only cpi authority pda",
+            config.no_compressed_accounts,
+        )?;
+        let compressions_only_fee_payer =
+            iter.next_option("compressions only fee payer", config.no_compressed_accounts)?;
         // Extract remaining accounts slice for dynamic indexing
         let packed_accounts = iter.remaining()?;
         Ok(Transfer2Accounts {
             system,
             write_to_cpi_context_system,
-            decompressed_only_cpi_authority_pda,
+            compressions_only_fee_payer,
+            compressions_only_cpi_authority_pda,
             packed_accounts: ProgramPackedAccounts {
                 accounts: packed_accounts,
             },

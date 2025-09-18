@@ -66,8 +66,10 @@ Every instruction description must include the sections:
    - **Config validation:** Not inactive (active or deprecated OK)
 
 ### Token Operations
-5. **Transfer2** - `src/transfer2/` (discriminator: 104, enum: `CTokenInstruction::Transfer2`)
-   - Compress, Decompress, DecompressAndClose operations
+5. **Transfer2** - [`docs/instructions/TRANSFER2.md`](docs/instructions/TRANSFER2.md)
+   - Batch transfer instruction for compressed/decompressed operations (discriminator: 104, enum: `CTokenInstruction::Transfer2`)
+   - Supports Compress, Decompress, CompressAndClose operations
+   - Multi-mint support with sum checks
 
 6. **MintAction** - `src/mint_action/` (discriminator: 106, enum: `CTokenInstruction::MintAction`)
    - Mint to compressed/decompressed accounts

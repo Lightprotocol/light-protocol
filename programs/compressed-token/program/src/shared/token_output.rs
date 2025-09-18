@@ -13,8 +13,58 @@ use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyNew};
 /// 1. Set token account data
 /// 2. Create token account data hash
 /// 3. Set output compressed account
+#[inline(always)]
+pub fn set_output_compressed_account(
+    output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
+    hash_cache: &mut HashCache,
+    owner: Pubkey,
+    delegate: Option<Pubkey>,
+    amount: impl ZeroCopyNumTrait,
+    lamports: Option<impl ZeroCopyNumTrait>,
+    mint_pubkey: Pubkey,
+    merkle_tree_index: u8,
+    version: u8,
+) -> Result<(), ProgramError> {
+    set_output_compressed_account_inner::<false>(
+        output_compressed_account,
+        hash_cache,
+        owner,
+        delegate,
+        amount,
+        lamports,
+        mint_pubkey,
+        merkle_tree_index,
+        version,
+    )
+}
+
+#[inline(always)]
+pub fn set_output_compressed_account_frozen(
+    output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
+    hash_cache: &mut HashCache,
+    owner: Pubkey,
+    delegate: Option<Pubkey>,
+    amount: impl ZeroCopyNumTrait,
+    lamports: Option<impl ZeroCopyNumTrait>,
+    mint_pubkey: Pubkey,
+    merkle_tree_index: u8,
+    version: u8,
+) -> Result<(), ProgramError> {
+    set_output_compressed_account_inner::<true>(
+        output_compressed_account,
+        hash_cache,
+        owner,
+        delegate,
+        amount,
+        lamports,
+        mint_pubkey,
+        merkle_tree_index,
+        version,
+    )
+}
+
 #[allow(clippy::too_many_arguments)]
-pub fn set_output_compressed_account<const IS_FROZEN: bool>(
+fn set_output_compressed_account_inner<const IS_FROZEN: bool>(
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
     hash_cache: &mut HashCache,
     owner: Pubkey,
@@ -84,7 +134,11 @@ pub fn set_output_compressed_account<const IS_FROZEN: bool>(
         }
     };
     // 3. Set output compressed account
-    let lamports_value = lamports.unwrap_or(0u64.into()).into();
+    let lamports_value = if let Some(value) = lamports {
+        value.into()
+    } else {
+        0u64.into()
+    };
     output_compressed_account.set(
         crate::ID.into(),
         lamports_value,

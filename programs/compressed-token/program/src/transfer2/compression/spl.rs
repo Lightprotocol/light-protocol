@@ -21,7 +21,7 @@ pub(super) fn process_spl_compressions(
     token_account_info: &AccountInfo,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     cpi_authority: &AccountInfo,
-) -> Result<(), ProgramError> {
+) -> Result<Option<(u8, u64)>, ProgramError> {
     let mode = &compression.mode;
 
     validate_compression_mode_fields(compression)?;
@@ -51,7 +51,7 @@ pub(super) fn process_spl_compressions(
                 token_pool_account_info,
                 authority,
                 u64::from(*compression.amount),
-            )
+            )?;
         }
         ZCompressionMode::Decompress => spl_token_transfer_invoke_cpi(
             token_program,
@@ -59,13 +59,16 @@ pub(super) fn process_spl_compressions(
             token_account_info,
             cpi_authority,
             u64::from(*compression.amount),
-        ),
+        )?,
         ZCompressionMode::CompressAndClose => {
             msg!("CompressAndClose is unimplemented for spl token accounts");
             unimplemented!()
         }
     }
+    // SPL token compressions don't require lamport transfers for compressible extension
+    Ok(None)
 }
+
 #[profile]
 #[inline(always)]
 fn spl_token_transfer_invoke_cpi(

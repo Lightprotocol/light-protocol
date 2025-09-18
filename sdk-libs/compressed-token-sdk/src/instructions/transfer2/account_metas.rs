@@ -30,9 +30,12 @@ impl Transfer2AccountsMetaConfig {
         }
     }
 
-    pub fn new_decompressed_accounts_only(packed_accounts: Vec<AccountMeta>) -> Self {
+    pub fn new_decompressed_accounts_only(
+        fee_payer: Pubkey,
+        packed_accounts: Vec<AccountMeta>,
+    ) -> Self {
         Self {
-            fee_payer: None,
+            fee_payer: Some(fee_payer),
             sol_pool_pda: None,
             sol_decompression_recipient: None,
             cpi_context: None,
@@ -95,14 +98,23 @@ pub fn get_transfer2_instruction_account_metas(
         if let Some(cpi_context) = config.cpi_context {
             metas.push(AccountMeta::new(cpi_context, false));
         }
-    } else if config.cpi_context.is_some() || config.with_sol_pool || config.fee_payer.is_some() {
+    } else if config.cpi_context.is_some() || config.with_sol_pool {
         // TODO: replace with error
-        unimplemented!("config.cpi_context.is_some() {}, config.with_sol_pool {}, config.fee_payer.is_some() {} must all be false", config.cpi_context.is_some(), config.with_sol_pool,config.fee_payer.is_some());
+        unimplemented!(
+            "config.cpi_context.is_some() {}, config.with_sol_pool {} must both be false",
+            config.cpi_context.is_some(),
+            config.with_sol_pool
+        );
     } else {
+        // For decompressed accounts only, add compressions_only_cpi_authority_pda first
         metas.push(AccountMeta::new_readonly(
             Pubkey::new_from_array(CPI_AUTHORITY_PDA),
             false,
         ));
+        // Then add compressions_only_fee_payer if provided
+        if let Some(fee_payer) = config.fee_payer {
+            metas.push(AccountMeta::new(fee_payer, true));
+        }
     }
     if let Some(packed_accounts) = config.packed_accounts.as_ref() {
         for account in packed_accounts {

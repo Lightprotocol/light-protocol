@@ -13,11 +13,45 @@ use pinocchio::account_info::AccountInfo;
 
 use crate::shared::owner_validation::verify_owner_or_delegate_signer;
 
+#[inline(always)]
+pub fn set_input_compressed_account(
+    input_compressed_account: &mut ZInAccountMut,
+    hash_cache: &mut HashCache,
+    input_token_data: &ZMultiInputTokenDataWithContext,
+    accounts: &[AccountInfo],
+    lamports: u64,
+) -> std::result::Result<(), ProgramError> {
+    set_input_compressed_account_inner::<false>(
+        input_compressed_account,
+        hash_cache,
+        input_token_data,
+        accounts,
+        lamports,
+    )
+}
+
+#[inline(always)]
+pub fn set_input_compressed_account_frozen(
+    input_compressed_account: &mut ZInAccountMut,
+    hash_cache: &mut HashCache,
+    input_token_data: &ZMultiInputTokenDataWithContext,
+    accounts: &[AccountInfo],
+    lamports: u64,
+) -> std::result::Result<(), ProgramError> {
+    set_input_compressed_account_inner::<true>(
+        input_compressed_account,
+        hash_cache,
+        input_token_data,
+        accounts,
+        lamports,
+    )
+}
+
 /// Creates an input compressed account using zero-copy patterns and index-based account lookup.
 ///
 /// Validates signer authorization (owner or delegate), populates the zero-copy account structure,
 /// and computes the appropriate token data hash based on frozen state.
-pub fn set_input_compressed_account<const IS_FROZEN: bool>(
+fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
     input_compressed_account: &mut ZInAccountMut,
     hash_cache: &mut HashCache,
     input_token_data: &ZMultiInputTokenDataWithContext,

@@ -29,3 +29,4 @@ every instruction description must include the sections:
     - **Errors** possible errors and description what causes these errors
 
 1. create ctoken account & create associated ctoken account (idempotent)
+2. transfer2 - batch transfer instruction
