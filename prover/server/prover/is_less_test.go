@@ -1,7 +1,7 @@
 package prover
 
 import (
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
+	"github.com/reilabs/gnark-lean-extractor/v3/abstractor"
 	"math/big"
 	"testing"
 
