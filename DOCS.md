@@ -102,6 +102,7 @@ Every instruction must include:
   - Key state changes
   - Usage scenarios
   - Config validation requirements (if applicable)
+  - Any important notes or considerations (do NOT add a separate "Notes" section)
 
 - **instruction_data** - Path to instruction data struct with field descriptions
 
@@ -127,6 +128,11 @@ Every instruction must include:
 - **CPIs** - Cross-program invocations with target programs and data
 - **Events** - Emitted events and their data
 - **Security considerations** - Attack vectors and mitigations
+
+**Anti-patterns to avoid:**
+- Generic performance optimization comments (e.g., "uses X for performance")
+- Implementation details that don't affect usage
+- Internal optimizations unless they have security implications
 
 **Examples:**
 - `programs/compressed-token/program/docs/instructions/`
