@@ -3246,7 +3246,7 @@ pub mod local_sdk {
         /// If the provided `pubkey` is not a part of the collection, it gets
         /// inserted with a `next_index`.
         ///
-        /// If the privided `pubkey` already exists in the collection, its already
+        /// If the provided `pubkey` already exists in the collection, its already
         /// existing index is returned.
         pub fn insert_or_get(&mut self, pubkey: Pubkey) -> u8 {
             self.insert_or_get_config(pubkey, false, true)
