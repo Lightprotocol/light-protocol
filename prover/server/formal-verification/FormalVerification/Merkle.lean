@@ -9,22 +9,22 @@ import Mathlib
 open LightProver (F Order Gates)
 open LightProver renaming MerkleRootGadget_32_32_32 → StateMerkleRootGadget,
                           MerkleRootGadget_40_40_40 → AddressMerkleRootGadget,
-                          InclusionProof_10_10_10_32_10_10_32 → InclusionProof,
-                          TwoInputsHashChain_10_10 → TwoInputsHashChain_B_B,
-                          HashChain_10 → HashChain_B,
-                          InclusionCircuit_10_10_10_32_10_10_32 → InclusionCircuit,
-                          NonInclusionProof_10_10_10_10_10_40_10_10_40 → NonInclusionProof,
-                          NonInclusionCircuit_10_10_10_10_10_40_10_10_40 → NonInclusionCircuit,
-                          CombinedCircuit_10_10_10_32_10_10_10_10_10_10_40_10 → CombinedCircuit,
+                          InclusionProof_8_8_8_32_8_8_32 → InclusionProof,
+                          TwoInputsHashChain_8_8 → TwoInputsHashChain_B_B,
+                          HashChain_8 → HashChain_B,
+                          InclusionCircuit_8_8_8_32_8_8_32 → InclusionCircuit,
+                          NonInclusionProof_8_8_8_8_8_40_8_8_40 → NonInclusionProof,
+                          NonInclusionCircuit_8_8_8_8_8_40_8_8_40 → NonInclusionCircuit,
+                          CombinedCircuit_8_8_8_32_8_8_8_8_8_8_40_8 → CombinedCircuit,
                           MerkleRootUpdateGadget_32_32_32 → StateMerkleRootUpdateGadget,
                           MerkleRootUpdateGadget_40_40_40 → AddressMerkleRootUpdateGadget,
-                          BatchAppendWithProofsCircuit_10_10_32_10_32_10 → BatchAppendWithProofsCircuit,
-                          BatchUpdateCircuit_10_10_10_32_10_10_32_10 → BatchUpdateCircuit,
-                          BatchAddressTreeAppendCircuit_10_10_10_40_10_10_40_10_10_40 → BatchAddressTreeAppendCircuit
+                          BatchAppendCircuit_8_8_32_8_32_8 → BatchAppendWithProofsCircuit,
+                          BatchUpdateCircuit_8_8_8_32_8_8_32_8 → BatchUpdateCircuit,
+                          BatchAddressTreeAppendCircuit_8_8_8_40_8_8_40_8_8_40 → BatchAddressTreeAppendCircuit
 
 private abbrev SD := 32
 private abbrev AD := 40
-private abbrev B := 10
+private abbrev B := 8
 
 def hashLevel (d : Bool) (s h : F): F := match d with
 | false => poseidon₂ vec![h,s]
@@ -1289,7 +1289,7 @@ theorem BatchAddressLoop_rw1 :
     BatchAddressTreeAppendCircuit pih oldRoot newRoot hch si lev lenv lei lep elements nep ↔
     BatchAddressLoop oldRoot si 0 lev lenv lei lep elements nep fun nr =>
       Gates.eq newRoot nr ∧
-      LightProver.HashChain_10 elements fun gate_65 =>
+      LightProver.HashChain_8 elements fun gate_65 =>
       Gates.eq hch gate_65 ∧
       LightProver.HashChain_4 vec![oldRoot, newRoot, hch, si] fun gate_67 =>
       Gates.eq pih gate_67 ∧
