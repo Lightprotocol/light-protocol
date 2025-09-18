@@ -5,7 +5,7 @@ import (
 	"light/light-prover/prover/poseidon"
 	"math/big"
 
-	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
+	"github.com/reilabs/gnark-lean-extractor/v3/abstractor"
 
 	"github.com/consensys/gnark/frontend"
 )

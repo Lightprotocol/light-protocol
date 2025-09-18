@@ -3,7 +3,7 @@ package prover
 import (
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
-	"github.com/reilabs/gnark-lean-extractor/v2/extractor"
+	"github.com/reilabs/gnark-lean-extractor/v3/extractor"
 )
 
 func ExtractLean(stateTreeHeight uint32, addressTreeHeight uint32, numberOfCompressedAccounts uint32) (string, error) {
