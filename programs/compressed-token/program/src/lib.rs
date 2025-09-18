@@ -37,7 +37,7 @@ pub const LIGHT_CPI_SIGNER: CpiSigner =
 
 pub const MAX_ACCOUNTS: usize = 30;
 
-// Start light token instructions at 100 to skip spl-token program instrutions.
+// Custom ctoken instructions start at 100 to skip spl-token program instrutions.
 // When adding new instructions check anchor discriminators for collisions!
 #[repr(u8)]
 pub enum InstructionType {
@@ -49,6 +49,11 @@ pub enum InstructionType {
     CreateTokenAccount = 18,
     // TODO: start at 100
     CreateAssociatedTokenAccount = 103,
+    /// Batch instruction for ctoken transfers:
+    ///     1. transfer compressed tokens
+    ///     2. compress ctokens/spl tokens
+    ///     3. decompress ctokens/spl tokens
+    ///     4. compress and close ctokens/spl tokens
     Transfer2 = 104,
     CreateAssociatedTokenAccountIdempotent = 105,
     /// Batch instruction for operation on one compressed Mint account:

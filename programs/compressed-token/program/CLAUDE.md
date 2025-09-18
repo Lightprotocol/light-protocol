@@ -57,12 +57,12 @@ Every instruction description must include the sections:
    - Returns remaining lamports to destination account
 
 ### Rent Management
-3. **Claim** - `src/claim/` (discriminator: 107, enum: `CTokenInstruction::Claim`)
-   - Claims rent from expired compressible accounts
+3. **Claim** - [`docs/instructions/CLAIM.md`](docs/instructions/CLAIM.md)
+   - Claims rent from expired compressible accounts (discriminator: 107, enum: `CTokenInstruction::Claim`)
    - **Config validation:** Not inactive (active or deprecated OK)
 
-4. **Withdraw Funding Pool** - `src/withdraw_funding_pool.rs` (discriminator: 108, enum: `CTokenInstruction::WithdrawFundingPool`)
-   - Withdraws funds from rent recipient pool
+4. **Withdraw Funding Pool** - [`docs/instructions/WITHDRAW_FUNDING_POOL.md`](docs/instructions/WITHDRAW_FUNDING_POOL.md)
+   - Withdraws funds from rent recipient pool (discriminator: 108, enum: `CTokenInstruction::WithdrawFundingPool`)
    - **Config validation:** Not inactive (active or deprecated OK)
 
 ### Token Operations
@@ -113,6 +113,11 @@ All state and instruction data structures are defined in **`program-libs/ctoken-
 - **`state/extensions/`** - Extension data (Compressible, TokenMetadata)
 
 **Why separate crate:** Data structures are isolated from program logic so SDKs can import types without pulling in program dependencies.
+
+## Error Codes
+Custom error codes are defined in **`programs/compressed-token/anchor/src/lib.rs`** (`anchor_compressed_token::ErrorCode` enum):
+- Contains all program-specific error codes used across compressed token operations
+- Errors are returned as `ProgramError::Custom(error_code as u32)` on-chain
 
 ## SDKs (`sdk-libs/`)
 - **`compressed-token-sdk/`** - SDK for programs to interact with compressed tokens (CPIs, instruction builders)

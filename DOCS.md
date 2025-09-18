@@ -120,9 +120,9 @@ Every instruction must include:
   5. CPIs (if any)
 
 - **Errors** - Comprehensive error list:
-  - Error code/type
-  - Triggering condition
-  - Example scenario
+  - Use format: `ErrorType::Variant` (error code: N) - Description
+  - Include actual numeric codes that appear in transaction logs
+  - Group related errors together for clarity
 
 **Optional sections:**
 - **CPIs** - Cross-program invocations with target programs and data
@@ -139,18 +139,44 @@ Every instruction must include:
 
 ### 2.3 Error Documentation
 
-Document all custom error codes:
+Document all error codes that can be returned:
 
-**Required for each error:**
+**Error format in instruction docs:**
+- Use bullet list format: `ErrorType::Variant` (error code: N) - Triggering condition
+- For standard Solana ProgramError variants, use their actual codes:
+  - InvalidInstructionData = 3
+  - InvalidAccountData = 4
+  - InsufficientFunds = 6
+  - MissingRequiredSignature = 8
+  - NotEnoughAccountKeys = 11
+  - InvalidSeeds = 14
+  - (See Solana documentation for complete list)
+- For custom error enums, show the u32 value that appears in transaction logs
+- For errors from external crates, show them directly (e.g., `CompressibleError::InvalidState` not `ProgramError::Custom`)
+- To find error codes for your program, create a test like: `programs/compressed-token/program/tests/print_error_codes.rs`
+
+**Required for custom error documentation:**
 - **Error name** - The error variant name
-- **Error code** - Numeric code if applicable
+- **Error code** - Numeric code that appears in logs
 - **Description** - What the error indicates
 - **Common causes** - Typical scenarios that trigger this error
 - **Resolution** - How to fix or avoid the error
+- **Location** - Where error enum is defined (e.g., `anchor_compressed_token::ErrorCode`, `light_ctoken_types::CTokenError`)
+
+**Common error crate locations in Light Protocol:**
+- `anchor_compressed_token::ErrorCode` - Compressed token program errors
+- `light_ctoken_types::CTokenError` - CToken type errors (18001-18037 range)
+- `light_compressible::CompressibleError` - Compressible account errors (19001-19002 range)
+- `light_account_checks::AccountError` - Account validation errors (12006-12021 range)
+- `light_hasher::HasherError` - Hasher operation errors
+- `light_compressed_account::CompressedAccountError` - Compressed account errors
+
+**Note:** All `light-*` crates implement automatic error conversions to `ProgramError::Custom(u32)` for both pinocchio and solana_program, allowing seamless error propagation across the codebase.
 
 **DON'Ts:**
 - **DON'T document external crate errors in detail** - For errors from other crates (e.g., HasherError from light-hasher), only note the conversion exists and reference the source crate's documentation
 - **DON'T include generic "best practices" sections** - Avoid preachy or overly general advice. Focus on specific, actionable information for each error
+- **DON'T document ProgramError::Custom conversions** - Show the original error type directly with its code
 
 ### 2.4 Serialization Documentation
 
