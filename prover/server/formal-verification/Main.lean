@@ -5,16 +5,16 @@ import FormalVerification.Merkle
 
 open LightProver (F)
 
-open LightProver renaming InclusionCircuit_10_10_10_32_10_10_32 → InclusionCircuit,
-                          NonInclusionCircuit_10_10_10_10_10_40_10_10_40 → NonInclusionCircuit,
-                          CombinedCircuit_10_10_10_32_10_10_10_10_10_10_40_10 → CombinedCircuit,
-                          BatchAppendWithProofsCircuit_10_10_32_10_32_10 → BatchAppendWithProofsCircuit,
-                          BatchUpdateCircuit_10_10_10_32_10_10_32_10 → BatchUpdateCircuit,
-                          BatchAddressTreeAppendCircuit_10_10_10_40_10_10_40_10_10_40 → BatchAddressTreeAppendCircuit
+open LightProver renaming InclusionCircuit_8_8_8_32_8_8_32 → InclusionCircuit,
+                          NonInclusionCircuit_8_8_8_8_8_40_8_8_40 → NonInclusionCircuit,
+                          CombinedCircuit_8_8_8_32_8_8_8_8_8_8_40_8 → CombinedCircuit,
+                          BatchAppendCircuit_8_8_32_8_32_8 → BatchAppendWithProofsCircuit,
+                          BatchUpdateCircuit_8_8_8_32_8_8_32_8 → BatchUpdateCircuit,
+                          BatchAddressTreeAppendCircuit_8_8_8_40_8_8_40_8_8_40 → BatchAddressTreeAppendCircuit
 
 abbrev SD := 32
 abbrev AD := 40
-abbrev B := 10
+abbrev B := 8
 
 theorem poseidon₂_testVector :
   poseidon₂ vec![1, 2] = 7853200120776062878684798364095072458815029376092732009249414926327459813530 := by native_decide
