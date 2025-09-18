@@ -80,6 +80,7 @@
 - `ProgramError::InvalidSeeds` (error code: 14) - compression_authority or rent_sponsor doesn't match CompressibleConfig
 - `ProgramError::InvalidAccountData` (error code: 4) - CompressibleConfig deserialization fails or invalid discriminator
 - `ProgramError::InsufficientFunds` (error code: 6) - Pool balance less than requested withdrawal amount (available balance shown in error message)
-- `ProgramError::NotEnoughAccountKeys` (error code: 11) - Missing required accounts
-- `ProgramError::MissingRequiredSignature` (error code: 8) - compression_authority is not a signer
+- `AccountError::NotEnoughAccountKeys` (error code: 12020) - Missing required accounts
+- `AccountError::InvalidSigner` (error code: 12015) - compression_authority is not a signer
+- `AccountError::AccountNotMutable` (error code: 12008) - rent_sponsor or destination is not mutable
 - `CompressibleError::InvalidState` (error code: 19002) - CompressibleConfig is in inactive state

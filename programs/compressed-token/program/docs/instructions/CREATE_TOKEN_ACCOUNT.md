@@ -90,17 +90,17 @@
           set `last_claimed_slot` to current slot (tracks when rent was last claimed/initialized for rent calculation)
 
   **Errors:**
-  1. `ProgramError::BorshIoError` - Failed to deserialize CreateTokenAccountInstructionData from instruction_data bytes
-  2. `ProgramError::NotEnoughAccountKeys` - Missing required account (token_account, mint, or compressible accounts when compressible_config is Some)
-  3. `ProgramError::MissingRequiredSignature` - token_account or payer account is not a signer when required
-  4. `ProgramError::InvalidArgument` - Account is not mutable when it needs to be (token_account, payer)
-  5. `ProgramError::IncorrectProgramId` - Config account owner is not LightRegistry program (pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX"))
-  6. `ProgramError::InvalidAccountData` - CompressibleConfig discriminator check fails, pod deserialization fails, or compress_to_pubkey.check_seeds() fails (derived PDA doesn't match token_account pubkey)
-  7. `ProgramError::InvalidInstructionData` - compressible_config is None in instruction data when compressible accounts are provided
-  8. `ProgramError::InsufficientFunds` - payer.lamports < compression incentive amount when transferring via CPI
-  9. `ErrorCode::InsufficientAccountSize` - token_account data length < 165 bytes (non-compressible) or < COMPRESSIBLE_TOKEN_ACCOUNT_SIZE (compressible)
-  10. `ErrorCode::InvalidCompressAuthority` - compressible_config is Some but compressible_config_account is None during extension initialization
-  11. `ProgramError::Custom` - System program CPI failures for CreateAccount or Transfer instructions
+  - `ProgramError::BorshIoError` (error code: 15) - Failed to deserialize CreateTokenAccountInstructionData from instruction_data bytes
+  - `AccountError::NotEnoughAccountKeys` (error code: 12020) - Missing required accounts
+  - `AccountError::InvalidSigner` (error code: 12015) - token_account or payer is not a signer when required
+  - `AccountError::AccountNotMutable` (error code: 12008) - token_account or payer is not mutable when required
+  - `AccountError::AccountOwnedByWrongProgram` (error code: 12007) - Config account not owned by LightRegistry program
+  - `ProgramError::InvalidAccountData` (error code: 4) - CompressibleConfig pod deserialization fails or compress_to_pubkey.check_seeds() fails
+  - `ProgramError::InvalidInstructionData` (error code: 3) - compressible_config is None in instruction data when compressible accounts provided, or extension data invalid
+  - `ProgramError::UnsupportedSysvar` (error code: 17) - Failed to get Clock sysvar
+  - `CompressibleError::InvalidState` (error code: 19002) - CompressibleConfig is not in active state
+  - `ErrorCode::InsufficientAccountSize` (error code: 6077) - token_account data length < 165 bytes (non-compressible) or < COMPRESSIBLE_TOKEN_ACCOUNT_SIZE (compressible)
+  - `ErrorCode::InvalidCompressAuthority` (error code: 6052) - compressible_config is Some but compressible_config_account is None during extension initialization
 
 
 ## 2. create associated ctoken account
@@ -160,6 +160,8 @@
   6. Initialize token account (same as ## 1. create ctoken account step 3.6)
 
   **Errors:**
-  Same as ## 1. create ctoken account with additions:
-  - `ProgramError::IllegalOwner` - Associated token account not owned by system program when creating
-  - `ProgramError::InvalidInstructionData` - compress_to_account_pubkey is Some (forbidden for ATAs)
+  Same as create ctoken account with additions:
+  - `ProgramError::IllegalOwner` (error code: 18) - Associated token account not owned by system program when creating
+  - `ProgramError::InvalidInstructionData` (error code: 3) - compress_to_account_pubkey is Some (forbidden for ATAs)
+  - `AccountError::InvalidSigner` (error code: 12015) - fee_payer is not a signer
+  - `AccountError::AccountNotMutable` (error code: 12008) - fee_payer or associated_token_account is not mutable

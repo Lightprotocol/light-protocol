@@ -132,34 +132,16 @@
       - Maps resize error to ProgramError::Custom if fails
 
 **Errors:**
-1. `ProgramError::InvalidAccountData`
-   - token_account == destination
-   - rent_sponsor doesn't match compressible extension's rent_sponsor
-   - compression_authority doesn't match authority when closing as rent authority
-   - Account not compressible when rent authority tries to close
-
-2. `ProgramError::NotEnoughAccountKeys`
-   - Missing rent_sponsor account for compressible accounts
-
-3. `ErrorCode::AccountFrozen`
-   - Account state is Frozen
-
-4. `ProgramError::UninitializedAccount`
-   - Account state is Uninitialized or invalid
-
-5. `ErrorCode::NonNativeHasBalance`
-   - Account has non-zero token balance
-
-6. `ErrorCode::OwnerMismatch`
-   - Authority doesn't match owner and isn't valid rent authority
-
-7. `ProgramError::MissingRequiredSignature`
-   - Authority is not a signer
-
-8. `ProgramError::Custom`
-   - Failed to get clock sysvar
-   - Lamport transfer failures
-   - Account resize failures
+- `ProgramError::InvalidAccountData` (error code: 4) - token_account == destination, rent_sponsor doesn't match extension, compression_authority mismatch, or account not compressible
+- `ProgramError::NotEnoughAccountKeys` (error code: 11) - Missing rent_sponsor account for compressible accounts
+- `AccountError::InvalidSigner` (error code: 12015) - Authority is not a signer
+- `AccountError::AccountNotMutable` (error code: 12008) - token_account, destination, or rent_sponsor is not mutable
+- `AccountError::NotEnoughAccountKeys` (error code: 12020) - Not enough accounts provided
+- `ErrorCode::AccountFrozen` (error code: 6076) - Account state is Frozen
+- `ProgramError::UninitializedAccount` (error code: 10) - Account state is Uninitialized or invalid
+- `ErrorCode::NonNativeHasBalance` (error code: 6074) - Account has non-zero token balance
+- `ErrorCode::OwnerMismatch` (error code: 6075) - Authority doesn't match owner and isn't valid rent authority
+- `ProgramError::InsufficientFunds` (error code: 6) - Insufficient funds for lamport transfer during rent calculation
 
 **Edge Cases and Considerations:**
 - When rent authority closes an account, all funds (including user funds) go to rent_sponsor

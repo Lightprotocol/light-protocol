@@ -82,27 +82,9 @@
 
 **Errors:**
 
-- **ProgramError::NotEnoughAccountKeys**
-  - Less than 3 accounts provided
-
-- **ProgramError::InvalidInstructionData**
-  - Instruction is not TokenInstruction::Transfer
-  - Failed to unpack instruction data
-
-- **SPL Token Errors (via process_transfer):**
-  - InsufficientFunds - Source balance less than amount
-  - OwnerMismatch - Authority doesn't own source account
-  - MintMismatch - Source and destination have different mints
-  - AccountFrozen - Either account is frozen
-  - InvalidDelegate - Delegate authority insufficient or invalid
-
-- **CTokenError::InvalidAccountData**
-  - Account has extensions but no Compressible extension
-  - Failed to parse account extensions
-
-- **CTokenError::SysvarAccessError**
-  - Failed to get Clock sysvar for current slot
-
-- **ProgramError::Custom**
-  - Failed to borrow account data
-  - Lamport transfer failed during top-up
+- `ProgramError::NotEnoughAccountKeys` (error code: 11) - Less than 3 accounts provided
+- `ProgramError::InvalidInstructionData` (error code: 3) - Instruction is not TokenInstruction::Transfer or failed to unpack instruction data
+- `ProgramError::InsufficientFunds` (error code: 6) - Source balance less than amount (SPL Token error)
+- `ProgramError::Custom` (SPL Token errors) - OwnerMismatch, MintMismatch, AccountFrozen, or InvalidDelegate from SPL token validation
+- `CTokenError::InvalidAccountData` (error code: 18002) - Account has extensions but no Compressible extension or failed to parse extensions
+- `CTokenError::SysvarAccessError` (error code: 18020) - Failed to get Clock sysvar for current slot

@@ -108,23 +108,10 @@
 
 **Errors:**
 
-- **ProgramError::InvalidInstructionData**
-  - Missing pool PDA bump in instruction data
-  - Instruction data is empty
-
-- **ProgramError::InvalidSeeds**
-  - compression_authority doesn't match CompressibleConfig
-  - rent_sponsor PDA doesn't match CompressibleConfig
-
-- **ProgramError::InvalidAccountData**
-  - CompressibleConfig deserialization fails
-  - CompressedToken deserialization fails
-  - Config version mismatch between account and CompressibleConfig
-  - Claim calculation fails
-
-- **ProgramError::Custom**
-  - Clock sysvar fetch fails
-  - Lamport transfer fails
-
-- **CompressibleError (via validate_not_inactive):**
-  - CompressibleConfig is in inactive state
+- `ProgramError::InvalidInstructionData` (error code: 3) - Missing pool PDA bump in instruction data or instruction data is empty
+- `ProgramError::InvalidSeeds` (error code: 14) - compression_authority or rent_sponsor doesn't match CompressibleConfig
+- `ProgramError::InvalidAccountData` (error code: 4) - CompressibleConfig/CompressedToken deserialization fails, config version mismatch, or claim calculation fails
+- `AccountError::NotEnoughAccountKeys` (error code: 12020) - Missing required accounts
+- `AccountError::InvalidSigner` (error code: 12015) - compression_authority is not a signer
+- `AccountError::AccountNotMutable` (error code: 12008) - rent_sponsor is not mutable
+- `CompressibleError::InvalidState` (error code: 19002) - CompressibleConfig is in inactive state
