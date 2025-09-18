@@ -87,11 +87,9 @@ impl<'info> CreateCTokenAccounts<'info> {
 
 #[profile]
 #[inline(always)]
-pub fn next_config_account<'info>(
-    iter: &mut AccountIterator<'info, AccountInfo>,
+pub fn parse_config_account<'info>(
+    config_account: &'info AccountInfo,
 ) -> Result<&'info CompressibleConfig, ProgramError> {
-    let config_account = iter.next_non_mut("compressible config")?;
-
     // Validate config account owner
     check_owner(
         &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").to_bytes(),
@@ -105,7 +103,18 @@ pub fn next_config_account<'info>(
         ProgramError::InvalidAccountData
     })?;
 
-    // Validate config is inactive (only active allowed for account creation)
+    Ok(config)
+}
+
+#[profile]
+#[inline(always)]
+pub fn next_config_account<'info>(
+    iter: &mut AccountIterator<'info, AccountInfo>,
+) -> Result<&'info CompressibleConfig, ProgramError> {
+    let config_account = iter.next_non_mut("compressible config")?;
+    let config = parse_config_account(config_account)?;
+
+    // Validate config is active (only active allowed for account creation)
     config.validate_active().map_err(ProgramError::from)?;
 
     Ok(config)

@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["pinocchio"]
+default = ["pinocchio", "solana"]
 solana = ["dep:solana-program-error", "light-compressed-account/solana", "solana-sysvar"]
 anchor = ["anchor-lang", "light-compressed-account/anchor"]
 pinocchio = ["light-compressed-account/pinocchio"]

@@ -55,6 +55,18 @@ impl RentConfig {
     }
 }
 
+impl ZRentConfigMut<'_> {
+    /// Sets all fields from a RentConfig instance, handling zero-copy type conversions
+    pub fn set(&mut self, config: &RentConfig) {
+        self.base_rent = config.base_rent.into();
+        self.compression_cost = config.compression_cost.into();
+        self.lamports_per_byte_per_epoch = config.lamports_per_byte_per_epoch;
+        self.max_lamports_per_write = config.max_lamports_per_write;
+        self.max_funded_epochs = config.max_funded_epochs;
+        self._padding = config._padding;
+    }
+}
+
 pub fn rent_curve_per_epoch(
     base_rent: u64,
     lamports_per_byte_per_epoch: u64,

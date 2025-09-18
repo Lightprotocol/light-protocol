@@ -1,16 +1,14 @@
-use anchor_lang::{prelude::ProgramError, pubkey, solana_program::system_instruction};
-use light_account_checks::{
-    checks::{check_discriminator, check_owner},
-    AccountInfoTrait, AccountIterator,
-};
-use light_compressible::config::CompressibleConfig;
+use anchor_lang::{prelude::ProgramError, solana_program::system_instruction};
+use light_account_checks::{AccountInfoTrait, AccountIterator};
 use light_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
     program::invoke_signed,
 };
-use spl_pod::{bytemuck, solana_msg::msg};
+use spl_pod::solana_msg::msg;
+
+use crate::create_token_account::parse_config_account;
 
 /// Accounts required for the withdraw funding pool instruction
 pub struct WithdrawFundingPoolAccounts<'a> {
@@ -37,25 +35,19 @@ impl<'a> WithdrawFundingPoolAccounts<'a> {
         let system_program = iter.next_account("system_program")?;
         let config = iter.next_non_mut("config")?;
 
-        check_owner(
-            &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").to_bytes(),
-            config,
-        )?;
-        let data = config.try_borrow_data().unwrap();
-        check_discriminator::<CompressibleConfig>(&data[..])?;
-        let account = bytemuck::pod_from_bytes::<CompressibleConfig>(&data[8..])
-            .map_err(|_| ProgramError::InvalidAccountData)?;
+        // Use the shared parse_config_account function
+        let config_account = parse_config_account(config)?;
 
         // Validate config is not inactive (active or deprecated allowed for withdraw)
-        account
+        config_account
             .validate_not_inactive()
             .map_err(ProgramError::from)?;
 
-        if *account.compression_authority.as_array() != *compression_authority.key() {
+        if *config_account.compression_authority.as_array() != *compression_authority.key() {
             msg!("invalid rent compression_authority");
             return Err(ProgramError::InvalidSeeds);
         }
-        if *account.rent_sponsor.as_array() != *rent_sponsor.key() {
+        if *config_account.rent_sponsor.as_array() != *rent_sponsor.key() {
             msg!("Invalid rent_sponsor");
             return Err(ProgramError::InvalidSeeds);
         }
@@ -67,8 +59,8 @@ impl<'a> WithdrawFundingPoolAccounts<'a> {
                 system_program,
                 config,
             },
-            account.rent_sponsor_bump,
-            account.version.to_le_bytes(),
+            config_account.rent_sponsor_bump,
+            config_account.version.to_le_bytes(),
         ))
     }
 }
