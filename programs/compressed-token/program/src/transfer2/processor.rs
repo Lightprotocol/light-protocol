@@ -18,7 +18,7 @@ use crate::{
     shared::cpi::execute_cpi_invoke,
     transfer2::{
         accounts::Transfer2Accounts,
-        compression::{close::close_for_compress_and_close, process_token_compression},
+        compression::{close_for_compress_and_close, process_token_compression},
         config::Transfer2Config,
         cpi::allocate_cpi_bytes,
         sum_check::{sum_check_multi_mint, sum_compressions},

@@ -1,5 +1,18 @@
 ## Transfer2
 
+### Navigation
+
+| I want to... | Go to |
+|-------------|-------|
+| Transfer compressed tokens | → [Path B](#path-b-with-compressed-accounts-full-transfer-operations) (line 161) + [System accounts](#system-accounts-when-compressed-accounts-involved) (line 60) |
+| Only compress/decompress (no transfers) | → [Path A](#path-a-no-compressed-accounts-compressions-only-operations) (line 134) + [Compressions-only accounts](#compressions-only-accounts-when-no_compressed_accounts) (line 99) |
+| Compress SPL tokens | → [SPL compression](#spl-token-compressiondecompression) (line 217) |
+| Compress CToken accounts | → [CToken compression](#ctoken-compressiondecompression-srctransfer2compressionctoken) (line 227) |
+| Close account as **owner** | → [CompressAndClose](#for-compressandclose) (line 243) - no validation needed |
+| Close account as **rent authority** | → [Rent authority rules](#design-principle-ownership-separation) (line 244) + `compressible/docs/RENT.md` |
+| Use CPI context | → [Write mode](#cpi-context-write-path) (line 192) or [Execute mode](#cpi-context-support-for-cross-program-invocations) (line 27) |
+| Debug errors | → [Error reference](#errors) (line 275) |
+
 **discriminator:** 104
 **enum:** `CTokenInstruction::Transfer2`
 **path:** programs/compressed-token/program/src/transfer2/
@@ -146,11 +159,15 @@ Packed accounts (dynamic indexing):
         - Check mint tracker capacity (error: TooManyMints if exceeds 5)
       - Execute `process_token_compression` for compress/decompress operations
 
-   c. **Close accounts:**
-      - Execute `close_for_compress_and_close` for each CompressAndClose operation:
-        - Validates token account can be closed (authority is owner OR rent authority for compressible accounts)
-        - Transfers rent to rent_sponsor, remaining lamports to destination
-        - Zeros account data and resizes to 0 bytes
+   c. **Close accounts for CompressAndClose operations:**
+      - After compression validation succeeds, close the token accounts:
+        - Lamport distribution via `compressible::calculate_close_lamports`:
+          - Rent exemption + completed epoch rent → rent_sponsor account
+          - Unutilized rent (partial epoch) → destination account
+          - Compression incentive → forester (when rent authority closes)
+        - Zero out account data and resize to 0 bytes
+        - Account becomes uninitialized and can be garbage collected
+        - See `program-libs/compressible/docs/RENT.md#close-account-distribution` for distribution logic
 
    d. **Exit without light-system-program CPI**
 
@@ -180,10 +197,10 @@ Packed accounts (dynamic indexing):
 
       **System CPI Path:**
       If `validated_accounts.system` exists:
-      - Execute `process_token_compression` for compress/decompress operations
+      - Execute `process_token_compression` (src/transfer2/compression/mod.rs) for compress/decompress operations
       - Extract CPI accounts and tree pubkeys via `validated_accounts.cpi_accounts`
       - Execute `execute_cpi_invoke` with light-system-program
-      - Execute `close_for_compress_and_close` for CompressAndClose operations
+      - Execute `close_for_compress_and_close` (src/transfer2/compression/ctoken/compress_and_close.rs) for CompressAndClose operations
 
       **CPI Context Write Path:**
       If `validated_accounts.write_to_cpi_context_system` exists:
@@ -194,13 +211,18 @@ Packed accounts (dynamic indexing):
 
 **Compression/Decompression Processing Details:**
 
-When `process_token_compression` is called (in both Path A and Path B):
+**Key distinction between compression modes:**
+- **Compress/Decompress:** Only participate in sum checks - tokens are added/subtracted from running sums per mint, ensuring overall balance but no specific output validation
+- **CompressAndClose:** Validates a specific compressed token account exists in outputs that mirrors the account being closed (same mint, amount equals full balance, owner preserved or set to account pubkey, no delegate - delegation not implemented for ctoken accounts)
 
-1. **Main routing logic:**
+When compression processing occurs (in both Path A and Path B):
+
+1. **Main routing logic (src/transfer2/compression/mod.rs):**
+   - Function: `process_token_compression`
    - Iterate through each compression in the compressions array
    - Get source_or_recipient account from packed accounts
    - Route to handler based on account owner:
-     - ctoken program → native compression handler
+     - ctoken program → `process_ctoken_compressions` (ctoken/mod.rs)
      - SPL Token → SPL compression handler
      - SPL Token 2022 → SPL compression handler
      - Other → error (InvalidInstructionData)
@@ -211,27 +233,57 @@ When `process_token_compression` is called (in both Path A and Path B):
    - Validate pool PDA derivation matches [mint, pool_index] with provided bump
    - **For Compress:**
      - Get authority account from packed accounts
-     - Transfer from user account to pool via SPL token CPI (authority must be signer, checked by SPL program)
+     - Transfers tokens from user's SPL token account to the token pool PDA via SPL token CPI (authority must be signer, checked by SPL program)
    - **For Decompress:**
-     - Transfer from pool to user account via SPL token CPI with PDA signer (CPI authority PDA signs)
+     - Transfers tokens from the token pool PDA to recipient's SPL token account via SPL token CPI with PDA signer (CPI authority PDA signs)
 
-3. **Native (ctoken) compression/decompression:**
-   - Validate compression mode fields (authority must be 0 for Decompress)
-   - Verify account owned by ctoken program
-   - Deserialize account as CompressedToken
-   - Verify mint matches between account and compression
+3. **CToken compression/decompression (src/transfer2/compression/ctoken/):**
+   - **Initial validations:**
+     - Compression mode field validation (authority must be 0 for Decompress mode)
+     - Account ownership verification (must be owned by ctoken program)
+     - Account deserialization as CompressedToken
+     - Mint verification (account mint must match compression mint)
    - **For Compress:**
-     - Validate authority via `verify_and_update_token_account_authority`:
+     - Validate authority via `verify_and_update_token_account_authority_with_compressed_token`:
        - Check authority is signer (error: InvalidSigner)
        - If authority == owner: proceed
        - If authority == delegate: verify delegated amount ≥ compression amount, update delegation
        - Otherwise: error (OwnerMismatch)
      - Check sufficient balance (error: ArithmeticOverflow)
-     - Subtract amount from balance with overflow protection
+     - Subtracts compression amount from the source ctoken account balance (with overflow protection)
    - **For Decompress:**
-     - Add amount to balance with overflow protection
-   - Calculate compressible extension top-up if present
-   - Execute lamport transfers (max 40, error: TooManyCompressionTransfers)
+     - Adds decompression amount to the recipient ctoken account balance (with overflow protection)
+   - **For CompressAndClose:**
+     - **Authority validation:**
+       - Authority must be signer
+       - Authority must be either token account owner OR rent authority (for compressible accounts)
+     - **Design principle: Ownership separation** (see `program-libs/compressible/docs/RENT.md` for detailed rent calculations)
+       - Tokens: Belong to the owner who can compress them freely
+       - Rent exemption + completed epoch rent: Belong to rent authority (who funded them)
+       - Unutilized rent (partial current epoch): Returns to user/destination
+       - Compression incentive: Goes to forester when rent authority compresses
+       - **Compressibility determination** (via `compressible::calculate_rent_and_balance`):
+         - Account becomes compressible when it lacks rent for current epoch + 1
+         - Rent authority can only compress when `is_compressible()` returns true
+         - See `program-libs/compressible/docs/` for complete rent system documentation
+       - When **owner** closes: No compressed output validation required (owner controls their tokens, sum check ensures balance)
+       - When **rent authority** closes: Must validate compressed output exactly preserves owner's tokens
+     - **Compressed token account validation (only when rent authority closes) - MUST exist in outputs with:**
+       - Amount: Must exactly match the full token account balance being compressed
+       - Owner: If compress_to_pubkey flag is false, owner must match original token account owner
+       - Owner: If compress_to_pubkey flag is true, owner must be the token account's pubkey (allows closing accounts owned by PDAs)
+       - Delegate: Must be None (has_delegate=false and delegate=0) - delegates cannot be carried over
+       - Version: Must be ShaFlat (version=3) for security
+       - Version: Must match the version specified in the token account's compressible extension
+     - **Account state updates:**
+       - Token account balance is set to 0
+       - Account is marked for closing after the transaction
+     - **Security guarantee:** Unlike Compress which only adds to sum checks, CompressAndClose ensures the exact compressed account exists, preventing token loss or misdirection
+   - Calculate compressible extension top-up if present (returns Option<u64>)
+   - **Transfer deduplication optimization:**
+     - Collects all transfers into a 40-element array indexed by account
+     - Deduplicates transfers to same account by summing amounts
+     - Executes single `multi_transfer_lamports` CPI with deduplicated transfers (max 40, error: TooManyCompressionTransfers)
 
 **Errors:**
 

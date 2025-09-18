@@ -124,3 +124,14 @@ Custom error codes are defined in **`programs/compressed-token/anchor/src/lib.rs
 ## SDKs (`sdk-libs/`)
 - **`compressed-token-sdk/`** - SDK for programs to interact with compressed tokens (CPIs, instruction builders)
 - **`token-client/`** - Client SDK for Rust applications (test helpers, transaction builders)
+
+## Compressible Extension Documentation
+When working with ctoken accounts that have the compressible extension (rent management), you **MUST** read:
+- **`program-libs/compressible/docs/`** - Complete rent system documentation
+  - `RENT.md` - Rent calculations, compressibility checks, lamport distribution
+  - `CONFIG_ACCOUNT.md` - CompressibleConfig account structure
+  - `SOLANA_RENT.md` - Comparison of Solana vs Light Protocol rent systems
+- **Key concepts:**
+  - Rent authority can compress accounts only when `is_compressible()` returns true
+  - Lamport distribution on close: rent → rent_sponsor, unutilized → destination
+  - Compression incentive for foresters when rent authority compresses

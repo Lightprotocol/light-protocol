@@ -15,7 +15,7 @@ use crate::{
         mint_to::mint_authority_check,
     },
     shared::mint_to_token_pool,
-    transfer2::compression::{native::NativeCompressionInputs, native_compression},
+    transfer2::compression::{compress_ctokens, NativeCompressionInputs},
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -59,7 +59,7 @@ pub fn process_mint_to_decompressed_action(
     );
     // For mint_to_decompressed, we don't need to handle lamport transfers
     // as there's no compressible extension on the target account
-    let _ = native_compression(inputs)?;
+    let _ = compress_ctokens(inputs)?;
     Ok(updated_supply)
 }
 

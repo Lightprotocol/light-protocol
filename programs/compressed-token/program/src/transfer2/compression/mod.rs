@@ -15,11 +15,10 @@ use crate::{
     LIGHT_CPI_SIGNER,
 };
 
-pub mod close;
-pub mod native;
+pub mod ctoken;
 pub mod spl;
 
-pub use native::native_compression;
+pub use ctoken::{close_for_compress_and_close, compress_ctokens, NativeCompressionInputs};
 
 const SPL_TOKEN_ID: &[u8; 32] = &spl_token::ID.to_bytes();
 const SPL_TOKEN_2022_ID: &[u8; 32] = &spl_token_2022::ID.to_bytes();
@@ -44,7 +43,7 @@ pub fn process_token_compression(
             )?;
 
             let transfer = match source_or_recipient.owner() {
-                ID => native::process_native_compressions(
+                ID => ctoken::process_ctoken_compressions(
                     inputs,
                     compression,
                     source_or_recipient,

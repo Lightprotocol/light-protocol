@@ -14,6 +14,7 @@ use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyNew};
 /// 2. Create token account data hash
 /// 3. Set output compressed account
 #[inline(always)]
+#[allow(clippy::too_many_arguments)]
 pub fn set_output_compressed_account(
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
     hash_cache: &mut HashCache,
@@ -39,6 +40,7 @@ pub fn set_output_compressed_account(
 }
 
 #[inline(always)]
+#[allow(clippy::too_many_arguments)]
 pub fn set_output_compressed_account_frozen(
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
     hash_cache: &mut HashCache,
@@ -137,7 +139,7 @@ fn set_output_compressed_account_inner<const IS_FROZEN: bool>(
     let lamports_value = if let Some(value) = lamports {
         value.into()
     } else {
-        0u64.into()
+        0u64
     };
     output_compressed_account.set(
         crate::ID.into(),
