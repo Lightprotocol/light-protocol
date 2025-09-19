@@ -140,7 +140,20 @@ func calculateTwoInputsHashChain(hashesFirst []*big.Int, hashesSecond []*big.Int
 	return hashChain
 }
 
+// TestUpdateConfig allows configuring which leaves should be set to zero (uninserted)
+type TestUpdateConfig struct {
+	// ZeroIndices specifies which indices in the batch should have old leaves set to 0
+	// If nil, defaults to [0] (first leaf only) for backward compatibility
+	ZeroIndices []int
+}
+
 func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkletree.PoseidonTree, startIndex *uint32) *BatchUpdateParameters {
+	// Call the extended version with default config (first leaf = 0)
+	return BuildTestBatchUpdateTreeWithConfig(treeDepth, batchSize, previousTree, startIndex, nil)
+}
+
+// BuildTestBatchUpdateTreeWithConfig creates test data with configurable zero leaves
+func BuildTestBatchUpdateTreeWithConfig(treeDepth int, batchSize int, previousTree *merkletree.PoseidonTree, startIndex *uint32, config *TestUpdateConfig) *BatchUpdateParameters {
 	var tree merkletree.PoseidonTree
 
 	if previousTree == nil {
@@ -154,6 +167,19 @@ func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkle
 	merkleProofs := make([][]big.Int, batchSize)
 	pathIndices := make([]uint32, batchSize)
 	oldLeaves := make([]*big.Int, batchSize)
+
+	// Determine which indices should have zero old leaves
+	zeroIndicesMap := make(map[int]bool)
+	if config != nil && config.ZeroIndices != nil {
+		for _, idx := range config.ZeroIndices {
+			if idx >= 0 && idx < batchSize {
+				zeroIndicesMap[idx] = true
+			}
+		}
+	} else {
+		// Default behavior: set first leaf to 0
+		zeroIndicesMap[0] = true
+	}
 
 	usedIndices := make(map[uint32]bool)
 
@@ -175,14 +201,13 @@ func BuildTestBatchUpdateTree(treeDepth int, batchSize int, previousTree *merkle
 				}
 			}
 		}
-		oldLeaf := big.NewInt(int64(0))
-		// TODO: add option for test data to test nullifying mixed inserted and
-		// uninserted leaves
-		// This sets the first leaf to 0 to test nullification
-		// of mixed inserted and uninserted leaves
-		if i == 0 {
-			oldLeaves[i] = oldLeaf
+
+		// Set old leaf based on configuration
+		if zeroIndicesMap[i] {
+			// This leaf will be nullified (testing uninserted -> inserted transition)
+			oldLeaves[i] = big.NewInt(int64(0))
 		} else {
+			// This leaf will be updated (testing inserted -> inserted transition)
 			oldLeaves[i] = leaves[i]
 		}
 		tree.Update(int(pathIndices[i]), *oldLeaves[i])
