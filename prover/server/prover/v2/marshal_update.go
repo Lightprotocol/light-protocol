@@ -33,11 +33,14 @@ func ParseBatchUpdateInput(inputJSON string) (BatchUpdateParameters, error) {
 }
 
 func (p *BatchUpdateParameters) MarshalJSON() ([]byte, error) {
-	paramsJson := p.CreateBatchUpdateParametersJSON()
+	paramsJson, err := p.CreateBatchUpdateParametersJSON()
+	if err != nil {
+		return nil, err
+	}
 	return json.Marshal(paramsJson)
 }
 
-func (p *BatchUpdateParameters) CreateBatchUpdateParametersJSON() BatchUpdateProofInputsJSON {
+func (p *BatchUpdateParameters) CreateBatchUpdateParametersJSON() (BatchUpdateProofInputsJSON, error) {
 	paramsJson := BatchUpdateProofInputsJSON{}
 	paramsJson.CircuitType = common.BatchUpdateCircuitType
 	paramsJson.StateTreeHeight = uint32(len(p.MerkleProofs[0]))
@@ -48,12 +51,19 @@ func (p *BatchUpdateParameters) CreateBatchUpdateParametersJSON() BatchUpdatePro
 	paramsJson.Height = p.Height
 	paramsJson.BatchSize = p.BatchSize
 
+	// Validate that all slices have the same length
+	expectedLen := len(p.Leaves)
+	if len(p.TxHashes) != expectedLen || len(p.PathIndices) != expectedLen ||
+		len(p.MerkleProofs) != expectedLen || len(p.OldLeaves) != expectedLen {
+		return BatchUpdateProofInputsJSON{}, fmt.Errorf("inconsistent slice lengths: leaves=%d, txHashes=%d, pathIndices=%d, merkleProofs=%d, oldLeaves=%d",
+			len(p.Leaves), len(p.TxHashes), len(p.PathIndices), len(p.MerkleProofs), len(p.OldLeaves))
+	}
+
 	paramsJson.TxHashes = make([]string, len(p.TxHashes))
 	paramsJson.Leaves = make([]string, len(p.Leaves))
 	paramsJson.PathIndices = make([]uint32, len(p.PathIndices))
 	paramsJson.MerkleProofs = make([][]string, len(p.MerkleProofs))
 	paramsJson.OldLeaves = make([]string, len(p.OldLeaves))
-	// TODO: add assert that all slices are of the same length
 	for i := 0; i < len(p.Leaves); i++ {
 		paramsJson.OldLeaves[i] = common.ToHex(p.OldLeaves[i])
 		paramsJson.Leaves[i] = common.ToHex(p.Leaves[i])
@@ -67,7 +77,7 @@ func (p *BatchUpdateParameters) CreateBatchUpdateParametersJSON() BatchUpdatePro
 		}
 	}
 
-	return paramsJson
+	return paramsJson, nil
 }
 
 func (p *BatchUpdateParameters) UnmarshalJSON(data []byte) error {
