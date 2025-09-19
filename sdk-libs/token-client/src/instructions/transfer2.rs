@@ -501,9 +501,9 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .ok_or(TokenSdkError::InvalidAccountData)?;
 
                 // Parse the compressed token account using zero-copy deserialization
-                use light_ctoken_types::state::{CompressedToken, ZExtensionStruct};
+                use light_ctoken_types::state::{CToken, ZExtensionStruct};
                 use light_zero_copy::traits::ZeroCopyAt;
-                let (compressed_token, _) = CompressedToken::zero_copy_at(&token_account_info.data)
+                let (compressed_token, _) = CToken::zero_copy_at(&token_account_info.data)
                     .map_err(|_| TokenSdkError::InvalidAccountData)?;
 
                 let mint = compressed_token.mint;

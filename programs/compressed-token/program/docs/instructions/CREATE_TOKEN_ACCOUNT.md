@@ -19,7 +19,7 @@
 
   **description:**
   1. creates ctoken solana accounts with and without Compressible extension
-  2. account layout `CompressedToken` is defined in path: program-libs/ctoken-types/src/state/solana_ctoken.rs
+  2. account layout `CompressedToken` is defined in path: program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs
   3. extension layout `CompressionInfo` is defined in path:
   program-libs/ctoken-types/src/state/extensions/compressible.rs
   4. A compressible token means that the ctoken solana account can be compressed by the rent authority as soon as the account balance is insufficient.

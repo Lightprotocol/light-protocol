@@ -6,7 +6,7 @@
 
 **description:**
 1. Claims rent from compressible ctoken solana accounts that have passed their rent expiration epochs
-2. Account layout `CompressedToken` is defined in path: program-libs/ctoken-types/src/state/solana_ctoken.rs
+2. Account layout `CompressedToken` is defined in path: program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs
 3. Extension layout `CompressionInfo` is defined in path: program-libs/ctoken-types/src/state/extensions/compressible.rs
 4. Processes multiple token accounts in a single instruction for efficiency
 5. For each eligible compressible account:

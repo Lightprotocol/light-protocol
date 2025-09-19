@@ -22,7 +22,7 @@
 
 2. Account types and data layouts:
    - Compressed accounts: `TokenData` (program-libs/ctoken-types/src/state/token_data.rs)
-   - Decompressed Solana accounts: `CompressedToken` for ctokens (program-libs/ctoken-types/src/state/solana_ctoken.rs) or standard SPL token accounts
+   - Decompressed Solana accounts: `CompressedToken` for ctokens (program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs) or standard SPL token accounts
    - SPL tokens when compressed are backed by tokens stored in ctoken pool PDAs
 
 3. Compression modes:

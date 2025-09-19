@@ -1,6 +1,7 @@
-use light_compressed_token_types::{constants::TRANSFER2, CompressedCpiContext, ValidityProof};
+use light_compressed_token_types::{constants::TRANSFER2, ValidityProof};
 use light_ctoken_types::{
-    instructions::transfer2::CompressedTokenInstructionDataTransfer2, COMPRESSED_TOKEN_PROGRAM_ID,
+    instructions::transfer2::{CompressedCpiContext, CompressedTokenInstructionDataTransfer2},
+    COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_profiler::profile;
 use solana_instruction::Instruction;

@@ -41,7 +41,7 @@ pub enum ExtensionStruct {
     /// Account contains compressible timing data and rent authority
     Compressible(CompressionInfo),
 }
-// TODO: replace with macro call once ZeroCopyMut supports enums
+
 #[derive(Debug)]
 pub enum ZExtensionStructMut<'a> {
     Placeholder0,
@@ -130,7 +130,7 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                 1 + CompressionInfo::byte_len(config)?
             }
             _ => {
-                msg!("Invalid extension type returning 0");
+                msg!("Invalid extension type returning");
                 return Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion);
             }
         })

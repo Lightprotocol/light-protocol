@@ -1,6 +1,6 @@
 use anchor_spl::token_2022::spl_token_2022::{self, solana_program::program_pack::Pack};
 use light_client::rpc::Rpc;
-use light_ctoken_types::state::CompressedToken;
+use light_ctoken_types::state::CToken;
 use light_program_test::LightProgramTest;
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::pubkey::Pubkey;
@@ -35,14 +35,14 @@ pub async fn assert_compressible_for_account(
     println!("{} current_slot", current_slot);
     // Parse tokens
     let token_before = if data_before.len() > 165 {
-        CompressedToken::zero_copy_at(data_before).ok()
+        CToken::zero_copy_at(data_before).ok()
     } else {
         None
     };
     println!("{:?} token_before", token_before);
 
     let token_after = if data_after.len() > 165 {
-        CompressedToken::zero_copy_at(data_after).ok()
+        CToken::zero_copy_at(data_after).ok()
     } else {
         None
     };

@@ -225,12 +225,8 @@ impl TestContext {
                 MetaTransfer2InstructionType::Transfer(transfer) => {
                     // Transfer needs compressed tokens for the signer from specific mint
                     let key = (transfer.signer_index, transfer.mint_index);
-                    let entry = signer_mint_compressed_amounts
-                        .entry(key)
-                        .or_insert_with(HashMap::new);
-                    let accounts_vec = entry
-                        .entry(transfer.token_data_version)
-                        .or_insert_with(Vec::new);
+                    let entry = signer_mint_compressed_amounts.entry(key).or_default();
+                    let accounts_vec = entry.entry(transfer.token_data_version).or_default();
 
                     // Add each input account balance
                     for balance in &transfer.input_compressed_accounts {
@@ -240,12 +236,8 @@ impl TestContext {
                 MetaTransfer2InstructionType::Decompress(decompress) => {
                     // Decompress needs compressed tokens for the signer from specific mint
                     let key = (decompress.signer_index, decompress.mint_index);
-                    let entry = signer_mint_compressed_amounts
-                        .entry(key)
-                        .or_insert_with(HashMap::new);
-                    let accounts_vec = entry
-                        .entry(decompress.token_data_version)
-                        .or_insert_with(Vec::new);
+                    let entry = signer_mint_compressed_amounts.entry(key).or_default();
+                    let accounts_vec = entry.entry(decompress.token_data_version).or_default();
 
                     // Just push the amount for each account requested
                     for _ in 0..decompress.num_input_compressed_accounts {
@@ -255,12 +247,8 @@ impl TestContext {
                 MetaTransfer2InstructionType::Approve(approve) => {
                     // Approve needs compressed tokens for the signer from specific mint
                     let key = (approve.signer_index, approve.mint_index);
-                    let entry = signer_mint_compressed_amounts
-                        .entry(key)
-                        .or_insert_with(HashMap::new);
-                    let accounts_vec = entry
-                        .entry(approve.token_data_version)
-                        .or_insert_with(Vec::new);
+                    let entry = signer_mint_compressed_amounts.entry(key).or_default();
+                    let accounts_vec = entry.entry(approve.token_data_version).or_default();
 
                     // Approve typically uses single account
                     accounts_vec.push(approve.delegate_amount);

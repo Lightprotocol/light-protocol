@@ -3,7 +3,7 @@ use light_client::rpc::Rpc;
 use light_compressed_token_sdk::instructions::create_associated_token_account::derive_ctoken_ata;
 use light_compressible::rent::{get_rent_with_compression_cost, RentConfig};
 use light_ctoken_types::{
-    state::{extensions::CompressionInfo, solana_ctoken::CompressedToken},
+    state::{ctoken::CToken, extensions::CompressionInfo},
     BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_zero_copy::traits::ZeroCopyAt;
@@ -69,14 +69,14 @@ pub async fn assert_create_token_account<R: Rpc>(
             );
 
             // Use zero-copy deserialization for compressible account
-            let (actual_token_account, _) = CompressedToken::zero_copy_at(&account_info.data)
+            let (actual_token_account, _) = CToken::zero_copy_at(&account_info.data)
                 .expect("Failed to deserialize compressible token account with zero-copy");
 
             // Get current slot for validation (program sets this to current slot)
             let current_slot = rpc.get_slot().await.expect("Failed to get current slot");
 
             // Create expected compressible token account
-            let expected_token_account = CompressedToken {
+            let expected_token_account = CToken {
                 mint: mint_pubkey.into(),
                 owner: owner_pubkey.into(),
                 amount: 0,

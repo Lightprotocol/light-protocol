@@ -1,6 +1,6 @@
 use light_client::rpc::Rpc;
 use light_ctoken_types::{
-    state::{CompressedToken, ZExtensionStruct, ZExtensionStructMut},
+    state::{CToken, ZExtensionStruct, ZExtensionStructMut},
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_program_test::LightProgramTest;
@@ -30,9 +30,8 @@ pub async fn assert_claim(
             COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
         );
         // Parse pre-transaction token account data
-        let (mut pre_compressed_token, _) =
-            CompressedToken::zero_copy_at_mut(&mut pre_token_account.data)
-                .expect("Failed to deserialize pre-transaction token account");
+        let (mut pre_compressed_token, _) = CToken::zero_copy_at_mut(&mut pre_token_account.data)
+            .expect("Failed to deserialize pre-transaction token account");
 
         // Find and extract pre-transaction compressible extension data
         let mut pre_last_claimed_slot = 0u64;
@@ -102,7 +101,7 @@ pub async fn assert_claim(
             .expect("Token account should still exist after claim");
 
         // Parse post-transaction token account data
-        let (post_compressed_token, _) = CompressedToken::zero_copy_at(&post_token_account.data)
+        let (post_compressed_token, _) = CToken::zero_copy_at(&post_token_account.data)
             .expect("Failed to deserialize post-transaction token account");
 
         // Find and extract post-transaction compressible extension data

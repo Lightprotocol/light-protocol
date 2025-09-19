@@ -7,7 +7,7 @@
 
 use light_compressed_account::Pubkey;
 use light_ctoken_types::state::{
-    solana_ctoken::{CompressedToken, CompressedTokenConfig, ZCompressedToken},
+    ctoken::{CToken, CompressedTokenConfig, ZCompressedToken},
     CompressionInfoConfig, ExtensionStructConfig,
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
@@ -55,7 +55,7 @@ fn generate_random_token_account_data(rng: &mut impl Rng) -> Vec<u8> {
     account_data
 }
 
-/// Compare all fields between our CompressedToken zero-copy implementation and Pod account
+/// Compare all fields between our CToken zero-copy implementation and Pod account
 fn compare_compressed_token_with_pod_account(
     compressed_token: &ZCompressedToken,
     pod_account: &PodAccount,
@@ -175,9 +175,9 @@ fn compare_compressed_token_with_pod_account(
     true
 }
 
-/// Compare all fields between our CompressedToken mutable zero-copy implementation and Pod account
+/// Compare all fields between our CToken mutable zero-copy implementation and Pod account
 fn compare_compressed_token_mut_with_pod_account(
-    compressed_token: &light_ctoken_types::state::solana_ctoken::ZCompressedTokenMut,
+    compressed_token: &light_ctoken_types::state::ctoken::ZCompressedTokenMut,
     pod_account: &PodAccount,
 ) -> bool {
     // Extensions should be None for basic SPL Token accounts
@@ -309,7 +309,7 @@ fn test_compressed_token_equivalent_to_pod_account() {
         let pod_account = pod_from_bytes::<PodAccount>(&account_data_clone).unwrap();
 
         // Test immutable version
-        let (compressed_token, _) = CompressedToken::zero_copy_at(&account_data).unwrap();
+        let (compressed_token, _) = CToken::zero_copy_at(&account_data).unwrap();
         println!("Compressed Token: {:?}", compressed_token);
         println!("Pod Account: {:?}", pod_account);
         assert!(compare_compressed_token_with_pod_account(
@@ -321,7 +321,7 @@ fn test_compressed_token_equivalent_to_pod_account() {
             let pod_account = pod_from_bytes::<PodAccount>(&account_data_clone).unwrap();
             // Test mutable version
             let (mut compressed_token_mut, _) =
-                CompressedToken::zero_copy_at_mut(&mut account_data).unwrap();
+                CToken::zero_copy_at_mut(&mut account_data).unwrap();
             println!("Compressed Token Mut: {:?}", compressed_token_mut);
             println!("Pod Account: {:?}", pod_account);
 
@@ -368,7 +368,7 @@ fn test_compressed_token_equivalent_to_pod_account() {
 
             // Create a new immutable compressed token from the modified data to compare
             let (modified_compressed_token, _) =
-                CompressedToken::zero_copy_at(&modified_account_data).unwrap();
+                CToken::zero_copy_at(&modified_account_data).unwrap();
 
             println!("Modified zero copy account {:?}", modified_compressed_token);
             println!("Modified Pod Account: {:?}", modified_pod_account);
@@ -396,7 +396,7 @@ fn test_compressed_token_with_compressible_extension() {
     };
 
     // Calculate required buffer size (165 base + 1 AccountType + 1 Option + extension data)
-    let required_size = CompressedToken::byte_len(&config).unwrap();
+    let required_size = CToken::byte_len(&config).unwrap();
     println!(
         "Required size for compressible extension: {}",
         required_size
@@ -408,9 +408,8 @@ fn test_compressed_token_with_compressible_extension() {
     // Create buffer and initialize
     let mut buffer = vec![0u8; required_size];
     {
-        let (compressed_token, remaining_bytes) =
-            CompressedToken::new_zero_copy(&mut buffer, config)
-                .expect("Failed to initialize compressed token with compressible extension");
+        let (compressed_token, remaining_bytes) = CToken::new_zero_copy(&mut buffer, config)
+            .expect("Failed to initialize compressed token with compressible extension");
 
         // Verify the remaining bytes length
         assert_eq!(remaining_bytes.len(), 0);
@@ -429,7 +428,7 @@ fn test_compressed_token_with_compressible_extension() {
     assert_eq!(buffer[166], 1); // Some = 1
 
     // Test zero-copy deserialization round-trip
-    let (deserialized_token, _) = CompressedToken::zero_copy_at(&buffer)
+    let (deserialized_token, _) = CToken::zero_copy_at(&buffer)
         .expect("Failed to deserialize token with compressible extension");
 
     assert!(deserialized_token.extensions.is_some());
@@ -438,7 +437,7 @@ fn test_compressed_token_with_compressible_extension() {
 
     // Test mutable deserialization with a fresh buffer
     let mut buffer_copy = buffer.clone();
-    let (mutable_token, _) = CompressedToken::zero_copy_at_mut(&mut buffer_copy)
+    let (mutable_token, _) = CToken::zero_copy_at_mut(&mut buffer_copy)
         .expect("Failed to deserialize mutable token with compressible extension");
 
     assert!(mutable_token.extensions.is_some());
@@ -457,9 +456,9 @@ fn test_account_type_compatibility_with_spl_parsing() {
         })],
     };
 
-    let mut buffer = vec![0u8; CompressedToken::byte_len(&config).unwrap()];
-    let (_compressed_token, _) = CompressedToken::new_zero_copy(&mut buffer, config)
-        .expect("Failed to create token with extension");
+    let mut buffer = vec![0u8; CToken::byte_len(&config).unwrap()];
+    let (_compressed_token, _) =
+        CToken::new_zero_copy(&mut buffer, config).expect("Failed to create token with extension");
 
     let pod_account = pod_from_bytes::<PodAccount>(&buffer[..165])
         .expect("First 165 bytes should be valid SPL Token Account data");

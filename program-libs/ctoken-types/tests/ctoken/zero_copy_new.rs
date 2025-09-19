@@ -6,7 +6,7 @@
 //! 2. test_compressed_token_new_zero_copy_with_delegate
 //! 3. test_compressed_token_new_zero_copy_all_options
 
-use light_ctoken_types::state::solana_ctoken::{CompressedToken, CompressedTokenConfig};
+use light_ctoken_types::state::ctoken::{CToken, CompressedTokenConfig};
 use light_zero_copy::traits::ZeroCopyNew;
 
 #[test]
@@ -19,13 +19,13 @@ fn test_compressed_token_new_zero_copy() {
     };
 
     // Calculate required buffer size
-    let required_size = CompressedToken::byte_len(&config).unwrap();
+    let required_size = CToken::byte_len(&config).unwrap();
     assert_eq!(required_size, 165); // SPL Token account size
 
     // Create buffer and initialize
     let mut buffer = vec![0u8; required_size];
-    let (compressed_token, remaining_bytes) = CompressedToken::new_zero_copy(&mut buffer, config)
-        .expect("Failed to initialize compressed token");
+    let (compressed_token, remaining_bytes) =
+        CToken::new_zero_copy(&mut buffer, config).expect("Failed to initialize compressed token");
 
     // Verify the remaining bytes length
     assert_eq!(remaining_bytes.len(), 0);
@@ -50,8 +50,8 @@ fn test_compressed_token_new_zero_copy_with_delegate() {
     };
 
     // Create buffer and initialize
-    let mut buffer = vec![0u8; CompressedToken::byte_len(&config).unwrap()];
-    let (compressed_token, _) = CompressedToken::new_zero_copy(&mut buffer, config)
+    let mut buffer = vec![0u8; CToken::byte_len(&config).unwrap()];
+    let (compressed_token, _) = CToken::new_zero_copy(&mut buffer, config)
         .expect("Failed to initialize compressed token with delegate");
     // The delegate field should be Some (though the pubkey will be zero)
     assert!(compressed_token.delegate.is_some());
@@ -72,8 +72,8 @@ fn test_compressed_token_new_zero_copy_with_is_native() {
     };
 
     // Create buffer and initialize
-    let mut buffer = vec![0u8; CompressedToken::byte_len(&config).unwrap()];
-    let (compressed_token, _) = CompressedToken::new_zero_copy(&mut buffer, config)
+    let mut buffer = vec![0u8; CToken::byte_len(&config).unwrap()];
+    let (compressed_token, _) = CToken::new_zero_copy(&mut buffer, config)
         .expect("Failed to initialize compressed token with is_native");
 
     // The is_native field should be Some (though the value will be zero)
@@ -96,8 +96,8 @@ fn test_compressed_token_new_zero_copy_all_options() {
     };
 
     // Create buffer and initialize
-    let mut buffer = vec![0u8; CompressedToken::byte_len(&config).unwrap()];
-    let (compressed_token, _) = CompressedToken::new_zero_copy(&mut buffer, config)
+    let mut buffer = vec![0u8; CToken::byte_len(&config).unwrap()];
+    let (compressed_token, _) = CToken::new_zero_copy(&mut buffer, config)
         .expect("Failed to initialize compressed token with all options");
 
     // All optional fields should be Some

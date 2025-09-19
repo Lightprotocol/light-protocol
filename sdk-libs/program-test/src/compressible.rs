@@ -8,7 +8,7 @@ use light_compressible::{
     rent::{RentConfig, SLOTS_PER_EPOCH},
 };
 use light_ctoken_types::{
-    state::{CompressedToken, ExtensionStruct},
+    state::{CToken, ExtensionStruct},
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use solana_pubkey::Pubkey;
@@ -21,7 +21,7 @@ pub type CompressibleAccountStore = HashMap<Pubkey, StoredCompressibleAccount>;
 pub struct StoredCompressibleAccount {
     pub pubkey: Pubkey,
     pub last_paid_slot: u64,
-    pub account: CompressedToken,
+    pub account: CToken,
 }
 
 #[derive(Debug, PartialEq, Copy, Clone)]
@@ -80,7 +80,7 @@ pub async fn claim_and_compress(
         .iter()
         .filter(|e| e.1.data.len() > 200 && e.1.lamports > 0)
     {
-        let des_account = CompressedToken::deserialize(&mut account.1.data.as_slice())?;
+        let des_account = CToken::deserialize(&mut account.1.data.as_slice())?;
         if let Some(extensions) = des_account.extensions.as_ref() {
             for extension in extensions.iter() {
                 if let ExtensionStruct::Compressible(e) = extension {

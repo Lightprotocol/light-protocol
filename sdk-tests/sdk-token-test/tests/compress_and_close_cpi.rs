@@ -551,10 +551,9 @@ async fn test_compress_and_close_cpi_with_context() {
         .unwrap();
 
     // Debug: Check the actual token account balance
-    use light_ctoken_types::state::CompressedToken;
+    use light_ctoken_types::state::CToken;
     use light_zero_copy::traits::ZeroCopyAt;
-    let (ctoken_account, _) =
-        CompressedToken::zero_copy_at(ctoken_solana_account.data.as_slice()).unwrap();
+    let (ctoken_account, _) = CToken::zero_copy_at(ctoken_solana_account.data.as_slice()).unwrap();
     println!(
         "DEBUG: Token account balance before compress_and_close: {}",
         ctoken_account.amount

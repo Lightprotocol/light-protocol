@@ -1,7 +1,7 @@
-use light_compressed_account::{
-    compressed_account::PackedMerkleContext, instruction_data::cpi_context::CompressedCpiContext,
+use light_compressed_account::compressed_account::PackedMerkleContext;
+use light_ctoken_types::instructions::transfer2::{
+    CompressedCpiContext, MultiInputTokenDataWithContext,
 };
-use light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext;
 use light_profiler::profile;
 use light_sdk::{
     error::LightSdkError,
@@ -86,7 +86,6 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
         let cpi_context_config = CompressedCpiContext {
             set_context: false,
             first_set_context: false,
-            cpi_context_account_index: 0,
         };
 
         (

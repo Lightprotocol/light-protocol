@@ -1,4 +1,4 @@
-use anchor_compressed_token::{check_cpi_context, ErrorCode};
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use arrayvec::ArrayVec;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
@@ -49,10 +49,6 @@ pub fn process_transfer2(
         .map_err(ProgramError::from)?;
     msg!("here1");
 
-    // Check CPI  context validity (multi-transfer modifies Solana account state)
-    check_cpi_context(&inputs.cpi_context)?;
-    msg!("here2");
-
     validate_instruction_data(&inputs)?;
     msg!("here3");
 
@@ -102,9 +98,11 @@ pub fn validate_instruction_data(
         return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
     }
 
-    // Check CPI context write mode doesn't have compressions
+    // Check CPI context write mode doesn't have compressions.
+    // Write to cpi context must not modify any solana account state
+    // in this instruction other than the cpi context account.
     if let Some(cpi_context) = inputs.cpi_context.as_ref() {
-        if (cpi_context.set_context || cpi_context.first_set_context)
+        if (cpi_context.set_context() || cpi_context.first_set_context())
             && inputs.compressions.is_some()
         {
             msg!("Compressions not allowed when writing to CPI context");

@@ -15,7 +15,8 @@ pub struct CompressibleExtensionInstructionData {
     /// Version of the compressed token account when ctoken account is
     /// compressed and closed. (The version specifies the hashing scheme.)
     pub token_account_version: u8,
-    /// In Epochs. (could do in slots as well)
+    /// Rent payment in epochs.
+    /// Paid once at initialization.
     pub rent_payment: u64,
     pub has_top_up: u8,
     pub write_top_up: u32,
@@ -47,13 +48,16 @@ impl CompressToPubkey {
     }
 }
 
-pub const PDA_MARKER: &[u8; 21] = b"ProgramDerivedAddress";
-// TODO: upstream
+// Taken from pinocchio 0.9.2.
+// Modifications:
+// -  seeds: &[&[u8]; N], ->  seeds: &[&[u8]],
+// - if seeds.len() > MAX_SEEDS CTokenError::InvalidAccountData
 pub fn derive_address(
     seeds: &[&[u8]],
     bump: u8,
     program_id: &Pubkey,
 ) -> Result<Pubkey, CTokenError> {
+    const PDA_MARKER: &[u8; 21] = b"ProgramDerivedAddress";
     if seeds.len() > MAX_SEEDS {
         return Err(CTokenError::InvalidAccountData);
     }

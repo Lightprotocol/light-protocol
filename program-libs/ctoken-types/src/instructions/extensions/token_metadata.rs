@@ -3,7 +3,6 @@ use light_zero_copy::ZeroCopy;
 
 use crate::{state::AdditionalMetadata, AnchorDeserialize, AnchorSerialize};
 
-// TODO: double check hashing scheme, add tests with partial data
 #[repr(C)]
 #[derive(Debug, Clone, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct TokenMetadataInstructionData {

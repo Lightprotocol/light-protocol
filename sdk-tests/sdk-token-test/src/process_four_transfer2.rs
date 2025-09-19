@@ -223,11 +223,12 @@ pub fn process_four_transfer2<'info>(
         let inputs = Transfer2Inputs {
             validity_proof: proof,
             transfer_config: Transfer2Config {
-                cpi_context: Some(CompressedCpiContext {
-                    set_context: false,
-                    first_set_context: false,
-                    cpi_context_account_index: 0,
-                }),
+                cpi_context: Some(
+                    light_ctoken_types::instructions::transfer2::CompressedCpiContext {
+                        set_context: false,
+                        first_set_context: false,
+                    },
+                ),
                 ..Default::default()
             },
             meta_config: Transfer2AccountsMetaConfig {

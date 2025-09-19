@@ -3,7 +3,7 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::checks::check_owner;
 use light_ctoken_types::{
     instructions::transfer2::ZCompressionMode,
-    state::{CompressedToken, ZExtensionStructMut},
+    state::{CToken, ZExtensionStructMut},
     CTokenError,
 };
 use light_profiler::profile;
@@ -35,7 +35,7 @@ pub fn compress_ctokens(inputs: NativeCompressionInputs) -> Result<Option<u64>, 
         .try_borrow_mut_data()
         .map_err(|_| ProgramError::AccountBorrowFailed)?;
 
-    let (mut ctoken, _) = CompressedToken::zero_copy_at_mut(&mut token_account_data)
+    let (mut ctoken, _) = CToken::zero_copy_at_mut(&mut token_account_data)
         .map_err(|_| ProgramError::InvalidAccountData)?;
 
     if ctoken.mint.to_bytes() != mint {

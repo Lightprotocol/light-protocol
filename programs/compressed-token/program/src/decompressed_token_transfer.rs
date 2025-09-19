@@ -1,6 +1,6 @@
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_ctoken_types::{
-    state::{CompressedToken, ZExtensionStruct},
+    state::{CToken, ZExtensionStruct},
     CTokenError,
 };
 use light_profiler::profile;
@@ -84,7 +84,7 @@ fn calculate_and_execute_top_up_transfers(
                 .account
                 .try_borrow_data()
                 .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-            let (token, _) = CompressedToken::zero_copy_at(&account_data)?;
+            let (token, _) = CToken::zero_copy_at(&account_data)?;
             if let Some(extensions) = token.extensions.as_ref() {
                 for extension in extensions.iter() {
                     if let ZExtensionStruct::Compressible(compressible_extension) = extension {

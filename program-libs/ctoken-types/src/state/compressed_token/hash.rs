@@ -1,56 +1,8 @@
-use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
+use light_compressed_account::hash_to_bn254_field_size_be;
 use light_hasher::{errors::HasherError, Hasher, Poseidon};
-use light_profiler::profile;
-use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopy, ZeroCopyMut};
 
-use crate::{AnchorDeserialize, AnchorSerialize, CTokenError, NATIVE_MINT};
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
-#[repr(u8)]
-pub enum AccountState {
-    //Uninitialized,
-    Initialized = 0,
-    Frozen = 1,
-}
-
-impl TryFrom<u8> for AccountState {
-    type Error = CTokenError;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        match value {
-            //0 => Ok(AccountState::Uninitialized), TODO: check with main that we don't create breaking changes for v1 token data.
-            0 => Ok(AccountState::Initialized),
-            1 => Ok(AccountState::Frozen),
-            _ => Err(CTokenError::InvalidAccountState),
-        }
-    }
-}
-
-#[derive(
-    Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize, Clone, ZeroCopy, ZeroCopyMut,
-)]
-#[repr(C)]
-pub struct TokenData {
-    /// The mint associated with this account
-    pub mint: Pubkey,
-    /// The owner of this account.
-    pub owner: Pubkey,
-    /// The amount of tokens this account holds.
-    pub amount: u64,
-    /// If `delegate` is `Some` then `delegated_amount` represents
-    /// the amount authorized by the delegate
-    pub delegate: Option<Pubkey>,
-    /// The account's state
-    pub state: u8,
-    /// Placeholder for TokenExtension tlv data (unimplemented)
-    pub tlv: Option<Vec<u8>>,
-}
-
-impl TokenData {
-    pub fn state(&self) -> Result<AccountState, CTokenError> {
-        AccountState::try_from(self.state)
-    }
-}
+use super::TokenData;
+use crate::{state::compressed_token::AccountState, NATIVE_MINT};
 
 /// Hashing schema: H(mint, owner, amount, delegate, delegated_amount,
 /// is_native, state)
@@ -73,6 +25,7 @@ impl TokenData {
     pub fn is_native(&self) -> bool {
         self.mint == NATIVE_MINT
     }
+
     pub fn hash_with_hashed_values(
         hashed_mint: &[u8; 32],
         hashed_owner: &[u8; 32],
@@ -169,37 +122,5 @@ impl TokenData {
                 &hashed_delegate_option,
             )
         }
-    }
-}
-
-// Implementation for zero-copy mutable TokenData
-impl ZTokenDataMut<'_> {
-    /// Set all fields of the TokenData struct at once
-    #[inline]
-    #[profile]
-    pub fn set(
-        &mut self,
-        mint: Pubkey,
-        owner: Pubkey,
-        amount: impl ZeroCopyNumTrait,
-        delegate: Option<Pubkey>,
-        state: AccountState,
-    ) -> Result<(), CTokenError> {
-        self.mint = mint;
-        self.owner = owner;
-        self.amount.set(amount.into());
-        if let Some(z_delegate) = self.delegate.as_deref_mut() {
-            *z_delegate = delegate.ok_or(CTokenError::InstructionDataExpectedDelegate)?;
-        }
-        if self.delegate.is_none() && delegate.is_some() {
-            return Err(CTokenError::ZeroCopyExpectedDelegate);
-        }
-
-        *self.state = state as u8;
-
-        if self.tlv.is_some() {
-            return Err(CTokenError::TokenDataTlvUnimplemented);
-        }
-        Ok(())
     }
 }

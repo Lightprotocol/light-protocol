@@ -1,6 +1,5 @@
 use std::ops::{Deref, DerefMut};
 
-use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_profiler::profile;
 use light_zero_copy::{
@@ -11,213 +10,11 @@ use spl_pod::solana_msg::msg;
 
 use crate::{
     state::{
-        CompressionInfoConfig, ExtensionStruct, ExtensionStructConfig, ZExtensionStruct,
+        CToken, CompressionInfoConfig, ExtensionStruct, ExtensionStructConfig, ZExtensionStruct,
         ZExtensionStructMut,
     },
     AnchorDeserialize, AnchorSerialize,
 };
-
-/// Compressed token account structure (same as SPL Token Account but with extensions)
-#[derive(Debug, PartialEq, Eq, Hash, Clone)]
-pub struct CompressedToken {
-    /// The mint associated with this account
-    pub mint: Pubkey,
-    /// The owner of this account.
-    pub owner: Pubkey,
-    /// The amount of tokens this account holds.
-    pub amount: u64,
-    /// If `delegate` is `Some` then `delegated_amount` represents
-    /// the amount authorized by the delegate
-    pub delegate: Option<Pubkey>,
-    /// The account's state
-    pub state: u8,
-    /// If `is_some`, this is a native token, and the value logs the rent-exempt
-    /// reserve. An Account is required to be rent-exempt, so the value is
-    /// used by the Processor to ensure that wrapped SOL accounts do not
-    /// drop below this threshold.
-    pub is_native: Option<u64>,
-    /// The amount delegated
-    pub delegated_amount: u64,
-    /// Optional authority to close the account.
-    pub close_authority: Option<Pubkey>,
-    /// Extensions for the token account (including compressible config)
-    pub extensions: Option<Vec<ExtensionStruct>>,
-}
-
-// Manual implementation of BorshSerialize for SPL compatibility
-impl BorshSerialize for CompressedToken {
-    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
-        // Write mint (32 bytes)
-        writer.write_all(&self.mint.to_bytes())?;
-
-        // Write owner (32 bytes)
-        writer.write_all(&self.owner.to_bytes())?;
-
-        // Write amount (8 bytes)
-        writer.write_all(&self.amount.to_le_bytes())?;
-
-        // Write delegate as COption (4 bytes + 32 bytes)
-        if let Some(delegate) = self.delegate {
-            writer.write_all(&[1, 0, 0, 0])?; // COption Some discriminator
-            writer.write_all(&delegate.to_bytes())?;
-        } else {
-            writer.write_all(&[0; 36])?; // COption None (4 bytes) + empty pubkey (32 bytes)
-        }
-
-        // Write state (1 byte)
-        writer.write_all(&[self.state])?;
-
-        // Write is_native as COption (4 bytes + 8 bytes)
-        if let Some(is_native) = self.is_native {
-            writer.write_all(&[1, 0, 0, 0])?; // COption Some discriminator
-            writer.write_all(&is_native.to_le_bytes())?;
-        } else {
-            writer.write_all(&[0; 12])?; // COption None (4 bytes) + empty u64 (8 bytes)
-        }
-
-        // Write delegated_amount (8 bytes)
-        writer.write_all(&self.delegated_amount.to_le_bytes())?;
-
-        // Write close_authority as COption (4 bytes + 32 bytes)
-        if let Some(close_authority) = self.close_authority {
-            writer.write_all(&[1, 0, 0, 0])?; // COption Some discriminator
-            writer.write_all(&close_authority.to_bytes())?;
-        } else {
-            writer.write_all(&[0; 36])?; // COption None (4 bytes) + empty pubkey (32 bytes)
-        }
-
-        // Write extensions if present
-        if let Some(ref extensions) = self.extensions {
-            // Write AccountType::Account byte for SPL Token 2022 compatibility
-            writer.write_all(&[2])?; // AccountType::Account = 2
-
-            // Serialize extensions using borsh
-            extensions.serialize(writer)?;
-        }
-
-        Ok(())
-    }
-}
-
-// Manual implementation of BorshDeserialize for SPL compatibility
-impl BorshDeserialize for CompressedToken {
-    fn deserialize_reader<R: std::io::Read>(buf: &mut R) -> std::io::Result<Self> {
-        // Read mint (32 bytes)
-        let mut mint_bytes = [0u8; 32];
-        buf.read_exact(&mut mint_bytes)?;
-        let mint = Pubkey::from(mint_bytes);
-
-        // Read owner (32 bytes)
-        let mut owner_bytes = [0u8; 32];
-        buf.read_exact(&mut owner_bytes)?;
-        let owner = Pubkey::from(owner_bytes);
-
-        // Read amount (8 bytes)
-        let mut amount_bytes = [0u8; 8];
-        buf.read_exact(&mut amount_bytes)?;
-        let amount = u64::from_le_bytes(amount_bytes);
-
-        // Read delegate COption (4 bytes + 32 bytes)
-        let mut discriminator = [0u8; 4];
-        buf.read_exact(&mut discriminator)?;
-        let mut pubkey_bytes = [0u8; 32];
-        buf.read_exact(&mut pubkey_bytes)?;
-        let delegate = if u32::from_le_bytes(discriminator) == 1 {
-            Some(Pubkey::from(pubkey_bytes))
-        } else {
-            None
-        };
-
-        // Read state (1 byte)
-        let mut state = [0u8; 1];
-        buf.read_exact(&mut state)?;
-        let state = state[0];
-
-        // Read is_native COption (4 bytes + 8 bytes)
-        let mut discriminator = [0u8; 4];
-        buf.read_exact(&mut discriminator)?;
-        let mut value_bytes = [0u8; 8];
-        buf.read_exact(&mut value_bytes)?;
-        let is_native = if u32::from_le_bytes(discriminator) == 1 {
-            Some(u64::from_le_bytes(value_bytes))
-        } else {
-            None
-        };
-
-        // Read delegated_amount (8 bytes)
-        let mut delegated_amount_bytes = [0u8; 8];
-        buf.read_exact(&mut delegated_amount_bytes)?;
-        let delegated_amount = u64::from_le_bytes(delegated_amount_bytes);
-
-        // Read close_authority COption (4 bytes + 32 bytes)
-        let mut discriminator = [0u8; 4];
-        buf.read_exact(&mut discriminator)?;
-        let mut pubkey_bytes = [0u8; 32];
-        buf.read_exact(&mut pubkey_bytes)?;
-        let close_authority = if u32::from_le_bytes(discriminator) == 1 {
-            Some(Pubkey::from(pubkey_bytes))
-        } else {
-            None
-        };
-
-        // Try to read extensions if data remains
-        let extensions = {
-            // Try to read AccountType byte
-            let mut account_type = [0u8; 1];
-            match buf.read_exact(&mut account_type) {
-                Ok(_) => {
-                    if account_type[0] == 2 {
-                        // AccountType::Account, extensions follow
-                        Option::<Vec<ExtensionStruct>>::deserialize_reader(buf).unwrap_or_default()
-                    } else {
-                        None
-                    }
-                }
-                Err(_) => None, // No more data, no extensions
-            }
-        };
-
-        Ok(Self {
-            mint,
-            owner,
-            amount,
-            delegate,
-            state,
-            is_native,
-            delegated_amount,
-            close_authority,
-            extensions,
-        })
-    }
-}
-
-impl CompressedToken {
-    /// Extract amount directly from account data slice using hardcoded offset
-    /// CompressedToken layout: mint (32 bytes) + owner (32 bytes) + amount (8 bytes)
-    pub fn amount_from_slice(data: &[u8]) -> Result<u64, ZeroCopyError> {
-        const AMOUNT_OFFSET: usize = 64; // 32 (mint) + 32 (owner)
-
-        if data.len() < AMOUNT_OFFSET + 8 {
-            return Err(ZeroCopyError::Size);
-        }
-
-        let amount_bytes = &data[AMOUNT_OFFSET..AMOUNT_OFFSET + 8];
-        let amount = u64::from_le_bytes(amount_bytes.try_into().map_err(|_| ZeroCopyError::Size)?);
-
-        Ok(amount)
-    }
-
-    /// Extract amount from an AccountInfo
-    #[cfg(feature = "solana")]
-    pub fn amount_from_account_info(
-        account_info: &solana_account_info::AccountInfo,
-    ) -> Result<u64, ZeroCopyError> {
-        let data = account_info
-            .try_borrow_data()
-            .map_err(|_| ZeroCopyError::Size)?;
-        Self::amount_from_slice(&data)
-    }
-}
 
 #[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedTokenMeta {
@@ -435,8 +232,8 @@ impl<'a> Deref for ZCompressedToken<'a> {
 }
 
 // TODO: add randomized tests
-impl PartialEq<CompressedToken> for ZCompressedToken<'_> {
-    fn eq(&self, other: &CompressedToken) -> bool {
+impl PartialEq<CToken> for ZCompressedToken<'_> {
+    fn eq(&self, other: &CToken) -> bool {
         // Compare basic fields
         if self.mint.to_bytes() != other.mint.to_bytes()
             || self.owner.to_bytes() != other.owner.to_bytes()
@@ -591,7 +388,7 @@ impl PartialEq<CompressedToken> for ZCompressedToken<'_> {
     }
 }
 
-impl PartialEq<ZCompressedToken<'_>> for CompressedToken {
+impl PartialEq<ZCompressedToken<'_>> for CToken {
     fn eq(&self, other: &ZCompressedToken<'_>) -> bool {
         other.eq(self)
     }
@@ -617,7 +414,7 @@ impl DerefMut for ZCompressedTokenMut<'_> {
     }
 }
 
-impl<'a> ZeroCopyAt<'a> for CompressedToken {
+impl<'a> ZeroCopyAt<'a> for CToken {
     type ZeroCopyAt = ZCompressedToken<'a>;
 
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
@@ -641,7 +438,7 @@ impl<'a> ZeroCopyAt<'a> for CompressedToken {
     }
 }
 
-impl<'a> ZeroCopyAtMut<'a> for CompressedToken {
+impl<'a> ZeroCopyAtMut<'a> for CToken {
     type ZeroCopyAtMut = ZCompressedTokenMut<'a>;
 
     #[profile]
@@ -759,23 +556,6 @@ impl ZCompressedTokenMetaMut<'_> {
     }
 }
 
-impl CompressedToken {
-    /// Checks if account is frozen
-    pub fn is_frozen(&self) -> bool {
-        self.state == 2 // AccountState::Frozen
-    }
-
-    /// Checks if account is native
-    pub fn is_native(&self) -> bool {
-        self.is_native.is_some()
-    }
-
-    /// Checks if account is initialized
-    pub fn is_initialized(&self) -> bool {
-        self.state != 0 // AccountState::Uninitialized
-    }
-}
-
 // Configuration for initializing a compressed token
 #[derive(Debug, Clone)]
 pub struct CompressedTokenConfig {
@@ -806,39 +586,27 @@ impl CompressedTokenConfig {
     }
 }
 
-impl<'a> ZeroCopyNew<'a> for CompressedToken {
+impl<'a> ZeroCopyNew<'a> for CToken {
     type ZeroCopyConfig = CompressedTokenConfig;
     type Output = ZCompressedTokenMut<'a>;
 
     fn byte_len(config: &Self::ZeroCopyConfig) -> Result<usize, ZeroCopyError> {
-        let mut len = 0;
-
         // mint: 32 bytes
-        len += 32;
         // owner: 32 bytes
-        len += 32;
         // amount: 8 bytes
-        len += 8;
         // delegate: 4 bytes discriminator + 32 bytes pubkey
-        len += 36;
         // state: 1 byte
-        len += 1;
         // is_native: 4 bytes discriminator + 8 bytes u64
-        len += 12;
         // delegated_amount: 8 bytes
-        len += 8;
         // close_authority: 4 bytes discriminator + 32 bytes pubkey
-        len += 36;
-
         // Total: 165 bytes (SPL Token Account size)
-
+        let mut len = 165;
         // Add AccountType byte for SPL Token 2022 compatibility (always present if we have extensions)
         if !config.extensions.is_empty() {
             len += 1; // AccountType::Account byte at position 165
             len += 1; // Option discriminant for extensions (Some = 1)
             len += <Vec<ExtensionStruct> as ZeroCopyNew<'a>>::byte_len(&config.extensions)?;
         }
-
         Ok(len)
     }
 
@@ -847,7 +615,7 @@ impl<'a> ZeroCopyNew<'a> for CompressedToken {
         config: Self::ZeroCopyConfig,
     ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         if bytes.len() < Self::byte_len(&config)? {
-            msg!("CompressedToken new_zero_copy Insufficient buffer size");
+            msg!("CToken new_zero_copy Insufficient buffer size");
             return Err(ZeroCopyError::ArraySize(
                 bytes.len(),
                 Self::byte_len(&config)?,
@@ -895,6 +663,6 @@ impl<'a> ZeroCopyNew<'a> for CompressedToken {
                 current_bytes = remaining_bytes;
             }
         }
-        CompressedToken::zero_copy_at_mut(bytes)
+        CToken::zero_copy_at_mut(bytes)
     }
 }

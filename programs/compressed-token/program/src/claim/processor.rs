@@ -1,7 +1,7 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{AccountInfoTrait, AccountIterator};
 use light_compressible::{config::CompressibleConfig, rent::get_rent_exemption_lamports};
-use light_ctoken_types::state::{CompressedToken, ZExtensionStructMut};
+use light_ctoken_types::state::{CToken, ZExtensionStructMut};
 use light_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
@@ -104,7 +104,7 @@ fn validate_and_claim(
     let bytes = token_account.data_len() as u64;
     // Parse and process the token account
     let mut token_account_data = AccountInfoTrait::try_borrow_mut_data(token_account)?;
-    let (mut compressed_token, _) = CompressedToken::zero_copy_at_mut(&mut token_account_data)?;
+    let (mut compressed_token, _) = CToken::zero_copy_at_mut(&mut token_account_data)?;
 
     // Find compressible extension
     if let Some(extensions) = compressed_token.extensions.as_mut() {

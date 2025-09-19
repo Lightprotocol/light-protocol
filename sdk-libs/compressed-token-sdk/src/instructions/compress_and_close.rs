@@ -1,5 +1,7 @@
-use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
-use light_ctoken_types::state::{CompressedToken, ZExtensionStruct};
+use light_ctoken_types::{
+    instructions::transfer2::CompressedCpiContext,
+    state::{CToken, ZExtensionStruct},
+};
 use light_profiler::profile;
 use light_sdk::{
     error::LightSdkError,
@@ -46,7 +48,7 @@ pub fn pack_for_compress_and_close(
 ) -> Result<CompressAndCloseIndices, TokenSdkError> {
     // Add output queue first so it's at index 0
     let output_tree_index = packed_accounts.insert_or_get(output_queue);
-    let (ctoken_account, _) = CompressedToken::zero_copy_at(ctoken_account_data)?;
+    let (ctoken_account, _) = CToken::zero_copy_at(ctoken_account_data)?;
     let source_index = packed_accounts.insert_or_get(ctoken_account_pubkey);
     let mint_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
     let owner_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.owner.to_bytes()));
@@ -205,7 +207,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             .try_borrow_data()
             .map_err(|_| TokenSdkError::AccountBorrowFailed)?;
 
-        let amount = light_ctoken_types::state::CompressedToken::amount_from_slice(&account_data)?;
+        let amount = light_ctoken_types::state::CToken::amount_from_slice(&account_data)?;
 
         // Create CTokenAccount2 for CompressAndClose operation
         let mut token_account =
@@ -233,7 +235,6 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         let cpi_context_config = CompressedCpiContext {
             set_context: false,
             first_set_context: false,
-            cpi_context_account_index: 0, // unused
         };
 
         (
@@ -310,10 +311,9 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             .try_borrow_data()
             .map_err(|_| TokenSdkError::AccountBorrowFailed)?;
 
-        // Deserialize the full CompressedToken including extensions
-        let (compressed_token, _) =
-            light_ctoken_types::state::CompressedToken::zero_copy_at(&account_data)
-                .map_err(|_| TokenSdkError::InvalidAccountData)?;
+        // Deserialize the full CToken including extensions
+        let (compressed_token, _) = light_ctoken_types::state::CToken::zero_copy_at(&account_data)
+            .map_err(|_| TokenSdkError::InvalidAccountData)?;
 
         // Extract pubkeys from the deserialized account
         let mint_pubkey = Pubkey::from(compressed_token.mint.to_bytes());

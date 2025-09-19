@@ -37,7 +37,7 @@ impl Transfer2Config {
             cpi_context_write_required: inputs
                 .cpi_context
                 .as_ref()
-                .map(|x| x.first_set_context || x.set_context)
+                .map(|x| x.first_set_context() || x.set_context())
                 .unwrap_or_default(),
             total_input_lamports: input_lamports,
             total_output_lamports: output_lamports,

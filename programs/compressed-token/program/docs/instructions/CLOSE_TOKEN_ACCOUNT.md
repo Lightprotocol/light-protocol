@@ -6,7 +6,7 @@
 
 **description:**
 1. Closes decompressed ctoken solana accounts and distributes remaining lamports to destination account.
-2. Account layout `CompressedToken` is defined in path: program-libs/ctoken-types/src/state/solana_ctoken.rs
+2. Account layout `CompressedToken` is defined in path: program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs
 3. Supports both regular (non-compressible) and compressible token accounts (with compressible extension)
 4. For compressible accounts (with compressible extension):
    - Rent exemption is returned to the rent recipient (destination account)

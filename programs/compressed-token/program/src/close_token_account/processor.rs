@@ -2,7 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_signer, AccountInfoTrait};
 use light_compressible::rent::{calculate_close_lamports, get_rent_exemption_lamports};
-use light_ctoken_types::state::{CompressedToken, ZCompressedTokenMut, ZExtensionStructMut};
+use light_ctoken_types::state::{CToken, ZCompressedTokenMut, ZExtensionStructMut};
 use light_profiler::profile;
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 use pinocchio::account_info::AccountInfo;
@@ -23,10 +23,10 @@ pub fn process_close_token_account(
     // Validate and get accounts
     let accounts = CloseTokenAccountAccounts::validate_and_parse(account_infos)?;
     {
-        // Try to parse as CompressedToken using zero-copy deserialization
+        // Try to parse as CToken using zero-copy deserialization
         let token_account_data =
             &mut AccountInfoTrait::try_borrow_mut_data(accounts.token_account)?;
-        let (compressed_token, _) = CompressedToken::zero_copy_at_mut(token_account_data)?;
+        let (compressed_token, _) = CToken::zero_copy_at_mut(token_account_data)?;
         validate_token_account_close_instruction(&accounts, &compressed_token)?;
     }
     close_token_account(&accounts)?;
@@ -161,7 +161,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
     // Check for compressible extension and handle lamport distribution
 
     let token_account_data = AccountInfoTrait::try_borrow_data(accounts.token_account)?;
-    let (compressed_token, _) = CompressedToken::zero_copy_at(&token_account_data)?;
+    let (compressed_token, _) = CToken::zero_copy_at(&token_account_data)?;
 
     if let Some(extensions) = compressed_token.extensions.as_ref() {
         for extension in extensions {
