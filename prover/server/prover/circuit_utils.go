@@ -15,7 +15,7 @@ type Proof struct {
 	Proof groth16.Proof
 }
 
-type ProvingSystemV1 struct {
+type MerkleProofSystem struct {
 	InclusionTreeHeight                    uint32
 	InclusionNumberOfCompressedAccounts    uint32
 	NonInclusionTreeHeight                 uint32
@@ -26,7 +26,7 @@ type ProvingSystemV1 struct {
 	ConstraintSystem                       constraint.ConstraintSystem
 }
 
-type ProvingSystemV2 struct {
+type BatchProofSystem struct {
 	CircuitType      CircuitType
 	TreeHeight       uint32
 	BatchSize        uint32

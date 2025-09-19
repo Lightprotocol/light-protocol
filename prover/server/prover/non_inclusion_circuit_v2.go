@@ -46,7 +46,7 @@ func (circuit *V2NonInclusionCircuit) Define(api frontend.API) error {
 	return nil
 }
 
-func ImportNonInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint32, pkPath string, vkPath string) (*ProvingSystemV1, error) {
+func ImportNonInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint32, pkPath string, vkPath string) (*MerkleProofSystem, error) {
 	roots := make([]frontend.Variable, numberOfCompressedAccounts)
 	values := make([]frontend.Variable, numberOfCompressedAccounts)
 
@@ -88,7 +88,7 @@ func ImportNonInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint3
 		return nil, err
 	}
 
-	return &ProvingSystemV1{
+	return &MerkleProofSystem{
 		NonInclusionTreeHeight:                 treeHeight,
 		NonInclusionNumberOfCompressedAccounts: numberOfCompressedAccounts,
 		ProvingKey:                             pk,

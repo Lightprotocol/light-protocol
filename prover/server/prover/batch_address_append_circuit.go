@@ -246,7 +246,7 @@ type BatchAddressAppendParameters struct {
 	Tree       *merkletree.IndexedMerkleTree
 }
 
-func SetupBatchAddressAppend(height uint32, batchSize uint32) (*ProvingSystemV2, error) {
+func SetupBatchAddressAppend(height uint32, batchSize uint32) (*BatchProofSystem, error) {
 	fmt.Println("Setting up address append batch update: height", height, "batch size", batchSize)
 	ccs, err := R1CSBatchAddressAppend(height, batchSize)
 	if err != nil {
@@ -256,7 +256,7 @@ func SetupBatchAddressAppend(height uint32, batchSize uint32) (*ProvingSystemV2,
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystemV2{
+	return &BatchProofSystem{
 		CircuitType:      BatchAddressAppendCircuitType,
 		TreeHeight:       height,
 		BatchSize:        batchSize,
@@ -270,7 +270,7 @@ func R1CSBatchAddressAppend(height uint32, batchSize uint32) (constraint.Constra
 	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 }
 
-func (ps *ProvingSystemV2) ProveBatchAddressAppend(params *BatchAddressAppendParameters) (*Proof, error) {
+func (ps *BatchProofSystem) ProveBatchAddressAppend(params *BatchAddressAppendParameters) (*Proof, error) {
 	if params == nil {
 		panic("params cannot be nil")
 	}
@@ -297,7 +297,7 @@ func (ps *ProvingSystemV2) ProveBatchAddressAppend(params *BatchAddressAppendPar
 	return &Proof{proof}, nil
 }
 
-func ImportBatchAddressAppendSetup(treeHeight uint32, batchSize uint32, pkPath string, vkPath string) (*ProvingSystemV2, error) {
+func ImportBatchAddressAppendSetup(treeHeight uint32, batchSize uint32, pkPath string, vkPath string) (*BatchProofSystem, error) {
 	circuit := InitBatchAddressTreeAppendCircuit(batchSize, treeHeight)
 
 	fmt.Println("Compiling circuit")
@@ -319,7 +319,7 @@ func ImportBatchAddressAppendSetup(treeHeight uint32, batchSize uint32, pkPath s
 		return nil, err
 	}
 
-	return &ProvingSystemV2{
+	return &BatchProofSystem{
 		CircuitType:      BatchAddressAppendCircuitType,
 		TreeHeight:       treeHeight,
 		BatchSize:        batchSize,
