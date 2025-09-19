@@ -22,11 +22,12 @@ def generate_checksums(directory):
 
     print()
 
-    with open("CHECKSUM", "w") as f:
+    checksum_file = os.path.join(directory, "CHECKSUM")
+    with open(checksum_file, "w") as f:
         for filename, checksum in sorted(checksums.items()):
             f.write(f"{checksum}  {filename}\n")
 
-    print(f"Checksums written to CHECKSUM file")
+    print(f"Checksums written to {checksum_file}")
 
 if __name__ == "__main__":
     generate_checksums("./proving-keys")
