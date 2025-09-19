@@ -39,7 +39,7 @@ func TestCombined(t *testing.T) {
 		splitLine := strings.Split(line, ";")
 		assert.Equal(len(splitLine), 2, "Invalid line: ", line)
 
-		var params CombinedParameters
+		var params V2CombinedParameters
 		err := json.Unmarshal([]byte(splitLine[1]), &params)
 		assert.Nil(err, "Error unmarshalling inputs: ", err)
 
@@ -90,7 +90,7 @@ func TestCombined(t *testing.T) {
 			}
 		}
 
-		var circuit CombinedCircuit
+		var circuit V2CombinedCircuit
 		circuit.Inclusion = InclusionProof{}
 		circuit.NonInclusion = NonInclusionProof{}
 
@@ -118,7 +118,7 @@ func TestCombined(t *testing.T) {
 		circuit.NonInclusion.NumberOfCompressedAccounts = nonInclusionNumberOfCompressedAccounts
 		circuit.NonInclusion.Height = nonInclusionTreeHeight
 
-		assignment := &CombinedCircuit{
+		assignment := &V2CombinedCircuit{
 			PublicInputHash: params.PublicInputHash,
 			Inclusion: InclusionProof{
 				Roots:                      inclusionRoots,

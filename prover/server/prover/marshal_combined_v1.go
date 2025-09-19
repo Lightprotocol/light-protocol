@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-type LegacyCombinedParametersJSON struct {
+type V1CombinedParametersJSON struct {
 	CircuitType             CircuitType                   `json:"circuitType"`
 	StateTreeHeight         uint32                        `json:"stateTreeHeight"`
 	AddressTreeHeight       uint32                        `json:"addressTreeHeight"`
@@ -13,16 +13,16 @@ type LegacyCombinedParametersJSON struct {
 	NonInclusionProofInputs []NonInclusionProofInputsJSON `json:"newAddresses"`
 }
 
-func LegacyParseCombined(inputJSON string) (LegacyCombinedParameters, error) {
-	var proofData LegacyCombinedParameters
+func V1ParseCombined(inputJSON string) (V1CombinedParameters, error) {
+	var proofData V1CombinedParameters
 	err := json.Unmarshal([]byte(inputJSON), &proofData)
 	if err != nil {
-		return LegacyCombinedParameters{}, fmt.Errorf("error parsing JSON: %v", err)
+		return V1CombinedParameters{}, fmt.Errorf("error parsing JSON: %v", err)
 	}
 	return proofData, nil
 }
 
-func (p *LegacyCombinedParameters) UnmarshalJSON(data []byte) error {
+func (p *V1CombinedParameters) UnmarshalJSON(data []byte) error {
 	var rawMessages map[string]json.RawMessage
 	err := json.Unmarshal(data, &rawMessages)
 	if err != nil {
@@ -30,12 +30,12 @@ func (p *LegacyCombinedParameters) UnmarshalJSON(data []byte) error {
 	}
 
 	if _, ok := rawMessages["inputCompressedAccounts"]; ok {
-		var params LegacyInclusionParametersJSON
+		var params V1InclusionParametersJSON
 		err := json.Unmarshal(data, &params)
 		if err != nil {
 			return err
 		}
-		p.InclusionParameters = LegacyInclusionParameters{Inputs: nil}
+		p.InclusionParameters = V1InclusionParameters{Inputs: nil}
 		err = p.InclusionParameters.UpdateWithJSON(params)
 		if err != nil {
 			return err
@@ -43,12 +43,12 @@ func (p *LegacyCombinedParameters) UnmarshalJSON(data []byte) error {
 	}
 
 	if _, ok := rawMessages["newAddresses"]; ok {
-		var params LegacyNonInclusionParametersJSON
+		var params V1NonInclusionParametersJSON
 		err := json.Unmarshal(data, &params)
 		if err != nil {
 			return err
 		}
-		p.NonInclusionParameters = LegacyNonInclusionParameters{Inputs: nil}
+		p.NonInclusionParameters = V1NonInclusionParameters{Inputs: nil}
 		err = p.NonInclusionParameters.UpdateWithJSON(params, err)
 		if err != nil {
 			return err

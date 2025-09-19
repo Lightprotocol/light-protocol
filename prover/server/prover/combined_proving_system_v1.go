@@ -10,28 +10,28 @@ import (
 	"github.com/reilabs/gnark-lean-extractor/v3/abstractor"
 )
 
-type LegacyCombinedParameters struct {
-	InclusionParameters    LegacyInclusionParameters
-	NonInclusionParameters LegacyNonInclusionParameters
+type V1CombinedParameters struct {
+	InclusionParameters    V1InclusionParameters
+	NonInclusionParameters V1NonInclusionParameters
 }
 
-func (p *LegacyCombinedParameters) NumberOfCompressedAccounts() uint32 {
+func (p *V1CombinedParameters) NumberOfCompressedAccounts() uint32 {
 	return p.InclusionParameters.NumberOfCompressedAccounts()
 }
 
-func (p *LegacyCombinedParameters) TreeHeight() uint32 {
+func (p *V1CombinedParameters) TreeHeight() uint32 {
 	return p.InclusionParameters.TreeHeight()
 }
 
-func (p *LegacyCombinedParameters) NonInclusionNumberOfCompressedAccounts() uint32 {
+func (p *V1CombinedParameters) NonInclusionNumberOfCompressedAccounts() uint32 {
 	return p.NonInclusionParameters.NumberOfCompressedAccounts()
 }
 
-func (p *LegacyCombinedParameters) NonInclusionTreeHeight() uint32 {
+func (p *V1CombinedParameters) NonInclusionTreeHeight() uint32 {
 	return p.NonInclusionParameters.TreeHeight()
 }
 
-func (p *LegacyCombinedParameters) ValidateShape(inclusionTreeHeight uint32, inclusionNumOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumOfCompressedAccounts uint32) error {
+func (p *V1CombinedParameters) ValidateShape(inclusionTreeHeight uint32, inclusionNumOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumOfCompressedAccounts uint32) error {
 	if err := p.InclusionParameters.ValidateShape(inclusionTreeHeight, inclusionNumOfCompressedAccounts); err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func (p *LegacyCombinedParameters) ValidateShape(inclusionTreeHeight uint32, inc
 	return nil
 }
 
-func LegacyInitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) LegacyCombinedCircuit {
+func V1InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) V1CombinedCircuit {
 	inclusionRoots := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
 	inclusionLeaves := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
 	inclusionInPathIndices := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
@@ -63,8 +63,8 @@ func LegacyInitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumber
 		nonInclusionInPathElements[i] = make([]frontend.Variable, nonInclusionTreeHeight)
 	}
 
-	circuit := LegacyCombinedCircuit{
-		Inclusion: LegacyInclusionCircuit{
+	circuit := V1CombinedCircuit{
+		Inclusion: V1InclusionCircuit{
 			Roots:                      inclusionRoots,
 			Leaves:                     inclusionLeaves,
 			InPathIndices:              inclusionInPathIndices,
@@ -72,7 +72,7 @@ func LegacyInitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumber
 			NumberOfCompressedAccounts: inclusionNumberOfCompressedAccounts,
 			Height:                     inclusionTreeHeight,
 		},
-		NonInclusion: LegacyNonInclusionCircuit{
+		NonInclusion: V1NonInclusionCircuit{
 			Roots:                      nonInclusionRoots,
 			Values:                     nonInclusionValues,
 			LeafLowerRangeValues:       nonInclusionLeafLowerRangeValues,
@@ -88,13 +88,13 @@ func LegacyInitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumber
 }
 
 // This is not a function circuit just the fronted api
-type LegacyCombinedCircuit struct {
-	Inclusion    LegacyInclusionCircuit    `gnark:",input"`
-	NonInclusion LegacyNonInclusionCircuit `gnark:",input"`
+type V1CombinedCircuit struct {
+	Inclusion    V1InclusionCircuit    `gnark:",input"`
+	NonInclusion V1NonInclusionCircuit `gnark:",input"`
 }
 
 // This is not a function circuit just the fronted api
-type LegacyInclusionCircuit struct {
+type V1InclusionCircuit struct {
 	// hashed public inputs
 	Roots  []frontend.Variable `gnark:",public"`
 	Leaves []frontend.Variable `gnark:",public"`
@@ -107,7 +107,7 @@ type LegacyInclusionCircuit struct {
 	Height                     uint32
 }
 
-func (circuit *LegacyInclusionCircuit) Define(api frontend.API) error {
+func (circuit *V1InclusionCircuit) Define(api frontend.API) error {
 	abstractor.CallVoid(api, InclusionProof{
 		Roots:          circuit.Roots,
 		Leaves:         circuit.Leaves,
@@ -120,7 +120,7 @@ func (circuit *LegacyInclusionCircuit) Define(api frontend.API) error {
 	return nil
 }
 
-func (circuit *LegacyCombinedCircuit) Define(api frontend.API) error {
+func (circuit *V1CombinedCircuit) Define(api frontend.API) error {
 
 	abstractor.CallVoid(api, InclusionProof{
 		Roots:          circuit.Inclusion.Roots,
@@ -149,12 +149,12 @@ func (circuit *LegacyCombinedCircuit) Define(api frontend.API) error {
 	return nil
 }
 
-func (ps *ProvingSystemV1) LegacyProveCombined(params *LegacyCombinedParameters) (*Proof, error) {
+func (ps *ProvingSystemV1) V1ProveCombined(params *V1CombinedParameters) (*Proof, error) {
 	if err := params.ValidateShape(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
 
-	circuit := LegacyInitializeCombinedCircuit(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts)
+	circuit := V1InitializeCombinedCircuit(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts)
 
 	for i := 0; i < int(ps.InclusionNumberOfCompressedAccounts); i++ {
 		circuit.Inclusion.Roots[i] = params.InclusionParameters.Inputs[i].Root

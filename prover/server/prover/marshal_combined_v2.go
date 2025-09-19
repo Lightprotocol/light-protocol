@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-type CombinedParametersJSON struct {
+type V2CombinedParametersJSON struct {
 	CircuitType             CircuitType                   `json:"circuitType"`
 	StateTreeHeight         uint32                        `json:"stateTreeHeight"`
 	AddressTreeHeight       uint32                        `json:"addressTreeHeight"`
@@ -14,28 +14,28 @@ type CombinedParametersJSON struct {
 	NonInclusionProofInputs []NonInclusionProofInputsJSON `json:"newAddresses"`
 }
 
-func ParseCombined(inputJSON string) (NonInclusionParameters, error) {
-	var proofData NonInclusionParameters
+func ParseCombined(inputJSON string) (V2NonInclusionParameters, error) {
+	var proofData V2NonInclusionParameters
 	err := json.Unmarshal([]byte(inputJSON), &proofData)
 	if err != nil {
-		return NonInclusionParameters{}, fmt.Errorf("error parsing JSON: %v", err)
+		return V2NonInclusionParameters{}, fmt.Errorf("error parsing JSON: %v", err)
 	}
 	return proofData, nil
 }
 
-func (p *CombinedParameters) MarshalJSON() ([]byte, error) {
-	combined := CombinedParametersJSON{
+func (p *V2CombinedParameters) MarshalJSON() ([]byte, error) {
+	combined := V2CombinedParametersJSON{
 		CircuitType:             CombinedCircuitType,
 		PublicInputHash:         toHex(&p.PublicInputHash),
 		StateTreeHeight:         uint32(len(p.InclusionParameters.Inputs[0].PathElements)),
 		AddressTreeHeight:       uint32(len(p.NonInclusionParameters.Inputs[0].PathElements)),
-		InclusionProofInputs:    p.InclusionParameters.CreateInclusionParametersJSON().InclusionInputs,
-		NonInclusionProofInputs: p.NonInclusionParameters.CreateNonInclusionParametersJSON().NonInclusionInputs,
+		InclusionProofInputs:    p.InclusionParameters.CreateV2InclusionParametersJSON().InclusionInputs,
+		NonInclusionProofInputs: p.NonInclusionParameters.CreateV2NonInclusionParametersJSON().NonInclusionInputs,
 	}
 	return json.Marshal(combined)
 }
 
-func (p *CombinedParameters) UnmarshalJSON(data []byte) error {
+func (p *V2CombinedParameters) UnmarshalJSON(data []byte) error {
 	var rawMessages map[string]json.RawMessage
 	err := json.Unmarshal(data, &rawMessages)
 	if err != nil {
@@ -49,12 +49,12 @@ func (p *CombinedParameters) UnmarshalJSON(data []byte) error {
 	fromHex(&p.PublicInputHash, publicInputHash)
 
 	if _, ok := rawMessages["inputCompressedAccounts"]; ok {
-		var params InclusionParametersJSON
+		var params V2InclusionParametersJSON
 		err := json.Unmarshal(data, &params)
 		if err != nil {
 			return err
 		}
-		p.InclusionParameters = InclusionParameters{Inputs: nil}
+		p.InclusionParameters = V2InclusionParameters{Inputs: nil}
 		err = p.InclusionParameters.UpdateWithJSON(params)
 		if err != nil {
 			return err
@@ -62,12 +62,12 @@ func (p *CombinedParameters) UnmarshalJSON(data []byte) error {
 	}
 
 	if _, ok := rawMessages["newAddresses"]; ok {
-		var params NonInclusionParametersJSON
+		var params V2NonInclusionParametersJSON
 		err := json.Unmarshal(data, &params)
 		if err != nil {
 			return err
 		}
-		p.NonInclusionParameters = NonInclusionParameters{Inputs: nil}
+		p.NonInclusionParameters = V2NonInclusionParameters{Inputs: nil}
 		err = p.NonInclusionParameters.UpdateWithJSON(params, err)
 		if err != nil {
 			return err

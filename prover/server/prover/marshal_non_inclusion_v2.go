@@ -15,29 +15,29 @@ type NonInclusionProofInputsJSON struct {
 	LeafHigherRangeValue string   `json:"leafHigherRangeValue"`
 }
 
-type NonInclusionParametersJSON struct {
+type V2NonInclusionParametersJSON struct {
 	CircuitType        CircuitType                   `json:"circuitType"`
 	AddressTreeHeight  uint32                        `json:"addressTreeHeight"`
 	PublicInputHash    string                        `json:"publicInputHash"`
 	NonInclusionInputs []NonInclusionProofInputsJSON `json:"newAddresses"`
 }
 
-func ParseNonInclusion(inputJSON string) (NonInclusionParameters, error) {
-	var proofData NonInclusionParameters
+func ParseNonInclusion(inputJSON string) (V2NonInclusionParameters, error) {
+	var proofData V2NonInclusionParameters
 	err := json.Unmarshal([]byte(inputJSON), &proofData)
 	if err != nil {
-		return NonInclusionParameters{}, fmt.Errorf("error parsing JSON: %v", err)
+		return V2NonInclusionParameters{}, fmt.Errorf("error parsing JSON: %v", err)
 	}
 	return proofData, nil
 }
 
-func (p *NonInclusionParameters) MarshalJSON() ([]byte, error) {
-	paramsJson := p.CreateNonInclusionParametersJSON()
+func (p *V2NonInclusionParameters) MarshalJSON() ([]byte, error) {
+	paramsJson := p.CreateV2NonInclusionParametersJSON()
 	return json.Marshal(paramsJson)
 }
 
-func (p *NonInclusionParameters) CreateNonInclusionParametersJSON() NonInclusionParametersJSON {
-	paramsJson := NonInclusionParametersJSON{}
+func (p *V2NonInclusionParameters) CreateV2NonInclusionParametersJSON() V2NonInclusionParametersJSON {
+	paramsJson := V2NonInclusionParametersJSON{}
 	paramsJson.CircuitType = NonInclusionCircuitType
 	paramsJson.AddressTreeHeight = uint32(len(p.Inputs[0].PathElements))
 	paramsJson.NonInclusionInputs = make([]NonInclusionProofInputsJSON, p.NumberOfCompressedAccounts())
@@ -57,8 +57,8 @@ func (p *NonInclusionParameters) CreateNonInclusionParametersJSON() NonInclusion
 	return paramsJson
 }
 
-func (p *NonInclusionParameters) UnmarshalJSON(data []byte) error {
-	var params NonInclusionParametersJSON
+func (p *V2NonInclusionParameters) UnmarshalJSON(data []byte) error {
+	var params V2NonInclusionParametersJSON
 	err := json.Unmarshal(data, &params)
 	if err != nil {
 		return err
@@ -70,7 +70,7 @@ func (p *NonInclusionParameters) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (p *NonInclusionParameters) UpdateWithJSON(params NonInclusionParametersJSON, err error) error {
+func (p *V2NonInclusionParameters) UpdateWithJSON(params V2NonInclusionParametersJSON, err error) error {
 	fromHex(&p.PublicInputHash, params.PublicInputHash)
 	p.Inputs = make([]NonInclusionInputs, len(params.NonInclusionInputs))
 	for i := 0; i < len(params.NonInclusionInputs); i++ {
