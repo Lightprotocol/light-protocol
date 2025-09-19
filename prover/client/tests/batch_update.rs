@@ -1,4 +1,6 @@
-use light_hasher::{hash_chain::create_hash_chain_from_slice, Hasher, Poseidon};
+use light_hasher::{
+    hash_chain::create_hash_chain_from_slice, to_byte_array::ToByteArray, Hasher, Poseidon,
+};
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
     constants::{DEFAULT_BATCH_STATE_TREE_HEIGHT, PROVE_PATH, SERVER_ADDRESS},
@@ -31,9 +33,9 @@ async fn prove_batch_update() {
             old_leaves.push(leaf);
             merkle_tree.append(&leaf).unwrap();
 
+            let index_bytes = (i as usize).to_byte_array().unwrap();
             #[allow(clippy::unnecessary_cast)]
-            let nullifier =
-                Poseidon::hashv(&[&leaf, &(i as usize).to_be_bytes(), &tx_hash]).unwrap();
+            let nullifier = Poseidon::hashv(&[&leaf, &index_bytes, &tx_hash]).unwrap();
             nullifiers.push(nullifier);
         }
 

@@ -67,6 +67,8 @@ impl_to_byte_array_for_integer_type!(i32);
 impl_to_byte_array_for_integer_type!(u32);
 impl_to_byte_array_for_integer_type!(i64);
 impl_to_byte_array_for_integer_type!(u64);
+impl_to_byte_array_for_integer_type!(isize);
+impl_to_byte_array_for_integer_type!(usize);
 impl_to_byte_array_for_integer_type!(i128);
 impl_to_byte_array_for_integer_type!(u128);
 
