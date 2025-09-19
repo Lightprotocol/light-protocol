@@ -18,10 +18,10 @@ import (
 // The file has two columns, separated by a semicolon.
 // First column is the expected result, second column is the input.
 // For each row, run the test with the input and check if the result is as expected.
-func TestNonInclusion(t testing.T) {
+func TestNonInclusion(t *testing.T) {
 	assert := test.NewAssert(t)
 
-	file, err := os.Open("../test-data/non_inclusion.csv")
+	file, err := os.Open("../../test-data/non_inclusion.csv")
 	defer file.Close()
 
 	assert.Nil(err, "Error opening file: ", err)
@@ -35,7 +35,7 @@ func TestNonInclusion(t testing.T) {
 		splitLine := strings.Split(line, ";")
 		assert.Equal(len(splitLine), 2, "Invalid line: ", line)
 
-		var params V2NonInclusionParameters
+		var params NonInclusionParameters
 		err := json.Unmarshal([]byte(splitLine[1]), &params)
 		assert.Nil(err, "Error unmarshalling inputs: ", err)
 
@@ -64,7 +64,7 @@ func TestNonInclusion(t testing.T) {
 			}
 		}
 
-		var circuit V2NonInclusionCircuit
+		var circuit NonInclusionCircuit
 		circuit.Roots = make([]frontend.Variable, numberOfCompressedAccounts)
 		circuit.Values = make([]frontend.Variable, numberOfCompressedAccounts)
 		circuit.LeafLowerRangeValues = make([]frontend.Variable, numberOfCompressedAccounts)
@@ -82,7 +82,7 @@ func TestNonInclusion(t testing.T) {
 		expectedResult := splitLine[0]
 		if expectedResult == "0" {
 			// Run the failing test
-			assert.ProverFailed(&circuit, &V2NonInclusionCircuit{
+			assert.ProverFailed(&circuit, &NonInclusionCircuit{
 				PublicInputHash:            params.PublicInputHash,
 				Roots:                      roots,
 				Values:                     values,
@@ -95,7 +95,7 @@ func TestNonInclusion(t testing.T) {
 			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerializationChecks())
 		} else if expectedResult == "1" {
 			// Run the passing test
-			assert.ProverSucceeded(&circuit, &V2NonInclusionCircuit{
+			assert.ProverSucceeded(&circuit, &NonInclusionCircuit{
 				PublicInputHash:            params.PublicInputHash,
 				Roots:                      roots,
 				Values:                     values,

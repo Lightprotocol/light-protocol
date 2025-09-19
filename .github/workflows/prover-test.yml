@@ -71,12 +71,12 @@ jobs:
       - name: Build
         run: |
           cd prover/server
-          go build
+          go build ./...
 
       - name: Unit tests
         run: |
           cd prover/server
-          go test ./prover -timeout 60m
+          go test ./prover/... -timeout 60m
 
       - name: Redis Queue tests
         env:

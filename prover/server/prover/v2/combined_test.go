@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"light/light-prover/prover/common"
 	"os"
 	"strings"
 	"testing"
@@ -14,11 +15,11 @@ import (
 	"github.com/consensys/gnark/test"
 )
 
-func TestCombined(t testing.T) {
+func TestCombined(t *testing.T) {
 	assert := test.NewAssert(t)
 
-	file, err := os.Open("../test-data/combined.csv")
-	defer func(file os.File) {
+	file, err := os.Open("../../test-data/combined.csv")
+	defer func(file *os.File) {
 		err := file.Close()
 		if err != nil {
 			fmt.Println("Error closing file: ", err)
@@ -39,7 +40,7 @@ func TestCombined(t testing.T) {
 		splitLine := strings.Split(line, ";")
 		assert.Equal(len(splitLine), 2, "Invalid line: ", line)
 
-		var params V2CombinedParameters
+		var params CombinedParameters
 		err := json.Unmarshal([]byte(splitLine[1]), &params)
 		assert.Nil(err, "Error unmarshalling inputs: ", err)
 
@@ -90,7 +91,7 @@ func TestCombined(t testing.T) {
 			}
 		}
 
-		var circuit V2CombinedCircuit
+		var circuit CombinedCircuit
 		circuit.Inclusion = common.InclusionProof{}
 		circuit.NonInclusion = common.NonInclusionProof{}
 
@@ -118,7 +119,7 @@ func TestCombined(t testing.T) {
 		circuit.NonInclusion.NumberOfCompressedAccounts = nonInclusionNumberOfCompressedAccounts
 		circuit.NonInclusion.Height = nonInclusionTreeHeight
 
-		assignment := &V2CombinedCircuit{
+		assignment := &CombinedCircuit{
 			PublicInputHash: params.PublicInputHash,
 			Inclusion: common.InclusionProof{
 				Roots:                      inclusionRoots,

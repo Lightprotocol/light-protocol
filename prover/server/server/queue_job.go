@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"light/light-prover/logging"
-	"light/light-prover/prover"
 	"light/light-prover/prover/common"
 	"light/light-prover/prover/v1"
 	"light/light-prover/prover/v2"
@@ -120,7 +119,7 @@ func (w *BaseQueueWorker) processJobs() {
 		return
 	}
 
-	// Check if job has expired
+	// Check if a job has expired
 	if !job.CreatedAt.IsZero() {
 		jobAge := time.Since(job.CreatedAt)
 		if jobAge > JobExpirationTimeout {
@@ -166,7 +165,10 @@ func (w *BaseQueueWorker) processJobs() {
 		Payload:   job.Payload,
 		CreatedAt: time.Now(),
 	}
-	w.queue.EnqueueProof(w.processingQueueName, processingJob)
+	err = w.queue.EnqueueProof(w.processingQueueName, processingJob)
+	if err != nil {
+		return
+	}
 
 	err = w.processProofJob(job)
 	w.removeFromProcessingQueue(job.ID)
@@ -207,7 +209,7 @@ func (w *AddressAppendQueueWorker) Stop() {
 }
 
 func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
-	proofRequestMeta, err := prover.ParseProofRequestMeta(job.Payload)
+	proofRequestMeta, err := common.ParseProofRequestMeta(job.Payload)
 	if err != nil {
 		return fmt.Errorf("failed to parse proof request: %w", err)
 	}
@@ -258,16 +260,19 @@ func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
 		Payload:   json.RawMessage(resultData),
 		CreatedAt: time.Now(),
 	}
-	w.queue.EnqueueProof("zk_results_queue", resultJob)
+	err = w.queue.EnqueueProof("zk_results_queue", resultJob)
+	if err != nil {
+		return err
+	}
 	return w.queue.StoreResult(job.ID, proof)
 }
 
-func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*common.Proof, error) {
+func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta common.ProofRequestMeta) (*common.Proof, error) {
 	var ps *common.MerkleProofSystem
 	for _, provingSystem := range w.provingSystemsV1 {
-		if provingSystem.InclusionNumberOfCompressedAccounts == uint32(meta.NumInputs) &&
-			provingSystem.InclusionTreeHeight == uint32(meta.StateTreeHeight) &&
-			provingSystem.Version == uint32(meta.Version) &&
+		if provingSystem.InclusionNumberOfCompressedAccounts == meta.NumInputs &&
+			provingSystem.InclusionTreeHeight == meta.StateTreeHeight &&
+			provingSystem.Version == meta.Version &&
 			provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(0) {
 			ps = provingSystem
 			break
@@ -279,13 +284,13 @@ func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta pr
 	}
 
 	if meta.Version == 0 {
-		var params v1.V1InclusionParameters
+		var params v1.InclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal legacy inclusion parameters: %w", err)
 		}
-		return v1.V1ProveInclusion(ps, &params)
+		return v1.ProveInclusion(ps, &params)
 	} else if meta.Version == 1 {
-		var params v2.V2InclusionParameters
+		var params v2.InclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal inclusion parameters: %w", err)
 		}
@@ -295,11 +300,11 @@ func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta pr
 	return nil, fmt.Errorf("unsupported version: %d", meta.Version)
 }
 
-func (w *BaseQueueWorker) processNonInclusionProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*common.Proof, error) {
+func (w *BaseQueueWorker) processNonInclusionProof(payload json.RawMessage, meta common.ProofRequestMeta) (*common.Proof, error) {
 	var ps *common.MerkleProofSystem
 	for _, provingSystem := range w.provingSystemsV1 {
-		if provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(meta.NumAddresses) &&
-			provingSystem.NonInclusionTreeHeight == uint32(meta.AddressTreeHeight) &&
+		if provingSystem.NonInclusionNumberOfCompressedAccounts == meta.NumAddresses &&
+			provingSystem.NonInclusionTreeHeight == meta.AddressTreeHeight &&
 			provingSystem.InclusionNumberOfCompressedAccounts == uint32(0) {
 			ps = provingSystem
 			break
@@ -311,13 +316,13 @@ func (w *BaseQueueWorker) processNonInclusionProof(payload json.RawMessage, meta
 	}
 
 	if meta.AddressTreeHeight == 26 {
-		var params v1.V1NonInclusionParameters
+		var params v1.NonInclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal legacy non-inclusion parameters: %w", err)
 		}
-		return v1.V1ProveNonInclusion(ps, &params)
+		return v1.ProveNonInclusion(ps, &params)
 	} else if meta.AddressTreeHeight == 40 {
-		var params v2.V2NonInclusionParameters
+		var params v2.NonInclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal non-inclusion parameters: %w", err)
 		}
@@ -327,7 +332,7 @@ func (w *BaseQueueWorker) processNonInclusionProof(payload json.RawMessage, meta
 	return nil, fmt.Errorf("unsupported address tree height: %d", meta.AddressTreeHeight)
 }
 
-func (w *BaseQueueWorker) processCombinedProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*common.Proof, error) {
+func (w *BaseQueueWorker) processCombinedProof(payload json.RawMessage, meta common.ProofRequestMeta) (*common.Proof, error) {
 	var ps *common.MerkleProofSystem
 	for _, provingSystem := range w.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == meta.NumInputs &&
@@ -344,13 +349,13 @@ func (w *BaseQueueWorker) processCombinedProof(payload json.RawMessage, meta pro
 	}
 
 	if meta.AddressTreeHeight == 26 {
-		var params v1.V1CombinedParameters
+		var params v1.CombinedParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal legacy combined parameters: %w", err)
 		}
-		return v1.V1ProveCombined(ps, &params)
+		return v1.ProveCombined(ps, &params)
 	} else if meta.AddressTreeHeight == 40 {
-		var params v2.V2CombinedParameters
+		var params v2.CombinedParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal combined parameters: %w", err)
 		}
@@ -445,5 +450,8 @@ func (w *BaseQueueWorker) addToFailedQueue(job *ProofJob, err error) {
 		CreatedAt: time.Now(),
 	}
 
-	w.queue.EnqueueProof("zk_failed_queue", failedJobStruct)
+	err = w.queue.EnqueueProof("zk_failed_queue", failedJobStruct)
+	if err != nil {
+		return
+	}
 }
