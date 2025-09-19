@@ -275,7 +275,7 @@ main() {
     echo "Generating checksums..."
     if command -v python3 &> /dev/null; then
         python3 ./scripts/generate_checksums.py
-        echo "Checksums generated successfully in CHECKSUM file"
+        echo "Checksums generated successfully in ${PROVING_KEYS_DIR}/CHECKSUM file"
     else
         echo "Warning: Python3 not found. Please run 'python3 scripts/generate_checksums.py' manually to update checksums"
     fi
