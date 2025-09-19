@@ -16,7 +16,10 @@ const (
 	BatchAddressAppendCircuitType CircuitType = "address-append"
 )
 
-func SetupCircuitV1(circuit CircuitType, inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32, useV1 bool) (*ProvingSystemV1, error) {
+// SetupMerkleProofCircuit sets up merkle proof circuits (inclusion, non-inclusion, or combined)
+// Returns MerkleProofSystem for proof verification
+// The useV1 parameter indicates whether to use legacy protocol (height 26) or current protocol (height 32/40)
+func SetupMerkleProofCircuit(circuit CircuitType, inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32, useV1 bool) (*MerkleProofSystem, error) {
 	switch circuit {
 	case InclusionCircuitType:
 		if useV1 {
@@ -38,7 +41,9 @@ func SetupCircuitV1(circuit CircuitType, inclusionTreeHeight uint32, inclusionNu
 	}
 }
 
-func SetupCircuitV2(circuit CircuitType, height uint32, batchSize uint32) (*ProvingSystemV2, error) {
+// SetupBatchOperationCircuit sets up batch operation circuits (append, update, or address-append)
+// Returns BatchProofSystem for batch proof generation and verification
+func SetupBatchOperationCircuit(circuit CircuitType, height uint32, batchSize uint32) (*BatchProofSystem, error) {
 	switch circuit {
 	case BatchAppendCircuitType:
 		return SetupBatchAppend(height, batchSize)

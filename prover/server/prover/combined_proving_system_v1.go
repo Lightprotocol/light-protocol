@@ -149,7 +149,7 @@ func (circuit *V1CombinedCircuit) Define(api frontend.API) error {
 	return nil
 }
 
-func (ps *ProvingSystemV1) V1ProveCombined(params *V1CombinedParameters) (*Proof, error) {
+func (ps *MerkleProofSystem) V1ProveCombined(params *V1CombinedParameters) (*Proof, error) {
 	if err := params.ValidateShape(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}

@@ -38,7 +38,7 @@ func (circuit *V2InclusionCircuit) Define(api frontend.API) error {
 	return nil
 }
 
-func ImportInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint32, pkPath string, vkPath string) (*ProvingSystemV1, error) {
+func ImportInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint32, pkPath string, vkPath string) (*MerkleProofSystem, error) {
 	roots := make([]frontend.Variable, numberOfCompressedAccounts)
 	leaves := make([]frontend.Variable, numberOfCompressedAccounts)
 	inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
@@ -72,7 +72,7 @@ func ImportInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint32, 
 		return nil, err
 	}
 
-	return &ProvingSystemV1{
+	return &MerkleProofSystem{
 		InclusionTreeHeight:                 treeHeight,
 		InclusionNumberOfCompressedAccounts: numberOfCompressedAccounts,
 		ProvingKey:                          pk,

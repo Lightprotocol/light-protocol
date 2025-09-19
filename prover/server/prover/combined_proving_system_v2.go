@@ -94,7 +94,7 @@ func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfComp
 	return circuit
 }
 
-func SetupCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
+func SetupCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*MerkleProofSystem, error) {
 	ccs, err := R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
@@ -103,7 +103,7 @@ func SetupCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccoun
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystemV1{
+	return &MerkleProofSystem{
 		InclusionTreeHeight:                    inclusionTreeHeight,
 		InclusionNumberOfCompressedAccounts:    inclusionNumberOfCompressedAccounts,
 		NonInclusionTreeHeight:                 nonInclusionTreeHeight,
@@ -114,7 +114,7 @@ func SetupCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccoun
 
 }
 
-func (ps *ProvingSystemV1) ProveCombined(params *V2CombinedParameters) (*Proof, error) {
+func (ps *MerkleProofSystem) ProveCombined(params *V2CombinedParameters) (*Proof, error) {
 	if err := params.ValidateShape(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
@@ -158,7 +158,7 @@ func (ps *ProvingSystemV1) ProveCombined(params *V2CombinedParameters) (*Proof, 
 	return &Proof{proof}, nil
 }
 
-func (ps *ProvingSystemV1) VerifyCombined(publicInputHash big.Int, proof *Proof) error {
+func (ps *MerkleProofSystem) VerifyCombined(publicInputHash big.Int, proof *Proof) error {
 	publicAssignment := V2CombinedCircuit{
 		PublicInputHash: publicInputHash,
 	}
