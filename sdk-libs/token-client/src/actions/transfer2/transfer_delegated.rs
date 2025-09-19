@@ -46,10 +46,12 @@ pub async fn transfer_delegated<R: Rpc + Indexer>(
     let ix = create_generic_transfer2_instruction(
         rpc,
         vec![Transfer2InstructionType::Transfer(TransferInput {
-            compressed_token_account,
+            compressed_token_account: compressed_token_account.to_vec(),
             to,
             amount,
             is_delegate_transfer: true, // Delegate transfer, delegate is signer
+            mint: None,                 // Not needed when input accounts are provided
+            change_amount: None,
         })],
         payer.pubkey(),
     )

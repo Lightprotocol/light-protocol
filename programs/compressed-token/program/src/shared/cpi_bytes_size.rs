@@ -13,7 +13,7 @@ use light_compressed_account::{
 use light_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
 
-const MAX_INPUT_ACCOUNTS: usize = 8;
+pub const MAX_INPUT_ACCOUNTS: usize = 8;
 const MAX_OUTPUT_ACCOUNTS: usize = 35;
 
 /// Calculate data length for a compressed mint account

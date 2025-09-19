@@ -12,7 +12,8 @@ use light_compressed_token_sdk::{
     token_pool::find_token_pool_pda_with_index,
 };
 use light_ctoken_types::{
-    instructions::transfer2::MultiInputTokenDataWithContext, state::TokenDataVersion,
+    instructions::transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
+    state::TokenDataVersion,
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_sdk::instruction::{PackedAccounts, PackedStateTreeInfo};
@@ -71,7 +72,7 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
     create_generic_transfer2_instruction(
         rpc,
         vec![Transfer2InstructionType::Decompress(DecompressInput {
-            compressed_token_account,
+            compressed_token_account: compressed_token_account.to_vec(),
             decompress_amount,
             solana_token_account,
             amount: decompress_amount,
@@ -81,24 +82,26 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
     .await
 }
 #[derive(Debug, Clone, PartialEq)]
-pub struct TransferInput<'a> {
-    pub compressed_token_account: &'a [CompressedTokenAccount],
+pub struct TransferInput {
+    pub compressed_token_account: Vec<CompressedTokenAccount>,
     pub to: Pubkey,
     pub amount: u64,
     pub is_delegate_transfer: bool, // Indicates if delegate is the signer
+    pub mint: Option<Pubkey>,       // Required when compressed_token_account is empty
+    pub change_amount: Option<u64>, // Optional: explicitly set change amount to keep
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct DecompressInput<'a> {
-    pub compressed_token_account: &'a [CompressedTokenAccount],
+pub struct DecompressInput {
+    pub compressed_token_account: Vec<CompressedTokenAccount>,
     pub decompress_amount: u64,
     pub solana_token_account: Pubkey,
     pub amount: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct CompressInput<'a> {
-    pub compressed_token_account: Option<&'a [CompressedTokenAccount]>,
+pub struct CompressInput {
+    pub compressed_token_account: Option<Vec<CompressedTokenAccount>>,
     pub solana_token_account: Pubkey,
     pub to: Pubkey,
     pub mint: Pubkey,
@@ -116,27 +119,28 @@ pub struct CompressAndCloseInput {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct ApproveInput<'a> {
-    pub compressed_token_account: &'a [CompressedTokenAccount],
+pub struct ApproveInput {
+    pub compressed_token_account: Vec<CompressedTokenAccount>,
     pub delegate: Pubkey,
     pub delegate_amount: u64,
 }
 
 #[derive(Debug, Clone, PartialEq)]
-pub enum Transfer2InstructionType<'a> {
-    Compress(CompressInput<'a>),
-    Decompress(DecompressInput<'a>),
-    Transfer(TransferInput<'a>),
-    Approve(ApproveInput<'a>),
+pub enum Transfer2InstructionType {
+    Compress(CompressInput),
+    Decompress(DecompressInput),
+    Transfer(TransferInput),
+    Approve(ApproveInput),
     CompressAndClose(CompressAndCloseInput),
 }
 
 // Note doesn't support multiple signers.
 pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     rpc: &mut R,
-    actions: Vec<Transfer2InstructionType<'_>>,
+    actions: Vec<Transfer2InstructionType>,
     payer: Pubkey,
 ) -> Result<Instruction, TokenSdkError> {
+    println!("here");
     let mut hashes = Vec::new();
     actions.iter().for_each(|account| match account {
         Transfer2InstructionType::Compress(_) => {}
@@ -171,7 +175,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
         match action {
             Transfer2InstructionType::Compress(input) => {
                 let mut token_account =
-                    if let Some(input_token_account) = input.compressed_token_account {
+                    if let Some(ref input_token_account) = input.compressed_token_account {
                         let token_data = input_token_account
                             .iter()
                             .zip(
@@ -335,6 +339,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 token_accounts.push(token_account);
             }
             Transfer2InstructionType::Transfer(input) => {
+                println!("here1");
                 let token_data = input
                     .compressed_token_account
                     .iter()
@@ -360,42 +365,77 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         )
                     })
                     .collect::<Vec<_>>();
+                println!("here2 {:?}", token_data);
                 inputs_offset += token_data.len();
-                let mut token_account = if input.is_delegate_transfer {
-                    CTokenAccount2::new_delegated(
-                        token_data,
-                        packed_tree_infos
-                            .state_trees
-                            .as_ref()
-                            .unwrap()
-                            .output_tree_index,
-                    )
-                } else {
-                    CTokenAccount2::new(
-                        token_data,
-                        packed_tree_infos
-                            .state_trees
-                            .as_ref()
-                            .unwrap()
-                            .output_tree_index,
-                    )
-                }?;
-                let recipient_index = packed_tree_accounts.insert_or_get(input.to);
-                let recipient_token_account =
-                    token_account.transfer(recipient_index, input.amount, None)?;
+                if token_data.is_empty() {
+                    // When no input accounts, create recipient account directly
+                    // This requires mint to be specified in the input
+                    let mint = input.mint.ok_or(TokenSdkError::InvalidAccountData)?;
 
-                // all lamports go to the sender.
-                out_lamports.push(
-                    input
-                        .compressed_token_account
-                        .iter()
-                        .map(|account| account.account.lamports)
-                        .sum::<u64>(),
-                );
-                // For consistency add 0 lamports for the recipient.
-                out_lamports.push(0);
-                token_accounts.push(token_account);
-                token_accounts.push(recipient_token_account);
+                    let recipient_index = packed_tree_accounts.insert_or_get(input.to);
+                    let mint_index = packed_tree_accounts.insert_or_get_read_only(mint);
+
+                    let recipient_token_account = CTokenAccount2 {
+                        inputs: vec![],
+                        output: MultiTokenTransferOutputData {
+                            owner: recipient_index,
+                            amount: input.amount,
+                            has_delegate: false,
+                            delegate: 0,
+                            mint: mint_index,
+                            version: TokenDataVersion::V2 as u8, // Default to V2
+                            merkle_tree: packed_tree_infos
+                                .state_trees
+                                .as_ref()
+                                .unwrap()
+                                .output_tree_index,
+                        },
+                        compression: None,
+                        delegate_is_set: false,
+                        method_used: true, // Mark that this account was used/created
+                    };
+
+                    out_lamports.push(0);
+                    token_accounts.push(recipient_token_account);
+                } else {
+                    let mut token_account = if input.is_delegate_transfer {
+                        CTokenAccount2::new_delegated(
+                            token_data,
+                            packed_tree_infos
+                                .state_trees
+                                .as_ref()
+                                .unwrap()
+                                .output_tree_index,
+                        )
+                    } else {
+                        CTokenAccount2::new(
+                            token_data,
+                            packed_tree_infos
+                                .state_trees
+                                .as_ref()
+                                .unwrap()
+                                .output_tree_index,
+                        )
+                    }?;
+                    let recipient_index = packed_tree_accounts.insert_or_get(input.to);
+                    let recipient_token_account =
+                        token_account.transfer(recipient_index, input.amount, None)?;
+                    if let Some(amount) = input.change_amount {
+                        token_account.output.amount = amount;
+                    }
+                    // all lamports go to the sender.
+                    out_lamports.push(
+                        input
+                            .compressed_token_account
+                            .iter()
+                            .map(|account| account.account.lamports)
+                            .sum::<u64>(),
+                    );
+                    // For consistency add 0 lamports for the recipient.
+                    out_lamports.push(0);
+                    token_accounts.push(token_account);
+                    token_accounts.push(recipient_token_account);
+                }
             }
             Transfer2InstructionType::Approve(input) => {
                 let token_data = input
@@ -493,9 +533,12 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     };
                 let output_queue = packed_tree_accounts.insert_or_get(input.output_queue);
 
-                let owner_index = packed_tree_accounts.insert_or_get((*owner).into());
-                let mint_index = packed_tree_accounts.insert_or_get((*mint).into());
-                let rent_sponsor_index = packed_tree_accounts.insert_or_get(rent_sponsor.into());
+                let owner_index =
+                    packed_tree_accounts.insert_or_get(Pubkey::from(owner.to_bytes()));
+                let mint_index =
+                    packed_tree_accounts.insert_or_get_read_only(Pubkey::from(mint.to_bytes()));
+                let rent_sponsor_index =
+                    packed_tree_accounts.insert_or_get(Pubkey::from(rent_sponsor));
 
                 // Create token account with the full balance
                 let mut token_account =
@@ -547,5 +590,6 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
         },
         token_accounts,
     };
+    println!("pre create_transfer2_instruction {:?}", inputs);
     create_transfer2_instruction(inputs)
 }

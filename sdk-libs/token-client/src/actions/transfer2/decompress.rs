@@ -34,7 +34,7 @@ pub async fn decompress<R: Rpc + Indexer>(
     let ix = create_generic_transfer2_instruction(
         rpc,
         vec![Transfer2InstructionType::Decompress(DecompressInput {
-            compressed_token_account,
+            compressed_token_account: compressed_token_account.to_vec(),
             decompress_amount,
             solana_token_account,
             amount: decompress_amount,

@@ -216,10 +216,12 @@ async fn test_create_compressed_mint() {
     assert_transfer2_transfer(
         &mut rpc,
         light_token_client::instructions::transfer2::TransferInput {
-            compressed_token_account: &compressed_token_accounts,
+            compressed_token_account: compressed_token_accounts,
             to: new_recipient,
             amount: transfer_amount,
             is_delegate_transfer: false,
+            mint: None,
+            change_amount: None,
         },
     )
     .await;
@@ -279,7 +281,7 @@ async fn test_create_compressed_mint() {
             assert_transfer2_decompress(
                 &mut rpc,
                 light_token_client::instructions::transfer2::DecompressInput {
-                    compressed_token_account: std::slice::from_ref(compressed_token_account),
+                    compressed_token_account: vec![compressed_token_account.clone()],
                     decompress_amount,
                     solana_token_account: ctoken_ata_pubkey,
                     amount: decompress_amount,
@@ -453,14 +455,16 @@ async fn test_create_compressed_mint() {
         let instruction_actions = vec![
             // 1. Transfer compressed tokens to a new recipient
             Transfer2InstructionType::Transfer(TransferInput {
-                compressed_token_account: &remaining_compressed_tokens,
+                compressed_token_account: remaining_compressed_tokens.clone(),
                 to: transfer_recipient.pubkey(),
                 amount: transfer_amount,
                 is_delegate_transfer: false,
+                mint: None,
+                change_amount: None,
             }),
             // 2. Decompress some compressed tokens to SPL tokens
             Transfer2InstructionType::Decompress(DecompressInput {
-                compressed_token_account: &compressed_tokens_for_compress,
+                compressed_token_account: compressed_tokens_for_compress.clone(),
                 decompress_amount,
                 solana_token_account: decompress_dest_ata,
                 amount: decompress_amount,
@@ -1243,7 +1247,7 @@ async fn test_spl_compression_decompression_functional() {
     let decompress_instruction = create_generic_transfer2_instruction(
         &mut rpc,
         vec![Transfer2InstructionType::Decompress(DecompressInput {
-            compressed_token_account: &compressed_token_accounts,
+            compressed_token_account: compressed_token_accounts,
             decompress_amount,
             solana_token_account: decompress_recipient_token_account,
             amount: decompress_amount,

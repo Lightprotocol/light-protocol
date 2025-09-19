@@ -140,10 +140,12 @@ async fn test_transfer2_delegated_partial() {
     assert_transfer2_with_delegate(
         &mut rpc,
         vec![Transfer2InstructionType::Transfer(TransferInput {
-            compressed_token_account: &[delegated_account.clone()],
+            compressed_token_account: vec![delegated_account.clone()],
             to: transfer_recipient,
             amount: transfer_amount,
             is_delegate_transfer: true, // This was a delegate transfer
+            mint: None,
+            change_amount: None,
         })],
         Some(delegate),
     )
@@ -187,10 +189,12 @@ async fn test_transfer2_delegated_partial() {
     assert_transfer2(
         &mut rpc,
         vec![Transfer2InstructionType::Transfer(TransferInput {
-            compressed_token_account: &[remaining_delegated_account.clone()],
+            compressed_token_account: vec![remaining_delegated_account.clone()],
             to: owner_transfer_recipient,
             amount: owner_transfer_amount,
             is_delegate_transfer: false, // Owner is transferring, not delegate
+            mint: None,
+            change_amount: None,
         })],
     )
     .await;
@@ -275,10 +279,12 @@ async fn test_transfer2_sha_flat() {
     assert_transfer2(
         &mut rpc,
         vec![Transfer2InstructionType::Transfer(TransferInput {
-            compressed_token_account: &[compressed_accounts[0].clone()],
+            compressed_token_account: vec![compressed_accounts[0].clone()],
             to: owner_transfer_recipient,
             amount: owner_transfer_amount,
             is_delegate_transfer: false, // Owner is transferring, not delegate
+            mint: None,
+            change_amount: None,
         })],
     )
     .await;

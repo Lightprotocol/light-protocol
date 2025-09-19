@@ -34,7 +34,7 @@ pub async fn approve<R: Rpc + Indexer>(
     let ix = create_generic_transfer2_instruction(
         rpc,
         vec![Transfer2InstructionType::Approve(ApproveInput {
-            compressed_token_account,
+            compressed_token_account: compressed_token_account.to_vec(),
             delegate,
             delegate_amount,
         })],

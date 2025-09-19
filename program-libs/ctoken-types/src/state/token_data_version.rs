@@ -1,7 +1,7 @@
 use crate::CTokenError;
 
 /// TokenDataVersion is recorded in the token account discriminator.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum TokenDataVersion {
     V1 = 1u8,

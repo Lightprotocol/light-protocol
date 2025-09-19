@@ -20,7 +20,7 @@ use crate::{
 /// - Delegate field preservation when delegate performs the transfer
 pub async fn assert_transfer2_with_delegate(
     rpc: &mut LightProgramTest,
-    actions: Vec<Transfer2InstructionType<'_>>,
+    actions: Vec<Transfer2InstructionType>,
     authority: Option<Pubkey>, // The actual signer (owner or delegate)
 ) {
     for action in actions.iter() {
@@ -35,9 +35,15 @@ pub async fn assert_transfer2_with_delegate(
                     .unwrap()
                     .value
                     .items;
+                let source_mint = if let Some(mint) = transfer_input.mint {
+                    mint
+                } else if !transfer_input.compressed_token_account.is_empty() {
+                    transfer_input.compressed_token_account[0].token.mint
+                } else {
+                    panic!("Transfer input must have either mint or compressed_token_account");
+                };
 
                 // Get mint from the source compressed token account
-                let source_mint = transfer_input.compressed_token_account[0].token.mint;
                 let expected_recipient_token_data = light_sdk::token::TokenData {
                     mint: source_mint,
                     owner: transfer_input.to,
@@ -48,23 +54,30 @@ pub async fn assert_transfer2_with_delegate(
                 };
 
                 // Assert complete recipient token account
-                assert_eq!(
-                    recipient_accounts[0].token, expected_recipient_token_data,
+                assert!(
+                    recipient_accounts
+                        .iter()
+                        .any(|account| account.token == expected_recipient_token_data),
                     "Transfer recipient token account should match expected"
                 );
-                assert_eq!(
-                    recipient_accounts[0].account.owner.to_bytes(),
-                    COMPRESSED_TOKEN_PROGRAM_ID,
+                assert!(
+                    recipient_accounts
+                        .iter()
+                        .any(|account| account.account.owner.to_bytes()
+                            == COMPRESSED_TOKEN_PROGRAM_ID),
                     "Transfer change token account should match expected"
                 );
-                // Get change account owner from source account and calculate change amount
-                let source_owner = transfer_input.compressed_token_account[0].token.owner;
-                let source_amount = transfer_input.compressed_token_account[0].token.amount;
-                let source_delegate = transfer_input.compressed_token_account[0].token.delegate;
-                let change_amount = source_amount - transfer_input.amount;
+
+                // Use explicit change_amount if provided, otherwise calculate it
+                let change_amount = transfer_input.change_amount.unwrap_or_else(|| {
+                    transfer_input.compressed_token_account[0].token.amount - transfer_input.amount
+                });
 
                 // Assert change account if there should be change
                 if change_amount > 0 {
+                    // Get change account owner from source account and calculate change amount
+                    let source_owner = transfer_input.compressed_token_account[0].token.owner;
+                    let source_delegate = transfer_input.compressed_token_account[0].token.delegate;
                     let change_accounts = rpc
                         .indexer()
                         .unwrap()
@@ -414,18 +427,12 @@ pub async fn assert_transfer2_with_delegate(
 
 /// Backwards compatibility wrapper for assert_transfer2_with_delegate
 /// Uses None for authority (assumes owner is signer)
-pub async fn assert_transfer2(
-    rpc: &mut LightProgramTest,
-    actions: Vec<Transfer2InstructionType<'_>>,
-) {
+pub async fn assert_transfer2(rpc: &mut LightProgramTest, actions: Vec<Transfer2InstructionType>) {
     assert_transfer2_with_delegate(rpc, actions, None).await;
 }
 
 /// Assert transfer operation that transfers compressed tokens to a new recipient
-pub async fn assert_transfer2_transfer(
-    rpc: &mut LightProgramTest,
-    transfer_input: TransferInput<'_>,
-) {
+pub async fn assert_transfer2_transfer(rpc: &mut LightProgramTest, transfer_input: TransferInput) {
     assert_transfer2(
         rpc,
         vec![Transfer2InstructionType::Transfer(transfer_input)],
@@ -436,7 +443,7 @@ pub async fn assert_transfer2_transfer(
 /// Assert decompress operation that converts compressed tokens to SPL tokens
 pub async fn assert_transfer2_decompress(
     rpc: &mut LightProgramTest,
-    decompress_input: DecompressInput<'_>,
+    decompress_input: DecompressInput,
 ) {
     assert_transfer2(
         rpc,
@@ -446,10 +453,7 @@ pub async fn assert_transfer2_decompress(
 }
 
 /// Assert compress operation that converts SPL or solana decompressed ctokens to compressed tokens
-pub async fn assert_transfer2_compress(
-    rpc: &mut LightProgramTest,
-    compress_input: CompressInput<'_>,
-) {
+pub async fn assert_transfer2_compress(rpc: &mut LightProgramTest, compress_input: CompressInput) {
     assert_transfer2(
         rpc,
         vec![Transfer2InstructionType::Compress(compress_input.clone())],

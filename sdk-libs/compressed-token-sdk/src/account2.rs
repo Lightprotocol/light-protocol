@@ -20,11 +20,11 @@ use crate::{
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CTokenAccount2 {
-    inputs: Vec<MultiInputTokenDataWithContext>,
-    pub(crate) output: MultiTokenTransferOutputData,
-    compression: Option<Compression>,
-    delegate_is_set: bool,
-    pub(crate) method_used: bool,
+    pub inputs: Vec<MultiInputTokenDataWithContext>,
+    pub output: MultiTokenTransferOutputData,
+    pub compression: Option<Compression>,
+    pub delegate_is_set: bool,
+    pub method_used: bool,
 }
 
 impl CTokenAccount2 {

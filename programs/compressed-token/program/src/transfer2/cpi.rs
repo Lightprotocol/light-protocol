@@ -4,7 +4,7 @@ use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionData
 use light_profiler::profile;
 
 use crate::shared::cpi_bytes_size::{
-    allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
+    self, allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
 };
 
 /// Build CPI configuration from instruction data
@@ -14,7 +14,8 @@ pub fn allocate_cpi_bytes(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
 ) -> (Vec<u8>, InstructionDataInvokeCpiWithReadOnlyConfig) {
     // Build CPI configuration based on delegate flags
-    let mut input_delegate_flags: ArrayVec<bool, 8> = ArrayVec::new();
+    let mut input_delegate_flags: ArrayVec<bool, { cpi_bytes_size::MAX_INPUT_ACCOUNTS }> =
+        ArrayVec::new();
     for input_data in inputs.in_token_data.iter() {
         input_delegate_flags.push(input_data.has_delegate());
     }

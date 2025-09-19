@@ -116,6 +116,10 @@ pub enum CTokenError {
     InvalidAccountState,
     #[error("BorshFailed")]
     BorshFailed,
+    #[error(
+        "Too many input compressed accounts. Maximum 8 input accounts allowed per instruction"
+    )]
+    TooManyInputAccounts,
 }
 
 impl From<CTokenError> for u32 {
@@ -158,6 +162,7 @@ impl From<CTokenError> for u32 {
             CTokenError::TokenDataTlvUnimplemented => 18035,
             CTokenError::InvalidAccountState => 18036,
             CTokenError::BorshFailed => 18037,
+            CTokenError::TooManyInputAccounts => 18038,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),
