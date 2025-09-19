@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"light/light-prover/logging"
-	"light/light-prover/prover"
+	"light/light-prover/prover/common"
 	"time"
 
 	"github.com/redis/go-redis/v9"
@@ -155,7 +155,7 @@ func (rq *RedisQueue) GetResult(jobID string) (interface{}, error) {
 	key := fmt.Sprintf("zk_result_%s", jobID)
 	result, err := rq.Client.Get(rq.Ctx, key).Result()
 	if err == nil {
-		var proof prover.Proof
+		var proof common.Proof
 		err = json.Unmarshal([]byte(result), &proof)
 		if err != nil {
 			logging.Logger().Error().
@@ -186,7 +186,7 @@ func (rq *RedisQueue) searchResultInQueue(jobID string) (interface{}, error) {
 		var resultJob ProofJob
 		if json.Unmarshal([]byte(item), &resultJob) == nil {
 			if resultJob.ID == jobID && resultJob.Type == "result" {
-				var proof prover.Proof
+				var proof common.Proof
 				err = json.Unmarshal(resultJob.Payload, &proof)
 				if err != nil {
 					return nil, fmt.Errorf("failed to unmarshal queued result: %w", err)

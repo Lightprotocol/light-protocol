@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"light/light-prover/logging"
 	"light/light-prover/prover"
+	"light/light-prover/prover/common"
+	"light/light-prover/prover/v1"
+	"light/light-prover/prover/v2"
 	"log"
 	"time"
 )
@@ -28,8 +31,8 @@ type QueueWorker interface {
 
 type BaseQueueWorker struct {
 	queue               *RedisQueue
-	provingSystemsV1    []*prover.MerkleProofSystem
-	provingSystemsV2    []*prover.BatchProofSystem
+	provingSystemsV1    []*common.MerkleProofSystem
+	provingSystemsV2    []*common.BatchProofSystem
 	stopChan            chan struct{}
 	queueName           string
 	processingQueueName string
@@ -47,7 +50,7 @@ type AddressAppendQueueWorker struct {
 	*BaseQueueWorker
 }
 
-func NewUpdateQueueWorker(redisQueue *RedisQueue, psv1 []*prover.MerkleProofSystem, psv2 []*prover.BatchProofSystem) *UpdateQueueWorker {
+func NewUpdateQueueWorker(redisQueue *RedisQueue, psv1 []*common.MerkleProofSystem, psv2 []*common.BatchProofSystem) *UpdateQueueWorker {
 	return &UpdateQueueWorker{
 		BaseQueueWorker: &BaseQueueWorker{
 			queue:               redisQueue,
@@ -60,7 +63,7 @@ func NewUpdateQueueWorker(redisQueue *RedisQueue, psv1 []*prover.MerkleProofSyst
 	}
 }
 
-func NewAppendQueueWorker(redisQueue *RedisQueue, psv1 []*prover.MerkleProofSystem, psv2 []*prover.BatchProofSystem) *AppendQueueWorker {
+func NewAppendQueueWorker(redisQueue *RedisQueue, psv1 []*common.MerkleProofSystem, psv2 []*common.BatchProofSystem) *AppendQueueWorker {
 	return &AppendQueueWorker{
 		BaseQueueWorker: &BaseQueueWorker{
 			queue:               redisQueue,
@@ -73,7 +76,7 @@ func NewAppendQueueWorker(redisQueue *RedisQueue, psv1 []*prover.MerkleProofSyst
 	}
 }
 
-func NewAddressAppendQueueWorker(redisQueue *RedisQueue, psv1 []*prover.MerkleProofSystem, psv2 []*prover.BatchProofSystem) *AddressAppendQueueWorker {
+func NewAddressAppendQueueWorker(redisQueue *RedisQueue, psv1 []*common.MerkleProofSystem, psv2 []*common.BatchProofSystem) *AddressAppendQueueWorker {
 	return &AddressAppendQueueWorker{
 		BaseQueueWorker: &BaseQueueWorker{
 			queue:               redisQueue,
@@ -212,23 +215,23 @@ func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
 	timer := StartProofTimer(string(proofRequestMeta.CircuitType))
 	RecordCircuitInputSize(string(proofRequestMeta.CircuitType), len(job.Payload))
 
-	var proof *prover.Proof
+	var proof *common.Proof
 	var proofError error
 
 	log.Printf("proofRequestMeta.CircuitType: %s", proofRequestMeta.CircuitType)
 
 	switch proofRequestMeta.CircuitType {
-	case prover.InclusionCircuitType:
+	case common.InclusionCircuitType:
 		proof, proofError = w.processInclusionProof(job.Payload, proofRequestMeta)
-	case prover.NonInclusionCircuitType:
+	case common.NonInclusionCircuitType:
 		proof, proofError = w.processNonInclusionProof(job.Payload, proofRequestMeta)
-	case prover.CombinedCircuitType:
+	case common.CombinedCircuitType:
 		proof, proofError = w.processCombinedProof(job.Payload, proofRequestMeta)
-	case prover.BatchUpdateCircuitType:
+	case common.BatchUpdateCircuitType:
 		proof, proofError = w.processBatchUpdateProof(job.Payload)
-	case prover.BatchAppendCircuitType:
+	case common.BatchAppendCircuitType:
 		proof, proofError = w.processBatchAppendProof(job.Payload)
-	case prover.BatchAddressAppendCircuitType:
+	case common.BatchAddressAppendCircuitType:
 		proof, proofError = w.processBatchAddressAppendProof(job.Payload)
 	default:
 		return fmt.Errorf("unknown circuit type: %s", proofRequestMeta.CircuitType)
@@ -259,8 +262,8 @@ func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
 	return w.queue.StoreResult(job.ID, proof)
 }
 
-func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*prover.Proof, error) {
-	var ps *prover.MerkleProofSystem
+func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*common.Proof, error) {
+	var ps *common.MerkleProofSystem
 	for _, provingSystem := range w.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == uint32(meta.NumInputs) &&
 			provingSystem.InclusionTreeHeight == uint32(meta.StateTreeHeight) &&
@@ -276,24 +279,24 @@ func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta pr
 	}
 
 	if meta.Version == 0 {
-		var params prover.V1InclusionParameters
+		var params v1.V1InclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal legacy inclusion parameters: %w", err)
 		}
-		return ps.V1ProveInclusion(&params)
+		return v1.V1ProveInclusion(ps, &params)
 	} else if meta.Version == 1 {
-		var params prover.V2InclusionParameters
+		var params v2.V2InclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal inclusion parameters: %w", err)
 		}
-		return ps.ProveInclusion(&params)
+		return v2.ProveInclusion(ps, &params)
 	}
 
 	return nil, fmt.Errorf("unsupported version: %d", meta.Version)
 }
 
-func (w *BaseQueueWorker) processNonInclusionProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*prover.Proof, error) {
-	var ps *prover.MerkleProofSystem
+func (w *BaseQueueWorker) processNonInclusionProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*common.Proof, error) {
+	var ps *common.MerkleProofSystem
 	for _, provingSystem := range w.provingSystemsV1 {
 		if provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(meta.NumAddresses) &&
 			provingSystem.NonInclusionTreeHeight == uint32(meta.AddressTreeHeight) &&
@@ -308,24 +311,24 @@ func (w *BaseQueueWorker) processNonInclusionProof(payload json.RawMessage, meta
 	}
 
 	if meta.AddressTreeHeight == 26 {
-		var params prover.V1NonInclusionParameters
+		var params v1.V1NonInclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal legacy non-inclusion parameters: %w", err)
 		}
-		return ps.V1ProveNonInclusion(&params)
+		return v1.V1ProveNonInclusion(ps, &params)
 	} else if meta.AddressTreeHeight == 40 {
-		var params prover.V2NonInclusionParameters
+		var params v2.V2NonInclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal non-inclusion parameters: %w", err)
 		}
-		return ps.ProveNonInclusion(&params)
+		return v2.ProveNonInclusion(ps, &params)
 	}
 
 	return nil, fmt.Errorf("unsupported address tree height: %d", meta.AddressTreeHeight)
 }
 
-func (w *BaseQueueWorker) processCombinedProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*prover.Proof, error) {
-	var ps *prover.MerkleProofSystem
+func (w *BaseQueueWorker) processCombinedProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*common.Proof, error) {
+	var ps *common.MerkleProofSystem
 	for _, provingSystem := range w.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == meta.NumInputs &&
 			provingSystem.NonInclusionNumberOfCompressedAccounts == meta.NumAddresses &&
@@ -341,69 +344,69 @@ func (w *BaseQueueWorker) processCombinedProof(payload json.RawMessage, meta pro
 	}
 
 	if meta.AddressTreeHeight == 26 {
-		var params prover.V1CombinedParameters
+		var params v1.V1CombinedParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal legacy combined parameters: %w", err)
 		}
-		return ps.V1ProveCombined(&params)
+		return v1.V1ProveCombined(ps, &params)
 	} else if meta.AddressTreeHeight == 40 {
-		var params prover.V2CombinedParameters
+		var params v2.V2CombinedParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal combined parameters: %w", err)
 		}
-		return ps.ProveCombined(&params)
+		return v2.ProveCombined(ps, &params)
 	}
 
 	return nil, fmt.Errorf("unsupported address tree height: %d", meta.AddressTreeHeight)
 }
 
-func (w *BaseQueueWorker) processBatchUpdateProof(payload json.RawMessage) (*prover.Proof, error) {
-	var params prover.BatchUpdateParameters
+func (w *BaseQueueWorker) processBatchUpdateProof(payload json.RawMessage) (*common.Proof, error) {
+	var params v2.BatchUpdateParameters
 	if err := json.Unmarshal(payload, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal batch update parameters: %w", err)
 	}
 
 	for _, provingSystem := range w.provingSystemsV2 {
-		if provingSystem.CircuitType == prover.BatchUpdateCircuitType &&
+		if provingSystem.CircuitType == common.BatchUpdateCircuitType &&
 			provingSystem.TreeHeight == params.Height &&
 			provingSystem.BatchSize == params.BatchSize {
-			return provingSystem.ProveBatchUpdate(&params)
+			return v2.ProveBatchUpdate(provingSystem, &params)
 		}
 	}
 
 	return nil, fmt.Errorf("no proving system found for batch update with height %d and batch size %d", params.Height, params.BatchSize)
 }
 
-func (w *BaseQueueWorker) processBatchAppendProof(payload json.RawMessage) (*prover.Proof, error) {
-	var params prover.BatchAppendParameters
+func (w *BaseQueueWorker) processBatchAppendProof(payload json.RawMessage) (*common.Proof, error) {
+	var params v2.BatchAppendParameters
 	if err := json.Unmarshal(payload, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal batch append parameters: %w", err)
 	}
 
 	for _, provingSystem := range w.provingSystemsV2 {
-		if provingSystem.CircuitType == prover.BatchAppendCircuitType &&
+		if provingSystem.CircuitType == common.BatchAppendCircuitType &&
 			provingSystem.TreeHeight == params.Height &&
 			provingSystem.BatchSize == params.BatchSize {
-			return provingSystem.ProveBatchAppend(&params)
+			return v2.ProveBatchAppend(provingSystem, &params)
 		}
 	}
 
 	return nil, fmt.Errorf("no proving system found for batch append with height %d and batch size %d", params.Height, params.BatchSize)
 }
 
-func (w *BaseQueueWorker) processBatchAddressAppendProof(payload json.RawMessage) (*prover.Proof, error) {
-	var params prover.BatchAddressAppendParameters
+func (w *BaseQueueWorker) processBatchAddressAppendProof(payload json.RawMessage) (*common.Proof, error) {
+	var params v2.BatchAddressAppendParameters
 	if err := json.Unmarshal(payload, &params); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal batch address append parameters: %w", err)
 	}
 
 	for _, provingSystem := range w.provingSystemsV2 {
 		logging.Logger().Info().Str(string(provingSystem.CircuitType), "proving system")
-		if provingSystem.CircuitType == prover.BatchAddressAppendCircuitType &&
+		if provingSystem.CircuitType == common.BatchAddressAppendCircuitType &&
 			provingSystem.TreeHeight == params.TreeHeight &&
 			provingSystem.BatchSize == params.BatchSize {
 			logging.Logger().Info().Msg("Processing batch address append proof")
-			return provingSystem.ProveBatchAddressAppend(&params)
+			return v2.ProveBatchAddressAppend(provingSystem, &params)
 		}
 	}
 
