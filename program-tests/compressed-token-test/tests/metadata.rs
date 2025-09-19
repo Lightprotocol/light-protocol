@@ -938,7 +938,7 @@ async fn test_metadata_invalid_authority_fails() -> Result<(), light_client::rpc
     };
 
     let result = mint_action(&mut rpc, params, &wrong_authority, &context.payer, None).await;
-    assert_metadata_error(result, 65); // MintActionInvalidMintAuthority
+    assert_metadata_error(result, 18); // MintActionInvalidMintAuthority
 
     // === ACT & ASSERT - Authority update with wrong authority should fail ===
     let authority_update_actions = vec![MintActionType::UpdateMetadataAuthority {
@@ -956,7 +956,7 @@ async fn test_metadata_invalid_authority_fails() -> Result<(), light_client::rpc
     };
 
     let result = mint_action(&mut rpc, params, &wrong_authority, &context.payer, None).await;
-    assert_metadata_error(result, 65); // MintActionInvalidMintAuthority
+    assert_metadata_error(result, 18); // MintActionInvalidMintAuthority
 
     // === ACT & ASSERT - Key removal with wrong authority should fail ===
     let key_removal_actions = vec![MintActionType::RemoveMetadataKey {
@@ -975,7 +975,7 @@ async fn test_metadata_invalid_authority_fails() -> Result<(), light_client::rpc
     };
 
     let result = mint_action(&mut rpc, params, &wrong_authority, &context.payer, None).await;
-    assert_metadata_error(result, 65); // MintActionInvalidMintAuthority
+    assert_metadata_error(result, 18); // MintActionInvalidMintAuthority
     Ok(())
 }
 
@@ -1042,7 +1042,7 @@ async fn test_metadata_operations_after_authority_revocation_fail(
         None,
     )
     .await;
-    assert_metadata_error(result, 65); // MintActionInvalidMintAuthority
+    assert_metadata_error(result, 18); // MintActionInvalidMintAuthority
     Ok(())
 }
 

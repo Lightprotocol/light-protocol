@@ -94,9 +94,10 @@ impl<'info> MintActionAccounts<'info> {
                 packed_accounts: ProgramPackedAccounts { accounts: &[] },
             })
         } else {
-            let mint = iter.next_option_mut("mint", config.is_decompressed)?;
-            let token_pool_pda = iter.next_option_mut("token_pool_pda", config.is_decompressed)?;
-            let token_program = iter.next_option("token_program", config.is_decompressed)?;
+            let mint = iter.next_option_mut("mint", config.spl_mint_initialized)?;
+            let token_pool_pda =
+                iter.next_option_mut("token_pool_pda", config.spl_mint_initialized)?;
+            let token_program = iter.next_option("token_program", config.spl_mint_initialized)?;
             let system = LightSystemAccounts::validate_and_parse(
                 &mut iter,
                 false,
@@ -321,11 +322,10 @@ pub struct AccountsConfig {
     pub with_cpi_context: bool,
     /// 2. cpi context.first_set() || cpi context.set()
     pub write_to_cpi_context: bool,
-    // TODO: rename is_decompressed, spl_mint_initialized
-    /// 4. Mint is either:
-    ///    4.1. already decompressed
-    ///    4.2. or is decompressed in this instruction
-    pub is_decompressed: bool,
+    /// 4. SPL mint is either:
+    ///    4.1. already initialized
+    ///    4.2. or is initialized in this instruction
+    pub spl_mint_initialized: bool,
     /// 5. Mint
     pub has_mint_to_actions: bool,
     /// 6. Either compressed mint and/or spl mint is created.
@@ -362,15 +362,15 @@ impl AccountsConfig {
         // Scenarios:
         // 1. mint is already decompressed
         // 2. mint is decompressed in this instruction
-        let is_decompressed =
-            parsed_instruction_data.mint.metadata.is_decompressed != 0 || create_spl_mint;
+        let spl_mint_initialized =
+            parsed_instruction_data.mint.metadata.spl_mint_initialized != 0 || create_spl_mint;
         // We need mint signer if create mint, and create spl mint.
         let with_mint_signer = parsed_instruction_data.create_mint() || create_spl_mint;
 
         AccountsConfig {
             with_cpi_context,
             write_to_cpi_context,
-            is_decompressed,
+            spl_mint_initialized,
             has_mint_to_actions,
             with_mint_signer,
             create_mint: parsed_instruction_data.create_mint(),

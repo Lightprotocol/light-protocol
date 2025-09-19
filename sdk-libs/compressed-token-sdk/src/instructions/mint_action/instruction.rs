@@ -265,11 +265,15 @@ pub fn create_mint_action_cpi(
 
     // Check for lamports, decompressed status, and mint actions before moving
     let with_lamports = false;
-    let is_decompressed = input
+    let spl_mint_initialized = input
         .actions
         .iter()
         .any(|action| matches!(action, MintActionType::CreateSplMint { .. }))
-        || input.compressed_mint_inputs.mint.metadata.is_decompressed;
+        || input
+            .compressed_mint_inputs
+            .mint
+            .metadata
+            .spl_mint_initialized;
     let has_mint_to_actions = input.actions.iter().any(|action| {
         matches!(
             action,
@@ -394,7 +398,7 @@ pub fn create_mint_action_cpi(
         output_queue: input.output_queue,
         tokens_out_queue: input.tokens_out_queue,
         with_lamports,
-        is_decompressed,
+        spl_mint_initialized,
         has_mint_to_actions,
         with_cpi_context: cpi_context_pubkey,
         create_mint,
@@ -547,7 +551,12 @@ impl MintActionInputsCpiWrite {
     ) -> Result<Self> {
         // Cannot mint if the mint is decompressed
         // In CPI write, we cannot modify SPL mint supply
-        if self.compressed_mint_inputs.mint.metadata.is_decompressed {
+        if self
+            .compressed_mint_inputs
+            .mint
+            .metadata
+            .spl_mint_initialized
+        {
             return Err(TokenSdkError::CannotMintWithDecompressedInCpiWrite);
         }
 
@@ -624,7 +633,11 @@ impl MintActionInputsCpiWrite {
 /// Creates a mint action CPI write instruction (for use in CPI context)
 pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruction> {
     use light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData;
-    if input.compressed_mint_inputs.mint.metadata.is_decompressed
+    if input
+        .compressed_mint_inputs
+        .mint
+        .metadata
+        .spl_mint_initialized
         || input
             .actions
             .iter()

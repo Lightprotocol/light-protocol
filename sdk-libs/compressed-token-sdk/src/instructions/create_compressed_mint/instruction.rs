@@ -57,7 +57,7 @@ pub fn create_compressed_mint_cpi(
                     .0
                     .to_bytes()
                     .into(),
-                is_decompressed: false,
+                spl_mint_initialized: false,
             },
             mint_authority: Some(input.mint_authority.to_bytes().into()),
             freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
@@ -144,7 +144,7 @@ pub fn create_compressed_mint_cpi_write(
                     .0
                     .to_bytes()
                     .into(),
-                is_decompressed: false,
+                spl_mint_initialized: false,
             },
             mint_authority: Some(input.mint_authority.to_bytes().into()),
             freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),

@@ -13,7 +13,7 @@ pub struct MintToCompressedMetaConfig {
     pub state_tree_pubkey: Pubkey,
     pub compressed_mint_tree: Pubkey,
     pub compressed_mint_queue: Pubkey,
-    pub is_decompressed: bool,
+    pub spl_mint_initialized: bool,
     pub mint_pda: Option<Pubkey>,
     pub token_pool_pda: Option<Pubkey>,
     pub token_program: Option<Pubkey>,
@@ -41,7 +41,7 @@ impl MintToCompressedMetaConfig {
             state_tree_pubkey,
             compressed_mint_tree,
             compressed_mint_queue,
-            is_decompressed: false,
+            spl_mint_initialized: false,
             mint_pda: None,
             token_pool_pda: None,
             token_program: None,
@@ -66,7 +66,7 @@ impl MintToCompressedMetaConfig {
             state_tree_pubkey,
             compressed_mint_tree,
             compressed_mint_queue,
-            is_decompressed: false,
+            spl_mint_initialized: false,
             mint_pda: None,
             token_pool_pda: None,
             token_program: None,
@@ -97,7 +97,7 @@ impl MintToCompressedMetaConfig {
             state_tree_pubkey,
             compressed_mint_tree,
             compressed_mint_queue,
-            is_decompressed: true,
+            spl_mint_initialized: true,
             mint_pda: Some(mint_pda),
             token_pool_pda: Some(token_pool_pda),
             token_program: Some(token_program),
@@ -142,7 +142,7 @@ pub fn get_mint_to_compressed_instruction_account_metas(
         0
     };
     let payer_capacity = if config.payer.is_some() { 1 } else { 0 };
-    let decompressed_capacity = if config.is_decompressed { 3 } else { 0 };
+    let decompressed_capacity = if config.spl_mint_initialized { 3 } else { 0 };
     let sol_pool_capacity = if config.with_lamports { 1 } else { 0 };
     let total_capacity = base_capacity
         + authority_capacity
@@ -165,7 +165,7 @@ pub fn get_mint_to_compressed_instruction_account_metas(
     }
 
     // Optional decompressed mint accounts
-    if config.is_decompressed {
+    if config.spl_mint_initialized {
         metas.push(AccountMeta::new(config.mint_pda.unwrap(), false)); // mint
         metas.push(AccountMeta::new(config.token_pool_pda.unwrap(), false)); // token_pool_pda
         metas.push(AccountMeta::new_readonly(

@@ -36,7 +36,7 @@
 //             metadata: CompressedMintMetadata {
 //                 version: 3,
 //                 spl_mint: Pubkey::new_unique(),
-//                 is_decompressed: false,
+//                 spl_mint_initialized: false,
 //             },
 //             extensions: None,
 //         };
@@ -81,7 +81,7 @@
 //             metadata: CompressedMintMetadata {
 //                 version: 3,
 //                 spl_mint: Pubkey::new_from_array([1u8; 32]),
-//                 is_decompressed: false,
+//                 spl_mint_initialized: false,
 //             },
 //             extensions: None,
 //         };
@@ -109,9 +109,9 @@
 //             assert_to_previous_hashes(variant.hash().unwrap(), &mut previous_hashes);
 //         }
 
-//         // Test is_decompressed boolean states
+//         // Test spl_mint_initialized boolean states
 //         let mut variant = base.clone();
-//         variant.metadata.is_decompressed = true; // Flip from false
+//         variant.metadata.spl_mint_initialized = true; // Flip from false
 //         assert_to_previous_hashes(variant.hash().unwrap(), &mut previous_hashes);
 
 //         // Test mint_authority Option states
@@ -133,7 +133,7 @@
 //         let mut variant = base.clone();
 //         variant.base.supply = 5000;
 //         variant.base.decimals = 9;
-//         variant.metadata.is_decompressed = true;
+//         variant.metadata.spl_mint_initialized = true;
 //         variant.base.mint_authority = Some(Pubkey::new_from_array([12u8; 32]));
 //         variant.base.freeze_authority = Some(Pubkey::new_from_array([13u8; 32]));
 //         variant.extensions = Some(vec![]);
@@ -156,7 +156,7 @@
 //             metadata: CompressedMintMetadata {
 //                 version: 3,
 //                 spl_mint: Pubkey::new_from_array([0u8; 32]),
-//                 is_decompressed: false,
+//                 spl_mint_initialized: false,
 //             },
 //             extensions: None,
 //         };
@@ -176,7 +176,7 @@
 //         assert_to_previous_hashes(variant.hash().unwrap(), &mut previous_hashes);
 
 //         variant = all_minimal.clone();
-//         variant.metadata.is_decompressed = true; // Only this field non-false
+//         variant.metadata.spl_mint_initialized = true; // Only this field non-false
 //         assert_to_previous_hashes(variant.hash().unwrap(), &mut previous_hashes);
 
 //         variant = all_minimal.clone();
@@ -207,7 +207,7 @@
 //             metadata: CompressedMintMetadata {
 //                 version: 3,
 //                 spl_mint: Pubkey::new_from_array([1u8; 32]),
-//                 is_decompressed: false,
+//                 spl_mint_initialized: false,
 //             },
 //             extensions: None,
 //         };
@@ -257,7 +257,7 @@
 //             metadata: CompressedMintMetadata {
 //                 version: 3,
 //                 spl_mint: Pubkey::new_from_array([1u8; 32]),
-//                 is_decompressed: false,
+//                 spl_mint_initialized: false,
 //             },
 //             extensions: None,
 //         };
@@ -334,7 +334,7 @@
 //             metadata: CompressedMintMetadata {
 //                 version: 3,
 //                 spl_mint: Pubkey::new_from_array([1u8; 32]),
-//                 is_decompressed: false,
+//                 spl_mint_initialized: false,
 //             },
 //             extensions: None,
 //         };
@@ -408,7 +408,7 @@
 //                 metadata: CompressedMintMetadata {
 //                     version: 3, // Always version 3
 //                     spl_mint: Pubkey::new_from_array(rng.gen::<[u8; 32]>()),
-//                     is_decompressed: rng.gen_bool(0.5),
+//                     spl_mint_initialized: rng.gen_bool(0.5),
 //                 },
 //                 extensions: if rng.gen_bool(0.3) {
 //                     Some(vec![]) // Empty extensions for now

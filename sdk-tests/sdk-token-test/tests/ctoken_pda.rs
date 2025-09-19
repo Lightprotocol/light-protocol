@@ -205,7 +205,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
             metadata: CompressedMintMetadata {
                 version: 3,
                 spl_mint: spl_mint.into(),
-                is_decompressed: false,
+                spl_mint_initialized: false,
             },
             mint_authority: Some(mint_authority.pubkey().into()),
             freeze_authority: freeze_authority.map(|fa| fa.into()),

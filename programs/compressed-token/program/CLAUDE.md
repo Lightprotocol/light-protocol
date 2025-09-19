@@ -71,8 +71,10 @@ Every instruction description must include the sections:
    - Supports Compress, Decompress, CompressAndClose operations
    - Multi-mint support with sum checks
 
-6. **MintAction** - `src/mint_action/` (discriminator: 106, enum: `CTokenInstruction::MintAction`)
-   - Mint to compressed/decompressed accounts
+6. **MintAction** - [`docs/instructions/MINT_ACTION.md`](docs/instructions/MINT_ACTION.md)
+   - Batch instruction for compressed mint management and mint operations (discriminator: 106, enum: `CTokenInstruction::MintAction`)
+   - Supports 9 action types: CreateCompressedMint, MintTo, UpdateMintAuthority, UpdateFreezeAuthority, CreateSplMint, MintToDecompressed, UpdateMetadataField, UpdateMetadataAuthority, RemoveMetadataKey
+   - Handles both compressed and decompressed token minting
 
 7. **DecompressedTransfer** - `src/decompressed_transfer.rs` (discriminator: 3, enum: `CTokenInstruction::DecompressedTransfer`)
    - Transfer between decompressed accounts

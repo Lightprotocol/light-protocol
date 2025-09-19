@@ -17,10 +17,10 @@ pub struct DecompressedMintConfig<T> {
 pub enum MintToCompressedAccountInfosIndex {
     // Static non-CPI accounts first
     //  Authority = 0,
-    // Optional decompressed accounts (if is_decompressed = true)
-    Mint = 0,               // Only present if is_decompressed
-    TokenPoolPda = 1,       // Only present if is_decompressed
-    TokenProgram = 2,       // Only present if is_decompressed
+    // Optional decompressed accounts (if spl_mint_initialized = true)
+    Mint = 0,               // Only present if spl_mint_initialized
+    TokenPoolPda = 1,       // Only present if spl_mint_initialized
+    TokenProgram = 2,       // Only present if spl_mint_initialized
     LightSystemProgram = 3, // Always present (index adjusted based on decompressed)
     // LightSystemAccounts (7 accounts)
     //  FeePayer = 5, // (index adjusted based on decompressed)
@@ -50,14 +50,14 @@ pub struct MintToCompressedAccountInfos<'a, T: AccountInfoTrait + Clone> {
 
 #[derive(Debug, Default, Copy, Clone)]
 pub struct MintToCompressedAccountInfosConfig {
-    pub is_decompressed: bool, // Whether mint, token_pool_pda, token_program are present
-    pub has_sol_pool_pda: bool, // Whether sol_pool_pda is present
+    pub spl_mint_initialized: bool, // Whether mint, token_pool_pda, token_program are present
+    pub has_sol_pool_pda: bool,     // Whether sol_pool_pda is present
 }
 
 impl MintToCompressedAccountInfosConfig {
-    pub const fn new(is_decompressed: bool, has_sol_pool_pda: bool) -> Self {
+    pub const fn new(spl_mint_initialized: bool, has_sol_pool_pda: bool) -> Self {
         Self {
-            is_decompressed,
+            spl_mint_initialized,
             has_sol_pool_pda,
         }
     }
@@ -107,7 +107,7 @@ impl<'a, T: AccountInfoTrait + Clone> MintToCompressedAccountInfos<'a, T> {
 
         // Adjust for decompressed accounts (mint, token_pool_pda, token_program are indices 1,2,3)
         // If not decompressed, all indices after LightSystemProgram shift down by 3
-        if !self.config.is_decompressed
+        if !self.config.spl_mint_initialized
             && base_index > MintToCompressedAccountInfosIndex::LightSystemProgram as usize
         {
             adjusted -= 3;
@@ -125,7 +125,7 @@ impl<'a, T: AccountInfoTrait + Clone> MintToCompressedAccountInfos<'a, T> {
     }
 
     pub fn mint(&self) -> Result<&'a T> {
-        if !self.config.is_decompressed {
+        if !self.config.spl_mint_initialized {
             return Err(LightTokenSdkTypeError::MintUndefinedForBatchCompress);
         }
         let index = self.get_adjusted_index(MintToCompressedAccountInfosIndex::Mint as usize);
@@ -135,7 +135,7 @@ impl<'a, T: AccountInfoTrait + Clone> MintToCompressedAccountInfos<'a, T> {
     }
 
     pub fn token_pool_pda(&self) -> Result<&'a T> {
-        if !self.config.is_decompressed {
+        if !self.config.spl_mint_initialized {
             return Err(LightTokenSdkTypeError::TokenPoolUndefinedForCompressed);
         }
         let index =
@@ -146,7 +146,7 @@ impl<'a, T: AccountInfoTrait + Clone> MintToCompressedAccountInfos<'a, T> {
     }
 
     pub fn token_program(&self) -> Result<&'a T> {
-        if !self.config.is_decompressed {
+        if !self.config.spl_mint_initialized {
             return Err(LightTokenSdkTypeError::TokenProgramUndefinedForCompressed);
         }
         let index =
@@ -288,7 +288,7 @@ impl<'a, T: AccountInfoTrait + Clone> MintToCompressedAccountInfos<'a, T> {
     pub fn system_accounts_len(&self) -> usize {
         let mut len = 14; // Base accounts: authority(1) + light_system(7) + tree_accounts(3) + tokens_out_queue(1) + 2 signers
 
-        if self.config.is_decompressed {
+        if self.config.spl_mint_initialized {
             len += 3; // mint, token_pool_pda, token_program
         }
 
@@ -303,7 +303,7 @@ impl<'a, T: AccountInfoTrait + Clone> MintToCompressedAccountInfos<'a, T> {
     pub fn get_decompressed_mint_config(
         &self,
     ) -> Result<Option<DecompressedMintConfig<T::Pubkey>>> {
-        if !self.config.is_decompressed {
+        if !self.config.spl_mint_initialized {
             return Ok(None);
         }
 

@@ -64,6 +64,9 @@ pub fn process_create_mint_action(
     }
 
     // Validate version is supported
+    // Version 3 (ShaFlat) is required for new mints because:
+    // 1. Only SHA256 hashing is implemented for compressed mints
+    // 2. Version 3 is consistent with TokenDataVersion::ShaFlat used for compressed token accounts
     if parsed_instruction_data.mint.metadata.version != 3 {
         msg!(
             "Unsupported mint version {}",
@@ -72,16 +75,26 @@ pub fn process_create_mint_action(
         return Err(ErrorCode::MintActionUnsupportedVersion.into());
     }
 
-    // Validate is_decompressed is false for new mint creation
-    if parsed_instruction_data.mint.metadata.is_decompressed != 0 {
-        msg!("New mint must start as compressed (is_decompressed=false)");
+    // Validate spl_mint_initialized is false for new mint creation
+    if parsed_instruction_data.mint.metadata.spl_mint_initialized != 0 {
+        msg!("New mint must start without SPL mint initialized");
         return Err(ErrorCode::MintActionInvalidCompressionState.into());
     }
+
+    // Validate extensions - only TokenMetadata is supported and at most one extension allowed
+    if let Some(extensions) = &parsed_instruction_data.mint.extensions {
+        if extensions.len() > 1 {
+            msg!("Only one extension allowed for compressed mints, found {}", extensions.len());
+            return Err(ErrorCode::MintActionUnsupportedOperation.into());
+        }
+        // Extension type validation happens during allocation/creation
+        // TokenMetadata is the only supported extension type
+    }
+
     // Unchecked mint instruction data
     // 1. decimals
     // 2. mint authority
     // 3. freeze_authority
-    // 4. extensions are checked when created.
 
     Ok(())
 }

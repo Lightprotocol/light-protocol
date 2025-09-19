@@ -88,7 +88,7 @@ pub fn create_input_compressed_mint_account(
         metadata: CompressedMintMetadata {
             version: mint_instruction_data.mint.metadata.version,
             spl_mint: mint_instruction_data.mint.metadata.spl_mint,
-            is_decompressed: mint_instruction_data.mint.metadata.is_decompressed(),
+            spl_mint_initialized: mint_instruction_data.mint.metadata.spl_mint_initialized(),
         },
         extensions: extensions_vec,
     };

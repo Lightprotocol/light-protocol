@@ -1559,7 +1559,7 @@ async fn test_mint_actions_comprehensive() {
         metadata: CompressedMintMetadata {
             version: 3, // With metadata
             spl_mint: spl_mint_pda.into(),
-            is_decompressed: true, // Should be true after CreateSplMint action
+            spl_mint_initialized: true, // Should be true after CreateSplMint action
         },
         extensions: Some(vec![
             light_ctoken_types::state::extensions::ExtensionStruct::TokenMetadata(
@@ -1650,7 +1650,7 @@ async fn test_mint_actions_comprehensive() {
         "Supply should match minted amount"
     );
     assert!(
-        updated_compressed_mint.metadata.is_decompressed,
+        updated_compressed_mint.metadata.spl_mint_initialized,
         "Mint should be decompressed after CreateSplMint"
     );
 
@@ -1772,7 +1772,7 @@ async fn test_mint_actions_comprehensive() {
         "Supply should include both mintings"
     );
     assert!(
-        final_compressed_mint.metadata.is_decompressed,
+        final_compressed_mint.metadata.spl_mint_initialized,
         "Mint should remain decompressed"
     );
 

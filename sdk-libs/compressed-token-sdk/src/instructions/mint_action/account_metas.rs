@@ -16,7 +16,7 @@ pub struct MintActionMetaConfig {
     pub output_queue: Pubkey,
     pub tokens_out_queue: Option<Pubkey>, // Output queue for new token accounts
     pub with_lamports: bool,
-    pub is_decompressed: bool,
+    pub spl_mint_initialized: bool,
     pub has_mint_to_actions: bool, // Whether we have MintTo actions
     pub with_cpi_context: Option<Pubkey>,
     pub create_mint: bool,
@@ -56,7 +56,7 @@ pub fn get_mint_action_instruction_account_metas(
 
     // For decompressed mints, add SPL mint and token program accounts
     // These need to come right after authority to match processor expectations
-    if config.is_decompressed {
+    if config.spl_mint_initialized {
         // mint - either derived from mint_signer (for creation) or from existing mint data
         if let Some(mint_signer) = config.mint_signer {
             // For mint creation - derive from mint_signer

@@ -63,7 +63,7 @@ pub fn process_output_compressed_account<'a>(
         {
             compressed_mint.set(
                 &parsed_instruction_data.mint,
-                accounts_config.is_decompressed,
+                accounts_config.spl_mint_initialized,
             )?;
 
             if let Some(extensions) = parsed_instruction_data.mint.extensions.as_deref() {
@@ -82,7 +82,6 @@ pub fn process_output_compressed_account<'a>(
         process_actions(
             parsed_instruction_data,
             validated_accounts,
-            accounts_config,
             token_accounts,
             hash_cache,
             queue_indices,

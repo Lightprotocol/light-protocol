@@ -51,7 +51,7 @@ fn test_rnd_create_compressed_mint_account() {
         // Generate random supplies
         let input_supply = rng.gen_range(0..=u64::MAX);
         let _output_supply = rng.gen_range(0..=u64::MAX);
-        let is_decompressed = rng.gen_bool(0.1);
+        let spl_mint_initialized = rng.gen_bool(0.1);
 
         // Generate random merkle context
         let merkle_tree_pubkey_index = rng.gen_range(0..=255u8);
@@ -116,7 +116,7 @@ fn test_rnd_create_compressed_mint_account() {
             metadata: CompressedMintMetadata {
                 version,
                 spl_mint: mint_pda,
-                is_decompressed,
+                spl_mint_initialized,
             },
             mint_authority: Some(mint_authority),
             freeze_authority,
@@ -199,8 +199,8 @@ fn test_rnd_create_compressed_mint_account() {
         assert_eq!(zc_mint.supply.get(), output_mint_data.supply);
         assert_eq!(zc_mint.decimals, output_mint_data.decimals);
         assert_eq!(
-            zc_mint.metadata.is_decompressed != 0,
-            output_mint_data.metadata.is_decompressed
+            zc_mint.metadata.spl_mint_initialized != 0,
+            output_mint_data.metadata.spl_mint_initialized
         );
 
         if let (Some(zc_mint_auth), Some(orig_mint_auth)) = (
@@ -367,7 +367,7 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
         metadata: CompressedMintMetadata {
             version: 3u8,
             spl_mint: Pubkey::new_from_array([3; 32]),
-            is_decompressed: false,
+            spl_mint_initialized: false,
         },
         extensions: Some(vec![ExtensionStruct::TokenMetadata(token_metadata)]),
     };
@@ -395,7 +395,7 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
             metadata: CompressedMintMetadata {
                 version: zc_mint.metadata.version,
                 spl_mint: zc_mint.metadata.spl_mint,
-                is_decompressed: zc_mint.metadata.is_decompressed != 0,
+                spl_mint_initialized: zc_mint.metadata.spl_mint_initialized != 0,
             },
             extensions: zc_mint.extensions.as_ref().map(|zc_exts| {
                 zc_exts

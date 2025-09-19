@@ -42,7 +42,7 @@ pub async fn assert_spl_mint<R: Rpc + Indexer>(
     .expect("Failed to deserialize compressed mint");
 
     let mut expected_compressed_mint = (*pre_compressed_mint).clone();
-    expected_compressed_mint.metadata.is_decompressed = true;
+    expected_compressed_mint.metadata.spl_mint_initialized = true;
     assert_eq!(compressed_mint, expected_compressed_mint);
 
     // 2. Assert SPL mint is initialized and equivalent with compressed mint

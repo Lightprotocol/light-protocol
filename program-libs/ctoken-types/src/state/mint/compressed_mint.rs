@@ -48,7 +48,7 @@ pub struct CompressedMintMetadata {
     /// Version for upgradability
     pub version: u8,
     /// Extension, necessary for mint to.
-    pub is_decompressed: bool,
+    pub spl_mint_initialized: bool,
     /// Pda with seed address of compressed mint
     pub spl_mint: Pubkey,
 }
@@ -74,7 +74,7 @@ impl ZCompressedMintMut<'_> {
     pub fn set(
         &mut self,
         ix_data: &<CompressedMintInstructionData as light_zero_copy::traits::ZeroCopyAt<'_>>::ZeroCopyAt,
-        is_decompressed: bool,
+        spl_mint_initialized: bool,
     ) -> Result<(), CTokenError> {
         if ix_data.metadata.version != 3 {
             msg!(
@@ -86,7 +86,7 @@ impl ZCompressedMintMut<'_> {
         // Set metadata fields from instruction data
         self.metadata.version = ix_data.metadata.version;
         self.metadata.spl_mint = ix_data.metadata.spl_mint;
-        self.metadata.is_decompressed = if is_decompressed { 1 } else { 0 };
+        self.metadata.spl_mint_initialized = if spl_mint_initialized { 1 } else { 0 };
 
         // Set base fields
         *self.base.supply = ix_data.supply;

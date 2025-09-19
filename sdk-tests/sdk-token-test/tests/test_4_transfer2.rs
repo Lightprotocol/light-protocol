@@ -240,7 +240,7 @@ async fn mint_compressed_tokens(
         metadata: CompressedMintMetadata {
             version: 3,
             spl_mint: mint_pda.into(),
-            is_decompressed: false,
+            spl_mint_initialized: false,
         },
         extensions: None,
     };

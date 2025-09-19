@@ -59,7 +59,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
     pub fn try_from_account_infos_full(
         accounts: &'a [A],
         with_mint_signer: bool,
-        is_decompressed: bool,
+        spl_mint_initialized: bool,
         with_lamports: bool,
         with_cpi_context: bool,
         create_mint: bool,         // true = address tree, false = state tree
@@ -86,7 +86,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         }
 
         // 5-7. Decompressed mint accounts (conditional group)
-        let (spl_mint, token_pool_pda, token_program) = if is_decompressed {
+        let (spl_mint, token_pool_pda, token_program) = if spl_mint_initialized {
             let mint = Some(iter.next_account("spl_mint")?);
             let pool = Some(iter.next_account("token_pool_pda")?);
             let program = Some(iter.next_account("token_program")?);
@@ -221,7 +221,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
     pub fn try_from_account_infos(accounts: &'a [A]) -> Result<Self, TokenSdkError> {
         Self::try_from_account_infos_full(
             accounts, false, // with_mint_signer
-            false, // is_decompressed
+            false, // spl_mint_initialized
             false, // with_lamports
             false, // with_cpi_context
             false, // create_mint
@@ -235,14 +235,14 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
     pub fn try_from_account_infos_create_mint(
         accounts: &'a [A],
         with_mint_signer: bool,
-        is_decompressed: bool,
+        spl_mint_initialized: bool,
         with_lamports: bool,
         has_mint_to_actions: bool,
     ) -> Result<Self, TokenSdkError> {
         Self::try_from_account_infos_full(
             accounts,
             with_mint_signer,
-            is_decompressed,
+            spl_mint_initialized,
             with_lamports,
             false, // with_cpi_context
             true,  // create_mint
@@ -255,14 +255,14 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
     #[track_caller]
     pub fn try_from_account_infos_update_mint(
         accounts: &'a [A],
-        is_decompressed: bool,
+        spl_mint_initialized: bool,
         with_lamports: bool,
         has_mint_to_actions: bool,
     ) -> Result<Self, TokenSdkError> {
         Self::try_from_account_infos_full(
             accounts,
             false, // with_mint_signer
-            is_decompressed,
+            spl_mint_initialized,
             with_lamports,
             false, // with_cpi_context
             false, // create_mint

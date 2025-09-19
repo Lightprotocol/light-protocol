@@ -124,7 +124,7 @@ fn test_successful_parsing_minimal() {
     // Use create_mint variant which doesn't require in_output_queue
     let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_create_mint(
         &accounts, false, // with_mint_signer
-        false, // is_decompressed
+        false, // spl_mint_initialized
         false, // with_lamports
         false, // has_mint_to_actions
     );
@@ -261,7 +261,7 @@ fn test_successful_parsing_with_all_options() {
 
     let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_full(
         &accounts, true,  // with_mint_signer
-        true,  // is_decompressed
+        true,  // spl_mint_initialized
         true,  // with_lamports
         true,  // with_cpi_context
         false, // create_mint
@@ -364,7 +364,7 @@ fn test_successful_create_mint() {
 
     let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_create_mint(
         &accounts, true,  // with_mint_signer
-        false, // is_decompressed
+        false, // spl_mint_initialized
         false, // with_lamports
         false, // has_mint_to_actions
     );
@@ -454,7 +454,7 @@ fn test_successful_update_mint() {
     ];
 
     let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_update_mint(
-        &accounts, false, // is_decompressed
+        &accounts, false, // spl_mint_initialized
         false, // with_lamports
         false, // has_mint_to_actions
     );
@@ -820,7 +820,7 @@ fn test_invalid_spl_token_program() {
 
     let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_full(
         &accounts, true, // with_mint_signer
-        true, // is_decompressed
+        true, // spl_mint_initialized
         false, false, false, false,
     );
     assert!(result.is_err());
@@ -1037,7 +1037,7 @@ fn test_helper_methods() {
 
     let parsed = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_create_mint(
         &accounts, false, // with_mint_signer
-        false, // is_decompressed
+        false, // spl_mint_initialized
         false, // with_lamports
         false, // has_mint_to_actions
     )

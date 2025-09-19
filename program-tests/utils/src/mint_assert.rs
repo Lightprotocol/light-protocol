@@ -45,7 +45,7 @@ pub fn assert_compressed_mint_account(
         metadata: CompressedMintMetadata {
             version: 3,
             spl_mint: spl_mint_pda.into(),
-            is_decompressed: false,
+            spl_mint_initialized: false,
         },
         extensions: expected_extensions,
     };

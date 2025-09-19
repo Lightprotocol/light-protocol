@@ -9,7 +9,12 @@ This documentation is organized to provide clear navigation through the compress
 - **`ACCOUNTS.md`** - Complete account layouts and data structures
 - **`instructions/`** - Detailed instruction documentation
   - `CREATE_TOKEN_ACCOUNT.md` - Create token account & associated token account instructions
-  - Additional instruction docs to be added as needed
+  - `MINT_ACTION.md` - Mint operations and compressed mint management
+  - `TRANSFER2.md` - Batch transfer instruction for compressed/decompressed operations
+  - `CLAIM.md` - Claim rent from expired compressible accounts
+  - `CLOSE_TOKEN_ACCOUNT.md` - Close decompressed token accounts
+  - `DECOMPRESSED_TRANSFER.md` - Transfer between decompressed accounts
+  - `WITHDRAW_FUNDING_POOL.md` - Withdraw funds from rent recipient pool
 
 ## Navigation Tips
 - Start with `../../CLAUDE.md` for the instruction index and overview
@@ -28,5 +33,10 @@ every instruction description must include the sections:
     - **instruciton logic and checks**
     - **Errors** possible errors and description what causes these errors
 
-1. create ctoken account & create associated ctoken account (idempotent)
-2. transfer2 - batch transfer instruction
+1. **Create Token Account Instructions** - Create regular and associated ctoken accounts
+2. **Transfer2** - Batch transfer instruction supporting compress/decompress/transfer operations
+3. **MintAction** - Batch instruction for compressed mint management and mint operations (supports 9 actions: CreateCompressedMint, MintTo, UpdateMintAuthority, UpdateFreezeAuthority, CreateSplMint, MintToDecompressed, UpdateMetadataField, UpdateMetadataAuthority, RemoveMetadataKey)
+4. **Claim** - Rent reclamation from expired compressible accounts
+5. **Close Token Account** - Close decompressed token accounts with rent distribution
+6. **Decompressed Transfer** - SPL-compatible transfers between decompressed accounts
+7. **Withdraw Funding Pool** - Withdraw funds from rent recipient pool
