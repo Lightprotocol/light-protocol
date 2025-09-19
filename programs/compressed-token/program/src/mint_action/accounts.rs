@@ -49,10 +49,12 @@ pub struct ExecutingAccounts<'info> {
     pub system: LightSystemAccounts<'info>,
     /// Out output queue for the compressed mint account.
     pub out_output_queue: &'info AccountInfo,
-    /// in_merkle_tree is used in two different ways:
-    /// 1. create cmint: Address Merkle tree account.
-    /// 2. compressed mint exists: In state Merkle tree account.
-    pub in_merkle_tree: &'info AccountInfo,
+    /// In state Merkle tree account for existing compressed mint.
+    /// Required when compressed mint already exists.
+    pub in_merkle_tree: Option<&'info AccountInfo>,
+    /// Address Merkle tree account for creating compressed mint.
+    /// Required when creating a new compressed mint.
+    pub address_merkle_tree: Option<&'info AccountInfo>,
     /// Required, if compressed mint already exists.
     pub in_output_queue: Option<&'info AccountInfo>,
     /// Required, for action mint to compressed.
@@ -102,9 +104,18 @@ impl<'info> MintActionAccounts<'info> {
                 config.with_cpi_context,
             )?;
             let out_output_queue = iter.next_account("out_output_queue")?;
-            // When create mint this is the address tree. TODO: create separate field address_merkle_tree and make it an option.
-            // When mint exists this is the in merkle tree.
-            let in_merkle_tree = iter.next_account("in_merkle_tree")?;
+
+            // Parse merkle tree based on whether we're creating or updating mint
+            let (in_merkle_tree, address_merkle_tree) = if config.create_mint {
+                // Creating mint: next account is address merkle tree
+                let address_tree = iter.next_account("address_merkle_tree")?;
+                (None, Some(address_tree))
+            } else {
+                // Existing mint: next account is in merkle tree
+                let in_tree = iter.next_account("in_merkle_tree")?;
+                (Some(in_tree), None)
+            };
+
             let in_output_queue = iter.next_option("in_output_queue", !config.create_mint)?;
             // Only needed for minting to compressed token accounts
             let tokens_out_queue =
@@ -148,13 +159,17 @@ impl<'info> MintActionAccounts<'info> {
                     return Err(ErrorCode::MintAccountMismatch.into());
                 }
             }
-            if config.create_mint && *in_merkle_tree.key() != CMINT_ADDRESS_TREE {
-                msg!(
-                    "Create mint action expects address Merkle tree {:?} received: {:?}",
-                    solana_pubkey::Pubkey::from(CMINT_ADDRESS_TREE),
-                    solana_pubkey::Pubkey::from(*in_merkle_tree.key())
-                );
-                return Err(ErrorCode::InvalidAddressTree.into());
+
+            // Validate address merkle tree when creating mint
+            if let Some(address_tree) = address_merkle_tree {
+                if *address_tree.key() != CMINT_ADDRESS_TREE {
+                    msg!(
+                        "Create mint action expects address Merkle tree {:?} received: {:?}",
+                        solana_pubkey::Pubkey::from(CMINT_ADDRESS_TREE),
+                        solana_pubkey::Pubkey::from(*address_tree.key())
+                    );
+                    return Err(ErrorCode::InvalidAddressTree.into());
+                }
             }
             Ok(MintActionAccounts {
                 mint_signer,
@@ -166,6 +181,7 @@ impl<'info> MintActionAccounts<'info> {
                     token_program,
                     system,
                     in_merkle_tree,
+                    address_merkle_tree,
                     in_output_queue,
                     out_output_queue,
                     tokens_out_queue,
@@ -196,7 +212,14 @@ impl<'info> MintActionAccounts<'info> {
 
         if let Some(executing) = &self.executing {
             pubkeys.push(executing.out_output_queue.key());
-            pubkeys.push(executing.in_merkle_tree.key());
+
+            // Include either in_merkle_tree or address_merkle_tree based on which is present
+            if let Some(in_tree) = executing.in_merkle_tree {
+                pubkeys.push(in_tree.key());
+            } else if let Some(address_tree) = executing.address_merkle_tree {
+                pubkeys.push(address_tree.key());
+            }
+
             if let Some(in_queue) = executing.in_output_queue {
                 pubkeys.push(in_queue.key());
             }
@@ -259,7 +282,7 @@ impl<'info> MintActionAccounts<'info> {
                 }
 
                 // out_output_queue (always present)
-                // in_merkle_tree (always present)
+                // Either in_merkle_tree or address_merkle_tree (always present)
                 offset += 2;
                 if executing.in_output_queue.is_some() {
                     offset += 1;

@@ -81,9 +81,8 @@ pub fn process_mint_action(
             &parsed_instruction_data,
             &validated_accounts,
             &mut cpi_instruction_struct,
-            // Used for the address tree when creating the mint since
-            // we don't have an input compressed account in this case.
-            queue_indices.in_tree_index,
+            // Use the dedicated address_merkle_tree_index when creating the mint
+            queue_indices.address_merkle_tree_index,
         )?;
     } else {
         // Process input compressed mint account

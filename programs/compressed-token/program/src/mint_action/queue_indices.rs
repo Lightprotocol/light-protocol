@@ -8,6 +8,7 @@ use crate::mint_action::accounts::MintActionAccounts;
 #[derive(Debug)]
 pub struct QueueIndices {
     pub in_tree_index: u8,
+    pub address_merkle_tree_index: u8,
     pub in_queue_index: u8,
     pub out_token_queue_index: u8,
     pub output_queue_index: u8,
@@ -20,11 +21,26 @@ impl QueueIndices {
         parsed_instruction_data: &ZMintActionCompressedInstructionData<'_>,
         validated_accounts: &MintActionAccounts,
     ) -> Result<QueueIndices, ErrorCode> {
-        let in_tree_index = parsed_instruction_data
-            .cpi_context
-            .as_ref()
-            .map(|cpi_context| cpi_context.in_tree_index)
-            .unwrap_or(1);
+        // For create mint, in_tree_index points to address merkle tree
+        // For existing mint, in_tree_index points to in merkle tree
+        let (in_tree_index, address_merkle_tree_index) = if parsed_instruction_data.create_mint() {
+            // When creating mint, the in_tree_index actually refers to the address tree
+            let address_tree_idx = parsed_instruction_data
+                .cpi_context
+                .as_ref()
+                .map(|cpi_context| cpi_context.in_tree_index)
+                .unwrap_or(1);
+            (0, address_tree_idx) // in_tree_index is 0 when not used
+        } else {
+            // When mint exists, in_tree_index is for the state merkle tree
+            let in_tree_idx = parsed_instruction_data
+                .cpi_context
+                .as_ref()
+                .map(|cpi_context| cpi_context.in_tree_index)
+                .unwrap_or(1);
+            (in_tree_idx, 0) // address_merkle_tree_index is 0 when not used
+        };
+
         let in_queue_index = parsed_instruction_data
             .cpi_context
             .as_ref()
@@ -64,6 +80,7 @@ impl QueueIndices {
         let deduplicated = tokens_outqueue_exists && out_token_queue_index == output_queue_index;
         Ok(QueueIndices {
             in_tree_index,
+            address_merkle_tree_index,
             in_queue_index,
             out_token_queue_index,
             output_queue_index,
