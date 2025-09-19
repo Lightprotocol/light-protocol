@@ -32,7 +32,7 @@ func R1CSV1Inclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (cons
 
 // SetupV1Inclusion creates proving system for V1 Inclusion circuit (without PublicInputHash)
 // This is used for mainnet_inclusion_26_* keys
-func SetupV1Inclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
+func SetupV1Inclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*MerkleProofSystem, error) {
 	ccs, err := R1CSV1Inclusion(treeHeight, numberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
@@ -41,7 +41,7 @@ func SetupV1Inclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*Pr
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystemV1{
+	return &MerkleProofSystem{
 		InclusionTreeHeight:                 treeHeight,
 		InclusionNumberOfCompressedAccounts: numberOfCompressedAccounts,
 		ProvingKey:                          pk,
@@ -81,7 +81,7 @@ func R1CSV1NonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (c
 
 // SetupV1NonInclusion creates proving system for V1 NonInclusion circuit
 // This is used for non-inclusion_26_* keys
-func SetupV1NonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
+func SetupV1NonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*MerkleProofSystem, error) {
 	ccs, err := R1CSV1NonInclusion(treeHeight, numberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
@@ -90,7 +90,7 @@ func SetupV1NonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystemV1{
+	return &MerkleProofSystem{
 		NonInclusionTreeHeight:                 treeHeight,
 		NonInclusionNumberOfCompressedAccounts: numberOfCompressedAccounts,
 		ProvingKey:                             pk,
@@ -113,7 +113,7 @@ func R1CSV1Combined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccou
 
 // SetupV1Combined creates proving system for V1 Combined circuit
 // This is used for combined_26_* keys
-func SetupV1Combined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
+func SetupV1Combined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*MerkleProofSystem, error) {
 	ccs, err := R1CSV1Combined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
@@ -122,14 +122,14 @@ func SetupV1Combined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAcco
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystemV1{
-		InclusionTreeHeight:                     inclusionTreeHeight,
-		InclusionNumberOfCompressedAccounts:     inclusionNumberOfCompressedAccounts,
-		NonInclusionTreeHeight:                  nonInclusionTreeHeight,
+	return &MerkleProofSystem{
+		InclusionTreeHeight:                    inclusionTreeHeight,
+		InclusionNumberOfCompressedAccounts:    inclusionNumberOfCompressedAccounts,
+		NonInclusionTreeHeight:                 nonInclusionTreeHeight,
 		NonInclusionNumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
-		ProvingKey:                              pk,
-		VerifyingKey:                            vk,
-		ConstraintSystem:                        ccs,
-		Version:                                 0, // V1 circuits have version 0
+		ProvingKey:                             pk,
+		VerifyingKey:                           vk,
+		ConstraintSystem:                       ccs,
+		Version:                                0, // V1 circuits have version 0
 	}, nil
 }

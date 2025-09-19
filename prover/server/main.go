@@ -96,30 +96,30 @@ func runCli() {
 					logging.Logger().Info().Msg("Running setup")
 					var err error
 					if circuit == prover.BatchAppendCircuitType {
-						var system *prover.ProvingSystemV2
-						system, err = prover.SetupCircuitV2(prover.BatchAppendCircuitType, batchAppendTreeHeight, batchAppendBatchSize)
+						var system *prover.BatchProofSystem
+						system, err = prover.SetupBatchOperationCircuit(prover.BatchAppendCircuitType, batchAppendTreeHeight, batchAppendBatchSize)
 						if err != nil {
 							return err
 						}
 						err = prover.WriteProvingSystem(system, path, pathVkey)
 					} else if circuit == prover.BatchUpdateCircuitType {
-						var system *prover.ProvingSystemV2
-						system, err = prover.SetupCircuitV2(prover.BatchUpdateCircuitType, batchUpdateTreeHeight, batchUpdateBatchSize)
+						var system *prover.BatchProofSystem
+						system, err = prover.SetupBatchOperationCircuit(prover.BatchUpdateCircuitType, batchUpdateTreeHeight, batchUpdateBatchSize)
 						if err != nil {
 							return err
 						}
 						err = prover.WriteProvingSystem(system, path, pathVkey)
 					} else if circuit == prover.BatchAddressAppendCircuitType {
 						fmt.Println("Generating Address Append Circuit")
-						var system *prover.ProvingSystemV2
-						system, err = prover.SetupCircuitV2(prover.BatchAddressAppendCircuitType, batchAddressAppendTreeHeight, batchAddressAppendBatchSize)
+						var system *prover.BatchProofSystem
+						system, err = prover.SetupBatchOperationCircuit(prover.BatchAddressAppendCircuitType, batchAddressAppendTreeHeight, batchAddressAppendBatchSize)
 						if err != nil {
 							return err
 						}
 						err = prover.WriteProvingSystem(system, path, pathVkey)
 					} else {
-						var system *prover.ProvingSystemV1
-						system, err = prover.SetupCircuitV1(circuit, inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, useV1)
+						var system *prover.MerkleProofSystem
+						system, err = prover.SetupMerkleProofCircuit(circuit, inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, useV1)
 						if err != nil {
 							return err
 						}
@@ -280,7 +280,7 @@ func runCli() {
 						if batchAppendTreeHeight == 0 || batchAppendBatchSize == 0 {
 							return fmt.Errorf("append tree height and batch size must be provided")
 						}
-						var system *prover.ProvingSystemV2
+						var system *prover.BatchProofSystem
 						system, err = prover.ImportBatchAppendSetup(batchAppendTreeHeight, batchAppendBatchSize, pk, vk)
 						if err != nil {
 							return err
@@ -290,7 +290,7 @@ func runCli() {
 						if batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0 {
 							return fmt.Errorf("append tree height and batch size must be provided")
 						}
-						var system *prover.ProvingSystemV2
+						var system *prover.BatchProofSystem
 						system, err = prover.ImportBatchUpdateSetup(batchUpdateTreeHeight, batchUpdateBatchSize, pk, vk)
 						if err != nil {
 							return err
@@ -300,7 +300,7 @@ func runCli() {
 						if batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0 {
 							return fmt.Errorf("append tree height and batch size must be provided")
 						}
-						var system *prover.ProvingSystemV2
+						var system *prover.BatchProofSystem
 						system, err = prover.ImportBatchAddressAppendSetup(batchAddressAppendTreeHeight, batchAddressAppendBatchSize, pk, vk)
 						if err != nil {
 							return err
@@ -318,7 +318,7 @@ func runCli() {
 							}
 						}
 
-						var system *prover.ProvingSystemV1
+						var system *prover.MerkleProofSystem
 						switch circuit {
 						case "inclusion":
 							system, err = prover.ImportInclusionSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, pk, vk)
@@ -358,9 +358,9 @@ func runCli() {
 
 					var vk interface{}
 					switch s := system.(type) {
-					case *prover.ProvingSystemV1:
+					case *prover.MerkleProofSystem:
 						vk = s.VerifyingKey
-					case *prover.ProvingSystemV2:
+					case *prover.BatchProofSystem:
 						vk = s.VerifyingKey
 					default:
 						return fmt.Errorf("unknown proving system type")
@@ -822,7 +822,7 @@ func runCli() {
 
 					var verifyErr error
 					switch s := system.(type) {
-					case *prover.ProvingSystemV1:
+					case *prover.MerkleProofSystem:
 						publicInputsHashStr := context.String("publicInputsHash")
 						publicInputsHash, err := prover.ParseBigInt(publicInputsHashStr)
 						if err != nil {
@@ -837,7 +837,7 @@ func runCli() {
 						case "combined":
 							verifyErr = s.VerifyCombined(*publicInputsHash, &proof)
 						default:
-							return fmt.Errorf("invalid circuit type for ProvingSystemV1: %s", circuit)
+							return fmt.Errorf("invalid circuit type for MerkleProofSystem: %s", circuit)
 						}
 					default:
 						return fmt.Errorf("unknown proving system type")

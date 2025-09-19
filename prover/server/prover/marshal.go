@@ -114,7 +114,7 @@ func (p *Proof) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (ps *ProvingSystemV1) WriteTo(w io.Writer) (int64, error) {
+func (ps *MerkleProofSystem) WriteTo(w io.Writer) (int64, error) {
 	var totalWritten int64 = 0
 	var intBuf [4]byte
 
@@ -154,7 +154,7 @@ func (ps *ProvingSystemV1) WriteTo(w io.Writer) (int64, error) {
 	return totalWritten, nil
 }
 
-func (ps *ProvingSystemV1) UnsafeReadFrom(r io.Reader) (int64, error) {
+func (ps *MerkleProofSystem) UnsafeReadFrom(r io.Reader) (int64, error) {
 	var totalRead int64 = 0
 	var intBuf [4]byte
 
@@ -200,7 +200,7 @@ func (ps *ProvingSystemV1) UnsafeReadFrom(r io.Reader) (int64, error) {
 
 func ReadSystemFromFile(path string) (interface{}, error) {
 	if strings.Contains(strings.ToLower(path), "address-append") {
-		ps := new(ProvingSystemV2)
+		ps := new(BatchProofSystem)
 		ps.CircuitType = BatchAddressAppendCircuitType
 		file, err := os.Open(path)
 		if err != nil {
@@ -214,7 +214,7 @@ func ReadSystemFromFile(path string) (interface{}, error) {
 		}
 		return ps, nil
 	} else if strings.Contains(strings.ToLower(path), "append") {
-		ps := new(ProvingSystemV2)
+		ps := new(BatchProofSystem)
 		ps.CircuitType = BatchAppendCircuitType
 		file, err := os.Open(path)
 		if err != nil {
@@ -227,7 +227,7 @@ func ReadSystemFromFile(path string) (interface{}, error) {
 		}
 		return ps, nil
 	} else if strings.Contains(strings.ToLower(path), "update") {
-		ps := new(ProvingSystemV2)
+		ps := new(BatchProofSystem)
 		ps.CircuitType = BatchUpdateCircuitType
 		file, err := os.Open(path)
 		if err != nil {
@@ -241,7 +241,7 @@ func ReadSystemFromFile(path string) (interface{}, error) {
 		}
 		return ps, nil
 	} else {
-		ps := new(ProvingSystemV1)
+		ps := new(MerkleProofSystem)
 		if strings.Contains(strings.ToLower(path), "mainnet") {
 			ps.Version = 0
 		} else {
@@ -261,7 +261,7 @@ func ReadSystemFromFile(path string) (interface{}, error) {
 	}
 }
 
-func (ps *ProvingSystemV2) WriteTo(w io.Writer) (int64, error) {
+func (ps *BatchProofSystem) WriteTo(w io.Writer) (int64, error) {
 	var totalWritten int64 = 0
 	var intBuf [4]byte
 
@@ -300,7 +300,7 @@ func (ps *ProvingSystemV2) WriteTo(w io.Writer) (int64, error) {
 	return totalWritten, nil
 }
 
-func (ps *ProvingSystemV2) UnsafeReadFrom(r io.Reader) (int64, error) {
+func (ps *BatchProofSystem) UnsafeReadFrom(r io.Reader) (int64, error) {
 	var totalRead int64 = 0
 	var intBuf [4]byte
 

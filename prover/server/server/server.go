@@ -260,8 +260,8 @@ type EnhancedConfig struct {
 }
 
 type proveHandler struct {
-	provingSystemsV1 []*prover.ProvingSystemV1
-	provingSystemsV2 []*prover.ProvingSystemV2
+	provingSystemsV1 []*prover.MerkleProofSystem
+	provingSystemsV2 []*prover.BatchProofSystem
 	redisQueue       *RedisQueue
 	enableQueue      bool
 	runMode          prover.RunMode
@@ -442,7 +442,7 @@ func (handler queueCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	json.NewEncoder(w).Encode(results)
 }
 
-func RunWithQueue(config *Config, redisQueue *RedisQueue, circuits []string, runMode prover.RunMode, provingSystemsV1 []*prover.ProvingSystemV1, provingSystemsV2 []*prover.ProvingSystemV2) RunningJob {
+func RunWithQueue(config *Config, redisQueue *RedisQueue, circuits []string, runMode prover.RunMode, provingSystemsV1 []*prover.MerkleProofSystem, provingSystemsV2 []*prover.BatchProofSystem) RunningJob {
 	return RunEnhanced(&EnhancedConfig{
 		ProverAddress:  config.ProverAddress,
 		MetricsAddress: config.MetricsAddress,
@@ -452,7 +452,7 @@ func RunWithQueue(config *Config, redisQueue *RedisQueue, circuits []string, run
 	}, redisQueue, circuits, runMode, provingSystemsV1, provingSystemsV2)
 }
 
-func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []string, runMode prover.RunMode, provingSystemsV1 []*prover.ProvingSystemV1, provingSystemsV2 []*prover.ProvingSystemV2) RunningJob {
+func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []string, runMode prover.RunMode, provingSystemsV1 []*prover.MerkleProofSystem, provingSystemsV2 []*prover.BatchProofSystem) RunningJob {
 	apiKey := getAPIKeyFromEnv()
 	if apiKey != "" {
 		logging.Logger().Info().Msg("API key authentication enabled for prover server")
@@ -565,7 +565,7 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 	return CombineJobs(metricsJob, proverJob)
 }
 
-func Run(config *Config, circuits []string, runMode prover.RunMode, provingSystemsV1 []*prover.ProvingSystemV1, provingSystemsV2 []*prover.ProvingSystemV2) RunningJob {
+func Run(config *Config, circuits []string, runMode prover.RunMode, provingSystemsV1 []*prover.MerkleProofSystem, provingSystemsV2 []*prover.BatchProofSystem) RunningJob {
 	return RunWithQueue(config, nil, circuits, runMode, provingSystemsV1, provingSystemsV2)
 }
 
@@ -872,7 +872,7 @@ func (handler proveHandler) batchAddressAppendProof(buf []byte) (*prover.Proof, 
 	treeHeight := params.TreeHeight
 	batchSize := params.BatchSize
 
-	var ps *prover.ProvingSystemV2
+	var ps *prover.BatchProofSystem
 	for _, provingSystem := range handler.provingSystemsV2 {
 		if provingSystem.CircuitType == prover.BatchAddressAppendCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
 			ps = provingSystem
@@ -902,7 +902,7 @@ func (handler proveHandler) batchAppendHandler(buf []byte) (*prover.Proof, *Erro
 	treeHeight := params.Height
 	batchSize := params.BatchSize
 
-	var ps *prover.ProvingSystemV2
+	var ps *prover.BatchProofSystem
 	for _, provingSystem := range handler.provingSystemsV2 {
 		if provingSystem.CircuitType == prover.BatchAppendCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
 			ps = provingSystem
@@ -933,7 +933,7 @@ func (handler proveHandler) batchUpdateProof(buf []byte) (*prover.Proof, *Error)
 	treeHeight := params.Height
 	batchSize := params.BatchSize
 
-	var ps *prover.ProvingSystemV2
+	var ps *prover.BatchProofSystem
 	for _, provingSystem := range handler.provingSystemsV2 {
 		if provingSystem.CircuitType == prover.BatchUpdateCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
 			ps = provingSystem
@@ -954,7 +954,7 @@ func (handler proveHandler) batchUpdateProof(buf []byte) (*prover.Proof, *Error)
 }
 
 func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*prover.Proof, *Error) {
-	var ps *prover.ProvingSystemV1
+	var ps *prover.MerkleProofSystem
 	for _, provingSystem := range handler.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == proofRequestMeta.NumInputs && provingSystem.InclusionTreeHeight == proofRequestMeta.StateTreeHeight && provingSystem.Version == proofRequestMeta.Version && provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(0) {
 			ps = provingSystem
@@ -994,7 +994,7 @@ func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta prover.P
 
 func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*prover.Proof, *Error) {
 
-	var ps *prover.ProvingSystemV1
+	var ps *prover.MerkleProofSystem
 	for _, provingSystem := range handler.provingSystemsV1 {
 		if provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(proofRequestMeta.NumAddresses) && provingSystem.NonInclusionTreeHeight == uint32(proofRequestMeta.AddressTreeHeight) && provingSystem.InclusionNumberOfCompressedAccounts == uint32(0) {
 			ps = provingSystem
@@ -1042,7 +1042,7 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prove
 }
 
 func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*prover.Proof, *Error) {
-	var ps *prover.ProvingSystemV1
+	var ps *prover.MerkleProofSystem
 	for _, provingSystem := range handler.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == proofRequestMeta.NumInputs && provingSystem.NonInclusionNumberOfCompressedAccounts == proofRequestMeta.NumAddresses && provingSystem.InclusionTreeHeight == proofRequestMeta.StateTreeHeight && provingSystem.NonInclusionTreeHeight == proofRequestMeta.AddressTreeHeight {
 			ps = provingSystem

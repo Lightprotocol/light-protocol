@@ -257,9 +257,9 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	return uniqueKeys
 }
 
-func LoadKeys(keysDirPath string, runMode RunMode, circuits []string) ([]*ProvingSystemV1, []*ProvingSystemV2, error) {
-	var pssv1 []*ProvingSystemV1
-	var pssv2 []*ProvingSystemV2
+func LoadKeys(keysDirPath string, runMode RunMode, circuits []string) ([]*MerkleProofSystem, []*BatchProofSystem, error) {
+	var pssv1 []*MerkleProofSystem
+	var pssv2 []*BatchProofSystem
 	keys := GetKeys(keysDirPath, runMode, circuits)
 
 	for _, key := range keys {
@@ -269,20 +269,20 @@ func LoadKeys(keysDirPath string, runMode RunMode, circuits []string) ([]*Provin
 			return nil, nil, err
 		}
 		switch s := system.(type) {
-		case *ProvingSystemV1:
+		case *MerkleProofSystem:
 			pssv1 = append(pssv1, s)
 			logging.Logger().Info().
 				Uint32("inclusionTreeHeight", s.InclusionTreeHeight).
 				Uint32("inclusionCompressedAccounts", s.InclusionNumberOfCompressedAccounts).
 				Uint32("nonInclusionTreeHeight", s.NonInclusionTreeHeight).
 				Uint32("nonInclusionCompressedAccounts", s.NonInclusionNumberOfCompressedAccounts).
-				Msg("Read ProvingSystemV1")
-		case *ProvingSystemV2:
+				Msg("Read MerkleProofSystem")
+		case *BatchProofSystem:
 			pssv2 = append(pssv2, s)
 			logging.Logger().Info().
 				Uint32("treeHeight", s.TreeHeight).
 				Uint32("batchSize", s.BatchSize).
-				Msg("Read ProvingSystemV2")
+				Msg("Read BatchProofSystem")
 		default:
 			return nil, nil, fmt.Errorf("unknown proving system type")
 		}
@@ -320,9 +320,9 @@ func WriteProvingSystem(system interface{}, path string, pathVkey string) error 
 
 	var written int64
 	switch s := system.(type) {
-	case *ProvingSystemV1:
+	case *MerkleProofSystem:
 		written, err = s.WriteTo(file)
-	case *ProvingSystemV2:
+	case *BatchProofSystem:
 		written, err = s.WriteTo(file)
 	default:
 		return fmt.Errorf("unknown proving system type")
@@ -336,9 +336,9 @@ func WriteProvingSystem(system interface{}, path string, pathVkey string) error 
 
 	var vk interface{}
 	switch s := system.(type) {
-	case *ProvingSystemV1:
+	case *MerkleProofSystem:
 		vk = s.VerifyingKey
-	case *ProvingSystemV2:
+	case *BatchProofSystem:
 		vk = s.VerifyingKey
 	}
 

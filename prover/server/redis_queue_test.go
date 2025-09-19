@@ -676,8 +676,8 @@ func TestWorkerCreation(t *testing.T) {
 	rq := setupRedisQueue(t)
 	defer teardownRedisQueue(t, rq)
 
-	var psv1 []*prover.ProvingSystemV1
-	var psv2 []*prover.ProvingSystemV2
+	var psv1 []*prover.MerkleProofSystem
+	var psv2 []*prover.BatchProofSystem
 
 	updateWorker := server.NewUpdateQueueWorker(rq, psv1, psv2)
 	if updateWorker == nil {
@@ -846,8 +846,8 @@ func TestFailedJobStatusHTTPEndpoint(t *testing.T) {
 	rq := setupRedisQueue(t)
 	defer teardownRedisQueue(t, rq)
 
-	var psv1 []*prover.ProvingSystemV1
-	var psv2 []*prover.ProvingSystemV2
+	var psv1 []*prover.MerkleProofSystem
+	var psv2 []*prover.BatchProofSystem
 
 	config := &server.EnhancedConfig{
 		ProverAddress:  "localhost:8082",

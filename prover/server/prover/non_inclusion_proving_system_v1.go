@@ -47,7 +47,7 @@ func (p *V1NonInclusionParameters) ValidateShape(treeHeight uint32, numOfCompres
 	return nil
 }
 
-func (ps *ProvingSystemV1) V1ProveNonInclusion(params *V1NonInclusionParameters) (*Proof, error) {
+func (ps *MerkleProofSystem) V1ProveNonInclusion(params *V1NonInclusionParameters) (*Proof, error) {
 	if err := params.ValidateShape(ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (circuit *V1NonInclusionCircuit) Define(api frontend.API) error {
 	return nil
 }
 
-func (ps *ProvingSystemV1) V1VerifyNonInclusion(root []big.Int, leaves []big.Int, proof *Proof) error {
+func (ps *MerkleProofSystem) V1VerifyNonInclusion(root []big.Int, leaves []big.Int, proof *Proof) error {
 	values := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
 	for i, v := range leaves {
 		values[i] = v
