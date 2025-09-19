@@ -28,8 +28,8 @@ type QueueWorker interface {
 
 type BaseQueueWorker struct {
 	queue               *RedisQueue
-	provingSystemsV1    []*prover.ProvingSystemV1
-	provingSystemsV2    []*prover.ProvingSystemV2
+	provingSystemsV1    []*prover.MerkleProofSystem
+	provingSystemsV2    []*prover.BatchProofSystem
 	stopChan            chan struct{}
 	queueName           string
 	processingQueueName string
@@ -47,7 +47,7 @@ type AddressAppendQueueWorker struct {
 	*BaseQueueWorker
 }
 
-func NewUpdateQueueWorker(redisQueue *RedisQueue, psv1 []*prover.ProvingSystemV1, psv2 []*prover.ProvingSystemV2) *UpdateQueueWorker {
+func NewUpdateQueueWorker(redisQueue *RedisQueue, psv1 []*prover.MerkleProofSystem, psv2 []*prover.BatchProofSystem) *UpdateQueueWorker {
 	return &UpdateQueueWorker{
 		BaseQueueWorker: &BaseQueueWorker{
 			queue:               redisQueue,
@@ -60,7 +60,7 @@ func NewUpdateQueueWorker(redisQueue *RedisQueue, psv1 []*prover.ProvingSystemV1
 	}
 }
 
-func NewAppendQueueWorker(redisQueue *RedisQueue, psv1 []*prover.ProvingSystemV1, psv2 []*prover.ProvingSystemV2) *AppendQueueWorker {
+func NewAppendQueueWorker(redisQueue *RedisQueue, psv1 []*prover.MerkleProofSystem, psv2 []*prover.BatchProofSystem) *AppendQueueWorker {
 	return &AppendQueueWorker{
 		BaseQueueWorker: &BaseQueueWorker{
 			queue:               redisQueue,
@@ -73,7 +73,7 @@ func NewAppendQueueWorker(redisQueue *RedisQueue, psv1 []*prover.ProvingSystemV1
 	}
 }
 
-func NewAddressAppendQueueWorker(redisQueue *RedisQueue, psv1 []*prover.ProvingSystemV1, psv2 []*prover.ProvingSystemV2) *AddressAppendQueueWorker {
+func NewAddressAppendQueueWorker(redisQueue *RedisQueue, psv1 []*prover.MerkleProofSystem, psv2 []*prover.BatchProofSystem) *AddressAppendQueueWorker {
 	return &AddressAppendQueueWorker{
 		BaseQueueWorker: &BaseQueueWorker{
 			queue:               redisQueue,
@@ -129,10 +129,10 @@ func (w *BaseQueueWorker) processJobs() {
 				Dur("expiration_timeout", JobExpirationTimeout).
 				Time("created_at", job.CreatedAt).
 				Msg("Skipping expired job - forester likely timed out")
-			
+
 			// Record metrics for expired jobs
 			ExpiredJobsCounter.WithLabelValues(w.queueName).Inc()
-			
+
 			// Add to failed queue with expiration reason
 			expirationErr := fmt.Errorf("job expired after %v (max: %v)", jobAge, JobExpirationTimeout)
 			w.addToFailedQueue(job, expirationErr)
@@ -260,7 +260,7 @@ func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
 }
 
 func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*prover.Proof, error) {
-	var ps *prover.ProvingSystemV1
+	var ps *prover.MerkleProofSystem
 	for _, provingSystem := range w.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == uint32(meta.NumInputs) &&
 			provingSystem.InclusionTreeHeight == uint32(meta.StateTreeHeight) &&
@@ -293,7 +293,7 @@ func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta pr
 }
 
 func (w *BaseQueueWorker) processNonInclusionProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*prover.Proof, error) {
-	var ps *prover.ProvingSystemV1
+	var ps *prover.MerkleProofSystem
 	for _, provingSystem := range w.provingSystemsV1 {
 		if provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(meta.NumAddresses) &&
 			provingSystem.NonInclusionTreeHeight == uint32(meta.AddressTreeHeight) &&
@@ -325,7 +325,7 @@ func (w *BaseQueueWorker) processNonInclusionProof(payload json.RawMessage, meta
 }
 
 func (w *BaseQueueWorker) processCombinedProof(payload json.RawMessage, meta prover.ProofRequestMeta) (*prover.Proof, error) {
-	var ps *prover.ProvingSystemV1
+	var ps *prover.MerkleProofSystem
 	for _, provingSystem := range w.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == meta.NumInputs &&
 			provingSystem.NonInclusionNumberOfCompressedAccounts == meta.NumAddresses &&

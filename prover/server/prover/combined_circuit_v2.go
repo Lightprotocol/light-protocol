@@ -47,7 +47,7 @@ func (circuit *V2CombinedCircuit) Define(api frontend.API) error {
 	return nil
 }
 
-func ImportCombinedSetup(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32, pkPath string, vkPath string) (*ProvingSystemV1, error) {
+func ImportCombinedSetup(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32, pkPath string, vkPath string) (*MerkleProofSystem, error) {
 	ccs, err := R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
@@ -65,7 +65,7 @@ func ImportCombinedSetup(inclusionTreeHeight uint32, inclusionNumberOfCompressed
 		return nil, err
 	}
 
-	return &ProvingSystemV1{
+	return &MerkleProofSystem{
 		InclusionTreeHeight:                    inclusionTreeHeight,
 		InclusionNumberOfCompressedAccounts:    inclusionNumberOfCompressedAccounts,
 		NonInclusionTreeHeight:                 nonInclusionTreeHeight,

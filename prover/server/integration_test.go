@@ -38,8 +38,8 @@ func StartServer(isLightweight bool) {
 		keys = prover.GetKeys("./proving-keys/", prover.Full, []string{})
 		runMode = prover.Full
 	}
-	var pssv1 []*prover.ProvingSystemV1
-	var pssv2 []*prover.ProvingSystemV2
+	var pssv1 []*prover.MerkleProofSystem
+	var pssv2 []*prover.BatchProofSystem
 
 	missingKeys := []string{}
 
@@ -56,9 +56,9 @@ func StartServer(isLightweight bool) {
 		}
 
 		switch s := system.(type) {
-		case *prover.ProvingSystemV1:
+		case *prover.MerkleProofSystem:
 			pssv1 = append(pssv1, s)
-		case *prover.ProvingSystemV2:
+		case *prover.BatchProofSystem:
 			pssv2 = append(pssv2, s)
 		default:
 			logging.Logger().Info().Msgf("Unknown proving system type for file: %s", key)

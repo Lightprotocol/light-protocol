@@ -122,7 +122,7 @@ func (p *BatchUpdateParameters) ValidateShape() error {
 	return nil
 }
 
-func SetupBatchUpdate(height uint32, batchSize uint32) (*ProvingSystemV2, error) {
+func SetupBatchUpdate(height uint32, batchSize uint32) (*BatchProofSystem, error) {
 	fmt.Println("Setting up batch update")
 	ccs, err := R1CSBatchUpdate(height, batchSize)
 	if err != nil {
@@ -132,7 +132,7 @@ func SetupBatchUpdate(height uint32, batchSize uint32) (*ProvingSystemV2, error)
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystemV2{
+	return &BatchProofSystem{
 		CircuitType:      BatchUpdateCircuitType,
 		TreeHeight:       height,
 		BatchSize:        batchSize,
@@ -141,7 +141,7 @@ func SetupBatchUpdate(height uint32, batchSize uint32) (*ProvingSystemV2, error)
 		ConstraintSystem: ccs}, nil
 }
 
-func (ps *ProvingSystemV2) ProveBatchUpdate(params *BatchUpdateParameters) (*Proof, error) {
+func (ps *BatchProofSystem) ProveBatchUpdate(params *BatchUpdateParameters) (*Proof, error) {
 	if err := params.ValidateShape(); err != nil {
 		return nil, err
 	}
@@ -223,7 +223,7 @@ func R1CSBatchUpdate(height uint32, batchSize uint32) (constraint.ConstraintSyst
 	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 }
 
-func ImportBatchUpdateSetup(treeHeight uint32, batchSize uint32, pkPath string, vkPath string) (*ProvingSystemV2, error) {
+func ImportBatchUpdateSetup(treeHeight uint32, batchSize uint32, pkPath string, vkPath string) (*BatchProofSystem, error) {
 	leaves := make([]frontend.Variable, batchSize)
 	txHashes := make([]frontend.Variable, batchSize)
 	oldLeaves := make([]frontend.Variable, batchSize)
@@ -266,7 +266,7 @@ func ImportBatchUpdateSetup(treeHeight uint32, batchSize uint32, pkPath string, 
 		return nil, err
 	}
 
-	return &ProvingSystemV2{
+	return &BatchProofSystem{
 		TreeHeight:       treeHeight,
 		BatchSize:        batchSize,
 		ProvingKey:       pk,

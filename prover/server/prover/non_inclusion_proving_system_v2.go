@@ -77,7 +77,7 @@ func R1CSNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (con
 	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 }
 
-func SetupNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
+func SetupNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*MerkleProofSystem, error) {
 	ccs, err := R1CSNonInclusion(treeHeight, numberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func SetupNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*P
 	if err != nil {
 		return nil, err
 	}
-	return &ProvingSystemV1{
+	return &MerkleProofSystem{
 		NonInclusionTreeHeight:                 treeHeight,
 		NonInclusionNumberOfCompressedAccounts: numberOfCompressedAccounts,
 		ProvingKey:                             pk,
@@ -94,7 +94,7 @@ func SetupNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*P
 		ConstraintSystem:                       ccs}, nil
 }
 
-func (ps *ProvingSystemV1) ProveNonInclusion(params *V2NonInclusionParameters) (*Proof, error) {
+func (ps *MerkleProofSystem) ProveNonInclusion(params *V2NonInclusionParameters) (*Proof, error) {
 	if err := params.ValidateShape(ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
@@ -145,7 +145,7 @@ func (ps *ProvingSystemV1) ProveNonInclusion(params *V2NonInclusionParameters) (
 	return &Proof{proof}, nil
 }
 
-func (ps *ProvingSystemV1) VerifyNonInclusion(publicInputHash big.Int, proof *Proof) error {
+func (ps *MerkleProofSystem) VerifyNonInclusion(publicInputHash big.Int, proof *Proof) error {
 	publicAssignment := V2NonInclusionCircuit{
 		PublicInputHash: publicInputHash,
 	}

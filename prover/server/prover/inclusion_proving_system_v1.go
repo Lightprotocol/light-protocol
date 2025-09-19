@@ -43,7 +43,7 @@ func (p *V1InclusionParameters) ValidateShape(treeHeight uint32, numOfCompressed
 	return nil
 }
 
-func (ps *ProvingSystemV1) V1ProveInclusion(params *V1InclusionParameters) (*Proof, error) {
+func (ps *MerkleProofSystem) V1ProveInclusion(params *V1InclusionParameters) (*Proof, error) {
 	if err := params.ValidateShape(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
