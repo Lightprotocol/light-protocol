@@ -13,7 +13,7 @@ func rangeIn(low, hi int) int {
 	return low + rand.Intn(hi-low)
 }
 
-func BuildTestTree(depth int, numberOfCompressedAccounts int, random bool) V2InclusionParameters {
+func BuildTestTree(depth int, numberOfCompressedAccounts int, random bool) InclusionParameters {
 	tree := merkletree.NewTree(depth)
 	var leaf *big.Int
 	var pathIndex int
@@ -40,17 +40,17 @@ func BuildTestTree(depth int, numberOfCompressedAccounts int, random bool) V2Inc
 
 	publicInputHash := calculateTwoInputsHashChain(roots, leaves)
 
-	return V2InclusionParameters{
+	return InclusionParameters{
 		PublicInputHash: *publicInputHash,
 		Inputs:          inputs,
 	}
 }
 
-func BuildValidTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random bool) V2NonInclusionParameters {
+func BuildValidTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random bool) NonInclusionParameters {
 	return BuildTestNonInclusionTree(depth, numberOfCompressedAccounts, random, true, false)
 }
 
-func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random bool, valid bool, lowValue bool) V2NonInclusionParameters {
+func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random bool, valid bool, lowValue bool) NonInclusionParameters {
 	tree := merkletree.NewTree(depth)
 
 	var inputs = make([]NonInclusionInputs, numberOfCompressedAccounts)
@@ -103,7 +103,7 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 
 	publicInputHash := calculateTwoInputsHashChain(roots, values)
 
-	return V2NonInclusionParameters{
+	return NonInclusionParameters{
 		PublicInputHash: *publicInputHash,
 		Inputs:          inputs,
 	}

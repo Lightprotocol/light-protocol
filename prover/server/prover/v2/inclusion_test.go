@@ -17,10 +17,10 @@ import (
 // The file has two columns, separated by a semicolon.
 // First column is the expected result, second column is the input.
 // For each row, run the test with the input and check if the result is as expected.
-func TestInclusion(t testing.T) {
+func TestInclusion(t *testing.T) {
 	assert := test.NewAssert(t)
 
-	file, err := os.Open("../test-data/inclusion.csv")
+	file, err := os.Open("../../test-data/inclusion.csv")
 	defer file.Close()
 
 	assert.Nil(err, "Error opening file: ", err)
@@ -34,7 +34,7 @@ func TestInclusion(t testing.T) {
 		splitLine := strings.Split(line, ";")
 		assert.Equal(len(splitLine), 2, "Invalid line: ", line)
 
-		var params V2InclusionParameters
+		var params InclusionParameters
 		err := params.UnmarshalJSON([]byte(splitLine[1]))
 		assert.Nil(err, "Error unmarshalling inputs: ", err)
 
@@ -59,7 +59,7 @@ func TestInclusion(t testing.T) {
 
 		}
 
-		var circuit V2InclusionCircuit
+		var circuit InclusionCircuit
 		circuit.Roots = make([]frontend.Variable, numberOfCompressedAccounts)
 		circuit.Leaves = make([]frontend.Variable, numberOfCompressedAccounts)
 		circuit.InPathIndices = make([]frontend.Variable, numberOfCompressedAccounts)
@@ -75,7 +75,7 @@ func TestInclusion(t testing.T) {
 		expectedResult := splitLine[0]
 		if expectedResult == "0" {
 			// Run the failing test
-			assert.ProverFailed(&circuit, &V2InclusionCircuit{
+			assert.ProverFailed(&circuit, &InclusionCircuit{
 				PublicInputHash:            params.PublicInputHash,
 				Roots:                      roots,
 				Leaves:                     leaves,
@@ -86,7 +86,7 @@ func TestInclusion(t testing.T) {
 			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerializationChecks())
 		} else if expectedResult == "1" {
 			// Run the passing test
-			assert.ProverSucceeded(&circuit, &V2InclusionCircuit{
+			assert.ProverSucceeded(&circuit, &InclusionCircuit{
 				PublicInputHash:            params.PublicInputHash,
 				Roots:                      roots,
 				Leaves:                     leaves,

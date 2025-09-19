@@ -27,7 +27,7 @@ func ExtractLean(stateTreeHeight uint32, addressTreeHeight uint32, numberOfCompr
 		batchUpdateWithProofsProofs[i] = make([]frontend.Variable, stateTreeHeight)
 	}
 
-	inclusionCircuit := V2InclusionCircuit{
+	inclusionCircuit := InclusionCircuit{
 		Height:                     stateTreeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      make([]frontend.Variable, numberOfCompressedAccounts),
@@ -36,7 +36,7 @@ func ExtractLean(stateTreeHeight uint32, addressTreeHeight uint32, numberOfCompr
 		InPathElements:             inclusionInPathElements,
 	}
 
-	nonInclusionCircuit := V2NonInclusionCircuit{
+	nonInclusionCircuit := NonInclusionCircuit{
 		Height:                     addressTreeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      make([]frontend.Variable, numberOfCompressedAccounts),
@@ -66,7 +66,7 @@ func ExtractLean(stateTreeHeight uint32, addressTreeHeight uint32, numberOfCompr
 		InPathElements:             nonInclusionInPathElements,
 	}
 
-	combinedCircuit := V2CombinedCircuit{
+	combinedCircuit := CombinedCircuit{
 		Inclusion:    inclusionProof,
 		NonInclusion: nonInclusionProof,
 	}
