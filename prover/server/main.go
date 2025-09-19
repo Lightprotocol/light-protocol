@@ -34,6 +34,7 @@ func runCli() {
 					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\" / \"append\" / \"update\" / \"address-append\" )", Required: true},
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.StringFlag{Name: "output-vkey", Usage: "Output file", Required: true},
+					&cli.BoolFlag{Name: "legacy", Usage: "Use legacy V1 circuits (without PublicInputHash)", Required: false},
 					&cli.UintFlag{Name: "inclusion-tree-height", Usage: "[Inclusion]: Merkle tree height", Required: false},
 					&cli.UintFlag{Name: "inclusion-compressed-accounts", Usage: "[Inclusion]: Number of compressed accounts", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-tree-height", Usage: "[Non-inclusion]: merkle tree height", Required: false},
@@ -63,6 +64,9 @@ func runCli() {
 					batchUpdateBatchSize := uint32(context.Uint("update-batch-size"))
 					batchAddressAppendTreeHeight := uint32(context.Uint("address-append-tree-height"))
 					batchAddressAppendBatchSize := uint32(context.Uint("address-append-batch-size"))
+
+					// Use legacy (V1) circuits if explicitly requested
+					useV1 := context.Bool("legacy")
 
 					if (inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == prover.InclusionCircuitType {
 						return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
@@ -115,7 +119,7 @@ func runCli() {
 						err = prover.WriteProvingSystem(system, path, pathVkey)
 					} else {
 						var system *prover.ProvingSystemV1
-						system, err = prover.SetupCircuitV1(circuit, inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+						system, err = prover.SetupCircuitV1(circuit, inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, useV1)
 						if err != nil {
 							return err
 						}
@@ -664,7 +668,7 @@ func runCli() {
 
 					// TODO: differentiate between address circuits by tree height depending on inputs
 					if context.Bool("inclusion") {
-						var params prover.InclusionParameters
+						var params prover.V2InclusionParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
@@ -684,7 +688,7 @@ func runCli() {
 							}
 						}
 					} else if context.Bool("non-inclusion") {
-						var params prover.NonInclusionParameters
+						var params prover.V2NonInclusionParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
@@ -706,7 +710,7 @@ func runCli() {
 							}
 						}
 					} else if context.Bool("inclusion") && context.Bool("non-inclusion") {
-						var params prover.CombinedParameters
+						var params prover.V2CombinedParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err

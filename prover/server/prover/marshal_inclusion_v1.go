@@ -5,19 +5,19 @@ import (
 	"math/big"
 )
 
-type LegacyInclusionParametersJSON struct {
+type V1InclusionParametersJSON struct {
 	CircuitType     string                     `json:"circuitType"`
 	StateTreeHeight uint32                     `json:"stateTreeHeight"`
 	Inputs          []InclusionProofInputsJSON `json:"inputCompressedAccounts"`
 }
 
-func (p *LegacyInclusionParameters) MarshalJSON() ([]byte, error) {
+func (p *V1InclusionParameters) MarshalJSON() ([]byte, error) {
 	paramsJson := p.CreateInclusionParametersJSON()
 	return json.Marshal(paramsJson)
 }
 
-func (p *LegacyInclusionParameters) CreateInclusionParametersJSON() LegacyInclusionParametersJSON {
-	paramsJson := LegacyInclusionParametersJSON{}
+func (p *V1InclusionParameters) CreateInclusionParametersJSON() V1InclusionParametersJSON {
+	paramsJson := V1InclusionParametersJSON{}
 	paramsJson.Inputs = make([]InclusionProofInputsJSON, p.NumberOfCompressedAccounts())
 	paramsJson.CircuitType = string(CombinedCircuitType)
 	for i := 0; i < int(p.NumberOfCompressedAccounts()); i++ {
@@ -32,8 +32,8 @@ func (p *LegacyInclusionParameters) CreateInclusionParametersJSON() LegacyInclus
 	return paramsJson
 }
 
-func (p *LegacyInclusionParameters) UnmarshalJSON(data []byte) error {
-	var params LegacyInclusionParametersJSON
+func (p *V1InclusionParameters) UnmarshalJSON(data []byte) error {
+	var params V1InclusionParametersJSON
 	err := json.Unmarshal(data, &params)
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func (p *LegacyInclusionParameters) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (p *LegacyInclusionParameters) UpdateWithJSON(params LegacyInclusionParametersJSON) error {
+func (p *V1InclusionParameters) UpdateWithJSON(params V1InclusionParametersJSON) error {
 	p.Inputs = make([]InclusionInputs, len(params.Inputs))
 	for i := 0; i < len(params.Inputs); i++ {
 		err := fromHex(&p.Inputs[i].Root, params.Inputs[i].Root)

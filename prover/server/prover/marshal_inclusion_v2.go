@@ -13,29 +13,29 @@ type InclusionProofInputsJSON struct {
 	Leaf         string   `json:"leaf"`
 }
 
-type InclusionParametersJSON struct {
+type V2InclusionParametersJSON struct {
 	CircuitType     string                     `json:"circuitType"`
 	StateTreeHeight uint32                     `json:"stateTreeHeight"`
 	PublicInputHash string                     `json:"publicInputHash"`
 	InclusionInputs []InclusionProofInputsJSON `json:"inputCompressedAccounts"`
 }
 
-func ParseInput(inputJSON string) (InclusionParameters, error) {
-	var proofData InclusionParameters
+func ParseInput(inputJSON string) (V2InclusionParameters, error) {
+	var proofData V2InclusionParameters
 	err := json.Unmarshal([]byte(inputJSON), &proofData)
 	if err != nil {
-		return InclusionParameters{}, fmt.Errorf("error parsing JSON: %v", err)
+		return V2InclusionParameters{}, fmt.Errorf("error parsing JSON: %v", err)
 	}
 	return proofData, nil
 }
 
-func (p *InclusionParameters) MarshalJSON() ([]byte, error) {
-	paramsJson := p.CreateInclusionParametersJSON()
+func (p *V2InclusionParameters) MarshalJSON() ([]byte, error) {
+	paramsJson := p.CreateV2InclusionParametersJSON()
 	return json.Marshal(paramsJson)
 }
 
-func (p *InclusionParameters) CreateInclusionParametersJSON() InclusionParametersJSON {
-	paramsJson := InclusionParametersJSON{}
+func (p *V2InclusionParameters) CreateV2InclusionParametersJSON() V2InclusionParametersJSON {
+	paramsJson := V2InclusionParametersJSON{}
 	paramsJson.InclusionInputs = make([]InclusionProofInputsJSON, p.NumberOfCompressedAccounts())
 	paramsJson.PublicInputHash = toHex(&p.PublicInputHash)
 	paramsJson.CircuitType = string(InclusionCircuitType)
@@ -52,8 +52,8 @@ func (p *InclusionParameters) CreateInclusionParametersJSON() InclusionParameter
 	return paramsJson
 }
 
-func (p *InclusionParameters) UnmarshalJSON(data []byte) error {
-	var params InclusionParametersJSON
+func (p *V2InclusionParameters) UnmarshalJSON(data []byte) error {
+	var params V2InclusionParametersJSON
 	err := json.Unmarshal(data, &params)
 	if err != nil {
 		return err
@@ -65,7 +65,7 @@ func (p *InclusionParameters) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (p *InclusionParameters) UpdateWithJSON(params InclusionParametersJSON) error {
+func (p *V2InclusionParameters) UpdateWithJSON(params V2InclusionParametersJSON) error {
 	fromHex(&p.PublicInputHash, params.PublicInputHash)
 	p.Inputs = make([]InclusionInputs, len(params.InclusionInputs))
 	for i := 0; i < len(params.InclusionInputs); i++ {

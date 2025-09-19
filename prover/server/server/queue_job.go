@@ -276,13 +276,13 @@ func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta pr
 	}
 
 	if meta.Version == 0 {
-		var params prover.LegacyInclusionParameters
+		var params prover.V1InclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal legacy inclusion parameters: %w", err)
 		}
-		return ps.LegacyProveInclusion(&params)
+		return ps.V1ProveInclusion(&params)
 	} else if meta.Version == 1 {
-		var params prover.InclusionParameters
+		var params prover.V2InclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal inclusion parameters: %w", err)
 		}
@@ -308,13 +308,13 @@ func (w *BaseQueueWorker) processNonInclusionProof(payload json.RawMessage, meta
 	}
 
 	if meta.AddressTreeHeight == 26 {
-		var params prover.LegacyNonInclusionParameters
+		var params prover.V1NonInclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal legacy non-inclusion parameters: %w", err)
 		}
-		return ps.LegacyProveNonInclusion(&params)
+		return ps.V1ProveNonInclusion(&params)
 	} else if meta.AddressTreeHeight == 40 {
-		var params prover.NonInclusionParameters
+		var params prover.V2NonInclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal non-inclusion parameters: %w", err)
 		}
@@ -341,13 +341,13 @@ func (w *BaseQueueWorker) processCombinedProof(payload json.RawMessage, meta pro
 	}
 
 	if meta.AddressTreeHeight == 26 {
-		var params prover.LegacyCombinedParameters
+		var params prover.V1CombinedParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal legacy combined parameters: %w", err)
 		}
-		return ps.LegacyProveCombined(&params)
+		return ps.V1ProveCombined(&params)
 	} else if meta.AddressTreeHeight == 40 {
-		var params prover.CombinedParameters
+		var params prover.V2CombinedParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal combined parameters: %w", err)
 		}

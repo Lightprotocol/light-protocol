@@ -967,18 +967,18 @@ func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta prover.P
 	}
 
 	if proofRequestMeta.Version == 0 {
-		var params prover.LegacyInclusionParameters
+		var params prover.V1InclusionParameters
 
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
 		}
-		proof, err := ps.LegacyProveInclusion(&params)
+		proof, err := ps.V1ProveInclusion(&params)
 		if err != nil {
 			return nil, provingError(err)
 		}
 		return proof, nil
 	} else if proofRequestMeta.Version == 1 {
-		var params prover.InclusionParameters
+		var params prover.V2InclusionParameters
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
 		}
@@ -1007,7 +1007,7 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prove
 	}
 
 	if proofRequestMeta.AddressTreeHeight == 26 {
-		var params prover.LegacyNonInclusionParameters
+		var params prover.V1NonInclusionParameters
 
 		var err = json.Unmarshal(buf, &params)
 		if err != nil {
@@ -1015,14 +1015,14 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prove
 			logging.Logger().Info().Msg(err.Error())
 			return nil, malformedBodyError(err)
 		}
-		proof, err := ps.LegacyProveNonInclusion(&params)
+		proof, err := ps.V1ProveNonInclusion(&params)
 		if err != nil {
 			logging.Logger().Err(err)
 			return nil, provingError(err)
 		}
 		return proof, nil
 	} else if proofRequestMeta.AddressTreeHeight == 40 {
-		var params prover.NonInclusionParameters
+		var params prover.V2NonInclusionParameters
 
 		var err = json.Unmarshal(buf, &params)
 		if err != nil {
@@ -1055,17 +1055,17 @@ func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta prover.Pr
 	}
 
 	if proofRequestMeta.AddressTreeHeight == 26 {
-		var params prover.LegacyCombinedParameters
+		var params prover.V1CombinedParameters
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
 		}
-		proof, err := ps.LegacyProveCombined(&params)
+		proof, err := ps.V1ProveCombined(&params)
 		if err != nil {
 			return nil, provingError(err)
 		}
 		return proof, nil
 	} else if proofRequestMeta.AddressTreeHeight == 40 {
-		var params prover.CombinedParameters
+		var params prover.V2CombinedParameters
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
 		}
