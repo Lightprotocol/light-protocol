@@ -47,6 +47,16 @@ pub fn compress_ctokens(inputs: NativeCompressionInputs) -> Result<Option<u64>, 
         return Err(ProgramError::InvalidAccountData);
     }
 
+    // Check if account is frozen (SPL Token-2022 compatibility)
+    // Frozen accounts cannot have their balance modified in any way
+    // TODO: Once freezing ctoken accounts is implemented, we need to allow
+    // CompressAndClose with rent authority for frozen accounts (similar to
+    // how rent authority can compress expired accounts)
+    if *ctoken.state == 2 {
+        msg!("Cannot modify frozen account");
+        return Err(ErrorCode::AccountFrozen.into());
+    }
+
     // Get current balance
     let current_balance: u64 = u64::from(*ctoken.amount);
     let mut current_slot = 0;

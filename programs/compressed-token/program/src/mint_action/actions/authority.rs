@@ -16,6 +16,15 @@ pub fn check_authority(
     signer: &pinocchio::pubkey::Pubkey,
     authority_name: &str,
 ) -> Result<(), ProgramError> {
+    // Check if fallback authority is None - this is a revoked state
+    if fallback_authority.is_none() {
+        msg!(
+            "{} has been revoked (instruction data is None)",
+            authority_name
+        );
+        return Err(ErrorCode::InvalidAuthorityMint.into());
+    }
+
     // Get authority from current state or fallback to instruction data
     let authority = current_authority
         .copied()
@@ -25,14 +34,14 @@ pub fn check_authority(
             ErrorCode::InvalidAuthorityMint
         })?;
 
-    // Check if authority has been revoked (set to zero)
-    if authority.to_bytes() == [0u8; 32] {
-        msg!("{} has been revoked", authority_name);
-        return Err(ErrorCode::InvalidAuthorityMint.into());
-    }
-
     // Validate signer matches authority
     if authority.to_bytes() != *signer {
+        // Check if authority has been revoked (set to zero)
+        if authority.to_bytes() == [0u8; 32] {
+            msg!("{} has been revoked (set to zero)", authority_name);
+            return Err(ErrorCode::InvalidAuthorityMint.into());
+        }
+
         msg!(
             "Invalid {}: signer {:?} doesn't match expected {:?}",
             authority_name,
