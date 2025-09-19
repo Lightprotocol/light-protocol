@@ -1,6 +1,8 @@
 use std::fmt::Debug;
 
-use light_zero_copy::{ZeroCopy, ZeroCopyMut, ZeroCopyNew};
+use light_zero_copy::{
+    errors::ZeroCopyError, traits::ZeroCopyAtMut, ZeroCopy, ZeroCopyMut, ZeroCopyNew,
+};
 use zerocopy::Ref;
 
 use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
@@ -20,11 +22,11 @@ pub const COMPRESS: u8 = 0u8;
 pub const DECOMPRESS: u8 = 1u8;
 pub const COMPRESS_AND_CLOSE: u8 = 2u8;
 
-impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for CompressionMode {
+impl<'a> ZeroCopyAtMut<'a> for CompressionMode {
     type ZeroCopyAtMut = Ref<&'a mut [u8], u8>;
     fn zero_copy_at_mut(
         bytes: &'a mut [u8],
-    ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
+    ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), ZeroCopyError> {
         let (mode, bytes) = zerocopy::Ref::<&mut [u8], u8>::from_prefix(bytes)?;
 
         Ok((mode, bytes))
@@ -35,16 +37,14 @@ impl<'a> ZeroCopyNew<'a> for CompressionMode {
     type ZeroCopyConfig = ();
     type Output = Ref<&'a mut [u8], u8>;
 
-    fn byte_len(
-        _config: &Self::ZeroCopyConfig,
-    ) -> Result<usize, light_zero_copy::errors::ZeroCopyError> {
+    fn byte_len(_config: &Self::ZeroCopyConfig) -> Result<usize, ZeroCopyError> {
         Ok(1) // CompressionMode enum size is always 1 byte
     }
 
     fn new_zero_copy(
         bytes: &'a mut [u8],
         _config: Self::ZeroCopyConfig,
-    ) -> Result<(Self::Output, &'a mut [u8]), light_zero_copy::errors::ZeroCopyError> {
+    ) -> Result<(Self::Output, &'a mut [u8]), ZeroCopyError> {
         let (mode, remaining_bytes) = zerocopy::Ref::<&mut [u8], u8>::from_prefix(bytes)?;
 
         Ok((mode, remaining_bytes))

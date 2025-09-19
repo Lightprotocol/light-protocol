@@ -1,14 +1,18 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_profiler::profile;
-use pinocchio::instruction::AccountMeta;
+use pinocchio::{instruction::AccountMeta, pubkey::Pubkey};
 
-use crate::constants::POOL_SEED;
+use crate::{
+    constants::POOL_SEED,
+    mint_action::accounts::ExecutingAccounts,
+    shared::{create_pda_account, CreatePdaAccountConfig},
+};
 
 /// Creates the token pool account manually as a PDA derived from our program but owned by the token program
 #[profile]
 pub fn create_token_pool_account_manual(
-    executing_accounts: &crate::mint_action::accounts::ExecutingAccounts<'_>,
-    program_id: &pinocchio::pubkey::Pubkey,
+    executing_accounts: &ExecutingAccounts<'_>,
+    program_id: &Pubkey,
 ) -> Result<(), ProgramError> {
     let token_account_size = light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize;
 
@@ -38,7 +42,7 @@ pub fn create_token_pool_account_manual(
 
     // Create account using shared function
     let seeds = &[POOL_SEED, mint_key.as_ref()];
-    let config = crate::shared::CreatePdaAccountConfig {
+    let config = CreatePdaAccountConfig {
         seeds,
         bump,
         account_size: token_account_size,
@@ -46,7 +50,7 @@ pub fn create_token_pool_account_manual(
         derivation_program_id: program_id,
     };
 
-    crate::shared::create_pda_account(
+    create_pda_account(
         executing_accounts.system.fee_payer,
         token_pool_pda,
         config,
@@ -57,7 +61,7 @@ pub fn create_token_pool_account_manual(
 
 /// Initializes the token pool account (assumes account already exists)
 pub fn initialize_token_pool_account_for_action(
-    executing_accounts: &crate::mint_action::accounts::ExecutingAccounts<'_>,
+    executing_accounts: &ExecutingAccounts<'_>,
 ) -> Result<(), ProgramError> {
     let mint_account = executing_accounts
         .mint
@@ -87,10 +91,7 @@ pub fn initialize_token_pool_account_for_action(
     };
 
     match pinocchio::program::invoke(&initialize_account_ix, &[token_pool_pda, mint_account]) {
-        Ok(()) => {}
-        Err(e) => {
-            return Err(ProgramError::Custom(u64::from(e) as u32));
-        }
+        Ok(()) => Ok(()),
+        Err(e) => Err(ProgramError::Custom(u64::from(e) as u32)),
     }
-    Ok(())
 }

@@ -8,7 +8,6 @@ use spl_pod::solana_msg::msg;
 pub fn validate_and_update_authority(
     authority_field: Option<&Pubkey>,
     instruction_fallback: Option<Pubkey>,
-    // update_action: &ZUpdateAuthority<'_>,
     signer: &pinocchio::pubkey::Pubkey,
     authority_name: &str,
 ) -> Result<(), ProgramError> {
@@ -27,26 +26,5 @@ pub fn validate_and_update_authority(
         );
         return Err(ProgramError::InvalidArgument);
     }
-
-    // // Apply update based on allocation and requested change
-    // let new_authority = update_action.new_authority.as_ref().map(|auth| **auth);
-    // match (authority_field.as_mut(), new_authority) {
-    //     // Set new authority value in allocated field
-    //     (Some(field_ref), Some(new_auth)) => **field_ref = new_auth,
-    //     // Inconsistent state: allocated Some but trying to revoke
-    //     // This indicates allocation logic bug - revoke should allocate None
-    //     (Some(_), None) => {
-    //         msg!("Zero copy field is some but should be None");
-    //         return Err(ErrorCode::MintActionUnsupportedOperation.into());
-    //     }
-    //     // Invalid operation: cannot set authority when not allocated
-    //     (None, Some(_)) => {
-    //         msg!("Cannot set {} when none was allocated", authority_name);
-    //         return Err(ErrorCode::MintActionUnsupportedOperation.into());
-    //     }
-    //     // Already revoked - no operation needed
-    //     (None, None) => {}
-    // }
-
     Ok(())
 }

@@ -27,20 +27,36 @@ pub struct CompressedCpiContext {
 
 impl CompressedCpiContextTrait for ZCompressedCpiContext<'_> {
     fn first_set_context(&self) -> u8 {
-        self.first_set_context() as u8
+        if self.first_set_context() {
+            1
+        } else {
+            0
+        }
     }
 
     fn set_context(&self) -> u8 {
-        self.set_context() as u8
+        if self.set_context() {
+            1
+        } else {
+            0
+        }
     }
 }
 
 impl CompressedCpiContextTrait for CompressedCpiContext {
     fn first_set_context(&self) -> u8 {
-        self.first_set_context as u8
+        if self.first_set_context {
+            1
+        } else {
+            0
+        }
     }
 
     fn set_context(&self) -> u8 {
-        self.set_context as u8
+        if self.set_context {
+            1
+        } else {
+            0
+        }
     }
 }

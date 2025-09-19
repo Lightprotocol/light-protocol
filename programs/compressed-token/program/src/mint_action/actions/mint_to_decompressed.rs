@@ -59,7 +59,7 @@ pub fn process_mint_to_decompressed_action(
     );
     // For mint_to_decompressed, we don't need to handle lamport transfers
     // as there's no compressible extension on the target account
-    let _ = compress_ctokens(inputs)?;
+    compress_ctokens(inputs)?;
     Ok(updated_supply)
 }
 
@@ -80,7 +80,6 @@ pub fn handle_decompressed_mint_to_token_pool(
                 msg!("Mint account mismatch");
                 return Err(ErrorCode::MintAccountMismatch.into());
             }
-            // TODO: check derivation. with bump.
             let token_pool_account = system_accounts
                 .token_pool_pda
                 .ok_or(ErrorCode::MintActionMissingTokenPoolAccount)?;

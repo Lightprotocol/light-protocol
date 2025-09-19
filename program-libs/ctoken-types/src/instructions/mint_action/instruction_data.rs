@@ -48,13 +48,18 @@ pub struct MintActionCompressedInstructionData {
     /// If mint already exists, root index of validity proof
     /// If proof by index not used.
     pub root_index: u16,
+    /// Address of the compressed account the mint is stored in.
+    /// Derived from the associated spl mint pubkey.
     pub compressed_address: [u8; 32],
+    /// Used to check token pool derivation.
+    /// Only required if associated spl mint exists and actions contain mint actions.
     pub token_pool_bump: u8,
+    /// Used to check token pool derivation.
+    /// Only required if associated spl mint exists and actions contain mint actions.
     pub token_pool_index: u8,
     pub actions: Vec<Action>,
     pub proof: Option<CompressedProof>,
     pub cpi_context: Option<CpiContext>,
-    /// If some -> no input because we create mint
     pub mint: CompressedMintInstructionData,
 }
 

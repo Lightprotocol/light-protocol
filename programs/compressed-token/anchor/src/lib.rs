@@ -407,6 +407,8 @@ pub enum ErrorCode {
     CompressionsOnlyMissingFeePayer,
     #[msg("Missing CPI authority PDA for compressions-only operation")]
     CompressionsOnlyMissingCpiAuthority,
+    #[msg("Cpi authority pda expected but not provided.")]
+    ExpectedCpiAuthority,
 }
 
 impl From<ErrorCode> for ProgramError {

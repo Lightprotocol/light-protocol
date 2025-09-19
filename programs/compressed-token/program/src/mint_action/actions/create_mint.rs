@@ -12,7 +12,6 @@ use spl_pod::solana_msg::msg;
 
 use crate::mint_action::accounts::MintActionAccounts;
 
-// TODO: unit test.
 /// Processes the create mint action by validating parameters and setting up the new address.
 /// Note, the compressed output account creation is unified with other actions in a different function.
 #[profile]

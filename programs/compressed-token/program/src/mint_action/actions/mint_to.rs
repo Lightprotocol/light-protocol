@@ -32,7 +32,6 @@ pub fn mint_authority_check(
         .ok_or(ErrorCode::InvalidAuthorityMint)?;
 
     if *validated_accounts.authority.key() != mint_authority.to_bytes() {
-        use anchor_lang::prelude::msg;
         msg!(
             "authority.key()  {:?} != mint {:?}",
             solana_pubkey::Pubkey::new_from_array(*validated_accounts.authority.key()),

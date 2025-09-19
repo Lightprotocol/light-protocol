@@ -32,7 +32,6 @@ pub fn create_input_compressed_mint_account(
     mint_instruction_data: &ZMintActionCompressedInstructionData,
     merkle_context: PackedMerkleContext,
 ) -> Result<(), ProgramError> {
-    // Build extensions if present
     let mut extensions_vec = None;
     if let Some(extensions) = mint_instruction_data.mint.extensions.as_deref() {
         let mut ext_structs = Vec::new();
@@ -68,7 +67,7 @@ pub fn create_input_compressed_mint_account(
                     ext_structs.push(ExtensionStruct::TokenMetadata(token_metadata));
                 }
                 _ => {
-                    // Handle other extension types as needed
+                    return Err(CTokenError::UnsupportedExtension.into());
                 }
             }
         }

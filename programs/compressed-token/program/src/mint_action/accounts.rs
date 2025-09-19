@@ -18,6 +18,8 @@ pub struct MintActionAccounts<'info> {
     pub light_system_program: &'info AccountInfo,
     /// Seed for spl mint pda.
     /// Required for mint and spl mint creation.
+    /// Note: mint_signer is not in executing accounts since create mint
+    /// is allowed in combination with write to cpi context.
     pub mint_signer: Option<&'info AccountInfo>,
     pub authority: &'info AccountInfo,
     /// Reqired accounts to execute an instruction
@@ -93,7 +95,20 @@ impl<'info> MintActionAccounts<'info> {
             let mint = iter.next_option_mut("mint", config.is_decompressed)?;
             let token_pool_pda = iter.next_option_mut("token_pool_pda", config.is_decompressed)?;
             let token_program = iter.next_option("token_program", config.is_decompressed)?;
-
+            let system = LightSystemAccounts::validate_and_parse(
+                &mut iter,
+                false,
+                false,
+                config.with_cpi_context,
+            )?;
+            let out_output_queue = iter.next_account("out_output_queue")?;
+            // When create mint this is the address tree. TODO: create separate field address_merkle_tree and make it an option.
+            // When mint exists this is the in merkle tree.
+            let in_merkle_tree = iter.next_account("in_merkle_tree")?;
+            let in_output_queue = iter.next_option("in_output_queue", !config.create_mint)?;
+            // Only needed for minting to compressed token accounts
+            let tokens_out_queue =
+                iter.next_option("tokens_out_queue", config.has_mint_to_actions)?;
             // Validate token program is SPL Token 2022
             if let Some(token_program) = token_program {
                 if *token_program.key() != spl_token_2022::ID.to_bytes() {
@@ -133,18 +148,6 @@ impl<'info> MintActionAccounts<'info> {
                     return Err(ErrorCode::MintAccountMismatch.into());
                 }
             }
-
-            let system = LightSystemAccounts::validate_and_parse(
-                &mut iter,
-                false,
-                false,
-                config.with_cpi_context,
-            )?;
-
-            let out_output_queue = iter.next_account("out_output_queue")?;
-            // When create mint this is the address tree
-            // When mint exists this is the in merkle tree.
-            let in_merkle_tree = iter.next_account("in_merkle_tree")?;
             if config.create_mint && *in_merkle_tree.key() != CMINT_ADDRESS_TREE {
                 msg!(
                     "Create mint action expects address Merkle tree {:?} received: {:?}",
@@ -153,11 +156,6 @@ impl<'info> MintActionAccounts<'info> {
                 );
                 return Err(ErrorCode::InvalidAddressTree.into());
             }
-            let in_output_queue = iter.next_option("in_output_queue", !config.create_mint)?;
-            // Only needed for minting to compressed token accounts
-            let tokens_out_queue =
-                iter.next_option("tokens_out_queue", config.has_mint_to_actions)?;
-
             Ok(MintActionAccounts {
                 mint_signer,
                 light_system_program,
@@ -187,7 +185,7 @@ impl<'info> MintActionAccounts<'info> {
             let cpi_system = self
                 .write_to_cpi_context_system
                 .as_ref()
-                .ok_or(ProgramError::InvalidInstructionData)?; // TODO: better error
+                .ok_or(ErrorCode::ExpectedCpiAuthority)?;
             Ok(cpi_system.cpi_authority_pda)
         }
     }
@@ -213,18 +211,13 @@ impl<'info> MintActionAccounts<'info> {
 
     /// Calculate the dynamic CPI accounts offset based on which accounts are present
     pub fn cpi_accounts_start_offset(&self) -> usize {
-        let mut offset = 0;
-
-        // light_system_program (always present)
-        offset += 1;
+        // light_system_program & authority (always present)
+        let mut offset = 2;
 
         // mint_signer (optional)
         if self.mint_signer.is_some() {
             offset += 1;
         }
-
-        // authority (always present)
-        offset += 1;
 
         if let Some(executing) = &self.executing {
             // mint (optional)
@@ -319,7 +312,6 @@ pub struct AccountsConfig {
 }
 
 impl AccountsConfig {
-    // TODO: Unit test
     /// Initialize AccountsConfig based in instruction data.  -
     #[profile]
     pub fn new(parsed_instruction_data: &ZMintActionCompressedInstructionData) -> AccountsConfig {
