@@ -11,7 +11,7 @@ import (
 	"github.com/consensys/gnark/frontend"
 )
 
-type LegacyNonInclusionInputs struct {
+type V1NonInclusionInputs struct {
 	Root         big.Int
 	Value        big.Int
 	PathIndex    uint32
@@ -22,22 +22,22 @@ type LegacyNonInclusionInputs struct {
 	NextIndex            uint32
 }
 
-type LegacyNonInclusionParameters struct {
-	Inputs []LegacyNonInclusionInputs
+type V1NonInclusionParameters struct {
+	Inputs []V1NonInclusionInputs
 }
 
-func (p *LegacyNonInclusionParameters) NumberOfCompressedAccounts() uint32 {
+func (p *V1NonInclusionParameters) NumberOfCompressedAccounts() uint32 {
 	return uint32(len(p.Inputs))
 }
 
-func (p *LegacyNonInclusionParameters) TreeHeight() uint32 {
+func (p *V1NonInclusionParameters) TreeHeight() uint32 {
 	if len(p.Inputs) == 0 {
 		return 0
 	}
 	return uint32(len(p.Inputs[0].PathElements))
 }
 
-func (p *LegacyNonInclusionParameters) ValidateShape(treeHeight uint32, numOfCompressedAccounts uint32) error {
+func (p *V1NonInclusionParameters) ValidateShape(treeHeight uint32, numOfCompressedAccounts uint32) error {
 	if p.NumberOfCompressedAccounts() != numOfCompressedAccounts {
 		return fmt.Errorf("wrong number of compressed accounts, p.NumberOfCompressedAccounts: %d, numOfCompressedAccounts = %d", p.NumberOfCompressedAccounts(), numOfCompressedAccounts)
 	}
@@ -47,7 +47,7 @@ func (p *LegacyNonInclusionParameters) ValidateShape(treeHeight uint32, numOfCom
 	return nil
 }
 
-func (ps *ProvingSystemV1) LegacyProveNonInclusion(params *LegacyNonInclusionParameters) (*Proof, error) {
+func (ps *ProvingSystemV1) V1ProveNonInclusion(params *V1NonInclusionParameters) (*Proof, error) {
 	if err := params.ValidateShape(ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (ps *ProvingSystemV1) LegacyProveNonInclusion(params *LegacyNonInclusionPar
 		}
 	}
 
-	assignment := LegacyNonInclusionCircuit{
+	assignment := V1NonInclusionCircuit{
 		Roots:                 roots,
 		Values:                values,
 		LeafLowerRangeValues:  leafLowerRangeValues,
@@ -101,7 +101,7 @@ func (ps *ProvingSystemV1) LegacyProveNonInclusion(params *LegacyNonInclusionPar
 }
 
 // This is not a function circuit just the fronted api
-type LegacyNonInclusionCircuit struct {
+type V1NonInclusionCircuit struct {
 	Roots  []frontend.Variable `gnark:",public"`
 	Values []frontend.Variable `gnark:",public"`
 
@@ -118,12 +118,12 @@ type LegacyNonInclusionCircuit struct {
 }
 
 // This is not a function circuit just the fronted api
-func (circuit *LegacyNonInclusionCircuit) Define(api frontend.API) error {
+func (circuit *V1NonInclusionCircuit) Define(api frontend.API) error {
 
 	return nil
 }
 
-func (ps *ProvingSystemV1) LegacyVerifyNonInclusion(root []big.Int, leaves []big.Int, proof *Proof) error {
+func (ps *ProvingSystemV1) V1VerifyNonInclusion(root []big.Int, leaves []big.Int, proof *Proof) error {
 	values := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
 	for i, v := range leaves {
 		values[i] = v
@@ -134,7 +134,7 @@ func (ps *ProvingSystemV1) LegacyVerifyNonInclusion(root []big.Int, leaves []big
 		roots[i] = v
 	}
 
-	publicAssignment := NonInclusionCircuit{
+	publicAssignment := V1NonInclusionCircuit{
 		Roots:  roots,
 		Values: values,
 	}

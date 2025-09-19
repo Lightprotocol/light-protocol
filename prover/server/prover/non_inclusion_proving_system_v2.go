@@ -23,23 +23,23 @@ type NonInclusionInputs struct {
 	LeafHigherRangeValue big.Int
 }
 
-type NonInclusionParameters struct {
+type V2NonInclusionParameters struct {
 	PublicInputHash big.Int
 	Inputs          []NonInclusionInputs
 }
 
-func (p *NonInclusionParameters) NumberOfCompressedAccounts() uint32 {
+func (p *V2NonInclusionParameters) NumberOfCompressedAccounts() uint32 {
 	return uint32(len(p.Inputs))
 }
 
-func (p *NonInclusionParameters) TreeHeight() uint32 {
+func (p *V2NonInclusionParameters) TreeHeight() uint32 {
 	if len(p.Inputs) == 0 {
 		return 0
 	}
 	return uint32(len(p.Inputs[0].PathElements))
 }
 
-func (p *NonInclusionParameters) ValidateShape(treeHeight uint32, numOfCompressedAccounts uint32) error {
+func (p *V2NonInclusionParameters) ValidateShape(treeHeight uint32, numOfCompressedAccounts uint32) error {
 	if p.NumberOfCompressedAccounts() != numOfCompressedAccounts {
 		return fmt.Errorf("wrong number of compressed accounts, p.NumberOfCompressedAccounts: %d, numOfCompressedAccounts = %d", p.NumberOfCompressedAccounts(), numOfCompressedAccounts)
 	}
@@ -63,7 +63,7 @@ func R1CSNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (con
 		inPathElements[i] = make([]frontend.Variable, treeHeight)
 	}
 
-	circuit := NonInclusionCircuit{
+	circuit := V2NonInclusionCircuit{
 		PublicInputHash:            frontend.Variable(0),
 		Height:                     treeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
@@ -94,7 +94,7 @@ func SetupNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*P
 		ConstraintSystem:                       ccs}, nil
 }
 
-func (ps *ProvingSystemV1) ProveNonInclusion(params *NonInclusionParameters) (*Proof, error) {
+func (ps *ProvingSystemV1) ProveNonInclusion(params *V2NonInclusionParameters) (*Proof, error) {
 	if err := params.ValidateShape(ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
@@ -120,7 +120,7 @@ func (ps *ProvingSystemV1) ProveNonInclusion(params *NonInclusionParameters) (*P
 		}
 	}
 
-	assignment := NonInclusionCircuit{
+	assignment := V2NonInclusionCircuit{
 		PublicInputHash:       params.PublicInputHash,
 		Roots:                 roots,
 		Values:                values,
@@ -146,7 +146,7 @@ func (ps *ProvingSystemV1) ProveNonInclusion(params *NonInclusionParameters) (*P
 }
 
 func (ps *ProvingSystemV1) VerifyNonInclusion(publicInputHash big.Int, proof *Proof) error {
-	publicAssignment := NonInclusionCircuit{
+	publicAssignment := V2NonInclusionCircuit{
 		PublicInputHash: publicInputHash,
 	}
 	witness, err := frontend.NewWitness(&publicAssignment, ecc.BN254.ScalarField(), frontend.PublicOnly())

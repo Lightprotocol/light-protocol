@@ -16,13 +16,22 @@ const (
 	BatchAddressAppendCircuitType CircuitType = "address-append"
 )
 
-func SetupCircuitV1(circuit CircuitType, inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*ProvingSystemV1, error) {
+func SetupCircuitV1(circuit CircuitType, inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32, useV1 bool) (*ProvingSystemV1, error) {
 	switch circuit {
 	case InclusionCircuitType:
+		if useV1 {
+			return SetupV1Inclusion(inclusionTreeHeight, inclusionNumberOfCompressedAccounts)
+		}
 		return SetupInclusion(inclusionTreeHeight, inclusionNumberOfCompressedAccounts)
 	case NonInclusionCircuitType:
+		if useV1 {
+			return SetupV1NonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+		}
 		return SetupNonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 	case CombinedCircuitType:
+		if useV1 {
+			return SetupV1Combined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+		}
 		return SetupCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 	default:
 		return nil, fmt.Errorf("invalid circuit: %s", circuit)

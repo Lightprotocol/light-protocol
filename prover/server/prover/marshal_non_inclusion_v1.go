@@ -6,7 +6,7 @@ import (
 	"math/big"
 )
 
-type LegacyNonInclusionProofInputsJSON struct {
+type V1NonInclusionProofInputsJSON struct {
 	Root                 string   `json:"root"`
 	Value                string   `json:"value"`
 	PathIndex            uint32   `json:"pathIndex"`
@@ -16,29 +16,29 @@ type LegacyNonInclusionProofInputsJSON struct {
 	NextIndex            uint32   `json:"nextIndex"`
 }
 
-type LegacyNonInclusionParametersJSON struct {
+type V1NonInclusionParametersJSON struct {
 	CircuitType       CircuitType                         `json:"circuitType"`
 	AddressTreeHeight uint32                              `json:"addressTreeHeight"`
-	Inputs            []LegacyNonInclusionProofInputsJSON `json:"newAddresses"`
+	Inputs            []V1NonInclusionProofInputsJSON `json:"newAddresses"`
 }
 
-func LegacyParseNonInclusion(inputJSON string) (LegacyNonInclusionParameters, error) {
-	var proofData LegacyNonInclusionParameters
+func V1ParseNonInclusion(inputJSON string) (V1NonInclusionParameters, error) {
+	var proofData V1NonInclusionParameters
 	err := json.Unmarshal([]byte(inputJSON), &proofData)
 	if err != nil {
-		return LegacyNonInclusionParameters{}, fmt.Errorf("error parsing JSON: %v", err)
+		return V1NonInclusionParameters{}, fmt.Errorf("error parsing JSON: %v", err)
 	}
 	return proofData, nil
 }
 
-func (p *LegacyNonInclusionParameters) LegacyMarshalJSON() ([]byte, error) {
-	paramsJson := p.LegacyCreateNonInclusionParametersJSON()
+func (p *V1NonInclusionParameters) V1MarshalJSON() ([]byte, error) {
+	paramsJson := p.V1CreateNonInclusionParametersJSON()
 	return json.Marshal(paramsJson)
 }
 
-func (p *LegacyNonInclusionParameters) LegacyCreateNonInclusionParametersJSON() LegacyNonInclusionParametersJSON {
-	paramsJson := LegacyNonInclusionParametersJSON{}
-	paramsJson.Inputs = make([]LegacyNonInclusionProofInputsJSON, p.NumberOfCompressedAccounts())
+func (p *V1NonInclusionParameters) V1CreateNonInclusionParametersJSON() V1NonInclusionParametersJSON {
+	paramsJson := V1NonInclusionParametersJSON{}
+	paramsJson.Inputs = make([]V1NonInclusionProofInputsJSON, p.NumberOfCompressedAccounts())
 	for i := 0; i < int(p.NumberOfCompressedAccounts()); i++ {
 		paramsJson.Inputs[i].Root = toHex(&p.Inputs[i].Root)
 		paramsJson.Inputs[i].Value = toHex(&p.Inputs[i].Value)
@@ -54,8 +54,8 @@ func (p *LegacyNonInclusionParameters) LegacyCreateNonInclusionParametersJSON() 
 	return paramsJson
 }
 
-func (p *LegacyNonInclusionParameters) UnmarshalJSON(data []byte) error {
-	var params LegacyNonInclusionParametersJSON
+func (p *V1NonInclusionParameters) UnmarshalJSON(data []byte) error {
+	var params V1NonInclusionParametersJSON
 	err := json.Unmarshal(data, &params)
 	if err != nil {
 		return err
@@ -67,8 +67,8 @@ func (p *LegacyNonInclusionParameters) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (p *LegacyNonInclusionParameters) UpdateWithJSON(params LegacyNonInclusionParametersJSON, err error) error {
-	p.Inputs = make([]LegacyNonInclusionInputs, len(params.Inputs))
+func (p *V1NonInclusionParameters) UpdateWithJSON(params V1NonInclusionParametersJSON, err error) error {
+	p.Inputs = make([]V1NonInclusionInputs, len(params.Inputs))
 	for i := 0; i < len(params.Inputs); i++ {
 		err = fromHex(&p.Inputs[i].Root, params.Inputs[i].Root)
 		if err != nil {

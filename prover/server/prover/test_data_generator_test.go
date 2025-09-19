@@ -106,7 +106,7 @@ func GenerateCombinedTestData(t *testing.T) {
 				for l, tree2 := range trees2 {
 					publicInputHash := calculateHashChain([]*big.Int{&tree1.Tree.PublicInputHash, &tree2.Tree.PublicInputHash}, 2)
 
-					var combinedParams = CombinedParameters{
+					var combinedParams = V2CombinedParameters{
 						PublicInputHash:        *publicInputHash,
 						InclusionParameters:    tree1.Tree,
 						NonInclusionParameters: tree2.Tree,
@@ -138,7 +138,7 @@ func flag(valid bool) int {
 }
 
 type InclusionTreeValidPair struct {
-	Tree  InclusionParameters
+	Tree  V2InclusionParameters
 	Valid bool
 }
 
@@ -220,7 +220,7 @@ func MakeTestIncludedTrees(height int, numberOfCompressedAccounts int) []Inclusi
 }
 
 type NonInclusionTreeValidPair struct {
-	Tree  NonInclusionParameters
+	Tree  V2NonInclusionParameters
 	Valid bool
 }
 
