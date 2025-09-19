@@ -1,5 +1,5 @@
-pub mod append_with_proofs_32_10;
-pub mod append_with_proofs_32_500;
+pub mod append_32_10;
+pub mod append_32_500;
 
 pub mod update_32_10;
 pub mod update_32_500;
