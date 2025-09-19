@@ -1,0 +1,136 @@
+package v1
+
+import (
+	"github.com/consensys/gnark-crypto/ecc"
+	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/constraint"
+	"github.com/consensys/gnark/frontend"
+	"github.com/consensys/gnark/frontend/cs/r1cs"
+	"light/light-prover/prover/common"
+)
+
+// R1CSInclusion creates the R1CS for V1 Inclusion circuit (without PublicInputHash)
+func R1CSInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (constraint.ConstraintSystem, error) {
+	roots := make([]frontend.Variable, numberOfCompressedAccounts)
+	leaves := make([]frontend.Variable, numberOfCompressedAccounts)
+	inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
+	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
+
+	for i := 0; i < int(numberOfCompressedAccounts); i++ {
+		inPathElements[i] = make([]frontend.Variable, treeHeight)
+	}
+
+	circuit := InclusionCircuit{
+		Roots:                      roots,
+		Leaves:                     leaves,
+		InPathIndices:              inPathIndices,
+		InPathElements:             inPathElements,
+		NumberOfCompressedAccounts: numberOfCompressedAccounts,
+		Height:                     treeHeight,
+	}
+	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+}
+
+// SetupInclusion creates proving system for V1 Inclusion circuit (without PublicInputHash)
+// This is used for mainnet_inclusion_26_* keys
+func SetupInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*common.MerkleProofSystem, error) {
+	ccs, err := R1CSInclusion(treeHeight, numberOfCompressedAccounts)
+	if err != nil {
+		return nil, err
+	}
+	pk, vk, err := groth16.Setup(ccs)
+	if err != nil {
+		return nil, err
+	}
+	return &common.MerkleProofSystem{
+		InclusionTreeHeight:                 treeHeight,
+		InclusionNumberOfCompressedAccounts: numberOfCompressedAccounts,
+		ProvingKey:                          pk,
+		VerifyingKey:                        vk,
+		ConstraintSystem:                    ccs,
+		Version:                             0, // V1 circuits have version 0
+	}, nil
+}
+
+// R1CSNonInclusion creates the R1CS for V1 NonInclusion circuit
+func R1CSNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (constraint.ConstraintSystem, error) {
+	roots := make([]frontend.Variable, numberOfCompressedAccounts)
+	values := make([]frontend.Variable, numberOfCompressedAccounts)
+	leafLowerRangeValues := make([]frontend.Variable, numberOfCompressedAccounts)
+	leafHigherRangeValues := make([]frontend.Variable, numberOfCompressedAccounts)
+	leafIndices := make([]frontend.Variable, numberOfCompressedAccounts)
+	inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
+	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
+
+	for i := 0; i < int(numberOfCompressedAccounts); i++ {
+		inPathElements[i] = make([]frontend.Variable, treeHeight)
+	}
+
+	circuit := NonInclusionCircuit{
+		Roots:                      roots,
+		Values:                     values,
+		LeafLowerRangeValues:       leafLowerRangeValues,
+		LeafHigherRangeValues:      leafHigherRangeValues,
+		NextIndices:                leafIndices,
+		InPathIndices:              inPathIndices,
+		InPathElements:             inPathElements,
+		NumberOfCompressedAccounts: numberOfCompressedAccounts,
+		Height:                     treeHeight,
+	}
+	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+}
+
+// SetupNonInclusion creates proving system for V1 NonInclusion circuit
+// This is used for non-inclusion_26_* keys
+func SetupNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*common.MerkleProofSystem, error) {
+	ccs, err := R1CSNonInclusion(treeHeight, numberOfCompressedAccounts)
+	if err != nil {
+		return nil, err
+	}
+	pk, vk, err := groth16.Setup(ccs)
+	if err != nil {
+		return nil, err
+	}
+	return &common.MerkleProofSystem{
+		NonInclusionTreeHeight:                 treeHeight,
+		NonInclusionNumberOfCompressedAccounts: numberOfCompressedAccounts,
+		ProvingKey:                             pk,
+		VerifyingKey:                           vk,
+		ConstraintSystem:                       ccs,
+		Version:                                0, // V1 circuits have version 0
+	}, nil
+}
+
+// R1CSCombined creates the R1CS for V1 Combined circuit
+func R1CSCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (constraint.ConstraintSystem, error) {
+	circuit := InitializeCombinedCircuit(
+		inclusionTreeHeight,
+		inclusionNumberOfCompressedAccounts,
+		nonInclusionTreeHeight,
+		nonInclusionNumberOfCompressedAccounts,
+	)
+	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
+}
+
+// SetupCombined creates proving system for V1 Combined circuit
+// This is used for combined_26_* keys
+func SetupCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*common.MerkleProofSystem, error) {
+	ccs, err := R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+	if err != nil {
+		return nil, err
+	}
+	pk, vk, err := groth16.Setup(ccs)
+	if err != nil {
+		return nil, err
+	}
+	return &common.MerkleProofSystem{
+		InclusionTreeHeight:                    inclusionTreeHeight,
+		InclusionNumberOfCompressedAccounts:    inclusionNumberOfCompressedAccounts,
+		NonInclusionTreeHeight:                 nonInclusionTreeHeight,
+		NonInclusionNumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
+		ProvingKey:                             pk,
+		VerifyingKey:                           vk,
+		ConstraintSystem:                       ccs,
+		Version:                                0, // V1 circuits have version 0
+	}, nil
+}
