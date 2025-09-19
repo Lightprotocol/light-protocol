@@ -316,7 +316,7 @@ impl<'info> MintActionAccounts<'info> {
 
 /// Config to parse AccountInfos based on instruction data.
 /// We use instruction data to convey which accounts are expected.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct AccountsConfig {
     /// 1. cpi context is some
     pub with_cpi_context: bool,

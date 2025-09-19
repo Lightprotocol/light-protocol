@@ -45,7 +45,7 @@ fn get_metadata_extension_mut<'a, 'b>(
 
                 check_authority(
                     Some(&metadata.update_authority),
-                    None, // No fallback needed - metadata authority is always allocated in the extension (32 bytes, even when revoked as [0u8;32])
+                    Some(metadata.update_authority), // Metadata authority is always stored in extension, use same value as fallback
                     signer_pubkey,
                     operation_name,
                 )?;
