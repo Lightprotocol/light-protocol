@@ -181,9 +181,9 @@ case "$1" in
             "mainnet_inclusion_26:1 2 3 4 8"
             "non-inclusion_26:1 2"
             "non-inclusion_40:1 2 3 4 8"
-            "combined_26:1_1 1_2 2_1 2_2 3_1 3_2 4_1 4_2"
+            "combined_26_26:1_1 1_2 2_1 2_2 3_1 3_2 4_1 4_2"
             "combined_32_40:1_1 1_2 1_3 1_4 2_1 2_2 2_3 2_4 3_1 3_2 3_3 3_4 4_1 4_2 4_3 4_4"
-            "append-with-proofs_32:10"
+            "append_32:10"
             "update_32:10"
             "address-append_40:10"
         )
@@ -194,9 +194,9 @@ case "$1" in
             "mainnet_inclusion_26:1 2 3 4 8"
             "non-inclusion_26:1 2"
             "non-inclusion_40:1 2 3 4 8"
-            "combined_26:1_1 1_2 2_1 2_2 3_1 3_2 4_1 4_2"
+            "combined_26_26:1_1 1_2 2_1 2_2 3_1 3_2 4_1 4_2"
             "combined_32_40:1_1 1_2 1_3 1_4 2_1 2_2 2_3 2_4 3_1 3_2 3_3 3_4 4_1 4_2 4_3 4_4"
-            "append-with-proofs_32:500"
+            "append_32:500"
             "update_32:500"
             "address-append_40:250"
         )
