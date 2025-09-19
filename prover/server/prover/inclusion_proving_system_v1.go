@@ -11,29 +11,29 @@ import (
 	"github.com/consensys/gnark/frontend"
 )
 
-type LegacyInclusionInputs struct {
+type V1InclusionInputs struct {
 	Root         big.Int
 	PathIndex    uint32
 	PathElements []big.Int
 	Leaf         big.Int
 }
 
-type LegacyInclusionParameters struct {
+type V1InclusionParameters struct {
 	Inputs []InclusionInputs
 }
 
-func (p *LegacyInclusionParameters) NumberOfCompressedAccounts() uint32 {
+func (p *V1InclusionParameters) NumberOfCompressedAccounts() uint32 {
 	return uint32(len(p.Inputs))
 }
 
-func (p *LegacyInclusionParameters) TreeHeight() uint32 {
+func (p *V1InclusionParameters) TreeHeight() uint32 {
 	if len(p.Inputs) == 0 {
 		return 0
 	}
 	return uint32(len(p.Inputs[0].PathElements))
 }
 
-func (p *LegacyInclusionParameters) ValidateShape(treeHeight uint32, numOfCompressedAccounts uint32) error {
+func (p *V1InclusionParameters) ValidateShape(treeHeight uint32, numOfCompressedAccounts uint32) error {
 	if p.NumberOfCompressedAccounts() != numOfCompressedAccounts {
 		return fmt.Errorf("wrong number of compressed accounts: %d", p.NumberOfCompressedAccounts())
 	}
@@ -43,7 +43,7 @@ func (p *LegacyInclusionParameters) ValidateShape(treeHeight uint32, numOfCompre
 	return nil
 }
 
-func (ps *ProvingSystemV1) LegacyProveInclusion(params *LegacyInclusionParameters) (*Proof, error) {
+func (ps *ProvingSystemV1) V1ProveInclusion(params *V1InclusionParameters) (*Proof, error) {
 	if err := params.ValidateShape(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
@@ -63,7 +63,7 @@ func (ps *ProvingSystemV1) LegacyProveInclusion(params *LegacyInclusionParameter
 		}
 	}
 
-	assignment := LegacyInclusionCircuit{
+	assignment := V1InclusionCircuit{
 		Roots:          roots,
 		Leaves:         leaves,
 		InPathIndices:  inPathIndices,

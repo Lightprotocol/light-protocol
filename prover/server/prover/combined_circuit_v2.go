@@ -7,13 +7,13 @@ import (
 	"github.com/reilabs/gnark-lean-extractor/v3/abstractor"
 )
 
-type CombinedCircuit struct {
+type V2CombinedCircuit struct {
 	PublicInputHash frontend.Variable `gnark:",public"`
 	Inclusion       InclusionProof    `gnark:",secret"`
 	NonInclusion    NonInclusionProof `gnark:",secret"`
 }
 
-func (circuit *CombinedCircuit) Define(api frontend.API) error {
+func (circuit *V2CombinedCircuit) Define(api frontend.API) error {
 	inclusionPublicInputsHashChain := createTwoInputsHashChain(api, circuit.Inclusion.Roots, circuit.Inclusion.Leaves)
 	nonInclusionPublicInputsHashChain := createTwoInputsHashChain(api, circuit.NonInclusion.Roots, circuit.NonInclusion.Values)
 

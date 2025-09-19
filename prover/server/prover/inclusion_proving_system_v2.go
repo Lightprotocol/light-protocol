@@ -21,23 +21,23 @@ type InclusionInputs struct {
 	PublicInputHash big.Int
 }
 
-type InclusionParameters struct {
+type V2InclusionParameters struct {
 	PublicInputHash big.Int
 	Inputs          []InclusionInputs
 }
 
-func (p *InclusionParameters) NumberOfCompressedAccounts() uint32 {
+func (p *V2InclusionParameters) NumberOfCompressedAccounts() uint32 {
 	return uint32(len(p.Inputs))
 }
 
-func (p *InclusionParameters) TreeHeight() uint32 {
+func (p *V2InclusionParameters) TreeHeight() uint32 {
 	if len(p.Inputs) == 0 {
 		return 0
 	}
 	return uint32(len(p.Inputs[0].PathElements))
 }
 
-func (p *InclusionParameters) ValidateShape(treeHeight uint32, numOfCompressedAccounts uint32) error {
+func (p *V2InclusionParameters) ValidateShape(treeHeight uint32, numOfCompressedAccounts uint32) error {
 	if p.NumberOfCompressedAccounts() != numOfCompressedAccounts {
 		return fmt.Errorf("wrong number of compressed accounts: %d", p.NumberOfCompressedAccounts())
 	}
@@ -58,7 +58,7 @@ func R1CSInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (constr
 	}
 	publicInputHash := frontend.Variable(0)
 
-	circuit := InclusionCircuit{
+	circuit := V2InclusionCircuit{
 		PublicInputHash:            publicInputHash,
 		Height:                     treeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
@@ -87,7 +87,7 @@ func SetupInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*Prov
 		ConstraintSystem:                    ccs}, nil
 }
 
-func (ps *ProvingSystemV1) ProveInclusion(params *InclusionParameters) (*Proof, error) {
+func (ps *ProvingSystemV1) ProveInclusion(params *V2InclusionParameters) (*Proof, error) {
 	if err := params.ValidateShape(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (ps *ProvingSystemV1) ProveInclusion(params *InclusionParameters) (*Proof, 
 		}
 	}
 
-	assignment := InclusionCircuit{
+	assignment := V2InclusionCircuit{
 		PublicInputHash: params.PublicInputHash,
 		Roots:           roots,
 		Leaves:          leaves,
@@ -130,7 +130,7 @@ func (ps *ProvingSystemV1) ProveInclusion(params *InclusionParameters) (*Proof, 
 }
 
 func (ps *ProvingSystemV1) VerifyInclusion(publicInputsHash big.Int, proof *Proof) error {
-	publicAssignment := InclusionCircuit{
+	publicAssignment := V2InclusionCircuit{
 		PublicInputHash: publicInputsHash,
 	}
 	witness, err := frontend.NewWitness(&publicAssignment, ecc.BN254.ScalarField(), frontend.PublicOnly())

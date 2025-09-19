@@ -7,7 +7,7 @@ import (
 	"github.com/reilabs/gnark-lean-extractor/v3/abstractor"
 )
 
-type InclusionCircuit struct {
+type V2InclusionCircuit struct {
 	PublicInputHash frontend.Variable `gnark:",public"`
 
 	// hashed public inputs
@@ -22,7 +22,7 @@ type InclusionCircuit struct {
 	Height                     uint32
 }
 
-func (circuit *InclusionCircuit) Define(api frontend.API) error {
+func (circuit *V2InclusionCircuit) Define(api frontend.API) error {
 	publicInputsHashChain := createTwoInputsHashChain(api, circuit.Roots, circuit.Leaves)
 	api.AssertIsEqual(circuit.PublicInputHash, publicInputsHashChain)
 
@@ -47,7 +47,7 @@ func ImportInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint32, 
 	for i := 0; i < int(numberOfCompressedAccounts); i++ {
 		inPathElements[i] = make([]frontend.Variable, treeHeight)
 	}
-	circuit := InclusionCircuit{
+	circuit := V2InclusionCircuit{
 		Height:                     treeHeight,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
 		Roots:                      roots,

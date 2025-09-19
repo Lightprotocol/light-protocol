@@ -34,7 +34,7 @@ func TestInclusion(t *testing.T) {
 		splitLine := strings.Split(line, ";")
 		assert.Equal(len(splitLine), 2, "Invalid line: ", line)
 
-		var params InclusionParameters
+		var params V2InclusionParameters
 		err := params.UnmarshalJSON([]byte(splitLine[1]))
 		assert.Nil(err, "Error unmarshalling inputs: ", err)
 
@@ -59,7 +59,7 @@ func TestInclusion(t *testing.T) {
 
 		}
 
-		var circuit InclusionCircuit
+		var circuit V2InclusionCircuit
 		circuit.Roots = make([]frontend.Variable, numberOfCompressedAccounts)
 		circuit.Leaves = make([]frontend.Variable, numberOfCompressedAccounts)
 		circuit.InPathIndices = make([]frontend.Variable, numberOfCompressedAccounts)
@@ -75,7 +75,7 @@ func TestInclusion(t *testing.T) {
 		expectedResult := splitLine[0]
 		if expectedResult == "0" {
 			// Run the failing test
-			assert.ProverFailed(&circuit, &InclusionCircuit{
+			assert.ProverFailed(&circuit, &V2InclusionCircuit{
 				PublicInputHash:            params.PublicInputHash,
 				Roots:                      roots,
 				Leaves:                     leaves,
@@ -86,7 +86,7 @@ func TestInclusion(t *testing.T) {
 			}, test.WithBackends(backend.GROTH16), test.WithCurves(ecc.BN254), test.NoSerializationChecks())
 		} else if expectedResult == "1" {
 			// Run the passing test
-			assert.ProverSucceeded(&circuit, &InclusionCircuit{
+			assert.ProverSucceeded(&circuit, &V2InclusionCircuit{
 				PublicInputHash:            params.PublicInputHash,
 				Roots:                      roots,
 				Leaves:                     leaves,

@@ -12,29 +12,29 @@ import (
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 )
 
-type CombinedParameters struct {
+type V2CombinedParameters struct {
 	PublicInputHash        big.Int
-	InclusionParameters    InclusionParameters
-	NonInclusionParameters NonInclusionParameters
+	InclusionParameters    V2InclusionParameters
+	NonInclusionParameters V2NonInclusionParameters
 }
 
-func (p *CombinedParameters) NumberOfCompressedAccounts() uint32 {
+func (p *V2CombinedParameters) NumberOfCompressedAccounts() uint32 {
 	return p.InclusionParameters.NumberOfCompressedAccounts()
 }
 
-func (p *CombinedParameters) TreeHeight() uint32 {
+func (p *V2CombinedParameters) TreeHeight() uint32 {
 	return p.InclusionParameters.TreeHeight()
 }
 
-func (p *CombinedParameters) NonInclusionNumberOfCompressedAccounts() uint32 {
+func (p *V2CombinedParameters) NonInclusionNumberOfCompressedAccounts() uint32 {
 	return p.NonInclusionParameters.NumberOfCompressedAccounts()
 }
 
-func (p *CombinedParameters) NonInclusionTreeHeight() uint32 {
+func (p *V2CombinedParameters) NonInclusionTreeHeight() uint32 {
 	return p.NonInclusionParameters.TreeHeight()
 }
 
-func (p *CombinedParameters) ValidateShape(inclusionTreeHeight uint32, inclusionNumOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumOfCompressedAccounts uint32) error {
+func (p *V2CombinedParameters) ValidateShape(inclusionTreeHeight uint32, inclusionNumOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumOfCompressedAccounts uint32) error {
 	if err := p.InclusionParameters.ValidateShape(inclusionTreeHeight, inclusionNumOfCompressedAccounts); err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func R1CSCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccount
 	return frontend.Compile(ecc.BN254.ScalarField(), r1cs.NewBuilder, &circuit)
 }
 
-func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) CombinedCircuit {
+func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) V2CombinedCircuit {
 	inclusionRoots := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
 	inclusionLeaves := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
 	inclusionInPathIndices := make([]frontend.Variable, inclusionNumberOfCompressedAccounts)
@@ -70,7 +70,7 @@ func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfComp
 		nonInclusionInPathElements[i] = make([]frontend.Variable, nonInclusionTreeHeight)
 	}
 
-	circuit := CombinedCircuit{
+	circuit := V2CombinedCircuit{
 		PublicInputHash: frontend.Variable(0),
 		Inclusion: InclusionProof{
 			Roots:                      inclusionRoots,
@@ -114,7 +114,7 @@ func SetupCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccoun
 
 }
 
-func (ps *ProvingSystemV1) ProveCombined(params *CombinedParameters) (*Proof, error) {
+func (ps *ProvingSystemV1) ProveCombined(params *V2CombinedParameters) (*Proof, error) {
 	if err := params.ValidateShape(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
@@ -159,7 +159,7 @@ func (ps *ProvingSystemV1) ProveCombined(params *CombinedParameters) (*Proof, er
 }
 
 func (ps *ProvingSystemV1) VerifyCombined(publicInputHash big.Int, proof *Proof) error {
-	publicAssignment := CombinedCircuit{
+	publicAssignment := V2CombinedCircuit{
 		PublicInputHash: publicInputHash,
 	}
 	witness, err := frontend.NewWitness(&publicAssignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
