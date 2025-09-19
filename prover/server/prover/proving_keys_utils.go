@@ -118,14 +118,14 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	}
 
 	var combinedKeys []string = []string{
-		keysDir + "combined_26_1_1.key",
-		keysDir + "combined_26_1_2.key",
-		keysDir + "combined_26_2_1.key",
-		keysDir + "combined_26_2_2.key",
-		keysDir + "combined_26_3_1.key",
-		keysDir + "combined_26_3_2.key",
-		keysDir + "combined_26_4_1.key",
-		keysDir + "combined_26_4_2.key",
+		keysDir + "combined_26_26_1_1.key",
+		keysDir + "combined_26_26_1_2.key",
+		keysDir + "combined_26_26_2_1.key",
+		keysDir + "combined_26_26_2_2.key",
+		keysDir + "combined_26_26_3_1.key",
+		keysDir + "combined_26_26_3_2.key",
+		keysDir + "combined_26_26_4_1.key",
+		keysDir + "combined_26_26_4_2.key",
 
 		keysDir + "combined_32_40_1_1.key",
 		keysDir + "combined_32_40_1_2.key",
@@ -139,9 +139,9 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 
 	// Keys for local-rpc mode - matching the 18 keys in cli/package.json
 	var localRpcKeys []string = []string{
-		keysDir + "combined_26_1_1.key",
-		keysDir + "combined_26_1_2.key",
-		keysDir + "combined_26_2_1.key",
+		keysDir + "combined_26_26_1_1.key",
+		keysDir + "combined_26_26_1_2.key",
+		keysDir + "combined_26_26_2_1.key",
 		keysDir + "combined_32_40_1_1.key",
 		keysDir + "combined_32_40_1_2.key",
 		keysDir + "combined_32_40_2_1.key",
