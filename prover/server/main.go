@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"io"
 	"light/light-prover/logging"
-	"light/light-prover/prover"
 	"light/light-prover/prover/common"
+	v1 "light/light-prover/prover/v1"
 	"light/light-prover/prover/v2"
 	"light/light-prover/server"
 	"os"
@@ -99,14 +99,14 @@ func runCli() {
 					var err error
 					if circuit == common.BatchAppendCircuitType {
 						var system *common.BatchProofSystem
-						system, err = prover.SetupBatchOperationCircuit(common.BatchAppendCircuitType, batchAppendTreeHeight, batchAppendBatchSize)
+						system, err = v2.SetupBatchOperationCircuit(common.BatchAppendCircuitType, batchAppendTreeHeight, batchAppendBatchSize)
 						if err != nil {
 							return err
 						}
 						err = common.WriteProvingSystem(system, path, pathVkey)
 					} else if circuit == common.BatchUpdateCircuitType {
 						var system *common.BatchProofSystem
-						system, err = prover.SetupBatchOperationCircuit(common.BatchUpdateCircuitType, batchUpdateTreeHeight, batchUpdateBatchSize)
+						system, err = v2.SetupBatchOperationCircuit(common.BatchUpdateCircuitType, batchUpdateTreeHeight, batchUpdateBatchSize)
 						if err != nil {
 							return err
 						}
@@ -114,14 +114,18 @@ func runCli() {
 					} else if circuit == common.BatchAddressAppendCircuitType {
 						fmt.Println("Generating Address Append Circuit")
 						var system *common.BatchProofSystem
-						system, err = prover.SetupBatchOperationCircuit(common.BatchAddressAppendCircuitType, batchAddressAppendTreeHeight, batchAddressAppendBatchSize)
+						system, err = v2.SetupBatchOperationCircuit(common.BatchAddressAppendCircuitType, batchAddressAppendTreeHeight, batchAddressAppendBatchSize)
 						if err != nil {
 							return err
 						}
 						err = common.WriteProvingSystem(system, path, pathVkey)
 					} else {
 						var system *common.MerkleProofSystem
-						system, err = prover.SetupMerkleProofCircuit(circuit, inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, useV1)
+						if useV1 {
+							system, err = v1.SetupMerkleProofCircuit(circuit, inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+						} else {
+							system, err = v2.SetupMerkleProofCircuit(circuit, inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+						}
 						if err != nil {
 							return err
 						}
@@ -466,7 +470,7 @@ func runCli() {
 
 					var keysDirPath = context.String("keys-dir")
 					debugProvingSystemKeys(keysDirPath, runMode, circuits)
-					psv1, psv2, err := prover.LoadKeys(keysDirPath, runMode, circuits)
+					psv1, psv2, err := common.LoadKeys(keysDirPath, runMode, circuits)
 					if err != nil {
 						return err
 					}
@@ -652,7 +656,7 @@ func runCli() {
 					}
 					var keysDirPath = context.String("keys-dir")
 
-					psv1, psv2, err := prover.LoadKeys(keysDirPath, runMode, circuits)
+					psv1, psv2, err := common.LoadKeys(keysDirPath, runMode, circuits)
 					if err != nil {
 						return err
 					}
@@ -669,7 +673,7 @@ func runCli() {
 					var proof *common.Proof
 
 					if context.Bool("inclusion") {
-						var params v2.V2InclusionParameters
+						var params v2.InclusionParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
@@ -689,7 +693,7 @@ func runCli() {
 							}
 						}
 					} else if context.Bool("non-inclusion") {
-						var params v2.V2NonInclusionParameters
+						var params v2.NonInclusionParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
@@ -711,7 +715,7 @@ func runCli() {
 							}
 						}
 					} else if context.Bool("inclusion") && context.Bool("non-inclusion") {
-						var params v2.V2CombinedParameters
+						var params v2.CombinedParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err

@@ -11,10 +11,10 @@ import (
 	"github.com/consensys/gnark/test"
 )
 
-func TestBatchUpdateCircuit(t testing.T) {
+func TestBatchUpdateCircuit(t *testing.T) {
 	assert := test.NewAssert(t)
 
-	t.Run("Valid batch update - full HashchainHash", func(t testing.T) {
+	t.Run("Valid batch update - full HashchainHash", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 2
 		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
@@ -66,26 +66,26 @@ func TestBatchUpdateCircuit(t testing.T) {
 		assert.NoError(err)
 	})
 
-	t.Run("Fill up tree completely", func(t testing.T) {
+	t.Run("Fill up tree completely", func(t *testing.T) {
 		treeDepth := 8
 		batchSize := 4
 		totalLeaves := 1 << treeDepth
 
 		var tree = merkletree.NewTree(int(treeDepth))
 		for i := 0; i < totalLeaves/batchSize; i++ {
-			startIndex := uint32(i  batchSize)
+			startIndex := uint32(i * batchSize)
 			params := BuildTestBatchUpdateTree(treeDepth, batchSize, &tree, &startIndex)
 
 			circuit := createBatchUpdateCircuit(treeDepth, batchSize)
-			witness := createBatchUpdateWitness(params, 0, batchSize)
+			witness := createBatchUpdateWitness(*params, 0, batchSize)
 
 			err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
 			assert.NoError(err)
-			tree = params.Tree.DeepCopy()
+			tree = *params.Tree.DeepCopy()
 		}
 	})
 
-	t.Run("Different tree depths and batch sizes", func(t testing.T) {
+	t.Run("Different tree depths and batch sizes", func(t *testing.T) {
 		testCases := []struct {
 			treeDepth int
 			batchSize int
@@ -96,10 +96,10 @@ func TestBatchUpdateCircuit(t testing.T) {
 		}
 
 		for _, tc := range testCases {
-			t.Run(fmt.Sprintf("Depth:%d_Batch:%d", tc.treeDepth, tc.batchSize), func(t testing.T) {
+			t.Run(fmt.Sprintf("Depth:%d_Batch:%d", tc.treeDepth, tc.batchSize), func(t *testing.T) {
 				params := BuildTestBatchUpdateTree(tc.treeDepth, tc.batchSize, nil, nil)
 				circuit := createBatchUpdateCircuit(tc.treeDepth, tc.batchSize)
-				witness := createBatchUpdateWitness(params, 0, tc.batchSize)
+				witness := createBatchUpdateWitness(*params, 0, tc.batchSize)
 
 				err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
 				assert.NoError(err)
@@ -107,13 +107,13 @@ func TestBatchUpdateCircuit(t testing.T) {
 		}
 	})
 
-	t.Run("Invalid OldRoot", func(t testing.T) {
+	t.Run("Invalid OldRoot", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 5
 		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
 
 		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
-		witness := createBatchUpdateWitness(params, 0, batchSize)
+		witness := createBatchUpdateWitness(*params, 0, batchSize)
 
 		witness.OldRoot = frontend.Variable(new(big.Int).Add(params.OldRoot, big.NewInt(1)))
 
@@ -121,13 +121,13 @@ func TestBatchUpdateCircuit(t testing.T) {
 		assert.Error(err)
 	})
 
-	t.Run("Invalid NewRoot", func(t testing.T) {
+	t.Run("Invalid NewRoot", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 5
 		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
 
 		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
-		witness := createBatchUpdateWitness(params, 0, batchSize)
+		witness := createBatchUpdateWitness(*params, 0, batchSize)
 
 		// Modify NewRoot to make it invalid
 		witness.NewRoot = frontend.Variable(new(big.Int).Add(params.NewRoot, big.NewInt(1)))
@@ -136,13 +136,13 @@ func TestBatchUpdateCircuit(t testing.T) {
 		assert.Error(err)
 	})
 
-	t.Run("Invalid old leaf", func(t testing.T) {
+	t.Run("Invalid old leaf", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 5
 		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
 
 		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
-		witness := createBatchUpdateWitness(params, 0, batchSize)
+		witness := createBatchUpdateWitness(*params, 0, batchSize)
 
 		// Modify one old leaf to make it invalid
 		witness.OldLeaves[0] = frontend.Variable(new(big.Int).Add(params.OldLeaves[0], big.NewInt(1)))
@@ -151,13 +151,13 @@ func TestBatchUpdateCircuit(t testing.T) {
 		assert.Error(err)
 	})
 
-	t.Run("Invalid PublicInputHash", func(t testing.T) {
+	t.Run("Invalid PublicInputHash", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 5
 		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
 
 		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
-		witness := createBatchUpdateWitness(params, 0, batchSize)
+		witness := createBatchUpdateWitness(*params, 0, batchSize)
 
 		witness.PublicInputHash = frontend.Variable(new(big.Int).Add(params.PublicInputHash, big.NewInt(1)))
 
@@ -165,13 +165,13 @@ func TestBatchUpdateCircuit(t testing.T) {
 		assert.Error(err)
 	})
 
-	t.Run("Invalid PathIndex", func(t testing.T) {
+	t.Run("Invalid PathIndex", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 5
 		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
 
 		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
-		witness := createBatchUpdateWitness(params, 0, batchSize)
+		witness := createBatchUpdateWitness(*params, 0, batchSize)
 
 		// Set invalid path index
 		witness.PathIndices[0] = frontend.Variable(uint32(1 << treeDepth))
@@ -180,13 +180,13 @@ func TestBatchUpdateCircuit(t testing.T) {
 		assert.Error(err)
 	})
 
-	t.Run("Invalid MerkleProof", func(t testing.T) {
+	t.Run("Invalid MerkleProof", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 5
 		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
 
 		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
-		witness := createBatchUpdateWitness(params, 0, batchSize)
+		witness := createBatchUpdateWitness(*params, 0, batchSize)
 
 		// Corrupt merkle proof
 		witness.MerkleProofs[0][0] = frontend.Variable(new(big.Int).Add(big.NewInt(0).SetBytes(params.MerkleProofs[0][0].Bytes()), big.NewInt(1)))
@@ -195,13 +195,13 @@ func TestBatchUpdateCircuit(t testing.T) {
 		assert.Error(err)
 	})
 
-	t.Run("Invalid LeavesHashchainHash", func(t testing.T) {
+	t.Run("Invalid LeavesHashchainHash", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 5
 		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
 
 		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
-		witness := createBatchUpdateWitness(params, 0, batchSize)
+		witness := createBatchUpdateWitness(*params, 0, batchSize)
 
 		// Modify LeavesHashchainHash to make it invalid
 		witness.LeavesHashchainHash = frontend.Variable(new(big.Int).Add(params.LeavesHashchainHash, big.NewInt(1)))
@@ -210,13 +210,13 @@ func TestBatchUpdateCircuit(t testing.T) {
 		assert.Error(err)
 	})
 
-	t.Run("Invalid leaf", func(t testing.T) {
+	t.Run("Invalid leaf", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 5
 		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
 
 		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
-		witness := createBatchUpdateWitness(params, 0, batchSize)
+		witness := createBatchUpdateWitness(*params, 0, batchSize)
 
 		// Modify one leaf to make it invalid
 		witness.Leaves[0] = frontend.Variable(new(big.Int).Add(params.Leaves[0], big.NewInt(1)))
@@ -225,13 +225,13 @@ func TestBatchUpdateCircuit(t testing.T) {
 		assert.Error(err)
 	})
 
-	t.Run("Invalid order of leaves", func(t testing.T) {
+	t.Run("Invalid order of leaves", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 5
 		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
 
 		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
-		witness := createBatchUpdateWitness(params, 0, batchSize)
+		witness := createBatchUpdateWitness(*params, 0, batchSize)
 
 		// Swap two leaves to create an invalid order
 		witness.Leaves[0], witness.Leaves[1] = witness.Leaves[1], witness.Leaves[0]
@@ -239,13 +239,13 @@ func TestBatchUpdateCircuit(t testing.T) {
 		err := test.IsSolved(&circuit, &witness, ecc.BN254.ScalarField())
 		assert.Error(err)
 	})
-	t.Run("Invalid tx hash", func(t testing.T) {
+	t.Run("Invalid tx hash", func(t *testing.T) {
 		treeDepth := 10
 		batchSize := 5
 		params := BuildTestBatchUpdateTree(treeDepth, batchSize, nil, nil)
 
 		circuit := createBatchUpdateCircuit(treeDepth, batchSize)
-		witness := createBatchUpdateWitness(params, 0, batchSize)
+		witness := createBatchUpdateWitness(*params, 0, batchSize)
 
 		// Swap two tx hashes to create an invalid order
 		witness.TxHashes[0], witness.TxHashes[1] = witness.TxHashes[1], witness.TxHashes[0]

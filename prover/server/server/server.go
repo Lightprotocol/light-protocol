@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"light/light-prover/logging"
-	"light/light-prover/prover"
 	"light/light-prover/prover/common"
 	"light/light-prover/prover/v1"
 	"light/light-prover/prover/v2"
@@ -74,7 +73,10 @@ func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		err := json.NewEncoder(w).Encode(response)
+		if err != nil {
+			return
+		}
 		return
 	}
 
@@ -148,7 +150,10 @@ func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(response)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		return
+	}
 }
 
 func isValidJobID(jobID string) bool {
@@ -284,7 +289,7 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proofRequestMeta, err := prover.ParseProofRequestMeta(buf)
+	proofRequestMeta, err := common.ParseProofRequestMeta(buf)
 	if err != nil {
 		malformedBodyError(err).send(w)
 		return
@@ -360,7 +365,10 @@ func (handler queueStatsHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		return
+	}
 }
 
 type queueHealthHandler struct {
@@ -380,7 +388,10 @@ func (handler queueHealthHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(health)
+	err = json.NewEncoder(w).Encode(health)
+	if err != nil {
+		return
+	}
 }
 
 type queueCleanupHandler struct {
@@ -442,7 +453,10 @@ func (handler queueCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	results["timestamp"] = time.Now().Unix()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(results)
+	err := json.NewEncoder(w).Encode(results)
+	if err != nil {
+		return
+	}
 }
 
 func RunWithQueue(config *Config, redisQueue *RedisQueue, circuits []string, runMode common.RunMode, provingSystemsV1 []*common.MerkleProofSystem, provingSystemsV2 []*common.BatchProofSystem) RunningJob {
@@ -499,7 +513,7 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 				return
 			}
 
-			proofRequestMeta, err := prover.ParseProofRequestMeta(buf)
+			proofRequestMeta, err := common.ParseProofRequestMeta(buf)
 			if err != nil {
 				malformedBodyError(err).send(w)
 				return
@@ -532,7 +546,10 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusAccepted)
-			json.NewEncoder(w).Encode(response)
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		})
 	}
 
@@ -635,7 +652,7 @@ func spawnServerJob(server *http.Server, label string) RunningJob {
 type healthHandler struct {
 }
 
-func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Request, buf []byte, meta prover.ProofRequestMeta) {
+func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Request, buf []byte, meta common.ProofRequestMeta) {
 	jobID := uuid.New().String()
 
 	ProofRequestsTotal.WithLabelValues(string(meta.CircuitType)).Inc()
@@ -683,7 +700,10 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(response)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		return
+	}
 
 	logging.Logger().Info().
 		Str("job_id", jobID).
@@ -692,7 +712,7 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 		Msg("Batch operation job queued successfully")
 }
 
-func (handler proveHandler) handleSyncProof(w http.ResponseWriter, r *http.Request, buf []byte, meta prover.ProofRequestMeta) {
+func (handler proveHandler) handleSyncProof(w http.ResponseWriter, r *http.Request, buf []byte, meta common.ProofRequestMeta) {
 	if handler.isBatchOperation(meta.CircuitType) {
 		warning := fmt.Sprintf("WARNING: %s is a heavy operation that should be processed asynchronously. Consider using X-Async: true header.", meta.CircuitType)
 		w.Header().Set("X-Warning", warning)
@@ -756,7 +776,10 @@ func (handler proveHandler) handleSyncProof(w http.ResponseWriter, r *http.Reque
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(responseBytes)
+		_, err = w.Write(responseBytes)
+		if err != nil {
+			return
+		}
 
 		logging.Logger().Info().
 			Str("circuit_type", string(meta.CircuitType)).
@@ -840,7 +863,7 @@ func (handler proveHandler) getEstimatedTimeSeconds(circuitType common.CircuitTy
 }
 
 func (handler proveHandler) processProofSync(buf []byte) (*common.Proof, *Error) {
-	proofRequestMeta, err := prover.ParseProofRequestMeta(buf)
+	proofRequestMeta, err := common.ParseProofRequestMeta(buf)
 	if err != nil {
 		return nil, malformedBodyError(err)
 	}
@@ -956,7 +979,7 @@ func (handler proveHandler) batchUpdateProof(buf []byte) (*common.Proof, *Error)
 	return proof, nil
 }
 
-func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*common.Proof, *Error) {
+func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta common.ProofRequestMeta) (*common.Proof, *Error) {
 	var ps *common.MerkleProofSystem
 	for _, provingSystem := range handler.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == proofRequestMeta.NumInputs && provingSystem.InclusionTreeHeight == proofRequestMeta.StateTreeHeight && provingSystem.Version == proofRequestMeta.Version && provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(0) {
@@ -970,18 +993,18 @@ func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta prover.P
 	}
 
 	if proofRequestMeta.Version == 0 {
-		var params v1.V1InclusionParameters
+		var params v1.InclusionParameters
 
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
 		}
-		proof, err := v1.V1ProveInclusion(ps, &params)
+		proof, err := v1.ProveInclusion(ps, &params)
 		if err != nil {
 			return nil, provingError(err)
 		}
 		return proof, nil
 	} else if proofRequestMeta.Version == 1 {
-		var params v2.V2InclusionParameters
+		var params v2.InclusionParameters
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
 		}
@@ -995,7 +1018,7 @@ func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta prover.P
 	return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 }
 
-func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*common.Proof, *Error) {
+func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta common.ProofRequestMeta) (*common.Proof, *Error) {
 
 	var ps *common.MerkleProofSystem
 	for _, provingSystem := range handler.provingSystemsV1 {
@@ -1010,7 +1033,7 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prove
 	}
 
 	if proofRequestMeta.AddressTreeHeight == 26 {
-		var params v1.V1NonInclusionParameters
+		var params v1.NonInclusionParameters
 
 		var err = json.Unmarshal(buf, &params)
 		if err != nil {
@@ -1018,14 +1041,14 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prove
 			logging.Logger().Info().Msg(err.Error())
 			return nil, malformedBodyError(err)
 		}
-		proof, err := v1.V1ProveNonInclusion(ps, &params)
+		proof, err := v1.ProveNonInclusion(ps, &params)
 		if err != nil {
 			logging.Logger().Err(err)
 			return nil, provingError(err)
 		}
 		return proof, nil
 	} else if proofRequestMeta.AddressTreeHeight == 40 {
-		var params v2.V2NonInclusionParameters
+		var params v2.NonInclusionParameters
 
 		var err = json.Unmarshal(buf, &params)
 		if err != nil {
@@ -1044,7 +1067,7 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prove
 	}
 }
 
-func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*common.Proof, *Error) {
+func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta common.ProofRequestMeta) (*common.Proof, *Error) {
 	var ps *common.MerkleProofSystem
 	for _, provingSystem := range handler.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == proofRequestMeta.NumInputs && provingSystem.NonInclusionNumberOfCompressedAccounts == proofRequestMeta.NumAddresses && provingSystem.InclusionTreeHeight == proofRequestMeta.StateTreeHeight && provingSystem.NonInclusionTreeHeight == proofRequestMeta.AddressTreeHeight {
@@ -1058,17 +1081,17 @@ func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta prover.Pr
 	}
 
 	if proofRequestMeta.AddressTreeHeight == 26 {
-		var params v1.V1CombinedParameters
+		var params v1.CombinedParameters
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
 		}
-		proof, err := v1.V1ProveCombined(ps, &params)
+		proof, err := v1.ProveCombined(ps, &params)
 		if err != nil {
 			return nil, provingError(err)
 		}
 		return proof, nil
 	} else if proofRequestMeta.AddressTreeHeight == 40 {
-		var params v2.V2CombinedParameters
+		var params v2.CombinedParameters
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
 		}
