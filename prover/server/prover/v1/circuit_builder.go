@@ -10,11 +10,11 @@ import (
 func SetupMerkleProofCircuit(circuit common.CircuitType, inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*common.MerkleProofSystem, error) {
 	switch circuit {
 	case common.InclusionCircuitType:
-		return SetupV1Inclusion(inclusionTreeHeight, inclusionNumberOfCompressedAccounts)
+		return SetupInclusion(inclusionTreeHeight, inclusionNumberOfCompressedAccounts)
 	case common.NonInclusionCircuitType:
-		return SetupV1NonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+		return SetupNonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 	case common.CombinedCircuitType:
-		return SetupV1Combined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+		return SetupCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 	default:
 		return nil, fmt.Errorf("invalid circuit for V1: %s", circuit)
 	}

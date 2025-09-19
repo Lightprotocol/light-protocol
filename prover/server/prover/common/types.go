@@ -1,6 +1,5 @@
 package common
 
-// Circuit type definitions (moved from circuit_utils.go line 30)
 type CircuitType string
 
 const (
