@@ -27,7 +27,7 @@ export const PHOTON_GIT_REPO = "https://github.com/lightprotocol/photon.git";
 export const PHOTON_GIT_COMMIT = "1a785036de52896b68d06413e3b0231122d6aa4a"; // If empty, will use main branch.
 
 export const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
-export const BASE_PATH = "../../cli/bin/";
+export const BASE_PATH = "../../bin/";
 
 export const PROGRAM_ID = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
 export const SOLANA_SDK_VERSION = "2.2";
