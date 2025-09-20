@@ -145,8 +145,7 @@ fn test_rnd_create_compressed_mint_account() {
             MintActionCompressedInstructionData::zero_copy_at(&serialized_data).unwrap();
 
         // Step 5: Use current get_zero_copy_configs API
-        let (config, mut cpi_bytes, mint_size_config) =
-            get_zero_copy_configs(&mut parsed_instruction_data).unwrap();
+        let (config, mut cpi_bytes) = get_zero_copy_configs(&mut parsed_instruction_data).unwrap();
 
         let (mut cpi_instruction_struct, _) =
             InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)

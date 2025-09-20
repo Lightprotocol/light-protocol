@@ -31,11 +31,11 @@ pub fn process_mint_action<'c, 'info>(
         2, // token_account_version
         Some(output_queue),
     )
-    .add_update_mint_authority(input.final_mint_authority)
     .add_mint_to_decompressed(
         ctx.accounts.token_account.key(),
         input.token_recipients[0].amount,
-    );
+    )
+    .add_update_mint_authority(input.final_mint_authority);
 
     let mint_action_instruction = create_mint_action_cpi(
         mint_action_inputs,

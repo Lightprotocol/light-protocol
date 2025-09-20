@@ -7,8 +7,11 @@ use super::{
     UpdateMetadataFieldAction,
 };
 use crate::{
-    instructions::extensions::ExtensionInstructionData,
-    state::{CompressedMint, CompressedMintMetadata, ExtensionStruct},
+    instructions::extensions::{ExtensionInstructionData, ZExtensionInstructionData},
+    state::{
+        AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata, ExtensionStruct,
+        TokenMetadata,
+    },
     AnchorDeserialize, AnchorSerialize, CTokenError,
 };
 
@@ -93,7 +96,6 @@ pub struct CompressedMintInstructionData {
     pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
 
-// TODO: add functional test
 impl TryFrom<CompressedMint> for CompressedMintInstructionData {
     type Error = CTokenError;
 
@@ -131,6 +133,67 @@ impl TryFrom<CompressedMint> for CompressedMintInstructionData {
             metadata: mint.metadata,
             mint_authority: mint.base.mint_authority,
             freeze_authority: mint.base.freeze_authority,
+            extensions,
+        })
+    }
+}
+
+impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
+    type Error = CTokenError;
+
+    fn try_from(
+        instruction_data: &ZCompressedMintInstructionData<'a>,
+    ) -> Result<Self, Self::Error> {
+        let extensions = match &instruction_data.extensions {
+            Some(exts) => {
+                let converted_exts: Result<Vec<_>, Self::Error> = exts
+                    .iter()
+                    .map(|ext| match ext {
+                        ZExtensionInstructionData::TokenMetadata(token_metadata_data) => {
+                            Ok(ExtensionStruct::TokenMetadata(TokenMetadata {
+                                update_authority: token_metadata_data
+                                    .update_authority
+                                    .map(|p| *p)
+                                    .unwrap_or_else(|| Pubkey::from([0u8; 32])),
+                                mint: instruction_data.metadata.spl_mint, // Use the mint from metadata
+                                name: token_metadata_data.name.to_vec(),
+                                symbol: token_metadata_data.symbol.to_vec(),
+                                uri: token_metadata_data.uri.to_vec(),
+                                additional_metadata: token_metadata_data
+                                    .additional_metadata
+                                    .as_ref()
+                                    .map(|ams| {
+                                        ams.iter()
+                                            .map(|am| AdditionalMetadata {
+                                                key: am.key.to_vec(),
+                                                value: am.value.to_vec(),
+                                            })
+                                            .collect()
+                                    })
+                                    .unwrap_or_else(|| Vec::new()),
+                            }))
+                        }
+                        _ => Err(CTokenError::UnsupportedExtension),
+                    })
+                    .collect();
+                Some(converted_exts?)
+            }
+            None => None,
+        };
+
+        Ok(Self {
+            base: BaseMint {
+                mint_authority: instruction_data.mint_authority.map(|p| *p),
+                supply: instruction_data.supply.into(),
+                decimals: instruction_data.decimals,
+                is_initialized: true, // Always true for compressed mints
+                freeze_authority: instruction_data.freeze_authority.map(|p| *p),
+            },
+            metadata: CompressedMintMetadata {
+                version: instruction_data.metadata.version,
+                spl_mint_initialized: instruction_data.metadata.spl_mint_initialized(),
+                spl_mint: instruction_data.metadata.spl_mint,
+            },
             extensions,
         })
     }

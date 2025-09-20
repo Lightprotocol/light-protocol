@@ -437,7 +437,6 @@ fn test_check_authority_comprehensive_truth_table() {
         // Execute check_authority
         let result = check_authority(
             test_case.input.current_authority.as_ref(),
-            test_case.input.fallback_authority,
             signer_account.key(),
             test_case.input.authority_name,
         );

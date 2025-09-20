@@ -3,7 +3,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::Pubkey;
 use light_ctoken_types::{
     hash_cache::HashCache, instructions::mint_action::ZMintToCompressedAction,
-    state::ZCompressedMintMut,
+    state::CompressedMint,
 };
 use light_profiler::profile;
 use light_sdk_pinocchio::ZOutputCompressedAccountWithPackedContextMut;
@@ -34,17 +34,15 @@ use crate::{
 #[profile]
 pub fn process_mint_to_action(
     action: &ZMintToCompressedAction,
-    compressed_mint: &ZCompressedMintMut<'_>,
+    compressed_mint: &mut CompressedMint,
     validated_accounts: &MintActionAccounts,
     cpi_instruction_struct: &mut [ZOutputCompressedAccountWithPackedContextMut<'_>],
     hash_cache: &mut HashCache,
     mint: Pubkey,
     out_token_queue_index: u8,
-    instruction_mint_authority: Option<Pubkey>,
-) -> Result<u64, ProgramError> {
+) -> Result<(), ProgramError> {
     check_authority(
-        compressed_mint.base.mint_authority(),
-        instruction_mint_authority,
+        compressed_mint.base.mint_authority,
         validated_accounts.authority.key(),
         "mint authority",
     )?;
@@ -56,14 +54,14 @@ pub fn process_mint_to_action(
             .ok_or(ErrorCode::MintActionAmountTooLarge)?;
     }
 
-    let updated_supply = sum_amounts
-        .checked_add((*compressed_mint.base.supply).into())
+    compressed_mint.base.supply = sum_amounts
+        .checked_add(compressed_mint.base.supply)
         .ok_or(ErrorCode::MintActionAmountTooLarge)?;
 
     // Check SPL mint initialization from compressed mint state, not config
     handle_spl_mint_initialized_token_pool(
         validated_accounts,
-        compressed_mint.metadata.spl_mint_initialized(),
+        compressed_mint.metadata.spl_mint_initialized,
         sum_amounts,
         mint,
     )?;
@@ -76,7 +74,7 @@ pub fn process_mint_to_action(
         mint,
         out_token_queue_index,
     )?;
-    Ok(updated_supply)
+    Ok(())
 }
 
 #[profile]

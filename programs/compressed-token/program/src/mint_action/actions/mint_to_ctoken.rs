@@ -2,9 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::Pubkey;
-use light_ctoken_types::{
-    instructions::mint_action::ZMintToCTokenAction, state::ZCompressedMintMut,
-};
+use light_ctoken_types::{instructions::mint_action::ZMintToCTokenAction, state::CompressedMint};
 use light_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
@@ -19,28 +17,27 @@ use crate::{
 #[profile]
 pub fn process_mint_to_ctoken_action(
     action: &ZMintToCTokenAction,
-    current_supply: u64,
-    compressed_mint: &ZCompressedMintMut<'_>,
+    compressed_mint: &mut CompressedMint,
     validated_accounts: &MintActionAccounts,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     mint: Pubkey,
-    instruction_mint_authority: Option<Pubkey>,
-) -> Result<u64, ProgramError> {
+) -> Result<(), ProgramError> {
     check_authority(
-        compressed_mint.base.mint_authority(),
-        instruction_mint_authority,
+        compressed_mint.base.mint_authority,
         validated_accounts.authority.key(),
         "mint authority",
     )?;
 
     let amount = u64::from(action.recipient.amount);
-    let updated_supply = current_supply
+    compressed_mint.base.supply = compressed_mint
+        .base
+        .supply
         .checked_add(amount)
         .ok_or(ErrorCode::MintActionAmountTooLarge)?;
 
     handle_spl_mint_initialized_token_pool(
         validated_accounts,
-        compressed_mint.metadata.spl_mint_initialized(),
+        compressed_mint.metadata.spl_mint_initialized,
         amount,
         mint,
     )?;
@@ -60,7 +57,7 @@ pub fn process_mint_to_ctoken_action(
     // For mint_to_ctoken, we don't need to handle lamport transfers
     // as there's no compressible extension on the target account
     compress_ctokens(inputs)?;
-    Ok(updated_supply)
+    Ok(())
 }
 
 #[profile]

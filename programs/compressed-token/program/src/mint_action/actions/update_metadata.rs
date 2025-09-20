@@ -1,10 +1,11 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
+use light_compressed_account::Pubkey;
 use light_ctoken_types::{
     instructions::mint_action::{
         ZRemoveMetadataKeyAction, ZUpdateMetadataAuthorityAction, ZUpdateMetadataFieldAction,
     },
-    state::{ZCompressedMintMut, ZExtensionStructMut},
+    state::{CompressedMint, ExtensionStruct, TokenMetadata},
 };
 use light_profiler::profile;
 use spl_pod::solana_msg::msg;
@@ -13,12 +14,13 @@ use crate::mint_action::check_authority;
 
 /// Get mutable reference to metadata extension at specified index
 #[profile]
-fn get_metadata_extension_mut<'a, 'b>(
-    compressed_mint: &'a mut ZCompressedMintMut<'b>,
+#[track_caller]
+fn get_metadata_extension_mut<'a>(
+    compressed_mint: &'a mut CompressedMint,
     extension_index: usize,
     operation_name: &str,
-    validated_metadata_authority: &Option<light_compressed_account::Pubkey>,
-) -> Result<&'a mut light_ctoken_types::state::ZTokenMetadataMut<'b>, ProgramError> {
+    signer: &pinocchio::pubkey::Pubkey,
+) -> Result<&'a mut TokenMetadata, ProgramError> {
     let extensions = compressed_mint.extensions.as_mut().ok_or_else(|| {
         msg!("No extensions found - cannot {}", operation_name);
         ErrorCode::MintActionMissingMetadataExtension
@@ -34,26 +36,8 @@ fn get_metadata_extension_mut<'a, 'b>(
         return Err(ErrorCode::MintActionInvalidExtensionIndex.into());
     }
     match &mut extensions.as_mut_slice()[extension_index] {
-        ZExtensionStructMut::TokenMetadata(ref mut metadata) => {
-            // Use the universal check_authority function for metadata authority validation
-            // validated_metadata_authority contains the signer pubkey that was already validated
-            if let Some(signer) = validated_metadata_authority {
-                // Convert to pinocchio pubkey for check_authority
-                let signer_bytes = signer.to_bytes();
-                let signer_pubkey =
-                    unsafe { &*(signer_bytes.as_ptr() as *const pinocchio::pubkey::Pubkey) };
-
-                check_authority(
-                    Some(&metadata.update_authority),
-                    Some(metadata.update_authority), // Metadata authority is always stored in extension, use same value as fallback
-                    signer_pubkey,
-                    operation_name,
-                )?;
-            } else {
-                msg!("{}: no valid metadata authority", operation_name);
-                return Err(ErrorCode::InvalidAuthorityMint.into());
-            }
-
+        ExtensionStruct::TokenMetadata(ref mut metadata) => {
+            check_authority(Some(metadata.update_authority), signer, operation_name)?;
             Ok(metadata)
         }
         _ => {
@@ -66,45 +50,30 @@ fn get_metadata_extension_mut<'a, 'b>(
     }
 }
 
-/// Conditionally updates a metadata field only if the allocated size matches the value size.
-/// If sizes don't match, this action is skipped (a later action will apply the final update).
-/// This is safe because the data allocation iterates over all actions and allocates accordingly.
-///
-/// Note: We don't need to zero out the data because we always overwrite the complete
-/// metadata field with an exact size match, ensuring no stale data remains.
-#[inline(always)]
-#[profile]
-fn conditional_metadata_update(dest: &mut [u8], src: &[u8]) {
-    if dest.len() == src.len() {
-        // Size matches: this is the final action for this field, apply the update
-        dest.copy_from_slice(src);
-    }
-}
-
 /// Process update metadata field action - modifies the instruction data extensions directly
 #[profile]
 pub fn process_update_metadata_field_action(
     action: &ZUpdateMetadataFieldAction,
-    compressed_mint: &mut ZCompressedMintMut<'_>,
-    validated_metadata_authority: &Option<light_compressed_account::Pubkey>,
+    compressed_mint: &mut CompressedMint,
+    signer: &pinocchio::pubkey::Pubkey,
 ) -> Result<(), ProgramError> {
     let metadata = get_metadata_extension_mut(
         compressed_mint,
         action.extension_index as usize,
         "metadata field update",
-        validated_metadata_authority,
+        signer,
     )?;
 
     // Update metadata fields - only apply if allocated size matches action value size
     match action.field_type {
         0 => {
-            conditional_metadata_update(metadata.name, action.value);
+            metadata.name = action.value.to_vec();
         }
         1 => {
-            conditional_metadata_update(metadata.symbol, action.value);
+            metadata.symbol = action.value.to_vec();
         }
         2 => {
-            conditional_metadata_update(metadata.uri, action.value);
+            metadata.uri = action.value.to_vec();
         }
         _ => {
             // Find existing key and conditionally update
@@ -116,41 +85,10 @@ pub fn process_update_metadata_field_action(
                 .iter_mut()
                 .find(|metadata_pair| metadata_pair.key == action.key)
             {
-                conditional_metadata_update(metadata_pair.value, action.value);
+                metadata_pair.value = action.value.to_vec();
             } else {
                 return Err(ErrorCode::MintActionUnsupportedOperation.into());
             }
-        }
-    }
-    Ok(())
-}
-
-/// Updates metadata authority field when allocation and action match
-#[profile]
-fn update_metadata_authority_field(
-    metadata_authority: &mut light_compressed_account::Pubkey,
-    new_authority: Option<light_compressed_account::Pubkey>,
-) -> Result<(), ProgramError> {
-    match (new_authority, metadata_authority.to_bytes() == [0u8; 32]) {
-        (Some(new_auth), false) => {
-            // Update existing authority to new value
-            *metadata_authority = new_auth;
-            msg!("Authority updated successfully");
-        }
-        (None, false) => {
-            // Revoke authority by setting to zero
-            *metadata_authority = light_compressed_account::Pubkey::from([0u8; 32]);
-            msg!("Authority successfully revoked");
-        }
-        (Some(_), true) => {
-            // This should never happen with correct allocation logic
-            msg!("Internal error: no authority field allocated but trying to set authority");
-            return Err(ErrorCode::MintActionUnsupportedOperation.into());
-        }
-        (None, true) => {
-            // This should never happen with correct allocation logic
-            msg!("Internal error: authority field allocated but should be revoked");
-            return Err(ErrorCode::MintActionUnsupportedOperation.into());
         }
     }
     Ok(())
@@ -160,14 +98,14 @@ fn update_metadata_authority_field(
 #[profile]
 pub fn process_update_metadata_authority_action(
     action: &ZUpdateMetadataAuthorityAction,
-    compressed_mint: &mut ZCompressedMintMut<'_>,
-    validated_metadata_authority: &mut Option<light_compressed_account::Pubkey>,
+    compressed_mint: &mut CompressedMint,
+    signer: &pinocchio::pubkey::Pubkey,
 ) -> Result<(), ProgramError> {
     let metadata = get_metadata_extension_mut(
         compressed_mint,
         action.extension_index as usize,
         "update metadata authority",
-        validated_metadata_authority,
+        signer,
     )?;
 
     let new_authority = if action.new_authority.to_bytes() == [0u8; 32] {
@@ -175,10 +113,7 @@ pub fn process_update_metadata_authority_action(
     } else {
         Some(action.new_authority)
     };
-
-    update_metadata_authority_field(&mut metadata.update_authority, new_authority)?;
-    // Update the validated authority state for future actions
-    *validated_metadata_authority = new_authority;
+    metadata.update_authority = new_authority.unwrap_or_else(|| Pubkey::default());
     Ok(())
 }
 
@@ -186,16 +121,25 @@ pub fn process_update_metadata_authority_action(
 #[profile]
 pub fn process_remove_metadata_key_action(
     action: &ZRemoveMetadataKeyAction,
-    compressed_mint: &mut ZCompressedMintMut<'_>,
-    validated_metadata_authority: &Option<light_compressed_account::Pubkey>,
+    compressed_mint: &mut CompressedMint,
+    signer: &pinocchio::pubkey::Pubkey,
 ) -> Result<(), ProgramError> {
-    let _metadata = get_metadata_extension_mut(
+    let metadata = get_metadata_extension_mut(
         compressed_mint,
         action.extension_index as usize,
         "metadata key removal",
-        validated_metadata_authority,
+        signer,
     )?;
+    if let Some(pos) = metadata
+        .additional_metadata
+        .iter()
+        .position(|e| e.key.as_slice() == action.key)
+    {
+        metadata.additional_metadata.remove(pos);
+    } else if action.idempotent != 1 {
+        msg!("Metadata key not found");
+        return Err(ErrorCode::MintActionMetadataKeyNotFound.into());
+    }
 
-    msg!("TokenMetadata extension validated for key removal");
     Ok(())
 }

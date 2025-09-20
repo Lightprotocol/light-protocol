@@ -1,16 +1,9 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use arrayvec::ArrayVec;
 use borsh::BorshSerialize;
-use light_compressed_account::{instruction_data::with_readonly::ZInAccountMut, Pubkey};
+use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_ctoken_types::{
-    instructions::{
-        extensions::ZExtensionInstructionData, mint_action::ZMintActionCompressedInstructionData,
-    },
-    state::{
-        AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata, ExtensionStruct,
-        TokenMetadata,
-    },
-    CTokenError,
+    instructions::mint_action::ZMintActionCompressedInstructionData, state::CompressedMint,
 };
 use light_hasher::{sha256::Sha256BE, Hasher};
 use light_profiler::profile;
@@ -31,67 +24,8 @@ pub fn create_input_compressed_mint_account(
     input_compressed_account: &mut ZInAccountMut,
     mint_instruction_data: &ZMintActionCompressedInstructionData,
     merkle_context: PackedMerkleContext,
-) -> Result<(), ProgramError> {
-    let mut extensions_vec = None;
-    if let Some(extensions) = mint_instruction_data.mint.extensions.as_deref() {
-        let mut ext_structs = Vec::new();
-        for ext in extensions {
-            match ext {
-                ZExtensionInstructionData::TokenMetadata(metadata_ix) => {
-                    let additional_metadata = metadata_ix
-                        .additional_metadata
-                        .as_ref()
-                        .map(|v| {
-                            v.iter()
-                                .map(|e| AdditionalMetadata {
-                                    key: e.key.to_vec(),
-                                    value: e.value.to_vec(),
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default();
-
-                    let token_metadata = TokenMetadata {
-                        update_authority: metadata_ix
-                            .update_authority
-                            .as_ref()
-                            .map(|data| **data)
-                            .unwrap_or_else(|| Pubkey::new_from_array([0u8; 32])),
-                        mint: mint_instruction_data.mint.metadata.spl_mint,
-                        name: metadata_ix.name.to_vec(),
-                        symbol: metadata_ix.symbol.to_vec(),
-                        uri: metadata_ix.uri.to_vec(),
-                        additional_metadata,
-                    };
-
-                    ext_structs.push(ExtensionStruct::TokenMetadata(token_metadata));
-                }
-                _ => {
-                    return Err(CTokenError::UnsupportedExtension.into());
-                }
-            }
-        }
-
-        if !ext_structs.is_empty() {
-            extensions_vec = Some(ext_structs);
-        }
-    }
-
-    let compressed_mint = CompressedMint {
-        base: BaseMint {
-            mint_authority: mint_instruction_data.mint.mint_authority.map(|x| *x),
-            supply: mint_instruction_data.mint.supply.into(),
-            decimals: mint_instruction_data.mint.decimals,
-            is_initialized: true,
-            freeze_authority: mint_instruction_data.mint.freeze_authority.map(|x| *x),
-        },
-        metadata: CompressedMintMetadata {
-            version: mint_instruction_data.mint.metadata.version,
-            spl_mint: mint_instruction_data.mint.metadata.spl_mint,
-            spl_mint_initialized: mint_instruction_data.mint.metadata.spl_mint_initialized(),
-        },
-        extensions: extensions_vec,
-    };
+) -> Result<CompressedMint, ProgramError> {
+    let compressed_mint = CompressedMint::try_from(&mint_instruction_data.mint)?;
     let mut bytes = ArrayVec::<u8, 1024>::new();
     compressed_mint.serialize(&mut bytes)?;
     let input_data_hash = Sha256BE::hash(bytes.as_slice())?;
@@ -106,5 +40,5 @@ pub fn create_input_compressed_mint_account(
         Some(mint_instruction_data.compressed_address.as_ref()),
     )?;
 
-    Ok(())
+    Ok(compressed_mint)
 }

@@ -12,39 +12,22 @@ use std::panic::Location;
 /// because it's always allocated in the TokenMetadata extension (32 bytes, even when revoked).
 #[track_caller]
 pub fn check_authority(
-    current_authority: Option<&Pubkey>,
-    fallback_authority: Option<Pubkey>,
+    current_authority: Option<Pubkey>,
     signer: &pinocchio::pubkey::Pubkey,
     authority_name: &str,
 ) -> Result<(), ProgramError> {
-    // Check if fallback authority is None - this is a revoked state
-    if fallback_authority.is_none() {
+    // Get authority from current state or fallback to instruction data
+    let authority = current_authority.ok_or_else(|| {
         let location = Location::caller();
         msg!(
-            "{} has been revoked (instruction data is None). {}:{}:{}",
+            "No {} set. {}:{}:{}",
             authority_name,
             location.file(),
             location.line(),
             location.column()
         );
-        return Err(ErrorCode::InvalidAuthorityMint.into());
-    }
-
-    // Get authority from current state or fallback to instruction data
-    let authority = current_authority
-        .copied()
-        .or(fallback_authority)
-        .ok_or_else(|| {
-            let location = Location::caller();
-            msg!(
-                "No {} set. {}:{}:{}",
-                authority_name,
-                location.file(),
-                location.line(),
-                location.column()
-            );
-            ErrorCode::InvalidAuthorityMint
-        })?;
+        ErrorCode::InvalidAuthorityMint
+    })?;
 
     // Validate signer matches authority
     if authority.to_bytes() != *signer {

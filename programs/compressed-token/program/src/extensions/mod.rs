@@ -52,7 +52,6 @@ fn process_token_metadata_config_with_actions(
     let mut final_name_len = token_metadata_data.name.len();
     let mut final_symbol_len = token_metadata_data.symbol.len();
     let mut final_uri_len = token_metadata_data.uri.len();
-    // TODO: test
     // Apply actions sequentially to determine final field sizes (last action wins)
     for action in actions.iter() {
         if let ZAction::UpdateMetadataField(update_action) = action {

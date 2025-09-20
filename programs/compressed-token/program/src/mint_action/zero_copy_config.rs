@@ -2,10 +2,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use arrayvec::ArrayVec;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
 use light_ctoken_types::{
-    instructions::{
-        extensions::ZExtensionInstructionData,
-        mint_action::{ZAction, ZMintActionCompressedInstructionData},
-    },
+    instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
     state::CompressedMintConfig,
 };
 use light_profiler::profile;
@@ -19,14 +16,7 @@ use crate::shared::cpi_bytes_size::{
 #[profile]
 pub fn get_zero_copy_configs(
     parsed_instruction_data: &mut ZMintActionCompressedInstructionData<'_>,
-) -> Result<
-    (
-        InstructionDataInvokeCpiWithReadOnlyConfig,
-        Vec<u8>,
-        CompressedMintConfig,
-    ),
-    ProgramError,
-> {
+) -> Result<(InstructionDataInvokeCpiWithReadOnlyConfig, Vec<u8>), ProgramError> {
     // Generate output config based on final state after all actions (without modifying instruction data)
     let (_, output_extensions_config, _) =
         crate::extensions::process_extensions_config_with_actions(
@@ -110,50 +100,5 @@ pub fn get_zero_copy_configs(
     let config = cpi_bytes_config(input);
     let cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
 
-    Ok((config, cpi_bytes, output_mint_config))
-}
-
-/// Removes metadata keys from instruction data that were marked for removal
-/// This should be called AFTER input data hash calculation to avoid hash mismatch
-/// Returns an error if non-idempotent key removal fails (key not found)
-#[profile]
-pub fn cleanup_removed_metadata_keys(
-    parsed_instruction_data: &mut ZMintActionCompressedInstructionData<'_>,
-) -> Result<(), ProgramError> {
-    for action in parsed_instruction_data.actions.iter() {
-        if let ZAction::RemoveMetadataKey(action) = action {
-            let extension_index = action.extension_index as usize;
-            let mut key_found = false;
-
-            if let Some(extensions) = parsed_instruction_data.mint.extensions.as_mut() {
-                if extension_index >= extensions.len() {
-                    continue; // Skip invalid indices
-                }
-                if let ZExtensionInstructionData::TokenMetadata(ref mut metadata_pair) =
-                    &mut extensions[extension_index]
-                {
-                    if let Some(ref mut additional_metadata) = metadata_pair.additional_metadata {
-                        // Find and remove the key
-                        if let Some(index) = additional_metadata
-                            .iter()
-                            .position(|pair| pair.key == action.key)
-                        {
-                            additional_metadata.remove(index);
-                            key_found = true;
-                        }
-                    }
-                }
-            }
-
-            // Check if key was found when operation is not idempotent
-            if !key_found && action.idempotent == 0 {
-                let key_str = String::from_utf8_lossy(action.key);
-                msg!("Key '{}' not found for non-idempotent removal", key_str);
-                return Err(
-                    anchor_compressed_token::ErrorCode::MintActionUnsupportedOperation.into(),
-                );
-            }
-        }
-    }
-    Ok(())
+    Ok((config, cpi_bytes))
 }

@@ -3,7 +3,7 @@ use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 use light_ctoken_types::{
     hash_cache::HashCache, instructions::mint_action::MintActionCompressedInstructionData,
-    CTokenError,
+    state::CompressedMint, CTokenError,
 };
 use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
@@ -16,20 +16,11 @@ use crate::{
         mint_input::create_input_compressed_mint_account,
         mint_output::process_output_compressed_account,
         queue_indices::QueueIndices,
-        zero_copy_config::{cleanup_removed_metadata_keys, get_zero_copy_configs},
+        zero_copy_config::get_zero_copy_configs,
     },
     shared::cpi::execute_cpi_invoke,
 };
 
-/// Steps:
-/// 1. parse instruction data
-/// 2.
-///
-///
-/// Checks:
-/// 1.
-/// check mint_signer (compressed mint randomness) is signer
-/// 2.
 pub fn process_mint_action(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
@@ -51,8 +42,7 @@ pub fn process_mint_action(
         parsed_instruction_data.token_pool_bump,
     )?;
 
-    let (config, mut cpi_bytes, output_mint_size_config) =
-        get_zero_copy_configs(&mut parsed_instruction_data)?;
+    let (config, mut cpi_bytes) = get_zero_copy_configs(&mut parsed_instruction_data)?;
     let (mut cpi_instruction_struct, remaining_bytes) =
         InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
             .map_err(ProgramError::from)?;
@@ -85,7 +75,7 @@ pub fn process_mint_action(
     // 2. set create address
     // else
     // 1. set input compressed mint account
-    if parsed_instruction_data.create_mint() {
+    let mint = if parsed_instruction_data.create_mint() {
         process_create_mint_action(
             &parsed_instruction_data,
             &validated_accounts
@@ -97,6 +87,7 @@ pub fn process_mint_action(
             // Use the dedicated address_merkle_tree_index when creating the mint
             queue_indices.address_merkle_tree_index,
         )?;
+        CompressedMint::try_from(&parsed_instruction_data.mint)?
     } else {
         // Process input compressed mint account
         create_input_compressed_mint_account(
@@ -108,21 +99,16 @@ pub fn process_mint_action(
                 leaf_index: parsed_instruction_data.leaf_index.into(),
                 prove_by_index: parsed_instruction_data.prove_by_index(),
             },
-        )?;
-    }
-
-    // Clean up removed metadata keys from instruction data after input hash is calculated
-    // This handles both idempotent and non-idempotent cases internally
-    cleanup_removed_metadata_keys(&mut parsed_instruction_data)?;
+        )?
+    };
 
     process_output_compressed_account(
         &parsed_instruction_data,
         &validated_accounts,
-        &accounts_config,
         &mut cpi_instruction_struct.output_compressed_accounts,
-        output_mint_size_config,
         &mut hash_cache,
         &queue_indices,
+        mint,
     )?;
 
     let cpi_accounts = validated_accounts.get_cpi_accounts(queue_indices.deduplicated, accounts)?;
