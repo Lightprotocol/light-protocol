@@ -22,7 +22,7 @@
 
 2. Account types and data layouts:
    - Compressed accounts: `TokenData` (program-libs/ctoken-types/src/state/token_data.rs)
-   - Decompressed Solana accounts: `CompressedToken` for ctokens (program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs) or standard SPL token accounts
+   - Decompressed Solana accounts: `CToken` for ctokens (program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs) or standard SPL token accounts
    - SPL tokens when compressed are backed by tokens stored in ctoken pool PDAs
 
 3. Compression modes:
@@ -241,7 +241,7 @@ When compression processing occurs (in both Path A and Path B):
    - **Initial validations:**
      - Compression mode field validation (authority must be 0 for Decompress mode)
      - Account ownership verification (must be owned by ctoken program)
-     - Account deserialization as CompressedToken
+     - Account deserialization as CToken
      - Mint verification (account mint must match compression mint)
    - **For Compress:**
      - Validate authority via `verify_and_update_token_account_authority_with_compressed_token`:

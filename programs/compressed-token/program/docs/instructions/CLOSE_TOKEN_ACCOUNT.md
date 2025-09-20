@@ -6,7 +6,7 @@
 
 **description:**
 1. Closes decompressed ctoken solana accounts and distributes remaining lamports to destination account.
-2. Account layout `CompressedToken` is defined in path: program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs
+2. Account layout `CToken` is defined in path: program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs
 3. Supports both regular (non-compressible) and compressible token accounts (with compressible extension)
 4. For compressible accounts (with compressible extension):
    - Rent exemption is returned to the rent recipient (destination account)
@@ -58,7 +58,7 @@
 
 2. **Deserialize and validate token account** (`process_close_token_account` in `processor.rs`):
    - Borrow token account data mutably
-   - Parse as `CompressedToken` using `zero_copy_at_mut` (zero-copy deserialization)
+   - Parse as `CToken` using `zero_copy_at_mut` (zero-copy deserialization)
    - Call `validate_token_account<false>` (CHECK_RENT_AUTH=false for regular close)
 
 3. **Validate closure requirements** (`validate_token_account<CHECK_RENT_AUTH: bool>`):
@@ -94,7 +94,7 @@
 
    4.2. **Check for compressible extension**:
       - Borrow token account data (read-only this time)
-      - Parse as CompressedToken using `zero_copy_at`
+      - Parse as CToken using `zero_copy_at`
       - Look for `ZExtensionStruct::Compressible` in extensions
 
    4.3. **For compressible accounts** (if extension found):

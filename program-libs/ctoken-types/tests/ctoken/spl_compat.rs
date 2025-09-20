@@ -7,7 +7,7 @@
 
 use light_compressed_account::Pubkey;
 use light_ctoken_types::state::{
-    ctoken::{CToken, CompressedTokenConfig, ZCompressedToken},
+    ctoken::{CToken, CompressedTokenConfig, ZCToken},
     CompressionInfoConfig, ExtensionStructConfig,
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
@@ -57,7 +57,7 @@ fn generate_random_token_account_data(rng: &mut impl Rng) -> Vec<u8> {
 
 /// Compare all fields between our CToken zero-copy implementation and Pod account
 fn compare_compressed_token_with_pod_account(
-    compressed_token: &ZCompressedToken,
+    compressed_token: &ZCToken,
     pod_account: &PodAccount,
 ) -> bool {
     // Extensions should be None for basic SPL Token accounts

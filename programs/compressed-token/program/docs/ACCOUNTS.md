@@ -14,7 +14,7 @@
 
 ### CToken
 - **description**
-  struct `CompressedToken`
+  struct `CToken`
   ctoken solana account with spl token compatible state layout
   path: `program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs`
   crate: `light-ctoken-types`
@@ -29,19 +29,19 @@
   borsh and zero copy deserialization deserialize the compressible extension, spl serialization only deserialize the base token data.
   zero copy: (always use in programs)
   ```rust
-  use light_ctoken_types::state::ctoken::CompressedToken;
+  use light_ctoken_types::state::ctoken::CToken;
   use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 
-  let (token, _) = CompressedToken::zero_copy_at(&account_data)?;
-  let (mut token, _) = CompressedToken::zero_copy_at_mut(&mut account_data)?;
+  let (token, _) = CToken::zero_copy_at(&account_data)?;
+  let (mut token, _) = CToken::zero_copy_at_mut(&mut account_data)?;
   ```
 
   borsh: (always use in client non solana program code)
   ```rust
   use borsh::BorshDeserialize;
-  use light_ctoken_types::state::ctoken::CompressedToken;
+  use light_ctoken_types::state::ctoken::CToken;
 
-  let token = CompressedToken::deserialize(&mut &account_data[..])?;
+  let token = CToken::deserialize(&mut &account_data[..])?;
   ```
 
   spl serialization: (preferably use other serialization)
@@ -55,7 +55,7 @@
 
 ### Associated CToken
 - **description**
-  struct `CompressedToken`
+  struct `CToken`
   ctoken solana account with spl token compatible state layout
 - **derivation:**
   seeds: [owner, ctoken_program_id, mint]

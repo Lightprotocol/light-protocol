@@ -17,7 +17,7 @@ use crate::{
 };
 
 #[derive(Debug, PartialEq, Eq, Clone, AnchorSerialize, AnchorDeserialize)]
-pub struct CompressedTokenMeta {
+pub struct CTokenMeta {
     /// The mint associated with this account
     pub mint: Pubkey,
     /// The owner of this account.
@@ -42,7 +42,7 @@ pub struct CompressedTokenMeta {
 
 // Note: spl zero-copy compatibility is implemented in fn zero_copy_at
 #[derive(Debug, PartialEq, Clone)]
-pub struct ZCompressedTokenMeta<'a> {
+pub struct ZCTokenMeta<'a> {
     pub mint: <Pubkey as ZeroCopyAt<'a>>::ZeroCopyAt,
     pub owner: <Pubkey as ZeroCopyAt<'a>>::ZeroCopyAt,
     pub amount: zerocopy::Ref<&'a [u8], zerocopy::little_endian::U64>,
@@ -71,8 +71,8 @@ pub struct ZCompressedTokenMetaMut<'a> {
     pub close_authority: Option<<Pubkey as ZeroCopyAtMut<'a>>::ZeroCopyAtMut>,
 }
 
-impl<'a> ZeroCopyAt<'a> for CompressedTokenMeta {
-    type ZeroCopyAt = ZCompressedTokenMeta<'a>;
+impl<'a> ZeroCopyAt<'a> for CTokenMeta {
+    type ZeroCopyAt = ZCTokenMeta<'a>;
 
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
         use zerocopy::{
@@ -126,7 +126,7 @@ impl<'a> ZeroCopyAt<'a> for CompressedTokenMeta {
             None
         };
 
-        let meta = ZCompressedTokenMeta {
+        let meta = ZCTokenMeta {
             mint,
             owner,
             amount,
@@ -141,7 +141,7 @@ impl<'a> ZeroCopyAt<'a> for CompressedTokenMeta {
     }
 }
 
-impl<'a> ZeroCopyAtMut<'a> for CompressedTokenMeta {
+impl<'a> ZeroCopyAtMut<'a> for CTokenMeta {
     type ZeroCopyAtMut = ZCompressedTokenMetaMut<'a>;
 
     #[profile]
@@ -217,14 +217,14 @@ impl<'a> ZeroCopyAtMut<'a> for CompressedTokenMeta {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct ZCompressedToken<'a> {
-    __meta: ZCompressedTokenMeta<'a>,
+pub struct ZCToken<'a> {
+    __meta: ZCTokenMeta<'a>,
     /// Extensions for the token account (including compressible config)
     pub extensions: Option<Vec<ZExtensionStruct<'a>>>,
 }
 
-impl<'a> Deref for ZCompressedToken<'a> {
-    type Target = <CompressedTokenMeta as ZeroCopyAt<'a>>::ZeroCopyAt;
+impl<'a> Deref for ZCToken<'a> {
+    type Target = <CTokenMeta as ZeroCopyAt<'a>>::ZeroCopyAt;
 
     fn deref(&self) -> &Self::Target {
         &self.__meta
@@ -232,7 +232,7 @@ impl<'a> Deref for ZCompressedToken<'a> {
 }
 
 // TODO: add randomized tests
-impl PartialEq<CToken> for ZCompressedToken<'_> {
+impl PartialEq<CToken> for ZCToken<'_> {
     fn eq(&self, other: &CToken) -> bool {
         // Compare basic fields
         if self.mint.to_bytes() != other.mint.to_bytes()
@@ -388,20 +388,20 @@ impl PartialEq<CToken> for ZCompressedToken<'_> {
     }
 }
 
-impl PartialEq<ZCompressedToken<'_>> for CToken {
-    fn eq(&self, other: &ZCompressedToken<'_>) -> bool {
+impl PartialEq<ZCToken<'_>> for CToken {
+    fn eq(&self, other: &ZCToken<'_>) -> bool {
         other.eq(self)
     }
 }
 
 #[derive(Debug)]
 pub struct ZCompressedTokenMut<'a> {
-    __meta: <CompressedTokenMeta as ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
+    __meta: <CTokenMeta as ZeroCopyAtMut<'a>>::ZeroCopyAtMut,
     /// Extensions for the token account (including compressible config)
     pub extensions: Option<Vec<ZExtensionStructMut<'a>>>,
 }
 impl<'a> Deref for ZCompressedTokenMut<'a> {
-    type Target = <CompressedTokenMeta as ZeroCopyAtMut<'a>>::ZeroCopyAtMut;
+    type Target = <CTokenMeta as ZeroCopyAtMut<'a>>::ZeroCopyAtMut;
 
     fn deref(&self) -> &Self::Target {
         &self.__meta
@@ -415,10 +415,10 @@ impl DerefMut for ZCompressedTokenMut<'_> {
 }
 
 impl<'a> ZeroCopyAt<'a> for CToken {
-    type ZeroCopyAt = ZCompressedToken<'a>;
+    type ZeroCopyAt = ZCToken<'a>;
 
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
-        let (__meta, bytes) = <CompressedTokenMeta as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
+        let (__meta, bytes) = <CTokenMeta as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
         let (extensions, bytes) = if !bytes.is_empty() {
             // Check if first byte is AccountType::Account (value 2) for SPL Token 2022 compatibility
             let extension_start = if bytes.first() == Some(&2) {
@@ -434,7 +434,7 @@ impl<'a> ZeroCopyAt<'a> for CToken {
         } else {
             (None, bytes)
         };
-        Ok((ZCompressedToken { __meta, extensions }, bytes))
+        Ok((ZCToken { __meta, extensions }, bytes))
     }
 }
 
@@ -446,7 +446,7 @@ impl<'a> ZeroCopyAtMut<'a> for CToken {
     fn zero_copy_at_mut(
         bytes: &'a mut [u8],
     ) -> Result<(Self::ZeroCopyAtMut, &'a mut [u8]), ZeroCopyError> {
-        let (__meta, bytes) = <CompressedTokenMeta as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
+        let (__meta, bytes) = <CTokenMeta as ZeroCopyAtMut<'a>>::zero_copy_at_mut(bytes)?;
         let (extensions, bytes) = if !bytes.is_empty() {
             // Check if first byte is AccountType::Account (value 2) for SPL Token 2022 compatibility
             let extension_start = if bytes.first() == Some(&2) {

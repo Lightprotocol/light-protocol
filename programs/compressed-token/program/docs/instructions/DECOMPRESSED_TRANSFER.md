@@ -6,7 +6,7 @@
 
 **description:**
 1. Transfers tokens between decompressed ctoken solana accounts, fully compatible with SPL Token semantics
-2. Account layout `CompressedToken` is defined in path: program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs
+2. Account layout `CToken` is defined in path: program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs
 3. Extension layout `CompressionInfo` is defined in path: program-libs/ctoken-types/src/state/extensions/compressible.rs
 4. Uses light_token_22 fork to process the transfer (required because token_22 has hardcoded program ID checks)
 5. After the transfer, automatically tops up compressible accounts with additional lamports if needed:

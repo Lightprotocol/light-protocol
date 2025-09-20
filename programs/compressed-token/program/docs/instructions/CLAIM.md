@@ -6,7 +6,7 @@
 
 **description:**
 1. Claims rent from compressible ctoken solana accounts that have passed their rent expiration epochs
-2. Account layout `CompressedToken` is defined in path: program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs
+2. Account layout `CToken` is defined in path: program-libs/ctoken-types/src/state/ctoken/ctoken_struct.rs
 3. Extension layout `CompressionInfo` is defined in path: program-libs/ctoken-types/src/state/extensions/compressible.rs
 4. Processes multiple token accounts in a single instruction for efficiency
 5. For each eligible compressible account:
@@ -76,7 +76,7 @@
 
    a. **Parse account data:**
       - Borrow mutable data
-      - Deserialize as CompressedToken with zero-copy
+      - Deserialize as CToken with zero-copy
 
    b. **Find and validate compressible extension:**
       - Search extensions for Compressible variant
@@ -110,7 +110,7 @@
 
 - `ProgramError::InvalidInstructionData` (error code: 3) - Missing pool PDA bump in instruction data or instruction data is empty
 - `ProgramError::InvalidSeeds` (error code: 14) - compression_authority or rent_sponsor doesn't match CompressibleConfig
-- `ProgramError::InvalidAccountData` (error code: 4) - CompressibleConfig/CompressedToken deserialization fails, config version mismatch, or claim calculation fails
+- `ProgramError::InvalidAccountData` (error code: 4) - CompressibleConfig/CToken deserialization fails, config version mismatch, or claim calculation fails
 - `AccountError::NotEnoughAccountKeys` (error code: 12020) - Missing required accounts
 - `AccountError::InvalidSigner` (error code: 12015) - compression_authority is not a signer
 - `AccountError::AccountNotMutable` (error code: 12008) - rent_sponsor is not mutable
