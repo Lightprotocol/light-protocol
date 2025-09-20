@@ -144,7 +144,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
     let needs_token_pool = params.actions.iter().any(|action| {
         matches!(
             action,
-            MintActionType::CreateSplMint { .. } | MintActionType::MintToDecompressed { .. }
+            MintActionType::CreateSplMint { .. } | MintActionType::MintToCToken { .. }
         )
     }) || compressed_mint_inputs.mint.metadata.spl_mint_initialized;
 

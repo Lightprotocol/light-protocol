@@ -14,15 +14,15 @@ use crate::{
     MAX_ACCOUNTS,
 };
 
-/// Process decompressed token transfer instruction
+/// Process ctoken transfer instruction
 #[profile]
-pub fn process_decompressed_token_transfer<'a>(
+pub fn process_ctoken_transfer<'a>(
     accounts: &'a [AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     if accounts.len() < 3 {
         msg!(
-            "Decompressed transfer: expected at least 3 accounts received {}",
+            "CToken transfer: expected at least 3 accounts received {}",
             accounts.len()
         );
         return Err(ProgramError::NotEnoughAccountKeys);

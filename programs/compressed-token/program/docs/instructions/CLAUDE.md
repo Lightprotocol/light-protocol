@@ -35,7 +35,7 @@ every instruction description must include the sections:
 
 1. **Create Token Account Instructions** - Create regular and associated ctoken accounts
 2. **Transfer2** - Batch transfer instruction supporting compress/decompress/transfer operations
-3. **MintAction** - Batch instruction for compressed mint management and mint operations (supports 9 actions: CreateCompressedMint, MintTo, UpdateMintAuthority, UpdateFreezeAuthority, CreateSplMint, MintToDecompressed, UpdateMetadataField, UpdateMetadataAuthority, RemoveMetadataKey)
+3. **MintAction** - Batch instruction for compressed mint management and mint operations (supports 9 actions: CreateCompressedMint, MintTo, UpdateMintAuthority, UpdateFreezeAuthority, CreateSplMint, MintToCToken, UpdateMetadataField, UpdateMetadataAuthority, RemoveMetadataKey)
 4. **Claim** - Rent reclamation from expired compressible accounts
 5. **Close Token Account** - Close decompressed token accounts with rent distribution
 6. **Decompressed Transfer** - SPL-compatible transfers between decompressed accounts

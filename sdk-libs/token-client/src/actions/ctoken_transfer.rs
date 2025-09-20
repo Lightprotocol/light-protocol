@@ -18,7 +18,7 @@ use solana_signer::Signer;
 ///
 /// # Returns
 /// `Result<Signature, RpcError>` - The transaction signature
-pub async fn decompressed_token_transfer<R: Rpc>(
+pub async fn ctoken_transfer<R: Rpc>(
     rpc: &mut R,
     source: Pubkey,
     destination: Pubkey,
@@ -26,12 +26,8 @@ pub async fn decompressed_token_transfer<R: Rpc>(
     authority: &Keypair,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
-    let transfer_instruction = create_decompressed_token_transfer_instruction(
-        source,
-        destination,
-        amount,
-        authority.pubkey(),
-    )?;
+    let transfer_instruction =
+        create_ctoken_transfer_instruction(source, destination, amount, authority.pubkey())?;
 
     let mut signers = vec![payer];
     if authority.pubkey() != payer.pubkey() {
@@ -43,7 +39,7 @@ pub async fn decompressed_token_transfer<R: Rpc>(
 }
 
 /// Create a decompressed token transfer instruction.
-/// This creates an instruction that uses discriminator 3 (DecompressedTransfer) to perform
+/// This creates an instruction that uses discriminator 3 (CTokenTransfer) to perform
 /// SPL token transfers on decompressed compressed token accounts.
 ///
 /// # Arguments
@@ -54,7 +50,7 @@ pub async fn decompressed_token_transfer<R: Rpc>(
 ///
 /// # Returns
 /// `Result<Instruction, RpcError>`
-pub fn create_decompressed_token_transfer_instruction(
+pub fn create_ctoken_transfer_instruction(
     source: Pubkey,
     destination: Pubkey,
     amount: u64,
@@ -69,7 +65,7 @@ pub fn create_decompressed_token_transfer_instruction(
             AccountMeta::new_readonly(Pubkey::default(), false), // System program for CPI transfers
         ],
         data: {
-            let mut data = vec![3u8]; // DecompressedTransfer discriminator
+            let mut data = vec![3u8]; // CTokenTransfer discriminator
                                       // Add SPL Token Transfer instruction data exactly like SPL does
             data.push(3u8); // SPL Transfer discriminator
             data.extend_from_slice(&amount.to_le_bytes()); // Amount as u64 little-endian

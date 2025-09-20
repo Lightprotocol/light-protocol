@@ -73,10 +73,10 @@ Every instruction description must include the sections:
 
 6. **MintAction** - [`docs/instructions/MINT_ACTION.md`](docs/instructions/MINT_ACTION.md)
    - Batch instruction for compressed mint management and mint operations (discriminator: 106, enum: `CTokenInstruction::MintAction`)
-   - Supports 9 action types: CreateCompressedMint, MintTo, UpdateMintAuthority, UpdateFreezeAuthority, CreateSplMint, MintToDecompressed, UpdateMetadataField, UpdateMetadataAuthority, RemoveMetadataKey
+   - Supports 9 action types: CreateCompressedMint, MintTo, UpdateMintAuthority, UpdateFreezeAuthority, CreateSplMint, MintToCToken, UpdateMetadataField, UpdateMetadataAuthority, RemoveMetadataKey
    - Handles both compressed and decompressed token minting
 
-7. **DecompressedTransfer** - `src/decompressed_transfer.rs` (discriminator: 3, enum: `CTokenInstruction::DecompressedTransfer`)
+7. **CTokenTransfer** - `src/ctoken_transfer.rs` (discriminator: 3, enum: `CTokenInstruction::CTokenTransfer`)
    - Transfer between decompressed accounts
 
 ## Config State Requirements Summary
@@ -89,7 +89,7 @@ Every instruction description must include the sections:
 - **`create_token_account.rs`** - Create regular ctoken accounts with optional compressible extension
 - **`create_associated_token_account.rs`** - Create deterministic ATA accounts
 - **`close_token_account/`** - Close ctoken accounts, handle rent distribution
-- **`decompressed_token_transfer.rs`** - SPL-compatible transfers between decompressed accounts
+- **`ctoken_transfer.rs`** - SPL-compatible transfers between decompressed accounts
 
 ## Token Operations
 - **`transfer2/`** - Unified transfer instruction supporting multiple modes

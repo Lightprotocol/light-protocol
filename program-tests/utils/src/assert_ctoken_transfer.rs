@@ -127,7 +127,7 @@ pub async fn assert_compressible_for_account(
 /// * All other fields remain unchanged (mint, owner, delegate, etc.)
 /// * Extensions are preserved (including compressible extensions)
 /// * If compressible extensions exist, last_written_slot should be updated to current slot
-pub async fn assert_decompressed_token_transfer(
+pub async fn assert_ctoken_transfer(
     rpc: &mut LightProgramTest,
     sender_account: Pubkey,
     recipient_account: Pubkey,

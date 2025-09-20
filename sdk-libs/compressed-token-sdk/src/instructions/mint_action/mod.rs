@@ -25,7 +25,7 @@ pub struct MintActionCpiWriteAccounts<'a, T: AccountInfoTrait + Clone> {
     pub cpi_authority_pda: &'a T,
     pub cpi_context: &'a T,
     pub cpi_signer: CpiSigner,
-    pub recipient_token_accounts: Vec<&'a T>, // For mint_to_decompressed actions
+    pub recipient_token_accounts: Vec<&'a T>, // For mint_to_ctoken actions
 }
 
 impl<T: AccountInfoTrait + Clone> MintActionCpiWriteAccounts<'_, T> {

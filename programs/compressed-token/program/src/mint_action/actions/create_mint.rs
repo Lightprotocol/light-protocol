@@ -84,7 +84,10 @@ pub fn process_create_mint_action(
     // Validate extensions - only TokenMetadata is supported and at most one extension allowed
     if let Some(extensions) = &parsed_instruction_data.mint.extensions {
         if extensions.len() > 1 {
-            msg!("Only one extension allowed for compressed mints, found {}", extensions.len());
+            msg!(
+                "Only one extension allowed for compressed mints, found {}",
+                extensions.len()
+            );
             return Err(ErrorCode::MintActionUnsupportedOperation.into());
         }
         // Extension type validation happens during allocation/creation

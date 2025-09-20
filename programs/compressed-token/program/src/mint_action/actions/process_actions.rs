@@ -14,7 +14,7 @@ use crate::mint_action::{
     check_authority,
     create_spl_mint::process_create_spl_mint_action,
     mint_to::process_mint_to_action,
-    mint_to_decompressed::process_mint_to_decompressed_action,
+    mint_to_ctoken::process_mint_to_ctoken_action,
     queue_indices::QueueIndices,
     update_metadata::{
         process_remove_metadata_key_action, process_update_metadata_authority_action,
@@ -48,7 +48,7 @@ pub fn process_actions<'a>(
     let mut validated_metadata_authority = Some(light_compressed_account::Pubkey::from(signer_key));
     for action in parsed_instruction_data.actions.iter() {
         match action {
-            ZAction::MintTo(action) => {
+            ZAction::MintToCompressed(action) => {
                 let new_supply = process_mint_to_action(
                     action,
                     compressed_mint,
@@ -102,9 +102,9 @@ pub fn process_actions<'a>(
                     &parsed_instruction_data.mint,
                 )?;
             }
-            ZAction::MintToDecompressed(mint_to_decompressed_action) => {
-                let new_supply = process_mint_to_decompressed_action(
-                    mint_to_decompressed_action,
+            ZAction::MintToCToken(mint_to_ctoken_action) => {
+                let new_supply = process_mint_to_ctoken_action(
+                    mint_to_ctoken_action,
                     compressed_mint.base.supply.get(),
                     compressed_mint,
                     validated_accounts,

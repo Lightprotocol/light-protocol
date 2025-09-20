@@ -21,9 +21,9 @@
 - **associated instructions**
   1. `CreateTokenAccount` `18`
   2. `CloseTokenAccount` `9`
-  3. `DecompressedTransfer` `3`
+  3. `CTokenTransfer` `3`
   4. `Transfer2` `104` - `Decompress`, `DecompressAndClose`
-  5. `MintAction` `106` - `MintToDecompressed`
+  5. `MintAction` `106` - `MintToCToken`
   6. `Claim` `107`
 - **serialization example**
   borsh and zero copy deserialization deserialize the compressible extension, spl serialization only deserialize the base token data.

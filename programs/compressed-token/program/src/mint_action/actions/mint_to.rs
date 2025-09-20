@@ -2,7 +2,8 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::Pubkey;
 use light_ctoken_types::{
-    hash_cache::HashCache, instructions::mint_action::ZMintToAction, state::ZCompressedMintMut,
+    hash_cache::HashCache, instructions::mint_action::ZMintToCompressedAction,
+    state::ZCompressedMintMut,
 };
 use light_profiler::profile;
 use light_sdk_pinocchio::ZOutputCompressedAccountWithPackedContextMut;
@@ -10,7 +11,7 @@ use light_sdk_pinocchio::ZOutputCompressedAccountWithPackedContextMut;
 use crate::{
     mint_action::{
         accounts::MintActionAccounts, check_authority,
-        mint_to_decompressed::handle_spl_mint_initialized_token_pool,
+        mint_to_ctoken::handle_spl_mint_initialized_token_pool,
     },
     shared::token_output::set_output_compressed_account,
 };
@@ -32,7 +33,7 @@ use crate::{
 #[allow(clippy::too_many_arguments)]
 #[profile]
 pub fn process_mint_to_action(
-    action: &ZMintToAction,
+    action: &ZMintToCompressedAction,
     compressed_mint: &ZCompressedMintMut<'_>,
     validated_accounts: &MintActionAccounts,
     cpi_instruction_struct: &mut [ZOutputCompressedAccountWithPackedContextMut<'_>],
@@ -80,7 +81,7 @@ pub fn process_mint_to_action(
 
 #[profile]
 fn create_output_compressed_token_accounts(
-    parsed_instruction_data: &ZMintToAction<'_>,
+    parsed_instruction_data: &ZMintToCompressedAction<'_>,
     output_compressed_accounts: &mut [ZOutputCompressedAccountWithPackedContextMut<'_>],
     hash_cache: &mut HashCache,
     mint: Pubkey,

@@ -2,7 +2,7 @@ use light_compressed_account::{instruction_data::compressed_proof::CompressedPro
 use light_zero_copy::ZeroCopy;
 
 use super::{
-    CpiContext, CreateSplMintAction, MintToAction, MintToDecompressedAction,
+    CpiContext, CreateSplMintAction, MintToCTokenAction, MintToCompressedAction,
     RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
     UpdateMetadataFieldAction,
 };
@@ -16,7 +16,7 @@ use crate::{
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub enum Action {
     /// Mint compressed tokens to compressed accounts.
-    MintTo(MintToAction),
+    MintToCompressed(MintToCompressedAction),
     /// Update mint authority of a compressed mint account.
     UpdateMintAuthority(UpdateAuthority),
     /// Update freeze authority of a compressed mint account.
@@ -28,7 +28,7 @@ pub enum Action {
     CreateSplMint(CreateSplMintAction),
     /// Mint ctokens from a cmint to a ctoken solana account
     /// (tokens are not compressed but not spl tokens).
-    MintToDecompressed(MintToDecompressedAction),
+    MintToCToken(MintToCTokenAction),
     UpdateMetadataField(UpdateMetadataFieldAction),
     UpdateMetadataAuthority(UpdateMetadataAuthorityAction),
     RemoveMetadataKey(RemoveMetadataKeyAction),

@@ -125,7 +125,7 @@ async fn test_pda_ctoken() {
     );
     assert_eq!(
         compressed_mint.base.supply, 2000u64,
-        "Supply should be 2000 after minting (1000 regular + 1000 from MintToDecompressed)"
+        "Supply should be 2000 after minting (1000 regular + 1000 from MintToCToken)"
     );
     assert_eq!(
         compressed_mint.base.decimals, decimals,
@@ -145,7 +145,7 @@ async fn test_pda_ctoken() {
 
     assert_eq!(
         token_account_data.amount, 1000u64,
-        "Token account should have 1000 tokens from MintToDecompressed action"
+        "Token account should have 1000 tokens from MintToCToken action"
     );
     assert_eq!(
         token_account_data.owner,

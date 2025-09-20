@@ -145,7 +145,7 @@ fn test_successful_parsing_minimal() {
     assert!(parsed.cpi_context.is_none());
     assert!(parsed.in_output_queue.is_none());
     assert!(parsed.tokens_out_queue.is_none());
-    assert_eq!(parsed.decompressed_token_accounts.len(), 0);
+    assert_eq!(parsed.ctoken_accounts.len(), 0);
 }
 
 #[test]
@@ -285,7 +285,7 @@ fn test_successful_parsing_with_all_options() {
     assert!(parsed.cpi_context.is_some());
     assert!(parsed.in_output_queue.is_some());
     assert!(parsed.tokens_out_queue.is_some());
-    assert_eq!(parsed.decompressed_token_accounts.len(), 2);
+    assert_eq!(parsed.ctoken_accounts.len(), 2);
 }
 
 #[test]

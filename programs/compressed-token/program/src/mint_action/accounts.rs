@@ -32,7 +32,7 @@ pub struct MintActionAccounts<'info> {
     /// Packed accounts contain
     /// [
     ///     ..tree_accounts,
-    ///     ..recipient_token_accounts (mint_to_decompressed)
+    ///     ..recipient_token_accounts (mint_to_ctoken)
     /// ]
     pub packed_accounts: ProgramPackedAccounts<'info, AccountInfo>,
 }
@@ -368,12 +368,14 @@ impl AccountsConfig {
             .map(|x| x.first_set_context() || x.set_context())
             .unwrap_or_default();
 
-        // For MintTo or MintToDecompressed actions
+        // For MintTo or MintToCToken actions
         // - needed for tokens_out_queue and authority validation
-        let has_mint_to_actions = parsed_instruction_data
-            .actions
-            .iter()
-            .any(|action| matches!(action, ZAction::MintTo(_) | ZAction::MintToDecompressed(_)));
+        let has_mint_to_actions = parsed_instruction_data.actions.iter().any(|action| {
+            matches!(
+                action,
+                ZAction::MintToCompressed(_) | ZAction::MintToCToken(_)
+            )
+        });
         // An action in this instruction creates a the spl mint corresponding to a compressed mint.
         let create_spl_mint = parsed_instruction_data
             .actions

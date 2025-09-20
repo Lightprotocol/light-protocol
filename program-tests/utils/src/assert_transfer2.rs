@@ -9,7 +9,7 @@ use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 use crate::{
     assert_close_token_account::assert_close_token_account,
-    assert_decompressed_token_transfer::assert_compressible_for_account,
+    assert_ctoken_transfer::assert_compressible_for_account,
 };
 
 /// Comprehensive assertion for transfer2 operations that verifies all expected outcomes

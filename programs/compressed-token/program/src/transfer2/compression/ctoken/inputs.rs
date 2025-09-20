@@ -78,7 +78,7 @@ impl<'a> NativeCompressionInputs<'a> {
         })
     }
 
-    /// Simple constructor for decompression-only operations (used in mint_to_decompressed)
+    /// Simple constructor for decompression-only operations (used in mint_to_ctoken)
     pub fn decompress_only(
         amount: u64,
         mint: Pubkey,

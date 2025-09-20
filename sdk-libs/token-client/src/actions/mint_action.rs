@@ -115,7 +115,7 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
             let recipient_pubkey = solana_pubkey::Pubkey::from(recipient.recipient.to_bytes());
             let (ata_address, _) = derive_ctoken_ata(&recipient_pubkey, &spl_mint_pda);
 
-            actions.push(MintActionType::MintToDecompressed {
+            actions.push(MintActionType::MintToCToken {
                 account: ata_address,
                 amount: recipient.amount,
             });

@@ -71,7 +71,7 @@ pub fn get_zero_copy_configs(
         .actions
         .iter()
         .map(|action| match action {
-            ZAction::MintTo(mint_to_action) => mint_to_action.recipients.len(),
+            ZAction::MintToCompressed(mint_to_action) => mint_to_action.recipients.len(),
             _ => 0,
         })
         .sum();

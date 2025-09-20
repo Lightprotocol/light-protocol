@@ -3,8 +3,9 @@ use light_ctoken_types::{
     self,
     instructions::mint_action::{
         Action, CompressedMintWithContext, CpiContext, CreateSplMintAction,
-        MintActionCompressedInstructionData, MintToAction, Recipient, RemoveMetadataKeyAction,
-        UpdateAuthority, UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
+        MintActionCompressedInstructionData, MintToCompressedAction, Recipient,
+        RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
+        UpdateMetadataFieldAction,
     },
 };
 use light_profiler::profile;
@@ -134,10 +135,10 @@ impl MintActionInputs {
         self
     }
 
-    /// Add MintToDecompressed action - mint to SPL token accounts
+    /// Add MintToCToken action - mint to SPL token accounts
     pub fn add_mint_to_decompressed(mut self, account: Pubkey, amount: u64) -> Self {
         self.actions
-            .push(MintActionType::MintToDecompressed { account, amount });
+            .push(MintActionType::MintToCToken { account, amount });
         self
     }
 
@@ -217,7 +218,7 @@ pub enum MintActionType {
     UpdateFreezeAuthority {
         new_authority: Option<Pubkey>,
     },
-    MintToDecompressed {
+    MintToCToken {
         account: Pubkey,
         amount: u64,
     },
@@ -277,7 +278,7 @@ pub fn create_mint_action_cpi(
     let has_mint_to_actions = input.actions.iter().any(|action| {
         matches!(
             action,
-            MintActionType::MintTo { .. } | MintActionType::MintToDecompressed { .. }
+            MintActionType::MintTo { .. } | MintActionType::MintToCToken { .. }
         )
     });
     // Match onchain logic: with_mint_signer = create_mint() | has_CreateSplMint_action
@@ -314,7 +315,7 @@ pub fn create_mint_action_cpi(
                     })
                     .collect();
 
-                program_actions.push(Action::MintTo(MintToAction {
+                program_actions.push(Action::MintToCompressed(MintToCompressedAction {
                     token_account_version,
                     recipients: program_recipients,
                 }));
@@ -329,9 +330,9 @@ pub fn create_mint_action_cpi(
                     new_authority: new_authority.map(|auth| auth.to_bytes().into()),
                 }));
             }
-            MintActionType::MintToDecompressed { account, amount } => {
+            MintActionType::MintToCToken { account, amount } => {
                 use light_ctoken_types::instructions::mint_action::{
-                    DecompressedRecipient, MintToDecompressedAction,
+                    DecompressedRecipient, MintToCTokenAction,
                 };
 
                 // Add account to decompressed accounts list and get its index
@@ -339,7 +340,7 @@ pub fn create_mint_action_cpi(
                 let current_index = decompressed_account_index;
                 decompressed_account_index += 1;
 
-                program_actions.push(Action::MintToDecompressed(MintToDecompressedAction {
+                program_actions.push(Action::MintToCToken(MintToCTokenAction {
                     recipient: DecompressedRecipient {
                         account_index: current_index,
                         amount,
@@ -404,7 +405,7 @@ pub fn create_mint_action_cpi(
         create_mint,
         with_mint_signer,
         mint_needs_to_sign,
-        decompressed_token_accounts: decompressed_accounts,
+        ctoken_accounts: decompressed_accounts,
     };
 
     // Get account metas (before moving compressed_mint_inputs)
@@ -677,8 +678,8 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
                     .collect();
 
                 program_actions.push(
-                    light_ctoken_types::instructions::mint_action::Action::MintTo(
-                        light_ctoken_types::instructions::mint_action::MintToAction {
+                    light_ctoken_types::instructions::mint_action::Action::MintToCompressed(
+                        light_ctoken_types::instructions::mint_action::MintToCompressedAction {
                             token_account_version,
                             recipients: program_recipients,
                         },

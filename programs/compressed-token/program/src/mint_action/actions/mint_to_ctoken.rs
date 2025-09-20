@@ -3,7 +3,7 @@ use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::Pubkey;
 use light_ctoken_types::{
-    instructions::mint_action::ZMintToDecompressedAction, state::ZCompressedMintMut,
+    instructions::mint_action::ZMintToCTokenAction, state::ZCompressedMintMut,
 };
 use light_profiler::profile;
 use pinocchio::account_info::AccountInfo;
@@ -17,8 +17,8 @@ use crate::{
 
 #[allow(clippy::too_many_arguments)]
 #[profile]
-pub fn process_mint_to_decompressed_action(
-    action: &ZMintToDecompressedAction,
+pub fn process_mint_to_ctoken_action(
+    action: &ZMintToCTokenAction,
     current_supply: u64,
     compressed_mint: &ZCompressedMintMut<'_>,
     validated_accounts: &MintActionAccounts,
@@ -46,10 +46,8 @@ pub fn process_mint_to_decompressed_action(
     )?;
 
     // Get the recipient token account from packed accounts using the index
-    let token_account_info = packed_accounts.get_u8(
-        action.recipient.account_index,
-        "decompressed mint to recipient",
-    )?;
+    let token_account_info =
+        packed_accounts.get_u8(action.recipient.account_index, "ctoken mint to recipient")?;
 
     // Authority check now performed above - safe to proceed with decompression
     // Use the decompress_only constructor for simple decompression operations
@@ -59,7 +57,7 @@ pub fn process_mint_to_decompressed_action(
         token_account_info,
         packed_accounts,
     );
-    // For mint_to_decompressed, we don't need to handle lamport transfers
+    // For mint_to_ctoken, we don't need to handle lamport transfers
     // as there's no compressible extension on the target account
     compress_ctokens(inputs)?;
     Ok(updated_supply)

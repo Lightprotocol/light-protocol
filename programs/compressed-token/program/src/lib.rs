@@ -10,7 +10,7 @@ pub mod close_token_account;
 pub mod convert_account_infos;
 pub mod create_associated_token_account;
 pub mod create_token_account;
-pub mod decompressed_token_transfer;
+pub mod ctoken_transfer;
 pub mod extensions;
 pub mod mint_action;
 pub mod shared;
@@ -25,7 +25,7 @@ use create_associated_token_account::{
     process_create_associated_token_account, process_create_associated_token_account_idempotent,
 };
 use create_token_account::process_create_token_account;
-use decompressed_token_transfer::process_decompressed_token_transfer;
+use ctoken_transfer::process_ctoken_transfer;
 use withdraw_funding_pool::process_withdraw_funding_pool;
 
 use crate::{
@@ -41,11 +41,11 @@ pub const MAX_ACCOUNTS: usize = 30;
 // When adding new instructions check anchor discriminators for collisions!
 #[repr(u8)]
 pub enum InstructionType {
-    /// Decompressed CToken transfer
-    DecompressedTransfer = 3,
-    /// Decompressed CToken CloseAccount
+    /// CToken transfer
+    CTokenTransfer = 3,
+    /// CToken CloseAccount
     CloseTokenAccount = 9,
-    /// Create decompressed CToken, equivalent to SPL Token InitializeAccount3
+    /// Create CToken, equivalent to SPL Token InitializeAccount3
     CreateTokenAccount = 18,
     // TODO: start at 100
     CreateAssociatedTokenAccount = 103,
@@ -62,7 +62,7 @@ pub enum InstructionType {
     ///     3. UpdateMintAuthority
     ///     4. UpdateFreezeAuthority
     ///     5. CreateSplMint
-    ///     6. MintToDecompressed
+    ///     6. MintToCToken
     ///     7. UpdateMetadataField
     ///     8. UpdateMetadataAuthority
     ///     9. RemoveMetadataKey
@@ -78,7 +78,7 @@ impl From<u8> for InstructionType {
     #[inline(always)]
     fn from(value: u8) -> Self {
         match value {
-            3 => InstructionType::DecompressedTransfer,
+            3 => InstructionType::CTokenTransfer,
             9 => InstructionType::CloseTokenAccount,
             18 => InstructionType::CreateTokenAccount,
             103 => InstructionType::CreateAssociatedTokenAccount,
@@ -110,9 +110,9 @@ pub fn process_instruction(
         return Err(ProgramError::IncorrectProgramId);
     }
     match discriminator {
-        InstructionType::DecompressedTransfer => {
-            msg!("DecompressedTransfer");
-            process_decompressed_token_transfer(accounts, instruction_data)?;
+        InstructionType::CTokenTransfer => {
+            msg!("CTokenTransfer");
+            process_ctoken_transfer(accounts, instruction_data)?;
         }
         InstructionType::CreateAssociatedTokenAccount => {
             msg!("CreateAssociatedTokenAccount");

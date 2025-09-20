@@ -22,7 +22,7 @@ pub struct MintActionMetaConfig {
     pub create_mint: bool,
     pub with_mint_signer: bool,
     pub mint_needs_to_sign: bool, // Only true when creating new compressed mint
-    pub decompressed_token_accounts: Vec<Pubkey>, // For mint_to_decompressed actions
+    pub ctoken_accounts: Vec<Pubkey>, // For mint_to_ctoken actions
 }
 
 /// Get the account metas for a mint action instruction
@@ -160,8 +160,8 @@ pub fn get_mint_action_instruction_account_metas(
         metas.push(AccountMeta::new(tokens_out_queue, false));
     }
 
-    // Add decompressed token accounts as remaining accounts for MintToDecompressed actions
-    for token_account in &config.decompressed_token_accounts {
+    // Add decompressed token accounts as remaining accounts for MintToCToken actions
+    for token_account in &config.ctoken_accounts {
         metas.push(AccountMeta::new(*token_account, false));
     }
 

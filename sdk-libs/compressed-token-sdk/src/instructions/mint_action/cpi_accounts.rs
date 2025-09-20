@@ -45,8 +45,8 @@ pub struct MintActionCpiAccounts<'a, A: AccountInfoTrait + Clone> {
     pub in_output_queue: Option<&'a A>, // When mint exists (not creating)
     pub tokens_out_queue: Option<&'a A>, // For MintTo actions
 
-    // Remaining accounts for MintToDecompressed actions
-    pub decompressed_token_accounts: &'a [A],
+    // Remaining accounts for MintToCToken actions
+    pub ctoken_accounts: &'a [A],
 }
 
 impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
@@ -188,8 +188,8 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             }
         }
 
-        // 20+. Decompressed token accounts (remaining accounts for MintToDecompressed)
-        let decompressed_token_accounts = iter.remaining_unchecked()?;
+        // 20+. Decompressed token accounts (remaining accounts for MintToCToken)
+        let ctoken_accounts = iter.remaining_unchecked()?;
 
         Ok(Self {
             compressed_token_program,
@@ -211,7 +211,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             in_merkle_tree,
             in_output_queue,
             tokens_out_queue,
-            decompressed_token_accounts,
+            ctoken_accounts,
         })
     }
 
@@ -291,7 +291,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
     #[profile]
     #[inline(always)]
     pub fn to_account_infos(&self) -> Vec<A> {
-        let mut accounts = Vec::with_capacity(20 + self.decompressed_token_accounts.len());
+        let mut accounts = Vec::with_capacity(20 + self.ctoken_accounts.len());
 
         // Start with light_system_program
         accounts.push(self.light_system_program.clone());
@@ -347,7 +347,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         }
 
         // Decompressed token accounts
-        for account in self.decompressed_token_accounts {
+        for account in self.ctoken_accounts {
             accounts.push(account.clone());
         }
 
@@ -358,7 +358,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
     #[profile]
     #[inline(always)]
     pub fn to_account_metas(&self, include_compressed_token_program: bool) -> Vec<AccountMeta> {
-        let mut metas = Vec::with_capacity(21 + self.decompressed_token_accounts.len());
+        let mut metas = Vec::with_capacity(21 + self.ctoken_accounts.len());
 
         // Optionally include compressed_token_program
         if include_compressed_token_program {
@@ -491,7 +491,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         }
 
         // Decompressed token accounts
-        for account in self.decompressed_token_accounts {
+        for account in self.ctoken_accounts {
             metas.push(AccountMeta {
                 pubkey: account.key().into(),
                 is_writable: true,

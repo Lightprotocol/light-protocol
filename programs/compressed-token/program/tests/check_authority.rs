@@ -1,7 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
 use light_compressed_token::mint_action::check_authority;
-
 use pinocchio::pubkey::Pubkey;
 
 // Helper function to create test account info
@@ -435,15 +434,9 @@ fn test_check_authority_comprehensive_truth_table() {
         };
 
         let signer_account = create_test_account_info(Pubkey::from(signer_key), true);
-        let current_authority = if let Some(authority) = test_case.input.current_authority.as_ref()
-        {
-            Some(authority)
-        } else {
-            None
-        };
         // Execute check_authority
         let result = check_authority(
-            current_authority,
+            test_case.input.current_authority.as_ref(),
             test_case.input.fallback_authority,
             signer_account.key(),
             test_case.input.authority_name,

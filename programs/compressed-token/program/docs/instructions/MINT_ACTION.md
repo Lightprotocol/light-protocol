@@ -14,7 +14,7 @@ This instruction supports 9 total actions - one creation action (controlled by `
 
 **Core mint operations (Action enum variants):**
 2. `MintTo` - Mint new compressed tokens to one or more compressed token accounts
-3. `MintToDecompressed` - Mint new tokens to decompressed ctoken accounts (not SPL tokens)
+3. `MintToCToken` - Mint new tokens to decompressed ctoken accounts (not SPL tokens)
 4. `CreateSplMint` - Create an SPL Token 2022 mint for an existing compressed mint, enabling SPL interoperability
 
 **Authority updates (Action enum variants):**
@@ -50,11 +50,11 @@ Key concepts integrated:
    - `mint`: CompressedMintInstructionData - Full mint state including supply, decimals, metadata, authorities, and extensions
 
 2. Action types (path: program-libs/ctoken-types/src/instructions/mint_action/):
-   - `MintTo(MintToAction)` - Mint tokens to compressed accounts (mint_to.rs)
+   - `MintTo(MintToCompressedAction)` - Mint tokens to compressed accounts (mint_to.rs)
    - `UpdateMintAuthority(UpdateAuthority)` - Update mint authority (update_mint.rs)
    - `UpdateFreezeAuthority(UpdateAuthority)` - Update freeze authority (update_mint.rs)
    - `CreateSplMint(CreateSplMintAction)` - Create SPL mint for cmint (create_spl_mint.rs)
-   - `MintToDecompressed(MintToDecompressedAction)` - Mint to ctoken accounts (mint_to_decompressed.rs)
+   - `MintToCToken(MintToCTokenAction)` - Mint to ctoken accounts (mint_to_ctoken.rs)
    - `UpdateMetadataField(UpdateMetadataFieldAction)` - Update metadata field (update_metadata.rs)
    - `UpdateMetadataAuthority(UpdateMetadataAuthorityAction)` - Update metadata authority (update_metadata.rs)
    - `RemoveMetadataKey(RemoveMetadataKeyAction)` - Remove metadata key (update_metadata.rs)
@@ -117,7 +117,7 @@ For CPI context write (when write_to_cpi_context=true):
 
 Packed accounts (remaining accounts):
 - Merkle tree and queue accounts for compressed storage
-- Recipient ctoken accounts for MintToDecompressed action
+- Recipient ctoken accounts for MintToCToken action
 
 **Instruction Logic and Checks:**
 
@@ -162,7 +162,7 @@ Packed accounts (remaining accounts):
    - Initialize: mint with ctoken PDA as mint/freeze authority
    - Mint: existing supply to token pool
 
-   **MintToDecompressed:**
+   **MintToCToken:**
    - Validate: mint authority matches signer
    - Calculate: sum recipient amounts
    - Update: mint supply += sum_amounts

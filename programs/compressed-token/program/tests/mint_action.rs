@@ -10,8 +10,8 @@ use light_ctoken_types::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{
             Action, CompressedMintInstructionData, CpiContext, CreateSplMintAction,
-            DecompressedRecipient, MintActionCompressedInstructionData, MintToAction,
-            MintToDecompressedAction, Recipient, RemoveMetadataKeyAction, UpdateAuthority,
+            DecompressedRecipient, MintActionCompressedInstructionData, MintToCTokenAction,
+            MintToCompressedAction, Recipient, RemoveMetadataKeyAction, UpdateAuthority,
             UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
         },
     },
@@ -54,7 +54,7 @@ fn random_token_metadata_extension(rng: &mut StdRng) -> ExtensionInstructionData
     })
 }
 
-fn random_mint_to_action(rng: &mut StdRng) -> MintToAction {
+fn random_mint_to_action(rng: &mut StdRng) -> MintToCompressedAction {
     let recipient_count = rng.gen_range(1..=3);
     let recipients = (0..recipient_count)
         .map(|_| Recipient {
@@ -63,14 +63,14 @@ fn random_mint_to_action(rng: &mut StdRng) -> MintToAction {
         })
         .collect();
 
-    MintToAction {
+    MintToCompressedAction {
         token_account_version: rng.gen_range(0..=3) as u8,
         recipients,
     }
 }
 
-fn random_mint_to_decompressed_action(rng: &mut StdRng) -> MintToDecompressedAction {
-    MintToDecompressedAction {
+fn random_mint_to_decompressed_action(rng: &mut StdRng) -> MintToCTokenAction {
+    MintToCTokenAction {
         recipient: DecompressedRecipient {
             amount: rng.gen_range(1..=1_000_000),
             account_index: rng.gen_range(1..=255),
@@ -116,11 +116,11 @@ fn random_remove_metadata_key_action(rng: &mut StdRng) -> RemoveMetadataKeyActio
 
 fn random_action(rng: &mut StdRng) -> Action {
     match rng.gen_range(0..8) {
-        0 => Action::MintTo(random_mint_to_action(rng)),
+        0 => Action::MintToCompressed(random_mint_to_action(rng)),
         1 => Action::UpdateMintAuthority(random_update_authority_action(rng)),
         2 => Action::UpdateFreezeAuthority(random_update_authority_action(rng)),
         3 => Action::CreateSplMint(random_create_spl_mint_action(rng)),
-        4 => Action::MintToDecompressed(random_mint_to_decompressed_action(rng)),
+        4 => Action::MintToCToken(random_mint_to_decompressed_action(rng)),
         5 => Action::UpdateMetadataField(random_update_metadata_field_action(rng)),
         6 => Action::UpdateMetadataAuthority(random_update_metadata_authority_action(rng)),
         7 => Action::RemoveMetadataKey(random_remove_metadata_key_action(rng)),
@@ -219,10 +219,12 @@ fn compute_expected_config(data: &MintActionCompressedInstructionData) -> Accoun
         .unwrap_or(false);
 
     // 3. has_mint_to_actions
-    let has_mint_to_actions = data
-        .actions
-        .iter()
-        .any(|action| matches!(action, Action::MintTo(_) | Action::MintToDecompressed(_)));
+    let has_mint_to_actions = data.actions.iter().any(|action| {
+        matches!(
+            action,
+            Action::MintToCompressed(_) | Action::MintToCToken(_)
+        )
+    });
 
     // 4. create_spl_mint
     let create_spl_mint = data

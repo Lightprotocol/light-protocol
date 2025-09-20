@@ -22,7 +22,7 @@ use light_ctoken_types::{
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
-    assert_decompressed_token_transfer::assert_decompressed_token_transfer,
+    assert_ctoken_transfer::assert_ctoken_transfer,
     assert_mint_to_compressed::{assert_mint_to_compressed, assert_mint_to_compressed_one},
     assert_spl_mint::assert_spl_mint,
     assert_transfer2::{
@@ -33,9 +33,7 @@ use light_test_utils::{
     Rpc,
 };
 use light_token_client::{
-    actions::{
-        create_mint, create_spl_mint, decompressed_token_transfer, mint_to_compressed, transfer2,
-    },
+    actions::{create_mint, create_spl_mint, ctoken_transfer, mint_to_compressed, transfer2},
     instructions::transfer2::{
         create_decompress_instruction, create_generic_transfer2_instruction, CompressInput,
         DecompressInput, Transfer2InstructionType, TransferInput,
@@ -811,7 +809,7 @@ async fn test_update_compressed_mint_authority() {
 /// Test decompressed token transfer with mint action creating tokens in decompressed account
 #[tokio::test]
 #[serial]
-async fn test_decompressed_token_transfer() {
+async fn test_ctoken_transfer() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
         .unwrap();
@@ -949,7 +947,7 @@ async fn test_decompressed_token_transfer() {
     );
     rpc.context.warp_to_slot(2);
     // Execute the decompressed transfer
-    let transfer_result = decompressed_token_transfer(
+    let transfer_result = ctoken_transfer(
         &mut rpc,
         recipient_ata,        // Source account (has 1000 tokens)
         second_recipient_ata, // Destination account
@@ -967,7 +965,7 @@ async fn test_decompressed_token_transfer() {
             );
 
             // Use comprehensive assertion helper
-            assert_decompressed_token_transfer(
+            assert_ctoken_transfer(
                 &mut rpc,
                 recipient_ata,
                 second_recipient_ata,

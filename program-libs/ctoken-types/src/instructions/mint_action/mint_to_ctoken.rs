@@ -11,6 +11,6 @@ pub struct DecompressedRecipient {
 
 #[repr(C)]
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
-pub struct MintToDecompressedAction {
+pub struct MintToCTokenAction {
     pub recipient: DecompressedRecipient,
 }

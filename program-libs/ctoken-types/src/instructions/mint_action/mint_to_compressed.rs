@@ -12,7 +12,7 @@ pub struct Recipient {
 
 #[repr(C)]
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
-pub struct MintToAction {
+pub struct MintToCompressedAction {
     pub token_account_version: u8,
     pub recipients: Vec<Recipient>,
 }

@@ -1,8 +1,8 @@
-## Decompressed Transfer
+## CToken Transfer
 
 **discriminator:** 3
-**enum:** `InstructionType::DecompressedTransfer`
-**path:** programs/compressed-token/program/src/decompressed_token_transfer.rs
+**enum:** `InstructionType::CTokenTransfer`
+**path:** programs/compressed-token/program/src/ctoken_transfer.rs
 
 **description:**
 1. Transfers tokens between decompressed ctoken solana accounts, fully compatible with SPL Token semantics
