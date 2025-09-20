@@ -27,7 +27,7 @@ export const PHOTON_GIT_REPO = "https://github.com/helius-labs/photon.git";
 export const PHOTON_GIT_COMMIT = "b0ad386858384c22b4bb6a3bbbcd6a65911dac68"; // If empty, will use main branch.
 
 export const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
-export const BASE_PATH = "../../bin/";
+export const BASE_PATH = "bin/";
 
 export const PROGRAM_ID = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
 export const SOLANA_SDK_VERSION = "2.2";
