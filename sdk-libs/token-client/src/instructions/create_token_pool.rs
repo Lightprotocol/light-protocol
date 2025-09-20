@@ -24,7 +24,7 @@ pub fn create_token_pool_instruction(
     mint: &Pubkey,
     is_token_22: bool,
 ) -> Result<Instruction, RpcError> {
-    let compressed_token_program_id = Pubkey::from(light_sdk_types::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = Pubkey::from(light_ctoken_types::CTOKEN_PROGRAM_ID);
 
     let (token_pool_pda, _bump) = Pubkey::find_program_address(
         &[TOKEN_POOL_SEED, mint.as_ref()],
@@ -72,7 +72,7 @@ pub fn get_token_pool_pda_with_index(mint: &Pubkey, token_pool_index: u8) -> Pub
 /// Helper function to find token pool PDA address and bump with specific index
 pub fn find_token_pool_pda_with_index(mint: &Pubkey, token_pool_index: u8) -> (Pubkey, u8) {
     const POOL_SEED: &[u8] = b"pool";
-    let compressed_token_program_id = Pubkey::from(light_sdk_types::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = Pubkey::from(light_ctoken_types::CTOKEN_PROGRAM_ID);
 
     let seeds = &[POOL_SEED, mint.as_ref(), &[token_pool_index]];
     let seeds = if token_pool_index == 0 {
@@ -87,7 +87,7 @@ pub fn find_token_pool_pda_with_index(mint: &Pubkey, token_pool_index: u8) -> (P
 /// Helper function to derive CPI authority PDA
 pub fn get_cpi_authority_pda() -> Pubkey {
     const CPI_AUTHORITY_PDA_SEED: &[u8] = b"cpi_authority";
-    let compressed_token_program_id = Pubkey::from(light_sdk_types::CTOKEN_PROGRAM_ID);
+    let compressed_token_program_id = Pubkey::from(light_ctoken_types::CTOKEN_PROGRAM_ID);
 
     Pubkey::find_program_address(&[CPI_AUTHORITY_PDA_SEED], &compressed_token_program_id).0
 }

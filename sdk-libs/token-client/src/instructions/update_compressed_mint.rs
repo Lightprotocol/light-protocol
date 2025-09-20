@@ -46,7 +46,7 @@ pub async fn update_compressed_mint_instruction<R: Rpc + Indexer>(
     // Get compressed account from indexer
     let compressed_accounts = rpc
         .get_compressed_accounts_by_owner(
-            &Pubkey::new_from_array(light_sdk_types::CTOKEN_PROGRAM_ID),
+            &Pubkey::new_from_array(light_ctoken_types::CTOKEN_PROGRAM_ID),
             None,
             None,
         )

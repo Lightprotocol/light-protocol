@@ -3,7 +3,7 @@ use anchor_lang::{
     solana_program::{instruction::AccountMeta, program::invoke, pubkey::Pubkey},
 };
 use anchor_spl::token_interface::TokenAccount;
-use light_ctoken_types::{instructions::mint_action::CompressedMintWithContext, CTOKEN_PROGRAM_ID};
+use light_ctoken_types::instructions::mint_action::CompressedMintWithContext;
 use light_sdk::{
     account::Size,
     compressible::{
@@ -21,6 +21,7 @@ use light_sdk::{
     light_hasher::{DataHasher, Hasher},
     LightDiscriminator, LightHasher,
 };
+use light_sdk_types::CTOKEN_PROGRAM_ID;
 pub const POOL_VAULT_SEED: &str = "pool_vault";
 pub const USER_RECORD_SEED: &str = "user_record";
 pub const CTOKEN_SIGNER_SEED: &str = "ctoken_signer";
@@ -166,13 +167,23 @@ impl ctoken_seed_system::CTokenSeedProvider for CTokenAccountVariant {
                 seeds_vec.push(<[_]>::into_vec(Box::new([bump])));
                 (seeds_vec, pda)
             }
+            CTokenAccountVariant::CTokenSigner2 => {
+                let seed_1 = ctx.accounts.fee_payer.key().to_bytes();
+                let seeds: &[&[u8]] = &[CTOKEN_SIGNER_SEED.as_bytes(), &seed_1];
+                let (pda, bump) =
+                    anchor_lang::prelude::Pubkey::find_program_address(seeds, &crate::ID);
+                let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
+                seeds_vec.extend(seeds.iter().map(|s| s.to_vec()));
+                seeds_vec.push(<[_]>::into_vec(Box::new([bump])));
+                (seeds_vec, pda)
+            }
             _ => {
                 panic!("CToken variant not configured with seeds");
             }
         }
     }
 }
-use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall, CpiSigner};
+use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall, CpiSigner, CPI_AUTHORITY_PDA_SEED};
 
 declare_id!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
@@ -191,10 +202,34 @@ pub fn get_ctoken_signer_seeds<'a>(user: &'a Pubkey, mint: &'a Pubkey) -> (Vec<V
     (seeds, pda)
 }
 
+// Second ctoken signer (no mint) used as alternate token owner PDA
+pub fn get_ctoken_signer2_seeds<'a>(user: &'a Pubkey) -> (Vec<Vec<u8>>, Pubkey) {
+    let mut seeds = vec![b"ctoken_signer".to_vec(), user.to_bytes().to_vec()];
+    let seeds_slice = seeds.iter().map(|s| s.as_slice()).collect::<Vec<_>>();
+    let (pda, bump) = Pubkey::find_program_address(seeds_slice.as_slice(), &crate::ID);
+    seeds.push(vec![bump]);
+    (seeds, pda)
+}
+
+// Authority seeds for ctoken operations: Light CPI signer PDA derived from ("cpi_authority", program_id)
+pub fn get_ctokensigner_authority_seeds() -> (Vec<Vec<u8>>, Pubkey) {
+    let mut seeds = vec![b"cpi_authority".to_vec()];
+    let seeds_slice = seeds.iter().map(|s| s.as_slice()).collect::<Vec<_>>();
+    let (pda, bump) = Pubkey::find_program_address(seeds_slice.as_slice(), &crate::ID);
+    seeds.push(vec![bump]);
+    (seeds, pda)
+}
+
+pub fn get_ctokensigner2_authority_seeds() -> (Vec<Vec<u8>>, Pubkey) {
+    // Same authority PDA as above; separate helper keeps parity with variant naming
+    get_ctokensigner_authority_seeds()
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum CTokenAccountVariant {
     CTokenSigner = 0,
+    CTokenSigner2 = 1,
     AssociatedTokenAccount = 255, // TODO: add support.
 }
 
@@ -558,7 +593,7 @@ pub mod anchor_compressible {
             remaining_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
             fee_payer: &anchor_lang::prelude::AccountInfo<'info>,
             ctoken_program: &anchor_lang::prelude::UncheckedAccount<'info>,
-            ctoken_rent_payer_and_recipient: &anchor_lang::prelude::AccountInfo<'info>,
+            ctoken_rent_sponsor: &anchor_lang::prelude::AccountInfo<'info>,
             ctoken_cpi_authority: &anchor_lang::prelude::UncheckedAccount<'info>,
             ctoken_config: &anchor_lang::prelude::AccountInfo<'info>,
             config: &anchor_lang::prelude::AccountInfo<'info>,
@@ -572,7 +607,9 @@ pub mod anchor_compressible {
             has_pdas: bool,
         ) -> Result<()> {
             let mut token_decompress_indices = Box::new(Vec::with_capacity(ctoken_accounts.len()));
-            let mut token_signers_seeds = Box::new(Vec::with_capacity(ctoken_accounts.len() * 4));
+            // Collect per-owner signer seed groups; invoke_signed requires one seed group per PDA signer
+            let mut token_signers_seed_groups: Vec<Vec<Vec<u8>>> =
+                Vec::with_capacity(ctoken_accounts.len());
             let packed_accounts = post_system_accounts;
             use crate::ctoken_seed_system::{CTokenSeedContext, CTokenSeedProvider};
             let seed_context = CTokenSeedContext {
@@ -611,7 +648,7 @@ pub mod anchor_compressible {
                         mint_info.clone(),
                         authority.clone().to_account_info(),
                         seeds_slice,
-                        ctoken_rent_payer_and_recipient.clone().to_account_info(),
+                        ctoken_rent_sponsor.clone().to_account_info(),
                         ctoken_config.to_account_info(),
                         Some(1), // TODO: make this configurable
                         None,    // TODO: make this configurable
@@ -624,7 +661,7 @@ pub mod anchor_compressible {
                         owner_index,
                     ));
                 token_decompress_indices.push(decompress_index);
-                token_signers_seeds.extend(ctoken_signer_seeds);
+                token_signers_seed_groups.push(ctoken_signer_seeds);
             }
             let ctoken_ix = light_compressed_token_sdk::instructions::decompress_full_ctoken_accounts_with_indices(
                     fee_payer.key(),
@@ -639,15 +676,20 @@ pub mod anchor_compressible {
                     <[_]>::into_vec(Box::new([fee_payer.to_account_info()]));
                 all_account_infos.extend(ctoken_cpi_authority.to_account_infos());
                 all_account_infos.extend(ctoken_program.to_account_infos());
-                all_account_infos.extend(ctoken_rent_payer_and_recipient.to_account_infos());
+                all_account_infos.extend(ctoken_rent_sponsor.to_account_infos());
                 all_account_infos.extend(config.to_account_infos());
                 all_account_infos.extend(cpi_accounts.to_account_infos());
-                let seed_refs: Vec<&[u8]> =
-                    token_signers_seeds.iter().map(|s| s.as_slice()).collect();
+                // Build &[&[&[u8]]] where each inner slice is a distinct PDA seed group
+                let signer_seed_refs: Vec<Vec<&[u8]>> = token_signers_seed_groups
+                    .iter()
+                    .map(|group| group.iter().map(|s| s.as_slice()).collect())
+                    .collect();
+                let signer_seed_slices: Vec<&[&[u8]]> =
+                    signer_seed_refs.iter().map(|g| g.as_slice()).collect();
                 anchor_lang::solana_program::program::invoke_signed(
                     &ctoken_ix,
                     all_account_infos.as_slice(),
-                    &[seed_refs.as_slice()],
+                    signer_seed_slices.as_slice(),
                 )?;
             }
             Ok(())
@@ -793,7 +835,7 @@ pub mod anchor_compressible {
                 &ctx.remaining_accounts,
                 &fee_payer,
                 &ctx.accounts.ctoken_program,
-                &ctx.accounts.ctoken_rent_payer_and_recipient,
+                &ctx.accounts.ctoken_rent_sponsor,
                 &ctx.accounts.ctoken_cpi_authority,
                 &ctx.accounts.ctoken_config,
                 &ctx.accounts.config,
@@ -1029,6 +1071,10 @@ pub mod anchor_compressible {
                     light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
                         recipient: token_account_address, // TRY: THE DECOMPRESS TOKEN ACCOUNT ADDRES IS THE OWNER OF ITS COMPRESSIBLED VERSION.
                         amount: 1000,                     // Mint the full supply to the user
+                    },
+                    light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
+                        recipient: get_ctoken_signer2_seeds(&ctx.accounts.user.key()).1,
+                        amount: 1000,
                     },
                 ],
                 token_account_version: 2,
@@ -1480,7 +1526,7 @@ pub struct DecompressAccountsIdempotent<'info> {
     pub rent_payer: Signer<'info>,
     /// CHECK: Checked in protocol.
     #[account(mut)]
-    pub ctoken_rent_payer_and_recipient: UncheckedAccount<'info>,
+    pub ctoken_rent_sponsor: UncheckedAccount<'info>,
     /// CHECK: Checked in protocol.
     pub ctoken_config: UncheckedAccount<'info>,
     /// ctoken program (always required in mixed variant)

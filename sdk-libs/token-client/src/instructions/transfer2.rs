@@ -229,7 +229,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .unwrap()
                     .owner;
 
-                if source_account_owner.to_bytes() != CTOKEN_PROGRAM_ID {
+                if source_account_owner.to_bytes() != light_ctoken_types::CTOKEN_PROGRAM_ID {
                     // For SPL compression, get mint first
                     let mint = input.mint;
 
@@ -302,7 +302,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     .unwrap()
                     .owner;
 
-                if recipient_account_owner.to_bytes() != CTOKEN_PROGRAM_ID {
+                if recipient_account_owner.to_bytes() != light_ctoken_types::CTOKEN_PROGRAM_ID {
                     // For SPL decompression, get mint first
                     let mint = input.compressed_token_account[0].token.mint;
 

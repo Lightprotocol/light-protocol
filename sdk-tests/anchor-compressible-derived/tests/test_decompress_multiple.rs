@@ -16,7 +16,6 @@ use light_compressible_client::CompressibleInstruction;
 use light_ctoken_types::instructions::mint_action::{
     CompressedMintInstructionData, CompressedMintWithContext,
 };
-use light_sdk_types::CTOKEN_PROGRAM_ID;
 use light_macros::pubkey;
 use light_program_test::{
     initialize_compression_config,
@@ -30,6 +29,7 @@ use light_sdk::{
     instruction::{PackedAccounts, SystemAccountMetaConfig},
     token::CompressibleTokenDataWithVariant,
 };
+use light_sdk_types::CTOKEN_PROGRAM_ID;
 use light_token_client::{self, ctoken};
 use solana_account::Account;
 use solana_instruction::{AccountMeta, Instruction};
@@ -39,7 +39,7 @@ use solana_signer::Signer;
 
 pub const ADDRESS_SPACE: [Pubkey; 1] = [pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK")];
 pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
-pub const CTOKEN_RENT_PAYER_AND_RECIPIENT: Pubkey = RENT_RECIPIENT;
+pub const CTOKEN_RENT_SPONSOR: Pubkey = RENT_RECIPIENT;
 pub const TOKEN_PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
 #[tokio::test]

@@ -146,7 +146,10 @@ pub async fn create_compressible_config(
     let deserialized_account =
         CompressibleConfig::deserialize(&mut &compressible_config_account.data[8..]).unwrap();
     println!("deserialized_account {:?}", deserialized_account);
-    println!("compressible_config_pda {:?}", compressible_config_pda);
+    println!(
+        "AAA pt compressible_config_pda {:?}",
+        compressible_config_pda
+    );
     assert_eq!(expected_config_account, deserialized_account);
 
     // Return config PDA, rent_sponsor, and compression_authority

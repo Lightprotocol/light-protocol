@@ -60,27 +60,42 @@ pub mod ctoken {
         )
     }
 
-    pub fn derive_ctoken_program_config(version: Option<u64>) -> (Pubkey, u8) {
-        let version = version.unwrap_or(1);
+    pub fn derive_ctoken_program_config(_version: Option<u64>) -> (Pubkey, u8) {
+        let version = 1u16;
         let registry_program_id =
             solana_pubkey::pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
-        let (compressible_config, config_bump) = Pubkey::find_program_address(
+        let (compressible_config_pda, config_bump) = Pubkey::find_program_address(
             &[b"compressible_config", &version.to_le_bytes()],
             &registry_program_id,
         );
-        (compressible_config, config_bump)
+        println!("compressible_config: {:?}", compressible_config_pda);
+        (compressible_config_pda, config_bump)
     }
 
-    pub fn derive_ctoken_rent_recipient(version: Option<u64>) -> (Pubkey, u8) {
+    pub fn derive_ctoken_rent_sponsor(_version: Option<u64>) -> (Pubkey, u8) {
         // Derive the rent_recipient PDA
-        let version = version.unwrap_or(1);
+        // let version = version.unwrap_or(1);
+        let version = 1u16;
         Pubkey::find_program_address(
             &[
-                b"rent_recipient".as_slice(),
+                b"rent_sponsor".as_slice(),
                 (version as u16).to_le_bytes().as_slice(),
                 &[0],
             ],
             &solana_pubkey::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
         )
+    }
+
+    pub fn derive_ctoken_compression_authority(version: Option<u64>) -> (Pubkey, u8) {
+        let registry_program_id =
+            solana_pubkey::pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
+        let (compression_authority, compression_authority_bump) = Pubkey::find_program_address(
+            &[
+                b"compression_authority".as_slice(),
+                version.unwrap_or(1).to_le_bytes().as_slice(),
+            ],
+            &registry_program_id,
+        );
+        (compression_authority, compression_authority_bump)
     }
 }

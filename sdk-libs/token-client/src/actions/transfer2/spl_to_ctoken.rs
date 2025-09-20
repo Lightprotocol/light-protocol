@@ -12,6 +12,8 @@ use solana_signer::Signer;
 use spl_pod::bytemuck::pod_from_bytes;
 use spl_token_2022::pod::PodAccount;
 
+use crate::CTOKEN_PROGRAM_ID;
+
 /// Transfer SPL tokens directly to compressed tokens in a single transaction.
 ///
 /// This function wraps `create_spl_to_ctoken_transfer_instruction` to provide
@@ -34,6 +36,7 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
     amount: u64,
     authority: &Keypair,
     payer: &Keypair,
+    spl_token_program: Option<Pubkey>,
 ) -> Result<Signature, RpcError> {
     // Get mint from SPL token account
     let token_account_info = rpc
@@ -59,7 +62,7 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
         payer.pubkey(),
         token_pool_pda,
         bump,
-        spl_token_program,
+        spl_token_program.unwrap_or(CTOKEN_PROGRAM_ID),
     )
     .map_err(|e| RpcError::CustomError(e.to_string()))?;
 

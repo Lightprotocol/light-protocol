@@ -47,7 +47,7 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
 
     let (_, mint_bump) = Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_seed.pubkey().as_ref()],
-        &Pubkey::new_from_array(light_sdk_types::CTOKEN_PROGRAM_ID),
+        &Pubkey::new_from_array(light_ctoken_types::CTOKEN_PROGRAM_ID),
     );
 
     let extensions = metadata.map(|meta| vec![ExtensionInstructionData::TokenMetadata(meta)]);
