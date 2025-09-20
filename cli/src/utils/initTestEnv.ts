@@ -207,7 +207,7 @@ export async function initTestEnvIfNeeded({
 export function programsDirPath(): string {
   return (
     process.env[LIGHT_PROTOCOL_PROGRAMS_DIR_ENV] ||
-    path.resolve(process.cwd(), BASE_PATH)
+    path.resolve(__dirname, BASE_PATH)
   );
 }
 
@@ -227,7 +227,7 @@ export function programFilePath(programName: string): string {
     return path.join(programsDir, programName);
   }
 
-  return path.resolve(process.cwd(), path.join(BASE_PATH, programName));
+  return path.resolve(__dirname, path.join(BASE_PATH, programName));
 }
 
 export async function getSolanaArgs({
@@ -281,10 +281,8 @@ export async function getSolanaArgs({
     }
   }
   if (!skipSystemAccounts) {
-    const programsDir = process.env[LIGHT_PROTOCOL_PROGRAMS_DIR_ENV];
-    const accountsPath = programsDir
-      ? path.join(path.dirname(programsDir), "accounts")
-      : path.resolve(process.cwd(), "../../cli/accounts");
+    const accountsRelPath = "../../accounts";
+    const accountsPath = path.resolve(__dirname, accountsRelPath);
     solanaArgs.push("--account-dir", accountsPath);
   }
 
