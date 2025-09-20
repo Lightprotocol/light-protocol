@@ -5,7 +5,7 @@ import {
   spawnBinary,
   waitForServers,
 } from "./process";
-import { LIGHT_PROVER_PROCESS_NAME } from "./constants";
+import { LIGHT_PROVER_PROCESS_NAME, BASE_PATH } from "./constants";
 import find from "find-process";
 
 const KEYS_DIR = "proving-keys/";
@@ -103,7 +103,7 @@ export async function startProver(
   await killProver();
   await killProcessByPort(proverPort);
 
-  const keysDir = path.join(__dirname, "../..", "bin", KEYS_DIR);
+  const keysDir = path.join(path.resolve(__dirname, BASE_PATH), KEYS_DIR);
   const args = ["start"];
   args.push("--keys-dir", keysDir);
   args.push("--prover-address", `0.0.0.0:${proverPort}`);
@@ -154,8 +154,7 @@ export function getProverNameByArch(): string {
 
 export function getProverPathByArch(): string {
   let binaryName = getProverNameByArch();
-  // We need to provide the full path to the binary because it's not in the PATH.
-  const binDir = path.join(__dirname, "../..", "bin");
+  const binDir = path.resolve(__dirname, BASE_PATH);
   binaryName = path.join(binDir, binaryName);
 
   return binaryName;

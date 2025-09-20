@@ -3,9 +3,9 @@ import {
   CustomLoader,
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
+  getKeypairFromFile,
   rpc,
 } from "../../utils/utils";
-import { getKeypairFromFile } from "@solana-developers/helpers";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { approveAndMintTo } from "@lightprotocol/compressed-token";
 
@@ -41,9 +41,7 @@ class ApproveAndMintToCommand extends Command {
 
   async run() {
     const { flags } = await this.parse(ApproveAndMintToCommand);
-    const mint = flags["mint"];
-    const to = flags["to"];
-    const amount = flags["amount"];
+    const { mint, to, amount } = flags;
     if (!mint || !to || !amount) {
       throw new Error("Invalid arguments");
     }
@@ -55,11 +53,11 @@ class ApproveAndMintToCommand extends Command {
       const mintPublicKey = new PublicKey(mint);
       const toPublicKey = new PublicKey(to);
       const payer = defaultSolanaWalletKeypair();
-
       let mintAuthority: Keypair = payer;
       if (flags["mint-authority"] !== undefined) {
         mintAuthority = await getKeypairFromFile(flags["mint-authority"]);
       }
+
       const txId = await approveAndMintTo(
         rpc(),
         payer,
@@ -70,7 +68,7 @@ class ApproveAndMintToCommand extends Command {
       );
       loader.stop(false);
       console.log(
-        "\x1b[1mMint tx:\x1b[0m ",
+        "\u001B[1mMint tx:\u001B[0m",
         generateSolanaTransactionURL("tx", txId, "custom"),
       );
       console.log("approve-and-mint-to successful");
