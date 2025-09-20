@@ -23,16 +23,16 @@ describe("balance", () => {
 
     let initialBalance = 0;
     if (initialStdout.includes("No accounts found")) {
-        initialBalance = 0;
-      } else {
+      initialBalance = 0;
+    } else {
       const balanceMatch = initialStdout.match(
           /Compressed SOL balance:\s+(\d+)/,
         );
-        if (balanceMatch && balanceMatch[1]) {
-          initialBalance = parseInt(balanceMatch[1], 10);
-        }
+      if (balanceMatch && balanceMatch[1]) {
+        initialBalance = parseInt(balanceMatch[1], 10);
       }
-      console.log(`Initial balance captured: ${initialBalance}`);
+    }
+    console.log(`Initial balance captured: ${initialBalance}`);
 
     // Compress SOL to create a balance to check
     const { stdout: compressStdout } = await runCommand([
@@ -48,20 +48,20 @@ describe("balance", () => {
       `--owner=${owner}`,
     ]);
 
-      // Extract the balance
+    // Extract the balance
     const balanceMatch = finalStdout.match(/Compressed SOL balance:\s+(\d+)/);
-      expect(balanceMatch).to.not.be.null;
+    expect(balanceMatch).to.not.be.null;
 
-      if (balanceMatch && balanceMatch[1]) {
-        const currentBalance = parseInt(balanceMatch[1], 10);
-        console.log(
-          `Current balance: ${currentBalance}, Initial balance: ${initialBalance}, Expected increase: ${amount}`,
-        );
+    if (balanceMatch && balanceMatch[1]) {
+      const currentBalance = parseInt(balanceMatch[1], 10);
+      console.log(
+        `Current balance: ${currentBalance}, Initial balance: ${initialBalance}, Expected increase: ${amount}`,
+      );
 
-        // Verify the balance increased by the compressed amount
-        expect(currentBalance).to.equal(initialBalance + amount);
-      } else {
-        throw new Error("Could not extract balance from output");
-      }
-    });
+      // Verify the balance increased by the compressed amount
+      expect(currentBalance).to.equal(initialBalance + amount);
+    } else {
+      throw new Error("Could not extract balance from output");
+    }
+  });
 });

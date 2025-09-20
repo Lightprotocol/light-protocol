@@ -44,12 +44,12 @@ describe("merge-token-accounts", () => {
     ]);
     expect(stdout).to.contain("Token accounts merged successfully");
 
-        // Verify that accounts were merged
-        const accounts = await rpc().getCompressedTokenAccountsByOwner(
-          payerKeypair.publicKey,
-          { mint: mintKeypair.publicKey },
-        );
-        expect(accounts.items.length).to.equal(1);
+    // Verify that accounts were merged
+    const accounts = await rpc().getCompressedTokenAccountsByOwner(
+      payerKeypair.publicKey,
+      { mint: mintKeypair.publicKey },
+    );
+    expect(accounts.items.length).to.equal(1);
     expect(accounts.items[0].parsed.amount.toNumber()).to.equal(mintAmount * 3);
   });
 });
