@@ -1,9 +1,9 @@
 import { Command, Flags } from "@oclif/core";
-import { getKeypairFromFile } from "@solana-developers/helpers";
 import {
   CustomLoader,
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
+  getKeypairFromFile,
   rpc,
 } from "../../utils/utils";
 import { createMint } from "@lightprotocol/compressed-token";
