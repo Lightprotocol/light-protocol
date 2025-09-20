@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"light/light-prover/logging"
-	"light/light-prover/prover"
+	"light/light-prover/prover/common"
+	v1 "light/light-prover/prover/v1"
+	"light/light-prover/prover/v2"
 	"light/light-prover/server"
 	"os"
 	"os/signal"
@@ -34,6 +36,7 @@ func runCli() {
 					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\" / \"append\" / \"update\" / \"address-append\" )", Required: true},
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.StringFlag{Name: "output-vkey", Usage: "Output file", Required: true},
+					&cli.BoolFlag{Name: "legacy", Usage: "Use legacy V1 circuits (without PublicInputHash)", Required: false},
 					&cli.UintFlag{Name: "inclusion-tree-height", Usage: "[Inclusion]: Merkle tree height", Required: false},
 					&cli.UintFlag{Name: "inclusion-compressed-accounts", Usage: "[Inclusion]: Number of compressed accounts", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-tree-height", Usage: "[Non-inclusion]: merkle tree height", Required: false},
@@ -46,8 +49,8 @@ func runCli() {
 					&cli.UintFlag{Name: "address-append-batch-size", Usage: "[Batch address append]: batch size", Required: false},
 				},
 				Action: func(context *cli.Context) error {
-					circuit := prover.CircuitType(context.String("circuit"))
-					if circuit != prover.InclusionCircuitType && circuit != prover.NonInclusionCircuitType && circuit != prover.CombinedCircuitType && circuit != prover.BatchUpdateCircuitType && circuit != prover.BatchAppendCircuitType && circuit != prover.BatchAddressAppendCircuitType {
+					circuit := common.CircuitType(context.String("circuit"))
+					if circuit != common.InclusionCircuitType && circuit != common.NonInclusionCircuitType && circuit != common.CombinedCircuitType && circuit != common.BatchUpdateCircuitType && circuit != common.BatchAppendCircuitType && circuit != common.BatchAddressAppendCircuitType {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
 
@@ -64,15 +67,18 @@ func runCli() {
 					batchAddressAppendTreeHeight := uint32(context.Uint("address-append-tree-height"))
 					batchAddressAppendBatchSize := uint32(context.Uint("address-append-batch-size"))
 
-					if (inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == prover.InclusionCircuitType {
+					// Use legacy (V1) circuits if explicitly requested
+					useV1 := context.Bool("legacy")
+
+					if (inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0) && circuit == common.InclusionCircuitType {
 						return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
 					}
 
-					if (nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0) && circuit == prover.NonInclusionCircuitType {
+					if (nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0) && circuit == common.NonInclusionCircuitType {
 						return fmt.Errorf("non-inclusion tree height and number of compressed accounts must be provided")
 					}
 
-					if circuit == prover.CombinedCircuitType {
+					if circuit == common.CombinedCircuitType {
 						if inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0 {
 							return fmt.Errorf("inclusion tree height and number of compressed accounts must be provided")
 						}
@@ -81,45 +87,49 @@ func runCli() {
 						}
 					}
 
-					if (batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0) && circuit == prover.BatchUpdateCircuitType {
+					if (batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0) && circuit == common.BatchUpdateCircuitType {
 						return fmt.Errorf("[Batch update]: tree height and batch size must be provided")
 					}
 
-					if (batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0) && circuit == prover.BatchAddressAppendCircuitType {
+					if (batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0) && circuit == common.BatchAddressAppendCircuitType {
 						return fmt.Errorf("[Batch address append]: tree height and batch size must be provided")
 					}
 
 					logging.Logger().Info().Msg("Running setup")
 					var err error
-					if circuit == prover.BatchAppendCircuitType {
-						var system *prover.ProvingSystemV2
-						system, err = prover.SetupCircuitV2(prover.BatchAppendCircuitType, batchAppendTreeHeight, batchAppendBatchSize)
+					if circuit == common.BatchAppendCircuitType {
+						var system *common.BatchProofSystem
+						system, err = v2.SetupBatchOperationCircuit(common.BatchAppendCircuitType, batchAppendTreeHeight, batchAppendBatchSize)
 						if err != nil {
 							return err
 						}
-						err = prover.WriteProvingSystem(system, path, pathVkey)
-					} else if circuit == prover.BatchUpdateCircuitType {
-						var system *prover.ProvingSystemV2
-						system, err = prover.SetupCircuitV2(prover.BatchUpdateCircuitType, batchUpdateTreeHeight, batchUpdateBatchSize)
+						err = common.WriteProvingSystem(system, path, pathVkey)
+					} else if circuit == common.BatchUpdateCircuitType {
+						var system *common.BatchProofSystem
+						system, err = v2.SetupBatchOperationCircuit(common.BatchUpdateCircuitType, batchUpdateTreeHeight, batchUpdateBatchSize)
 						if err != nil {
 							return err
 						}
-						err = prover.WriteProvingSystem(system, path, pathVkey)
-					} else if circuit == prover.BatchAddressAppendCircuitType {
+						err = common.WriteProvingSystem(system, path, pathVkey)
+					} else if circuit == common.BatchAddressAppendCircuitType {
 						fmt.Println("Generating Address Append Circuit")
-						var system *prover.ProvingSystemV2
-						system, err = prover.SetupCircuitV2(prover.BatchAddressAppendCircuitType, batchAddressAppendTreeHeight, batchAddressAppendBatchSize)
+						var system *common.BatchProofSystem
+						system, err = v2.SetupBatchOperationCircuit(common.BatchAddressAppendCircuitType, batchAddressAppendTreeHeight, batchAddressAppendBatchSize)
 						if err != nil {
 							return err
 						}
-						err = prover.WriteProvingSystem(system, path, pathVkey)
+						err = common.WriteProvingSystem(system, path, pathVkey)
 					} else {
-						var system *prover.ProvingSystemV1
-						system, err = prover.SetupCircuitV1(circuit, inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+						var system *common.MerkleProofSystem
+						if useV1 {
+							system, err = v1.SetupMerkleProofCircuit(circuit, inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+						} else {
+							system, err = v2.SetupMerkleProofCircuit(circuit, inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+						}
 						if err != nil {
 							return err
 						}
-						err = prover.WriteProvingSystem(system, path, pathVkey)
+						err = common.WriteProvingSystem(system, path, pathVkey)
 					}
 
 					if err != nil {
@@ -147,13 +157,13 @@ func runCli() {
 					&cli.UintFlag{Name: "address-append-batch-size", Usage: "[Batch address append]: batch size", Required: false},
 				},
 				Action: func(context *cli.Context) error {
-					circuit := prover.CircuitType(context.String("circuit"))
-					if circuit != prover.InclusionCircuitType &&
-						circuit != prover.NonInclusionCircuitType &&
-						circuit != prover.CombinedCircuitType &&
-						circuit != prover.BatchUpdateCircuitType &&
-						circuit != prover.BatchAppendCircuitType &&
-						circuit != prover.BatchAddressAppendCircuitType {
+					circuit := common.CircuitType(context.String("circuit"))
+					if circuit != common.InclusionCircuitType &&
+						circuit != common.NonInclusionCircuitType &&
+						circuit != common.CombinedCircuitType &&
+						circuit != common.BatchUpdateCircuitType &&
+						circuit != common.BatchAppendCircuitType &&
+						circuit != common.BatchAddressAppendCircuitType {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
 
@@ -184,11 +194,11 @@ func runCli() {
 						}
 					}
 
-					if (batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0) && circuit == prover.BatchUpdateCircuitType {
+					if (batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0) && circuit == common.BatchUpdateCircuitType {
 						return fmt.Errorf("[Batch update]: tree height and batch size must be provided")
 					}
 
-					if (batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0) && circuit == prover.BatchAddressAppendCircuitType {
+					if (batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0) && circuit == common.BatchAddressAppendCircuitType {
 						return fmt.Errorf("[Batch address append]: tree height and batch size must be provided")
 					}
 
@@ -197,16 +207,16 @@ func runCli() {
 					var cs constraint.ConstraintSystem
 					var err error
 
-					if circuit == prover.InclusionCircuitType {
-						cs, err = prover.R1CSInclusion(inclusionTreeHeight, inclusionNumberOfCompressedAccounts)
-					} else if circuit == prover.NonInclusionCircuitType {
-						cs, err = prover.R1CSNonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
-					} else if circuit == prover.CombinedCircuitType {
-						cs, err = prover.R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
-					} else if circuit == prover.BatchUpdateCircuitType {
-						cs, err = prover.R1CSBatchUpdate(batchUpdateTreeHeight, batchUpdateBatchSize)
-					} else if circuit == prover.BatchAddressAppendCircuitType {
-						cs, err = prover.R1CSBatchAddressAppend(batchAddressAppendTreeHeight, batchAddressAppendBatchSize)
+					if circuit == common.InclusionCircuitType {
+						cs, err = v2.R1CSInclusion(inclusionTreeHeight, inclusionNumberOfCompressedAccounts)
+					} else if circuit == common.NonInclusionCircuitType {
+						cs, err = v2.R1CSNonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+					} else if circuit == common.CombinedCircuitType {
+						cs, err = v2.R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+					} else if circuit == common.BatchUpdateCircuitType {
+						cs, err = v2.R1CSBatchUpdate(batchUpdateTreeHeight, batchUpdateBatchSize)
+					} else if circuit == common.BatchAddressAppendCircuitType {
+						cs, err = v2.R1CSBatchAddressAppend(batchAddressAppendTreeHeight, batchAddressAppendBatchSize)
 					} else {
 						return fmt.Errorf("invalid circuit type %s", circuit)
 					}
@@ -276,32 +286,32 @@ func runCli() {
 						if batchAppendTreeHeight == 0 || batchAppendBatchSize == 0 {
 							return fmt.Errorf("append tree height and batch size must be provided")
 						}
-						var system *prover.ProvingSystemV2
-						system, err = prover.ImportBatchAppendSetup(batchAppendTreeHeight, batchAppendBatchSize, pk, vk)
+						var system *common.BatchProofSystem
+						system, err = v2.ImportBatchAppendSetup(batchAppendTreeHeight, batchAppendBatchSize, pk, vk)
 						if err != nil {
 							return err
 						}
-						err = prover.WriteProvingSystem(system, path, "")
+						err = common.WriteProvingSystem(system, path, "")
 					} else if circuit == "update" {
 						if batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0 {
 							return fmt.Errorf("append tree height and batch size must be provided")
 						}
-						var system *prover.ProvingSystemV2
-						system, err = prover.ImportBatchUpdateSetup(batchUpdateTreeHeight, batchUpdateBatchSize, pk, vk)
+						var system *common.BatchProofSystem
+						system, err = v2.ImportBatchUpdateSetup(batchUpdateTreeHeight, batchUpdateBatchSize, pk, vk)
 						if err != nil {
 							return err
 						}
-						err = prover.WriteProvingSystem(system, path, "")
+						err = common.WriteProvingSystem(system, path, "")
 					} else if circuit == "address-append" {
 						if batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0 {
 							return fmt.Errorf("append tree height and batch size must be provided")
 						}
-						var system *prover.ProvingSystemV2
-						system, err = prover.ImportBatchAddressAppendSetup(batchAddressAppendTreeHeight, batchAddressAppendBatchSize, pk, vk)
+						var system *common.BatchProofSystem
+						system, err = v2.ImportBatchAddressAppendSetup(batchAddressAppendTreeHeight, batchAddressAppendBatchSize, pk, vk)
 						if err != nil {
 							return err
 						}
-						err = prover.WriteProvingSystem(system, path, "")
+						err = common.WriteProvingSystem(system, path, "")
 					} else {
 						if circuit == "inclusion" || circuit == "combined" {
 							if inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0 {
@@ -314,19 +324,19 @@ func runCli() {
 							}
 						}
 
-						var system *prover.ProvingSystemV1
+						var system *common.MerkleProofSystem
 						switch circuit {
 						case "inclusion":
-							system, err = prover.ImportInclusionSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, pk, vk)
+							system, err = v2.ImportInclusionSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, pk, vk)
 						case "non-inclusion":
-							system, err = prover.ImportNonInclusionSetup(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
+							system, err = v2.ImportNonInclusionSetup(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
 						case "combined":
-							system, err = prover.ImportCombinedSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
+							system, err = v2.ImportCombinedSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
 						}
 						if err != nil {
 							return err
 						}
-						err = prover.WriteProvingSystem(system, path, "")
+						err = common.WriteProvingSystem(system, path, "")
 					}
 
 					if err != nil {
@@ -347,16 +357,16 @@ func runCli() {
 					keysFile := context.String("keys-file")
 					outputFile := context.String("output")
 
-					system, err := prover.ReadSystemFromFile(keysFile)
+					system, err := common.ReadSystemFromFile(keysFile)
 					if err != nil {
 						return fmt.Errorf("failed to read proving system: %v", err)
 					}
 
 					var vk interface{}
 					switch s := system.(type) {
-					case *prover.ProvingSystemV1:
+					case *common.MerkleProofSystem:
 						vk = s.VerifyingKey
-					case *prover.ProvingSystemV2:
+					case *common.BatchProofSystem:
 						vk = s.VerifyingKey
 					default:
 						return fmt.Errorf("unknown proving system type")
@@ -402,7 +412,7 @@ func runCli() {
 					var r []byte
 					var err error
 
-					params := prover.BuildTestTree(treeHeight, compressedAccounts, false)
+					params := v2.BuildTestTree(treeHeight, compressedAccounts, false)
 
 					r, err = json.Marshal(&params)
 
@@ -460,7 +470,7 @@ func runCli() {
 
 					var keysDirPath = context.String("keys-dir")
 					debugProvingSystemKeys(keysDirPath, runMode, circuits)
-					psv1, psv2, err := prover.LoadKeys(keysDirPath, runMode, circuits)
+					psv1, psv2, err := common.LoadKeys(keysDirPath, runMode, circuits)
 					if err != nil {
 						return err
 					}
@@ -515,7 +525,7 @@ func runCli() {
 
 						logging.Logger().Info().Msg("Starting queue workers")
 
-						startAllWorkers := runMode == prover.Forester || runMode == prover.ForesterTest || runMode == prover.Full || runMode == prover.FullTest
+						startAllWorkers := runMode == common.Forester || runMode == common.ForesterTest || runMode == common.Full || runMode == common.FullTest
 
 						var workersStarted []string
 
@@ -646,7 +656,7 @@ func runCli() {
 					}
 					var keysDirPath = context.String("keys-dir")
 
-					psv1, psv2, err := prover.LoadKeys(keysDirPath, runMode, circuits)
+					psv1, psv2, err := common.LoadKeys(keysDirPath, runMode, circuits)
 					if err != nil {
 						return err
 					}
@@ -660,11 +670,10 @@ func runCli() {
 					if err != nil {
 						return err
 					}
-					var proof *prover.Proof
+					var proof *common.Proof
 
-					// TODO: differentiate between address circuits by tree height depending on inputs
 					if context.Bool("inclusion") {
-						var params prover.InclusionParameters
+						var params v2.InclusionParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
@@ -674,7 +683,7 @@ func runCli() {
 						compressedAccounts := params.NumberOfCompressedAccounts()
 						for _, provingSystem := range psv1 {
 							if provingSystem.InclusionTreeHeight == treeHeight && provingSystem.InclusionNumberOfCompressedAccounts == compressedAccounts {
-								proof, err = provingSystem.ProveInclusion(&params)
+								proof, err = v2.ProveInclusion(provingSystem, &params)
 								if err != nil {
 									return err
 								}
@@ -684,7 +693,7 @@ func runCli() {
 							}
 						}
 					} else if context.Bool("non-inclusion") {
-						var params prover.NonInclusionParameters
+						var params v2.NonInclusionParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
@@ -696,7 +705,7 @@ func runCli() {
 						logging.Logger().Info().Msgf("Compressed Accounts: %d", compressedAccounts)
 						for _, provingSystem := range psv1 {
 							if provingSystem.NonInclusionTreeHeight == treeHeight && provingSystem.NonInclusionNumberOfCompressedAccounts == compressedAccounts {
-								proof, err = provingSystem.ProveNonInclusion(&params)
+								proof, err = v2.ProveNonInclusion(provingSystem, &params)
 								if err != nil {
 									return err
 								}
@@ -706,7 +715,7 @@ func runCli() {
 							}
 						}
 					} else if context.Bool("inclusion") && context.Bool("non-inclusion") {
-						var params prover.CombinedParameters
+						var params v2.CombinedParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
@@ -714,7 +723,7 @@ func runCli() {
 
 						for _, provingSystem := range psv1 {
 							if provingSystem.InclusionTreeHeight == params.TreeHeight() && provingSystem.InclusionNumberOfCompressedAccounts == params.NumberOfCompressedAccounts() && provingSystem.NonInclusionTreeHeight == params.NonInclusionTreeHeight() && provingSystem.InclusionNumberOfCompressedAccounts == params.NonInclusionNumberOfCompressedAccounts() {
-								proof, err = provingSystem.ProveCombined(&params)
+								proof, err = v2.ProveCombined(provingSystem, &params)
 								if err != nil {
 									return err
 								}
@@ -724,7 +733,7 @@ func runCli() {
 							}
 						}
 					} else if context.Bool("append") {
-						var params prover.BatchAppendParameters
+						var params v2.BatchAppendParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
@@ -732,7 +741,7 @@ func runCli() {
 
 						for _, provingSystem := range psv2 {
 							if provingSystem.TreeHeight == params.Height && provingSystem.BatchSize == params.BatchSize {
-								proof, err = provingSystem.ProveBatchAppend(&params)
+								proof, err = v2.ProveBatchAppend(provingSystem, &params)
 								if err != nil {
 									return err
 								}
@@ -742,7 +751,7 @@ func runCli() {
 							}
 						}
 					} else if context.Bool("update") {
-						var params prover.BatchUpdateParameters
+						var params v2.BatchUpdateParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
@@ -750,7 +759,7 @@ func runCli() {
 
 						for _, provingSystem := range psv2 {
 							if provingSystem.TreeHeight == params.Height && provingSystem.BatchSize == params.BatchSize {
-								proof, err = provingSystem.ProveBatchUpdate(&params)
+								proof, err = v2.ProveBatchUpdate(provingSystem, &params)
 								if err != nil {
 									return err
 								}
@@ -760,7 +769,7 @@ func runCli() {
 							}
 						}
 					} else if context.Bool("address-append") {
-						var params prover.BatchAddressAppendParameters
+						var params v2.BatchAddressAppendParameters
 						err = json.Unmarshal(inputsBytes, &params)
 						if err != nil {
 							return err
@@ -768,7 +777,7 @@ func runCli() {
 
 						for _, provingSystem := range psv2 {
 							if provingSystem.TreeHeight == params.TreeHeight && provingSystem.BatchSize == params.BatchSize {
-								proof, err = provingSystem.ProveBatchAddressAppend(&params)
+								proof, err = v2.ProveBatchAddressAppend(provingSystem, &params)
 								if err != nil {
 									return err
 								}
@@ -799,7 +808,7 @@ func runCli() {
 					keys := context.String("keys-file")
 					circuit := context.String("circuit")
 
-					system, err := prover.ReadSystemFromFile(keys)
+					system, err := common.ReadSystemFromFile(keys)
 					if err != nil {
 						return fmt.Errorf("failed to read proving system: %v", err)
 					}
@@ -810,7 +819,7 @@ func runCli() {
 						return fmt.Errorf("failed to read proof from stdin: %v", err)
 					}
 
-					var proof prover.Proof
+					var proof common.Proof
 					err = json.Unmarshal(proofBytes, &proof)
 					if err != nil {
 						return fmt.Errorf("failed to unmarshal proof: %v", err)
@@ -818,22 +827,22 @@ func runCli() {
 
 					var verifyErr error
 					switch s := system.(type) {
-					case *prover.ProvingSystemV1:
+					case *common.MerkleProofSystem:
 						publicInputsHashStr := context.String("publicInputsHash")
-						publicInputsHash, err := prover.ParseBigInt(publicInputsHashStr)
+						publicInputsHash, err := common.ParseBigInt(publicInputsHashStr)
 						if err != nil {
 							return fmt.Errorf("failed to parse roots: %v", err)
 						}
 
 						switch circuit {
 						case "inclusion":
-							verifyErr = s.VerifyInclusion(*publicInputsHash, &proof)
+							verifyErr = v2.VerifyInclusion(s, *publicInputsHash, &proof)
 						case "non-inclusion":
-							verifyErr = s.VerifyNonInclusion(*publicInputsHash, &proof)
+							verifyErr = v2.VerifyNonInclusion(s, *publicInputsHash, &proof)
 						case "combined":
-							verifyErr = s.VerifyCombined(*publicInputsHash, &proof)
+							verifyErr = v2.VerifyCombined(s, *publicInputsHash, &proof)
 						default:
-							return fmt.Errorf("invalid circuit type for ProvingSystemV1: %s", circuit)
+							return fmt.Errorf("invalid circuit type for MerkleProofSystem: %s", circuit)
 						}
 					default:
 						return fmt.Errorf("unknown proving system type")
@@ -863,7 +872,7 @@ func runCli() {
 					compressedAccounts := uint32(context.Uint("compressed-accounts"))
 
 					logging.Logger().Info().Msg("Extracting gnark circuit to Lean")
-					circuitString, err := prover.ExtractLean(stateTreeHeight, addressTreeHeight, compressedAccounts)
+					circuitString, err := v2.ExtractLean(stateTreeHeight, addressTreeHeight, compressedAccounts)
 					if err != nil {
 						return err
 					}
@@ -894,41 +903,41 @@ func runCli() {
 	}
 }
 
-func parseRunMode(runModeString string) (prover.RunMode, error) {
-	runMode := prover.LocalRpc
+func parseRunMode(runModeString string) (common.RunMode, error) {
+	runMode := common.LocalRpc
 	switch runModeString {
 	case "rpc":
 		logging.Logger().Info().Msg("Running in rpc mode")
-		runMode = prover.Rpc
+		runMode = common.Rpc
 	case "local-rpc":
 		logging.Logger().Info().Msg("Running in local-rpc mode")
-		runMode = prover.LocalRpc
+		runMode = common.LocalRpc
 	case "forester":
 		logging.Logger().Info().Msg("Running in forester mode")
-		runMode = prover.Forester
+		runMode = common.Forester
 	case "forester-test":
 		logging.Logger().Info().Msg("Running in forester test mode")
-		runMode = prover.ForesterTest
+		runMode = common.ForesterTest
 	case "full":
 		logging.Logger().Info().Msg("Running in full mode")
-		runMode = prover.Full
+		runMode = common.Full
 	case "full-test":
 		logging.Logger().Info().Msg("Running in full mode")
-		runMode = prover.FullTest
+		runMode = common.FullTest
 	default:
 		return "", fmt.Errorf("invalid run mode %s", runModeString)
 	}
 	return runMode, nil
 }
 
-func debugProvingSystemKeys(keysDirPath string, runMode prover.RunMode, circuits []string) {
+func debugProvingSystemKeys(keysDirPath string, runMode common.RunMode, circuits []string) {
 	logging.Logger().Info().
 		Str("keysDirPath", keysDirPath).
 		Str("runMode", string(runMode)).
 		Strs("circuits", circuits).
 		Msg("Debug: Loading proving system keys")
 
-	keys := prover.GetKeys(keysDirPath, runMode, circuits)
+	keys := common.GetKeys(keysDirPath, runMode, circuits)
 	for _, key := range keys {
 		if _, err := os.Stat(key); err != nil {
 			if os.IsNotExist(err) {
