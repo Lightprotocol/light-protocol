@@ -34,8 +34,8 @@ describe("decompress-spl", () => {
   });
 
   it(`decompress ${
-        mintAmount - 1
-      } tokens to ${payerKeypair.publicKey.toBase58()} from ${payerKeypair.publicKey.toBase58()}`, async () => {
+    mintAmount - 1
+  } tokens to ${payerKeypair.publicKey.toBase58()} from ${payerKeypair.publicKey.toBase58()}`, async () => {
     const { stdout } = await runCommand([
       "decompress-spl",
       `--mint=${mintKeypair.publicKey.toBase58()}`,

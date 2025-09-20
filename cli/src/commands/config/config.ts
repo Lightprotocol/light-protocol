@@ -81,19 +81,24 @@ class ConfigCommand extends Command {
 async function logConfig(config: any) {
   const tableData = [];
 
-  tableData.push({
-    name: "Solana RPC URL",
-    value: config.solanaRpcUrl,
-  }, {
-    name: "Indexer URL",
-    value: config.indexerUrl,
-  }, {
-    name: "Prover URL",
-    value: config.proverUrl,
-  }, {
-    name: "",
-    value: "",
-  });
+  tableData.push(
+    {
+      name: "Solana RPC URL",
+      value: config.solanaRpcUrl,
+    },
+    {
+      name: "Indexer URL",
+      value: config.indexerUrl,
+    },
+    {
+      name: "Prover URL",
+      value: config.proverUrl,
+    },
+    {
+      name: "",
+      value: "",
+    },
+  );
 
   // Dynamically import @oclif/table since it's ESM-only
   const { printTable } = await import("@oclif/table");
@@ -102,7 +107,7 @@ async function logConfig(config: any) {
     data: tableData,
     columns: [
       { key: "name", name: "" },
-      { key: "value", name: "" }
+      { key: "value", name: "" },
     ],
   });
 }

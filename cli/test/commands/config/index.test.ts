@@ -36,8 +36,6 @@ describe("config with env variable", () => {
       "config",
       "--solanaRpcUrl=http://127.0.0.1:8899",
     ]);
-    expect(stdout).to.contain(
-      `reading config from custom path ${filePath}`,
-    );
+    expect(stdout).to.contain(`reading config from custom path ${filePath}`);
   });
 });

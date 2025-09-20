@@ -16,7 +16,10 @@ describe("decompress-sol", () => {
 
   it(`full compress-check-decompress-check cycle for ${amount} SOL to ${to}`, async () => {
     // Get initial balance first
-    const { stdout: initialBalanceStdout } = await runCommand(["balance", `--owner=${to}`]);
+    const { stdout: initialBalanceStdout } = await runCommand([
+      "balance",
+      `--owner=${to}`,
+    ]);
 
     let initialBalance = 0;
     if (initialBalanceStdout.includes("No accounts found")) {
@@ -35,14 +38,19 @@ describe("decompress-sol", () => {
     const { stdout: compressStdout } = await runCommand([
       "compress-sol",
       `--amount=${amount}`,
-      `--to=${to}`
+      `--to=${to}`,
     ]);
     expect(compressStdout).to.contain("compress-sol successful");
 
     // Check balance after compression
-    const { stdout: afterCompressStdout } = await runCommand(["balance", `--owner=${to}`]);
+    const { stdout: afterCompressStdout } = await runCommand([
+      "balance",
+      `--owner=${to}`,
+    ]);
 
-    const balanceMatchAfterCompress = afterCompressStdout.match(/Compressed SOL balance:\s+(\d+)/);
+    const balanceMatchAfterCompress = afterCompressStdout.match(
+      /Compressed SOL balance:\s+(\d+)/,
+    );
     expect(balanceMatchAfterCompress).to.not.be.null;
 
     let balanceAfterCompression = 0;
@@ -60,12 +68,15 @@ describe("decompress-sol", () => {
     const { stdout: decompressStdout } = await runCommand([
       "decompress-sol",
       `--amount=${amount}`,
-      `--to=${to}`
+      `--to=${to}`,
     ]);
     expect(decompressStdout).to.contain("decompress-sol successful");
 
     // Check balance after decompression
-    const { stdout: finalBalanceStdout } = await runCommand(["balance", `--owner=${to}`]);
+    const { stdout: finalBalanceStdout } = await runCommand([
+      "balance",
+      `--owner=${to}`,
+    ]);
 
     // Extract the final balance
     if (finalBalanceStdout.includes("No accounts found")) {

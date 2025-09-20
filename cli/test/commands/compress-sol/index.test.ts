@@ -17,7 +17,10 @@ describe("compress-sol", () => {
 
   it(`compress-sol ${amount} lamports to ${to} and verify balance increase`, async () => {
     // Get initial balance first
-    const { stdout: initialStdout } = await runCommand(["balance", `--owner=${to}`]);
+    const { stdout: initialStdout } = await runCommand([
+      "balance",
+      `--owner=${to}`,
+    ]);
 
     let initialBalance = 0;
     if (initialStdout.includes("No accounts found")) {
@@ -37,17 +40,18 @@ describe("compress-sol", () => {
     const { stdout: compressStdout } = await runCommand([
       "compress-sol",
       `--amount=${amount}`,
-      `--to=${to}`
+      `--to=${to}`,
     ]);
     expect(compressStdout).to.contain("compress-sol successful");
 
     // Check balance after compression
-    const { stdout: finalStdout } = await runCommand(["balance", `--owner=${to}`]);
+    const { stdout: finalStdout } = await runCommand([
+      "balance",
+      `--owner=${to}`,
+    ]);
 
     // Extract the new balance
-    const balanceMatch = finalStdout.match(
-      /Compressed SOL balance:\s+(\d+)/,
-    );
+    const balanceMatch = finalStdout.match(/Compressed SOL balance:\s+(\d+)/);
     expect(balanceMatch).to.not.be.null;
 
     if (balanceMatch && balanceMatch[1]) {

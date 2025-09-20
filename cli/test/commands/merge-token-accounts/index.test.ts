@@ -50,8 +50,6 @@ describe("merge-token-accounts", () => {
       { mint: mintKeypair.publicKey },
     );
     expect(accounts.items.length).to.equal(1);
-    expect(accounts.items[0].parsed.amount.toNumber()).to.equal(
-      mintAmount * 3,
-    );
+    expect(accounts.items[0].parsed.amount.toNumber()).to.equal(mintAmount * 3);
   });
 });
