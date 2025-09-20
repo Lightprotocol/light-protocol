@@ -103,7 +103,7 @@ Every instruction description must include the sections:
 
 ## Shared Components
 - **`shared/`** - Common utilities used across instructions
-  - `initialize_token_account.rs` - Token account initialization with extensions
+  - `initialize_ctoken_account.rs` - Token account initialization with extensions
   - `create_pda_account.rs` - PDA creation and validation
   - `transfer_lamports.rs` - Safe lamport transfer helpers
 - **`extensions/`** - Extension handling (compressible, metadata)

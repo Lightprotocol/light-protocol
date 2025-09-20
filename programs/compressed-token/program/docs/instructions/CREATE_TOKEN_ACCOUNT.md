@@ -81,8 +81,8 @@
     3.5. else
         3.5.1. create account with `rent_payer_pda` as fee payer via cpi (pays only rent exemption)
         3.5.2. transfer compression incentive to created ctoken account from payer via cpi
-    3.6. `initialize_token_account`
-        programs/compressed-token/program/src/shared/initialize_token_account.rs
+    3.6. `initialize_ctoken_account`
+        programs/compressed-token/program/src/shared/initialize_ctoken_account.rs
         3.6.1. compressible extension intialization
           copy version from config (used to match config PDA version in subsequent instructions)
           if custom fee payer, set custom fee payer as ctoken account rent recipient

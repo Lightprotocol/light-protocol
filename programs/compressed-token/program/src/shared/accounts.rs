@@ -1,5 +1,5 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::account_info::AccountInfo;
 
 use crate::shared::AccountIterator;
 
@@ -74,61 +74,5 @@ impl<'info> LightSystemAccounts<'info> {
                 .next_option("sol_decompression_recipient", decompress_sol)?,
             cpi_context: iter.next_option_mut("cpi_context", with_cpi_context)?,
         })
-    }
-}
-
-pub struct UpdateOneCompressedAccountTreeAccounts<'info> {
-    pub in_merkle_tree: &'info AccountInfo,
-    pub in_output_queue: &'info AccountInfo,
-    pub out_output_queue: &'info AccountInfo,
-}
-
-impl<'info> UpdateOneCompressedAccountTreeAccounts<'info> {
-    #[track_caller]
-    pub fn validate_and_parse(
-        iter: &mut AccountIterator<'info, AccountInfo>,
-    ) -> Result<Self, ProgramError> {
-        let in_merkle_tree = iter.next_mut("in_merkle_tree")?;
-        let in_output_queue = iter.next_mut("in_output_queue")?;
-        let out_output_queue = iter.next_mut("out_output_queue")?;
-
-        Ok(Self {
-            in_merkle_tree,
-            in_output_queue,
-            out_output_queue,
-        })
-    }
-
-    #[inline(always)]
-    pub fn pubkeys(&self) -> [&'info Pubkey; 3] {
-        [
-            self.in_merkle_tree.key(),
-            self.in_output_queue.key(),
-            self.out_output_queue.key(),
-        ]
-    }
-}
-
-pub struct CreateCompressedAccountTreeAccounts<'info> {
-    pub address_merkle_tree: &'info AccountInfo,
-    pub out_output_queue: &'info AccountInfo,
-}
-
-impl<'info> CreateCompressedAccountTreeAccounts<'info> {
-    #[track_caller]
-    pub fn validate_and_parse(
-        iter: &mut AccountIterator<'info, AccountInfo>,
-    ) -> Result<Self, ProgramError> {
-        let address_merkle_tree = iter.next_mut("address_merkle_tree")?;
-        let out_output_queue = iter.next_mut("out_output_queue")?;
-        Ok(Self {
-            address_merkle_tree,
-            out_output_queue,
-        })
-    }
-
-    #[inline(always)]
-    pub fn pubkeys(&self) -> [&'info Pubkey; 2] {
-        [self.address_merkle_tree.key(), self.out_output_queue.key()]
     }
 }

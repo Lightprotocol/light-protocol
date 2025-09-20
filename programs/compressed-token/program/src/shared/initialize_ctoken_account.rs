@@ -15,7 +15,7 @@ use crate::ErrorCode;
 
 /// Initialize a token account using spl-pod with zero balance and default settings
 #[profile]
-pub fn initialize_token_account(
+pub fn initialize_ctoken_account(
     token_account_info: &AccountInfo,
     mint_pubkey: &[u8; 32],
     owner_pubkey: &[u8; 32],

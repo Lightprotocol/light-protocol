@@ -18,7 +18,7 @@ use pinocchio_system::instructions::CreateAccount;
 use spl_pod::{bytemuck, solana_msg::msg};
 
 use crate::shared::{
-    create_pda_account, initialize_token_account::initialize_token_account,
+    create_pda_account, initialize_ctoken_account::initialize_ctoken_account,
     transfer_lamports_via_cpi, CreatePdaAccountConfig,
 };
 
@@ -212,7 +212,7 @@ pub fn process_create_token_account(
     };
 
     // Initialize the token account (assumes account already exists and is owned by our program)
-    initialize_token_account(
+    initialize_ctoken_account(
         accounts.token_account,
         accounts.mint.key(),
         &inputs.owner.to_bytes(),

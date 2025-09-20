@@ -13,7 +13,7 @@ use spl_pod::solana_msg::msg;
 use crate::{
     create_token_account::next_config_account,
     shared::{
-        create_pda_account, initialize_token_account::initialize_token_account,
+        create_pda_account, initialize_ctoken_account::initialize_ctoken_account,
         transfer_lamports_via_cpi, validate_ata_derivation, CreatePdaAccountConfig,
     },
 };
@@ -125,7 +125,7 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
         (None, None)
     };
 
-    initialize_token_account(
+    initialize_ctoken_account(
         associated_token_account,
         &mint_bytes,
         &owner_bytes,
