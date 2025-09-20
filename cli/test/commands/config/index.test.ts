@@ -15,7 +15,7 @@ describe("config", () => {
       "--solanaRpcUrl=http://127.0.0.1:8899",
     ]);
     expect(stdout).to.contain("Configuration values updated successfully");
-    });
+  });
 });
 
 let filePath = process.env.INIT_CWD + "/config.json";
@@ -37,5 +37,5 @@ describe("config with env variable", () => {
       "--solanaRpcUrl=http://127.0.0.1:8899",
     ]);
     expect(stdout).to.contain(`reading config from custom path ${filePath}`);
-    });
+  });
 });
