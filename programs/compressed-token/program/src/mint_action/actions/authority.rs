@@ -2,6 +2,7 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::Pubkey;
 use spl_pod::solana_msg::msg;
+use std::panic::Location;
 
 /// Universal authority validation function for all authority types
 /// Uses #[track_caller] to provide better error messages with source location
@@ -18,9 +19,13 @@ pub fn check_authority(
 ) -> Result<(), ProgramError> {
     // Check if fallback authority is None - this is a revoked state
     if fallback_authority.is_none() {
+        let location = Location::caller();
         msg!(
-            "{} has been revoked (instruction data is None)",
-            authority_name
+            "{} has been revoked (instruction data is None). {}:{}:{}",
+            authority_name,
+            location.file(),
+            location.line(),
+            location.column()
         );
         return Err(ErrorCode::InvalidAuthorityMint.into());
     }
@@ -30,26 +35,41 @@ pub fn check_authority(
         .copied()
         .or(fallback_authority)
         .ok_or_else(|| {
-            msg!("No {} set", authority_name);
+            let location = Location::caller();
+            msg!(
+                "No {} set. {}:{}:{}",
+                authority_name,
+                location.file(),
+                location.line(),
+                location.column()
+            );
             ErrorCode::InvalidAuthorityMint
         })?;
 
     // Validate signer matches authority
     if authority.to_bytes() != *signer {
+        let location = Location::caller();
         // Check if authority has been revoked (set to zero)
         if authority.to_bytes() == [0u8; 32] {
-            msg!("{} has been revoked (set to zero)", authority_name);
+            msg!(
+                "{} has been revoked (set to zero). {}:{}:{}",
+                authority_name,
+                location.file(),
+                location.line(),
+                location.column()
+            );
             return Err(ErrorCode::InvalidAuthorityMint.into());
         }
-
         msg!(
-            "Invalid {}: signer {:?} doesn't match expected {:?}",
+            "Invalid {}: signer {:?} doesn't match expected {:?}. {}:{}:{}",
             authority_name,
             solana_pubkey::Pubkey::new_from_array(*signer),
-            solana_pubkey::Pubkey::new_from_array(authority.to_bytes())
+            solana_pubkey::Pubkey::new_from_array(authority.to_bytes()),
+            location.file(),
+            location.line(),
+            location.column()
         );
         return Err(ErrorCode::InvalidAuthorityMint.into());
     }
-
     Ok(())
 }

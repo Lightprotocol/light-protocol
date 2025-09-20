@@ -4,20 +4,17 @@ use light_compressed_account::{
     instruction_data::with_readonly::ZInstructionDataInvokeCpiWithReadOnlyMut, Pubkey,
 };
 use light_ctoken_types::{
-    instructions::mint_action::ZMintActionCompressedInstructionData, CTokenError,
-    COMPRESSED_MINT_SEED,
+    instructions::mint_action::ZMintActionCompressedInstructionData, COMPRESSED_MINT_SEED,
 };
 use light_profiler::profile;
 use spl_pod::solana_msg::msg;
-
-use crate::mint_action::accounts::MintActionAccounts;
 
 /// Processes the create mint action by validating parameters and setting up the new address.
 /// Note, the compressed output account creation is unified with other actions in a different function.
 #[profile]
 pub fn process_create_mint_action(
     parsed_instruction_data: &ZMintActionCompressedInstructionData<'_>,
-    validated_accounts: &MintActionAccounts,
+    mint_signer: &pinocchio::pubkey::Pubkey,
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
     address_merkle_tree_account_index: u8,
 ) -> Result<(), ProgramError> {
@@ -26,14 +23,11 @@ pub fn process_create_mint_action(
     // - The spl mint pda is used as mint in compressed token accounts.
     // Note: we cant use pinocchio_pubkey::derive_address because don't use the mint_pda in this ix.
     //  The pda would be unvalidated and an invalid bump could be used.
-    let mint_signer = validated_accounts
-        .mint_signer
-        .ok_or(CTokenError::ExpectedMintSignerAccount)
-        .map_err(|_| ErrorCode::MintActionMissingExecutingAccounts)?;
+
     let spl_mint_pda: Pubkey = solana_pubkey::Pubkey::create_program_address(
         &[
             COMPRESSED_MINT_SEED,
-            mint_signer.key().as_slice(),
+            mint_signer.as_slice(),
             &[parsed_instruction_data.mint_bump],
         ],
         &crate::ID,
@@ -53,7 +47,7 @@ pub fn process_create_mint_action(
                 .cpi_context
                 .as_ref()
                 .map(|ctx| ctx.assigned_account_index)
-                .unwrap_or_default(),
+                .unwrap_or_else(|| 0),
         ),
         address_merkle_tree_account_index,
     );

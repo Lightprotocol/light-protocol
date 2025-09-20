@@ -13,7 +13,7 @@ use light_compressed_token::{
     constants::TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
     shared::{
         cpi_bytes_size::{
-            allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, token_data_len,
+            allocate_invoke_with_read_only_cpi_bytes, compressed_token_data_len, cpi_bytes_config,
             CpiConfigInput,
         },
         token_output::set_output_compressed_account,
@@ -69,7 +69,7 @@ fn test_rnd_create_output_compressed_accounts() {
         // Create output config
         let mut outputs = ArrayVec::new();
         for &has_delegate in &delegate_flags {
-            outputs.push((false, token_data_len(has_delegate))); // Token accounts don't have addresses
+            outputs.push((false, compressed_token_data_len(has_delegate))); // Token accounts don't have addresses
         }
 
         let config_input = CpiConfigInput {

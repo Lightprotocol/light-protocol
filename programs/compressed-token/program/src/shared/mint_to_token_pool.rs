@@ -50,12 +50,10 @@ pub fn mint_to_token_pool(
     let signer = Signer::from(&seed_array);
 
     // Execute the mint_to CPI call
-    match invoke_signed(
+    invoke_signed(
         &mint_to_ix,
         &[mint_account, token_pool_account, cpi_authority_pda],
         &[signer],
-    ) {
-        Ok(()) => Ok(()),
-        Err(e) => Err(ProgramError::Custom(u64::from(e) as u32)),
-    }
+    )
+    .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
 }

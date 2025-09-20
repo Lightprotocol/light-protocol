@@ -34,7 +34,7 @@ pub fn initialize_ctoken_account(
     let actual_size = token_account_data.len();
 
     // Check account size before attempting to initialize
-    if actual_size < required_size {
+    if actual_size != required_size {
         msg!(
             "Account too small: required {} bytes, got {} bytes",
             required_size,

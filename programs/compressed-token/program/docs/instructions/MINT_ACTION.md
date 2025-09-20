@@ -13,7 +13,7 @@ This instruction supports 9 total actions - one creation action (controlled by `
 1. **Create Compressed Mint** - Create a new compressed mint account with initial authorities and optional TokenMetadata extension
 
 **Core mint operations (Action enum variants):**
-2. `MintTo` - Mint new compressed tokens to one or more compressed token accounts
+2. `MintToCompressed` - Mint new compressed tokens to one or more compressed token accounts
 3. `MintToCToken` - Mint new tokens to decompressed ctoken accounts (not SPL tokens)
 4. `CreateSplMint` - Create an SPL Token 2022 mint for an existing compressed mint, enabling SPL interoperability
 
@@ -50,7 +50,7 @@ Key concepts integrated:
    - `mint`: CompressedMintInstructionData - Full mint state including supply, decimals, metadata, authorities, and extensions
 
 2. Action types (path: program-libs/ctoken-types/src/instructions/mint_action/):
-   - `MintTo(MintToCompressedAction)` - Mint tokens to compressed accounts (mint_to.rs)
+   - `MintToCompressed(MintToCompressedAction)` - Mint tokens to compressed accounts (mint_to.rs)
    - `UpdateMintAuthority(UpdateAuthority)` - Update mint authority (update_mint.rs)
    - `UpdateFreezeAuthority(UpdateAuthority)` - Update freeze authority (update_mint.rs)
    - `CreateSplMint(CreateSplMintAction)` - Create SPL mint for cmint (create_spl_mint.rs)
@@ -109,7 +109,7 @@ For execution (when not writing to CPI context):
    - Input queue for existing compressed mint
 
 16. tokens_out_queue
-   - (mutable) - optional, required for MintTo actions
+   - (mutable) - optional, required for MintToCompressed actions
    - Output queue for newly minted compressed token accounts
 
 For CPI context write (when write_to_cpi_context=true):
@@ -144,7 +144,7 @@ Packed accounts (remaining accounts):
 4. **Process actions sequentially:**
    Each action validates authority and updates compressed mint state:
 
-   **MintTo:**
+   **MintToCompressed:**
    - Validate: mint authority matches signer
    - Calculate: sum recipient amounts with overflow protection
    - Update: mint supply += sum_amounts

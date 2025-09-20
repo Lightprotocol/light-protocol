@@ -7,8 +7,8 @@ use light_ctoken_types::{
         extensions::ZExtensionInstructionData, mint_action::ZMintActionCompressedInstructionData,
     },
     state::{
-        AdditionalMetadata, BaseMint, CompressedMint, CompressedMintConfig, CompressedMintMetadata,
-        ExtensionStruct, TokenMetadata,
+        AdditionalMetadata, BaseMint, CompressedMint, CompressedMintMetadata, ExtensionStruct,
+        TokenMetadata,
     },
     CTokenError,
 };
@@ -107,24 +107,4 @@ pub fn create_input_compressed_mint_account(
     )?;
 
     Ok(())
-}
-
-#[inline(always)]
-pub fn get_zero_copy_config(
-    parsed_instruction_data: &ZMintActionCompressedInstructionData,
-) -> Result<CompressedMintConfig, CTokenError> {
-    let (_, output_extensions_config, _) =
-        crate::extensions::process_extensions_config_with_actions(
-            parsed_instruction_data.mint.extensions.as_ref(),
-            &parsed_instruction_data.actions,
-        )?;
-
-    Ok(CompressedMintConfig {
-        base: (),
-        metadata: (),
-        extensions: (
-            !output_extensions_config.is_empty(),
-            output_extensions_config,
-        ),
-    })
 }

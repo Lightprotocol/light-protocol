@@ -256,7 +256,7 @@ fn compute_expected_config(data: &MintActionCompressedInstructionData) -> Accoun
 // ============================================================================
 
 #[test]
-fn test_accounts_config_randomized_comprehensive() {
+fn test_accounts_config_randomized() {
     let mut rng = thread_rng();
     let seed: u64 = rng.gen();
     println!("seed value: {}", seed);
@@ -276,11 +276,62 @@ fn test_accounts_config_randomized_comprehensive() {
         let (zero_copy_data, _) = MintActionCompressedInstructionData::zero_copy_at(&serialized)
             .expect("Failed to deserialize as zero-copy");
 
-        // Compute expected config
-        let expected_config = compute_expected_config(&instruction_data);
+        // Check if this configuration should error
+        let should_error = check_if_config_should_error(&instruction_data);
 
         // Generate actual config
-        let actual_config = AccountsConfig::new(&zero_copy_data);
-        assert_eq!(expected_config, actual_config);
+        let actual_config_result = AccountsConfig::new(&zero_copy_data);
+
+        if should_error {
+            // Verify that it returns the expected error
+            assert!(actual_config_result.is_err(),
+                "Expected error for instruction data but got Ok. CPI context: {:?}, Actions: {:?}",
+                instruction_data.cpi_context,
+                instruction_data.actions);
+
+            // Verify the specific error code
+            let error = actual_config_result.unwrap_err();
+            assert_eq!(error, light_compressed_token::ErrorCode::CpiContextSetNotUsable.into(),
+                "Expected CpiContextSetNotUsable error but got {:?}", error);
+        } else {
+            // Compute expected config
+            let expected_config = compute_expected_config(&instruction_data);
+
+            // Should succeed
+            let actual_config = actual_config_result.expect("AccountsConfig::new failed unexpectedly");
+            assert_eq!(expected_config, actual_config);
+        }
+    }
+}
+
+/// Check if the given instruction data should result in an error
+fn check_if_config_should_error(instruction_data: &MintActionCompressedInstructionData) -> bool {
+    // Check if write_to_cpi_context is true
+    let write_to_cpi_context = instruction_data
+        .cpi_context
+        .as_ref()
+        .map(|x| x.first_set_context || x.set_context)
+        .unwrap_or_default();
+
+    if write_to_cpi_context {
+        // Check for MintToCToken actions
+        let has_mint_to_ctoken = instruction_data
+            .actions
+            .iter()
+            .any(|action| matches!(action, Action::MintToCToken(_)));
+
+        // Check for CreateSplMint actions
+        let create_spl_mint = instruction_data
+            .actions
+            .iter()
+            .any(|action| matches!(action, Action::CreateSplMint(_)));
+
+        // Check if SPL mint is initialized
+        let spl_mint_initialized = instruction_data.mint.metadata.spl_mint_initialized || create_spl_mint;
+
+        // Return true if any of these conditions are met
+        has_mint_to_ctoken || create_spl_mint || spl_mint_initialized
+    } else {
+        false
     }
 }

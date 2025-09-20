@@ -13,6 +13,7 @@ use crate::{
 pub fn create_token_pool_account_manual(
     executing_accounts: &ExecutingAccounts<'_>,
     program_id: &Pubkey,
+    token_pool_bump: u8,
 ) -> Result<(), ProgramError> {
     let token_account_size = light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize;
 
@@ -29,22 +30,22 @@ pub fn create_token_pool_account_manual(
 
     // Find the bump for verification
     let mint_key = mint_account.key();
-    let program_id_pubkey = solana_pubkey::Pubkey::new_from_array(*program_id);
-    let (expected_token_pool, bump) = solana_pubkey::Pubkey::find_program_address(
-        &[POOL_SEED, mint_key.as_ref()],
-        &program_id_pubkey,
-    );
+    // let program_id_pubkey = solana_pubkey::Pubkey::new_from_array(*program_id);
+    // let (expected_token_pool, bump) = solana_pubkey::Pubkey::find_program_address(
+    //     &[POOL_SEED, mint_key.as_ref()],
+    //     &program_id_pubkey,
+    // );
 
-    // Verify the provided token pool account matches the expected PDA
-    if token_pool_pda.key() != &expected_token_pool.to_bytes() {
-        return Err(ProgramError::InvalidAccountData);
-    }
+    // // Verify the provided token pool account matches the expected PDA
+    // if token_pool_pda.key() != &expected_token_pool.to_bytes() {
+    //     return Err(ProgramError::InvalidAccountData);
+    // }
 
     // Create account using shared function
     let seeds = &[POOL_SEED, mint_key.as_ref()];
     let config = CreatePdaAccountConfig {
         seeds,
-        bump,
+        bump: token_pool_bump,
         account_size: token_account_size,
         owner_program_id: token_program.key(), // Owned by token program
         derivation_program_id: program_id,

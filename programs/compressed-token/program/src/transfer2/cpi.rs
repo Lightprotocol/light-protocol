@@ -4,7 +4,8 @@ use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionData
 use light_profiler::profile;
 
 use crate::shared::cpi_bytes_size::{
-    self, allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
+    self, allocate_invoke_with_read_only_cpi_bytes, compressed_token_data_len, cpi_bytes_config,
+    CpiConfigInput,
 };
 
 /// Build CPI configuration from instruction data
@@ -24,15 +25,12 @@ pub fn allocate_cpi_bytes(
     for output_data in inputs.out_token_data.iter() {
         // Check if output has delegate (delegate index != 0 means delegate is present)
         let has_delegate = output_data.delegate != 0;
-        output_accounts.push((
-            false,
-            crate::shared::cpi_bytes_size::token_data_len(has_delegate),
-        )); // Token accounts don't have addresses
+        output_accounts.push((false, compressed_token_data_len(has_delegate))); // Token accounts don't have addresses
     }
 
     // Add extra output account for change account if needed (no delegate, no token data)
     if inputs.with_lamports_change_account_merkle_tree_index != 0 {
-        output_accounts.push((false, crate::shared::cpi_bytes_size::token_data_len(false)));
+        output_accounts.push((false, compressed_token_data_len(false)));
         // No delegate
     }
 

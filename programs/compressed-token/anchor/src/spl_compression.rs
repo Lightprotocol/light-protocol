@@ -41,8 +41,16 @@ pub fn is_valid_token_pool_pda(
 ) -> Result<bool> {
     let pool_index = if pool_index[0] == 0 { &[] } else { pool_index };
     let pda = if let Some(bump) = bump {
-        let seeds = [POOL_SEED, mint_bytes, pool_index];
-        pinocchio_pubkey::derive_address(&seeds, Some(bump), &crate::ID.to_bytes()).into()
+        #[cfg(target_os = "solana")]
+        {
+            let seeds = [POOL_SEED, mint_bytes, pool_index];
+            pinocchio_pubkey::derive_address(&seeds, Some(bump), &crate::ID.to_bytes()).into()
+        }
+        #[cfg(not(target_os = "solana"))]
+        {
+            let seeds = [POOL_SEED, mint_bytes, pool_index, &[bump]];
+            Pubkey::create_program_address(&seeds[..], &crate::ID).map_err(ProgramError::from)?
+        }
     } else {
         let seeds = [POOL_SEED, mint_bytes, pool_index];
         Pubkey::find_program_address(&seeds[..], &crate::ID).0

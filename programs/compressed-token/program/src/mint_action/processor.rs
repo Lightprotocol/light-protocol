@@ -3,6 +3,7 @@ use anchor_lang::prelude::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 use light_ctoken_types::{
     hash_cache::HashCache, instructions::mint_action::MintActionCompressedInstructionData,
+    CTokenError,
 };
 use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
@@ -40,7 +41,7 @@ pub fn process_mint_action(
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     // 112 CU write to cpi contex
-    let accounts_config = AccountsConfig::new(&parsed_instruction_data);
+    let accounts_config = AccountsConfig::new(&parsed_instruction_data)?;
     // Validate and parse
     let validated_accounts = MintActionAccounts::validate_and_parse(
         accounts,
@@ -52,9 +53,10 @@ pub fn process_mint_action(
 
     let (config, mut cpi_bytes, output_mint_size_config) =
         get_zero_copy_configs(&mut parsed_instruction_data)?;
-    let (mut cpi_instruction_struct, _) =
+    let (mut cpi_instruction_struct, remaining_bytes) =
         InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
             .map_err(ProgramError::from)?;
+    assert!(remaining_bytes.is_empty());
     cpi_instruction_struct.initialize(
         crate::LIGHT_CPI_SIGNER.bump,
         &crate::LIGHT_CPI_SIGNER.program_id.into(),
@@ -86,7 +88,11 @@ pub fn process_mint_action(
     if parsed_instruction_data.create_mint() {
         process_create_mint_action(
             &parsed_instruction_data,
-            &validated_accounts,
+            &validated_accounts
+                .mint_signer
+                .ok_or(CTokenError::ExpectedMintSignerAccount)
+                .map_err(|_| ErrorCode::MintActionMissingExecutingAccounts)?
+                .key(),
             &mut cpi_instruction_struct,
             // Use the dedicated address_merkle_tree_index when creating the mint
             queue_indices.address_merkle_tree_index,
@@ -147,7 +153,7 @@ pub fn process_mint_action(
                 .write_to_cpi_context_system
                 .as_ref()
                 .map(|x| *x.cpi_context.key()),
-            true, // TODO: make const generic
+            true,
         )
     }
 }

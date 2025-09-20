@@ -1,6 +1,9 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_ctoken_types::CTokenError;
+use light_ctoken_types::{
+    instructions::mint_action::{ZCompressedMintInstructionData, ZCreateSplMintAction},
+    CTokenError,
+};
 use light_profiler::profile;
 
 use super::{
@@ -12,9 +15,10 @@ use crate::mint_action::accounts::MintActionAccounts;
 /// Helper function for processing CreateSplMint action
 #[profile]
 pub fn process_create_spl_mint_action(
-    create_spl_action: &light_ctoken_types::instructions::mint_action::ZCreateSplMintAction<'_>,
+    create_spl_action: &ZCreateSplMintAction<'_>,
     validated_accounts: &MintActionAccounts,
-    mint_data: &light_ctoken_types::instructions::mint_action::ZCompressedMintInstructionData<'_>,
+    mint_data: &ZCompressedMintInstructionData<'_>,
+    token_pool_bump: u8,
 ) -> Result<(), ProgramError> {
     let executing_accounts = validated_accounts
         .executing
@@ -22,6 +26,7 @@ pub fn process_create_spl_mint_action(
         .ok_or(ErrorCode::MintActionMissingExecutingAccounts)?;
 
     // Check mint authority if it exists
+    // If no authority exists anyone should be able to create the associated spl mint.
     if let Some(ix_data_mint_authority) = mint_data.mint_authority {
         if *validated_accounts.authority.key() != ix_data_mint_authority.to_bytes() {
             return Err(ErrorCode::MintActionInvalidMintAuthority.into());
@@ -54,7 +59,11 @@ pub fn process_create_spl_mint_action(
     initialize_mint_account_for_action(executing_accounts, mint_data)?;
 
     // 3. Create the token pool account manually (PDA derived from our program, owned by token program)
-    create_token_pool_account_manual(executing_accounts, &crate::LIGHT_CPI_SIGNER.program_id)?;
+    create_token_pool_account_manual(
+        executing_accounts,
+        &crate::LIGHT_CPI_SIGNER.program_id,
+        token_pool_bump,
+    )?;
 
     // 4. Initialize the token pool account
     initialize_token_pool_account_for_action(executing_accounts)?;

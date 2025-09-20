@@ -12,7 +12,8 @@ use light_profiler::profile;
 use spl_pod::solana_msg::msg;
 
 use crate::shared::cpi_bytes_size::{
-    allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
+    allocate_invoke_with_read_only_cpi_bytes, compressed_token_data_len, cpi_bytes_config,
+    mint_data_len, CpiConfigInput,
 };
 
 #[profile]
@@ -88,14 +89,11 @@ pub fn get_zero_copy_configs(
         output_accounts: {
             let mut outputs = ArrayVec::new();
             // First output is always the mint account
-            outputs.push((
-                true,
-                crate::shared::cpi_bytes_size::mint_data_len(&output_mint_config),
-            ));
+            outputs.push((true, mint_data_len(&output_mint_config)));
 
             // Add token accounts for recipients
             for _ in 0..num_recipients {
-                outputs.push((false, crate::shared::cpi_bytes_size::token_data_len(false)));
+                outputs.push((false, compressed_token_data_len(false)));
                 // No delegates for simple mint
             }
             outputs

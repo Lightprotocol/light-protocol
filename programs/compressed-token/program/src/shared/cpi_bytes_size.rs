@@ -10,6 +10,7 @@ use light_compressed_account::{
         },
     },
 };
+use light_ctoken_types::state::CompressedMint;
 use light_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
 
@@ -20,14 +21,12 @@ const MAX_OUTPUT_ACCOUNTS: usize = 35;
 #[profile]
 #[inline(always)]
 pub fn mint_data_len(config: &light_ctoken_types::state::CompressedMintConfig) -> u32 {
-    use light_ctoken_types::state::CompressedMint;
     CompressedMint::byte_len(config).unwrap() as u32
 }
 
 /// Calculate data length for a compressed token account
-#[profile]
 #[inline(always)]
-pub fn token_data_len(has_delegate: bool) -> u32 {
+pub fn compressed_token_data_len(has_delegate: bool) -> u32 {
     if has_delegate {
         107
     } else {
@@ -58,7 +57,7 @@ impl CpiConfigInput {
 
         // Add token accounts for recipients
         for _ in 0..num_recipients {
-            outputs.push((false, token_data_len(false))); // No delegates for simple mint
+            outputs.push((false, compressed_token_data_len(false))); // No delegates for simple mint
         }
 
         Self {
@@ -110,7 +109,6 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
 
     let output_compressed_accounts = {
         let mut outputs = Vec::with_capacity(input.output_accounts.len());
-
         // Process output accounts in order
         for (has_address, data_len) in input.output_accounts {
             outputs.push(OutputCompressedAccountWithPackedContextConfig {
@@ -120,7 +118,6 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
                 },
             });
         }
-
         outputs
     };
     let new_address_params = vec![(); input.new_address_params];

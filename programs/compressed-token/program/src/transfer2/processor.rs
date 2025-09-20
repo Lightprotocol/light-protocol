@@ -160,9 +160,10 @@ fn process_with_system_program_cpi(
     msg!("here7");
 
     // Create zero copy to populate cpi bytes.
-    let (mut cpi_instruction_struct, _) =
+    let (mut cpi_instruction_struct, remaining_bytes) =
         InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
             .map_err(ProgramError::from)?;
+    assert!(remaining_bytes.is_empty());
     msg!("here8");
     cpi_instruction_struct.initialize(
         crate::LIGHT_CPI_SIGNER.bump,

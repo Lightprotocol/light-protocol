@@ -357,7 +357,9 @@ pub struct AccountsConfig {
 impl AccountsConfig {
     /// Initialize AccountsConfig based in instruction data.  -
     #[profile]
-    pub fn new(parsed_instruction_data: &ZMintActionCompressedInstructionData) -> AccountsConfig {
+    pub fn new(
+        parsed_instruction_data: &ZMintActionCompressedInstructionData,
+    ) -> Result<AccountsConfig, ProgramError> {
         // 1.cpi context
         let with_cpi_context = parsed_instruction_data.cpi_context.is_some();
 
@@ -367,35 +369,69 @@ impl AccountsConfig {
             .as_ref()
             .map(|x| x.first_set_context() || x.set_context())
             .unwrap_or_default();
-
-        // For MintTo or MintToCToken actions
-        // - needed for tokens_out_queue and authority validation
-        let has_mint_to_actions = parsed_instruction_data.actions.iter().any(|action| {
-            matches!(
-                action,
-                ZAction::MintToCompressed(_) | ZAction::MintToCToken(_)
-            )
-        });
         // An action in this instruction creates a the spl mint corresponding to a compressed mint.
         let create_spl_mint = parsed_instruction_data
             .actions
             .iter()
             .any(|action| matches!(action, ZAction::CreateSplMint(_)));
+
+        // We need mint signer if create mint, and create spl mint.
+        let with_mint_signer = parsed_instruction_data.create_mint() || create_spl_mint;
         // Scenarios:
         // 1. mint is already decompressed
         // 2. mint is decompressed in this instruction
         let spl_mint_initialized =
             parsed_instruction_data.mint.metadata.spl_mint_initialized != 0 || create_spl_mint;
-        // We need mint signer if create mint, and create spl mint.
-        let with_mint_signer = parsed_instruction_data.create_mint() || create_spl_mint;
 
-        AccountsConfig {
-            with_cpi_context,
-            write_to_cpi_context,
-            spl_mint_initialized,
-            has_mint_to_actions,
-            with_mint_signer,
-            create_mint: parsed_instruction_data.create_mint(),
+        if write_to_cpi_context {
+            // Must not have any MintToCToken actions
+            let has_mint_to_ctoken_actions = parsed_instruction_data
+                .actions
+                .iter()
+                .any(|action| matches!(action, ZAction::MintToCToken(_)));
+            if has_mint_to_ctoken_actions {
+                msg!("Mint to ctokens not allowed when writing to cpi context");
+                return Err(ErrorCode::CpiContextSetNotUsable.into());
+            }
+            if create_spl_mint {
+                msg!("Create spl mint not allowed when writing to cpi context");
+                return Err(ErrorCode::CpiContextSetNotUsable.into());
+            }
+            let has_mint_to_actions = parsed_instruction_data
+                .actions
+                .iter()
+                .any(|action| matches!(action, ZAction::MintToCompressed(_)));
+            if spl_mint_initialized {
+                msg!("Mint to compressed not allowed if associated spl mint exists when writing to cpi context");
+                return Err(ErrorCode::CpiContextSetNotUsable.into());
+            }
+
+            Ok(AccountsConfig {
+                with_cpi_context,
+                write_to_cpi_context,
+                spl_mint_initialized,
+                has_mint_to_actions,
+                with_mint_signer,
+                create_mint: parsed_instruction_data.create_mint(),
+            })
+        } else {
+            // For MintTo or MintToCToken actions
+            // - needed for tokens_out_queue and authority validation
+            let has_mint_to_actions = parsed_instruction_data.actions.iter().any(|action| {
+                matches!(
+                    action,
+                    ZAction::MintToCompressed(_) | ZAction::MintToCToken(_)
+                )
+            });
+
+            Ok(AccountsConfig {
+                with_cpi_context,
+                write_to_cpi_context,
+                spl_mint_initialized,
+                has_mint_to_actions,
+                with_mint_signer,
+                create_mint: parsed_instruction_data.create_mint(),
+            })
         }
     }
 }

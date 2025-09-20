@@ -100,6 +100,7 @@ pub fn process_actions<'a>(
                     create_spl_action,
                     validated_accounts,
                     &parsed_instruction_data.mint,
+                    parsed_instruction_data.token_pool_bump,
                 )?;
             }
             ZAction::MintToCToken(mint_to_ctoken_action) => {
