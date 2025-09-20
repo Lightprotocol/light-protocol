@@ -281,8 +281,10 @@ export async function getSolanaArgs({
     }
   }
   if (!skipSystemAccounts) {
-    const accountsRelPath = "accounts";
-    const accountsPath = path.resolve(process.cwd(), accountsRelPath);
+    const programsDir = process.env[LIGHT_PROTOCOL_PROGRAMS_DIR_ENV];
+    const accountsPath = programsDir
+      ? path.join(path.dirname(programsDir), "accounts")
+      : path.resolve(process.cwd(), "../../cli/accounts");
     solanaArgs.push("--account-dir", accountsPath);
   }
 
