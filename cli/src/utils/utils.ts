@@ -9,8 +9,9 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "./constants";
 import { getKeypairFromFile } from "@solana-developers/helpers";
 import spinner from "cli-spinners";
+import dotenv from "dotenv";
 
-require("dotenv").config();
+dotenv.config();
 
 export const defaultSolanaWalletKeypair = (): Keypair => {
   const walletPath = process.env.HOME + "/.config/solana/id.json";

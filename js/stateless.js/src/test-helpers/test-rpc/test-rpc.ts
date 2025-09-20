@@ -148,7 +148,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         connectionConfig?: ConnectionConfig,
         testRpcConfig?: TestRpcConfig,
     ) {
-        super(endpoint, connectionConfig || 'confirmed');
+        super(endpoint, connectionConfig || { commitment: 'confirmed' });
 
         this.compressionApiEndpoint = compressionApiEndpoint;
         this.proverEndpoint = proverEndpoint;

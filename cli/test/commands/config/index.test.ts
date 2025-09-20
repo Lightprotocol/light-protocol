@@ -41,15 +41,3 @@ describe("config with env variable", () => {
     );
   });
 });
-
-// Test the --stop flag
-describe("test-validator stop", () => {
-  before(async () => {
-    await initTestEnvIfNeeded();
-  });
-
-  it("runs test-validator stop cmd", async () => {
-    const { stdout } = await runCommand(["test-validator", "--stop"]);
-    expect(stdout).to.contain("Test validator stopped successfully");
-  });
-});

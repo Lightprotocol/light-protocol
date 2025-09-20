@@ -20,6 +20,7 @@ import {
 import { killProver, startProver } from "./processProverServer";
 import { killIndexer, startIndexer } from "./processPhotonIndexer";
 
+
 type Program = { id: string; name?: string; tag?: string; path?: string };
 export const SYSTEM_PROGRAMS: Program[] = [
   {
@@ -207,7 +208,7 @@ export async function initTestEnvIfNeeded({
 export function programsDirPath(): string {
   return (
     process.env[LIGHT_PROTOCOL_PROGRAMS_DIR_ENV] ||
-    path.resolve(__dirname, BASE_PATH)
+    path.resolve(process.cwd(), BASE_PATH)
   );
 }
 
@@ -227,7 +228,7 @@ export function programFilePath(programName: string): string {
     return path.join(programsDir, programName);
   }
 
-  return path.resolve(__dirname, path.join(BASE_PATH, programName));
+  return path.resolve(process.cwd(), path.join(BASE_PATH, programName));
 }
 
 export async function getSolanaArgs({
@@ -281,8 +282,8 @@ export async function getSolanaArgs({
     }
   }
   if (!skipSystemAccounts) {
-    const accountsRelPath = "../../accounts";
-    const accountsPath = path.resolve(__dirname, accountsRelPath);
+    const accountsRelPath = "accounts";
+    const accountsPath = path.resolve(process.cwd(), accountsRelPath);
     solanaArgs.push("--account-dir", accountsPath);
   }
 

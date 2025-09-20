@@ -3,15 +3,16 @@
     "ignorePatterns": ["node_modules", "dist", "bin", "accounts", "test"],
     "parser": "@typescript-eslint/parser",
     "parserOptions": {
-        "project": ["./tsconfig.json", "./tsconfig.test.json"]
+        "project": ["./tsconfig.json", "./tsconfig.test.json"],
+        "ecmaVersion": 2022,
+        "sourceType": "module"
     },
     "plugins": [
         "@typescript-eslint"
     ],
     "extends": [
-        "eslint:recommended",
-        "plugin:@typescript-eslint/eslint-recommended",
-        "plugin:@typescript-eslint/recommended"
+        "oclif",
+        "prettier"
     ],
     "rules": {
         "@typescript-eslint/ban-ts-comment": 0,

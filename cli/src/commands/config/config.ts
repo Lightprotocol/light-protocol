@@ -1,4 +1,4 @@
-import { Command, Flags, ux } from "@oclif/core";
+import { Command, Flags } from "@oclif/core";
 import {
   CustomLoader,
   getConfig,
@@ -36,7 +36,7 @@ class ConfigCommand extends Command {
     try {
       const config = getConfig();
       if (get) {
-        logConfig(config);
+        await logConfig(config);
         return;
       }
       const loader = new CustomLoader("Updating configuration...");
@@ -50,6 +50,7 @@ class ConfigCommand extends Command {
           this.error(`\nInvalid URL format`);
         }
       }
+
       if (indexerUrl) {
         if (isValidURL(indexerUrl)) {
           config.indexerUrl = indexerUrl;
@@ -57,6 +58,7 @@ class ConfigCommand extends Command {
           this.error(`\nInvalid URL format`);
         }
       }
+
       if (proverUrl) {
         if (isValidURL(proverUrl)) {
           config.proverUrl = proverUrl;
@@ -64,44 +66,44 @@ class ConfigCommand extends Command {
           this.error(`\nInvalid URL format`);
         }
       }
+
       setConfig(config);
-      this.log("\nConfiguration values updated successfully \x1b[32m✔\x1b[0m");
+      this.log("\nConfiguration values updated successfully \x1B[32m✔\x1B[0m");
       loader.stop(false);
       // logging updated config values
-      logConfig(config);
+      await logConfig(config);
     } catch (error) {
       this.error(`\nFailed to update configuration values\n${error}`);
     }
   }
 }
 
-function logConfig(config: any) {
+async function logConfig(config: any) {
   const tableData = [];
 
   tableData.push({
     name: "Solana RPC URL",
     value: config.solanaRpcUrl,
-  });
-
-  tableData.push({
+  }, {
     name: "Indexer URL",
     value: config.indexerUrl,
-  });
-
-  tableData.push({
+  }, {
     name: "Prover URL",
     value: config.proverUrl,
-  });
-
-  // space
-  tableData.push({
+  }, {
     name: "",
     value: "",
   });
 
-  ux.table(tableData, {
-    name: { header: "" },
-    value: { header: "" },
+  // Dynamically import @oclif/table since it's ESM-only
+  const { printTable } = await import("@oclif/table");
+
+  printTable({
+    data: tableData,
+    columns: [
+      { key: "name", name: "" },
+      { key: "value", name: "" }
+    ],
   });
 }
 export default ConfigCommand;

@@ -5,7 +5,7 @@ import find from "find-process";
 import { exec as execCb } from "node:child_process";
 import { promisify } from "util";
 import axios from "axios";
-const waitOn = require("wait-on");
+import waitOn from "wait-on";
 
 const readdir = promisify(fs.readdir);
 const readFile = promisify(fs.readFile);
@@ -14,7 +14,7 @@ const readFile = promisify(fs.readFile);
  * Logs the contents of prover log files in test-ledger dir.
  */
 export async function logProverFileContents() {
-  const testLedgerDir = path.join(__dirname, "../..", "test-ledger");
+  const testLedgerDir = path.join(process.cwd(), "test-ledger");
 
   try {
     if (!fs.existsSync(testLedgerDir)) {
@@ -198,7 +198,7 @@ export function spawnBinary(command: string, args: string[] = []) {
   const logDir = "test-ledger";
   const binaryName = path.basename(command);
 
-  const dir = path.join(__dirname, "../..", logDir);
+  const dir = path.join(process.cwd(), logDir);
   try {
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });

@@ -103,7 +103,7 @@ export async function startProver(
   await killProver();
   await killProcessByPort(proverPort);
 
-  const keysDir = path.join(__dirname, "../..", "bin", KEYS_DIR);
+  const keysDir = path.join(process.cwd(), "bin", KEYS_DIR);
   const args = ["start"];
   args.push("--keys-dir", keysDir);
   args.push("--prover-address", `0.0.0.0:${proverPort}`);
@@ -155,7 +155,7 @@ export function getProverNameByArch(): string {
 export function getProverPathByArch(): string {
   let binaryName = getProverNameByArch();
   // We need to provide the full path to the binary because it's not in the PATH.
-  const binDir = path.join(__dirname, "../..", "bin");
+  const binDir = path.join(process.cwd(), "bin");
   binaryName = path.join(binDir, binaryName);
 
   return binaryName;
