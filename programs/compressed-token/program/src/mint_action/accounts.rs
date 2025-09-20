@@ -312,6 +312,26 @@ impl<'info> MintActionAccounts<'info> {
 
         Ok(&account_infos[start_offset..end_offset])
     }
+
+    /// Check if tokens_out_queue exists in executing accounts.
+    /// Used for queue deduplication logic.
+    pub fn has_tokens_out_queue(&self) -> bool {
+        self.executing
+            .as_ref()
+            .map(|executing| executing.tokens_out_queue.is_some())
+            .unwrap_or_else(|| false)
+    }
+
+    /// Check if out_output_queue and tokens_out_queue have the same key.
+    /// Used for queue index logic when no CPI context is provided.
+    pub fn queue_keys_match(&self) -> bool {
+        if let Some(executing) = &self.executing {
+            if let Some(tokens_out_queue) = executing.tokens_out_queue {
+                return executing.out_output_queue.key() == tokens_out_queue.key();
+            }
+        }
+        false
+    }
 }
 
 /// Config to parse AccountInfos based on instruction data.

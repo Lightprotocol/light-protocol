@@ -69,7 +69,14 @@ pub fn process_mint_action(
     }
 
     let mut hash_cache = HashCache::new();
-    let queue_indices = QueueIndices::new(&parsed_instruction_data, &validated_accounts)?;
+    let tokens_out_queue_exists = validated_accounts.has_tokens_out_queue();
+    let queue_keys_match = validated_accounts.queue_keys_match();
+    let queue_indices = QueueIndices::new(
+        parsed_instruction_data.cpi_context.as_ref(),
+        parsed_instruction_data.create_mint(),
+        tokens_out_queue_exists,
+        queue_keys_match,
+    )?;
 
     // If create mint
     // 1. derive spl mint pda

@@ -20,6 +20,7 @@ use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
 /// Parameters for creating a new mint
+#[derive(Debug)]
 pub struct NewMint {
     pub decimals: u8,
     pub supply: u64,
@@ -30,6 +31,7 @@ pub struct NewMint {
 }
 
 /// Parameters for mint action instruction
+#[derive(Debug)]
 pub struct MintActionParams {
     pub compressed_mint_address: [u8; 32],
     pub mint_seed: Pubkey,

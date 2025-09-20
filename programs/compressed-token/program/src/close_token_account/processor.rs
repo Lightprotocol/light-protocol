@@ -26,8 +26,8 @@ pub fn process_close_token_account(
         // Try to parse as CToken using zero-copy deserialization
         let token_account_data =
             &mut AccountInfoTrait::try_borrow_mut_data(accounts.token_account)?;
-        let (compressed_token, _) = CToken::zero_copy_at_mut(token_account_data)?;
-        validate_token_account_close_instruction(&accounts, &compressed_token)?;
+        let (ctoken, _) = CToken::zero_copy_at_mut(token_account_data)?;
+        validate_token_account_close_instruction(&accounts, &ctoken)?;
     }
     close_token_account(&accounts)?;
     Ok(())
@@ -38,9 +38,9 @@ pub fn process_close_token_account(
 #[profile]
 pub fn validate_token_account_close_instruction(
     accounts: &CloseTokenAccountAccounts,
-    compressed_token: &ZCompressedTokenMut<'_>,
+    ctoken: &ZCompressedTokenMut<'_>,
 ) -> Result<(bool, bool), ProgramError> {
-    validate_token_account::<false>(accounts, compressed_token)
+    validate_token_account::<false>(accounts, ctoken)
 }
 
 /// Validates that a ctoken solana account is ready to be closed.
@@ -48,35 +48,35 @@ pub fn validate_token_account_close_instruction(
 #[profile]
 pub fn validate_token_account_for_close_transfer2(
     accounts: &CloseTokenAccountAccounts,
-    compressed_token: &ZCompressedTokenMut<'_>,
+    ctoken: &ZCompressedTokenMut<'_>,
 ) -> Result<(bool, bool), ProgramError> {
-    validate_token_account::<true>(accounts, compressed_token)
+    validate_token_account::<true>(accounts, ctoken)
 }
 
 #[inline(always)]
 fn validate_token_account<const CHECK_RENT_AUTH: bool>(
     accounts: &CloseTokenAccountAccounts,
-    compressed_token: &ZCompressedTokenMut<'_>,
+    ctoken: &ZCompressedTokenMut<'_>,
 ) -> Result<(bool, bool), ProgramError> {
     if accounts.token_account.key() == accounts.destination.key() {
         return Err(ProgramError::InvalidAccountData);
     }
 
     // Check account state - reject frozen and uninitialized
-    match *compressed_token.state {
+    match *ctoken.state {
         state if state == AccountState::Initialized as u8 => {} // OK to proceed
         state if state == AccountState::Frozen as u8 => return Err(ErrorCode::AccountFrozen.into()),
         _ => return Err(ProgramError::UninitializedAccount),
     }
     if !CHECK_RENT_AUTH {
         // Check that the account has zero balance
-        if u64::from(*compressed_token.amount) != 0 {
+        if u64::from(*ctoken.amount) != 0 {
             return Err(ErrorCode::NonNativeHasBalance.into());
         }
     }
     // Verify the authority matches the account owner or rent authority (if compressible)
-    let owner_matches = compressed_token.owner.to_bytes() == *accounts.authority.key();
-    if let Some(extensions) = compressed_token.extensions.as_ref() {
+    let owner_matches = ctoken.owner.to_bytes() == *accounts.authority.key();
+    if let Some(extensions) = ctoken.extensions.as_ref() {
         // Look for compressible extension
         for extension in extensions {
             if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
@@ -135,8 +135,8 @@ fn validate_token_account<const CHECK_RENT_AUTH: bool>(
     }
     if !owner_matches {
         msg!(
-            "owner: compressed_token.owner {:?} != {:?} authority",
-            solana_pubkey::Pubkey::from(compressed_token.owner.to_bytes()),
+            "owner: ctoken.owner {:?} != {:?} authority",
+            solana_pubkey::Pubkey::from(ctoken.owner.to_bytes()),
             solana_pubkey::Pubkey::from(*accounts.authority.key())
         );
         // If we have no rent authority owner must match
@@ -161,9 +161,9 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
     // Check for compressible extension and handle lamport distribution
 
     let token_account_data = AccountInfoTrait::try_borrow_data(accounts.token_account)?;
-    let (compressed_token, _) = CToken::zero_copy_at(&token_account_data)?;
+    let (ctoken, _) = CToken::zero_copy_at(&token_account_data)?;
 
-    if let Some(extensions) = compressed_token.extensions.as_ref() {
+    if let Some(extensions) = ctoken.extensions.as_ref() {
         for extension in extensions {
             if let light_ctoken_types::state::ZExtensionStruct::Compressible(compressible_ext) =
                 extension
