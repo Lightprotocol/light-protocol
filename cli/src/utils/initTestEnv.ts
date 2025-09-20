@@ -20,7 +20,6 @@ import {
 import { killProver, startProver } from "./processProverServer";
 import { killIndexer, startIndexer } from "./processPhotonIndexer";
 
-
 type Program = { id: string; name?: string; tag?: string; path?: string };
 export const SYSTEM_PROGRAMS: Program[] = [
   {

@@ -24,17 +24,17 @@ describe("compress-sol", () => {
 
     let initialBalance = 0;
     if (initialStdout.includes("No accounts found")) {
-        initialBalance = 0;
-      } else {
-        // Extract the balance number
+      initialBalance = 0;
+    } else {
+      // Extract the balance number
       const balanceMatch = initialStdout.match(
-          /Compressed SOL balance:\s+(\d+)/,
-        );
-        if (balanceMatch && balanceMatch[1]) {
-          initialBalance = parseInt(balanceMatch[1], 10);
-        }
+        /Compressed SOL balance:\s+(\d+)/,
+      );
+      if (balanceMatch && balanceMatch[1]) {
+        initialBalance = parseInt(balanceMatch[1], 10);
       }
-      console.log(`Initial balance captured: ${initialBalance}`);
+    }
+    console.log(`Initial balance captured: ${initialBalance}`);
 
     // Compress SOL
     const { stdout: compressStdout } = await runCommand([
@@ -50,20 +50,20 @@ describe("compress-sol", () => {
       `--owner=${to}`,
     ]);
 
-        // Extract the new balance
+    // Extract the new balance
     const balanceMatch = finalStdout.match(/Compressed SOL balance:\s+(\d+)/);
-        expect(balanceMatch).to.not.be.null;
+    expect(balanceMatch).to.not.be.null;
 
-        if (balanceMatch && balanceMatch[1]) {
-          const newBalance = parseInt(balanceMatch[1], 10);
-          console.log(
-            `New balance: ${newBalance}, Initial balance: ${initialBalance}, Expected increase: ${amount}`,
-          );
+    if (balanceMatch && balanceMatch[1]) {
+      const newBalance = parseInt(balanceMatch[1], 10);
+      console.log(
+        `New balance: ${newBalance}, Initial balance: ${initialBalance}, Expected increase: ${amount}`,
+      );
 
-          // Verify the balance increased by the compressed amount
-          expect(newBalance).to.equal(initialBalance + amount);
-        } else {
-          throw new Error("Could not extract balance from output");
-        }
+      // Verify the balance increased by the compressed amount
+      expect(newBalance).to.equal(initialBalance + amount);
+    } else {
+      throw new Error("Could not extract balance from output");
+    }
   });
 });
