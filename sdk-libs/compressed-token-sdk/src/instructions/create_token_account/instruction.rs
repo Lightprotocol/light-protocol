@@ -1,4 +1,5 @@
 use borsh::BorshSerialize;
+use light_ctoken_types::CTokenError;
 use light_ctoken_types::{
     instructions::{
         create_ctoken_account::CreateTokenAccountInstructionData,
@@ -6,6 +7,8 @@ use light_ctoken_types::{
     },
     state::TokenDataVersion,
 };
+use solana_account_info::AccountInfo;
+use solana_cpi::invoke_signed;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
@@ -33,6 +36,60 @@ pub struct CreateCompressibleTokenAccount {
     /// Version of the compressed token account when ctoken account is
     /// compressed and closed. (The version specifies the hashing scheme.)
     pub token_account_version: TokenDataVersion,
+}
+
+pub fn create_ctoken_account_signed<'info>(
+    program_id: Pubkey,
+    payer: AccountInfo<'info>,
+    token_account: AccountInfo<'info>,
+    mint_account: AccountInfo<'info>,
+    authority: AccountInfo<'info>,
+    signer_seeds: &[&[u8]],
+    ctoken_rent_sponsor: AccountInfo<'info>,
+    ctoken_config_account: AccountInfo<'info>,
+    pre_pay_num_epochs: Option<u64>,
+    lamports_per_write: Option<u32>,
+) -> std::result::Result<(), solana_program_error::ProgramError> {
+    // Extract bump from the last seed set
+    let bump = signer_seeds[signer_seeds.len() - 1][0];
+
+    // Flatten all seeds except the last one (which contains the bump)
+    let seeds: Vec<Vec<u8>> = signer_seeds[..signer_seeds.len() - 1]
+        .iter()
+        .map(|seed| seed.to_vec())
+        .collect();
+
+    let params = CreateCompressibleTokenAccount {
+        payer: *payer.key,
+        account_pubkey: *token_account.key,
+        mint_pubkey: *mint_account.key,
+        owner_pubkey: *authority.key,
+        compressible_config: *ctoken_config_account.key,
+        rent_sponsor: *ctoken_rent_sponsor.key,
+        pre_pay_num_epochs: pre_pay_num_epochs.unwrap_or(0),
+        lamports_per_write,
+        compress_to_account_pubkey: Some(CompressToPubkey {
+            bump,
+            program_id: program_id.to_bytes(),
+            seeds,
+        }),
+        token_account_version: TokenDataVersion::ShaFlat,
+    };
+    let ix = create_compressible_token_account(params)
+        .map_err(|_| TokenSdkError::CTokenError(CTokenError::InvalidInstructionData))?;
+
+    invoke_signed(
+        &ix,
+        &[
+            payer,
+            token_account,
+            mint_account,
+            authority,
+            ctoken_rent_sponsor,
+            ctoken_config_account,
+        ],
+        &[signer_seeds],
+    )
 }
 
 pub fn create_compressible_token_account(
@@ -81,7 +138,7 @@ pub fn create_compressible_token_account(
     ];
 
     Ok(Instruction {
-        program_id: Pubkey::from(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::from(light_sdk_types::CTOKEN_PROGRAM_ID),
         accounts,
         data,
     })
@@ -106,7 +163,7 @@ pub fn create_token_account(
         .map_err(|_| TokenSdkError::SerializationError)?;
 
     Ok(Instruction {
-        program_id: Pubkey::from(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::from(light_sdk_types::CTOKEN_PROGRAM_ID),
         accounts: vec![
             solana_instruction::AccountMeta::new(account_pubkey, false),
             solana_instruction::AccountMeta::new_readonly(mint_pubkey, false),

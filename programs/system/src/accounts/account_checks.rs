@@ -151,6 +151,7 @@ pub fn check_option_cpi_context_account<'a>(
         })?;
         check_discriminator::<ZCpiContextAccount>(account_info.try_borrow_data()?.as_ref())
             .inspect_err(|_| {
+                solana_msg::msg!("account_info: {:?}", account_info.key());
                 let location = Location::caller();
                 solana_msg::msg!(
                     "ERROR: check_discriminator for cpi_context failed. {}:{}:{}",

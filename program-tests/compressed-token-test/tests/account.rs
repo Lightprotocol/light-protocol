@@ -1116,6 +1116,7 @@ async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
         &recipient,
         mint,
         &payer,
+        SPL_TOKEN_PROGRAM_ID.into(),
     )
     .await?;
 

@@ -2,7 +2,7 @@ use light_compressed_token_types::{
     constants::TRANSFER, instruction::transfer::CompressedTokenInstructionDataTransfer,
     CompressedCpiContext, ValidityProof,
 };
-use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_sdk_types::CTOKEN_PROGRAM_ID;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
@@ -134,7 +134,7 @@ pub fn create_transfer_instruction_raw(
         account_metas.push(AccountMeta::new(tree_pubkey, false));
     }
     Ok(Instruction {
-        program_id: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
         accounts: account_metas,
         data,
     })

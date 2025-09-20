@@ -20,16 +20,34 @@ pub struct Account {
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "hash")]
     pub hash: String,
-    #[serde(rename = "lamports")]
+    #[serde(
+        rename = "lamports",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub lamports: u64,
-    #[serde(rename = "leafIndex")]
+    #[serde(
+        rename = "leafIndex",
+        deserialize_with = "crate::string_u64::u32_direct::deserialize",
+        serialize_with = "crate::string_u64::u32_direct::serialize"
+    )]
     pub leaf_index: u32,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "owner")]
     pub owner: String,
-    #[serde(rename = "seq", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "seq",
+        skip_serializing_if = "Option::is_none",
+        deserialize_with = "crate::string_u64::option_direct::deserialize",
+        serialize_with = "crate::string_u64::option_direct::serialize",
+        default
+    )]
     pub seq: Option<u64>,
-    #[serde(rename = "slotCreated")]
+    #[serde(
+        rename = "slotCreated",
+        deserialize_with = "crate::string_u64::direct::deserialize",
+        serialize_with = "crate::string_u64::direct::serialize"
+    )]
     pub slot_created: u64,
     /// A Solana public key represented as a base58 string.
     #[serde(rename = "tree")]

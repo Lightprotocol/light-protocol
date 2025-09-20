@@ -10,9 +10,12 @@ cargo clippy \
         --workspace \
         --no-deps \
         --all-features \
-        --exclude name-service \
         --exclude photon-api \
         --exclude name-service \
+        --exclude anchor-compressible-derived \
+        --exclude native-compressible \
+        --exclude sdk-native-test \
+        --exclude fetch-accounts \
         -- -A clippy::result_large_err \
            -A clippy::empty-docs \
            -A clippy::to-string-trait-impl \

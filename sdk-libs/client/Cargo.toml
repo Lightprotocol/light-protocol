@@ -36,6 +36,8 @@ solana-address-lookup-table-interface = { version = "2.2.1", features = [
     "bytemuck",
     "bincode",
 ] }
+solana-message = "2.2"
+anchor-lang = { workspace = true, features = ["idl-build"], optional = true }
 
 # Light Protocol dependencies
 light-merkle-tree-metadata = { workspace = true, features = ["solana"] }
@@ -63,6 +65,8 @@ bytemuck = { workspace = true }
 tracing = { workspace = true }
 lazy_static = { workspace = true }
 rand = { workspace = true }
+
+
 
 # Tests are in program-tests/client-test/tests/light-client.rs
 # [dev-dependencies]

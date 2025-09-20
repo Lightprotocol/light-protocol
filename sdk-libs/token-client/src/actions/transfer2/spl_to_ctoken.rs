@@ -59,6 +59,7 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
         payer.pubkey(),
         token_pool_pda,
         bump,
+        spl_token_program,
     )
     .map_err(|e| RpcError::CustomError(e.to_string()))?;
 

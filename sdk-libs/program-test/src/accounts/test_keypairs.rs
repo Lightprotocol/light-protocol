@@ -14,6 +14,9 @@ pub struct TestKeypairs {
     pub batched_state_merkle_tree: Keypair,
     pub batched_output_queue: Keypair,
     pub batched_cpi_context: Keypair,
+    pub batched_state_merkle_tree_2: Keypair,
+    pub batched_output_queue_2: Keypair,
+    pub batched_cpi_context_2: Keypair,
     pub batch_address_merkle_tree: Keypair,
     pub state_merkle_tree_2: Keypair,
     pub nullifier_queue_2: Keypair,
@@ -38,6 +41,14 @@ impl TestKeypairs {
                 .unwrap(),
             batched_output_queue: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap(),
             batched_cpi_context: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR).unwrap(),
+            batched_state_merkle_tree_2: Keypair::from_bytes(
+                &BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR_2,
+            )
+            .unwrap(),
+            batched_output_queue_2: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR_2)
+                .unwrap(),
+            batched_cpi_context_2: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR_2)
+                .unwrap(),
             batch_address_merkle_tree: Keypair::from_bytes(
                 &BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR,
             )
@@ -151,4 +162,28 @@ pub const BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR: [u8; 64] = [
     39, 24, 219, 214, 174, 34, 141, 22, 238, 96, 128, 5, 244, 12, 239, 3, 45, 61, 42, 53, 92, 87,
     28, 24, 35, 87, 72, 11, 158, 224, 210, 70, 207, 214, 165, 6, 152, 46, 60, 129, 118, 32, 27,
     128, 68, 73, 71, 250, 6, 83, 176, 199, 153, 140, 237, 11, 55, 237, 3, 179, 242, 138, 37, 12,
+];
+
+// 2Yb3fGo2E9aWLjY8KuESaqurYpGGhEeJr7eynKrSgXwS
+pub const BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR_2: [u8; 64] = [
+    90, 177, 184, 7, 31, 2, 75, 156, 206, 95, 137, 254, 248, 143, 80, 51, 244, 47, 172, 66, 49, 28,
+    209, 135, 246, 185, 1, 215, 203, 206, 45, 205, 22, 243, 48, 18, 157, 183, 128, 51, 122, 187,
+    220, 157, 58, 187, 210, 100, 26, 202, 115, 200, 112, 226, 176, 142, 204, 246, 80, 46, 44, 164,
+    79, 213,
+];
+
+// 12wJT3xYd46rtjeqDU6CrtT8unqLjPiheggzqhN9YsyB
+pub const BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR_2: [u8; 64] = [
+    22, 251, 188, 220, 48, 112, 152, 88, 12, 111, 253, 20, 152, 160, 181, 28, 52, 135, 176, 56, 37,
+    253, 214, 155, 207, 174, 40, 34, 120, 168, 220, 48, 0, 126, 250, 157, 250, 233, 33, 126, 217,
+    161, 223, 128, 212, 172, 27, 168, 153, 70, 78, 223, 110, 234, 56, 119, 236, 165, 128, 65, 219,
+    103, 124, 58,
+];
+
+// HwtjxDvFEXiWnzeMeWkMBzpQN45A95rTJNZmz1Z3pe8R
+pub const BATCHED_CPI_CONTEXT_TEST_KEYPAIR_2: [u8; 64] = [
+    192, 190, 219, 50, 49, 251, 81, 115, 108, 69, 25, 24, 64, 192, 70, 119, 227, 163, 244, 162,
+    151, 22, 202, 75, 143, 238, 60, 231, 45, 143, 70, 166, 251, 202, 219, 148, 255, 199, 4, 181, 2,
+    206, 241, 189, 231, 73, 214, 93, 163, 87, 254, 68, 179, 132, 226, 66, 188, 189, 86, 84, 143,
+    190, 33, 218,
 ];

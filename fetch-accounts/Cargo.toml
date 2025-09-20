@@ -1,0 +1,23 @@
+[package]
+name = "fetch_accounts"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "fetch_test"
+path = "src/main.rs"
+
+[[bin]]
+name = "fetch_rpc"
+path = "src/main_rpc.rs"
+
+[dependencies]
+solana-sdk = "2.2"
+solana-client = "2.2"
+solana-rpc-client = "2.2"
+solana-rpc-client-api = "2.2"
+light-client = { path = "../sdk-libs/client" }
+light-program-test = { path = "../sdk-libs/program-test", features = ["devenv"] }
+tokio = { version = "1.45.1", features = ["rt", "macros", "rt-multi-thread"] }
+base64 = "0.22"
+serde_json = "1.0"

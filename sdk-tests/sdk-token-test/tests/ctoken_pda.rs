@@ -3,7 +3,7 @@ use light_client::indexer::Indexer;
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
 use light_compressed_token_sdk::{
     instructions::{
-        create_compressed_mint::find_spl_mint_address, derive_compressed_mint_address,
+        create_compressed_mint::find_spl_mint_address, derive_ctoken_mint_address,
         mint_action::MintToRecipient,
     },
     CPI_AUTHORITY_PDA,
@@ -14,7 +14,7 @@ use light_ctoken_types::{
         mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     },
     state::{extensions::AdditionalMetadata, CompressedMintMetadata},
-    COMPRESSED_TOKEN_PROGRAM_ID,
+    CTOKEN_PROGRAM_ID,
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc, RpcError};
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
@@ -147,7 +147,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
 
     // Derive compressed mint address using utility function
     let compressed_mint_address =
-        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_ctoken_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint bump for the instruction
     let (spl_mint, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
@@ -228,7 +228,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
         payer: payer.pubkey(),
         mint_authority: mint_authority.pubkey(),
         mint_seed: mint_seed.pubkey(),
-        ctoken_program: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+        ctoken_program: Pubkey::new_from_array(CTOKEN_PROGRAM_ID),
         ctoken_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
     };
 

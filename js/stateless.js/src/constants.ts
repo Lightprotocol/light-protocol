@@ -167,24 +167,37 @@ export const localTestActiveStateTreeInfos = (): TreeInfo[] => {
         {
             tree: new PublicKey(batchMerkleTree),
             queue: new PublicKey(batchQueue),
-            cpiContext: PublicKey.default,
+            cpiContext: new PublicKey(batchCpiContext),
             treeType: TreeType.StateV2,
             nextTreeInfo: null,
         },
     ].filter(info =>
-        featureFlags.isV2() ? true : info.treeType === TreeType.StateV1,
+        featureFlags.isV2()
+            ? info.treeType === TreeType.StateV2
+            : info.treeType === TreeType.StateV1,
     );
 };
 
 export const getDefaultAddressTreeInfo = () => {
-    return {
-        tree: new PublicKey(addressTree),
-        queue: new PublicKey(addressQueue),
-        cpiContext: null,
-        treeType: TreeType.AddressV1,
-        nextTreeInfo: null,
-    };
+    if (featureFlags.isV2()) {
+        return {
+            tree: addressTreeV2,
+            queue: addressTreeV2, // v2 has queue in same account as tree.
+            cpiContext: null,
+            treeType: TreeType.AddressV2,
+            nextTreeInfo: null,
+        };
+    } else {
+        return {
+            tree: new PublicKey(addressTree),
+            queue: new PublicKey(addressQueue),
+            cpiContext: null,
+            treeType: TreeType.AddressV1,
+            nextTreeInfo: null,
+        };
+    }
 };
+
 /**
  * @deprecated use {@link rpc.getStateTreeInfos} and {@link selectStateTreeInfo} instead.
  * for address trees, use {@link getDefaultAddressTreeInfo} instead.
@@ -211,7 +224,7 @@ export const defaultTestStateTreeAccounts2 = () => {
     };
 };
 
-export const COMPRESSED_TOKEN_PROGRAM_ID = new PublicKey(
+export const CTOKEN_PROGRAM_ID = new PublicKey(
     'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
 );
 export const stateTreeLookupTableMainnet =
@@ -232,6 +245,11 @@ export const merkletreePubkey = 'smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT';
 export const addressTree = 'amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2';
 export const addressQueue = 'aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F';
 
+// V2 tree is in same account as queue.
+export const addressTreeV2 = new PublicKey(
+    'EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK',
+);
+
 export const merkleTree2Pubkey = 'smt2rJAFdyJJupwMKAqTNAJwvjhmiZ4JYGZmbVRw1Ho';
 export const nullifierQueue2Pubkey =
     'nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X';
@@ -240,7 +258,8 @@ export const cpiContext2Pubkey = 'cpi2cdhkH5roePvcudTgUL8ppEBfTay1desGh8G8QxK';
 // V2 testing.
 export const batchMerkleTree = 'HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu'; // v2 merkle tree (includes nullifier queue)
 export const batchQueue = '6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU'; // v2 output queue
-
+export const batchCpiContext = '7Hp52chxaew8bW1ApR4fck2bh6Y8qA1pu3qwH6N9zaLj';
+// export const batchCpiContext = 'HwtjxDvFEXiWnzeMeWkMBzpQN45A95rTJNZmz1Z3pe8R';
 export const confirmConfig: ConfirmOptions = {
     commitment: 'confirmed',
     preflightCommitment: 'confirmed',

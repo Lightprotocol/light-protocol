@@ -4,6 +4,7 @@ use light_ctoken_types::{
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_profiler::profile;
+use light_sdk_types::CTOKEN_PROGRAM_ID;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
@@ -66,7 +67,7 @@ pub struct Transfer2Inputs {
 }
 
 /// Create the instruction for compressed token multi-transfer operations
-#[profile]
+#[inline(never)]
 pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instruction> {
     let Transfer2Inputs {
         token_accounts,
@@ -131,7 +132,7 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
     let account_metas = get_transfer2_instruction_account_metas(meta_config);
 
     Ok(Instruction {
-        program_id: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
         accounts: account_metas,
         data,
     })

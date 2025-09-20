@@ -3,7 +3,7 @@
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
 use light_compressed_token_sdk::instructions::mint_action::MintActionCpiAccounts;
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
-use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
+use light_sdk_types::CTOKEN_PROGRAM_ID;
 use light_sdk_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
     REGISTERED_PROGRAM_PDA, SOL_POOL_PDA,
@@ -56,7 +56,7 @@ fn test_successful_parsing_minimal() {
     let accounts = vec![
         // Programs
         create_test_account(
-            COMPRESSED_TOKEN_PROGRAM_ID,
+            CTOKEN_PROGRAM_ID,
             [0u8; 32],
             false,
             false,
@@ -133,7 +133,7 @@ fn test_successful_parsing_minimal() {
     let parsed = result.unwrap();
     assert_eq!(
         *parsed.compressed_token_program.key(),
-        COMPRESSED_TOKEN_PROGRAM_ID
+        CTOKEN_PROGRAM_ID
     );
     assert_eq!(*parsed.light_system_program.key(), LIGHT_SYSTEM_PROGRAM_ID);
     assert!(parsed.mint_signer.is_none());
@@ -158,7 +158,7 @@ fn test_successful_parsing_with_all_options() {
     let accounts = vec![
         // Programs
         create_test_account(
-            COMPRESSED_TOKEN_PROGRAM_ID,
+            CTOKEN_PROGRAM_ID,
             [0u8; 32],
             false,
             false,
@@ -295,7 +295,7 @@ fn test_successful_create_mint() {
     let accounts = vec![
         // Programs
         create_test_account(
-            COMPRESSED_TOKEN_PROGRAM_ID,
+            CTOKEN_PROGRAM_ID,
             [0u8; 32],
             false,
             false,
@@ -380,7 +380,7 @@ fn test_successful_update_mint() {
     let accounts = vec![
         // Programs
         create_test_account(
-            COMPRESSED_TOKEN_PROGRAM_ID,
+            CTOKEN_PROGRAM_ID,
             [0u8; 32],
             false,
             false,
@@ -538,7 +538,7 @@ fn test_invalid_light_system_program_id() {
 
     let accounts = vec![
         create_test_account(
-            COMPRESSED_TOKEN_PROGRAM_ID,
+            CTOKEN_PROGRAM_ID,
             [0u8; 32],
             false,
             false,
@@ -603,7 +603,7 @@ fn test_invalid_light_system_program_id() {
 fn test_authority_not_signer() {
     let accounts = vec![
         create_test_account(
-            COMPRESSED_TOKEN_PROGRAM_ID,
+            CTOKEN_PROGRAM_ID,
             [0u8; 32],
             false,
             false,
@@ -675,7 +675,7 @@ fn test_authority_not_signer() {
 fn test_fee_payer_not_signer() {
     let accounts = vec![
         create_test_account(
-            COMPRESSED_TOKEN_PROGRAM_ID,
+            CTOKEN_PROGRAM_ID,
             [0u8; 32],
             false,
             false,
@@ -749,7 +749,7 @@ fn test_invalid_spl_token_program() {
 
     let accounts = vec![
         create_test_account(
-            COMPRESSED_TOKEN_PROGRAM_ID,
+            CTOKEN_PROGRAM_ID,
             [0u8; 32],
             false,
             false,
@@ -833,7 +833,7 @@ fn test_invalid_tree_ownership() {
 
     let accounts = vec![
         create_test_account(
-            COMPRESSED_TOKEN_PROGRAM_ID,
+            CTOKEN_PROGRAM_ID,
             [0u8; 32],
             false,
             false,
@@ -899,7 +899,7 @@ fn test_invalid_queue_ownership() {
 
     let accounts = vec![
         create_test_account(
-            COMPRESSED_TOKEN_PROGRAM_ID,
+            CTOKEN_PROGRAM_ID,
             [0u8; 32],
             false,
             false,
@@ -974,7 +974,7 @@ fn test_helper_methods() {
     // Create accounts for testing helper methods
     let accounts = vec![
         create_test_account(
-            COMPRESSED_TOKEN_PROGRAM_ID,
+            CTOKEN_PROGRAM_ID,
             [0u8; 32],
             false,
             false,
@@ -1056,7 +1056,7 @@ fn test_helper_methods() {
     let metas_with_program = parsed.to_account_metas(true);
     assert_eq!(
         metas_with_program[0].pubkey,
-        COMPRESSED_TOKEN_PROGRAM_ID.into()
+        CTOKEN_PROGRAM_ID.into()
     );
 
     let metas_without_program = parsed.to_account_metas(false);

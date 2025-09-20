@@ -57,7 +57,6 @@ pub fn create_pda_account(
 
     let bump_bytes = [config.bump];
     let mut seed_vec: ArrayVec<Seed, 8> = ArrayVec::new();
-
     for &seed in config.seeds {
         seed_vec.push(Seed::from(seed));
     }

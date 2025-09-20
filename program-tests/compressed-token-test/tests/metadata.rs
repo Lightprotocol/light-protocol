@@ -1,7 +1,7 @@
 // #![cfg(feature = "test-sbf")]
 
 use light_compressed_token_sdk::instructions::{
-    derive_compressed_mint_address, mint_action::MintActionType,
+    derive_ctoken_mint_address, mint_action::MintActionType,
 };
 use light_ctoken_types::{
     instructions::extensions::token_metadata::TokenMetadataInstructionData, state::ExtensionStruct,
@@ -45,7 +45,7 @@ async fn setup_metadata_test() -> (LightProgramTest, MetadataTestContext) {
     let freeze_authority = Pubkey::new_unique();
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+        derive_ctoken_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Fund all signers upfront (following established pattern)
     rpc.airdrop_lamports(&mint_authority.pubkey(), 10_000_000_000)

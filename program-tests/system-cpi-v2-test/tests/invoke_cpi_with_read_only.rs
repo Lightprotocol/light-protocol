@@ -3261,7 +3261,7 @@ pub mod local_sdk {
         pub fn add_pre_accounts_meta(&mut self, account_meta: AccountMeta) {
             self.pre_accounts.push(account_meta);
         }
-
+        #[inline(never)]
         pub fn add_system_accounts(&mut self, config: SystemAccountMetaConfig) {
             self.system_accounts
                 .extend(get_light_system_account_metas(config));

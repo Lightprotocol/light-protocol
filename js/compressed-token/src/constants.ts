@@ -1,3 +1,4 @@
+import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 export const POOL_SEED = Buffer.from('pool');
 
@@ -30,3 +31,7 @@ export const REVOKE_DISCRIMINATOR = Buffer.from([
 export const ADD_TOKEN_POOL_DISCRIMINATOR = Buffer.from([
     114, 143, 210, 73, 96, 115, 1, 228,
 ]);
+
+export const CTOKEN_RENT_RECIPIENT = new PublicKey(
+    '14GGjbqyMp5KGYUCgaSyxGyJJTE9ob8dbALNp8bwZN5Y',
+);

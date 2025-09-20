@@ -1,7 +1,7 @@
 use light_account_checks::{AccountError, AccountInfoTrait, AccountIterator};
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
-use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
 use light_profiler::profile;
+use light_sdk_types::CTOKEN_PROGRAM_ID;
 use light_sdk_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
     REGISTERED_PROGRAM_PDA, SOL_POOL_PDA,
@@ -69,7 +69,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
 
         // 1. Compressed token program (always required)
         let compressed_token_program =
-            iter.next_checked_pubkey("compressed_token_program", COMPRESSED_TOKEN_PROGRAM_ID)?;
+            iter.next_checked_pubkey("compressed_token_program", CTOKEN_PROGRAM_ID)?;
 
         // 2. Light system program (always required)
         let light_system_program =

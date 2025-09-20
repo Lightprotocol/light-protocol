@@ -157,6 +157,7 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keysDir + "non-inclusion_26_2.key",
 		keysDir + "non-inclusion_40_1.key",
 		keysDir + "non-inclusion_40_2.key",
+		keysDir + "non-inclusion_40_3.key",
 	}
 
 	var appendKeys []string = []string{

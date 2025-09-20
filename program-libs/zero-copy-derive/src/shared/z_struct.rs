@@ -320,6 +320,12 @@ fn generate_struct_fields_with_zerocopy_types<'a, const MUT: bool>(
                         pub #field_name: <#field_type as #trait_name<'a>>::#associated_type_ident
                     }
                 }
+                // FieldType::Bool(field_name) => {
+                //     quote! {
+                //         #(#attributes)*
+                //         pub #field_name: <bool as #trait_name<'a>>::Output
+                //     }
+                // }
                 FieldType::Copy(field_name, field_type) => {
                     let zerocopy_type = utils::convert_to_zerocopy_type(field_type);
                     quote! {

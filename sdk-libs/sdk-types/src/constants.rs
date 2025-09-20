@@ -14,6 +14,12 @@ pub const ACCOUNT_COMPRESSION_AUTHORITY_PDA: [u8; 32] =
 /// ID of the light-compressed-token program.
 pub const C_TOKEN_PROGRAM_ID: [u8; 32] =
     pubkey_array!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
+pub const CTOKEN_PROGRAM_ID: [u8; 32] =
+    pubkey_array!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
+
+/// ID of the compressed token program CPI authority PDA.
+pub const COMPRESSED_TOKEN_PROGRAM_CPI_AUTHORITY: [u8; 32] =
+    pubkey_array!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
 
 /// Seed of the CPI authority.
 pub const CPI_AUTHORITY_PDA_SEED: &[u8] = b"cpi_authority";
@@ -38,3 +44,8 @@ pub const CPI_CONTEXT_ACCOUNT_DISCRIMINATOR_V1: [u8; 8] = [22, 20, 149, 218, 74,
 pub const CPI_CONTEXT_ACCOUNT_DISCRIMINATOR: [u8; 8] = [34, 184, 183, 14, 100, 80, 183, 124];
 
 pub const SOL_POOL_PDA: [u8; 32] = pubkey_array!("CHK57ywWSDncAoRu1F8QgwYJeXuAJyyBYT4LixLXvMZ1");
+
+// For input accounts with empty data.
+pub const DEFAULT_DATA_HASH: [u8; 32] = [
+    0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+];

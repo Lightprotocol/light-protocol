@@ -10,7 +10,6 @@ use light_ctoken_types::{
 };
 use light_profiler::profile;
 use solana_instruction::Instruction;
-use solana_msg::msg;
 use solana_pubkey::Pubkey;
 
 use crate::{
@@ -36,6 +35,7 @@ pub struct CreateMintInputs {
     pub proof: Option<CompressedProof>,
     pub address_tree: Pubkey,
     pub output_queue: Pubkey,
+    pub actions: Vec<MintActionType>,
 }
 
 /// Input parameters for working with an existing mint
@@ -81,7 +81,7 @@ impl MintActionInputs {
             authority: inputs.authority,
             payer: inputs.payer,
             proof: inputs.proof,
-            actions: Vec::new(),
+            actions: inputs.actions,
             address_tree_pubkey: inputs.address_tree,
             input_queue: None,
             output_queue: inputs.output_queue,
@@ -411,7 +411,7 @@ pub fn create_mint_action_cpi(
     // Get account metas (before moving compressed_mint_inputs)
     let accounts =
         get_mint_action_instruction_account_metas(meta_config, &input.compressed_mint_inputs);
-    msg!("account metas {:?}", accounts);
+
     let instruction_data = MintActionCompressedInstructionData {
         create_mint,
         mint_bump,
@@ -433,7 +433,7 @@ pub fn create_mint_action_cpi(
         .map_err(|_| TokenSdkError::SerializationError)?;
 
     Ok(Instruction {
-        program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(light_sdk_types::CTOKEN_PROGRAM_ID),
         accounts,
         data: [vec![MINT_ACTION_DISCRIMINATOR], data_vec].concat(),
     })
@@ -790,7 +790,7 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
         .map_err(|_| TokenSdkError::SerializationError)?;
 
     Ok(Instruction {
-        program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: Pubkey::new_from_array(light_sdk_types::CTOKEN_PROGRAM_ID),
         accounts,
         data: [vec![MINT_ACTION_DISCRIMINATOR], data_vec].concat(),
     })
