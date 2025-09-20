@@ -7,10 +7,51 @@ import { Keypair } from "@solana/web3.js";
 import { confirmConfig, createRpc, Rpc } from "@lightprotocol/stateless.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { CONFIG_FILE_NAME, CONFIG_PATH, DEFAULT_CONFIG } from "./constants";
-import { getKeypairFromFile } from "@solana-developers/helpers";
 import spinner from "cli-spinners";
+import dotenv from "dotenv";
 
-require("dotenv").config();
+dotenv.config();
+
+/**
+ * Get a Keypair from a secret key file (compatible with Solana CLI)
+ */
+export async function getKeypairFromFile(filepath?: string): Promise<Keypair> {
+  // Default value from Solana CLI
+  const DEFAULT_FILEPATH = "~/.config/solana/id.json";
+
+  if (!filepath) {
+    filepath = DEFAULT_FILEPATH;
+  }
+
+  if (filepath[0] === "~") {
+    const home = process.env.HOME || null;
+    if (home) {
+      filepath = path.join(home, filepath.slice(1));
+    }
+  }
+
+  let fileContents: string;
+  try {
+    fileContents = fs.readFileSync(filepath, "utf8");
+  } catch {
+    throw new Error(`Could not read keypair from file at '${filepath}'`);
+  }
+
+  // Parse contents of file
+  let parsedFileContents: Uint8Array;
+  try {
+    parsedFileContents = Uint8Array.from(JSON.parse(fileContents));
+  } catch (error_) {
+    const error = error_ as Error;
+    if (!error.message.includes("Unexpected token")) {
+      throw error;
+    }
+
+    throw new Error(`Invalid secret key file at '${filepath}'!`);
+  }
+
+  return Keypair.fromSecretKey(parsedFileContents);
+}
 
 export const defaultSolanaWalletKeypair = (): Keypair => {
   const walletPath = process.env.HOME + "/.config/solana/id.json";

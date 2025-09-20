@@ -78,7 +78,7 @@ function handleTarFile({
   localFilePath?: string;
   dirPath: string;
 }) {
-  const parser = new tar.Parse();
+  const parser = new tar.Parser();
 
   data.pipe(decompressor).pipe(parser);
 

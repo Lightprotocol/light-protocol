@@ -1,4 +1,5 @@
-import { expect, test } from "@oclif/test";
+import { runCommand } from "@oclif/test";
+import { expect } from "chai";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { Keypair } from "@solana/web3.js";
@@ -32,21 +33,16 @@ describe("transfer", () => {
     );
   });
 
-  test
-    .stdout({ print: true })
-    .command([
+  it(`transfer ${
+    mintAmount - 1
+  } tokens to ${mintDestination.toBase58()} from ${mintKeypair.publicKey.toBase58()}, fee-payer: ${payerKeypair.publicKey.toBase58()} `, async () => {
+    const { stdout } = await runCommand([
       "transfer",
       `--amount=${mintAmount - 1}`,
       `--fee-payer=${payerKeypairPath}`,
       `--mint=${mintKeypair.publicKey.toBase58()}`,
       `--to=${mintDestination.toBase58()}`,
-    ])
-    .it(
-      `transfer ${
-        mintAmount - 1
-      } tokens to ${mintDestination.toBase58()} from ${mintKeypair.publicKey.toBase58()}, fee-payer: ${payerKeypair.publicKey.toBase58()} `,
-      (ctx: any) => {
-        expect(ctx.stdout).to.contain("transfer successful");
-      },
-    );
+    ]);
+    expect(stdout).to.contain("transfer successful");
+  });
 });
