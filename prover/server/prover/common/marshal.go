@@ -27,18 +27,6 @@ func ToHex(i *big.Int) string {
 	return fmt.Sprintf("0x%064x", i)
 }
 
-func FromDec(i *big.Int, s string) error {
-	_, ok := i.SetString(s, 10)
-	if !ok {
-		return fmt.Errorf("invalid number: %s", s)
-	}
-	return nil
-}
-
-func toDec(i *big.Int) string {
-	return fmt.Sprintf("%s", i.Text(10))
-}
-
 type ProofJSON struct {
 	Ar  [2]string    `json:"ar"`
 	Bs  [2][2]string `json:"bs"`
@@ -107,7 +95,23 @@ func (p *Proof) UnmarshalJSON(data []byte) error {
 
 	p.Proof = groth16.NewProof(ecc.BN254)
 
-	_, err = p.Proof.ReadFrom(bytes.NewReader(proofBytes))
+	// For gnark v0.14 compatibility: proofs now include Commitments and CommitmentPok fields
+	// We need to append empty commitment data to make ReadFrom work
+	var fullProofBuf bytes.Buffer
+	fullProofBuf.Write(proofBytes)
+
+	tempProof := groth16.NewProof(ecc.BN254)
+	var tempBuf bytes.Buffer
+	tempProof.WriteRawTo(&tempBuf)
+	expectedSize := tempBuf.Len()
+
+	// If gnark expects more than 256 bytes, pad with zeros for commitment fields
+	if expectedSize > len(proofBytes) {
+		padding := make([]byte, expectedSize-len(proofBytes))
+		fullProofBuf.Write(padding)
+	}
+
+	_, err = p.Proof.ReadFrom(bytes.NewReader(fullProofBuf.Bytes()))
 	if err != nil {
 		return err
 	}
