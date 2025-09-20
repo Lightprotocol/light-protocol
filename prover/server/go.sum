@@ -1,5 +1,5 @@
-github.com/Lightprotocol/gnark-lean-extractor/v3 v3.0.0-20250918103204-5276e76c3de5 h1:+sDsTNxOMSX9efXeV6gxtJ3OhooeD4222Q+ji6Byi2I=
-github.com/Lightprotocol/gnark-lean-extractor/v3 v3.0.0-20250918103204-5276e76c3de5/go.mod h1:OzXjBrGCWeDcKuvq3Q7/k8gL/2w9mCL6E2bCCcoJqEs=
+github.com/Lightprotocol/gnark-lean-extractor/v3 v3.0.0-20250920122823-aa0219463107 h1:Xmabi4NM2Ka6vJpM8iaiKKSDT+AZwYnSdkz/KGrKbB4=
+github.com/Lightprotocol/gnark-lean-extractor/v3 v3.0.0-20250920122823-aa0219463107/go.mod h1:OzXjBrGCWeDcKuvq3Q7/k8gL/2w9mCL6E2bCCcoJqEs=
 github.com/beorn7/perks v1.0.1 h1:VlbKKnNfV8bJzeqoa4cOKqO6bYr3WgKZxO8Z16+hsOM=
 github.com/beorn7/perks v1.0.1/go.mod h1:G2ZrVWU2WbWT9wwq4/hrbKbnv/1ERSJQ0ibhJ6rlkpw=
 github.com/bits-and-blooms/bitset v1.24.0 h1:H4x4TuulnokZKvHLfzVRTHJfFfnHEeSYJizujEZvmAM=
