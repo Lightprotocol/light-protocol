@@ -10,9 +10,10 @@ use pinocchio::{
     account_info::{AccountInfo, BorrowState},
     cpi::{invoke_signed_unchecked, MAX_CPI_ACCOUNTS},
     instruction::{Account, AccountMeta, Instruction, Seed, Signer},
-    msg,
+    // msg,
     pubkey::Pubkey,
 };
+use spl_pod::solana_msg::msg;
 
 use crate::LIGHT_CPI_SIGNER;
 
@@ -122,6 +123,20 @@ pub fn execute_cpi_invoke(
         Seed::from(bump_seed.as_slice()),
     ];
     let signer = Signer::from(&seed_array);
+
+    msg!(
+        "instruction.keys: {:?}",
+        instruction
+            .accounts
+            .iter()
+            .map(|x| x.pubkey)
+            .collect::<Vec<_>>()
+    );
+
+    msg!(
+        "accounts: {:?}",
+        accounts.iter().map(|x| x.key()).collect::<Vec<_>>()
+    );
 
     match slice_invoke_signed(&instruction, accounts, &[signer]) {
         Ok(()) => {}

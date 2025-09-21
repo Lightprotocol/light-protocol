@@ -317,6 +317,8 @@ pub fn compress_and_close_ctoken_accounts<'info>(
         return Err(TokenSdkError::InvalidAccountData);
     }
 
+    msg!("explicit_rent_recipient {:?}", explicit_rent_recipient);
+
     // Helper function to find index of a pubkey in packed_accounts using linear search
     // More efficient than HashMap for small arrays in Solana programs
     // Note: We add 1 to account for output_queue being inserted at index 0 later
@@ -366,6 +368,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             owner_pubkey
         };
 
+        msg!("rent_sponsor_pubkey {:?}", rent_sponsor_pubkey);
         // Determine rent recipient from extension or use default
         let actual_rent_sponsor = if rent_sponsor_pubkey.is_none() {
             // Check if there's a rent recipient in the compressible extension
@@ -394,6 +397,8 @@ pub fn compress_and_close_ctoken_accounts<'info>(
         } else {
             rent_sponsor_pubkey.unwrap()
         };
+
+        msg!("actual_rent_sponsor {:?}", actual_rent_sponsor);
 
         // Determine destination based on authority type
         let destination_pubkey = if with_compression_authority {
@@ -443,7 +448,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
 #[profile]
 pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     token_accounts_to_compress: &[AccountInfoToCompress<'info>],
-    fee_payer: &Pubkey,
+    fee_payer: AccountInfo<'info>,
     output_queue: AccountInfo<'info>,
     compressed_token_rent_recipient: AccountInfo<'info>,
     compressed_token_cpi_authority: AccountInfo<'info>,
@@ -451,7 +456,8 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     post_system: &[AccountInfo<'info>],
     remaining_accounts: &[AccountInfo<'info>],
 ) -> Result<(), ProgramError> {
-    let mut packed_accounts = Vec::with_capacity(post_system.len() + 3);
+    let mut packed_accounts = Vec::with_capacity(post_system.len() + 4);
+    // packed_accounts.push(fee_payer.clone());
     packed_accounts.extend_from_slice(post_system);
     packed_accounts.push(cpi_authority);
     packed_accounts.push(compressed_token_rent_recipient.clone());
@@ -460,6 +466,10 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
         token_accounts_to_compress
     );
 
+    msg!(
+        "compressed_token_rent_recipient: {:?}",
+        compressed_token_rent_recipient.key
+    );
     // Log the owner of each token account being compressed
     for token_account in token_accounts_to_compress {
         let account_data = token_account
@@ -485,7 +495,7 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
         .collect();
 
     let instruction = compress_and_close_ctoken_accounts(
-        *fee_payer,
+        *fee_payer.key,
         false, // with_rent_authority
         output_queue,
         &ctoken_infos,

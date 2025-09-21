@@ -405,11 +405,11 @@ pub mod anchor_compressible {
 
         // 1. compress and close token accounts in one CPI (no proof).
         if has_tokens {
-            let ctoken_rent_recipient = ctx.accounts.ctoken_rent_recipient.to_account_info();
+            let ctoken_rent_sponsor = ctx.accounts.ctoken_rent_sponsor.to_account_info();
             let ctoken_cpi_authority = ctx.accounts.ctoken_cpi_authority.to_account_info();
 
             let system_offset = cpi_accounts.system_accounts_end_offset();
-            let fee_payer = cpi_accounts.fee_payer().key;
+            let fee_payer = cpi_accounts.fee_payer().to_account_info();
             let output_queue = cpi_accounts.tree_accounts().unwrap()[0].to_account_info();
             let cpi_authority = cpi_accounts.authority().unwrap().to_account_info();
             let remaining_accounts = cpi_accounts.to_account_infos();
@@ -419,7 +419,7 @@ pub mod anchor_compressible {
                 &token_accounts_to_compress,
                 fee_payer,
                 output_queue,
-                ctoken_rent_recipient,
+                ctoken_rent_sponsor,
                 ctoken_cpi_authority,
                 cpi_authority,
                 post_system,
@@ -1484,7 +1484,7 @@ pub struct CompressAccountsIdempotent<'info> {
     /// ctoken rent recipient when token accounts are present
     /// CHECK: Checked by Protocol.
     #[account(mut)]
-    pub ctoken_rent_recipient: UncheckedAccount<'info>,
+    pub ctoken_rent_sponsor: UncheckedAccount<'info>,
     // Required token-specific accounts (always needed for mixed compression)
     /// CHECK: Checked by Protocol.
     pub ctoken_program: UncheckedAccount<'info>,

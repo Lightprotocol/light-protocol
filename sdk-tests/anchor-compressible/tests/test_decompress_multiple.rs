@@ -1752,7 +1752,7 @@ async fn compress_record(
             rent_recipient: RENT_RECIPIENT,
             ctoken_program: ctoken::id(),
             ctoken_cpi_authority: ctoken::cpi_authority(),
-            ctoken_rent_recipient: payer.pubkey(),
+            ctoken_rent_sponsor: payer.pubkey(),
         }
         .to_account_metas(None),
         vec![anchor_compressible::get_userrecord_seeds(&payer.pubkey()).0], // signer_seeds
@@ -2064,7 +2064,7 @@ async fn compress_placeholder_record(
                 rent_recipient: RENT_RECIPIENT,
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
-                ctoken_rent_recipient: payer.pubkey(),
+                ctoken_rent_sponsor: payer.pubkey(),
             }
             .to_account_metas(None),
             vec![placeholder_seeds.0],
@@ -2161,7 +2161,7 @@ async fn compress_placeholder_record_for_double_test(
                 rent_recipient: RENT_RECIPIENT,
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
-                ctoken_rent_recipient: payer.pubkey(),
+                ctoken_rent_sponsor: payer.pubkey(),
             }
             .to_account_metas(None),
             vec![placeholder_seeds.0],
@@ -2653,7 +2653,7 @@ async fn compress_token_account_after_decompress(
                 rent_recipient: RENT_RECIPIENT,
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
-                ctoken_rent_recipient: CTOKEN_RENT_SPONSOR,
+                ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
             }
             .to_account_metas(None),
             vec![

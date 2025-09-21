@@ -39,7 +39,6 @@ use solana_signer::Signer;
 
 pub const ADDRESS_SPACE: [Pubkey; 1] = [pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK")];
 pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
-pub const CTOKEN_RENT_SPONSOR: Pubkey = RENT_RECIPIENT;
 pub const TOKEN_PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
 #[tokio::test]
@@ -319,7 +318,7 @@ async fn test_double_decompression_attack() {
         fee_payer: payer.pubkey(),
         config: CompressibleConfig::derive_pda(&program_id, 0).0,
         rent_payer: payer.pubkey(),
-        ctoken_rent_payer: payer.pubkey(),
+        ctoken_rent_sponsor: ctoken::derive_ctoken_rent_sponsor(None).0,
         ctoken_program: ctoken::id(),
         ctoken_cpi_authority: ctoken::cpi_authority(),
         ctoken_config: light_token_client::ctoken::derive_ctoken_program_config(None).0,
@@ -1034,6 +1033,12 @@ async fn decompress_multiple_pdas_with_ctoken(
 
     assert_eq!(compressed_token_account.token.owner, native_token_account);
 
+    println!(
+        "ABC ctoken rent sponsor: {:?}",
+        ctoken::derive_ctoken_rent_sponsor(None).0
+    );
+    let ctoken_rent_sponsor = ctoken::derive_ctoken_rent_sponsor(None).0;
+    println!("DEF ctoken rent sponsor: {:?}", ctoken_rent_sponsor);
     let instruction =
         light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
             program_id,
@@ -1077,7 +1082,7 @@ async fn decompress_multiple_pdas_with_ctoken(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(&program_id, 0).0,
                 rent_payer: payer.pubkey(),
-                ctoken_rent_payer: payer.pubkey(),
+                ctoken_rent_sponsor,
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
                 ctoken_config: light_token_client::ctoken::derive_ctoken_program_config(None).0,
@@ -1294,7 +1299,7 @@ async fn decompress_multiple_pdas(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(&program_id, 0).0,
                 rent_payer: payer.pubkey(),
-                ctoken_rent_payer: payer.pubkey(),
+                ctoken_rent_sponsor: ctoken::derive_ctoken_rent_sponsor(None).0,
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
                 ctoken_config: light_token_client::ctoken::derive_ctoken_program_config(None).0,
@@ -1543,7 +1548,7 @@ async fn create_user_record_and_game_session(
                         decimals,
                         metadata: light_ctoken_types::state::CompressedMintMetadata {
                             version: 3,
-                            is_decompressed: false,
+                            spl_mint_initialized: false,
                             spl_mint: spl_mint.into(),
                         },
                         mint_authority: Some(mint_authority.into()),
@@ -1755,7 +1760,7 @@ async fn compress_record(
             rent_recipient: RENT_RECIPIENT,
             compression_authority: payer.pubkey(),
             ctoken_compression_authority: payer.pubkey(),
-            ctoken_rent_recipient: ctoken::derive_ctoken_rent_recipient(None).0,
+            ctoken_rent_sponsor: ctoken::derive_ctoken_rent_sponsor(None).0,
             ctoken_program: ctoken::id(),
             ctoken_cpi_authority: ctoken::cpi_authority(),
         }
@@ -1867,7 +1872,7 @@ async fn decompress_single_user_record(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(&program_id, 0).0,
                 rent_payer: payer.pubkey(),
-                ctoken_rent_payer: payer.pubkey(),
+                ctoken_rent_sponsor: ctoken::derive_ctoken_rent_sponsor(None).0,
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
                 ctoken_config: light_token_client::ctoken::derive_ctoken_program_config(None).0,
@@ -2070,7 +2075,7 @@ async fn compress_placeholder_record(
                 rent_recipient: RENT_RECIPIENT,
                 compression_authority: payer.pubkey(),
                 ctoken_compression_authority: payer.pubkey(),
-                ctoken_rent_recipient: ctoken::derive_ctoken_rent_recipient(None).0,
+                ctoken_rent_sponsor: ctoken::derive_ctoken_rent_sponsor(None).0,
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
             }
@@ -2170,7 +2175,7 @@ async fn compress_placeholder_record_for_double_test(
                 rent_recipient: RENT_RECIPIENT,
                 compression_authority: payer.pubkey(),
                 ctoken_compression_authority: payer.pubkey(),
-                ctoken_rent_recipient: ctoken::derive_ctoken_rent_recipient(None).0,
+                ctoken_rent_sponsor: ctoken::derive_ctoken_rent_sponsor(None).0,
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
             }
@@ -2237,7 +2242,7 @@ async fn decompress_single_game_session(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(&program_id, 0).0,
                 rent_payer: payer.pubkey(),
-                ctoken_rent_payer: payer.pubkey(),
+                ctoken_rent_sponsor: ctoken::derive_ctoken_rent_sponsor(None).0,
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
                 ctoken_config: light_token_client::ctoken::derive_ctoken_program_config(None).0,
@@ -2570,6 +2575,9 @@ async fn compress_token_account_after_decompress(
 
     println!("012 token_account_address: {:?}", token_account_address);
     println!("012 _authority_pda: {:?}", _authority_pda);
+    let cpisigner =
+        Pubkey::new_from_array(anchor_compressible_derived::LIGHT_CPI_SIGNER.cpi_signer);
+    println!("012 cpisigner: {:?}", cpisigner);
 
     let token_account_address_2 = get_ctokensigner2_seeds(&user.pubkey()).1;
     let (token_authority_seeds_2, _authority_pda_2) =
@@ -2643,6 +2651,8 @@ async fn compress_token_account_after_decompress(
         .value;
     println!("user.pubkey() {:?}", user.pubkey());
 
+    let rent_sponsor = ctoken::derive_ctoken_rent_sponsor(None).0;
+    println!("012 rent_sponsor: {:?}", rent_sponsor);
     let random_tree_info = rpc.get_random_state_tree_info().unwrap();
     let instruction =
         light_compressible_client::CompressibleInstruction::compress_accounts_idempotent(
@@ -2661,7 +2671,7 @@ async fn compress_token_account_after_decompress(
                 rent_recipient: RENT_RECIPIENT,
                 compression_authority: user.pubkey(),
                 ctoken_compression_authority: user.pubkey(),
-                ctoken_rent_recipient: ctoken::derive_ctoken_rent_recipient(None).0,
+                ctoken_rent_sponsor: rent_sponsor,
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
             }

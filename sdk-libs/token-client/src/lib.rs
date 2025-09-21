@@ -80,7 +80,6 @@ pub mod ctoken {
             &[
                 b"rent_sponsor".as_slice(),
                 (version as u16).to_le_bytes().as_slice(),
-                &[0],
             ],
             &solana_pubkey::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
         )
