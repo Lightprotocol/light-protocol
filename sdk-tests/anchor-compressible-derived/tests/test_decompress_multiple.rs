@@ -2725,6 +2725,23 @@ async fn compress_token_account_after_decompress(
         "Should have at least one compressed token account after compression"
     );
 
+    let token_account_after = rpc.get_account(token_account_address_2).await.unwrap();
+    if let Some(account) = token_account_after {
+        assert_eq!(
+            account.lamports, 0,
+            "Token account should have 0 lamports after compression"
+        );
+        assert!(
+            account.data.is_empty(),
+            "Token account should have no data after compression"
+        );
+    }
+
+    assert!(
+        !compressed_token_accounts.items.is_empty(),
+        "Should have at least one compressed token account after compression"
+    );
+
     let compressed_token = &compressed_token_accounts.items[0];
     assert_eq!(
         compressed_token.token.mint, mint,
@@ -2738,10 +2755,43 @@ async fn compress_token_account_after_decompress(
         compressed_token.token.amount, amount,
         "Compressed token should have the same amount"
     );
+
+    // Verify the compressed token account exists
+    let compressed_token_accounts = rpc
+        .get_compressed_token_accounts_by_owner(&token_account_address_2, None, None)
+        .await
+        .unwrap()
+        .value;
+
+    assert!(
+        !compressed_token_accounts.items.is_empty(),
+        "Should have at least one compressed token account after compression"
+    );
+
+    let compressed_token = &compressed_token_accounts.items[0];
+    assert_eq!(
+        compressed_token.token.mint, mint,
+        "Compressed token should have the same mint"
+    );
+    assert_eq!(
+        compressed_token.token.owner, token_account_address_2,
+        "Compressed token owner should be the token account address"
+    );
+    assert_eq!(
+        compressed_token.token.amount, amount,
+        "Compressed token should have the same amount"
+    );
+
     let user_record_account = rpc.get_account(*user_record_pda).await.unwrap().unwrap();
     let game_session_account = rpc.get_account(*game_session_pda).await.unwrap().unwrap();
     let token_account = rpc
         .get_account(token_account_address)
+        .await
+        .unwrap()
+        .unwrap();
+
+    let token_account_2 = rpc
+        .get_account(token_account_address_2)
         .await
         .unwrap()
         .unwrap();
@@ -2766,5 +2816,9 @@ async fn compress_token_account_after_decompress(
     assert!(
         token_account.data.is_empty(),
         "Token account should be empty"
+    );
+    assert!(
+        token_account_2.data.is_empty(),
+        "Token account 2 should be empty"
     );
 }

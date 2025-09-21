@@ -62,7 +62,7 @@ export function parseTokenLayoutWithIdl(
 
     if (data.length === 0) return null;
 
-    if (compressedAccount.owner.toBase58() !== programId.toBase58()) {
+    if (!compressedAccount.owner.equals(programId)) {
         throw new Error(
             `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
         );

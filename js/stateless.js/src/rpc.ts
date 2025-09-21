@@ -129,6 +129,8 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
         : versionedEndpoint('getCompressedTokenAccountsByOwner');
     const propertyToCheck = filterByDelegate ? 'delegate' : 'owner';
 
+    console.log('owner or delegate', ownerOrDelegate.toBase58());
+
     const unsafeRes = await rpcRequest(rpc.compressionApiEndpoint, endpoint, {
         [propertyToCheck]: ownerOrDelegate.toBase58(),
         mint: options.mint?.toBase58(),
@@ -2068,6 +2070,8 @@ export class Rpc extends Connection implements CompressionApiInterface {
             this.getCompressedTokenAccountsByOwner(address),
         ]);
 
+        console.log('onchainResult', onchainResult);
+        console.log('compressedResult', compressedResult);
         const onchainAccount =
             onchainResult.status === 'fulfilled' ? onchainResult.value : null;
         const compressedAccount =
@@ -2117,7 +2121,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     compressedAccount.data!.data,
                 ]),
             };
-            if (compressedAccount.owner !== tokenProgramId) {
+            if (!compressedAccount.owner.equals(tokenProgramId)) {
                 throw new Error(
                     `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
                 );
