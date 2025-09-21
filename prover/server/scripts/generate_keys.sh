@@ -9,12 +9,12 @@
 # V1 circuits (legacy): Used for height 26 trees
 #   - Generated with --legacy flag
 #   - Required for address tree height 26
-#   - File naming: combined_26_26_X_Y where X=inclusion accounts, Y=non-inclusion accounts
+#   - File naming: v1_combined_26_26_X_Y where X=inclusion accounts, Y=non-inclusion accounts
 #
 # V2 circuits: Used for heights 32 (state) and 40 (address)
 #   - Generated without --legacy flag
 #   - Required for address tree height 40
-#   - File naming: combined_32_40_X_Y where X=inclusion accounts, Y=non-inclusion accounts
+#   - File naming: v2_combined_32_40_X_Y where X=inclusion accounts, Y=non-inclusion accounts
 #
 # The prover automatically selects V1 or V2 based on address tree height:
 #   - Height 26 -> V1 circuits

@@ -177,28 +177,34 @@ cat "$CHECKSUM_FILE"
 case "$1" in
     "light")
         SUFFIXES=(
-            "inclusion_32:1 2 3 4 8"
-            "mainnet_inclusion_26:1 2 3 4 8"
-            "non-inclusion_26:1 2"
-            "non-inclusion_40:1 2 3 4 8"
-            "combined_26_26:1_1 1_2 2_1 2_2 3_1 3_2 4_1 4_2"
-            "combined_32_40:1_1 1_2 1_3 1_4 2_1 2_2 2_3 2_4 3_1 3_2 3_3 3_4 4_1 4_2 4_3 4_4"
-            "append_32:10"
-            "update_32:10"
-            "address-append_40:10"
+            # V1 keys (height 26)
+            "v1_inclusion_26:1 2 3 4 8"
+            "v1_non-inclusion_26:1 2"
+            "v1_combined_26_26:1_1 1_2 2_1 2_2 3_1 3_2 4_1 4_2"
+
+            # V2 keys (heights 32/40)
+            "v2_inclusion_32:1 2 3 4 8"
+            "v2_non-inclusion_40:1 2 3 4 8"
+            "v2_combined_32_40:1_1 1_2 1_3 1_4 2_1 2_2 2_3 2_4 3_1 3_2 3_3 3_4 4_1 4_2 4_3 4_4"
+            "v2_append_32:10"
+            "v2_update_32:10"
+            "v2_address-append_40:10"
         )
         ;;
     "full")
         SUFFIXES=(
-            "inclusion_32:1 2 3 4 8"
-            "mainnet_inclusion_26:1 2 3 4 8"
-            "non-inclusion_26:1 2"
-            "non-inclusion_40:1 2 3 4 8"
-            "combined_26_26:1_1 1_2 2_1 2_2 3_1 3_2 4_1 4_2"
-            "combined_32_40:1_1 1_2 1_3 1_4 2_1 2_2 2_3 2_4 3_1 3_2 3_3 3_4 4_1 4_2 4_3 4_4"
-            "append_32:500"
-            "update_32:500"
-            "address-append_40:250"
+            # V1 keys (height 26)
+            "v1_inclusion_26:1 2 3 4 8"
+            "v1_non-inclusion_26:1 2"
+            "v1_combined_26_26:1_1 1_2 2_1 2_2 3_1 3_2 4_1 4_2"
+
+            # V2 keys (heights 32/40)
+            "v2_inclusion_32:1 2 3 4 8"
+            "v2_non-inclusion_40:1 2 3 4 8"
+            "v2_combined_32_40:1_1 1_2 1_3 1_4 2_1 2_2 2_3 2_4 3_1 3_2 3_3 3_4 4_1 4_2 4_3 4_4"
+            "v2_append_32:10 500"
+            "v2_update_32:10 500"
+            "v2_address-append_40:10 250"
         )
         echo -e "${YELLOW}WARNING: Full keys include files >6GB. Ensure stable connection!${NC}"
         ;;
