@@ -1,5 +1,5 @@
 import { airdropSol } from "@lightprotocol/stateless.js";
-import { CTOKEN_RENT_RECIPIENT } from "@lightprotocol/compressed-token";
+import { CTOKEN_RENT_SPONSOR } from "@lightprotocol/compressed-token";
 import { getConfig, getPayer, setAnchorProvider, setConfig } from "./utils";
 import {
   BASE_PATH,
@@ -143,10 +143,10 @@ export async function initTestEnv({
     const provider = await setAnchorProvider();
     await airdropSol({
       connection: provider.connection,
-      recipientPublicKey: CTOKEN_RENT_RECIPIENT,
+      recipientPublicKey: CTOKEN_RENT_SPONSOR,
       lamports: 10e9,
     }); // 10 SOL
-    console.log(`Funded rent_sponsor: ${CTOKEN_RENT_RECIPIENT.toBase58()}`);
+    console.log(`Funded rent_sponsor: ${CTOKEN_RENT_SPONSOR.toBase58()}`);
   } catch (error) {
     throw new Error(`Failed to airdrop to CToken rent recipient: ${error}`);
   }

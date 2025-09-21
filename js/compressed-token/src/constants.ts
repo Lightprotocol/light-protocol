@@ -32,6 +32,6 @@ export const ADD_TOKEN_POOL_DISCRIMINATOR = Buffer.from([
     114, 143, 210, 73, 96, 115, 1, 228,
 ]);
 
-export const CTOKEN_RENT_RECIPIENT = new PublicKey(
-    '14GGjbqyMp5KGYUCgaSyxGyJJTE9ob8dbALNp8bwZN5Y',
+export const CTOKEN_RENT_SPONSOR = new PublicKey(
+    'r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti',
 );

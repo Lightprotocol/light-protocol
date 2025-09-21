@@ -81,7 +81,8 @@ async fn test_create_and_decompress_two_accounts() {
     assert!(result.is_ok(), "Initialize config should succeed");
 
     // Save the CompressibleConfig account
-    // let config_pubkey = Pubkey::from_str("4QZHaMxYfrMPT5czFBQy9DUWzsrbuGz9ndXFaKBiovVr").unwrap();
+    // let config_pubkey =
+    //     solana_pubkey::Pubkey::from_str_const("ACXg8a7VaqecBWrSbdu73W4Pg9gsqXJ3EXAqkHyhvVXg");
     // rpc.save_account_to_cli(&config_pubkey)
     //     .await
     //     .expect("Failed to save config account");

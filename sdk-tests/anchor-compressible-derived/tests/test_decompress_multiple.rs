@@ -314,6 +314,8 @@ async fn test_double_decompression_attack() {
 
     let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
+    let ctoken_config = ctoken::derive_ctoken_program_config(None).0;
+    println!("ctoken_config: {:?}", ctoken_config);
     let program_accounts = anchor_compressible_derived::accounts::DecompressAccountsIdempotent {
         fee_payer: payer.pubkey(),
         config: CompressibleConfig::derive_pda(&program_id, 0).0,
@@ -321,7 +323,7 @@ async fn test_double_decompression_attack() {
         ctoken_rent_sponsor: ctoken::derive_ctoken_rent_sponsor(None).0,
         ctoken_program: ctoken::id(),
         ctoken_cpi_authority: ctoken::cpi_authority(),
-        ctoken_config: light_token_client::ctoken::derive_ctoken_program_config(None).0,
+        ctoken_config,
         some_mint: payer.pubkey(), // doesnt actually get used.
     }
     .to_account_metas(None);
