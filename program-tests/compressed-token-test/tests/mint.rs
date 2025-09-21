@@ -1314,7 +1314,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
     }
 }
 
-/// Failing tests:
+/// Functional and Failing tests:
 /// 1. FAIL - MintToCompressed - invalid mint authority
 /// 2. SUCCEED - MintToCompressed
 /// 3. FAIL - UpdateMintAuthority - invalid mint authority
@@ -1332,7 +1332,7 @@ async fn test_create_compressed_mint_with_token_metadata() {
 /// 15. SUCCEED - RemoveMetadataKey - idempotent
 #[tokio::test]
 #[serial]
-async fn failing_tests() {
+async fn functional_and_failing_tests() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
         .unwrap();
@@ -1856,4 +1856,318 @@ async fn failing_tests() {
             "Should succeed with idempotent=true even when key doesn't exist"
         );
     }
+}
+
+/// Functional test that uses multiple mint actions in a single instruction:
+/// 1. MintToCompressed - mint to compressed account
+/// 2. MintToCToken - mint to decompressed account
+/// 3. UpdateMintAuthority
+/// 4. UpdateFreezeAuthority
+/// 5-8. UpdateMetadataField (Name, Symbol, URI, and add custom field)
+/// 9. RemoveMetadataKey - remove original additional metadata
+/// 10. UpdateMetadataAuthority
+/// Note: all authorities must be the same else it cannot work.
+#[tokio::test]
+#[serial]
+async fn functional_all_in_one_instruction() {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+
+    let payer = Keypair::new();
+    rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    let mint_seed = Keypair::new();
+    let authority = Keypair::new();
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+    // Derive compressed mint address for verification
+    let compressed_mint_address =
+        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+
+    // Find mint PDA for the rest of the test
+    let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());
+    // 1. Create compressed mint with both authorities
+    {
+        create_mint(
+        &mut rpc,
+        &mint_seed,
+        8, // decimals
+        &authority,
+        Some(authority.pubkey()),
+        Some(light_ctoken_types::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+            update_authority: Some(authority.pubkey().into()),
+            name: "Test Token".as_bytes().to_vec(),
+            symbol: "TEST".as_bytes().to_vec(),
+            uri: "https://example.com/token.json".as_bytes().to_vec(),
+            additional_metadata: Some(vec![AdditionalMetadata {
+                key: vec![1,2,3,4],
+                value: vec![2u8;5]
+            },AdditionalMetadata {
+                key: vec![4,5,6,7],
+                value: vec![3u8;32]
+            }]),
+        }),
+        &payer,
+    )
+    .await
+    .unwrap();
+        // Verify the compressed mint was created
+        let compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+        assert_compressed_mint_account(
+        &compressed_mint_account,
+        compressed_mint_address,
+        spl_mint_pda,
+        8,
+        authority.pubkey(),
+        authority.pubkey(),
+        Some(light_ctoken_types::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+            update_authority: Some(authority.pubkey().into()),
+            name: "Test Token".as_bytes().to_vec(),
+            symbol: "TEST".as_bytes().to_vec(),
+            uri: "https://example.com/token.json".as_bytes().to_vec(),
+            additional_metadata: Some(vec![
+                AdditionalMetadata {
+                    key: vec![1,2,3,4],
+                    value: vec![2u8;5]
+                },
+                AdditionalMetadata {
+                    key: vec![4,5,6,7],
+                    value: vec![3u8;32]
+                }
+            ]),
+        }),
+    );
+    }
+
+    // Fund authority
+    rpc.airdrop_lamports(&authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    // Create new authorities to update to
+    let new_mint_authority = Keypair::new();
+    let new_freeze_authority = Keypair::new();
+    let new_metadata_authority = Keypair::new();
+
+    // Create a ctoken account for MintToCToken
+    let recipient = Keypair::new();
+    let create_ata_ix = light_compressed_token_sdk::instructions::create_associated_token_account(
+        payer.pubkey(),
+        recipient.pubkey(),
+        spl_mint_pda,
+    )
+    .unwrap();
+
+    rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+
+    // Build all actions for a single instruction
+    let actions = vec![
+        // 1. MintToCompressed - mint to compressed account
+        light_compressed_token_sdk::instructions::mint_action::MintActionType::MintTo {
+            recipients: vec![light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
+                recipient: Keypair::new().pubkey(),
+                amount: 1000u64,
+            }],
+            token_account_version: 2,
+        },
+        // 2. MintToCToken - mint to decompressed account
+        light_compressed_token_sdk::instructions::mint_action::MintActionType::MintToCToken {
+            account: light_compressed_token_sdk::instructions::derive_ctoken_ata(
+                &recipient.pubkey(),
+                &spl_mint_pda,
+            ).0,
+            amount: 2000u64,
+        },
+        // 3. UpdateMintAuthority
+        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMintAuthority {
+            new_authority: Some(new_mint_authority.pubkey()),
+        },
+        // 4. UpdateFreezeAuthority
+        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateFreezeAuthority {
+            new_authority: Some(new_freeze_authority.pubkey()),
+        },
+        // 5. UpdateMetadataField - update the name
+        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
+            extension_index: 0,
+            field_type: 0, // Name field
+            key: vec![],
+            value: "Updated Token Name".as_bytes().to_vec(),
+        },
+        // 6. UpdateMetadataField - update the symbol
+        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
+            extension_index: 0,
+            field_type: 1, // Symbol field
+            key: vec![],
+            value: "UPDATED".as_bytes().to_vec(),
+        },
+        // 7. UpdateMetadataField - update the URI
+        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
+            extension_index: 0,
+            field_type: 2, // URI field
+            key: vec![],
+            value: "https://updated.example.com/token.json".as_bytes().to_vec(),
+        },
+        // 8. UpdateMetadataField - update the first additional metadata field
+        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
+            extension_index: 0,
+            field_type: 3, // Custom key field
+            key: vec![1, 2, 3, 4],
+            value: "updated_value".as_bytes().to_vec(),
+        },
+        // 9. RemoveMetadataKey - remove the second additional metadata key
+        light_compressed_token_sdk::instructions::mint_action::MintActionType::RemoveMetadataKey {
+            extension_index: 0,
+            key: vec![4, 5, 6, 7],
+            idempotent: 0,
+        },
+        // 10. UpdateMetadataAuthority
+        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataAuthority {
+            extension_index: 0,
+            new_authority: new_metadata_authority.pubkey(),
+        },
+    ];
+
+    // Execute all actions in a single instruction
+    let result = light_token_client::actions::mint_action(
+        &mut rpc,
+        light_token_client::instructions::mint_action::MintActionParams {
+            compressed_mint_address,
+            mint_seed: mint_seed.pubkey(),
+            authority: authority.pubkey(),
+            payer: payer.pubkey(),
+            actions,
+            new_mint: None,
+        },
+        &authority,
+        &payer,
+        None,
+    )
+    .await;
+
+    assert!(result.is_ok(), "All-in-one mint action should succeed");
+
+    // Verify final state
+    let final_compressed_mint_account = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    let final_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        &mut final_compressed_mint_account
+            .data
+            .as_ref()
+            .unwrap()
+            .data
+            .as_slice(),
+    )
+    .unwrap();
+
+    // Verify authorities were updated
+    assert_eq!(
+        final_compressed_mint.base.mint_authority,
+        Some(light_compressed_account::Pubkey::from(
+            new_mint_authority.pubkey().to_bytes()
+        )),
+        "Mint authority should be updated"
+    );
+    assert_eq!(
+        final_compressed_mint.base.freeze_authority,
+        Some(light_compressed_account::Pubkey::from(
+            new_freeze_authority.pubkey().to_bytes()
+        )),
+        "Freeze authority should be updated"
+    );
+
+    // Verify supply was increased
+    assert_eq!(
+        final_compressed_mint.base.supply, 3000,
+        "Supply should be 1000 (compressed) + 2000 (ctoken)"
+    );
+
+    // Verify metadata was updated
+    if let Some(extensions) = &final_compressed_mint.extensions {
+        if let light_ctoken_types::state::ExtensionStruct::TokenMetadata(metadata) = &extensions[0]
+        {
+            assert_eq!(
+                metadata.update_authority,
+                light_compressed_account::Pubkey::from(new_metadata_authority.pubkey().to_bytes()),
+                "Metadata authority should be updated"
+            );
+            assert_eq!(
+                metadata.name.as_slice(),
+                "Updated Token Name".as_bytes(),
+                "Name should be updated"
+            );
+            assert_eq!(
+                metadata.symbol.as_slice(),
+                "UPDATED".as_bytes(),
+                "Symbol should be updated"
+            );
+            assert_eq!(
+                metadata.uri.as_slice(),
+                "https://updated.example.com/token.json".as_bytes(),
+                "URI should be updated"
+            );
+            // Verify the first additional metadata key was updated
+            let updated_entry = metadata
+                .additional_metadata
+                .iter()
+                .find(|meta| meta.key == vec![1, 2, 3, 4]);
+            assert!(
+                updated_entry.is_some(),
+                "Key [1,2,3,4] should still exist"
+            );
+            assert_eq!(
+                updated_entry.unwrap().value,
+                "updated_value".as_bytes().to_vec(),
+                "Key [1,2,3,4] value should be updated"
+            );
+
+            // Verify the second additional metadata key was removed
+            assert!(
+                metadata
+                    .additional_metadata
+                    .iter()
+                    .all(|meta| meta.key != vec![4, 5, 6, 7]),
+                "Key [4,5,6,7] should be removed"
+            );
+
+            // Verify we only have one additional metadata entry now
+            assert_eq!(
+                metadata.additional_metadata.len(),
+                1,
+                "Should have exactly one additional metadata entry after update and remove"
+            );
+        } else {
+            panic!("Expected TokenMetadata extension");
+        }
+    } else {
+        panic!("Expected extensions");
+    }
+
+    // Verify ctoken account received tokens
+    let recipient_ata = light_compressed_token_sdk::instructions::derive_ctoken_ata(
+        &recipient.pubkey(),
+        &spl_mint_pda,
+    )
+    .0;
+    let account_data = rpc.get_account(recipient_ata).await.unwrap().unwrap();
+    let token_account = spl_token::state::Account::unpack(&account_data.data).unwrap();
+    assert_eq!(
+        token_account.amount, 2000,
+        "CToken account should have 2000 tokens"
+    );
 }

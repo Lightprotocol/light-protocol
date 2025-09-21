@@ -78,7 +78,22 @@ fn process_token_metadata_config_with_actions(
                 }
             }
 
-            // Filter out keys that will be removed
+            // Track updated values for custom fields (field_type 3)
+            let mut updated_values: arrayvec::ArrayVec<(&[u8], usize), 20> = arrayvec::ArrayVec::new();
+            for action in actions.iter() {
+                if let ZAction::UpdateMetadataField(update_action) = action {
+                    if update_action.extension_index as usize == extension_index && update_action.field_type == 3 {
+                        // Check if this key already has an update, replace it (last update wins)
+                        if let Some(entry) = updated_values.iter_mut().find(|(k, _)| *k == update_action.key) {
+                            entry.1 = update_action.value.len();
+                        } else {
+                            updated_values.push((update_action.key, update_action.value.len()));
+                        }
+                    }
+                }
+            }
+
+            // Filter out keys that will be removed and apply value updates
             additional_metadata
                 .iter()
                 .filter(|item| {
@@ -87,9 +102,18 @@ fn process_token_metadata_config_with_actions(
                         .iter()
                         .any(|remove_key| *remove_key == &item.key)
                 })
-                .map(|item| AdditionalMetadataConfig {
-                    key: item.key.len() as u32,
-                    value: item.value.len() as u32,
+                .map(|item| {
+                    // Use updated value length if this key was updated, otherwise use original
+                    let value_len = updated_values
+                        .iter()
+                        .find(|(k, _)| *k == item.key)
+                        .map(|(_, v)| *v)
+                        .unwrap_or(item.value.len());
+
+                    AdditionalMetadataConfig {
+                        key: item.key.len() as u32,
+                        value: value_len as u32,
+                    }
                 })
                 .collect()
         } else {
