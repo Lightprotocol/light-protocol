@@ -1,4 +1,3 @@
-use account_compression::StateMerkleTreeAccount;
 use anchor_lang::prelude::*;
 use light_compressed_account::{
     compressed_account::{CompressedAccount, CompressedAccountData},
@@ -14,7 +13,7 @@ use crate::{
     process_transfer::{
         add_data_hash_to_input_compressed_accounts, cpi_execute_compressed_transaction_transfer,
         get_input_compressed_accounts_with_merkle_context_and_check_signer,
-        InputTokenDataWithContext, BATCHED_DISCRIMINATOR,
+        InputTokenDataWithContext,
     },
     token_data::{AccountState, TokenData},
     FreezeInstruction,
@@ -116,7 +115,6 @@ pub fn create_input_and_output_accounts_freeze_or_thaw<
         &mut compressed_input_accounts,
         input_token_data.as_slice(),
         &hashed_mint,
-        remaining_accounts,
     )?;
     Ok((compressed_input_accounts, output_compressed_accounts))
 }
@@ -165,18 +163,7 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
         };
         token_data.serialize(&mut token_data_bytes)?;
 
-        let discriminator_bytes = &remaining_accounts[token_data_with_context
-            .merkle_context
-            .merkle_tree_pubkey_index
-            as usize]
-            .try_borrow_data()?[0..8];
-        use anchor_lang::Discriminator;
-        let data_hash = match discriminator_bytes {
-            StateMerkleTreeAccount::DISCRIMINATOR => token_data.hash_legacy(),
-            BATCHED_DISCRIMINATOR => token_data.hash(),
-            _ => panic!(),
-        }
-        .map_err(ProgramError::from)?;
+        let data_hash = token_data.hash().map_err(ProgramError::from)?;
 
         let data: CompressedAccountData = CompressedAccountData {
             discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
@@ -519,7 +506,7 @@ pub mod test_freeze {
             let change_data_struct = CompressedAccountData {
                 discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                 data: serialized_expected_token_data.clone(),
-                data_hash: token_data.hash_legacy().unwrap(),
+                data_hash: token_data.hash().unwrap(),
             };
             expected_compressed_output_accounts.push(OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
@@ -578,7 +565,7 @@ pub mod test_freeze {
                 };
                 let mut data = Vec::new();
                 token_data.serialize(&mut data).unwrap();
-                let data_hash = token_data.hash_legacy().unwrap();
+                let data_hash = token_data.hash().unwrap();
                 InAccount {
                     lamports: 0,
                     address: None,

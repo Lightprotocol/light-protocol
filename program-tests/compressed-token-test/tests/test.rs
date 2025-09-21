@@ -2,7 +2,6 @@
 
 use std::{assert_eq, str::FromStr};
 
-use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{
     prelude::AccountMeta, system_program, AccountDeserialize, AnchorDeserialize, AnchorSerialize,
     InstructionData, ToAccountMetas,
@@ -1244,7 +1243,7 @@ async fn test_mint_to_failing() {
             assert_rpc_error(
                 result,
                 0,
-                AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+                SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
             )
             .unwrap();
         }
@@ -2303,7 +2302,7 @@ async fn test_approve_failing() {
         assert_rpc_error(
             result,
             0,
-            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+            SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .unwrap();
     }
@@ -2349,7 +2348,7 @@ async fn test_approve_failing() {
         assert_rpc_error(
             result,
             0,
-            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+            SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .unwrap();
     }
@@ -2782,7 +2781,7 @@ async fn test_revoke_failing() {
         assert_rpc_error(
             result,
             0,
-            AccountCompressionErrorCode::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+            SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .unwrap();
     }
@@ -3404,7 +3403,7 @@ async fn failing_tests_burn() {
             assert_rpc_error(
                 res,
                 0,
-                anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
+                SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
             )
             .unwrap();
         }
