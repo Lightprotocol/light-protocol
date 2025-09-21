@@ -20,7 +20,7 @@ use light_ctoken_types::{
     },
     COMPRESSED_MINT_SEED,
 };
-use light_program_test::{LightProgramTest, ProgramTestConfig};
+use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_ctoken_transfer::assert_ctoken_transfer,
     assert_mint_to_compressed::{assert_mint_to_compressed, assert_mint_to_compressed_one},
@@ -271,8 +271,6 @@ async fn test_create_compressed_mint() {
 
     match tx_result {
         Ok(_) => {
-            println!("✅ Decompression transaction sent successfully!");
-
             // Use comprehensive decompress assertion
             assert_transfer2_decompress(
                 &mut rpc,
@@ -528,7 +526,7 @@ async fn test_update_compressed_mint_authority() {
     let new_freeze_authority = Keypair::new();
 
     // 1. Create compressed mint with both authorities
-    let _signature = create_mint(
+    create_mint(
         &mut rpc,
         &mint_seed,
         8, // decimals
@@ -931,11 +929,10 @@ async fn test_ctoken_transfer() {
     );
 }
 
-// TODO: add test case that can perform ever action on its own, with and without a decompressed mint.
 /// Test comprehensive mint actions in a single instruction
 #[tokio::test]
 #[serial]
-async fn test_mint_actions_comprehensive() {
+async fn test_mint_actions() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
         .unwrap();
@@ -1086,12 +1083,8 @@ async fn test_mint_actions_comprehensive() {
         "Mint should not be decompressed "
     );
 
-    println!("✅ Comprehensive mint action test passed!");
-
     // === TEST 2: MINT_ACTION ON EXISTING MINT ===
     // Now test mint_action on the existing mint (no creation, just minting and authority updates)
-
-    println!("\n=== Testing mint_action on existing mint ===");
 
     // Get current mint state for input
     let current_compressed_mint_account = rpc
@@ -1193,14 +1186,11 @@ async fn test_mint_actions_comprehensive() {
         !final_compressed_mint.metadata.spl_mint_initialized,
         "Mint should remain compressed"
     );
-
-    println!("✅ Existing mint test passed!");
-    println!("✅ All comprehensive mint action tests passed!");
 }
 
 #[tokio::test]
 #[serial]
-async fn test_create_compressed_mint_with_token_metadata_sha() {
+async fn test_create_compressed_mint_with_token_metadata() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
         .unwrap();
@@ -1321,5 +1311,549 @@ async fn test_create_compressed_mint_with_token_metadata_sha() {
             None,
         )
         .await;
+    }
+}
+
+/// Failing tests:
+/// 1. FAIL - MintToCompressed - invalid mint authority
+/// 2. SUCCEED - MintToCompressed
+/// 3. FAIL - UpdateMintAuthority - invalid mint authority
+/// 4. SUCCEED - UpdateMintAuthority
+/// 5. FAIL - UpdateFreezeAuthority - invalid freeze authority
+/// 6. SUCCEED - UpdateFreezeAuthority
+/// 7. FAIL - MintToCToken - invalid mint authority
+/// 8. SUCCEED - MintToCToken
+/// 9. FAIL - UpdateMetadataField - invalid metadata authority
+/// 10. SUCCEED - UpdateMetadataField
+/// 11. FAIL - UpdateMetadataAuthority  - invalid metadata authority
+/// 12. SUCCEED - UpdateMetadataAuthority
+/// 13. FAIL -  RemoveMetadataKey  - invalid metadata authority
+/// 14. SUCCEED - RemoveMetadataKey
+/// 15. SUCCEED - RemoveMetadataKey - idempotent
+#[tokio::test]
+#[serial]
+async fn failing_tests() {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+
+    let payer = Keypair::new();
+    rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    let mint_seed = Keypair::new();
+    let mint_authority = Keypair::new();
+    let freeze_authority = Keypair::new();
+    let metadata_authority = Keypair::new();
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+    // Derive compressed mint address for verification
+    let compressed_mint_address =
+        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+
+    // Find mint PDA for the rest of the test
+    let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());
+    // 1. Create compressed mint with both authorities
+    {
+        create_mint(
+        &mut rpc,
+        &mint_seed,
+        8, // decimals
+        &mint_authority,
+        Some(freeze_authority.pubkey()),
+        Some(light_ctoken_types::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+            update_authority: Some(metadata_authority.pubkey().into()),
+            name: "Test Token".as_bytes().to_vec(),
+            symbol: "TEST".as_bytes().to_vec(),
+            uri: "https://example.com/token.json".as_bytes().to_vec(),
+            additional_metadata: Some(vec![AdditionalMetadata {
+                key: vec![1,2,3,4],
+                value: vec![2u8;5]
+            }]),
+        }),
+        &payer,
+    )
+    .await
+    .unwrap();
+        // Verify the compressed mint was created
+        let compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+        assert_compressed_mint_account(
+        &compressed_mint_account,
+        compressed_mint_address,
+        spl_mint_pda,
+        8,
+        mint_authority.pubkey(),
+        freeze_authority.pubkey(),
+        Some(light_ctoken_types::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+            update_authority: Some(metadata_authority.pubkey().into()),
+            name: "Test Token".as_bytes().to_vec(),
+            symbol: "TEST".as_bytes().to_vec(),
+            uri: "https://example.com/token.json".as_bytes().to_vec(),
+            additional_metadata: Some(vec![AdditionalMetadata {
+                key: vec![1,2,3,4],
+                value: vec![2u8;5]
+            }]),
+        }), // No metadata
+    );
+    }
+
+    // Create invalid authorities for testing
+    let invalid_mint_authority = Keypair::new();
+    let invalid_freeze_authority = Keypair::new();
+    let invalid_metadata_authority = Keypair::new();
+
+    // Create new authorities for updates
+    let new_mint_authority = Keypair::new();
+    let new_freeze_authority = Keypair::new();
+    let new_metadata_authority = Keypair::new();
+
+    // Fund invalid authorities
+    rpc.airdrop_lamports(&invalid_mint_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+    rpc.airdrop_lamports(&invalid_freeze_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+    rpc.airdrop_lamports(&invalid_metadata_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    // Fund new authorities
+    rpc.airdrop_lamports(&new_mint_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+    rpc.airdrop_lamports(&new_freeze_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+    rpc.airdrop_lamports(&new_metadata_authority.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    // 1. MintToCompressed with invalid mint authority
+    {
+        let result = light_token_client::actions::mint_to_compressed(
+            &mut rpc,
+            spl_mint_pda,
+            vec![light_ctoken_types::instructions::mint_action::Recipient {
+                recipient: Keypair::new().pubkey().to_bytes().into(),
+                amount: 1000u64,
+            }],
+            light_ctoken_types::state::TokenDataVersion::V2,
+            &invalid_mint_authority, // Invalid authority
+            &payer,
+        )
+        .await;
+
+        assert_rpc_error(
+            result, 0, 18, // light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
+        )
+        .unwrap();
+    }
+
+    // 2. SUCCEED - MintToCompressed with valid mint authority
+    {
+        let result = light_token_client::actions::mint_to_compressed(
+            &mut rpc,
+            spl_mint_pda,
+            vec![light_ctoken_types::instructions::mint_action::Recipient {
+                recipient: Keypair::new().pubkey().to_bytes().into(),
+                amount: 1000u64,
+            }],
+            light_ctoken_types::state::TokenDataVersion::V2,
+            &mint_authority, // Valid authority
+            &payer,
+        )
+        .await;
+
+        assert!(result.is_ok(), "Should succeed with valid mint authority");
+    }
+
+    // Get compressed mint account for update operations
+    let compressed_mint_account = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    // 2. UpdateMintAuthority with invalid mint authority
+    {
+        let result = light_token_client::actions::update_mint_authority(
+            &mut rpc,
+            &invalid_mint_authority, // Invalid authority
+            Some(Keypair::new().pubkey()),
+            compressed_mint_account.hash,
+            compressed_mint_account.leaf_index,
+            compressed_mint_account.tree_info.tree,
+            &payer,
+        )
+        .await;
+
+        assert_rpc_error(
+            result, 0, 18, // light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
+        )
+        .unwrap();
+    }
+
+    // 4. SUCCEED - UpdateMintAuthority with valid mint authority
+    {
+        // Get fresh compressed mint account
+        let compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+
+        let result = light_token_client::actions::update_mint_authority(
+            &mut rpc,
+            &mint_authority, // Valid current authority
+            Some(new_mint_authority.pubkey()),
+            compressed_mint_account.hash,
+            compressed_mint_account.leaf_index,
+            compressed_mint_account.tree_info.tree,
+            &payer,
+        )
+        .await;
+
+        assert!(result.is_ok(), "Should succeed with valid mint authority");
+    }
+
+    // 5. UpdateFreezeAuthority with invalid freeze authority
+    {
+        // Get fresh compressed mint account after mint authority update
+        let compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+
+        let result = light_token_client::actions::update_freeze_authority(
+            &mut rpc,
+            &invalid_freeze_authority, // Invalid authority
+            Some(Keypair::new().pubkey()),
+            new_mint_authority.pubkey(), // Must pass the NEW mint authority after update
+            compressed_mint_account.hash,
+            compressed_mint_account.leaf_index,
+            compressed_mint_account.tree_info.tree,
+            &payer,
+        )
+        .await;
+
+        assert_rpc_error(
+            result, 0,
+            18, // InvalidAuthorityMint error code (authority validation always returns 18)
+        )
+        .unwrap();
+    }
+
+    // 6. SUCCEED - UpdateFreezeAuthority with valid freeze authority
+    {
+        // Get fresh compressed mint account
+        let compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+
+        let result = light_token_client::actions::update_freeze_authority(
+            &mut rpc,
+            &freeze_authority, // Valid current freeze authority
+            Some(new_freeze_authority.pubkey()),
+            new_mint_authority.pubkey(), // Pass the updated mint authority
+            compressed_mint_account.hash,
+            compressed_mint_account.leaf_index,
+            compressed_mint_account.tree_info.tree,
+            &payer,
+        )
+        .await;
+
+        assert!(result.is_ok(), "Should succeed with valid freeze authority");
+    }
+
+    // 7. MintToCToken with invalid mint authority
+    {
+        // Create a ctoken account first
+        let recipient = Keypair::new();
+
+        let create_ata_ix =
+            light_compressed_token_sdk::instructions::create_associated_token_account(
+                payer.pubkey(),
+                recipient.pubkey(),
+                spl_mint_pda,
+            )
+            .unwrap();
+
+        rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
+            .await
+            .unwrap();
+
+        // Try to mint with invalid authority
+        let result = light_token_client::actions::mint_action_comprehensive(
+            &mut rpc,
+            &mint_seed,
+            &invalid_mint_authority, // Invalid authority
+            &payer,
+            vec![], // No compressed recipients
+            vec![light_ctoken_types::instructions::mint_action::Recipient {
+                recipient: recipient.pubkey().to_bytes().into(),
+                amount: 1000u64,
+            }], // Mint to decompressed
+            None,   // No mint authority update
+            None,   // No freeze authority update
+            None,   // Not creating new mint
+        )
+        .await;
+
+        assert_rpc_error(
+            result, 0,
+            18, //    light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
+        )
+        .unwrap();
+    }
+
+    // 8. SUCCEED - MintToCToken with valid mint authority
+    {
+        // Create a new recipient for successful mint
+        let recipient2 = Keypair::new();
+
+        let create_ata_ix2 =
+            light_compressed_token_sdk::instructions::create_associated_token_account(
+                payer.pubkey(),
+                recipient2.pubkey(),
+                spl_mint_pda,
+            )
+            .unwrap();
+
+        rpc.create_and_send_transaction(&[create_ata_ix2], &payer.pubkey(), &[&payer])
+            .await
+            .unwrap();
+
+        // Try to mint with valid NEW authority (since we updated it)
+        let result = light_token_client::actions::mint_action_comprehensive(
+            &mut rpc,
+            &mint_seed,
+            &new_mint_authority, // Valid NEW authority after update
+            &payer,
+            vec![], // No compressed recipients
+            vec![light_ctoken_types::instructions::mint_action::Recipient {
+                recipient: recipient2.pubkey().to_bytes().into(),
+                amount: 2000u64,
+            }], // Mint to decompressed
+            None,   // No mint authority update
+            None,   // No freeze authority update
+            None,   // Not creating new mint
+        )
+        .await;
+
+        assert!(result.is_ok(), "Should succeed with valid mint authority");
+    }
+
+    // 9. UpdateMetadataField with invalid metadata authority
+    {
+        let result = light_token_client::actions::mint_action(
+            &mut rpc,
+            light_token_client::instructions::mint_action::MintActionParams {
+                compressed_mint_address,
+                mint_seed: mint_seed.pubkey(),
+                authority: invalid_metadata_authority.pubkey(), // Invalid authority
+                payer: payer.pubkey(),
+                actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
+                    extension_index: 0,
+                    field_type: 0, // 0 = Name field
+                    key: vec![],   // Empty for Name field
+                    value: "New Name".as_bytes().to_vec(),
+                }],
+                new_mint: None,
+            },
+            &invalid_metadata_authority,
+            &payer,
+            None,
+        )
+        .await;
+
+        assert_rpc_error(
+            result, 0, 18, // light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
+        )
+        .unwrap();
+    }
+
+    // 10. SUCCEED - UpdateMetadataField with valid metadata authority
+    {
+        let result = light_token_client::actions::mint_action(
+            &mut rpc,
+            light_token_client::instructions::mint_action::MintActionParams {
+                compressed_mint_address,
+                mint_seed: mint_seed.pubkey(),
+                authority: metadata_authority.pubkey(), // Valid metadata authority
+                payer: payer.pubkey(),
+                actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
+                    extension_index: 0,
+                    field_type: 0, // 0 = Name field
+                    key: vec![],   // Empty for Name field
+                    value: "Updated Token Name".as_bytes().to_vec(),
+                }],
+                new_mint: None,
+            },
+            &metadata_authority,
+            &payer,
+            None,
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "Should succeed with valid metadata authority"
+        );
+    }
+
+    // 11. UpdateMetadataAuthority with invalid metadata authority
+    {
+        let result = light_token_client::actions::mint_action(
+            &mut rpc,
+            light_token_client::instructions::mint_action::MintActionParams {
+                compressed_mint_address,
+                mint_seed: mint_seed.pubkey(),
+                authority: invalid_metadata_authority.pubkey(), // Invalid authority
+                payer: payer.pubkey(),
+                actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataAuthority {
+                    extension_index: 0,
+                    new_authority: Keypair::new().pubkey(),
+                }],
+                new_mint: None,
+            },
+            &invalid_metadata_authority,
+            &payer,
+            None,
+        )
+        .await;
+
+        assert_rpc_error(
+            result, 0, 18, // light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
+        )
+        .unwrap();
+    }
+
+    // 12. SUCCEED - UpdateMetadataAuthority with valid metadata authority
+    {
+        let result = light_token_client::actions::mint_action(
+            &mut rpc,
+            light_token_client::instructions::mint_action::MintActionParams {
+                compressed_mint_address,
+                mint_seed: mint_seed.pubkey(),
+                authority: metadata_authority.pubkey(), // Valid current metadata authority
+                payer: payer.pubkey(),
+                actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataAuthority {
+                    extension_index: 0,
+                    new_authority: new_metadata_authority.pubkey(),
+                }],
+                new_mint: None,
+            },
+            &metadata_authority,
+            &payer,
+            None,
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "Should succeed with valid metadata authority"
+        );
+    }
+
+    // 13. RemoveMetadataKey with invalid metadata authority
+    {
+        let result = light_token_client::actions::mint_action(
+            &mut rpc,
+            light_token_client::instructions::mint_action::MintActionParams {
+                compressed_mint_address,
+                mint_seed: mint_seed.pubkey(),
+                authority: invalid_metadata_authority.pubkey(), // Invalid authority
+                payer: payer.pubkey(),
+                actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::RemoveMetadataKey {
+                    extension_index: 0,
+                    key: vec![1,2,3,4], // The key we added in additional_metadata
+                    idempotent: 0, // 0 = false
+                }],
+                new_mint: None,
+            },
+            &invalid_metadata_authority,
+            &payer,
+            None,
+        )
+        .await;
+
+        assert_rpc_error(
+            result, 0, 18, // light_compressed_token::ErrorCode::InvalidAuthorityMint.into(),
+        )
+        .unwrap();
+    }
+
+    // 14. SUCCEED - RemoveMetadataKey with valid metadata authority
+    {
+        let result = light_token_client::actions::mint_action(
+            &mut rpc,
+            light_token_client::instructions::mint_action::MintActionParams {
+                compressed_mint_address,
+                mint_seed: mint_seed.pubkey(),
+                authority: new_metadata_authority.pubkey(), // Valid NEW metadata authority after update
+                payer: payer.pubkey(),
+                actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::RemoveMetadataKey {
+                    extension_index: 0,
+                    key: vec![1,2,3,4], // The key we added in additional_metadata
+                    idempotent: 0, // 0 = false
+                }],
+                new_mint: None,
+            },
+            &new_metadata_authority,
+            &payer,
+            None,
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "Should succeed with valid metadata authority"
+        );
+    }
+
+    // 15. SUCCEED - RemoveMetadataKey idempotent (try to remove same key again)
+    {
+        let result = light_token_client::actions::mint_action(
+            &mut rpc,
+            light_token_client::instructions::mint_action::MintActionParams {
+                compressed_mint_address,
+                mint_seed: mint_seed.pubkey(),
+                authority: new_metadata_authority.pubkey(), // Valid NEW metadata authority
+                payer: payer.pubkey(),
+                actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::RemoveMetadataKey {
+                    extension_index: 0,
+                    key: vec![1,2,3,4], // Same key, already removed
+                    idempotent: 1, // 1 = true (won't error if key doesn't exist)
+                }],
+                new_mint: None,
+            },
+            &new_metadata_authority,
+            &payer,
+            None,
+        )
+        .await;
+
+        assert!(
+            result.is_ok(),
+            "Should succeed with idempotent=true even when key doesn't exist"
+        );
     }
 }

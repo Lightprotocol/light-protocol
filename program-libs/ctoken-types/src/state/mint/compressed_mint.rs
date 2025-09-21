@@ -18,7 +18,6 @@ pub struct CompressedMint {
     pub extensions: Option<Vec<ExtensionStruct>>,
 }
 
-// TODO: add case for mixed token22 deserialization for base mint
 // and subsequent deserialization for remaining data (compression metadata + extensions)
 /// SPL-compatible base mint structure with padding for COption alignment
 #[repr(C)]

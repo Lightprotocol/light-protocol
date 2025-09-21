@@ -1,4 +1,5 @@
 use anchor_lang::prelude::ProgramError;
+use arrayvec::ArrayVec;
 use borsh::BorshDeserialize;
 use light_account_checks::AccountIterator;
 use light_compressible::{config::CompressibleConfig, rent::get_rent_with_compression_cost};
@@ -18,7 +19,6 @@ use crate::{
         validate_ata_derivation,
     },
 };
-use arrayvec::ArrayVec;
 
 /// Process the create associated token account instruction (non-idempotent)
 #[inline(always)]
@@ -138,6 +138,7 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
 }
 
 #[profile]
+#[allow(clippy::too_many_arguments)]
 fn process_compressible_config<'info>(
     compressible_config_ix_data: &CompressibleExtensionInstructionData,
     iter: &mut AccountIterator<'info, AccountInfo>,

@@ -1,4 +1,5 @@
 use anchor_lang::{prelude::ProgramError, pubkey};
+use arrayvec::ArrayVec;
 use borsh::BorshDeserialize;
 use light_account_checks::{
     checks::{check_discriminator, check_owner},
@@ -13,6 +14,7 @@ use light_ctoken_types::{
 use light_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
+    instruction::Seed,
     sysvars::{rent::Rent, Sysvar},
 };
 use pinocchio_system::instructions::CreateAccount;
@@ -22,8 +24,6 @@ use crate::shared::{
     convert_program_error, create_pda_account,
     initialize_ctoken_account::initialize_ctoken_account, transfer_lamports_via_cpi,
 };
-use arrayvec::ArrayVec;
-use pinocchio::instruction::Seed;
 
 /// Validated accounts for the create token account instruction
 pub struct CreateCTokenAccounts<'info> {

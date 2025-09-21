@@ -1,12 +1,13 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_profiler::profile;
-use pinocchio::{instruction::{AccountMeta, Seed}, pubkey::Pubkey};
 use arrayvec::ArrayVec;
+use light_profiler::profile;
+use pinocchio::{
+    instruction::{AccountMeta, Seed},
+    pubkey::Pubkey,
+};
 
 use crate::{
-    constants::POOL_SEED,
-    mint_action::accounts::ExecutingAccounts,
-    shared::create_pda_account,
+    constants::POOL_SEED, mint_action::accounts::ExecutingAccounts, shared::create_pda_account,
 };
 
 /// Creates the token pool account manually as a PDA derived from our program but owned by the token program

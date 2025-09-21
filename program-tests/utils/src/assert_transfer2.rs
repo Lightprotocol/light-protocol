@@ -67,6 +67,16 @@ pub async fn assert_transfer2_with_delegate(
                             == COMPRESSED_TOKEN_PROGRAM_ID),
                     "Transfer change token account should match expected"
                 );
+                recipient_accounts.iter().for_each(|account| {
+                    if account.account.data.as_ref().unwrap().discriminator == 4u64.to_be_bytes() {
+                        assert_eq!(
+                            account.account.data.as_ref().unwrap().data_hash,
+                            account.token.hash_sha_flat().unwrap(),
+                            "Invalid sha flat data hash {:?}",
+                            account
+                        );
+                    }
+                });
 
                 // Use explicit change_amount if provided, otherwise calculate it
                 let change_amount = transfer_input.change_amount.unwrap_or_else(|| {
@@ -199,7 +209,18 @@ pub async fn assert_transfer2_with_delegate(
                         .iter()
                         .find(|acc| acc.token == expected_change_token)
                         .expect("Should find change account with expected token data");
-
+                    change_accounts.iter().for_each(|account| {
+                        if account.account.data.as_ref().unwrap().discriminator
+                            == 4u64.to_be_bytes()
+                        {
+                            assert_eq!(
+                                account.account.data.as_ref().unwrap().data_hash,
+                                account.token.hash_sha_flat().unwrap(),
+                                "Invalid sha flat data hash {:?}",
+                                account
+                            );
+                        }
+                    });
                     // Assert complete change token account
                     assert_eq!(
                         matching_change_account.token, expected_change_token,
@@ -261,6 +282,18 @@ pub async fn assert_transfer2_with_delegate(
                         COMPRESSED_TOKEN_PROGRAM_ID,
                         "Transfer change token account should match expected"
                     );
+                    change_accounts.iter().for_each(|account| {
+                        if account.account.data.as_ref().unwrap().discriminator
+                            == 4u64.to_be_bytes()
+                        {
+                            assert_eq!(
+                                account.account.data.as_ref().unwrap().data_hash,
+                                account.token.hash_sha_flat().unwrap(),
+                                "Invalid sha flat data hash {:?}",
+                                account
+                            );
+                        }
+                    });
                 }
             }
 
@@ -291,7 +324,16 @@ pub async fn assert_transfer2_with_delegate(
                     state: light_sdk::token::AccountState::Initialized,
                     tlv: None,
                 };
-
+                recipient_accounts.iter().for_each(|account| {
+                    if account.account.data.as_ref().unwrap().discriminator == 4u64.to_be_bytes() {
+                        assert_eq!(
+                            account.account.data.as_ref().unwrap().data_hash,
+                            account.token.hash_sha_flat().unwrap(),
+                            "Invalid sha flat data hash {:?}",
+                            account
+                        );
+                    }
+                });
                 // Assert complete recipient compressed token account
                 assert_eq!(
                     recipient_accounts[0].token, expected_recipient_token_data,
@@ -343,7 +385,16 @@ pub async fn assert_transfer2_with_delegate(
                     .unwrap()
                     .value
                     .items;
-
+                owner_accounts.iter().for_each(|account| {
+                    if account.account.data.as_ref().unwrap().discriminator == 4u64.to_be_bytes() {
+                        assert_eq!(
+                            account.account.data.as_ref().unwrap().data_hash,
+                            account.token.hash_sha_flat().unwrap(),
+                            "Invalid sha flat data hash {:?}",
+                            account
+                        );
+                    }
+                });
                 // Find the compressed account with the expected amount and mint
                 let expected_amount = pre_token_account.amount;
                 let expected_mint = pre_token_account.mint;

@@ -83,7 +83,6 @@ impl CompressibleConfig {
 
 #[cfg(feature = "anchor")]
 impl anchor_lang::Discriminator for CompressibleConfig {
-    // TODO: derive proper anchor discriminator
     const DISCRIMINATOR: &'static [u8] = &[180, 4, 231, 26, 220, 144, 55, 168];
 }
 
