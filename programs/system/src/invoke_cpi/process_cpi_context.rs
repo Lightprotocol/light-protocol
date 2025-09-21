@@ -45,6 +45,11 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
         msg!("cpi context account is some but cpi context is none");
         return Err(SystemProgramError::CpiContextMissing.into());
     }
+    #[cfg(feature = "deactivate-cpi-context")]
+    if cpi_context.is_some() {
+        msg!("cpi context is deactivated.");
+        return Err(SystemProgramError::CpiContextDeactivated.into());
+    }
 
     if let Some(cpi_context) = cpi_context {
         let cpi_context_account_info = match cpi_context_account_info {
