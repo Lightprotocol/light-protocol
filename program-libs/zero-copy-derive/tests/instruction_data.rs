@@ -804,7 +804,7 @@ fn test_compressed_account_data_new_at() {
     );
 
     // Test that we can set discriminator
-    mut_account.__meta.discriminator = [1, 2, 3, 4, 5, 6, 7, 8];
+    mut_account.__meta.discriminator = [180, 4, 231, 26, 220, 144, 55, 168];
 
     // Test that we can write to data
     mut_account.data[0] = 42;
@@ -814,7 +814,10 @@ fn test_compressed_account_data_new_at() {
     mut_account.data_hash[0] = 99;
     mut_account.data_hash[1] = 100;
 
-    assert_eq!(mut_account.__meta.discriminator, [1, 2, 3, 4, 5, 6, 7, 8]);
+    assert_eq!(
+        mut_account.__meta.discriminator,
+        [180, 4, 231, 26, 220, 144, 55, 168]
+    );
     assert_eq!(mut_account.data[0], 42);
     assert_eq!(mut_account.data[1], 43);
     assert_eq!(mut_account.data_hash[0], 99);
@@ -828,7 +831,7 @@ fn test_compressed_account_data_new_at() {
     // Verify the deserialized data matches what we set
     assert_eq!(
         deserialized_account.__meta.discriminator,
-        [1, 2, 3, 4, 5, 6, 7, 8]
+        [180, 4, 231, 26, 220, 144, 55, 168]
     );
     assert_eq!(deserialized_account.data.len(), 10);
     assert_eq!(deserialized_account.data[0], 42);

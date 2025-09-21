@@ -1,11 +1,18 @@
 use std::str::FromStr;
 
-use anchor_lang::{InstructionData, ToAccountMetas};
-use light_compressible::{config::CompressibleConfig, rent::SLOTS_PER_EPOCH};
-use light_program_test::{
-    forester::claim_forester, program_test::TestRpc, LightProgramTest, ProgramTestConfig,
+use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
+use light_compressed_token_sdk::instructions::derive_ctoken_ata;
+use light_compressible::{
+    config::CompressibleConfig, error::CompressibleError, rent::SLOTS_PER_EPOCH,
 };
-use light_registry::accounts::WithdrawFundingPool as WithdrawFundingPoolAccounts;
+use light_program_test::{
+    forester::claim_forester, program_test::TestRpc, utils::assert::assert_rpc_error,
+    LightProgramTest, ProgramTestConfig,
+};
+use light_registry::accounts::{
+    UpdateCompressibleConfig as UpdateCompressibleConfigAccounts,
+    WithdrawFundingPool as WithdrawFundingPoolAccounts,
+};
 use light_test_utils::{
     airdrop_lamports, assert_claim::assert_claim, spl::create_mint_helper, Rpc, RpcError,
 };
@@ -39,30 +46,6 @@ async fn withdraw_funding_pool_via_registry<R: Rpc>(
     let compression_authority = config.compression_authority;
     let rent_sponsor = config.rent_sponsor;
     let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
-    // // Derive CompressibleConfig PDA (version 1)
-    // let version: u16 = 1;
-    // let (compressible_config, _) = Pubkey::find_program_address(
-    //     &[b"compressible_config", &version.to_le_bytes()],
-    //     &registry_program_id,
-    // );
-
-    // // Derive compression_authority PDA (uses u16 version)
-    // let (compression_authority, _) = Pubkey::find_program_address(
-    //     &[
-    //         b"compression_authority".as_slice(),
-    //         (version as u16).to_le_bytes().as_slice(),
-    //     ],
-    //     &registry_program_id,
-    // );
-
-    // // Derive rent_sponsor PDA from the compressed token program
-    // let (rent_sponsor, _) = Pubkey::find_program_address(
-    //     &[
-    //         b"rent_sponsor".as_slice(),
-    //         (version as u16).to_le_bytes().as_slice(),
-    //     ],
-    //     &compressed_token_program_id,
-    // );
 
     // Build accounts using Anchor's account abstraction
     let withdraw_accounts = WithdrawFundingPoolAccounts {
@@ -300,6 +283,465 @@ async fn test_withdraw_funding_pool() -> Result<(), RpcError> {
     .await?;
     let pool_balance_after = rpc.get_account(rent_sponsor).await?.unwrap().lamports;
     assert_eq!(pool_balance_after, 0, "Pool balance should be 0");
+
+    Ok(())
+}
+
+/// Helper function to pause a compressible config
+async fn pause_compressible_config<R: Rpc>(
+    rpc: &mut R,
+    update_authority: &Keypair,
+    payer: &Keypair,
+) -> Result<Signature, RpcError> {
+    let registry_program_id =
+        Pubkey::from_str("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").unwrap();
+    let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
+
+    let accounts = UpdateCompressibleConfigAccounts {
+        fee_payer: payer.pubkey(),
+        update_authority: update_authority.pubkey(),
+        compressible_config,
+        system_program: solana_sdk::system_program::id(),
+    };
+
+    let instruction = Instruction {
+        program_id: registry_program_id,
+        accounts: accounts.to_account_metas(None),
+        data: light_registry::instruction::PauseCompressibleConfig {}.data(),
+    };
+
+    let (blockhash, _) = rpc.get_latest_blockhash().await?;
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &[payer, update_authority],
+        blockhash,
+    );
+
+    rpc.process_transaction(transaction).await
+}
+
+/// Helper function to unpause a compressible config
+async fn unpause_compressible_config<R: Rpc>(
+    rpc: &mut R,
+    update_authority: &Keypair,
+    payer: &Keypair,
+) -> Result<Signature, RpcError> {
+    let registry_program_id =
+        Pubkey::from_str("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").unwrap();
+    let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
+
+    let accounts = UpdateCompressibleConfigAccounts {
+        fee_payer: payer.pubkey(),
+        update_authority: update_authority.pubkey(),
+        compressible_config,
+        system_program: solana_sdk::system_program::id(),
+    };
+
+    let instruction = Instruction {
+        program_id: registry_program_id,
+        accounts: accounts.to_account_metas(None),
+        data: light_registry::instruction::UnpauseCompressibleConfig {}.data(),
+    };
+
+    let (blockhash, _) = rpc.get_latest_blockhash().await?;
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &[payer, update_authority],
+        blockhash,
+    );
+
+    rpc.process_transaction(transaction).await
+}
+
+/// Helper function to deprecate a compressible config
+async fn deprecate_compressible_config<R: Rpc>(
+    rpc: &mut R,
+    update_authority: &Keypair,
+    payer: &Keypair,
+) -> Result<Signature, RpcError> {
+    let registry_program_id =
+        Pubkey::from_str("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").unwrap();
+    let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
+
+    let accounts = UpdateCompressibleConfigAccounts {
+        fee_payer: payer.pubkey(),
+        update_authority: update_authority.pubkey(),
+        compressible_config,
+        system_program: solana_sdk::system_program::id(),
+    };
+
+    let instruction = Instruction {
+        program_id: registry_program_id,
+        accounts: accounts.to_account_metas(None),
+        data: light_registry::instruction::DeprecateCompressibleConfig {}.data(),
+    };
+
+    let (blockhash, _) = rpc.get_latest_blockhash().await?;
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &[payer, update_authority],
+        blockhash,
+    );
+
+    rpc.process_transaction(transaction).await
+}
+
+#[tokio::test]
+async fn test_pause_compressible_config_with_valid_authority() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Pause the config with valid authority
+    pause_compressible_config(&mut rpc, &payer, &payer).await?;
+
+    // Verify the config state is paused (state = 0)
+    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let account_data = rpc
+        .get_account(compressible_config_pda)
+        .await?
+        .expect("CompressibleConfig account should exist");
+
+    let config = CompressibleConfig::try_from_slice(&account_data.data[8..])
+        .expect("Failed to deserialize CompressibleConfig");
+
+    assert_eq!(config.state, 0, "Config state should be paused (0)");
+
+    // Test 1: Cannot create new token accounts with paused config
+
+    let compressible_instruction = light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
+        light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
+            payer: payer.pubkey(),
+            owner: payer.pubkey(),
+            mint: Pubkey::new_unique(),
+            compressible_config: rpc.test_accounts.funding_pool_config.compressible_config_pda,
+            rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+            pre_pay_num_epochs: 1,
+            lamports_per_write: None,
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        }
+    ).map_err(|e| RpcError::AssertRpcError(format!("Failed to create compressible ATA instruction: {}", e)))?;
+
+    let result = rpc
+        .create_and_send_transaction(&[compressible_instruction], &payer.pubkey(), &[&payer])
+        .await;
+    assert_rpc_error(result, 0, CompressibleError::InvalidState(1).into()).unwrap();
+    // Check for specific error code if needed
+
+    // Test 2: Cannot withdraw from funding pool with paused config
+    let destination = Keypair::new();
+    airdrop_lamports(&mut rpc, &destination.pubkey(), 1_000_000).await?;
+
+    // First fund the pool so we have something to withdraw
+    let rent_sponsor = rpc.test_accounts.funding_pool_config.rent_sponsor_pda;
+    airdrop_lamports(&mut rpc, &rent_sponsor, 1_000_000_000).await?;
+
+    let withdraw_result = withdraw_funding_pool_via_registry(
+        &mut rpc,
+        &payer, // withdrawal_authority
+        destination.pubkey(),
+        100_000_000,
+        &payer,
+    )
+    .await;
+
+    assert!(
+        withdraw_result.is_err(),
+        "Should fail to withdraw with paused config"
+    );
+
+    // Test 3: Cannot claim rent with paused config
+    let forester_keypair = rpc.test_accounts.protocol.forester.insecure_clone();
+    // Try to claim (even though there might not be accounts to claim from, it should fail due to paused state)
+    let result = claim_forester(
+        &mut rpc,
+        &[], // Empty array since we can't create accounts with paused config
+        &forester_keypair,
+        &payer,
+    )
+    .await;
+    // Note: claim might succeed with empty array, so this check might need adjustment
+    // The real check would be when there are actual accounts to claim from
+    assert_rpc_error(result, 0, CompressibleError::InvalidState(1).into()).unwrap();
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_pause_compressible_config_with_invalid_authority() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Create a wrong authority keypair
+    let wrong_authority = Keypair::new();
+    airdrop_lamports(&mut rpc, &wrong_authority.pubkey(), 1_000_000_000).await?;
+
+    // Try to pause with invalid authority
+    let result = pause_compressible_config(&mut rpc, &wrong_authority, &payer).await;
+
+    assert!(
+        result.is_err(),
+        "Should fail when pausing with invalid authority"
+    );
+
+    // Verify the config state is still active (state = 1)
+    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let account_data = rpc
+        .get_account(compressible_config_pda)
+        .await?
+        .expect("CompressibleConfig account should exist");
+
+    let config = CompressibleConfig::try_from_slice(&account_data.data[8..])
+        .expect("Failed to deserialize CompressibleConfig");
+
+    assert_eq!(config.state, 1, "Config state should still be active (1)");
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
+    let payer = rpc.get_payer().insecure_clone();
+
+    // First pause the config
+    pause_compressible_config(&mut rpc, &payer, &payer).await?;
+
+    // Verify it's paused
+    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let account_data = rpc
+        .get_account(compressible_config_pda)
+        .await?
+        .expect("CompressibleConfig account should exist");
+
+    let config = CompressibleConfig::try_from_slice(&account_data.data[8..])
+        .expect("Failed to deserialize CompressibleConfig");
+    assert_eq!(config.state, 0, "Config should be paused before unpausing");
+
+    // Verify cannot create account while paused
+    let compressible_instruction = light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
+        light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
+            payer: payer.pubkey(),
+            owner: payer.pubkey(),
+            mint: Pubkey::new_unique(),
+            compressible_config: rpc.test_accounts.funding_pool_config.compressible_config_pda,
+            rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+            pre_pay_num_epochs: 1,
+            lamports_per_write: None,
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        }
+    ).map_err(|e| RpcError::AssertRpcError(format!("Failed to create compressible ATA instruction: {}", e)))?;
+
+    let result = rpc
+        .create_and_send_transaction(&[compressible_instruction], &payer.pubkey(), &[&payer])
+        .await;
+    assert_rpc_error(result, 0, CompressibleError::InvalidState(1).into()).unwrap();
+
+    // Unpause the config with valid authority
+    unpause_compressible_config(&mut rpc, &payer, &payer).await?;
+
+    // Verify the config state is active (state = 1)
+    let account_data = rpc
+        .get_account(compressible_config_pda)
+        .await?
+        .expect("CompressibleConfig account should exist");
+
+    let config = CompressibleConfig::try_from_slice(&account_data.data[8..])
+        .expect("Failed to deserialize CompressibleConfig");
+
+    assert_eq!(config.state, 1, "Config state should be active (1)");
+
+    // Test: CAN create new token accounts after unpausing
+    let compressible_instruction = light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
+        light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
+            payer: payer.pubkey(),
+            owner: payer.pubkey(),
+            mint: Pubkey::new_unique(),
+            compressible_config: rpc.test_accounts.funding_pool_config.compressible_config_pda,
+            rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+            pre_pay_num_epochs: 1,
+            lamports_per_write: None,
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        }
+    ).map_err(|e| RpcError::AssertRpcError(format!("Failed to create compressible ATA instruction: {}", e)))?;
+
+    let result2 = rpc
+        .create_and_send_transaction(&[compressible_instruction], &payer.pubkey(), &[&payer])
+        .await;
+    assert!(
+        result2.is_ok(),
+        "Should be able to create account after unpausing"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_unpause_compressible_config_with_invalid_authority() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
+    let payer = rpc.get_payer().insecure_clone();
+
+    // First pause the config with valid authority
+    pause_compressible_config(&mut rpc, &payer, &payer).await?;
+
+    // Create a wrong authority keypair
+    let wrong_authority = Keypair::new();
+    airdrop_lamports(&mut rpc, &wrong_authority.pubkey(), 1_000_000_000).await?;
+
+    // Try to unpause with invalid authority
+    let result = unpause_compressible_config(&mut rpc, &wrong_authority, &payer).await;
+
+    assert_rpc_error(
+        result,
+        0,
+        anchor_lang::prelude::ErrorCode::ConstraintHasOne.into(),
+    )
+    .unwrap();
+
+    // Verify the config state is still paused (state = 0)
+    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let account_data = rpc
+        .get_account(compressible_config_pda)
+        .await?
+        .expect("CompressibleConfig account should exist");
+
+    let config = CompressibleConfig::try_from_slice(&account_data.data[8..])
+        .expect("Failed to deserialize CompressibleConfig");
+
+    assert_eq!(config.state, 0, "Config state should still be paused (0)");
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
+    let payer = rpc.get_payer().insecure_clone();
+
+    // First create a compressible account while config is active
+    let token_account_keypair = Keypair::new();
+    let mint = Pubkey::new_unique();
+
+    let compressible_instruction = light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
+        light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
+            payer: payer.pubkey(),
+            owner: token_account_keypair.pubkey(),
+            mint,
+            compressible_config: rpc.test_accounts.funding_pool_config.compressible_config_pda,
+            rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+            pre_pay_num_epochs: 10,
+            lamports_per_write: None,
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        }
+    ).map_err(|e| RpcError::AssertRpcError(format!("Failed to create compressible ATA instruction: {}", e)))?;
+
+    rpc.create_and_send_transaction(&[compressible_instruction], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+
+    // Deprecate the config with valid authority
+    deprecate_compressible_config(&mut rpc, &payer, &payer).await?;
+
+    // Verify the config state is deprecated (state = 2)
+    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let account_data = rpc
+        .get_account(compressible_config_pda)
+        .await?
+        .expect("CompressibleConfig account should exist");
+
+    let config = CompressibleConfig::try_from_slice(&account_data.data[8..])
+        .expect("Failed to deserialize CompressibleConfig");
+
+    assert_eq!(config.state, 2, "Config state should be deprecated (2)");
+
+    // Test 1: Cannot create new token accounts with deprecated config
+    let token_account_keypair2 = Keypair::new();
+    let compressible_instruction = light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
+        light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
+            payer: payer.pubkey(),
+            owner: token_account_keypair2.pubkey(),
+            mint,
+            compressible_config: rpc.test_accounts.funding_pool_config.compressible_config_pda,
+            rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+            pre_pay_num_epochs: 1,
+            lamports_per_write: None,
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        }
+    ).map_err(|e| RpcError::AssertRpcError(format!("Failed to create compressible ATA instruction: {}", e)))?;
+
+    let result = rpc
+        .create_and_send_transaction(&[compressible_instruction], &payer.pubkey(), &[&payer])
+        .await;
+    assert_rpc_error(result, 0, CompressibleError::InvalidState(1).into()).unwrap();
+
+    // Test 2: CAN withdraw from funding pool with deprecated config
+    let destination = Keypair::new();
+    airdrop_lamports(&mut rpc, &destination.pubkey(), 1_000_000).await?;
+
+    // Fund the pool so we have something to withdraw
+    let rent_sponsor = rpc.test_accounts.funding_pool_config.rent_sponsor_pda;
+    airdrop_lamports(&mut rpc, &rent_sponsor, 1_000_000_000).await?;
+
+    let withdraw_result = withdraw_funding_pool_via_registry(
+        &mut rpc,
+        &payer, // withdrawal_authority
+        destination.pubkey(),
+        100_000_000,
+        &payer,
+    )
+    .await;
+
+    assert!(
+        withdraw_result.is_ok(),
+        "Should be able to withdraw with deprecated config"
+    );
+
+    // Test 3: CAN claim rent with deprecated config
+
+    let forester_keypair = rpc.test_accounts.protocol.forester.insecure_clone();
+    let (ata_pubkey, _) = derive_ctoken_ata(&token_account_keypair.pubkey(), &mint);
+
+    // Claim from the account we created earlier
+    let claim_result = claim_forester(&mut rpc, &[ata_pubkey], &forester_keypair, &payer).await;
+
+    assert!(
+        claim_result.is_ok(),
+        "Should be able to claim with deprecated config"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_deprecate_compressible_config_with_invalid_authority() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Create a wrong authority keypair
+    let wrong_authority = Keypair::new();
+    airdrop_lamports(&mut rpc, &wrong_authority.pubkey(), 1_000_000_000).await?;
+
+    // Try to deprecate with invalid authority
+    let result = deprecate_compressible_config(&mut rpc, &wrong_authority, &payer).await;
+
+    assert!(
+        result.is_err(),
+        "Should fail when deprecating with invalid authority"
+    );
+
+    // Verify the config state is still active (state = 1)
+    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let account_data = rpc
+        .get_account(compressible_config_pda)
+        .await?
+        .expect("CompressibleConfig account should exist");
+
+    let config = CompressibleConfig::try_from_slice(&account_data.data[8..])
+        .expect("Failed to deserialize CompressibleConfig");
+
+    assert_eq!(config.state, 1, "Config state should still be active (1)");
 
     Ok(())
 }

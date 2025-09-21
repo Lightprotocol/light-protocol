@@ -714,14 +714,27 @@ pub mod light_registry {
     }
 
     /// Pauses the compressible config
+    /// Ctoken accounts created with this config remain operational.
+    /// Prevents:
+    /// 1. ctoken account creation (with this config)
+    /// 2. claiming from rent sponsor
+    /// 3. witdrawal from rent sponsor
     pub fn pause_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
         ctx.accounts.compressible_config.state = 0;
         Ok(())
     }
 
-    /// Unpauses the compressible config
+    /// Unpauses the compressible config.
     pub fn unpause_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
         ctx.accounts.compressible_config.state = 1;
+        Ok(())
+    }
+
+    /// Deprecate the compressible config
+    /// Deprecate means no new ctoken accounts can be created with this config.
+    /// Other operations are functional.
+    pub fn deprecate_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
+        ctx.accounts.compressible_config.state = 2;
         Ok(())
     }
 

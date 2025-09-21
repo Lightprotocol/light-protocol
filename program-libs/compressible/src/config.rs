@@ -84,7 +84,7 @@ impl CompressibleConfig {
 #[cfg(feature = "anchor")]
 impl anchor_lang::Discriminator for CompressibleConfig {
     // TODO: derive proper anchor discriminator
-    const DISCRIMINATOR: &'static [u8] = &[1, 2, 3, 4, 5, 6, 7, 8];
+    const DISCRIMINATOR: &'static [u8] = &[180, 4, 231, 26, 220, 144, 55, 168];
 }
 
 #[cfg(feature = "anchor")]
@@ -144,7 +144,7 @@ impl anchor_lang::Space for CompressibleConfig {
 }
 
 impl Discriminator for CompressibleConfig {
-    const LIGHT_DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
+    const LIGHT_DISCRIMINATOR: [u8; 8] = [180, 4, 231, 26, 220, 144, 55, 168];
     const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = Self::LIGHT_DISCRIMINATOR.as_slice();
 }
 

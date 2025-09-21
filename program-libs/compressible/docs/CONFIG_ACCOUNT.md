@@ -36,7 +36,7 @@ pub struct RentConfig {
 ```
 
 ### Discriminator
-`[1, 2, 3, 4, 5, 6, 7, 8]` - 8-byte discriminator for account validation
+`[180, 4, 231, 26, 220, 144, 55, 168]` - 8-byte discriminator for account validation
 
 ### Ownership
 **Owner:** Light Registry Program (`Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX`)

@@ -192,7 +192,7 @@ use light_account_checks::checks::{account_info_init, check_account_balance_is_r
 
 struct MyAccount;
 impl Discriminator for MyAccount {
-    const LIGHT_DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
+    const LIGHT_DISCRIMINATOR: [u8; 8] = [180, 4, 231, 26, 220, 144, 55, 168];
     const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
 }
 

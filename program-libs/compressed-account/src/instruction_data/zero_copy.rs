@@ -1052,7 +1052,7 @@ pub mod test {
     fn get_test_account_data() -> CompressedAccountData {
         CompressedAccountData {
             discriminator: 1u64.to_le_bytes(),
-            data: vec![1, 2, 3, 4, 5, 6, 7, 8],
+            data: vec![180, 4, 231, 26, 220, 144, 55, 168],
             data_hash: [1; 32],
         }
     }
@@ -1128,7 +1128,7 @@ pub mod test {
                 address: Some(Pubkey::new_unique().to_bytes()),
                 data: Some(CompressedAccountData {
                     discriminator: 1u64.to_le_bytes(),
-                    data: vec![1, 2, 3, 4, 5, 6, 7, 8],
+                    data: vec![180, 4, 231, 26, 220, 144, 55, 168],
                     data_hash: [1; 32],
                 }),
             },
@@ -1197,7 +1197,7 @@ pub mod test {
     fn test_account_data_deserialize() {
         let test_data = CompressedAccountData {
             discriminator: 1u64.to_le_bytes(),
-            data: vec![1, 2, 3, 4, 5, 6, 7, 8],
+            data: vec![180, 4, 231, 26, 220, 144, 55, 168],
             data_hash: [1; 32],
         };
 

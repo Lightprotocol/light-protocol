@@ -38,7 +38,7 @@ use light_account_checks::discriminator::Discriminator;
 pub struct TokenAccount;
 
 impl Discriminator for TokenAccount {
-    const LIGHT_DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
+    const LIGHT_DISCRIMINATOR: [u8; 8] = [180, 4, 231, 26, 220, 144, 55, 168];
     const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
 }
 ```
@@ -106,7 +106,7 @@ fn validate_config<A: AccountInfoTrait>(
 
 1. **Sequential bytes**: Simple incrementing values
    ```rust
-   const LIGHT_DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
+   const LIGHT_DISCRIMINATOR: [u8; 8] = [180, 4, 231, 26, 220, 144, 55, 168];
    ```
 
 2. **ASCII strings**: Human-readable identifiers

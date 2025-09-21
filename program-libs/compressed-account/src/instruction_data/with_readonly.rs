@@ -480,7 +480,7 @@ fn test_read_only_zero_copy() {
             assigned_account_index: 2,
         }],
         input_compressed_accounts: vec![InAccount {
-            discriminator: [1, 2, 3, 4, 5, 6, 7, 8],
+            discriminator: [180, 4, 231, 26, 220, 144, 55, 168],
             data_hash: [10; 32],
             merkle_context: PackedMerkleContext {
                 merkle_tree_pubkey_index: 1,

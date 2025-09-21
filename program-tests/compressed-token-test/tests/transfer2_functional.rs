@@ -742,7 +742,6 @@ impl TestContext {
 #[tokio::test]
 #[serial]
 async fn test_transfer2_functional() {
-    // Test cases (1-54 planned, starting with first)
     let test_cases = vec![
         // Basic input account tests
         // test1_basic_transfer_poseidon_v1(),

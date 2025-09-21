@@ -925,7 +925,8 @@ fn test_deserialize_invalid_discriminator() {
         vec![0u8; 20000],
     );
     // Set invalid discriminator
-    account_info.try_borrow_mut_data().unwrap()[0..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    account_info.try_borrow_mut_data().unwrap()[0..8]
+        .copy_from_slice(&[180, 4, 231, 26, 220, 144, 55, 168]);
 
     let result = deserialize_cpi_context_account(&account_info);
     assert_eq!(

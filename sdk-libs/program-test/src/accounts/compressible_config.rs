@@ -139,7 +139,7 @@ pub async fn create_compressible_config(
     // Check the discriminator is correct
     assert_eq!(
         compressible_config_account.data[0..8],
-        [1, 2, 3, 4, 5, 6, 7, 8]
+        [180, 4, 231, 26, 220, 144, 55, 168]
     );
 
     // Deserialize and verify the account

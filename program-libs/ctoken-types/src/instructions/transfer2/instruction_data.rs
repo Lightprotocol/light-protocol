@@ -16,8 +16,8 @@ pub struct CompressedTokenInstructionDataTransfer2 {
     pub lamports_change_account_merkle_tree_index: u8,
     /// Placeholder currently unimplemented.
     pub lamports_change_account_owner_index: u8,
+    pub cpi_context: Option<CompressedCpiContext>,
     pub compressions: Option<Vec<Compression>>,
-    pub cpi_context: Option<CompressedCpiContext>, // TODO: make it not an option
     pub proof: Option<CompressedProof>,
     pub in_token_data: Vec<MultiInputTokenDataWithContext>,
     pub out_token_data: Vec<MultiTokenTransferOutputData>,
