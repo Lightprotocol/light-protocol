@@ -583,7 +583,7 @@ pub fn add_compressible_instructions(
                 ) -> Result<(
                     Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
                     Vec<(
-                        light_sdk::token::PackedCompressibleTokenDataWithVariant<CTokenAccountVariant>,
+                        light_sdk::token::PackedCTokenData<CTokenAccountVariant>,
                         light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                     )>,
                 )> {
@@ -591,7 +591,7 @@ pub fn add_compressible_instructions(
                     let estimated_capacity = compressed_accounts.len();
                     let mut compressed_pda_infos = Vec::with_capacity(estimated_capacity);
                     let mut compressed_token_accounts: Vec<(
-                        light_sdk::token::PackedCompressibleTokenDataWithVariant<CTokenAccountVariant>,
+                        light_sdk::token::PackedCTokenData<CTokenAccountVariant>,
                         light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                     )> = Vec::with_capacity(estimated_capacity);
 
@@ -600,10 +600,10 @@ pub fn add_compressible_instructions(
                         match compressed_data.data {
                             #(#call_unpacked_arms)*
                             #(#call_packed_arms)*
-                            CompressedAccountVariant::CompressibleTokenAccountPacked(data) => {
+                            CompressedAccountVariant::PackedCTokenData(data) => {
                                 compressed_token_accounts.push((data, meta));
                             }
-                            CompressedAccountVariant::CompressibleTokenData(_) => {
+                            CompressedAccountVariant::CTokenData(_) => {
                                 unreachable!();
                             }
                         }
@@ -668,7 +668,7 @@ pub fn add_compressible_instructions(
                 let (mut has_tokens, mut has_pdas) = (false, false);
                 for c in compressed_accounts {
                     match c.data {
-                        CompressedAccountVariant::CompressibleTokenAccountPacked(_) => {
+                        CompressedAccountVariant::PackedCTokenData(_) => {
                             has_tokens = true;
                         }
                         _ => has_pdas = true,
@@ -692,7 +692,7 @@ pub fn add_compressible_instructions(
                 ctoken_config: &anchor_lang::prelude::AccountInfo<'info>,
                 config: &anchor_lang::prelude::AccountInfo<'info>,
                 ctoken_accounts: Vec<(
-                    light_sdk::token::PackedCompressibleTokenDataWithVariant<CTokenAccountVariant>,
+                    light_sdk::token::PackedCTokenData<CTokenAccountVariant>,
                     light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                 )>,
                 proof: light_sdk::instruction::ValidityProof,
@@ -729,7 +729,6 @@ pub fn add_compressible_instructions(
                         let seed_refs: Vec<&[u8]> = ctoken_signer_seeds.iter().map(|s| s.as_slice()).collect();
                         let seeds_slice: &[&[u8]] = &seed_refs;
 
-                        msg!("ctoken_rent_sponsor: {:?}", ctoken_rent_sponsor);
                         light_compressed_token_sdk::instructions::create_token_account::create_ctoken_account_signed(
                             crate::ID,
                             fee_payer.clone().to_account_info(),
@@ -794,15 +793,6 @@ pub fn add_compressible_instructions(
                 return Ok(());
             }
 
-            // Pre-allocate and heavy PDA handling moved into a module helper to reduce this function's frame size
-
-            // Debug: Creating CpiAccountsSmall at decompress_accounts_idempotent
-            #[cfg(feature = "debug-macro")]
-            {
-                msg!("Creating CpiAccountsSmall at {}:{}", file!(), line!());
-                msg!("  has_tokens: {}, has_pdas: {}", has_tokens, has_pdas);
-                msg!("  system_accounts_offset: {}", system_accounts_offset);
-            }
 
             let cpi_accounts = if has_tokens && has_pdas {
                 light_sdk_types::CpiAccountsSmall::new_with_config(

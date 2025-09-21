@@ -575,7 +575,7 @@ pub mod anchor_compressible {
             let (mut has_tokens, mut has_pdas) = (false, false);
             for c in compressed_accounts {
                 match c.data {
-                    CompressedAccountVariant::CompressibleTokenAccountPacked(_) => {
+                    CompressedAccountVariant::PackedCTokenData(_) => {
                         has_tokens = true;
                     }
                     _ => has_pdas = true,
@@ -598,7 +598,7 @@ pub mod anchor_compressible {
             ctoken_config: &anchor_lang::prelude::AccountInfo<'info>,
             config: &anchor_lang::prelude::AccountInfo<'info>,
             ctoken_accounts: Vec<(
-                light_sdk::token::PackedCompressibleTokenDataWithVariant<CTokenAccountVariant>,
+                light_sdk::token::PackedCTokenData<CTokenAccountVariant>,
                 light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
             )>,
             proof: light_sdk::instruction::ValidityProof,
@@ -710,13 +710,13 @@ pub mod anchor_compressible {
         let (mut token_count, mut pda_count) = (0usize, 0usize);
         for c in &compressed_accounts {
             match c.data {
-                CompressedAccountVariant::CompressibleTokenAccountPacked(_) => token_count += 1,
+                CompressedAccountVariant::PackedCTokenData(_) => token_count += 1,
                 _ => pda_count += 1,
             }
         }
 
         let mut ctoken_accounts: Vec<(
-            light_sdk::token::PackedCompressibleTokenDataWithVariant<CTokenAccountVariant>,
+            light_sdk::token::PackedCTokenData<CTokenAccountVariant>,
             light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
         )> = Vec::with_capacity(token_count);
         let mut compressed_pda_infos = Vec::with_capacity(pda_count);
@@ -777,13 +777,13 @@ pub mod anchor_compressible {
                         &mut compressed_pda_infos,
                     )?;
                 }
-                CompressedAccountVariant::CompressibleTokenAccountPacked(data) => {
+                CompressedAccountVariant::PackedCTokenData(data) => {
                     ctoken_accounts.push((data, compressed_data.meta));
                 }
                 CompressedAccountVariant::PackedUserRecord(_)
                 | CompressedAccountVariant::PackedGameSession(_)
                 | CompressedAccountVariant::PackedPlaceholderRecord(_)
-                | CompressedAccountVariant::CompressibleTokenData(_) => {
+                | CompressedAccountVariant::CTokenData(_) => {
                     panic!("internal error: entered unreachable code");
                 }
             }
@@ -1594,10 +1594,8 @@ pub enum CompressedAccountVariant {
     PackedGameSession(PackedGameSession),
     PlaceholderRecord(PlaceholderRecord),
     PackedPlaceholderRecord(PackedPlaceholderRecord),
-    CompressibleTokenAccountPacked(
-        light_sdk::token::PackedCompressibleTokenDataWithVariant<CTokenAccountVariant>,
-    ),
-    CompressibleTokenData(light_sdk::token::CompressibleTokenDataWithVariant<CTokenAccountVariant>),
+    PackedCTokenData(light_sdk::token::PackedCTokenData<CTokenAccountVariant>),
+    CTokenData(light_sdk::token::CTokenData<CTokenAccountVariant>),
 }
 
 impl Default for CompressedAccountVariant {
@@ -1613,8 +1611,8 @@ impl DataHasher for CompressedAccountVariant {
             Self::PackedUserRecord(_) => unreachable!(),
             Self::GameSession(data) => data.hash::<H>(),
             Self::PlaceholderRecord(data) => data.hash::<H>(),
-            Self::CompressibleTokenAccountPacked(_) => unreachable!(),
-            Self::CompressibleTokenData(_) => unreachable!(),
+            Self::PackedCTokenData(_) => unreachable!(),
+            Self::CTokenData(_) => unreachable!(),
             Self::PackedGameSession(_) => unreachable!(),
             Self::PackedPlaceholderRecord(_) => unreachable!(),
         }
@@ -1633,8 +1631,8 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::PackedUserRecord(_) => unreachable!(),
             Self::GameSession(data) => data.compression_info(),
             Self::PlaceholderRecord(data) => data.compression_info(),
-            Self::CompressibleTokenAccountPacked(_) => unreachable!(),
-            Self::CompressibleTokenData(_) => unreachable!(),
+            Self::PackedCTokenData(_) => unreachable!(),
+            Self::CTokenData(_) => unreachable!(),
             Self::PackedGameSession(_) => unreachable!(),
             Self::PackedPlaceholderRecord(_) => unreachable!(),
         }
@@ -1646,8 +1644,8 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::PackedUserRecord(_) => unreachable!(),
             Self::GameSession(data) => data.compression_info_mut(),
             Self::PlaceholderRecord(data) => data.compression_info_mut(),
-            Self::CompressibleTokenAccountPacked(_) => unreachable!(),
-            Self::CompressibleTokenData(_) => unreachable!(),
+            Self::PackedCTokenData(_) => unreachable!(),
+            Self::CTokenData(_) => unreachable!(),
             Self::PackedGameSession(_) => unreachable!(),
             Self::PackedPlaceholderRecord(_) => unreachable!(),
         }
@@ -1659,8 +1657,8 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::PackedUserRecord(_) => unreachable!(),
             Self::GameSession(data) => data.compression_info_mut_opt(),
             Self::PlaceholderRecord(data) => data.compression_info_mut_opt(),
-            Self::CompressibleTokenAccountPacked(_) => unreachable!(),
-            Self::CompressibleTokenData(_) => unreachable!(),
+            Self::PackedCTokenData(_) => unreachable!(),
+            Self::CTokenData(_) => unreachable!(),
             Self::PackedGameSession(_) => unreachable!(),
             Self::PackedPlaceholderRecord(_) => unreachable!(),
         }
@@ -1672,8 +1670,8 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::PackedUserRecord(_) => unreachable!(),
             Self::GameSession(data) => data.set_compression_info_none(),
             Self::PlaceholderRecord(data) => data.set_compression_info_none(),
-            Self::CompressibleTokenAccountPacked(_) => unreachable!(),
-            Self::CompressibleTokenData(_) => unreachable!(),
+            Self::PackedCTokenData(_) => unreachable!(),
+            Self::CTokenData(_) => unreachable!(),
             Self::PackedGameSession(_) => unreachable!(),
             Self::PackedPlaceholderRecord(_) => unreachable!(),
         }
@@ -1687,8 +1685,8 @@ impl Size for CompressedAccountVariant {
             Self::PackedUserRecord(_) => unreachable!(),
             Self::GameSession(data) => data.size(),
             Self::PlaceholderRecord(data) => data.size(),
-            Self::CompressibleTokenAccountPacked(_) => unreachable!(),
-            Self::CompressibleTokenData(_) => unreachable!(),
+            Self::PackedCTokenData(_) => unreachable!(),
+            Self::CTokenData(_) => unreachable!(),
             Self::PackedGameSession(_) => unreachable!(),
             Self::PackedPlaceholderRecord(_) => unreachable!(),
         }
@@ -1706,12 +1704,10 @@ impl Pack for CompressedAccountVariant {
             Self::UserRecord(data) => Self::PackedUserRecord(data.pack(remaining_accounts)),
             Self::GameSession(data) => Self::GameSession(data.pack(remaining_accounts)),
             Self::PlaceholderRecord(data) => Self::PlaceholderRecord(data.pack(remaining_accounts)),
-            Self::CompressibleTokenAccountPacked(_) => {
+            Self::PackedCTokenData(_) => {
                 unreachable!()
             }
-            Self::CompressibleTokenData(data) => {
-                Self::CompressibleTokenAccountPacked(data.pack(remaining_accounts))
-            }
+            Self::CTokenData(data) => Self::PackedCTokenData(data.pack(remaining_accounts)),
             Self::PackedGameSession(_) => unreachable!(),
             Self::PackedPlaceholderRecord(_) => unreachable!(),
         }
@@ -1734,8 +1730,8 @@ impl Unpack for CompressedAccountVariant {
             Self::PlaceholderRecord(data) => {
                 Ok(Self::PlaceholderRecord(data.unpack(remaining_accounts)?))
             }
-            Self::CompressibleTokenAccountPacked(_data) => Ok(self.clone()), // as-is
-            Self::CompressibleTokenData(_data) => unreachable!(),            // as-is
+            Self::PackedCTokenData(_data) => Ok(self.clone()), // as-is
+            Self::CTokenData(_data) => unreachable!(),         // as-is
             Self::PackedGameSession(_data) => unreachable!(),
             Self::PackedPlaceholderRecord(_data) => unreachable!(),
         }

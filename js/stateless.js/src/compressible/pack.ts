@@ -9,7 +9,10 @@ import { CompressedProof, TreeInfo } from '../state/types';
 import { ValidityProof } from '../state/types';
 import { CTOKEN_PROGRAM_ID } from '../constants';
 import BN from 'bn.js';
-import { createPackedAccountsSmall } from '../utils';
+import {
+    createPackedAccountsSmall,
+    createPackedAccountsSmallWithCpiContext,
+} from '../utils';
 import { ValidityProofWithContext } from '../rpc-interface';
 import { packTreeInfos, ValidityProofWithContextV2 } from '../programs';
 
@@ -85,7 +88,34 @@ export async function packDecompressAccountsIdempotent(
     proofOption: { 0: ValidityProof | null };
     remainingAccounts: AccountMeta[];
 }> {
-    const remainingAccounts = createPackedAccountsSmall(programId);
+    let hasPdas = false;
+    let hasTokens = false;
+    for (const account of compressedAccounts) {
+        if (account.key === 'cTokenData') {
+            hasTokens = true;
+        } else {
+            hasPdas = true;
+        }
+
+        if (hasPdas && hasTokens) {
+            break;
+        }
+    }
+    const foundCpiContext = compressedAccounts.find(
+        account =>
+            account.treeInfo.cpiContext !== null &&
+            account.treeInfo.cpiContext !== undefined,
+    )?.treeInfo.cpiContext;
+    if (hasPdas && hasTokens && !foundCpiContext) {
+        throw new Error('No cpi context found in compressed accounts');
+    }
+    const remainingAccounts =
+        hasPdas && hasTokens
+            ? createPackedAccountsSmallWithCpiContext(
+                  programId,
+                  foundCpiContext!,
+              )
+            : createPackedAccountsSmall(programId);
 
     const outputQueue = compressedAccounts[0].treeInfo.nextTreeInfo
         ? compressedAccounts[0].treeInfo.nextTreeInfo.queue
@@ -180,12 +210,6 @@ export async function packCompressAccountsIdempotent(
 }> {
     const remainingAccounts = createPackedAccountsSmall(programId);
 
-    console.log('outputStateTreeInfo', outputStateTreeInfo);
-    console.log(
-        'client: named metas',
-        remainingAccounts.toAccountMetas().remainingAccounts.map(a => a),
-    );
-
     // Ensure output queue is present; offset is relative to remaining accounts
     const _ = remainingAccounts.insertOrGet(outputStateTreeInfo.queue);
 
@@ -203,18 +227,12 @@ export async function packCompressAccountsIdempotent(
     const { remainingAccounts: remainingAccountMetas, systemStart } =
         remainingAccounts.toAccountMetas();
 
-    console.log('accountsToCompress LEN', accountsToCompress.length);
     for (const keyedAccountInfo of accountsToCompress) {
         if (
             new PublicKey(keyedAccountInfo.accountInfo.owner).equals(
                 new PublicKey(CTOKEN_PROGRAM_ID),
             )
         ) {
-            console.log('keyedAccountInfo', keyedAccountInfo);
-            console.log(
-                'keyedAccountInfo.accountInfo.data',
-                Array.from(keyedAccountInfo.accountInfo.data),
-            );
             const mint = new PublicKey(
                 Array.from(keyedAccountInfo.accountInfo.data.slice(0, 32)),
             );
@@ -235,7 +253,6 @@ export async function packCompressAccountsIdempotent(
             });
         }
     }
-    console.log('remainingAccountMetas LEN', remainingAccountMetas.length);
     for (const keyedAccountInfo of accountsToCompress) {
         const pubkey = keyedAccountInfo.accountId;
         remainingAccountMetas.push({
@@ -244,10 +261,7 @@ export async function packCompressAccountsIdempotent(
             isWritable: true,
         });
     }
-    console.log(
-        'remainingAccountMetas after sol acc LEN',
-        remainingAccountMetas.length,
-    );
+
     return {
         compressedAccountMetas,
         systemAccountsOffset: systemStart,

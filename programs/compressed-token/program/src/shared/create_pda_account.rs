@@ -42,9 +42,6 @@ pub fn create_pda_account(
     fee_payer_config: Option<CreatePdaAccountConfig>,
     additional_lamports: Option<u64>,
 ) -> Result<(), ProgramError> {
-    spl_pod::solana_msg::msg!("fee_payer: {:?}", fee_payer);
-    spl_pod::solana_msg::msg!("config: {:?}", config);
-    spl_pod::solana_msg::msg!("fee_payer_config: {:?}", fee_payer_config);
     // Calculate rent
     let rent = Rent::get().map_err(|_| ProgramError::UnsupportedSysvar)?;
     let lamports =

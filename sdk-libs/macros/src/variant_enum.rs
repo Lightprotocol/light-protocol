@@ -53,8 +53,8 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
         pub enum CompressedAccountVariant {
             #(#account_variants)*
             // Token account variants (always included)
-            CompressibleTokenAccountPacked(light_sdk::token::PackedCompressibleTokenDataWithVariant<CTokenAccountVariant>),
-            CompressibleTokenData(light_sdk::token::CompressibleTokenDataWithVariant<CTokenAccountVariant>),
+            PackedCTokenData(light_sdk::token::PackedCTokenData<CTokenAccountVariant>),
+            CTokenData(light_sdk::token::CTokenData<CTokenAccountVariant>),
         }
     };
 
@@ -82,8 +82,8 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
             fn hash<H: light_hasher::Hasher>(&self) -> std::result::Result<[u8; 32], light_hasher::HasherError> {
                 match self {
                     #(#hash_match_arms)*
-                    Self::CompressibleTokenAccountPacked(_) => unreachable!(),
-                    Self::CompressibleTokenData(_) => unreachable!(),
+                    Self::PackedCTokenData(_) => unreachable!(),
+                    Self::CTokenData(_) => unreachable!(),
                 }
             }
         }
@@ -135,32 +135,32 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
             fn compression_info(&self) -> &light_sdk::compressible::CompressionInfo {
                 match self {
                     #(#compression_info_match_arms)*
-                    Self::CompressibleTokenAccountPacked(_) => unreachable!(),
-                    Self::CompressibleTokenData(_) => unreachable!(),
+                    Self::PackedCTokenData(_) => unreachable!(),
+                    Self::CTokenData(_) => unreachable!(),
                 }
             }
 
             fn compression_info_mut(&mut self) -> &mut light_sdk::compressible::CompressionInfo {
                 match self {
                     #(#compression_info_mut_match_arms)*
-                    Self::CompressibleTokenAccountPacked(_) => unreachable!(),
-                    Self::CompressibleTokenData(_) => unreachable!(),
+                    Self::PackedCTokenData(_) => unreachable!(),
+                    Self::CTokenData(_) => unreachable!(),
                 }
             }
 
             fn compression_info_mut_opt(&mut self) -> &mut Option<light_sdk::compressible::CompressionInfo> {
                 match self {
                     #(#compression_info_mut_opt_match_arms)*
-                    Self::CompressibleTokenAccountPacked(_) => unreachable!(),
-                    Self::CompressibleTokenData(_) => unreachable!(),
+                    Self::PackedCTokenData(_) => unreachable!(),
+                    Self::CTokenData(_) => unreachable!(),
                 }
             }
 
             fn set_compression_info_none(&mut self) {
                 match self {
                     #(#set_compression_info_none_match_arms)*
-                    Self::CompressibleTokenAccountPacked(_) => unreachable!(),
-                    Self::CompressibleTokenData(_) => unreachable!(),
+                    Self::PackedCTokenData(_) => unreachable!(),
+                    Self::CTokenData(_) => unreachable!(),
                 }
             }
         }
@@ -180,8 +180,8 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
             fn size(&self) -> usize {
                 match self {
                     #(#size_match_arms)*
-                    Self::CompressibleTokenAccountPacked(_) => unreachable!(),
-                    Self::CompressibleTokenData(_) => unreachable!(),
+                    Self::PackedCTokenData(_) => unreachable!(),
+                    Self::CTokenData(_) => unreachable!(),
                 }
             }
         }
@@ -203,9 +203,9 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
             fn pack(&self, remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> Self::Packed {
                 match self {
                     #(#pack_match_arms)*
-                    Self::CompressibleTokenAccountPacked(_) => unreachable!(),
-                    Self::CompressibleTokenData(data) => {
-                        Self::CompressibleTokenAccountPacked(data.pack(remaining_accounts))
+                    Self::PackedCTokenData(_) => unreachable!(),
+                    Self::CTokenData(data) => {
+                        Self::PackedCTokenData(data.pack(remaining_accounts))
                     }
                 }
             }
@@ -231,8 +231,8 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
             ) -> std::result::Result<Self::Unpacked, anchor_lang::prelude::ProgramError> {
                 match self {
                     #(#unpack_match_arms)*
-                    Self::CompressibleTokenAccountPacked(_data) => Ok(self.clone()), // as-is
-                    Self::CompressibleTokenData(_data) => unreachable!(),            // as-is
+                    Self::PackedCTokenData(_data) => Ok(self.clone()), // as-is
+                    Self::CTokenData(_data) => unreachable!(),            // as-is
                 }
             }
         }

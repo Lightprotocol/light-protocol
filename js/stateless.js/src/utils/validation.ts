@@ -63,7 +63,11 @@ export const validateNumbersForInclusionProof = (hashesLength: number) => {
     if (!featureFlags.isV2()) {
         validateNumbers(hashesLength, [1, 2, 3, 4], 'compressed accounts');
     } else {
-        validateNumbers(hashesLength, [1, 2, 3, 4, 8], 'compressed accounts');
+        validateNumbers(
+            hashesLength,
+            [1, 2, 3, 4, 5, 8],
+            'compressed accounts',
+        );
     }
 };
 

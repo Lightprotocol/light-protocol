@@ -149,8 +149,6 @@ pub fn process_create_token_account(
             .as_ref()
             .ok_or(ProgramError::InvalidInstructionData)?;
 
-        spl_pod::solana_msg::msg!("compressible_config: {:?}", compressible_config);
-
         if let Some(compress_to_pubkey) = compressible_config.compress_to_account_pubkey.as_ref() {
             // Compress to pubkey specifies compression to account pubkey instead of the owner.
             // This is useful for pda token accounts that rely on pubkey derivation but have a program wide
@@ -172,15 +170,7 @@ pub fn process_create_token_account(
 
         let custom_fee_payer =
             *compressible.rent_payer_pda.key() != account.rent_sponsor.to_bytes();
-        spl_pod::solana_msg::msg!(
-            "compressible.rent_payer_pda: {:?}",
-            compressible.rent_payer_pda.key()
-        );
-        spl_pod::solana_msg::msg!("account.rent_sponsor: {:?}", account.rent_sponsor);
-        spl_pod::solana_msg::msg!(
-            "account.rent_sponsor (bytes): {:?}",
-            account.rent_sponsor.to_bytes()
-        );
+
         if custom_fee_payer {
             // custom fee payer for account creation -> pays rent exemption
             create_account_with_custom_fee_payer(

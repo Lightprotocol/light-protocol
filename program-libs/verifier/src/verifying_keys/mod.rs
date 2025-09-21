@@ -17,6 +17,7 @@ pub mod inclusion_32_1;
 pub mod inclusion_32_2;
 pub mod inclusion_32_3;
 pub mod inclusion_32_4;
+pub mod inclusion_32_5;
 pub mod inclusion_32_8;
 
 pub mod combined_26_26_1_1;

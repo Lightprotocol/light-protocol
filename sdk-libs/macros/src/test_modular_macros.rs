@@ -82,8 +82,8 @@ mod test {
         assert!(output_str.contains("UserRecord (UserRecord)"));
         assert!(output_str.contains("PackedUserRecord (PackedUserRecord)"));
         assert!(output_str.contains("GameSession (GameSession)"));
-        assert!(output_str.contains("CompressibleTokenAccountPacked"));
-        assert!(output_str.contains("CompressibleTokenData"));
+        assert!(output_str.contains("PackedCTokenData"));
+        assert!(output_str.contains("CTokenData"));
 
         // Check that all trait implementations are generated
         assert!(output_str.contains("impl Default for CompressedAccountVariant"));

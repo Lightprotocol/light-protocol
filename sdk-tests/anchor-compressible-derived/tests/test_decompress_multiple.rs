@@ -27,7 +27,7 @@ use light_program_test::{
 use light_sdk::{
     compressible::{CompressAs, CompressibleConfig},
     instruction::{PackedAccounts, SystemAccountMetaConfig},
-    token::CompressibleTokenDataWithVariant,
+    token::CTokenDataWithVariant,
 };
 use light_sdk_types::CTOKEN_PROGRAM_ID;
 use light_token_client::{self, ctoken};
@@ -1063,21 +1063,21 @@ async fn decompress_multiple_pdas_with_ctoken(
                 ),
                 (
                     compressed_token_account.clone().account,
-                    CompressedAccountVariant::CompressibleTokenData(
-                        CompressibleTokenDataWithVariant::<CTokenAccountVariant> {
-                            variant: CTokenAccountVariant::CTokenSigner,
-                            token_data: compressed_token_account.clone().token,
-                        },
-                    ),
+                    CompressedAccountVariant::CTokenData(CTokenDataWithVariant::<
+                        CTokenAccountVariant,
+                    > {
+                        variant: CTokenAccountVariant::CTokenSigner,
+                        token_data: compressed_token_account.clone().token,
+                    }),
                 ),
                 (
                     compressed_token_account_2.clone().account,
-                    CompressedAccountVariant::CompressibleTokenData(
-                        CompressibleTokenDataWithVariant::<CTokenAccountVariant> {
-                            variant: CTokenAccountVariant::CTokenSigner2,
-                            token_data: compressed_token_account_2.clone().token,
-                        },
-                    ),
+                    CompressedAccountVariant::CTokenData(CTokenDataWithVariant::<
+                        CTokenAccountVariant,
+                    > {
+                        variant: CTokenAccountVariant::CTokenSigner2,
+                        token_data: compressed_token_account_2.clone().token,
+                    }),
                 ),
             ],
             &anchor_compressible_derived::accounts::DecompressAccountsIdempotent {

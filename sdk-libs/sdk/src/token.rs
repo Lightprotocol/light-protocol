@@ -113,33 +113,33 @@ pub struct TokenDataWithVariant<V> {
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
-pub struct PackedCompressibleTokenDataWithVariant<V> {
+pub struct PackedCTokenDataWithVariant<V> {
     pub variant: V,
     pub token_data: InputTokenDataCompressible,
 }
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
-pub struct CompressibleTokenDataWithVariant<V> {
+pub struct CTokenDataWithVariant<V> {
     pub variant: V,
     pub token_data: TokenData,
 }
 
-/// Pack implementation for CompressibleTokenDataWithVariant
-impl<V> Pack for CompressibleTokenDataWithVariant<V>
+/// Pack implementation for CTokenDataWithVariant
+impl<V> Pack for CTokenDataWithVariant<V>
 where
     V: AnchorSerialize + Clone + std::fmt::Debug,
 {
-    type Packed = PackedCompressibleTokenDataWithVariant<V>;
+    type Packed = PackedCTokenDataWithVariant<V>;
 
     fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
-        PackedCompressibleTokenDataWithVariant {
+        PackedCTokenDataWithVariant {
             variant: self.variant.clone(),
             token_data: self.token_data.pack(remaining_accounts),
         }
     }
 }
 
-/// Unpack implementation for CompressibleTokenDataWithVariant
-impl<V> Unpack for CompressibleTokenDataWithVariant<V>
+/// Unpack implementation for CTokenDataWithVariant
+impl<V> Unpack for CTokenDataWithVariant<V>
 where
     V: Clone,
 {
@@ -161,18 +161,18 @@ impl<V> Pack for TokenDataWithVariant<V>
 where
     V: AnchorSerialize + Clone + std::fmt::Debug,
 {
-    type Packed = PackedCompressibleTokenDataWithVariant<V>;
+    type Packed = PackedCTokenDataWithVariant<V>;
 
     fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
-        PackedCompressibleTokenDataWithVariant {
+        PackedCTokenDataWithVariant {
             variant: self.variant.clone(),
             token_data: self.token_data.pack(remaining_accounts),
         }
     }
 }
 
-/// Unpack implementation for PackedCompressibleTokenDataWithVariant
-impl<V> Unpack for PackedCompressibleTokenDataWithVariant<V>
+/// Unpack implementation for PackedCTokenDataWithVariant
+impl<V> Unpack for PackedCTokenDataWithVariant<V>
 where
     V: Clone,
 {
@@ -200,3 +200,14 @@ pub struct InputTokenDataCompressible {
     pub mint: u8,
     pub version: u8,
 }
+
+// Backward compatibility type aliases
+#[deprecated(since = "0.2.0", note = "Use `CTokenDataWithVariant` instead")]
+pub type CompressibleTokenDataWithVariant<V> = CTokenDataWithVariant<V>;
+
+#[deprecated(since = "0.2.0", note = "Use `PackedCTokenDataWithVariant` instead")]
+pub type PackedCompressibleTokenDataWithVariant<V> = PackedCTokenDataWithVariant<V>;
+
+// Shorter aliases for convenience
+pub type CTokenData<V> = CTokenDataWithVariant<V>;
+pub type PackedCTokenData<V> = PackedCTokenDataWithVariant<V>;

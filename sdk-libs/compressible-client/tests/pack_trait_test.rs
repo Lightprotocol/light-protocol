@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use light_sdk::{instruction::PackedAccounts, token::TokenData};
-    use light_sdk::{Pack, PackedCompressibleTokenDataWithVariant, TokenDataWithVariant};
+    use light_sdk::{compressible::Pack, token::PackedCTokenDataWithVariant, token::TokenDataWithVariant};
     use solana_pubkey::Pubkey;
 
     #[test]
@@ -64,7 +64,7 @@ mod tests {
         };
 
         // Pack the wrapper
-        let packed: PackedCompressibleTokenDataWithVariant<MyVariant> =
+        let packed: PackedCTokenDataWithVariant<MyVariant> =
             token_with_variant.pack(&mut remaining_accounts);
 
         // Verify variant is unchanged

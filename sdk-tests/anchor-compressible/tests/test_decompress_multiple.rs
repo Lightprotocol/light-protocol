@@ -28,7 +28,7 @@ use light_program_test::{
 use light_sdk::{
     compressible::{CompressAs, CompressibleConfig},
     instruction::{PackedAccounts, SystemAccountMetaConfig},
-    token::CompressibleTokenDataWithVariant,
+    token::CTokenDataWithVariant,
 };
 use light_token_client::ctoken;
 use solana_account::Account;
@@ -1060,21 +1060,21 @@ async fn decompress_multiple_pdas_with_ctoken(
                 ),
                 (
                     ctoken_account.clone().account,
-                    CompressedAccountVariant::CompressibleTokenData(
-                        CompressibleTokenDataWithVariant::<CTokenAccountVariant> {
-                            variant: CTokenAccountVariant::CTokenSigner,
-                            token_data: ctoken_account.clone().token,
-                        },
-                    ),
+                    CompressedAccountVariant::CTokenData(CTokenDataWithVariant::<
+                        CTokenAccountVariant,
+                    > {
+                        variant: CTokenAccountVariant::CTokenSigner,
+                        token_data: ctoken_account.clone().token,
+                    }),
                 ),
                 (
                     ctoken_account_2.clone().account,
-                    CompressedAccountVariant::CompressibleTokenData(
-                        CompressibleTokenDataWithVariant::<CTokenAccountVariant> {
-                            variant: CTokenAccountVariant::CTokenSigner2,
-                            token_data: ctoken_account_2.clone().token,
-                        },
-                    ),
+                    CompressedAccountVariant::CTokenData(CTokenDataWithVariant::<
+                        CTokenAccountVariant,
+                    > {
+                        variant: CTokenAccountVariant::CTokenSigner2,
+                        token_data: ctoken_account_2.clone().token,
+                    }),
                 ),
             ],
             &anchor_compressible::accounts::DecompressAccountsIdempotent {

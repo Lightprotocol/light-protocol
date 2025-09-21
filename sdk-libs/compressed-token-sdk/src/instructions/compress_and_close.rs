@@ -398,8 +398,6 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             rent_sponsor_pubkey.unwrap()
         };
 
-        msg!("actual_rent_sponsor {:?}", actual_rent_sponsor);
-
         // Determine destination based on authority type
         let destination_pubkey = if with_compression_authority {
             // When rent authority closes, everything goes to rent recipient
@@ -461,15 +459,7 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     packed_accounts.extend_from_slice(post_system);
     packed_accounts.push(cpi_authority);
     packed_accounts.push(compressed_token_rent_recipient.clone());
-    msg!(
-        "token_accounts_to_compress: {:?}",
-        token_accounts_to_compress
-    );
 
-    msg!(
-        "compressed_token_rent_recipient: {:?}",
-        compressed_token_rent_recipient.key
-    );
     // Log the owner of each token account being compressed
     for token_account in token_accounts_to_compress {
         let account_data = token_account

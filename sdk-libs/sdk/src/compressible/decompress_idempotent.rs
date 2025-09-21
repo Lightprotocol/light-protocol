@@ -38,8 +38,6 @@ fn invoke_create_account_with_heap<'info>(
         space,
         program_id,
     );
-    msg!("create_account_ix: {:?}", create_account_ix.accounts);
-
     let accounts = vec![
         rent_payer.clone(),
         solana_account.clone(),

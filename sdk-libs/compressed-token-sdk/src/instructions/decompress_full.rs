@@ -94,6 +94,7 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
     indices: &[DecompressFullIndices],
     packed_accounts: &[AccountInfo<'info>],
 ) -> Result<Instruction, TokenSdkError> {
+    spl_pod::solana_msg::msg!("decompress_full_ctoken_accounts_with_indices");
     if indices.is_empty() {
         return Err(TokenSdkError::InvalidAccountData);
     }

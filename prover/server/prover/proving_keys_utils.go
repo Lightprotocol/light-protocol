@@ -99,6 +99,7 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 		keysDir + "inclusion_32_2.key",
 		keysDir + "inclusion_32_3.key",
 		keysDir + "inclusion_32_4.key",
+		keysDir + "inclusion_32_5.key",
 		keysDir + "inclusion_32_8.key",
 		keysDir + "mainnet_inclusion_26_1.key",
 		keysDir + "mainnet_inclusion_26_2.key",
