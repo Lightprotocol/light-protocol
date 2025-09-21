@@ -82,7 +82,7 @@ pub fn process_withdraw_funding_pool(
     ];
 
     // Prepare signer seeds for compression_authority PDA
-    // The compression_authority is derived as: [b"compression_authority", version, 0]
+    // The compression_authority is derived as: [b"compression_authority", version]
     let version_bytes = ctx.accounts.compressible_config.version.to_le_bytes();
     let compression_authority_bump = ctx.accounts.compressible_config.compression_authority_bump;
     let signer_seeds = &[

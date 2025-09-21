@@ -1,8 +1,9 @@
+use borsh::BorshSerialize;
 use light_compressed_account::hash_to_bn254_field_size_be;
-use light_hasher::{errors::HasherError, Hasher, Poseidon};
+use light_hasher::{errors::HasherError, sha256::Sha256BE, Hasher, Poseidon};
 
 use super::TokenData;
-use crate::{state::compressed_token::AccountState, NATIVE_MINT};
+use crate::{state::compressed_token::CompressedTokenAccountState, NATIVE_MINT};
 
 /// Hashing schema: H(mint, owner, amount, delegate, delegated_amount,
 /// is_native, state)
@@ -69,7 +70,7 @@ impl TokenData {
         }
         let mut state_bytes = [0u8; 32];
         if FROZEN_INPUTS {
-            state_bytes[31] = AccountState::Frozen as u8;
+            state_bytes[31] = CompressedTokenAccountState::Frozen as u8;
             hash_inputs.push(&state_bytes[..]);
         }
         Poseidon::hashv(hash_inputs.as_slice())
@@ -77,17 +78,28 @@ impl TokenData {
 }
 
 impl TokenData {
+    /// TokenDataVersion 3
+    /// CompressedAccount Discriminator [0,0,0,0,0,0,0,4]
+    pub fn hash_sha_flat(&self) -> Result<[u8; 32], HasherError> {
+        let bytes = self.try_to_vec().map_err(|_| HasherError::BorshError)?;
+        Sha256BE::hash(bytes.as_slice())
+    }
+
     /// Hashes token data of token accounts.
     ///
     /// Note, hashing changed for token account data in batched Merkle trees.
-    /// For hashing of token account data stored in concurrent Merkle trees use hash_legacy().
-    pub fn hash(&self) -> Result<[u8; 32], HasherError> {
+    /// For hashing of token account data stored in concurrent Merkle trees use hash_v1().
+    /// TokenDataVersion 2
+    /// CompressedAccount Discriminator [0,0,0,0,0,0,0,3]
+    pub fn hash_v2(&self) -> Result<[u8; 32], HasherError> {
         self._hash::<true>()
     }
-    // TODO: rename to v1
-    // TODO: add hard coded v1 compat test
+
     /// Hashes token data of token accounts stored in concurrent Merkle trees.
-    pub fn hash_legacy(&self) -> Result<[u8; 32], HasherError> {
+    /// TokenDataVersion 1
+    /// CompressedAccount Discriminator [2,0,0,0,0,0,0,0]
+    ///
+    pub fn hash_v1(&self) -> Result<[u8; 32], HasherError> {
         self._hash::<false>()
     }
 
@@ -107,7 +119,7 @@ impl TokenData {
         } else {
             None
         };
-        if self.state != AccountState::Initialized as u8 {
+        if self.state != CompressedTokenAccountState::Initialized as u8 {
             Self::hash_inputs_with_hashed_values::<true>(
                 &hashed_mint,
                 &hashed_owner,

@@ -3,7 +3,7 @@ use light_client::rpc::Rpc;
 use light_compressed_token_sdk::instructions::create_associated_token_account::derive_ctoken_ata;
 use light_compressible::rent::{get_rent_with_compression_cost, RentConfig};
 use light_ctoken_types::{
-    state::{ctoken::CToken, extensions::CompressionInfo},
+    state::{ctoken::CToken, extensions::CompressionInfo, AccountState},
     BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_zero_copy::traits::ZeroCopyAt;
@@ -81,7 +81,7 @@ pub async fn assert_create_token_account<R: Rpc>(
                 owner: owner_pubkey.into(),
                 amount: 0,
                 delegate: None,
-                state: 1, // Initialized
+                state: AccountState::Initialized, // Initialized
                 is_native: None,
                 delegated_amount: 0,
                 close_authority: None,

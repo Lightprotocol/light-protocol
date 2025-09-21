@@ -735,7 +735,7 @@ mod tests {
             Ok(hash)
         }
 
-        pub fn hash_legacy<H: Hasher>(
+        pub fn hash_v1<H: Hasher>(
             &self,
             &merkle_tree_pubkey: &Pubkey,
             leaf_index: &u32,
@@ -776,8 +776,8 @@ mod tests {
             };
             let leaf_index = rng.gen::<u32>();
             let merkle_tree_pubkey = Pubkey::new_unique();
-            let hash_legacy = account
-                .hash_legacy::<Poseidon>(&merkle_tree_pubkey, &leaf_index)
+            let hash_v1 = account
+                .hash_v1::<Poseidon>(&merkle_tree_pubkey, &leaf_index)
                 .unwrap();
             let hash = account
                 .hash(&merkle_tree_pubkey, &leaf_index, false)
@@ -787,7 +787,7 @@ mod tests {
             let z_hash = z_account
                 .hash(&merkle_tree_pubkey.to_bytes(), &leaf_index, false)
                 .unwrap();
-            assert_eq!(hash_legacy, hash);
+            assert_eq!(hash_v1, hash);
             assert_eq!(hash, z_hash);
         }
     }

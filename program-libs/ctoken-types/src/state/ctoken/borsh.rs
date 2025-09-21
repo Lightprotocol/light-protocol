@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 
-use crate::state::{CToken, ExtensionStruct};
+use crate::state::{AccountState, CToken, ExtensionStruct};
 
 // Manual implementation of BorshSerialize for SPL compatibility
 impl BorshSerialize for CToken {
@@ -24,7 +24,7 @@ impl BorshSerialize for CToken {
         }
 
         // Write state (1 byte)
-        writer.write_all(&[self.state])?;
+        writer.write_all(&[self.state as u8])?;
 
         // Write is_native as COption (4 bytes + 8 bytes)
         if let Some(is_native) = self.is_native {
@@ -141,7 +141,8 @@ impl BorshDeserialize for CToken {
             owner,
             amount,
             delegate,
-            state,
+            state: AccountState::try_from(state)
+                .map_err(|e| std::io::Error::from_raw_os_error(u32::from(e) as i32))?,
             is_native,
             delegated_amount,
             close_authority,

@@ -5,9 +5,10 @@ use light_compressed_account::{
 };
 use light_ctoken_types::{
     hash_cache::HashCache,
-    state::{AccountState, TokenData, TokenDataConfig, TokenDataVersion},
+    state::{CompressedTokenAccountState, TokenData, TokenDataConfig, TokenDataVersion},
 };
 use light_hasher::{sha256::Sha256BE, Hasher};
+use light_profiler::profile;
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyNew};
 
 /// 1. Set token account data
@@ -15,6 +16,7 @@ use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopyNew};
 /// 3. Set output compressed account
 #[inline(always)]
 #[allow(clippy::too_many_arguments)]
+#[profile]
 pub fn set_output_compressed_account(
     output_compressed_account: &mut ZOutputCompressedAccountWithPackedContextMut<'_>,
     hash_cache: &mut HashCache,
@@ -100,7 +102,7 @@ fn set_output_compressed_account_inner<const IS_FROZEN: bool>(
             owner,
             amount,
             delegate,
-            AccountState::Initialized,
+            CompressedTokenAccountState::Initialized,
         )?;
     }
     let token_version = TokenDataVersion::try_from(version)?;

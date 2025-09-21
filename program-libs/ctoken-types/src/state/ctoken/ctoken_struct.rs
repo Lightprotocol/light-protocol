@@ -1,7 +1,28 @@
 use light_compressed_account::Pubkey;
 use light_zero_copy::errors::ZeroCopyError;
 
-use crate::state::ExtensionStruct;
+use crate::{state::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, AnchorSerialize, AnchorDeserialize)]
+#[repr(u8)]
+pub enum AccountState {
+    Uninitialized = 0,
+    Initialized = 1,
+    Frozen = 2,
+}
+
+impl TryFrom<u8> for AccountState {
+    type Error = CTokenError;
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(AccountState::Uninitialized),
+            1 => Ok(AccountState::Initialized),
+            2 => Ok(AccountState::Frozen),
+            _ => Err(CTokenError::InvalidAccountState),
+        }
+    }
+}
 
 /// Ctoken account structure (same as SPL Token Account but with extensions).
 /// Ctokens are solana accounts, compressed tokens are stored
@@ -18,7 +39,7 @@ pub struct CToken {
     /// the amount authorized by the delegate
     pub delegate: Option<Pubkey>,
     /// The account's state
-    pub state: u8,
+    pub state: AccountState,
     /// If `is_some`, this is a native token, and the value logs the rent-exempt
     /// reserve. An Account is required to be rent-exempt, so the value is
     /// used by the Processor to ensure that wrapped SOL accounts do not
@@ -61,7 +82,7 @@ impl CToken {
 
     /// Checks if account is frozen
     pub fn is_frozen(&self) -> bool {
-        self.state == 2 // AccountState::Frozen
+        self.state == AccountState::Frozen
     }
 
     /// Checks if account is native
@@ -71,6 +92,6 @@ impl CToken {
 
     /// Checks if account is initialized
     pub fn is_initialized(&self) -> bool {
-        self.state != 0 // AccountState::Uninitialized
+        self.state == AccountState::Initialized
     }
 }

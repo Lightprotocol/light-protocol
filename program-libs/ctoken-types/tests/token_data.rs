@@ -14,7 +14,7 @@ fn equivalency_of_hash_functions() {
         state: AccountState::Initialized as u8,
         tlv: None,
     };
-    let hashed_token_data = token_data.hash_legacy().unwrap();
+    let hashed_token_data = token_data.hash_v1().unwrap();
     let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
     let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice());
     let hashed_delegate =
@@ -38,7 +38,7 @@ fn equivalency_of_hash_functions() {
         state: AccountState::Initialized as u8,
         tlv: None,
     };
-    let hashed_token_data = token_data.hash_legacy().unwrap();
+    let hashed_token_data = token_data.hash_v1().unwrap();
     let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
     let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice());
     let mut amount_bytes = [0u8; 32];
@@ -90,7 +90,7 @@ fn equivalency_of_hash_functions_rnd_iters<const ITERS: usize>() {
             state: AccountState::Initialized as u8,
             tlv: None,
         };
-        let hashed_token_data = token_data.hash_legacy().unwrap();
+        let hashed_token_data = token_data.hash_v1().unwrap();
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
         let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice());
         let hashed_delegate =
@@ -117,7 +117,7 @@ fn equivalency_of_hash_functions_rnd_iters<const ITERS: usize>() {
             state: AccountState::Initialized as u8,
             tlv: None,
         };
-        let hashed_token_data = token_data.hash_legacy().unwrap();
+        let hashed_token_data = token_data.hash_v1().unwrap();
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
         let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice());
         let mut amount_bytes = [0u8; 32];
@@ -162,7 +162,7 @@ fn test_circuit_equivalence() {
     };
 
     // Calculate the hash with the Rust code
-    let rust_hash = token_data.hash().unwrap();
+    let rust_hash = token_data.hash_v2().unwrap();
 
     let circuit_hash_str =
         "12698830169693734517877055378728747723888091986541703429186543307137690361131";
@@ -197,7 +197,7 @@ fn test_frozen_equivalence() {
         &Some(&hashed_delegate),
     )
     .unwrap();
-    let other_hash = token_data.hash_legacy().unwrap();
+    let other_hash = token_data.hash_v1().unwrap();
     assert_eq!(hash, other_hash);
 }
 
@@ -268,11 +268,11 @@ fn failing_tests_hashing() {
     // different account state
     let mut token_data = token_data;
     token_data.state = AccountState::Frozen as u8;
-    let hash9 = token_data.hash_legacy().unwrap();
+    let hash9 = token_data.hash_v1().unwrap();
     assert_to_previous_hashes(hash9, &mut vec_previous_hashes);
     // different account state with delegate
     token_data.delegate = Some(delegate);
-    let hash10 = token_data.hash_legacy().unwrap();
+    let hash10 = token_data.hash_v1().unwrap();
     assert_to_previous_hashes(hash10, &mut vec_previous_hashes);
 }
 

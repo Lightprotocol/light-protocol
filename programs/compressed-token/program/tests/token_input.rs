@@ -154,7 +154,7 @@ fn test_rnd_create_input_compressed_account() {
             };
 
             // Calculate expected data hash
-            let expected_hash = expected_token_data.hash().unwrap();
+            let expected_hash = expected_token_data.hash_v2().unwrap();
 
             // Build expected input account
             let expected_input_account = InAccount {

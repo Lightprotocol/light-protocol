@@ -562,7 +562,7 @@ mod test {
             let data = CompressedAccountData {
                 discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                 data: token_data_bytes,
-                data_hash: token_data.hash_legacy().unwrap(),
+                data_hash: token_data.hash_v1().unwrap(),
             };
             let lamports = 0;
 
@@ -627,7 +627,7 @@ mod test {
                 let data = CompressedAccountData {
                     discriminator: TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
                     data: token_data_bytes,
-                    data_hash: token_data.hash_legacy().unwrap(),
+                    data_hash: token_data.hash_v1().unwrap(),
                 };
                 let lamports = rng.gen_range(0..1_000_000_000_000);
 

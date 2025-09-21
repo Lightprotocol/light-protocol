@@ -238,7 +238,7 @@ impl PartialEq<CToken> for ZCToken<'_> {
         if self.mint.to_bytes() != other.mint.to_bytes()
             || self.owner.to_bytes() != other.owner.to_bytes()
             || u64::from(*self.amount) != other.amount
-            || self.state != other.state
+            || self.state != other.state as u8
             || u64::from(*self.delegated_amount) != other.delegated_amount
         {
             return false;

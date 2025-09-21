@@ -6,20 +6,19 @@ use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 #[repr(u8)]
-pub enum AccountState {
-    //Uninitialized,
+pub enum CompressedTokenAccountState {
+    //Uninitialized, is always initialized.
     Initialized = 0,
     Frozen = 1,
 }
 
-impl TryFrom<u8> for AccountState {
+impl TryFrom<u8> for CompressedTokenAccountState {
     type Error = CTokenError;
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            //0 => Ok(AccountState::Uninitialized), TODO: check with main that we don't create breaking changes for v1 token data.
-            0 => Ok(AccountState::Initialized),
-            1 => Ok(AccountState::Frozen),
+            0 => Ok(CompressedTokenAccountState::Initialized),
+            1 => Ok(CompressedTokenAccountState::Frozen),
             _ => Err(CTokenError::InvalidAccountState),
         }
     }
@@ -47,8 +46,8 @@ pub struct TokenData {
 }
 
 impl TokenData {
-    pub fn state(&self) -> Result<AccountState, CTokenError> {
-        AccountState::try_from(self.state)
+    pub fn state(&self) -> Result<CompressedTokenAccountState, CTokenError> {
+        CompressedTokenAccountState::try_from(self.state)
     }
 }
 
@@ -63,7 +62,7 @@ impl ZTokenDataMut<'_> {
         owner: Pubkey,
         amount: impl ZeroCopyNumTrait,
         delegate: Option<Pubkey>,
-        state: AccountState,
+        state: CompressedTokenAccountState,
     ) -> Result<(), CTokenError> {
         self.mint = mint;
         self.owner = owner;

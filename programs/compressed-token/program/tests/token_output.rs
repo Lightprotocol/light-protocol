@@ -131,7 +131,7 @@ fn test_rnd_create_output_compressed_accounts() {
                 state: AccountState::Initialized as u8,
                 tlv: None,
             };
-            let data_hash = token_data.hash().unwrap();
+            let data_hash = token_data.hash_v2().unwrap();
 
             expected_accounts.push(OutputCompressedAccountWithPackedContext {
                 compressed_account: CompressedAccount {
