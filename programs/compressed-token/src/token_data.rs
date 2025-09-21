@@ -192,7 +192,8 @@ pub mod test {
         fn legacy_hash(&self) -> std::result::Result<[u8; 32], HasherError> {
             let hashed_mint = hash_to_bn254_field_size_be(self.mint.to_bytes().as_slice());
             let hashed_owner = hash_to_bn254_field_size_be(self.owner.to_bytes().as_slice());
-            let amount_bytes = self.amount.to_le_bytes();
+            let mut amount_bytes = [0u8; 32];
+            amount_bytes[24..].copy_from_slice(self.amount.to_le_bytes().as_slice());
             let hashed_delegate;
             let hashed_delegate_option = if let Some(delegate) = self.delegate {
                 hashed_delegate = hash_to_bn254_field_size_be(delegate.to_bytes().as_slice());

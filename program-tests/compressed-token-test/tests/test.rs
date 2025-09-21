@@ -5250,7 +5250,7 @@ async fn test_invalid_inputs() {
 
         assert_custom_error_or_program_error(
             res,
-            anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into(),
+            SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .unwrap();
     }
