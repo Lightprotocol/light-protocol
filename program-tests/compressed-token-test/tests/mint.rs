@@ -23,6 +23,7 @@ use light_ctoken_types::{
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_ctoken_transfer::assert_ctoken_transfer,
+    assert_mint_action::assert_mint_action,
     assert_mint_to_compressed::{assert_mint_to_compressed, assert_mint_to_compressed_one},
     assert_transfer2::{
         assert_transfer2, assert_transfer2_compress, assert_transfer2_decompress,
@@ -1458,11 +1459,25 @@ async fn functional_and_failing_tests() {
 
     // 2. SUCCEED - MintToCompressed with valid mint authority
     {
+        // Get pre-transaction compressed mint state
+        let pre_compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
+
+        let recipient = Keypair::new().pubkey().to_bytes().into();
         let result = light_token_client::actions::mint_to_compressed(
             &mut rpc,
             spl_mint_pda,
             vec![light_ctoken_types::instructions::mint_action::Recipient {
-                recipient: Keypair::new().pubkey().to_bytes().into(),
+                recipient,
                 amount: 1000u64,
             }],
             light_ctoken_types::state::TokenDataVersion::V2,
@@ -1472,6 +1487,25 @@ async fn functional_and_failing_tests() {
         .await;
 
         assert!(result.is_ok(), "Should succeed with valid mint authority");
+
+        // Verify using assert_mint_action
+        assert_mint_action(
+            &mut rpc,
+            compressed_mint_address,
+            pre_compressed_mint,
+            vec![
+                light_compressed_token_sdk::instructions::mint_action::MintActionType::MintTo {
+                    recipients: vec![
+                        light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
+                            recipient: recipient.into(),
+                            amount: 1000u64,
+                        },
+                    ],
+                    token_account_version: light_ctoken_types::state::TokenDataVersion::V2 as u8,
+                },
+            ],
+        )
+        .await;
     }
 
     // Get compressed mint account for update operations
@@ -1512,6 +1546,10 @@ async fn functional_and_failing_tests() {
             .await
             .unwrap()
             .value;
+        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
 
         let result = light_token_client::actions::update_mint_authority(
             &mut rpc,
@@ -1525,6 +1563,17 @@ async fn functional_and_failing_tests() {
         .await;
 
         assert!(result.is_ok(), "Should succeed with valid mint authority");
+
+        // Verify using assert_mint_action
+        assert_mint_action(
+            &mut rpc,
+            compressed_mint_address,
+            pre_compressed_mint,
+            vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMintAuthority {
+                new_authority: Some(new_mint_authority.pubkey()),
+            }],
+        )
+        .await;
     }
 
     // 5. UpdateFreezeAuthority with invalid freeze authority
@@ -1567,6 +1616,10 @@ async fn functional_and_failing_tests() {
             .await
             .unwrap()
             .value;
+        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
 
         let result = light_token_client::actions::update_freeze_authority(
             &mut rpc,
@@ -1581,6 +1634,17 @@ async fn functional_and_failing_tests() {
         .await;
 
         assert!(result.is_ok(), "Should succeed with valid freeze authority");
+
+        // Verify using assert_mint_action
+        assert_mint_action(
+            &mut rpc,
+            compressed_mint_address,
+            pre_compressed_mint,
+            vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateFreezeAuthority {
+                new_authority: Some(new_freeze_authority.pubkey()),
+            }],
+        )
+        .await;
     }
 
     // 7. MintToCToken with invalid mint authority
@@ -1626,6 +1690,19 @@ async fn functional_and_failing_tests() {
 
     // 8. SUCCEED - MintToCToken with valid mint authority
     {
+        // Get pre-transaction compressed mint state
+        let pre_compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
+
         // Create a new recipient for successful mint
         let recipient2 = Keypair::new();
 
@@ -1640,6 +1717,12 @@ async fn functional_and_failing_tests() {
         rpc.create_and_send_transaction(&[create_ata_ix2], &payer.pubkey(), &[&payer])
             .await
             .unwrap();
+
+        let recipient_ata = light_compressed_token_sdk::instructions::derive_ctoken_ata(
+            &recipient2.pubkey(),
+            &spl_mint_pda,
+        )
+        .0;
 
         // Try to mint with valid NEW authority (since we updated it)
         let result = light_token_client::actions::mint_action_comprehensive(
@@ -1659,6 +1742,18 @@ async fn functional_and_failing_tests() {
         .await;
 
         assert!(result.is_ok(), "Should succeed with valid mint authority");
+
+        // Verify using assert_mint_action
+        assert_mint_action(
+            &mut rpc,
+            compressed_mint_address,
+            pre_compressed_mint,
+            vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::MintToCToken {
+                account: recipient_ata,
+                amount: 2000u64,
+            }],
+        )
+        .await;
     }
 
     // 9. UpdateMetadataField with invalid metadata authority
@@ -1692,6 +1787,26 @@ async fn functional_and_failing_tests() {
 
     // 10. SUCCEED - UpdateMetadataField with valid metadata authority
     {
+        // Get pre-transaction compressed mint state
+        let pre_compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
+
+        let actions = vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
+            extension_index: 0,
+            field_type: 0, // 0 = Name field
+            key: vec![],   // Empty for Name field
+            value: "Updated Token Name".as_bytes().to_vec(),
+        }];
+
         let result = light_token_client::actions::mint_action(
             &mut rpc,
             light_token_client::instructions::mint_action::MintActionParams {
@@ -1699,12 +1814,7 @@ async fn functional_and_failing_tests() {
                 mint_seed: mint_seed.pubkey(),
                 authority: metadata_authority.pubkey(), // Valid metadata authority
                 payer: payer.pubkey(),
-                actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
-                    extension_index: 0,
-                    field_type: 0, // 0 = Name field
-                    key: vec![],   // Empty for Name field
-                    value: "Updated Token Name".as_bytes().to_vec(),
-                }],
+                actions: actions.clone(),
                 new_mint: None,
             },
             &metadata_authority,
@@ -1717,6 +1827,15 @@ async fn functional_and_failing_tests() {
             result.is_ok(),
             "Should succeed with valid metadata authority"
         );
+
+        // Verify using assert_mint_action
+        assert_mint_action(
+            &mut rpc,
+            compressed_mint_address,
+            pre_compressed_mint,
+            actions,
+        )
+        .await;
     }
 
     // 11. UpdateMetadataAuthority with invalid metadata authority
@@ -1748,6 +1867,24 @@ async fn functional_and_failing_tests() {
 
     // 12. SUCCEED - UpdateMetadataAuthority with valid metadata authority
     {
+        // Get pre-transaction compressed mint state
+        let pre_compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
+
+        let actions = vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataAuthority {
+            extension_index: 0,
+            new_authority: new_metadata_authority.pubkey(),
+        }];
+
         let result = light_token_client::actions::mint_action(
             &mut rpc,
             light_token_client::instructions::mint_action::MintActionParams {
@@ -1755,10 +1892,7 @@ async fn functional_and_failing_tests() {
                 mint_seed: mint_seed.pubkey(),
                 authority: metadata_authority.pubkey(), // Valid current metadata authority
                 payer: payer.pubkey(),
-                actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataAuthority {
-                    extension_index: 0,
-                    new_authority: new_metadata_authority.pubkey(),
-                }],
+                actions: actions.clone(),
                 new_mint: None,
             },
             &metadata_authority,
@@ -1771,6 +1905,15 @@ async fn functional_and_failing_tests() {
             result.is_ok(),
             "Should succeed with valid metadata authority"
         );
+
+        // Verify using assert_mint_action
+        assert_mint_action(
+            &mut rpc,
+            compressed_mint_address,
+            pre_compressed_mint,
+            actions,
+        )
+        .await;
     }
 
     // 13. RemoveMetadataKey with invalid metadata authority
@@ -1803,6 +1946,25 @@ async fn functional_and_failing_tests() {
 
     // 14. SUCCEED - RemoveMetadataKey with valid metadata authority
     {
+        // Get pre-transaction compressed mint state
+        let pre_compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
+
+        let actions = vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::RemoveMetadataKey {
+            extension_index: 0,
+            key: vec![1,2,3,4], // The key we added in additional_metadata
+            idempotent: 0, // 0 = false
+        }];
+
         let result = light_token_client::actions::mint_action(
             &mut rpc,
             light_token_client::instructions::mint_action::MintActionParams {
@@ -1810,11 +1972,7 @@ async fn functional_and_failing_tests() {
                 mint_seed: mint_seed.pubkey(),
                 authority: new_metadata_authority.pubkey(), // Valid NEW metadata authority after update
                 payer: payer.pubkey(),
-                actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::RemoveMetadataKey {
-                    extension_index: 0,
-                    key: vec![1,2,3,4], // The key we added in additional_metadata
-                    idempotent: 0, // 0 = false
-                }],
+                actions: actions.clone(),
                 new_mint: None,
             },
             &new_metadata_authority,
@@ -1827,10 +1985,38 @@ async fn functional_and_failing_tests() {
             result.is_ok(),
             "Should succeed with valid metadata authority"
         );
+
+        // Verify using assert_mint_action
+        assert_mint_action(
+            &mut rpc,
+            compressed_mint_address,
+            pre_compressed_mint,
+            actions,
+        )
+        .await;
     }
 
     // 15. SUCCEED - RemoveMetadataKey idempotent (try to remove same key again)
     {
+        // Get pre-transaction compressed mint state
+        let pre_compressed_mint_account = rpc
+            .indexer()
+            .unwrap()
+            .get_compressed_account(compressed_mint_address, None)
+            .await
+            .unwrap()
+            .value;
+        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
+        )
+        .unwrap();
+
+        let actions = vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::RemoveMetadataKey {
+            extension_index: 0,
+            key: vec![1,2,3,4], // Same key, already removed
+            idempotent: 1, // 1 = true (won't error if key doesn't exist)
+        }];
+
         let result = light_token_client::actions::mint_action(
             &mut rpc,
             light_token_client::instructions::mint_action::MintActionParams {
@@ -1838,11 +2024,7 @@ async fn functional_and_failing_tests() {
                 mint_seed: mint_seed.pubkey(),
                 authority: new_metadata_authority.pubkey(), // Valid NEW metadata authority
                 payer: payer.pubkey(),
-                actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::RemoveMetadataKey {
-                    extension_index: 0,
-                    key: vec![1,2,3,4], // Same key, already removed
-                    idempotent: 1, // 1 = true (won't error if key doesn't exist)
-                }],
+                actions: actions.clone(),
                 new_mint: None,
             },
             &new_metadata_authority,
@@ -1855,6 +2037,15 @@ async fn functional_and_failing_tests() {
             result.is_ok(),
             "Should succeed with idempotent=true even when key doesn't exist"
         );
+
+        // Verify using assert_mint_action (no state change expected since key doesn't exist)
+        assert_mint_action(
+            &mut rpc,
+            compressed_mint_address,
+            pre_compressed_mint,
+            actions,
+        )
+        .await;
     }
 }
 
@@ -2037,6 +2228,20 @@ async fn functional_all_in_one_instruction() {
         },
     ];
 
+    // Get pre-state compressed mint
+    let pre_compressed_mint_account = rpc
+        .indexer()
+        .unwrap()
+        .get_compressed_account(compressed_mint_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+        &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
+    )
+    .unwrap();
+
     // Execute all actions in a single instruction
     let result = light_token_client::actions::mint_action(
         &mut rpc,
@@ -2045,7 +2250,7 @@ async fn functional_all_in_one_instruction() {
             mint_seed: mint_seed.pubkey(),
             authority: authority.pubkey(),
             payer: payer.pubkey(),
-            actions,
+            actions: actions.clone(),
             new_mint: None,
         },
         &authority,
@@ -2056,118 +2261,12 @@ async fn functional_all_in_one_instruction() {
 
     assert!(result.is_ok(), "All-in-one mint action should succeed");
 
-    // Verify final state
-    let final_compressed_mint_account = rpc
-        .indexer()
-        .unwrap()
-        .get_compressed_account(compressed_mint_address, None)
-        .await
-        .unwrap()
-        .value;
-
-    let final_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
-        &mut final_compressed_mint_account
-            .data
-            .as_ref()
-            .unwrap()
-            .data
-            .as_slice(),
+    // Use the new assert_mint_action function (now also validates CToken account state)
+    assert_mint_action(
+        &mut rpc,
+        compressed_mint_address,
+        pre_compressed_mint,
+        actions,
     )
-    .unwrap();
-
-    // Verify authorities were updated
-    assert_eq!(
-        final_compressed_mint.base.mint_authority,
-        Some(light_compressed_account::Pubkey::from(
-            new_mint_authority.pubkey().to_bytes()
-        )),
-        "Mint authority should be updated"
-    );
-    assert_eq!(
-        final_compressed_mint.base.freeze_authority,
-        Some(light_compressed_account::Pubkey::from(
-            new_freeze_authority.pubkey().to_bytes()
-        )),
-        "Freeze authority should be updated"
-    );
-
-    // Verify supply was increased
-    assert_eq!(
-        final_compressed_mint.base.supply, 3000,
-        "Supply should be 1000 (compressed) + 2000 (ctoken)"
-    );
-
-    // Verify metadata was updated
-    if let Some(extensions) = &final_compressed_mint.extensions {
-        if let light_ctoken_types::state::ExtensionStruct::TokenMetadata(metadata) = &extensions[0]
-        {
-            assert_eq!(
-                metadata.update_authority,
-                light_compressed_account::Pubkey::from(new_metadata_authority.pubkey().to_bytes()),
-                "Metadata authority should be updated"
-            );
-            assert_eq!(
-                metadata.name.as_slice(),
-                "Updated Token Name".as_bytes(),
-                "Name should be updated"
-            );
-            assert_eq!(
-                metadata.symbol.as_slice(),
-                "UPDATED".as_bytes(),
-                "Symbol should be updated"
-            );
-            assert_eq!(
-                metadata.uri.as_slice(),
-                "https://updated.example.com/token.json".as_bytes(),
-                "URI should be updated"
-            );
-            // Verify the first additional metadata key was updated
-            let updated_entry = metadata
-                .additional_metadata
-                .iter()
-                .find(|meta| meta.key == vec![1, 2, 3, 4]);
-            assert!(
-                updated_entry.is_some(),
-                "Key [1,2,3,4] should still exist"
-            );
-            assert_eq!(
-                updated_entry.unwrap().value,
-                "updated_value".as_bytes().to_vec(),
-                "Key [1,2,3,4] value should be updated"
-            );
-
-            // Verify the second additional metadata key was removed
-            assert!(
-                metadata
-                    .additional_metadata
-                    .iter()
-                    .all(|meta| meta.key != vec![4, 5, 6, 7]),
-                "Key [4,5,6,7] should be removed"
-            );
-
-            // Verify we only have one additional metadata entry now
-            assert_eq!(
-                metadata.additional_metadata.len(),
-                1,
-                "Should have exactly one additional metadata entry after update and remove"
-            );
-        } else {
-            panic!("Expected TokenMetadata extension");
-        }
-    } else {
-        panic!("Expected extensions");
-    }
-
-    // Verify ctoken account received tokens
-    let recipient_ata = light_compressed_token_sdk::instructions::derive_ctoken_ata(
-        &recipient.pubkey(),
-        &spl_mint_pda,
-    )
-    .0;
-    let account_data = rpc.get_account(recipient_ata).await.unwrap().unwrap();
-    let token_account = spl_token::state::Account::unpack(&account_data.data).unwrap();
-    assert_eq!(
-        token_account.amount, 2000,
-        "CToken account should have 2000 tokens"
-    );
+    .await;
 }

@@ -27,6 +27,7 @@ pub mod assert_ctoken_transfer;
 pub mod assert_epoch;
 pub mod assert_merkle_tree;
 pub mod assert_metadata;
+pub mod assert_mint_action;
 pub mod assert_mint_to_compressed;
 pub mod assert_queue;
 pub mod assert_rollover;
