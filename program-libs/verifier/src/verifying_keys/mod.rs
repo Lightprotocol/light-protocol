@@ -1,10 +1,10 @@
 // V2 batch operation keys
+pub mod v2_address_append_40_10;
+pub mod v2_address_append_40_250;
 pub mod v2_append_32_10;
 pub mod v2_append_32_500;
 pub mod v2_update_32_10;
 pub mod v2_update_32_500;
-pub mod v2_address_append_40_10;
-pub mod v2_address_append_40_250;
 
 // V1 inclusion keys
 pub mod v1_inclusion_26_1;
