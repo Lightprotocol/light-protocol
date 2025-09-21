@@ -29,7 +29,7 @@ fn test_extension_allocation_only() {
     };
 
     let config_no_ext = cpi_bytes_config(config_input_no_ext);
-    let cpi_bytes_no_ext = allocate_invoke_with_read_only_cpi_bytes(&config_no_ext);
+    let cpi_bytes_no_ext = allocate_invoke_with_read_only_cpi_bytes(&config_no_ext).unwrap();
 
     println!(
         "No extensions - CPI bytes length: {}",
@@ -62,7 +62,7 @@ fn test_extension_allocation_only() {
     };
 
     let config_with_ext = cpi_bytes_config(config_input_with_ext);
-    let cpi_bytes_with_ext = allocate_invoke_with_read_only_cpi_bytes(&config_with_ext);
+    let cpi_bytes_with_ext = allocate_invoke_with_read_only_cpi_bytes(&config_with_ext).unwrap();
 
     println!(
         "With extensions - CPI bytes length: {}",
@@ -175,7 +175,7 @@ fn test_progressive_extension_sizes() {
         };
 
         let config = cpi_bytes_config(config_input);
-        let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
+        let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config).unwrap();
 
         println!("CPI bytes allocated: {}", cpi_bytes.len());
 

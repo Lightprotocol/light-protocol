@@ -3,9 +3,14 @@ use light_ctoken_types::{
     instructions::mint_action::ZCompressedMintInstructionData, COMPRESSED_MINT_SEED,
 };
 use light_profiler::profile;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, instruction::Seed};
+use arrayvec::ArrayVec;
 
-use crate::{mint_action::accounts::ExecutingAccounts, shared::verify_pda, LIGHT_CPI_SIGNER};
+use crate::{
+    mint_action::accounts::ExecutingAccounts,
+    shared::{convert_program_error, verify_pda, create_pda_account},
+    LIGHT_CPI_SIGNER,
+};
 
 /// Creates the mint account manually as a PDA derived from our program but owned by the token program
 #[profile]
@@ -19,7 +24,7 @@ pub fn create_mint_account(
     let mint_account = executing_accounts
         .mint
         .ok_or(ProgramError::InvalidAccountData)?;
-    let token_program = executing_accounts
+    let _token_program = executing_accounts
         .token_program
         .ok_or(ProgramError::InvalidAccountData)?;
 
@@ -28,19 +33,20 @@ pub fn create_mint_account(
     verify_pda(mint_account.key(), seeds, mint_bump, program_id)?;
 
     // Create account using shared function
-    let config = crate::shared::CreatePdaAccountConfig {
-        seeds,
-        bump: mint_bump,
-        account_size: mint_account_size,
-        owner_program_id: token_program.key(), // Owned by token program
-        derivation_program_id: program_id,
-    };
+    let bump_seed = [mint_bump];
+    let mut seeds: ArrayVec<Seed, 3> = ArrayVec::new();
+    seeds.push(Seed::from(COMPRESSED_MINT_SEED));
+    seeds.push(Seed::from(mint_signer.key().as_ref()));
+    seeds.push(Seed::from(bump_seed.as_ref()));
 
-    crate::shared::create_pda_account(
+    let mut seeds_inputs: ArrayVec<&[Seed], 1> = ArrayVec::new();
+    seeds_inputs.push(seeds.as_slice());
+
+    create_pda_account(
         executing_accounts.system.fee_payer,
         mint_account,
-        config,
-        None,
+        mint_account_size,
+        seeds_inputs,
         None,
     )
 }
@@ -80,6 +86,5 @@ pub fn initialize_mint_account_for_action(
         data: &spl_ix.data,
     };
 
-    pinocchio::program::invoke(&initialize_mint_ix, &[mint_account])
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
+    pinocchio::program::invoke(&initialize_mint_ix, &[mint_account]).map_err(convert_program_error)
 }

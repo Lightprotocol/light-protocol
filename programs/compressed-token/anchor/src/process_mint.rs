@@ -534,7 +534,7 @@ mod test {
             data::OutputCompressedAccountWithPackedContext, invoke_cpi::InstructionDataInvokeCpi,
         },
     };
-    use light_ctoken_types::state::{AccountState, TokenData};
+    use light_ctoken_types::state::{CompressedTokenAccountState, TokenData};
 
     use super::*;
     use crate::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
@@ -553,7 +553,7 @@ mod test {
                 owner: (*pubkey).into(),
                 amount: *amount,
                 delegate: None,
-                state: AccountState::Initialized as u8,
+                state: CompressedTokenAccountState::Initialized as u8,
                 tlv: None,
             };
 
@@ -618,7 +618,7 @@ mod test {
                     owner: (*pubkey).into(),
                     amount: *amount,
                     delegate: None,
-                    state: AccountState::Initialized as u8,
+                    state: CompressedTokenAccountState::Initialized as u8,
                     tlv: None,
                 };
 

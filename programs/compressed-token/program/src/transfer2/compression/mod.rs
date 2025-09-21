@@ -11,7 +11,10 @@ use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    shared::transfer_lamports::{multi_transfer_lamports, Transfer},
+    shared::{
+        convert_program_error,
+        transfer_lamports::{multi_transfer_lamports, Transfer},
+    },
     LIGHT_CPI_SIGNER,
 };
 
@@ -121,8 +124,7 @@ pub fn process_token_compression(
             .collect::<Result<ArrayVec<Transfer, 40>, ProgramError>>()?;
 
         if !transfers.is_empty() {
-            multi_transfer_lamports(fee_payer, &transfers)
-                .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+            multi_transfer_lamports(fee_payer, &transfers).map_err(convert_program_error)?
         }
     }
     Ok(())

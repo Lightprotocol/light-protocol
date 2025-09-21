@@ -19,9 +19,11 @@ use pinocchio_system::instructions::CreateAccount;
 use spl_pod::{bytemuck, solana_msg::msg};
 
 use crate::shared::{
-    create_pda_account, initialize_ctoken_account::initialize_ctoken_account,
-    transfer_lamports_via_cpi, CreatePdaAccountConfig,
+    convert_program_error, create_pda_account,
+    initialize_ctoken_account::initialize_ctoken_account, transfer_lamports_via_cpi,
 };
+use arrayvec::ArrayVec;
+use pinocchio::instruction::Seed;
 
 /// Validated accounts for the create token account instruction
 pub struct CreateCTokenAccounts<'info> {
@@ -184,33 +186,33 @@ pub fn process_create_token_account(
                 account_size,
                 rent,
             )
-            .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+            .map_err(convert_program_error)?;
 
             (Some(*config_account), Some(*compressible.rent_payer.key()))
         } else {
             // Rent recipient is fee payer for account creation -> pays rent exemption
             let version_bytes = config_account.version.to_le_bytes();
-            let seeds = &[b"rent_sponsor".as_slice(), version_bytes.as_slice()];
-            let config = CreatePdaAccountConfig {
-                seeds,
-                bump: config_account.rent_sponsor_bump,
-                account_size,
-                owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
-                derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
-            };
+            let bump_seed = [config_account.rent_sponsor_bump];
+            let mut seeds: ArrayVec<Seed, 3> = ArrayVec::new();
+            seeds.push(Seed::from(b"rent_sponsor".as_ref()));
+            seeds.push(Seed::from(version_bytes.as_ref()));
+            seeds.push(Seed::from(bump_seed.as_ref()));
+
+            let mut seeds_inputs: ArrayVec<&[Seed], 1> = ArrayVec::new();
+            seeds_inputs.push(seeds.as_slice());
 
             // PDA creates account with only rent-exempt balance
             create_pda_account(
                 compressible.rent_payer,
                 accounts.token_account,
-                config,
-                None,
+                account_size,
+                seeds_inputs,
                 None,
             )?;
 
             // Payer transfers the additional rent (compression incentive)
             transfer_lamports_via_cpi(rent, compressible.payer, accounts.token_account)
-                .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+                .map_err(convert_program_error)?;
             (Some(*config_account), None)
         }
     } else {

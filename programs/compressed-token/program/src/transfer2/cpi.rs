@@ -2,6 +2,7 @@ use arrayvec::ArrayVec;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
 use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
 use light_profiler::profile;
+use pinocchio::program_error::ProgramError;
 
 use crate::shared::cpi_bytes_size::{
     self, allocate_invoke_with_read_only_cpi_bytes, compressed_token_data_len, cpi_bytes_config,
@@ -13,7 +14,7 @@ use crate::shared::cpi_bytes_size::{
 #[inline(always)]
 pub fn allocate_cpi_bytes(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
-) -> (Vec<u8>, InstructionDataInvokeCpiWithReadOnlyConfig) {
+) -> Result<(Vec<u8>, InstructionDataInvokeCpiWithReadOnlyConfig), ProgramError> {
     // Build CPI configuration based on delegate flags
     let mut input_delegate_flags: ArrayVec<bool, { cpi_bytes_size::MAX_INPUT_ACCOUNTS }> =
         ArrayVec::new();
@@ -45,5 +46,5 @@ pub fn allocate_cpi_bytes(
         new_address_params: 0, // No new addresses for transfer2
     };
     let config = cpi_bytes_config(config_input);
-    (allocate_invoke_with_read_only_cpi_bytes(&config), config)
+    Ok((allocate_invoke_with_read_only_cpi_bytes(&config)?, config))
 }

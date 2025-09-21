@@ -92,7 +92,6 @@ fn set_output_compressed_account_inner<const IS_FROZEN: bool>(
             delegate: (delegate.is_some(), ()),
             tlv: (false, vec![]),
         };
-        // TODO: bench vs borsh
         let (mut token_data, _) =
             TokenData::new_zero_copy(compressed_account_data.data, token_config)
                 .map_err(ProgramError::from)?;

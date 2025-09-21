@@ -8,9 +8,12 @@ use light_ctoken_types::{
 use light_profiler::profile;
 use spl_pod::solana_msg::msg;
 
-use crate::shared::cpi_bytes_size::{
-    allocate_invoke_with_read_only_cpi_bytes, compressed_token_data_len, cpi_bytes_config,
-    mint_data_len, CpiConfigInput,
+use crate::shared::{
+    convert_program_error,
+    cpi_bytes_size::{
+        allocate_invoke_with_read_only_cpi_bytes, compressed_token_data_len, cpi_bytes_config,
+        mint_data_len, CpiConfigInput,
+    },
 };
 
 #[profile]
@@ -105,7 +108,8 @@ pub fn get_zero_copy_configs(
     };
 
     let config = cpi_bytes_config(input);
-    let cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
+    let cpi_bytes =
+        allocate_invoke_with_read_only_cpi_bytes(&config).map_err(convert_program_error)?;
 
     Ok((config, cpi_bytes, output_mint_config))
 }

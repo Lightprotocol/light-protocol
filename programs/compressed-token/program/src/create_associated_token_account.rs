@@ -7,16 +7,18 @@ use light_ctoken_types::instructions::{
     extensions::compressible::CompressibleExtensionInstructionData,
 };
 use light_profiler::profile;
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
+use pinocchio::{account_info::AccountInfo, instruction::Seed, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 
 use crate::{
     create_token_account::next_config_account,
     shared::{
-        create_pda_account, initialize_ctoken_account::initialize_ctoken_account,
-        transfer_lamports_via_cpi, validate_ata_derivation, CreatePdaAccountConfig,
+        convert_program_error, create_pda_account,
+        initialize_ctoken_account::initialize_ctoken_account, transfer_lamports_via_cpi,
+        validate_ata_derivation,
     },
 };
+use arrayvec::ArrayVec;
 
 /// Process the create associated token account instruction (non-idempotent)
 #[inline(always)]
@@ -86,20 +88,6 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
         light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize
     };
 
-    let seeds = &[
-        owner_bytes.as_ref(),
-        crate::LIGHT_CPI_SIGNER.program_id.as_ref(),
-        mint_bytes.as_ref(),
-    ];
-
-    let config = CreatePdaAccountConfig {
-        seeds,
-        bump: instruction_inputs.bump,
-        account_size: token_account_size,
-        owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
-        derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
-    };
-
     let (compressible_config_account, custom_rent_payer) = if let Some(
         compressible_config_ix_data,
     ) =
@@ -111,13 +99,30 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
             token_account_size,
             fee_payer,
             associated_token_account,
-            config,
+            instruction_inputs.bump,
+            &owner_bytes,
+            &mint_bytes,
         )?;
         (Some(compressible_config_account), custom_rent_payer)
     } else {
         // Create the PDA account (with rent-exempt balance only)
-        // rent_payer will be the rent_sponsor PDA for compressible accounts
-        create_pda_account(fee_payer, associated_token_account, config, None, None)?;
+        let bump_seed = [instruction_inputs.bump];
+        let mut seeds: ArrayVec<Seed, 4> = ArrayVec::new();
+        seeds.push(Seed::from(owner_bytes.as_ref()));
+        seeds.push(Seed::from(crate::LIGHT_CPI_SIGNER.program_id.as_ref()));
+        seeds.push(Seed::from(mint_bytes.as_ref()));
+        seeds.push(Seed::from(bump_seed.as_ref()));
+
+        let mut seeds_inputs: ArrayVec<&[Seed], 1> = ArrayVec::new();
+        seeds_inputs.push(seeds.as_slice());
+
+        create_pda_account(
+            fee_payer,
+            associated_token_account,
+            token_account_size,
+            seeds_inputs,
+            None,
+        )?;
         (None, None)
     };
 
@@ -139,7 +144,9 @@ fn process_compressible_config<'info>(
     token_account_size: usize,
     fee_payer: &'info AccountInfo,
     associated_token_account: &'info AccountInfo,
-    config: CreatePdaAccountConfig,
+    ata_bump: u8,
+    owner_bytes: &[u8; 32],
+    mint_bytes: &[u8; 32],
 ) -> Result<(&'info CompressibleConfig, Option<Pubkey>), ProgramError> {
     if compressible_config_ix_data
         .compress_to_account_pubkey
@@ -152,8 +159,6 @@ fn process_compressible_config<'info>(
     let compressible_config_account = next_config_account(iter)?;
 
     let rent_payer = iter.next_account("rent payer")?;
-    let version_bytes = compressible_config_account.version.to_le_bytes();
-    let pda_seeds = &[b"rent_sponsor".as_slice(), version_bytes.as_slice()];
 
     let custom_rent_payer =
         *rent_payer.key() != compressible_config_account.rent_sponsor.to_bytes();
@@ -168,35 +173,61 @@ fn process_compressible_config<'info>(
         compressible_config_account.rent_config.compression_cost as u64,
     );
 
-    let (config_2, custom_rent_payer, additional_lamports) = if custom_rent_payer {
-        (None, Some(*rent_payer.key()), Some(rent))
-    } else {
-        // If compressible, set up the PDA config for the rent_sponsor to pay for account creation
-        let config_2 = crate::shared::CreatePdaAccountConfig {
-            seeds: pda_seeds,
-            bump: compressible_config_account.rent_sponsor_bump,
-            account_size: token_account_size,
-            owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
-            derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
-        };
+    // Build ATA seeds
+    let ata_bump_seed = [ata_bump];
+    let mut ata_seeds: ArrayVec<Seed, 4> = ArrayVec::new();
+    ata_seeds.push(Seed::from(owner_bytes.as_ref()));
+    ata_seeds.push(Seed::from(crate::LIGHT_CPI_SIGNER.program_id.as_ref()));
+    ata_seeds.push(Seed::from(mint_bytes.as_ref()));
+    ata_seeds.push(Seed::from(ata_bump_seed.as_ref()));
 
-        (Some(config_2), None, None)
-    };
+    // Build rent sponsor seeds if needed (must be outside conditional for lifetime)
+    let rent_sponsor_bump;
+    let version_bytes;
+    let mut rent_sponsor_seeds: ArrayVec<Seed, 3> = ArrayVec::new();
 
     // Create the PDA account (with rent-exempt balance only)
     // rent_payer will be the rent_sponsor PDA for compressible accounts
+    let seeds_inputs: ArrayVec<&[Seed], 2> = if custom_rent_payer {
+        // Only ATA seeds when custom rent payer
+        let mut seeds_inputs = ArrayVec::new();
+        seeds_inputs.push(ata_seeds.as_slice());
+        seeds_inputs
+    } else {
+        // Both rent sponsor PDA seeds and ATA seeds
+        rent_sponsor_bump = [compressible_config_account.rent_sponsor_bump];
+        version_bytes = compressible_config_account.version.to_le_bytes();
+        rent_sponsor_seeds.push(Seed::from(b"rent_sponsor".as_ref()));
+        rent_sponsor_seeds.push(Seed::from(version_bytes.as_ref()));
+        rent_sponsor_seeds.push(Seed::from(rent_sponsor_bump.as_ref()));
+
+        let mut seeds_inputs = ArrayVec::new();
+        seeds_inputs.push(rent_sponsor_seeds.as_slice());
+        seeds_inputs.push(ata_seeds.as_slice());
+        seeds_inputs
+    };
+
+    let additional_lamports = if custom_rent_payer { Some(rent) } else { None };
+
     create_pda_account(
         rent_payer,
         associated_token_account,
-        config,
-        config_2,
+        token_account_size,
+        seeds_inputs,
         additional_lamports,
     )?;
 
-    if custom_rent_payer.is_none() {
+    if !custom_rent_payer {
         // Payer transfers the additional rent (compression incentive)
         transfer_lamports_via_cpi(rent, fee_payer, associated_token_account)
-            .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+            .map_err(convert_program_error)?;
     }
-    Ok((compressible_config_account, custom_rent_payer))
+    Ok((
+        compressible_config_account,
+        if custom_rent_payer {
+            Some(*rent_payer.key())
+        } else {
+            None
+        },
+    ))
 }

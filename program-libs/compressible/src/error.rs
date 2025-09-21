@@ -6,6 +6,8 @@ pub enum CompressibleError {
     FailedBorrowRentSysvar,
     #[error("InvalidState{0}")]
     InvalidState(u8),
+    #[error("InvalidVersion")]
+    InvalidVersion,
     #[error("Hasher error {0}")]
     HasherError(#[from] HasherError),
 }
@@ -16,6 +18,7 @@ impl From<CompressibleError> for u32 {
         match e {
             CompressibleError::FailedBorrowRentSysvar => 19001,
             CompressibleError::InvalidState(_) => 19002,
+            CompressibleError::InvalidVersion => 19003,
             CompressibleError::HasherError(e) => u32::from(e),
         }
     }

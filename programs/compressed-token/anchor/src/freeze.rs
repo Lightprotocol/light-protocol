@@ -8,7 +8,7 @@ use light_compressed_account::{
         data::OutputCompressedAccountWithPackedContext, with_readonly::InAccount,
     },
 };
-use light_ctoken_types::state::AccountState;
+use light_ctoken_types::state::CompressedTokenAccountState;
 
 use crate::{
     process_transfer::{
@@ -149,9 +149,9 @@ fn create_token_output_accounts<const IS_FROZEN: bool>(
             .delegate_index
             .map(|index| remaining_accounts[index as usize].key());
         let state = if IS_FROZEN {
-            AccountState::Frozen as u8
+            CompressedTokenAccountState::Frozen as u8
         } else {
-            AccountState::Initialized as u8
+            CompressedTokenAccountState::Initialized as u8
         };
         // 1,000 CU token data and serialize
         let token_data = TokenData {
@@ -321,7 +321,7 @@ pub mod test_freeze {
     use account_compression::StateMerkleTreeAccount;
     use anchor_lang::{solana_program::account_info::AccountInfo, Discriminator};
     use light_compressed_account::{compressed_account::PackedMerkleContext, Pubkey};
-    use light_ctoken_types::state::AccountState;
+    use light_ctoken_types::state::CompressedTokenAccountState;
     use rand::Rng;
 
     use super::*;
@@ -440,7 +440,7 @@ pub mod test_freeze {
                 owner,
                 amount: 100,
                 delegate: None,
-                state: AccountState::Frozen as u8,
+                state: CompressedTokenAccountState::Frozen as u8,
                 tlv: None,
             };
             let expected_delegated_token_data = TokenData {
@@ -448,7 +448,7 @@ pub mod test_freeze {
                 owner,
                 amount: 101,
                 delegate: Some(delegate.into()),
-                state: AccountState::Frozen as u8,
+                state: CompressedTokenAccountState::Frozen as u8,
                 tlv: None,
             };
 
@@ -484,7 +484,7 @@ pub mod test_freeze {
                 owner,
                 amount: 100,
                 delegate: None,
-                state: AccountState::Initialized as u8,
+                state: CompressedTokenAccountState::Initialized as u8,
                 tlv: None,
             };
             let expected_delegated_token_data = TokenData {
@@ -492,7 +492,7 @@ pub mod test_freeze {
                 owner,
                 amount: 101,
                 delegate: Some(delegate.into()),
-                state: AccountState::Initialized as u8,
+                state: CompressedTokenAccountState::Initialized as u8,
                 tlv: None,
             };
 
@@ -573,7 +573,7 @@ pub mod test_freeze {
                     owner: owner.into(),
                     amount: x.amount,
                     delegate: delegate.map(|d| d.into()),
-                    state: AccountState::Initialized as u8,
+                    state: CompressedTokenAccountState::Initialized as u8,
                     tlv: None,
                 };
                 let mut data = Vec::new();

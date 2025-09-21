@@ -1,18 +1,19 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_profiler::profile;
-use pinocchio::{instruction::AccountMeta, pubkey::Pubkey};
+use pinocchio::{instruction::{AccountMeta, Seed}, pubkey::Pubkey};
+use arrayvec::ArrayVec;
 
 use crate::{
     constants::POOL_SEED,
     mint_action::accounts::ExecutingAccounts,
-    shared::{create_pda_account, CreatePdaAccountConfig},
+    shared::create_pda_account,
 };
 
 /// Creates the token pool account manually as a PDA derived from our program but owned by the token program
 #[profile]
 pub fn create_token_pool_account_manual(
     executing_accounts: &ExecutingAccounts<'_>,
-    program_id: &Pubkey,
+    _program_id: &Pubkey,
     token_pool_bump: u8,
 ) -> Result<(), ProgramError> {
     let token_account_size = light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize;
@@ -24,7 +25,7 @@ pub fn create_token_pool_account_manual(
     let token_pool_pda = executing_accounts
         .token_pool_pda
         .ok_or(ProgramError::InvalidAccountData)?;
-    let token_program = executing_accounts
+    let _token_program = executing_accounts
         .token_program
         .ok_or(ProgramError::InvalidAccountData)?;
 
@@ -42,20 +43,20 @@ pub fn create_token_pool_account_manual(
     // }
 
     // Create account using shared function
-    let seeds = &[POOL_SEED, mint_key.as_ref()];
-    let config = CreatePdaAccountConfig {
-        seeds,
-        bump: token_pool_bump,
-        account_size: token_account_size,
-        owner_program_id: token_program.key(), // Owned by token program
-        derivation_program_id: program_id,
-    };
+    let bump_seed = [token_pool_bump];
+    let mut seeds: ArrayVec<Seed, 3> = ArrayVec::new();
+    seeds.push(Seed::from(POOL_SEED));
+    seeds.push(Seed::from(mint_key.as_ref()));
+    seeds.push(Seed::from(bump_seed.as_ref()));
+
+    let mut seeds_inputs: ArrayVec<&[Seed], 1> = ArrayVec::new();
+    seeds_inputs.push(seeds.as_slice());
 
     create_pda_account(
         executing_accounts.system.fee_payer,
         token_pool_pda,
-        config,
-        None,
+        token_account_size,
+        seeds_inputs,
         None,
     )
 }

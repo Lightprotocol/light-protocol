@@ -450,7 +450,7 @@ mod test {
     use account_compression::StateMerkleTreeAccount;
     use anchor_lang::{solana_program::account_info::AccountInfo, Discriminator};
     use light_compressed_account::compressed_account::PackedMerkleContext;
-    use light_ctoken_types::state::AccountState;
+    use light_ctoken_types::state::CompressedTokenAccountState;
 
     use super::*;
     use crate::{freeze::test_freeze::create_expected_token_output_accounts, TokenData};
@@ -551,7 +551,7 @@ mod test {
             owner: authority.into(),
             amount: 151,
             delegate: None,
-            state: AccountState::Initialized as u8,
+            state: CompressedTokenAccountState::Initialized as u8,
             tlv: None,
         };
         let expected_delegated_token_data = TokenData {
@@ -559,7 +559,7 @@ mod test {
             owner: authority.into(),
             amount: 50,
             delegate: Some(delegate.into()),
-            state: AccountState::Initialized as u8,
+            state: CompressedTokenAccountState::Initialized as u8,
             tlv: None,
         };
         let expected_compressed_output_accounts = create_expected_token_output_accounts(
@@ -666,7 +666,7 @@ mod test {
             owner: authority.into(),
             amount: 201,
             delegate: None,
-            state: AccountState::Initialized as u8,
+            state: CompressedTokenAccountState::Initialized as u8,
             tlv: None,
         };
         let expected_compressed_output_accounts =
@@ -725,7 +725,7 @@ mod test {
             owner: authority.into(),
             amount: 201,
             delegate: None,
-            state: AccountState::Initialized as u8,
+            state: CompressedTokenAccountState::Initialized as u8,
             tlv: None,
         };
         let mut expected_compressed_output_accounts =

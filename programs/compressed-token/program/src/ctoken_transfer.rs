@@ -10,7 +10,10 @@ use spl_token::instruction::TokenInstruction;
 
 use crate::{
     convert_account_infos::convert_account_infos,
-    shared::transfer_lamports::{multi_transfer_lamports, Transfer},
+    shared::{
+        convert_program_error,
+        transfer_lamports::{multi_transfer_lamports, Transfer},
+    },
     MAX_ACCOUNTS,
 };
 
@@ -83,7 +86,7 @@ fn calculate_and_execute_top_up_transfers(
             let account_data = transfer
                 .account
                 .try_borrow_data()
-                .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+                .map_err(convert_program_error)?;
             let (token, _) = CToken::zero_copy_at(&account_data)?;
             if let Some(extensions) = token.extensions.as_ref() {
                 for extension in extensions.iter() {
@@ -117,8 +120,7 @@ fn calculate_and_execute_top_up_transfers(
     }
 
     let payer = accounts.get(2).ok_or(ProgramError::NotEnoughAccountKeys)?;
-    multi_transfer_lamports(payer, &transfers)
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+    multi_transfer_lamports(payer, &transfers).map_err(convert_program_error)?;
 
     Ok(())
 }

@@ -1,5 +1,5 @@
 use light_compressed_token::TokenData as ProgramTokenData;
-use light_ctoken_types::state::AccountState as ProgramAccountState;
+use light_ctoken_types::state::CompressedTokenAccountState as ProgramAccountState;
 use light_sdk::{self as sdk};
 
 // pub fn sdk_to_program_merkle_context(

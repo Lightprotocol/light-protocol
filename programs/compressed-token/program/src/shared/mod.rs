@@ -1,4 +1,5 @@
 pub mod accounts;
+mod convert_program_error;
 pub mod cpi;
 pub mod cpi_bytes_size;
 pub mod create_pda_account;
@@ -11,7 +12,8 @@ pub mod transfer_lamports;
 pub mod validate_ata_derivation;
 
 // Re-export AccountIterator from light-account-checks
-pub use create_pda_account::{create_pda_account, verify_pda, CreatePdaAccountConfig};
+pub use convert_program_error::convert_program_error;
+pub use create_pda_account::{create_pda_account, verify_pda};
 pub use light_account_checks::AccountIterator;
 pub use mint_to_token_pool::mint_to_token_pool;
 pub use transfer_lamports::*;

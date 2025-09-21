@@ -9,83 +9,76 @@ use pinocchio::{
 };
 use pinocchio_system::instructions::CreateAccount;
 
-/// Configuration for creating a PDA account
-#[derive(Debug)]
-pub struct CreatePdaAccountConfig<'a> {
-    /// The seeds used to derive the PDA (without bump)
-    pub seeds: &'a [&'a [u8]],
-    /// The bump seed for PDA derivation
-    pub bump: u8,
-    /// Size of the account in bytes
-    pub account_size: usize,
-    /// Program that will own the created account
-    pub owner_program_id: &'a Pubkey,
-    /// Program used to derive the PDA (usually our program ID)
-    pub derivation_program_id: &'a Pubkey,
-}
+use crate::{shared::convert_program_error, LIGHT_CPI_SIGNER};
 
-/// Creates a PDA account with the specified configuration.
+// /// Configuration for creating a PDA account
+// #[derive(Debug)]
+// pub struct CreatePdaSeeds<'a> {
+//     /// The seeds used to derive the PDA (without bump)
+//     pub seeds: &'a [&'a [u8]],
+//     /// The bump seed for PDA derivation
+//     pub bump: u8,
+// }
+
+/// Creates a PDA account with the specified configuration(s).
 ///
 /// This function abstracts the common PDA account creation pattern used across
 /// create_associated_token_account, create_mint_account, and create_token_pool.
 ///
 /// ## Process
 /// 1. Calculates rent based on account size
-/// 2. Builds seed array with bump
+/// 2. Builds seed arrays with bumps for each config
 /// 3. Creates account via system program with specified owner
 /// 4. Signs transaction with derived PDA seeds
+///
+/// ## Parameters
+/// - `configs`: ArrayVec of PDA configs. First config is for the new account being created.
+///              Additional configs are for fee payer PDAs that need to sign.
 #[profile]
-pub fn create_pda_account(
+pub fn create_pda_account<const N: usize>(
     fee_payer: &AccountInfo,
     new_account: &AccountInfo,
-    config: CreatePdaAccountConfig, // TODO: pass generic array instead of one mandatory one optional
-    fee_payer_config: Option<CreatePdaAccountConfig>,
-    additional_lamports: Option<u64>, // TODO: remove
+    account_size: usize,
+    seeds_inputs: ArrayVec<&[Seed], N>,
+    additional_lamports: Option<u64>,
 ) -> Result<(), ProgramError> {
+    // Ensure we have at least one config
+    if seeds_inputs.is_empty() {
+        return Err(ProgramError::InvalidInstructionData);
+    }
     // Calculate rent
     let rent = Rent::get().map_err(|_| ProgramError::UnsupportedSysvar)?;
-    let lamports =
-        rent.minimum_balance(config.account_size) + additional_lamports.unwrap_or_default();
+    let lamports = rent.minimum_balance(account_size) + additional_lamports.unwrap_or_default();
 
     let create_account = CreateAccount {
         from: fee_payer,
         to: new_account,
         lamports,
-        space: config.account_size as u64,
-        owner: config.owner_program_id,
+        space: account_size as u64,
+        owner: &LIGHT_CPI_SIGNER.program_id,
     };
 
-    let bump_bytes = [config.bump];
-    let mut seed_vec: ArrayVec<Seed, 8> = ArrayVec::new();
+    // let mut bump_bytes: ArrayVec<[u8; 1], N> = ArrayVec::new();
+    // let mut seed_vecs: ArrayVec<ArrayVec<Seed, 8>, N> = ArrayVec::new();
 
-    for &seed in config.seeds {
-        seed_vec.push(Seed::from(seed));
+    // for config in configs.iter() {
+    //     bump_bytes.push([config.bump]);
+    //     let mut seeds = ArrayVec::new();
+    //     for &seed in config.seeds {
+    //         seeds.push(Seed::from(seed));
+    //     }
+    //     seed_vecs.push(seeds);
+    // }
+
+    // Add bump bytes to seed vecs and build signers
+    let mut signers: ArrayVec<Signer, N> = ArrayVec::new();
+    for seeds in seeds_inputs.into_iter() {
+        signers.push(Signer::from(seeds));
     }
-    seed_vec.push(Seed::from(bump_bytes.as_ref()));
 
-    let signer = Signer::from(seed_vec.as_slice());
-
-    let bump_bytes;
-    let mut seed_vec: ArrayVec<Seed, 8> = ArrayVec::new();
-    let signers: ArrayVec<Signer, 2> = if let Some(config) = fee_payer_config {
-        bump_bytes = [config.bump];
-
-        for &seed in config.seeds {
-            seed_vec.push(Seed::from(seed));
-        }
-        seed_vec.push(Seed::from(bump_bytes.as_ref()));
-
-        let signer0 = Signer::from(seed_vec.as_slice());
-        let signers = [signer0, signer];
-        signers.into()
-    } else {
-        let mut signers: ArrayVec<Signer, 2> = ArrayVec::new();
-        signers.push(signer);
-        signers
-    };
     create_account
         .invoke_signed(signers.as_slice())
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))
+        .map_err(convert_program_error)
 }
 
 /// Verifies that the provided account matches the expected PDA

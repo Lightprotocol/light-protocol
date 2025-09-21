@@ -15,7 +15,7 @@ use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
 use crate::{
-    shared::cpi::execute_cpi_invoke,
+    shared::{convert_program_error, cpi::execute_cpi_invoke},
     transfer2::{
         accounts::Transfer2Accounts,
         compression::{close_for_compress_and_close, process_token_compression},
@@ -150,7 +150,7 @@ fn process_with_system_program_cpi(
     transfer_config: Transfer2Config,
 ) -> Result<(), ProgramError> {
     // Allocate CPI bytes for zero-copy structure
-    let (mut cpi_bytes, config) = allocate_cpi_bytes(inputs);
+    let (mut cpi_bytes, config) = allocate_cpi_bytes(inputs).map_err(convert_program_error)?;
 
     // Create zero copy to populate cpi bytes.
     let (mut cpi_instruction_struct, remaining_bytes) =

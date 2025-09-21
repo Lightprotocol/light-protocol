@@ -409,6 +409,8 @@ pub enum ErrorCode {
     CompressionsOnlyMissingCpiAuthority,
     #[msg("Cpi authority pda expected but not provided.")]
     ExpectedCpiAuthority,
+    #[msg("InvalidRentSponsor")]
+    InvalidRentSponsor,
 }
 
 impl From<ErrorCode> for ProgramError {

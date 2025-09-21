@@ -1,13 +1,11 @@
 use anchor_compressed_token::TokenData;
 use anchor_lang::solana_program::program_error::ProgramError;
-use borsh::BorshSerialize;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_ctoken_types::{
-    hash_cache::HashCache, instructions::transfer2::ZMultiInputTokenDataWithContext,
-    state::TokenDataVersion,
+    hash_cache::HashCache,
+    instructions::transfer2::ZMultiInputTokenDataWithContext,
+    state::{CompressedTokenAccountState, TokenDataVersion},
 };
-use light_hasher::{sha256::Sha256BE, Hasher};
-use light_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
 use crate::shared::owner_validation::verify_owner_or_delegate_signer;
@@ -82,34 +80,15 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
     let data_hash = {
         match token_version {
             TokenDataVersion::ShaFlat => {
-                #[profile]
-                #[inline(always)]
-                fn compute_sha_flat_hash(
-                    mint_account: &AccountInfo,
-                    owner_account: &AccountInfo,
-                    input_token_data: &ZMultiInputTokenDataWithContext,
-                    delegate_account: Option<&AccountInfo>,
-                ) -> std::result::Result<[u8; 32], ProgramError> {
-                    let token_data = TokenData {
-                        mint: mint_account.key().into(),
-                        owner: owner_account.key().into(),
-                        amount: input_token_data.amount.into(),
-                        delegate: delegate_account.map(|x| (*x.key()).into()),
-                        state: 0, // TODO: double check Initialized state with main
-                        tlv: None,
-                    };
-                    let bytes = token_data
-                        .try_to_vec()
-                        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
-                    Ok(Sha256BE::hash(bytes.as_slice())?)
-                }
-
-                compute_sha_flat_hash(
-                    mint_account,
-                    owner_account,
-                    input_token_data,
-                    delegate_account,
-                )?
+                let token_data = TokenData {
+                    mint: mint_account.key().into(),
+                    owner: owner_account.key().into(),
+                    amount: input_token_data.amount.into(),
+                    delegate: delegate_account.map(|x| (*x.key()).into()),
+                    state: CompressedTokenAccountState::Initialized as u8,
+                    tlv: None,
+                };
+                token_data.hash_sha_flat()?
             }
             _ => {
                 let hashed_owner = hash_cache.get_or_hash_pubkey(owner_account.key());

@@ -1,5 +1,5 @@
 use light_compressed_account::{hash_to_bn254_field_size_be, Pubkey};
-use light_ctoken_types::state::{AccountState, TokenData};
+use light_ctoken_types::state::{CompressedTokenAccountState, TokenData};
 use light_hasher::HasherError;
 use num_bigint::BigUint;
 use rand::Rng;
@@ -11,7 +11,7 @@ fn equivalency_of_hash_functions() {
         owner: Pubkey::new_unique(),
         amount: 100,
         delegate: Some(Pubkey::new_unique()),
-        state: AccountState::Initialized as u8,
+        state: CompressedTokenAccountState::Initialized as u8,
         tlv: None,
     };
     let hashed_token_data = token_data.hash_v1().unwrap();
@@ -35,7 +35,7 @@ fn equivalency_of_hash_functions() {
         owner: Pubkey::new_unique(),
         amount: 101,
         delegate: None,
-        state: AccountState::Initialized as u8,
+        state: CompressedTokenAccountState::Initialized as u8,
         tlv: None,
     };
     let hashed_token_data = token_data.hash_v1().unwrap();
@@ -61,7 +61,7 @@ fn legacy_hash(token_data: &TokenData) -> std::result::Result<[u8; 32], HasherEr
     } else {
         None
     };
-    if token_data.state != AccountState::Initialized as u8 {
+    if token_data.state != CompressedTokenAccountState::Initialized as u8 {
         TokenData::hash_inputs_with_hashed_values::<true>(
             &hashed_mint,
             &hashed_owner,
@@ -87,7 +87,7 @@ fn equivalency_of_hash_functions_rnd_iters<const ITERS: usize>() {
             owner: Pubkey::new_unique(),
             amount: rng.gen(),
             delegate: Some(Pubkey::new_unique()),
-            state: AccountState::Initialized as u8,
+            state: CompressedTokenAccountState::Initialized as u8,
             tlv: None,
         };
         let hashed_token_data = token_data.hash_v1().unwrap();
@@ -114,7 +114,7 @@ fn equivalency_of_hash_functions_rnd_iters<const ITERS: usize>() {
             owner: Pubkey::new_unique(),
             amount: rng.gen(),
             delegate: None,
-            state: AccountState::Initialized as u8,
+            state: CompressedTokenAccountState::Initialized as u8,
             tlv: None,
         };
         let hashed_token_data = token_data.hash_v1().unwrap();
@@ -157,7 +157,7 @@ fn test_circuit_equivalence() {
         owner: owner_pubkey,
         amount: 1000000u64,
         delegate: Some(delegate_pubkey),
-        state: AccountState::Initialized as u8, // Using Frozen state to match our circuit test
+        state: CompressedTokenAccountState::Initialized as u8, // Using Frozen state to match our circuit test
         tlv: None,
     };
 
@@ -181,7 +181,7 @@ fn test_frozen_equivalence() {
         owner: Pubkey::new_unique(),
         amount: 100,
         delegate: Some(Pubkey::new_unique()),
-        state: AccountState::Initialized as u8,
+        state: CompressedTokenAccountState::Initialized as u8,
         tlv: None,
     };
     let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
@@ -209,7 +209,7 @@ fn failing_tests_hashing() {
         owner: Pubkey::new_unique(),
         amount: 100,
         delegate: None,
-        state: AccountState::Initialized as u8,
+        state: CompressedTokenAccountState::Initialized as u8,
         tlv: None,
     };
     let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
@@ -267,7 +267,7 @@ fn failing_tests_hashing() {
     assert_to_previous_hashes(hash7, &mut vec_previous_hashes);
     // different account state
     let mut token_data = token_data;
-    token_data.state = AccountState::Frozen as u8;
+    token_data.state = CompressedTokenAccountState::Frozen as u8;
     let hash9 = token_data.hash_v1().unwrap();
     assert_to_previous_hashes(hash9, &mut vec_previous_hashes);
     // different account state with delegate

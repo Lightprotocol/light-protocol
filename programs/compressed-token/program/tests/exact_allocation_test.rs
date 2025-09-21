@@ -55,7 +55,7 @@ fn test_exact_allocation_assertion() {
     };
 
     let config = cpi_bytes_config(config_input);
-    let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
+    let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config).unwrap();
 
     println!("Total CPI bytes allocated: {} bytes", cpi_bytes.len());
     println!("CPI instruction header: 8 bytes");
@@ -310,7 +310,7 @@ fn test_allocation_with_various_metadata_sizes() {
         };
 
         let config = cpi_bytes_config(config_input);
-        let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
+        let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config).unwrap();
 
         let (cpi_instruction_struct, _) =
             InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)

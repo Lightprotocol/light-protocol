@@ -12,7 +12,7 @@ use spl_pod::solana_msg::msg;
 use spl_token_2022::state::AccountState;
 
 use super::accounts::CloseTokenAccountAccounts;
-use crate::shared::transfer_lamports;
+use crate::shared::{convert_program_error, transfer_lamports};
 
 /// Process the close token account instruction
 #[profile]
@@ -101,7 +101,7 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
                         use pinocchio::sysvars::Sysvar;
                         #[cfg(target_os = "solana")]
                         let current_slot = pinocchio::sysvars::clock::Clock::get()
-                            .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?
+                            .map_err(convert_program_error)?
                             .slot;
 
                         // For rent authority, check timing constraints
@@ -166,7 +166,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                 // Calculate distribution based on rent and write_top_up
                 #[cfg(target_os = "solana")]
                 let current_slot = pinocchio::sysvars::clock::Clock::get()
-                    .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?
+                    .map_err(convert_program_error)?
                     .slot;
                 #[cfg(not(target_os = "solana"))]
                 let current_slot = 0;
@@ -219,7 +219,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                         accounts.token_account,
                         rent_sponsor,
                     )
-                    .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+                    .map_err(convert_program_error)?;
                 }
 
                 // Transfer lamports to destination (user funds)
@@ -229,7 +229,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                         accounts.token_account,
                         accounts.destination,
                     )
-                    .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+                    .map_err(convert_program_error)?;
                 }
                 return Ok(());
             }
@@ -243,7 +243,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
             accounts.token_account,
             accounts.destination,
         )
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+        .map_err(convert_program_error)?;
     }
     Ok(())
 }

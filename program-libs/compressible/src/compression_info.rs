@@ -1,9 +1,12 @@
 use aligned_sized::aligned_sized;
 use bytemuck::{Pod, Zeroable};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
+use pinocchio::pubkey::Pubkey;
+use solana_msg::msg;
 use zerocopy::U64;
 
 use crate::{
+    config::CompressibleConfig,
     error::CompressibleError,
     rent::{
         calculate_rent_and_balance, calculate_rent_inner, claimable_lamports, get_last_paid_epoch,
@@ -181,6 +184,15 @@ impl_get_last_paid_epoch!(CompressionInfo);
 impl_get_last_paid_epoch!(ZCompressionInfo<'_>);
 impl_get_last_paid_epoch!(ZCompressionInfoMut<'_>);
 
+pub struct ClaimAndUpdate<'a> {
+    pub compression_authority: &'a Pubkey,
+    pub rent_sponsor: &'a Pubkey,
+    pub config_account: &'a CompressibleConfig,
+    pub bytes: u64,
+    pub current_slot: u64,
+    pub current_lamports: u64,
+}
+
 impl ZCompressionInfoMut<'_> {
     /// Claim rent for past completed epochs and update the extension state.
     /// Returns the amount of lamports claimed, or None if account should be compressed.
@@ -228,6 +240,93 @@ impl ZCompressionInfoMut<'_> {
         } else {
             Ok(None)
         }
+    }
+
+    pub fn claim_and_update(
+        &mut self,
+        ClaimAndUpdate {
+            compression_authority,
+            rent_sponsor,
+            config_account,
+            bytes,
+            current_slot,
+            current_lamports,
+        }: ClaimAndUpdate,
+    ) -> Result<Option<u64>, CompressibleError> {
+        if self.compression_authority != *compression_authority {
+            msg!("Rent authority mismatch");
+            return Ok(None);
+        }
+        if self.rent_sponsor != *rent_sponsor {
+            msg!("Rent sponsor PDA does not match rent recipient");
+            return Ok(None);
+        }
+
+        // Verify config version matches
+        let account_version: u16 = self.config_account_version.into();
+        let config_version = config_account.version;
+
+        if account_version != config_version {
+            msg!(
+                "Config version mismatch: account has v{}, config is v{}",
+                account_version,
+                config_version
+            );
+            return Err(CompressibleError::InvalidVersion);
+        }
+
+        let rent_exemption_lamports = get_rent_exemption_lamports(bytes).unwrap();
+
+        let claim_result = self.claim(
+            bytes,
+            current_slot,
+            current_lamports,
+            rent_exemption_lamports,
+        )?;
+
+        // // Calculate claim with current RentConfig
+        // // let claim_result = self.claim(bytes, current_slot, current_lamports, base_lamports)?;
+        // let base_rent: u64 = self.rent_config.base_rent.into();
+        // let lamports_per_byte_per_epoch: u64 = self.rent_config.lamports_per_byte_per_epoch.into();
+        // let compression_cost: u64 = self.rent_config.compression_cost.into();
+        // // Calculate claimable amount
+        // let claimed = claimable_lamports(
+        //     bytes,
+        //     current_slot,
+        //     current_lamports,
+        //     self.last_claimed_slot,
+        //     rent_exemption_lamports,
+        //     base_rent,
+        //     lamports_per_byte_per_epoch,
+        //     compression_cost,
+        // );
+
+        // let claim_result = if let Some(claimed_amount) = claimed {
+        //     if claimed_amount > 0 {
+        //         let (completed_epochs, _, _, _) = calculate_rent_inner::<false>(
+        //             bytes,
+        //             current_slot,
+        //             current_lamports,
+        //             self.last_claimed_slot,
+        //             rent_exemption_lamports,
+        //             base_rent,
+        //             lamports_per_byte_per_epoch,
+        //             compression_cost,
+        //         );
+
+        //         self.last_claimed_slot += U64::from(completed_epochs * SLOTS_PER_EPOCH);
+        //         Some(claimed_amount)
+        //     } else {
+        //         None
+        //     }
+        // } else {
+        //     None
+        // };
+
+        // Update RentConfig after claim calculation (even if claim_result is None)
+        self.rent_config.set(&config_account.rent_config);
+
+        Ok(claim_result)
     }
 }
 

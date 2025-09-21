@@ -231,7 +231,6 @@ impl<'a> Deref for ZCToken<'a> {
     }
 }
 
-// TODO: add randomized tests
 impl PartialEq<CToken> for ZCToken<'_> {
     fn eq(&self, other: &CToken) -> bool {
         // Compare basic fields
@@ -315,11 +314,6 @@ impl PartialEq<CToken> for ZCToken<'_> {
                             }
                             if zc_comp.rent_config.lamports_per_byte_per_epoch
                                 != regular_comp.rent_config.lamports_per_byte_per_epoch
-                            {
-                                return false;
-                            }
-                            if zc_comp.rent_config.max_lamports_per_write
-                                != regular_comp.rent_config.max_lamports_per_write
                             {
                                 return false;
                             }
@@ -527,7 +521,6 @@ impl ZCompressedTokenMetaMut<'_> {
         &mut self,
         close_authority: Option<Pubkey>,
     ) -> Result<(), ZeroCopyError> {
-        // TODO: create ZOption with 3 states 0. None not allocated, 1. Some(), 2. None allocated.
         match (&mut self.close_authority, close_authority) {
             (Some(authority), Some(new)) => {
                 **authority = new;

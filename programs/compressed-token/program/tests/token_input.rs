@@ -97,7 +97,7 @@ fn test_rnd_create_input_compressed_account() {
             };
 
             let config = cpi_bytes_config(config_input);
-            let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
+            let mut cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config).unwrap();
             let (mut cpi_instruction_struct, _) =
                 InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
                     .unwrap();

@@ -1,15 +1,18 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{AccountInfoTrait, AccountIterator};
-use light_compressible::{config::CompressibleConfig, rent::get_rent_exemption_lamports};
+use light_compressible::{compression_info::ClaimAndUpdate, config::CompressibleConfig};
 use light_ctoken_types::state::{CToken, ZExtensionStructMut};
 use light_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
 use spl_pod::solana_msg::msg;
 
-use crate::{create_token_account::parse_config_account, shared::transfer_lamports};
-// TODO: refactor into file instead of dir
+use crate::{
+    create_token_account::parse_config_account,
+    shared::{convert_program_error, transfer_lamports},
+};
+
 /// Accounts required for the claim instruction
 pub struct ClaimAccounts<'a> {
     /// The rent_sponsor PDA that receives the claimed rent
@@ -41,8 +44,8 @@ impl<'a> ClaimAccounts<'a> {
             return Err(ErrorCode::InvalidCompressAuthority.into());
         }
         if *config_account.rent_sponsor.as_array() != *rent_sponsor.key() {
-            msg!("Invalid rent sponsor PDA"); // TODO: add custom error
-            return Err(ErrorCode::InvalidCompressAuthority.into());
+            msg!("Invalid rent sponsor PDA");
+            return Err(ErrorCode::InvalidRentSponsor.into());
         }
 
         Ok(Self {
@@ -69,7 +72,7 @@ pub fn process_claim(
     let accounts = ClaimAccounts::validate_and_parse(account_infos)?;
 
     let current_slot = pinocchio::sysvars::clock::Clock::get()
-        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?
+        .map_err(convert_program_error)?
         .slot;
 
     for token_account in account_infos.iter().skip(3) {
@@ -81,7 +84,7 @@ pub fn process_claim(
         )?;
         if let Some(amount) = amount {
             transfer_lamports(amount, token_account, accounts.rent_sponsor)
-                .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+                .map_err(convert_program_error)?;
         }
     }
     Ok(())
@@ -105,42 +108,16 @@ fn validate_and_claim(
     if let Some(extensions) = compressed_token.extensions.as_mut() {
         for extension in extensions {
             if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
-                // TODO: extract
-                if compressible_ext.compression_authority != *accounts.compression_authority.key() {
-                    msg!("Rent authority mismatch");
-                    return Ok(None);
-                }
-                if compressible_ext.rent_sponsor != *accounts.rent_sponsor.key() {
-                    msg!("Rent sponsor PDA does not match rent recipient");
-                    return Ok(None);
-                }
-
-                // Verify config version matches
-                let account_version: u16 = compressible_ext.config_account_version.into();
-                let config_version = config_account.version;
-
-                if account_version != config_version {
-                    msg!(
-                        "Config version mismatch: account has v{}, config is v{}",
-                        account_version,
-                        config_version
-                    );
-                    return Err(ProgramError::InvalidAccountData);
-                }
-
-                let base_lamports = get_rent_exemption_lamports(bytes).unwrap();
-
-                // Calculate claim with current RentConfig
-                let claim_result = compressible_ext
-                    .claim(bytes, current_slot, current_lamports, base_lamports)
-                    .map_err(|_| ProgramError::InvalidAccountData)?;
-
-                // Update RentConfig after claim calculation (even if claim_result is None)
-                compressible_ext
-                    .rent_config
-                    .set(&config_account.rent_config);
-
-                return Ok(claim_result);
+                return compressible_ext
+                    .claim_and_update(ClaimAndUpdate {
+                        compression_authority: accounts.compression_authority.key(),
+                        rent_sponsor: accounts.rent_sponsor.key(),
+                        config_account,
+                        bytes,
+                        current_slot,
+                        current_lamports,
+                    })
+                    .map_err(ProgramError::from);
             }
         }
     }

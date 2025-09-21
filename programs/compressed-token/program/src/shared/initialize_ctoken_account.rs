@@ -132,9 +132,6 @@ fn configure_compressible_extension(
         .lamports_per_byte_per_epoch = compressible_config_account
         .rent_config
         .lamports_per_byte_per_epoch;
-    compressible_extension.rent_config.max_lamports_per_write = compressible_config_account
-        .rent_config
-        .max_lamports_per_write;
     compressible_extension.rent_config.max_funded_epochs =
         compressible_config_account.rent_config.max_funded_epochs;
 
@@ -149,20 +146,6 @@ fn configure_compressible_extension(
         compressible_extension.rent_sponsor = custom_rent_payer;
     } else {
         compressible_extension.rent_sponsor = compressible_config_account.rent_sponsor.to_bytes();
-    }
-
-    // Validate write_top_up doesn't exceed max_lamports_per_write limit
-    // The write_top_up is in lamports, while max_lamports_per_write is in kilolamports
-    let max_write_top_up_lamports = compressible_config_account
-        .rent_config
-        .get_max_top_up_per_lamport();
-    if compressible_config.write_top_up > max_write_top_up_lamports {
-        msg!(
-            "Write top up {} lamports exceeds maximum allowed value {} lamports",
-            compressible_config.write_top_up,
-            max_write_top_up_lamports
-        );
-        return Err(ProgramError::InvalidInstructionData);
     }
 
     compressible_extension

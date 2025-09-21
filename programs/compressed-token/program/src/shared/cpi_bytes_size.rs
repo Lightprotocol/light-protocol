@@ -13,6 +13,7 @@ use light_compressed_account::{
 use light_ctoken_types::state::CompressedMint;
 use light_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
+use pinocchio::program_error::ProgramError;
 
 pub const MAX_INPUT_ACCOUNTS: usize = 8;
 const MAX_OUTPUT_ACCOUNTS: usize = 35;
@@ -138,10 +139,11 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
 #[inline(always)]
 pub fn allocate_invoke_with_read_only_cpi_bytes(
     config: &InstructionDataInvokeCpiWithReadOnlyConfig,
-) -> Vec<u8> {
-    let vec_len = InstructionDataInvokeCpiWithReadOnly::byte_len(config).unwrap(); // TODO: throw error
+) -> Result<Vec<u8>, ProgramError> {
+    let vec_len = InstructionDataInvokeCpiWithReadOnly::byte_len(config)
+        .map_err(|_| ProgramError::InvalidAccountData)?;
     let mut cpi_bytes = vec![0u8; vec_len + 8];
     cpi_bytes[0..8]
         .copy_from_slice(light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR);
-    cpi_bytes
+    Ok(cpi_bytes)
 }

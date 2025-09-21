@@ -13,7 +13,7 @@ use light_compressed_account::{
     },
     pubkey::AsPubkey,
 };
-use light_ctoken_types::state::{AccountState, TokenData};
+use light_ctoken_types::state::{CompressedTokenAccountState, TokenData};
 use light_heap::{bench_sbf_end, bench_sbf_start};
 use light_system_program::account_traits::{InvokeAccounts, SignerAccounts};
 use light_zero_copy::num_trait::ZeroCopyNumTrait;
@@ -247,7 +247,7 @@ pub fn create_output_compressed_accounts(
             owner: (*owner).to_anchor_pubkey().into(),
             amount: (*amount).into(),
             delegate: delegate.map(|delegate_pubkey| delegate_pubkey.into()),
-            state: AccountState::Initialized as u8,
+            state: CompressedTokenAccountState::Initialized as u8,
             tlv: None,
         };
         // TODO: remove serialization, just write bytes.
@@ -693,9 +693,9 @@ pub fn get_input_compressed_accounts_with_merkle_context_and_check_signer<const 
         };
         sum_lamports += compressed_account.lamports;
         let state = if IS_FROZEN {
-            AccountState::Frozen as u8
+            CompressedTokenAccountState::Frozen as u8
         } else {
-            AccountState::Initialized as u8
+            CompressedTokenAccountState::Initialized as u8
         };
         if input_token_data.tlv.is_some() {
             unimplemented!("Tlv is unimplemented.");
@@ -1134,7 +1134,7 @@ pub mod transfer_sdk {
 
 #[cfg(test)]
 mod test {
-    use light_ctoken_types::state::AccountState;
+    use light_ctoken_types::state::CompressedTokenAccountState;
 
     use super::*;
 
@@ -1185,7 +1185,7 @@ mod test {
                 mint: Pubkey::new_unique(),
                 owner: Pubkey::new_unique(),
                 delegate: None,
-                state: AccountState::Initialized as u8,
+                state: CompressedTokenAccountState::Initialized as u8,
                 amount: *i,
                 tlv: None,
             });

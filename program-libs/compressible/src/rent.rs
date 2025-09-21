@@ -35,9 +35,8 @@ pub struct RentConfig {
     pub base_rent: u16,
     pub compression_cost: u16,
     pub lamports_per_byte_per_epoch: u8,
-    pub max_lamports_per_write: u8, // maximum amount per top up write
     pub max_funded_epochs: u8, // once the account is funded for max_funded_epochs top up per write is not executed
-    pub _padding: u8,
+    pub _padding: [u8; 2],
 }
 
 impl RentConfig {
@@ -62,7 +61,6 @@ impl ZRentConfigMut<'_> {
         self.base_rent = config.base_rent.into();
         self.compression_cost = config.compression_cost.into();
         self.lamports_per_byte_per_epoch = config.lamports_per_byte_per_epoch;
-        self.max_lamports_per_write = config.max_lamports_per_write;
         self.max_funded_epochs = config.max_funded_epochs;
         self._padding = config._padding;
     }
@@ -134,16 +132,9 @@ impl Default for RentConfig {
             base_rent: MIN_RENT,
             compression_cost: COMPRESSION_COST + COMPRESSION_INCENTIVE,
             lamports_per_byte_per_epoch: RENT_PER_BYTE,
-            max_lamports_per_write: 1, // maximum lamports per top up write * 1000, max 255_000
             max_funded_epochs: 2, // once the account is funded for max_funded_epochs top up per write is not executed
-            _padding: 0,
+            _padding: [0; 2],
         }
-    }
-}
-
-impl RentConfig {
-    pub fn get_max_top_up_per_lamport(&self) -> u32 {
-        self.max_lamports_per_write as u32 * 1000
     }
 }
 
