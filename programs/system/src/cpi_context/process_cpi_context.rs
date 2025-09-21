@@ -161,7 +161,7 @@ pub fn copy_cpi_context_outputs(
                 compressed_account: CompressedAccountConfig {
                     address: (output_account.address().is_some(), ()),
                     data: (
-                        !output_data.is_empty(),
+                        output_account.has_data() || !output_data.is_empty(),
                         CompressedAccountDataConfig {
                             data: output_data.len() as u32,
                         },

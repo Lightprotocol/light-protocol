@@ -71,7 +71,7 @@ impl InputAccount<'_> for CpiContextInAccount {
     }
 
     fn has_data(&self) -> bool {
-        self.discriminator != [0; 8]
+        self.discriminator != [0; 8] || self.data_hash != [0u8; 32]
     }
 
     fn data(&self) -> Option<CompressedAccountData> {
