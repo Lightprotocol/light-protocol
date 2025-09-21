@@ -40,6 +40,7 @@ pub enum Action {
 #[repr(C)]
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct MintActionCompressedInstructionData {
+    /// First action, create mint or not.
     pub create_mint: bool,
     /// Only used if create mint
     pub mint_bump: u8,
@@ -60,6 +61,9 @@ pub struct MintActionCompressedInstructionData {
     /// Used to check token pool derivation.
     /// Only required if associated spl mint exists and actions contain mint actions.
     pub token_pool_index: u8,
+    /// Placeholder to enable cmints in multiple address trees.
+    /// Currently set to 0.
+    pub read_only_address_trees: [u8; 4],
     pub actions: Vec<Action>,
     pub proof: Option<CompressedProof>,
     pub cpi_context: Option<CpiContext>,
@@ -170,7 +174,7 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
                                             })
                                             .collect()
                                     })
-                                    .unwrap_or_else(|| Vec::new()),
+                                    .unwrap_or_else(Vec::new),
                             }))
                         }
                         _ => Err(CTokenError::UnsupportedExtension),

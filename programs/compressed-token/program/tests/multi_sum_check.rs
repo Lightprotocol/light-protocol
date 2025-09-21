@@ -306,16 +306,6 @@ fn test_failing_cases() -> Result<()> {
         _ => panic!("Should have failed with TooManyMints"),
     }
 
-    // Test case 4: Inputs out of order
-    let inputs = vec![(1, 100), (0, 200)]; // Wrong order
-    let outputs = vec![(0, 200), (1, 100)];
-    let compressions = vec![];
-
-    match test_multi_mint_scenario(&inputs, &outputs, &compressions) {
-        Err(ErrorCode::InputsOutOfOrder) => {} // Expected
-        _ => panic!("Should have failed with InputsOutOfOrder"),
-    }
-
     Ok(())
 }
 

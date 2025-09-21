@@ -4,6 +4,7 @@ use light_account_checks::{
     checks::{check_discriminator, check_owner},
     AccountIterator,
 };
+use light_compressed_account::Pubkey;
 use light_compressible::config::CompressibleConfig;
 use light_ctoken_types::{
     instructions::create_ctoken_account::CreateTokenAccountInstructionData,
@@ -26,7 +27,7 @@ use crate::shared::{
 pub struct CreateCTokenAccounts<'info> {
     /// The token account being created (signer, mutable)
     pub token_account: &'info AccountInfo,
-    /// The mint for the token account (not actually used, kept for SPL compatibility)
+    /// The mint for the token account (only used for pubkey not checked)
     pub mint: &'info AccountInfo,
     /// Optional compressible configuration accounts
     pub compressible: Option<CompressibleAccounts<'info>>,
@@ -34,12 +35,12 @@ pub struct CreateCTokenAccounts<'info> {
 
 /// Accounts required when creating a compressible token account
 pub struct CompressibleAccounts<'info> {
-    /// Pays for the compression incentive rent when rent_payer_pda is the rent recipient (signer, mutable)
+    /// Pays for the compression incentive rent when rent_payer is the rent recipient (signer, mutable)
     pub payer: &'info AccountInfo,
     /// Used for account creation CPI
     pub system_program: &'info AccountInfo,
     /// Either the rent recipient PDA or a custom fee payer
-    pub rent_payer_pda: &'info AccountInfo,
+    pub rent_payer: &'info AccountInfo,
     /// Parsed configuration from the config account
     pub parsed_config: &'info CompressibleConfig,
 }
@@ -64,14 +65,16 @@ impl<'info> CreateCTokenAccounts<'info> {
 
             let parsed_config = next_config_account(&mut iter)?;
 
-            let system_program = iter.next_account("system program")?;
-            let rent_payer_pda = iter.next_account("fee payer pda")?;
+            let system_program = iter.next_non_mut("system program")?;
+            // Must be signer if custom rent payer.
+            // Rent sponsor is not signer.
+            let rent_payer = iter.next_mut("rent payer")?;
 
             Some(CompressibleAccounts {
                 payer,
                 parsed_config,
                 system_program,
-                rent_payer_pda,
+                rent_payer,
             })
         } else {
             None
@@ -126,12 +129,14 @@ pub fn process_create_token_account(
     account_infos: &[AccountInfo],
     mut instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    let mut padded_instruction_data = [0u8; 33];
     let inputs = if instruction_data.len() == 32 {
-        // Extend instruction data with a zero option byte for initialize_3 spl_token instruction compatibility
-        padded_instruction_data[0..32].copy_from_slice(instruction_data);
-        CreateTokenAccountInstructionData::deserialize(&mut padded_instruction_data.as_slice())
-            .map_err(ProgramError::from)?
+        // Backward compatibility with spl token program instruction data.
+        let mut instruction_data_array = [0u8; 32];
+        instruction_data_array.copy_from_slice(instruction_data);
+        CreateTokenAccountInstructionData {
+            owner: Pubkey::from(instruction_data_array),
+            compressible_config: None,
+        }
     } else {
         CreateTokenAccountInstructionData::deserialize(&mut instruction_data)
             .map_err(ProgramError::from)?
@@ -141,7 +146,7 @@ pub fn process_create_token_account(
     let accounts = CreateCTokenAccounts::parse(account_infos, &inputs)?;
 
     // Create account via cpi
-    let (compressible_config_account, custom_fee_payer) = if let Some(compressible) =
+    let (compressible_config_account, custom_rent_payer) = if let Some(compressible) =
         accounts.compressible.as_ref()
     {
         let compressible_config = inputs
@@ -158,7 +163,7 @@ pub fn process_create_token_account(
             compress_to_pubkey.check_seeds(accounts.token_account.key())?;
         }
 
-        let account = &compressible.parsed_config;
+        let config_account = &compressible.parsed_config;
         let rent = compressible
             .parsed_config
             .rent_config
@@ -168,26 +173,27 @@ pub fn process_create_token_account(
             );
         let account_size = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
 
-        let custom_fee_payer =
-            *compressible.rent_payer_pda.key() != account.rent_sponsor.to_bytes();
-        if custom_fee_payer {
-            // custom fee payer for account creation -> pays rent exemption
-            create_account_with_custom_fee_payer(
-                compressible.rent_payer_pda,
+        let custom_rent_payer =
+            *compressible.rent_payer.key() != config_account.rent_sponsor.to_bytes();
+        if custom_rent_payer {
+            // custom rent payer for account creation -> pays rent exemption
+            // rent payer must be signer.
+            create_account_with_custom_rent_payer(
+                compressible.rent_payer,
                 accounts.token_account,
                 account_size,
                 rent,
             )
             .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
 
-            (Some(*account), Some(*compressible.rent_payer_pda.key()))
+            (Some(*config_account), Some(*compressible.rent_payer.key()))
         } else {
             // Rent recipient is fee payer for account creation -> pays rent exemption
-            let version_bytes = account.version.to_le_bytes();
+            let version_bytes = config_account.version.to_le_bytes();
             let seeds = &[b"rent_sponsor".as_slice(), version_bytes.as_slice()];
             let config = CreatePdaAccountConfig {
                 seeds,
-                bump: account.rent_sponsor_bump,
+                bump: config_account.rent_sponsor_bump,
                 account_size,
                 owner_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
                 derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
@@ -195,17 +201,17 @@ pub fn process_create_token_account(
 
             // PDA creates account with only rent-exempt balance
             create_pda_account(
-                compressible.rent_payer_pda,
+                compressible.rent_payer,
                 accounts.token_account,
                 config,
                 None,
-                None, // No additional lamports from PDA
+                None,
             )?;
 
             // Payer transfers the additional rent (compression incentive)
             transfer_lamports_via_cpi(rent, compressible.payer, accounts.token_account)
                 .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-            (Some(*account), None)
+            (Some(*config_account), None)
         }
     } else {
         (None, None)
@@ -218,16 +224,14 @@ pub fn process_create_token_account(
         &inputs.owner.to_bytes(),
         inputs.compressible_config,
         compressible_config_account,
-        custom_fee_payer,
-    )?;
-
-    Ok(())
+        custom_rent_payer,
+    )
 }
 
 #[profile]
 #[inline(always)]
-fn create_account_with_custom_fee_payer(
-    rent_payer_pda: &AccountInfo,
+fn create_account_with_custom_rent_payer(
+    rent_payer: &AccountInfo,
     token_account: &AccountInfo,
     account_size: usize,
     rent: u64,
@@ -236,7 +240,7 @@ fn create_account_with_custom_fee_payer(
     let lamports = solana_rent.minimum_balance(account_size) + rent;
 
     let create_account = CreateAccount {
-        from: rent_payer_pda,
+        from: rent_payer,
         to: token_account,
         lamports,
         space: account_size as u64,

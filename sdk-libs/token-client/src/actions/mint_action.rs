@@ -69,7 +69,6 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     mint_seed: &Keypair,
     authority: &Keypair,
     payer: &Keypair,
-    create_spl_mint: bool,
     mint_to_recipients: Vec<Recipient>,
     mint_to_decompressed_recipients: Vec<Recipient>,
     update_mint_authority: Option<Pubkey>,
@@ -77,8 +76,6 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     // Parameters for mint creation (required if create_spl_mint is true)
     new_mint: Option<crate::instructions::mint_action::NewMint>,
 ) -> Result<Signature, RpcError> {
-    use light_compressed_token_sdk::instructions::find_spl_mint_address;
-
     // Derive addresses
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
@@ -86,10 +83,6 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
 
     // Build actions
     let mut actions = Vec::new();
-    if create_spl_mint {
-        let mint_bump = find_spl_mint_address(&mint_seed.pubkey()).1;
-        actions.push(MintActionType::CreateSplMint { mint_bump });
-    }
 
     if !mint_to_recipients.is_empty() {
         let recipients = mint_to_recipients
@@ -136,7 +129,7 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
 
     // Determine if mint_signer is needed - matches onchain logic:
     // with_mint_signer = create_mint() | has_CreateSplMint_action
-    let mint_signer = if create_spl_mint || new_mint.is_some() {
+    let mint_signer = if new_mint.is_some() {
         Some(mint_seed)
     } else {
         None

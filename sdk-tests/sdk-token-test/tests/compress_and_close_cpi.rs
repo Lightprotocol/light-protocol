@@ -129,7 +129,6 @@ async fn setup_compress_and_close_test(
         &mint_seed,
         &payer,
         &payer,
-        false,
         Vec::new(),              // No compressed recipients
         decompressed_recipients, // Mint to owners - ATAs already exist
         None,

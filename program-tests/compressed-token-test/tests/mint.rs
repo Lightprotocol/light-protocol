@@ -24,7 +24,6 @@ use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_ctoken_transfer::assert_ctoken_transfer,
     assert_mint_to_compressed::{assert_mint_to_compressed, assert_mint_to_compressed_one},
-    assert_spl_mint::assert_spl_mint,
     assert_transfer2::{
         assert_transfer2, assert_transfer2_compress, assert_transfer2_decompress,
         assert_transfer2_transfer,
@@ -33,7 +32,7 @@ use light_test_utils::{
     Rpc,
 };
 use light_token_client::{
-    actions::{create_mint, create_spl_mint, ctoken_transfer, mint_to_compressed, transfer2},
+    actions::{create_mint, ctoken_transfer, mint_to_compressed, transfer2},
     instructions::transfer2::{
         create_decompress_instruction, create_generic_transfer2_instruction, CompressInput,
         DecompressInput, Transfer2InstructionType, TransferInput,
@@ -44,11 +43,10 @@ use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
 /// 1. Create compressed mint (no metadata)
 /// 2. Mint tokens with compressed mint
-/// 3. Create SPL mint from compressed mint
-/// 4. Transfer compressed tokens to new recipient
-/// 5. Decompress compressed tokens to SPL tokens
-/// 6. Compress SPL tokens to compressed tokens
-/// 7. Multi-operation transaction (transfer + decompress + compress)
+/// 3. Transfer compressed tokens to new recipient
+/// 4. Decompress compressed tokens to SPL tokens
+/// 5. Compress SPL tokens to compressed tokens
+/// 6. Multi-operation transaction (transfer + decompress + compress)
 #[tokio::test]
 #[serial]
 async fn test_create_compressed_mint() {
@@ -155,35 +153,35 @@ async fn test_create_compressed_mint() {
         )
         .await;
     }
-    // 3. Create SPL mint from compressed mint
-    // Get compressed mint data before creating SPL mint
-    {
-        let pre_compressed_mint_account = rpc
-            .indexer()
-            .unwrap()
-            .get_compressed_account(compressed_mint_address, None)
-            .await
-            .unwrap()
-            .value;
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
-            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
-        )
-        .unwrap();
+    // // 3. Create SPL mint from compressed mint
+    // // Get compressed mint data before creating SPL mint
+    // {
+    //     let pre_compressed_mint_account = rpc
+    //         .indexer()
+    //         .unwrap()
+    //         .get_compressed_account(compressed_mint_address, None)
+    //         .await
+    //         .unwrap()
+    //         .value;
+    //     let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
+    //         &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
+    //     )
+    //     .unwrap();
 
-        // Use our create_spl_mint action helper (automatically handles proofs, PDAs, and transaction)
-        create_spl_mint(
-            &mut rpc,
-            compressed_mint_address,
-            &mint_seed,
-            &mint_authority_keypair,
-            &payer,
-        )
-        .await
-        .unwrap();
+    //     // Use our create_spl_mint action helper (automatically handles proofs, PDAs, and transaction)
+    //     create_spl_mint(
+    //         &mut rpc,
+    //         compressed_mint_address,
+    //         &mint_seed,
+    //         &mint_authority_keypair,
+    //         &payer,
+    //     )
+    //     .await
+    //     .unwrap();
 
-        // Verify SPL mint was created using our assertion helper
-        assert_spl_mint(&mut rpc, mint_seed.pubkey(), &pre_compressed_mint).await;
-    }
+    //     // Verify SPL mint was created using our assertion helper
+    //     assert_spl_mint(&mut rpc, mint_seed.pubkey(), &pre_compressed_mint).await;
+    // }
 
     // 4. Transfer compressed tokens to new recipient
     // Get the compressed token account for decompression
@@ -242,7 +240,7 @@ async fn test_create_compressed_mint() {
 
     let decompress_amount = 300u64;
 
-    // 5. Decompress compressed tokens to SPL tokens
+    // 5. Decompress compressed tokens to ctokens
     // Create compressed token associated token account for decompression
     let (ctoken_ata_pubkey, _bump) = derive_ctoken_ata(&new_recipient, &spl_mint_pda);
     let create_ata_instruction =
@@ -510,170 +508,6 @@ async fn test_create_compressed_mint() {
     }
 }
 
-/// 1. Create compressed mint with metadata
-/// 2. Create spl mint
-/// 3. mint tokens with compressed mint
-#[tokio::test]
-#[serial]
-async fn test_create_compressed_mint_with_token_metadata_poseidon() {
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
-        .await
-        .unwrap();
-    let payer = rpc.get_payer().insecure_clone();
-
-    // Test parameters
-    let decimals = 6u8;
-    let mint_authority_keypair = Keypair::new();
-    let mint_authority = mint_authority_keypair.pubkey();
-    let freeze_authority = Pubkey::new_unique();
-    let mint_seed = Keypair::new();
-
-    // Get address tree for creating compressed mint address
-    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-    // 1. Create compressed mint with metadata
-
-    // Create token metadata extension with additional metadata
-    let additional_metadata = vec![
-        AdditionalMetadata {
-            key: b"website".to_vec(),
-            value: b"https://mytoken.com".to_vec(),
-        },
-        AdditionalMetadata {
-            key: b"category".to_vec(),
-            value: b"DeFi".to_vec(),
-        },
-        AdditionalMetadata {
-            key: b"creator".to_vec(),
-            value: b"TokenMaker Inc.".to_vec(),
-        },
-    ];
-
-    let token_metadata = TokenMetadataInstructionData {
-        update_authority: None,
-        name: b"Test Token".to_vec(),
-        symbol: b"TEST".to_vec(),
-        uri: b"https://example.com/token.json".to_vec(),
-        additional_metadata: Some(additional_metadata.clone()),
-    };
-    light_token_client::actions::create_mint(
-        &mut rpc,
-        &mint_seed,
-        decimals,
-        &mint_authority_keypair,
-        Some(freeze_authority),
-        Some(token_metadata.clone()),
-        &payer,
-    )
-    .await
-    .unwrap();
-    let (spl_mint_pda, _) = Pubkey::find_program_address(
-        &[COMPRESSED_MINT_SEED, mint_seed.pubkey().as_ref()],
-        &light_compressed_token::ID,
-    );
-    let compressed_mint_address = light_compressed_token_sdk::instructions::create_compressed_mint::derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
-
-    // Verify the compressed mint was created
-    let compressed_mint_account = rpc
-        .indexer()
-        .unwrap()
-        .get_compressed_account(compressed_mint_address, None)
-        .await
-        .unwrap()
-        .value;
-
-    assert_compressed_mint_account(
-        &compressed_mint_account,
-        compressed_mint_address,
-        spl_mint_pda,
-        decimals,
-        mint_authority,
-        freeze_authority,
-        Some(token_metadata.clone()),
-    );
-
-    // 2. Create SPL mint
-    {
-        // Get compressed mint data before creating SPL mint
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
-            &mut compressed_mint_account.data.unwrap().data.as_slice(),
-        )
-        .unwrap();
-
-        // Use our create_spl_mint action helper (automatically handles proofs, PDAs, and transaction)
-        create_spl_mint(
-            &mut rpc,
-            compressed_mint_address,
-            &mint_seed,
-            &mint_authority_keypair,
-            &payer,
-        )
-        .await
-        .unwrap();
-
-        // Verify SPL mint was created using our assertion helper
-        assert_spl_mint(&mut rpc, mint_seed.pubkey(), &pre_compressed_mint).await;
-    }
-    // 3. Mint to compressed
-    {
-        // Get pre-token pool account state for decompressed mint
-        let (token_pool_pda, _) =
-            light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index(
-                &spl_mint_pda,
-                0,
-            );
-        let pre_pool_data = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
-        let pre_token_pool_account =
-            spl_token_2022::state::Account::unpack(&pre_pool_data.data).unwrap();
-
-        let mint_amount = 100_000u64; // Mint 100,000 tokens
-        let recipient_keypair = Keypair::new();
-        let recipient = recipient_keypair.pubkey();
-
-        // Get pre-compressed mint and pre-spl mint for assertion
-        let pre_compressed_mint_account = rpc
-            .indexer()
-            .unwrap()
-            .get_compressed_account(compressed_mint_address, None)
-            .await
-            .unwrap()
-            .value;
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
-            &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
-        )
-        .unwrap();
-
-        let pre_spl_mint_data = rpc.get_account(spl_mint_pda).await.unwrap().unwrap();
-        let pre_spl_mint = spl_token_2022::state::Mint::unpack(&pre_spl_mint_data.data).unwrap();
-
-        // Use our mint_to_compressed action helper (automatically handles decompressed mint config)
-        mint_to_compressed(
-            &mut rpc,
-            spl_mint_pda,
-            vec![Recipient {
-                recipient: recipient.into(),
-                amount: mint_amount,
-            }],
-            TokenDataVersion::ShaFlat,
-            &mint_authority_keypair,
-            &payer,
-        )
-        .await
-        .unwrap();
-
-        // Verify minted tokens using our assertion helper
-        assert_mint_to_compressed_one(
-            &mut rpc,
-            spl_mint_pda,
-            recipient,
-            mint_amount,
-            Some(pre_token_pool_account), // Pass pre-token pool account for decompressed mint validation
-            pre_compressed_mint,
-            Some(pre_spl_mint),
-        )
-        .await;
-    }
-}
-
 /// Test updating compressed mint authorities
 #[tokio::test]
 #[serial]
@@ -872,7 +706,6 @@ async fn test_ctoken_transfer() {
         &mint_seed,
         &mint_authority,
         &payer,
-        true,                    // create_spl_mint
         vec![],                  // no compressed recipients
         decompressed_recipients, // mint to decompressed recipients
         None,                    // no mint authority update
@@ -1098,365 +931,6 @@ async fn test_ctoken_transfer() {
     );
 }
 
-/// Test SPL token compression and decompression via transfer2.
-///
-/// Tests: create compressed mint → decompress to SPL → compress back to compressed → validate.
-#[tokio::test]
-#[serial]
-async fn test_spl_compression_decompression_functional() {
-    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
-        .await
-        .unwrap();
-    let payer = rpc.get_payer().insecure_clone();
-
-    // Test parameters
-    let decimals = 6u8;
-    let mint_authority_keypair = Keypair::new();
-    let _mint_authority = mint_authority_keypair.pubkey();
-    let freeze_authority = Pubkey::new_unique();
-    let mint_seed = Keypair::new();
-
-    // Get necessary values
-    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-    let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
-
-    // Derive addresses
-    let compressed_mint_address =
-        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());
-
-    println!("Starting SPL compression/decompression functional test");
-
-    // STEP 1: CREATE COMPRESSED MINT AND MINT COMPRESSED TOKENS
-    println!("Step 1: Creating compressed mint and minting compressed tokens");
-
-    // Create compressed mint (no metadata for simplicity)
-    create_mint(
-        &mut rpc,
-        &mint_seed,
-        decimals,
-        &mint_authority_keypair,
-        Some(freeze_authority),
-        None, // No metadata
-        &payer,
-    )
-    .await
-    .unwrap();
-
-    // Create SPL mint from compressed mint
-    create_spl_mint(
-        &mut rpc,
-        compressed_mint_address,
-        &mint_seed,
-        &mint_authority_keypair,
-        &payer,
-    )
-    .await
-    .unwrap();
-
-    // Mint compressed tokens to initial recipient
-    let initial_recipient_keypair = Keypair::new();
-    let initial_recipient = initial_recipient_keypair.pubkey();
-    let initial_mint_amount = 10_000u64; // 10,000 tokens
-
-    mint_to_compressed(
-        &mut rpc,
-        spl_mint_pda,
-        vec![Recipient {
-            recipient: initial_recipient.into(),
-            amount: initial_mint_amount,
-        }],
-        TokenDataVersion::ShaFlat,
-        &mint_authority_keypair,
-        &payer,
-    )
-    .await
-    .unwrap();
-
-    // Verify compressed tokens were minted
-    let compressed_token_accounts = rpc
-        .indexer()
-        .unwrap()
-        .get_compressed_token_accounts_by_owner(&initial_recipient, None, None)
-        .await
-        .unwrap()
-        .value
-        .items;
-
-    assert!(
-        !compressed_token_accounts.is_empty(),
-        "Should have compressed tokens after minting"
-    );
-    let total_compressed_amount: u64 = compressed_token_accounts
-        .iter()
-        .map(|t| t.token.amount)
-        .sum();
-    assert_eq!(
-        total_compressed_amount, initial_mint_amount,
-        "Compressed token amount should match minted amount"
-    );
-
-    println!(
-        "Step 1 complete: {} compressed tokens minted",
-        total_compressed_amount
-    );
-
-    // STEP 2: DECOMPRESS COMPRESSED TOKENS TO SPL TOKENS
-    println!("Step 2: Decompressing compressed tokens to SPL tokens");
-
-    let decompress_amount = 3_000u64; // Decompress 3,000 tokens
-
-    // Create SPL token account for decompression recipient
-    let decompress_recipient_token_account_keypair = Keypair::new();
-    let decompress_recipient_token_account = decompress_recipient_token_account_keypair.pubkey();
-
-    light_test_utils::spl::create_token_2022_account(
-        &mut rpc,
-        &spl_mint_pda,
-        &decompress_recipient_token_account_keypair,
-        &payer,
-        true, // token_22 = true for spl_token_2022
-    )
-    .await
-    .unwrap();
-
-    // Get pre-decompression state for validation
-    let pre_decompress_account_data = rpc
-        .get_account(decompress_recipient_token_account)
-        .await
-        .unwrap()
-        .unwrap();
-
-    // Verify the account is owned by SPL Token 2022 program
-    assert_eq!(
-        pre_decompress_account_data.owner,
-        spl_token_2022::ID,
-        "Token account should be owned by SPL Token 2022 program"
-    );
-
-    let pre_decompress_spl_account =
-        spl_token_2022::state::Account::unpack(&pre_decompress_account_data.data).unwrap();
-    assert_eq!(
-        pre_decompress_spl_account.amount, 0,
-        "SPL account should start with 0 tokens"
-    );
-
-    // Create decompression instruction
-    let decompress_instruction = create_generic_transfer2_instruction(
-        &mut rpc,
-        vec![Transfer2InstructionType::Decompress(DecompressInput {
-            compressed_token_account: compressed_token_accounts,
-            decompress_amount,
-            solana_token_account: decompress_recipient_token_account,
-            amount: decompress_amount,
-        })],
-        payer.pubkey(),
-    )
-    .await
-    .unwrap();
-
-    // Execute decompression
-    let decompress_signature = rpc
-        .create_and_send_transaction(
-            &[decompress_instruction],
-            &payer.pubkey(),
-            &[&payer, &initial_recipient_keypair],
-        )
-        .await
-        .unwrap();
-
-    println!(
-        "Decompression transaction signature: {}",
-        decompress_signature
-    );
-
-    // Validate decompression results
-    let post_decompress_account_data = rpc
-        .get_account(decompress_recipient_token_account)
-        .await
-        .unwrap()
-        .unwrap();
-    let post_decompress_spl_account =
-        spl_token_2022::state::Account::unpack(&post_decompress_account_data.data).unwrap();
-
-    assert_eq!(
-        post_decompress_spl_account.amount, decompress_amount,
-        "SPL account should have {} tokens after decompression",
-        decompress_amount
-    );
-
-    // Verify compressed tokens were consumed
-    let remaining_compressed_tokens = rpc
-        .indexer()
-        .unwrap()
-        .get_compressed_token_accounts_by_owner(&initial_recipient, None, None)
-        .await
-        .unwrap()
-        .value
-        .items;
-
-    let remaining_compressed_amount: u64 = remaining_compressed_tokens
-        .iter()
-        .map(|t| t.token.amount)
-        .sum();
-    assert_eq!(
-        remaining_compressed_amount,
-        initial_mint_amount - decompress_amount,
-        "Remaining compressed tokens should be {} - {} = {}",
-        initial_mint_amount,
-        decompress_amount,
-        initial_mint_amount - decompress_amount
-    );
-
-    println!(
-        "Step 2 complete: {} tokens decompressed to SPL, {} compressed tokens remain",
-        decompress_amount, remaining_compressed_amount
-    );
-
-    // STEP 3: COMPRESS SPL TOKENS TO COMPRESSED TOKENS
-    println!("Step 3: Compressing SPL tokens back to compressed tokens");
-
-    let compress_recipient_keypair = Keypair::new();
-    let compress_recipient = compress_recipient_keypair.pubkey();
-    let compress_amount = 1_500u64; // Compress 1,500 SPL tokens
-
-    // Get pre-compression state for validation
-    let pre_compress_account_data = rpc
-        .get_account(decompress_recipient_token_account)
-        .await
-        .unwrap()
-        .unwrap();
-    let pre_compress_spl_account =
-        spl_token_2022::state::Account::unpack(&pre_compress_account_data.data).unwrap();
-    assert_eq!(
-        pre_compress_spl_account.amount, decompress_amount,
-        "SPL account should have {} tokens before compression",
-        decompress_amount
-    );
-
-    // Create compression instruction
-    let compress_instruction = create_generic_transfer2_instruction(
-        &mut rpc,
-        vec![Transfer2InstructionType::Compress(CompressInput {
-            compressed_token_account: None, // No existing compressed tokens for this operation
-            solana_token_account: decompress_recipient_token_account,
-            to: compress_recipient,
-            mint: spl_mint_pda,
-            amount: compress_amount,
-            authority: payer.pubkey(), // Authority is the payer who owns the token account
-            output_queue,
-        })],
-        payer.pubkey(),
-    )
-    .await
-    .unwrap();
-
-    // Execute compression
-    let compress_signature = rpc
-        .create_and_send_transaction(
-            &[compress_instruction],
-            &payer.pubkey(),
-            &[&payer], // Only payer needed since they own the token account
-        )
-        .await
-        .unwrap();
-
-    println!("Compression transaction signature: {}", compress_signature);
-
-    // Validate compression results
-    let post_compress_account_data = rpc
-        .get_account(decompress_recipient_token_account)
-        .await
-        .unwrap()
-        .unwrap();
-    let post_compress_spl_account =
-        spl_token_2022::state::Account::unpack(&post_compress_account_data.data).unwrap();
-
-    let expected_remaining_spl = decompress_amount - compress_amount;
-    assert_eq!(
-        post_compress_spl_account.amount, expected_remaining_spl,
-        "SPL account should have {} tokens after compression ({} - {})",
-        expected_remaining_spl, decompress_amount, compress_amount
-    );
-
-    // Verify new compressed tokens were created
-    let new_compressed_tokens = rpc
-        .indexer()
-        .unwrap()
-        .get_compressed_token_accounts_by_owner(&compress_recipient, None, None)
-        .await
-        .unwrap()
-        .value
-        .items;
-
-    assert!(
-        !new_compressed_tokens.is_empty(),
-        "Should have compressed tokens after compression"
-    );
-    let new_compressed_amount: u64 = new_compressed_tokens.iter().map(|t| t.token.amount).sum();
-    assert_eq!(
-        new_compressed_amount, compress_amount,
-        "New compressed tokens should equal compressed amount: {}",
-        compress_amount
-    );
-
-    println!(
-        "Step 3 complete: {} SPL tokens compressed to compressed tokens",
-        compress_amount
-    );
-
-    // STEP 4: COMPREHENSIVE VALIDATION
-    println!("Step 4: Final validation and token conservation check");
-
-    // Calculate final token distribution
-    let final_compressed_original = rpc
-        .indexer()
-        .unwrap()
-        .get_compressed_token_accounts_by_owner(&initial_recipient, None, None)
-        .await
-        .unwrap()
-        .value
-        .items
-        .iter()
-        .map(|t| t.token.amount)
-        .sum::<u64>();
-
-    let final_compressed_new = new_compressed_amount;
-    let final_spl_tokens = post_compress_spl_account.amount;
-
-    let total_final_tokens = final_compressed_original + final_compressed_new + final_spl_tokens;
-
-    println!("Final token distribution:");
-    println!(
-        "   Original compressed tokens: {}",
-        final_compressed_original
-    );
-    println!("   New compressed tokens: {}", final_compressed_new);
-    println!("   SPL tokens: {}", final_spl_tokens);
-    println!("   Total tokens: {}", total_final_tokens);
-
-    // Conservation check - total should equal initial mint
-    assert_eq!(
-        total_final_tokens, initial_mint_amount,
-        "Total tokens ({}) should equal initial mint amount ({})",
-        total_final_tokens, initial_mint_amount
-    );
-
-    // Verify token distribution matches expected values
-    assert_eq!(
-        final_compressed_original,
-        initial_mint_amount - decompress_amount
-    );
-    assert_eq!(final_compressed_new, compress_amount);
-    assert_eq!(final_spl_tokens, decompress_amount - compress_amount);
-
-    println!(
-        "Token conservation validated: {} total tokens preserved",
-        total_final_tokens
-    );
-    println!("SPL compression/decompression functional test completed successfully!");
-}
-
 // TODO: add test case that can perform ever action on its own, with and without a decompressed mint.
 /// Test comprehensive mint actions in a single instruction
 #[tokio::test]
@@ -1515,7 +989,6 @@ async fn test_mint_actions_comprehensive() {
         &mint_seed,
         &mint_authority,
         &payer,
-        true,                                // create_spl_mint
         recipients.clone(),                  // mint_to_recipients
         vec![],                              // mint_to_decompressed_recipients
         Some(new_mint_authority.pubkey()),   // update_mint_authority
@@ -1557,7 +1030,7 @@ async fn test_mint_actions_comprehensive() {
         metadata: CompressedMintMetadata {
             version: 3, // With metadata
             spl_mint: spl_mint_pda.into(),
-            spl_mint_initialized: true, // Should be true after CreateSplMint action
+            spl_mint_initialized: false, // Should be true after CreateSplMint action
         },
         extensions: Some(vec![
             light_ctoken_types::state::extensions::ExtensionStruct::TokenMetadata(
@@ -1573,52 +1046,13 @@ async fn test_mint_actions_comprehensive() {
         ]), // Match the metadata we're creating
     };
 
-    // Use empty token pool account (before creation)
-    let empty_token_pool = spl_token_2022::state::Account {
-        mint: spl_mint_pda,
-        owner: Pubkey::find_program_address(
-            &[light_sdk::constants::CPI_AUTHORITY_PDA_SEED],
-            &light_compressed_token::ID,
-        )
-        .0,
-        amount: 0, // Started with 0
-        delegate: None.into(),
-        state: spl_token_2022::state::AccountState::Initialized,
-        is_native: None.into(),
-        delegated_amount: 0,
-        close_authority: None.into(),
-    };
-
-    // Use empty SPL mint (before creation)
-    let empty_spl_mint = spl_token_2022::state::Mint {
-        mint_authority: Some(
-            Pubkey::find_program_address(
-                &[light_sdk::constants::CPI_AUTHORITY_PDA_SEED],
-                &light_compressed_token::ID,
-            )
-            .0,
-        )
-        .into(), // SPL mint always has CPI authority as mint authority
-        supply: 0, // Started with 0
-        decimals,
-        is_initialized: true, // Is initialized after creation
-        freeze_authority: Some(
-            Pubkey::find_program_address(
-                &[light_sdk::constants::CPI_AUTHORITY_PDA_SEED],
-                &light_compressed_token::ID,
-            )
-            .0,
-        )
-        .into(),
-    };
-
     assert_mint_to_compressed(
         &mut rpc,
         spl_mint_pda,
         &expected_recipients,
-        Some(empty_token_pool),
+        None,
         empty_pre_compressed_mint,
-        Some(empty_spl_mint),
+        None,
     )
     .await;
 
@@ -1648,8 +1082,8 @@ async fn test_mint_actions_comprehensive() {
         "Supply should match minted amount"
     );
     assert!(
-        updated_compressed_mint.metadata.spl_mint_initialized,
-        "Mint should be decompressed after CreateSplMint"
+        !updated_compressed_mint.metadata.spl_mint_initialized,
+        "Mint should not be decompressed "
     );
 
     println!("✅ Comprehensive mint action test passed!");
@@ -1697,19 +1131,6 @@ async fn test_mint_actions_comprehensive() {
         },
     ];
     let additional_mint_amount = 7500u64;
-    // Token pool should have previous amount
-    let (token_pool_pda, _) =
-        light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index(
-            &spl_mint_pda,
-            0,
-        );
-    let pre_pool_data = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
-    let pre_token_pool_for_second =
-        spl_token_2022::state::Account::unpack(&pre_pool_data.data).unwrap();
-
-    let pre_spl_mint_data = rpc.get_account(spl_mint_pda).await.unwrap().unwrap();
-    let pre_spl_mint_for_second =
-        spl_token_2022::state::Mint::unpack(&pre_spl_mint_data.data).unwrap();
     rpc.context.warp_to_slot(3);
     // Execute mint_action on existing mint (no creation)
     let signature2 = light_token_client::actions::mint_action_comprehensive(
@@ -1717,7 +1138,6 @@ async fn test_mint_actions_comprehensive() {
         &mint_seed,
         &new_mint_authority, // Current authority from first test (now the authority for this mint)
         &payer,
-        false,                               // create_spl_mint = false (already exists)
         additional_recipients.clone(),       // mint_to_recipients
         vec![],                              // mint_to_decompressed_recipients
         Some(newer_mint_authority.pubkey()), // update_mint_authority to newer authority
@@ -1741,9 +1161,9 @@ async fn test_mint_actions_comprehensive() {
         &mut rpc,
         spl_mint_pda,
         &expected_additional_recipients,
-        Some(pre_token_pool_for_second),
+        None,
         pre_compressed_mint_for_second,
-        Some(pre_spl_mint_for_second),
+        None,
     )
     .await;
 
@@ -1770,8 +1190,8 @@ async fn test_mint_actions_comprehensive() {
         "Supply should include both mintings"
     );
     assert!(
-        final_compressed_mint.metadata.spl_mint_initialized,
-        "Mint should remain decompressed"
+        !final_compressed_mint.metadata.spl_mint_initialized,
+        "Mint should remain compressed"
     );
 
     println!("✅ Existing mint test passed!");
@@ -1856,40 +1276,8 @@ async fn test_create_compressed_mint_with_token_metadata_sha() {
         Some(token_metadata.clone()),
     );
 
-    // 2. Create SPL mint
+    // 2. Mint to compressed
     {
-        // Get compressed mint data before creating SPL mint
-        let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
-            &mut compressed_mint_account.data.unwrap().data.as_slice(),
-        )
-        .unwrap();
-
-        // Use our create_spl_mint action helper (automatically handles proofs, PDAs, and transaction)
-        create_spl_mint(
-            &mut rpc,
-            compressed_mint_address,
-            &mint_seed,
-            &mint_authority_keypair,
-            &payer,
-        )
-        .await
-        .unwrap();
-        println!(" pre_compressed_mint {:?}", pre_compressed_mint);
-        // Verify SPL mint was created using our assertion helper
-        assert_spl_mint(&mut rpc, mint_seed.pubkey(), &pre_compressed_mint).await;
-    }
-    // 3. Mint to compressed
-    {
-        // Get pre-token pool account state for decompressed mint
-        let (token_pool_pda, _) =
-            light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index(
-                &spl_mint_pda,
-                0,
-            );
-        let pre_pool_data = rpc.get_account(token_pool_pda).await.unwrap().unwrap();
-        let pre_token_pool_account =
-            spl_token_2022::state::Account::unpack(&pre_pool_data.data).unwrap();
-
         let mint_amount = 100_000u64; // Mint 100,000 tokens
         let recipient_keypair = Keypair::new();
         let recipient = recipient_keypair.pubkey();
@@ -1906,9 +1294,6 @@ async fn test_create_compressed_mint_with_token_metadata_sha() {
             &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
         )
         .unwrap();
-
-        let pre_spl_mint_data = rpc.get_account(spl_mint_pda).await.unwrap().unwrap();
-        let pre_spl_mint = spl_token_2022::state::Mint::unpack(&pre_spl_mint_data.data).unwrap();
 
         // Use our mint_to_compressed action helper (automatically handles decompressed mint config)
         mint_to_compressed(
@@ -1931,9 +1316,9 @@ async fn test_create_compressed_mint_with_token_metadata_sha() {
             spl_mint_pda,
             recipient,
             mint_amount,
-            Some(pre_token_pool_account), // Pass pre-token pool account for decompressed mint validation
+            None, // Pass pre-token pool account for decompressed mint validation
             pre_compressed_mint,
-            Some(pre_spl_mint),
+            None,
         )
         .await;
     }

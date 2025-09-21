@@ -38,9 +38,9 @@ pub struct CreatePdaAccountConfig<'a> {
 pub fn create_pda_account(
     fee_payer: &AccountInfo,
     new_account: &AccountInfo,
-    config: CreatePdaAccountConfig,
+    config: CreatePdaAccountConfig, // TODO: pass generic array instead of one mandatory one optional
     fee_payer_config: Option<CreatePdaAccountConfig>,
-    additional_lamports: Option<u64>,
+    additional_lamports: Option<u64>, // TODO: remove
 ) -> Result<(), ProgramError> {
     // Calculate rent
     let rent = Rent::get().map_err(|_| ProgramError::UnsupportedSysvar)?;

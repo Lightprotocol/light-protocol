@@ -22,7 +22,7 @@ pub fn initialize_ctoken_account(
     compressible_config: Option<CompressibleExtensionInstructionData>,
     compressible_config_account: Option<&CompressibleConfig>,
     // account is compressible but with custom fee payer -> rent recipient is fee payer
-    custom_fee_payer: Option<Pubkey>,
+    custom_rent_payer: Option<Pubkey>,
 ) -> Result<(), ProgramError> {
     let required_size = if compressible_config.is_none() {
         165
@@ -95,7 +95,7 @@ pub fn initialize_ctoken_account(
             &mut compressible_extension,
             compressible_config,
             compressible_config_account,
-            custom_fee_payer,
+            custom_rent_payer,
         )?;
     }
 
@@ -108,7 +108,7 @@ fn configure_compressible_extension(
     compressible_extension: &mut ZCompressionInfoMut<'_>,
     compressible_config: CompressibleExtensionInstructionData,
     compressible_config_account: &CompressibleConfig,
-    custom_fee_payer: Option<Pubkey>,
+    custom_rent_payer: Option<Pubkey>,
 ) -> Result<(), ProgramError> {
     // Set config_account_version
     compressible_extension.config_account_version = compressible_config_account.version.into();
@@ -141,12 +141,12 @@ fn configure_compressible_extension(
     // Set the compression_authority, rent_sponsor and lamports_per_write
     compressible_extension.compression_authority =
         compressible_config_account.compression_authority.to_bytes();
-    if let Some(custom_fee_payer) = custom_fee_payer {
-        // If the fee payer is a custom fee payer it becomes the rent recipient.
+    if let Some(custom_rent_payer) = custom_rent_payer {
+        // The custom rent payer is the rent recipient.
         // In this case the rent mechanism stay the same,
         // the account can be compressed and closed by a forester,
         // rent rewards cannot be claimed by the forester.
-        compressible_extension.rent_sponsor = custom_fee_payer;
+        compressible_extension.rent_sponsor = custom_rent_payer;
     } else {
         compressible_extension.rent_sponsor = compressible_config_account.rent_sponsor.to_bytes();
     }

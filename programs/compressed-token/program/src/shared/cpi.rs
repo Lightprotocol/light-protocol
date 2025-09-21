@@ -104,10 +104,6 @@ pub fn execute_cpi_invoke(
             account_metas.push(AccountMeta::new(cpi_context, true, false)); // cpi_context_account
         }
     }
-    let _cpi_accounts = account_metas
-        .iter()
-        .map(|x| solana_pubkey::Pubkey::new_from_array(*x.pubkey))
-        .collect::<Vec<_>>();
 
     let instruction = Instruction {
         program_id: &LIGHT_SYSTEM_PROGRAM_ID,

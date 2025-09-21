@@ -54,7 +54,7 @@ pub fn validate_token_account_for_close_transfer2(
 }
 
 #[inline(always)]
-fn validate_token_account<const CHECK_RENT_AUTH: bool>(
+fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
     accounts: &CloseTokenAccountAccounts,
     ctoken: &ZCompressedTokenMut<'_>,
 ) -> Result<(bool, bool), ProgramError> {
@@ -68,7 +68,8 @@ fn validate_token_account<const CHECK_RENT_AUTH: bool>(
         state if state == AccountState::Frozen as u8 => return Err(ErrorCode::AccountFrozen.into()),
         _ => return Err(ProgramError::UninitializedAccount),
     }
-    if !CHECK_RENT_AUTH {
+    // For compress and close we compress the balance and close.
+    if !COMPRESS_AND_CLOSE {
         // Check that the account has zero balance
         if u64::from(*ctoken.amount) != 0 {
             return Err(ErrorCode::NonNativeHasBalance.into());
@@ -84,23 +85,17 @@ fn validate_token_account<const CHECK_RENT_AUTH: bool>(
                     .rent_sponsor
                     .ok_or(ProgramError::NotEnoughAccountKeys)?;
                 if compressible_ext.rent_sponsor != *rent_sponsor.key() {
-                    msg!("rent recipient missmatch");
+                    msg!("rent recipient mismatch");
                     return Err(ProgramError::InvalidAccountData);
                 }
 
-                if CHECK_RENT_AUTH {
+                if COMPRESS_AND_CLOSE {
                     #[allow(clippy::collapsible_if)]
                     if !owner_matches {
                         if compressible_ext.compression_authority != *accounts.authority.key() {
-                            msg!("rent authority missmatch");
+                            msg!("rent authority mismatch");
                             return Err(ProgramError::InvalidAccountData);
                         }
-
-                        // // When rent authority closes, destination must equal rent_sponsor
-                        // if accounts.rent_sponsor.key() != rent_sponsor.key() {
-                        //     msg!("rent authority close requires destination == rent_sponsor");
-                        //     return Err(ProgramError::InvalidAccountData);
-                        // }
 
                         #[cfg(target_os = "solana")]
                         use pinocchio::sysvars::Sysvar;
@@ -175,19 +170,19 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                     .slot;
                 #[cfg(not(target_os = "solana"))]
                 let current_slot = 0;
-
-                let base_lamports =
-                    get_rent_exemption_lamports(accounts.token_account.data_len() as u64)
-                        .map_err(|_| ProgramError::InvalidAccountData)?;
-
-                let base_rent: u64 = compressible_ext.rent_config.base_rent.into();
-                let lamports_per_byte_per_epoch: u64 = compressible_ext
-                    .rent_config
-                    .lamports_per_byte_per_epoch
-                    .into();
                 let compression_cost: u64 = compressible_ext.rent_config.compression_cost.into();
 
-                let (mut lamports_to_rent_sponsor, mut lamports_to_destination) =
+                let (mut lamports_to_rent_sponsor, mut lamports_to_destination) = {
+                    let base_lamports =
+                        get_rent_exemption_lamports(accounts.token_account.data_len() as u64)
+                            .map_err(|_| ProgramError::InvalidAccountData)?;
+
+                    let base_rent: u64 = compressible_ext.rent_config.base_rent.into();
+                    let lamports_per_byte_per_epoch: u64 = compressible_ext
+                        .rent_config
+                        .lamports_per_byte_per_epoch
+                        .into();
+
                     calculate_close_lamports(
                         accounts.token_account.data_len() as u64,
                         current_slot,
@@ -197,7 +192,8 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                         base_rent,
                         lamports_per_byte_per_epoch,
                         compression_cost,
-                    );
+                    )
+                };
 
                 let rent_sponsor = accounts
                     .rent_sponsor
@@ -256,7 +252,6 @@ fn finalize_account_closure(accounts: &CloseTokenAccountAccounts<'_>) -> Result<
     unsafe {
         accounts.token_account.assign(&[0u8; 32]);
     }
-    // Prevent account revival attack by reallocating to 0 bytes
     match accounts.token_account.resize(0) {
         Ok(()) => Ok(()),
         Err(e) => Err(ProgramError::Custom(u64::from(e) as u32)),

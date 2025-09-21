@@ -21,7 +21,7 @@ pub(super) fn process_spl_compressions(
     token_account_info: &AccountInfo,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     cpi_authority: &AccountInfo,
-) -> Result<Option<(u8, u64)>, ProgramError> {
+) -> Result<(), ProgramError> {
     let mode = &compression.mode;
 
     validate_compression_mode_fields(compression)?;
@@ -65,8 +65,7 @@ pub(super) fn process_spl_compressions(
             unimplemented!()
         }
     }
-    // SPL token compressions don't require lamport transfers for compressible extension
-    Ok(None)
+    Ok(())
 }
 
 #[profile]

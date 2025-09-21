@@ -9,7 +9,7 @@ use light_ctoken_types::state::{
     mint::{BaseMint, CompressedMint, CompressedMintMetadata},
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
-use rand::{distributions::Alphanumeric, thread_rng, Rng};
+use rand::{thread_rng, Rng};
 use spl_token_2022::{solana_program::program_pack::Pack, state::Mint};
 
 /// Generate random token metadata extension
@@ -30,34 +30,24 @@ fn generate_random_token_metadata(rng: &mut impl Rng) -> TokenMetadata {
 
     // Random name (1-32 chars)
     let name_len = rng.gen_range(1..=32);
-    let name: Vec<u8> = (0..name_len)
-        .map(|_| rng.sample(Alphanumeric) as u8)
-        .collect();
+    let name: Vec<u8> = (0..name_len).map(|_| rng.gen::<u8>()).collect();
 
     // Random symbol (1-10 chars)
     let symbol_len = rng.gen_range(1..=10);
-    let symbol: Vec<u8> = (0..symbol_len)
-        .map(|_| rng.sample(Alphanumeric) as u8)
-        .collect();
+    let symbol: Vec<u8> = (0..symbol_len).map(|_| rng.gen::<u8>()).collect();
 
     // Random URI (0-200 chars)
     let uri_len = rng.gen_range(0..=200);
-    let uri: Vec<u8> = (0..uri_len)
-        .map(|_| rng.sample(Alphanumeric) as u8)
-        .collect();
+    let uri: Vec<u8> = (0..uri_len).map(|_| rng.gen::<u8>()).collect();
 
     // Random additional metadata (0-3 entries)
     let num_metadata = rng.gen_range(0..=3);
     let additional_metadata: Vec<AdditionalMetadata> = (0..num_metadata)
         .map(|_| {
             let key_len = rng.gen_range(1..=20);
-            let key: Vec<u8> = (0..key_len)
-                .map(|_| rng.sample(Alphanumeric) as u8)
-                .collect();
+            let key: Vec<u8> = (0..key_len).map(|_| rng.gen::<u8>()).collect();
             let value_len = rng.gen_range(0..=50);
-            let value: Vec<u8> = (0..value_len)
-                .map(|_| rng.sample(Alphanumeric) as u8)
-                .collect();
+            let value: Vec<u8> = (0..value_len).map(|_| rng.gen::<u8>()).collect();
             AdditionalMetadata { key, value }
         })
         .collect();
@@ -127,8 +117,8 @@ fn reconstruct_extensions(
                 light_ctoken_types::state::extensions::ZExtensionStruct::TokenMetadata(
                     zc_metadata,
                 ) => ExtensionStruct::TokenMetadata(TokenMetadata {
-                    update_authority: zc_metadata.update_authority.clone(),
-                    mint: zc_metadata.mint.clone(),
+                    update_authority: zc_metadata.update_authority,
+                    mint: zc_metadata.mint,
                     name: zc_metadata.name.to_vec(),
                     symbol: zc_metadata.symbol.to_vec(),
                     uri: zc_metadata.uri.to_vec(),
@@ -161,8 +151,8 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
     // Construct a CompressedMint from zero-copy read-only data for comparison
     let zc_reconstructed = CompressedMint {
         base: BaseMint {
-            mint_authority: zc_mint.base.mint_authority.and_then(|p| Some(*p)),
-            freeze_authority: zc_mint.base.freeze_authority.and_then(|p| Some(*p)),
+            mint_authority: zc_mint.base.mint_authority.map(|p| *p),
+            freeze_authority: zc_mint.base.freeze_authority.map(|p| *p),
             supply: (*zc_mint.base.supply).into(),
             decimals: zc_mint.base.decimals,
             is_initialized: zc_mint.base.is_initialized != 0,
@@ -170,7 +160,7 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
         metadata: CompressedMintMetadata {
             version: zc_mint.metadata.version,
             spl_mint_initialized: zc_mint.metadata.spl_mint_initialized != 0,
-            spl_mint: zc_mint.metadata.spl_mint.clone(),
+            spl_mint: zc_mint.metadata.spl_mint,
         },
         extensions: zc_extensions.clone(),
     };
@@ -191,7 +181,7 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
         metadata: CompressedMintMetadata {
             version: zc_mint_mut.metadata.version,
             spl_mint_initialized: zc_mint_mut.metadata.spl_mint_initialized != 0,
-            spl_mint: zc_mint_mut.metadata.spl_mint.clone(),
+            spl_mint: zc_mint_mut.metadata.spl_mint,
         },
         extensions: zc_extensions, // Extensions handling for mut is same as read-only
     };

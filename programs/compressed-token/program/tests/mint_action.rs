@@ -161,7 +161,7 @@ fn generate_random_instruction_data(
 
     let mut mint_metadata = random_compressed_mint_metadata(rng);
     if let Some(spl_init) = force_spl_initialized {
-        mint_metadata.spl_mint_initialized = spl_init;
+        mint_metadata.spl_mint_initialized = spl_init && !create_mint;
     }
 
     // Generate actions
@@ -173,6 +173,7 @@ fn generate_random_instruction_data(
 
     MintActionCompressedInstructionData {
         create_mint,
+        read_only_address_trees: [0u8; 4],
         mint_bump: rng.gen::<u8>(),
         leaf_index: rng.gen::<u32>(),
         prove_by_index: rng.gen_bool(0.5),
@@ -284,21 +285,28 @@ fn test_accounts_config_randomized() {
 
         if should_error {
             // Verify that it returns the expected error
-            assert!(actual_config_result.is_err(),
+            assert!(
+                actual_config_result.is_err(),
                 "Expected error for instruction data but got Ok. CPI context: {:?}, Actions: {:?}",
                 instruction_data.cpi_context,
-                instruction_data.actions);
+                instruction_data.actions
+            );
 
             // Verify the specific error code
             let error = actual_config_result.unwrap_err();
-            assert_eq!(error, light_compressed_token::ErrorCode::CpiContextSetNotUsable.into(),
-                "Expected CpiContextSetNotUsable error but got {:?}", error);
+            assert_eq!(
+                error,
+                light_compressed_token::ErrorCode::CpiContextSetNotUsable.into(),
+                "Expected CpiContextSetNotUsable error but got {:?}",
+                error
+            );
         } else {
             // Compute expected config
             let expected_config = compute_expected_config(&instruction_data);
 
             // Should succeed
-            let actual_config = actual_config_result.expect("AccountsConfig::new failed unexpectedly");
+            let actual_config =
+                actual_config_result.expect("AccountsConfig::new failed unexpectedly");
             assert_eq!(expected_config, actual_config);
         }
     }
@@ -327,7 +335,8 @@ fn check_if_config_should_error(instruction_data: &MintActionCompressedInstructi
             .any(|action| matches!(action, Action::CreateSplMint(_)));
 
         // Check if SPL mint is initialized
-        let spl_mint_initialized = instruction_data.mint.metadata.spl_mint_initialized || create_spl_mint;
+        let spl_mint_initialized =
+            instruction_data.mint.metadata.spl_mint_initialized || create_spl_mint;
 
         // Return true if any of these conditions are met
         has_mint_to_ctoken || create_spl_mint || spl_mint_initialized

@@ -32,7 +32,7 @@ use crate::{
 /// by minting equivalent tokens to a program-controlled token pool account via CPI to SPL Token 2022.
 #[allow(clippy::too_many_arguments)]
 #[profile]
-pub fn process_mint_to_action(
+pub fn process_mint_to_compressed_action(
     action: &ZMintToCompressedAction,
     compressed_mint: &mut CompressedMint,
     validated_accounts: &MintActionAccounts,
@@ -44,7 +44,7 @@ pub fn process_mint_to_action(
     check_authority(
         compressed_mint.base.mint_authority,
         validated_accounts.authority.key(),
-        "mint authority",
+        "mint_to_compressed: mint authority",
     )?;
 
     let mut sum_amounts: u64 = 0;

@@ -118,7 +118,6 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
         &mint_seed,
         &payer,
         &payer,
-        false,
         compressed_recipients,
         Vec::new(),
         None,

@@ -92,10 +92,10 @@ impl ZCompression<'_> {
 }
 
 impl Compression {
-    pub fn compress_and_close(
+    pub fn compress_and_close_ctoken(
         amount: u64,
         mint: u8,
-        source_or_recipient: u8,
+        source: u8,
         authority: u8,
         rent_sponsor_index: u8,
         compressed_account_index: u8,
@@ -105,29 +105,18 @@ impl Compression {
             amount, // the full balance of the ctoken account to be compressed
             mode: CompressionMode::CompressAndClose,
             mint,
-            source_or_recipient,
+            source_or_recipient: source,
             authority,
             pool_account_index: rent_sponsor_index,
             pool_index: compressed_account_index,
             bump: destination_index,
         }
     }
-    pub fn compress(amount: u64, mint: u8, source_or_recipient: u8, authority: u8) -> Self {
-        Compression {
-            amount,
-            mode: CompressionMode::Compress,
-            mint,
-            source_or_recipient,
-            authority,
-            pool_account_index: 0,
-            pool_index: 0,
-            bump: 0,
-        }
-    }
+
     pub fn compress_spl(
         amount: u64,
         mint: u8,
-        source_or_recipient: u8,
+        source: u8,
         authority: u8,
         pool_account_index: u8,
         pool_index: u8,
@@ -137,41 +126,30 @@ impl Compression {
             amount,
             mode: CompressionMode::Compress,
             mint,
-            source_or_recipient,
+            source_or_recipient: source,
             authority,
             pool_account_index,
             pool_index,
             bump,
         }
     }
-    pub fn compress_ctoken(amount: u64, mint: u8, source_or_recipient: u8, authority: u8) -> Self {
+    pub fn compress_ctoken(amount: u64, mint: u8, source: u8, authority: u8) -> Self {
         Compression {
             amount,
             mode: CompressionMode::Compress,
             mint,
-            source_or_recipient,
+            source_or_recipient: source,
             authority,
             pool_account_index: 0,
             pool_index: 0,
             bump: 0,
         }
     }
-    pub fn decompress(amount: u64, mint: u8, source_or_recipient: u8) -> Self {
-        Compression {
-            amount,
-            mode: CompressionMode::Decompress,
-            mint,
-            source_or_recipient,
-            authority: 0,
-            pool_account_index: 0,
-            pool_index: 0,
-            bump: 0,
-        }
-    }
+
     pub fn decompress_spl(
         amount: u64,
         mint: u8,
-        source_or_recipient: u8,
+        recipient: u8,
         pool_account_index: u8,
         pool_index: u8,
         bump: u8,
@@ -180,7 +158,7 @@ impl Compression {
             amount,
             mode: CompressionMode::Decompress,
             mint,
-            source_or_recipient,
+            source_or_recipient: recipient,
             authority: 0,
             pool_account_index,
             pool_index,
@@ -188,12 +166,12 @@ impl Compression {
         }
     }
 
-    pub fn decompress_ctoken(amount: u64, mint: u8, source_or_recipient: u8) -> Self {
+    pub fn decompress_ctoken(amount: u64, mint: u8, recipient: u8) -> Self {
         Compression {
             amount,
             mode: CompressionMode::Decompress,
             mint,
-            source_or_recipient,
+            source_or_recipient: recipient,
             authority: 0,
             pool_account_index: 0,
             pool_index: 0,
@@ -217,34 +195,16 @@ impl ZCompression<'_> {
     pub fn new_balance_compressed_account(&self, current_balance: u64) -> Result<u64, CTokenError> {
         let new_balance = match self.mode {
             ZCompressionMode::Compress | ZCompressionMode::CompressAndClose => {
-                // Compress: add to balance (tokens are being added to compressed pool)
+                // Compress: add to balance (tokens are being added to spl token pool)
                 current_balance
                     .checked_add((*self.amount).into())
                     .ok_or(CTokenError::ArithmeticOverflow)
             }
             ZCompressionMode::Decompress => {
-                // Decompress: subtract from balance (tokens are being removed from compressed pool)
+                // Decompress: subtract from balance (tokens are being removed from spl token pool)
                 current_balance
                     .checked_sub((*self.amount).into())
                     .ok_or(CTokenError::CompressInsufficientFunds)
-            }
-        }?;
-        Ok(new_balance)
-    }
-
-    pub fn new_balance_solana_account(&self, current_balance: u64) -> Result<u64, CTokenError> {
-        let new_balance = match self.mode {
-            ZCompressionMode::Compress | ZCompressionMode::CompressAndClose => {
-                // Compress: add to balance (tokens are being added to compressed pool)
-                current_balance
-                    .checked_sub((*self.amount).into())
-                    .ok_or(CTokenError::InsufficientSupply)
-            }
-            ZCompressionMode::Decompress => {
-                // Decompress: subtract from balance (tokens are being removed from compressed pool)
-                current_balance
-                    .checked_add((*self.amount).into())
-                    .ok_or(CTokenError::ArithmeticOverflow)
             }
         }?;
         Ok(new_balance)

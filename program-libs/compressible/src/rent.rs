@@ -31,6 +31,7 @@ use aligned_sized::aligned_sized;
 #[repr(C)]
 #[aligned_sized]
 pub struct RentConfig {
+    /// Base rent constant: rent = base_rent + num_bytes * lamports_per_byte_per_epoch
     pub base_rent: u16,
     pub compression_cost: u16,
     pub lamports_per_byte_per_epoch: u8,
@@ -133,7 +134,7 @@ impl Default for RentConfig {
             base_rent: MIN_RENT,
             compression_cost: COMPRESSION_COST + COMPRESSION_INCENTIVE,
             lamports_per_byte_per_epoch: RENT_PER_BYTE,
-            max_lamports_per_write: 1, // maximum lamports per top up write * 1000
+            max_lamports_per_write: 1, // maximum lamports per top up write * 1000, max 255_000
             max_funded_epochs: 2, // once the account is funded for max_funded_epochs top up per write is not executed
             _padding: 0,
         }
@@ -219,6 +220,7 @@ pub fn calculate_rent_and_balance(
     if is_compressible {
         let epochs_payable = required_epochs.saturating_sub(epochs_paid);
         let payable = epochs_payable * rent_per_epoch + compression_cost;
+        // How many lamports do we need to fund rent for the current epoch.
         let net_payable = payable.saturating_sub(unutilized_lamports);
         (true, net_payable)
     } else {
@@ -263,6 +265,7 @@ pub fn calculate_rent_inner<const INCLUDE_CURRENT: bool>(
     lamports_per_byte_per_epoch: u64,
     compression_cost: u64,
 ) -> (u64, u64, u64, u64) {
+    // TODO: return struct.
     let available_balance = current_lamports
         .checked_sub(rent_exemption_lamports + compression_cost)
         .unwrap();
@@ -275,16 +278,18 @@ pub fn calculate_rent_inner<const INCLUDE_CURRENT: bool>(
     let required_epochs = current_epoch.saturating_sub(last_claimed_epoch);
 
     let rent_per_epoch = rent_curve_per_epoch(base_rent, lamports_per_byte_per_epoch, num_bytes);
-    let epochs_paid = available_balance / rent_per_epoch;
-    let unutilized_lamports = available_balance % rent_per_epoch;
+    // Number of epochs the avaible balance can fund.
+    let potentially_epochs_funded = available_balance / rent_per_epoch;
+    // Lamports that are not blocked for unclaimed rent of past epochs.
+    let unutilized_lamports = available_balance.saturating_sub(rent_per_epoch * required_epochs); // TODO: double check in test
     (
         required_epochs,
         rent_per_epoch,
-        epochs_paid,
+        potentially_epochs_funded,
         unutilized_lamports,
     )
 }
-
+// lamports_to_rent_sponsor,  lamports_to_destination
 #[inline(always)]
 #[allow(clippy::too_many_arguments)]
 pub fn calculate_close_lamports(

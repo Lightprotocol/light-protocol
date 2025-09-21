@@ -62,12 +62,9 @@ impl ZInAccountMut<'_> {
         address: Option<&[u8; 32]>,
     ) -> Result<(), CompressedAccountError> {
         self.discriminator = discriminator;
-        // Set merkle context fields manually due to mutability constraints
         self.merkle_context.merkle_tree_pubkey_index = merkle_context.merkle_tree_pubkey_index;
         self.merkle_context.queue_pubkey_index = merkle_context.queue_pubkey_index;
-        self.merkle_context
-            .leaf_index
-            .set(merkle_context.leaf_index.get());
+        self.merkle_context.leaf_index = merkle_context.leaf_index;
         self.merkle_context.prove_by_index = merkle_context.prove_by_index() as u8;
         *self.root_index = root_index;
         self.data_hash = data_hash;
@@ -147,8 +144,8 @@ impl ZInstructionDataInvokeCpiWithReadOnlyMut<'_> {
             return Err(CompressedAccountError::ZeroCopyExpectedProof);
         }
         if let Some(cpi_context) = cpi_context {
-            self.with_cpi_context = 1;
-            self.cpi_context.cpi_context_account_index = 0;
+            self.with_cpi_context = 1; // true
+            self.cpi_context.cpi_context_account_index = 0; // unused.
             self.cpi_context.first_set_context = cpi_context.first_set_context();
             self.cpi_context.set_context = cpi_context.set_context();
         }

@@ -23,8 +23,7 @@ pub fn allocate_cpi_bytes(
 
     let mut output_accounts = ArrayVec::new();
     for output_data in inputs.out_token_data.iter() {
-        // Check if output has delegate (delegate index != 0 means delegate is present)
-        let has_delegate = output_data.delegate != 0;
+        let has_delegate = output_data.has_delegate();
         output_accounts.push((false, compressed_token_data_len(has_delegate))); // Token accounts don't have addresses
     }
 

@@ -415,6 +415,7 @@ pub fn create_mint_action_cpi(
     let instruction_data = MintActionCompressedInstructionData {
         create_mint,
         mint_bump,
+        read_only_address_trees: [0u8; 4],
         leaf_index: input.compressed_mint_inputs.leaf_index,
         prove_by_index: input.compressed_mint_inputs.prove_by_index,
         root_index: input.compressed_mint_inputs.root_index,
@@ -756,6 +757,7 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
     let instruction_data = MintActionCompressedInstructionData {
         create_mint,
         mint_bump,
+        read_only_address_trees: [0u8; 4],
         leaf_index: input.compressed_mint_inputs.leaf_index,
         prove_by_index: input.compressed_mint_inputs.prove_by_index,
         root_index: input.compressed_mint_inputs.root_index,

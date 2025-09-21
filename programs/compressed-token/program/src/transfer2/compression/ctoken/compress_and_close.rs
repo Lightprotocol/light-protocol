@@ -74,11 +74,28 @@ fn validate_compressed_token_account(
     token_account_pubkey: &Pubkey,
 ) -> Result<(), ProgramError> {
     // Owners should match if not compressing to pubkey
-    if !compress_to_pubkey
-        && *ctoken.owner
-            != *packed_accounts
-                .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
-                .key()
+    if compress_to_pubkey {
+        // Owner should match token account pubkey if compressing to pubkey
+        if *packed_accounts
+            .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
+            .key()
+            != *token_account_pubkey
+        {
+            msg!(
+                "compress_to_pubkey: packed_accounts owner {:?} should match token_account_pubkey: {:?}",
+                solana_pubkey::Pubkey::new_from_array(
+                    *packed_accounts
+                        .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
+                        .key()
+                ),
+                solana_pubkey::Pubkey::new_from_array(*token_account_pubkey)
+            );
+            return Err(ErrorCode::CompressAndCloseInvalidOwner.into());
+        }
+    } else if *ctoken.owner
+        != *packed_accounts
+            .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
+            .key()
     {
         msg!(
             "*ctoken.owner {:?} packed_accounts owner: {:?}",
@@ -91,24 +108,7 @@ fn validate_compressed_token_account(
         );
         return Err(ErrorCode::CompressAndCloseInvalidOwner.into());
     }
-    // Owner should match token account pubkey if compressing to pubkey
-    if compress_to_pubkey
-        && *packed_accounts
-            .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
-            .key()
-            != *token_account_pubkey
-    {
-        msg!(
-            "compress_to_pubkey: packed_accounts owner {:?} should match token_account_pubkey: {:?}",
-            solana_pubkey::Pubkey::new_from_array(
-                *packed_accounts
-                    .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
-                    .key()
-            ),
-            solana_pubkey::Pubkey::new_from_array(*token_account_pubkey)
-        );
-        return Err(ErrorCode::CompressAndCloseInvalidOwner.into());
-    }
+
     // Compression amount must match the output amount
     if compression_amount != compressed_token_account.amount.get() {
         msg!(

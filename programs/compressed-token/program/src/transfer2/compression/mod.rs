@@ -18,7 +18,9 @@ use crate::{
 pub mod ctoken;
 pub mod spl;
 
-pub use ctoken::{close_for_compress_and_close, compress_ctokens, NativeCompressionInputs};
+pub use ctoken::{
+    close_for_compress_and_close, compress_or_decompress_ctokens, CTokenCompressionInputs,
+};
 
 const SPL_TOKEN_ID: &[u8; 32] = &spl_token::ID.to_bytes();
 const SPL_TOKEN_2022_ID: &[u8; 32] = &spl_token_2022::ID.to_bytes();
@@ -33,7 +35,7 @@ pub fn process_token_compression(
     cpi_authority: &AccountInfo,
 ) -> Result<(), ProgramError> {
     if let Some(compressions) = inputs.compressions.as_ref() {
-        // Array to accumulate transfer amounts by account index (max 256 packed accounts)
+        // Array to accumulate transfer amounts by account index (max 40 packed accounts)
         let mut transfer_map = [0u64; 40];
 
         for compression in compressions {
@@ -49,20 +51,28 @@ pub fn process_token_compression(
                     source_or_recipient,
                     packed_accounts,
                 )?,
-                SPL_TOKEN_ID => spl::process_spl_compressions(
-                    compression,
-                    &SPL_TOKEN_ID.to_pubkey_bytes(),
-                    source_or_recipient,
-                    packed_accounts,
-                    cpi_authority,
-                )?,
-                SPL_TOKEN_2022_ID => spl::process_spl_compressions(
-                    compression,
-                    &SPL_TOKEN_2022_ID.to_pubkey_bytes(),
-                    source_or_recipient,
-                    packed_accounts,
-                    cpi_authority,
-                )?,
+                SPL_TOKEN_ID => {
+                    spl::process_spl_compressions(
+                        compression,
+                        &SPL_TOKEN_ID.to_pubkey_bytes(),
+                        source_or_recipient,
+                        packed_accounts,
+                        cpi_authority,
+                    )?;
+                    // SPL token compressions don't require lamport transfers for compressible extension´
+                    None
+                }
+                SPL_TOKEN_2022_ID => {
+                    spl::process_spl_compressions(
+                        compression,
+                        &SPL_TOKEN_2022_ID.to_pubkey_bytes(),
+                        source_or_recipient,
+                        packed_accounts,
+                        cpi_authority,
+                    )?;
+                    // SPL token compressions don't require lamport transfers for compressible extension´
+                    None
+                }
                 _ => {
                     msg!(
                         "source_or_recipient {:?}",
@@ -91,8 +101,8 @@ pub fn process_token_compression(
             }
         }
 
-        // Build rent_return_transfers array from accumulated amounts
-        let rent_return_transfers: ArrayVec<Transfer, 40> = transfer_map
+        // Build rent_return_transfers & top up array from accumulated amounts
+        let transfers: ArrayVec<Transfer, 40> = transfer_map
             .iter()
             .enumerate()
             .filter_map(|(index, &amount)| {
@@ -110,9 +120,8 @@ pub fn process_token_compression(
             })
             .collect::<Result<ArrayVec<Transfer, 40>, ProgramError>>()?;
 
-        // Perform multi-transfer optimization if there are rent_return_transfers
-        if !rent_return_transfers.is_empty() {
-            multi_transfer_lamports(fee_payer, &rent_return_transfers)
+        if !transfers.is_empty() {
+            multi_transfer_lamports(fee_payer, &transfers)
                 .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
         }
     }

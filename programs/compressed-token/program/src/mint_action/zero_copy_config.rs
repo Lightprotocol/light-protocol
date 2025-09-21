@@ -16,7 +16,14 @@ use crate::shared::cpi_bytes_size::{
 #[profile]
 pub fn get_zero_copy_configs(
     parsed_instruction_data: &mut ZMintActionCompressedInstructionData<'_>,
-) -> Result<(InstructionDataInvokeCpiWithReadOnlyConfig, Vec<u8>), ProgramError> {
+) -> Result<
+    (
+        InstructionDataInvokeCpiWithReadOnlyConfig,
+        Vec<u8>,
+        CompressedMintConfig,
+    ),
+    ProgramError,
+> {
     // Generate output config based on final state after all actions (without modifying instruction data)
     let (_, output_extensions_config, _) =
         crate::extensions::process_extensions_config_with_actions(
@@ -100,5 +107,5 @@ pub fn get_zero_copy_configs(
     let config = cpi_bytes_config(input);
     let cpi_bytes = allocate_invoke_with_read_only_cpi_bytes(&config);
 
-    Ok((config, cpi_bytes))
+    Ok((config, cpi_bytes, output_mint_config))
 }

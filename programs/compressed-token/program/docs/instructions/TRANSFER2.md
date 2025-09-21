@@ -244,7 +244,7 @@ When compression processing occurs (in both Path A and Path B):
      - Account deserialization as CToken
      - Mint verification (account mint must match compression mint)
    - **For Compress:**
-     - Validate authority via `verify_and_update_token_account_authority_with_compressed_token`:
+     - Validate authority via `check_authority`:
        - Check authority is signer (error: InvalidSigner)
        - If authority == owner: proceed
        - If authority == delegate: verify delegated amount ≥ compression amount, update delegation

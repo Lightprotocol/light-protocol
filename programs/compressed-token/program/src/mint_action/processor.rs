@@ -42,7 +42,7 @@ pub fn process_mint_action(
         parsed_instruction_data.token_pool_bump,
     )?;
 
-    let (config, mut cpi_bytes) = get_zero_copy_configs(&mut parsed_instruction_data)?;
+    let (config, mut cpi_bytes, _) = get_zero_copy_configs(&mut parsed_instruction_data)?;
     let (mut cpi_instruction_struct, remaining_bytes) =
         InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
             .map_err(ProgramError::from)?;
@@ -78,7 +78,7 @@ pub fn process_mint_action(
     let mint = if parsed_instruction_data.create_mint() {
         process_create_mint_action(
             &parsed_instruction_data,
-            &validated_accounts
+            validated_accounts
                 .mint_signer
                 .ok_or(CTokenError::ExpectedMintSignerAccount)
                 .map_err(|_| ErrorCode::MintActionMissingExecutingAccounts)?

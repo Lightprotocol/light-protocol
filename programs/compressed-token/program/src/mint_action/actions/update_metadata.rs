@@ -109,11 +109,11 @@ pub fn process_update_metadata_authority_action(
     )?;
 
     let new_authority = if action.new_authority.to_bytes() == [0u8; 32] {
-        None
+        Pubkey::default()
     } else {
-        Some(action.new_authority)
+        action.new_authority
     };
-    metadata.update_authority = new_authority.unwrap_or_else(|| Pubkey::default());
+    metadata.update_authority = new_authority;
     Ok(())
 }
 

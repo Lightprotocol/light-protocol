@@ -44,7 +44,7 @@ pub fn process_output_compressed_account<'a>(
             .data
             .as_mut()
             .ok_or(ErrorCode::MintActionOutputSerializationFailed)?;
-        // TODO: bench vs ArrayVec 1024
+
         let data = compressed_mint
             .try_to_vec()
             .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;

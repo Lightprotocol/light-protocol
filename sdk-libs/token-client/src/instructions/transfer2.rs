@@ -253,7 +253,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     )?;
                 } else {
                     // Regular compression for compressed token accounts
-                    token_account.compress(input.amount, source_index, authority_index)?;
+                    token_account.compress_ctoken(input.amount, source_index, authority_index)?;
                 }
                 token_accounts.push(token_account);
             }
@@ -325,7 +325,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     )?;
                 } else {
                     // Use the new SPL-specific decompress method
-                    token_account.decompress(input.decompress_amount, recipient_index)?;
+                    token_account.decompress_ctoken(input.decompress_amount, recipient_index)?;
                 }
 
                 out_lamports.push(

@@ -35,7 +35,7 @@ pub struct CompressToPubkey {
 
 impl CompressToPubkey {
     pub fn check_seeds(&self, pubkey: &Pubkey) -> Result<(), CTokenError> {
-        let mut references = ArrayVec::<&[u8], 16>::new();
+        let mut references = ArrayVec::<&[u8], { MAX_SEEDS }>::new();
         for seed in self.seeds.iter() {
             references.push(seed.as_slice());
         }

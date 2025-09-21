@@ -13,17 +13,9 @@ fn sum_inputs(
     inputs: &[ZMultiInputTokenDataWithContext],
     mint_sums: &mut ArrayVec<(u8, u64), 5>,
 ) -> Result<(), ErrorCode> {
-    let mut prev_mint_index = 0u8;
-    for (i, input) in inputs.iter().enumerate() {
-        let mint_index = input.mint;
-
-        // Validate incremental order
-        if i > 0 && mint_index < prev_mint_index {
-            return Err(ErrorCode::InputsOutOfOrder);
-        }
-
+    for input in inputs.iter() {
         // Find or create mint entry
-        if let Some(entry) = mint_sums.iter_mut().find(|(idx, _)| *idx == mint_index) {
+        if let Some(entry) = mint_sums.iter_mut().find(|(idx, _)| *idx == input.mint) {
             entry.1 = entry
                 .1
                 .checked_add(input.amount.into())
@@ -32,10 +24,8 @@ fn sum_inputs(
             if mint_sums.is_full() {
                 return Err(ErrorCode::TooManyMints);
             }
-            mint_sums.push((mint_index, input.amount.into()));
+            mint_sums.push((input.mint, input.amount.into()));
         }
-
-        prev_mint_index = mint_index;
     }
     Ok(())
 }

@@ -1,8 +1,9 @@
+use std::panic::Location;
+
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_compressed_account::Pubkey;
 use spl_pod::solana_msg::msg;
-use std::panic::Location;
 
 /// Universal authority validation function for all authority types
 /// Uses #[track_caller] to provide better error messages with source location

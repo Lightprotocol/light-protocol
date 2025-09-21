@@ -88,6 +88,7 @@ impl CpiConfigInput {
         }
     }
 }
+
 // TODO: generalize and move the light-compressed-account
 // TODO: add version of this function with hardcoded values that just calculates the cpi_byte_size, with a randomized test vs this function
 #[profile]
@@ -138,7 +139,7 @@ pub fn cpi_bytes_config(input: CpiConfigInput) -> InstructionDataInvokeCpiWithRe
 pub fn allocate_invoke_with_read_only_cpi_bytes(
     config: &InstructionDataInvokeCpiWithReadOnlyConfig,
 ) -> Vec<u8> {
-    let vec_len = InstructionDataInvokeCpiWithReadOnly::byte_len(config).unwrap();
+    let vec_len = InstructionDataInvokeCpiWithReadOnly::byte_len(config).unwrap(); // TODO: throw error
     let mut cpi_bytes = vec![0u8; vec_len + 8];
     cpi_bytes[0..8]
         .copy_from_slice(light_system_program::instruction::InvokeCpiWithReadOnly::DISCRIMINATOR);

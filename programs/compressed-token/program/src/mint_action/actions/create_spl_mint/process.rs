@@ -12,7 +12,6 @@ use super::{
 };
 use crate::mint_action::accounts::MintActionAccounts;
 
-/// Helper function for processing CreateSplMint action
 #[profile]
 pub fn process_create_spl_mint_action(
     create_spl_action: &ZCreateSplMintAction<'_>,

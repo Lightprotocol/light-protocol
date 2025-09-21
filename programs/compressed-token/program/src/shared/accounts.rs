@@ -17,9 +17,7 @@ impl<'info> CpiContextLightSystemAccounts<'info> {
 
     #[track_caller]
     #[inline(always)]
-    pub fn validate_and_parse(
-        iter: &mut AccountIterator<'info, AccountInfo>,
-    ) -> Result<Self, ProgramError> {
+    pub fn new(iter: &mut AccountIterator<'info, AccountInfo>) -> Result<Self, ProgramError> {
         Ok(Self {
             fee_payer: iter.next_signer_mut("fee_payer")?,
             cpi_authority_pda: iter.next_account("cpi_authority_pda")?,
@@ -64,11 +62,11 @@ impl<'info> LightSystemAccounts<'info> {
     ) -> Result<Self, ProgramError> {
         Ok(Self {
             fee_payer: iter.next_signer_mut("fee_payer")?,
-            cpi_authority_pda: iter.next_account("cpi_authority_pda")?,
-            registered_program_pda: iter.next_account("registered_program_pda")?,
-            account_compression_authority: iter.next_account("account_compression_authority")?,
-            account_compression_program: iter.next_account("account_compression_program")?,
-            system_program: iter.next_account("system_program")?,
+            cpi_authority_pda: iter.next_non_mut("cpi_authority_pda")?,
+            registered_program_pda: iter.next_non_mut("registered_program_pda")?,
+            account_compression_authority: iter.next_non_mut("account_compression_authority")?,
+            account_compression_program: iter.next_non_mut("account_compression_program")?,
+            system_program: iter.next_non_mut("system_program")?,
             sol_pool_pda: iter.next_option("sol_pool_pda", with_sol_pool)?,
             sol_decompression_recipient: iter
                 .next_option("sol_decompression_recipient", decompress_sol)?,

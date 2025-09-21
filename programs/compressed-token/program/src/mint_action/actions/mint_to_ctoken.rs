@@ -10,7 +10,7 @@ use spl_pod::solana_msg::msg;
 use crate::{
     mint_action::{accounts::MintActionAccounts, check_authority},
     shared::mint_to_token_pool,
-    transfer2::compression::{compress_ctokens, NativeCompressionInputs},
+    transfer2::compression::{compress_or_decompress_ctokens, CTokenCompressionInputs},
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -47,8 +47,8 @@ pub fn process_mint_to_ctoken_action(
         packed_accounts.get_u8(action.recipient.account_index, "ctoken mint to recipient")?;
 
     // Authority check now performed above - safe to proceed with decompression
-    // Use the decompress_only constructor for simple decompression operations
-    let inputs = NativeCompressionInputs::decompress_only(
+    // Use the mint_ctokens constructor for simple decompression operations
+    let inputs = CTokenCompressionInputs::mint_ctokens(
         amount,
         mint.to_bytes(),
         token_account_info,
@@ -56,7 +56,7 @@ pub fn process_mint_to_ctoken_action(
     );
     // For mint_to_ctoken, we don't need to handle lamport transfers
     // as there's no compressible extension on the target account
-    compress_ctokens(inputs)?;
+    compress_or_decompress_ctokens(inputs)?;
     Ok(())
 }
 

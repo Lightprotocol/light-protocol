@@ -127,6 +127,7 @@ fn test_rnd_create_compressed_mint_account() {
         let mint_action_data = MintActionCompressedInstructionData {
             create_mint: false, // We're testing with existing mint
             mint_bump: 0,
+            read_only_address_trees: [0u8; 4],
             leaf_index,
             prove_by_index,
             root_index,
@@ -145,7 +146,8 @@ fn test_rnd_create_compressed_mint_account() {
             MintActionCompressedInstructionData::zero_copy_at(&serialized_data).unwrap();
 
         // Step 5: Use current get_zero_copy_configs API
-        let (config, mut cpi_bytes) = get_zero_copy_configs(&mut parsed_instruction_data).unwrap();
+        let (config, mut cpi_bytes, output_mint_config) =
+            get_zero_copy_configs(&mut parsed_instruction_data).unwrap();
 
         let (mut cpi_instruction_struct, _) =
             InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
@@ -249,7 +251,7 @@ fn test_rnd_create_compressed_mint_account() {
         }
 
         // Test 5: Test the CPI allocation is correct
-        let expected_mint_size = CompressedMint::byte_len(&mint_size_config).unwrap();
+        let expected_mint_size = CompressedMint::byte_len(&output_mint_config).unwrap();
         let output_account = &cpi_instruction_struct.output_compressed_accounts[0];
         let compressed_account_data = output_account
             .compressed_account

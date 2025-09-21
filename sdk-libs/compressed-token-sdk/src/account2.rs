@@ -196,7 +196,7 @@ impl CTokenAccount2 {
 
     // TODO: consider this might be confusing because it must not be used in combination with fn compress()
     #[profile]
-    pub fn compress(
+    pub fn compress_ctoken(
         &mut self,
         amount: u64,
         source_or_recipient_index: u8,
@@ -208,7 +208,7 @@ impl CTokenAccount2 {
         }
 
         self.output.amount += amount;
-        self.compression = Some(Compression::compress(
+        self.compression = Some(Compression::compress_ctoken(
             amount,
             self.output.mint,
             source_or_recipient_index,
@@ -251,7 +251,11 @@ impl CTokenAccount2 {
 
     // TODO: consider this might be confusing because it must not be used in combination with fn decompress()
     #[profile]
-    pub fn decompress(&mut self, amount: u64, source_index: u8) -> Result<(), TokenSdkError> {
+    pub fn decompress_ctoken(
+        &mut self,
+        amount: u64,
+        source_index: u8,
+    ) -> Result<(), TokenSdkError> {
         // Check if there's already a compression set
         if self.compression.is_some() {
             return Err(TokenSdkError::CompressionCannotBeSetTwice);
@@ -262,7 +266,7 @@ impl CTokenAccount2 {
         }
         self.output.amount -= amount;
 
-        self.compression = Some(Compression::decompress(
+        self.compression = Some(Compression::decompress_ctoken(
             amount,
             self.output.mint,
             source_index,
@@ -357,7 +361,7 @@ impl CTokenAccount2 {
         self.output.amount += amount;
 
         // Use the compress_and_close method from Compression
-        self.compression = Some(Compression::compress_and_close(
+        self.compression = Some(Compression::compress_and_close_ctoken(
             amount,
             self.output.mint,
             source_or_recipient_index,

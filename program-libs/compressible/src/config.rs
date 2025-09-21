@@ -9,9 +9,9 @@ pub const COMPRESSIBLE_CONFIG_SEED: &[u8] = b"compressible_config";
 #[derive(Debug, PartialEq)]
 #[repr(u8)]
 pub enum CompressibleConfigState {
-    InActive,
+    Inactive,
     Active,
-    Depreacted,
+    Deprecated,
 }
 
 impl TryFrom<u8> for CompressibleConfigState {
@@ -19,9 +19,9 @@ impl TryFrom<u8> for CompressibleConfigState {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         match value {
-            0 => Ok(CompressibleConfigState::InActive),
+            0 => Ok(CompressibleConfigState::Inactive),
             1 => Ok(CompressibleConfigState::Active),
-            2 => Ok(CompressibleConfigState::Depreacted),
+            2 => Ok(CompressibleConfigState::Deprecated),
             _ => Err(CompressibleError::InvalidState(value)),
         }
     }
@@ -74,7 +74,7 @@ impl CompressibleConfig {
     /// Validates that the config is not inactive (can be used for new account creation)
     pub fn validate_not_inactive(&self) -> Result<(), CompressibleError> {
         let state = CompressibleConfigState::try_from(self.state)?;
-        if state == CompressibleConfigState::InActive {
+        if state == CompressibleConfigState::Inactive {
             return Err(CompressibleError::InvalidState(self.state));
         }
         Ok(())

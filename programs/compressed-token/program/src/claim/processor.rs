@@ -1,3 +1,4 @@
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{AccountInfoTrait, AccountIterator};
 use light_compressible::{config::CompressibleConfig, rent::get_rent_exemption_lamports};
@@ -8,10 +9,10 @@ use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
 use spl_pod::solana_msg::msg;
 
 use crate::{create_token_account::parse_config_account, shared::transfer_lamports};
-
+// TODO: refactor into file instead of dir
 /// Accounts required for the claim instruction
 pub struct ClaimAccounts<'a> {
-    /// The pool PDA that receives the claimed rent
+    /// The rent_sponsor PDA that receives the claimed rent
     pub rent_sponsor: &'a AccountInfo,
     /// The rent authority (must be signer)
     pub compression_authority: &'a AccountInfo,
@@ -21,12 +22,9 @@ pub struct ClaimAccounts<'a> {
 
 impl<'a> ClaimAccounts<'a> {
     #[inline(always)]
-    pub fn validate_and_parse(
-        accounts: &'a [AccountInfo],
-        pool_pda_bump: u8,
-    ) -> Result<Self, ProgramError> {
+    pub fn validate_and_parse(accounts: &'a [AccountInfo]) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
-        let rent_sponsor = iter.next_mut("pool_pda")?;
+        let rent_sponsor = iter.next_mut("rent_sponsor")?;
         let compression_authority = iter.next_signer("compression_authority")?;
         let config = iter.next_non_mut("compressible config")?;
 
@@ -40,11 +38,11 @@ impl<'a> ClaimAccounts<'a> {
 
         if *config_account.compression_authority.as_array() != *compression_authority.key() {
             msg!("invalid rent authority");
-            return Err(ProgramError::InvalidSeeds);
+            return Err(ErrorCode::InvalidCompressAuthority.into());
         }
         if *config_account.rent_sponsor.as_array() != *rent_sponsor.key() {
-            msg!("Invalid pool PDA derivation with bump {}", pool_pda_bump);
-            return Err(ProgramError::InvalidSeeds);
+            msg!("Invalid rent sponsor PDA"); // TODO: add custom error
+            return Err(ErrorCode::InvalidCompressAuthority.into());
         }
 
         Ok(Self {
@@ -62,16 +60,13 @@ pub fn process_claim(
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     // Parse bump from instruction data
-    if instruction_data.is_empty() {
-        msg!("Missing pool PDA bump in instruction data");
+    if !instruction_data.is_empty() {
+        msg!("Instruction data must be empty.");
         return Err(ProgramError::InvalidInstructionData);
     }
-    let pool_pda_bump = *instruction_data
-        .first()
-        .ok_or(ProgramError::InvalidInstructionData)?;
 
     // Validate and get accounts
-    let accounts = ClaimAccounts::validate_and_parse(account_infos, pool_pda_bump)?;
+    let accounts = ClaimAccounts::validate_and_parse(account_infos)?;
 
     let current_slot = pinocchio::sysvars::clock::Clock::get()
         .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?
@@ -110,12 +105,13 @@ fn validate_and_claim(
     if let Some(extensions) = compressed_token.extensions.as_mut() {
         for extension in extensions {
             if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
+                // TODO: extract
                 if compressible_ext.compression_authority != *accounts.compression_authority.key() {
                     msg!("Rent authority mismatch");
                     return Ok(None);
                 }
                 if compressible_ext.rent_sponsor != *accounts.rent_sponsor.key() {
-                    msg!("Pool PDA does not match rent recipient");
+                    msg!("Rent sponsor PDA does not match rent recipient");
                     return Ok(None);
                 }
 

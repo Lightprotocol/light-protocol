@@ -1,5 +1,4 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use arrayvec::ArrayVec;
 use borsh::BorshSerialize;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_ctoken_types::{
@@ -26,8 +25,9 @@ pub fn create_input_compressed_mint_account(
     merkle_context: PackedMerkleContext,
 ) -> Result<CompressedMint, ProgramError> {
     let compressed_mint = CompressedMint::try_from(&mint_instruction_data.mint)?;
-    let mut bytes = ArrayVec::<u8, 1024>::new();
-    compressed_mint.serialize(&mut bytes)?;
+    let bytes = compressed_mint
+        .try_to_vec()
+        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
     let input_data_hash = Sha256BE::hash(bytes.as_slice())?;
 
     // 2. Set InAccount fields

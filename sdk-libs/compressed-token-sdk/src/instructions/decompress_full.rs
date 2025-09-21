@@ -68,7 +68,7 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
         )?;
 
         // Set up decompress_full - decompress entire balance to destination ctoken account
-        token_account.decompress(idx.source.amount, idx.destination_index)?;
+        token_account.decompress_ctoken(idx.source.amount, idx.destination_index)?;
         token_accounts.push(token_account);
     }
 

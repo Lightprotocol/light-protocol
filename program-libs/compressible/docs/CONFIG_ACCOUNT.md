@@ -14,7 +14,7 @@ Configuration account that defines compressible ctoken solana account behavior i
 #[repr(C)]
 pub struct CompressibleConfig {
     pub version: u16,                    // 2 bytes - Config version for future upgrades
-    pub state: u8,                        // 1 byte - State: 0=InActive, 1=Active, 2=Deprecated
+    pub state: u8,                        // 1 byte - State: 0=Inactive, 1=Active, 2=Deprecated
     pub bump: u8,                         // 1 byte - PDA bump seed
     pub update_authority: Pubkey,        // 32 bytes - Can update config state
     pub withdrawal_authority: Pubkey,    // 32 bytes - Can withdraw from rent recipient pool
@@ -64,7 +64,7 @@ let v1_pda = CompressibleConfig::ctoken_v1_config_pda();
 
 **State Validation Methods:**
 - `validate_active()` - Requires state == Active (for new account creation)
-- `validate_not_inactive()` - Requires state != InActive (for claims/closing)
+- `validate_not_inactive()` - Requires state != Inactive (for claims/closing)
 
 ### Associated Instructions
 
@@ -124,7 +124,7 @@ let config = CompressibleConfig::try_deserialize(&mut &account_data[..])?;
 - Config state determines instruction availability:
   - Active: All operations allowed
   - Deprecated: No new account creation, existing operations continue
-  - InActive: Config cannot be used
+  - Inactive: Config cannot be used
 
 ### Default Values
 ```rust
@@ -146,7 +146,7 @@ address_space[0] = pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK")
 
 **State Validation:**
 - `validate_active()` - Ensures config is Active (for account creation)
-- `validate_not_inactive()` - Ensures config is not InActive (for operations)
+- `validate_not_inactive()` - Ensures config is not Inactive (for operations)
 
 **Constructors:**
 - `ctoken_v1(update, withdrawal)` - V1 config with default rent params

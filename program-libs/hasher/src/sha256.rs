@@ -67,12 +67,10 @@ impl Hasher for Sha256BE {
     }
 
     fn zero_bytes() -> ZeroBytes {
-        // TODO: regenerate
-        ZERO_BYTES
+        unimplemented!()
     }
 
     fn zero_indexed_leaf() -> [u8; 32] {
-        // TODO: regenerate
-        ZERO_INDEXED_LEAF
+        unimplemented!()
     }
 }

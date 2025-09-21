@@ -38,17 +38,17 @@ let rent = solana_program::rent::Rent::get()
 **Description:** The CompressibleConfig account has an invalid state value for the requested operation.
 
 **Common Causes:**
-- Attempting to create new accounts with a config in `Deprecated` or `InActive` state
-- Using an `InActive` config for any operation (claim, withdraw, compress & close)
+- Attempting to create new accounts with a config in `Deprecated` or `Inactive` state
+- Using an `Inactive` config for any operation (claim, withdraw, compress & close)
 - Config state field contains an unrecognized value (not 0, 1, or 2)
 
 **Resolution:**
 - For account creation: Ensure config state is `Active` (1)
-- For other operations: Ensure config state is not `InActive` (0)
+- For other operations: Ensure config state is not `Inactive` (0)
 - Contact the config update authority to activate the config if needed
 
 **State Values:**
-- `0` - InActive: Config cannot be used
+- `0` - Inactive: Config cannot be used
 - `1` - Active: All operations allowed
 - `2` - Deprecated: No new accounts, existing operations continue
 
@@ -57,8 +57,8 @@ let rent = solana_program::rent::Rent::get()
 // Account creation requires Active state
 config.validate_active()  // Fails with InvalidState if not Active
 
-// Operations require not InActive
-config.validate_not_inactive()  // Fails with InvalidState if InActive
+// Operations require not Inactive
+config.validate_not_inactive()  // Fails with InvalidState if Inactive
 ```
 
 ## Error Conversions

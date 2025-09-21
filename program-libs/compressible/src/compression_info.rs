@@ -99,6 +99,7 @@ macro_rules! impl_is_compressible {
                 current_lamports: u64,
                 lamports_per_write: u32,
             ) -> Result<u64, CompressibleError> {
+                // TODO: unify with calculate_rent_and_balance
                 let rent_exemption_lamports = get_rent_exemption_lamports(bytes)?;
                 let base_rent: u64 = self.rent_config.base_rent.into();
                 let lamports_per_byte_per_epoch: u64 =

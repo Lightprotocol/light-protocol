@@ -179,7 +179,7 @@ pub fn process_four_transfer2<'info>(
             output_tree_index,
         );
         token_account_compress
-            .compress(
+            .compress_ctoken(
                 four_invokes_params.compress_1.amount,
                 four_invokes_params.compress_1.solana_token_account,
                 four_invokes_params.compress_1.authority,

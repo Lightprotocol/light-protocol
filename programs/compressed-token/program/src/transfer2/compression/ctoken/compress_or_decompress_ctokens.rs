@@ -14,17 +14,19 @@ use pinocchio::{
 };
 use spl_pod::solana_msg::msg;
 
-use super::{compress_and_close::process_compress_and_close, inputs::NativeCompressionInputs};
-use crate::shared::owner_validation::verify_and_update_token_account_authority_with_compressed_token;
+use super::{compress_and_close::process_compress_and_close, inputs::CTokenCompressionInputs};
+use crate::shared::owner_validation::check_ctoken_owner;
 
 /// Perform compression/decompression on a ctoken account
 #[profile]
-pub fn compress_ctokens(inputs: NativeCompressionInputs) -> Result<Option<u64>, ProgramError> {
-    let NativeCompressionInputs {
+pub fn compress_or_decompress_ctokens(
+    inputs: CTokenCompressionInputs,
+) -> Result<Option<u64>, ProgramError> {
+    let CTokenCompressionInputs {
         authority,
         compress_and_close_inputs,
         amount,
-        mint,
+        mint, // from compression, is used in sumcheck to associate the amount with the correct mint.
         token_account_info,
         mode,
         packed_accounts,
@@ -65,11 +67,7 @@ pub fn compress_ctokens(inputs: NativeCompressionInputs) -> Result<Option<u64>, 
         ZCompressionMode::Compress => {
             // Verify authority for compression operations and update delegated amount if needed
             let authority_account = authority.ok_or(ErrorCode::InvalidCompressAuthority)?;
-            verify_and_update_token_account_authority_with_compressed_token(
-                &mut ctoken,
-                authority_account,
-                amount,
-            )?;
+            check_ctoken_owner(&mut ctoken, authority_account)?;
 
             // Compress: subtract from solana account
             // Update the balance in the ctoken solana account

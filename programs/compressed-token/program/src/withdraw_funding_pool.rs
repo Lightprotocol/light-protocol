@@ -1,11 +1,11 @@
-use anchor_lang::{prelude::ProgramError, solana_program::system_instruction};
+use anchor_lang::prelude::ProgramError;
 use light_account_checks::{AccountInfoTrait, AccountIterator};
 use light_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},
-    program::invoke_signed,
 };
+use pinocchio_system::instructions::Transfer;
 use spl_pod::solana_msg::msg;
 
 use crate::create_token_account::parse_config_account;
@@ -98,23 +98,6 @@ pub fn process_withdraw_funding_pool(
         return Err(ProgramError::InsufficientFunds);
     }
 
-    // Create system transfer instruction
-    let transfer_ix = system_instruction::transfer(
-        &solana_pubkey::Pubkey::new_from_array(*accounts.rent_sponsor.key()),
-        &solana_pubkey::Pubkey::new_from_array(*accounts.destination.key()),
-        amount,
-    );
-
-    // Convert to pinocchio instruction format
-    let pinocchio_ix = pinocchio::instruction::Instruction {
-        program_id: accounts.system_program.key(),
-        accounts: &[
-            pinocchio::instruction::AccountMeta::writable_signer(accounts.rent_sponsor.key()),
-            pinocchio::instruction::AccountMeta::writable(accounts.destination.key()),
-        ],
-        data: &transfer_ix.data,
-    };
-
     // Prepare seeds for invoke_signed - the pool PDA is derived from [b"pool", compression_authority]
     let bump_bytes = [rent_sponsor_bump];
     let seed_array = [
@@ -124,13 +107,13 @@ pub fn process_withdraw_funding_pool(
     ];
     let signer = Signer::from(&seed_array);
 
-    // Invoke the system program to transfer lamports with PDA as signer
-    invoke_signed(
-        &pinocchio_ix,
-        &[accounts.rent_sponsor, accounts.destination],
-        &[signer],
-    )
-    .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+    let transfer = Transfer {
+        from: accounts.rent_sponsor,
+        to: accounts.destination,
+        lamports: amount,
+    };
 
-    Ok(())
+    transfer
+        .invoke_signed(&[signer])
+        .map_err(|e| ProgramError::Custom(u64::from(e) as u32 + 6000))
 }

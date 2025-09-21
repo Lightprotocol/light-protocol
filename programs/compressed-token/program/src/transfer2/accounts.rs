@@ -2,7 +2,6 @@ use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_profiler::profile;
-use light_sdk_types::ACCOUNT_COMPRESSION_PROGRAM_ID;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 
@@ -14,6 +13,10 @@ use crate::{
     transfer2::config::Transfer2Config,
 };
 
+/// 3 Scenarios:
+/// 1. Some compressed accounts
+/// 2. Some compressed accounts and write to cpi context account.
+/// 3. no compressed accounts.
 pub struct Transfer2Accounts<'info> {
     //_light_system_program: &'info AccountInfo,
     pub system: Option<LightSystemAccounts<'info>>,
@@ -34,44 +37,52 @@ impl<'info> Transfer2Accounts<'info> {
         config: &Transfer2Config,
     ) -> Result<Self, ProgramError> {
         let mut iter = AccountIterator::new(accounts);
-        // Unused, just for readability
-        let _light_system_program =
-            iter.next_option("light_system_program", !config.no_compressed_accounts)?;
-        let system = if config.cpi_context_write_required || config.no_compressed_accounts {
-            None
+
+        if config.no_compressed_accounts {
+            let compressions_only_cpi_authority_pda =
+                iter.next_account("compressions only cpi authority pda")?;
+            let compressions_only_fee_payer = iter.next_signer("compressions only fee payer")?;
+            Ok(Transfer2Accounts {
+                compressions_only_fee_payer: Some(compressions_only_fee_payer),
+                compressions_only_cpi_authority_pda: Some(compressions_only_cpi_authority_pda),
+                packed_accounts: ProgramPackedAccounts {
+                    accounts: iter.remaining()?,
+                },
+                system: None,
+                write_to_cpi_context_system: None,
+            })
+        } else if config.cpi_context_write_required {
+            // Unused, just for readability and cpi
+            let _light_system_program = iter.next_non_mut("light_system_program")?;
+            Ok(Transfer2Accounts {
+                system: None,
+                write_to_cpi_context_system: Some(CpiContextLightSystemAccounts::new(&mut iter)?),
+                compressions_only_fee_payer: None,
+                compressions_only_cpi_authority_pda: None,
+                packed_accounts: ProgramPackedAccounts {
+                    accounts: iter.remaining()?,
+                },
+            })
         } else {
-            Some(LightSystemAccounts::validate_and_parse(
+            // Unused, just for readability and cpi
+            let _light_system_program = iter.next_non_mut("light_system_program")?;
+            let system = LightSystemAccounts::validate_and_parse(
                 &mut iter,
                 config.sol_pool_required,
                 config.sol_decompression_required,
                 config.cpi_context_required,
-            )?)
-        };
-        let write_to_cpi_context_system =
-            if config.cpi_context_write_required && !config.no_compressed_accounts {
-                Some(CpiContextLightSystemAccounts::validate_and_parse(
-                    &mut iter,
-                )?)
-            } else {
-                None
-            };
-        let compressions_only_cpi_authority_pda = iter.next_option(
-            "compressions only cpi authority pda",
-            config.no_compressed_accounts,
-        )?;
-        let compressions_only_fee_payer =
-            iter.next_option("compressions only fee payer", config.no_compressed_accounts)?;
-        // Extract remaining accounts slice for dynamic indexing
-        let packed_accounts = iter.remaining()?;
-        Ok(Transfer2Accounts {
-            system,
-            write_to_cpi_context_system,
-            compressions_only_fee_payer,
-            compressions_only_cpi_authority_pda,
-            packed_accounts: ProgramPackedAccounts {
-                accounts: packed_accounts,
-            },
-        })
+            )?;
+
+            Ok(Transfer2Accounts {
+                system: Some(system),
+                write_to_cpi_context_system: None,
+                compressions_only_fee_payer: None,
+                compressions_only_cpi_authority_pda: None,
+                packed_accounts: ProgramPackedAccounts {
+                    accounts: iter.remaining()?,
+                },
+            })
+        }
     }
 
     /// Calculate static accounts count after skipping index 0 (system accounts only)
@@ -109,7 +120,7 @@ impl<'info> Transfer2Accounts<'info> {
         // Calculate static accounts count after skipping index 0 (system accounts only)
         let static_accounts_count = self.static_accounts_count()?;
 
-        // Include static CPI accounts + tree accounts based on highest tree index
+        // Include static CPI accounts + tree accounts
         let cpi_accounts_end = 1 + static_accounts_count + tree_accounts.len();
         if all_accounts.len() < cpi_accounts_end {
             msg!(
@@ -119,13 +130,13 @@ impl<'info> Transfer2Accounts<'info> {
             );
             return Err(ProgramError::NotEnoughAccountKeys);
         }
+        // Exclude light system program in index 0.
         let cpi_accounts_slice = &all_accounts[1..cpi_accounts_end];
 
         Ok((cpi_accounts_slice, tree_accounts))
     }
 }
 
-// TODO: unit test.
 /// Extract tree accounts by finding the highest tree index and using it as closing offset
 #[profile]
 #[inline(always)]
@@ -134,7 +145,10 @@ pub fn extract_tree_accounts<'info>(
 ) -> Vec<&'info Pubkey> {
     let mut tree_accounts = Vec::with_capacity(8);
     for account_info in packed_accounts.accounts {
-        if account_info.is_owned_by(&ACCOUNT_COMPRESSION_PROGRAM_ID) {
+        // As heuristic which accounts are tree or queue accounts we
+        // check that the first 8 bytes of the account compression program
+        // equal the first 8 bytes of the account owner.
+        if account_info.owner()[0..8] == [9, 44, 54, 236, 34, 245, 23, 131] {
             tree_accounts.push(account_info.key());
         }
     }

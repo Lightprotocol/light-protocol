@@ -78,8 +78,7 @@ impl<'info> MintActionAccounts<'info> {
         // Authority is always required to sign
         let authority = iter.next_signer("authority")?;
         if config.write_to_cpi_context {
-            let write_to_cpi_context_system =
-                CpiContextLightSystemAccounts::validate_and_parse(&mut iter)?;
+            let write_to_cpi_context_system = CpiContextLightSystemAccounts::new(&mut iter)?;
 
             if !iter.iterator_is_empty() {
                 msg!("Too many accounts for write to cpi context.");
@@ -121,58 +120,7 @@ impl<'info> MintActionAccounts<'info> {
             // Only needed for minting to compressed token accounts
             let tokens_out_queue =
                 iter.next_option("tokens_out_queue", config.has_mint_to_actions)?;
-            // Validate token program is SPL Token 2022
-            if let Some(token_program) = token_program {
-                if *token_program.key() != spl_token_2022::ID.to_bytes() {
-                    msg!(
-                        "invalid token program {:?} expected {:?}",
-                        solana_pubkey::Pubkey::new_from_array(*token_program.key()),
-                        spl_token_2022::ID
-                    );
-                    return Err(ProgramError::InvalidAccountData);
-                }
-            }
-            // Validate token pool PDA is correct using provided bump and index
-            if let Some(token_pool_pda) = token_pool_pda {
-                let token_pool_pubkey_solana =
-                    solana_pubkey::Pubkey::new_from_array(*token_pool_pda.key());
-
-                check_spl_token_pool_derivation_with_index(
-                    &token_pool_pubkey_solana,
-                    cmint_pubkey,
-                    token_pool_index,
-                    Some(token_pool_bump),
-                )
-                .map_err(|_| {
-                    msg!(
-                        "invalid token pool PDA {:?} for mint {:?} with index {} and bump {}",
-                        token_pool_pubkey_solana,
-                        cmint_pubkey,
-                        token_pool_index,
-                        token_pool_bump
-                    );
-                    ProgramError::InvalidAccountData
-                })?;
-            }
-            if let Some(mint_account) = mint {
-                // Verify mint account matches expected mint
-                if cmint_pubkey.to_bytes() != *mint_account.key() {
-                    return Err(ErrorCode::MintAccountMismatch.into());
-                }
-            }
-
-            // Validate address merkle tree when creating mint
-            if let Some(address_tree) = address_merkle_tree {
-                if *address_tree.key() != CMINT_ADDRESS_TREE {
-                    msg!(
-                        "Create mint action expects address Merkle tree {:?} received: {:?}",
-                        solana_pubkey::Pubkey::from(CMINT_ADDRESS_TREE),
-                        solana_pubkey::Pubkey::from(*address_tree.key())
-                    );
-                    return Err(ErrorCode::InvalidAddressTree.into());
-                }
-            }
-            Ok(MintActionAccounts {
+            let mint_accounts = MintActionAccounts {
                 mint_signer,
                 light_system_program,
                 authority,
@@ -191,7 +139,10 @@ impl<'info> MintActionAccounts<'info> {
                 packed_accounts: ProgramPackedAccounts {
                     accounts: iter.remaining_unchecked()?,
                 },
-            })
+            };
+            mint_accounts.validate_accounts(cmint_pubkey, token_pool_index, token_pool_bump)?;
+
+            Ok(mint_accounts)
         }
     }
 
@@ -332,6 +283,73 @@ impl<'info> MintActionAccounts<'info> {
         }
         false
     }
+
+    pub fn validate_accounts(
+        &self,
+        cmint_pubkey: &solana_pubkey::Pubkey,
+        token_pool_index: u8,
+        token_pool_bump: u8,
+    ) -> Result<(), ProgramError> {
+        let accounts = self
+            .executing
+            .as_ref()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        // Validate token program is SPL Token 2022
+        if let Some(token_program) = accounts.token_program.as_ref() {
+            if *token_program.key() != spl_token_2022::ID.to_bytes() {
+                msg!(
+                    "invalid token program {:?} expected {:?}",
+                    solana_pubkey::Pubkey::new_from_array(*token_program.key()),
+                    spl_token_2022::ID
+                );
+                return Err(ProgramError::InvalidAccountData);
+            }
+        }
+
+        // Validate token pool PDA is correct using provided bump and index
+        if let Some(token_pool_pda) = accounts.token_pool_pda {
+            let token_pool_pubkey_solana =
+                solana_pubkey::Pubkey::new_from_array(*token_pool_pda.key());
+
+            check_spl_token_pool_derivation_with_index(
+                &token_pool_pubkey_solana,
+                cmint_pubkey,
+                token_pool_index,
+                Some(token_pool_bump),
+            )
+            .map_err(|_| {
+                msg!(
+                    "invalid token pool PDA {:?} for mint {:?} with index {} and bump {}",
+                    token_pool_pubkey_solana,
+                    cmint_pubkey,
+                    token_pool_index,
+                    token_pool_bump
+                );
+                ProgramError::InvalidAccountData
+            })?;
+        }
+
+        if let Some(mint_account) = accounts.mint {
+            // Verify mint account matches expected mint
+            if cmint_pubkey.to_bytes() != *mint_account.key() {
+                return Err(ErrorCode::MintAccountMismatch.into());
+            }
+        }
+
+        // Validate address merkle tree when creating mint
+        if let Some(address_tree) = accounts.address_merkle_tree {
+            if *address_tree.key() != CMINT_ADDRESS_TREE {
+                msg!(
+                    "Create mint action expects address Merkle tree {:?} received: {:?}",
+                    solana_pubkey::Pubkey::from(CMINT_ADDRESS_TREE),
+                    solana_pubkey::Pubkey::from(*address_tree.key())
+                );
+                return Err(ErrorCode::InvalidAddressTree.into());
+            }
+        }
+
+        Ok(())
+    }
 }
 
 /// Config to parse AccountInfos based on instruction data.
@@ -360,6 +378,10 @@ impl AccountsConfig {
     pub fn new(
         parsed_instruction_data: &ZMintActionCompressedInstructionData,
     ) -> Result<AccountsConfig, ProgramError> {
+        if [0u8; 4] != parsed_instruction_data.read_only_address_trees {
+            msg!("read_only_address_trees must be 0");
+            return Err(ProgramError::InvalidInstructionData);
+        }
         // 1.cpi context
         let with_cpi_context = parsed_instruction_data.cpi_context.is_some();
 
@@ -381,7 +403,11 @@ impl AccountsConfig {
         // 1. mint is already decompressed
         // 2. mint is decompressed in this instruction
         let spl_mint_initialized =
-            parsed_instruction_data.mint.metadata.spl_mint_initialized != 0 || create_spl_mint;
+            parsed_instruction_data.mint.metadata.spl_mint_initialized() || create_spl_mint;
+
+        if parsed_instruction_data.mint.metadata.spl_mint_initialized() && create_spl_mint {
+            return Err(ProgramError::InvalidInstructionData);
+        }
 
         if write_to_cpi_context {
             // Must not have any MintToCToken actions
@@ -401,7 +427,7 @@ impl AccountsConfig {
                 .actions
                 .iter()
                 .any(|action| matches!(action, ZAction::MintToCompressed(_)));
-            if spl_mint_initialized {
+            if spl_mint_initialized && has_mint_to_actions {
                 msg!("Mint to compressed not allowed if associated spl mint exists when writing to cpi context");
                 return Err(ErrorCode::CpiContextSetNotUsable.into());
             }

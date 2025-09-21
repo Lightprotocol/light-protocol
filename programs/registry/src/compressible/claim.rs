@@ -35,8 +35,7 @@ pub struct ClaimContext<'info> {
 
 pub fn process_claim<'info>(ctx: &Context<'_, '_, '_, 'info, ClaimContext<'info>>) -> Result<()> {
     // Build instruction data: discriminator (107u8) + pool_pda_bump
-    let mut instruction_data = vec![107u8]; // Claim instruction discriminator
-    instruction_data.push(ctx.accounts.compressible_config.rent_sponsor_bump);
+    let instruction_data = vec![107u8]; // Claim instruction discriminator
 
     // Prepare CPI accounts in the exact order expected by claim processor
     let mut cpi_accounts = vec![

@@ -43,20 +43,15 @@ pub fn process_transfer2(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    msg!("here");
     // Parse instruction data first to determine optional accounts
     let (inputs, _) = CompressedTokenInstructionDataTransfer2::zero_copy_at(instruction_data)
         .map_err(ProgramError::from)?;
-    msg!("here1");
 
     validate_instruction_data(&inputs)?;
-    msg!("here3");
 
     let transfer_config = Transfer2Config::from_instruction_data(&inputs)?;
-    msg!("here4");
 
     let validated_accounts = Transfer2Accounts::validate_and_parse(accounts, &transfer_config)?;
-    msg!("here5");
 
     if transfer_config.no_compressed_accounts {
         // No compressed accounts are invalidated or created in this transaction
@@ -154,17 +149,15 @@ fn process_with_system_program_cpi(
     validated_accounts: &Transfer2Accounts,
     transfer_config: Transfer2Config,
 ) -> Result<(), ProgramError> {
-    msg!("here6");
     // Allocate CPI bytes for zero-copy structure
     let (mut cpi_bytes, config) = allocate_cpi_bytes(inputs);
-    msg!("here7");
 
     // Create zero copy to populate cpi bytes.
     let (mut cpi_instruction_struct, remaining_bytes) =
         InstructionDataInvokeCpiWithReadOnly::new_zero_copy(&mut cpi_bytes[8..], config)
             .map_err(ProgramError::from)?;
     assert!(remaining_bytes.is_empty());
-    msg!("here8");
+
     cpi_instruction_struct.initialize(
         crate::LIGHT_CPI_SIGNER.bump,
         &crate::LIGHT_CPI_SIGNER.program_id.into(),
@@ -190,14 +183,12 @@ fn process_with_system_program_cpi(
         inputs,
         &validated_accounts.packed_accounts,
     )?;
-    msg!("here10");
     sum_check_multi_mint(
         &inputs.in_token_data,
         &inputs.out_token_data,
         inputs.compressions.as_deref(),
     )
     .map_err(|e| ProgramError::Custom(e as u32 + 6000))?;
-    msg!("here11");
 
     if let Some(system_accounts) = validated_accounts.system.as_ref() {
         // Process token compressions/decompressions/close_and_compress
@@ -211,17 +202,7 @@ fn process_with_system_program_cpi(
         // Get CPI accounts slice and tree accounts for light-system-program invocation
         let (cpi_accounts, tree_pubkeys) =
             validated_accounts.cpi_accounts(accounts, &validated_accounts.packed_accounts)?;
-        // Debug prints keep for now.
-        {
-            let _solana_tree_accounts = tree_pubkeys
-                .iter()
-                .map(|&x| solana_pubkey::Pubkey::new_from_array(*x))
-                .collect::<Vec<_>>();
-            let _cpi_accounts = cpi_accounts
-                .iter()
-                .map(|x| solana_pubkey::Pubkey::new_from_array(*x.key()))
-                .collect::<Vec<_>>();
-        }
+
         // Execute CPI call to light-system-program
         execute_cpi_invoke(
             cpi_accounts,

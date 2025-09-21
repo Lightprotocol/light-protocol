@@ -1,6 +1,5 @@
 use anchor_compressed_token::TokenData;
 use anchor_lang::solana_program::program_error::ProgramError;
-use arrayvec::ArrayVec;
 use borsh::BorshSerialize;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_ctoken_types::{
@@ -59,18 +58,26 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
     lamports: u64,
 ) -> std::result::Result<(), ProgramError> {
     // Get owner from remaining accounts using the owner index
-    let owner_account = &accounts[input_token_data.owner as usize];
+    let owner_account = accounts
+        .get(input_token_data.owner as usize)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
     // Verify signer authorization using shared function
     let delegate_account = if input_token_data.has_delegate() {
-        Some(&accounts[input_token_data.delegate as usize])
+        Some(
+            accounts
+                .get(input_token_data.delegate as usize)
+                .ok_or(ProgramError::NotEnoughAccountKeys)?,
+        )
     } else {
         None
     };
 
     let verified_delegate = verify_owner_or_delegate_signer(owner_account, delegate_account)?;
     let token_version = TokenDataVersion::try_from(input_token_data.version)?;
-    let mint_account = &accounts[input_token_data.mint as usize];
+    let mint_account = &accounts
+        .get(input_token_data.mint as usize)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
     let data_hash = {
         match token_version {
@@ -91,9 +98,9 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
                         state: 0, // TODO: double check Initialized state with main
                         tlv: None,
                     };
-                    let mut bytes = ArrayVec::<u8, 200>::new();
-                    token_data.serialize(&mut bytes)?;
-
+                    let bytes = token_data
+                        .try_to_vec()
+                        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
                     Ok(Sha256BE::hash(bytes.as_slice())?)
                 }
 
