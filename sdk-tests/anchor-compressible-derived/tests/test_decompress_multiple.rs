@@ -16,6 +16,7 @@ use light_compressible_client::CompressibleInstruction;
 use light_ctoken_types::instructions::mint_action::{
     CompressedMintInstructionData, CompressedMintWithContext,
 };
+use light_ctoken_types::state::TokenDataVersion;
 use light_macros::pubkey;
 use light_program_test::{
     initialize_compression_config,
@@ -91,17 +92,23 @@ async fn test_create_and_decompress_two_accounts() {
         &program_id,
     );
 
-    let (compressed_token_account, _, compressed_token_account_2) =
-        create_user_record_and_game_session(
-            &mut rpc,
-            &combined_user,
-            &program_id,
-            &config_pda,
-            &combined_user_record_pda,
-            &combined_game_session_pda,
-            combined_session_id,
-        )
-        .await;
+    let (
+        compressed_token_account,
+        _,
+        compressed_token_account_2,
+        compressed_token_account_3,
+        compressed_token_account_4,
+        compressed_token_account_5,
+    ) = create_user_record_and_game_session(
+        &mut rpc,
+        &combined_user,
+        &program_id,
+        &config_pda,
+        &combined_user_record_pda,
+        &combined_game_session_pda,
+        combined_session_id,
+    )
+    .await;
 
     rpc.warp_to_slot(200).unwrap();
 
@@ -112,6 +119,21 @@ async fn test_create_and_decompress_two_accounts() {
 
     let (_, compressed_token_account_address_2) =
         anchor_compressible_derived::get_ctokensigner2_seeds(&combined_user.pubkey());
+
+    let (_, compressed_token_account_address_3) =
+        anchor_compressible_derived::get_ctokensigner3_seeds(&combined_user.pubkey());
+
+    let (_, compressed_token_account_address_4) =
+        anchor_compressible_derived::get_ctokensigner4_seeds(
+            &combined_user.pubkey(),
+            &compressed_token_account.token.mint,
+        );
+
+    let (_, compressed_token_account_address_5) =
+        anchor_compressible_derived::get_ctokensigner5_seeds(
+            &combined_user.pubkey(),
+            &compressed_token_account.token.mint,
+        );
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
@@ -147,9 +169,15 @@ async fn test_create_and_decompress_two_accounts() {
         "Combined Game",
         200,
         compressed_token_account.clone(),
-        compressed_token_account_address, // also the owner of the compressed token account!
+        compressed_token_account_address,
         compressed_token_account_2.clone(),
-        compressed_token_account_address_2, // also the owner of the compressed token account2 !
+        compressed_token_account_address_2,
+        compressed_token_account_3.clone(),
+        compressed_token_account_address_3,
+        compressed_token_account_4.clone(),
+        compressed_token_account_address_4,
+        compressed_token_account_5.clone(),
+        compressed_token_account_address_5,
     )
     .await;
 
@@ -983,6 +1011,12 @@ async fn decompress_multiple_pdas_with_ctoken(
     native_token_account: Pubkey,
     compressed_token_account_2: light_client::indexer::CompressedTokenAccount,
     compressed_token_account_address_2: Pubkey,
+    compressed_token_account_3: light_client::indexer::CompressedTokenAccount,
+    compressed_token_account_address_3: Pubkey,
+    compressed_token_account_4: light_client::indexer::CompressedTokenAccount,
+    compressed_token_account_address_4: Pubkey,
+    compressed_token_account_5: light_client::indexer::CompressedTokenAccount,
+    compressed_token_account_address_5: Pubkey,
 ) {
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
@@ -1015,7 +1049,7 @@ async fn decompress_multiple_pdas_with_ctoken(
     let game_account_data = c_game_pda.data.as_ref().unwrap();
     let c_game_session = GameSession::deserialize(&mut &game_account_data.data[..]).unwrap();
 
-    // Get validity proof for all three compressed accounts
+    // Get validity proof for all 7 compressed accounts (2 PDAs + 5 tokens)
     let rpc_result = rpc
         .get_validity_proof(
             vec![
@@ -1023,6 +1057,9 @@ async fn decompress_multiple_pdas_with_ctoken(
                 c_game_pda.hash,
                 compressed_token_account.clone().account.hash.clone(),
                 compressed_token_account_2.clone().account.hash.clone(),
+                compressed_token_account_3.clone().account.hash.clone(),
+                compressed_token_account_4.clone().account.hash.clone(),
+                compressed_token_account_5.clone().account.hash.clone(),
             ],
             vec![],
             None,
@@ -1050,6 +1087,9 @@ async fn decompress_multiple_pdas_with_ctoken(
                 *game_session_pda,
                 native_token_account,
                 compressed_token_account_address_2,
+                compressed_token_account_address_3,
+                compressed_token_account_address_4,
+                compressed_token_account_address_5,
             ],
             &[
                 // gets packed internally and never unpacked onchain:
@@ -1077,6 +1117,33 @@ async fn decompress_multiple_pdas_with_ctoken(
                     > {
                         variant: CTokenAccountVariant::CTokenSigner2,
                         token_data: compressed_token_account_2.clone().token,
+                    }),
+                ),
+                (
+                    compressed_token_account_3.clone().account,
+                    CompressedAccountVariant::CTokenData(CTokenDataWithVariant::<
+                        CTokenAccountVariant,
+                    > {
+                        variant: CTokenAccountVariant::CTokenSigner3,
+                        token_data: compressed_token_account_3.clone().token,
+                    }),
+                ),
+                (
+                    compressed_token_account_4.clone().account,
+                    CompressedAccountVariant::CTokenData(CTokenDataWithVariant::<
+                        CTokenAccountVariant,
+                    > {
+                        variant: CTokenAccountVariant::CTokenSigner4,
+                        token_data: compressed_token_account_4.clone().token,
+                    }),
+                ),
+                (
+                    compressed_token_account_5.clone().account,
+                    CompressedAccountVariant::CTokenData(CTokenDataWithVariant::<
+                        CTokenAccountVariant,
+                    > {
+                        variant: CTokenAccountVariant::CTokenSigner5,
+                        token_data: compressed_token_account_5.clone().token,
                     }),
                 ),
             ],
@@ -1181,19 +1248,61 @@ async fn decompress_multiple_pdas_with_ctoken(
         expected_slot
     );
 
-    // Verify the native token account has the decompressed tokens
+    // Verify all 5 native token accounts have the decompressed tokens
     let token_account_data = rpc
         .get_account(native_token_account)
         .await
         .unwrap()
         .unwrap();
-    // For now, just verify the account exists and has data
-
     assert!(
         !token_account_data.data.is_empty(),
-        "Token account should have data"
+        "Token account 1 should have data"
     );
     assert_eq!(token_account_data.owner, CTOKEN_PROGRAM_ID.into());
+
+    let token_account_data_2 = rpc
+        .get_account(compressed_token_account_address_2)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        !token_account_data_2.data.is_empty(),
+        "Token account 2 should have data"
+    );
+    assert_eq!(token_account_data_2.owner, CTOKEN_PROGRAM_ID.into());
+
+    let token_account_data_3 = rpc
+        .get_account(compressed_token_account_address_3)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        !token_account_data_3.data.is_empty(),
+        "Token account 3 should have data"
+    );
+    assert_eq!(token_account_data_3.owner, CTOKEN_PROGRAM_ID.into());
+
+    let token_account_data_4 = rpc
+        .get_account(compressed_token_account_address_4)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        !token_account_data_4.data.is_empty(),
+        "Token account 4 should have data"
+    );
+    assert_eq!(token_account_data_4.owner, CTOKEN_PROGRAM_ID.into());
+
+    let token_account_data_5 = rpc
+        .get_account(compressed_token_account_address_5)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(
+        !token_account_data_5.data.is_empty(),
+        "Token account 5 should have data"
+    );
+    assert_eq!(token_account_data_5.owner, CTOKEN_PROGRAM_ID.into());
 
     // Ensure all compressed accounts are now empty (closed)
     let compressed_user_record_data = rpc
@@ -1207,15 +1316,34 @@ async fn decompress_multiple_pdas_with_ctoken(
         .unwrap()
         .value;
 
+    // Verify all 5 compressed token accounts are not found (decompressed)
     rpc.get_compressed_account_by_hash(compressed_token_account.clone().account.hash.clone(), None)
         .await
-        .expect_err("Compressed token account should not be found");
+        .expect_err("Compressed token account 1 should not be found");
     rpc.get_compressed_account_by_hash(
         compressed_token_account_2.clone().account.hash.clone(),
         None,
     )
     .await
-    .expect_err("Compressed token account should not be found");
+    .expect_err("Compressed token account 2 should not be found");
+    rpc.get_compressed_account_by_hash(
+        compressed_token_account_3.clone().account.hash.clone(),
+        None,
+    )
+    .await
+    .expect_err("Compressed token account 3 should not be found");
+    rpc.get_compressed_account_by_hash(
+        compressed_token_account_4.clone().account.hash.clone(),
+        None,
+    )
+    .await
+    .expect_err("Compressed token account 4 should not be found");
+    rpc.get_compressed_account_by_hash(
+        compressed_token_account_5.clone().account.hash.clone(),
+        None,
+    )
+    .await
+    .expect_err("Compressed token account 5 should not be found");
 
     assert!(
         compressed_user_record_data.data.unwrap().data.is_empty(),
@@ -1424,6 +1552,9 @@ async fn create_user_record_and_game_session(
     light_client::indexer::CompressedTokenAccount,
     Pubkey,
     light_client::indexer::CompressedTokenAccount,
+    light_client::indexer::CompressedTokenAccount,
+    light_client::indexer::CompressedTokenAccount,
+    light_client::indexer::CompressedTokenAccount,
 ) {
     let state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
@@ -1549,7 +1680,7 @@ async fn create_user_record_and_game_session(
                         supply: 0,
                         decimals,
                         metadata: light_ctoken_types::state::CompressedMintMetadata {
-                            version: 3,
+                            version: TokenDataVersion::ShaFlat as u8,
                             spl_mint_initialized: false,
                             spl_mint: spl_mint.into(),
                         },
@@ -1653,17 +1784,20 @@ async fn create_user_record_and_game_session(
     assert_eq!(game_session.player, user.pubkey());
     assert_eq!(game_session.score, 0);
 
-    // SAME AS OWNER
-    let token_account_address = anchor_compressible_derived::get_ctokensigner_seeds(
-        &user.pubkey(),
-        &find_spl_mint_address(&mint_signer.pubkey()).0,
-    )
-    .1;
-
+    // Get all 5 token account addresses using the auto-generated functions
+    let mint_address = find_spl_mint_address(&mint_signer.pubkey()).0;
+    let token_account_address =
+        anchor_compressible_derived::get_ctokensigner_seeds(&user.pubkey(), &mint_address).1;
     let token_account_address_2 =
         anchor_compressible_derived::get_ctokensigner2_seeds(&user.pubkey()).1;
+    let token_account_address_3 =
+        anchor_compressible_derived::get_ctokensigner3_seeds(&user.pubkey()).1;
+    let token_account_address_4 =
+        anchor_compressible_derived::get_ctokensigner4_seeds(&user.pubkey(), &mint_address).1;
+    let token_account_address_5 =
+        anchor_compressible_derived::get_ctokensigner5_seeds(&user.pubkey(), &mint_address).1;
 
-    // Fetch the compressed token account that was created during the mint action
+    // Fetch all compressed token accounts that were created during the mint action
     let compressed_token_accounts = rpc
         .get_compressed_token_accounts_by_owner(&token_account_address, None, None)
         .await
@@ -1676,25 +1810,60 @@ async fn create_user_record_and_game_session(
         .unwrap()
         .value;
 
+    let compressed_token_accounts_3 = rpc
+        .get_compressed_token_accounts_by_owner(&token_account_address_3, None, None)
+        .await
+        .unwrap()
+        .value;
+
+    let compressed_token_accounts_4 = rpc
+        .get_compressed_token_accounts_by_owner(&token_account_address_4, None, None)
+        .await
+        .unwrap()
+        .value;
+
+    let compressed_token_accounts_5 = rpc
+        .get_compressed_token_accounts_by_owner(&token_account_address_5, None, None)
+        .await
+        .unwrap()
+        .value;
+
+    // Assert all accounts exist
     assert!(
         !compressed_token_accounts.items.is_empty(),
-        "Should have at least one compressed token account"
+        "Should have at least one compressed token account 1"
     );
-
     assert!(
         !compressed_token_accounts_2.items.is_empty(),
-        "Should have at least one compressed token account"
+        "Should have at least one compressed token account 2"
+    );
+    assert!(
+        !compressed_token_accounts_3.items.is_empty(),
+        "Should have at least one compressed token account 3"
+    );
+    assert!(
+        !compressed_token_accounts_4.items.is_empty(),
+        "Should have at least one compressed token account 4"
+    );
+    assert!(
+        !compressed_token_accounts_5.items.is_empty(),
+        "Should have at least one compressed token account 5"
     );
 
-    // Get the first (and should be only) compressed token account
+    // Get the first (and should be only) compressed token account from each
     let compressed_token_account = compressed_token_accounts.items[0].clone();
-
     let compressed_token_account_2 = compressed_token_accounts_2.items[0].clone();
+    let compressed_token_account_3 = compressed_token_accounts_3.items[0].clone();
+    let compressed_token_account_4 = compressed_token_accounts_4.items[0].clone();
+    let compressed_token_account_5 = compressed_token_accounts_5.items[0].clone();
 
     (
         compressed_token_account,
         mint_signer.pubkey(),
         compressed_token_account_2,
+        compressed_token_account_3,
+        compressed_token_account_4,
+        compressed_token_account_5,
     )
 }
 

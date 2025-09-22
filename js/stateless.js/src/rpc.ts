@@ -129,8 +129,6 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
         : versionedEndpoint('getCompressedTokenAccountsByOwner');
     const propertyToCheck = filterByDelegate ? 'delegate' : 'owner';
 
-    console.log('owner or delegate', ownerOrDelegate.toBase58());
-
     const unsafeRes = await rpcRequest(rpc.compressionApiEndpoint, endpoint, {
         [propertyToCheck]: ownerOrDelegate.toBase58(),
         mint: options.mint?.toBase58(),
@@ -139,8 +137,6 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
     });
     let res;
 
-    console.log('unsafeRes', unsafeRes);
-    console.log('JSON unsafeRes', JSON.stringify(unsafeRes));
     if (featureFlags.isV2()) {
         res = create(
             unsafeRes,
@@ -156,7 +152,6 @@ async function getCompressedTokenAccountsByOwnerOrDelegate(
             ),
         );
     }
-    console.log('res', res);
     if ('error' in res) {
         throw new SolanaJSONRPCError(
             res.error,
@@ -609,6 +604,8 @@ function buildCompressedAccountWithMaybeTokenData(
     if (tokenDataResult === null) {
         return { account: compressedAccount, maybeTokenData: null };
     }
+
+    console.log('tokenDataResult', JSON.stringify(tokenDataResult));
 
     const parsed: TokenData = {
         mint: tokenDataResult.mint,

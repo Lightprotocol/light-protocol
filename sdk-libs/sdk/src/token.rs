@@ -54,7 +54,7 @@ impl Pack for TokenData {
                 0 // Unused when has_delegate is false
             },
             mint: remaining_accounts.insert_or_get_read_only(self.mint),
-            version: 2, // Default version for compressed token accounts
+            version: 3, // TokenDataVersion::ShaFlat. Default version for compressed token accounts
         }
     }
 }

@@ -9,6 +9,7 @@ use light_ctoken_types::{
     instructions::extensions::{
         token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
     },
+    state::TokenDataVersion,
     COMPRESSED_MINT_SEED,
 };
 use solana_instruction::Instruction;
@@ -78,7 +79,7 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
         address_tree_pubkey,
         output_queue,
         extensions,
-        version: 3,
+        version: TokenDataVersion::ShaFlat as u8,
     };
 
     create_compressed_mint(inputs)

@@ -227,25 +227,6 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             i as u8,               // Pass the index in the output array
             idx.destination_index, // destination for user funds
         )?;
-        msg!(
-            "idx.authority: {}",
-            packed_accounts[idx.authority_index as usize].key
-        );
-        msg!(
-            "...as bytes: {:?}",
-            packed_accounts[idx.authority_index as usize].key.to_bytes()
-        );
-
-        msg!(
-            "Created OUTPUT compressed token account with owner: {}",
-            packed_accounts[token_account.output.owner as usize].key
-        );
-        msg!(
-            "...as bytes: {:?}",
-            packed_accounts[token_account.output.owner as usize]
-                .key
-                .to_bytes()
-        );
 
         if rent_sponsor_is_signer {
             packed_account_metas[idx.authority_index as usize].is_signer = true;
@@ -317,8 +298,6 @@ pub fn compress_and_close_ctoken_accounts<'info>(
         return Err(TokenSdkError::InvalidAccountData);
     }
 
-    msg!("explicit_rent_recipient {:?}", explicit_rent_recipient);
-
     // Helper function to find index of a pubkey in packed_accounts using linear search
     // More efficient than HashMap for small arrays in Solana programs
     // Note: We add 1 to account for output_queue being inserted at index 0 later
@@ -368,7 +347,6 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             owner_pubkey
         };
 
-        msg!("rent_sponsor_pubkey {:?}", rent_sponsor_pubkey);
         // Determine rent recipient from extension or use default
         let actual_rent_sponsor = if rent_sponsor_pubkey.is_none() {
             // Check if there's a rent recipient in the compressible extension
@@ -416,7 +394,6 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             &authority,
             &actual_rent_sponsor,
             &destination_pubkey,
-            // &output_queue_pubkey,
         )?;
         indices_vec.push(indices);
     }
@@ -455,28 +432,15 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     remaining_accounts: &[AccountInfo<'info>],
 ) -> Result<(), ProgramError> {
     let mut packed_accounts = Vec::with_capacity(post_system.len() + 4);
-    // packed_accounts.push(fee_payer.clone());
     packed_accounts.extend_from_slice(post_system);
     packed_accounts.push(cpi_authority);
     packed_accounts.push(compressed_token_rent_recipient.clone());
 
-    // Log the owner of each token account being compressed
     for token_account in token_accounts_to_compress {
         let account_data = token_account
             .account_info
             .try_borrow_data()
             .map_err(|_| ProgramError::AccountBorrowFailed)?;
-
-        if let Ok((compressed_token, _)) =
-            light_ctoken_types::state::CToken::zero_copy_at(&account_data)
-        {
-            let owner_pubkey = Pubkey::from(compressed_token.owner.to_bytes());
-            msg!(
-                "Compressing token account: {} with owner: {}",
-                token_account.account_info.key,
-                owner_pubkey
-            );
-        }
     }
 
     let ctoken_infos: Vec<AccountInfo<'info>> = token_accounts_to_compress
@@ -486,7 +450,7 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
 
     let instruction = compress_and_close_ctoken_accounts(
         *fee_payer.key,
-        false, // with_rent_authority
+        false,
         output_queue,
         &ctoken_infos,
         &packed_accounts,
@@ -501,7 +465,6 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     account_infos.push(compressed_token_cpi_authority);
     account_infos.extend_from_slice(&remaining_accounts);
 
-    // seeds (per-token authorities only; cpi_signer no longer required)
     let token_seeds_refs: Vec<Vec<&[u8]>> = token_accounts_to_compress
         .iter()
         .map(|t| t.signer_seeds.iter().map(|v| v.as_slice()).collect())

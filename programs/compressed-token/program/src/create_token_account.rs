@@ -183,7 +183,6 @@ pub fn process_create_token_account(
 
             (Some(*account), Some(*compressible.rent_payer_pda.key()))
         } else {
-            // Rent recipient is fee payer for account creation -> pays rent exemption
             let version_bytes = account.version.to_le_bytes();
             let seeds = &[b"rent_sponsor".as_slice(), version_bytes.as_slice()];
             let config = CreatePdaAccountConfig {
@@ -194,7 +193,6 @@ pub fn process_create_token_account(
                 derivation_program_id: &crate::LIGHT_CPI_SIGNER.program_id,
             };
 
-            // PDA creates account with only rent-exempt balance
             create_pda_account(
                 compressible.rent_payer_pda,
                 accounts.token_account,

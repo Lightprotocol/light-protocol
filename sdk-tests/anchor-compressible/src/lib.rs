@@ -169,7 +169,7 @@ impl ctoken_seed_system::CTokenSeedProvider for CTokenAccountVariant {
             }
             CTokenAccountVariant::CTokenSigner2 => {
                 let seed_1 = ctx.accounts.fee_payer.key().to_bytes();
-                let seeds: &[&[u8]] = &[CTOKEN_SIGNER_SEED.as_bytes(), &seed_1];
+                let seeds: &[&[u8]] = &[b"user_vault", &seed_1];
                 let (pda, bump) =
                     anchor_lang::prelude::Pubkey::find_program_address(seeds, &crate::ID);
                 let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
@@ -177,8 +177,39 @@ impl ctoken_seed_system::CTokenSeedProvider for CTokenAccountVariant {
                 seeds_vec.push(<[_]>::into_vec(Box::new([bump])));
                 (seeds_vec, pda)
             }
-            _ => {
-                panic!("CToken variant not configured with seeds");
+            CTokenAccountVariant::CTokenSigner3 => {
+                let seed_1 = ctx.accounts.fee_payer.key().to_bytes();
+                let seeds: &[&[u8]] = &[POOL_VAULT_SEED.as_bytes(), &seed_1, b"liquidity"];
+                let (pda, bump) =
+                    anchor_lang::prelude::Pubkey::find_program_address(seeds, &crate::ID);
+                let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
+                seeds_vec.extend(seeds.iter().map(|s| s.to_vec()));
+                seeds_vec.push(<[_]>::into_vec(Box::new([bump])));
+                (seeds_vec, pda)
+            }
+            CTokenAccountVariant::CTokenSigner4 => {
+                let seed_1 = ctx.accounts.fee_payer.key().to_bytes();
+                let seed_2 = ctx.accounts.fee_payer.key().to_bytes(); // Use fee_payer as second account
+                let program_id_bytes = crate::ID.to_bytes();
+                let seeds: &[&[u8]] = &[b"multi_account", &seed_1, &seed_2, &program_id_bytes];
+                let (pda, bump) =
+                    anchor_lang::prelude::Pubkey::find_program_address(seeds, &crate::ID);
+                let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
+                seeds_vec.extend(seeds.iter().map(|s| s.to_vec()));
+                seeds_vec.push(<[_]>::into_vec(Box::new([bump])));
+                (seeds_vec, pda)
+            }
+            CTokenAccountVariant::CTokenSigner5 => {
+                let seed_1 = ctx.accounts.fee_payer.key().to_bytes();
+                let seed_2 = ctx.accounts.some_mint.key().to_bytes();
+                let index_bytes = 42u64.to_le_bytes(); // Fixed index for this variant
+                let seeds: &[&[u8]] = &[b"indexed_vault", &seed_1, &seed_2, &index_bytes, b"final"];
+                let (pda, bump) =
+                    anchor_lang::prelude::Pubkey::find_program_address(seeds, &crate::ID);
+                let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
+                seeds_vec.extend(seeds.iter().map(|s| s.to_vec()));
+                seeds_vec.push(<[_]>::into_vec(Box::new([bump])));
+                (seeds_vec, pda)
             }
         }
     }
@@ -189,7 +220,7 @@ declare_id!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
     derive_light_cpi_signer!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 
-// You can implement this for each of your token account derivation paths.
+// CToken signer 1: Classic pattern with user + mint
 pub fn get_ctoken_signer_seeds<'a>(user: &'a Pubkey, mint: &'a Pubkey) -> (Vec<Vec<u8>>, Pubkey) {
     let mut seeds = vec![
         b"ctoken_signer".to_vec(),
@@ -202,9 +233,22 @@ pub fn get_ctoken_signer_seeds<'a>(user: &'a Pubkey, mint: &'a Pubkey) -> (Vec<V
     (seeds, pda)
 }
 
-// Second ctoken signer (no mint) used as alternate token owner PDA
+// CToken signer 2: Simple user vault pattern
 pub fn get_ctoken_signer2_seeds<'a>(user: &'a Pubkey) -> (Vec<Vec<u8>>, Pubkey) {
-    let mut seeds = vec![b"ctoken_signer".to_vec(), user.to_bytes().to_vec()];
+    let mut seeds = vec![b"user_vault".to_vec(), user.to_bytes().to_vec()];
+    let seeds_slice = seeds.iter().map(|s| s.as_slice()).collect::<Vec<_>>();
+    let (pda, bump) = Pubkey::find_program_address(seeds_slice.as_slice(), &crate::ID);
+    seeds.push(vec![bump]);
+    (seeds, pda)
+}
+
+// CToken signer 3: Pool vault pattern with constant seed
+pub fn get_ctoken_signer3_seeds<'a>(user: &'a Pubkey) -> (Vec<Vec<u8>>, Pubkey) {
+    let mut seeds = vec![
+        POOL_VAULT_SEED.as_bytes().to_vec(),
+        user.to_bytes().to_vec(),
+        b"liquidity".to_vec(),
+    ];
     let seeds_slice = seeds.iter().map(|s| s.as_slice()).collect::<Vec<_>>();
     let (pda, bump) = Pubkey::find_program_address(seeds_slice.as_slice(), &crate::ID);
     seeds.push(vec![bump]);
@@ -225,12 +269,65 @@ pub fn get_ctokensigner2_authority_seeds() -> (Vec<Vec<u8>>, Pubkey) {
     get_ctokensigner_authority_seeds()
 }
 
+pub fn get_ctokensigner3_authority_seeds() -> (Vec<Vec<u8>>, Pubkey) {
+    // Same authority PDA as above; separate helper keeps parity with variant naming
+    get_ctokensigner_authority_seeds()
+}
+
+// CToken signer 4: Multi-account pattern with user + fee_payer + program_id
+pub fn get_ctoken_signer4_seeds<'a>(
+    user: &'a Pubkey,
+    fee_payer: &'a Pubkey,
+) -> (Vec<Vec<u8>>, Pubkey) {
+    let mut seeds = vec![
+        b"multi_account".to_vec(),
+        user.to_bytes().to_vec(),
+        fee_payer.to_bytes().to_vec(),
+        crate::ID.to_bytes().to_vec(),
+    ];
+    let seeds_slice = seeds.iter().map(|s| s.as_slice()).collect::<Vec<_>>();
+    let (pda, bump) = Pubkey::find_program_address(seeds_slice.as_slice(), &crate::ID);
+    seeds.push(vec![bump]);
+    (seeds, pda)
+}
+
+// CToken signer 5: Complex pattern with user + mint + numeric index + extra seed
+pub fn get_ctoken_signer5_seeds<'a>(
+    user: &'a Pubkey,
+    mint: &'a Pubkey,
+    index: u64,
+) -> (Vec<Vec<u8>>, Pubkey) {
+    let mut seeds = vec![
+        b"indexed_vault".to_vec(),
+        user.to_bytes().to_vec(),
+        mint.to_bytes().to_vec(),
+        index.to_le_bytes().to_vec(),
+        b"final".to_vec(),
+    ];
+    let seeds_slice = seeds.iter().map(|s| s.as_slice()).collect::<Vec<_>>();
+    let (pda, bump) = Pubkey::find_program_address(seeds_slice.as_slice(), &crate::ID);
+    seeds.push(vec![bump]);
+    (seeds, pda)
+}
+
+pub fn get_ctokensigner4_authority_seeds() -> (Vec<Vec<u8>>, Pubkey) {
+    // Same authority PDA as above; separate helper keeps parity with variant naming
+    get_ctokensigner_authority_seeds()
+}
+
+pub fn get_ctokensigner5_authority_seeds() -> (Vec<Vec<u8>>, Pubkey) {
+    // Same authority PDA as above; separate helper keeps parity with variant naming
+    get_ctokensigner_authority_seeds()
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
 #[repr(u8)]
 pub enum CTokenAccountVariant {
     CTokenSigner = 0,
     CTokenSigner2 = 1,
-    AssociatedTokenAccount = 255, // TODO: add support.
+    CTokenSigner3 = 2,
+    CTokenSigner4 = 3,
+    CTokenSigner5 = 4,
 }
 
 // Simple anchor program retrofitted with compressible accounts.
@@ -646,7 +743,7 @@ pub mod anchor_compressible {
                         fee_payer.clone().to_account_info(),
                         owner_info.clone(),
                         mint_info.clone(),
-                        authority.clone().to_account_info(),
+                        *authority.clone().to_account_info().key,
                         seeds_slice,
                         ctoken_rent_sponsor.clone().to_account_info(),
                         ctoken_config.to_account_info(),
@@ -813,21 +910,7 @@ pub mod anchor_compressible {
             let cpi_inputs = light_sdk::cpi::CpiInputs::new(proof, compressed_pda_infos);
             cpi_inputs.invoke_light_system_program_small(cpi_accounts.clone())?;
         }
-        msg!("CTOKENCONFIG KEY: {}", ctx.accounts.ctoken_config.key());
 
-        // Deserialize and log the CompressibleConfig account onchain
-        let config_account_info = &ctx.accounts.ctoken_config;
-        let config_data = config_account_info.try_borrow_data().unwrap();
-        msg!("CompressibleConfig data: {:?}", config_data);
-
-        // Use the registry CompressibleConfig struct, not the SDK one
-        let account =
-            light_compressible::config::CompressibleConfig::deserialize(&mut &config_data[8..])
-                .map_err(|e| {
-                    msg!("Failed to deserialize CompressibleConfig: {:?}", e);
-                    ProgramError::InvalidAccountData
-                })?;
-        msg!("✅ CompressibleConfig deserialized: {:?}", account);
         // init tokens.
         if has_tokens {
             process_tokens(
@@ -1074,6 +1157,22 @@ pub mod anchor_compressible {
                     },
                     light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
                         recipient: get_ctoken_signer2_seeds(&ctx.accounts.user.key()).1,
+                        amount: 1000,
+                    },
+                    light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
+                        recipient: get_ctoken_signer3_seeds(&ctx.accounts.user.key()).1,
+                        amount: 1000,
+                    },
+                    light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
+                        recipient: get_ctoken_signer4_seeds(
+                            &ctx.accounts.user.key(),
+                            &ctx.accounts.user.key(),
+                        )
+                        .1, // user as fee_payer
+                        amount: 1000,
+                    },
+                    light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
+                        recipient: get_ctoken_signer5_seeds(&ctx.accounts.user.key(), &mint, 42).1, // Fixed index 42
                         amount: 1000,
                     },
                 ],

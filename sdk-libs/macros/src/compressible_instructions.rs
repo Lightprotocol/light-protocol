@@ -7,27 +7,6 @@ use syn::{
     Expr, Ident, Item, ItemFn, ItemMod, LitStr, Result, Token,
 };
 
-/// Helper macro for inserting debug traces in generated code
-/// This will show file:line information from where the macro generates code
-macro_rules! gen_debug_trace {
-    ($location:expr) => {
-        quote! {
-            #[cfg(feature = "debug-macro")]
-            {
-                msg!(concat!("[MACRO GEN] ", $location, " @ {}:{}"), file!(), line!());
-            }
-        }
-    };
-    ($location:expr, $($arg:tt)*) => {
-        quote! {
-            #[cfg(feature = "debug-macro")]
-            {
-                msg!(concat!("[MACRO GEN] ", $location, " @ {}:{} - ", stringify!($($arg)*)), file!(), line!());
-            }
-        }
-    };
-}
-
 /// Helper macro to create syn::Error with file:line information
 /// This helps track exactly where in the macro the error originated
 macro_rules! macro_error {
@@ -440,10 +419,6 @@ pub fn add_compressible_instructions(
     let decompress_accounts =
         generate_decompress_accounts_struct(&required_accounts, instruction_variant)?;
 
-    // Unpacked handlers are not needed for decompression - accounts are always packed in-flight
-    // Generate empty vec since we don't need these functions anymore
-    let helper_unpacked_fns: Vec<TokenStream> = Vec::new();
-
     // Generate helper functions for packed variants
     let helper_packed_fns: Result<Vec<_>> = account_types.iter().map(|name| {
         let name_str = name.to_string();
@@ -600,7 +575,11 @@ pub fn add_compressible_instructions(
                         match compressed_data.data {
                             #(#call_unpacked_arms)*
                             #(#call_packed_arms)*
-                            CompressedAccountVariant::PackedCTokenData(data) => {
+                            CompressedAccountVariant::PackedCTokenData(mut data) => {
+                                // Fix version field: The TS client doesn't include version in packed data,
+                                // but on-chain expects it. Set to 3 (TokenDataVersion::ShaFlat) which is
+                                // the default for compressed token accounts.
+                                data.token_data.version = 3;
                                 compressed_token_accounts.push((data, meta));
                             }
                             CompressedAccountVariant::CTokenData(_) => {
@@ -611,34 +590,6 @@ pub fn add_compressible_instructions(
 
                     Ok((compressed_pda_infos, compressed_token_accounts))
                 }
-
-                // UNUSED: collect_pdas_only function - kept for reference but commented out
-                // #[inline(never)]
-                // pub fn collect_pdas_only<'b, 'info>(
-                //     accounts: &DecompressAccountsIdempotent<'info>,
-                //     cpi_accounts: &light_sdk::cpi::CpiAccountsSmall<'b, 'info>,
-                //     address_space: anchor_lang::prelude::Pubkey,
-                //     compressed_accounts: Vec<CompressedAccountData>,
-                //     solana_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
-                // ) -> Result<Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>> {
-                //     let post_system_accounts = cpi_accounts.post_system_accounts().unwrap();
-                //     let mut compressed_pda_infos = Vec::with_capacity(compressed_accounts.len());
-                //
-                //     for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
-                //         let meta = compressed_data.meta;
-                //         match compressed_data.data {
-                //             #(#call_unpacked_arms)*
-                //             #(#call_packed_arms)*
-                //             CompressedAccountVariant::CompressibleTokenAccountPacked(_) => {
-                //                 return err!(CompressibleInstructionError::CTokenDecompressionNotImplemented);
-                //             }
-                //             CompressedAccountVariant::CompressibleTokenData(_) => {
-                //                 unreachable!();
-                //             }
-                //         }
-                //     }
-                //     Ok(compressed_pda_infos)
-                // }
             }
         }
     };
@@ -680,7 +631,6 @@ pub fn add_compressible_instructions(
                 (has_tokens, has_pdas)
             }
 
-            /// Helper function to process token decompression - separated to avoid stack overflow
             #[inline(never)]
             fn process_tokens<'a, 'b, 'info>(
                 accounts: &DecompressAccountsIdempotent<'info>,
@@ -696,10 +646,9 @@ pub fn add_compressible_instructions(
                     light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
                 )>,
                 proof: light_sdk::instruction::ValidityProof,
-                cpi_accounts: &light_sdk::cpi::CpiAccountsSmall<'b, 'info>,
+                cpi_accounts: light_sdk::cpi::CpiAccountsSmall<'b, 'info>,
                 has_pdas: bool,
             ) -> Result<()> {
-                // Pre-allocate on heap
                 let mut token_decompress_indices = Box::new(Vec::with_capacity(ctoken_accounts.len()));
                 let mut token_signers_seed_groups = Box::new(Vec::with_capacity(ctoken_accounts.len()));
                 let packed_accounts = cpi_accounts.post_system_accounts().unwrap();
@@ -717,15 +666,17 @@ pub fn add_compressible_instructions(
                     let owner_info = packed_accounts[owner_index as usize].to_account_info();
 
                     let (ctoken_signer_seeds, derived_token_account_address) = token_data.variant.get_seeds(&seed_context);
+                    let (ctoken_authority_seeds, ctoken_authority_pda) = token_data.variant.get_authority_seeds(&seed_context);
+
+
                     if derived_token_account_address != *owner_info.key {
+                        msg!("Derived token account address (PDA) does not match provided owner account");
                         msg!("derived_token_account_address: {:?}", derived_token_account_address);
                         msg!("owner_info.key: {:?}", owner_info.key);
                         return err!(CompressibleInstructionError::CTokenDecompressionNotImplemented);
                     }
 
-                    // Create compressible token account (signed)
                     {
-                        // Convert Vec<Vec<u8>> to &[&[&[u8]]]
                         let seed_refs: Vec<&[u8]> = ctoken_signer_seeds.iter().map(|s| s.as_slice()).collect();
                         let seeds_slice: &[&[u8]] = &seed_refs;
 
@@ -734,7 +685,7 @@ pub fn add_compressible_instructions(
                             fee_payer.clone().to_account_info(),
                             owner_info.clone(),
                             mint_info.clone(),
-                            authority.clone().to_account_info(),
+                            ctoken_authority_pda,
                             seeds_slice,
                             ctoken_rent_sponsor.clone().to_account_info(),
                             ctoken_config.to_account_info(),
@@ -742,7 +693,6 @@ pub fn add_compressible_instructions(
                             None,    // write_top_up_lamports
                         )?;
                     }
-
                     let decompress_index = light_compressed_token_sdk::instructions::DecompressFullIndices::from((
                         token_data.token_data,
                         meta,
@@ -762,29 +712,29 @@ pub fn add_compressible_instructions(
                 .map_err(anchor_lang::prelude::ProgramError::from)?;
 
                 {
-                    let mut all_account_infos = vec![fee_payer.to_account_info()];
-                    all_account_infos.extend(ctoken_cpi_authority.to_account_infos());
-                    all_account_infos.extend(ctoken_program.to_account_infos());
-                    all_account_infos.extend(ctoken_rent_sponsor.to_account_infos());
-                    all_account_infos.extend(config.to_account_infos());
-                    all_account_infos.extend(cpi_accounts.to_account_infos());
-
-                    // Build &[&[&[u8]]] with one signer seed group per token
-                    let seed_refs_per_group: Vec<Vec<&[u8]>> = token_signers_seed_groups
+                    let signer_seed_refs: Vec<Vec<&[u8]>> = token_signers_seed_groups
                         .iter()
                         .map(|group| group.iter().map(|s| s.as_slice()).collect())
                         .collect();
-                    let signer_seed_slices: Vec<&[&[u8]]> = seed_refs_per_group
-                        .iter()
-                        .map(|v| v.as_slice())
-                        .collect();
+                    let signer_seed_slices: Vec<&[&[u8]]> =
+                        signer_seed_refs.iter().map(|g| g.as_slice()).collect();
+
+                    let cpi_slice = cpi_accounts.account_infos_slice();
+                    let mut account_infos = Vec::with_capacity(5 + cpi_slice.len().saturating_sub(1));
+                    account_infos.push(fee_payer.to_account_info());
+                    account_infos.push(ctoken_cpi_authority.to_account_info());
+                    account_infos.push(ctoken_program.to_account_info());
+                    account_infos.push(ctoken_rent_sponsor.to_account_info());
+                    account_infos.push(config.to_account_info());
+                    if cpi_slice.len() > 1 {
+                        account_infos.extend_from_slice(&cpi_slice[1..]);
+                    }
                     anchor_lang::solana_program::program::invoke_signed(
                         &ctoken_ix,
-                        all_account_infos.as_slice(),
-                        &signer_seed_slices,
+                        account_infos.as_slice(),
+                        signer_seed_slices.as_slice(),
                     )?;
                 }
-
                 Ok(())
             }
 
@@ -846,7 +796,6 @@ pub fn add_compressible_instructions(
                 cpi_inputs.invoke_light_system_program_small(cpi_accounts.clone())?;
             }
 
-            // Handle token account decompression - use heap allocation with capacity
             if has_tokens {
                 process_tokens(
                     &ctx.accounts,
@@ -859,7 +808,7 @@ pub fn add_compressible_instructions(
                     &ctx.accounts.config,
                     compressed_token_accounts,
                     proof,
-                    &cpi_accounts,
+                    cpi_accounts,
                     has_pdas
                 )?;
             }
@@ -1369,7 +1318,6 @@ fn generate_ctoken_seed_provider_implementation(
 
         // Generate get_authority_seeds if authority is specified (for compression signing)
         if let Some(authority_seeds) = &spec.authority {
-            // Generate bindings for authority seeds (generic handling)
             let mut auth_bindings: Vec<proc_macro2::TokenStream> = Vec::new();
             let mut auth_seed_refs = Vec::new();
 
@@ -1526,26 +1474,20 @@ fn generate_pda_seed_derivation(
                 seed_refs.push(quote! { #value.as_bytes() });
             }
             SeedElement::Expression(expr) => {
-                // Check if this is a simple const identifier (like POOL_VAULT_SEED)
                 if let syn::Expr::Path(path_expr) = expr {
                     if let Some(ident) = path_expr.path.get_ident() {
-                        // Check if it's all uppercase (likely a const)
                         let ident_str = ident.to_string();
                         if ident_str.chars().all(|c| c.is_uppercase() || c == '_') {
-                            // This looks like a const - use it as a seed
                             seed_refs.push(quote! { #ident.as_bytes() });
                             continue;
                         }
                     }
                 }
 
-                // We need to handle different types of expressions differently
                 let mut handled = false;
 
-                // Check for expressions that need special handling
                 match expr {
                     syn::Expr::MethodCall(mc) if mc.method == "to_le_bytes" => {
-                        // This creates a temporary array, needs binding
                         let binding_name =
                             syn::Ident::new(&format!("seed_binding_{}", i), expr.span());
                         bindings.push(quote! {
@@ -1621,7 +1563,6 @@ fn generate_pda_seed_derivation(
                 #(#seed_refs,)*
             ];
             let (pda, bump) = anchor_lang::prelude::Pubkey::find_program_address(seeds, &crate::ID);
-            // Pre-allocate on heap with known capacity to minimize stack usage
             let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
             #(
                 seeds_vec.push(seeds[#indices].to_vec());
@@ -1642,14 +1583,12 @@ fn generate_client_seed_functions(
 ) -> Result<TokenStream> {
     let mut functions = Vec::new();
 
-    // Generate PDA seed functions - FULLY GENERIC based on seed specifications
     if let Some(pda_seed_specs) = pda_seeds {
         for spec in pda_seed_specs {
             let variant_name = &spec.variant;
             let function_name =
                 format_ident!("get_{}_seeds", variant_name.to_string().to_lowercase());
 
-            // Extract parameters and expressions from the seed specification
             let (parameters, seed_expressions) =
                 analyze_seed_spec_for_client(spec, instruction_data)?;
 
@@ -1657,7 +1596,6 @@ fn generate_client_seed_functions(
             let function = quote! {
                 /// Auto-generated client-side seed function
                 pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, anchor_lang::prelude::Pubkey) {
-                    // Pre-allocate on heap with known capacity to minimize stack usage
                     let mut seed_values = Vec::with_capacity(#seed_count + 1);
                     #(
                         seed_values.push((#seed_expressions).to_vec());
@@ -1701,14 +1639,13 @@ fn generate_client_seed_functions(
             };
             functions.push(function);
 
-            // Generate authority seed function (for compress signing) - now required
+            // Generate authority seed function (for compress signing). Required.
             if let Some(authority_seeds) = &spec.authority {
                 let authority_function_name = format_ident!(
                     "get_{}_authority_seeds",
                     variant_name.to_string().to_lowercase()
                 );
 
-                // Create a temporary spec with authority seeds as main seeds for analysis
                 let mut authority_spec = TokenSeedSpec {
                     variant: spec.variant.clone(),
                     _eq: spec._eq.clone(),
@@ -1717,7 +1654,6 @@ fn generate_client_seed_functions(
                     authority: None,
                 };
 
-                // Add all authority seeds to the temporary spec
                 for auth_seed in authority_seeds {
                     authority_spec.seeds.push(auth_seed.clone());
                 }
@@ -1729,7 +1665,6 @@ fn generate_client_seed_functions(
                 let authority_function = quote! {
                     /// Auto-generated authority seed function for compression signing
                     pub fn #authority_function_name(#(#auth_parameters),*) -> (Vec<Vec<u8>>, anchor_lang::prelude::Pubkey) {
-                        // Pre-allocate on heap with known capacity to minimize stack usage
                         let mut seed_values = Vec::with_capacity(#auth_seed_count + 1);
                         #(
                             seed_values.push((#auth_seed_expressions).to_vec());
@@ -2074,32 +2009,6 @@ fn extract_account_from_expr(expr: &syn::Expr, ordered_accounts: &mut Vec<String
     }
 }
 
-#[inline(never)]
-fn extract_accounts_from_seed_spec(
-    spec: &TokenSeedSpec,
-    ordered_accounts: &mut Vec<String>,
-) -> Result<()> {
-    for seed in spec.seeds.iter() {
-        if let SeedElement::Expression(expr) = seed {
-            match expr {
-                syn::Expr::MethodCall(method_call) => {
-                    // Recursively find the base account through method call chains
-                    // e.g., ctx.accounts.mint.key().as_ref() -> extract "mint"
-                    extract_account_from_expr(&*method_call.receiver, ordered_accounts);
-                }
-                syn::Expr::Path(_) | syn::Expr::Field(_) => {
-                    // Use the helper function for all expressions
-                    extract_account_from_expr(expr, ordered_accounts);
-                }
-                _ => {
-                    // Ignore other expressions
-                }
-            }
-        }
-    }
-    Ok(())
-}
-
 /// Generate DecompressAccountsIdempotent struct with required accounts
 #[inline(never)]
 fn generate_decompress_accounts_struct(
@@ -2225,232 +2134,6 @@ fn generate_decompress_accounts_struct(
     Ok(syn::parse2(struct_def)?)
 }
 
-// /// Generate PDA-only decompress instruction (no token handling)
-// #[inline(never)]
-// fn generate_pda_only_decompress_instruction(
-//     decompress_match_arms: &[TokenStream],
-//     account_types: &[Ident],
-// ) -> Result<syn::ItemFn> {
-//     let packed_unreachable_arms = account_types.iter().map(|name| {
-//         let packed_name = format_ident!("Packed{}", name);
-//         quote! {
-//             CompressedAccountVariant::#packed_name(_) => {
-//                 unreachable!();
-//             }
-//         }
-//     });
-
-//     Ok(syn::parse_quote! {
-//         /// Auto-generated PDA-only decompress_accounts_idempotent instruction
-//         #[inline(never)]
-//         pub fn decompress_accounts_idempotent<'info>(
-//             ctx: Context<'_, '_, 'info, 'info, DecompressAccountsIdempotent<'info>>,
-//             proof: light_sdk::instruction::ValidityProof,
-//             compressed_accounts: Vec<CompressedAccountData>,
-//             system_accounts_offset: u8,
-//         ) -> Result<()> {
-//             let compression_config = light_sdk::compressible::CompressibleConfig::load_checked(
-//                 &ctx.accounts.config,
-//                 &crate::ID,
-//             )?;
-//             let address_space = compression_config.address_space[0];
-
-//             // Only handle PDAs - no token logic
-//             let cpi_accounts = light_sdk_types::CpiAccountsSmall::new(
-//                 ctx.accounts.fee_payer.as_ref(),
-//                 &ctx.remaining_accounts[system_accounts_offset as usize..],
-//                 LIGHT_CPI_SIGNER,
-//             );
-
-//             // let pda_accounts_start = ctx.remaining_accounts.len() - compressed_accounts.len();
-//             // let solana_accounts = &ctx.remaining_accounts[pda_accounts_start..];
-//             let solana_accounts = &ctx.remaining_accounts[ctx.remaining_accounts.len() - compressed_accounts.len()..];
-
-//             let compressed_pda_infos = __macro_helpers::collect_pdas_only(
-//                 &ctx.accounts,
-//                 &cpi_accounts,
-//                 address_space,
-//                 compressed_accounts,
-//                 solana_accounts,
-//             )?;
-
-//             if compressed_pda_infos.is_empty() {
-//                 // msg!("All accounts already initialized.");
-//                 return Ok(());
-//             }
-
-//             // Only PDA handling - simple CPI call
-//             let cpi_inputs = light_sdk::cpi::CpiInputs::new(proof, compressed_pda_infos);
-//             cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
-
-//             Ok(())
-//         }
-//     })
-// }
-
-/// Generate token-only decompress instruction (no PDA handling)
-// #[inline(never)]
-// fn generate_token_only_decompress_instruction() -> Result<syn::ItemFn> {
-//     Ok(syn::parse_quote! {
-//         /// Auto-generated token-only decompress_accounts_idempotent instruction
-//         #[inline(never)]
-//         pub fn decompress_accounts_idempotent<'info>(
-//             ctx: Context<'_, '_, 'info, 'info, DecompressAccountsIdempotent<'info>>,
-//             proof: light_sdk::instruction::ValidityProof,
-//             compressed_accounts: Vec<CompressedAccountData>,
-//             system_accounts_offset: u8,
-//         ) -> Result<()> {
-
-//             /// Helper function to process token decompression - separated to avoid stack overflow
-//             #[inline(never)]
-//             fn process_tokens<'info>(
-//                 ctx: &Context<'_, '_, 'info, 'info, DecompressAccountsIdempotent<'info>>,
-//                 compressed_token_accounts: Vec<(
-//                     light_sdk::token::PackedCompressibleTokenDataWithVariant<CTokenAccountVariant>,
-//                     light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress
-//                 )>,
-//                 proof: light_sdk::instruction::ValidityProof,
-//                 cpi_accounts: &light_sdk_types::CpiAccountsSmall<'info, anchor_lang::prelude::AccountInfo<'info>>,
-//                 post_system_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
-//             ) -> Result<()> {
-//                 // Pre-allocate on heap to minimize stack usage - use Box to force heap allocation for large collections
-//                 let mut token_decompress_indices = Box::new(Vec::with_capacity(compressed_token_accounts.len()));
-//                 let mut token_signers_seeds = Box::new(Vec::with_capacity(compressed_token_accounts.len() * 4)); // Estimate 4 seeds per token
-//                 let packed_accounts = post_system_accounts;
-
-//                 // Move seed_context outside loop to reduce stack usage per iteration
-//                 use crate::ctoken_seed_system::{CTokenSeedProvider, CTokenSeedContext};
-//                 let seed_context = CTokenSeedContext {
-//                     accounts: &ctx.accounts,
-//                     remaining_accounts: ctx.remaining_accounts,
-//                 };
-
-//                 let fee_payer = ctx.accounts.fee_payer.as_ref();
-//                 let authority = cpi_accounts.authority().unwrap();
-
-//                 for (token_data, meta) in compressed_token_accounts.into_iter() {
-//                     let owner_index: u8 = token_data.token_data.owner;
-//                     let mint_index: u8 = token_data.token_data.mint;
-
-//                     let mint_info = packed_accounts[mint_index as usize].to_account_info();
-//                     let owner_info = packed_accounts[owner_index as usize].to_account_info();
-
-//                     let ctoken_signer_seeds = token_data.variant.get_seeds(&seed_context).0;
-
-//                     // Create compressible token account with scoped seed_slices to free stack immediately
-//                     {
-//                         let seed_slices: Vec<&[u8]> = ctoken_signer_seeds
-//                             .iter()
-//                             .map(|s| s.as_slice())
-//                             .collect();
-
-//                         light_compressed_token_sdk::create_compressible_token_account(
-//                             authority,
-//                             fee_payer,
-//                             &owner_info,
-//                             &mint_info,
-//                             cpi_accounts.system_program().unwrap(),
-//                             ctx.accounts.compressed_token_program.as_ref(),
-//                             &seed_slices,
-//                             ctx.accounts.compressed_token_rent_payer.as_ref(), // rent_auth
-//                             ctx.accounts.compressed_token_rent_payer.as_ref(), // rent_recipient
-//                             0,         // slots_until_compression
-//                         )?;
-//                     } // ← seed_slices freed here
-
-//                     let decompress_index = light_compressed_token_sdk::instructions::DecompressFullIndices::from((token_data.token_data, meta, owner_index));
-
-//                     token_decompress_indices.push(decompress_index);
-//                     token_signers_seeds.extend(ctoken_signer_seeds);
-//                 }
-
-//                 let ctoken_ix = light_compressed_token_sdk::instructions::decompress_full_ctoken_accounts_with_indices(
-//                     fee_payer.key(),
-//                     proof,
-//                     None, // No CPI context for token-only
-//                     &token_decompress_indices,
-//                     packed_accounts,
-//                 )
-//                 .map_err(anchor_lang::prelude::ProgramError::from)?;
-
-//                 // Scope large collections to free stack immediately after use
-//                 {
-//                     let mut all_account_infos = vec![fee_payer.to_account_info()];
-//                     all_account_infos.extend(
-//                         ctx.accounts
-//                             .compressed_token_cpi_authority
-//                             .to_account_infos(),
-//                     );
-//                     all_account_infos.extend(ctx.accounts.compressed_token_program.to_account_infos());
-//                     all_account_infos.extend(ctx.accounts.compressed_token_rent_payer.to_account_infos());
-//                     all_account_infos.extend(ctx.accounts.config.to_account_infos());
-//                     all_account_infos.extend(cpi_accounts.to_account_infos());
-
-//                     let seed_refs: Vec<&[u8]> = token_signers_seeds
-//                         .iter()
-//                         .map(|s| s.as_slice())
-//                         .collect();
-
-//                     anchor_lang::solana_program::program::invoke_signed(
-//                         &ctoken_ix,
-//                         all_account_infos.as_slice(),
-//                         &[seed_refs.as_slice()],
-//                     )?;
-//                 }
-
-//                 Ok(())
-//             }
-
-//             let compression_config = light_sdk::compressible::CompressibleConfig::load_checked(
-//                 &ctx.accounts.config,
-//                 &crate::ID,
-//             )?;
-
-//             // Only handle tokens - no PDA logic
-//             let cpi_accounts = light_sdk_types::CpiAccountsSmall::new(
-//                 ctx.accounts.fee_payer.as_ref(),
-//                 &ctx.remaining_accounts[system_accounts_offset as usize..],
-//                 LIGHT_CPI_SIGNER,
-//             );
-
-//             // Pre-allocate on heap with estimated capacity to minimize stack usage
-//             // let mut compressed_token_accounts = Vec::with_capacity(compressed_accounts.len());
-
-//             let mut compressed_token_accounts: Vec<(
-//                 light_sdk::token::PackedCompressibleTokenDataWithVariant<CTokenAccountVariant>,
-//                 light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress
-//             )> = Vec::with_capacity(compressed_accounts.len());
-
-//             let post_system_accounts = cpi_accounts.post_system_accounts().unwrap();
-
-//             for compressed_data in compressed_accounts.into_iter() {
-//                 let unpacked_data = compressed_data
-//                     .data
-//                     .unpack(post_system_accounts)?;
-
-//                 match unpacked_data {
-//                     CompressedAccountVariant::CompressibleTokenAccountPacked(data) => {
-//                         compressed_token_accounts.push((data, compressed_data.meta));
-//                     }
-//                     _ => {
-//                         return err!(CompressibleInstructionError::PdaDecompressionNotImplemented);
-//                     }
-//                 }
-//             }
-
-//             if compressed_token_accounts.is_empty() {
-//                 // msg!("All token accounts already initialized.");
-//                 return Ok(());
-//             }
-
-//             // Handle token account decompression - call the helper function
-//             process_tokens(&ctx, compressed_token_accounts, proof, &cpi_accounts, post_system_accounts)?;
-
-//             Ok(())
-//         }
-//     })
-// }
-
 /// Generate PDA-only compress accounts struct (no token program accounts)
 #[inline(never)]
 fn generate_pda_only_compress_accounts_struct() -> Result<syn::ItemStruct> {
@@ -2508,164 +2191,6 @@ fn generate_token_only_compress_accounts_struct() -> Result<syn::ItemStruct> {
         }
     })
 }
-
-/// Generate PDA-only compress instruction (no token handling)
-// #[inline(never)]
-// fn generate_pda_only_compress_instruction(
-//     compress_match_arms: &[TokenStream],
-//     account_types: &[Ident],
-// ) -> Result<syn::ItemFn> {
-//     Ok(syn::parse_quote! {
-//         /// Auto-generated PDA-only compress_accounts_idempotent instruction
-//         #[inline(never)]
-//         pub fn compress_accounts_idempotent<'info>(
-//             ctx: Context<'_, '_, 'info, 'info, CompressAccountsIdempotent<'info>>,
-//             proof: light_sdk::instruction::ValidityProof,
-//             compressed_accounts: Vec<light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress>,
-//             signer_seeds: Vec<Vec<Vec<u8>>>,
-//             system_accounts_offset: u8,
-//         ) -> Result<()> {
-//             let compression_config = light_sdk::compressible::CompressibleConfig::load_checked(
-//                 &ctx.accounts.config,
-//                 &crate::ID,
-//             )?;
-//             if ctx.accounts.rent_recipient.key() != compression_config.rent_recipient {
-//                 return err!(CompressibleInstructionError::InvalidRentRecipient);
-//             }
-
-//             let cpi_accounts = light_sdk_types::CpiAccountsSmall::new(
-//                 ctx.accounts.fee_payer.as_ref(),
-//                 &ctx.remaining_accounts[system_accounts_offset as usize..],
-//                 LIGHT_CPI_SIGNER,
-//             );
-
-//             let pda_accounts_start = ctx.remaining_accounts.len() - signer_seeds.len();
-//             let solana_accounts = &ctx.remaining_accounts[pda_accounts_start..];
-
-//             // Pre-allocate collections on heap with estimated capacity
-//             let mut compressed_pda_infos = Vec::with_capacity(solana_accounts.len());
-//             // Create dedicated vectors for each account type for proper closing - use heap allocation
-//             #(let mut #account_types = Vec::with_capacity(solana_accounts.len());)*
-
-//             for (i, account_info) in solana_accounts.iter().enumerate() {
-//                 if account_info.data_is_empty() {
-//                     // msg!("No data. Account already compressed or uninitialized. Skipping.");
-//                     continue;
-//                 }
-//                 if account_info.owner == &light_sdk_types::CTOKEN_PROGRAM_ID.into() {
-//                     return err!(CompressibleInstructionError::TokenCompressionNotImplemented);
-//                 } else if account_info.owner == &crate::ID {
-//                     let data = account_info.try_borrow_data()?;
-//                     let discriminator = &data[0..8];
-//                     let meta = compressed_accounts[i];
-
-//                     // Generic PDA account handling
-//                     match discriminator {
-//                         #(#compress_match_arms)*
-//                         _ => {
-//                             panic!("Trying to compress with invalid account discriminator");
-//                         }
-//                     }
-//                 }
-//             }
-
-//             if compressed_pda_infos.is_empty() {
-//                 // msg!("No PDA accounts to compress.");
-//                 return Ok(());
-//             }
-
-//             // Only PDA compression - simple CPI call
-//             let cpi_inputs = light_sdk::cpi::CpiInputs::new(proof, compressed_pda_infos);
-//             cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
-
-//             // Close all PDA accounts using Anchor's proper close method
-//             #(
-//                 for anchor_account in #account_types.iter() {
-//                     anchor_account.close(ctx.accounts.rent_recipient.clone())?;
-//                 }
-//             )*
-
-//             Ok(())
-//         }
-//     })
-// }
-
-// /// Generate token-only compress instruction (no PDA handling)
-// #[inline(never)]
-// fn generate_token_only_compress_instruction() -> Result<syn::ItemFn> {
-//     Ok(syn::parse_quote! {
-//         /// Auto-generated token-only compress_accounts_idempotent instruction
-//         #[inline(never)]
-//         pub fn compress_accounts_idempotent<'info>(
-//             ctx: Context<'_, '_, 'info, 'info, CompressAccountsIdempotent<'info>>,
-//             proof: light_sdk::instruction::ValidityProof,
-//             compressed_accounts: Vec<light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress>,
-//             signer_seeds: Vec<Vec<Vec<u8>>>,
-//             system_accounts_offset: u8,
-//         ) -> Result<()> {
-//             let compression_config = light_sdk::compressible::CompressibleConfig::load_checked(
-//                 &ctx.accounts.config,
-//                 &crate::ID,
-//             )?;
-//             if ctx.accounts.rent_recipient.key() != compression_config.rent_recipient {
-//                 return err!(CompressibleInstructionError::InvalidRentRecipient);
-//             }
-
-//             let cpi_accounts = light_sdk_types::CpiAccountsSmall::new(
-//                 ctx.accounts.fee_payer.as_ref(),
-//                 &ctx.remaining_accounts[system_accounts_offset as usize..],
-//                 LIGHT_CPI_SIGNER,
-//             );
-
-//             let pda_accounts_start = ctx.remaining_accounts.len() - signer_seeds.len();
-//             let solana_accounts = &ctx.remaining_accounts[pda_accounts_start..];
-
-//             // Pre-allocate collections on heap for token accounts only
-//             let mut token_accounts_to_compress = Vec::with_capacity(solana_accounts.len());
-
-//             for (i, account_info) in solana_accounts.iter().enumerate() {
-//                 if account_info.data_is_empty() {
-//                     // msg!("No data. Account already compressed or uninitialized. Skipping.");
-//                     continue;
-//                 }
-//                 if account_info.owner == &light_sdk_types::CTOKEN_PROGRAM_ID.into() {
-//                     if let Ok(token_account) = anchor_lang::prelude::InterfaceAccount::<anchor_spl::token_interface::TokenAccount>::try_from(account_info) {
-//                         let account_signer_seeds = signer_seeds[i].clone();
-//                         token_accounts_to_compress.push(
-//                             light_compressed_token_sdk::TokenAccountToCompress {
-//                                 token_account,
-//                                 signer_seeds: account_signer_seeds,
-//                             },
-//                         );
-//                     }
-//                 } else if account_info.owner == &crate::ID {
-//                     return err!(CompressibleInstructionError::PdaCompressionNotImplemented);
-//                 }
-//             }
-
-//             if token_accounts_to_compress.is_empty() {
-//                 // msg!("No token accounts to compress.");
-//                 return Ok(());
-//             }
-
-//             // Only token compression
-//             light_compressed_token_sdk::compress_and_close_token_accounts(
-//                 crate::ID,
-//                 &ctx.accounts.fee_payer,
-//                 cpi_accounts.authority().unwrap(),
-//                 ctx.accounts.compressed_token_cpi_authority.as_ref(),
-//                 ctx.accounts.compressed_token_program.as_ref(),
-//                 &ctx.accounts.config,
-//                 &ctx.accounts.rent_recipient,
-//                 ctx.remaining_accounts,
-//                 token_accounts_to_compress,
-//                 LIGHT_CPI_SIGNER,
-//             )?;
-
-//             Ok(())
-//         }
-//     })
-// }
 
 /// Validate that all compressed account types don't exceed the maximum size limit
 #[inline(never)]

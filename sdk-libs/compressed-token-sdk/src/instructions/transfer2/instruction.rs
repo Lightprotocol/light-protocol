@@ -77,10 +77,12 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
         in_lamports,
         out_lamports,
     } = inputs;
+    spl_pod::solana_msg::msg!("create_transfer2_instruction");
     let mut input_token_data_with_context = Vec::new();
     let mut output_compressed_accounts = Vec::new();
     let mut collected_compressions = Vec::new();
 
+    spl_pod::solana_msg::msg!("allocated input_token_data_with_context, output_compressed_accounts, collected_compressions");
     // Process each token account and convert to multi-transfer format
     for token_account in token_accounts {
         // Collect compression if present
@@ -97,6 +99,7 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
         }
     }
 
+    spl_pod::solana_msg::msg!("pushed output_compressed_accounts and collected_compressions");
     // Create instruction data
     let instruction_data = CompressedTokenInstructionDataTransfer2 {
         with_transaction_hash: transfer_config.with_transaction_hash,
@@ -118,19 +121,22 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
         cpi_context: transfer_config.cpi_context,
     };
 
+    spl_pod::solana_msg::msg!("allocated instruction_data");
     // Serialize instruction data
     let serialized = instruction_data
         .try_to_vec()
         .map_err(|_| TokenSdkError::SerializationError)?;
+    spl_pod::solana_msg::msg!("serialized instruction_data");
 
     // Build instruction data with discriminator
     let mut data = Vec::with_capacity(1 + serialized.len());
     data.push(TRANSFER2);
     data.extend(serialized);
-
+    spl_pod::solana_msg::msg!("extended data");
     // Get account metas
     let account_metas = get_transfer2_instruction_account_metas(meta_config);
 
+    spl_pod::solana_msg::msg!("allocated account_metas");
     Ok(Instruction {
         program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
         accounts: account_metas,

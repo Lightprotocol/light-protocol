@@ -1,5 +1,6 @@
 use anchor_compressible::{
-    get_ctoken_signer2_seeds, get_ctoken_signer_seeds, CTokenAccountVariant,
+    get_ctoken_signer2_seeds, get_ctoken_signer3_seeds, get_ctoken_signer4_seeds,
+    get_ctoken_signer5_seeds, get_ctoken_signer_seeds, CTokenAccountVariant,
     CompressedAccountVariant, GameSession, UserRecord,
 };
 use anchor_lang::{
@@ -112,7 +113,14 @@ async fn test_create_and_decompress_two_accounts() {
         &program_id,
     );
 
-    let (ctoken_account, _mint_signer, ctoken_account_2) = create_user_record_and_game_session(
+    let (
+        ctoken_account,
+        _mint_signer,
+        ctoken_account_2,
+        ctoken_account_3,
+        ctoken_account_4,
+        ctoken_account_5,
+    ) = create_user_record_and_game_session(
         &mut rpc,
         &combined_user,
         &program_id,
@@ -132,6 +140,20 @@ async fn test_create_and_decompress_two_accounts() {
 
     let (_, ctoken_account_address_2) =
         anchor_compressible::get_ctoken_signer2_seeds(&combined_user.pubkey());
+
+    let (_, ctoken_account_address_3) =
+        anchor_compressible::get_ctoken_signer3_seeds(&combined_user.pubkey());
+
+    let (_, ctoken_account_address_4) = anchor_compressible::get_ctoken_signer4_seeds(
+        &combined_user.pubkey(),
+        &combined_user.pubkey(),
+    ); // user as fee_payer
+
+    let (_, ctoken_account_address_5) = anchor_compressible::get_ctoken_signer5_seeds(
+        &combined_user.pubkey(),
+        &ctoken_account.token.mint,
+        42,
+    ); // Fixed index 42
 
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
@@ -170,6 +192,12 @@ async fn test_create_and_decompress_two_accounts() {
         ctoken_account_address, // also the owner of the compressed token account!
         ctoken_account_2.clone(),
         ctoken_account_address_2,
+        ctoken_account_3.clone(),
+        ctoken_account_address_3,
+        ctoken_account_4.clone(),
+        ctoken_account_address_4,
+        ctoken_account_5.clone(),
+        ctoken_account_address_5,
     )
     .await;
 
@@ -183,6 +211,9 @@ async fn test_create_and_decompress_two_accounts() {
         &config_pda,
         ctoken_account_address,
         ctoken_account_address_2,
+        ctoken_account_address_3,
+        ctoken_account_address_4,
+        ctoken_account_address_5,
         ctoken_account.token.mint,
         ctoken_account.token.amount,
         &combined_user_record_pda,
@@ -983,6 +1014,12 @@ async fn decompress_multiple_pdas_with_ctoken(
     native_token_account: Pubkey,
     ctoken_account_2: light_client::indexer::CompressedTokenAccount,
     native_token_account_2: Pubkey,
+    ctoken_account_3: light_client::indexer::CompressedTokenAccount,
+    native_token_account_3: Pubkey,
+    ctoken_account_4: light_client::indexer::CompressedTokenAccount,
+    native_token_account_4: Pubkey,
+    ctoken_account_5: light_client::indexer::CompressedTokenAccount,
+    native_token_account_5: Pubkey,
 ) {
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
@@ -1015,7 +1052,7 @@ async fn decompress_multiple_pdas_with_ctoken(
     let game_account_data = c_game_pda.data.as_ref().unwrap();
     let c_game_session = GameSession::deserialize(&mut &game_account_data.data[..]).unwrap();
 
-    // Get validity proof for all four compressed accounts (2 PDAs + 2 tokens)
+    // Get validity proof for all seven compressed accounts (2 PDAs + 5 tokens)
     let rpc_result = rpc
         .get_validity_proof(
             vec![
@@ -1023,6 +1060,9 @@ async fn decompress_multiple_pdas_with_ctoken(
                 c_game_pda.hash,
                 ctoken_account.clone().account.hash.clone(),
                 ctoken_account_2.clone().account.hash.clone(),
+                ctoken_account_3.clone().account.hash.clone(),
+                ctoken_account_4.clone().account.hash.clone(),
+                ctoken_account_5.clone().account.hash.clone(),
             ],
             vec![],
             None,
@@ -1047,6 +1087,9 @@ async fn decompress_multiple_pdas_with_ctoken(
                 *game_session_pda,
                 native_token_account,
                 native_token_account_2,
+                native_token_account_3,
+                native_token_account_4,
+                native_token_account_5,
             ],
             &[
                 // gets packed internally and never unpacked onchain:
@@ -1074,6 +1117,33 @@ async fn decompress_multiple_pdas_with_ctoken(
                     > {
                         variant: CTokenAccountVariant::CTokenSigner2,
                         token_data: ctoken_account_2.clone().token,
+                    }),
+                ),
+                (
+                    ctoken_account_3.clone().account,
+                    CompressedAccountVariant::CTokenData(CTokenDataWithVariant::<
+                        CTokenAccountVariant,
+                    > {
+                        variant: CTokenAccountVariant::CTokenSigner3,
+                        token_data: ctoken_account_3.clone().token,
+                    }),
+                ),
+                (
+                    ctoken_account_4.clone().account,
+                    CompressedAccountVariant::CTokenData(CTokenDataWithVariant::<
+                        CTokenAccountVariant,
+                    > {
+                        variant: CTokenAccountVariant::CTokenSigner4,
+                        token_data: ctoken_account_4.clone().token,
+                    }),
+                ),
+                (
+                    ctoken_account_5.clone().account,
+                    CompressedAccountVariant::CTokenData(CTokenDataWithVariant::<
+                        CTokenAccountVariant,
+                    > {
+                        variant: CTokenAccountVariant::CTokenSigner5,
+                        token_data: ctoken_account_5.clone().token,
                     }),
                 ),
             ],
@@ -1215,7 +1285,16 @@ async fn decompress_multiple_pdas_with_ctoken(
         .expect_err("Compressed token account should not be found");
     rpc.get_compressed_account_by_hash(ctoken_account_2.clone().account.hash.clone(), None)
         .await
-        .expect_err("Compressed token account should not be found");
+        .expect_err("Compressed token account 2 should not be found");
+    rpc.get_compressed_account_by_hash(ctoken_account_3.clone().account.hash.clone(), None)
+        .await
+        .expect_err("Compressed token account 3 should not be found");
+    rpc.get_compressed_account_by_hash(ctoken_account_4.clone().account.hash.clone(), None)
+        .await
+        .expect_err("Compressed token account 4 should not be found");
+    rpc.get_compressed_account_by_hash(ctoken_account_5.clone().account.hash.clone(), None)
+        .await
+        .expect_err("Compressed token account 5 should not be found");
 
     assert!(
         compressed_user_record_data.data.unwrap().data.is_empty(),
@@ -1424,6 +1503,9 @@ async fn create_user_record_and_game_session(
 ) -> (
     light_client::indexer::CompressedTokenAccount,
     Pubkey,
+    light_client::indexer::CompressedTokenAccount,
+    light_client::indexer::CompressedTokenAccount,
+    light_client::indexer::CompressedTokenAccount,
     light_client::indexer::CompressedTokenAccount,
 ) {
     let state_tree_info = rpc.get_random_state_tree_info().unwrap();
@@ -1660,7 +1742,11 @@ async fn create_user_record_and_game_session(
     )
     .1;
 
+    let mint = find_spl_mint_address(&mint_signer.pubkey()).0;
     let token_account_address_2 = get_ctoken_signer2_seeds(&user.pubkey()).1;
+    let token_account_address_3 = get_ctoken_signer3_seeds(&user.pubkey()).1;
+    let token_account_address_4 = get_ctoken_signer4_seeds(&user.pubkey(), &user.pubkey()).1; // user as fee_payer
+    let token_account_address_5 = get_ctoken_signer5_seeds(&user.pubkey(), &mint, 42).1; // Fixed index 42
 
     // Fetch the compressed token accounts that were created during the mint action
     let ctoken_accounts = rpc
@@ -1673,6 +1759,21 @@ async fn create_user_record_and_game_session(
         .await
         .unwrap()
         .value;
+    let ctoken_accounts_3 = rpc
+        .get_compressed_token_accounts_by_owner(&token_account_address_3, None, None)
+        .await
+        .unwrap()
+        .value;
+    let ctoken_accounts_4 = rpc
+        .get_compressed_token_accounts_by_owner(&token_account_address_4, None, None)
+        .await
+        .unwrap()
+        .value;
+    let ctoken_accounts_5 = rpc
+        .get_compressed_token_accounts_by_owner(&token_account_address_5, None, None)
+        .await
+        .unwrap()
+        .value;
 
     assert!(
         !ctoken_accounts.items.is_empty(),
@@ -1680,13 +1781,35 @@ async fn create_user_record_and_game_session(
     );
     assert!(
         !ctoken_accounts_2.items.is_empty(),
-        "Should have at least one compressed token account"
+        "Should have at least one compressed token account 2"
+    );
+    assert!(
+        !ctoken_accounts_3.items.is_empty(),
+        "Should have at least one compressed token account 3"
+    );
+    assert!(
+        !ctoken_accounts_4.items.is_empty(),
+        "Should have at least one compressed token account 4"
+    );
+    assert!(
+        !ctoken_accounts_5.items.is_empty(),
+        "Should have at least one compressed token account 5"
     );
 
     let ctoken_account = ctoken_accounts.items[0].clone();
     let ctoken_account_2 = ctoken_accounts_2.items[0].clone();
+    let ctoken_account_3 = ctoken_accounts_3.items[0].clone();
+    let ctoken_account_4 = ctoken_accounts_4.items[0].clone();
+    let ctoken_account_5 = ctoken_accounts_5.items[0].clone();
 
-    (ctoken_account, mint_signer.pubkey(), ctoken_account_2)
+    (
+        ctoken_account,
+        mint_signer.pubkey(),
+        ctoken_account_2,
+        ctoken_account_3,
+        ctoken_account_4,
+        ctoken_account_5,
+    )
 }
 
 async fn compress_record(
@@ -2523,6 +2646,9 @@ async fn compress_token_account_after_decompress(
     _config_pda: &Pubkey,
     token_account_address: Pubkey,
     token_account_address_2: Pubkey,
+    token_account_address_3: Pubkey,
+    token_account_address_4: Pubkey,
+    token_account_address_5: Pubkey,
     mint: Pubkey,
     amount: u64,
     user_record_pda: &Pubkey,
@@ -2556,17 +2682,35 @@ async fn compress_token_account_after_decompress(
     let (_, token_account_address) = get_ctoken_signer_seeds(&user.pubkey(), &mint);
 
     let (_, token_account_address_2) = get_ctoken_signer2_seeds(&user.pubkey());
-    // Use program-provided helper: authority for both token owner variants is Light CPI signer PDA
+    let (_, token_account_address_3) = get_ctoken_signer3_seeds(&user.pubkey());
+    let (_, token_account_address_4) = get_ctoken_signer4_seeds(&user.pubkey(), &user.pubkey()); // user as fee_payer
+    let (_, token_account_address_5) = get_ctoken_signer5_seeds(&user.pubkey(), &mint, 42); // Fixed index 42
+                                                                                            // Use program-provided helper: authority for all token owner variants is Light CPI signer PDA
     let (token_signer_seeds, ctoken_1_authority_pda) =
         anchor_compressible::get_ctokensigner_authority_seeds();
 
     let (token_signer_seeds_2, ctoken_2_authority_pda) =
         anchor_compressible::get_ctokensigner2_authority_seeds();
 
+    let (token_signer_seeds_3, ctoken_3_authority_pda) =
+        anchor_compressible::get_ctokensigner3_authority_seeds();
+
+    let (token_signer_seeds_4, ctoken_4_authority_pda) =
+        anchor_compressible::get_ctokensigner4_authority_seeds();
+
+    let (token_signer_seeds_5, ctoken_5_authority_pda) =
+        anchor_compressible::get_ctokensigner5_authority_seeds();
+
     println!("ctoken_1_authority_pda: {:?}", ctoken_1_authority_pda);
     println!("ctoken_2_authority_pda: {:?}", ctoken_2_authority_pda);
+    println!("ctoken_3_authority_pda: {:?}", ctoken_3_authority_pda);
+    println!("ctoken_4_authority_pda: {:?}", ctoken_4_authority_pda);
+    println!("ctoken_5_authority_pda: {:?}", ctoken_5_authority_pda);
     println!("token_account_address: {:?}", token_account_address);
     println!("token_account_address_2: {:?}", token_account_address_2);
+    println!("token_account_address_3: {:?}", token_account_address_3);
+    println!("token_account_address_4: {:?}", token_account_address_4);
+    println!("token_account_address_5: {:?}", token_account_address_5);
 
     let cpisigner = Pubkey::new_from_array(anchor_compressible::LIGHT_CPI_SIGNER.cpi_signer);
     println!("cpisigner: {:?}", cpisigner);
@@ -2585,11 +2729,29 @@ async fn compress_token_account_after_decompress(
         .await
         .unwrap()
         .unwrap();
+    let token_account_3 = rpc
+        .get_account(token_account_address_3)
+        .await
+        .unwrap()
+        .unwrap();
+    let token_account_4 = rpc
+        .get_account(token_account_address_4)
+        .await
+        .unwrap()
+        .unwrap();
+    let token_account_5 = rpc
+        .get_account(token_account_address_5)
+        .await
+        .unwrap()
+        .unwrap();
 
     accounts.push(user_record_account);
     accounts.push(game_session_account);
     accounts.push(token_account); // first token account
-    accounts.push(token_account_2); // second token account must come last
+    accounts.push(token_account_2); // second token account
+    accounts.push(token_account_3); // third token account
+    accounts.push(token_account_4); // fourth token account
+    accounts.push(token_account_5); // fifth token account must come last
 
     assert_eq!(*user_record_pda, user_record_pubkey);
     assert_eq!(*game_session_pda, game_session_pubkey);
@@ -2646,6 +2808,9 @@ async fn compress_token_account_after_decompress(
                 game_session_pubkey,
                 token_account_address,
                 token_account_address_2,
+                token_account_address_3,
+                token_account_address_4,
+                token_account_address_5,
             ],
             &accounts,
             &anchor_compressible::accounts::CompressAccountsIdempotent {
@@ -2662,6 +2827,9 @@ async fn compress_token_account_after_decompress(
                 game_session_seeds,
                 token_signer_seeds.clone(),
                 token_signer_seeds_2,
+                token_signer_seeds_3,
+                token_signer_seeds_4,
+                token_signer_seeds_5,
             ],
             proof_with_context,
             random_tree_info,
@@ -2703,6 +2871,39 @@ async fn compress_token_account_after_decompress(
             "Token account 2 should have no data after compression"
         );
     }
+    let token_account_after_3 = rpc.get_account(token_account_address_3).await.unwrap();
+    if let Some(account) = token_account_after_3 {
+        assert_eq!(
+            account.lamports, 0,
+            "Token account 3 should have 0 lamports after compression"
+        );
+        assert!(
+            account.data.is_empty(),
+            "Token account 3 should have no data after compression"
+        );
+    }
+    let token_account_after_4 = rpc.get_account(token_account_address_4).await.unwrap();
+    if let Some(account) = token_account_after_4 {
+        assert_eq!(
+            account.lamports, 0,
+            "Token account 4 should have 0 lamports after compression"
+        );
+        assert!(
+            account.data.is_empty(),
+            "Token account 4 should have no data after compression"
+        );
+    }
+    let token_account_after_5 = rpc.get_account(token_account_address_5).await.unwrap();
+    if let Some(account) = token_account_after_5 {
+        assert_eq!(
+            account.lamports, 0,
+            "Token account 5 should have 0 lamports after compression"
+        );
+        assert!(
+            account.data.is_empty(),
+            "Token account 5 should have no data after compression"
+        );
+    }
 
     // Verify the compressed token account exists
     let ctoken_accounts = rpc
@@ -2712,6 +2913,21 @@ async fn compress_token_account_after_decompress(
         .value;
     let ctoken_accounts_2 = rpc
         .get_compressed_token_accounts_by_owner(&token_account_address_2, None, None)
+        .await
+        .unwrap()
+        .value;
+    let ctoken_accounts_3 = rpc
+        .get_compressed_token_accounts_by_owner(&token_account_address_3, None, None)
+        .await
+        .unwrap()
+        .value;
+    let ctoken_accounts_4 = rpc
+        .get_compressed_token_accounts_by_owner(&token_account_address_4, None, None)
+        .await
+        .unwrap()
+        .value;
+    let ctoken_accounts_5 = rpc
+        .get_compressed_token_accounts_by_owner(&token_account_address_5, None, None)
         .await
         .unwrap()
         .value;
@@ -2725,6 +2941,22 @@ async fn compress_token_account_after_decompress(
     assert!(
         !ctoken_accounts.items.is_empty(),
         "Should have at least one compressed token account after compression"
+    );
+    assert!(
+        !ctoken_accounts_2.items.is_empty(),
+        "Should have at least one compressed token account 2 after compression"
+    );
+    assert!(
+        !ctoken_accounts_3.items.is_empty(),
+        "Should have at least one compressed token account 3 after compression"
+    );
+    assert!(
+        !ctoken_accounts_4.items.is_empty(),
+        "Should have at least one compressed token account 4 after compression"
+    );
+    assert!(
+        !ctoken_accounts_5.items.is_empty(),
+        "Should have at least one compressed token account 5 after compression"
     );
 
     let ctoken = &ctoken_accounts.items[0];
@@ -2754,10 +2986,67 @@ async fn compress_token_account_after_decompress(
         ctoken2.token.amount, amount,
         "Compressed token 2 should have the same amount"
     );
+    // Third token assertions
+    let ctoken3 = &ctoken_accounts_3.items[0];
+    assert_eq!(
+        ctoken3.token.mint, mint,
+        "Compressed token 3 should have the same mint"
+    );
+    assert_eq!(
+        ctoken3.token.owner, token_account_address_3,
+        "Compressed token 3 owner should be the token account address"
+    );
+    assert_eq!(
+        ctoken3.token.amount, amount,
+        "Compressed token 3 should have the same amount"
+    );
+    // Fourth token assertions
+    let ctoken4 = &ctoken_accounts_4.items[0];
+    assert_eq!(
+        ctoken4.token.mint, mint,
+        "Compressed token 4 should have the same mint"
+    );
+    assert_eq!(
+        ctoken4.token.owner, token_account_address_4,
+        "Compressed token 4 owner should be the token account address"
+    );
+    assert_eq!(
+        ctoken4.token.amount, amount,
+        "Compressed token 4 should have the same amount"
+    );
+    // Fifth token assertions
+    let ctoken5 = &ctoken_accounts_5.items[0];
+    assert_eq!(
+        ctoken5.token.mint, mint,
+        "Compressed token 5 should have the same mint"
+    );
+    assert_eq!(
+        ctoken5.token.owner, token_account_address_5,
+        "Compressed token 5 owner should be the token account address"
+    );
+    assert_eq!(
+        ctoken5.token.amount, amount,
+        "Compressed token 5 should have the same amount"
+    );
     let user_record_account = rpc.get_account(*user_record_pda).await.unwrap().unwrap();
     let game_session_account = rpc.get_account(*game_session_pda).await.unwrap().unwrap();
     let token_account = rpc
         .get_account(token_account_address)
+        .await
+        .unwrap()
+        .unwrap();
+    let token_account_3 = rpc
+        .get_account(token_account_address_3)
+        .await
+        .unwrap()
+        .unwrap();
+    let token_account_4 = rpc
+        .get_account(token_account_address_4)
+        .await
+        .unwrap()
+        .unwrap();
+    let token_account_5 = rpc
+        .get_account(token_account_address_5)
         .await
         .unwrap()
         .unwrap();
@@ -2782,5 +3071,17 @@ async fn compress_token_account_after_decompress(
     assert!(
         token_account.data.is_empty(),
         "Token account should be empty"
+    );
+    assert!(
+        token_account_3.data.is_empty(),
+        "Token account 3 should be empty"
+    );
+    assert!(
+        token_account_4.data.is_empty(),
+        "Token account 4 should be empty"
+    );
+    assert!(
+        token_account_5.data.is_empty(),
+        "Token account 5 should be empty"
     );
 }

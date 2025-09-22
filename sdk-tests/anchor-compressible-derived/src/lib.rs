@@ -53,7 +53,10 @@ pub enum ErrorCode {
     GameSession = ("game_session", data.session_id.to_le_bytes()),
     PlaceholderRecord = ("placeholder_record", data.placeholder_id.to_le_bytes()),
     CTokenSigner = (is_token, CTOKEN_SIGNER_SEED, ctx.accounts.fee_payer, ctx.accounts.some_mint, authority = "cpi_authority"),
-    CTokenSigner2 = (is_token, CTOKEN_SIGNER_SEED, ctx.accounts.fee_payer, authority = "cpi_authority"),
+    CTokenSigner2 = (is_token, "user_vault", ctx.accounts.fee_payer, authority = "cpi_authority"),
+    CTokenSigner3 = (is_token, POOL_VAULT_SEED, ctx.accounts.fee_payer, "liquidity", authority = "cpi_authority"),
+    CTokenSigner4 = (is_token, "multi_account", ctx.accounts.fee_payer, ctx.accounts.some_mint, authority = "cpi_authority"),
+    CTokenSigner5 = (is_token, "complex_vault", ctx.accounts.fee_payer, ctx.accounts.some_mint, authority = "cpi_authority"),
     owner = Pubkey,
     session_id = u64,
     placeholder_id = u64
@@ -64,6 +67,7 @@ pub mod anchor_compressible_derived {
     use light_compressed_token_sdk::instructions::{
         create_mint_action_cpi, find_spl_mint_address, MintActionInputs,
     };
+    use light_ctoken_types::state::TokenDataVersion;
     use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
 
     use super::*;
@@ -278,39 +282,48 @@ pub mod anchor_compressible_derived {
         };
         cpi_inputs.invoke_light_system_program_cpi_context(cpi_context_accounts)?;
 
-        // these are custom seeds of the caller program that are used to derive the program owned onchain tokenb account PDA.
+        // these are custom seeds of the caller program that are used to derive the program owned onchain token account PDA.
         // dual use: as owner of the compressed token account.
         let mint = find_spl_mint_address(&ctx.accounts.mint_signer.key()).0;
-        let token_account_address = {
-            let user_key = ctx.accounts.user.key();
-            let seeds = [b"ctoken_signer".as_ref(), user_key.as_ref(), mint.as_ref()];
-            let (pda, _bump) = Pubkey::find_program_address(&seeds, &crate::ID);
-            pda
-        };
 
-        let token_account_address_2 = {
-            let user_key = ctx.accounts.user.key();
-            let seeds = [b"ctoken_signer".as_ref(), user_key.as_ref()];
-            let (pda, _bump) = Pubkey::find_program_address(&seeds, &crate::ID);
-            pda
-        };
+        // Use the auto-generated seed functions for all 5 token accounts
+        let token_account_address = get_ctokensigner_seeds(&ctx.accounts.user.key(), &mint).1;
+        let token_account_address_2 = get_ctokensigner2_seeds(&ctx.accounts.user.key()).1;
+        let token_account_address_3 = get_ctokensigner3_seeds(&ctx.accounts.user.key()).1;
+        let token_account_address_4 = get_ctokensigner4_seeds(&ctx.accounts.user.key(), &mint).1;
+        let token_account_address_5 = get_ctokensigner5_seeds(&ctx.accounts.user.key(), &mint).1;
 
-        msg!("012 token_account_address: {:?}", token_account_address);
-        msg!("012 token_account_address_2: {:?}", token_account_address_2);
+        msg!("token_account_address: {:?}", token_account_address);
+        msg!("token_account_address_2: {:?}", token_account_address_2);
+        msg!("token_account_address_3: {:?}", token_account_address_3);
+        msg!("token_account_address_4: {:?}", token_account_address_4);
+        msg!("token_account_address_5: {:?}", token_account_address_5);
 
         let actions = vec![
             light_compressed_token_sdk::instructions::mint_action::MintActionType::MintTo {
                 recipients: vec![
                     light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
-                        recipient: token_account_address, // TRY: THE DECOMPRESS TOKEN ACCOUNT ADDRES IS THE OWNER OF ITS COMPRESSIBLED VERSION.
-                        amount: 1000,                     // Mint the full supply to the user
+                        recipient: token_account_address,
+                        amount: 1000,
                     },
                     light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
-                        recipient: token_account_address_2, // TRY: THE DECOMPRESS TOKEN ACCOUNT ADDRES IS THE OWNER OF ITS COMPRESSIBLED VERSION.
-                        amount: 1000,                       // Mint the full supply to the user
+                        recipient: token_account_address_2,
+                        amount: 1000,
+                    },
+                    light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
+                        recipient: token_account_address_3,
+                        amount: 1000,
+                    },
+                    light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
+                        recipient: token_account_address_4,
+                        amount: 1000,
+                    },
+                    light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
+                        recipient: token_account_address_5,
+                        amount: 1000,
                     },
                 ],
-                token_account_version: 2,
+                token_account_version: TokenDataVersion::ShaFlat as u8,
             },
         ];
 
