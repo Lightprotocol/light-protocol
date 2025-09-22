@@ -44,7 +44,7 @@ func (circuit *CombinedCircuit) Define(api frontend.API) error {
 		NumberOfCompressedAccounts: circuit.NonInclusion.NumberOfCompressedAccounts,
 		Height:                     circuit.NonInclusion.Height,
 	}
-	abstractor.Call1(api, proof)
+	abstractor.CallVoid(api, proof)
 	return nil
 }
 

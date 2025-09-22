@@ -20,7 +20,8 @@ func (p *InclusionParameters) MarshalJSON() ([]byte, error) {
 func (p *InclusionParameters) CreateInclusionParametersJSON() InclusionParametersJSON {
 	paramsJson := InclusionParametersJSON{}
 	paramsJson.Inputs = make([]common.InclusionProofInputsJSON, p.NumberOfCompressedAccounts())
-	paramsJson.CircuitType = string(common.CombinedCircuitType)
+	paramsJson.CircuitType = string(common.InclusionCircuitType)
+	paramsJson.StateTreeHeight = 26 // v1 always uses height 26
 	for i := 0; i < int(p.NumberOfCompressedAccounts()); i++ {
 		paramsJson.Inputs[i].Root = common.ToHex(&p.Inputs[i].Root)
 		paramsJson.Inputs[i].Leaf = common.ToHex(&p.Inputs[i].Leaf)
