@@ -283,13 +283,13 @@ func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta co
 		return nil, fmt.Errorf("no proving system found for inclusion proof with meta: %+v", meta)
 	}
 
-	if meta.Version == 0 {
+	if meta.Version == 1 {
 		var params v1.InclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal legacy inclusion parameters: %w", err)
 		}
 		return v1.ProveInclusion(ps, &params)
-	} else if meta.Version == 1 {
+	} else if meta.Version == 2 {
 		var params v2.InclusionParameters
 		if err := json.Unmarshal(payload, &params); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal inclusion parameters: %w", err)
