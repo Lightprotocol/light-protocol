@@ -55,6 +55,10 @@ func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfComp
 	nonInclusionLeafLowerRangeValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 	nonInclusionLeafHigherRangeValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 	nonInclusionNextIndices := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+	// Initialize NextIndices with 0 to avoid nil values in auto-generated tests
+	for i := 0; i < int(nonInclusionNumberOfCompressedAccounts); i++ {
+		nonInclusionNextIndices[i] = 0
+	}
 
 	nonInclusionInPathIndices := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 	nonInclusionInPathElements := make([][]frontend.Variable, nonInclusionNumberOfCompressedAccounts)

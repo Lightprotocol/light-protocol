@@ -41,6 +41,7 @@ func TestCombinedCircuit(t *testing.T) {
 			circuit.NonInclusion.Values[i] = params.NonInclusionParameters.Inputs[i].Value
 			circuit.NonInclusion.LeafLowerRangeValues[i] = params.NonInclusionParameters.Inputs[i].LeafLowerRangeValue
 			circuit.NonInclusion.LeafHigherRangeValues[i] = params.NonInclusionParameters.Inputs[i].LeafHigherRangeValue
+			circuit.NonInclusion.NextIndices[i] = params.NonInclusionParameters.Inputs[i].NextIndex
 			circuit.NonInclusion.InPathIndices[i] = params.NonInclusionParameters.Inputs[i].PathIndex
 			for j := 0; j < int(treeHeight); j++ {
 				circuit.NonInclusion.InPathElements[i][j] = params.NonInclusionParameters.Inputs[i].PathElements[j]
@@ -53,7 +54,8 @@ func TestCombinedCircuit(t *testing.T) {
 		assert.ProverSucceeded(&constraintCircuit, &circuit,
 			test.WithBackends(backend.GROTH16),
 			test.WithCurves(ecc.BN254),
-			test.NoSerializationChecks())
+			test.NoSerializationChecks(),
+			test.NoTestEngine())
 	})
 
 	// Test with 2 inclusions and 1 non-inclusion
@@ -86,6 +88,7 @@ func TestCombinedCircuit(t *testing.T) {
 			circuit.NonInclusion.Values[i] = params.NonInclusionParameters.Inputs[i].Value
 			circuit.NonInclusion.LeafLowerRangeValues[i] = params.NonInclusionParameters.Inputs[i].LeafLowerRangeValue
 			circuit.NonInclusion.LeafHigherRangeValues[i] = params.NonInclusionParameters.Inputs[i].LeafHigherRangeValue
+			circuit.NonInclusion.NextIndices[i] = params.NonInclusionParameters.Inputs[i].NextIndex
 			circuit.NonInclusion.InPathIndices[i] = params.NonInclusionParameters.Inputs[i].PathIndex
 			for j := 0; j < int(treeHeight); j++ {
 				circuit.NonInclusion.InPathElements[i][j] = params.NonInclusionParameters.Inputs[i].PathElements[j]
@@ -98,7 +101,8 @@ func TestCombinedCircuit(t *testing.T) {
 		assert.ProverSucceeded(&constraintCircuit, &circuit,
 			test.WithBackends(backend.GROTH16),
 			test.WithCurves(ecc.BN254),
-			test.NoSerializationChecks())
+			test.NoSerializationChecks(),
+			test.NoTestEngine())
 	})
 
 	// Test various combinations
@@ -199,7 +203,8 @@ func TestCombinedCircuit(t *testing.T) {
 		assert.ProverFailed(&constraintCircuit, &circuit,
 			test.WithBackends(backend.GROTH16),
 			test.WithCurves(ecc.BN254),
-			test.NoSerializationChecks())
+			test.NoSerializationChecks(),
+			test.NoTestEngine())
 	})
 
 	// Test invalid proof (value out of range for non-inclusion)
@@ -240,6 +245,7 @@ func TestCombinedCircuit(t *testing.T) {
 		assert.ProverFailed(&constraintCircuit, &circuit,
 			test.WithBackends(backend.GROTH16),
 			test.WithCurves(ecc.BN254),
-			test.NoSerializationChecks())
+			test.NoSerializationChecks(),
+			test.NoTestEngine())
 	})
 }

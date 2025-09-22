@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"light/light-prover/prover/common"
 	"math/big"
 	"testing"
 
@@ -28,6 +27,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 		circuit.Values = make([]frontend.Variable, numberOfAccounts)
 		circuit.LeafLowerRangeValues = make([]frontend.Variable, numberOfAccounts)
 		circuit.LeafHigherRangeValues = make([]frontend.Variable, numberOfAccounts)
+		circuit.NextIndices = make([]frontend.Variable, numberOfAccounts)
 		circuit.InPathIndices = make([]frontend.Variable, numberOfAccounts)
 		circuit.InPathElements = make([][]frontend.Variable, numberOfAccounts)
 		for i := 0; i < int(numberOfAccounts); i++ {
@@ -41,6 +41,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 		values := make([]frontend.Variable, numberOfAccounts)
 		leafLowerRangeValues := make([]frontend.Variable, numberOfAccounts)
 		leafHigherRangeValues := make([]frontend.Variable, numberOfAccounts)
+		nextIndices := make([]frontend.Variable, numberOfAccounts)
 		inPathIndices := make([]frontend.Variable, numberOfAccounts)
 		inPathElements := make([][]frontend.Variable, numberOfAccounts)
 
@@ -49,6 +50,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 			values[i] = params.Inputs[i].Value
 			leafLowerRangeValues[i] = params.Inputs[i].LeafLowerRangeValue
 			leafHigherRangeValues[i] = params.Inputs[i].LeafHigherRangeValue
+			nextIndices[i] = params.Inputs[i].NextIndex
 			inPathIndices[i] = params.Inputs[i].PathIndex
 			inPathElements[i] = make([]frontend.Variable, treeHeight)
 			for j := 0; j < int(treeHeight); j++ {
@@ -61,6 +63,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 			Values:                     values,
 			LeafLowerRangeValues:       leafLowerRangeValues,
 			LeafHigherRangeValues:      leafHigherRangeValues,
+			NextIndices:                nextIndices,
 			InPathIndices:              inPathIndices,
 			InPathElements:             inPathElements,
 			NumberOfCompressedAccounts: numberOfAccounts,
@@ -70,7 +73,8 @@ func TestNonInclusionCircuit(t *testing.T) {
 		assert.ProverSucceeded(&circuit, witness,
 			test.WithBackends(backend.GROTH16),
 			test.WithCurves(ecc.BN254),
-			test.NoSerializationChecks())
+			test.NoSerializationChecks(),
+			test.NoTestEngine())
 	})
 
 	// Test with multiple accounts
@@ -85,6 +89,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 		circuit.Values = make([]frontend.Variable, numberOfAccounts)
 		circuit.LeafLowerRangeValues = make([]frontend.Variable, numberOfAccounts)
 		circuit.LeafHigherRangeValues = make([]frontend.Variable, numberOfAccounts)
+		circuit.NextIndices = make([]frontend.Variable, numberOfAccounts)
 		circuit.InPathIndices = make([]frontend.Variable, numberOfAccounts)
 		circuit.InPathElements = make([][]frontend.Variable, numberOfAccounts)
 		for i := 0; i < int(numberOfAccounts); i++ {
@@ -97,6 +102,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 		values := make([]frontend.Variable, numberOfAccounts)
 		leafLowerRangeValues := make([]frontend.Variable, numberOfAccounts)
 		leafHigherRangeValues := make([]frontend.Variable, numberOfAccounts)
+		nextIndices := make([]frontend.Variable, numberOfAccounts)
 		inPathIndices := make([]frontend.Variable, numberOfAccounts)
 		inPathElements := make([][]frontend.Variable, numberOfAccounts)
 
@@ -105,6 +111,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 			values[i] = params.Inputs[i].Value
 			leafLowerRangeValues[i] = params.Inputs[i].LeafLowerRangeValue
 			leafHigherRangeValues[i] = params.Inputs[i].LeafHigherRangeValue
+			nextIndices[i] = params.Inputs[i].NextIndex
 			inPathIndices[i] = params.Inputs[i].PathIndex
 			inPathElements[i] = make([]frontend.Variable, treeHeight)
 			for j := 0; j < int(treeHeight); j++ {
@@ -117,6 +124,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 			Values:                     values,
 			LeafLowerRangeValues:       leafLowerRangeValues,
 			LeafHigherRangeValues:      leafHigherRangeValues,
+			NextIndices:                nextIndices,
 			InPathIndices:              inPathIndices,
 			InPathElements:             inPathElements,
 			NumberOfCompressedAccounts: numberOfAccounts,
@@ -126,7 +134,8 @@ func TestNonInclusionCircuit(t *testing.T) {
 		assert.ProverSucceeded(&circuit, witness,
 			test.WithBackends(backend.GROTH16),
 			test.WithCurves(ecc.BN254),
-			test.NoSerializationChecks())
+			test.NoSerializationChecks(),
+			test.NoTestEngine())
 	})
 
 	// Test invalid proof (value out of range)
@@ -142,6 +151,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 		circuit.Values = make([]frontend.Variable, numberOfAccounts)
 		circuit.LeafLowerRangeValues = make([]frontend.Variable, numberOfAccounts)
 		circuit.LeafHigherRangeValues = make([]frontend.Variable, numberOfAccounts)
+		circuit.NextIndices = make([]frontend.Variable, numberOfAccounts)
 		circuit.InPathIndices = make([]frontend.Variable, numberOfAccounts)
 		circuit.InPathElements = make([][]frontend.Variable, numberOfAccounts)
 		for i := 0; i < int(numberOfAccounts); i++ {
@@ -154,6 +164,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 		values := make([]frontend.Variable, numberOfAccounts)
 		leafLowerRangeValues := make([]frontend.Variable, numberOfAccounts)
 		leafHigherRangeValues := make([]frontend.Variable, numberOfAccounts)
+		nextIndices := make([]frontend.Variable, numberOfAccounts)
 		inPathIndices := make([]frontend.Variable, numberOfAccounts)
 		inPathElements := make([][]frontend.Variable, numberOfAccounts)
 
@@ -162,6 +173,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 			values[i] = params.Inputs[i].Value
 			leafLowerRangeValues[i] = params.Inputs[i].LeafLowerRangeValue
 			leafHigherRangeValues[i] = params.Inputs[i].LeafHigherRangeValue
+			nextIndices[i] = params.Inputs[i].NextIndex
 			inPathIndices[i] = params.Inputs[i].PathIndex
 			inPathElements[i] = make([]frontend.Variable, treeHeight)
 			for j := 0; j < int(treeHeight); j++ {
@@ -174,6 +186,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 			Values:                     values,
 			LeafLowerRangeValues:       leafLowerRangeValues,
 			LeafHigherRangeValues:      leafHigherRangeValues,
+			NextIndices:                nextIndices,
 			InPathIndices:              inPathIndices,
 			InPathElements:             inPathElements,
 			NumberOfCompressedAccounts: numberOfAccounts,
@@ -212,6 +225,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 			Value:                *value,
 			LeafLowerRangeValue:  *leafLowerRangeValue,
 			LeafHigherRangeValue: *leafHigherRangeValue,
+			NextIndex:            uint32(0),
 			PathIndex:            uint32(pathIndex),
 			PathElements:         pathElements,
 		}
@@ -221,6 +235,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 		circuit.Values = make([]frontend.Variable, numberOfAccounts)
 		circuit.LeafLowerRangeValues = make([]frontend.Variable, numberOfAccounts)
 		circuit.LeafHigherRangeValues = make([]frontend.Variable, numberOfAccounts)
+		circuit.NextIndices = make([]frontend.Variable, numberOfAccounts)
 		circuit.InPathIndices = make([]frontend.Variable, numberOfAccounts)
 		circuit.InPathElements = make([][]frontend.Variable, numberOfAccounts)
 		circuit.InPathElements[0] = make([]frontend.Variable, treeHeight)
@@ -236,6 +251,7 @@ func TestNonInclusionCircuit(t *testing.T) {
 			Values:                     []frontend.Variable{params.Inputs[0].Value},
 			LeafLowerRangeValues:       []frontend.Variable{params.Inputs[0].LeafLowerRangeValue},
 			LeafHigherRangeValues:      []frontend.Variable{params.Inputs[0].LeafHigherRangeValue},
+			NextIndices:                []frontend.Variable{params.Inputs[0].NextIndex},
 			InPathIndices:              []frontend.Variable{params.Inputs[0].PathIndex},
 			InPathElements:             [][]frontend.Variable{witnessPathElements},
 			NumberOfCompressedAccounts: numberOfAccounts,
@@ -245,7 +261,8 @@ func TestNonInclusionCircuit(t *testing.T) {
 		assert.ProverSucceeded(&circuit, witness,
 			test.WithBackends(backend.GROTH16),
 			test.WithCurves(ecc.BN254),
-			test.NoSerializationChecks())
+			test.NoSerializationChecks(),
+			test.NoTestEngine())
 	})
 }
 
@@ -263,6 +280,7 @@ func TestNonInclusionGadget(t *testing.T) {
 	circuit.Values = make([]frontend.Variable, numberOfAccounts)
 	circuit.LeafLowerRangeValues = make([]frontend.Variable, numberOfAccounts)
 	circuit.LeafHigherRangeValues = make([]frontend.Variable, numberOfAccounts)
+	circuit.NextIndices = make([]frontend.Variable, numberOfAccounts)
 	circuit.InPathIndices = make([]frontend.Variable, numberOfAccounts)
 	circuit.InPathElements = make([][]frontend.Variable, numberOfAccounts)
 	circuit.InPathElements[0] = make([]frontend.Variable, treeHeight)
@@ -278,6 +296,7 @@ func TestNonInclusionGadget(t *testing.T) {
 		Values:                     []frontend.Variable{params.Inputs[0].Value},
 		LeafLowerRangeValues:       []frontend.Variable{params.Inputs[0].LeafLowerRangeValue},
 		LeafHigherRangeValues:      []frontend.Variable{params.Inputs[0].LeafHigherRangeValue},
+		NextIndices:                []frontend.Variable{params.Inputs[0].NextIndex},
 		InPathIndices:              []frontend.Variable{params.Inputs[0].PathIndex},
 		InPathElements:             [][]frontend.Variable{pathElements},
 		NumberOfCompressedAccounts: numberOfAccounts,
@@ -287,7 +306,8 @@ func TestNonInclusionGadget(t *testing.T) {
 	assert.ProverSucceeded(&circuit, witness,
 		test.WithBackends(backend.GROTH16),
 		test.WithCurves(ecc.BN254),
-		test.NoSerializationChecks())
+		test.NoSerializationChecks(),
+		test.NoTestEngine())
 }
 
 // Test circuit for gadget testing
@@ -297,6 +317,7 @@ type testNonInclusionGadgetCircuit struct {
 
 	LeafLowerRangeValues  []frontend.Variable
 	LeafHigherRangeValues []frontend.Variable
+	NextIndices            []frontend.Variable
 
 	InPathIndices  []frontend.Variable
 	InPathElements [][]frontend.Variable
@@ -306,11 +327,12 @@ type testNonInclusionGadgetCircuit struct {
 }
 
 func (circuit *testNonInclusionGadgetCircuit) Define(api frontend.API) error {
-	proof := common.NonInclusionProof{
+	proof := LegacyNonInclusionProof{
 		Roots:                      circuit.Roots,
 		Values:                     circuit.Values,
 		LeafLowerRangeValues:       circuit.LeafLowerRangeValues,
 		LeafHigherRangeValues:      circuit.LeafHigherRangeValues,
+		NextIndices:                circuit.NextIndices,
 		InPathElements:             circuit.InPathElements,
 		InPathIndices:              circuit.InPathIndices,
 		NumberOfCompressedAccounts: circuit.NumberOfCompressedAccounts,
