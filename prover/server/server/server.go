@@ -992,7 +992,7 @@ func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta common.P
 		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 	}
 
-	if proofRequestMeta.Version == 0 {
+	if proofRequestMeta.Version == 1 {
 		var params v1.InclusionParameters
 
 		if err := json.Unmarshal(buf, &params); err != nil {
@@ -1003,7 +1003,7 @@ func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta common.P
 			return nil, provingError(err)
 		}
 		return proof, nil
-	} else if proofRequestMeta.Version == 1 {
+	} else if proofRequestMeta.Version == 2 {
 		var params v2.InclusionParameters
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)

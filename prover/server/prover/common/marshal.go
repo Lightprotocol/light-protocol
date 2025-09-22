@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/big"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -246,8 +247,13 @@ func ReadSystemFromFile(path string) (interface{}, error) {
 		return ps, nil
 	} else {
 		ps := new(MerkleProofSystem)
-		if strings.Contains(strings.ToLower(path), "mainnet") {
-			ps.Version = 0
+		filename := strings.ToLower(filepath.Base(path))
+		if strings.HasPrefix(filename, "v2_") {
+			ps.Version = 2
+		} else if strings.HasPrefix(filename, "v1_") {
+			ps.Version = 1
+		} else if strings.Contains(filename, "mainnet") {
+			ps.Version = 1
 		} else {
 			ps.Version = 1
 		}

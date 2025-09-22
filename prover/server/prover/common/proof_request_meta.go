@@ -55,10 +55,10 @@ func ParseProofRequestMeta(data []byte) (ProofRequestMeta, error) {
 		return ProofRequestMeta{}, fmt.Errorf("no 'addressTreeHeight' or stateTreeHeight'or 'treeHeight' provided")
 	}
 
-	version := uint32(0)
+	version := uint32(1)
 	publicInputsHash, _ := rawInput["publicInputHash"].(string)
 	if publicInputsHash != "" {
-		version = 1
+		version = 2
 	}
 
 	// Extract InclusionInputs length

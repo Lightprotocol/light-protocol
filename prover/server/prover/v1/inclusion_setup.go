@@ -48,7 +48,7 @@ func SetupInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*comm
 		ProvingKey:                          pk,
 		VerifyingKey:                        vk,
 		ConstraintSystem:                    ccs,
-		Version:                             0, // V1 circuits have version 0
+		Version:                             1, // V1 circuits have version 1
 	}, nil
 }
 
@@ -97,7 +97,7 @@ func SetupNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*c
 		ProvingKey:                             pk,
 		VerifyingKey:                           vk,
 		ConstraintSystem:                       ccs,
-		Version:                                0, // V1 circuits have version 0
+		Version:                                1, // V1 circuits have version 1
 	}, nil
 }
 
@@ -131,6 +131,6 @@ func SetupCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccoun
 		ProvingKey:                             pk,
 		VerifyingKey:                           vk,
 		ConstraintSystem:                       ccs,
-		Version:                                0, // V1 circuits have version 0
+		Version:                                1, // V1 circuits have version 1
 	}, nil
 }
