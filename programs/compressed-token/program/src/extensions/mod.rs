@@ -64,6 +64,16 @@ fn process_token_metadata_config_with_actions(
             );
             return Err(CTokenError::TooManyAdditionalMetadata);
         }
+
+        // Check for duplicate keys (O(n²) but acceptable for max 20 items)
+        for i in 0..additional_metadata.len() {
+            for j in (i + 1)..additional_metadata.len() {
+                if additional_metadata[i].key == additional_metadata[j].key {
+                    msg!("Duplicate metadata key found at positions {} and {}", i, j);
+                    return Err(CTokenError::DuplicateMetadataKey);
+                }
+            }
+        }
     }
 
     // Single-pass state accumulator - track final sizes directly
@@ -105,51 +115,96 @@ fn process_token_metadata_config_with_actions(
 }
 
 /// Build metadata config directly without heap allocations using ArrayVec
-/// Processes each metadata item independently, checking actions inline
+/// Processes all possible keys and determines final state (SPL Token-2022 compatible)
 #[inline(always)]
 fn build_metadata_config(
     metadata: Option<&Vec<ZAdditionalMetadata<'_>>>,
     actions: &[ZAction],
     extension_index: usize,
 ) -> Vec<AdditionalMetadataConfig> {
-    let Some(items) = metadata else {
-        return Vec::new();
+    let mut configs: arrayvec::ArrayVec<AdditionalMetadataConfig, 20> = arrayvec::ArrayVec::new();
+    let mut processed_keys: arrayvec::ArrayVec<&[u8], 20> = arrayvec::ArrayVec::new();
+
+    let should_add_key = |key: &[u8]| -> bool {
+        // Key exists if it's in original metadata OR added via UpdateMetadataField
+        let exists_in_original =
+            metadata.is_some_and(|items| items.iter().any(|item| item.key == key));
+        let added_via_update = actions.iter().any(|action| {
+            matches!(action, ZAction::UpdateMetadataField(update)
+                if update.extension_index as usize == extension_index
+                    && update.field_type == 3
+                    && update.key == key)
+        });
+
+        // Key should be included if it exists and is not removed
+        let should_exist = exists_in_original || added_via_update;
+        let is_removed = actions.iter().any(|action| {
+            matches!(action, ZAction::RemoveMetadataKey(remove)
+                if remove.extension_index as usize == extension_index
+                    && remove.key == key)
+        });
+
+        should_exist && !is_removed
     };
 
-    let mut configs: arrayvec::ArrayVec<AdditionalMetadataConfig, 20> = arrayvec::ArrayVec::new();
+    // Process all original metadata keys
+    if let Some(items) = metadata {
+        for item in items.iter() {
+            if should_add_key(item.key) {
+                let final_value_len = actions
+                    .iter()
+                    .rev()
+                    .find_map(|action| match action {
+                        ZAction::UpdateMetadataField(update)
+                            if update.extension_index as usize == extension_index
+                                && update.field_type == 3
+                                && update.key == item.key =>
+                        {
+                            Some(update.value.len())
+                        }
+                        _ => None,
+                    })
+                    .unwrap_or(item.value.len());
 
-    for item in items.iter() {
-        // Check if this key is removed (inline check, no allocation)
-        let is_removed = actions.iter().any(|action| {
-            matches!(action, ZAction::RemoveMetadataKey(remove_action)
-                if remove_action.extension_index as usize == extension_index
-                    && remove_action.key == item.key)
-        });
-
-        if is_removed {
-            continue; // Skip removed keys
+                configs.push(AdditionalMetadataConfig {
+                    key: item.key.len() as u32,
+                    value: final_value_len as u32,
+                });
+                processed_keys.push(item.key);
+            }
         }
+    }
 
-        // Find final value length (last update wins - iterate backwards for efficiency)
-        let final_value_len = actions
-            .iter()
-            .rev() // Reverse to find last update first
-            .find_map(|action| match action {
-                ZAction::UpdateMetadataField(update_action)
-                    if update_action.extension_index as usize == extension_index
-                        && update_action.field_type == 3
-                        && update_action.key == item.key =>
-                {
-                    Some(update_action.value.len())
-                }
-                _ => None,
-            })
-            .unwrap_or(item.value.len()); // Default to original if no updates
+    // Process new keys from UpdateMetadataField actions
+    for action in actions.iter() {
+        if let ZAction::UpdateMetadataField(update) = action {
+            if update.extension_index as usize == extension_index
+                && update.field_type == 3
+                && !processed_keys.contains(&update.key)
+                && should_add_key(update.key)
+            {
+                let final_value_len = actions
+                    .iter()
+                    .rev()
+                    .find_map(|later_action| match later_action {
+                        ZAction::UpdateMetadataField(later_update)
+                            if later_update.extension_index as usize == extension_index
+                                && later_update.field_type == 3
+                                && later_update.key == update.key =>
+                        {
+                            Some(later_update.value.len())
+                        }
+                        _ => None,
+                    })
+                    .unwrap_or(update.value.len());
 
-        configs.push(AdditionalMetadataConfig {
-            key: item.key.len() as u32,
-            value: final_value_len as u32,
-        });
+                configs.push(AdditionalMetadataConfig {
+                    key: update.key.len() as u32,
+                    value: final_value_len as u32,
+                });
+                processed_keys.push(update.key);
+            }
+        }
     }
 
     configs.into_iter().collect()

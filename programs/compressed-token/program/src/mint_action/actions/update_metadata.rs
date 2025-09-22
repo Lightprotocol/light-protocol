@@ -76,17 +76,22 @@ pub fn process_update_metadata_field_action(
             metadata.uri = action.value.to_vec();
         }
         _ => {
-            // Find existing key and conditionally update
-            if metadata.additional_metadata.is_empty() {
-                return Err(ErrorCode::MintActionUnsupportedOperation.into());
-            }
+            // Find existing key and update, or add new key
             if let Some(metadata_pair) = metadata
                 .additional_metadata
                 .iter_mut()
                 .find(|metadata_pair| metadata_pair.key == action.key)
             {
+                // Update existing key
                 metadata_pair.value = action.value.to_vec();
             } else {
+                // TODO: Enable adding new keys for SPL Token-2022 compatibility
+                // metadata.additional_metadata.push(
+                //     light_ctoken_types::state::AdditionalMetadata {
+                //         key: action.key.to_vec(),
+                //         value: action.value.to_vec(),
+                //     }
+                // );
                 return Err(ErrorCode::MintActionUnsupportedOperation.into());
             }
         }

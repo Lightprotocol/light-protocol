@@ -1405,6 +1405,45 @@ async fn functional_and_failing_tests() {
     );
     }
 
+    // 2. FAIL - Create mint with duplicate metadata keys
+    {
+        let duplicate_mint_seed = Keypair::new();
+        let result = create_mint(
+            &mut rpc,
+            &duplicate_mint_seed, // Use new mint seed
+            8, // decimals
+            &mint_authority,
+            Some(freeze_authority.pubkey()),
+            Some(light_ctoken_types::instructions::extensions::token_metadata::TokenMetadataInstructionData {
+                update_authority: Some(metadata_authority.pubkey().into()),
+                name: "Test Token".as_bytes().to_vec(),
+                symbol: "TEST".as_bytes().to_vec(),
+                uri: "https://example.com/token.json".as_bytes().to_vec(),
+                additional_metadata: Some(vec![
+                    AdditionalMetadata {
+                        key: vec![1, 2, 3, 4], // First key
+                        value: vec![2u8; 5]
+                    },
+                    AdditionalMetadata {
+                        key: vec![5, 6, 7, 8], // Different key
+                        value: vec![3u8; 10]
+                    },
+                    AdditionalMetadata {
+                        key: vec![1, 2, 3, 4], // DUPLICATE of first key
+                        value: vec![4u8; 15]
+                    }
+                ]),
+            }),
+            &payer,
+        )
+        .await;
+
+        assert_rpc_error(
+            result, 0, 18040, // CTokenError::DuplicateMetadataKey = 18040
+        )
+        .unwrap();
+    }
+
     // Create invalid authorities for testing
     let invalid_mint_authority = Keypair::new();
     let invalid_freeze_authority = Keypair::new();
@@ -1437,7 +1476,7 @@ async fn functional_and_failing_tests() {
         .await
         .unwrap();
 
-    // 1. MintToCompressed with invalid mint authority
+    // 3. MintToCompressed with invalid mint authority
     {
         let result = light_token_client::actions::mint_to_compressed(
             &mut rpc,
@@ -1458,7 +1497,7 @@ async fn functional_and_failing_tests() {
         .unwrap();
     }
 
-    // 2. SUCCEED - MintToCompressed with valid mint authority
+    // 4. SUCCEED - MintToCompressed with valid mint authority
     {
         // Get pre-transaction compressed mint state
         let pre_compressed_mint_account = rpc
@@ -1518,7 +1557,7 @@ async fn functional_and_failing_tests() {
         .unwrap()
         .value;
 
-    // 2. UpdateMintAuthority with invalid mint authority
+    // 5. UpdateMintAuthority with invalid mint authority
     {
         let result = light_token_client::actions::update_mint_authority(
             &mut rpc,
@@ -1537,7 +1576,7 @@ async fn functional_and_failing_tests() {
         .unwrap();
     }
 
-    // 4. SUCCEED - UpdateMintAuthority with valid mint authority
+    // 6. SUCCEED - UpdateMintAuthority with valid mint authority
     {
         // Get fresh compressed mint account
         let compressed_mint_account = rpc
@@ -1577,7 +1616,7 @@ async fn functional_and_failing_tests() {
         .await;
     }
 
-    // 5. UpdateFreezeAuthority with invalid freeze authority
+    // 7. UpdateFreezeAuthority with invalid freeze authority
     {
         // Get fresh compressed mint account after mint authority update
         let compressed_mint_account = rpc
@@ -1607,7 +1646,7 @@ async fn functional_and_failing_tests() {
         .unwrap();
     }
 
-    // 6. SUCCEED - UpdateFreezeAuthority with valid freeze authority
+    // 8. SUCCEED - UpdateFreezeAuthority with valid freeze authority
     {
         // Get fresh compressed mint account
         let compressed_mint_account = rpc
@@ -1648,7 +1687,7 @@ async fn functional_and_failing_tests() {
         .await;
     }
 
-    // 7. MintToCToken with invalid mint authority
+    // 9. MintToCToken with invalid mint authority
     {
         // Create a ctoken account first
         let recipient = Keypair::new();
@@ -1689,7 +1728,7 @@ async fn functional_and_failing_tests() {
         .unwrap();
     }
 
-    // 8. SUCCEED - MintToCToken with valid mint authority
+    // 10. SUCCEED - MintToCToken with valid mint authority
     {
         // Get pre-transaction compressed mint state
         let pre_compressed_mint_account = rpc
@@ -1757,7 +1796,7 @@ async fn functional_and_failing_tests() {
         .await;
     }
 
-    // 9. UpdateMetadataField with invalid metadata authority
+    // 11. UpdateMetadataField with invalid metadata authority
     {
         let result = light_token_client::actions::mint_action(
             &mut rpc,
@@ -1786,7 +1825,7 @@ async fn functional_and_failing_tests() {
         .unwrap();
     }
 
-    // 10. SUCCEED - UpdateMetadataField with valid metadata authority
+    // 12. SUCCEED - UpdateMetadataField with valid metadata authority
     {
         // Get pre-transaction compressed mint state
         let pre_compressed_mint_account = rpc
@@ -1839,7 +1878,7 @@ async fn functional_and_failing_tests() {
         .await;
     }
 
-    // 11. UpdateMetadataAuthority with invalid metadata authority
+    // 13. UpdateMetadataAuthority with invalid metadata authority
     {
         let result = light_token_client::actions::mint_action(
             &mut rpc,
@@ -1866,7 +1905,7 @@ async fn functional_and_failing_tests() {
         .unwrap();
     }
 
-    // 12. SUCCEED - UpdateMetadataAuthority with valid metadata authority
+    // 14. SUCCEED - UpdateMetadataAuthority with valid metadata authority
     {
         // Get pre-transaction compressed mint state
         let pre_compressed_mint_account = rpc
@@ -1917,7 +1956,7 @@ async fn functional_and_failing_tests() {
         .await;
     }
 
-    // 13. RemoveMetadataKey with invalid metadata authority
+    // 15. RemoveMetadataKey with invalid metadata authority
     {
         let result = light_token_client::actions::mint_action(
             &mut rpc,
@@ -1945,7 +1984,7 @@ async fn functional_and_failing_tests() {
         .unwrap();
     }
 
-    // 14. SUCCEED - RemoveMetadataKey with valid metadata authority
+    // 16. SUCCEED - RemoveMetadataKey with valid metadata authority
     {
         // Get pre-transaction compressed mint state
         let pre_compressed_mint_account = rpc
@@ -1997,7 +2036,7 @@ async fn functional_and_failing_tests() {
         .await;
     }
 
-    // 15. SUCCEED - RemoveMetadataKey idempotent (try to remove same key again)
+    // 17. SUCCEED - RemoveMetadataKey idempotent (try to remove same key again)
     {
         // Get pre-transaction compressed mint state
         let pre_compressed_mint_account = rpc

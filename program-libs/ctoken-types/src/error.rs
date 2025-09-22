@@ -123,6 +123,9 @@ pub enum CTokenError {
 
     #[error("Too many additional metadata elements. Maximum 20 allowed")]
     TooManyAdditionalMetadata,
+
+    #[error("Duplicate metadata key found in additional metadata")]
+    DuplicateMetadataKey,
 }
 
 impl From<CTokenError> for u32 {
@@ -167,6 +170,7 @@ impl From<CTokenError> for u32 {
             CTokenError::BorshFailed => 18037,
             CTokenError::TooManyInputAccounts => 18038,
             CTokenError::TooManyAdditionalMetadata => 18039,
+            CTokenError::DuplicateMetadataKey => 18040,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),
