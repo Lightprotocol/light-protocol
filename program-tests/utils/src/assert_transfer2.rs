@@ -80,7 +80,10 @@ pub async fn assert_transfer2_with_delegate(
 
                 // Use explicit change_amount if provided, otherwise calculate it
                 let change_amount = transfer_input.change_amount.unwrap_or_else(|| {
-                    transfer_input.compressed_token_account[0].token.amount - transfer_input.amount
+                    transfer_input.compressed_token_account[0]
+                        .token
+                        .amount
+                        .saturating_sub(transfer_input.amount)
                 });
 
                 // Assert change account if there should be change
@@ -316,10 +319,17 @@ pub async fn assert_transfer2_with_delegate(
                     .value
                     .items;
 
+                // Calculate expected amount including compressed inputs
+                let compressed_input_amount = compress_input
+                    .compressed_token_account
+                    .as_ref()
+                    .map(|accounts| accounts.iter().map(|a| a.token.amount).sum::<u64>())
+                    .unwrap_or(0);
+
                 let expected_recipient_token_data = light_sdk::token::TokenData {
                     mint: compress_input.mint,
                     owner: compress_input.to,
-                    amount: compress_input.amount,
+                    amount: compress_input.amount + compressed_input_amount,
                     delegate: None,
                     state: light_sdk::token::AccountState::Initialized,
                     tlv: None,
@@ -334,13 +344,24 @@ pub async fn assert_transfer2_with_delegate(
                         );
                     }
                 });
+                // Find the compressed account that matches the expected amount
+                // (there might be multiple accounts for the same owner/mint in complex transactions)
+                let matching_account = recipient_accounts
+                    .iter()
+                    .find(|account| {
+                        account.token.mint == expected_recipient_token_data.mint
+                            && account.token.owner == expected_recipient_token_data.owner
+                            && account.token.amount == expected_recipient_token_data.amount
+                    })
+                    .expect("Should find compressed account with expected amount");
+
                 // Assert complete recipient compressed token account
                 assert_eq!(
-                    recipient_accounts[0].token, expected_recipient_token_data,
+                    matching_account.token, expected_recipient_token_data,
                     "Compress recipient token account should match expected"
                 );
                 assert_eq!(
-                    recipient_accounts[0].account.owner.to_bytes(),
+                    matching_account.account.owner.to_bytes(),
                     COMPRESSED_TOKEN_PROGRAM_ID,
                     "Compress recipient token account should match expected"
                 );

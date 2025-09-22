@@ -10,7 +10,11 @@ use light_ctoken_types::{
     state::TokenDataVersion,
 };
 use light_program_test::{indexer::TestIndexerExtensions, LightProgramTest, ProgramTestConfig};
-use light_test_utils::{airdrop_lamports, assert_transfer2::assert_transfer2};
+use light_test_utils::{
+    airdrop_lamports,
+    assert_transfer2::assert_transfer2,
+    spl::{create_mint_helper, create_token_account, mint_spl_tokens},
+};
 use light_token_client::{
     actions::{create_mint, mint_to_compressed},
     instructions::{
@@ -23,6 +27,33 @@ use light_token_client::{
 };
 use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
+
+// ============================================================================
+// Test Configuration
+// ============================================================================
+
+#[derive(Debug, Clone)]
+pub struct TestConfig {
+    pub default_setup_amount: u64,
+    pub max_supported_mints: usize,
+    pub test_token_decimals: u8,
+    pub max_keypairs: usize,
+    pub airdrop_amount: u64,
+    pub base_compressed_account_amount: u64,
+}
+
+impl Default for TestConfig {
+    fn default() -> Self {
+        Self {
+            default_setup_amount: 500,
+            max_supported_mints: 5,
+            test_token_decimals: 6,
+            max_keypairs: 40,
+            airdrop_amount: 10_000_000_000,
+            base_compressed_account_amount: 500,
+        }
+    }
+}
 
 // ============================================================================
 // Meta Types for Test Definition (only amounts, counts, and bools)
@@ -50,6 +81,7 @@ pub struct MetaDecompressInput {
     pub signer_index: usize,    // Index of keypair that signs this action
     pub recipient_index: usize, // Index of keypair to receive decompressed tokens
     pub mint_index: usize,      // Index of which mint to use (0-4)
+    pub to_spl: bool,           // If true, decompress to SPL; if false, decompress to CToken ATA
 }
 
 #[derive(Debug, Clone)]
@@ -60,6 +92,7 @@ pub struct MetaCompressInput {
     pub signer_index: usize,    // Index of keypair that signs this action
     pub recipient_index: usize, // Index of keypair to receive compressed tokens
     pub mint_index: usize,      // Index of which mint to use (0-4)
+    pub use_spl: bool,          // If true, use SPL token account; if false, use CToken ATA
 }
 
 #[derive(Debug, Clone)]
@@ -101,17 +134,20 @@ struct TestRequirements {
         HashMap<(usize, usize), HashMap<TokenDataVersion, Vec<u64>>>,
     pub signer_solana_amounts: HashMap<usize, u64>, // For compress operations
     pub signer_ctoken_amounts: HashMap<(usize, usize), u64>, // For CToken accounts (signer_index, mint_index) -> amount
+    pub signer_spl_amounts: HashMap<(usize, usize), u64>, // For SPL token accounts (signer_index, mint_index) -> amount
 }
 
 // Test context to pass to builder functions
 struct TestContext {
     rpc: LightProgramTest,
     keypairs: Vec<Keypair>,
-    mints: Vec<Pubkey>,             // Multiple mints (up to 5)
-    mint_seeds: Vec<Keypair>,       // Mint seeds used to derive mints
+    mints: Vec<Pubkey>,       // Multiple mints (up to config.max_supported_mints)
+    mint_seeds: Vec<Keypair>, // Mint seeds used to derive mints
     mint_authorities: Vec<Keypair>, // One authority per mint
     payer: Keypair,
     ctoken_atas: HashMap<(usize, usize), Pubkey>, // (signer_index, mint_index) -> CToken ATA pubkey
+    spl_token_accounts: HashMap<(usize, usize), Keypair>, // (signer_index, mint_index) -> SPL token account keypair
+    config: TestConfig,
 }
 
 impl TestContext {
@@ -125,58 +161,91 @@ impl TestContext {
                 return Some(mint_authority.insecure_clone());
             }
         }
+        // Check SPL token accounts
+        for token_account_keypair in self.spl_token_accounts.values() {
+            if token_account_keypair.pubkey() == *pubkey {
+                return Some(token_account_keypair.insecure_clone());
+            }
+        }
         self.keypairs
             .iter()
             .find(|kp| kp.pubkey() == *pubkey)
             .map(|kp| kp.insecure_clone())
     }
 
-    async fn new(test_case: &TestCase) -> Result<Self, Box<dyn std::error::Error>> {
+    async fn new(
+        test_case: &TestCase,
+        config: TestConfig,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         // Analyze test case to determine requirements
-        let requirements = Self::analyze_test_requirements(test_case);
+        let requirements = Self::analyze_test_requirements(test_case, &config);
         // Fresh RPC for each test
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None)).await?;
         let payer = rpc.get_payer().insecure_clone();
 
-        // Create 5 mints (maximum supported)
+        // Create mints - either compressed or SPL depending on requirements
         let mut mints = Vec::new();
         let mut mint_seeds = Vec::new();
         let mut mint_authorities = Vec::new();
 
-        for i in 0..5 {
-            let mint_authority = Keypair::new();
-            let mint_seed = Keypair::new();
-            let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
-
-            create_mint(
-                &mut rpc,
-                &mint_seed,
-                6, // decimals
-                &mint_authority,
-                None,
-                None,
-                &payer,
-            )
-            .await?;
-
-            println!("Created mint {} at address: {}", i, mint);
-            mints.push(mint);
-            mint_seeds.push(mint_seed);
-            mint_authorities.push(mint_authority);
+        // Check which mint types we need for each index
+        // A mint needs SPL if it's used for SPL compression or SPL decompression
+        let mut mint_needs_spl = vec![false; config.max_supported_mints];
+        for ((_, mint_index), _) in &requirements.signer_spl_amounts {
+            mint_needs_spl[*mint_index] = true;
         }
 
-        // Pre-create keypairs (40 to support maximum output tests + some extra)
-        let keypairs: Vec<_> = (0..40).map(|_| Keypair::new()).collect();
+        for i in 0..config.max_supported_mints {
+            let mint_authority = Keypair::new();
+
+            if mint_needs_spl[i] {
+                // Create SPL mint for SPL compression
+                let mint = create_mint_helper(&mut rpc, &payer).await;
+                println!("Created SPL mint {} at address: {}", i, mint);
+                mints.push(mint);
+                mint_seeds.push(Keypair::new()); // Dummy seed for SPL mints
+                mint_authorities.push(payer.insecure_clone()); // Use payer as authority for SPL mints
+            } else {
+                // Create compressed mint for CToken operations
+                let mint_seed = Keypair::new();
+                let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
+
+                create_mint(
+                    &mut rpc,
+                    &mint_seed,
+                    config.test_token_decimals,
+                    &mint_authority,
+                    None,
+                    None,
+                    &payer,
+                )
+                .await?;
+
+                println!("Created compressed mint {} at address: {}", i, mint);
+                mints.push(mint);
+                mint_seeds.push(mint_seed);
+                mint_authorities.push(mint_authority);
+            }
+        }
+
+        // Pre-create keypairs to support maximum output tests + some extra
+        let keypairs: Vec<_> = (0..config.max_keypairs).map(|_| Keypair::new()).collect();
 
         // Airdrop to all keypairs
         for keypair in &keypairs {
-            airdrop_lamports(&mut rpc, &keypair.pubkey(), 10_000_000_000).await?;
+            airdrop_lamports(&mut rpc, &keypair.pubkey(), config.airdrop_amount).await?;
         }
 
-        // Mint compressed tokens based on signer requirements
+        // Mint compressed tokens based on signer requirements (skip for SPL mints)
         for ((signer_index, mint_index), version_amounts) in
             &requirements.signer_mint_compressed_amounts
         {
+            // Skip if this is an SPL mint
+            if mint_needs_spl[*mint_index] {
+                println!("Skipping compressed token minting for SPL mint {} - will create via compression", mint_index);
+                continue;
+            }
+
             let mint = mints[*mint_index];
             let mint_authority = &mint_authorities[*mint_index];
 
@@ -272,10 +341,259 @@ impl TestContext {
             ctoken_atas.insert((*signer_index, *mint_index), ata);
         }
 
-        // TODO: Create SPL token accounts for compress operations
-        // for (signer_index, &amount) in &requirements.signer_solana_amounts {
-        //     // Create SPL token account and mint tokens
-        // }
+        // Create SPL token accounts for SPL compress operations
+        let mut spl_token_accounts = HashMap::new();
+        for ((signer_index, mint_index), &base_amount) in &requirements.signer_spl_amounts {
+            let mint = mints[*mint_index];
+            let signer = &keypairs[*signer_index];
+            let token_account_keypair = Keypair::new();
+
+            // Calculate total amount needed
+            // For mixed compression tests, we need extra tokens that will be compressed in setup
+            let mut total_amount = base_amount;
+            for action in &test_case.actions {
+                if let MetaTransfer2InstructionType::Compress(compress) = action {
+                    if compress.use_spl
+                        && compress.num_input_compressed_accounts > 0
+                        && compress.signer_index == *signer_index
+                        && compress.mint_index == *mint_index
+                    {
+                        // We'll compress some tokens in setup, so mint extra
+                        let setup_compress_amount = config.default_setup_amount
+                            * compress.num_input_compressed_accounts as u64;
+                        total_amount += setup_compress_amount;
+                        println!(
+                            "Adding {} extra SPL tokens for setup compression",
+                            setup_compress_amount
+                        );
+                    }
+                }
+            }
+
+            // Create SPL token account
+            create_token_account(&mut rpc, &mint, &token_account_keypair, signer)
+                .await
+                .unwrap();
+
+            // Mint SPL tokens if amount > 0
+            if total_amount > 0 {
+                println!(
+                    "Minting {} SPL tokens to account for signer {} from mint {} ({})",
+                    total_amount, signer_index, mint_index, mint
+                );
+
+                // SPL mints use payer as authority
+                mint_spl_tokens(
+                    &mut rpc,
+                    &mint,
+                    &token_account_keypair.pubkey(),
+                    &payer.pubkey(), // mint authority pubkey
+                    &payer,          // SPL mints use payer as authority keypair
+                    total_amount,
+                    false, // not token22
+                )
+                .await
+                .unwrap();
+            }
+
+            spl_token_accounts.insert((*signer_index, *mint_index), token_account_keypair);
+        }
+
+        // Compress SPL tokens to create compressed accounts for tests that need them
+        for action in &test_case.actions {
+            match action {
+                MetaTransfer2InstructionType::Decompress(decompress) => {
+                    // Check if this is an SPL mint (mint_index 0)
+                    let is_spl_mint = decompress.mint_index == 0;
+
+                    if is_spl_mint && decompress.to_spl {
+                        // This test needs SPL-origin compressed tokens for SPL decompression
+                        let key = (decompress.signer_index, decompress.mint_index);
+                        if let Some(token_account_keypair) = spl_token_accounts.get(&key) {
+                            println!(
+                                "Compressing SPL tokens for signer {} mint {} to create compressed accounts for SPL decompression",
+                                decompress.signer_index, decompress.mint_index
+                            );
+
+                            // Compress the SPL tokens using Transfer2 with Compress action
+                            let mint = mints[decompress.mint_index];
+                            let signer = &keypairs[decompress.signer_index];
+
+                            // Get output queue
+                            let output_queue = rpc
+                                .get_random_state_tree_info()
+                                .unwrap()
+                                .get_output_pubkey()
+                                .unwrap();
+
+                            // Create compress input
+                            let compress_input = CompressInput {
+                                compressed_token_account: None, // No compressed inputs when compressing from SPL
+                                solana_token_account: token_account_keypair.pubkey(),
+                                to: signer.pubkey(),
+                                mint,
+                                amount: decompress.amount
+                                    * decompress.num_input_compressed_accounts as u64,
+                                authority: signer.pubkey(),
+                                output_queue,
+                            };
+
+                            // Create and execute the compress instruction
+                            let ix = create_generic_transfer2_instruction(
+                                &mut rpc,
+                                vec![Transfer2InstructionType::Compress(compress_input)],
+                                payer.pubkey(),
+                            )
+                            .await
+                            .unwrap();
+
+                            rpc.create_and_send_transaction(
+                                &[ix],
+                                &payer.pubkey(),
+                                &[&payer, signer],
+                            )
+                            .await
+                            .unwrap();
+                        }
+                    } else if is_spl_mint && !decompress.to_spl {
+                        // This test needs SPL-origin compressed tokens for CToken decompression
+                        let key = (decompress.signer_index, decompress.mint_index);
+                        if let Some(token_account_keypair) = spl_token_accounts.get(&key) {
+                            println!(
+                                "Compressing SPL tokens for signer {} mint {} to create compressed accounts for CToken decompression",
+                                decompress.signer_index, decompress.mint_index
+                            );
+
+                            // Calculate amounts needed and mint additional SPL tokens if necessary
+                            let setup_amount =
+                                decompress.amount * decompress.num_input_compressed_accounts as u64;
+
+                            // Check if any compress operations in this test also need SPL tokens
+                            let mut additional_compress_amount = 0u64;
+                            for other_action in &test_case.actions {
+                                if let MetaTransfer2InstructionType::Compress(compress) =
+                                    other_action
+                                {
+                                    if compress.use_spl
+                                        && compress.signer_index == decompress.signer_index
+                                        && compress.mint_index == decompress.mint_index
+                                    {
+                                        additional_compress_amount += compress.amount;
+                                    }
+                                }
+                            }
+
+                            let total_needed = setup_amount + additional_compress_amount;
+
+                            // If we need more than the initial tokens, mint the difference
+                            if total_needed > config.default_setup_amount {
+                                let additional_amount = total_needed - config.default_setup_amount;
+                                println!("Minting additional {} SPL tokens for setup and test operations", additional_amount);
+                                mint_spl_tokens(
+                                    &mut rpc,
+                                    &mints[decompress.mint_index],
+                                    &token_account_keypair.pubkey(),
+                                    &payer.pubkey(),
+                                    &payer,
+                                    additional_amount,
+                                    false,
+                                )
+                                .await
+                                .unwrap();
+                            }
+
+                            // Compress the SPL tokens using Transfer2 with Compress action
+                            let mint = mints[decompress.mint_index];
+                            let signer = &keypairs[decompress.signer_index];
+
+                            // Get output queue
+                            let output_queue = rpc
+                                .get_random_state_tree_info()
+                                .unwrap()
+                                .get_output_pubkey()
+                                .unwrap();
+
+                            // Create compress input
+                            let compress_input = CompressInput {
+                                compressed_token_account: None, // No compressed inputs when compressing from SPL
+                                solana_token_account: token_account_keypair.pubkey(),
+                                to: signer.pubkey(),
+                                mint,
+                                amount: setup_amount,
+                                authority: signer.pubkey(),
+                                output_queue,
+                            };
+
+                            // Create and execute the compress instruction
+                            let ix = create_generic_transfer2_instruction(
+                                &mut rpc,
+                                vec![Transfer2InstructionType::Compress(compress_input)],
+                                payer.pubkey(),
+                            )
+                            .await
+                            .unwrap();
+
+                            rpc.create_and_send_transaction(
+                                &[ix],
+                                &payer.pubkey(),
+                                &[&payer, signer],
+                            )
+                            .await
+                            .unwrap();
+                        }
+                    }
+                }
+                MetaTransfer2InstructionType::Compress(compress)
+                    if compress.use_spl && compress.num_input_compressed_accounts > 0 =>
+                {
+                    // This test needs both SPL tokens AND compressed accounts
+                    // Compress some SPL tokens to create the compressed accounts
+                    let key = (compress.signer_index, compress.mint_index);
+                    if let Some(token_account_keypair) = spl_token_accounts.get(&key) {
+                        println!(
+                            "Compressing SPL tokens for signer {} mint {} to create {} compressed accounts for mixed compression",
+                            compress.signer_index, compress.mint_index, compress.num_input_compressed_accounts
+                        );
+
+                        let mint = mints[compress.mint_index];
+                        let signer = &keypairs[compress.signer_index];
+
+                        // Compress tokens to create the compressed accounts needed
+                        let amount_to_compress = config.default_setup_amount
+                            * compress.num_input_compressed_accounts as u64;
+
+                        let output_queue = rpc
+                            .get_random_state_tree_info()
+                            .unwrap()
+                            .get_output_pubkey()
+                            .unwrap();
+
+                        let compress_input = CompressInput {
+                            compressed_token_account: None,
+                            solana_token_account: token_account_keypair.pubkey(),
+                            to: signer.pubkey(),
+                            mint,
+                            amount: amount_to_compress,
+                            authority: signer.pubkey(),
+                            output_queue,
+                        };
+
+                        let ix = create_generic_transfer2_instruction(
+                            &mut rpc,
+                            vec![Transfer2InstructionType::Compress(compress_input)],
+                            payer.pubkey(),
+                        )
+                        .await
+                        .unwrap();
+
+                        rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer, signer])
+                            .await
+                            .unwrap();
+                    }
+                }
+                _ => {}
+            }
+        }
 
         Ok(TestContext {
             rpc,
@@ -285,16 +603,19 @@ impl TestContext {
             mint_authorities,
             payer,
             ctoken_atas,
+            spl_token_accounts,
+            config,
         })
     }
 
-    fn analyze_test_requirements(test_case: &TestCase) -> TestRequirements {
+    fn analyze_test_requirements(test_case: &TestCase, config: &TestConfig) -> TestRequirements {
         let mut signer_mint_compressed_amounts: HashMap<
             (usize, usize),
             HashMap<TokenDataVersion, Vec<u64>>,
         > = HashMap::new();
         let mut signer_solana_amounts: HashMap<usize, u64> = HashMap::new();
         let mut signer_ctoken_amounts: HashMap<(usize, usize), u64> = HashMap::new();
+        let mut signer_spl_amounts: HashMap<(usize, usize), u64> = HashMap::new();
 
         for action in &test_case.actions {
             match action {
@@ -310,19 +631,34 @@ impl TestContext {
                     }
                 }
                 MetaTransfer2InstructionType::Decompress(decompress) => {
-                    // Decompress needs compressed tokens for the signer from specific mint
                     let key = (decompress.signer_index, decompress.mint_index);
-                    let entry = signer_mint_compressed_amounts.entry(key).or_default();
-                    let accounts_vec = entry.entry(decompress.token_data_version).or_default();
-
-                    // Just push the amount for each account requested
-                    for _ in 0..decompress.num_input_compressed_accounts {
-                        accounts_vec.push(decompress.amount);
-                    }
-
-                    // Decompress also needs CToken ATA for recipient (but no balance needed)
                     let recipient_key = (decompress.recipient_index, decompress.mint_index);
-                    signer_ctoken_amounts.entry(recipient_key).or_insert(0);
+
+                    if decompress.to_spl {
+                        // For SPL decompression, we need:
+                        // 1. SPL-origin compressed tokens (create by compressing from SPL in setup)
+                        // 2. SPL token account for recipient
+
+                        // Create SPL tokens to compress into compressed accounts
+                        let spl_amount_to_compress =
+                            decompress.amount * decompress.num_input_compressed_accounts as u64;
+                        *signer_spl_amounts.entry(key).or_insert(0) += spl_amount_to_compress;
+
+                        // Need SPL token account for recipient (no initial balance needed)
+                        signer_spl_amounts.entry(recipient_key).or_insert(0);
+                    } else {
+                        // For CToken decompression, we need regular compressed tokens
+                        let entry = signer_mint_compressed_amounts.entry(key).or_default();
+                        let accounts_vec = entry.entry(decompress.token_data_version).or_default();
+
+                        // Just push the amount for each account requested
+                        for _ in 0..decompress.num_input_compressed_accounts {
+                            accounts_vec.push(decompress.amount);
+                        }
+
+                        // Need CToken ATA for recipient (no balance needed)
+                        signer_ctoken_amounts.entry(recipient_key).or_insert(0);
+                    }
                 }
                 MetaTransfer2InstructionType::Approve(approve) => {
                     // Approve needs compressed tokens for the signer from specific mint
@@ -334,9 +670,45 @@ impl TestContext {
                     accounts_vec.push(approve.delegate_amount);
                 }
                 MetaTransfer2InstructionType::Compress(compress) => {
-                    // Compress from CToken needs CToken account with balance
                     let key = (compress.signer_index, compress.mint_index);
-                    *signer_ctoken_amounts.entry(key).or_insert(0) += compress.amount;
+
+                    // If using compressed accounts as inputs, create them
+                    if compress.num_input_compressed_accounts > 0 {
+                        let entry = signer_mint_compressed_amounts.entry(key).or_default();
+                        let accounts_vec = entry.entry(compress.token_data_version).or_default();
+
+                        // Create compressed accounts for input
+                        // Use default amount per compressed account for testing
+                        for _ in 0..compress.num_input_compressed_accounts {
+                            accounts_vec.push(config.base_compressed_account_amount);
+                        }
+                    }
+
+                    if compress.use_spl {
+                        // Compress from SPL needs SPL token account with balance
+                        // When we have compressed inputs too, we need to create them from SPL first
+                        if compress.num_input_compressed_accounts > 0 {
+                            // We need SPL tokens for:
+                            // 1. Creating the compressed accounts (500 each)
+                            // 2. The SPL portion of the compress operation
+                            let compressed_total = config.base_compressed_account_amount
+                                * compress.num_input_compressed_accounts as u64;
+                            let spl_portion = if compress.amount > compressed_total {
+                                compress.amount - compressed_total
+                            } else {
+                                0
+                            };
+                            // Total SPL tokens needed = tokens to compress into compressed accounts + SPL portion
+                            *signer_spl_amounts.entry(key).or_insert(0) +=
+                                compressed_total + spl_portion;
+                        } else {
+                            // Just need SPL tokens for the compress operation
+                            *signer_spl_amounts.entry(key).or_insert(0) += compress.amount;
+                        }
+                    } else {
+                        // Compress from CToken needs CToken account with balance
+                        *signer_ctoken_amounts.entry(key).or_insert(0) += compress.amount;
+                    }
                 }
                 MetaTransfer2InstructionType::CompressAndClose(_) => {
                     // CompressAndClose needs a Solana token account - handled separately
@@ -348,6 +720,7 @@ impl TestContext {
             signer_mint_compressed_amounts,
             signer_solana_amounts,
             signer_ctoken_amounts,
+            signer_spl_amounts,
         }
     }
 
@@ -531,20 +904,35 @@ impl TestContext {
             .get_output_pubkey()
             .unwrap();
 
-        // Get CToken ATA for this signer/mint combination
-        let ctoken_ata = self
-            .ctoken_atas
-            .get(&(meta.signer_index, meta.mint_index))
-            .ok_or_else(|| {
-                format!(
-                    "CToken ATA not found for signer {} mint {}",
-                    meta.signer_index, meta.mint_index
-                )
-            })?;
+        // Get the appropriate token account based on use_spl flag
+        let solana_token_account = if meta.use_spl {
+            // Get SPL token account
+            let keypair = self
+                .spl_token_accounts
+                .get(&(meta.signer_index, meta.mint_index))
+                .ok_or_else(|| {
+                    format!(
+                        "SPL token account not found for signer {} mint {}",
+                        meta.signer_index, meta.mint_index
+                    )
+                })?;
+            keypair.pubkey()
+        } else {
+            // Get CToken ATA
+            *self
+                .ctoken_atas
+                .get(&(meta.signer_index, meta.mint_index))
+                .ok_or_else(|| {
+                    format!(
+                        "CToken ATA not found for signer {} mint {}",
+                        meta.signer_index, meta.mint_index
+                    )
+                })?
+        };
 
         Ok(CompressInput {
             compressed_token_account: compressed_accounts,
-            solana_token_account: *ctoken_ata, // Use the CToken ATA
+            solana_token_account,
             to: self.keypairs[meta.recipient_index].pubkey(),
             mint: self.mints[meta.mint_index],
             amount: meta.amount,
@@ -571,21 +959,36 @@ impl TestContext {
             .value
             .items;
 
-        // Get CToken ATA for the recipient (should have been created in TestContext::new)
-        let recipient_ata = self
-            .ctoken_atas
-            .get(&(meta.recipient_index, meta.mint_index))
-            .ok_or_else(|| {
-                format!(
-                    "CToken ATA not found for recipient {} mint {}",
-                    meta.recipient_index, meta.mint_index
-                )
-            })?;
+        // Get the appropriate token account based on to_spl flag
+        let recipient_account = if meta.to_spl {
+            // Get SPL token account for the recipient
+            let keypair = self
+                .spl_token_accounts
+                .get(&(meta.recipient_index, meta.mint_index))
+                .ok_or_else(|| {
+                    format!(
+                        "SPL token account not found for recipient {} mint {}",
+                        meta.recipient_index, meta.mint_index
+                    )
+                })?;
+            keypair.pubkey()
+        } else {
+            // Get CToken ATA for the recipient
+            *self
+                .ctoken_atas
+                .get(&(meta.recipient_index, meta.mint_index))
+                .ok_or_else(|| {
+                    format!(
+                        "CToken ATA not found for recipient {} mint {}",
+                        meta.recipient_index, meta.mint_index
+                    )
+                })?
+        };
 
         Ok(DecompressInput {
             compressed_token_account: sender_accounts,
             decompress_amount: meta.decompress_amount,
-            solana_token_account: *recipient_ata, // Use the CToken ATA
+            solana_token_account: recipient_account,
             amount: meta.amount,
         })
     }
@@ -838,56 +1241,61 @@ impl TestContext {
 #[tokio::test]
 #[serial]
 async fn test_transfer2_functional() {
+    let config = TestConfig::default();
     let test_cases = vec![
         // Basic input account tests
-        // test1_basic_transfer_poseidon_v1(),
-        // test1_basic_transfer_poseidon_v2(),
-        // test1_basic_transfer_sha_flat(),
-        // test1_basic_transfer_sha_flat_8(),
-        // test1_basic_transfer_sha_flat_2_inputs(),
-        // test1_basic_transfer_sha_flat_3_inputs(),
-        // test1_basic_transfer_sha_flat_4_inputs(),
-        // test1_basic_transfer_sha_flat_5_inputs(),
-        // test1_basic_transfer_sha_flat_6_inputs(),
-        // test1_basic_transfer_sha_flat_7_inputs(),
-        // test1_basic_transfer_sha_flat_8_inputs(),
+        test1_basic_transfer_poseidon_v1(),
+        test1_basic_transfer_poseidon_v2(),
+        test1_basic_transfer_sha_flat(),
+        test1_basic_transfer_sha_flat_8(),
+        test1_basic_transfer_sha_flat_2_inputs(),
+        test1_basic_transfer_sha_flat_3_inputs(),
+        test1_basic_transfer_sha_flat_4_inputs(),
+        test1_basic_transfer_sha_flat_5_inputs(),
+        test1_basic_transfer_sha_flat_6_inputs(),
+        test1_basic_transfer_sha_flat_7_inputs(),
+        test1_basic_transfer_sha_flat_8_inputs(),
         // New complex transfer pattern tests
-        // test2_single_input_multiple_outputs(),
-        // test3_multiple_inputs_single_output(),
-        // test4_multiple_inputs_multiple_outputs(),
-        // test5_change_account_only(),
-        // // Output account limit tests
-        // test6_single_output_account(),
-        // test7_ten_output_accounts(),
-        // test8_twenty_output_accounts(),
-        // test9_maximum_output_accounts(),
-        // // Amount edge case tests
-        // test10_transfer_zero_tokens(),
-        // test11_transfer_one_token(),
-        // test12_transfer_full_balance(),
-        // test13_transfer_partial_balance(),
-        // test14_transfer_max_tokens(),
-        // test15_multiple_partial_transfers(),
-        // test16_all_v1_poseidon(),
-        // test17_all_v2_poseidon(),
-        // test18_all_sha_flat(),
-        // test19_mixed_v1_v2(),
-        // test20_mixed_v1_sha_flat(),
-        // test21_mixed_v2_sha_flat(),
-        // test22_all_three_versions(),
-        // // Multi-mint operation tests
-        // test23_single_mint_operations(),
-        // test24_two_different_mints(),
-        // test25_three_different_mints(),
-        // test26_four_different_mints(),
-        // test27_five_different_mints_maximum(),
-        // test28_multiple_operations_per_mint(),
-        // CToken compression operations tests
-        test39_compress_from_ctoken_only(),
+        test2_single_input_multiple_outputs(),
+        test3_multiple_inputs_single_output(),
+        test4_multiple_inputs_multiple_outputs(),
+        test5_change_account_only(),
+        // Output account limit tests
+        test6_single_output_account(),
+        test7_ten_output_accounts(),
+        test8_twenty_output_accounts(),
+        test9_maximum_output_accounts(),
+        // Amount edge case tests
+        test10_transfer_zero_tokens(),
+        test11_transfer_one_token(),
+        test12_transfer_full_balance(),
+        test13_transfer_partial_balance(),
+        test14_transfer_max_tokens(),
+        test15_multiple_partial_transfers(),
+        test16_all_v1_poseidon(),
+        test17_all_v2_poseidon(),
+        test18_all_sha_flat(),
+        test19_mixed_v1_v2(),
+        test20_mixed_v1_sha_flat(),
+        test21_mixed_v2_sha_flat(),
+        test22_all_three_versions(),
+        // Multi-mint operation tests
+        test23_single_mint_operations(),
+        test24_two_different_mints(),
+        test25_three_different_mints(),
+        test26_four_different_mints(),
+        test27_five_different_mints_maximum(),
+        test28_multiple_operations_per_mint(),
+        // Compression operations tests
+        test38_compress_from_spl_only(),    // SPL compression
+        test39_compress_from_ctoken_only(), // CToken compression
         test40_decompress_to_ctoken_only(),
         test41_multiple_compress_operations(),
         test42_multiple_decompress_operations(),
         test43_compress_decompress_balance(),
+        test44_decompress_to_spl(),                   // SPL decompression
+        test45_compress_spl_with_compressed_inputs(), // SPL compress with compressed inputs
+        test46_mixed_spl_ctoken_operations(),         // Mixed SPL and CToken operations
     ];
 
     for (i, test_case) in test_cases.iter().enumerate() {
@@ -896,7 +1304,7 @@ async fn test_transfer2_functional() {
         println!("========================================");
 
         // Create test context with all initialization
-        let mut ctx = TestContext::new(test_case).await.unwrap();
+        let mut ctx = TestContext::new(test_case, config.clone()).await.unwrap();
 
         // Execute the test
         ctx.perform_test(test_case).await.unwrap();
@@ -2114,6 +2522,22 @@ fn test28_multiple_operations_per_mint() -> TestCase {
 // Compression Operations Tests (39-44)
 // ============================================================================
 
+// Test 38: Compress from SPL token only
+fn test38_compress_from_spl_only() -> TestCase {
+    TestCase {
+        name: "Compress from SPL token only".to_string(),
+        actions: vec![MetaTransfer2InstructionType::Compress(MetaCompressInput {
+            num_input_compressed_accounts: 0, // No compressed inputs
+            amount: 1000,                     // Amount to compress from SPL token account
+            token_data_version: TokenDataVersion::ShaFlat,
+            signer_index: 0,    // Owner of the SPL token account
+            recipient_index: 0, // Compress to same owner
+            mint_index: 0,
+            use_spl: true, // Use SPL token account
+        })],
+    }
+}
+
 // Test 39: Compress from CToken only
 fn test39_compress_from_ctoken_only() -> TestCase {
     TestCase {
@@ -2125,6 +2549,7 @@ fn test39_compress_from_ctoken_only() -> TestCase {
             signer_index: 0,    // Owner of the CToken ATA
             recipient_index: 0, // Compress to same owner
             mint_index: 0,
+            use_spl: false, // Use CToken ATA
         })],
     }
 }
@@ -2142,6 +2567,7 @@ fn test40_decompress_to_ctoken_only() -> TestCase {
                 signer_index: 0,    // Owner of compressed tokens
                 recipient_index: 1, // Decompress to different recipient
                 mint_index: 0,
+                to_spl: false, // Decompress to CToken ATA
             },
         )],
     }
@@ -2160,6 +2586,7 @@ fn test41_multiple_compress_operations() -> TestCase {
                 signer_index: 0,
                 recipient_index: 0,
                 mint_index: 0,
+                use_spl: false, // Use CToken ATA
             }),
             // Second compress from signer 1
             MetaTransfer2InstructionType::Compress(MetaCompressInput {
@@ -2169,6 +2596,7 @@ fn test41_multiple_compress_operations() -> TestCase {
                 signer_index: 1,
                 recipient_index: 1,
                 mint_index: 0,
+                use_spl: false, // Use CToken ATA
             }),
             // Third compress from signer 2
             MetaTransfer2InstructionType::Compress(MetaCompressInput {
@@ -2178,6 +2606,7 @@ fn test41_multiple_compress_operations() -> TestCase {
                 signer_index: 2,
                 recipient_index: 2,
                 mint_index: 0,
+                use_spl: false, // Use CToken ATA
             }),
         ],
     }
@@ -2197,6 +2626,7 @@ fn test42_multiple_decompress_operations() -> TestCase {
                 signer_index: 0,
                 recipient_index: 3, // Different recipient
                 mint_index: 0,
+                to_spl: false, // Decompress to CToken ATA
             }),
             // Second decompress to recipient 1
             MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
@@ -2207,6 +2637,7 @@ fn test42_multiple_decompress_operations() -> TestCase {
                 signer_index: 1,
                 recipient_index: 4, // Different recipient
                 mint_index: 0,
+                to_spl: false, // Decompress to CToken ATA
             }),
             // Third decompress to recipient 2
             MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
@@ -2217,6 +2648,7 @@ fn test42_multiple_decompress_operations() -> TestCase {
                 signer_index: 2,
                 recipient_index: 5, // Different recipient
                 mint_index: 0,
+                to_spl: false, // Decompress to CToken ATA
             }),
         ],
     }
@@ -2235,6 +2667,7 @@ fn test43_compress_decompress_balance() -> TestCase {
                 signer_index: 0,
                 recipient_index: 0,
                 mint_index: 0,
+                use_spl: false, // Use CToken ATA
             }),
             // Decompress 1000 tokens to different CToken
             MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
@@ -2245,6 +2678,82 @@ fn test43_compress_decompress_balance() -> TestCase {
                 signer_index: 1,
                 recipient_index: 2, // Different recipient
                 mint_index: 0,
+                to_spl: false, // Decompress to CToken ATA
+            }),
+        ],
+    }
+}
+
+// Test 44: Decompress to SPL token account
+fn test44_decompress_to_spl() -> TestCase {
+    TestCase {
+        name: "Decompress to SPL token account".to_string(),
+        actions: vec![MetaTransfer2InstructionType::Decompress(
+            MetaDecompressInput {
+                num_input_compressed_accounts: 1, // One compressed account as input
+                decompress_amount: 600,
+                amount: 600,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,    // Owner of compressed tokens
+                recipient_index: 1, // Decompress to different recipient
+                mint_index: 0,
+                to_spl: true, // Decompress to SPL token account
+            },
+        )],
+    }
+}
+
+// Test 45: Compress SPL with multiple compressed account inputs
+fn test45_compress_spl_with_compressed_inputs() -> TestCase {
+    TestCase {
+        name: "Compress SPL with compressed inputs".to_string(),
+        actions: vec![MetaTransfer2InstructionType::Compress(MetaCompressInput {
+            num_input_compressed_accounts: 2, // Use 2 compressed accounts plus SPL account
+            amount: 1500,                     // Total to compress (from both compressed + SPL)
+            token_data_version: TokenDataVersion::ShaFlat,
+            signer_index: 0,
+            recipient_index: 0,
+            mint_index: 0,
+            use_spl: true, // Use SPL token account
+        })],
+    }
+}
+
+// Test 46: Mixed SPL and CToken operations
+fn test46_mixed_spl_ctoken_operations() -> TestCase {
+    TestCase {
+        name: "Mixed SPL and CToken operations".to_string(),
+        actions: vec![
+            // Compress from SPL
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 500,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                recipient_index: 0,
+                mint_index: 0,
+                use_spl: true, // SPL source
+            }),
+            // Compress from CToken
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 300,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 1,
+                recipient_index: 1,
+                mint_index: 1,
+                use_spl: false, // CToken source
+            }),
+            // Decompress to CToken
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 400,
+                amount: 400,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                recipient_index: 3, // Different recipient
+                mint_index: 0,
+                to_spl: false, // Decompress to CToken ATA
             }),
         ],
     }

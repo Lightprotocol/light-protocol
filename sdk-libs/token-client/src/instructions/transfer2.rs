@@ -143,8 +143,17 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     println!("here");
     let mut hashes = Vec::new();
     actions.iter().for_each(|account| match account {
-        Transfer2InstructionType::Compress(_) => {}
-        Transfer2InstructionType::CompressAndClose(_) => {}
+        Transfer2InstructionType::Compress(input) => {
+            // Also collect hashes from compressed inputs if present
+            if let Some(ref compressed_accounts) = input.compressed_token_account {
+                compressed_accounts
+                    .iter()
+                    .for_each(|account| hashes.push(account.account.hash));
+            }
+        }
+        Transfer2InstructionType::CompressAndClose(_) => {
+            // CompressAndClose doesn't have compressed inputs, only Solana CToken account
+        }
         Transfer2InstructionType::Decompress(input) => input
             .compressed_token_account
             .iter()
@@ -175,12 +184,18 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
             Transfer2InstructionType::Compress(input) => {
                 // Add output queue for compress operations
                 let idx = packed_tree_accounts.insert_or_get(input.output_queue);
-                println!("Pre-scan: Added output_queue {} at index {}", input.output_queue, idx);
+                println!(
+                    "Pre-scan: Added output_queue {} at index {}",
+                    input.output_queue, idx
+                );
             }
             Transfer2InstructionType::CompressAndClose(input) => {
                 // Add output queue for compress and close operations
                 let idx = packed_tree_accounts.insert_or_get(input.output_queue);
-                println!("Pre-scan: Added output_queue {} at index {}", input.output_queue, idx);
+                println!(
+                    "Pre-scan: Added output_queue {} at index {}",
+                    input.output_queue, idx
+                );
             }
             _ => {}
         }
@@ -252,9 +267,9 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     // For SPL compression, get mint first
                     let mint = input.mint;
 
-                    // Add SPL Token 2022 program for SPL operations
+                    // Add the SPL Token program that owns the account
                     let _token_program_index =
-                        packed_tree_accounts.insert_or_get_read_only(spl_token_2022::ID);
+                        packed_tree_accounts.insert_or_get_read_only(source_account_owner);
 
                     // Add token pool account (index 0 for now, could be extended for multiple pools)
                     let pool_index = 0u8;
@@ -325,9 +340,9 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     // For SPL decompression, get mint first
                     let mint = input.compressed_token_account[0].token.mint;
 
-                    // Add SPL Token 2022 program for SPL operations
+                    // Add the SPL Token program that owns the account
                     let _token_program_index =
-                        packed_tree_accounts.insert_or_get_read_only(spl_token_2022::ID);
+                        packed_tree_accounts.insert_or_get_read_only(recipient_account_owner);
 
                     // Add token pool account (index 0 for now, could be extended for multiple pools)
                     let pool_index = 0u8;
