@@ -663,7 +663,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<R: Rpc
         .unwrap();
     let addresses = addresses
         .value
-        .items
+        .0
         .iter()
         .map(|x| x.account_hash)
         .collect::<Vec<[u8; 32]>>();

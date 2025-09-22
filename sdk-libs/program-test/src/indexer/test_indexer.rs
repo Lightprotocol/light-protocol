@@ -157,9 +157,7 @@ impl Indexer for TestIndexer {
             context: Context {
                 slot: self.get_current_slot(),
             },
-            value: Items { 
-                items: proofs,
-            },
+            value: Items { items: proofs },
         })
     }
 
@@ -359,9 +357,7 @@ impl Indexer for TestIndexer {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: Items { 
-                        items: accounts,
-                    },
+                    value: Items { items: accounts },
                 })
             }
             (_, Some(hashes)) => {
@@ -375,9 +371,7 @@ impl Indexer for TestIndexer {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: Items { 
-                        items: accounts,
-                    },
+                    value: Items { items: accounts },
                 })
             }
             (None, None) => Err(IndexerError::InvalidParameters(
@@ -439,9 +433,7 @@ impl Indexer for TestIndexer {
             context: Context {
                 slot: self.get_current_slot(),
             },
-            value: Items { 
-                items: proofs,
-            },
+            value: Items { items: proofs },
         })
     }
 
@@ -788,11 +780,14 @@ impl Indexer for TestIndexer {
                         context: Context {
                             slot: self.get_current_slot(),
                         },
-                        value: (merkle_proofs_with_context, if queue_elements.is_empty() {
-                            None
-                        } else {
-                            Some(queue_elements[0].1)
-                        }),
+                        value: (
+                            merkle_proofs_with_context,
+                            if queue_elements.is_empty() {
+                                None
+                            } else {
+                                Some(queue_elements[0].1)
+                            },
+                        ),
                     });
                 }
             }
@@ -900,10 +895,7 @@ impl Indexer for TestIndexer {
             let non_inclusion_proofs = self
                 .get_multiple_new_address_proofs(
                     merkle_tree_pubkey.to_bytes(),
-                    address_proof_items
-                        .iter()
-                        .map(|x| x.account_hash)
-                        .collect(),
+                    address_proof_items.iter().map(|x| x.account_hash).collect(),
                     None,
                 )
                 .await
