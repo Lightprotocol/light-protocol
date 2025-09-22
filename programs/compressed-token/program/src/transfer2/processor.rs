@@ -52,7 +52,8 @@ pub fn process_transfer2(
     let transfer_config = Transfer2Config::from_instruction_data(&inputs)?;
 
     let validated_accounts = Transfer2Accounts::validate_and_parse(accounts, &transfer_config)?;
-
+    msg!("inputs {:?}", inputs);
+    msg!("transfer_config {:?}", transfer_config);
     if transfer_config.no_compressed_accounts {
         // No compressed accounts are invalidated or created in this transaction
         //  -> no need to invoke the light system program.

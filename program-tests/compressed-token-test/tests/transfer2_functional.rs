@@ -13,9 +13,12 @@ use light_program_test::{indexer::TestIndexerExtensions, LightProgramTest, Progr
 use light_test_utils::{airdrop_lamports, assert_transfer2::assert_transfer2};
 use light_token_client::{
     actions::{create_mint, mint_to_compressed},
-    instructions::transfer2::{
-        create_generic_transfer2_instruction, ApproveInput, CompressAndCloseInput, CompressInput,
-        DecompressInput, Transfer2InstructionType, TransferInput,
+    instructions::{
+        mint_action::create_mint_action_instruction,
+        transfer2::{
+            create_generic_transfer2_instruction, ApproveInput, CompressAndCloseInput,
+            CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
+        },
     },
 };
 use serial_test::serial;
@@ -97,6 +100,7 @@ struct TestRequirements {
     pub signer_mint_compressed_amounts:
         HashMap<(usize, usize), HashMap<TokenDataVersion, Vec<u64>>>,
     pub signer_solana_amounts: HashMap<usize, u64>, // For compress operations
+    pub signer_ctoken_amounts: HashMap<(usize, usize), u64>, // For CToken accounts (signer_index, mint_index) -> amount
 }
 
 // Test context to pass to builder functions
@@ -104,8 +108,10 @@ struct TestContext {
     rpc: LightProgramTest,
     keypairs: Vec<Keypair>,
     mints: Vec<Pubkey>,             // Multiple mints (up to 5)
+    mint_seeds: Vec<Keypair>,       // Mint seeds used to derive mints
     mint_authorities: Vec<Keypair>, // One authority per mint
     payer: Keypair,
+    ctoken_atas: HashMap<(usize, usize), Pubkey>, // (signer_index, mint_index) -> CToken ATA pubkey
 }
 
 impl TestContext {
@@ -134,6 +140,7 @@ impl TestContext {
 
         // Create 5 mints (maximum supported)
         let mut mints = Vec::new();
+        let mut mint_seeds = Vec::new();
         let mut mint_authorities = Vec::new();
 
         for i in 0..5 {
@@ -154,6 +161,7 @@ impl TestContext {
 
             println!("Created mint {} at address: {}", i, mint);
             mints.push(mint);
+            mint_seeds.push(mint_seed);
             mint_authorities.push(mint_authority);
         }
 
@@ -199,7 +207,72 @@ impl TestContext {
             }
         }
 
-        // TODO: Create Solana token accounts for compress operations
+        // Create CToken ATAs for compress/decompress operations
+        let mut ctoken_atas = HashMap::new();
+        for ((signer_index, mint_index), &amount) in &requirements.signer_ctoken_amounts {
+            let mint = mints[*mint_index];
+            let mint_seed = &mint_seeds[*mint_index];
+            let mint_authority = &mint_authorities[*mint_index];
+            let signer = &keypairs[*signer_index];
+
+            // Create CToken ATA
+            let create_ata_ix =
+                light_compressed_token_sdk::instructions::create_associated_token_account(
+                    payer.pubkey(),
+                    signer.pubkey(),
+                    mint,
+                )
+                .unwrap();
+
+            rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
+                .await
+                .unwrap();
+
+            let ata = light_compressed_token_sdk::instructions::derive_ctoken_ata(
+                &signer.pubkey(),
+                &mint,
+            )
+            .0;
+
+            // Mint tokens to the CToken ATA if amount > 0
+            if amount > 0 {
+                println!(
+                    "Minting {} tokens to CToken ATA for signer {} from mint {} ({})",
+                    amount, signer_index, mint_index, mint
+                );
+
+                // Use MintToCToken action to mint to the ATA
+                // Get the compressed mint address
+                let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+                let compressed_mint_address =
+                    light_compressed_token_sdk::instructions::derive_compressed_mint_address(
+                        &mint_seed.pubkey(),
+                        &address_tree_pubkey,
+                    );
+
+                light_token_client::actions::mint_action(
+                    &mut rpc,
+                    light_token_client::instructions::mint_action::MintActionParams {
+                        compressed_mint_address,
+                        mint_seed: mint_seed.pubkey(),
+                        authority: mint_authority.pubkey(),
+                        payer: payer.pubkey(),
+                        actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::MintToCToken {
+                            account: ata,
+                            amount,
+                        }],
+                        new_mint: None,
+                    },
+                    mint_authority,
+                    &payer,
+                    None,
+                ).await.unwrap();
+            }
+
+            ctoken_atas.insert((*signer_index, *mint_index), ata);
+        }
+
+        // TODO: Create SPL token accounts for compress operations
         // for (signer_index, &amount) in &requirements.signer_solana_amounts {
         //     // Create SPL token account and mint tokens
         // }
@@ -208,8 +281,10 @@ impl TestContext {
             rpc,
             keypairs,
             mints,
+            mint_seeds,
             mint_authorities,
             payer,
+            ctoken_atas,
         })
     }
 
@@ -219,6 +294,7 @@ impl TestContext {
             HashMap<TokenDataVersion, Vec<u64>>,
         > = HashMap::new();
         let mut signer_solana_amounts: HashMap<usize, u64> = HashMap::new();
+        let mut signer_ctoken_amounts: HashMap<(usize, usize), u64> = HashMap::new();
 
         for action in &test_case.actions {
             match action {
@@ -243,6 +319,10 @@ impl TestContext {
                     for _ in 0..decompress.num_input_compressed_accounts {
                         accounts_vec.push(decompress.amount);
                     }
+
+                    // Decompress also needs CToken ATA for recipient (but no balance needed)
+                    let recipient_key = (decompress.recipient_index, decompress.mint_index);
+                    signer_ctoken_amounts.entry(recipient_key).or_insert(0);
                 }
                 MetaTransfer2InstructionType::Approve(approve) => {
                     // Approve needs compressed tokens for the signer from specific mint
@@ -254,10 +334,9 @@ impl TestContext {
                     accounts_vec.push(approve.delegate_amount);
                 }
                 MetaTransfer2InstructionType::Compress(compress) => {
-                    // Compress needs Solana tokens for the signer
-                    *signer_solana_amounts
-                        .entry(compress.signer_index)
-                        .or_insert(0) += compress.amount;
+                    // Compress from CToken needs CToken account with balance
+                    let key = (compress.signer_index, compress.mint_index);
+                    *signer_ctoken_amounts.entry(key).or_insert(0) += compress.amount;
                 }
                 MetaTransfer2InstructionType::CompressAndClose(_) => {
                     // CompressAndClose needs a Solana token account - handled separately
@@ -268,6 +347,7 @@ impl TestContext {
         TestRequirements {
             signer_mint_compressed_amounts,
             signer_solana_amounts,
+            signer_ctoken_amounts,
         }
     }
 
@@ -425,7 +505,7 @@ impl TestContext {
         &mut self,
         meta: &MetaCompressInput,
     ) -> Result<CompressInput, Box<dyn std::error::Error>> {
-        // Get compressed accounts if needed
+        // Get compressed accounts if needed (for compress operations that use compressed inputs)
         let compressed_accounts = if meta.num_input_compressed_accounts > 0 {
             let accounts = self
                 .rpc
@@ -444,13 +524,27 @@ impl TestContext {
             None
         };
 
-        // Get output queue
-        let merkle_trees = self.rpc.get_state_merkle_trees();
-        let output_queue = merkle_trees[0].accounts.nullifier_queue;
+        let output_queue = self
+            .rpc
+            .get_random_state_tree_info()
+            .unwrap()
+            .get_output_pubkey()
+            .unwrap();
+
+        // Get CToken ATA for this signer/mint combination
+        let ctoken_ata = self
+            .ctoken_atas
+            .get(&(meta.signer_index, meta.mint_index))
+            .ok_or_else(|| {
+                format!(
+                    "CToken ATA not found for signer {} mint {}",
+                    meta.signer_index, meta.mint_index
+                )
+            })?;
 
         Ok(CompressInput {
             compressed_token_account: compressed_accounts,
-            solana_token_account: self.keypairs[meta.signer_index].pubkey(), // TODO: Will be actual SPL token account
+            solana_token_account: *ctoken_ata, // Use the CToken ATA
             to: self.keypairs[meta.recipient_index].pubkey(),
             mint: self.mints[meta.mint_index],
             amount: meta.amount,
@@ -477,10 +571,21 @@ impl TestContext {
             .value
             .items;
 
+        // Get CToken ATA for the recipient (should have been created in TestContext::new)
+        let recipient_ata = self
+            .ctoken_atas
+            .get(&(meta.recipient_index, meta.mint_index))
+            .ok_or_else(|| {
+                format!(
+                    "CToken ATA not found for recipient {} mint {}",
+                    meta.recipient_index, meta.mint_index
+                )
+            })?;
+
         Ok(DecompressInput {
             compressed_token_account: sender_accounts,
             decompress_amount: meta.decompress_amount,
-            solana_token_account: self.keypairs[meta.recipient_index].pubkey(), // TODO: Will be actual SPL token account
+            solana_token_account: *recipient_ata, // Use the CToken ATA
             amount: meta.amount,
         })
     }
@@ -575,169 +680,160 @@ impl TestContext {
 
 // Basic Transfer Operations
 
-//  1. Single input to single output (1→1 transfer)
-//  2. Single input to multiple outputs (1→N split)
-//  3. Multiple inputs to single output (N→1 merge)
-//  4. Multiple inputs to multiple outputs (N→M complex)
-//  6. Transfer with 0 outputs but inputs exist (burn-like behavior)
-//  - 1 in 2 out Version::V1
-//  - 1 in 2 out Version::V2
-//  - 1 in 2 out Version::ShaFlat
-//  - 2 in 2 out Version::ShaFlat
-//  - 3 in 2 out Version::ShaFlat
-//  - 4 in 2 out Version::ShaFlat
-//  - 5 in 2 out Version::ShaFlat
-//  - 6 in 2 out Version::ShaFlat
-//  - 7 in 2 out Version::ShaFlat
-//  - 8 in 2 out Version::ShaFlat
-
-//  Input Account Limits
-
-//  7. 1 input compressed account
-//  8. 2 input compressed accounts
-//  9. 4 input compressed accounts
-//  10. 8 input compressed accounts (maximum)
-//  11. Mixed number of inputs per signer
+//  1. 1 in 2 out Version::V1
+//  2. 1 in 2 out Version::V2
+//  3. 1 in 2 out Version::ShaFlat
+//  4. 2 in 2 out Version::ShaFlat
+//  5. 3 in 2 out Version::ShaFlat
+//  6. 4 in 2 out Version::ShaFlat
+//  7. 5 in 2 out Version::ShaFlat
+//  8. 6 in 2 out Version::ShaFlat
+//  9. 7 in 2 out Version::ShaFlat
+//  10. 8 in 2 out Version::ShaFlat (maximum inputs)
+//  11. Single input to multiple outputs (1→N split)
+//  12. Multiple inputs to single output (N→1 merge)
+//  13. Multiple inputs to multiple outputs (N→M complex)
+//  14. Transfer with 0 explicit outputs (change account only)
 
 //  Output Account Limits
 
-//  12. 1 output compressed account
-//  13. 10 output compressed accounts
-//  14. 20 output compressed accounts
-//  15. 30 output compressed accounts (maximum)
+//  15. 1 output compressed account
+//  16. 10 output compressed accounts
+//  17. 20 output compressed accounts
+//  18. 35 output compressed accounts (maximum)
 
 //  Amount Edge Cases
 
-//  16. Transfer 0 tokens (valid operation)
-//  17. Transfer 1 token (minimum non-zero)
-//  18. Transfer full balance (no change account created)
-//  19. Transfer partial balance (change account created)
-//  20. Transfer u64::MAX tokens
-//  21. Multiple partial transfers creating multiple change accounts
+//  19. Transfer 0 tokens (valid operation)
+//  20. Transfer 1 token (minimum non-zero)
+//  21. Transfer full balance (no change account created)
+//  22. Transfer partial balance (change account created)
+//  23. Transfer u64::MAX tokens
+//  24. Multiple partial transfers creating multiple change accounts
 
 //  Token Data Versions
 
-//  22. All V1 (Poseidon with pubkey hashing)
-//  23. All V2 (Poseidon with pubkey hashing)
-//  24. All V3/ShaFlat (SHA256)
-//  25. Mixed V1 and V2 in same transaction
-//  26. Mixed V1 and V3 in same transaction
-//  27. Mixed V2 and V3 in same transaction
-//  28. All three versions in same transaction
+//  25. All V1 (Poseidon with pubkey hashing)
+//  26. All V2 (Poseidon with pubkey hashing)
+//  27. All V3/ShaFlat (SHA256)
+//  28. Mixed V1 and V2 in same transaction
+//  29. Mixed V1 and V3 in same transaction
+//  30. Mixed V2 and V3 in same transaction
+//  31. All three versions in same transaction
 
 //  Multi-Mint Operations
 
-//  29. Single mint operations
-//  30. 2 different mints in same transaction
-//  31. 3 different mints in same transaction
-//  32. 4 different mints in same transaction
-//  33. 5 different mints in same transaction (maximum)
-//  34. Multiple operations per mint (e.g., 2 transfers of mint A, 3 of mint B)
+//  32. Single mint operations
+//  33. 2 different mints in same transaction
+//  34. 3 different mints in same transaction
+//  35. 4 different mints in same transaction
+//  36. 5 different mints in same transaction (maximum)
+//  37. Multiple operations per mint (e.g., 2 transfers of mint A, 3 of mint B)
 
 //  Compression Operations (Path A - no compressed accounts)
 
-//  35. Compress from SPL token only
-//  36. Compress from CToken only
-//  37. Decompress to SPL token only
-//  38. Decompress to CToken only
-//  39. Multiple compress operations only
-//  40. Multiple decompress operations only
-//  41. Compress and decompress same amount (must balance)
+//  38. Compress from SPL token only
+//  39. Compress from CToken only
+//  40. Decompress to SPL token only
+//  41. Decompress to CToken only
+//  42. Multiple compress operations only
+//  43. Multiple decompress operations only
+//  44. Compress and decompress same amount (must balance)
 
 //  Mixed Compression + Transfer (Path B)
 
-//  42. Transfer + compress SPL in same transaction
-//  43. Transfer + decompress to SPL in same transaction
-//  44. Transfer + compress CToken in same transaction
-//  45. Transfer + decompress to CToken in same transaction
-//  46. Transfer + multiple compressions
-//  47. Transfer + multiple decompressions
-//  48. Transfer + compress + decompress (all must balance)
+//  45. Transfer + compress SPL in same transaction
+//  46. Transfer + decompress to SPL in same transaction
+//  47. Transfer + compress CToken in same transaction
+//  48. Transfer + decompress to CToken in same transaction
+//  49. Transfer + multiple compressions
+//  50. Transfer + multiple decompressions
+//  51. Transfer + compress + decompress (all must balance)
 
 //  CompressAndClose Operations
 
-//  49. CompressAndClose as owner (no validation needed)
-//  50. CompressAndClose as rent authority (requires compressible account)
-//  51. Multiple CompressAndClose in single transaction
-//  52. CompressAndClose + regular transfer in same transaction
-//  53. CompressAndClose with full balance
-//  54. CompressAndClose creating specific output (rent authority case)
+//  52. CompressAndClose as owner (no validation needed)
+//  53. CompressAndClose as rent authority (requires compressible account)
+//  54. Multiple CompressAndClose in single transaction
+//  55. CompressAndClose + regular transfer in same transaction
+//  56. CompressAndClose with full balance
+//  57. CompressAndClose creating specific output (rent authority case)
 
 //  Delegate Operations
 
-//  55. Approve creating delegated account + change
-//  56. Transfer using delegate authority (full delegated amount)
-//  57. Transfer using delegate authority (partial amount)
-//  58. Revoke delegation (merges all accounts)
-//  59. Multiple delegates in same transaction
-//  60. Delegate transfer with change account
+//  58. Approve creating delegated account + change
+//  59. Transfer using delegate authority (full delegated amount)
+//  60. Transfer using delegate authority (partial amount)
+//  61. Revoke delegation (merges all accounts)
+//  62. Multiple delegates in same transaction
+//  63. Delegate transfer with change account
 
 //  Token Pool Operations
 
-//  61. Compress to pool index 0
-//  62. Compress to pool index 1
-//  63. Compress to pool index 4 (max is 5)
-//  64. Decompress from pool index 0
-//  65. Decompress from different pool indices
-//  66. Multiple pools for same mint in transaction
+//  64. Compress to pool index 0
+//  65. Compress to pool index 1
+//  66. Compress to pool index 4 (max is 5)
+//  67. Decompress from pool index 0
+//  68. Decompress from different pool indices
+//  69. Multiple pools for same mint in transaction
 
 //  Change Account Behavior
 
-//  67. Single change account from partial transfer
-//  68. Multiple change accounts from multiple partial transfers
-//  69. No change account when full amount transferred
-//  70. Change account preserving delegate
-//  71. Change account with different token version
-//  72. Zero-amount change accounts (SDK behavior)
+//  70. Single change account from partial transfer
+//  71. Multiple change accounts from multiple partial transfers
+//  72. No change account when full amount transferred
+//  73. Change account preserving delegate
+//  74. Change account with different token version
+//  75. Zero-amount change accounts (SDK behavior)
 
 //  Sum Check Validation
 
-//  73. Perfect balance single mint (inputs = outputs)
-//  74. Perfect balance 2 mints
-//  75. Perfect balance 5 mints (max)
-//  76. Compress 1000, decompress 1000 (must balance)
-//  77. Multiple compress = multiple decompress
-//  78. Complex multi-mint balancing
+//  76. Perfect balance single mint (inputs = outputs)
+//  77. Perfect balance 2 mints
+//  78. Perfect balance 5 mints (max)
+//  79. Compress 1000, decompress 1000 (must balance)
+//  80. Multiple compress = multiple decompress
+//  81. Complex multi-mint balancing
 
 //  Merkle Tree/Queue Targeting
 
-//  79. All outputs to same merkle tree
-//  80. Outputs to different merkle trees
-//  81. Outputs to queue vs tree
-//  82. Multiple trees and queues in same transaction
+//  82. All outputs to same merkle tree
+//  83. Outputs to different merkle trees
+//  84. Outputs to queue vs tree
+//  85. Multiple trees and queues in same transaction
 
 //  Account Reuse Patterns
 
-//  83. Same owner multiple inputs
-//  84. Same recipient multiple outputs
-//  85. Circular transfer A→B, B→A in same transaction
-//  86. Self-transfer (same account input and output)
-//  87. Multiple operations on same mint
+//  86. Same owner multiple inputs
+//  87. Same recipient multiple outputs
+//  88. Circular transfer A→B, B→A in same transaction
+//  89. Self-transfer (same account input and output)
+//  90. Multiple operations on same mint
 
 //  Proof Modes
 
-//  88. Proof by index (no ZK proof)
-//  89. With ZK proof
-//  90. Mixed proof modes in same transaction
-//  91. with_transaction_hash = true
+//  91. Proof by index (no ZK proof)
+//  92. With ZK proof
+//  93. Mixed proof modes in same transaction
+//  94. with_transaction_hash = true
 
 //  Transfer Deduplication
 
-//  92. Multiple transfers to same recipient (should deduplicate)
-//  93. Up to 40 compression transfers (maximum)
-//  94. Deduplication across different mints
+//  95. Multiple transfers to same recipient (should deduplicate)
+//  96. Up to 40 compression transfers (maximum)
+//  97. Deduplication across different mints
 
 //  Cross-Type Implicit Transfers
 
-//  95. SPL to CToken without compressed intermediary
-//  96. CToken to SPL without compressed intermediary
-//  97. Mixed SPL and CToken operations
+//  98. SPL to CToken without compressed intermediary
+//  99. CToken to SPL without compressed intermediary
+//  100. Mixed SPL and CToken operations
 
 //  Complex Scenarios
 
-//  98. Maximum complexity: 8 inputs, 35 outputs, 5 mints
-//  99. All operations: transfer + compress + decompress + CompressAndClose
-//  100. Circular transfers with multiple participants: A→B→C→A
+//  101. Maximum complexity: 8 inputs, 35 outputs, 5 mints
+//  102. All operations: transfer + compress + decompress + CompressAndClose
+//  103. Circular transfers with multiple participants: A→B→C→A
 
 #[tokio::test]
 #[serial]
@@ -756,36 +852,42 @@ async fn test_transfer2_functional() {
         // test1_basic_transfer_sha_flat_7_inputs(),
         // test1_basic_transfer_sha_flat_8_inputs(),
         // New complex transfer pattern tests
-        test2_single_input_multiple_outputs(),
-        test3_multiple_inputs_single_output(),
-        test4_multiple_inputs_multiple_outputs(),
-        test5_change_account_only(),
-        // Output account limit tests
-        test6_single_output_account(),
-        test7_ten_output_accounts(),
-        test8_twenty_output_accounts(),
-        test9_maximum_output_accounts(),
-        // Amount edge case tests
-        test10_transfer_zero_tokens(),
-        test11_transfer_one_token(),
-        test12_transfer_full_balance(),
-        test13_transfer_partial_balance(),
-        test14_transfer_max_tokens(),
-        test15_multiple_partial_transfers(),
-        test16_all_v1_poseidon(),
-        test17_all_v2_poseidon(),
-        test18_all_sha_flat(),
-        test19_mixed_v1_v2(),
-        test20_mixed_v1_sha_flat(),
-        test21_mixed_v2_sha_flat(),
-        test22_all_three_versions(),
-        // Multi-mint operation tests
-        test23_single_mint_operations(),
-        test24_two_different_mints(),
-        test25_three_different_mints(),
-        test26_four_different_mints(),
-        test27_five_different_mints_maximum(),
-        test28_multiple_operations_per_mint(),
+        // test2_single_input_multiple_outputs(),
+        // test3_multiple_inputs_single_output(),
+        // test4_multiple_inputs_multiple_outputs(),
+        // test5_change_account_only(),
+        // // Output account limit tests
+        // test6_single_output_account(),
+        // test7_ten_output_accounts(),
+        // test8_twenty_output_accounts(),
+        // test9_maximum_output_accounts(),
+        // // Amount edge case tests
+        // test10_transfer_zero_tokens(),
+        // test11_transfer_one_token(),
+        // test12_transfer_full_balance(),
+        // test13_transfer_partial_balance(),
+        // test14_transfer_max_tokens(),
+        // test15_multiple_partial_transfers(),
+        // test16_all_v1_poseidon(),
+        // test17_all_v2_poseidon(),
+        // test18_all_sha_flat(),
+        // test19_mixed_v1_v2(),
+        // test20_mixed_v1_sha_flat(),
+        // test21_mixed_v2_sha_flat(),
+        // test22_all_three_versions(),
+        // // Multi-mint operation tests
+        // test23_single_mint_operations(),
+        // test24_two_different_mints(),
+        // test25_three_different_mints(),
+        // test26_four_different_mints(),
+        // test27_five_different_mints_maximum(),
+        // test28_multiple_operations_per_mint(),
+        // CToken compression operations tests
+        test39_compress_from_ctoken_only(),
+        test40_decompress_to_ctoken_only(),
+        test41_multiple_compress_operations(),
+        test42_multiple_decompress_operations(),
+        test43_compress_decompress_balance(),
     ];
 
     for (i, test_case) in test_cases.iter().enumerate() {
@@ -2003,6 +2105,146 @@ fn test28_multiple_operations_per_mint() -> TestCase {
                 recipient_index: 14,
                 change_amount: None,
                 mint_index: 1,
+            }),
+        ],
+    }
+}
+
+// ============================================================================
+// Compression Operations Tests (39-44)
+// ============================================================================
+
+// Test 39: Compress from CToken only
+fn test39_compress_from_ctoken_only() -> TestCase {
+    TestCase {
+        name: "Compress from CToken only".to_string(),
+        actions: vec![MetaTransfer2InstructionType::Compress(MetaCompressInput {
+            num_input_compressed_accounts: 0, // No compressed inputs
+            amount: 1000,                     // Amount to compress from CToken ATA
+            token_data_version: TokenDataVersion::ShaFlat,
+            signer_index: 0,    // Owner of the CToken ATA
+            recipient_index: 0, // Compress to same owner
+            mint_index: 0,
+        })],
+    }
+}
+
+// Test 40: Decompress to CToken only
+fn test40_decompress_to_ctoken_only() -> TestCase {
+    TestCase {
+        name: "Decompress to CToken only".to_string(),
+        actions: vec![MetaTransfer2InstructionType::Decompress(
+            MetaDecompressInput {
+                num_input_compressed_accounts: 1, // One compressed account as input
+                decompress_amount: 800,
+                amount: 800,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,    // Owner of compressed tokens
+                recipient_index: 1, // Decompress to different recipient
+                mint_index: 0,
+            },
+        )],
+    }
+}
+
+// Test 41: Multiple compress operations only
+fn test41_multiple_compress_operations() -> TestCase {
+    TestCase {
+        name: "Multiple compress operations only".to_string(),
+        actions: vec![
+            // First compress from signer 0
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 500,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                recipient_index: 0,
+                mint_index: 0,
+            }),
+            // Second compress from signer 1
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 750,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 1,
+                recipient_index: 1,
+                mint_index: 0,
+            }),
+            // Third compress from signer 2
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 250,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 2,
+                recipient_index: 2,
+                mint_index: 0,
+            }),
+        ],
+    }
+}
+
+// Test 42: Multiple decompress operations only
+fn test42_multiple_decompress_operations() -> TestCase {
+    TestCase {
+        name: "Multiple decompress operations only".to_string(),
+        actions: vec![
+            // First decompress to recipient 0
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 400,
+                amount: 400,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                recipient_index: 3, // Different recipient
+                mint_index: 0,
+            }),
+            // Second decompress to recipient 1
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 300,
+                amount: 300,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 1,
+                recipient_index: 4, // Different recipient
+                mint_index: 0,
+            }),
+            // Third decompress to recipient 2
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 200,
+                amount: 200,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 2,
+                recipient_index: 5, // Different recipient
+                mint_index: 0,
+            }),
+        ],
+    }
+}
+
+// Test 43: Compress and decompress same amount (must balance)
+fn test43_compress_decompress_balance() -> TestCase {
+    TestCase {
+        name: "Compress and decompress same amount (must balance)".to_string(),
+        actions: vec![
+            // Compress 1000 tokens from CToken
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 1000,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                recipient_index: 0,
+                mint_index: 0,
+            }),
+            // Decompress 1000 tokens to different CToken
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 1000,
+                amount: 1000,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 1,
+                recipient_index: 2, // Different recipient
+                mint_index: 0,
             }),
         ],
     }

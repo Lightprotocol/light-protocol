@@ -167,6 +167,25 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     let mut packed_tree_accounts = PackedAccounts::default();
     // tree infos must be packed before packing the token input accounts
     let packed_tree_infos = rpc_proof_result.pack_tree_infos(&mut packed_tree_accounts);
+
+    // Pre-scan actions to add all merkle trees/queues FIRST
+    // This ensures they get indices 0, 1, 2, etc. as required
+    for action in &actions {
+        match action {
+            Transfer2InstructionType::Compress(input) => {
+                // Add output queue for compress operations
+                let idx = packed_tree_accounts.insert_or_get(input.output_queue);
+                println!("Pre-scan: Added output_queue {} at index {}", input.output_queue, idx);
+            }
+            Transfer2InstructionType::CompressAndClose(input) => {
+                // Add output queue for compress and close operations
+                let idx = packed_tree_accounts.insert_or_get(input.output_queue);
+                println!("Pre-scan: Added output_queue {} at index {}", input.output_queue, idx);
+            }
+            _ => {}
+        }
+    }
+
     let mut inputs_offset = 0;
     let mut in_lamports = Vec::new();
     let mut out_lamports = Vec::new();
