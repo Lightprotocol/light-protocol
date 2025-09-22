@@ -64,6 +64,7 @@ func ProveNonInclusion(ps *common.MerkleProofSystem, params *NonInclusionParamet
 	inPathIndices := make([]frontend.Variable, ps.NonInclusionNumberOfCompressedAccounts)
 
 	for i := 0; i < int(ps.NonInclusionNumberOfCompressedAccounts); i++ {
+		logging.Logger().Debug().Msgf("ProveNonInclusion: Input[%d] NextIndex=%d", i, params.Inputs[i].NextIndex)
 		roots[i] = params.Inputs[i].Root
 		values[i] = params.Inputs[i].Value
 		leafLowerRangeValues[i] = params.Inputs[i].LeafLowerRangeValue
@@ -98,50 +99,5 @@ func ProveNonInclusion(ps *common.MerkleProofSystem, params *NonInclusionParamet
 		return nil, err
 	}
 
-	return &common.Proof{proof}, nil
-}
-
-// This is not a function circuit just the fronted api
-type NonInclusionCircuit struct {
-	Roots  []frontend.Variable `gnark:",public"`
-	Values []frontend.Variable `gnark:",public"`
-
-	// private inputs
-	LeafLowerRangeValues  []frontend.Variable `gnark:"input"`
-	LeafHigherRangeValues []frontend.Variable `gnark:"input"`
-	NextIndices           []frontend.Variable `gnark:"input"`
-
-	InPathIndices  []frontend.Variable   `gnark:"input"`
-	InPathElements [][]frontend.Variable `gnark:"input"`
-
-	NumberOfCompressedAccounts uint32
-	Height                     uint32
-}
-
-// This is not a function circuit just the fronted api
-func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
-
-	return nil
-}
-
-func VerifyNonInclusion(ps *common.MerkleProofSystem, root []big.Int, leaves []big.Int, proof *common.Proof) error {
-	values := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
-	for i, v := range leaves {
-		values[i] = v
-	}
-
-	roots := make([]frontend.Variable, ps.InclusionNumberOfCompressedAccounts)
-	for i, v := range root {
-		roots[i] = v
-	}
-
-	publicAssignment := NonInclusionCircuit{
-		Roots:  roots,
-		Values: values,
-	}
-	witness, err := frontend.NewWitness(&publicAssignment, ecc.BN254.ScalarField(), frontend.PublicOnly())
-	if err != nil {
-		return err
-	}
-	return groth16.Verify(proof.Proof, ps.VerifyingKey, witness)
+	return &common.Proof{Proof: proof}, nil
 }

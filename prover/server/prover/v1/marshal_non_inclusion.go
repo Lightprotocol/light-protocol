@@ -2,7 +2,6 @@ package v1
 
 import (
 	"encoding/json"
-	"fmt"
 	"light/light-prover/prover/common"
 	"math/big"
 )
@@ -23,15 +22,6 @@ type NonInclusionParametersJSON struct {
 	Inputs            []NonInclusionProofInputsJSON `json:"newAddresses"`
 }
 
-func ParseNonInclusion(inputJSON string) (NonInclusionParameters, error) {
-	var proofData NonInclusionParameters
-	err := json.Unmarshal([]byte(inputJSON), &proofData)
-	if err != nil {
-		return NonInclusionParameters{}, fmt.Errorf("error parsing JSON: %v", err)
-	}
-	return proofData, nil
-}
-
 func (p *NonInclusionParameters) MarshalJSON() ([]byte, error) {
 	paramsJson := p.CreateNonInclusionParametersJSON()
 	return json.Marshal(paramsJson)
@@ -39,6 +29,8 @@ func (p *NonInclusionParameters) MarshalJSON() ([]byte, error) {
 
 func (p *NonInclusionParameters) CreateNonInclusionParametersJSON() NonInclusionParametersJSON {
 	paramsJson := NonInclusionParametersJSON{}
+	paramsJson.CircuitType = common.NonInclusionCircuitType
+	paramsJson.AddressTreeHeight = 26 // v1 always uses height 26
 	paramsJson.Inputs = make([]NonInclusionProofInputsJSON, p.NumberOfCompressedAccounts())
 	for i := 0; i < int(p.NumberOfCompressedAccounts()); i++ {
 		paramsJson.Inputs[i].Root = common.ToHex(&p.Inputs[i].Root)

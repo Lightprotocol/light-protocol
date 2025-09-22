@@ -5,6 +5,7 @@ import (
 	"io"
 	"light/light-prover/logging"
 	"light/light-prover/prover/common"
+	"light/light-prover/prover/v1"
 	"light/light-prover/prover/v2"
 	"light/light-prover/server"
 	"math/big"
@@ -140,6 +141,10 @@ func runCommonTests(t *testing.T) {
 	t.Run("testWrongMethod", testWrongMethod)
 	t.Run("testInclusionHappyPath32_12348", testInclusionHappyPath32_12348)
 	t.Run("testNonInclusionHappyPath40_12348", testNonInclusionHappyPath40_12348)
+	// v1 tests (height 26)
+	t.Run("testV1InclusionHappyPath26_1234", testV1InclusionHappyPath26_1234)
+	t.Run("testV1NonInclusionHappyPath26_12", testV1NonInclusionHappyPath26_12)
+	t.Run("testV1CombinedHappyPath26", testV1CombinedHappyPath26)
 }
 
 // runFullOnlyTests contains tests that should only run in full mode
@@ -736,4 +741,87 @@ func testBatchAddressAppendInvalidInput40_250(t *testing.T) {
 
 	t.Logf("Successfully ran invalid input test with tree height %d and batch size %d",
 		treeHeight, batchSize)
+}
+
+// V1 Integration Tests (height 26)
+
+func testV1InclusionHappyPath26_1234(t *testing.T) {
+	for _, compressedAccounts := range []int{1, 2, 3, 4} {
+		tree := v1.BuildTestTree(26, compressedAccounts, false)
+		jsonBytes, _ := tree.MarshalJSON()
+		jsonString := string(jsonBytes)
+
+		response, err := http.Post(proveEndpoint(), "application/json", strings.NewReader(jsonString))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+
+		if response.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(response.Body)
+			t.Fatalf("V1 Inclusion %d accounts: Expected status code %d, got %d. Response: %s",
+				compressedAccounts, http.StatusOK, response.StatusCode, string(body))
+		}
+	}
+}
+
+func testV1NonInclusionHappyPath26_12(t *testing.T) {
+	for _, compressedAccounts := range []int{1, 2} {
+		tree := v1.BuildValidTestNonInclusionTree(26, compressedAccounts, false)
+		jsonBytes, _ := tree.MarshalJSON()
+		jsonString := string(jsonBytes)
+
+		response, err := http.Post(proveEndpoint(), "application/json", strings.NewReader(jsonString))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+
+		if response.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(response.Body)
+			t.Fatalf("V1 NonInclusion %d accounts: Expected status code %d, got %d. Response: %s",
+				compressedAccounts, http.StatusOK, response.StatusCode, string(body))
+		}
+	}
+}
+
+func testV1CombinedHappyPath26(t *testing.T) {
+	// Test different combinations of inclusion and non-inclusion accounts
+	testCases := []struct {
+		inclusionAccounts    int
+		nonInclusionAccounts int
+	}{
+		{1, 1},
+		{2, 1},
+		{1, 2},
+		{2, 2},
+		{3, 1},
+		{3, 2},
+		{4, 1},
+		{4, 2},
+	}
+
+	for _, tc := range testCases {
+		params := v1.BuildValidCombinedParameters(
+			26, 26,
+			tc.inclusionAccounts, tc.nonInclusionAccounts)
+
+		jsonBytes, err := params.MarshalJSON()
+		if err != nil {
+			t.Fatalf("Failed to marshal combined params: %v", err)
+		}
+
+		response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer response.Body.Close()
+
+		if response.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(response.Body)
+			t.Fatalf("V1 Combined %d_%d: Expected status code %d, got %d. Response: %s",
+				tc.inclusionAccounts, tc.nonInclusionAccounts,
+				http.StatusOK, response.StatusCode, string(body))
+		}
+	}
 }

@@ -1,26 +1,27 @@
 package v2
 
 import (
+	"light/light-prover/prover/common"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
 	"github.com/reilabs/gnark-lean-extractor/v3/abstractor"
-	"light/light-prover/prover/common"
 )
 
 type NonInclusionCircuit struct {
 	PublicInputHash frontend.Variable `gnark:",public"`
 
-	// hashed public inputs
-	Roots  []frontend.Variable `gnark:"input"`
-	Values []frontend.Variable `gnark:"input"`
+	// hashed public inputs (but passed as private since they're verified via PublicInputHash)
+	Roots  []frontend.Variable `gnark:",secret"`
+	Values []frontend.Variable `gnark:",secret"`
 
 	// private inputs
-	LeafLowerRangeValues  []frontend.Variable `gnark:"input"`
-	LeafHigherRangeValues []frontend.Variable `gnark:"input"`
+	LeafLowerRangeValues  []frontend.Variable `gnark:",secret"`
+	LeafHigherRangeValues []frontend.Variable `gnark:",secret"`
 
-	InPathIndices  []frontend.Variable   `gnark:"input"`
-	InPathElements [][]frontend.Variable `gnark:"input"`
+	InPathIndices  []frontend.Variable   `gnark:",secret"`
+	InPathElements [][]frontend.Variable `gnark:",secret"`
 
 	NumberOfCompressedAccounts uint32
 	Height                     uint32
@@ -43,7 +44,7 @@ func (circuit *NonInclusionCircuit) Define(api frontend.API) error {
 		NumberOfCompressedAccounts: circuit.NumberOfCompressedAccounts,
 		Height:                     circuit.Height,
 	}
-	abstractor.Call1(api, proof)
+	abstractor.CallVoid(api, proof)
 	return nil
 }
 

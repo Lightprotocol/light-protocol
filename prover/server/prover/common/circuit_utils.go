@@ -91,6 +91,7 @@ type NonInclusionProof struct {
 func (gadget NonInclusionProof) DefineGadget(api frontend.API) interface{} {
 	currentHash := make([]frontend.Variable, gadget.NumberOfCompressedAccounts)
 	for proofIndex := 0; proofIndex < int(gadget.NumberOfCompressedAccounts); proofIndex++ {
+		// V2 circuits: use LeafHashGadget without NextIndex (2-input hash)
 		leaf := LeafHashGadget{
 			LeafLowerRangeValue:  gadget.LeafLowerRangeValues[proofIndex],
 			LeafHigherRangeValue: gadget.LeafHigherRangeValues[proofIndex],

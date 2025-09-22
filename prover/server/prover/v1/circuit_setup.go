@@ -1,12 +1,13 @@
 package v1
 
 import (
+	"light/light-prover/prover/common"
+
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/constraint"
 	"github.com/consensys/gnark/frontend"
 	"github.com/consensys/gnark/frontend/cs/r1cs"
-	"light/light-prover/prover/common"
 )
 
 // R1CSInclusion creates the R1CS for V1 Inclusion circuit (without PublicInputHash)
@@ -32,7 +33,6 @@ func R1CSInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (constr
 }
 
 // SetupInclusion creates proving system for V1 Inclusion circuit (without PublicInputHash)
-// This is used for mainnet_inclusion_26_* keys
 func SetupInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*common.MerkleProofSystem, error) {
 	ccs, err := R1CSInclusion(treeHeight, numberOfCompressedAccounts)
 	if err != nil {
@@ -58,7 +58,7 @@ func R1CSNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (con
 	values := make([]frontend.Variable, numberOfCompressedAccounts)
 	leafLowerRangeValues := make([]frontend.Variable, numberOfCompressedAccounts)
 	leafHigherRangeValues := make([]frontend.Variable, numberOfCompressedAccounts)
-	leafIndices := make([]frontend.Variable, numberOfCompressedAccounts)
+	nextIndices := make([]frontend.Variable, numberOfCompressedAccounts)
 	inPathIndices := make([]frontend.Variable, numberOfCompressedAccounts)
 	inPathElements := make([][]frontend.Variable, numberOfCompressedAccounts)
 
@@ -71,7 +71,7 @@ func R1CSNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (con
 		Values:                     values,
 		LeafLowerRangeValues:       leafLowerRangeValues,
 		LeafHigherRangeValues:      leafHigherRangeValues,
-		NextIndices:                leafIndices,
+		NextIndices:                nextIndices,
 		InPathIndices:              inPathIndices,
 		InPathElements:             inPathElements,
 		NumberOfCompressedAccounts: numberOfCompressedAccounts,
@@ -81,7 +81,6 @@ func R1CSNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (con
 }
 
 // SetupNonInclusion creates proving system for V1 NonInclusion circuit
-// This is used for non-inclusion_26_* keys
 func SetupNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (*common.MerkleProofSystem, error) {
 	ccs, err := R1CSNonInclusion(treeHeight, numberOfCompressedAccounts)
 	if err != nil {
@@ -113,7 +112,6 @@ func R1CSCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccount
 }
 
 // SetupCombined creates proving system for V1 Combined circuit
-// This is used for combined_26_* keys
 func SetupCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32) (*common.MerkleProofSystem, error) {
 	ccs, err := R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 	if err != nil {

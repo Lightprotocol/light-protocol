@@ -6,53 +6,59 @@ import (
 	"light/light-prover/prover/common"
 )
 
+// CombinedParametersJSON represents the v1 combined format
 type CombinedParametersJSON struct {
-	CircuitType             common.CircuitType                   `json:"circuitType"`
-	StateTreeHeight         uint32                               `json:"stateTreeHeight"`
-	AddressTreeHeight       uint32                               `json:"addressTreeHeight"`
-	InclusionProofInputs    []common.InclusionProofInputsJSON    `json:"inputCompressedAccounts"`
-	NonInclusionProofInputs []common.NonInclusionProofInputsJSON `json:"newAddresses"`
+	CircuitType             string                            `json:"circuitType"`
+	StateTreeHeight         uint32                            `json:"stateTreeHeight"`
+	AddressTreeHeight       uint32                            `json:"addressTreeHeight"`
+	InclusionProofInputs    []common.InclusionProofInputsJSON `json:"inputCompressedAccounts"`
+	NonInclusionProofInputs []NonInclusionProofInputsJSON     `json:"newAddresses"`
 }
 
-func ParseCombined(inputJSON string) (CombinedParameters, error) {
-	var proofData CombinedParameters
-	err := json.Unmarshal([]byte(inputJSON), &proofData)
-	if err != nil {
-		return CombinedParameters{}, fmt.Errorf("error parsing JSON: %v", err)
+func (p *CombinedParameters) MarshalJSON() ([]byte, error) {
+	inclusionJSON := p.InclusionParameters.CreateInclusionParametersJSON()
+	nonInclusionJSON := p.NonInclusionParameters.CreateNonInclusionParametersJSON()
+
+	combined := CombinedParametersJSON{
+		CircuitType:             "combined",
+		StateTreeHeight:         inclusionJSON.StateTreeHeight,      // v1 always uses height 26
+		AddressTreeHeight:       nonInclusionJSON.AddressTreeHeight, // v1 always uses height 26
+		InclusionProofInputs:    inclusionJSON.Inputs,
+		NonInclusionProofInputs: nonInclusionJSON.Inputs,
 	}
-	return proofData, nil
+	return json.Marshal(combined)
 }
 
 func (p *CombinedParameters) UnmarshalJSON(data []byte) error {
-	var rawMessages map[string]json.RawMessage
-	err := json.Unmarshal(data, &rawMessages)
+	var params CombinedParametersJSON
+	err := json.Unmarshal(data, &params)
 	if err != nil {
 		return err
 	}
 
-	if _, ok := rawMessages["inputCompressedAccounts"]; ok {
-		var params InclusionParametersJSON
-		err := json.Unmarshal(data, &params)
-		if err != nil {
-			return err
+	if len(params.InclusionProofInputs) > 0 {
+		inclusionJSON := InclusionParametersJSON{
+			CircuitType:     "combined",
+			StateTreeHeight: params.StateTreeHeight,
+			Inputs:          params.InclusionProofInputs,
 		}
-		p.InclusionParameters = InclusionParameters{Inputs: nil}
-		err = p.InclusionParameters.UpdateWithJSON(params)
+		p.InclusionParameters = InclusionParameters{}
+		err = p.InclusionParameters.UpdateWithJSON(inclusionJSON)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to unmarshal inclusion parameters: %w", err)
 		}
 	}
 
-	if _, ok := rawMessages["newAddresses"]; ok {
-		var params NonInclusionParametersJSON
-		err := json.Unmarshal(data, &params)
-		if err != nil {
-			return err
+	if len(params.NonInclusionProofInputs) > 0 {
+		nonInclusionJSON := NonInclusionParametersJSON{
+			CircuitType:       common.NonInclusionCircuitType,
+			AddressTreeHeight: params.AddressTreeHeight,
+			Inputs:            params.NonInclusionProofInputs,
 		}
-		p.NonInclusionParameters = NonInclusionParameters{Inputs: nil}
-		err = p.NonInclusionParameters.UpdateWithJSON(params, err)
+		p.NonInclusionParameters = NonInclusionParameters{}
+		err = p.NonInclusionParameters.UpdateWithJSON(nonInclusionJSON, nil)
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to unmarshal non-inclusion parameters: %w", err)
 		}
 	}
 

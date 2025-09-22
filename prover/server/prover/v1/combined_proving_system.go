@@ -8,7 +8,6 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
 	"github.com/consensys/gnark/frontend"
-	"github.com/reilabs/gnark-lean-extractor/v3/abstractor"
 )
 
 type CombinedParameters struct {
@@ -55,7 +54,7 @@ func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfComp
 	nonInclusionValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 	nonInclusionLeafLowerRangeValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 	nonInclusionLeafHigherRangeValues := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
-	nonInclusionLeafIndices := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
+	nonInclusionNextIndices := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 
 	nonInclusionInPathIndices := make([]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
 	nonInclusionInPathElements := make([][]frontend.Variable, nonInclusionNumberOfCompressedAccounts)
@@ -78,7 +77,7 @@ func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfComp
 			Values:                     nonInclusionValues,
 			LeafLowerRangeValues:       nonInclusionLeafLowerRangeValues,
 			LeafHigherRangeValues:      nonInclusionLeafHigherRangeValues,
-			NextIndices:                nonInclusionLeafIndices,
+			NextIndices:                nonInclusionNextIndices,
 			InPathIndices:              nonInclusionInPathIndices,
 			InPathElements:             nonInclusionInPathElements,
 			NumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
@@ -88,69 +87,11 @@ func InitializeCombinedCircuit(inclusionTreeHeight uint32, inclusionNumberOfComp
 	return circuit
 }
 
-// This is not a function circuit just the fronted api
-type CombinedCircuit struct {
-	Inclusion    InclusionCircuit    `gnark:",input"`
-	NonInclusion NonInclusionCircuit `gnark:",input"`
-}
-
-// This is not a function circuit just the fronted api
-type InclusionCircuit struct {
-	// hashed public inputs
-	Roots  []frontend.Variable `gnark:",public"`
-	Leaves []frontend.Variable `gnark:",public"`
-
-	// private inputs
-	InPathIndices  []frontend.Variable   `gnark:",input"`
-	InPathElements [][]frontend.Variable `gnark:",input"`
-
-	NumberOfCompressedAccounts uint32
-	Height                     uint32
-}
-
-func (circuit *InclusionCircuit) Define(api frontend.API) error {
-	abstractor.CallVoid(api, common.InclusionProof{
-		Roots:          circuit.Roots,
-		Leaves:         circuit.Leaves,
-		InPathElements: circuit.InPathElements,
-		InPathIndices:  circuit.InPathIndices,
-
-		NumberOfCompressedAccounts: circuit.NumberOfCompressedAccounts,
-		Height:                     circuit.Height,
-	})
-	return nil
-}
-
-func (circuit *CombinedCircuit) Define(api frontend.API) error {
-
-	abstractor.CallVoid(api, common.InclusionProof{
-		Roots:          circuit.Inclusion.Roots,
-		Leaves:         circuit.Inclusion.Leaves,
-		InPathElements: circuit.Inclusion.InPathElements,
-		InPathIndices:  circuit.Inclusion.InPathIndices,
-
-		NumberOfCompressedAccounts: circuit.Inclusion.NumberOfCompressedAccounts,
-		Height:                     circuit.Inclusion.Height,
-	})
-
-	proof := common.NonInclusionProof{
-		Roots:  circuit.NonInclusion.Roots,
-		Values: circuit.NonInclusion.Values,
-
-		LeafLowerRangeValues:  circuit.NonInclusion.LeafLowerRangeValues,
-		LeafHigherRangeValues: circuit.NonInclusion.LeafHigherRangeValues,
-
-		InPathElements: circuit.NonInclusion.InPathElements,
-		InPathIndices:  circuit.NonInclusion.InPathIndices,
-
-		NumberOfCompressedAccounts: circuit.NonInclusion.NumberOfCompressedAccounts,
-		Height:                     circuit.NonInclusion.Height,
-	}
-	abstractor.Call1(api, proof)
-	return nil
-}
-
 func ProveCombined(ps *common.MerkleProofSystem, params *CombinedParameters) (*common.Proof, error) {
+	logging.Logger().Info().Msgf("v1.ProveCombined: Starting with ps.Version=%d, InclusionTreeHeight=%d, InclusionAccounts=%d, NonInclusionTreeHeight=%d, NonInclusionAccounts=%d",
+		ps.Version, ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts,
+		ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts)
+
 	if err := params.ValidateShape(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts); err != nil {
 		return nil, err
 	}
@@ -158,6 +99,10 @@ func ProveCombined(ps *common.MerkleProofSystem, params *CombinedParameters) (*c
 	circuit := InitializeCombinedCircuit(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts)
 
 	for i := 0; i < int(ps.InclusionNumberOfCompressedAccounts); i++ {
+		logging.Logger().Debug().Msgf("v1.ProveCombined: Inclusion[%d] Root=%v Leaf=%v PathIndex=%v",
+			i, params.InclusionParameters.Inputs[i].Root,
+			params.InclusionParameters.Inputs[i].Leaf,
+			params.InclusionParameters.Inputs[i].PathIndex)
 		circuit.Inclusion.Roots[i] = params.InclusionParameters.Inputs[i].Root
 		circuit.Inclusion.Leaves[i] = params.InclusionParameters.Inputs[i].Leaf
 		circuit.Inclusion.InPathIndices[i] = params.InclusionParameters.Inputs[i].PathIndex
@@ -168,6 +113,14 @@ func ProveCombined(ps *common.MerkleProofSystem, params *CombinedParameters) (*c
 	}
 
 	for i := 0; i < int(ps.NonInclusionNumberOfCompressedAccounts); i++ {
+		logging.Logger().Debug().Msgf("v1.ProveCombined: NonInclusion[%d] Root=%v Value=%v",
+			i, params.NonInclusionParameters.Inputs[i].Root,
+			params.NonInclusionParameters.Inputs[i].Value)
+		logging.Logger().Debug().Msgf("v1.ProveCombined: NonInclusion[%d] LeafLowerRangeValue=%v LeafHigherRangeValue=%v PathIndex=%v",
+			i, params.NonInclusionParameters.Inputs[i].LeafLowerRangeValue,
+			params.NonInclusionParameters.Inputs[i].LeafHigherRangeValue,
+			params.NonInclusionParameters.Inputs[i].PathIndex)
+
 		circuit.NonInclusion.Roots[i] = params.NonInclusionParameters.Inputs[i].Root
 		circuit.NonInclusion.Values[i] = params.NonInclusionParameters.Inputs[i].Value
 		circuit.NonInclusion.LeafLowerRangeValues[i] = params.NonInclusionParameters.Inputs[i].LeafLowerRangeValue
@@ -184,7 +137,6 @@ func ProveCombined(ps *common.MerkleProofSystem, params *CombinedParameters) (*c
 	if err != nil {
 		return nil, err
 	}
-
 	logging.Logger().Info().Msg("Proof combined" + strconv.Itoa(int(ps.InclusionTreeHeight)) + " " + strconv.Itoa(int(ps.InclusionNumberOfCompressedAccounts)) + " " + strconv.Itoa(int(ps.NonInclusionTreeHeight)) + " " + strconv.Itoa(int(ps.NonInclusionNumberOfCompressedAccounts)))
 	proof, err := groth16.Prove(ps.ConstraintSystem, ps.ProvingKey, witness)
 	if err != nil {

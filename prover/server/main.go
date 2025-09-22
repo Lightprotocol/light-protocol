@@ -145,6 +145,7 @@ func runCli() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
 					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\" / \"append\")", Required: true},
+					&cli.BoolFlag{Name: "legacy", Usage: "Use legacy V1 circuits (without PublicInputHash)", Required: false},
 					&cli.UintFlag{Name: "inclusion-tree-height", Usage: "[Inclusion]: merkle tree height", Required: false},
 					&cli.UintFlag{Name: "inclusion-compressed-accounts", Usage: "[Inclusion]: number of compressed accounts", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-tree-height", Usage: "[Non-inclusion]: merkle tree height", Required: false},
@@ -204,21 +205,38 @@ func runCli() {
 
 					logging.Logger().Info().Msg("Building R1CS")
 
+					// Use legacy (V1) circuits if explicitly requested
+					useV1 := context.Bool("legacy")
+
 					var cs constraint.ConstraintSystem
 					var err error
 
-					if circuit == common.InclusionCircuitType {
-						cs, err = v2.R1CSInclusion(inclusionTreeHeight, inclusionNumberOfCompressedAccounts)
-					} else if circuit == common.NonInclusionCircuitType {
-						cs, err = v2.R1CSNonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
-					} else if circuit == common.CombinedCircuitType {
-						cs, err = v2.R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
-					} else if circuit == common.BatchUpdateCircuitType {
-						cs, err = v2.R1CSBatchUpdate(batchUpdateTreeHeight, batchUpdateBatchSize)
-					} else if circuit == common.BatchAddressAppendCircuitType {
-						cs, err = v2.R1CSBatchAddressAppend(batchAddressAppendTreeHeight, batchAddressAppendBatchSize)
+					if useV1 {
+						// V1 circuits only support inclusion, non-inclusion, and combined
+						if circuit == common.InclusionCircuitType {
+							cs, err = v1.R1CSInclusion(inclusionTreeHeight, inclusionNumberOfCompressedAccounts)
+						} else if circuit == common.NonInclusionCircuitType {
+							cs, err = v1.R1CSNonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+						} else if circuit == common.CombinedCircuitType {
+							cs, err = v1.R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+						} else {
+							return fmt.Errorf("circuit type %s is not supported in V1", circuit)
+						}
 					} else {
-						return fmt.Errorf("invalid circuit type %s", circuit)
+						// V2 circuits
+						if circuit == common.InclusionCircuitType {
+							cs, err = v2.R1CSInclusion(inclusionTreeHeight, inclusionNumberOfCompressedAccounts)
+						} else if circuit == common.NonInclusionCircuitType {
+							cs, err = v2.R1CSNonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+						} else if circuit == common.CombinedCircuitType {
+							cs, err = v2.R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+						} else if circuit == common.BatchUpdateCircuitType {
+							cs, err = v2.R1CSBatchUpdate(batchUpdateTreeHeight, batchUpdateBatchSize)
+						} else if circuit == common.BatchAddressAppendCircuitType {
+							cs, err = v2.R1CSBatchAddressAppend(batchAddressAppendTreeHeight, batchAddressAppendBatchSize)
+						} else {
+							return fmt.Errorf("invalid circuit type %s", circuit)
+						}
 					}
 
 					if err != nil {
@@ -1022,8 +1040,6 @@ func startCleanupRoutines(redisQueue *server.RedisQueue) {
 				logging.Logger().Error().
 					Err(err).
 					Msg("Failed to cleanup stuck processing jobs")
-			} else {
-				logging.Logger().Debug().Msg("Stuck processing jobs cleanup completed")
 			}
 		}
 	}()
