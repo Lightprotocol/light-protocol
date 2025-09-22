@@ -31,7 +31,7 @@ pub fn process_output_compressed_account<'a>(
     process_actions(
         parsed_instruction_data,
         validated_accounts,
-        token_accounts,
+        &mut token_accounts.iter_mut(),
         hash_cache,
         queue_indices,
         &validated_accounts.packed_accounts,

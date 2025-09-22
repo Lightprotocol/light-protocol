@@ -1,3 +1,4 @@
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
 use arrayvec::ArrayVec;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
@@ -33,7 +34,6 @@ pub fn get_zero_copy_configs(
             parsed_instruction_data.mint.extensions.as_ref(),
             &parsed_instruction_data.actions,
         )?;
-
     // Process actions to determine final output state (no instruction data modification)
     for action in parsed_instruction_data.actions.iter() {
         match action {
@@ -76,7 +76,10 @@ pub fn get_zero_copy_configs(
             _ => 0,
         })
         .sum();
-
+    if num_recipients > 29 {
+        msg!("Max allowed is 29 compressed token recipients");
+        return Err(ErrorCode::TooManyMintToRecipients.into());
+    }
     let input = CpiConfigInput {
         input_accounts: {
             let mut inputs = ArrayVec::new();

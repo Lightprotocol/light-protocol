@@ -411,6 +411,7 @@ pub enum ErrorCode {
     ExpectedCpiAuthority,
     #[msg("InvalidRentSponsor")]
     InvalidRentSponsor,
+    TooManyMintToRecipients,
 }
 
 impl From<ErrorCode> for ProgramError {

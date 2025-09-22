@@ -32,11 +32,13 @@ use crate::{
 /// by minting equivalent tokens to a program-controlled token pool account via CPI to SPL Token 2022.
 #[allow(clippy::too_many_arguments)]
 #[profile]
-pub fn process_mint_to_compressed_action(
+pub fn process_mint_to_compressed_action<'a>(
     action: &ZMintToCompressedAction,
     compressed_mint: &mut CompressedMint,
     validated_accounts: &MintActionAccounts,
-    cpi_instruction_struct: &mut [ZOutputCompressedAccountWithPackedContextMut<'_>],
+    output_accounts_iter: &mut impl Iterator<
+        Item = &'a mut ZOutputCompressedAccountWithPackedContextMut<'a>,
+    >,
     hash_cache: &mut HashCache,
     mint: Pubkey,
     out_token_queue_index: u8,
@@ -69,7 +71,7 @@ pub fn process_mint_to_compressed_action(
     // Create output token accounts
     create_output_compressed_token_accounts(
         action,
-        cpi_instruction_struct,
+        output_accounts_iter,
         hash_cache,
         mint,
         out_token_queue_index,
@@ -78,17 +80,22 @@ pub fn process_mint_to_compressed_action(
 }
 
 #[profile]
-fn create_output_compressed_token_accounts(
+fn create_output_compressed_token_accounts<'a>(
     parsed_instruction_data: &ZMintToCompressedAction<'_>,
-    output_compressed_accounts: &mut [ZOutputCompressedAccountWithPackedContextMut<'_>],
+    output_accounts_iter: &mut impl Iterator<
+        Item = &'a mut ZOutputCompressedAccountWithPackedContextMut<'a>,
+    >,
     hash_cache: &mut HashCache,
     mint: Pubkey,
     queue_pubkey_index: u8,
 ) -> Result<(), ProgramError> {
+    let expected_recipients = parsed_instruction_data.recipients.len();
+    let mut processed_count = 0;
+
     for (recipient, output_account) in parsed_instruction_data
         .recipients
         .iter()
-        .zip(output_compressed_accounts.iter_mut())
+        .zip(output_accounts_iter)
     {
         let output_delegate = None;
         set_output_compressed_account(
@@ -102,6 +109,13 @@ fn create_output_compressed_token_accounts(
             queue_pubkey_index,
             parsed_instruction_data.token_account_version,
         )?;
+        processed_count += 1;
     }
+
+    // Validate that we processed all expected recipients
+    if processed_count != expected_recipients {
+        return Err(ErrorCode::MintActionOutputSerializationFailed.into());
+    }
+
     Ok(())
 }

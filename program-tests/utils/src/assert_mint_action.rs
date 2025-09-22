@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
 use light_compressed_token_sdk::instructions::mint_action::MintActionType;
@@ -6,8 +8,7 @@ use light_ctoken_types::state::{
     CompressedMint,
 };
 use light_program_test::LightProgramTest;
-use solana_sdk::{pubkey::Pubkey, program_pack::Pack};
-use std::collections::HashMap;
+use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 /// Assert that mint actions produce the expected state changes
 ///
@@ -52,19 +53,27 @@ pub async fn assert_mint_action(
             MintActionType::CreateSplMint { .. } => {
                 expected_mint.metadata.spl_mint_initialized = true;
             }
-            MintActionType::UpdateMetadataField { extension_index, field_type, key, value } => {
+            MintActionType::UpdateMetadataField {
+                extension_index,
+                field_type,
+                key,
+                value,
+            } => {
                 if let Some(ref mut extensions) = expected_mint.extensions {
                     if let Some(ExtensionStruct::TokenMetadata(ref mut metadata)) =
-                        extensions.get_mut(*extension_index as usize) {
+                        extensions.get_mut(*extension_index as usize)
+                    {
                         match field_type {
                             0 => metadata.name = value.clone(),
                             1 => metadata.symbol = value.clone(),
                             2 => metadata.uri = value.clone(),
                             3 => {
                                 // Update existing or add new additional metadata
-                                if let Some(entry) = metadata.additional_metadata
+                                if let Some(entry) = metadata
+                                    .additional_metadata
                                     .iter_mut()
-                                    .find(|m| m.key == *key) {
+                                    .find(|m| m.key == *key)
+                                {
                                     entry.value = value.clone();
                                 } else {
                                     metadata.additional_metadata.push(AdditionalMetadata {
@@ -78,18 +87,27 @@ pub async fn assert_mint_action(
                     }
                 }
             }
-            MintActionType::UpdateMetadataAuthority { extension_index, new_authority } => {
+            MintActionType::UpdateMetadataAuthority {
+                extension_index,
+                new_authority,
+            } => {
                 if let Some(ref mut extensions) = expected_mint.extensions {
                     if let Some(ExtensionStruct::TokenMetadata(ref mut metadata)) =
-                        extensions.get_mut(*extension_index as usize) {
+                        extensions.get_mut(*extension_index as usize)
+                    {
                         metadata.update_authority = (*new_authority).into();
                     }
                 }
             }
-            MintActionType::RemoveMetadataKey { extension_index, key, .. } => {
+            MintActionType::RemoveMetadataKey {
+                extension_index,
+                key,
+                ..
+            } => {
                 if let Some(ref mut extensions) = expected_mint.extensions {
                     if let Some(ExtensionStruct::TokenMetadata(ref mut metadata)) =
-                        extensions.get_mut(*extension_index as usize) {
+                        extensions.get_mut(*extension_index as usize)
+                    {
                         metadata.additional_metadata.retain(|m| m.key != *key);
                     }
                 }
@@ -106,35 +124,36 @@ pub async fn assert_mint_action(
         .unwrap()
         .value;
 
-    let actual_mint: CompressedMint = BorshDeserialize::deserialize(
-        &mut actual_mint_account.data.unwrap().data.as_slice()
-    ).unwrap();
+    let actual_mint: CompressedMint =
+        BorshDeserialize::deserialize(&mut actual_mint_account.data.unwrap().data.as_slice())
+            .unwrap();
 
     // Single assertion
     assert_eq!(
-        actual_mint,
-        expected_mint,
+        actual_mint, expected_mint,
         "Compressed mint state after mint_action should match expected"
     );
 
     // Verify CToken accounts for MintToCToken actions
     for (account_pubkey, total_minted_amount) in ctoken_mints {
         // Get pre-transaction account state
-        let pre_account = rpc.get_pre_transaction_account(&account_pubkey)
+        let pre_account = rpc
+            .get_pre_transaction_account(&account_pubkey)
             .expect("CToken account should exist before minting");
-        let mut expected_token_account = spl_token::state::Account::unpack(&pre_account.data[..165]).unwrap();
+        let mut expected_token_account =
+            spl_token::state::Account::unpack(&pre_account.data[..165]).unwrap();
 
         // Apply the total minted amount (handles multiple mints to same account)
         expected_token_account.amount += total_minted_amount;
 
         // Get actual post-transaction account
         let account_data = rpc.context.get_account(&account_pubkey).unwrap();
-        let actual_token_account = spl_token::state::Account::unpack(&account_data.data[..165]).unwrap();
+        let actual_token_account =
+            spl_token::state::Account::unpack(&account_data.data[..165]).unwrap();
 
         // Single assertion for complete account state
         assert_eq!(
-            actual_token_account,
-            expected_token_account,
+            actual_token_account, expected_token_account,
             "CToken account state at {} should match expected after minting {} tokens",
             account_pubkey, total_minted_amount
         );

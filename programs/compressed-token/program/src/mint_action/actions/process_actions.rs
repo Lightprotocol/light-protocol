@@ -27,7 +27,9 @@ use crate::mint_action::{
 pub fn process_actions<'a>(
     parsed_instruction_data: &ZMintActionCompressedInstructionData,
     validated_accounts: &MintActionAccounts,
-    cpi_instruction_struct: &'a mut [ZOutputCompressedAccountWithPackedContextMut<'a>],
+    output_accounts_iter: &mut impl Iterator<
+        Item = &'a mut ZOutputCompressedAccountWithPackedContextMut<'a>,
+    >,
     hash_cache: &mut HashCache,
     queue_indices: &QueueIndices,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
@@ -41,7 +43,7 @@ pub fn process_actions<'a>(
                     action,
                     compressed_mint,
                     validated_accounts,
-                    cpi_instruction_struct,
+                    output_accounts_iter,
                     hash_cache,
                     parsed_instruction_data.mint.metadata.spl_mint,
                     queue_indices.out_token_queue_index,

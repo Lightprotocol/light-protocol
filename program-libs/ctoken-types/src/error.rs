@@ -120,6 +120,9 @@ pub enum CTokenError {
         "Too many input compressed accounts. Maximum 8 input accounts allowed per instruction"
     )]
     TooManyInputAccounts,
+
+    #[error("Too many additional metadata elements. Maximum 20 allowed")]
+    TooManyAdditionalMetadata,
 }
 
 impl From<CTokenError> for u32 {
@@ -163,6 +166,7 @@ impl From<CTokenError> for u32 {
             CTokenError::InvalidAccountState => 18036,
             CTokenError::BorshFailed => 18037,
             CTokenError::TooManyInputAccounts => 18038,
+            CTokenError::TooManyAdditionalMetadata => 18039,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),
