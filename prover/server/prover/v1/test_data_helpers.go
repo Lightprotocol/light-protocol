@@ -124,9 +124,10 @@ func (t *IndexedMerkleTree) GenerateProof(index int) ([]big.Int, int) {
 	leafLower := big.NewInt(0)
 	leafUpper := new(big.Int)
 	leafUpper.SetString("00ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", 16)
+	nextIndex := big.NewInt(0) // V1 circuits use NextIndex in the middle
 
-	// Create the leaf hash
-	hash, _ := poseidon.Hash([]*big.Int{leafLower, leafUpper})
+	// Create the leaf hash - V1 circuits use 3-input hash
+	hash, _ := poseidon.Hash([]*big.Int{leafLower, nextIndex, leafUpper})
 
 	// Update tree at index and get path
 	pathElements := t.tree.Update(index, *hash)
