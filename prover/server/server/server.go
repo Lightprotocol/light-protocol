@@ -8,8 +8,8 @@ import (
 	"io"
 	"light/light-prover/logging"
 	"light/light-prover/prover/common"
-	"light/light-prover/prover/v1"
-	"light/light-prover/prover/v2"
+	v1 "light/light-prover/prover/v1"
+	v2 "light/light-prover/prover/v2"
 	"net/http"
 	"time"
 

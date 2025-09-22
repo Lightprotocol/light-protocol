@@ -11,7 +11,7 @@ import (
 type InclusionCircuit struct {
 	PublicInputHash frontend.Variable `gnark:",public"`
 
-	// hashed public inputs
+	// hashed public inputs (but passed as private since they're verified via PublicInputHash)
 	Roots  []frontend.Variable `gnark:",secret"`
 	Leaves []frontend.Variable `gnark:",secret"`
 
