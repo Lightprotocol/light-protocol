@@ -26,8 +26,8 @@ describe("balance", () => {
       initialBalance = 0;
     } else {
       const balanceMatch = initialStdout.match(
-          /Compressed SOL balance:\s+(\d+)/,
-        );
+        /Compressed SOL balance:\s+(\d+)/,
+      );
       if (balanceMatch && balanceMatch[1]) {
         initialBalance = parseInt(balanceMatch[1], 10);
       }

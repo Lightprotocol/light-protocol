@@ -83,20 +83,20 @@ async function logConfig(config: any) {
 
   tableData.push(
     {
-    name: "Solana RPC URL",
-    value: config.solanaRpcUrl,
+      name: "Solana RPC URL",
+      value: config.solanaRpcUrl,
     },
     {
-    name: "Indexer URL",
-    value: config.indexerUrl,
+      name: "Indexer URL",
+      value: config.indexerUrl,
     },
     {
-    name: "Prover URL",
-    value: config.proverUrl,
+      name: "Prover URL",
+      value: config.proverUrl,
     },
     {
-    name: "",
-    value: "",
+      name: "",
+      value: "",
     },
   );
 
