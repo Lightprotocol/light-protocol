@@ -45,6 +45,9 @@ type LegacyNonInclusionProof struct {
 func (gadget LegacyNonInclusionProof) DefineGadget(api frontend.API) interface{} {
 	if gadget.NextIndices == nil || len(gadget.NextIndices) == 0 {
 		gadget.NextIndices = make([]frontend.Variable, gadget.NumberOfCompressedAccounts)
+		for i := 0; i < int(gadget.NumberOfCompressedAccounts); i++ {
+			gadget.NextIndices[i] = 0
+		}
 	}
 
 	currentHash := make([]frontend.Variable, gadget.NumberOfCompressedAccounts)

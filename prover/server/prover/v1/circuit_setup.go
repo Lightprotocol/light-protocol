@@ -64,6 +64,8 @@ func R1CSNonInclusion(treeHeight uint32, numberOfCompressedAccounts uint32) (con
 
 	for i := 0; i < int(numberOfCompressedAccounts); i++ {
 		inPathElements[i] = make([]frontend.Variable, treeHeight)
+		// Initialize NextIndices with 0 to avoid nil values in auto-generated tests
+		nextIndices[i] = 0
 	}
 
 	circuit := NonInclusionCircuit{
