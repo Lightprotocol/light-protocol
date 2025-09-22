@@ -499,23 +499,21 @@ impl<R: Rpc> EpochManager<R> {
                     Ok(info) => info,
                     Err(e) => {
                         // Check if this is a RegistrationPhaseEnded error by downcasting
-                        if let Some(forester_error) = e.downcast_ref::<ForesterError>() {
-                            if let ForesterError::Registration(
-                                RegistrationError::RegistrationPhaseEnded {
-                                    epoch: failed_epoch,
-                                    current_slot,
-                                    registration_end,
-                                },
-                            ) = forester_error
-                            {
-                                info!(
-                                    "Registration period ended for epoch {} (current slot: {}, registration ended at: {}). Will retry when next epoch registration opens.",
-                                    failed_epoch, current_slot, registration_end
-                                );
-                                return Ok(());
-                            }
+                        if let Some(ForesterError::Registration(
+                            RegistrationError::RegistrationPhaseEnded {
+                                epoch: failed_epoch,
+                                current_slot,
+                                registration_end,
+                            },
+                        )) = e.downcast_ref::<ForesterError>()
+                        {
+                            info!(
+                                "Registration period ended for epoch {} (current slot: {}, registration ended at: {}). Will retry when next epoch registration opens.",
+                                failed_epoch, current_slot, registration_end
+                            );
+                            return Ok(());
                         }
-                        return Err(e.into());
+                        return Err(e);
                     }
                 }
             }
