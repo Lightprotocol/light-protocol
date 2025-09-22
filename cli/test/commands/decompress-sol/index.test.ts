@@ -23,16 +23,16 @@ describe("decompress-sol", () => {
 
     let initialBalance = 0;
     if (initialBalanceStdout.includes("No accounts found")) {
-        initialBalance = 0;
-      } else {
+      initialBalance = 0;
+    } else {
       const balanceMatch = initialBalanceStdout.match(
-          /Compressed SOL balance:\s+(\d+)/,
-        );
-        if (balanceMatch && balanceMatch[1]) {
-          initialBalance = parseInt(balanceMatch[1], 10);
-        }
+        /Compressed SOL balance:\s+(\d+)/,
+      );
+      if (balanceMatch && balanceMatch[1]) {
+        initialBalance = parseInt(balanceMatch[1], 10);
       }
-      console.log(`Initial balance captured: ${initialBalance}`);
+    }
+    console.log(`Initial balance captured: ${initialBalance}`);
 
     // Compress SOL
     const { stdout: compressStdout } = await runCommand([
@@ -56,13 +56,13 @@ describe("decompress-sol", () => {
     let balanceAfterCompression = 0;
     if (balanceMatchAfterCompress && balanceMatchAfterCompress[1]) {
       balanceAfterCompression = parseInt(balanceMatchAfterCompress[1], 10);
-        console.log(`Balance after compression: ${balanceAfterCompression}`);
+      console.log(`Balance after compression: ${balanceAfterCompression}`);
 
-        // Verify the balance increased by the compressed amount
-        expect(balanceAfterCompression).to.equal(initialBalance + amount);
-      } else {
-        throw new Error("Could not extract balance from output");
-      }
+      // Verify the balance increased by the compressed amount
+      expect(balanceAfterCompression).to.equal(initialBalance + amount);
+    } else {
+      throw new Error("Could not extract balance from output");
+    }
 
     // Decompress SOL
     const { stdout: decompressStdout } = await runCommand([
@@ -78,31 +78,31 @@ describe("decompress-sol", () => {
       `--owner=${to}`,
     ]);
 
-        // Extract the final balance
+    // Extract the final balance
     if (finalBalanceStdout.includes("No accounts found")) {
-          // If there were no accounts before compression, there should be none after decompression
-          expect(initialBalance).to.equal(0);
-        } else {
+      // If there were no accounts before compression, there should be none after decompression
+      expect(initialBalance).to.equal(0);
+    } else {
       const balanceMatch = finalBalanceStdout.match(
-            /Compressed SOL balance:\s+(\d+)/,
-          );
-          if (balanceMatch && balanceMatch[1]) {
-            const finalBalance = parseInt(balanceMatch[1], 10);
-            console.log(
-              `Final balance: ${finalBalance}, Expected: ${balanceAfterCompression - amount}`,
-            );
+        /Compressed SOL balance:\s+(\d+)/,
+      );
+      if (balanceMatch && balanceMatch[1]) {
+        const finalBalance = parseInt(balanceMatch[1], 10);
+        console.log(
+          `Final balance: ${finalBalance}, Expected: ${balanceAfterCompression - amount}`,
+        );
 
-            // Verify the balance decreased by the decompressed amount
-            expect(finalBalance).to.equal(balanceAfterCompression - amount);
-          } else {
-            // If we can't extract the balance but initial balance was equal to amount,
-            // we should get "No accounts found"
-            if (balanceAfterCompression === amount) {
+        // Verify the balance decreased by the decompressed amount
+        expect(finalBalance).to.equal(balanceAfterCompression - amount);
+      } else {
+        // If we can't extract the balance but initial balance was equal to amount,
+        // we should get "No accounts found"
+        if (balanceAfterCompression === amount) {
           expect(finalBalanceStdout).to.contain("No accounts found");
-            } else {
-              throw new Error("Could not extract balance from output");
-            }
-          }
+        } else {
+          throw new Error("Could not extract balance from output");
         }
+      }
+    }
   });
 });
