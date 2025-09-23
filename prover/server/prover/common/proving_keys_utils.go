@@ -95,92 +95,103 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	var keys []string
 
 	var inclusionKeys []string = []string{
-		keysDir + "inclusion_32_1.key",
-		keysDir + "inclusion_32_2.key",
-		keysDir + "inclusion_32_3.key",
-		keysDir + "inclusion_32_4.key",
-		keysDir + "inclusion_32_8.key",
-		keysDir + "mainnet_inclusion_26_1.key",
-		keysDir + "mainnet_inclusion_26_2.key",
-		keysDir + "mainnet_inclusion_26_3.key",
-		keysDir + "mainnet_inclusion_26_4.key",
-		keysDir + "mainnet_inclusion_26_8.key",
+		// V2 inclusion keys (height 32)
+		keysDir + "v2_inclusion_32_1.key",
+		keysDir + "v2_inclusion_32_2.key",
+		keysDir + "v2_inclusion_32_3.key",
+		keysDir + "v2_inclusion_32_4.key",
+		keysDir + "v2_inclusion_32_8.key",
+		// V1 inclusion keys (legacy, height 26)
+		keysDir + "v1_inclusion_26_1.key",
+		keysDir + "v1_inclusion_26_2.key",
+		keysDir + "v1_inclusion_26_3.key",
+		keysDir + "v1_inclusion_26_4.key",
+		keysDir + "v1_inclusion_26_8.key",
 	}
 
 	var nonInclusionKeys []string = []string{
-		keysDir + "non-inclusion_26_1.key",
-		keysDir + "non-inclusion_26_2.key",
-		keysDir + "non-inclusion_40_1.key",
-		keysDir + "non-inclusion_40_2.key",
-		keysDir + "non-inclusion_40_3.key",
-		keysDir + "non-inclusion_40_4.key",
-		keysDir + "non-inclusion_40_8.key",
+		// V1 non-inclusion keys (legacy, height 26)
+		keysDir + "v1_non-inclusion_26_1.key",
+		keysDir + "v1_non-inclusion_26_2.key",
+		// V2 non-inclusion keys (height 40)
+		keysDir + "v2_non-inclusion_40_1.key",
+		keysDir + "v2_non-inclusion_40_2.key",
+		keysDir + "v2_non-inclusion_40_3.key",
+		keysDir + "v2_non-inclusion_40_4.key",
+		keysDir + "v2_non-inclusion_40_8.key",
 	}
 
 	var combinedKeys []string = []string{
-		keysDir + "combined_26_26_1_1.key",
-		keysDir + "combined_26_26_1_2.key",
-		keysDir + "combined_26_26_2_1.key",
-		keysDir + "combined_26_26_2_2.key",
-		keysDir + "combined_26_26_3_1.key",
-		keysDir + "combined_26_26_3_2.key",
-		keysDir + "combined_26_26_4_1.key",
-		keysDir + "combined_26_26_4_2.key",
-
-		keysDir + "combined_32_40_1_1.key",
-		keysDir + "combined_32_40_1_2.key",
-		keysDir + "combined_32_40_2_1.key",
-		keysDir + "combined_32_40_2_2.key",
-		keysDir + "combined_32_40_3_1.key",
-		keysDir + "combined_32_40_3_2.key",
-		keysDir + "combined_32_40_4_1.key",
-		keysDir + "combined_32_40_4_2.key",
+		// V1 combined keys (legacy, heights 26/26)
+		keysDir + "v1_combined_26_26_1_1.key",
+		keysDir + "v1_combined_26_26_1_2.key",
+		keysDir + "v1_combined_26_26_2_1.key",
+		keysDir + "v1_combined_26_26_2_2.key",
+		keysDir + "v1_combined_26_26_3_1.key",
+		keysDir + "v1_combined_26_26_3_2.key",
+		keysDir + "v1_combined_26_26_4_1.key",
+		keysDir + "v1_combined_26_26_4_2.key",
+		// V2 combined keys (heights 32/40)
+		keysDir + "v2_combined_32_40_1_1.key",
+		keysDir + "v2_combined_32_40_1_2.key",
+		keysDir + "v2_combined_32_40_2_1.key",
+		keysDir + "v2_combined_32_40_2_2.key",
+		keysDir + "v2_combined_32_40_3_1.key",
+		keysDir + "v2_combined_32_40_3_2.key",
+		keysDir + "v2_combined_32_40_4_1.key",
+		keysDir + "v2_combined_32_40_4_2.key",
 	}
 
 	// Keys for local-rpc mode - matching the 18 keys in cli/package.json
 	var localRpcKeys []string = []string{
-		keysDir + "combined_26_26_1_1.key",
-		keysDir + "combined_26_26_1_2.key",
-		keysDir + "combined_26_26_2_1.key",
-		keysDir + "combined_32_40_1_1.key",
-		keysDir + "combined_32_40_1_2.key",
-		keysDir + "combined_32_40_2_1.key",
-		keysDir + "inclusion_32_1.key",
-		keysDir + "inclusion_32_2.key",
-		keysDir + "inclusion_32_3.key",
-		keysDir + "inclusion_32_4.key",
-		keysDir + "mainnet_inclusion_26_1.key",
-		keysDir + "mainnet_inclusion_26_2.key",
-		keysDir + "mainnet_inclusion_26_3.key",
-		keysDir + "mainnet_inclusion_26_4.key",
-		keysDir + "non-inclusion_26_1.key",
-		keysDir + "non-inclusion_26_2.key",
-		keysDir + "non-inclusion_40_1.key",
-		keysDir + "non-inclusion_40_2.key",
+		// V1 combined keys
+		keysDir + "v1_combined_26_26_1_1.key",
+		keysDir + "v1_combined_26_26_1_2.key",
+		keysDir + "v1_combined_26_26_2_1.key",
+		// V2 combined keys
+		keysDir + "v2_combined_32_40_1_1.key",
+		keysDir + "v2_combined_32_40_1_2.key",
+		keysDir + "v2_combined_32_40_2_1.key",
+		// V2 inclusion keys
+		keysDir + "v2_inclusion_32_1.key",
+		keysDir + "v2_inclusion_32_2.key",
+		keysDir + "v2_inclusion_32_3.key",
+		keysDir + "v2_inclusion_32_4.key",
+		// V1 inclusion keys
+		keysDir + "v1_inclusion_26_1.key",
+		keysDir + "v1_inclusion_26_2.key",
+		keysDir + "v1_inclusion_26_3.key",
+		keysDir + "v1_inclusion_26_4.key",
+		// V1 non-inclusion keys
+		keysDir + "v1_non-inclusion_26_1.key",
+		keysDir + "v1_non-inclusion_26_2.key",
+		// V2 non-inclusion keys
+		keysDir + "v2_non-inclusion_40_1.key",
+		keysDir + "v2_non-inclusion_40_2.key",
 	}
 
 	var appendKeys []string = []string{
-		keysDir + "append_32_500.key",
+		keysDir + "v2_append_32_500.key",
 	}
 
 	var updateKeys []string = []string{
-		keysDir + "update_32_500.key",
+		keysDir + "v2_update_32_500.key",
 	}
 
 	var appendTestKeys []string = []string{
-		keysDir + "append_32_10.key",
+		keysDir + "v2_append_32_10.key",
 	}
 
 	var updateTestKeys []string = []string{
-		keysDir + "update_32_10.key",
+		keysDir + "v2_update_32_10.key",
 	}
 
 	var addressAppendKeys []string = []string{
-		keysDir + "address-append_40_250.key",
+		keysDir + "v2_address-append_40_250.key",
 	}
 
 	var addressAppendTestKeys []string = []string{
-		keysDir + "address-append_40_10.key",
+		keysDir + "v2_address-append_40_10.key",
 	}
 
 	switch runMode {

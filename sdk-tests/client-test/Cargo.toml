@@ -10,6 +10,9 @@ edition = "2021"
 crate-type = ["lib"]
 name = "client_test"
 
+[features]
+v2 = ["light-client/v2"]
+
 [dev-dependencies]
 light-client = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv"] }
