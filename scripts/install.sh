@@ -13,7 +13,7 @@ VERSIONS=(
     "solana:2.2.15"
     "anchor:anchor-v0.29.0"
     "jq:jq-1.8.0"
-    "photon:0.52.3"
+    "photon:0.52.4"
     "redis:8.0.1"
 )
 
@@ -211,7 +211,7 @@ install_photon() {
         echo "Installing Photon indexer (version $expected_version)..."
         # Use git commit for now as specified in constants.ts
         # cargo install --git https://github.com/lightprotocol/photon.git --rev b739156 --locked --force
-        cargo install --git https://github.com/lightprotocol/photon.git --rev 6ba6813 --locked --force
+        cargo install --git https://github.com/lightprotocol/photon.git --rev 1ba1c07 --locked --force
         log "photon"
     else
         echo "Photon already installed with correct version, skipping..."
