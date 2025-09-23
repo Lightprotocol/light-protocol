@@ -102,28 +102,13 @@ impl TokenData {
 }
 
 impl TokenData {
-    /// Hashes token data of token accounts.
-    ///
-    /// Note, hashing changed for token account data in batched Merkle trees.
-    /// For hashing of token account data stored in concurrent Merkle trees use hash_legacy().
-    pub fn hash(&self) -> std::result::Result<[u8; 32], HasherError> {
-        self._hash::<true>()
-    }
-
     /// Hashes token data of token accounts stored in concurrent Merkle trees.
-    pub fn hash_legacy(&self) -> std::result::Result<[u8; 32], HasherError> {
-        self._hash::<false>()
-    }
-
-    fn _hash<const BATCHED: bool>(&self) -> std::result::Result<[u8; 32], HasherError> {
+    pub fn hash(&self) -> std::result::Result<[u8; 32], HasherError> {
         let hashed_mint = hash_to_bn254_field_size_be(self.mint.to_bytes().as_slice());
         let hashed_owner = hash_to_bn254_field_size_be(self.owner.to_bytes().as_slice());
         let mut amount_bytes = [0u8; 32];
-        if BATCHED {
-            amount_bytes[24..].copy_from_slice(self.amount.to_be_bytes().as_slice());
-        } else {
-            amount_bytes[24..].copy_from_slice(self.amount.to_le_bytes().as_slice());
-        }
+        amount_bytes[24..].copy_from_slice(self.amount.to_le_bytes().as_slice());
+
         let hashed_delegate;
         let hashed_delegate_option = if let Some(delegate) = self.delegate {
             hashed_delegate = hash_to_bn254_field_size_be(delegate.to_bytes().as_slice());
@@ -167,7 +152,7 @@ pub mod test {
             state: AccountState::Initialized,
             tlv: None,
         };
-        let hashed_token_data = token_data.hash_legacy().unwrap();
+        let hashed_token_data = token_data.hash().unwrap();
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
         let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice());
         let hashed_delegate =
@@ -192,7 +177,7 @@ pub mod test {
             state: AccountState::Initialized,
             tlv: None,
         };
-        let hashed_token_data = token_data.hash_legacy().unwrap();
+        let hashed_token_data = token_data.hash().unwrap();
         let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
         let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice());
         let mut amount_bytes = [0u8; 32];
@@ -207,7 +192,8 @@ pub mod test {
         fn legacy_hash(&self) -> std::result::Result<[u8; 32], HasherError> {
             let hashed_mint = hash_to_bn254_field_size_be(self.mint.to_bytes().as_slice());
             let hashed_owner = hash_to_bn254_field_size_be(self.owner.to_bytes().as_slice());
-            let amount_bytes = self.amount.to_le_bytes();
+            let mut amount_bytes = [0u8; 32];
+            amount_bytes[24..].copy_from_slice(self.amount.to_le_bytes().as_slice());
             let hashed_delegate;
             let hashed_delegate_option = if let Some(delegate) = self.delegate {
                 hashed_delegate = hash_to_bn254_field_size_be(delegate.to_bytes().as_slice());
@@ -244,7 +230,7 @@ pub mod test {
                 state: AccountState::Initialized,
                 tlv: None,
             };
-            let hashed_token_data = token_data.hash_legacy().unwrap();
+            let hashed_token_data = token_data.hash().unwrap();
             let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
             let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice());
             let hashed_delegate =
@@ -270,7 +256,7 @@ pub mod test {
                 state: AccountState::Initialized,
                 tlv: None,
             };
-            let hashed_token_data = token_data.hash_legacy().unwrap();
+            let hashed_token_data = token_data.hash().unwrap();
             let hashed_mint = hash_to_bn254_field_size_be(token_data.mint.to_bytes().as_slice());
             let hashed_owner = hash_to_bn254_field_size_be(token_data.owner.to_bytes().as_slice());
             let mut amount_bytes = [0u8; 32];
@@ -355,7 +341,7 @@ pub mod test {
             &Some(&hashed_delegate),
         )
         .unwrap();
-        let other_hash = token_data.hash_legacy().unwrap();
+        let other_hash = token_data.hash().unwrap();
         assert_eq!(hash, other_hash);
     }
 
@@ -427,11 +413,11 @@ pub mod test {
         // different account state
         let mut token_data = token_data;
         token_data.state = AccountState::Frozen;
-        let hash9 = token_data.hash_legacy().unwrap();
+        let hash9 = token_data.hash().unwrap();
         assert_to_previous_hashes(hash9, &mut vec_previous_hashes);
         // different account state with delegate
         token_data.delegate = Some(delegate);
-        let hash10 = token_data.hash_legacy().unwrap();
+        let hash10 = token_data.hash().unwrap();
         assert_to_previous_hashes(hash10, &mut vec_previous_hashes);
     }
 

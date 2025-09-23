@@ -18,6 +18,7 @@ default = ["debug", "readonly"]
 test-sbf = []
 debug = []
 readonly = []
+deactivate-cpi-context = []
 
 [dependencies]
 light-concurrent-merkle-tree = { workspace = true, features = ["pinocchio"] }
