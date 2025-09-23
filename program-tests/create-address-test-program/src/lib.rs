@@ -8,7 +8,12 @@ use anchor_lang::{
     solana_program::{instruction::Instruction, pubkey::Pubkey},
     InstructionData,
 };
-use light_sdk::{cpi::CpiSigner, derive_light_cpi_signer};
+use light_sdk::{
+    cpi::{CpiAccountsSmall, CpiSigner},
+    derive_light_cpi_signer,
+    error::LightSdkError,
+};
+use light_sdk_types::{CompressionCpiAccountIndexSmall, PROGRAM_ACCOUNTS_LEN};
 use light_system_program::utils::get_registered_program_pda;
 pub mod create_pda;
 pub use create_pda::*;
@@ -18,8 +23,8 @@ use light_compressed_account::instruction_data::{
 use light_sdk::{
     constants::LIGHT_SYSTEM_PROGRAM_ID,
     cpi::{
-        get_account_metas_from_config, invoke_light_system_program, to_account_metas_small,
-        CpiAccountsConfig, CpiInstructionConfig,
+        get_account_metas_from_config, invoke_light_system_program, CpiAccountsConfig,
+        CpiInstructionConfig,
     },
 };
 
@@ -60,6 +65,7 @@ pub mod system_cpi_test {
         config: CpiAccountsConfig,
         small_ix: bool,
         inputs: Vec<u8>,
+        write_cpi_context: bool,
     ) -> Result<()> {
         let fee_payer = ctx.accounts.signer.to_account_info();
 
@@ -67,25 +73,37 @@ pub mod system_cpi_test {
             use light_sdk::cpi::CpiAccountsSmall;
             let cpi_accounts =
                 CpiAccountsSmall::new_with_config(&fee_payer, ctx.remaining_accounts, config);
-            let account_infos = cpi_accounts
-                .to_account_infos()
-                .into_iter()
-                .cloned()
-                .collect::<Vec<_>>();
+            let account_infos = cpi_accounts.to_account_infos();
 
-            let account_metas = to_account_metas_small(cpi_accounts)
-                .map_err(|_| ErrorCode::AccountNotEnoughKeys)?;
+            let account_metas = if !write_cpi_context {
+                to_account_metas_small(cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?
+            } else {
+                let mut account_metas = vec![];
+                account_metas.push(AccountMeta {
+                    pubkey: *cpi_accounts.fee_payer().key,
+                    is_signer: true,
+                    is_writable: true,
+                });
+                account_metas.push(AccountMeta {
+                    pubkey: *ctx.remaining_accounts[1].key,
+                    is_signer: true,
+                    is_writable: false,
+                });
+                let account = &ctx.remaining_accounts[2];
+                account_metas.push(AccountMeta {
+                    pubkey: *account.key,
+                    is_signer: false,
+                    is_writable: true,
+                });
+                account_metas
+            };
             (account_infos, account_metas)
         } else {
             use light_sdk::cpi::CpiAccounts;
             let cpi_accounts =
                 CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config);
 
-            let account_infos = cpi_accounts
-                .to_account_infos()
-                .into_iter()
-                .cloned()
-                .collect::<Vec<_>>();
+            let account_infos = cpi_accounts.to_account_infos();
 
             let config = CpiInstructionConfig::try_from(&cpi_accounts)
                 .map_err(|_| ErrorCode::AccountNotEnoughKeys)?;
@@ -220,11 +238,13 @@ pub fn create_invoke_read_only_account_info_instruction(
     config: CpiAccountsConfig,
     small: bool,
     remaining_accounts: Vec<AccountMeta>,
+    write_cpi_context: bool,
 ) -> Instruction {
     let ix_data = crate::instruction::InvokeWithReadOnly {
         small_ix: small,
         inputs,
         config,
+        write_cpi_context,
     }
     .data();
     let accounts = crate::accounts::InvokeCpiReadOnly { signer };
@@ -233,4 +253,92 @@ pub fn create_invoke_read_only_account_info_instruction(
         accounts: [accounts.to_account_metas(Some(true)), remaining_accounts].concat(),
         data: ix_data,
     }
+}
+// Manual impl for failing tests
+pub fn to_account_metas_small(
+    cpi_accounts: CpiAccountsSmall<'_, '_>,
+) -> light_sdk::error::Result<Vec<AccountMeta>> {
+    // TODO: do a version with a const array instead of vector.
+    let mut account_metas =
+        Vec::with_capacity(1 + cpi_accounts.account_infos().len() - PROGRAM_ACCOUNTS_LEN);
+
+    account_metas.push(AccountMeta {
+        pubkey: *cpi_accounts.fee_payer().key,
+        is_signer: true,
+        is_writable: true,
+    });
+    account_metas.push(AccountMeta {
+        pubkey: *cpi_accounts.authority()?.key,
+        is_signer: true,
+        is_writable: false,
+    });
+
+    account_metas.push(AccountMeta {
+        pubkey: *cpi_accounts.registered_program_pda()?.key,
+        is_signer: false,
+        is_writable: false,
+    });
+    account_metas.push(AccountMeta {
+        pubkey: *cpi_accounts.account_compression_authority()?.key,
+        is_signer: false,
+        is_writable: false,
+    });
+
+    account_metas.push(AccountMeta {
+        pubkey: *cpi_accounts.account_compression_program()?.key,
+        is_signer: false,
+        is_writable: false,
+    });
+
+    account_metas.push(AccountMeta {
+        pubkey: *cpi_accounts.system_program()?.key,
+        is_signer: false,
+        is_writable: false,
+    });
+
+    let accounts = cpi_accounts.account_infos();
+    let mut index = CompressionCpiAccountIndexSmall::SolPoolPda as usize;
+
+    if cpi_accounts.config().sol_pool_pda {
+        let account = cpi_accounts.get_account_info(index)?;
+        account_metas.push(AccountMeta {
+            pubkey: *account.key,
+            is_signer: false,
+            is_writable: true,
+        });
+        index += 1;
+    }
+
+    if cpi_accounts.config().sol_compression_recipient {
+        let account = cpi_accounts.get_account_info(index)?;
+        account_metas.push(AccountMeta {
+            pubkey: *account.key,
+            is_signer: false,
+            is_writable: true,
+        });
+        index += 1;
+    }
+    if cpi_accounts.config().cpi_context {
+        let account = cpi_accounts.get_account_info(index)?;
+        account_metas.push(AccountMeta {
+            pubkey: *account.key,
+            is_signer: false,
+            is_writable: true,
+        });
+        index += 1;
+    }
+    assert_eq!(cpi_accounts.system_accounts_end_offset(), index);
+
+    let tree_accounts = accounts
+        .get(index..)
+        .ok_or(LightSdkError::CpiAccountsIndexOutOfBounds(index))?;
+    tree_accounts.iter().for_each(|acc| {
+        account_metas.push(AccountMeta {
+            pubkey: *acc.key,
+            is_signer: false,
+            is_writable: true,
+        });
+    });
+
+    Ok(account_metas)
 }
