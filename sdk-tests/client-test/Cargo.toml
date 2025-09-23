@@ -14,6 +14,9 @@ test-sbf = []
 crate-type = ["lib","cdylib"]
 name = "client_test"
 
+[features]
+v2 = ["light-client/v2"]
+
 [dev-dependencies]
 light-client = { workspace = true, features = ["devenv"] }
 light-program-test = { workspace = true, features = ["devenv", "v2"] }

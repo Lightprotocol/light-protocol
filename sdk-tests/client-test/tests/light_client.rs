@@ -808,6 +808,9 @@ async fn create_address(
     owner: Pubkey,
     merkle_tree: Pubkey,
 ) -> Result<([u8; 32], Signature), RpcError> {
+    #[cfg(feature = "v2")]
+    let address_merkle_tree = rpc.get_address_tree_v2();
+    #[cfg(not(feature = "v2"))]
     let address_merkle_tree = rpc.get_address_tree_v1();
     let (address, address_seed) = derive_address(
         &[Pubkey::new_unique().to_bytes().as_slice()],
