@@ -58,7 +58,6 @@ async fn test_batch_sequence() {
     env.protocol.forester = forester_keypair.insecure_clone();
 
     let mut config = forester_config();
-    config.transaction_config.batch_ixs_per_tx = 1;
     config.payer_keypair = forester_keypair.insecure_clone();
     config.general_config = GeneralConfig::test_state_v2();
 

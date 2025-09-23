@@ -79,6 +79,7 @@ async fn test_priority_fee_request() {
         photon_rate_limit: None,
         send_tx_rate_limit: None,
         processor_mode: ProcessorMode::All,
+        tree_id: None,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");
