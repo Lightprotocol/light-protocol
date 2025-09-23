@@ -114,15 +114,20 @@ where
         let instructions: Vec<Instruction> =
             instruction_batch.iter().map(&instruction_builder).collect();
 
-        match send_transaction_batch(context, instructions).await {
-            Ok(_) => {
+        match send_transaction_batch(context, instructions.clone()).await {
+            Ok(sig) => {
                 total_instructions_processed += instruction_batch.len();
+                debug!(
+                    "Successfully processed batch with {} instructions, signature: {}",
+                    instruction_batch.len(),
+                    sig
+                );
 
                 {
                     let rpc = context.rpc_pool.get_connection().await?;
                     wait_for_indexer(&*rpc)
                         .await
-                        .map_err(|e| anyhow::anyhow!("Error: {:?}", e))?;
+                        .map_err(|e| anyhow::anyhow!("Error waiting for indexer: {:?}", e))?;
                 }
             }
             Err(e) => {
@@ -130,6 +135,12 @@ where
                     info!("Active phase ended while processing batches, stopping gracefully");
                     break;
                 } else {
+                    error!(
+                        "Failed to process batch with {} instructions for tree {}: {:?}",
+                        instructions.len(),
+                        context.merkle_tree,
+                        e
+                    );
                     return Err(e);
                 }
             }
@@ -163,8 +174,9 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
     }
 
     info!(
-        "Sending transaction with {} instructions...",
-        instructions.len()
+        "Sending transaction with {} instructions for tree: {}...",
+        instructions.len(),
+        context.merkle_tree
     );
     let mut rpc = context.rpc_pool.get_connection().await?;
     let signature = rpc
@@ -174,6 +186,22 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
             &[&context.authority],
         )
         .await?;
+
+    // Ensure transaction is confirmed before returning
+    debug!("Waiting for transaction confirmation: {}", signature);
+    let confirmed = rpc.confirm_transaction(signature).await?;
+    if !confirmed {
+        return Err(anyhow::anyhow!(
+            "Transaction {} failed to confirm for tree {}",
+            signature, context.merkle_tree
+        ));
+    }
+
+    info!(
+        "Transaction confirmed successfully: {} for tree: {}",
+        signature, context.merkle_tree
+    );
+
     Ok(signature.to_string())
 }
 
