@@ -222,6 +222,7 @@ async fn e2e_test() {
             skip_v2_state_trees: false,
             skip_v1_address_trees: false,
             skip_v2_address_trees: false,
+            tree_id: None,
         },
         rpc_pool_config: RpcPoolConfig {
             max_size: 50,
