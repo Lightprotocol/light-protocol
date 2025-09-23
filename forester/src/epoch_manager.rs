@@ -263,43 +263,55 @@ impl<R: Rpc> EpochManager<R> {
         if current_slot >= phases.active.start && current_slot < phases.active.end {
             info!("Currently in active phase. Attempting to process the new tree immediately.");
             info!("Recovering registration info...");
-            if let Ok(mut epoch_info) = self.recover_registration_info(current_epoch).await {
-                info!("Recovered registration info for current epoch");
-                let tree_schedule = TreeForesterSchedule::new_with_schedule(
-                    &new_tree,
-                    current_slot,
-                    &epoch_info.forester_epoch_pda,
-                    &epoch_info.epoch_pda,
-                )?;
-                epoch_info.trees.push(tree_schedule.clone());
+            match self.recover_registration_info(current_epoch).await {
+                Ok(mut epoch_info) => {
+                    info!("Recovered registration info for current epoch");
+                    let tree_schedule = TreeForesterSchedule::new_with_schedule(
+                        &new_tree,
+                        current_slot,
+                        &epoch_info.forester_epoch_pda,
+                        &epoch_info.epoch_pda,
+                    )?;
+                    epoch_info.trees.push(tree_schedule.clone());
 
-                let self_clone = Arc::new(self.clone());
+                    let self_clone = Arc::new(self.clone());
 
-                info!("Spawning task to process new tree in current epoch");
-                tokio::spawn(async move {
-                    if let Err(e) = self_clone
-                        .process_queue(
-                            &epoch_info.epoch,
-                            &epoch_info.forester_epoch_pda,
-                            tree_schedule,
-                        )
-                        .await
-                    {
-                        error!("Error processing queue for new tree: {:?}", e);
+                    info!("Spawning task to process new tree in current epoch");
+                    tokio::spawn(async move {
+                        if let Err(e) = self_clone
+                            .process_queue(
+                                &epoch_info.epoch,
+                                &epoch_info.forester_epoch_pda,
+                                tree_schedule,
+                            )
+                            .await
+                        {
+                            error!("Error processing queue for new tree: {:?}", e);
+                        } else {
+                            info!("Successfully processed new tree in current epoch");
+                        }
+                    });
+                }
+                Err(e) => {
+                    // If not registered yet, just log debug (it's expected on first run)
+                    if matches!(e.downcast_ref::<RegistrationError>(),
+                        Some(RegistrationError::ForesterEpochPdaNotFound { .. })) {
+                        debug!("Not registered for current epoch yet, new tree will be picked up during next registration");
                     } else {
-                        info!("Successfully processed new tree in current epoch");
+                        warn!("Failed to recover registration info for new tree: {:?}", e);
                     }
-                });
-
-                info!(
-                    "Injected new tree into current epoch {}: {:?}",
-                    current_epoch, new_tree
-                );
-            } else {
-                warn!("Failed to retrieve current epoch info for processing new tree");
+                }
             }
+
+            info!(
+                "Injected new tree into current epoch {}: {:?}",
+                current_epoch, new_tree
+            );
         } else {
-            info!("Not in active phase. New tree will be processed in the next active phase");
+            info!(
+                "Not in active phase (current slot: {}, active start: {}). Tree will be picked up in next registration.",
+                current_slot, phases.active.start
+            );
         }
 
         Ok(())
@@ -490,8 +502,14 @@ impl<R: Rpc> EpochManager<R> {
         let mut registration_info = match self.recover_registration_info(epoch).await {
             Ok(info) => info,
             Err(e) => {
-                warn!("Failed to recover registration info: {:?}", e);
-                // If recovery fails, attempt to register
+                // Check if it's the expected "not found" error
+                if matches!(e.downcast_ref::<RegistrationError>(),
+                    Some(RegistrationError::ForesterEpochPdaNotFound { .. })) {
+                    debug!("No existing registration found for epoch {}, will register fresh", epoch);
+                } else {
+                    warn!("Failed to recover registration info: {:?}", e);
+                }
+                // Attempt to register
                 match self
                     .register_for_epoch_with_retry(epoch, 100, Duration::from_millis(1000))
                     .await
