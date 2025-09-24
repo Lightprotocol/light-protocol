@@ -54,6 +54,7 @@ mod accounts_small_ix;
 mod invoke;
 
 pub use accounts::*;
+pub use accounts_cpi_context::get_account_metas_from_config_cpi_context;
 #[cfg(feature = "v2")]
 pub use accounts_small_ix::*;
 pub use invoke::*;
