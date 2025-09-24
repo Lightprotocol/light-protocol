@@ -6,7 +6,7 @@ use crate::{
 };
 
 #[repr(usize)]
-pub enum CompressionCpiAccountIndexSmall {
+pub enum CompressionCpiAccountIndexV2 {
     LightSystemProgram,        // Only exposed to outer instruction
     AccountCompressionProgram, // Only exposed to outer instruction
     SystemProgram,             // Only exposed to outer instruction
@@ -20,15 +20,15 @@ pub enum CompressionCpiAccountIndexSmall {
 
 pub const PROGRAM_ACCOUNTS_LEN: usize = 3;
 // 6 + 3 program ids, fee payer is extra.
-pub const SMALL_SYSTEM_ACCOUNTS_LEN: usize = 9;
+pub const V2_SYSTEM_ACCOUNTS_LEN: usize = 9;
 
-pub struct CpiAccountsSmall<'a, T: AccountInfoTrait> {
+pub struct CpiAccountsV2<'a, T: AccountInfoTrait> {
     fee_payer: &'a T,
     accounts: &'a [T],
     config: CpiAccountsConfig,
 }
 
-impl<'a, T: AccountInfoTrait> CpiAccountsSmall<'a, T> {
+impl<'a, T: AccountInfoTrait> CpiAccountsV2<'a, T> {
     pub fn new(fee_payer: &'a T, accounts: &'a [T], cpi_signer: CpiSigner) -> Self {
         Self {
             fee_payer,
@@ -50,42 +50,42 @@ impl<'a, T: AccountInfoTrait> CpiAccountsSmall<'a, T> {
     }
 
     pub fn authority(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::Authority as usize;
+        let index = CompressionCpiAccountIndexV2::Authority as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn registered_program_pda(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::RegisteredProgramPda as usize;
+        let index = CompressionCpiAccountIndexV2::RegisteredProgramPda as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn account_compression_authority(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::AccountCompressionAuthority as usize;
+        let index = CompressionCpiAccountIndexV2::AccountCompressionAuthority as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn sol_pool_pda(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::SolPoolPda as usize;
+        let index = CompressionCpiAccountIndexV2::SolPoolPda as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn decompression_recipient(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::DecompressionRecipient as usize;
+        let index = CompressionCpiAccountIndexV2::DecompressionRecipient as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn cpi_context(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::CpiContext as usize;
+        let index = CompressionCpiAccountIndexV2::CpiContext as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
@@ -100,7 +100,7 @@ impl<'a, T: AccountInfoTrait> CpiAccountsSmall<'a, T> {
     }
 
     pub fn system_accounts_end_offset(&self) -> usize {
-        let mut len = SMALL_SYSTEM_ACCOUNTS_LEN;
+        let mut len = V2_SYSTEM_ACCOUNTS_LEN;
         if !self.config.sol_pool_pda {
             len -= 1;
         }

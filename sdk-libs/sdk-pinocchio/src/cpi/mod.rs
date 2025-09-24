@@ -1,9 +1,9 @@
 pub mod accounts;
-#[cfg(feature = "small_ix")]
-pub mod accounts_small;
+#[cfg(feature = "v2_ix")]
+pub mod accounts_v2;
 pub mod invoke;
 
 pub use accounts::*;
-#[cfg(feature = "small_ix")]
-pub use accounts_small::*;
+#[cfg(feature = "v2_ix")]
+pub use accounts_v2::*;
 pub use invoke::*;

@@ -18,7 +18,7 @@ use light_compressed_account::instruction_data::{
 use light_sdk::{
     constants::LIGHT_SYSTEM_PROGRAM_ID,
     cpi::{
-        get_account_metas_from_config, invoke_light_system_program, to_account_metas_small,
+        get_account_metas_from_config, invoke_light_system_program, to_account_metas_v2,
         CpiAccountsConfig, CpiInstructionConfig,
     },
 };
@@ -58,23 +58,23 @@ pub mod system_cpi_test {
     pub fn invoke_with_read_only<'info>(
         ctx: Context<'_, '_, '_, 'info, InvokeCpiReadOnly<'info>>,
         config: CpiAccountsConfig,
-        small_ix: bool,
+        v2_ix: bool,
         inputs: Vec<u8>,
     ) -> Result<()> {
         let fee_payer = ctx.accounts.signer.to_account_info();
 
-        let (account_infos, account_metas) = if small_ix {
-            use light_sdk::cpi::CpiAccountsSmall;
+        let (account_infos, account_metas) = if v2_ix {
+            use light_sdk::cpi::CpiAccountsV2;
             let cpi_accounts =
-                CpiAccountsSmall::new_with_config(&fee_payer, ctx.remaining_accounts, config);
+                CpiAccountsV2::new_with_config(&fee_payer, ctx.remaining_accounts, config);
             let account_infos = cpi_accounts
                 .to_account_infos()
                 .into_iter()
                 .cloned()
                 .collect::<Vec<_>>();
 
-            let account_metas = to_account_metas_small(cpi_accounts)
-                .map_err(|_| ErrorCode::AccountNotEnoughKeys)?;
+            let account_metas =
+                to_account_metas_v2(cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?;
             (account_infos, account_metas)
         } else {
             use light_sdk::cpi::CpiAccounts;
@@ -218,11 +218,11 @@ pub fn create_invoke_read_only_account_info_instruction(
     signer: Pubkey,
     inputs: Vec<u8>,
     config: CpiAccountsConfig,
-    small: bool,
+    v2_ix: bool,
     remaining_accounts: Vec<AccountMeta>,
 ) -> Instruction {
     let ix_data = crate::instruction::InvokeWithReadOnly {
-        small_ix: small,
+        v2_ix,
         inputs,
         config,
     }

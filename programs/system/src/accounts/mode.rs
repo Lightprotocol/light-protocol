@@ -7,7 +7,7 @@ pub enum AccountMode {
     Anchor,
     /// Do not send optional accounts if not required.
     /// Use instruction data to signal whether an optional account is expected.
-    Small,
+    V2,
 }
 
 impl TryFrom<u8> for AccountMode {
@@ -16,7 +16,7 @@ impl TryFrom<u8> for AccountMode {
     fn try_from(value: u8) -> std::result::Result<Self, Self::Error> {
         match value {
             0 => Ok(AccountMode::Anchor),
-            1 => Ok(AccountMode::Small),
+            1 => Ok(AccountMode::V2),
             _ => Err(SystemProgramError::InvalidAccountMode),
         }
     }
@@ -26,7 +26,7 @@ impl From<AccountMode> for u8 {
     fn from(value: AccountMode) -> Self {
         match value {
             AccountMode::Anchor => 0u8,
-            AccountMode::Small => 1u8,
+            AccountMode::V2 => 1u8,
         }
     }
 }
