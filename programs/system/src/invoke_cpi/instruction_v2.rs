@@ -14,7 +14,7 @@ use crate::{
 };
 
 #[derive(PartialEq, Eq)]
-pub struct InvokeCpiInstructionSmall<'info> {
+pub struct InvokeCpiInstructionV2<'info> {
     /// Fee payer needs to be mutable to pay rollover and protocol fees.
     pub fee_payer: &'info AccountInfo,
     pub authority: &'info AccountInfo,
@@ -28,7 +28,7 @@ pub struct InvokeCpiInstructionSmall<'info> {
     pub cpi_context_account: Option<&'info AccountInfo>,
 }
 
-impl<'info> InvokeCpiInstructionSmall<'info> {
+impl<'info> InvokeCpiInstructionV2<'info> {
     pub fn from_account_infos(
         account_infos: &'info [AccountInfo],
         account_options: AccountOptions,
@@ -69,7 +69,7 @@ impl<'info> InvokeCpiInstructionSmall<'info> {
     }
 }
 
-impl<'info> SignerAccounts<'info> for InvokeCpiInstructionSmall<'info> {
+impl<'info> SignerAccounts<'info> for InvokeCpiInstructionV2<'info> {
     fn get_fee_payer(&self) -> &'info AccountInfo {
         self.fee_payer
     }
@@ -79,12 +79,12 @@ impl<'info> SignerAccounts<'info> for InvokeCpiInstructionSmall<'info> {
     }
 }
 
-impl<'info> CpiContextAccountTrait<'info> for InvokeCpiInstructionSmall<'info> {
+impl<'info> CpiContextAccountTrait<'info> for InvokeCpiInstructionV2<'info> {
     fn get_cpi_context_account(&self) -> Option<&'info AccountInfo> {
         self.cpi_context_account
     }
 }
-impl<'info> InvokeAccounts<'info> for InvokeCpiInstructionSmall<'info> {
+impl<'info> InvokeAccounts<'info> for InvokeCpiInstructionV2<'info> {
     fn get_registered_program_pda(&self) -> &'info AccountInfo {
         self.registered_program_pda
     }

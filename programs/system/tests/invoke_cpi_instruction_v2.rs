@@ -7,7 +7,7 @@ use light_account_checks::{
 };
 use light_compressed_account::instruction_data::traits::AccountOptions;
 use light_system_program_pinocchio::invoke_cpi::{
-    account::CpiContextAccount, instruction_small::InvokeCpiInstructionSmall,
+    account::CpiContextAccount, instruction_v2::InvokeCpiInstructionV2,
 };
 // We'll avoid direct PDA validation as it's difficult in unit tests
 use pinocchio::account_info::AccountInfo;
@@ -54,7 +54,7 @@ fn get_decompression_recipient_account_info() -> AccountInfo {
 }
 
 #[test]
-fn functional_from_account_infos_small() {
+fn functional_from_account_infos_v2() {
     let fee_payer = get_fee_payer_account_info();
     let authority = get_authority_account_info();
     let registered_program_pda = get_registered_program_pda_account_info();
@@ -74,36 +74,28 @@ fn functional_from_account_infos_small() {
             registered_program_pda.clone(),
             account_compression_authority.clone(),
         ];
-        let result = InvokeCpiInstructionSmall::from_account_infos(
+        let result = InvokeCpiInstructionV2::from_account_infos(
             account_info_array.as_slice(),
             options_config,
         );
 
         // Verify result is Ok and contains the expected accounts
-        let (invoke_cpi_instruction_small, _) = result.unwrap();
+        let (invoke_cpi_instruction_v2, _) = result.unwrap();
+        assert_eq!(invoke_cpi_instruction_v2.fee_payer.key(), fee_payer.key());
+        assert_eq!(invoke_cpi_instruction_v2.authority.key(), authority.key());
         assert_eq!(
-            invoke_cpi_instruction_small.fee_payer.key(),
-            fee_payer.key()
-        );
-        assert_eq!(
-            invoke_cpi_instruction_small.authority.key(),
-            authority.key()
-        );
-        assert_eq!(
-            invoke_cpi_instruction_small.registered_program_pda.key(),
+            invoke_cpi_instruction_v2.registered_program_pda.key(),
             registered_program_pda.key()
         );
         assert_eq!(
-            invoke_cpi_instruction_small
+            invoke_cpi_instruction_v2
                 .account_compression_authority
                 .key(),
             account_compression_authority.key()
         );
-        assert!(invoke_cpi_instruction_small.sol_pool_pda.is_none());
-        assert!(invoke_cpi_instruction_small
-            .decompression_recipient
-            .is_none());
-        assert!(invoke_cpi_instruction_small.cpi_context_account.is_none());
+        assert!(invoke_cpi_instruction_v2.sol_pool_pda.is_none());
+        assert!(invoke_cpi_instruction_v2.decompression_recipient.is_none());
+        assert!(invoke_cpi_instruction_v2.cpi_context_account.is_none());
     }
 
     // 1. With decompression recipient
@@ -123,29 +115,23 @@ fn functional_from_account_infos_small() {
             decompression_recipient.clone(),
         ];
 
-        let result = InvokeCpiInstructionSmall::from_account_infos(
+        let result = InvokeCpiInstructionV2::from_account_infos(
             account_info_array.as_slice(),
             options_config,
         );
 
-        let (invoke_cpi_instruction_small, _) = result.unwrap();
+        let (invoke_cpi_instruction_v2, _) = result.unwrap();
+        assert_eq!(invoke_cpi_instruction_v2.fee_payer.key(), fee_payer.key());
+        assert_eq!(invoke_cpi_instruction_v2.authority.key(), authority.key());
+        assert!(invoke_cpi_instruction_v2.sol_pool_pda.is_none());
         assert_eq!(
-            invoke_cpi_instruction_small.fee_payer.key(),
-            fee_payer.key()
-        );
-        assert_eq!(
-            invoke_cpi_instruction_small.authority.key(),
-            authority.key()
-        );
-        assert!(invoke_cpi_instruction_small.sol_pool_pda.is_none());
-        assert_eq!(
-            invoke_cpi_instruction_small
+            invoke_cpi_instruction_v2
                 .decompression_recipient
                 .unwrap()
                 .key(),
             decompression_recipient.key()
         );
-        assert!(invoke_cpi_instruction_small.cpi_context_account.is_none());
+        assert!(invoke_cpi_instruction_v2.cpi_context_account.is_none());
     }
     // With cpi_context_account
     {
@@ -170,30 +156,19 @@ fn functional_from_account_infos_small() {
         ];
 
         // This should pass with valid discriminator
-        let result = InvokeCpiInstructionSmall::from_account_infos(
+        let result = InvokeCpiInstructionV2::from_account_infos(
             account_info_array.as_slice(),
             options_config,
         );
 
         // Verify result is Ok and contains the expected accounts
-        let (invoke_cpi_instruction_small, _) = result.unwrap();
+        let (invoke_cpi_instruction_v2, _) = result.unwrap();
+        assert_eq!(invoke_cpi_instruction_v2.fee_payer.key(), fee_payer.key());
+        assert_eq!(invoke_cpi_instruction_v2.authority.key(), authority.key());
+        assert!(invoke_cpi_instruction_v2.sol_pool_pda.is_none());
+        assert!(invoke_cpi_instruction_v2.decompression_recipient.is_none());
         assert_eq!(
-            invoke_cpi_instruction_small.fee_payer.key(),
-            fee_payer.key()
-        );
-        assert_eq!(
-            invoke_cpi_instruction_small.authority.key(),
-            authority.key()
-        );
-        assert!(invoke_cpi_instruction_small.sol_pool_pda.is_none());
-        assert!(invoke_cpi_instruction_small
-            .decompression_recipient
-            .is_none());
-        assert_eq!(
-            invoke_cpi_instruction_small
-                .cpi_context_account
-                .unwrap()
-                .key(),
+            invoke_cpi_instruction_v2.cpi_context_account.unwrap().key(),
             cpi_context_account.key()
         );
     }
@@ -222,7 +197,7 @@ fn test_cpi_context_account_error_handling() {
             invalid_cpi_context_account.clone(),
         ];
 
-        let result = InvokeCpiInstructionSmall::from_account_infos(
+        let result = InvokeCpiInstructionV2::from_account_infos(
             account_info_array.as_slice(),
             options_config,
         );
@@ -241,7 +216,7 @@ fn test_cpi_context_account_error_handling() {
             invalid_cpi_context_account.clone(),
         ];
 
-        let result = InvokeCpiInstructionSmall::from_account_infos(
+        let result = InvokeCpiInstructionV2::from_account_infos(
             account_info_array.as_slice(),
             options_config,
         );
@@ -276,40 +251,29 @@ fn test_decompression_recipient_and_cpi_context_validation() {
     ];
 
     // This should pass with valid discriminator
-    let result = InvokeCpiInstructionSmall::from_account_infos(
-        account_info_array.as_slice(),
-        options_config,
-    );
+    let result =
+        InvokeCpiInstructionV2::from_account_infos(account_info_array.as_slice(), options_config);
 
     // Verify result is Ok and contains the expected accounts
-    let (invoke_cpi_instruction_small, _) = result.unwrap();
+    let (invoke_cpi_instruction_v2, _) = result.unwrap();
+    assert_eq!(invoke_cpi_instruction_v2.fee_payer.key(), fee_payer.key());
+    assert_eq!(invoke_cpi_instruction_v2.authority.key(), authority.key());
+    assert!(invoke_cpi_instruction_v2.sol_pool_pda.is_none());
     assert_eq!(
-        invoke_cpi_instruction_small.fee_payer.key(),
-        fee_payer.key()
-    );
-    assert_eq!(
-        invoke_cpi_instruction_small.authority.key(),
-        authority.key()
-    );
-    assert!(invoke_cpi_instruction_small.sol_pool_pda.is_none());
-    assert_eq!(
-        invoke_cpi_instruction_small
+        invoke_cpi_instruction_v2
             .decompression_recipient
             .unwrap()
             .key(),
         decompression_recipient.key()
     );
     assert_eq!(
-        invoke_cpi_instruction_small
-            .cpi_context_account
-            .unwrap()
-            .key(),
+        invoke_cpi_instruction_v2.cpi_context_account.unwrap().key(),
         cpi_context_account.key()
     );
 }
 
 #[test]
-fn failing_from_account_infos_small() {
+fn failing_from_account_infos_v2() {
     let fee_payer = get_fee_payer_account_info();
     let authority = get_authority_account_info();
     let registered_program_pda = get_registered_program_pda_account_info();
@@ -331,7 +295,7 @@ fn failing_from_account_infos_small() {
             cpi_context_account: false,
         };
 
-        let result = InvokeCpiInstructionSmall::from_account_infos(
+        let result = InvokeCpiInstructionV2::from_account_infos(
             account_info_array.as_slice(),
             options_config,
         );
@@ -349,7 +313,7 @@ fn failing_from_account_infos_small() {
         let mut account_info_array_clone = account_info_array.clone();
         account_info_array_clone[1] = get_fee_payer_account_info(); // Use a mutable account
 
-        let result = InvokeCpiInstructionSmall::from_account_infos(
+        let result = InvokeCpiInstructionV2::from_account_infos(
             account_info_array_clone.as_slice(),
             options_config,
         );
@@ -371,7 +335,7 @@ fn failing_from_account_infos_small() {
         let mut account_info_array_clone = account_info_array.clone();
         account_info_array_clone[2] = get_mut_account_info();
 
-        let result = InvokeCpiInstructionSmall::from_account_infos(
+        let result = InvokeCpiInstructionV2::from_account_infos(
             account_info_array_clone.as_slice(),
             options_config,
         );
@@ -393,7 +357,7 @@ fn failing_from_account_infos_small() {
         let mut account_info_array_clone = account_info_array.clone();
         account_info_array_clone[3] = get_mut_account_info();
 
-        let result = InvokeCpiInstructionSmall::from_account_infos(
+        let result = InvokeCpiInstructionV2::from_account_infos(
             account_info_array_clone.as_slice(),
             options_config,
         );
@@ -422,7 +386,7 @@ fn failing_from_account_infos_small() {
 
         // This will panic with index out of bounds
         let result = catch_unwind(|| {
-            InvokeCpiInstructionSmall::from_account_infos(
+            InvokeCpiInstructionV2::from_account_infos(
                 insufficient_array.as_slice(),
                 options_config,
             )
@@ -448,7 +412,7 @@ fn failing_from_account_infos_small() {
             decompression_recipient.clone(),
         ];
 
-        let result = InvokeCpiInstructionSmall::from_account_infos(
+        let result = InvokeCpiInstructionV2::from_account_infos(
             account_array_with_decompression.as_slice(),
             options_with_decompression,
         );

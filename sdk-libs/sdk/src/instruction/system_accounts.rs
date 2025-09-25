@@ -120,7 +120,7 @@ pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<Ac
 /// 5. Registered Program PDA
 /// 6. Account Compression Authority
 #[cfg(feature = "v2")]
-pub fn get_light_system_account_metas_small(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
+pub fn get_light_system_account_metas_v2(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
     let cpi_signer = find_cpi_signer_macro!(&config.self_program).0;
     let default_pubkeys = SystemAccountPubkeys::default();
 
