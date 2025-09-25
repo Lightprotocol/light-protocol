@@ -463,6 +463,7 @@ where
 #[cfg(test)]
 mod test {
     use light_concurrent_merkle_tree::light_hasher::Poseidon;
+    use light_hasher::to_byte_array::ToByteArray;
     use num_bigint::{RandBigInt, ToBigUint};
     use rand::thread_rng;
 
@@ -561,7 +562,7 @@ mod test {
             bigint_to_be_bytes_array::<32>(&nullifier1)
                 .unwrap()
                 .as_ref(),
-            0_usize.to_be_bytes().as_ref(),
+            0_usize.to_byte_array().unwrap().as_ref(),
             bigint_to_be_bytes_array::<32>(&(0.to_biguint().unwrap()))
                 .unwrap()
                 .as_ref(),
@@ -631,7 +632,7 @@ mod test {
             bigint_to_be_bytes_array::<32>(&nullifier2)
                 .unwrap()
                 .as_ref(),
-            1_usize.to_be_bytes().as_ref(),
+            1_usize.to_byte_array().unwrap().as_ref(),
             bigint_to_be_bytes_array::<32>(&(30.to_biguint().unwrap()))
                 .unwrap()
                 .as_ref(),
@@ -711,7 +712,7 @@ mod test {
             bigint_to_be_bytes_array::<32>(&nullifier3)
                 .unwrap()
                 .as_ref(),
-            1_usize.to_be_bytes().as_ref(),
+            1_usize.to_byte_array().unwrap().as_ref(),
             bigint_to_be_bytes_array::<32>(&(30.to_biguint().unwrap()))
                 .unwrap()
                 .as_ref(),
@@ -806,7 +807,7 @@ mod test {
             bigint_to_be_bytes_array::<32>(&nullifier4)
                 .unwrap()
                 .as_ref(),
-            0_usize.to_be_bytes().as_ref(),
+            0_usize.to_byte_array().unwrap().as_ref(),
             bigint_to_be_bytes_array::<32>(&(0.to_biguint().unwrap()))
                 .unwrap()
                 .as_ref(),

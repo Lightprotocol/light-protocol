@@ -141,8 +141,8 @@ mod basic_hashing {
         let account = create_account(Some(42));
 
         let manual_nested_bytes: Vec<Vec<u8>> = vec![
-            nested_struct.a.to_be_bytes().to_vec(),
-            nested_struct.b.to_be_bytes().to_vec(),
+            nested_struct.a.to_byte_array().unwrap().to_vec(),
+            nested_struct.b.to_byte_array().unwrap().to_vec(),
             light_compressed_account::hash_to_bn254_field_size_be(
                 nested_struct.c.try_to_vec().unwrap().as_slice(),
             )
@@ -163,8 +163,8 @@ mod basic_hashing {
         assert_eq!(nested_hash_result, manual_nested_hash);
 
         let manual_account_bytes: Vec<Vec<u8>> = vec![
-            vec![u8::from(account.a)],
-            account.b.to_be_bytes().to_vec(),
+            account.a.to_byte_array().unwrap().to_vec(),
+            account.b.to_byte_array().unwrap().to_vec(),
             account.c.hash::<Poseidon>().unwrap().to_vec(),
             light_compressed_account::hash_to_bn254_field_size_be(&account.d).to_vec(),
             {
@@ -495,18 +495,18 @@ fn test_poseidon_width_limits() {
 
     assert!(max_fields.hash::<Poseidon>().is_ok());
     let expected_hash = Poseidon::hashv(&[
-        1u64.to_be_bytes().as_ref(),
-        2u64.to_be_bytes().as_ref(),
-        3u64.to_be_bytes().as_ref(),
-        4u64.to_be_bytes().as_ref(),
-        5u64.to_be_bytes().as_ref(),
-        6u64.to_be_bytes().as_ref(),
-        7u64.to_be_bytes().as_ref(),
-        8u64.to_be_bytes().as_ref(),
-        9u64.to_be_bytes().as_ref(),
-        10u64.to_be_bytes().as_ref(),
-        11u64.to_be_bytes().as_ref(),
-        12u64.to_be_bytes().as_ref(),
+        1u64.to_byte_array().unwrap().as_ref(),
+        2u64.to_byte_array().unwrap().as_ref(),
+        3u64.to_byte_array().unwrap().as_ref(),
+        4u64.to_byte_array().unwrap().as_ref(),
+        5u64.to_byte_array().unwrap().as_ref(),
+        6u64.to_byte_array().unwrap().as_ref(),
+        7u64.to_byte_array().unwrap().as_ref(),
+        8u64.to_byte_array().unwrap().as_ref(),
+        9u64.to_byte_array().unwrap().as_ref(),
+        10u64.to_byte_array().unwrap().as_ref(),
+        11u64.to_byte_array().unwrap().as_ref(),
+        12u64.to_byte_array().unwrap().as_ref(),
     ])
     .unwrap();
     assert_eq!(max_fields.hash::<Poseidon>().unwrap(), expected_hash);

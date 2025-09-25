@@ -1,7 +1,9 @@
 use light_compressed_account::{
     hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
 };
-use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
+use light_hasher::{
+    bigint::bigint_to_be_bytes_array, to_byte_array::ToByteArray, Hasher, Poseidon,
+};
 use light_merkle_tree_reference::{indexed::IndexedMerkleTree, MerkleTree};
 use light_prover_client::{
     errors::ProverClientError,
@@ -186,7 +188,7 @@ impl<const HEIGHT: usize> MockBatchedForester<HEIGHT> {
                 .iter()
                 .find(|tx_event| tx_event.inputs.contains(leaf))
                 .expect("No event for leaf found.");
-            let index_bytes = index.to_be_bytes();
+            let index_bytes = index.to_byte_array().unwrap();
             let nullifier = Poseidon::hashv(&[leaf, &index_bytes, &event.tx_hash]).unwrap();
             tx_hashes.push(event.tx_hash);
             nullifiers.push(nullifier);

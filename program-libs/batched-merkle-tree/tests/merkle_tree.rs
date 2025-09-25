@@ -36,7 +36,7 @@ use light_compressed_account::{
     hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
     pubkey::Pubkey,
 };
-use light_hasher::{Hasher, Poseidon};
+use light_hasher::{to_byte_array::ToByteArray, Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::prover::{spawn_prover, ProverConfig};
 use light_test_utils::mock_batched_forester::{
@@ -62,9 +62,8 @@ pub fn assert_nullifier_queue_insert(
 ) -> Result<(), BatchedMerkleTreeError> {
     let mut leaf_hash_chain_insert_values = vec![];
     for (insert_value, leaf_index) in bloom_filter_insert_values.iter().zip(leaf_indices.iter()) {
-        let nullifier =
-            Poseidon::hashv(&[insert_value.as_slice(), &leaf_index.to_be_bytes(), &tx_hash])
-                .unwrap();
+        let leaf_index = leaf_index.to_byte_array().unwrap();
+        let nullifier = Poseidon::hashv(&[insert_value.as_slice(), &leaf_index, &tx_hash]).unwrap();
         leaf_hash_chain_insert_values.push(nullifier);
     }
     assert_input_queue_insert(
