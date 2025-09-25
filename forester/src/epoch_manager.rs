@@ -1230,7 +1230,7 @@ impl<R: Rpc> EpochManager<R> {
                 compute_unit_price: Some(10_000), // is dynamic, sets max
                 compute_unit_limit: Some(self.config.transaction_config.cu_limit),
                 enable_priority_fees: self.config.transaction_config.enable_priority_fees,
-                max_concurrent_sends: Some(50),
+                max_concurrent_sends: Some(self.config.transaction_config.max_concurrent_sends),
             },
             queue_config: self.config.queue_config,
             retry_config: RetryConfig {
@@ -1240,11 +1240,11 @@ impl<R: Rpc> EpochManager<R> {
             light_slot_length: epoch_pda.protocol_config.slot_length,
         };
 
-        let transaction_builder = EpochManagerTransactions::new(
+        let transaction_builder = Arc::new(EpochManagerTransactions::new(
             self.rpc_pool.clone(),
             epoch_info.epoch,
             self.tx_cache.clone(),
-        );
+        ));
 
         let num_sent = send_batched_transactions(
             &self.config.payer_keypair,
@@ -1252,7 +1252,7 @@ impl<R: Rpc> EpochManager<R> {
             self.rpc_pool.clone(),
             &batched_tx_config,
             *tree_accounts,
-            &transaction_builder,
+            transaction_builder,
         )
         .await?;
 
