@@ -193,7 +193,8 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
     if !confirmed {
         return Err(anyhow::anyhow!(
             "Transaction {} failed to confirm for tree {}",
-            signature, context.merkle_tree
+            signature,
+            context.merkle_tree
         ));
     }
 

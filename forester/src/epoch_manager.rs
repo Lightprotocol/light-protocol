@@ -294,8 +294,10 @@ impl<R: Rpc> EpochManager<R> {
                 }
                 Err(e) => {
                     // If not registered yet, just log debug (it's expected on first run)
-                    if matches!(e.downcast_ref::<RegistrationError>(),
-                        Some(RegistrationError::ForesterEpochPdaNotFound { .. })) {
+                    if matches!(
+                        e.downcast_ref::<RegistrationError>(),
+                        Some(RegistrationError::ForesterEpochPdaNotFound { .. })
+                    ) {
                         debug!("Not registered for current epoch yet, new tree will be picked up during next registration");
                     } else {
                         warn!("Failed to recover registration info for new tree: {:?}", e);
@@ -503,9 +505,14 @@ impl<R: Rpc> EpochManager<R> {
             Ok(info) => info,
             Err(e) => {
                 // Check if it's the expected "not found" error
-                if matches!(e.downcast_ref::<RegistrationError>(),
-                    Some(RegistrationError::ForesterEpochPdaNotFound { .. })) {
-                    debug!("No existing registration found for epoch {}, will register fresh", epoch);
+                if matches!(
+                    e.downcast_ref::<RegistrationError>(),
+                    Some(RegistrationError::ForesterEpochPdaNotFound { .. })
+                ) {
+                    debug!(
+                        "No existing registration found for epoch {}, will register fresh",
+                        epoch
+                    );
                 } else {
                     warn!("Failed to recover registration info: {:?}", e);
                 }
