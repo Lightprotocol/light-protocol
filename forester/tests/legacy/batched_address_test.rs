@@ -113,7 +113,7 @@ async fn test_address_batched() {
 
     let config = Arc::new(config);
 
-    let indexer = TestIndexer::init_from_acounts(&config.payer_keypair, &test_accounts, 0).await;
+    let indexer = TestIndexer::init_from_accounts(&config.payer_keypair, &test_accounts, 0).await;
 
     let mut photon_indexer = PhotonIndexer::new(PhotonIndexer::default_path(), None);
 
