@@ -9,9 +9,9 @@ use light_client::rpc::Rpc;
 use light_registry::account_compression_cpi::sdk::create_batch_update_address_tree_instruction;
 use solana_program::instruction::Instruction;
 use solana_sdk::signer::Signer;
-use tracing::{info, instrument};
+use tracing::instrument;
 
-use super::common::{process_stream, BatchContext, ParsedMerkleTreeData};
+use super::{common::ParsedMerkleTreeData, context::BatchContext, utils::process_stream};
 use crate::Result;
 
 async fn create_stream_future<R>(
@@ -27,11 +27,10 @@ where
     let config = AddressUpdateConfig {
         rpc_pool: ctx.rpc_pool.clone(),
         merkle_tree_pubkey: ctx.merkle_tree,
-        prover_url: ctx.prover_address_append_url.clone(),
-        prover_api_key: ctx.prover_api_key.clone(),
-        polling_interval: ctx.prover_polling_interval,
-        max_wait_time: ctx.prover_max_wait_time,
-        ixs_per_tx: ctx.ixs_per_tx,
+        prover_url: ctx.config.prover_address_append_url.clone(),
+        prover_api_key: ctx.config.prover_api_key.clone(),
+        polling_interval: ctx.config.prover_polling_interval,
+        max_wait_time: ctx.config.prover_max_wait_time,
     };
     let (stream, size) = get_address_update_instruction_stream(config, merkle_tree_data)
         .await
@@ -45,10 +44,6 @@ pub(crate) async fn process_batch<R: Rpc>(
     context: &BatchContext<R>,
     merkle_tree_data: ParsedMerkleTreeData,
 ) -> Result<usize> {
-    info!(
-        "V2_TPS_METRIC: operation_start tree_type=AddressV2 tree={} epoch={}",
-        context.merkle_tree, context.epoch
-    );
     let instruction_builder = |data: &InstructionDataAddressAppendInputs| -> Instruction {
         let serialized_data = data.try_to_vec().unwrap();
         create_batch_update_address_tree_instruction(
@@ -61,12 +56,5 @@ pub(crate) async fn process_batch<R: Rpc>(
     };
 
     let stream_future = create_stream_future(context, merkle_tree_data);
-    process_stream(
-        context,
-        stream_future,
-        instruction_builder,
-        "AddressV2",
-        None,
-    )
-    .await
+    process_stream(context, stream_future, instruction_builder).await
 }

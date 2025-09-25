@@ -1,10 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use forester::run_pipeline;
-use forester_utils::{
-    registry::update_test_forester,
-    rpc_pool::SolanaRpcPoolBuilder,
-};
+use forester_utils::{registry::update_test_forester, rpc_pool::SolanaRpcPoolBuilder};
 use light_batched_merkle_tree::{
     batch::BatchState, initialize_address_tree::InitAddressTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount,
@@ -52,7 +49,6 @@ async fn test_address_batched() {
     test_accounts.protocol.forester = forester_keypair.insecure_clone();
 
     let mut config = forester_config();
-    config.transaction_config.batch_ixs_per_tx = 1;
     config.payer_keypair = forester_keypair.insecure_clone();
 
     let pool = SolanaRpcPoolBuilder::<LightClient>::default()

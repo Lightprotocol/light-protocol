@@ -1,6 +1,11 @@
+mod account_parser;
 mod address;
+mod changelog_cache;
 mod common;
+mod context;
 mod state;
+mod types;
+mod utils;
 
 use common::BatchProcessor;
 use light_client::rpc::Rpc;
@@ -26,5 +31,5 @@ pub async fn process_batched_operations<R: Rpc>(
     processor.process().await
 }
 
-pub use common::BatchContext;
+pub use context::BatchContext;
 use light_compressed_account::TreeType;
