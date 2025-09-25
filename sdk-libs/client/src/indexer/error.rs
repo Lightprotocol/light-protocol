@@ -132,14 +132,14 @@ impl Clone for IndexerError {
             },
             IndexerError::NotImplemented(message) => IndexerError::NotImplemented(message.clone()),
             IndexerError::Unknown(message) => IndexerError::Unknown(message.clone()),
-            IndexerError::ReferenceIndexedMerkleTreeError(_) => {
-                IndexerError::CustomError("ReferenceIndexedMerkleTreeError".to_string())
+            IndexerError::ReferenceIndexedMerkleTreeError(err) => {
+                IndexerError::ReferenceIndexedMerkleTreeError(err.clone())
             }
-            IndexerError::IndexedMerkleTreeError(_) => {
-                IndexerError::CustomError("IndexedMerkleTreeError".to_string())
+            IndexerError::IndexedMerkleTreeError(err) => {
+                IndexerError::IndexedMerkleTreeError(err.clone())
             }
             IndexerError::InvalidResponseData => IndexerError::InvalidResponseData,
-            IndexerError::CustomError(_) => IndexerError::CustomError("IndexerError".to_string()),
+            IndexerError::CustomError(message) => IndexerError::CustomError(message.clone()),
             IndexerError::NotInitialized => IndexerError::NotInitialized,
             IndexerError::IndexerNotSyncedToSlot => IndexerError::IndexerNotSyncedToSlot,
             IndexerError::InvalidPackTreeType => IndexerError::InvalidPackTreeType,
