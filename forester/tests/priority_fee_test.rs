@@ -56,6 +56,7 @@ async fn test_priority_fee_request() {
         indexer_max_concurrent_batches: 10,
         legacy_ixs_per_tx: 1,
         transaction_max_concurrent_batches: 20,
+        max_concurrent_sends: 50,
         tx_cache_ttl_seconds: 15,
         ops_cache_ttl_seconds: 180,
         cu_limit: 1_000_000,
