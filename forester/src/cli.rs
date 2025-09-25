@@ -89,6 +89,14 @@ pub struct StartArgs {
 
     #[arg(
         long,
+        env = "FORESTER_MAX_CONCURRENT_SENDS",
+        default_value = "50",
+        help = "Maximum number of concurrent transaction sends per batch"
+    )]
+    pub max_concurrent_sends: usize,
+
+    #[arg(
+        long,
         env = "FORESTER_TX_CACHE_TTL_SECONDS",
         default_value = "180",
         help = "TTL in seconds to prevent duplicate transaction processing"

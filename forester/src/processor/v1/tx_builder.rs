@@ -24,7 +24,7 @@ use crate::{
 
 #[async_trait]
 #[allow(clippy::too_many_arguments)]
-pub trait TransactionBuilder {
+pub trait TransactionBuilder: Send + Sync {
     fn epoch(&self) -> u64;
     async fn build_signed_transaction_batch(
         &self,
@@ -139,10 +139,12 @@ impl<R: Rpc> TransactionBuilder for EpochManagerTransactions<R> {
             }
         };
 
-        for instruction in all_instructions {
+        let batch_size = config.batch_size.max(1) as usize;
+
+        for instruction_chunk in all_instructions.chunks(batch_size) {
             let (transaction, _) = create_smart_transaction(CreateSmartTransactionConfig {
                 payer: payer.insecure_clone(),
-                instructions: vec![instruction],
+                instructions: instruction_chunk.to_vec(),
                 recent_blockhash: *recent_blockhash,
                 compute_unit_price: Some(priority_fee),
                 compute_unit_limit: config.compute_unit_limit,

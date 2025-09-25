@@ -65,6 +65,7 @@ pub struct IndexerConfig {
 pub struct TransactionConfig {
     pub legacy_ixs_per_tx: usize,
     pub max_concurrent_batches: usize,
+    pub max_concurrent_sends: usize,
     pub cu_limit: u32,
     pub enable_priority_fees: bool,
     pub tx_cache_ttl_seconds: u64,
@@ -161,6 +162,7 @@ impl Default for TransactionConfig {
         Self {
             legacy_ixs_per_tx: 1,
             max_concurrent_batches: 20,
+            max_concurrent_sends: 50,
             cu_limit: 1_000_000,
             enable_priority_fees: false,
             tx_cache_ttl_seconds: 15,
@@ -254,6 +256,7 @@ impl ForesterConfig {
             transaction_config: TransactionConfig {
                 legacy_ixs_per_tx: args.legacy_ixs_per_tx,
                 max_concurrent_batches: args.transaction_max_concurrent_batches,
+                max_concurrent_sends: args.max_concurrent_sends,
                 cu_limit: args.cu_limit,
                 enable_priority_fees: args.enable_priority_fees,
                 tx_cache_ttl_seconds: args.tx_cache_ttl_seconds,
