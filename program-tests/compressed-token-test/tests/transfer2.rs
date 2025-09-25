@@ -1,8 +1,4 @@
-use anchor_lang::prelude::Pubkey;
-use anchor_lang::prelude::{
-    borsh::{BorshDeserialize, BorshSerialize},
-    AccountMeta,
-};
+use anchor_lang::prelude::borsh::BorshSerialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::compressed_account::PackedMerkleContext;
 use light_compressed_token_sdk::instructions::{
@@ -222,7 +218,7 @@ async fn test_transfer2_delegated_partial() {
     )
     .await;
 
-    println!("✅ Test passed: Both delegate and owner can transfer delegated tokens!");
+    println!("Test passed: Both delegate and owner can transfer delegated tokens!");
 }
 
 #[tokio::test]
@@ -312,22 +308,22 @@ async fn test_transfer2_sha_flat() {
     )
     .await;
 
-    println!("✅ Test passed: Both delegate and owner can transfer delegated tokens!");
+    println!("Test passed: Both delegate and owner can transfer delegated tokens!");
 }
 
-/// Failing Transfer2 tests:
-/// 1. FAIL - Compress  - ctoken invalid owner
-/// 2. FAIL - Compress - ctoken insufficient amount
-/// 3. FAIL - Compress - invalid ctoken account
-/// 3. FAIL - Decompress - ctoken invalid owner
-/// 4. FAIL - Decompress - insufficient amount
-/// 5. FAIL - Decompress - invalid ctoken account
-/// 6. FAIL - Transfer2 - invalid owner of compressed account
-/// 7. FAIL - Transfer2 - invalid delegate signer
-/// 8. FAIL - Transfer2 - insufficient amount
-/// 9. FAIL - CompressAndClose - invalid owner
-/// 10. FAIL - CompressAndClose - invalid ctoken account
-/// 11. FAIL - CompressAndClose - invalid compression authority
+/// Failing Transfer2 tests (all use manual instruction construction for program-level validation):
+/// 1. FAIL - Compress - ctoken invalid owner
+/// 2. FAIL - Compress - ctoken owner not signer
+/// 3. FAIL - Transfer2 - owner not signer
+/// 4. FAIL - Decompress - invalid owner (modified compressed account)
+/// 4b. FAIL - Decompress - owner not signer
+/// 5. FAIL - Decompress - insufficient amount
+/// 6. FAIL - Decompress - invalid ctoken account
+/// 6b. FAIL - Transfer2 - owner not signer
+/// 7. FAIL - Transfer2 - invalid owner of compressed account
+/// 8. FAIL - Transfer2 - invalid delegate (not signer)
+/// 9. FAIL - Transfer2 - insufficient amount
+/// 10. FAIL - CompressAndClose - owner not signer
 #[tokio::test]
 #[serial]
 async fn transfer2_failing_tests() {
@@ -524,7 +520,7 @@ async fn transfer2_failing_tests() {
                 result, 0, 12015, // InvalidSigner - invalid owner not signing
             )
             .unwrap();
-            println!("✅ FAIL Test 1 passed: Compress with invalid owner (program-level)");
+            println!("FAIL Test 1 passed: Compress with invalid owner (program-level)");
         }
 
         // FAIL Test 2: Compress - ctoken insufficient amount (manual instruction)
@@ -537,7 +533,6 @@ async fn transfer2_failing_tests() {
 
             // Add accounts in proper order for Transfer2
             let merkle_tree_idx = packed_accounts.insert_or_get(state_tree_info.tree);
-            let queue_idx = packed_accounts.insert_or_get(state_tree_info.queue);
             let mint_idx = packed_accounts.insert_or_get_read_only(spl_mint_pda);
             let owner_idx = packed_accounts.insert_or_get_read_only(recipient_keypair.pubkey()); // Owner NOT as signer
             let recipient_idx = packed_accounts.insert_or_get_read_only(recipient_keypair.pubkey());
@@ -600,7 +595,7 @@ async fn transfer2_failing_tests() {
                 result, 0, 12015, // InvalidSigner - owner not signing
             )
             .unwrap();
-            println!("✅ FAIL Test 2 passed: Compress with insufficient amount (program-level)");
+            println!("FAIL Test 2 passed: Compress with insufficient amount (program-level)");
         }
 
         // FAIL Test 3: Transfer2 - missing signer authority (manual instruction)
@@ -721,7 +716,7 @@ async fn transfer2_failing_tests() {
                 14307, // Hash mismatch error (0x37e3) - program correctly detects modified compressed account
             )
             .unwrap();
-            println!("✅ FAIL Test 4 passed: Decompress with invalid owner");
+            println!("FAIL Test 4 passed: Decompress with invalid owner");
         }
 
         // FAIL Test 4b: Decompress - owner not signer (manual instruction)
@@ -801,7 +796,7 @@ async fn transfer2_failing_tests() {
                 result, 0, 12015, // InvalidSigner - owner not signing
             )
             .unwrap();
-            println!("✅ FAIL Test 4b passed: Decompress with owner not signer (program-level)");
+            println!("FAIL Test 4b passed: Decompress with owner not signer (program-level)");
         }
 
         // FAIL Test 5: Decompress - insufficient amount (raw instruction)
@@ -894,7 +889,7 @@ async fn transfer2_failing_tests() {
                 result, 0, 6005, // ErrorCode::SumCheckFailed = 5 with 6000 prefix
             )
             .unwrap();
-            println!("✅ FAIL Test 5 passed: Decompress with insufficient amount");
+            println!("FAIL Test 5 passed: Decompress with insufficient amount");
         }
 
         // FAIL Test 6: Decompress - invalid ctoken account (destination) (raw instruction)
@@ -996,7 +991,7 @@ async fn transfer2_failing_tests() {
                 "Expected 'Invalid token program ID' error, got: {}",
                 error_str
             );
-            println!("✅ FAIL Test 6 passed: Decompress with invalid account");
+            println!("FAIL Test 6 passed: Decompress with invalid account");
         }
 
         // FAIL Test 6b: Transfer2 - owner not signer (manual instruction)
@@ -1082,7 +1077,7 @@ async fn transfer2_failing_tests() {
                 result, 0, 12015, // InvalidSigner - owner not signing
             )
             .unwrap();
-            println!("✅ FAIL Test 6b passed: Transfer with owner not signer (program-level)");
+            println!("FAIL Test 6b passed: Transfer with owner not signer (program-level)");
         }
 
         // FAIL Test 7: Transfer2 - invalid owner of compressed account (raw instruction)
@@ -1180,7 +1175,7 @@ async fn transfer2_failing_tests() {
                 6042, // Error 6042 - hash mismatch due to invalid owner in compressed account
             )
             .unwrap();
-            println!("✅ FAIL Test 7 passed: Transfer with invalid owner");
+            println!("FAIL Test 7 passed: Transfer with invalid owner");
         }
 
         // FAIL Test 8: Transfer2 - invalid delegate signer (raw instruction)
@@ -1316,7 +1311,7 @@ async fn transfer2_failing_tests() {
                 result, 0, 12015, // Error 12015 (0x2eef) - InvalidSigner for delegate
             )
             .unwrap();
-            println!("✅ FAIL Test 8 passed: Transfer with invalid delegate");
+            println!("FAIL Test 8 passed: Transfer with invalid delegate");
         }
 
         // FAIL Test 9: Transfer2 - insufficient amount (manual instruction)
@@ -1403,7 +1398,7 @@ async fn transfer2_failing_tests() {
                 result, 0, 6002, // Got error code 6002 in test output
             )
             .unwrap();
-            println!("✅ FAIL Test 9 passed: Transfer with insufficient amount (program-level)");
+            println!("FAIL Test 9 passed: Transfer with insufficient amount (program-level)");
         }
 
         // FAIL Test 10: CompressAndClose - without signer (account meta modification pattern)
@@ -1451,9 +1446,9 @@ async fn transfer2_failing_tests() {
                 result, 0, 12015, // Authority signer check failed: InvalidSigner
             )
             .unwrap();
-            println!("✅ FAIL Test 10 passed: CompressAndClose without signer (program-level)");
+            println!("FAIL Test 10 passed: CompressAndClose without signer (program-level)");
         }
 
-        println!("✅ All failing tests completed successfully!");
+        println!("All failing tests completed successfully!");
     }
 }
