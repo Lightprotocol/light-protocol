@@ -1,16 +1,13 @@
 use light_sdk_types::{
-    CompressionCpiAccountIndexSmall, CpiAccountsSmall as GenericCpiAccountsSmall,
-    PROGRAM_ACCOUNTS_LEN,
+    CompressionCpiAccountIndexV2, CpiAccountsV2 as GenericCpiAccountsV2, PROGRAM_ACCOUNTS_LEN,
 };
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta};
 
 use crate::error::Result;
 
-pub type CpiAccountsSmall<'a> = GenericCpiAccountsSmall<'a, AccountInfo>;
+pub type CpiAccountsV2<'a> = GenericCpiAccountsV2<'a, AccountInfo>;
 
-pub fn to_account_metas_small<'a>(
-    cpi_accounts: &CpiAccountsSmall<'a>,
-) -> Result<Vec<AccountMeta<'a>>> {
+pub fn to_account_metas_v2<'a>(cpi_accounts: &CpiAccountsV2<'a>) -> Result<Vec<AccountMeta<'a>>> {
     let mut account_metas =
         Vec::with_capacity(1 + cpi_accounts.account_infos().len() - PROGRAM_ACCOUNTS_LEN);
 
@@ -27,7 +24,7 @@ pub fn to_account_metas_small<'a>(
     ));
 
     let accounts = cpi_accounts.account_infos();
-    let mut index = CompressionCpiAccountIndexSmall::SolPoolPda as usize;
+    let mut index = CompressionCpiAccountIndexV2::SolPoolPda as usize;
 
     if cpi_accounts.config().sol_pool_pda {
         let account = cpi_accounts.get_account_info(index)?;

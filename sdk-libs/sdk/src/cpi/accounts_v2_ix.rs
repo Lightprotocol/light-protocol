@@ -1,13 +1,12 @@
 use light_sdk_types::{
-    CompressionCpiAccountIndexSmall, CpiAccountsSmall as GenericCpiAccountsSmall,
-    PROGRAM_ACCOUNTS_LEN,
+    CompressionCpiAccountIndexV2, CpiAccountsV2 as GenericCpiAccountsV2, PROGRAM_ACCOUNTS_LEN,
 };
 
 use crate::{error::Result, AccountInfo, AccountMeta};
 
-pub type CpiAccountsSmall<'c, 'info> = GenericCpiAccountsSmall<'c, AccountInfo<'info>>;
+pub type CpiAccountsV2<'c, 'info> = GenericCpiAccountsV2<'c, AccountInfo<'info>>;
 
-pub fn to_account_metas_small(cpi_accounts: CpiAccountsSmall<'_, '_>) -> Result<Vec<AccountMeta>> {
+pub fn to_account_metas_v2(cpi_accounts: CpiAccountsV2<'_, '_>) -> Result<Vec<AccountMeta>> {
     // TODO: do a version with a const array instead of vector.
     let mut account_metas =
         Vec::with_capacity(1 + cpi_accounts.account_infos().len() - PROGRAM_ACCOUNTS_LEN);
@@ -35,7 +34,7 @@ pub fn to_account_metas_small(cpi_accounts: CpiAccountsSmall<'_, '_>) -> Result<
     });
 
     let accounts = cpi_accounts.account_infos();
-    let mut index = CompressionCpiAccountIndexSmall::SolPoolPda as usize;
+    let mut index = CompressionCpiAccountIndexV2::SolPoolPda as usize;
 
     if cpi_accounts.config().sol_pool_pda {
         let account = cpi_accounts.get_account_info(index)?;
