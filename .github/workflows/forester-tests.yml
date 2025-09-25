@@ -60,7 +60,7 @@ jobs:
       REDIS_URL: redis://localhost:6379
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
