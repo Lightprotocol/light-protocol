@@ -1,6 +1,7 @@
 package prover
 
 import (
+	"errors"
 	"fmt"
 	"light/light-prover/logging"
 	"light/light-prover/prover/poseidon"
@@ -138,10 +139,10 @@ func InitBatchAddressTreeAppendCircuit(treeHeight uint32, batchSize uint32) Batc
 
 func (params *BatchAddressAppendParameters) CreateWitness() (*BatchAddressTreeAppendCircuit, error) {
 	if params.BatchSize == 0 {
-		return nil, fmt.Errorf("batch size cannot be 0")
+		return nil, errors.New("batch size cannot be 0")
 	}
 	if params.TreeHeight == 0 {
-		return nil, fmt.Errorf("tree height cannot be 0")
+		return nil, errors.New("tree height cannot be 0")
 	}
 
 	circuit := &BatchAddressTreeAppendCircuit{
