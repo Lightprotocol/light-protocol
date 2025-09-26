@@ -200,14 +200,12 @@ generate_v2_keys() {
     done
 
     # V2 inclusion keys
-    declare -a inclusion_compressed_accounts=("1" "2" "3" "4" "8")
-    for compressed_accounts in "${inclusion_compressed_accounts[@]}"; do
+    for compressed_accounts in $(seq 1 20); do
         generate_v2_circuit "inclusion" "$V2_STATE_HEIGHT" "0" "0" "$compressed_accounts" "0"
     done
 
     # V2 non-inclusion keys
-    declare -a non_inclusion_compressed_accounts=("1" "2" "3" "4" "8")
-    for compressed_accounts in "${non_inclusion_compressed_accounts[@]}"; do
+    for compressed_accounts in $(seq 1 32); do
         generate_v2_circuit "non-inclusion" "0" "$V2_ADDRESS_HEIGHT" "0" "0" "$compressed_accounts"
     done
 
