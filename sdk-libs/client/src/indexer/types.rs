@@ -29,6 +29,12 @@ pub type Address = [u8; 32];
 pub type Hash = [u8; 32];
 
 #[derive(Debug, Clone, PartialEq, Default)]
+pub struct QueueElementsResult {
+    pub elements: Vec<MerkleProofWithContext>,
+    pub first_value_queue_index: Option<u64>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct MerkleProofWithContext {
     pub proof: Vec<[u8; 32]>,
     pub root: [u8; 32],

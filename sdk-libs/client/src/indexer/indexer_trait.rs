@@ -5,13 +5,13 @@ use solana_pubkey::Pubkey;
 use super::{
     response::{Items, ItemsWithCursor, Response},
     types::{
-        CompressedAccount, OwnerBalance, SignatureWithMetadata, TokenAccount, TokenBalance,
-        ValidityProofWithContext,
+        CompressedAccount, OwnerBalance, QueueElementsResult, SignatureWithMetadata,
+        TokenAccount, TokenBalance, ValidityProofWithContext,
     },
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
     GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
-    IndexerError, IndexerRpcConfig, MerkleProof, MerkleProofWithContext,
-    NewAddressProofWithContext, PaginatedOptions, RetryConfig,
+    IndexerError, IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
+    RetryConfig,
 };
 // TODO: remove all references in input types.
 #[async_trait]
@@ -198,7 +198,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         num_elements: u16,
         start_queue_index: Option<u64>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<(Vec<MerkleProofWithContext>, Option<u64>)>, IndexerError>;
+    ) -> Result<Response<QueueElementsResult>, IndexerError>;
 
     async fn get_subtrees(
         &self,
