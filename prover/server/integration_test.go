@@ -139,10 +139,11 @@ func TestFull(t *testing.T) {
 // runCommonTests contains all tests that should run in both modes
 func runCommonTests(t *testing.T) {
 	t.Run("testWrongMethod", testWrongMethod)
-	t.Run("testInclusionHappyPath32_12348", testInclusionHappyPath32_12348)
-	t.Run("testNonInclusionHappyPath40_12348", testNonInclusionHappyPath40_12348)
+	t.Run("testInclusionHappyPath32_1to20", testInclusionHappyPath32_1to20)
+	t.Run("testNonInclusionHappyPath40_1to32", testNonInclusionHappyPath40_1to32)
+	t.Run("testV2CombinedHappyPath", testV2CombinedHappyPath)
 	// v1 tests (height 26)
-	t.Run("testV1InclusionHappyPath26_1234", testV1InclusionHappyPath26_1234)
+	t.Run("testV1InclusionHappyPath26_12348", testV1InclusionHappyPath26_12348)
 	t.Run("testV1NonInclusionHappyPath26_12", testV1NonInclusionHappyPath26_12)
 	t.Run("testV1CombinedHappyPath26", testV1CombinedHappyPath26)
 }
@@ -189,8 +190,8 @@ func testWrongMethod(t *testing.T) {
 	}
 }
 
-func testInclusionHappyPath32_12348(t *testing.T) {
-	for _, compressedAccounts := range []int{1, 2, 3, 4, 8} {
+func testInclusionHappyPath32_1to20(t *testing.T) {
+	for compressedAccounts := 1; compressedAccounts <= 20; compressedAccounts++ {
 		tree := v2.BuildTestTree(32, compressedAccounts, false)
 		jsonBytes, _ := tree.MarshalJSON()
 		jsonString := string(jsonBytes)
@@ -199,14 +200,18 @@ func testInclusionHappyPath32_12348(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer response.Body.Close()
+
 		if response.StatusCode != http.StatusOK {
-			t.Fatalf("Expected status code %d, got %d", http.StatusOK, response.StatusCode)
+			body, _ := io.ReadAll(response.Body)
+			t.Fatalf("V2 Inclusion %d accounts: Expected status code %d, got %d. Response: %s",
+				compressedAccounts, http.StatusOK, response.StatusCode, string(body))
 		}
 	}
 }
 
-func testNonInclusionHappyPath40_12348(t *testing.T) {
-	for _, compressedAccounts := range []int{1, 2} {
+func testNonInclusionHappyPath40_1to32(t *testing.T) {
+	for compressedAccounts := 1; compressedAccounts <= 32; compressedAccounts++ {
 		tree := v2.BuildValidTestNonInclusionTree(40, compressedAccounts, false)
 		jsonBytes, _ := tree.MarshalJSON()
 		jsonString := string(jsonBytes)
@@ -215,8 +220,40 @@ func testNonInclusionHappyPath40_12348(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		defer response.Body.Close()
+
 		if response.StatusCode != http.StatusOK {
-			t.Fatalf("Expected status code %d, got %d", http.StatusOK, response.StatusCode)
+			body, _ := io.ReadAll(response.Body)
+			t.Fatalf("V2 NonInclusion %d accounts: Expected status code %d, got %d. Response: %s",
+				compressedAccounts, http.StatusOK, response.StatusCode, string(body))
+		}
+	}
+}
+
+func testV2CombinedHappyPath(t *testing.T) {
+	for inclusionAccounts := 1; inclusionAccounts <= 4; inclusionAccounts++ {
+		for nonInclusionAccounts := 1; nonInclusionAccounts <= 4; nonInclusionAccounts++ {
+			params := v2.BuildValidCombinedParameters(
+				32, 40,
+				inclusionAccounts, nonInclusionAccounts)
+
+			jsonBytes, err := params.MarshalJSON()
+			if err != nil {
+				t.Fatalf("Failed to marshal V2 combined params: %v", err)
+			}
+
+			response, err := http.Post(proveEndpoint(), "application/json", bytes.NewBuffer(jsonBytes))
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer response.Body.Close()
+
+			if response.StatusCode != http.StatusOK {
+				body, _ := io.ReadAll(response.Body)
+				t.Fatalf("V2 Combined %d_%d: Expected status code %d, got %d. Response: %s",
+					inclusionAccounts, nonInclusionAccounts,
+					http.StatusOK, response.StatusCode, string(body))
+			}
 		}
 	}
 }
@@ -745,8 +782,8 @@ func testBatchAddressAppendInvalidInput40_250(t *testing.T) {
 
 // V1 Integration Tests (height 26)
 
-func testV1InclusionHappyPath26_1234(t *testing.T) {
-	for _, compressedAccounts := range []int{1, 2, 3, 4} {
+func testV1InclusionHappyPath26_12348(t *testing.T) {
+	for _, compressedAccounts := range []int{1, 2, 3, 4, 8} {
 		tree := v1.BuildTestTree(26, compressedAccounts, false)
 		jsonBytes, _ := tree.MarshalJSON()
 		jsonString := string(jsonBytes)
