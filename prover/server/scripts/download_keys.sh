@@ -5,7 +5,7 @@ set -e
 # Configuration with environment variable support
 ROOT_DIR="$(git rev-parse --show-toplevel)"
 KEYS_DIR="${ROOT_DIR}/prover/server/proving-keys"
-BASE_URL="https://storage.googleapis.com/light-protocol-proving-keys/proving-keys-22-09-25"
+BASE_URL="https://storage.googleapis.com/light-protocol-proving-keys/proving-keys-26-09-25"
 CHECKSUM_URL="${BASE_URL}/CHECKSUM"
 
 # Configurable parameters for poor connections
