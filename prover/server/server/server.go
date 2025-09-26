@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"light/light-prover/logging"
-	"light/light-prover/prover"
+	"light/light-prover/prover/common"
+	v1 "light/light-prover/prover/v1"
+	v2 "light/light-prover/prover/v2"
 	"net/http"
 	"time"
 
@@ -71,7 +73,10 @@ func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
+		err := json.NewEncoder(w).Encode(response)
+		if err != nil {
+			return
+		}
 		return
 	}
 
@@ -145,7 +150,10 @@ func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(response)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		return
+	}
 }
 
 func isValidJobID(jobID string) bool {
@@ -260,11 +268,11 @@ type EnhancedConfig struct {
 }
 
 type proveHandler struct {
-	provingSystemsV1 []*prover.ProvingSystemV1
-	provingSystemsV2 []*prover.ProvingSystemV2
+	provingSystemsV1 []*common.MerkleProofSystem
+	provingSystemsV2 []*common.BatchProofSystem
 	redisQueue       *RedisQueue
 	enableQueue      bool
-	runMode          prover.RunMode
+	runMode          common.RunMode
 	circuits         []string
 }
 
@@ -281,7 +289,7 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proofRequestMeta, err := prover.ParseProofRequestMeta(buf)
+	proofRequestMeta, err := common.ParseProofRequestMeta(buf)
 	if err != nil {
 		malformedBodyError(err).send(w)
 		return
@@ -307,16 +315,16 @@ func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (handler proveHandler) shouldUseQueueForCircuit(circuitType prover.CircuitType, forceAsync, forceSync bool) bool {
+func (handler proveHandler) shouldUseQueueForCircuit(circuitType common.CircuitType, forceAsync, forceSync bool) bool {
 	if !handler.enableQueue || handler.redisQueue == nil {
 		return false
 	}
 
 	// Always use queue for batch operations when queue is available
 	// This prevents cross-contamination in clustered deployments
-	if circuitType == prover.BatchUpdateCircuitType ||
-		circuitType == prover.BatchAppendCircuitType ||
-		circuitType == prover.BatchAddressAppendCircuitType {
+	if circuitType == common.BatchUpdateCircuitType ||
+		circuitType == common.BatchAppendCircuitType ||
+		circuitType == common.BatchAddressAppendCircuitType {
 		return true
 	}
 
@@ -357,7 +365,10 @@ func (handler queueStatsHandler) ServeHTTP(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		return
+	}
 }
 
 type queueHealthHandler struct {
@@ -377,7 +388,10 @@ func (handler queueHealthHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(health)
+	err = json.NewEncoder(w).Encode(health)
+	if err != nil {
+		return
+	}
 }
 
 type queueCleanupHandler struct {
@@ -439,10 +453,13 @@ func (handler queueCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	results["timestamp"] = time.Now().Unix()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(results)
+	err := json.NewEncoder(w).Encode(results)
+	if err != nil {
+		return
+	}
 }
 
-func RunWithQueue(config *Config, redisQueue *RedisQueue, circuits []string, runMode prover.RunMode, provingSystemsV1 []*prover.ProvingSystemV1, provingSystemsV2 []*prover.ProvingSystemV2) RunningJob {
+func RunWithQueue(config *Config, redisQueue *RedisQueue, circuits []string, runMode common.RunMode, provingSystemsV1 []*common.MerkleProofSystem, provingSystemsV2 []*common.BatchProofSystem) RunningJob {
 	return RunEnhanced(&EnhancedConfig{
 		ProverAddress:  config.ProverAddress,
 		MetricsAddress: config.MetricsAddress,
@@ -452,7 +469,7 @@ func RunWithQueue(config *Config, redisQueue *RedisQueue, circuits []string, run
 	}, redisQueue, circuits, runMode, provingSystemsV1, provingSystemsV2)
 }
 
-func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []string, runMode prover.RunMode, provingSystemsV1 []*prover.ProvingSystemV1, provingSystemsV2 []*prover.ProvingSystemV2) RunningJob {
+func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []string, runMode common.RunMode, provingSystemsV1 []*common.MerkleProofSystem, provingSystemsV2 []*common.BatchProofSystem) RunningJob {
 	apiKey := getAPIKeyFromEnv()
 	if apiKey != "" {
 		logging.Logger().Info().Msg("API key authentication enabled for prover server")
@@ -496,7 +513,7 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 				return
 			}
 
-			proofRequestMeta, err := prover.ParseProofRequestMeta(buf)
+			proofRequestMeta, err := common.ParseProofRequestMeta(buf)
 			if err != nil {
 				malformedBodyError(err).send(w)
 				return
@@ -529,7 +546,10 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusAccepted)
-			json.NewEncoder(w).Encode(response)
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				return
+			}
 		})
 	}
 
@@ -565,7 +585,7 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 	return CombineJobs(metricsJob, proverJob)
 }
 
-func Run(config *Config, circuits []string, runMode prover.RunMode, provingSystemsV1 []*prover.ProvingSystemV1, provingSystemsV2 []*prover.ProvingSystemV2) RunningJob {
+func Run(config *Config, circuits []string, runMode common.RunMode, provingSystemsV1 []*common.MerkleProofSystem, provingSystemsV2 []*common.BatchProofSystem) RunningJob {
 	return RunWithQueue(config, nil, circuits, runMode, provingSystemsV1, provingSystemsV2)
 }
 
@@ -632,7 +652,7 @@ func spawnServerJob(server *http.Server, label string) RunningJob {
 type healthHandler struct {
 }
 
-func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Request, buf []byte, meta prover.ProofRequestMeta) {
+func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Request, buf []byte, meta common.ProofRequestMeta) {
 	jobID := uuid.New().String()
 
 	ProofRequestsTotal.WithLabelValues(string(meta.CircuitType)).Inc()
@@ -680,7 +700,10 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusAccepted)
-	json.NewEncoder(w).Encode(response)
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		return
+	}
 
 	logging.Logger().Info().
 		Str("job_id", jobID).
@@ -689,7 +712,7 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 		Msg("Batch operation job queued successfully")
 }
 
-func (handler proveHandler) handleSyncProof(w http.ResponseWriter, r *http.Request, buf []byte, meta prover.ProofRequestMeta) {
+func (handler proveHandler) handleSyncProof(w http.ResponseWriter, r *http.Request, buf []byte, meta common.ProofRequestMeta) {
 	if handler.isBatchOperation(meta.CircuitType) {
 		warning := fmt.Sprintf("WARNING: %s is a heavy operation that should be processed asynchronously. Consider using X-Async: true header.", meta.CircuitType)
 		w.Header().Set("X-Warning", warning)
@@ -711,7 +734,7 @@ func (handler proveHandler) handleSyncProof(w http.ResponseWriter, r *http.Reque
 	defer cancel()
 
 	type proofResult struct {
-		proof *prover.Proof
+		proof *common.Proof
 		err   *Error
 	}
 
@@ -753,7 +776,10 @@ func (handler proveHandler) handleSyncProof(w http.ResponseWriter, r *http.Reque
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write(responseBytes)
+		_, err = w.Write(responseBytes)
+		if err != nil {
+			return
+		}
 
 		logging.Logger().Info().
 			Str("circuit_type", string(meta.CircuitType)).
@@ -774,94 +800,94 @@ func (handler proveHandler) handleSyncProof(w http.ResponseWriter, r *http.Reque
 	}
 }
 
-func (handler proveHandler) isBatchOperation(circuitType prover.CircuitType) bool {
+func (handler proveHandler) isBatchOperation(circuitType common.CircuitType) bool {
 	switch circuitType {
-	case prover.BatchAppendCircuitType,
-		prover.BatchUpdateCircuitType,
-		prover.BatchAddressAppendCircuitType:
+	case common.BatchAppendCircuitType,
+		common.BatchUpdateCircuitType,
+		common.BatchAddressAppendCircuitType:
 		return true
 	default:
 		return false
 	}
 }
 
-func GetQueueNameForCircuit(circuitType prover.CircuitType) string {
+func GetQueueNameForCircuit(circuitType common.CircuitType) string {
 	switch circuitType {
-	case prover.BatchUpdateCircuitType:
+	case common.BatchUpdateCircuitType:
 		return "zk_update_queue"
-	case prover.BatchAppendCircuitType:
+	case common.BatchAppendCircuitType:
 		return "zk_append_queue"
-	case prover.BatchAddressAppendCircuitType:
+	case common.BatchAddressAppendCircuitType:
 		return "zk_address_append_queue"
 	default:
 		return "zk_update_queue"
 	}
 }
 
-func (handler proveHandler) getEstimatedTime(circuitType prover.CircuitType) string {
+func (handler proveHandler) getEstimatedTime(circuitType common.CircuitType) string {
 	switch circuitType {
-	case prover.InclusionCircuitType:
+	case common.InclusionCircuitType:
 		return "1-3 seconds"
-	case prover.NonInclusionCircuitType:
+	case common.NonInclusionCircuitType:
 		return "1-3 seconds"
-	case prover.CombinedCircuitType:
+	case common.CombinedCircuitType:
 		return "1-3 seconds"
-	case prover.BatchAppendCircuitType:
+	case common.BatchAppendCircuitType:
 		return "10-30 seconds"
-	case prover.BatchUpdateCircuitType:
+	case common.BatchUpdateCircuitType:
 		return "10-30 seconds"
-	case prover.BatchAddressAppendCircuitType:
+	case common.BatchAddressAppendCircuitType:
 		return "10-30 seconds"
 	default:
 		return "1-3 seconds"
 	}
 }
 
-func (handler proveHandler) getEstimatedTimeSeconds(circuitType prover.CircuitType) int {
+func (handler proveHandler) getEstimatedTimeSeconds(circuitType common.CircuitType) int {
 	switch circuitType {
-	case prover.InclusionCircuitType:
+	case common.InclusionCircuitType:
 		return 1
-	case prover.NonInclusionCircuitType:
+	case common.NonInclusionCircuitType:
 		return 1
-	case prover.CombinedCircuitType:
+	case common.CombinedCircuitType:
 		return 1
-	case prover.BatchAppendCircuitType:
+	case common.BatchAppendCircuitType:
 		return 30
-	case prover.BatchUpdateCircuitType:
+	case common.BatchUpdateCircuitType:
 		return 30
-	case prover.BatchAddressAppendCircuitType:
+	case common.BatchAddressAppendCircuitType:
 		return 30
 	default:
 		return 1
 	}
 }
 
-func (handler proveHandler) processProofSync(buf []byte) (*prover.Proof, *Error) {
-	proofRequestMeta, err := prover.ParseProofRequestMeta(buf)
+func (handler proveHandler) processProofSync(buf []byte) (*common.Proof, *Error) {
+	proofRequestMeta, err := common.ParseProofRequestMeta(buf)
 	if err != nil {
 		return nil, malformedBodyError(err)
 	}
 
 	switch proofRequestMeta.CircuitType {
-	case prover.InclusionCircuitType:
+	case common.InclusionCircuitType:
 		return handler.inclusionProof(buf, proofRequestMeta)
-	case prover.NonInclusionCircuitType:
+	case common.NonInclusionCircuitType:
 		return handler.nonInclusionProof(buf, proofRequestMeta)
-	case prover.CombinedCircuitType:
+	case common.CombinedCircuitType:
 		return handler.combinedProof(buf, proofRequestMeta)
-	case prover.BatchUpdateCircuitType:
+	case common.BatchUpdateCircuitType:
 		return handler.batchUpdateProof(buf)
-	case prover.BatchAppendCircuitType:
+	case common.BatchAppendCircuitType:
 		return handler.batchAppendHandler(buf)
-	case prover.BatchAddressAppendCircuitType:
+	case common.BatchAddressAppendCircuitType:
 		return handler.batchAddressAppendProof(buf)
 	default:
 		return nil, malformedBodyError(fmt.Errorf("unknown circuit type: %s", proofRequestMeta.CircuitType))
 	}
 }
 
-func (handler proveHandler) batchAddressAppendProof(buf []byte) (*prover.Proof, *Error) {
-	var params prover.BatchAddressAppendParameters
+func (handler proveHandler) batchAddressAppendProof(buf []byte) (*common.Proof, *Error) {
+	var params v2.BatchAddressAppendParameters
 	err := json.Unmarshal(buf, &params)
 	if err != nil {
 		logging.Logger().Info().Msg("error Unmarshal")
@@ -872,9 +898,9 @@ func (handler proveHandler) batchAddressAppendProof(buf []byte) (*prover.Proof, 
 	treeHeight := params.TreeHeight
 	batchSize := params.BatchSize
 
-	var ps *prover.ProvingSystemV2
+	var ps *common.BatchProofSystem
 	for _, provingSystem := range handler.provingSystemsV2 {
-		if provingSystem.CircuitType == prover.BatchAddressAppendCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
+		if provingSystem.CircuitType == common.BatchAddressAppendCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
 			ps = provingSystem
 			break
 		}
@@ -884,7 +910,7 @@ func (handler proveHandler) batchAddressAppendProof(buf []byte) (*prover.Proof, 
 		return nil, provingError(fmt.Errorf("batch address append: no proving system for tree height %d and batch size %d", treeHeight, batchSize))
 	}
 
-	proof, err := ps.ProveBatchAddressAppend(&params)
+	proof, err := v2.ProveBatchAddressAppend(ps, &params)
 	if err != nil {
 		logging.Logger().Err(err)
 		return nil, provingError(err)
@@ -892,8 +918,8 @@ func (handler proveHandler) batchAddressAppendProof(buf []byte) (*prover.Proof, 
 	return proof, nil
 }
 
-func (handler proveHandler) batchAppendHandler(buf []byte) (*prover.Proof, *Error) {
-	var params prover.BatchAppendParameters
+func (handler proveHandler) batchAppendHandler(buf []byte) (*common.Proof, *Error) {
+	var params v2.BatchAppendParameters
 	err := json.Unmarshal(buf, &params)
 	if err != nil {
 		return nil, malformedBodyError(err)
@@ -902,9 +928,9 @@ func (handler proveHandler) batchAppendHandler(buf []byte) (*prover.Proof, *Erro
 	treeHeight := params.Height
 	batchSize := params.BatchSize
 
-	var ps *prover.ProvingSystemV2
+	var ps *common.BatchProofSystem
 	for _, provingSystem := range handler.provingSystemsV2 {
-		if provingSystem.CircuitType == prover.BatchAppendCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
+		if provingSystem.CircuitType == common.BatchAppendCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
 			ps = provingSystem
 			break
 		}
@@ -914,7 +940,7 @@ func (handler proveHandler) batchAppendHandler(buf []byte) (*prover.Proof, *Erro
 		return nil, provingError(fmt.Errorf("no proving system for tree height %d and batch size %d", treeHeight, batchSize))
 	}
 
-	proof, err := ps.ProveBatchAppend(&params)
+	proof, err := v2.ProveBatchAppend(ps, &params)
 	if err != nil {
 		logging.Logger().Err(err).Msg("Error during proof generation")
 		return nil, provingError(err)
@@ -923,8 +949,8 @@ func (handler proveHandler) batchAppendHandler(buf []byte) (*prover.Proof, *Erro
 	return proof, nil
 }
 
-func (handler proveHandler) batchUpdateProof(buf []byte) (*prover.Proof, *Error) {
-	var params prover.BatchUpdateParameters
+func (handler proveHandler) batchUpdateProof(buf []byte) (*common.Proof, *Error) {
+	var params v2.BatchUpdateParameters
 	err := json.Unmarshal(buf, &params)
 	if err != nil {
 		return nil, malformedBodyError(err)
@@ -933,9 +959,9 @@ func (handler proveHandler) batchUpdateProof(buf []byte) (*prover.Proof, *Error)
 	treeHeight := params.Height
 	batchSize := params.BatchSize
 
-	var ps *prover.ProvingSystemV2
+	var ps *common.BatchProofSystem
 	for _, provingSystem := range handler.provingSystemsV2 {
-		if provingSystem.CircuitType == prover.BatchUpdateCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
+		if provingSystem.CircuitType == common.BatchUpdateCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
 			ps = provingSystem
 			break
 		}
@@ -945,7 +971,7 @@ func (handler proveHandler) batchUpdateProof(buf []byte) (*prover.Proof, *Error)
 		return nil, provingError(fmt.Errorf("no proving system for tree height %d and batch size %d", treeHeight, batchSize))
 	}
 
-	proof, err := ps.ProveBatchUpdate(&params)
+	proof, err := v2.ProveBatchUpdate(ps, &params)
 	if err != nil {
 		logging.Logger().Err(err)
 		return nil, provingError(err)
@@ -953,8 +979,8 @@ func (handler proveHandler) batchUpdateProof(buf []byte) (*prover.Proof, *Error)
 	return proof, nil
 }
 
-func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*prover.Proof, *Error) {
-	var ps *prover.ProvingSystemV1
+func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta common.ProofRequestMeta) (*common.Proof, *Error) {
+	var ps *common.MerkleProofSystem
 	for _, provingSystem := range handler.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == proofRequestMeta.NumInputs && provingSystem.InclusionTreeHeight == proofRequestMeta.StateTreeHeight && provingSystem.Version == proofRequestMeta.Version && provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(0) {
 			ps = provingSystem
@@ -966,23 +992,23 @@ func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta prover.P
 		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 	}
 
-	if proofRequestMeta.Version == 0 {
-		var params prover.LegacyInclusionParameters
+	if proofRequestMeta.Version == 1 {
+		var params v1.InclusionParameters
 
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
 		}
-		proof, err := ps.LegacyProveInclusion(&params)
+		proof, err := v1.ProveInclusion(ps, &params)
 		if err != nil {
 			return nil, provingError(err)
 		}
 		return proof, nil
-	} else if proofRequestMeta.Version == 1 {
-		var params prover.InclusionParameters
+	} else if proofRequestMeta.Version == 2 {
+		var params v2.InclusionParameters
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
 		}
-		proof, err := ps.ProveInclusion(&params)
+		proof, err := v2.ProveInclusion(ps, &params)
 		if err != nil {
 			return nil, provingError(err)
 		}
@@ -992,9 +1018,9 @@ func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta prover.P
 	return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
 }
 
-func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*prover.Proof, *Error) {
+func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta common.ProofRequestMeta) (*common.Proof, *Error) {
 
-	var ps *prover.ProvingSystemV1
+	var ps *common.MerkleProofSystem
 	for _, provingSystem := range handler.provingSystemsV1 {
 		if provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(proofRequestMeta.NumAddresses) && provingSystem.NonInclusionTreeHeight == uint32(proofRequestMeta.AddressTreeHeight) && provingSystem.InclusionNumberOfCompressedAccounts == uint32(0) {
 			ps = provingSystem
@@ -1007,7 +1033,7 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prove
 	}
 
 	if proofRequestMeta.AddressTreeHeight == 26 {
-		var params prover.LegacyNonInclusionParameters
+		var params v1.NonInclusionParameters
 
 		var err = json.Unmarshal(buf, &params)
 		if err != nil {
@@ -1015,14 +1041,14 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prove
 			logging.Logger().Info().Msg(err.Error())
 			return nil, malformedBodyError(err)
 		}
-		proof, err := ps.LegacyProveNonInclusion(&params)
+		proof, err := v1.ProveNonInclusion(ps, &params)
 		if err != nil {
 			logging.Logger().Err(err)
 			return nil, provingError(err)
 		}
 		return proof, nil
 	} else if proofRequestMeta.AddressTreeHeight == 40 {
-		var params prover.NonInclusionParameters
+		var params v2.NonInclusionParameters
 
 		var err = json.Unmarshal(buf, &params)
 		if err != nil {
@@ -1030,7 +1056,7 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prove
 			logging.Logger().Info().Msg(err.Error())
 			return nil, malformedBodyError(err)
 		}
-		proof, err := ps.ProveNonInclusion(&params)
+		proof, err := v2.ProveNonInclusion(ps, &params)
 		if err != nil {
 			logging.Logger().Err(err)
 			return nil, provingError(err)
@@ -1041,8 +1067,8 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta prove
 	}
 }
 
-func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta prover.ProofRequestMeta) (*prover.Proof, *Error) {
-	var ps *prover.ProvingSystemV1
+func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta common.ProofRequestMeta) (*common.Proof, *Error) {
+	var ps *common.MerkleProofSystem
 	for _, provingSystem := range handler.provingSystemsV1 {
 		if provingSystem.InclusionNumberOfCompressedAccounts == proofRequestMeta.NumInputs && provingSystem.NonInclusionNumberOfCompressedAccounts == proofRequestMeta.NumAddresses && provingSystem.InclusionTreeHeight == proofRequestMeta.StateTreeHeight && provingSystem.NonInclusionTreeHeight == proofRequestMeta.AddressTreeHeight {
 			ps = provingSystem
@@ -1055,21 +1081,21 @@ func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta prover.Pr
 	}
 
 	if proofRequestMeta.AddressTreeHeight == 26 {
-		var params prover.LegacyCombinedParameters
+		var params v1.CombinedParameters
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
 		}
-		proof, err := ps.LegacyProveCombined(&params)
+		proof, err := v1.ProveCombined(ps, &params)
 		if err != nil {
 			return nil, provingError(err)
 		}
 		return proof, nil
 	} else if proofRequestMeta.AddressTreeHeight == 40 {
-		var params prover.CombinedParameters
+		var params v2.CombinedParameters
 		if err := json.Unmarshal(buf, &params); err != nil {
 			return nil, malformedBodyError(err)
 		}
-		proof, err := ps.ProveCombined(&params)
+		proof, err := v2.ProveCombined(ps, &params)
 		if err != nil {
 			return nil, provingError(err)
 		}

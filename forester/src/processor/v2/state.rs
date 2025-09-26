@@ -14,7 +14,7 @@ use light_registry::account_compression_cpi::sdk::{
 };
 use solana_program::instruction::Instruction;
 use solana_sdk::signer::Signer;
-use tracing::{info, instrument};
+use tracing::instrument;
 
 use super::common::{process_stream, BatchContext, ParsedMerkleTreeData, ParsedQueueData};
 use crate::Result;
@@ -37,7 +37,6 @@ where
         ctx.prover_polling_interval,
         ctx.prover_max_wait_time,
         merkle_tree_data,
-        ctx.ixs_per_tx,
     )
     .await
     .map_err(Error::from)?;
@@ -65,7 +64,6 @@ where
         ctx.prover_max_wait_time,
         merkle_tree_data,
         output_queue_data,
-        ctx.ixs_per_tx,
     )
     .await
     .map_err(Error::from)?;
@@ -82,11 +80,6 @@ pub(crate) async fn perform_nullify<R: Rpc>(
     context: &BatchContext<R>,
     merkle_tree_data: ParsedMerkleTreeData,
 ) -> Result<()> {
-    info!(
-        "V2_TPS_METRIC: operation_start tree_type=StateV2 operation=nullify tree={} epoch={} (hybrid)",
-        context.merkle_tree, context.epoch
-    );
-
     let instruction_builder = |data: &InstructionDataBatchNullifyInputs| -> Instruction {
         create_batch_nullify_instruction(
             context.authority.pubkey(),
@@ -99,14 +92,7 @@ pub(crate) async fn perform_nullify<R: Rpc>(
 
     let stream_future = create_nullify_stream_future(context, merkle_tree_data);
 
-    process_stream(
-        context,
-        stream_future,
-        instruction_builder,
-        "StateV2",
-        Some("nullify"),
-    )
-    .await?;
+    process_stream(context, stream_future, instruction_builder).await?;
     Ok(())
 }
 
@@ -120,10 +106,6 @@ pub(crate) async fn perform_append<R: Rpc>(
     merkle_tree_data: ParsedMerkleTreeData,
     output_queue_data: ParsedQueueData,
 ) -> Result<()> {
-    info!(
-        "V2_TPS_METRIC: operation_start tree_type=StateV2 operation=append tree={} epoch={} (hybrid)",
-        context.merkle_tree, context.epoch
-    );
     let instruction_builder = |data: &InstructionDataBatchAppendInputs| -> Instruction {
         create_batch_append_instruction(
             context.authority.pubkey(),
@@ -136,13 +118,6 @@ pub(crate) async fn perform_append<R: Rpc>(
     };
 
     let stream_future = create_append_stream_future(context, merkle_tree_data, output_queue_data);
-    process_stream(
-        context,
-        stream_future,
-        instruction_builder,
-        "StateV2",
-        Some("append"),
-    )
-    .await?;
+    process_stream(context, stream_future, instruction_builder).await?;
     Ok(())
 }

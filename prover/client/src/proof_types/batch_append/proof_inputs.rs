@@ -56,7 +56,13 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
         .enumerate()
     {
         let current_index = start_index as usize + i;
-        info!("Updating root with leaf index: {}", current_index);
+        info!(
+            leaf_index = current_index,
+            batch_position = i,
+            batch_size = batch_size,
+            tree_height = HEIGHT,
+            "Processing leaf for batch append"
+        );
 
         for change_log_entry in previous_changelogs.iter() {
             match change_log_entry.update_proof(current_index, &mut merkle_proof) {

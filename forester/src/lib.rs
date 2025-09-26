@@ -159,7 +159,7 @@ pub async fn run_pipeline<R: Rpc>(
         .url(config.external_services.rpc_url.to_string())
         .photon_url(config.external_services.indexer_url.clone())
         .api_key(config.external_services.photon_api_key.clone())
-        .commitment(CommitmentConfig::confirmed())
+        .commitment(CommitmentConfig::processed())
         .max_size(config.rpc_pool_config.max_size)
         .connection_timeout_secs(config.rpc_pool_config.connection_timeout_secs)
         .idle_timeout_secs(config.rpc_pool_config.idle_timeout_secs)

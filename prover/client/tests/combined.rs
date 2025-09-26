@@ -27,9 +27,10 @@ async fn prove_combined() {
             }
         }
     }
+    // V2 combined circuits - test 1..4 / 1..4
     {
         for i in 1..=4 {
-            for non_i in 1..=2 {
+            for non_i in 1..=4 {
                 let inputs = combined_inputs_string_v2(i, non_i);
                 let response_result = client
                     .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
