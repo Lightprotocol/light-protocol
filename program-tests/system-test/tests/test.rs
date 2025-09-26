@@ -1327,7 +1327,7 @@ async fn test_with_address() {
         &mut rpc,
         &mut indexer,
         &payer,
-        &[compressed_account_with_context.clone()],
+        std::slice::from_ref(&compressed_account_with_context),
         &[recipient_pubkey],
         &[compressed_account_with_context
             .merkle_context

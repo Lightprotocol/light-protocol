@@ -268,7 +268,7 @@ fn format_number_with_commas(num: u64) -> String {
     let digits = num_str.len();
 
     num_str.chars().enumerate().for_each(|(i, c)| {
-        if (digits - i) % 3 == 0 && i != 0 {
+        if (digits - i).is_multiple_of(3) && i != 0 {
             result.push(',');
         }
         result.push(c);

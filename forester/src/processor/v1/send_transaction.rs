@@ -43,6 +43,7 @@ struct PreparedBatchData {
     timeout_deadline: Instant,
 }
 
+#[allow(clippy::large_enum_variant)]
 enum TransactionSendResult {
     Success(Signature),
     Failure(ForesterError, Option<Signature>),

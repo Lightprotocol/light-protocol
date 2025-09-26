@@ -303,6 +303,7 @@ where
         while node_index > 1 {
             // `node_index - 2` maps to the canopy index.
             let canopy_index = node_index - 2;
+            #[allow(clippy::manual_is_multiple_of)]
             let canopy_index = if canopy_index % 2 == 0 {
                 canopy_index + 1
             } else {
@@ -562,6 +563,7 @@ where
             self.changelog[changelog_index].path[0] = Some(**leaf);
 
             for i in 0..self.height {
+                #[allow(clippy::manual_is_multiple_of)]
                 let is_left = current_index % 2 == 0;
 
                 if is_left {

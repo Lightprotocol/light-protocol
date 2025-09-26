@@ -144,7 +144,7 @@ fn get_forester_keypair() -> Keypair {
                 match bytes {
                     Ok(byte_vec) => {
                         if byte_vec.len() == 64 {
-                            return Keypair::from_bytes(&byte_vec)
+                            return Keypair::try_from(byte_vec.as_slice())
                                 .expect("Failed to create keypair from byte array");
                         } else {
                             panic!(
@@ -159,7 +159,7 @@ fn get_forester_keypair() -> Keypair {
 
             match bs58::decode(&keypair_string).into_vec() {
                 Ok(bytes) => {
-                    Keypair::from_bytes(&bytes).expect("Failed to create keypair from base58 bytes")
+                    Keypair::try_from(bytes.as_slice()).expect("Failed to create keypair from base58 bytes")
                 }
                 Err(_) => panic!(
                     "FORESTER_KEYPAIR must be either base58 encoded or byte array format [1,2,3,...]"

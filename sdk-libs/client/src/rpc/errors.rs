@@ -43,6 +43,10 @@ pub enum RpcError {
     #[error("Warp slot not in the future")]
     InvalidWarpSlot,
 
+    #[cfg(feature = "program-test")]
+    #[error("LiteSVM Error: {0}")]
+    LiteSvmError(String),
+
     #[error("Account {0} does not exist")]
     AccountDoesNotExist(String),
 
@@ -87,6 +91,15 @@ impl Clone for RpcError {
             RpcError::InvalidStateTreeLookupTable => RpcError::InvalidStateTreeLookupTable,
             RpcError::NullifyTableNotFound => RpcError::NullifyTableNotFound,
             RpcError::NoStateTreesAvailable => RpcError::NoStateTreesAvailable,
+            #[cfg(feature = "program-test")]
+            RpcError::LiteSvmError(e) => RpcError::LiteSvmError(e.clone()),
         }
+    }
+}
+
+#[cfg(feature = "program-test")]
+impl From<litesvm::error::LiteSVMError> for RpcError {
+    fn from(e: litesvm::error::LiteSVMError) -> Self {
+        RpcError::LiteSvmError(e.to_string())
     }
 }

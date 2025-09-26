@@ -61,45 +61,45 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
-solana-banks-client = { version = "2.2" }
-solana-banks-interface = { version = "2.2" }
-solana-program = "2.2"
-solana-pubkey = "2.2"
-solana-sdk = "2.2"
+solana-banks-client = { version = "2.3" }
+solana-banks-interface = { version = "2.3" }
+solana-program = "2.3"
+solana-pubkey = "2.3"
+solana-sdk = "2.3"
 solana-cpi = "2.2"
-solana-client = "2.2"
-solana-cli-output = "2.2"
-solana-transaction-status = "2.2"
-solana-account-decoder = "2.2"
-solana-account-decoder-client-types = "2.2"
-solana-transaction-status-client-types = "2.2"
-solana-rpc = "2.2"
-solana-rpc-client-api = "2.2"
-solana-transaction-context = "2.2"
-solana-frozen-abi = "2.2"
-solana-frozen-abi-macro = "2.2"
+solana-client = "2.3"
+solana-cli-output = "2.3"
+solana-transaction-status = "2.3"
+solana-account-decoder = "2.3"
+solana-account-decoder-client-types = "2.3"
+solana-transaction-status-client-types = "2.3"
+solana-rpc = "2.3"
+solana-rpc-client-api = "2.3"
+solana-transaction-context = "2.3"
+solana-frozen-abi = "2.3"
+solana-frozen-abi-macro = "2.3"
 solana-msg = { version = "2.2" }
-solana-zk-token-sdk = "2.2"
-solana-logger = "2.2"
-solana-bpf-loader-program = "2.2"
+solana-zk-token-sdk = "2.3"
+solana-logger = "2.3"
+solana-bpf-loader-program = "2.3"
 solana-bn254 = "2.2"
-solana-sysvar = { version = "2.1.1" }
-solana-program-error = { version = "2.1.1" }
-solana-account-info = { version = "2.1.1" }
+solana-sysvar = { version = "2.2" }
+solana-program-error = { version = "2.2" }
+solana-account-info = { version = "2.2" }
 solana-transaction = { version = "2.2" }
 solana-transaction-error = { version = "2.2" }
-solana-hash = { version = "2.2" }
+solana-hash = { version = "2.3" }
 solana-clock = { version = "2.2" }
-solana-signature = { version = "2.2" }
+solana-signature = { version = "2.3" }
 solana-commitment-config = { version = "2.2" }
 solana-account = { version = "2.2" }
 solana-epoch-info = { version = "2.2" }
 solana-keypair = { version = "2.2" }
 solana-compute-budget-interface = { version = "2.2" }
 solana-signer = { version = "2.2" }
-solana-instruction = "2.2"
-solana-rpc-client = "2.2"
-solana-compute-budget = { version = "2.2" }
+solana-instruction = "2.3"
+solana-rpc-client = "2.3"
+solana-compute-budget = { version = "2.3" }
 
 solana-system-interface = { version = "1" }
 solana-security-txt = "1.1.1"
@@ -109,7 +109,7 @@ spl-pod = "0.5.1"
 pinocchio = { version = "0.8.4" }
 pinocchio-pubkey = { version = "0.3.0" }
 bs58 = "^0.5.1"
-litesvm = "0.6.1"
+litesvm = "0.7"
 # Anchor
 anchor-lang = { version = "=0.31.1", features = ["idl-build"] }
 anchor-spl = "=0.31.1"
@@ -225,8 +225,8 @@ rand = "0.8.5"
 
 [patch.crates-io]
 # Profiling logs and state is handled here
-solana-program-runtime = { git = "https://github.com/Lightprotocol/agave", rev = "580e29f03e4176a4a5525abc188a948c6595c47f" }
+solana-program-runtime = { git = "https://github.com/Lightprotocol/agave", rev = "35e7c295981a195e61b4f4039a5a6ef707d2210d" }
 # Profiling syscalls are defined here
-solana-bpf-loader-program = { git = "https://github.com/Lightprotocol/agave", rev = "580e29f03e4176a4a5525abc188a948c6595c47f" }
+solana-bpf-loader-program = { git = "https://github.com/Lightprotocol/agave", rev = "35e7c295981a195e61b4f4039a5a6ef707d2210d" }
 # Patch solana-program-memory to use older version where is_nonoverlapping is public
 solana-program-memory = { git = "https://github.com/anza-xyz/solana-sdk", rev = "1c1d667f161666f12f5a43ebef8eda9470a8c6ee" }

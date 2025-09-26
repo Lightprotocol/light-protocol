@@ -1,4 +1,5 @@
 #![cfg(feature = "mut")]
+#![allow(dead_code)]
 use std::vec::Vec;
 
 use borsh::{BorshDeserialize, BorshSerialize};

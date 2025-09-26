@@ -298,8 +298,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         }
         let mut remaining_accounts = ctx.remaining_accounts.to_vec();
 
-        if read_only_address.is_some() {
-            let read_only_address = read_only_address.as_mut().unwrap();
+        if let Some(read_only_address) = &mut read_only_address {
             match mode {
                 CreatePdaMode::InvalidReadOnlyMerkleTree => {
                     remaining_accounts.push(ctx.accounts.registered_program_pda.to_account_info());
@@ -323,8 +322,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
                 _ => {}
             }
         }
-        if read_only_accounts.is_some() {
-            let read_only_account = read_only_accounts.as_mut().unwrap();
+        if let Some(read_only_account) = &mut read_only_accounts {
             match mode {
                 CreatePdaMode::InvalidReadOnlyAccountMerkleTree => {
                     read_only_account[0].merkle_context.merkle_tree_pubkey_index =

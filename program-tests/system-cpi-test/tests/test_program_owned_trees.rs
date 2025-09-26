@@ -219,7 +219,8 @@ async fn test_invalid_registered_program() {
         .unwrap();
 
     let group_seed_keypair = Keypair::new();
-    let program_id_keypair = Keypair::from_bytes(&CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR).unwrap();
+    let program_id_keypair =
+        Keypair::try_from(CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR.as_slice()).unwrap();
     println!("program_id_keypair: {:?}", program_id_keypair.pubkey());
     let invalid_group_pda =
         initialize_new_group(&group_seed_keypair, &payer, &mut rpc, payer.pubkey())

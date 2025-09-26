@@ -230,6 +230,7 @@ where
         };
 
         for level in 0..limit {
+            #[allow(clippy::manual_is_multiple_of)]
             let is_left = index % 2 == 0;
 
             let sibling_index = if is_left { index + 1 } else { index - 1 };
@@ -252,6 +253,7 @@ where
             let mut proof = Vec::with_capacity(self.height);
 
             for level in 0..self.height {
+                #[allow(clippy::manual_is_multiple_of)]
                 let is_left = index % 2 == 0;
                 let sibling_index = if is_left { index + 1 } else { index - 1 };
                 let node = self.layers[level]
@@ -323,6 +325,7 @@ where
         let mut current_index = leaf_index;
 
         for sibling_hash in proof.iter() {
+            #[allow(clippy::manual_is_multiple_of)]
             let is_left = current_index % 2 == 0;
             let hashes = if is_left {
                 [&computed_hash[..], &sibling_hash[..]]

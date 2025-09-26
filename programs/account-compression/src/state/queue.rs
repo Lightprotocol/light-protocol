@@ -71,7 +71,7 @@ pub unsafe fn queue_from_bytes_copy(data: &mut [u8]) -> Result<HashSet> {
 ///
 /// This operation is unsafe. It's the caller's responsibility to ensure that
 /// the provided account data have correct size and alignment.
-pub unsafe fn queue_from_bytes_zero_copy_mut(data: &mut [u8]) -> Result<HashSetZeroCopy> {
+pub unsafe fn queue_from_bytes_zero_copy_mut(data: &mut [u8]) -> Result<HashSetZeroCopy<'_>> {
     let data = &mut data[8 + mem::size_of::<QueueAccount>()..];
     let queue = HashSetZeroCopy::from_bytes_zero_copy_mut(data).map_err(ProgramError::from)?;
     Ok(queue)
@@ -87,7 +87,7 @@ pub unsafe fn queue_from_bytes_zero_copy_init(
     data: &mut [u8],
     capacity: usize,
     sequence_threshold: usize,
-) -> Result<HashSetZeroCopy> {
+) -> Result<HashSetZeroCopy<'_>> {
     let data = &mut data[8 + mem::size_of::<QueueAccount>()..];
     let queue = HashSetZeroCopy::from_bytes_zero_copy_init(data, capacity, sequence_threshold)
         .map_err(ProgramError::from)?;

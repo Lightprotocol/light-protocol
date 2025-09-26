@@ -1,4 +1,5 @@
 #![cfg(feature = "mut")]
+#![allow(dead_code)]
 use std::assert_eq;
 
 use borsh::BorshDeserialize;

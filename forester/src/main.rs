@@ -20,6 +20,7 @@ use tokio::{
 use tracing::debug;
 
 #[tokio::main]
+#[allow(clippy::result_large_err)]
 async fn main() -> Result<(), ForesterError> {
     setup_telemetry();
 
