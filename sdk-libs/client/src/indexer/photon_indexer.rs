@@ -12,7 +12,7 @@ use tracing::{error, trace, warn};
 
 use super::{
     types::{
-        CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata,
+        CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsResult, SignatureWithMetadata,
         TokenBalance,
     },
     BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
@@ -1585,7 +1585,7 @@ impl Indexer for PhotonIndexer {
         _num_elements: u16,
         _start_queue_index: Option<u64>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<(Vec<MerkleProofWithContext>, Option<u64>)>, IndexerError> {
+    ) -> Result<Response<QueueElementsResult>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!("get_queue_elements");
         #[cfg(feature = "v2")]
@@ -1613,7 +1613,7 @@ impl Indexer for PhotonIndexer {
                 )
                 .await;
                 let result: Result<
-                    Response<(Vec<MerkleProofWithContext>, Option<u64>)>,
+                    Response<QueueElementsResult>,
                     IndexerError,
                 > = match result {
                     Ok(api_response) => match api_response.result {
@@ -1654,7 +1654,10 @@ impl Indexer for PhotonIndexer {
                                 context: Context {
                                     slot: api_result.context.slot,
                                 },
-                                value: (proofs, Some(api_result.first_value_queue_index as u64)),
+                                value: QueueElementsResult {
+                                    elements: proofs,
+                                    first_value_queue_index: Some(api_result.first_value_queue_index as u64),
+                                },
                             })
                         }
                         None => {

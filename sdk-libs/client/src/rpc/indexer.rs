@@ -209,7 +209,7 @@ impl Indexer for LightClient {
         num_elements: u16,
         start_queue_index: Option<u64>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<(Vec<MerkleProofWithContext>, Option<u64>)>, IndexerError> {
+    ) -> Result<Response<crate::indexer::QueueElementsResult>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()
