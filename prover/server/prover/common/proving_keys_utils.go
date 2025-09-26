@@ -94,52 +94,41 @@ func LoadVerifyingKey(filepath string) (verifyingKey groth16.VerifyingKey, err e
 func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	var keys []string
 
-	var inclusionKeys []string = []string{
-		// V2 inclusion keys (height 32)
-		keysDir + "v2_inclusion_32_1.key",
-		keysDir + "v2_inclusion_32_2.key",
-		keysDir + "v2_inclusion_32_3.key",
-		keysDir + "v2_inclusion_32_4.key",
-		keysDir + "v2_inclusion_32_8.key",
-		// V1 inclusion keys (legacy, height 26)
-		keysDir + "v1_inclusion_26_1.key",
-		keysDir + "v1_inclusion_26_2.key",
-		keysDir + "v1_inclusion_26_3.key",
-		keysDir + "v1_inclusion_26_4.key",
-		keysDir + "v1_inclusion_26_8.key",
+	// Build inclusion keys
+	var inclusionKeys []string
+	// V2 inclusion keys (height 32) - 1 to 20
+	for i := 1; i <= 20; i++ {
+		inclusionKeys = append(inclusionKeys, fmt.Sprintf("%sv2_inclusion_32_%d.key", keysDir, i))
+	}
+	// V1 inclusion keys (legacy, height 26)
+	for _, i := range []int{1, 2, 3, 4, 8} {
+		inclusionKeys = append(inclusionKeys, fmt.Sprintf("%sv1_inclusion_26_%d.key", keysDir, i))
 	}
 
-	var nonInclusionKeys []string = []string{
-		// V1 non-inclusion keys (legacy, height 26)
-		keysDir + "v1_non-inclusion_26_1.key",
-		keysDir + "v1_non-inclusion_26_2.key",
-		// V2 non-inclusion keys (height 40)
-		keysDir + "v2_non-inclusion_40_1.key",
-		keysDir + "v2_non-inclusion_40_2.key",
-		keysDir + "v2_non-inclusion_40_3.key",
-		keysDir + "v2_non-inclusion_40_4.key",
-		keysDir + "v2_non-inclusion_40_8.key",
+	// Build non-inclusion keys
+	var nonInclusionKeys []string
+	// V1 non-inclusion keys (legacy, height 26)
+	for i := 1; i <= 2; i++ {
+		nonInclusionKeys = append(nonInclusionKeys, fmt.Sprintf("%sv1_non-inclusion_26_%d.key", keysDir, i))
+	}
+	// V2 non-inclusion keys (height 40) - 1 to 32
+	for i := 1; i <= 32; i++ {
+		nonInclusionKeys = append(nonInclusionKeys, fmt.Sprintf("%sv2_non-inclusion_40_%d.key", keysDir, i))
 	}
 
-	var combinedKeys []string = []string{
-		// V1 combined keys (legacy, heights 26/26)
-		keysDir + "v1_combined_26_26_1_1.key",
-		keysDir + "v1_combined_26_26_1_2.key",
-		keysDir + "v1_combined_26_26_2_1.key",
-		keysDir + "v1_combined_26_26_2_2.key",
-		keysDir + "v1_combined_26_26_3_1.key",
-		keysDir + "v1_combined_26_26_3_2.key",
-		keysDir + "v1_combined_26_26_4_1.key",
-		keysDir + "v1_combined_26_26_4_2.key",
-		// V2 combined keys (heights 32/40)
-		keysDir + "v2_combined_32_40_1_1.key",
-		keysDir + "v2_combined_32_40_1_2.key",
-		keysDir + "v2_combined_32_40_2_1.key",
-		keysDir + "v2_combined_32_40_2_2.key",
-		keysDir + "v2_combined_32_40_3_1.key",
-		keysDir + "v2_combined_32_40_3_2.key",
-		keysDir + "v2_combined_32_40_4_1.key",
-		keysDir + "v2_combined_32_40_4_2.key",
+	// Build combined keys
+	var combinedKeys []string
+	// V1 combined keys (legacy, heights 26/26)
+	for i := 1; i <= 4; i++ {
+		for j := 1; j <= 2; j++ {
+			combinedKeys = append(combinedKeys, fmt.Sprintf("%sv1_combined_26_26_%d_%d.key", keysDir, i, j))
+		}
+	}
+	// V2 combined keys (heights 32/40)
+	for i := 1; i <= 4; i++ {
+		for j := 1; j <= 4; j++ {
+			combinedKeys = append(combinedKeys, fmt.Sprintf("%sv2_combined_32_40_%d_%d.key", keysDir, i, j))
+		}
 	}
 
 	// Keys for local-rpc mode - matching the 18 keys in cli/package.json

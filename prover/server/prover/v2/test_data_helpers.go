@@ -330,6 +330,23 @@ func BuildTestBatchAppendTree(treeDepth int, batchSize int, previousTree *merkle
 	}
 }
 
+func BuildValidCombinedParameters(inclusionDepth, nonInclusionDepth int,
+	inclusionAccounts, nonInclusionAccounts int) CombinedParameters {
+	inclusionParams := BuildTestTree(inclusionDepth, inclusionAccounts, false)
+	nonInclusionParams := BuildValidTestNonInclusionTree(nonInclusionDepth, nonInclusionAccounts, false)
+
+	publicInputHash, _ := poseidon.Hash([]*big.Int{
+		&inclusionParams.PublicInputHash,
+		&nonInclusionParams.PublicInputHash,
+	})
+
+	return CombinedParameters{
+		PublicInputHash:        *publicInputHash,
+		InclusionParameters:    inclusionParams,
+		NonInclusionParameters: nonInclusionParams,
+	}
+}
+
 func BuildTestAddressTree(treeHeight uint32, batchSize uint32, previousTree *merkletree.IndexedMerkleTree, startIndex uint64) (*BatchAddressAppendParameters, error) {
 	var tree *merkletree.IndexedMerkleTree
 
