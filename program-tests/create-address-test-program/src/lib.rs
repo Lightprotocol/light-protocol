@@ -9,11 +9,11 @@ use anchor_lang::{
     InstructionData,
 };
 use light_sdk::{
-    cpi::{CpiAccountsSmall, CpiSigner},
+    cpi::{CpiAccountsV2, CpiSigner},
     derive_light_cpi_signer,
     error::LightSdkError,
 };
-use light_sdk_types::{CompressionCpiAccountIndexSmall, PROGRAM_ACCOUNTS_LEN};
+use light_sdk_types::{CompressionCpiAccountIndexV2, PROGRAM_ACCOUNTS_LEN};
 use light_system_program::utils::get_registered_program_pda;
 pub mod create_pda;
 pub use create_pda::*;
@@ -76,7 +76,7 @@ pub mod system_cpi_test {
             let account_infos = cpi_accounts.to_account_infos();
 
             let account_metas = if !write_cpi_context {
-                to_account_metas_v2(cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?
+                to_account_metas_v2(&cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?
             } else {
                 let mut account_metas = vec![];
                 account_metas.push(AccountMeta {
@@ -116,8 +116,7 @@ pub mod system_cpi_test {
             data: inputs,
         };
         let cpi_config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
-        invoke_light_system_program(&account_infos, instruction, cpi_config.bump())
-            .map_err(ProgramError::from)?;
+        invoke_light_system_program(&account_infos, instruction, cpi_config.bump())?;
         Ok(())
     }
 
@@ -256,7 +255,7 @@ pub fn create_invoke_read_only_account_info_instruction(
 }
 // Manual impl for failing tests
 pub fn to_account_metas_small(
-    cpi_accounts: CpiAccountsSmall<'_, '_>,
+    cpi_accounts: CpiAccountsV2<'_, '_>,
 ) -> light_sdk::error::Result<Vec<AccountMeta>> {
     // TODO: do a version with a const array instead of vector.
     let mut account_metas =
@@ -297,7 +296,7 @@ pub fn to_account_metas_small(
     });
 
     let accounts = cpi_accounts.account_infos();
-    let mut index = CompressionCpiAccountIndexSmall::SolPoolPda as usize;
+    let mut index = CompressionCpiAccountIndexV2::SolPoolPda as usize;
 
     if cpi_accounts.config().sol_pool_pda {
         let account = cpi_accounts.get_account_info(index)?;

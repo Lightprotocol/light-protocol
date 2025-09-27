@@ -1,21 +1,4 @@
-#![cfg(feature = "v2")]
-
-use crate::{
-    account::LightAccount,
-    cpi::{
-        get_account_metas_from_config_small, CpiAccountsSmall, CpiInstructionConfigSmall,
-        CpiSigner,
-    },
-    error::LightSdkError,
-    instruction::account_info::CompressedAccountInfoTrait,
-    AccountInfo, AccountMeta, AnchorDeserialize, AnchorSerialize, DataHasher, LightDiscriminator,
-    ProgramError,
-};
-
-use super::traits::{CpiAccountsTrait, LightCpiInstruction};
-
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-
 /// LightSystemProgramCpi optimized for Compressed Pdas.
 ///
 /// InstructionDataInvokeCpiWithReadOnly provides more flexibility
@@ -25,14 +8,23 @@ pub use light_compressed_account::instruction_data::{
     cpi_context::*, with_account_info::*, with_readonly::*,
 };
 
-impl<'info> CpiAccountsTrait<'info> for CpiAccountsSmall<'_, 'info> {
+use super::traits::{CpiAccountsTrait, LightCpiInstruction};
+use crate::{
+    account::LightAccount,
+    cpi::{to_account_metas_v2, CpiAccountsV2, CpiSigner},
+    error::LightSdkError,
+    instruction::account_info::CompressedAccountInfoTrait,
+    AccountInfo, AccountMeta, AnchorDeserialize, AnchorSerialize, DataHasher, LightDiscriminator,
+    ProgramError,
+};
+
+impl<'info> CpiAccountsTrait<'info> for CpiAccountsV2<'_, 'info> {
     fn to_account_infos(&self) -> Vec<AccountInfo<'info>> {
         self.to_account_infos()
     }
 
     fn to_account_metas(&self) -> Result<Vec<AccountMeta>, ProgramError> {
-        let config = CpiInstructionConfigSmall::try_from(self).map_err(ProgramError::from)?;
-        Ok(get_account_metas_from_config_small(config))
+        to_account_metas_v2(self).map_err(ProgramError::from)
     }
 
     fn get_mode(&self) -> Option<u8> {
@@ -50,10 +42,7 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
         }
     }
 
-    fn with_light_account<A>(
-        mut self,
-        account: LightAccount<'_, A>,
-    ) -> Result<Self, ProgramError>
+    fn with_light_account<A>(mut self, account: LightAccount<'_, A>) -> Result<Self, ProgramError>
     where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,
     {
@@ -139,10 +128,7 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
         }
     }
 
-    fn with_light_account<A>(
-        mut self,
-        account: LightAccount<'_, A>,
-    ) -> Result<Self, ProgramError>
+    fn with_light_account<A>(mut self, account: LightAccount<'_, A>) -> Result<Self, ProgramError>
     where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,
     {

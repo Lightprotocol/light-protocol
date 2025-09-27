@@ -1,12 +1,12 @@
-use light_sdk_types::{
-    CompressionCpiAccountIndexV2 as GenericCpiAccountsV2, ACCOUNT_COMPRESSION_AUTHORITY_PDA,
-    ACCOUNT_COMPRESSION_PROGRAM_ID, REGISTERED_PROGRAM_PDA, PROGRAM_ACCOUNTS_LEN,
+/*use light_sdk_types::{
+    CpiAccountsV2 as GenericCpiAccountsV2, ACCOUNT_COMPRESSION_AUTHORITY_PDA,
+    ACCOUNT_COMPRESSION_PROGRAM_ID, PROGRAM_ACCOUNTS_LEN, REGISTERED_PROGRAM_PDA,
 };
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::error::Result;
 
-pub type CpiAccountsV2<'a> = GenericCpiAccountsV2<'a, AccountInfo>;
+pub type CpiAccountsV2<'c> = GenericCpiAccountsV2<'c, AccountInfo>;
 
 pub fn to_account_metas_v2<'a>(cpi_accounts: &CpiAccountsV2<'a>) -> Result<Vec<AccountMeta<'a>>> {
     let mut account_metas =

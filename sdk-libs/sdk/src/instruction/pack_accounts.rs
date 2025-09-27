@@ -66,7 +66,7 @@ impl PackedAccounts {
         config: SystemAccountMetaConfig,
     ) -> crate::error::Result<()> {
         self.system_accounts
-            .extend(crate::instruction::get_light_system_account_metas_small(
+            .extend(crate::instruction::get_light_system_account_metas_v2(
                 config,
             ));
         // note cpi context account is part of the system accounts

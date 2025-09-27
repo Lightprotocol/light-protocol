@@ -3,7 +3,9 @@ use light_account_checks::{
     error::AccountError,
 };
 use light_compressed_account::instruction_data::traits::AccountOptions;
-use light_system_program_pinocchio::invoke_cpi::CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR;
+use light_system_program_pinocchio::{
+    invoke_cpi::instruction_v2::InvokeCpiInstructionV2, CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR,
+};
 // We'll avoid direct PDA validation as it's difficult in unit tests
 use pinocchio::account_info::AccountInfo;
 use pinocchio::program_error::ProgramError;
@@ -87,7 +89,12 @@ fn functional_from_account_infos_v2() {
         assert_eq!(invoke_cpi_instruction_v2.fee_payer.key(), fee_payer.key());
         assert_eq!(invoke_cpi_instruction_v2.authority.key(), authority.key());
         assert_eq!(
-            invoke_cpi_instruction_v2.registered_program_pda.key(),
+            invoke_cpi_instruction_v2
+                .exec_accounts
+                .as_ref()
+                .unwrap()
+                .registered_program_pda
+                .key(),
             registered_program_pda.key()
         );
         assert_eq!(invoke_cpi_instruction_v2.fee_payer.key(), fee_payer.key());
@@ -153,9 +160,6 @@ fn functional_from_account_infos_v2() {
         let (invoke_cpi_instruction_v2, _) = result.unwrap();
         assert_eq!(invoke_cpi_instruction_v2.fee_payer.key(), fee_payer.key());
         assert_eq!(invoke_cpi_instruction_v2.authority.key(), authority.key());
-        assert!(invoke_cpi_instruction_v2.sol_pool_pda.is_none());
-        assert_eq!(invoke_cpi_instruction_v2.fee_payer.key(), fee_payer.key());
-        assert_eq!(invoke_cpi_instruction_v2.authority.key(), authority.key());
         assert!(invoke_cpi_instruction_v2
             .exec_accounts
             .as_ref()
@@ -209,10 +213,6 @@ fn functional_from_account_infos_v2() {
 
         // Verify result is Ok and contains the expected accounts
         let (invoke_cpi_instruction_v2, _) = result.unwrap();
-        assert_eq!(invoke_cpi_instruction_v2.fee_payer.key(), fee_payer.key());
-        assert_eq!(invoke_cpi_instruction_v2.authority.key(), authority.key());
-        assert!(invoke_cpi_instruction_v2.sol_pool_pda.is_none());
-        assert!(invoke_cpi_instruction_v2.decompression_recipient.is_none());
         assert_eq!(invoke_cpi_instruction_v2.fee_payer.key(), fee_payer.key());
         assert_eq!(invoke_cpi_instruction_v2.authority.key(), authority.key());
         assert!(invoke_cpi_instruction_v2
@@ -333,9 +333,6 @@ fn test_decompression_recipient_and_cpi_context_validation() {
 
     // Verify result is Ok and contains the expected accounts
     let (invoke_cpi_instruction_v2, _) = result.unwrap();
-    assert_eq!(invoke_cpi_instruction_v2.fee_payer.key(), fee_payer.key());
-    assert_eq!(invoke_cpi_instruction_v2.authority.key(), authority.key());
-    assert!(invoke_cpi_instruction_v2.sol_pool_pda.is_none());
     assert_eq!(invoke_cpi_instruction_v2.fee_payer.key(), fee_payer.key());
     assert_eq!(invoke_cpi_instruction_v2.authority.key(), authority.key());
     assert!(invoke_cpi_instruction_v2

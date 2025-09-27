@@ -3138,7 +3138,7 @@ pub mod local_sdk {
         onchain_config.sol_pool_pda = config.sol_pool_pda.is_some();
         onchain_config.sol_compression_recipient = config.sol_compression_recipient.is_some();
         let write_into_cpi_context = if let Some(cpi_context) = cpi_context.as_ref() {
-            if small_ix {
+            if v2_ix {
                 cpi_context.first_set_context || cpi_context.set_context
             } else {
                 false

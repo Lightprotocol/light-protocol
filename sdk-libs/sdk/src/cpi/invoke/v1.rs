@@ -1,13 +1,13 @@
-use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-use light_compressed_account::instruction_data::invoke_cpi::InstructionDataInvokeCpi;
+use light_compressed_account::instruction_data::{
+    compressed_proof::ValidityProof, invoke_cpi::InstructionDataInvokeCpi,
+};
 
+use super::traits::{LightCpiInstruction, LightInstructionData};
 use crate::{
     account::LightAccount, cpi::CpiSigner, error::LightSdkError,
     instruction::account_info::CompressedAccountInfoTrait, AnchorDeserialize, AnchorSerialize,
     DataHasher, LightDiscriminator, ProgramError,
 };
-
-use super::traits::{LightCpiInstruction, LightInstructionData};
 
 /// V1 wrapper struct for InstructionDataInvokeCpi with CpiSigner
 #[derive(Clone)]

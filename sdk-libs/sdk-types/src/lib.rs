@@ -16,8 +16,7 @@ pub use constants::*;
 pub use cpi_accounts::*;
 #[cfg(feature = "v2")]
 pub use cpi_accounts_v2::{
-    CompressionCpiAccountIndexV2, CpiAccountsV2, PROGRAM_ACCOUNTS_LEN,
-    V2_SYSTEM_ACCOUNTS_LEN,
+    CompressionCpiAccountIndexV2, CpiAccountsV2, PROGRAM_ACCOUNTS_LEN, V2_SYSTEM_ACCOUNTS_LEN,
 };
 
 /// Configuration struct containing program ID, CPI signer, and bump for Light Protocol

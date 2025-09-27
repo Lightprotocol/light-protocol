@@ -21,7 +21,7 @@ pub enum CompressionCpiAccountIndexV2 {
 
 pub const PROGRAM_ACCOUNTS_LEN: usize = 0; // No program accounts in CPI
                                            // 6 base accounts + 3 optional accounts
-pub const SMALL_SYSTEM_ACCOUNTS_LEN: usize = 9;
+pub const V2_SYSTEM_ACCOUNTS_LEN: usize = 9;
 
 #[derive(Clone)]
 pub struct CpiAccountsV2<'a, T: AccountInfoTrait + Clone> {
@@ -29,12 +29,12 @@ pub struct CpiAccountsV2<'a, T: AccountInfoTrait + Clone> {
     accounts: &'a [T],
     config: CpiAccountsConfig,
 }
-impl<'a, T: AccountInfoTrait + Clone> TryFrom<&CpiAccountsSmall<'a, T>>
+impl<'a, T: AccountInfoTrait + Clone> TryFrom<&CpiAccountsV2<'a, T>>
     for CpiContextWriteAccounts<'a, T>
 {
     type Error = LightSdkTypesError;
 
-    fn try_from(value: &CpiAccountsSmall<'a, T>) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: &CpiAccountsV2<'a, T>) -> std::result::Result<Self, Self::Error> {
         Ok(Self {
             fee_payer: value.fee_payer,
             authority: value.authority()?,
@@ -43,7 +43,7 @@ impl<'a, T: AccountInfoTrait + Clone> TryFrom<&CpiAccountsSmall<'a, T>>
         })
     }
 }
-impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
+impl<'a, T: AccountInfoTrait + Clone> CpiAccountsV2<'a, T> {
     pub fn new(fee_payer: &'a T, accounts: &'a [T], cpi_signer: CpiSigner) -> Self {
         Self {
             fee_payer,
@@ -86,14 +86,14 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
     }
 
     pub fn account_compression_program(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::AccountCompressionProgram as usize;
+        let index = CompressionCpiAccountIndexV2::AccountCompressionProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn system_program(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::SystemProgram as usize;
+        let index = CompressionCpiAccountIndexV2::SystemProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
@@ -114,7 +114,7 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
     }
 
     pub fn cpi_context(&self) -> Result<&'a T> {
-        let mut index = CompressionCpiAccountIndexSmall::CpiContext as usize;
+        let mut index = CompressionCpiAccountIndexV2::CpiContext as usize;
         if !self.config.sol_pool_pda {
             index -= 1;
         }

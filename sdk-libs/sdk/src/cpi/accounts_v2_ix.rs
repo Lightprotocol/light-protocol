@@ -1,48 +1,34 @@
 use light_sdk_types::{
-    CpiAccountsSmall as GenericCpiAccountsV2, ACCOUNT_COMPRESSION_AUTHORITY_PDA,
-    ACCOUNT_COMPRESSION_PROGRAM_ID, REGISTERED_PROGRAM_PDA, SMALL_SYSTEM_ACCOUNTS_LEN,
-    SOL_POOL_PDA,
+    CompressionCpiAccountIndexV2, CpiAccountsV2 as GenericCpiAccountsV2, PROGRAM_ACCOUNTS_LEN,
 };
 
-use crate::{
-    error::{LightSdkError, Result},
-    AccountInfo, AccountMeta, Pubkey,
-};
-
-#[derive(Debug)]
-pub struct CpiInstructionConfigSmall<'a, 'info> {
-    pub fee_payer: Pubkey,
-    pub cpi_signer: Pubkey,
-    pub sol_pool_pda: bool,
-    pub sol_compression_recipient_pubkey: Option<Pubkey>,
-    pub cpi_context_pubkey: Option<Pubkey>,
-    pub packed_accounts: &'a [AccountInfo<'info>],
-}
+use crate::{error::Result, AccountInfo, AccountMeta};
 
 pub type CpiAccountsV2<'c, 'info> = GenericCpiAccountsV2<'c, AccountInfo<'info>>;
 
-pub fn to_account_metas_v2(cpi_accounts: CpiAccountsV2<'_, '_>) -> Result<Vec<AccountMeta>> {
+pub fn to_account_metas_v2(cpi_accounts: &CpiAccountsV2<'_, '_>) -> Result<Vec<AccountMeta>> {
     // TODO: do a version with a const array instead of vector.
     let mut account_metas =
         Vec::with_capacity(1 + cpi_accounts.account_infos().len() - PROGRAM_ACCOUNTS_LEN);
 
-    // 1. Fee payer (signer, writable)
     account_metas.push(AccountMeta {
-        pubkey: config.fee_payer,
+        pubkey: *cpi_accounts.fee_payer().key,
         is_signer: true,
         is_writable: true,
     });
-
-    // 2. Authority/CPI Signer (signer, readonly)
     account_metas.push(AccountMeta {
-        pubkey: config.cpi_signer,
+        pubkey: *cpi_accounts.authority()?.key,
         is_signer: true,
         is_writable: false,
     });
 
-    // 3. Registered Program PDA (readonly) - hardcoded constant
     account_metas.push(AccountMeta {
-        pubkey: Pubkey::from(REGISTERED_PROGRAM_PDA),
+        pubkey: *cpi_accounts.registered_program_pda()?.key,
+        is_signer: false,
+        is_writable: false,
+    });
+    account_metas.push(AccountMeta {
+        pubkey: *cpi_accounts.account_compression_authority()?.key,
         is_signer: false,
         is_writable: false,
     });
@@ -50,81 +36,49 @@ pub fn to_account_metas_v2(cpi_accounts: CpiAccountsV2<'_, '_>) -> Result<Vec<Ac
     let accounts = cpi_accounts.account_infos();
     let mut index = CompressionCpiAccountIndexV2::SolPoolPda as usize;
 
-    // 5. Account Compression Program (readonly) - hardcoded constant
-    account_metas.push(AccountMeta {
-        pubkey: Pubkey::from(ACCOUNT_COMPRESSION_PROGRAM_ID),
-        is_signer: false,
-        is_writable: false,
-    });
-
-    // 6. System Program (readonly) - always default pubkey
-    account_metas.push(AccountMeta {
-        pubkey: Pubkey::default(),
-        is_signer: false,
-        is_writable: false,
-    });
-
-    // Optional accounts based on config
-    if config.sol_pool_pda {
+    if cpi_accounts.config().sol_pool_pda {
+        let account = cpi_accounts.get_account_info(index)?;
         account_metas.push(AccountMeta {
-            pubkey: Pubkey::from(SOL_POOL_PDA),
+            pubkey: *account.key,
             is_signer: false,
             is_writable: true,
         });
+        index += 1;
     }
 
-    if let Some(sol_compression_recipient_pubkey) = config.sol_compression_recipient_pubkey {
+    if cpi_accounts.config().sol_compression_recipient {
+        let account = cpi_accounts.get_account_info(index)?;
         account_metas.push(AccountMeta {
-            pubkey: sol_compression_recipient_pubkey,
+            pubkey: *account.key,
             is_signer: false,
             is_writable: true,
         });
+        index += 1;
     }
 
-    if let Some(cpi_context_pubkey) = config.cpi_context_pubkey {
+    if cpi_accounts.config().cpi_context {
+        let account = cpi_accounts.get_account_info(index)?;
         account_metas.push(AccountMeta {
-            pubkey: cpi_context_pubkey,
+            pubkey: *account.key,
             is_signer: false,
             is_writable: true,
         });
+        index += 1;
     }
+    assert_eq!(cpi_accounts.system_accounts_end_offset(), index);
 
-    // Add tree accounts
-    for acc in config.packed_accounts {
+    let tree_accounts =
+        accounts
+            .get(index..)
+            .ok_or(crate::error::LightSdkError::CpiAccountsIndexOutOfBounds(
+                index,
+            ))?;
+    tree_accounts.iter().for_each(|acc| {
         account_metas.push(AccountMeta {
             pubkey: *acc.key,
             is_signer: false,
-            is_writable: acc.is_writable,
+            is_writable: true,
         });
-    }
-
-    account_metas
-}
-
-impl<'a, 'info> TryFrom<&'a CpiAccountsSmall<'a, 'info>> for CpiInstructionConfigSmall<'a, 'info> {
-    type Error = LightSdkError;
-
-    fn try_from(cpi_accounts: &'a CpiAccountsSmall<'a, 'info>) -> Result<Self> {
-        Ok(CpiInstructionConfigSmall {
-            fee_payer: *cpi_accounts.fee_payer().key,
-            cpi_signer: cpi_accounts.config().cpi_signer().into(),
-            sol_pool_pda: cpi_accounts.config().sol_pool_pda,
-            sol_compression_recipient_pubkey: if cpi_accounts.config().sol_compression_recipient {
-                Some(*cpi_accounts.decompression_recipient()?.key)
-            } else {
-                None
-            },
-            cpi_context_pubkey: if cpi_accounts.config().cpi_context {
-                Some(*cpi_accounts.cpi_context()?.key)
-            } else {
-                None
-            },
-            packed_accounts: cpi_accounts.tree_accounts().unwrap_or(&[]),
-        })
-    }
-}
-
-pub fn to_account_metas_small(cpi_accounts: CpiAccountsSmall<'_, '_>) -> Result<Vec<AccountMeta>> {
-    let config = CpiInstructionConfigSmall::try_from(&cpi_accounts)?;
-    Ok(get_account_metas_from_config_small(config))
+    });
+    Ok(account_metas)
 }
