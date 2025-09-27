@@ -117,11 +117,7 @@ use std::{
 
 use light_compressed_account::{
     compressed_account::PackedMerkleContext,
-    instruction_data::{
-        data::OutputCompressedAccountWithPackedContext,
-        with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
-        with_readonly::InAccount,
-    },
+    instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo, OutAccountInfo},
 };
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaTrait;
 use solana_pubkey::Pubkey;
@@ -129,7 +125,7 @@ use solana_pubkey::Pubkey;
 use crate::{
     error::LightSdkError,
     light_hasher::{DataHasher, Hasher, Poseidon, Sha256},
-    AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
+    AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
 
 const DEFAULT_DATA_HASH: [u8; 32] = [0u8; 32];
@@ -137,7 +133,7 @@ const DEFAULT_DATA_HASH: [u8; 32] = [0u8; 32];
 pub trait Size {
     fn size(&self) -> usize;
 }
-
+pub use sha::LightAccount;
 /// SHA256 borsh flat hashed Light Account.
 /// This is the recommended account type for most use cases.
 pub mod sha {
@@ -183,6 +179,7 @@ pub use __internal::LightAccountInner;
 #[doc(hidden)]
 pub mod __internal {
     use light_sdk_types::instruction::account_meta::CompressedAccountMetaClose;
+    use solana_program_error::ProgramError;
 
     use super::*;
 
@@ -424,12 +421,12 @@ pub mod __internal {
             })
         }
 
-        pub fn to_account_info(mut self) -> Result<CompressedAccountInfo, LightSdkError> {
+        pub fn to_account_info(mut self) -> Result<CompressedAccountInfo, ProgramError> {
             if let Some(output) = self.account_info.output.as_mut() {
                 if self.should_remove_data {
                     // Data should be empty to close account.
                     if !output.data.is_empty() {
-                        return Err(LightSdkError::ExpectedNoData);
+                        return Err(LightSdkError::ExpectedNoData.into());
                     }
                     output.data_hash = DEFAULT_DATA_HASH;
                     output.discriminator = [0u8; 8];
@@ -454,12 +451,12 @@ pub mod __internal {
             owner: &'a Pubkey,
             input_account_meta: &impl CompressedAccountMetaTrait,
             input_account: A,
-        ) -> Result<Self, LightSdkError> {
+        ) -> Result<Self, ProgramError> {
             let input_account_info = {
                 // For HASH_FLAT = true, use direct serialization
                 let data = input_account
                     .try_to_vec()
-                    .map_err(|_| LightSdkError::Borsh)?;
+                    .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
                 let mut input_data_hash = H::hash(data.as_slice())?;
                 input_data_hash[0] = 0;
                 let tree_info = input_account_meta.get_tree_info();
@@ -479,7 +476,8 @@ pub mod __internal {
             let output_account_info = {
                 let output_merkle_tree_index = input_account_meta
                     .get_output_state_tree_index()
-                    .ok_or(LightSdkError::OutputStateTreeIndexIsNone)?;
+                    .ok_or(LightSdkError::OutputStateTreeIndexIsNone)
+                    .map_err(ProgramError::from)?;
                 OutAccountInfo {
                     lamports: input_account_meta.get_lamports().unwrap_or_default(),
                     output_merkle_tree_index,
@@ -505,7 +503,7 @@ pub mod __internal {
             owner: &'a Pubkey,
             input_account_meta: &impl CompressedAccountMetaTrait,
             input_account: A,
-        ) -> Result<Self, LightSdkError> {
+        ) -> Result<Self, ProgramError> {
             let input_account_info = {
                 let input_data_hash = DEFAULT_DATA_HASH;
                 let tree_info = input_account_meta.get_tree_info();
@@ -525,7 +523,8 @@ pub mod __internal {
             let output_account_info = {
                 let output_merkle_tree_index = input_account_meta
                     .get_output_state_tree_index()
-                    .ok_or(LightSdkError::OutputStateTreeIndexIsNone)?;
+                    .ok_or(LightSdkError::OutputStateTreeIndexIsNone)
+                    .map_err(ProgramError::from)?;
                 OutAccountInfo {
                     lamports: input_account_meta.get_lamports().unwrap_or_default(),
                     output_merkle_tree_index,
@@ -551,7 +550,7 @@ pub mod __internal {
             owner: &'a Pubkey,
             input_account_meta: &impl CompressedAccountMetaTrait,
             input_account: A,
-        ) -> Result<Self, LightSdkError> {
+        ) -> Result<Self, ProgramError> {
             let mut account = Self::new_mut(owner, input_account_meta, input_account)?;
             account.should_remove_data = true;
             Ok(account)
@@ -566,12 +565,12 @@ pub mod __internal {
             owner: &'a Pubkey,
             input_account_meta: &CompressedAccountMetaClose,
             input_account: A,
-        ) -> Result<Self, LightSdkError> {
+        ) -> Result<Self, ProgramError> {
             let input_account_info = {
                 // For HASH_FLAT = true, use direct serialization
                 let data = input_account
                     .try_to_vec()
-                    .map_err(|_| LightSdkError::Borsh)?;
+                    .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
                 let mut input_data_hash = H::hash(data.as_slice())?;
                 input_data_hash[0] = 0;
                 let tree_info = input_account_meta.get_tree_info();
@@ -602,12 +601,12 @@ pub mod __internal {
             })
         }
 
-        pub fn to_account_info(mut self) -> Result<CompressedAccountInfo, LightSdkError> {
+        pub fn to_account_info(mut self) -> Result<CompressedAccountInfo, ProgramError> {
             if let Some(output) = self.account_info.output.as_mut() {
                 if self.should_remove_data {
                     // Data should be empty to close account.
                     if !output.data.is_empty() {
-                        return Err(LightSdkError::ExpectedNoData);
+                        return Err(LightSdkError::ExpectedNoData.into());
                     }
                     output.data_hash = DEFAULT_DATA_HASH;
                     output.discriminator = [0u8; 8];
@@ -615,7 +614,7 @@ pub mod __internal {
                     output.data = self
                         .account
                         .try_to_vec()
-                        .map_err(|_| LightSdkError::Borsh)?;
+                        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
                     // For HASH_FLAT = true, use direct serialization
                     output.data_hash = H::hash(output.data.as_slice())?;
                     output.data_hash[0] = 0;

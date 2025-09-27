@@ -95,6 +95,12 @@ pub trait LightCpiInstruction: Sized {
     fn new_cpi(cpi_signer: crate::cpi::CpiSigner, proof: ValidityProof) -> Self;
     fn with_light_account<A>(self, account: LightAccount<'_, A>) -> Result<Self, ProgramError>
     where
+        A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default;
+    fn with_light_account_poseidon<A>(
+        self,
+        account: crate::account::poseidon::LightAccount<'_, A>,
+    ) -> Result<Self, ProgramError>
+    where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default;
     fn get_mode(&self) -> u8;
     fn get_bump(&self) -> u8;

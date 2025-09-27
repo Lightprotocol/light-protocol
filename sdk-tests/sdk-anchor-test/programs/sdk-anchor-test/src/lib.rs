@@ -4,7 +4,7 @@
 use anchor_lang::{prelude::*, Discriminator};
 use light_sdk::{
     // anchor test test poseidon LightAccount, native tests sha256 LightAccount
-    account::poseidon::LightAccount,
+    account::LightAccount,
     address::v1::derive_address,
     cpi::{
         CpiAccounts, CpiSigner, InstructionDataInvokeCpiWithReadOnly, InvokeLightSystemProgram,
@@ -61,14 +61,10 @@ pub mod sdk_anchor_test {
         my_compressed_account.name = name;
         my_compressed_account.nested = NestedData::default();
 
-        InstructionDataInvokeCpiWithReadOnly::new(
-            LIGHT_CPI_SIGNER.program_id.into(),
-            LIGHT_CPI_SIGNER.bump,
-            proof.into(),
-        )
-        .with_light_account(my_compressed_account)?
-        .with_new_addresses(&[new_address_params])
-        .invoke(light_cpi_accounts)?;
+        InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .with_light_account(my_compressed_account)?
+            .with_new_addresses(&[new_address_params])
+            .invoke(light_cpi_accounts)?;
 
         Ok(())
     }
@@ -93,13 +89,9 @@ pub mod sdk_anchor_test {
             ctx.remaining_accounts,
             crate::LIGHT_CPI_SIGNER,
         );
-        InstructionDataInvokeCpiWithReadOnly::new(
-            LIGHT_CPI_SIGNER.program_id.into(),
-            LIGHT_CPI_SIGNER.bump,
-            proof.into(),
-        )
-        .with_light_account(my_compressed_account)?
-        .invoke(light_cpi_accounts)?;
+        InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .with_light_account(my_compressed_account)?
+            .invoke(light_cpi_accounts)?;
 
         Ok(())
     }
@@ -114,8 +106,7 @@ pub mod sdk_anchor_test {
             &crate::ID,
             &account_meta,
             my_compressed_account,
-        )
-        .map_err(ProgramError::from)?;
+        )?;
 
         let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
@@ -123,16 +114,9 @@ pub mod sdk_anchor_test {
             crate::LIGHT_CPI_SIGNER,
         );
 
-        let cpi_inputs = CpiInputs::new(
-            proof,
-            vec![my_compressed_account
-                .to_account_info()
-                .map_err(ProgramError::from)?],
-        );
-
-        cpi_inputs
-            .invoke_light_system_program(light_cpi_accounts)
-            .map_err(ProgramError::from)?;
+        InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .with_light_account(my_compressed_account)?
+            .invoke(light_cpi_accounts)?;
 
         Ok(())
     }
@@ -146,8 +130,7 @@ pub mod sdk_anchor_test {
             &crate::ID,
             &account_meta,
             MyCompressedAccount::default(),
-        )
-        .map_err(ProgramError::from)?;
+        )?;
 
         let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
@@ -155,16 +138,9 @@ pub mod sdk_anchor_test {
             crate::LIGHT_CPI_SIGNER,
         );
 
-        let cpi_inputs = CpiInputs::new(
-            proof,
-            vec![my_compressed_account
-                .to_account_info()
-                .map_err(ProgramError::from)?],
-        );
-
-        cpi_inputs
-            .invoke_light_system_program(light_cpi_accounts)
-            .map_err(ProgramError::from)?;
+        InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .with_light_account(my_compressed_account)?
+            .invoke(light_cpi_accounts)?;
 
         Ok(())
     }
@@ -178,25 +154,16 @@ pub mod sdk_anchor_test {
             &crate::ID,
             &account_meta,
             MyCompressedAccount::default(),
-        )
-        .map_err(ProgramError::from)?;
+        )?;
 
         let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
             ctx.remaining_accounts,
             crate::LIGHT_CPI_SIGNER,
         );
-
-        let cpi_inputs = CpiInputs::new(
-            proof,
-            vec![my_compressed_account
-                .to_account_info()
-                .map_err(ProgramError::from)?],
-        );
-
-        cpi_inputs
-            .invoke_light_system_program(light_cpi_accounts)
-            .map_err(ProgramError::from)?;
+        InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .with_light_account(my_compressed_account)?
+            .invoke(light_cpi_accounts)?;
 
         Ok(())
     }

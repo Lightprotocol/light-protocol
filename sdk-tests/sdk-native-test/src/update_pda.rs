@@ -7,7 +7,6 @@ use light_sdk::{
     },
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
-    LightAccount,
 };
 use solana_program::account_info::AccountInfo;
 
