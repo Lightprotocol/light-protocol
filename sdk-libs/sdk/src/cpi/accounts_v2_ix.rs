@@ -32,7 +32,16 @@ pub fn to_account_metas_v2(cpi_accounts: &CpiAccountsV2<'_, '_>) -> Result<Vec<A
         is_signer: false,
         is_writable: false,
     });
-
+    account_metas.push(AccountMeta {
+        pubkey: *cpi_accounts.account_compression_program()?.key,
+        is_signer: false,
+        is_writable: false,
+    });
+    account_metas.push(AccountMeta {
+        pubkey: *cpi_accounts.system_program()?.key,
+        is_signer: false,
+        is_writable: false,
+    });
     let accounts = cpi_accounts.account_infos();
     let mut index = CompressionCpiAccountIndexV2::SolPoolPda as usize;
 

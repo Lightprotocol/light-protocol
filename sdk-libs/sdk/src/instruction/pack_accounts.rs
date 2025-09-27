@@ -61,7 +61,7 @@ impl PackedAccounts {
     }
 
     #[cfg(feature = "v2")]
-    pub fn add_system_accounts_small(
+    pub fn add_system_accounts_v2(
         &mut self,
         config: SystemAccountMetaConfig,
     ) -> crate::error::Result<()> {
