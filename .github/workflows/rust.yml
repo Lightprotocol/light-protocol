@@ -47,6 +47,7 @@ jobs:
               aligned-sized light-hasher light-compressed-account light-account-checks \
               light-verifier light-merkle-tree-metadata light-zero-copy light-hash-set
             test_cmd: |
+              cargo test -p light-macros
               cargo test -p aligned-sized
               cargo test -p light-hasher --all-features
               cargo test -p light-compressed-account --all-features
