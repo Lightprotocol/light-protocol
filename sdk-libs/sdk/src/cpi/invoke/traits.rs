@@ -69,7 +69,7 @@ impl<'info> CpiAccountsTrait<'info> for &[AccountInfo<'info>] {
 }
 
 // Implementation for CpiContextWriteAccounts
-impl<'info> CpiAccountsTrait<'info> for CpiContextWriteAccounts<'info, AccountInfo<'info>> {
+impl<'a, 'info> CpiAccountsTrait<'info> for CpiContextWriteAccounts<'a, AccountInfo<'info>> {
     fn to_account_infos(&self) -> Vec<AccountInfo<'info>> {
         vec![
             self.fee_payer.clone(),
