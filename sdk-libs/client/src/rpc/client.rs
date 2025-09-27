@@ -76,7 +76,7 @@ pub struct RetryConfig {
 impl Default for RetryConfig {
     fn default() -> Self {
         RetryConfig {
-            max_retries: 30,
+            max_retries: 10,
             retry_delay: Duration::from_secs(1),
             timeout: Duration::from_secs(60),
         }
@@ -753,8 +753,8 @@ impl Rpc for LightClient {
 
     fn get_address_tree_v2(&self) -> TreeInfo {
         TreeInfo {
-            tree: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
-            queue: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
+            tree: pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx"),
+            queue: pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx"),
             cpi_context: None,
             next_tree_info: None,
             tree_type: TreeType::AddressV2,

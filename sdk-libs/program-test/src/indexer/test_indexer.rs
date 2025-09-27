@@ -340,7 +340,7 @@ impl Indexer for TestIndexer {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<CompressedAccount>>, IndexerError> {
+    ) -> Result<Response<Items<Option<CompressedAccount>>>, IndexerError> {
         match (addresses, hashes) {
             (Some(addresses), _) => {
                 let accounts = self
@@ -351,8 +351,8 @@ impl Indexer for TestIndexer {
                             .address
                             .is_some_and(|addr| addresses.contains(&addr))
                     })
-                    .map(|acc| acc.clone().try_into())
-                    .collect::<Result<Vec<CompressedAccount>, IndexerError>>()?;
+                    .map(|acc| acc.clone().try_into().map(Some))
+                    .collect::<Result<Vec<Option<CompressedAccount>>, IndexerError>>()?;
                 Ok(Response {
                     context: Context {
                         slot: self.get_current_slot(),
@@ -365,8 +365,8 @@ impl Indexer for TestIndexer {
                     .compressed_accounts
                     .iter()
                     .filter(|acc| acc.hash().is_ok_and(|hash| hashes.contains(&hash)))
-                    .map(|acc| acc.clone().try_into())
-                    .collect::<Result<Vec<CompressedAccount>, IndexerError>>()?;
+                    .map(|acc| acc.clone().try_into().map(Some))
+                    .collect::<Result<Vec<Option<CompressedAccount>>, IndexerError>>()?;
                 Ok(Response {
                     context: Context {
                         slot: self.get_current_slot(),
