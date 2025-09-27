@@ -1144,7 +1144,7 @@ async fn only_test_create_pda() {
             let compressed_account =
                 test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
 
-            let keypair = Keypair::from_bytes(&CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR).unwrap();
+            let keypair = Keypair::try_from(CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR.as_slice()).unwrap();
             let result = transfer_compressed_sol_test(
                 &mut rpc,
                 &mut test_indexer,

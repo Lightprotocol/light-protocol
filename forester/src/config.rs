@@ -179,8 +179,8 @@ impl ForesterConfig {
             }
             None => return Err(ConfigError::MissingField { field: "payer" })?,
         };
-        let payer =
-            Keypair::from_bytes(&payer).map_err(|e| ConfigError::InvalidKeypair(e.to_string()))?;
+        let payer = Keypair::try_from(payer.as_slice())
+            .map_err(|e| ConfigError::InvalidKeypair(e.to_string()))?;
 
         let derivation: Vec<u8> = match &args.derivation {
             Some(derivation_str) => {

@@ -54,12 +54,18 @@ pub fn from_target_folder() -> TestKeypairs {
         cpi_context_account,
         system_program,
         registry_program,
-        batched_state_merkle_tree: Keypair::from_bytes(&BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR)
+        batched_state_merkle_tree: Keypair::try_from(
+            BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR.as_slice(),
+        )
+        .unwrap(),
+        batched_output_queue: Keypair::try_from(BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR.as_slice())
             .unwrap(),
-        batched_output_queue: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap(),
-        batched_cpi_context: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR).unwrap(),
-        batch_address_merkle_tree: Keypair::from_bytes(&BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR)
+        batched_cpi_context: Keypair::try_from(BATCHED_CPI_CONTEXT_TEST_KEYPAIR.as_slice())
             .unwrap(),
+        batch_address_merkle_tree: Keypair::try_from(
+            BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR.as_slice(),
+        )
+        .unwrap(),
         state_merkle_tree_2: Keypair::new(),
         nullifier_queue_2: Keypair::new(),
         cpi_context_2: Keypair::new(),
@@ -80,9 +86,9 @@ pub fn for_regenerate_accounts() -> TestKeypairs {
     )
     .unwrap();
 
-    let governance_authority = Keypair::from_bytes(&PAYER_KEYPAIR).unwrap();
+    let governance_authority = Keypair::try_from(PAYER_KEYPAIR.as_slice()).unwrap();
 
-    let forester = Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap();
+    let forester = Keypair::try_from(FORESTER_TEST_KEYPAIR.as_slice()).unwrap();
     let address_merkle_tree = read_keypair_file(format!(
         "{}amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2.json",
         prefix
@@ -134,12 +140,18 @@ pub fn for_regenerate_accounts() -> TestKeypairs {
         cpi_context_account,
         system_program,
         registry_program,
-        batched_state_merkle_tree: Keypair::from_bytes(&BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR)
+        batched_state_merkle_tree: Keypair::try_from(
+            BATCHED_STATE_MERKLE_TREE_TEST_KEYPAIR.as_slice(),
+        )
+        .unwrap(),
+        batched_output_queue: Keypair::try_from(BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR.as_slice())
             .unwrap(),
-        batched_output_queue: Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap(),
-        batched_cpi_context: Keypair::from_bytes(&BATCHED_CPI_CONTEXT_TEST_KEYPAIR).unwrap(),
-        batch_address_merkle_tree: Keypair::from_bytes(&BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR)
+        batched_cpi_context: Keypair::try_from(BATCHED_CPI_CONTEXT_TEST_KEYPAIR.as_slice())
             .unwrap(),
+        batch_address_merkle_tree: Keypair::try_from(
+            BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR.as_slice(),
+        )
+        .unwrap(),
         state_merkle_tree_2,
         nullifier_queue_2,
         cpi_context_2,

@@ -51,6 +51,7 @@ use light_test_utils::{
 use light_verifier::VerifierError;
 use num_bigint::ToBigUint;
 use serial_test::serial;
+#[allow(deprecated)]
 use solana_sdk::{
     account::WritableAccount,
     instruction::Instruction,

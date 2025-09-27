@@ -60,7 +60,7 @@ mod test {
 
         assert_eq!(
             input_compressed_accounts_signer_check(
-                &[compressed_account_with_context.clone()],
+                std::slice::from_ref(&compressed_account_with_context),
                 &authority
             ),
             Ok(())

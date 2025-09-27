@@ -1,6 +1,9 @@
 //! # Light Program Test
 //!
 //! A fast local test environment for Solana programs using compressed accounts and tokens.
+
+#![allow(deprecated)]
+#![allow(clippy::result_large_err)]
 //!
 //! ## Features
 //! - Fast in-memory indexer and SVM via [LiteSVM](https://github.com/LiteSVM/LiteSVM)

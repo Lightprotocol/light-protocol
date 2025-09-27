@@ -392,7 +392,7 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
 pub fn chain_outputs<'a, 'b: 'a>(
     slice1: &'a [impl OutputAccount<'b>],
     slice2: &'a [impl OutputAccount<'b>],
-) -> impl Iterator<Item = &'a (dyn OutputAccount<'b>)> {
+) -> impl Iterator<Item = &'a dyn OutputAccount<'b>> {
     slice1
         .iter()
         .filter(|x| !x.skip())
@@ -408,7 +408,7 @@ pub fn chain_outputs<'a, 'b: 'a>(
 pub fn chain_inputs<'a, 'b: 'a>(
     slice1: &'a [impl InputAccount<'b>],
     slice2: &'a [impl InputAccount<'b>],
-) -> impl Iterator<Item = &'a (dyn InputAccount<'b>)> {
+) -> impl Iterator<Item = &'a dyn InputAccount<'b>> {
     slice1
         .iter()
         .filter(|x| !x.skip())
@@ -424,7 +424,7 @@ pub fn chain_inputs<'a, 'b: 'a>(
 pub fn chain_new_addresses<'a, 'b: 'a>(
     slice1: &'a [impl NewAddress<'b>],
     slice2: &'a [impl NewAddress<'b>],
-) -> impl Iterator<Item = &'a (dyn NewAddress<'b>)> {
+) -> impl Iterator<Item = &'a dyn NewAddress<'b>> {
     slice1
         .iter()
         .map(|item| item as &dyn NewAddress<'b>)

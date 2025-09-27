@@ -58,7 +58,7 @@ pub fn compute_root_from_merkle_proof<const HEIGHT: usize>(
     let mut current_index = path_index;
     for (level, path_element) in path_elements.iter().enumerate() {
         changelog_entry.path[level] = Some(current_hash);
-        if current_index % 2 == 0 {
+        if current_index.is_multiple_of(2) {
             current_hash = Poseidon::hashv(&[&current_hash, path_element]).unwrap();
         } else {
             current_hash = Poseidon::hashv(&[path_element, &current_hash]).unwrap();

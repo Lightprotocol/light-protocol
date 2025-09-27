@@ -9,7 +9,7 @@ description = "Client library for Light Protocol"
 [features]
 devenv = ["v2"]
 v2 = []
-program-test = ["solana-banks-client"]
+program-test = ["solana-banks-client", "litesvm"]
 
 [dependencies]
 # Solana dependencies
@@ -47,6 +47,7 @@ light-compressed-account = { workspace = true, features = ["solana"] }
 # unrelased
 photon-api = { workspace = true }
 light-prover-client = { workspace = true }
+litesvm = { workspace = true, optional = true }
 
 # External dependencies
 borsh = { workspace = true }

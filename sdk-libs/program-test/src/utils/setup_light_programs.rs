@@ -71,10 +71,7 @@ pub fn setup_light_programs(
 
     let path = format!("{}/light_system_program_pinocchio.so", light_bin_path);
     program_test
-        .add_program_from_file(
-            light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID.into(),
-            path.clone(),
-        )
+        .add_program_from_file(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID, path.clone())
         .inspect_err(|_| {
             println!(
                 "Program light_system_program_pinocchio bin not found in {}",

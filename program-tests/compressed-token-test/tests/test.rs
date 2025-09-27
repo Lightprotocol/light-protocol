@@ -64,6 +64,7 @@ use light_test_utils::{
 };
 use rand::{seq::SliceRandom, thread_rng, Rng};
 use serial_test::serial;
+#[allow(deprecated)]
 use solana_sdk::{
     instruction::Instruction,
     pubkey::Pubkey,
@@ -5616,7 +5617,7 @@ async fn batch_compress_with_batched_tree() {
     airdrop_lamports(&mut rpc, &delegate.pubkey(), 1_000_000_000)
         .await
         .unwrap();
-    let mint_keypair = Keypair::from_bytes(
+    let mint_keypair = Keypair::try_from(
         [
             92, 10, 186, 75, 244, 33, 212, 169, 74, 97, 12, 151, 170, 73, 196, 211, 144, 174, 135,
             134, 226, 202, 73, 127, 196, 58, 242, 47, 55, 228, 95, 41, 228, 15, 181, 122, 74, 247,
@@ -5629,7 +5630,7 @@ async fn batch_compress_with_batched_tree() {
     println!("mint keypair {:?}", mint_keypair);
     let mint = create_mint_helper_with_keypair(&mut rpc, &payer, &mint_keypair).await;
     let amount = 10000u64;
-    let token_account_keypair = Keypair::from_bytes(
+    let token_account_keypair = Keypair::try_from(
         [
             146, 220, 11, 246, 163, 31, 179, 147, 57, 222, 86, 224, 126, 147, 227, 175, 189, 209,
             175, 207, 241, 129, 182, 169, 150, 198, 133, 163, 136, 196, 191, 224, 178, 83, 220, 36,
@@ -5847,7 +5848,7 @@ async fn batch_compress_with_batched_tree() {
             .await;
         assert_rpc_error(result, 0, TokenError::InsufficientFunds as u32).unwrap();
     }
-    let invalid_token_account_invalid_mint = Keypair::from_bytes(
+    let invalid_token_account_invalid_mint = Keypair::try_from(
         [
             115, 180, 27, 68, 167, 116, 94, 248, 224, 127, 195, 122, 31, 54, 174, 159, 116, 186,
             54, 185, 64, 123, 9, 97, 189, 205, 251, 92, 210, 158, 114, 25, 86, 155, 159, 222, 91,
@@ -5857,7 +5858,7 @@ async fn batch_compress_with_batched_tree() {
         .as_slice(),
     )
     .unwrap();
-    let invalid_mint_keypair = Keypair::from_bytes(
+    let invalid_mint_keypair = Keypair::try_from(
         [
             151, 111, 81, 148, 81, 197, 92, 46, 198, 61, 138, 73, 152, 16, 184, 8, 5, 228, 52, 166,
             242, 220, 42, 75, 228, 34, 239, 85, 97, 190, 70, 104, 171, 19, 46, 51, 208, 201, 112,

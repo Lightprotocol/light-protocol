@@ -197,7 +197,8 @@ async fn test_initialize_protocol_config() {
     };
 
     let payer = rpc.get_payer().insecure_clone();
-    let program_account_keypair = Keypair::from_bytes(&OLD_REGISTRY_ID_TEST_KEYPAIR).unwrap();
+    let program_account_keypair =
+        Keypair::try_from(OLD_REGISTRY_ID_TEST_KEYPAIR.as_slice()).unwrap();
     let protocol_config = ProtocolConfig::default();
     let (protocol_config_pda, bump) = get_protocol_config_pda_address();
     let ix_data = light_registry::instruction::InitializeProtocolConfig {
@@ -334,7 +335,7 @@ async fn test_initialize_protocol_config() {
     }
     let cpi_authority_pda = get_cpi_authority_pda();
 
-    let group_seed_keypair = Keypair::from_bytes(&GROUP_PDA_SEED_TEST_KEYPAIR).unwrap();
+    let group_seed_keypair = Keypair::try_from(GROUP_PDA_SEED_TEST_KEYPAIR.as_slice()).unwrap();
     let group_pda =
         initialize_new_group(&group_seed_keypair, &payer, &mut rpc, cpi_authority_pda.0)
             .await
