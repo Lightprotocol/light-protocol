@@ -8,7 +8,7 @@ use light_sdk::{
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},
     light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
-    LightAccount, LightDiscriminator,
+    LightDiscriminator,
 };
 use solana_program::{account_info::AccountInfo, msg};
 

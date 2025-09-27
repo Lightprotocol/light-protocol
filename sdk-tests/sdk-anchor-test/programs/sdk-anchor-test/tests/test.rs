@@ -261,7 +261,7 @@ async fn close_compressed_account(
     let mut remaining_accounts = PackedAccounts::default();
 
     let config = SystemAccountMetaConfig::new(sdk_anchor_test::ID);
-    remaining_accounts.add_system_accounts(config);
+    remaining_accounts.add_system_accounts(config)?;
     let hash = compressed_account.hash;
 
     let rpc_result = rpc
@@ -315,7 +315,7 @@ async fn reinit_closed_account(
     let mut remaining_accounts = PackedAccounts::default();
 
     let config = SystemAccountMetaConfig::new(sdk_anchor_test::ID);
-    remaining_accounts.add_system_accounts(config);
+    remaining_accounts.add_system_accounts(config)?;
 
     // Get closed account
     let closed_account = rpc
@@ -371,7 +371,7 @@ async fn close_compressed_account_permanent(
     let mut remaining_accounts = PackedAccounts::default();
 
     let config = SystemAccountMetaConfig::new(sdk_anchor_test::ID);
-    remaining_accounts.add_system_accounts(config);
+    remaining_accounts.add_system_accounts(config)?;
     let hash = compressed_account.hash;
 
     let rpc_result = rpc
