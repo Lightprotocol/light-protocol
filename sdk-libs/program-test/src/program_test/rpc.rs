@@ -296,8 +296,8 @@ impl Rpc for LightProgramTest {
 
     fn get_address_tree_v2(&self) -> TreeInfo {
         TreeInfo {
-            tree: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
-            queue: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
+            tree: pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx"),
+            queue: pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx"),
             cpi_context: None,
             next_tree_info: None,
             tree_type: TreeType::AddressV2,

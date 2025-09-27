@@ -153,7 +153,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<CompressedAccount>>, IndexerError>;
+    ) -> Result<Response<Items<Option<CompressedAccount>>>, IndexerError>;
 
     /// Returns proofs that the new addresses are not taken already and can be created.
     async fn get_multiple_new_address_proofs(
