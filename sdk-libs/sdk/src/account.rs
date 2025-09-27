@@ -441,6 +441,12 @@ pub mod __internal {
             }
             Ok(self.account_info)
         }
+        pub fn to_in_account(&self) -> Option<InAccount> {
+            self.account_info
+                .input
+                .as_ref()
+                .map(|input| input.into_in_account(self.account_info.address))
+        }
     }
 
     // Specialized implementation for HASH_FLAT = true (flat serialization without DataHasher)
@@ -621,6 +627,12 @@ pub mod __internal {
                 }
             }
             Ok(self.account_info)
+        }
+        pub fn to_in_account(&self) -> Option<InAccount> {
+            self.account_info
+                .input
+                .as_ref()
+                .map(|input| input.into_in_account(self.account_info.address))
         }
     }
 
