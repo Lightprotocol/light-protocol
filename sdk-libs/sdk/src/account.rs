@@ -178,6 +178,9 @@ pub use __internal::LightAccountInner;
 /// - `sha::LightAccount` for SHA256 hashing
 #[doc(hidden)]
 pub mod __internal {
+    use light_compressed_account::instruction_data::{
+        data::OutputCompressedAccountWithPackedContext, with_readonly::InAccount,
+    };
     use light_sdk_types::instruction::account_meta::CompressedAccountMetaClose;
     use solana_program_error::ProgramError;
 
@@ -436,7 +439,11 @@ pub mod __internal {
                         .try_to_vec()
                         .map_err(|_| LightSdkError::Borsh)?;
                     // For HASH_FLAT = false, always use DataHasher
-                    output.data_hash = self.account.hash::<H>()?;
+                    output.data_hash = self
+                        .account
+                        .hash::<H>()
+                        .map_err(LightSdkError::from)
+                        .map_err(ProgramError::from)?;
                 }
             }
             Ok(self.account_info)
@@ -446,6 +453,51 @@ pub mod __internal {
                 .input
                 .as_ref()
                 .map(|input| input.into_in_account(self.account_info.address))
+        }
+
+        pub fn to_output_compressed_account_with_packed_context(
+            &self,
+            owner: Option<solana_pubkey::Pubkey>,
+        ) -> Result<Option<OutputCompressedAccountWithPackedContext>, ProgramError> {
+            let owner = if let Some(owner) = owner {
+                owner.to_bytes().into()
+            } else {
+                (*self.owner).to_bytes().into()
+            };
+
+            if let Some(mut output) = self.account_info.output.clone() {
+                if self.should_remove_data {
+                    // Data should be empty to close account.
+                    if !output.data.is_empty() {
+                        return Err(LightSdkError::ExpectedNoData.into());
+                    }
+                    output.data_hash = DEFAULT_DATA_HASH;
+                    output.discriminator = [0u8; 8];
+                } else {
+                    output.data = self
+                        .account
+                        .try_to_vec()
+                        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+                    // For HASH_FLAT = false, always use DataHasher
+                    output.data_hash = self
+                        .account
+                        .hash::<H>()
+                        .map_err(LightSdkError::from)
+                        .map_err(ProgramError::from)?;
+                    output.data = self
+                        .account
+                        .try_to_vec()
+                        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+                }
+                let result = OutputCompressedAccountWithPackedContext::from_with_owner(
+                    &output,
+                    owner,
+                    self.account_info.address,
+                );
+                Ok(Some(result))
+            } else {
+                Ok(None)
+            }
         }
     }
 
@@ -463,7 +515,9 @@ pub mod __internal {
                 let data = input_account
                     .try_to_vec()
                     .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
-                let mut input_data_hash = H::hash(data.as_slice())?;
+                let mut input_data_hash = H::hash(data.as_slice())
+                    .map_err(LightSdkError::from)
+                    .map_err(ProgramError::from)?;
                 input_data_hash[0] = 0;
                 let tree_info = input_account_meta.get_tree_info();
                 InAccountInfo {
@@ -577,7 +631,9 @@ pub mod __internal {
                 let data = input_account
                     .try_to_vec()
                     .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
-                let mut input_data_hash = H::hash(data.as_slice())?;
+                let mut input_data_hash = H::hash(data.as_slice())
+                    .map_err(LightSdkError::from)
+                    .map_err(ProgramError::from)?;
                 input_data_hash[0] = 0;
                 let tree_info = input_account_meta.get_tree_info();
                 InAccountInfo {
@@ -622,7 +678,9 @@ pub mod __internal {
                         .try_to_vec()
                         .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
                     // For HASH_FLAT = true, use direct serialization
-                    output.data_hash = H::hash(output.data.as_slice())?;
+                    output.data_hash = H::hash(output.data.as_slice())
+                        .map_err(LightSdkError::from)
+                        .map_err(ProgramError::from)?;
                     output.data_hash[0] = 0;
                 }
             }
@@ -633,6 +691,50 @@ pub mod __internal {
                 .input
                 .as_ref()
                 .map(|input| input.into_in_account(self.account_info.address))
+        }
+        pub fn to_output_compressed_account_with_packed_context(
+            &self,
+            owner: Option<solana_pubkey::Pubkey>,
+        ) -> Result<Option<OutputCompressedAccountWithPackedContext>, ProgramError> {
+            let owner = if let Some(owner) = owner {
+                owner.to_bytes().into()
+            } else {
+                (*self.owner).to_bytes().into()
+            };
+
+            if let Some(mut output) = self.account_info.output.clone() {
+                if self.should_remove_data {
+                    // Data should be empty to close account.
+                    if !output.data.is_empty() {
+                        return Err(LightSdkError::ExpectedNoData.into());
+                    }
+                    output.data_hash = DEFAULT_DATA_HASH;
+                    output.discriminator = [0u8; 8];
+                } else {
+                    output.data = self
+                        .account
+                        .try_to_vec()
+                        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+                    // For HASH_FLAT = true, use direct serialization
+                    output.data_hash = H::hash(output.data.as_slice())
+                        .map_err(LightSdkError::from)
+                        .map_err(ProgramError::from)?;
+                    output.data_hash[0] = 0;
+                    output.data = self
+                        .account
+                        .try_to_vec()
+                        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+                }
+
+                let result = OutputCompressedAccountWithPackedContext::from_with_owner(
+                    &output,
+                    owner,
+                    self.account_info.address,
+                );
+                Ok(Some(result))
+            } else {
+                Ok(None)
+            }
         }
     }
 
