@@ -31,14 +31,6 @@ pub enum TransactionStatus {
 }
 
 impl TransactionStatus {
-    pub fn symbol(&self) -> &'static str {
-        match self {
-            TransactionStatus::Success => "✅",
-            TransactionStatus::Failed(_) => "❌",
-            TransactionStatus::Unknown => "⚠️",
-        }
-    }
-
     pub fn text(&self) -> String {
         match self {
             TransactionStatus::Success => "Success".to_string(),
@@ -136,6 +128,8 @@ pub struct InputAccountData {
     pub address: Option<[u8; 32]>,
     pub data_hash: Vec<u8>,
     pub discriminator: Vec<u8>,
+    pub leaf_index: Option<u32>,
+    pub root_index: Option<u16>,
 }
 
 /// Output account data

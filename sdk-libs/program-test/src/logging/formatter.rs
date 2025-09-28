@@ -295,14 +295,13 @@ impl TransactionFormatter {
     ) -> fmt::Result {
         writeln!(
             output,
-            "{}│{} {}Transaction: {}{} | Slot: {} | Status: {} {}{}",
+            "{}│{} {}Transaction: {}{} | Slot: {} | Status: {}{}",
             self.colors.gray,
             self.colors.reset,
             self.colors.bold,
             self.colors.cyan,
             log.signature,
             log.slot,
-            log.status.symbol(),
             self.status_color(&log.status),
             log.status.text(),
         )?;
@@ -706,6 +705,30 @@ impl TransactionFormatter {
                                 self.colors.gray,
                                 self.colors.yellow,
                                 queue_pubkey,
+                                self.colors.reset
+                            )?;
+                        }
+                        // Display leaf index after queue_pubkey
+                        if let Some(leaf_idx) = acc_data.leaf_index {
+                            writeln!(
+                                output,
+                                "{}      {}leaf_index: {}{}{}",
+                                indent,
+                                self.colors.gray,
+                                self.colors.cyan,
+                                leaf_idx,
+                                self.colors.reset
+                            )?;
+                        }
+                        // Display root index after leaf index
+                        if let Some(root_idx) = acc_data.root_index {
+                            writeln!(
+                                output,
+                                "{}      {}root_index: {}{}{}",
+                                indent,
+                                self.colors.gray,
+                                self.colors.cyan,
+                                root_idx,
                                 self.colors.reset
                             )?;
                         }
