@@ -6,6 +6,10 @@ repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
 
+
+[features]
+anchor-discriminator = []
+
 [dependencies]
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
@@ -22,6 +26,7 @@ prettyplease = "0.2.29"
 solana-pubkey = { workspace = true, features = ["borsh"] }
 borsh = { workspace = true }
 light-macros = { workspace = true }
+light-account-checks = { workspace = true }
 
 [lib]
 proc-macro = true

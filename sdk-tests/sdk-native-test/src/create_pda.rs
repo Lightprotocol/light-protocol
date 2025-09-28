@@ -1,17 +1,16 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
-    account::LightAccount,
     cpi::{CpiAccounts, CpiAccountsConfig, CpiInputs},
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},
     light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
-    LightDiscriminator, LightHasher,
+    LightAccount, LightDiscriminator,
 };
 use solana_program::{account_info::AccountInfo, msg};
 
 use crate::ARRAY_LEN;
 
-/// TODO: write test program with A8JgviaEAByMVLBhcebpDQ7NMuZpqBTBigC1b83imEsd (inconvenient program id)
+/// TODO: write test program with A8JgviaEAByMVLBhcebpDQ7NMuZpqBTBigC1b83imEsd (inconvenient program id) use v2 instruction for this purpose
 /// CU usage:
 /// - sdk pre system program cpi 10,942 CU
 /// - total with V2 tree: 45,758 CU
@@ -73,9 +72,8 @@ pub fn create_pda<const BATCHED: bool>(
     Ok(())
 }
 
-#[derive(Clone, Debug, LightHasher, LightDiscriminator, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Debug, LightDiscriminator, BorshDeserialize, BorshSerialize)]
 pub struct MyCompressedAccount {
-    #[hash]
     pub data: [u8; ARRAY_LEN],
 }
 

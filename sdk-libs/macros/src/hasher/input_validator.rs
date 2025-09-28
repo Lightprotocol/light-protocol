@@ -60,6 +60,36 @@ pub(crate) fn validate_input(input: &ItemStruct) -> Result<()> {
     Ok(())
 }
 
+/// SHA256-specific validation - much more relaxed constraints
+pub(crate) fn validate_input_sha(input: &ItemStruct) -> Result<()> {
+    // Check that we have a struct with named fields
+    match &input.fields {
+        Fields::Named(_) => (),
+        _ => {
+            return Err(Error::new_spanned(
+                input,
+                "Only structs with named fields are supported",
+            ))
+        }
+    };
+
+    // For SHA256, we don't limit field count or require specific attributes
+    // Just ensure flatten is not used (not implemented for SHA256 path)
+    let flatten_field_exists = input
+        .fields
+        .iter()
+        .any(|field| get_field_attribute(field) == FieldAttribute::Flatten);
+
+    if flatten_field_exists {
+        return Err(Error::new_spanned(
+            input,
+            "Flatten attribute is not supported in SHA256 hasher.",
+        ));
+    }
+
+    Ok(())
+}
+
 /// Gets the primary attribute for a field (only one attribute can be active)
 pub(crate) fn get_field_attribute(field: &Field) -> FieldAttribute {
     if field.attrs.iter().any(|attr| attr.path().is_ident("hash")) {
