@@ -18,6 +18,7 @@ use zerocopy::{
 )]
 pub struct CpiContextOutAccount {
     pub owner: Pubkey,
+    pub has_data: u8,
     pub discriminator: [u8; 8],
     /// Data hash
     pub data_hash: [u8; 32],
@@ -35,6 +36,7 @@ pub struct CpiContextOutAccount {
 )]
 pub struct CpiContextInAccount {
     pub owner: Pubkey,
+    pub has_data: u8,
     pub discriminator: [u8; 8],
     /// Data hash
     pub data_hash: [u8; 32],
@@ -71,7 +73,7 @@ impl InputAccount<'_> for CpiContextInAccount {
     }
 
     fn has_data(&self) -> bool {
-        self.discriminator != [0; 8] || self.data_hash != [0u8; 32]
+        self.has_data != 0
     }
 
     fn data(&self) -> Option<CompressedAccountData> {
@@ -127,7 +129,7 @@ impl OutputAccount<'_> for CpiContextOutAccount {
     }
 
     fn has_data(&self) -> bool {
-        self.discriminator != [0; 8]
+        self.has_data != 0
     }
 
     fn skip(&self) -> bool {

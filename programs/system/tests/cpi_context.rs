@@ -1133,6 +1133,7 @@ fn test_cpi_context_zero_copy_randomized() {
                 owner: owner.into(),
                 discriminator,
                 data_hash,
+                has_data: rng.gen(),
                 merkle_context: ZPackedMerkleContext {
                     merkle_tree_pubkey_index: rng.gen(),
                     queue_pubkey_index: rng.gen(),
@@ -1161,6 +1162,7 @@ fn test_cpi_context_zero_copy_randomized() {
                 owner: owner.into(),
                 discriminator,
                 data_hash,
+                has_data: rng.gen(),
                 output_merkle_tree_index: rng.gen(),
                 lamports: U64::new(rng.gen()),
                 with_address: rng.gen_range(0..=1),

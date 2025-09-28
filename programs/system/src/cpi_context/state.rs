@@ -175,6 +175,7 @@ impl<'a> ZCpiContextAccount2<'a> {
                 lamports: input.lamports().into(),
                 with_address: address.is_some() as u8, // Direct bool to u8
                 address: address.unwrap_or([0; 32]),
+                has_data: input.has_data() as u8,
             };
             self.in_accounts.push(in_account)?;
         }
@@ -220,6 +221,7 @@ impl<'a> ZCpiContextAccount2<'a> {
                 lamports: output.lamports().into(),
                 with_address: address.is_some() as u8,
                 address: address.unwrap_or([0; 32]),
+                has_data: output.has_data() as u8,
             };
             self.out_accounts.push(out_account)?;
             // Add output data

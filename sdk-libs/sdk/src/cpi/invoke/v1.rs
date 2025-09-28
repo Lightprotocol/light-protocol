@@ -14,8 +14,68 @@ use crate::{
 /// V1 wrapper struct for InstructionDataInvokeCpi with CpiSigner
 #[derive(Clone)]
 pub struct LightSystemProgramCpiV1 {
-    pub cpi_signer: CpiSigner,
-    pub instruction_data: InstructionDataInvokeCpi,
+    cpi_signer: CpiSigner,
+    instruction_data: InstructionDataInvokeCpi,
+}
+
+impl LightSystemProgramCpiV1 {
+    pub fn with_new_addresses(
+        mut self,
+        new_address_params: &[light_compressed_account::instruction_data::data::NewAddressParamsPacked],
+    ) -> Self {
+        self.instruction_data = self.instruction_data.with_new_addresses(new_address_params);
+        self
+    }
+
+    pub fn with_input_compressed_accounts_with_merkle_context(
+        mut self,
+        input_compressed_accounts_with_merkle_context: &[light_compressed_account::compressed_account::PackedCompressedAccountWithMerkleContext],
+    ) -> Self {
+        self.instruction_data = self
+            .instruction_data
+            .with_input_compressed_accounts_with_merkle_context(
+                input_compressed_accounts_with_merkle_context,
+            );
+        self
+    }
+
+    pub fn with_output_compressed_accounts(
+        mut self,
+        output_compressed_accounts: &[light_compressed_account::instruction_data::data::OutputCompressedAccountWithPackedContext],
+    ) -> Self {
+        self.instruction_data = self
+            .instruction_data
+            .with_output_compressed_accounts(output_compressed_accounts);
+        self
+    }
+
+    pub fn compress_lamports(mut self, lamports: u64) -> Self {
+        self.instruction_data = self.instruction_data.compress_lamports(lamports);
+        self
+    }
+
+    pub fn decompress_lamports(mut self, lamports: u64) -> Self {
+        self.instruction_data = self.instruction_data.decompress_lamports(lamports);
+        self
+    }
+
+    pub fn write_to_cpi_context_set(mut self) -> Self {
+        self.instruction_data = self.instruction_data.write_to_cpi_context_set();
+        self
+    }
+
+    pub fn write_to_cpi_context_first(mut self) -> Self {
+        self.instruction_data = self.instruction_data.write_to_cpi_context_first();
+        self
+    }
+
+    pub fn with_cpi_context(
+        mut self,
+        cpi_context: light_compressed_account::instruction_data::cpi_context::CompressedCpiContext,
+    ) -> Self {
+        self.instruction_data = self.instruction_data.with_cpi_context(cpi_context);
+        self
+    }
 }
 
 impl LightCpiInstruction for LightSystemProgramCpiV1 {
@@ -175,26 +235,5 @@ impl light_compressed_account::InstructionDiscriminator for LightSystemProgramCp
 impl LightInstructionData for LightSystemProgramCpiV1 {
     fn data(&self) -> Result<Vec<u8>, light_compressed_account::CompressedAccountError> {
         self.instruction_data.data()
-    }
-}
-
-// Builder pattern methods for v1
-impl LightSystemProgramCpiV1 {
-    pub fn with_new_addresses(
-        mut self,
-        new_address_params: &[light_compressed_account::instruction_data::data::NewAddressParamsPacked],
-    ) -> Self {
-        self.instruction_data = self.instruction_data.with_new_addresses(new_address_params);
-        self
-    }
-
-    pub fn compress_lamports(mut self, lamports: u64) -> Self {
-        self.instruction_data = self.instruction_data.compress_lamports(lamports);
-        self
-    }
-
-    pub fn decompress_lamports(mut self, lamports: u64) -> Self {
-        self.instruction_data = self.instruction_data.decompress_lamports(lamports);
-        self
     }
 }
