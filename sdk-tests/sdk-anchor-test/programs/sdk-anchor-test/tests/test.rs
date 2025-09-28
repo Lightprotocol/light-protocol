@@ -41,7 +41,8 @@ async fn test_anchor_sdk_test() {
         .get_compressed_account(address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     let record = &compressed_account.data.as_ref().unwrap().data;
     let record = MyCompressedAccount::deserialize(&mut &record[..]).unwrap();
