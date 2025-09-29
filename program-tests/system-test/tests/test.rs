@@ -1739,6 +1739,11 @@ async fn regenerate_accounts() {
 
         // Serialize the account data to JSON. Adjust according to your data structure.
         let json_data = serde_json::to_vec(&account).unwrap();
+        let pubkey = if name == "batch_address_merkle_tree" {
+            anchor_lang::pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx")
+        } else {
+            pubkey
+        };
 
         // Construct the output file path
         let file_name = format!("{}_{}.json", name, pubkey);
