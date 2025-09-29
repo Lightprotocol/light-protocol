@@ -295,6 +295,8 @@ fn parse_invoke_instruction(data: &[u8], accounts: &[AccountMeta]) -> Instructio
                         } else {
                             vec![]
                         },
+                        leaf_index: Some(acc.merkle_context.leaf_index),
+                        root_index: Some(acc.root_index),
                     }
                 })
                 .collect(),
@@ -437,6 +439,8 @@ fn parse_invoke_cpi_instruction(data: &[u8], accounts: &[AccountMeta]) -> Instru
                         } else {
                             vec![]
                         },
+                        leaf_index: Some(acc.merkle_context.leaf_index),
+                        root_index: Some(acc.root_index),
                     }
                 })
                 .collect(),
@@ -576,6 +580,8 @@ fn parse_invoke_cpi_readonly_instruction(
                         address: acc.address,
                         data_hash: acc.data_hash.to_vec(),
                         discriminator: acc.discriminator.to_vec(),
+                        leaf_index: Some(acc.merkle_context.leaf_index),
+                        root_index: Some(acc.root_index),
                     }
                 })
                 .collect(),
@@ -713,6 +719,8 @@ fn parse_invoke_cpi_account_info_instruction(
                     address: account_info.address, // Use address from CompressedAccountInfo
                     data_hash: input.data_hash.to_vec(),
                     discriminator: input.discriminator.to_vec(),
+                    leaf_index: Some(input.merkle_context.leaf_index),
+                    root_index: Some(input.root_index),
                 });
             }
         }
