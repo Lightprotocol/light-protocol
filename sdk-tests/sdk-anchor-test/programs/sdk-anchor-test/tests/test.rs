@@ -137,11 +137,11 @@ async fn test_anchor_sdk_test() {
 
     // Check that account no longer exists at address
     // After permanent close, the account should not exist
-    let result = rpc.get_compressed_account(address, None).await;
+    let result = rpc.get_compressed_account(address, None).await.unwrap();
 
     // The query should succeed but return None/null for the account
     assert!(
-        result.is_err(), // || result.unwrap().value.address.is_none(),
+        result.value.is_none(),
         "Account should not exist after permanent close"
     );
 }
