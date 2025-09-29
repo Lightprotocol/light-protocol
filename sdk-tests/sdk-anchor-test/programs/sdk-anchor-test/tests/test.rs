@@ -91,7 +91,8 @@ async fn test_anchor_sdk_test() {
         .get_compressed_account(address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     close_compressed_account(&mut rpc, &payer, account_to_close)
         .await
@@ -102,7 +103,8 @@ async fn test_anchor_sdk_test() {
         .get_compressed_account(address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     // Account should still exist at the address
     assert_eq!(closed_account.address.unwrap(), address);
@@ -125,7 +127,8 @@ async fn test_anchor_sdk_test() {
         .get_compressed_account(address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     // Test close_compressed_account_permanent (account should not exist after)
     close_compressed_account_permanent(&mut rpc, &payer, reinited_account)
@@ -323,7 +326,8 @@ async fn reinit_closed_account(
         .get_compressed_account(address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     let hash = closed_account.hash;
 

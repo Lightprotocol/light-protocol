@@ -54,7 +54,8 @@ async fn test_sdk_native_test() {
         .await
         .unwrap()
         .value
-        .clone();
+        .clone()
+        .unwrap();
     assert_eq!(compressed_pda.address.unwrap(), address);
 
     update_pda(&payer, &mut rpc, [2u8; ARRAY_LEN], compressed_pda.into())

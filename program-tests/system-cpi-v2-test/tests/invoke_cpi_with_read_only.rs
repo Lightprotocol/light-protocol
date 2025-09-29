@@ -2298,8 +2298,10 @@ async fn cpi_context_with_read_only() {
             let account = test_indexer
                 .get_compressed_account(address1, None)
                 .await
+                .unwrap()
+                .value
                 .unwrap();
-            assert_eq!(account.value.owner, owner_account1);
+            assert_eq!(account.owner, owner_account1);
             let output_account_balance =
                 test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&owner_account1);
             assert_eq!(
