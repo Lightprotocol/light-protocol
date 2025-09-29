@@ -78,6 +78,19 @@ export function hashToBn254FieldSizeBe(bytes: Buffer): [Buffer, number] | null {
     return null;
 }
 
+export function hashvToBn254FieldSizeBeU8Array(
+    bytes: Uint8Array[],
+): Uint8Array {
+    const hasher = keccak_256.create();
+    for (const input of bytes) {
+        hasher.update(input);
+    }
+    hasher.update(Uint8Array.from([255]));
+    const hash = hasher.digest();
+    hash[0] = 0;
+    return hash;
+}
+
 /**
  * Hash the provided `bytes` with Keccak256 and ensure that the result fits in
  * the BN254 prime field by truncating the resulting hash to 31 bytes.
