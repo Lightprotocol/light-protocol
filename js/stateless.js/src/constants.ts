@@ -171,6 +171,20 @@ export const localTestActiveStateTreeInfos = (): TreeInfo[] => {
             treeType: TreeType.StateV2,
             nextTreeInfo: null,
         },
+        {
+            tree: new PublicKey(batchAddressTree),
+            queue: new PublicKey(batchAddressTree), // v2 address queue is part of the tree account.
+            cpiContext: PublicKey.default,
+            treeType: TreeType.AddressV2,
+            nextTreeInfo: null,
+        },
+        {
+            tree: new PublicKey(testBatchAddressTree),
+            queue: new PublicKey(testBatchAddressTree), // v2 address queue is part of the tree account.
+            cpiContext: PublicKey.default,
+            treeType: TreeType.AddressV2,
+            nextTreeInfo: null,
+        },
     ].filter(info =>
         featureFlags.isV2() ? true : info.treeType === TreeType.StateV1,
     );
@@ -240,6 +254,9 @@ export const cpiContext2Pubkey = 'cpi2cdhkH5roePvcudTgUL8ppEBfTay1desGh8G8QxK';
 // V2 testing.
 export const batchMerkleTree = 'HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu'; // v2 merkle tree (includes nullifier queue)
 export const batchQueue = '6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU'; // v2 output queue
+export const batchAddressTree = 'amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx'; // v2 address tree (queue is part of the tree account)
+export const testBatchAddressTree =
+    'EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK'; // v2 address tree (queue is part of the tree account)
 
 export const confirmConfig: ConfirmOptions = {
     commitment: 'confirmed',
