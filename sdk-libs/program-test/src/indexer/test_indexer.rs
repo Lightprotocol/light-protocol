@@ -188,16 +188,16 @@ impl Indexer for TestIndexer {
         &self,
         address: Address,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<CompressedAccount>, IndexerError> {
+    ) -> Result<Response<Option<CompressedAccount>>, IndexerError> {
         let account = self
             .compressed_accounts
             .iter()
             .find(|acc| acc.compressed_account.address == Some(address));
 
-        let account_data = account
-            .ok_or(IndexerError::AccountNotFound)?
-            .clone()
-            .try_into()?;
+        let account_data = match account {
+            Some(acc) => Some(acc.clone().try_into()?),
+            None => None,
+        };
 
         Ok(Response {
             context: Context {
@@ -211,7 +211,7 @@ impl Indexer for TestIndexer {
         &self,
         hash: Hash,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<CompressedAccount>, IndexerError> {
+    ) -> Result<Response<Option<CompressedAccount>>, IndexerError> {
         let res = self
             .compressed_accounts
             .iter()
@@ -228,10 +228,10 @@ impl Indexer for TestIndexer {
             res
         };
 
-        let account_data = account
-            .ok_or(IndexerError::AccountNotFound)?
-            .clone()
-            .try_into()?;
+        let account_data = match account {
+            Some(acc) => Some(acc.clone().try_into()?),
+            None => None,
+        };
 
         Ok(Response {
             context: Context {
@@ -293,11 +293,14 @@ impl Indexer for TestIndexer {
                 ))
             }
         };
+        let account = account_response
+            .value
+            .ok_or(IndexerError::AccountNotFound)?;
         Ok(Response {
             context: Context {
                 slot: self.get_current_slot(),
             },
-            value: account_response.value.lamports,
+            value: account.lamports,
         })
     }
 
@@ -340,38 +343,42 @@ impl Indexer for TestIndexer {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<CompressedAccount>>, IndexerError> {
+    ) -> Result<Response<Items<Option<CompressedAccount>>>, IndexerError> {
         match (addresses, hashes) {
             (Some(addresses), _) => {
-                let accounts = self
-                    .compressed_accounts
+                let accounts: Result<Vec<Option<CompressedAccount>>, IndexerError> = addresses
                     .iter()
-                    .filter(|acc| {
-                        acc.compressed_account
-                            .address
-                            .is_some_and(|addr| addresses.contains(&addr))
+                    .map(|addr| {
+                        self.compressed_accounts
+                            .iter()
+                            .find(|acc| acc.compressed_account.address == Some(*addr))
+                            .map(|acc| acc.clone().try_into())
+                            .transpose()
                     })
-                    .map(|acc| acc.clone().try_into())
-                    .collect::<Result<Vec<CompressedAccount>, IndexerError>>()?;
+                    .collect();
                 Ok(Response {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: Items { items: accounts },
+                    value: Items { items: accounts? },
                 })
             }
             (_, Some(hashes)) => {
-                let accounts = self
-                    .compressed_accounts
+                let accounts: Result<Vec<Option<CompressedAccount>>, IndexerError> = hashes
                     .iter()
-                    .filter(|acc| acc.hash().is_ok_and(|hash| hashes.contains(&hash)))
-                    .map(|acc| acc.clone().try_into())
-                    .collect::<Result<Vec<CompressedAccount>, IndexerError>>()?;
+                    .map(|hash| {
+                        self.compressed_accounts
+                            .iter()
+                            .find(|acc| acc.hash() == Ok(*hash))
+                            .map(|acc| acc.clone().try_into())
+                            .transpose()
+                    })
+                    .collect();
                 Ok(Response {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: Items { items: accounts },
+                    value: Items { items: accounts? },
                 })
             }
             (None, None) => Err(IndexerError::InvalidParameters(
@@ -450,7 +457,8 @@ impl Indexer for TestIndexer {
 
             for hash in hashes.iter() {
                 let account = self.get_compressed_account_by_hash(*hash, None).await?;
-                state_merkle_tree_pubkeys.push(account.value.tree_info.tree);
+                let account_data = account.value.ok_or(IndexerError::AccountNotFound)?;
+                state_merkle_tree_pubkeys.push(account_data.tree_info.tree);
             }
             let mut proof_inputs = vec![];
 
@@ -2089,13 +2097,9 @@ impl TestIndexer {
         let mut state_merkle_tree_pubkeys = Vec::new();
 
         for hash in hashes.iter() {
-            state_merkle_tree_pubkeys.push(
-                self.get_compressed_account_by_hash(*hash, None)
-                    .await?
-                    .value
-                    .tree_info
-                    .tree,
-            );
+            let account = self.get_compressed_account_by_hash(*hash, None).await?;
+            let account_data = account.value.ok_or(IndexerError::AccountNotFound)?;
+            state_merkle_tree_pubkeys.push(account_data.tree_info.tree);
         }
 
         let state_merkle_tree_pubkeys = if state_merkle_tree_pubkeys.is_empty() {

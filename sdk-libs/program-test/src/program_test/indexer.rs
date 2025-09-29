@@ -67,7 +67,7 @@ impl Indexer for LightProgramTest {
         &self,
         address: Address,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<CompressedAccount>, IndexerError> {
+    ) -> Result<Response<Option<CompressedAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -80,7 +80,7 @@ impl Indexer for LightProgramTest {
         &self,
         hash: Hash,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<CompressedAccount>, IndexerError> {
+    ) -> Result<Response<Option<CompressedAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -132,7 +132,7 @@ impl Indexer for LightProgramTest {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<CompressedAccount>>, IndexerError> {
+    ) -> Result<Response<Items<Option<CompressedAccount>>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
