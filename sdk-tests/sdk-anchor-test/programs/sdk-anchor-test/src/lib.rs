@@ -12,7 +12,7 @@ use light_sdk::{
     },
     derive_light_cpi_signer,
     instruction::{
-        account_meta::{CompressedAccountMeta, CompressedAccountMetaClose},
+        account_meta::{CompressedAccountMeta, CompressedAccountMetaBurn},
         PackedAddressTreeInfo, ValidityProof,
     },
     LightDiscriminator,
@@ -148,9 +148,9 @@ pub mod sdk_anchor_test {
     pub fn close_compressed_account_permanent<'info>(
         ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
         proof: ValidityProof,
-        account_meta: CompressedAccountMetaClose,
+        account_meta: CompressedAccountMetaBurn,
     ) -> Result<()> {
-        let my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_close_permanent(
+        let my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_burn(
             &crate::ID,
             &account_meta,
             MyCompressedAccount::default(),

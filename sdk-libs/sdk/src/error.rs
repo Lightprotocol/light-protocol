@@ -91,6 +91,8 @@ pub enum LightSdkError {
     ProgramError(#[from] ProgramError),
     #[error("Compressed account error: {0}")]
     CompressedAccountError(#[from] CompressedAccountError),
+    #[error("Expected tree info to be provided for init_if_needed")]
+    ExpectedTreeInfo,
 }
 
 impl From<LightSdkError> for ProgramError {
@@ -173,6 +175,7 @@ impl From<LightSdkError> for u32 {
             LightSdkError::ZeroCopy(e) => e.into(),
             LightSdkError::ProgramError(e) => u64::from(e) as u32,
             LightSdkError::CompressedAccountError(e) => e.into(),
+            LightSdkError::ExpectedTreeInfo => 16021,
         }
     }
 }

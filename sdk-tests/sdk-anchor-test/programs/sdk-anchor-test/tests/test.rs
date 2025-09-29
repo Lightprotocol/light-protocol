@@ -391,8 +391,8 @@ async fn close_compressed_account_permanent(
 
     let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
 
-    // Import CompressedAccountMetaClose
-    use light_sdk::instruction::account_meta::CompressedAccountMetaClose;
+    // Import CompressedAccountMetaBurn
+    use light_sdk::instruction::account_meta::CompressedAccountMetaBurn;
 
     let instruction = Instruction {
         program_id: sdk_anchor_test::ID,
@@ -405,7 +405,7 @@ async fn close_compressed_account_permanent(
             use anchor_lang::InstructionData;
             sdk_anchor_test::instruction::CloseCompressedAccountPermanent {
                 proof: rpc_result.proof,
-                account_meta: CompressedAccountMetaClose {
+                account_meta: CompressedAccountMetaBurn {
                     tree_info: packed_tree_accounts.packed_tree_infos[0],
                     address: compressed_account.address.unwrap(),
                 },

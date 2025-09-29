@@ -148,8 +148,8 @@ pub mod v2 {
     ///
     /// let (address, address_seed) = derive_address(
     ///     &[b"my_compressed_account".as_slice()],
-    ///     &address_tree_pubkey.to_bytes(),
-    ///     &program_id.to_bytes(),
+    ///     &address_tree_pubkey,
+    ///     &program_id,
     /// );
     /// ```
     pub fn derive_address(
