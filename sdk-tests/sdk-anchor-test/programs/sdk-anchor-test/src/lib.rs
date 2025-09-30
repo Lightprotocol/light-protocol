@@ -126,11 +126,8 @@ pub mod sdk_anchor_test {
         proof: ValidityProof,
         account_meta: CompressedAccountMeta,
     ) -> Result<()> {
-        let my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_empty(
-            &crate::ID,
-            &account_meta,
-            MyCompressedAccount::default(),
-        )?;
+        let my_compressed_account =
+            LightAccount::<'_, MyCompressedAccount>::new_empty(&crate::ID, &account_meta)?;
 
         let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),

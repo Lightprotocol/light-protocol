@@ -187,9 +187,7 @@ pub mod __internal {
     use light_compressed_account::instruction_data::{
         data::OutputCompressedAccountWithPackedContext, with_readonly::InAccount,
     };
-    use light_sdk_types::instruction::account_meta::{
-        CompressedAccountMeta, CompressedAccountMetaBurn, CompressedAccountMetaInitIfNeeded,
-    };
+    use light_sdk_types::instruction::account_meta::CompressedAccountMetaBurn;
     use solana_program_error::ProgramError;
 
     use super::*;
@@ -337,7 +335,6 @@ pub mod __internal {
         pub fn new_empty(
             owner: &'a Pubkey,
             input_account_meta: &impl CompressedAccountMetaTrait,
-            input_account: A,
         ) -> Result<Self, LightSdkError> {
             let input_account_info = {
                 let input_data_hash = DEFAULT_DATA_HASH;
@@ -369,7 +366,7 @@ pub mod __internal {
 
             Ok(Self {
                 owner,
-                account: input_account,
+                account: A::default(),
                 account_info: CompressedAccountInfo {
                     address: input_account_meta.get_address(),
                     input: Some(input_account_info),
@@ -567,49 +564,49 @@ pub mod __internal {
             })
         }
 
-        pub fn init_if_needed(
-            owner: &'a Pubkey,
-            input_account_meta: CompressedAccountMetaInitIfNeeded,
-            input_account: A,
-        ) -> Result<Self, ProgramError> {
-            if input_account_meta.init && input_account_meta.with_new_adress {
-                Ok(Self::new_init(
-                    owner,
-                    Some(input_account_meta.address),
-                    input_account_meta.output_state_tree_index,
-                ))
-            } else if input_account_meta.init {
-                // For new_empty, we need a CompressedAccountMetaTrait implementor
-                let tree_info = input_account_meta
-                    .tree_info
-                    .ok_or(LightSdkError::ExpectedTreeInfo)
-                    .map_err(ProgramError::from)?;
+        // TODO: add in a different pr and release
+        // pub fn init_if_needed(
+        //     owner: &'a Pubkey,
+        //     input_account_meta: CompressedAccountMetaInitIfNeeded,
+        //     input_account: A,
+        // ) -> Result<Self, ProgramError> {
+        //     if input_account_meta.init && input_account_meta.with_new_adress {
+        //         Ok(Self::new_init(
+        //             owner,
+        //             Some(input_account_meta.address),
+        //             input_account_meta.output_state_tree_index,
+        //         ))
+        //     } else if input_account_meta.init {
+        //         // For new_empty, we need a CompressedAccountMetaTrait implementor
+        //         let tree_info = input_account_meta
+        //             .tree_info
+        //             .ok_or(LightSdkError::ExpectedTreeInfo)
+        //             .map_err(ProgramError::from)?;
 
-                let meta = CompressedAccountMeta {
-                    tree_info,
-                    address: input_account_meta.address,
-                    output_state_tree_index: input_account_meta.output_state_tree_index,
-                };
-                Self::new_empty(owner, &meta, input_account)
-            } else {
-                // For new_mut, we need a CompressedAccountMetaTrait implementor
-                let tree_info = input_account_meta
-                    .tree_info
-                    .ok_or(LightSdkError::ExpectedTreeInfo)
-                    .map_err(ProgramError::from)?;
-                let meta = CompressedAccountMeta {
-                    tree_info,
-                    address: input_account_meta.address,
-                    output_state_tree_index: input_account_meta.output_state_tree_index,
-                };
-                Self::new_mut(owner, &meta, input_account)
-            }
-        }
+        //         let meta = CompressedAccountMeta {
+        //             tree_info,
+        //             address: input_account_meta.address,
+        //             output_state_tree_index: input_account_meta.output_state_tree_index,
+        //         };
+        //         Self::new_empty(owner, &meta)
+        //     } else {
+        //         // For new_mut, we need a CompressedAccountMetaTrait implementor
+        //         let tree_info = input_account_meta
+        //             .tree_info
+        //             .ok_or(LightSdkError::ExpectedTreeInfo)
+        //             .map_err(ProgramError::from)?;
+        //         let meta = CompressedAccountMeta {
+        //             tree_info,
+        //             address: input_account_meta.address,
+        //             output_state_tree_index: input_account_meta.output_state_tree_index,
+        //         };
+        //         Self::new_mut(owner, &meta, input_account)
+        //     }
+        // }
 
         pub fn new_empty(
             owner: &'a Pubkey,
             input_account_meta: &impl CompressedAccountMetaTrait,
-            input_account: A,
         ) -> Result<Self, ProgramError> {
             let input_account_info = {
                 let input_data_hash = DEFAULT_DATA_HASH;
@@ -642,7 +639,7 @@ pub mod __internal {
 
             Ok(Self {
                 owner,
-                account: input_account,
+                account: A::default(),
                 account_info: CompressedAccountInfo {
                     address: input_account_meta.get_address(),
                     input: Some(input_account_info),
