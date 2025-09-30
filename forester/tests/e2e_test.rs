@@ -190,6 +190,7 @@ fn is_v2_address_test_enabled() -> bool {
 async fn e2e_test() {
     let state_tree_params = InitStateTreeAccountsInstructionData::test_default();
     let env = TestAccounts::get_local_test_validator_accounts();
+    println!("env {:?}", env);
     let config = ForesterConfig {
         external_services: ExternalServicesConfig {
             rpc_url: get_rpc_url(),

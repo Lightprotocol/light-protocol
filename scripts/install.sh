@@ -103,9 +103,9 @@ install_rust() {
         export RUSTUP_HOME="${PREFIX}/rustup"
         export CARGO_HOME="${PREFIX}/cargo"
         curl --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
-        rustup install 1.86 nightly
+        rustup install 1.90 nightly
         export PATH="${PREFIX}/cargo/bin:${PATH}"
-        rustup component add --toolchain 1.86-x86_64-unknown-linux-gnu clippy
+        rustup component add --toolchain 1.90-x86_64-unknown-linux-gnu clippy
         cargo install cargo-expand --locked
         log "rust"
     else
