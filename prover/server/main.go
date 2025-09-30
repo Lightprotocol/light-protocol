@@ -144,7 +144,7 @@ func runCli() {
 				Name: "r1cs",
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
-					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\" / \"append\")", Required: true},
+					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\" / \"append\" / \"update\" / \"address-append\")", Required: true},
 					&cli.BoolFlag{Name: "legacy", Usage: "Use legacy V1 circuits (without PublicInputHash)", Required: false},
 					&cli.UintFlag{Name: "inclusion-tree-height", Usage: "[Inclusion]: merkle tree height", Required: false},
 					&cli.UintFlag{Name: "inclusion-compressed-accounts", Usage: "[Inclusion]: number of compressed accounts", Required: false},
@@ -173,6 +173,8 @@ func runCli() {
 					inclusionNumberOfCompressedAccounts := uint32(context.Uint("inclusion-compressed-accounts"))
 					nonInclusionTreeHeight := uint32(context.Uint("non-inclusion-tree-height"))
 					nonInclusionNumberOfCompressedAccounts := uint32(context.Uint("non-inclusion-compressed-accounts"))
+					batchAppendTreeHeight := uint32(context.Uint("append-tree-height"))
+					batchAppendBatchSize := uint32(context.Uint("append-batch-size"))
 					batchUpdateTreeHeight := uint32(context.Uint("update-tree-height"))
 					batchUpdateBatchSize := uint32(context.Uint("update-batch-size"))
 					batchAddressAppendTreeHeight := uint32(context.Uint("address-append-tree-height"))
@@ -193,6 +195,10 @@ func runCli() {
 						if nonInclusionTreeHeight == 0 || nonInclusionNumberOfCompressedAccounts == 0 {
 							return fmt.Errorf("[Combined]: tree height and number of compressed accounts must be provided")
 						}
+					}
+
+					if (batchAppendTreeHeight == 0 || batchAppendBatchSize == 0) && circuit == common.BatchAppendCircuitType {
+						return fmt.Errorf("[Batch append]: tree height and batch size must be provided")
 					}
 
 					if (batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0) && circuit == common.BatchUpdateCircuitType {
@@ -230,6 +236,8 @@ func runCli() {
 							cs, err = v2.R1CSNonInclusion(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 						} else if circuit == common.CombinedCircuitType {
 							cs, err = v2.R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
+						} else if circuit == common.BatchAppendCircuitType {
+							cs, err = v2.R1CSBatchAppend(batchAppendTreeHeight, batchAppendBatchSize)
 						} else if circuit == common.BatchUpdateCircuitType {
 							cs, err = v2.R1CSBatchUpdate(batchUpdateTreeHeight, batchUpdateBatchSize)
 						} else if circuit == common.BatchAddressAppendCircuitType {
