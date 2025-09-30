@@ -12,8 +12,7 @@
 //!     ctx.accounts.fee_payer.as_ref(),
 //!     ctx.remaining_accounts,
 //!     crate::LIGHT_CPI_SIGNER,
-//! )
-//! .map_err(ProgramError::from)?;
+//! )?;
 //!
 //! let (address, address_seed) = derive_address(
 //!     &[b"compressed", name.as_bytes()],
@@ -31,20 +30,13 @@
 //! my_compressed_account.name = name;
 //! my_compressed_account.nested = NestedData::default();
 //!
-//! let cpi_inputs = CpiInputs::new_with_address(
-//!     proof,
-//!     // add compressed accounts to create, update or close here
-//!     vec![my_compressed_account
-//!         .to_account_info()
-//!         .map_err(ProgramError::from)?],
-//!     // add new addresses here
-//!     // (existing addresses are part of the account info and must not be added here)
-//!     vec![new_address_params],
-//! );
+//! use crate::cpi::v1::LightSystemProgramCpi;
+//! let cpi_instruction = LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, proof)
+//!     .with_light_account(my_compressed_account)?
+//!     .with_new_addresses(&[new_address_params]);
 //!
-//! cpi_inputs
-//!     .invoke_light_system_program(light_cpi_accounts)
-//!     .map_err(ProgramError::from)?;
+//! cpi_instruction
+//!     .invoke(light_cpi_accounts)?;
 //! ```
 
 mod traits;
@@ -55,5 +47,5 @@ pub mod v2;
 /// Derives cpi signer and bump to invoke the light system program at compile time.
 pub use light_sdk_macros::derive_light_cpi_signer;
 /// Contains program id, derived cpi signer, and bump,
-pub use light_sdk_types::CpiSigner;
+pub use light_sdk_types::{cpi_accounts::CpiAccountsConfig, CpiSigner};
 pub use traits::*;

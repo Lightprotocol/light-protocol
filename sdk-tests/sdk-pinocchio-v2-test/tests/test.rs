@@ -10,7 +10,7 @@ use light_program_test::{
 };
 use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
 use light_sdk_pinocchio::instruction::{account_meta::CompressedAccountMeta, PackedStateTreeInfo};
-use sdk_pinocchio_test::{
+use sdk_pinocchio_v2_test::{
     create_pda::CreatePdaInstructionData,
     update_pda::{UpdateMyCompressedAccount, UpdatePdaInstructionData},
 };
@@ -25,8 +25,8 @@ async fn test_pinocchio_sdk_test() {
     let config = ProgramTestConfig::new_v2(
         false,
         Some(vec![(
-            "sdk_pinocchio_test",
-            Pubkey::new_from_array(sdk_pinocchio_test::ID),
+            "sdk_pinocchio_v2_test",
+            Pubkey::new_from_array(sdk_pinocchio_v2_test::ID),
         )]),
     );
     let mut rpc = LightProgramTest::new(config).await.unwrap();
@@ -39,14 +39,14 @@ async fn test_pinocchio_sdk_test() {
     // let (address, _) = light_sdk::address::derive_address(
     //     &[b"compressed", &account_data],
     //     &address_tree_info,
-    //     &Pubkey::new_from_array(sdk_pinocchio_test::ID),
+    //     &Pubkey::new_from_array(sdk_pinocchio_v2_test::ID),
     // );
     // Batched trees
     let address_seed = hashv_to_bn254_field_size_be(&[b"compressed", account_data.as_slice()]);
     let address = derive_address(
         &address_seed,
         &address_tree_pubkey.tree.to_bytes(),
-        &sdk_pinocchio_test::ID,
+        &sdk_pinocchio_v2_test::ID,
     );
 
     let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
@@ -66,7 +66,7 @@ async fn test_pinocchio_sdk_test() {
         .indexer()
         .unwrap()
         .get_compressed_accounts_by_owner(
-            &Pubkey::new_from_array(sdk_pinocchio_test::ID),
+            &Pubkey::new_from_array(sdk_pinocchio_v2_test::ID),
             None,
             None,
         )
@@ -91,11 +91,11 @@ pub async fn create_pda(
     address: [u8; 32],
 ) -> Result<(), RpcError> {
     let system_account_meta_config =
-        SystemAccountMetaConfig::new(Pubkey::new_from_array(sdk_pinocchio_test::ID));
+        SystemAccountMetaConfig::new(Pubkey::new_from_array(sdk_pinocchio_v2_test::ID));
     let mut accounts = PackedAccounts::default();
     accounts.add_pre_accounts_signer(payer.pubkey());
     accounts
-        .add_system_accounts(system_account_meta_config)
+        .add_system_accounts_v2(system_account_meta_config)
         .unwrap();
 
     let rpc_result = rpc
@@ -124,7 +124,7 @@ pub async fn create_pda(
     let inputs = instruction_data.try_to_vec().unwrap();
 
     let instruction = Instruction {
-        program_id: Pubkey::new_from_array(sdk_pinocchio_test::ID),
+        program_id: Pubkey::new_from_array(sdk_pinocchio_v2_test::ID),
         accounts,
         data: [&[0u8][..], &inputs[..]].concat(),
     };
@@ -141,11 +141,11 @@ pub async fn update_pda(
     compressed_account: CompressedAccountWithMerkleContext,
 ) -> Result<(), RpcError> {
     let system_account_meta_config =
-        SystemAccountMetaConfig::new(Pubkey::new_from_array(sdk_pinocchio_test::ID));
+        SystemAccountMetaConfig::new(Pubkey::new_from_array(sdk_pinocchio_v2_test::ID));
     let mut accounts = PackedAccounts::default();
     accounts.add_pre_accounts_signer(payer.pubkey());
     accounts
-        .add_system_accounts(system_account_meta_config)
+        .add_system_accounts_v2(system_account_meta_config)
         .unwrap();
 
     let rpc_result = rpc
@@ -196,7 +196,7 @@ pub async fn update_pda(
     let inputs = instruction_data.try_to_vec().unwrap();
 
     let instruction = Instruction {
-        program_id: Pubkey::new_from_array(sdk_pinocchio_test::ID),
+        program_id: Pubkey::new_from_array(sdk_pinocchio_v2_test::ID),
         accounts,
         data: [&[1u8][..], &inputs[..]].concat(),
     };

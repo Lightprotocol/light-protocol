@@ -1,7 +1,10 @@
-use light_sdk_types::cpi_accounts::v1::{
-    CpiAccounts as GenericCpiAccounts, CpiAccountsConfig, SYSTEM_ACCOUNTS_LEN,
+pub use light_sdk_types::{
+    cpi_accounts::{
+        v1::{CpiAccounts as GenericCpiAccounts, SYSTEM_ACCOUNTS_LEN},
+        CpiAccountsConfig,
+    },
+    CpiSigner,
 };
-pub use light_sdk_types::CpiSigner;
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta};
 
 use crate::error::{LightSdkError, Result};
@@ -102,4 +105,22 @@ pub fn to_account_infos_for_invoke<'a>(
         account_infos.insert(current_index, cpi_accounts.light_system_program()?);
     }
     Ok(account_infos)
+}
+
+impl<'a> crate::cpi::CpiAccountsTrait for CpiAccounts<'a> {
+    fn to_account_metas(&self) -> Result<Vec<AccountMeta<'_>>> {
+        to_account_metas(self)
+    }
+
+    fn to_account_infos_for_invoke(&self) -> Result<Vec<&AccountInfo>> {
+        to_account_infos_for_invoke(self)
+    }
+
+    fn bump(&self) -> u8 {
+        self.config().cpi_signer.bump
+    }
+
+    fn get_mode(&self) -> u8 {
+        0 // v1 mode
+    }
 }

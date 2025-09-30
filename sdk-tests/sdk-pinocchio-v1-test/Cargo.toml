@@ -1,5 +1,5 @@
 [package]
-name = "sdk-pinocchio-test"
+name = "sdk-pinocchio-v1-test"
 version = "1.0.0"
 description = "Test program using generalized account compression"
 repository = "https://github.com/Lightprotocol/light-protocol"
@@ -8,7 +8,7 @@ edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "sdk_pinocchio_test"
+name = "sdk_pinocchio_v1_test"
 
 [features]
 no-entrypoint = []
@@ -19,7 +19,7 @@ test-sbf = []
 default = []
 
 [dependencies]
-light-sdk-pinocchio = { workspace = true, features = ["v2"] }
+light-sdk-pinocchio = { workspace = true }
 light-sdk-types = { workspace = true }
 light-hasher = { workspace = true }
 pinocchio = { workspace = true }

@@ -3,20 +3,20 @@ use light_compressed_account::{
     compressed_account::{CompressedAccount, CompressedAccountData},
     instruction_data::{
         data::OutputCompressedAccountWithPackedContext,
+        with_account_info::InstructionDataInvokeCpiWithAccountInfo,
         with_readonly::InstructionDataInvokeCpiWithReadOnly,
     },
 };
 use light_sdk::{
     cpi::{
-        invoke_light_system_program, CompressedAccountInfo, CpiAccounts, CpiAccountsTrait,
-        InstructionDataInvokeCpiWithAccountInfo, InvokeLightSystemProgram, LightCpiInstruction,
-        LightSystemProgramCpi, OutAccountInfo,
+        invoke_light_system_program,
+        v1::{CpiAccounts, LightSystemProgramCpi},
+        v2::{CompressedAccountInfo, OutAccountInfo},
+        CpiAccountsConfig, CpiAccountsTrait, InvokeLightSystemProgram, LightCpiInstruction,
     },
     error::LightSdkError,
 };
-use light_sdk_types::{
-    cpi_context_write::CpiContextWriteAccounts, CpiAccountsConfig, LIGHT_SYSTEM_PROGRAM_ID,
-};
+use light_sdk_types::{cpi_context_write::CpiContextWriteAccounts, LIGHT_SYSTEM_PROGRAM_ID};
 
 use crate::LIGHT_CPI_SIGNER;
 
@@ -67,7 +67,6 @@ pub fn process_cpi_context_indexing<'a, 'b, 'c, 'info>(
             merkle_tree_index,
         };
         InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, None.into())
-            .mode_v2()
             .with_output_compressed_accounts(&[out_account])
             .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
     }
@@ -92,7 +91,6 @@ pub fn process_cpi_context_indexing<'a, 'b, 'c, 'info>(
             address: None,
         };
         InstructionDataInvokeCpiWithAccountInfo::new_cpi(LIGHT_CPI_SIGNER, None.into())
-            .mode_v2()
             .with_account_infos(&[out_account])
             .invoke_write_to_cpi_context_set(cpi_context_accounts)?;
     }
@@ -139,6 +137,7 @@ pub fn process_cpi_context_indexing<'a, 'b, 'c, 'info>(
         merkle_tree_index,
     };
     InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, None.into())
+        .mode_v1()
         .with_output_compressed_accounts(&[out_account])
         .invoke_execute_cpi_context(light_cpi_accounts)?;
     Ok(())

@@ -1,9 +1,8 @@
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 pub use light_compressed_account::LightInstructionData;
-use light_sdk_types::{
-    constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID},
-    cpi_context_write::CpiContextWriteAccounts,
-};
+use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
+#[cfg(feature = "v2")]
+use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
 
 #[cfg(feature = "v2")]
 use crate::cpi::v2::get_account_metas_from_config_cpi_context;
@@ -68,6 +67,7 @@ impl<'info> CpiAccountsTrait<'info> for &[AccountInfo<'info>] {
 }
 
 // Implementation for CpiContextWriteAccounts
+#[cfg(feature = "v2")]
 impl<'a, 'info> CpiAccountsTrait<'info> for CpiContextWriteAccounts<'a, AccountInfo<'info>> {
     fn to_account_infos(&self) -> Vec<AccountInfo<'info>> {
         vec![

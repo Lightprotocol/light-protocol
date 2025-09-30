@@ -5,21 +5,22 @@ use light_compressed_account::{
         PackedMerkleContext,
     },
     instruction_data::{
-        with_account_info::{CompressedAccountInfo, InAccountInfo},
+        with_account_info::{
+            CompressedAccountInfo, InAccountInfo, InstructionDataInvokeCpiWithAccountInfo,
+        },
         with_readonly::{InAccount, InstructionDataInvokeCpiWithReadOnly},
     },
 };
 use light_sdk::{
     cpi::{
-        invoke_light_system_program, CpiAccounts, CpiAccountsTrait,
-        InstructionDataInvokeCpiWithAccountInfo, InvokeLightSystemProgram, LightCpiInstruction,
-        LightInstructionData, LightSystemProgramCpi,
+        invoke_light_system_program,
+        v1::{CpiAccounts, LightSystemProgramCpi},
+        CpiAccountsConfig, CpiAccountsTrait, InvokeLightSystemProgram, LightCpiInstruction,
+        LightInstructionData,
     },
     error::LightSdkError,
 };
-use light_sdk_types::{
-    cpi_context_write::CpiContextWriteAccounts, CpiAccountsConfig, LIGHT_SYSTEM_PROGRAM_ID,
-};
+use light_sdk_types::{cpi_context_write::CpiContextWriteAccounts, LIGHT_SYSTEM_PROGRAM_ID};
 
 use crate::{GenericAnchorAccounts, LIGHT_CPI_SIGNER};
 
@@ -100,7 +101,6 @@ fn consume_mode_0_accounts(light_cpi_accounts: CpiAccounts) -> Result<()> {
         };
 
         InstructionDataInvokeCpiWithAccountInfo::new_cpi(LIGHT_CPI_SIGNER, None.into())
-            .mode_v2()
             .with_account_infos(&[in_account])
             .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
     }
@@ -121,6 +121,7 @@ fn consume_mode_0_accounts(light_cpi_accounts: CpiAccounts) -> Result<()> {
     };
 
     InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, None.into())
+        .mode_v1()
         .with_input_compressed_accounts(&[input_account])
         .invoke_execute_cpi_context(light_cpi_accounts)?;
 
@@ -157,7 +158,6 @@ fn consume_all_accounts(
         };
 
         InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, None.into())
-            .mode_v2()
             .with_input_compressed_accounts(&[input_account])
             .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
     }
@@ -192,7 +192,6 @@ fn consume_all_accounts(
         };
 
         InstructionDataInvokeCpiWithAccountInfo::new_cpi(LIGHT_CPI_SIGNER, None.into())
-            .mode_v2()
             .with_account_infos(&[in_account])
             .invoke_write_to_cpi_context_set(cpi_context_accounts)?;
     }
@@ -254,6 +253,7 @@ fn consume_all_accounts(
 
     InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, None.into())
         .with_input_compressed_accounts(&[input_account])
+        .mode_v1()
         .invoke_execute_cpi_context(light_cpi_accounts)?;
 
     Ok(())

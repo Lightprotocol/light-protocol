@@ -1,10 +1,12 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk_pinocchio::{
     account::LightAccount,
-    cpi::{CpiAccounts, CpiAccountsConfig, CpiInputs},
+    cpi::{
+        v1::{CpiAccounts, CpiAccountsConfig},
+        InvokeLightSystemProgram, LightCpiInstruction,
+    },
     error::LightSdkError,
     instruction::PackedAddressTreeInfo,
-    light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
     LightDiscriminator, LightHasher, ValidityProof,
 };
 use pinocchio::account_info::AccountInfo;
@@ -13,10 +15,7 @@ use pinocchio::account_info::AccountInfo;
 /// - sdk pre system program cpi 10,942 CU
 /// - total with V1 tree: 307,784 CU
 /// - total with V2 tree: 138,876 CU
-pub fn create_pda<const BATCHED: bool>(
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> Result<(), LightSdkError> {
+pub fn create_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(), LightSdkError> {
     let mut instruction_data = instruction_data;
     let instruction_data = CreatePdaInstructionData::deserialize(&mut instruction_data)
         .map_err(|_| LightSdkError::Borsh)?;
@@ -28,27 +27,11 @@ pub fn create_pda<const BATCHED: bool>(
     )?;
 
     let address_tree_info = instruction_data.address_tree_info;
-    let (address, address_seed) = if BATCHED {
-        let tree_pubkey = instruction_data
-            .address_tree_info
-            .get_tree_pubkey(&cpi_accounts)?;
-        let address_seed = hashv_to_bn254_field_size_be_const_array::<3>(&[
-            b"compressed",
-            instruction_data.data.as_slice(),
-        ])?;
-        let address = light_sdk_pinocchio::light_compressed_account::address::derive_address(
-            &address_seed,
-            &tree_pubkey,
-            &crate::ID,
-        );
-        (address, address_seed.into())
-    } else {
-        light_sdk_pinocchio::address::v1::derive_address(
-            &[b"compressed", instruction_data.data.as_slice()],
-            &address_tree_info.get_tree_pubkey(&cpi_accounts)?,
-            &crate::ID,
-        )
-    };
+    let (address, address_seed) = light_sdk_pinocchio::address::v1::derive_address(
+        &[b"compressed", instruction_data.data.as_slice()],
+        &address_tree_info.get_tree_pubkey(&cpi_accounts)?,
+        &crate::ID,
+    );
 
     let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
 
@@ -60,12 +43,15 @@ pub fn create_pda<const BATCHED: bool>(
 
     my_compressed_account.data = instruction_data.data;
 
-    let cpi_inputs = CpiInputs::new_with_address(
-        instruction_data.proof,
-        vec![my_compressed_account.to_account_info()?],
-        vec![new_address_params],
-    );
-    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+    // Use trait-based API
+    use light_sdk_pinocchio::cpi::v1::LightSystemProgramCpi;
+    let cpi_instruction =
+        LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, instruction_data.proof)
+            .with_light_account(my_compressed_account)?
+            .with_new_addresses(&[new_address_params]);
+    cpi_instruction
+        .invoke(cpi_accounts)
+        .map_err(LightSdkError::from)?;
     Ok(())
 }
 

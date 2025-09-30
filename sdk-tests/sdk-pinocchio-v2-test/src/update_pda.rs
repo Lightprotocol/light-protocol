@@ -1,12 +1,15 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk_pinocchio::{
     account::LightAccount,
-    cpi::{CpiAccounts, CpiAccountsConfig, CpiInputs},
-    error::LightSdkError,
+    cpi::{
+        v1::CpiAccountsConfig,
+        v2::{CpiAccounts, LightSystemProgramCpi},
+        InvokeLightSystemProgram, LightCpiInstruction,
+    },
     instruction::account_meta::CompressedAccountMeta,
     ValidityProof,
 };
-use pinocchio::{account_info::AccountInfo, log::sol_log_compute_units};
+use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::create_pda::MyCompressedAccount;
 
@@ -17,12 +20,10 @@ use crate::create_pda::MyCompressedAccount;
 pub fn update_pda<const BATCHED: bool>(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
-) -> Result<(), LightSdkError> {
-    sol_log_compute_units();
+) -> Result<(), ProgramError> {
     let mut instruction_data = instruction_data;
     let instruction_data = UpdatePdaInstructionData::deserialize(&mut instruction_data)
-        .map_err(|_| LightSdkError::Borsh)?;
-    sol_log_compute_units();
+        .map_err(|_| ProgramError::BorshIoError)?;
 
     let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_mut(
         &crate::ID,
@@ -31,26 +32,19 @@ pub fn update_pda<const BATCHED: bool>(
             data: instruction_data.my_compressed_account.data,
         },
     )?;
-    sol_log_compute_units();
 
     my_compressed_account.data = instruction_data.new_data;
 
     let config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
-    sol_log_compute_units();
-    let cpi_accounts = CpiAccounts::try_new_with_config(
+    let cpi_accounts = CpiAccounts::new_with_config(
         &accounts[0],
         &accounts[instruction_data.system_accounts_offset as usize..],
         config,
-    )?;
-    sol_log_compute_units();
-    let cpi_inputs = CpiInputs::new(
-        instruction_data.proof,
-        vec![my_compressed_account.to_account_info()?],
     );
-    sol_log_compute_units();
-    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
 
-    Ok(())
+    LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, instruction_data.proof)
+        .with_light_account(my_compressed_account)?
+        .invoke(cpi_accounts)
 }
 
 #[derive(Clone, Debug, Default, BorshDeserialize, BorshSerialize)]

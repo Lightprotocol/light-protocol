@@ -2,9 +2,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
     cpi::{
-        v1::{CpiAccounts, CpiAccountsConfig},
-        v2::LightSystemProgramCpi,
-        InvokeLightSystemProgram, LightCpiInstruction,
+        v1::CpiAccounts, v2::LightSystemProgramCpi, CpiAccountsConfig, InvokeLightSystemProgram,
+        LightCpiInstruction,
     },
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},

@@ -43,6 +43,7 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
             bump: cpi_signer.bump,
             invoking_program_id: cpi_signer.program_id.into(),
             proof: proof.into(),
+            mode: 1,
             ..Default::default()
         }
     }
@@ -179,6 +180,7 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
             bump: cpi_signer.bump,
             invoking_program_id: cpi_signer.program_id.into(),
             proof: proof.into(),
+            mode: 1,
             ..Default::default()
         }
     }

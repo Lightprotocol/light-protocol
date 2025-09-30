@@ -26,7 +26,7 @@
 //! use light_sdk::{
 //!     account::LightAccount,
 //!     address::v1::derive_address,
-//!     cpi::{CpiAccounts, CpiInputs},
+//!     cpi::{v1::LightSystemProgramCpi, CpiAccounts, InvokeLightSystemProgram, LightCpiInstruction},
 //!     derive_light_cpi_signer,
 //!     instruction::{account_meta::CompressedAccountMeta, PackedAddressTreeInfo},
 //!     CpiSigner, LightDiscriminator, LightHasher, ValidityProof,
@@ -52,8 +52,7 @@
 //!             ctx.accounts.fee_payer.as_ref(),
 //!             ctx.remaining_accounts,
 //!             crate::LIGHT_CPI_SIGNER,
-//!         )
-//!         .map_err(ProgramError::from)?;
+//!         )?;
 //!
 //!         let (address, address_seed) = derive_address(
 //!             &[b"counter", ctx.accounts.fee_payer.key().as_ref()],
@@ -71,17 +70,12 @@
 //!
 //!         my_compressed_account.owner = ctx.accounts.fee_payer.key();
 //!
-//!         let cpi_inputs = CpiInputs::new_with_address(
-//!             proof,
-//!             vec![my_compressed_account
-//!                 .to_account_info()
-//!                 .map_err(ProgramError::from)?],
-//!             vec![new_address_params],
-//!         );
+//!         let cpi_instruction = LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, proof)
+//!             .with_light_account(my_compressed_account)?
+//!             .with_new_addresses(&[new_address_params]);
 //!
-//!         cpi_inputs
-//!             .invoke_light_system_program(light_cpi_accounts)
-//!             .map_err(ProgramError::from)?;
+//!         cpi_instruction
+//!             .invoke(light_cpi_accounts)?;
 //!
 //!         Ok(())
 //!     }

@@ -32,7 +32,7 @@ light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-account-checks = { workspace = true }
 light-sdk = { workspace = true, features = ["v2"] }
-light-sdk-types = { workspace = true }
+light-sdk-types = { workspace = true, features = ["v2"] }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
@@ -41,7 +41,7 @@ light-test-utils = { workspace = true, features = ["devenv"] }
 [dev-dependencies]
 light-client = { workspace = true, features = ["devenv"] }
 light-sdk = { workspace = true, features = ["anchor", "v2"] }
-light-sdk-types = { workspace = true }
+light-sdk-types = { workspace = true, features = ["v2"] }
 light-program-test = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
 light-prover-client = { workspace = true, features = ["devenv"] }

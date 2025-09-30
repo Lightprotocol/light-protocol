@@ -1,7 +1,7 @@
 use light_account_checks::AccountInfoTrait;
 
 use crate::{
-    cpi_accounts::v1::CpiAccountsConfig,
+    cpi_accounts::CpiAccountsConfig,
     cpi_context_write::CpiContextWriteAccounts,
     error::{LightSdkTypesError, Result},
     CpiSigner,

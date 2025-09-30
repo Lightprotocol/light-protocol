@@ -37,12 +37,8 @@ pub fn process_instruction(
 ) -> Result<(), ProgramError> {
     let discriminator = InstructionType::try_from(instruction_data[0]).unwrap();
     match discriminator {
-        InstructionType::CreatePdaBorsh => {
-            create_pda::create_pda::<true>(accounts, &instruction_data[1..])
-        }
-        InstructionType::UpdatePdaBorsh => {
-            update_pda::update_pda::<true>(accounts, &instruction_data[1..])
-        }
+        InstructionType::CreatePdaBorsh => create_pda::create_pda(accounts, &instruction_data[1..]),
+        InstructionType::UpdatePdaBorsh => update_pda::update_pda(accounts, &instruction_data[1..]),
     }?;
     Ok(())
 }

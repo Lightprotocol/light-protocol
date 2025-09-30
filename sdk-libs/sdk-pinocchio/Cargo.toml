@@ -22,3 +22,4 @@ borsh = { workspace = true }
 thiserror = { workspace = true }
 light-compressed-account = { workspace = true }
 solana-pubkey = { workspace = true }
+solana-msg = { workspace = true }

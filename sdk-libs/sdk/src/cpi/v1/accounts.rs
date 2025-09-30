@@ -1,5 +1,5 @@
 pub use light_sdk_types::cpi_accounts::v1::{
-    CpiAccounts as GenericCpiAccounts, CpiAccountsConfig, SYSTEM_ACCOUNTS_LEN,
+    CpiAccounts as GenericCpiAccounts, SYSTEM_ACCOUNTS_LEN,
 };
 use light_sdk_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,

@@ -2,8 +2,6 @@ use std::panic::Location;
 
 use crate::{AccountError, AccountInfoTrait};
 
-/// Dynamic accounts slice for index-based access
-/// Contains mint, owner, delegate, merkle tree, and queue accounts
 pub struct ProgramPackedAccounts<'info, A: AccountInfoTrait> {
     pub accounts: &'info [A],
 }

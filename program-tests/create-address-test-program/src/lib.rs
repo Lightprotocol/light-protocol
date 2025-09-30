@@ -9,7 +9,7 @@ use anchor_lang::{
     InstructionData,
 };
 use light_sdk::{
-    cpi::{v1::CpiAccountsConfig, v2::CpiAccounts, CpiSigner},
+    cpi::{v2::CpiAccounts, CpiAccountsConfig, CpiSigner},
     derive_light_cpi_signer,
     error::LightSdkError,
 };
