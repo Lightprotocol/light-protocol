@@ -13,7 +13,7 @@ use light_sdk::{
     cpi::{
         invoke_light_system_program, CpiAccounts, CpiAccountsTrait,
         InstructionDataInvokeCpiWithAccountInfo, InvokeLightSystemProgram, LightCpiInstruction,
-        LightInstructionData, LightSystemProgramCpiV1,
+        LightInstructionData, LightSystemProgramCpi,
     },
     error::LightSdkError,
 };
@@ -218,7 +218,7 @@ fn consume_all_accounts(
             read_only: false,
         };
 
-        let instruction_data = LightSystemProgramCpiV1::new_cpi(LIGHT_CPI_SIGNER, None.into())
+        let instruction_data = LightSystemProgramCpi::new_cpi(LIGHT_CPI_SIGNER, None.into())
             .with_input_compressed_accounts_with_merkle_context(&[input_account])
             .write_to_cpi_context_set();
 

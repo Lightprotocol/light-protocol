@@ -13,7 +13,7 @@ pub use traits::{
     invoke_light_system_program, CpiAccountsTrait, InvokeLightSystemProgram, LightCpiInstruction,
     LightInstructionData,
 };
-pub use v1::LightSystemProgramCpiV1;
+pub use v1::LightSystemProgramCpi;
 // Re-export v2 when feature is enabled
 #[cfg(feature = "v2")]
 pub use v2::*;

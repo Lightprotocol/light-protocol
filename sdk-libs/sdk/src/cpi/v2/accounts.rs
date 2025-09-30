@@ -1,12 +1,12 @@
-use light_sdk_types::{
-    CompressionCpiAccountIndexV2, CpiAccountsV2 as GenericCpiAccountsV2, PROGRAM_ACCOUNTS_LEN,
+use light_sdk_types::cpi_accounts::v2::{
+    CompressionCpiAccountIndex, CpiAccounts as GenericCpiAccounts, PROGRAM_ACCOUNTS_LEN,
 };
 
 use crate::{error::Result, AccountInfo, AccountMeta};
 
-pub type CpiAccountsV2<'c, 'info> = GenericCpiAccountsV2<'c, AccountInfo<'info>>;
+pub type CpiAccounts<'c, 'info> = GenericCpiAccounts<'c, AccountInfo<'info>>;
 
-pub fn to_account_metas_v2(cpi_accounts: &CpiAccountsV2<'_, '_>) -> Result<Vec<AccountMeta>> {
+pub fn to_account_metas(cpi_accounts: &CpiAccounts<'_, '_>) -> Result<Vec<AccountMeta>> {
     // TODO: do a version with a const array instead of vector.
     let mut account_metas =
         Vec::with_capacity(1 + cpi_accounts.account_infos().len() - PROGRAM_ACCOUNTS_LEN);
@@ -43,7 +43,7 @@ pub fn to_account_metas_v2(cpi_accounts: &CpiAccountsV2<'_, '_>) -> Result<Vec<A
         is_writable: false,
     });
     let accounts = cpi_accounts.account_infos();
-    let mut index = CompressionCpiAccountIndexV2::SolPoolPda as usize;
+    let mut index = CompressionCpiAccountIndex::SolPoolPda as usize;
 
     if cpi_accounts.config().sol_pool_pda {
         let account = cpi_accounts.get_account_info(index)?;

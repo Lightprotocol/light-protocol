@@ -47,17 +47,13 @@
 //!     .map_err(ProgramError::from)?;
 //! ```
 
-mod accounts;
-mod accounts_cpi_context;
+mod traits;
+pub mod v1;
 #[cfg(feature = "v2")]
-mod accounts_v2_ix;
-mod invoke;
+pub mod v2;
 
-pub use accounts::*;
-#[cfg(feature = "v2")]
-pub use accounts_v2_ix::*;
-pub use invoke::*;
 /// Derives cpi signer and bump to invoke the light system program at compile time.
 pub use light_sdk_macros::derive_light_cpi_signer;
 /// Contains program id, derived cpi signer, and bump,
 pub use light_sdk_types::CpiSigner;
+pub use traits::*;

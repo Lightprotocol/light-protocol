@@ -10,7 +10,7 @@ use light_sdk::{
     cpi::{
         invoke_light_system_program, CompressedAccountInfo, CpiAccounts, CpiAccountsTrait,
         InstructionDataInvokeCpiWithAccountInfo, InvokeLightSystemProgram, LightCpiInstruction,
-        LightSystemProgramCpiV1, OutAccountInfo,
+        LightSystemProgramCpi, OutAccountInfo,
     },
     error::LightSdkError,
 };
@@ -106,7 +106,7 @@ pub fn process_cpi_context_indexing<'a, 'b, 'c, 'info>(
             },
             merkle_tree_index,
         };
-        let instruction_data = LightSystemProgramCpiV1::new_cpi(LIGHT_CPI_SIGNER, None.into())
+        let instruction_data = LightSystemProgramCpi::new_cpi(LIGHT_CPI_SIGNER, None.into())
             .with_output_compressed_accounts(&[out_account])
             .write_to_cpi_context_set();
         use light_sdk::cpi::LightInstructionData;

@@ -2,8 +2,9 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
     cpi::{
-        CpiAccounts, CpiAccountsConfig, InvokeLightSystemProgram, LightCpiInstruction,
-        LightSystemProgramCpi,
+        v1::{CpiAccounts, CpiAccountsConfig},
+        v2::LightSystemProgramCpi,
+        InvokeLightSystemProgram, LightCpiInstruction,
     },
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},
@@ -69,6 +70,7 @@ pub fn create_pda<const BATCHED: bool>(
     my_compressed_account.data = instruction_data.data;
 
     LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, instruction_data.proof)
+        .mode_v1()
         .with_light_account(my_compressed_account)?
         .with_new_addresses(&[new_address_params])
         .invoke(cpi_accounts)?;

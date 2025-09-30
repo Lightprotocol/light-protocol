@@ -7,8 +7,8 @@ use light_sdk::{
     account::LightAccount,
     address::v1::derive_address,
     cpi::{
-        CpiAccounts, CpiSigner, InstructionDataInvokeCpiWithReadOnly, InvokeLightSystemProgram,
-        LightCpiInstruction,
+        v1::CpiAccounts, v2::InstructionDataInvokeCpiWithReadOnly, CpiSigner,
+        InvokeLightSystemProgram, LightCpiInstruction,
     },
     derive_light_cpi_signer,
     instruction::{

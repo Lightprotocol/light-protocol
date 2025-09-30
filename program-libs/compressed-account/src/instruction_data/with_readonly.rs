@@ -247,12 +247,13 @@ impl InstructionDataInvokeCpiWithReadOnly {
             invoking_program_id,
             bump,
             proof,
+            mode: 1,
             ..Default::default()
         }
     }
 
-    pub fn mode_v2(mut self) -> Self {
-        self.mode = 1;
+    pub fn mode_v1(mut self) -> Self {
+        self.mode = 0;
         self
     }
 

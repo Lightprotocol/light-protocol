@@ -10,8 +10,8 @@
 //!     - `LightDiscriminator` - DeriveMacro to derive a compressed account discriminator.
 //! 3. Cpi
 //!     - `CpiAccounts` - Prepare accounts to cpi the light system program.
-//!     - `CpiInputs` - Prepare instruction data to cpi the light system program.
-//!     - `invoke_light_system_program` - Invoke the light system program via cpi.
+//!     - `LightSystemProgramCpi` - Prepare instruction data to cpi the light system program.
+//!     - `LightSystemProgramCpi::invoke` - Invoke the light system program via cpi.
 //!
 //!
 //! # Features

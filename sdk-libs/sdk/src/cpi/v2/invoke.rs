@@ -1,34 +1,39 @@
-use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-/// LightSystemProgramCpi optimized for Compressed Pdas.
-///
-/// InstructionDataInvokeCpiWithReadOnly provides more flexibility
-/// for complex operations such as changing the compressed account owner.
-pub use light_compressed_account::instruction_data::with_account_info::InstructionDataInvokeCpiWithAccountInfo as LightSystemProgramCpi;
-pub use light_compressed_account::instruction_data::{
-    cpi_context::*, with_account_info::*, with_readonly::*,
-};
+//! LightSystemProgramCpi optimized for Compressed Pdas.
+//!
+//! InstructionDataInvokeCpiWithReadOnly provides more flexibility
+//! for complex operations such as changing the compressed account owner.
 
-use super::traits::{CpiAccountsTrait, LightCpiInstruction};
+use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+pub use light_compressed_account::instruction_data::{
+    cpi_context::*,
+    with_account_info::{InstructionDataInvokeCpiWithAccountInfo as LightSystemProgramCpi, *},
+    with_readonly::*,
+};
+use light_sdk_types::CpiSigner;
+
 use crate::{
     account::{poseidon::LightAccount as LightAccountPoseidon, LightAccount},
-    cpi::{to_account_metas_v2, CpiAccountsV2, CpiSigner},
+    cpi::{
+        traits::{CpiAccountsTrait, LightCpiInstruction},
+        v2::{to_account_metas, CpiAccounts},
+    },
     error::LightSdkError,
     instruction::account_info::CompressedAccountInfoTrait,
     AccountInfo, AccountMeta, AnchorDeserialize, AnchorSerialize, DataHasher, LightDiscriminator,
     ProgramError,
 };
 
-impl<'info> CpiAccountsTrait<'info> for CpiAccountsV2<'_, 'info> {
+impl<'info> CpiAccountsTrait<'info> for CpiAccounts<'_, 'info> {
     fn to_account_infos(&self) -> Vec<AccountInfo<'info>> {
         self.to_account_infos()
     }
 
     fn to_account_metas(&self) -> Result<Vec<AccountMeta>, ProgramError> {
-        to_account_metas_v2(self).map_err(ProgramError::from)
+        to_account_metas(self).map_err(ProgramError::from)
     }
 
     fn get_mode(&self) -> Option<u8> {
-        Some(1) // Small mode
+        Some(1) // v2 mode
     }
 }
 

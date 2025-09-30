@@ -4,7 +4,9 @@ use light_compressed_account::{
     instruction_data::data::{NewAddressParamsAssignedPacked, NewAddressParamsPacked},
 };
 
-use crate::{address::AddressSeed, AnchorDeserialize, AnchorSerialize, CpiAccounts};
+use crate::{
+    address::AddressSeed, cpi_accounts::v1::CpiAccounts, AnchorDeserialize, AnchorSerialize,
+};
 
 #[derive(Debug, Clone, Copy, AnchorDeserialize, AnchorSerialize, PartialEq, Default)]
 pub struct PackedStateTreeInfo {

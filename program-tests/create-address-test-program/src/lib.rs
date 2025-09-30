@@ -9,11 +9,11 @@ use anchor_lang::{
     InstructionData,
 };
 use light_sdk::{
-    cpi::{CpiAccountsV2, CpiSigner},
+    cpi::{v1::CpiAccountsConfig, v2::CpiAccounts, CpiSigner},
     derive_light_cpi_signer,
     error::LightSdkError,
 };
-use light_sdk_types::{CompressionCpiAccountIndexV2, PROGRAM_ACCOUNTS_LEN};
+use light_sdk_types::cpi_accounts::v2::{CompressionCpiAccountIndex, PROGRAM_ACCOUNTS_LEN};
 use light_system_program::utils::get_registered_program_pda;
 pub mod create_pda;
 pub use create_pda::*;
@@ -23,8 +23,9 @@ use light_compressed_account::instruction_data::{
 use light_sdk::{
     constants::LIGHT_SYSTEM_PROGRAM_ID,
     cpi::{
-        get_account_metas_from_config, invoke_light_system_program, to_account_metas_v2,
-        CpiAccountsConfig, CpiInstructionConfig,
+        invoke_light_system_program,
+        v1::{get_account_metas_from_config, CpiInstructionConfig},
+        v2::to_account_metas,
     },
 };
 
@@ -70,13 +71,12 @@ pub mod system_cpi_test {
         let fee_payer = ctx.accounts.signer.to_account_info();
 
         let (account_infos, account_metas) = if v2_ix {
-            use light_sdk::cpi::CpiAccountsV2;
             let cpi_accounts =
-                CpiAccountsV2::new_with_config(&fee_payer, ctx.remaining_accounts, config);
+                CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config);
             let account_infos = cpi_accounts.to_account_infos();
 
             let account_metas = if !write_cpi_context {
-                to_account_metas_v2(&cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?
+                to_account_metas(&cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?
             } else {
                 let mut account_metas = vec![];
                 account_metas.push(AccountMeta {
@@ -99,7 +99,7 @@ pub mod system_cpi_test {
             };
             (account_infos, account_metas)
         } else {
-            use light_sdk::cpi::CpiAccounts;
+            use light_sdk::cpi::v1::CpiAccounts;
             let cpi_accounts =
                 CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config);
 
@@ -255,7 +255,7 @@ pub fn create_invoke_read_only_account_info_instruction(
 }
 // Manual impl for failing tests
 pub fn to_account_metas_small(
-    cpi_accounts: CpiAccountsV2<'_, '_>,
+    cpi_accounts: CpiAccounts<'_, '_>,
 ) -> light_sdk::error::Result<Vec<AccountMeta>> {
     // TODO: do a version with a const array instead of vector.
     let mut account_metas =
@@ -296,7 +296,7 @@ pub fn to_account_metas_small(
     });
 
     let accounts = cpi_accounts.account_infos();
-    let mut index = CompressionCpiAccountIndexV2::SolPoolPda as usize;
+    let mut index = CompressionCpiAccountIndex::SolPoolPda as usize;
 
     if cpi_accounts.config().sol_pool_pda {
         let account = cpi_accounts.get_account_info(index)?;

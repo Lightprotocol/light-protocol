@@ -5,12 +5,11 @@ use light_sdk_types::{
     cpi_context_write::CpiContextWriteAccounts,
 };
 
+#[cfg(feature = "v2")]
+use crate::cpi::v2::get_account_metas_from_config_cpi_context;
 use crate::{
     account::LightAccount,
-    cpi::{
-        accounts_cpi_context::get_account_metas_from_config_cpi_context,
-        get_account_metas_from_config, CpiAccounts, CpiInstructionConfig,
-    },
+    cpi::v1::{get_account_metas_from_config, CpiAccounts, CpiInstructionConfig},
     error::LightSdkError,
     invoke_signed, AccountInfo, AccountMeta, AnchorDeserialize, AnchorSerialize, DataHasher,
     Instruction, LightDiscriminator, ProgramError,
@@ -24,7 +23,7 @@ pub trait CpiAccountsTrait<'info> {
     /// Generate account metas
     fn to_account_metas(&self) -> Result<Vec<AccountMeta>, ProgramError>;
 
-    /// Get the mode for the instruction (0 for regular, 1 for small, None if unknown)
+    /// Get the mode for the instruction (0 for v1, 1 for v2, None if unknown)
     fn get_mode(&self) -> Option<u8>;
 }
 
@@ -40,7 +39,7 @@ impl<'info> CpiAccountsTrait<'info> for CpiAccounts<'_, 'info> {
     }
 
     fn get_mode(&self) -> Option<u8> {
-        Some(0) // Regular mode
+        Some(0) // v1 mode
     }
 }
 
@@ -85,7 +84,7 @@ impl<'a, 'info> CpiAccountsTrait<'info> for CpiContextWriteAccounts<'a, AccountI
     }
 
     fn get_mode(&self) -> Option<u8> {
-        // CPI context write is a special case, typically used with mode 1 (small)
+        // CPI context write is a special case, typically used with mode 1 (v2)
         Some(1)
     }
 }

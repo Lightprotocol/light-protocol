@@ -1,5 +1,7 @@
-use light_sdk_types::{CpiAccounts as GenericCpiAccounts, SYSTEM_ACCOUNTS_LEN};
-pub use light_sdk_types::{CpiAccountsConfig, CpiSigner};
+use light_sdk_types::cpi_accounts::v1::{
+    CpiAccounts as GenericCpiAccounts, CpiAccountsConfig, SYSTEM_ACCOUNTS_LEN,
+};
+pub use light_sdk_types::CpiSigner;
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta};
 
 use crate::error::{LightSdkError, Result};

@@ -1,8 +1,9 @@
-pub use light_sdk_types::CpiAccountsConfig;
+pub use light_sdk_types::cpi_accounts::v1::{
+    CpiAccounts as GenericCpiAccounts, CpiAccountsConfig, SYSTEM_ACCOUNTS_LEN,
+};
 use light_sdk_types::{
-    CpiAccounts as GenericCpiAccounts, ACCOUNT_COMPRESSION_AUTHORITY_PDA,
-    ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID,
-    REGISTERED_PROGRAM_PDA, SYSTEM_ACCOUNTS_LEN,
+    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
+    NOOP_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
 };
 
 use crate::{

@@ -272,7 +272,6 @@ fn test_instruction_data_invoke_cpi_with_readonly_builder() {
         reference.bump,
         reference.proof,
     )
-    .mode_v2()
     .write_to_cpi_context_first()
     .with_with_transaction_hash(true)
     .with_new_addresses(&reference.new_address_params)
@@ -376,7 +375,6 @@ fn test_instruction_data_invoke_cpi_with_account_info_builder() {
         reference.bump,
         reference.proof,
     )
-    .mode_v2()
     .write_to_cpi_context_set()
     .decompress_lamports(1500)
     .with_new_addresses(&reference.new_address_params)

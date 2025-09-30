@@ -2,10 +2,12 @@ use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof, invoke_cpi::InstructionDataInvokeCpi,
 };
 
-use super::traits::{LightCpiInstruction, LightInstructionData};
 use crate::{
     account::{poseidon::LightAccount as LightAccountPoseidon, LightAccount},
-    cpi::CpiSigner,
+    cpi::{
+        traits::{LightCpiInstruction, LightInstructionData},
+        CpiSigner,
+    },
     error::LightSdkError,
     instruction::account_info::CompressedAccountInfoTrait,
     AnchorDeserialize, AnchorSerialize, DataHasher, LightDiscriminator, ProgramError,
@@ -13,12 +15,12 @@ use crate::{
 
 /// V1 wrapper struct for InstructionDataInvokeCpi with CpiSigner
 #[derive(Clone)]
-pub struct LightSystemProgramCpiV1 {
+pub struct LightSystemProgramCpi {
     cpi_signer: CpiSigner,
     instruction_data: InstructionDataInvokeCpi,
 }
 
-impl LightSystemProgramCpiV1 {
+impl LightSystemProgramCpi {
     pub fn with_new_addresses(
         mut self,
         new_address_params: &[light_compressed_account::instruction_data::data::NewAddressParamsPacked],
@@ -78,7 +80,7 @@ impl LightSystemProgramCpiV1 {
     }
 }
 
-impl LightCpiInstruction for LightSystemProgramCpiV1 {
+impl LightCpiInstruction for LightSystemProgramCpi {
     fn new_cpi(cpi_signer: CpiSigner, proof: ValidityProof) -> Self {
         Self {
             cpi_signer,
@@ -220,19 +222,19 @@ impl LightCpiInstruction for LightSystemProgramCpiV1 {
 }
 
 // Manual BorshSerialize implementation that only serializes instruction_data
-impl AnchorSerialize for LightSystemProgramCpiV1 {
+impl AnchorSerialize for LightSystemProgramCpi {
     fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
         self.instruction_data.serialize(writer)
     }
 }
 
-impl light_compressed_account::InstructionDiscriminator for LightSystemProgramCpiV1 {
+impl light_compressed_account::InstructionDiscriminator for LightSystemProgramCpi {
     fn discriminator(&self) -> &'static [u8] {
         self.instruction_data.discriminator()
     }
 }
 
-impl LightInstructionData for LightSystemProgramCpiV1 {
+impl LightInstructionData for LightSystemProgramCpi {
     fn data(&self) -> Result<Vec<u8>, light_compressed_account::CompressedAccountError> {
         self.instruction_data.data()
     }
