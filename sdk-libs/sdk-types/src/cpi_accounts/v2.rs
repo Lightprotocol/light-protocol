@@ -1,8 +1,9 @@
 use light_account_checks::AccountInfoTrait;
 
+#[cfg(feature = "cpi-context")]
+use crate::cpi_context_write::CpiContextWriteAccounts;
 use crate::{
     cpi_accounts::CpiAccountsConfig,
-    cpi_context_write::CpiContextWriteAccounts,
     error::{LightSdkTypesError, Result},
     CpiSigner,
 };
@@ -30,6 +31,8 @@ pub struct CpiAccounts<'a, T: AccountInfoTrait + Clone> {
     accounts: &'a [T],
     config: CpiAccountsConfig,
 }
+
+#[cfg(feature = "cpi-context")]
 impl<'a, T: AccountInfoTrait + Clone> TryFrom<&CpiAccounts<'a, T>>
     for CpiContextWriteAccounts<'a, T>
 {
@@ -44,6 +47,7 @@ impl<'a, T: AccountInfoTrait + Clone> TryFrom<&CpiAccounts<'a, T>>
         })
     }
 }
+
 impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
     pub fn new(fee_payer: &'a T, accounts: &'a [T], cpi_signer: CpiSigner) -> Self {
         Self {

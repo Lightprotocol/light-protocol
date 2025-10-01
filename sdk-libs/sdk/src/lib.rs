@@ -16,8 +16,15 @@
 //! # Features
 //! 1. `anchor` - Derives AnchorSerialize, AnchorDeserialize instead of BorshSerialize, BorshDeserialize.
 //!
-//! 2. `v2` - light protocol program v2 are currently in audit and only available on local host and with light-program-test.
-//!    Deploy on devnet and mainnet only without v2 features enabled.
+//! 2. `v2`
+//!     - available on devnet, localnet, and light-program-test.
+//!
+//! 3. `cpi-context` - Enables CPI context operations for batched compressed account operations.
+//!    - available on devnet, localnet, and light-program-test.
+//!    - Enables the use of one validity proof across multiple cpis from different programs in one instruction.
+//!    - For example spending compressed tokens (owned by the ctoken program) and updating a compressed pda (owned by a custom program)
+//!      with one validity proof.
+//!    - An instruction should not use more than one validity proof.
 //!
 //! ### Example Solana program code to create a compressed account
 //! ```rust, compile_fail

@@ -30,22 +30,24 @@
 //! my_compressed_account.name = name;
 //! my_compressed_account.nested = NestedData::default();
 //!
-//! use crate::cpi::v1::LightSystemProgramCpi;
-//! let cpi_instruction = LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, proof)
+//! LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, proof)
 //!     .with_light_account(my_compressed_account)?
-//!     .with_new_addresses(&[new_address_params]);
-//!
-//! cpi_instruction
+//!     .with_new_addresses(&[new_address_params])
 //!     .invoke(light_cpi_accounts)?;
 //! ```
 
-mod traits;
+mod account;
+mod instruction;
+mod invoke;
+
 pub mod v1;
 #[cfg(feature = "v2")]
 pub mod v2;
 
+pub use account::*;
+pub use instruction::*;
+pub use invoke::*;
 /// Derives cpi signer and bump to invoke the light system program at compile time.
 pub use light_sdk_macros::derive_light_cpi_signer;
 /// Contains program id, derived cpi signer, and bump,
 pub use light_sdk_types::{cpi_accounts::CpiAccountsConfig, CpiSigner};
-pub use traits::*;

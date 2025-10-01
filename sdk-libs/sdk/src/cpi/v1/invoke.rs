@@ -4,10 +4,7 @@ use light_compressed_account::instruction_data::{
 
 use crate::{
     account::{poseidon::LightAccount as LightAccountPoseidon, LightAccount},
-    cpi::{
-        traits::{LightCpiInstruction, LightInstructionData},
-        CpiSigner,
-    },
+    cpi::{instruction::LightCpiInstruction, invoke::LightInstructionData, CpiSigner},
     error::LightSdkError,
     instruction::account_info::CompressedAccountInfoTrait,
     AnchorDeserialize, AnchorSerialize, DataHasher, LightDiscriminator, ProgramError,
@@ -21,6 +18,7 @@ pub struct LightSystemProgramCpi {
 }
 
 impl LightSystemProgramCpi {
+    #[must_use = "with_new_addresses returns a new value"]
     pub fn with_new_addresses(
         mut self,
         new_address_params: &[light_compressed_account::instruction_data::data::NewAddressParamsPacked],
@@ -29,6 +27,7 @@ impl LightSystemProgramCpi {
         self
     }
 
+    #[must_use = "with_input_compressed_accounts_with_merkle_context returns a new value"]
     pub fn with_input_compressed_accounts_with_merkle_context(
         mut self,
         input_compressed_accounts_with_merkle_context: &[light_compressed_account::compressed_account::PackedCompressedAccountWithMerkleContext],
@@ -41,6 +40,7 @@ impl LightSystemProgramCpi {
         self
     }
 
+    #[must_use = "with_output_compressed_accounts returns a new value"]
     pub fn with_output_compressed_accounts(
         mut self,
         output_compressed_accounts: &[light_compressed_account::instruction_data::data::OutputCompressedAccountWithPackedContext],
@@ -51,26 +51,34 @@ impl LightSystemProgramCpi {
         self
     }
 
+    #[must_use = "compress_lamports returns a new value"]
     pub fn compress_lamports(mut self, lamports: u64) -> Self {
         self.instruction_data = self.instruction_data.compress_lamports(lamports);
         self
     }
 
+    #[must_use = "decompress_lamports returns a new value"]
     pub fn decompress_lamports(mut self, lamports: u64) -> Self {
         self.instruction_data = self.instruction_data.decompress_lamports(lamports);
         self
     }
 
+    #[cfg(feature = "cpi-context")]
+    #[must_use = "write_to_cpi_context_set returns a new value"]
     pub fn write_to_cpi_context_set(mut self) -> Self {
         self.instruction_data = self.instruction_data.write_to_cpi_context_set();
         self
     }
 
+    #[cfg(feature = "cpi-context")]
+    #[must_use = "write_to_cpi_context_first returns a new value"]
     pub fn write_to_cpi_context_first(mut self) -> Self {
         self.instruction_data = self.instruction_data.write_to_cpi_context_first();
         self
     }
 
+    #[cfg(feature = "cpi-context")]
+    #[must_use = "with_cpi_context returns a new value"]
     pub fn with_cpi_context(
         mut self,
         cpi_context: light_compressed_account::instruction_data::cpi_context::CompressedCpiContext,
@@ -179,31 +187,31 @@ impl LightCpiInstruction for LightSystemProgramCpi {
         self.cpi_signer.bump
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(feature = "cpi-context")]
     fn write_to_cpi_context_first(mut self) -> Self {
         self.instruction_data = self.instruction_data.write_to_cpi_context_first();
         self
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(feature = "cpi-context")]
     fn write_to_cpi_context_set(mut self) -> Self {
         self.instruction_data = self.instruction_data.write_to_cpi_context_set();
         self
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(feature = "cpi-context")]
     fn execute_with_cpi_context(self) -> Self {
         // V1 doesn't have a direct execute context, just return self
         // The execute happens through the invoke call
         self
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(feature = "cpi-context")]
     fn get_with_cpi_context(&self) -> bool {
         self.instruction_data.cpi_context.is_some()
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(feature = "cpi-context")]
     fn get_cpi_context(
         &self,
     ) -> &light_compressed_account::instruction_data::cpi_context::CompressedCpiContext {

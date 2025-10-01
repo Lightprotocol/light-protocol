@@ -19,6 +19,7 @@ anchor = [
     "light-sdk-types/anchor",
 ]
 v2 = ["light-sdk-types/v2"]
+cpi-context = ["light-sdk-types/cpi-context"]
 devnet = []
 
 

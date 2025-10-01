@@ -14,7 +14,8 @@ use light_sdk_types::CpiSigner;
 use crate::{
     account::{poseidon::LightAccount as LightAccountPoseidon, LightAccount},
     cpi::{
-        traits::{CpiAccountsTrait, LightCpiInstruction},
+        account::CpiAccountsTrait,
+        instruction::LightCpiInstruction,
         v2::{to_account_metas, CpiAccounts},
     },
     error::LightSdkError,
@@ -145,14 +146,17 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
         Ok(self)
     }
 
+    #[cfg(feature = "cpi-context")]
     fn write_to_cpi_context_first(self) -> Self {
         self.write_to_cpi_context_first()
     }
 
+    #[cfg(feature = "cpi-context")]
     fn write_to_cpi_context_set(self) -> Self {
         self.write_to_cpi_context_set()
     }
 
+    #[cfg(feature = "cpi-context")]
     fn execute_with_cpi_context(self) -> Self {
         self.execute_with_cpi_context()
     }
@@ -161,10 +165,12 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
         self.mode
     }
 
+    #[cfg(feature = "cpi-context")]
     fn get_with_cpi_context(&self) -> bool {
         self.with_cpi_context
     }
 
+    #[cfg(feature = "cpi-context")]
     fn get_cpi_context(&self) -> &CompressedCpiContext {
         &self.cpi_context
     }
@@ -208,14 +214,17 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
         Ok(self)
     }
 
+    #[cfg(feature = "cpi-context")]
     fn write_to_cpi_context_first(self) -> Self {
         self.write_to_cpi_context_first()
     }
 
+    #[cfg(feature = "cpi-context")]
     fn write_to_cpi_context_set(self) -> Self {
         self.write_to_cpi_context_set()
     }
 
+    #[cfg(feature = "cpi-context")]
     fn execute_with_cpi_context(self) -> Self {
         self.execute_with_cpi_context()
     }
@@ -224,10 +233,12 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
         self.mode
     }
 
+    #[cfg(feature = "cpi-context")]
     fn get_with_cpi_context(&self) -> bool {
         self.with_cpi_context
     }
 
+    #[cfg(feature = "cpi-context")]
     fn get_cpi_context(&self) -> &CompressedCpiContext {
         &self.cpi_context
     }

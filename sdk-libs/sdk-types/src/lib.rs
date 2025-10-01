@@ -1,6 +1,7 @@
 pub mod address;
 pub mod constants;
 pub mod cpi_accounts;
+#[cfg(feature = "cpi-context")]
 pub mod cpi_context_write;
 pub mod error;
 pub mod instruction;

@@ -383,50 +383,59 @@ impl InstructionDataInvokeCpiWithAccountInfo {
         }
     }
 
+    #[must_use = "mode_v1 returns a new value"]
     pub fn mode_v1(mut self) -> Self {
         self.mode = 0;
         self
     }
 
+    #[must_use = "write_to_cpi_context_set returns a new value"]
     pub fn write_to_cpi_context_set(mut self) -> Self {
         self.with_cpi_context = true;
         self.cpi_context = CompressedCpiContext::set();
         self
     }
 
+    #[must_use = "write_to_cpi_context_first returns a new value"]
     pub fn write_to_cpi_context_first(mut self) -> Self {
         self.with_cpi_context = true;
         self.cpi_context = CompressedCpiContext::first();
         self
     }
 
+    #[must_use = "execute_with_cpi_context returns a new value"]
     pub fn execute_with_cpi_context(mut self) -> Self {
         self.with_cpi_context = true;
         self
     }
 
+    #[must_use = "with_cpi_context returns a new value"]
     pub fn with_cpi_context(mut self, cpi_context: CompressedCpiContext) -> Self {
         self.cpi_context = cpi_context;
         self
     }
 
+    #[must_use = "with_with_transaction_hash returns a new value"]
     pub fn with_with_transaction_hash(mut self, with_transaction_hash: bool) -> Self {
         self.with_transaction_hash = with_transaction_hash;
         self
     }
 
+    #[must_use = "compress_lamports returns a new value"]
     pub fn compress_lamports(mut self, lamports: u64) -> Self {
         self.compress_or_decompress_lamports = lamports;
         self.is_compress = true;
         self
     }
 
+    #[must_use = "decompress_lamports returns a new value"]
     pub fn decompress_lamports(mut self, lamports: u64) -> Self {
         self.compress_or_decompress_lamports = lamports;
         self.is_compress = false;
         self
     }
 
+    #[must_use = "with_new_addresses returns a new value"]
     pub fn with_new_addresses(
         mut self,
         new_address_params: &[NewAddressParamsAssignedPacked],
@@ -438,6 +447,7 @@ impl InstructionDataInvokeCpiWithAccountInfo {
         self
     }
 
+    #[must_use = "with_account_infos returns a new value"]
     pub fn with_account_infos(mut self, account_infos: &[CompressedAccountInfo]) -> Self {
         if !account_infos.is_empty() {
             self.account_infos.extend_from_slice(account_infos);
@@ -445,6 +455,7 @@ impl InstructionDataInvokeCpiWithAccountInfo {
         self
     }
 
+    #[must_use = "with_read_only_addresses returns a new value"]
     pub fn with_read_only_addresses(
         mut self,
         read_only_addresses: &[PackedReadOnlyAddress],
@@ -456,6 +467,7 @@ impl InstructionDataInvokeCpiWithAccountInfo {
         self
     }
 
+    #[must_use = "with_read_only_accounts returns a new value"]
     pub fn with_read_only_accounts(
         mut self,
         read_only_accounts: &[PackedReadOnlyCompressedAccount],

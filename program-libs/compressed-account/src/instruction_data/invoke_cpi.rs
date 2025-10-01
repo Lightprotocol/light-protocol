@@ -46,6 +46,7 @@ impl InstructionDataInvokeCpi {
         }
     }
 
+    #[must_use = "with_new_addresses returns a new value"]
     pub fn with_new_addresses(mut self, new_address_params: &[NewAddressParamsPacked]) -> Self {
         if !new_address_params.is_empty() {
             self.new_address_params
@@ -54,6 +55,7 @@ impl InstructionDataInvokeCpi {
         self
     }
 
+    #[must_use = "with_input_compressed_accounts_with_merkle_context returns a new value"]
     pub fn with_input_compressed_accounts_with_merkle_context(
         mut self,
         input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
@@ -65,6 +67,7 @@ impl InstructionDataInvokeCpi {
         self
     }
 
+    #[must_use = "with_output_compressed_accounts returns a new value"]
     pub fn with_output_compressed_accounts(
         mut self,
         output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
@@ -76,28 +79,33 @@ impl InstructionDataInvokeCpi {
         self
     }
 
+    #[must_use = "compress_lamports returns a new value"]
     pub fn compress_lamports(mut self, lamports: u64) -> Self {
         self.compress_or_decompress_lamports = Some(lamports);
         self.is_compress = true;
         self
     }
 
+    #[must_use = "decompress_lamports returns a new value"]
     pub fn decompress_lamports(mut self, lamports: u64) -> Self {
         self.compress_or_decompress_lamports = Some(lamports);
         self.is_compress = false;
         self
     }
 
+    #[must_use = "write_to_cpi_context_set returns a new value"]
     pub fn write_to_cpi_context_set(mut self) -> Self {
         self.cpi_context = Some(CompressedCpiContext::set());
         self
     }
 
+    #[must_use = "write_to_cpi_context_first returns a new value"]
     pub fn write_to_cpi_context_first(mut self) -> Self {
         self.cpi_context = Some(CompressedCpiContext::first());
         self
     }
 
+    #[must_use = "with_cpi_context returns a new value"]
     pub fn with_cpi_context(mut self, cpi_context: CompressedCpiContext) -> Self {
         self.cpi_context = Some(cpi_context);
         self

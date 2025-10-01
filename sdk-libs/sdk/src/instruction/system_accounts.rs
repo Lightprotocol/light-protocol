@@ -65,10 +65,12 @@ use crate::{find_cpi_signer_macro, AccountMeta, Pubkey};
 /// };
 /// ```
 #[derive(Debug, Default, Copy, Clone)]
+#[non_exhaustive]
 pub struct SystemAccountMetaConfig {
     /// Your program's ID (required). Used to derive the CPI signer PDA.
     pub self_program: Pubkey,
     /// Optional CPI context account for batched operations (v2 only).
+    #[cfg(feature = "cpi-context")]
     pub cpi_context: Option<Pubkey>,
     /// Optional account to receive decompressed SOL.
     pub sol_compression_recipient: Option<Pubkey>,
@@ -93,6 +95,7 @@ impl SystemAccountMetaConfig {
     pub fn new(self_program: Pubkey) -> Self {
         Self {
             self_program,
+            #[cfg(feature = "cpi-context")]
             cpi_context: None,
             sol_compression_recipient: None,
             sol_pool_pda: None,
@@ -116,6 +119,7 @@ impl SystemAccountMetaConfig {
     ///     cpi_context_account
     /// );
     /// ```
+    #[cfg(feature = "cpi-context")]
     pub fn new_with_cpi_context(self_program: Pubkey, cpi_context: Pubkey) -> Self {
         Self {
             self_program,
@@ -196,6 +200,7 @@ pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<Ac
         default_pubkeys.system_program,
         false,
     ));
+    #[cfg(feature = "cpi-context")]
     if let Some(pubkey) = config.cpi_context {
         vec.push(AccountMeta {
             pubkey,
@@ -244,6 +249,7 @@ pub fn get_light_system_account_metas_v2(config: SystemAccountMetaConfig) -> Vec
             is_writable: true,
         });
     }
+    #[cfg(feature = "cpi-context")]
     if let Some(pubkey) = config.cpi_context {
         vec.push(AccountMeta {
             pubkey,

@@ -252,41 +252,51 @@ impl InstructionDataInvokeCpiWithReadOnly {
         }
     }
 
+    #[must_use = "mode_v1 returns a new value"]
     pub fn mode_v1(mut self) -> Self {
         self.mode = 0;
         self
     }
 
+    #[must_use = "write_to_cpi_context_set returns a new value"]
     pub fn write_to_cpi_context_set(mut self) -> Self {
         self.with_cpi_context = true;
         self.cpi_context = CompressedCpiContext::set();
         self
     }
+
+    #[must_use = "write_to_cpi_context_first returns a new value"]
     pub fn write_to_cpi_context_first(mut self) -> Self {
         self.with_cpi_context = true;
         self.cpi_context = CompressedCpiContext::first();
         self
     }
+
+    #[must_use = "execute_with_cpi_context returns a new value"]
     pub fn execute_with_cpi_context(mut self) -> Self {
         self.with_cpi_context = true;
         self
     }
 
+    #[must_use = "with_with_transaction_hash returns a new value"]
     pub fn with_with_transaction_hash(mut self, with_transaction_hash: bool) -> Self {
         self.with_transaction_hash = with_transaction_hash;
         self
     }
 
+    #[must_use = "with_cpi_context returns a new value"]
     pub fn with_cpi_context(mut self, cpi_context: CompressedCpiContext) -> Self {
         self.cpi_context = cpi_context;
         self
     }
 
+    #[must_use = "with_proof returns a new value"]
     pub fn with_proof(mut self, proof: Option<CompressedProof>) -> Self {
         self.proof = proof;
         self
     }
 
+    #[must_use = "with_new_addresses returns a new value"]
     pub fn with_new_addresses(
         mut self,
         new_address_params: &[NewAddressParamsAssignedPacked],
@@ -298,6 +308,7 @@ impl InstructionDataInvokeCpiWithReadOnly {
         self
     }
 
+    #[must_use = "with_input_compressed_accounts returns a new value"]
     pub fn with_input_compressed_accounts(
         mut self,
         input_compressed_accounts: &[InAccount],
@@ -309,6 +320,7 @@ impl InstructionDataInvokeCpiWithReadOnly {
         self
     }
 
+    #[must_use = "with_output_compressed_accounts returns a new value"]
     pub fn with_output_compressed_accounts(
         mut self,
         output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
@@ -320,6 +332,7 @@ impl InstructionDataInvokeCpiWithReadOnly {
         self
     }
 
+    #[must_use = "with_read_only_addresses returns a new value"]
     pub fn with_read_only_addresses(
         mut self,
         read_only_addresses: &[PackedReadOnlyAddress],
@@ -331,6 +344,7 @@ impl InstructionDataInvokeCpiWithReadOnly {
         self
     }
 
+    #[must_use = "with_read_only_accounts returns a new value"]
     pub fn with_read_only_accounts(
         mut self,
         read_only_accounts: &[PackedReadOnlyCompressedAccount],
