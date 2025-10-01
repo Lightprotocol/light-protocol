@@ -47,7 +47,7 @@ pub use accounts_cpi_context::*;
 /// ```rust,no_run
 /// # use light_sdk::cpi::{v2::LightSystemProgramCpi, InvokeLightSystemProgram, LightCpiInstruction, CpiSigner};
 /// # use light_sdk::instruction::ValidityProof;
-/// # use light_compressed_account::instruction_data::data::NewAddressParamsPacked;
+/// # use light_compressed_account::instruction_data::data::NewAddressParamsAssignedPacked;
 /// # use light_sdk::{LightAccount, LightDiscriminator};
 /// # use borsh::{BorshSerialize, BorshDeserialize};
 /// # use solana_pubkey::Pubkey;
@@ -66,7 +66,7 @@ pub use accounts_cpi_context::*;
 /// #
 /// # fn example() -> Result<(), ProgramError> {
 /// # let proof = ValidityProof::default();
-/// # let new_address_params = NewAddressParamsPacked::default();
+/// # let new_address_params = NewAddressParamsAssignedPacked::default();
 /// # let program_id = Pubkey::new_unique();
 /// # let account = LightAccount::<MyAccount>::new_init(&program_id, None, 0);
 /// # let key = Pubkey::new_unique();
