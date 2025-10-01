@@ -10,7 +10,7 @@ pub struct Sha256;
 
 impl Hasher for Sha256 {
     const ID: u8 = 0;
-    
+
     fn hash(val: &[u8]) -> Result<Hash, HasherError> {
         Self::hashv(&[val])
     }

@@ -1,10 +1,11 @@
 use async_trait::async_trait;
 use light_client::indexer::{
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount,
-    GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
-    Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
-    MerkleProofWithContext, NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response,
-    RetryConfig, SignatureWithMetadata, CompressedTokenAccount, TokenBalance, ValidityProofWithContext,
+    CompressedTokenAccount, GetCompressedAccountsByOwnerConfig,
+    GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
+    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MerkleProofWithContext,
+    NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig,
+    SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
 };
 use light_compressed_account::QueueType;
 use solana_sdk::pubkey::Pubkey;

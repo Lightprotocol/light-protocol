@@ -50,21 +50,30 @@ pub fn setup_light_programs(
         .inspect_err(|_| {
             println!("Program light_registry bin not found in {}", path);
         })
-        .map_err(|e| RpcError::CustomError(format!("Failed to add light_registry program: {}", e)))?;
+        .map_err(|e| {
+            RpcError::CustomError(format!("Failed to add light_registry program: {}", e))
+        })?;
     let path = format!("{}/account_compression.so", light_bin_path);
     program_test
         .add_program_from_file(account_compression::ID, path.clone())
         .inspect_err(|_| {
             println!("Program account_compression bin not found in {}", path);
         })
-        .map_err(|e| RpcError::CustomError(format!("Failed to add account_compression program: {}", e)))?;
+        .map_err(|e| {
+            RpcError::CustomError(format!("Failed to add account_compression program: {}", e))
+        })?;
     let path = format!("{}/light_compressed_token.so", light_bin_path);
     program_test
         .add_program_from_file(light_compressed_token::ID, path.clone())
         .inspect_err(|_| {
             println!("Program light_compressed_token bin not found in {}", path);
         })
-        .map_err(|e| RpcError::CustomError(format!("Failed to add light_compressed_token program: {}", e)))?;
+        .map_err(|e| {
+            RpcError::CustomError(format!(
+                "Failed to add light_compressed_token program: {}",
+                e
+            ))
+        })?;
     let path = format!("{}/spl_noop.so", light_bin_path);
     program_test
         .add_program_from_file(NOOP_PROGRAM_ID, path.clone())
@@ -82,7 +91,12 @@ pub fn setup_light_programs(
                 path
             );
         })
-        .map_err(|e| RpcError::CustomError(format!("Failed to add light_system_program_pinocchio: {}", e)))?;
+        .map_err(|e| {
+            RpcError::CustomError(format!(
+                "Failed to add light_system_program_pinocchio: {}",
+                e
+            ))
+        })?;
 
     let registered_program = registered_program_test_account_system_program();
     program_test
@@ -110,7 +124,9 @@ pub fn setup_light_programs(
                 .inspect_err(|_| {
                     println!("Program {} bin not found in {}", name, path);
                 })
-                .map_err(|e| RpcError::CustomError(format!("Failed to add program {}: {}", name, e)))?;
+                .map_err(|e| {
+                    RpcError::CustomError(format!("Failed to add program {}: {}", name, e))
+                })?;
         }
     }
     Ok(program_test)

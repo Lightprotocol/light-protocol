@@ -67,8 +67,7 @@ pub mod system_cpi_test {
             use light_sdk::cpi::CpiAccountsV2;
             let cpi_accounts =
                 CpiAccountsV2::new_with_config(&fee_payer, ctx.remaining_accounts, config);
-            let account_infos = cpi_accounts
-                .to_account_infos();
+            let account_infos = cpi_accounts.to_account_infos();
 
             let account_metas =
                 to_account_metas_v2(cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?;
@@ -78,8 +77,7 @@ pub mod system_cpi_test {
             let cpi_accounts =
                 CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config);
 
-            let account_infos = cpi_accounts
-                .to_account_infos();
+            let account_infos = cpi_accounts.to_account_infos();
 
             let config = CpiInstructionConfig::try_from(&cpi_accounts)
                 .map_err(|_| ErrorCode::AccountNotEnoughKeys)?;

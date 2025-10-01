@@ -11,7 +11,10 @@ use solana_pubkey::Pubkey;
 use tracing::{debug, error, warn};
 
 use super::{
-    types::{CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata, TokenBalance},
+    types::{
+        CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata,
+        TokenBalance,
+    },
     BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
 };
 use crate::indexer::{

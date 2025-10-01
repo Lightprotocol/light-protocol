@@ -79,7 +79,7 @@ pub struct Poseidon;
 
 impl Hasher for Poseidon {
     const ID: u8 = 1;
-    
+
     fn hash(val: &[u8]) -> Result<Hash, HasherError> {
         Self::hashv(&[val])
     }

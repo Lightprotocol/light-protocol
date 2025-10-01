@@ -14,6 +14,8 @@ use light_sdk_types::{
 #[allow(unused_imports)] // TODO: Remove.
 use solana_msg::msg;
 
+#[cfg(feature = "v2")]
+use crate::cpi::{to_account_metas_small, CpiAccountsSmall};
 use crate::{
     cpi::{
         accounts_cpi_context::get_account_metas_from_config_cpi_context,
@@ -23,9 +25,6 @@ use crate::{
     instruction::{account_info::CompressedAccountInfoTrait, ValidityProof},
     invoke_signed, AccountInfo, AnchorSerialize, Instruction,
 };
-
-#[cfg(feature = "v2")]
-use crate::cpi::{to_account_metas_small, CpiAccountsSmall};
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct CpiInputs {

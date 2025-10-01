@@ -795,6 +795,7 @@ impl MerkleTreeExt for LightClient {}
 /// let mut rng = thread_rng();
 /// let selected_tree = select_state_tree_info(&mut rng, &tree_infos)?;
 /// ```
+#[allow(clippy::result_large_err)]
 pub fn select_state_tree_info<R: rand::Rng>(
     rng: &mut R,
     state_trees: &[TreeInfo],

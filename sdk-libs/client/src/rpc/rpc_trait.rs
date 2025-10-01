@@ -196,8 +196,9 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         payer: &Pubkey,
         signers: &[&Keypair],
     ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError>;
-
+    #[allow(clippy::result_large_err)]
     fn indexer(&self) -> Result<&impl Indexer, RpcError>;
+    #[allow(clippy::result_large_err)]
     fn indexer_mut(&mut self) -> Result<&mut impl Indexer, RpcError>;
 
     /// Fetch the latest state tree addresses from the cluster.
@@ -209,6 +210,7 @@ pub trait Rpc: Send + Sync + Debug + 'static {
 
     /// Gets a random state tree info.
     /// State trees are cached and have to be fetched or set.
+    #[allow(clippy::result_large_err)]
     fn get_random_state_tree_info(&self) -> Result<TreeInfo, RpcError>;
 
     fn get_address_tree_v1(&self) -> TreeInfo;
