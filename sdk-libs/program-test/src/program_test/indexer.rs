@@ -4,7 +4,7 @@ use light_client::indexer::{
     GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
     Indexer, IndexerError, IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof,
     MerkleProofWithContext, NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response,
-    RetryConfig, SignatureWithMetadata, TokenAccount, TokenBalance, ValidityProofWithContext,
+    RetryConfig, SignatureWithMetadata, CompressedTokenAccount, TokenBalance, ValidityProofWithContext,
 };
 use light_compressed_account::QueueType;
 use solana_sdk::pubkey::Pubkey;
@@ -94,7 +94,7 @@ impl Indexer for LightProgramTest {
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -265,7 +265,7 @@ impl Indexer for LightProgramTest {
         delegate: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()

@@ -383,7 +383,7 @@ impl ValidityProofWithContext {
     }
 }
 
-#[derive(Clone, Copy, Hash, Eq, Default, Debug, PartialEq)]
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
 pub struct NextTreeInfo {
     pub cpi_context: Option<Pubkey>,
     pub queue: Pubkey,
@@ -432,7 +432,7 @@ impl TryFrom<&photon_api::models::TreeContextInfo> for NextTreeInfo {
     }
 }
 
-#[derive(Clone, Copy, Hash, Eq, Default, Debug, PartialEq)]
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
 pub struct TreeInfo {
     pub cpi_context: Option<Pubkey>,
     pub next_tree_info: Option<NextTreeInfo>,
@@ -498,7 +498,7 @@ impl TreeInfo {
     }
 }
 
-#[derive(Clone, Default, Eq, Hash, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq)]
 pub struct CompressedAccount {
     pub address: Option<[u8; 32]>,
     pub data: Option<CompressedAccountData>,
@@ -732,7 +732,7 @@ pub struct AddressMerkleTreeAccounts {
     pub queue: Pubkey,
 }
 
-#[derive(Clone, Default, Eq, Hash, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, PartialEq)]
 pub struct CompressedTokenAccount {
     /// Token-specific data (mint, owner, amount, delegate, state, tlv)
     pub token: TokenData,
