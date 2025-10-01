@@ -1,14 +1,23 @@
 //! # Light Program Test
 //!
 //! A fast local test environment for Solana programs using compressed accounts and tokens.
+//!
+//! For Rust and Anchor program development, see [`light-sdk`](https://docs.rs/light-sdk).
+//! For Rust client, see [`light-client`](https://docs.rs/light-client).
+//! For full program examples, see the [Program Examples](https://github.com/Lightprotocol/program-examples).
+//! For detailed documentation, visit [zkcompression.com](https://www.zkcompression.com/).
+//!
+//! # Features
+//!
+//! - `v2` - Enables v2 batched Merkle trees.
+//!
+//! ## Testing Features
+//! - Fast in-memory indexer and SVM via [LiteSVM](https://github.com/LiteSVM/LiteSVM)
+//! - Supports custom programs
+//! - Prover server via [Light CLI](https://www.npmjs.com/package/@lightprotocol/zk-compression-cli)
 
 #![allow(deprecated)]
 #![allow(clippy::result_large_err)]
-//!
-//! ## Features
-//! - Fast in-memory indexer and SVM via [LiteSVM](https://github.com/LiteSVM/LiteSVM)
-//! - Supports custom programs
-//! - Built-in prover
 //!
 //! **Use `light-program-test` when:**
 //! - You need fast test execution
@@ -48,6 +57,13 @@
 //! lsof -i:3001
 //! # Kill the process
 //! kill <pid>
+//! ```
+//!
+//! ## Debugging
+//!
+//! Set `RUST_BACKTRACE=1` to show detailed transaction information including accounts and parsed instructions:
+//! ```bash
+//! RUST_BACKTRACE=1 cargo test-sbf -- --nocapture
 //! ```
 //!
 //! ## Examples

@@ -12,6 +12,10 @@
 //!
 //! For full program examples, see the [Program Examples](https://github.com/Lightprotocol/program-examples).
 //! For detailed documentation, visit [zkcompression.com](https://www.zkcompression.com/).
+//! For pinocchio solana program development see [`light-sdk-pinocchio`](https://docs.rs/light-sdk-pinocchio).
+//! For rust client developement see [`light-client`](https://docs.rs/light-client).
+//! For rust program testing see [`light-program-test`](https://docs.rs/light-program-test).
+//! For local test validator with light system programs see [Light CLI](https://www.npmjs.com/package/@lightprotocol/zk-compression-cli).
 //!
 //! #  Using Compressed Accounts in Solana Programs
 //! 1. [`Instruction`](crate::instruction)
@@ -111,14 +115,10 @@
 //!
 //!         my_compressed_account.owner = ctx.accounts.fee_payer.key();
 //!
-//!         let cpi_instruction = LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, proof)
+//!         LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, proof)
 //!             .with_light_account(my_compressed_account)?
-//!             .with_new_addresses(&[new_address_params]);
-//!
-//!         cpi_instruction
-//!             .invoke(light_cpi_accounts)?;
-//!
-//!         Ok(())
+//!             .with_new_addresses(&[new_address_params])
+//!             .invoke(light_cpi_accounts)
 //!     }
 //! }
 //!

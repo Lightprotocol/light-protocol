@@ -6,7 +6,6 @@ use light_sdk_types::CpiSigner;
 #[cfg(feature = "cpi-context")]
 use super::lowlevel::CompressedCpiContext;
 use super::lowlevel::{to_account_metas, InAccount, InstructionDataInvokeCpiWithReadOnly};
-
 use crate::{
     account::{poseidon::LightAccount as LightAccountPoseidon, LightAccount},
     cpi::{account::CpiAccountsTrait, instruction::LightCpiInstruction, v2::CpiAccounts},
