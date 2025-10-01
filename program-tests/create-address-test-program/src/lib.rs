@@ -68,10 +68,7 @@ pub mod system_cpi_test {
             let cpi_accounts =
                 CpiAccountsV2::new_with_config(&fee_payer, ctx.remaining_accounts, config);
             let account_infos = cpi_accounts
-                .to_account_infos()
-                .into_iter()
-                .cloned()
-                .collect::<Vec<_>>();
+                .to_account_infos();
 
             let account_metas =
                 to_account_metas_v2(cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?;
@@ -82,10 +79,7 @@ pub mod system_cpi_test {
                 CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config);
 
             let account_infos = cpi_accounts
-                .to_account_infos()
-                .into_iter()
-                .cloned()
-                .collect::<Vec<_>>();
+                .to_account_infos();
 
             let config = CpiInstructionConfig::try_from(&cpi_accounts)
                 .map_err(|_| ErrorCode::AccountNotEnoughKeys)?;

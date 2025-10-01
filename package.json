@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "@solana/web3.js": "1.98.0",
     "husky": "^9.1.7",
     "nx": "^20.8.1",
     "playwright": "^1.54.2",

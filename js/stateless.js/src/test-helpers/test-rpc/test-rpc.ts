@@ -18,7 +18,7 @@ import {
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
 import {
-    CTOKEN_PROGRAM_ID,
+    COMPRESSED_TOKEN_PROGRAM_ID,
     defaultTestStateTreeAccounts,
     localTestActiveStateTreeInfos,
 } from '../../constants';
@@ -957,33 +957,6 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return this.getValidityProof(
             hashes.map(hash => hash.hash),
             newAddresses.map(address => address.address),
-        );
-    }
-
-    async getCompressibleAccountInfo(
-        _address: PublicKey,
-        _programId: PublicKey,
-        _addressTreeInfo: TreeInfo,
-    ): Promise<{
-        accountInfo: AccountInfo<Buffer>;
-        isCompressed: boolean;
-        merkleContext?: MerkleContext;
-    } | null> {
-        throw new Error(
-            'getCompressibleAccountInfo not implemented in test-rpc',
-        );
-    }
-    async getCompressibleTokenAccount(
-        _address: PublicKey,
-        _tokenProgramId: PublicKey = CTOKEN_PROGRAM_ID,
-    ): Promise<{
-        accountInfo: AccountInfo<Buffer>;
-        parsed: TokenData;
-        isCompressed: boolean;
-        merkleContext?: MerkleContext;
-    } | null> {
-        throw new Error(
-            'getCompressibleTokenAccount not implemented in test-rpc',
         );
     }
 }

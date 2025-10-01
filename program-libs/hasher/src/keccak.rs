@@ -9,6 +9,8 @@ use crate::{
 pub struct Keccak;
 
 impl Hasher for Keccak {
+    const ID: u8 = 2;
+    
     fn hash(val: &[u8]) -> Result<Hash, HasherError> {
         Self::hashv(&[val])
     }

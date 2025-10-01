@@ -17,7 +17,7 @@ import {
 import { PublicTransactionEvent } from '../../src/state';
 
 import {
-    CTOKEN_PROGRAM_ID,
+    COMPRESSED_TOKEN_PROGRAM_ID,
     defaultStaticAccountsStruct,
     IDL,
     LightSystemProgramIDL,
@@ -35,7 +35,7 @@ const getTestProgram = (): Program<LightSystemProgramIDL> => {
         },
     );
     setProvider(mockProvider);
-    return new Program(IDL, CTOKEN_PROGRAM_ID, mockProvider);
+    return new Program(IDL, COMPRESSED_TOKEN_PROGRAM_ID, mockProvider);
 };
 
 function deepEqual(ref: any, val: any) {

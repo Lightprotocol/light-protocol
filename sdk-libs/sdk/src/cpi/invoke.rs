@@ -17,13 +17,15 @@ use solana_msg::msg;
 use crate::{
     cpi::{
         accounts_cpi_context::get_account_metas_from_config_cpi_context,
-        get_account_metas_from_config, to_account_metas_small, CpiAccounts, CpiAccountsSmall,
-        CpiInstructionConfig,
+        get_account_metas_from_config, CpiAccounts, CpiInstructionConfig,
     },
     error::{LightSdkError, Result},
     instruction::{account_info::CompressedAccountInfoTrait, ValidityProof},
     invoke_signed, AccountInfo, AnchorSerialize, Instruction,
 };
+
+#[cfg(feature = "v2")]
+use crate::cpi::{to_account_metas_small, CpiAccountsSmall};
 
 #[derive(Debug, Default, PartialEq, Clone)]
 pub struct CpiInputs {
@@ -194,6 +196,7 @@ impl CpiInputs {
         invoke_light_system_program(account_infos.as_slice(), instruction, bump)
     }
 
+    #[cfg(feature = "v2")]
     pub fn invoke_light_system_program_small(
         self,
         cpi_accounts: CpiAccountsSmall<'_, '_>,
@@ -218,6 +221,7 @@ impl CpiInputs {
     }
 }
 
+#[cfg(feature = "v2")]
 pub fn create_light_system_progam_instruction_invoke_cpi_small(
     cpi_inputs: CpiInputs,
     cpi_accounts: CpiAccountsSmall<'_, '_>,

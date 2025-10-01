@@ -142,12 +142,15 @@ impl<'a, T: AccountInfoTrait> CpiAccountsV2<'a, T> {
     }
 
     /// Create a vector of account info references
-    pub fn to_account_infos(&self) -> Vec<&'a T> {
+    pub fn to_account_infos(&self) -> Vec<T> 
+    where 
+        T: Clone,
+    {
         let mut account_infos = Vec::with_capacity(1 + self.accounts.len() - PROGRAM_ACCOUNTS_LEN);
-        account_infos.push(self.fee_payer());
+        account_infos.push(self.fee_payer().clone());
         self.accounts[PROGRAM_ACCOUNTS_LEN..]
             .iter()
-            .for_each(|acc| account_infos.push(acc));
+            .for_each(|acc| account_infos.push(acc.clone()));
         account_infos
     }
 

@@ -172,11 +172,6 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         let blockhash = self.get_latest_blockhash().await?.0;
         let mut transaction = Transaction::new_with_payer(instructions, Some(payer));
         transaction.try_sign(signers, blockhash).map_err(|e| {
-            println!(
-                "Provided signers: {:?}",
-                signers.iter().map(|s| s.pubkey()).collect::<Vec<_>>()
-            );
-
             let message = transaction.message();
             let num_required_signatures = message.header.num_required_signatures as usize;
             println!(
