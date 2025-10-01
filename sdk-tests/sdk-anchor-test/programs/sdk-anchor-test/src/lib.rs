@@ -62,6 +62,7 @@ pub mod sdk_anchor_test {
         my_compressed_account.nested = NestedData::default();
 
         InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .mode_v1()
             .with_light_account(my_compressed_account)?
             .with_new_addresses(&[new_address_params])
             .invoke(light_cpi_accounts)?;
@@ -90,6 +91,7 @@ pub mod sdk_anchor_test {
             crate::LIGHT_CPI_SIGNER,
         );
         InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .mode_v1()
             .with_light_account(my_compressed_account)?
             .invoke(light_cpi_accounts)?;
 
@@ -115,6 +117,7 @@ pub mod sdk_anchor_test {
         );
 
         InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .mode_v1()
             .with_light_account(my_compressed_account)?
             .invoke(light_cpi_accounts)?;
 
@@ -136,6 +139,7 @@ pub mod sdk_anchor_test {
         );
 
         InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .mode_v1()
             .with_light_account(my_compressed_account)?
             .invoke(light_cpi_accounts)?;
 
@@ -159,6 +163,7 @@ pub mod sdk_anchor_test {
             crate::LIGHT_CPI_SIGNER,
         );
         InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .mode_v1()
             .with_light_account(my_compressed_account)?
             .invoke(light_cpi_accounts)?;
 

@@ -196,7 +196,7 @@ fn test_instruction_data_invoke_cpi_with_readonly_builder() {
     assert_eq!(after_new.invoking_program_id, test_pubkey);
     assert_eq!(after_new.bump, test_bump);
     assert_eq!(after_new.proof, test_proof);
-    assert_eq!(after_new.mode, 0); // default
+    assert_eq!(after_new.mode, 1); // default
     assert_eq!(after_new.compress_or_decompress_lamports, 0);
     assert!(!after_new.is_compress);
     assert!(!after_new.with_cpi_context);
@@ -210,7 +210,7 @@ fn test_instruction_data_invoke_cpi_with_readonly_builder() {
 
     // Create reference struct with all fields populated
     let reference = InstructionDataInvokeCpiWithReadOnly {
-        mode: 1,
+        mode: 0,
         bump: test_bump,
         invoking_program_id: test_pubkey,
         compress_or_decompress_lamports: 0, // No builder method for this
@@ -272,6 +272,7 @@ fn test_instruction_data_invoke_cpi_with_readonly_builder() {
         reference.bump,
         reference.proof,
     )
+    .mode_v1()
     .write_to_cpi_context_first()
     .with_with_transaction_hash(true)
     .with_new_addresses(&reference.new_address_params)
@@ -300,7 +301,7 @@ fn test_instruction_data_invoke_cpi_with_account_info_builder() {
     assert_eq!(after_new.invoking_program_id, test_pubkey);
     assert_eq!(after_new.bump, test_bump);
     assert_eq!(after_new.proof, test_proof);
-    assert_eq!(after_new.mode, 0); // default
+    assert_eq!(after_new.mode, 1); // default
     assert_eq!(after_new.compress_or_decompress_lamports, 0);
     assert!(!after_new.is_compress);
     assert!(!after_new.with_cpi_context);
@@ -313,7 +314,7 @@ fn test_instruction_data_invoke_cpi_with_account_info_builder() {
 
     // Create reference struct
     let reference = InstructionDataInvokeCpiWithAccountInfo {
-        mode: 1,
+        mode: 0,
         bump: test_bump,
         invoking_program_id: test_pubkey,
         compress_or_decompress_lamports: 1500,
@@ -375,6 +376,7 @@ fn test_instruction_data_invoke_cpi_with_account_info_builder() {
         reference.bump,
         reference.proof,
     )
+    .mode_v1()
     .write_to_cpi_context_set()
     .decompress_lamports(1500)
     .with_new_addresses(&reference.new_address_params)
