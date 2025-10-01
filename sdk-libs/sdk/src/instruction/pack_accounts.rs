@@ -1,3 +1,84 @@
+//! Utilities for packing accounts into instruction data.
+//!
+//! [`PackedAccounts`] is a builder for efficiently organizing accounts into the three categories
+//! required for compressed account instructions:
+//! 1. **Pre-accounts** - Custom accounts needed before system accounts
+//! 2. **System accounts** - Static light system program accounts
+//! 3. **Packed accounts** - Dynamically packed accounts (Merkle trees, address trees, queues) with automatic deduplication
+//!
+//!
+//! ## System Account Versioning
+//!
+//! **`add_system_accounts()` is complementary to [`cpi::v1::CpiAccounts`](crate::cpi::v1::CpiAccounts)**
+//! **`add_system_accounts_v2()` is complementary to [`cpi::v2::CpiAccounts`](crate::cpi::v2::CpiAccounts)**
+//!
+//! Always use the matching version - v1 client-side account packing with v1 program-side CPI,
+//! and v2 with v2. Mixing versions will cause account layout mismatches.
+//!
+//! # Example: Creating a compressed PDA
+//!
+//! ```rust
+//! # use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+//! # use solana_pubkey::Pubkey;
+//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! # let program_id = Pubkey::new_unique();
+//! # let payer_pubkey = Pubkey::new_unique();
+//! # let merkle_tree_pubkey = Pubkey::new_unique();
+//! // Initialize with system accounts
+//! let system_account_meta_config = SystemAccountMetaConfig::new(program_id);
+//! let mut accounts = PackedAccounts::default();
+//!
+//! // Add pre-accounts (signers)
+//! accounts.add_pre_accounts_signer(payer_pubkey);
+//!
+//! // Add Light system program accounts (v2)
+//! #[cfg(feature = "v2")]
+//! accounts.add_system_accounts_v2(system_account_meta_config)?;
+//! #[cfg(not(feature = "v2"))]
+//! accounts.add_system_accounts(system_account_meta_config)?;
+//!
+//! // Add Merkle tree accounts (automatically tracked and deduplicated)
+//! let output_merkle_tree_index = accounts.insert_or_get(merkle_tree_pubkey);
+//!
+//! // Convert to final account metas with offsets
+//! let (account_metas, system_accounts_offset, tree_accounts_offset) = accounts.to_account_metas();
+//! # assert_eq!(output_merkle_tree_index, 0);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # Account Organization
+//!
+//! The final account layout is:
+//! ```text
+//! [pre_accounts] [system_accounts] [packed_accounts]
+//!     ↑                ↑                  ↑
+//!  Signers,       Light system      Merkle trees,
+//!  fee payer      program accts     address trees
+//! ```
+//!
+//! # Automatic Deduplication
+//!
+//! ```rust
+//! # use light_sdk::instruction::PackedAccounts;
+//! # use solana_pubkey::Pubkey;
+//! let mut accounts = PackedAccounts::default();
+//! let tree_pubkey = Pubkey::new_unique();
+//! let other_tree = Pubkey::new_unique();
+//!
+//! // First insertion gets index 0
+//! let index1 = accounts.insert_or_get(tree_pubkey);
+//! assert_eq!(index1, 0);
+//!
+//! // Same tree inserted again returns same index (deduplicated)
+//! let index2 = accounts.insert_or_get(tree_pubkey);
+//! assert_eq!(index2, 0);
+//!
+//! // Different tree gets next index
+//! let index3 = accounts.insert_or_get(other_tree);
+//! assert_eq!(index3, 1);
+//! ```
+
 use std::collections::HashMap;
 
 use crate::{
@@ -5,11 +86,52 @@ use crate::{
     AccountMeta, Pubkey,
 };
 
+/// Builder for organizing accounts into compressed account instructions.
+///
+/// Manages three categories of accounts:
+/// - **Pre-accounts**: Signers and other accounts that come before system accounts
+/// - **System accounts**: Light system program accounts (authority, trees, queues)
+/// - **Packed accounts**: Dynamically tracked accounts with automatic deduplication
+///
+/// # Example
+///
+/// ```rust
+/// # use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+/// # use solana_pubkey::Pubkey;
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # let payer_pubkey = Pubkey::new_unique();
+/// # let program_id = Pubkey::new_unique();
+/// # let merkle_tree_pubkey = Pubkey::new_unique();
+/// let mut accounts = PackedAccounts::default();
+///
+/// // Add signer
+/// accounts.add_pre_accounts_signer(payer_pubkey);
+///
+/// // Add system accounts (use v2 if feature is enabled)
+/// let config = SystemAccountMetaConfig::new(program_id);
+/// #[cfg(feature = "v2")]
+/// accounts.add_system_accounts_v2(config)?;
+/// #[cfg(not(feature = "v2"))]
+/// accounts.add_system_accounts(config)?;
+///
+/// // Add and track tree accounts
+/// let tree_index = accounts.insert_or_get(merkle_tree_pubkey);
+///
+/// // Get final account metas
+/// let (metas, system_offset, tree_offset) = accounts.to_account_metas();
+/// # assert_eq!(tree_index, 0);
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Default, Debug)]
 pub struct PackedAccounts {
+    /// Accounts that must come before system accounts (e.g., signers, fee payer).
     pub pre_accounts: Vec<AccountMeta>,
+    /// Light system program accounts (authority, programs, trees, queues).
     system_accounts: Vec<AccountMeta>,
+    /// Next available index for packed accounts.
     next_index: u8,
+    /// Map of pubkey to (index, AccountMeta) for deduplication and index tracking.
     map: HashMap<Pubkey, (u8, AccountMeta)>,
 }
 
@@ -44,6 +166,26 @@ impl PackedAccounts {
         self.pre_accounts.extend_from_slice(account_metas);
     }
 
+    /// Adds v1 Light system program accounts to the account list.
+    ///
+    /// **Use with [`cpi::v1::CpiAccounts`](crate::cpi::v1::CpiAccounts) on the program side.**
+    ///
+    /// This adds all the accounts required by the Light system program for v1 operations,
+    /// including the CPI authority, registered programs, account compression program, and Noop program.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+    /// # use solana_pubkey::Pubkey;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let program_id = Pubkey::new_unique();
+    /// let mut accounts = PackedAccounts::default();
+    /// let config = SystemAccountMetaConfig::new(program_id);
+    /// accounts.add_system_accounts(config)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn add_system_accounts(
         &mut self,
         config: SystemAccountMetaConfig,
@@ -60,6 +202,29 @@ impl PackedAccounts {
         Ok(())
     }
 
+    /// Adds v2 Light system program accounts to the account list.
+    ///
+    /// **Use with [`cpi::v2::CpiAccounts`](crate::cpi::v2::CpiAccounts) on the program side.**
+    ///
+    /// This adds all the accounts required by the Light system program for v2 operations.
+    /// V2 uses a different account layout optimized for batched state trees.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # #[cfg(feature = "v2")]
+    /// # {
+    /// # use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+    /// # use solana_pubkey::Pubkey;
+    /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let program_id = Pubkey::new_unique();
+    /// let mut accounts = PackedAccounts::default();
+    /// let config = SystemAccountMetaConfig::new(program_id);
+    /// accounts.add_system_accounts_v2(config)?;
+    /// # Ok(())
+    /// # }
+    /// # }
+    /// ```
     #[cfg(feature = "v2")]
     pub fn add_system_accounts_v2(
         &mut self,

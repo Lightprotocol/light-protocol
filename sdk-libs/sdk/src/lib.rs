@@ -6,7 +6,6 @@
 //! 2. Program logic
 //!     - `LightAccount` - Compressed account abstraction similar to anchor Account.
 //!     - `derive_address` - Create a compressed account address.
-//!     - `LightHasher` - DeriveMacro to derive a hashing scheme from a struct layout.
 //!     - `LightDiscriminator` - DeriveMacro to derive a compressed account discriminator.
 //! 3. Cpi
 //!     - `CpiAccounts` - Prepare accounts to cpi the light system program.

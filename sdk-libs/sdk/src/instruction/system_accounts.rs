@@ -5,15 +5,91 @@ use light_sdk_types::constants::{
 
 use crate::{find_cpi_signer_macro, AccountMeta, Pubkey};
 
+/// Configuration for Light system program accounts when building instructions.
+///
+/// This struct specifies which system accounts to include when using
+/// [`PackedAccounts::add_system_accounts()`](crate::instruction::PackedAccounts::add_system_accounts)
+/// or [`PackedAccounts::add_system_accounts_v2()`](crate::instruction::PackedAccounts::add_system_accounts_v2).
+///
+/// # Required Fields
+///
+/// - **`self_program`**: Your program's ID (the one calling the Light system program).
+///   Used to derive the CPI signer PDA.
+///
+/// # Optional Fields
+///
+/// - **`cpi_context`**: CPI context account for batched operations (v2 only).
+///   Required when using CPI context for multi-step compressed account operations.
+///
+/// - **`sol_compression_recipient`**: Account to receive decompressed SOL.
+///   Required when decompressing SOL from compressed accounts.
+///
+/// - **`sol_pool_pda`**: SOL pool PDA for SOL compression/decompression.
+///   Required when compressing or decompressing SOL.
+///
+/// # Examples
+///
+/// Basic usage (no SOL operations):
+///
+/// ```rust
+/// # use light_sdk::instruction::SystemAccountMetaConfig;
+/// # use solana_pubkey::Pubkey;
+/// let program_id = Pubkey::new_unique();
+/// let config = SystemAccountMetaConfig::new(program_id);
+/// ```
+///
+/// With CPI context (v2 batched operations):
+///
+/// ```rust
+/// # use light_sdk::instruction::SystemAccountMetaConfig;
+/// # use solana_pubkey::Pubkey;
+/// let program_id = Pubkey::new_unique();
+/// let cpi_context_account = Pubkey::new_unique();
+/// let config = SystemAccountMetaConfig::new_with_cpi_context(program_id, cpi_context_account);
+/// ```
+///
+/// With SOL compression:
+///
+/// ```rust
+/// # use light_sdk::instruction::SystemAccountMetaConfig;
+/// # use solana_pubkey::Pubkey;
+/// let program_id = Pubkey::new_unique();
+/// let sol_pool_pda = Pubkey::new_unique();
+/// let recipient = Pubkey::new_unique();
+///
+/// let config = SystemAccountMetaConfig {
+///     self_program: program_id,
+///     sol_pool_pda: Some(sol_pool_pda),
+///     sol_compression_recipient: Some(recipient),
+///     cpi_context: None,
+/// };
+/// ```
 #[derive(Debug, Default, Copy, Clone)]
 pub struct SystemAccountMetaConfig {
+    /// Your program's ID (required). Used to derive the CPI signer PDA.
     pub self_program: Pubkey,
+    /// Optional CPI context account for batched operations (v2 only).
     pub cpi_context: Option<Pubkey>,
+    /// Optional account to receive decompressed SOL.
     pub sol_compression_recipient: Option<Pubkey>,
+    /// Optional SOL pool PDA for SOL compression/decompression.
     pub sol_pool_pda: Option<Pubkey>,
 }
 
 impl SystemAccountMetaConfig {
+    /// Creates a basic configuration with only the program ID.
+    ///
+    /// Use this for simple compressed account operations without SOL compression
+    /// or CPI context.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use light_sdk::instruction::SystemAccountMetaConfig;
+    /// # use solana_pubkey::Pubkey;
+    /// let program_id = Pubkey::new_unique();
+    /// let config = SystemAccountMetaConfig::new(program_id);
+    /// ```
     pub fn new(self_program: Pubkey) -> Self {
         Self {
             self_program,
@@ -23,6 +99,23 @@ impl SystemAccountMetaConfig {
         }
     }
 
+    /// Creates a configuration with CPI context for batched operations (v2 only).
+    ///
+    /// Use this when you need to batch multiple compressed account operations
+    /// using a CPI context account.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use light_sdk::instruction::SystemAccountMetaConfig;
+    /// # use solana_pubkey::Pubkey;
+    /// let program_id = Pubkey::new_unique();
+    /// let cpi_context_account = Pubkey::new_unique();
+    /// let config = SystemAccountMetaConfig::new_with_cpi_context(
+    ///     program_id,
+    ///     cpi_context_account
+    /// );
+    /// ```
     pub fn new_with_cpi_context(self_program: Pubkey, cpi_context: Pubkey) -> Self {
         Self {
             self_program,
