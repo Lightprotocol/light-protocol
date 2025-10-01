@@ -383,7 +383,7 @@ impl ValidityProofWithContext {
     }
 }
 
-#[derive(Clone, Copy, Default, Debug, PartialEq)]
+#[derive(Clone, Copy, Hash, Eq, Default, Debug, PartialEq)]
 pub struct NextTreeInfo {
     pub cpi_context: Option<Pubkey>,
     pub queue: Pubkey,
@@ -432,7 +432,7 @@ impl TryFrom<&photon_api::models::TreeContextInfo> for NextTreeInfo {
     }
 }
 
-#[derive(Clone, Copy, Default, Debug, PartialEq)]
+#[derive(Clone, Copy, Hash, Eq, Default, Debug, PartialEq)]
 pub struct TreeInfo {
     pub cpi_context: Option<Pubkey>,
     pub next_tree_info: Option<NextTreeInfo>,
@@ -498,7 +498,7 @@ impl TreeInfo {
     }
 }
 
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Eq, Hash, Debug, PartialEq)]
 pub struct CompressedAccount {
     pub address: Option<[u8; 32]>,
     pub data: Option<CompressedAccountData>,
@@ -519,10 +519,18 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
         let hash = account
             .hash()
             .map_err(|_| IndexerError::InvalidResponseData)?;
-        // Breaks light-program-test
-        // let tree_info = QUEUE_TREE_MAPPING
-        //     .get(&account.merkle_context.merkle_tree_pubkey.to_string())
-        //     .ok_or(IndexerError::InvalidResponseData)?;
+
+        let tree_pubkey =
+            Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes());
+        let tree_info = QUEUE_TREE_MAPPING
+            .get(&tree_pubkey.to_string())
+            .ok_or_else(|| {
+                println!(
+                    "ERROR: No tree_info found for tree pubkey: {:?}",
+                    tree_pubkey.to_string()
+                );
+                IndexerError::InvalidResponseData
+            })?;
 
         Ok(CompressedAccount {
             address: account.compressed_account.address,
@@ -531,10 +539,10 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
             lamports: account.compressed_account.lamports,
             leaf_index: account.merkle_context.leaf_index,
             tree_info: TreeInfo {
-                tree: Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes()),
+                tree: tree_pubkey,
                 queue: Pubkey::new_from_array(account.merkle_context.queue_pubkey.to_bytes()),
                 tree_type: account.merkle_context.tree_type,
-                cpi_context: None,
+                cpi_context: tree_info.cpi_context,
                 next_tree_info: None,
             },
             owner: Pubkey::new_from_array(account.compressed_account.owner.to_bytes()),
@@ -581,6 +589,18 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
             Ok::<Option<CompressedAccountData>, IndexerError>(None)
         }?;
 
+        let tree_pubkey =
+            Pubkey::new_from_array(decode_base58_to_fixed_array(&account.merkle_context.tree)?);
+        let tree_info = QUEUE_TREE_MAPPING
+            .get(&tree_pubkey.to_string())
+            .ok_or_else(|| {
+                println!(
+                    "ERROR: No tree_info found for tree pubkey: {}",
+                    account.merkle_context.tree
+                );
+                IndexerError::InvalidResponseData
+            })?;
+
         let owner = Pubkey::new_from_array(decode_base58_to_fixed_array(&account.owner)?);
         let address = account
             .address
@@ -590,14 +610,12 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
         let hash = decode_base58_to_fixed_array(&account.hash)?;
 
         let tree_info = TreeInfo {
-            tree: Pubkey::new_from_array(decode_base58_to_fixed_array(
-                &account.merkle_context.tree,
-            )?),
+            tree: tree_pubkey,
             queue: Pubkey::new_from_array(decode_base58_to_fixed_array(
                 &account.merkle_context.queue,
             )?),
             tree_type: TreeType::from(account.merkle_context.tree_type as u64),
-            cpi_context: decode_base58_option_to_pubkey(&account.merkle_context.cpi_context)?,
+            cpi_context: tree_info.cpi_context,
             next_tree_info: account
                 .merkle_context
                 .next_tree_context
@@ -714,15 +732,15 @@ pub struct AddressMerkleTreeAccounts {
     pub queue: Pubkey,
 }
 
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct TokenAccount {
+#[derive(Clone, Default, Eq, Hash, Debug, PartialEq)]
+pub struct CompressedTokenAccount {
     /// Token-specific data (mint, owner, amount, delegate, state, tlv)
     pub token: TokenData,
     /// General account information (address, hash, lamports, merkle context, etc.)
     pub account: CompressedAccount,
 }
 
-impl TryFrom<&photon_api::models::TokenAccount> for TokenAccount {
+impl TryFrom<&photon_api::models::TokenAccount> for CompressedTokenAccount {
     type Error = IndexerError;
 
     fn try_from(token_account: &photon_api::models::TokenAccount) -> Result<Self, Self::Error> {
@@ -755,11 +773,11 @@ impl TryFrom<&photon_api::models::TokenAccount> for TokenAccount {
                 .map_err(|_| IndexerError::InvalidResponseData)?,
         };
 
-        Ok(TokenAccount { token, account })
+        Ok(CompressedTokenAccount { token, account })
     }
 }
 
-impl TryFrom<&photon_api::models::TokenAccountV2> for TokenAccount {
+impl TryFrom<&photon_api::models::TokenAccountV2> for CompressedTokenAccount {
     type Error = IndexerError;
 
     fn try_from(token_account: &photon_api::models::TokenAccountV2) -> Result<Self, Self::Error> {
@@ -792,12 +810,12 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for TokenAccount {
                 .map_err(|_| IndexerError::InvalidResponseData)?,
         };
 
-        Ok(TokenAccount { token, account })
+        Ok(CompressedTokenAccount { token, account })
     }
 }
 
 #[allow(clippy::from_over_into)]
-impl Into<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
+impl Into<light_sdk::token::TokenDataWithMerkleContext> for CompressedTokenAccount {
     fn into(self) -> light_sdk::token::TokenDataWithMerkleContext {
         let compressed_account = CompressedAccountWithMerkleContext::from(self.account);
 
@@ -810,7 +828,7 @@ impl Into<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
 
 #[allow(clippy::from_over_into)]
 impl Into<Vec<light_sdk::token::TokenDataWithMerkleContext>>
-    for super::response::Response<super::response::ItemsWithCursor<TokenAccount>>
+    for super::response::Response<super::response::ItemsWithCursor<CompressedTokenAccount>>
 {
     fn into(self) -> Vec<light_sdk::token::TokenDataWithMerkleContext> {
         self.value
@@ -828,7 +846,7 @@ impl Into<Vec<light_sdk::token::TokenDataWithMerkleContext>>
     }
 }
 
-impl TryFrom<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
+impl TryFrom<light_sdk::token::TokenDataWithMerkleContext> for CompressedTokenAccount {
     type Error = IndexerError;
 
     fn try_from(
@@ -836,7 +854,7 @@ impl TryFrom<light_sdk::token::TokenDataWithMerkleContext> for TokenAccount {
     ) -> Result<Self, Self::Error> {
         let account = CompressedAccount::try_from(token_data_with_context.compressed_account)?;
 
-        Ok(TokenAccount {
+        Ok(CompressedTokenAccount {
             token: token_data_with_context.token_data,
             account,
         })

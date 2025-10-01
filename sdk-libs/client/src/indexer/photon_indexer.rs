@@ -11,7 +11,10 @@ use solana_pubkey::Pubkey;
 use tracing::{debug, error, warn};
 
 use super::{
-    types::{CompressedAccount, OwnerBalance, SignatureWithMetadata, TokenAccount, TokenBalance},
+    types::{
+        CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata,
+        TokenBalance,
+    },
     BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
 };
 use crate::indexer::{
@@ -179,7 +182,7 @@ impl Indexer for PhotonIndexer {
         &self,
         address: Address,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<CompressedAccount>>, IndexerError> {
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let params = self.build_account_params(Some(address), None)?;
@@ -201,10 +204,11 @@ impl Indexer for PhotonIndexer {
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
-            let account = match api_response.value {
-                Some(boxed) => Some(CompressedAccount::try_from(&*boxed)?),
-                None => None,
-            };
+            let account_data = api_response
+                .value
+                .ok_or(IndexerError::AccountNotFound)
+                .map(|boxed| *boxed)?;
+            let account = CompressedAccount::try_from(&account_data)?;
 
             Ok(Response {
                 context: Context {
@@ -220,7 +224,7 @@ impl Indexer for PhotonIndexer {
         &self,
         hash: Hash,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<CompressedAccount>>, IndexerError> {
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let params = self.build_account_params(None, Some(hash))?;
@@ -242,10 +246,11 @@ impl Indexer for PhotonIndexer {
             if api_response.context.slot < config.slot {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
-            let account = match api_response.value {
-                Some(boxed) => Some(CompressedAccount::try_from(&*boxed)?),
-                None => None,
-            };
+            let account_data = api_response
+                .value
+                .ok_or(IndexerError::AccountNotFound)
+                .map(|boxed| *boxed)?;
+            let account = CompressedAccount::try_from(&account_data)?;
 
             Ok(Response {
                 context: Context {
@@ -542,7 +547,7 @@ impl Indexer for PhotonIndexer {
         delegate: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
@@ -574,7 +579,7 @@ impl Indexer for PhotonIndexer {
                     .value
                     .items
                     .iter()
-                    .map(TokenAccount::try_from)
+                    .map(CompressedTokenAccount::try_from)
                     .collect();
 
                 let cursor = response.value.cursor;
@@ -618,7 +623,7 @@ impl Indexer for PhotonIndexer {
                     .value
                     .items
                     .iter()
-                    .map(TokenAccount::try_from)
+                    .map(CompressedTokenAccount::try_from)
                     .collect();
 
                 let cursor = response.value.cursor;
@@ -642,7 +647,7 @@ impl Indexer for PhotonIndexer {
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
@@ -675,7 +680,7 @@ impl Indexer for PhotonIndexer {
                     .value
                     .items
                     .iter()
-                    .map(TokenAccount::try_from)
+                    .map(CompressedTokenAccount::try_from)
                     .collect();
 
                 let cursor = response.value.cursor;
@@ -726,7 +731,7 @@ impl Indexer for PhotonIndexer {
                     .value
                     .items
                     .iter()
-                    .map(TokenAccount::try_from)
+                    .map(CompressedTokenAccount::try_from)
                     .collect();
 
                 let cursor = response.value.cursor;
@@ -1207,7 +1212,7 @@ impl Indexer for PhotonIndexer {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<Option<CompressedAccount>>>, IndexerError> {
+    ) -> Result<Response<Items<CompressedAccount>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             let hashes = hashes.clone();
@@ -1240,11 +1245,8 @@ impl Indexer for PhotonIndexer {
                 .value
                 .items
                 .iter()
-                .map(|account_opt| match account_opt {
-                    Some(account) => CompressedAccount::try_from(account).map(Some),
-                    None => Ok(None),
-                })
-                .collect::<Result<Vec<Option<CompressedAccount>>, IndexerError>>()?;
+                .map(CompressedAccount::try_from)
+                .collect::<Result<Vec<CompressedAccount>, IndexerError>>()?;
 
             Ok(Response {
                 context: Context {

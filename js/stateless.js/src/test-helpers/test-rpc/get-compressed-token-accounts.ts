@@ -1,7 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
 import { getParsedEvents } from './get-parsed-events';
 import BN from 'bn.js';
-import { COMPRESSED_TOKEN_PROGRAM_ID, featureFlags } from '../../constants';
+import { CTOKEN_PROGRAM_ID, featureFlags } from '../../constants';
 import { Rpc } from '../../rpc';
 import { getStateTreeInfoByPubkey } from '../../utils/get-state-tree-infos';
 import { ParsedTokenAccount, WithCursor } from '../../rpc-interface';
@@ -54,7 +54,7 @@ export type EventWithParsedTokenTlvData = {
  */
 export function parseTokenLayoutWithIdl(
     compressedAccount: CompressedAccountLegacy,
-    programId: PublicKey = COMPRESSED_TOKEN_PROGRAM_ID,
+    programId: PublicKey = CTOKEN_PROGRAM_ID,
 ): TokenData | null {
     if (compressedAccount.data === null) return null;
 
@@ -62,13 +62,32 @@ export function parseTokenLayoutWithIdl(
 
     if (data.length === 0) return null;
 
-    if (compressedAccount.owner.toBase58() !== programId.toBase58()) {
+    if (!compressedAccount.owner.equals(programId)) {
         throw new Error(
             `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
         );
     }
     try {
         const decoded = TokenDataLayout.decode(Buffer.from(data));
+        return decoded;
+    } catch (error) {
+        console.error('Decoding error:', error);
+        throw error;
+    }
+}
+
+/**
+ * Manually parse the compressed token layout for a given compressed account.
+ * @param compressedAccount - The compressed account
+ * @returns The parsed token data
+ */
+export function parseTokenData(data: Buffer): TokenData | null {
+    if (data === null) return null;
+    if (data.length === 0) return null;
+
+    try {
+        const decoded = TokenDataLayout.decode(Buffer.from(data));
+
         return decoded;
     } catch (error) {
         console.error('Decoding error:', error);

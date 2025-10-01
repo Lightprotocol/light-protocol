@@ -5,8 +5,8 @@ use solana_pubkey::Pubkey;
 use super::{
     response::{Items, ItemsWithCursor, Response},
     types::{
-        CompressedAccount, OwnerBalance, SignatureWithMetadata, TokenAccount, TokenBalance,
-        ValidityProofWithContext,
+        CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata,
+        TokenBalance, ValidityProofWithContext,
     },
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
     GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
@@ -21,14 +21,14 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         &self,
         address: Address,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<CompressedAccount>>, IndexerError>;
+    ) -> Result<Response<CompressedAccount>, IndexerError>;
 
     /// Returns the compressed account with the given address or hash.
     async fn get_compressed_account_by_hash(
         &self,
         hash: Hash,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<CompressedAccount>>, IndexerError>;
+    ) -> Result<Response<CompressedAccount>, IndexerError>;
 
     /// Returns the owner’s compressed accounts.
     async fn get_compressed_accounts_by_owner(
@@ -75,14 +75,14 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         delegate: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError>;
 
     async fn get_compressed_token_accounts_by_owner(
         &self,
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError>;
 
     /// Returns the token balances for a given owner.
     async fn get_compressed_token_balances_by_owner_v2(
@@ -153,7 +153,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<Option<CompressedAccount>>>, IndexerError>;
+    ) -> Result<Response<Items<CompressedAccount>>, IndexerError>;
 
     /// Returns proofs that the new addresses are not taken already and can be created.
     async fn get_multiple_new_address_proofs(

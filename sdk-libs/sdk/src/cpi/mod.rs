@@ -8,12 +8,11 @@
 //! pub const LIGHT_CPI_SIGNER: CpiSigner =
 //!   derive_light_cpi_signer!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
 //!
-//! let light_cpi_accounts = CpiAccounts::new(
+//! let light_cpi_accounts = CpiAccountsSmall::new(
 //!     ctx.accounts.fee_payer.as_ref(),
 //!     ctx.remaining_accounts,
 //!     crate::LIGHT_CPI_SIGNER,
-//! )
-//! .map_err(ProgramError::from)?;
+//! );
 //!
 //! let (address, address_seed) = derive_address(
 //!     &[b"compressed", name.as_bytes()],
@@ -43,18 +42,18 @@
 //! );
 //!
 //! cpi_inputs
-//!     .invoke_light_system_program(light_cpi_accounts)
-//!     .map_err(ProgramError::from)?;
+//!     .invoke_light_system_program_small(light_cpi_accounts)?;
 //! ```
 
 mod accounts;
-#[cfg(feature = "v2_ix")]
-mod accounts_v2_ix;
+mod accounts_cpi_context;
+#[cfg(feature = "v2")]
+mod accounts_small_ix;
 mod invoke;
 
 pub use accounts::*;
-#[cfg(feature = "v2_ix")]
-pub use accounts_v2_ix::*;
+#[cfg(feature = "v2")]
+pub use accounts_small_ix::*;
 pub use invoke::*;
 /// Derives cpi signer and bump to invoke the light system program at compile time.
 pub use light_sdk_macros::derive_light_cpi_signer;

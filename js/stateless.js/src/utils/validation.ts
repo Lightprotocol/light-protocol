@@ -4,6 +4,7 @@ import {
     CompressedAccountWithMerkleContext,
     bn,
 } from '../state';
+import { featureFlags } from '../constants';
 
 export const validateSufficientBalance = (balance: BN) => {
     if (balance.lt(bn(0))) {
@@ -38,7 +39,15 @@ export const validateNumbersForProof = (
                 `Invalid number of compressed accounts for proof: ${hashesLength}. Allowed numbers: ${[1, 2, 3, 4].join(', ')}`,
             );
         }
-        validateNumbers(hashesLength, [1, 2, 3, 4], 'compressed accounts');
+        if (!featureFlags.isV2()) {
+            validateNumbers(hashesLength, [1, 2, 3, 4], 'compressed accounts');
+        } else {
+            validateNumbers(
+                hashesLength,
+                [1, 2, 3, 4, 8],
+                'compressed accounts',
+            );
+        }
         validateNumbersForNonInclusionProof(newAddressesLength);
     } else {
         if (hashesLength > 0) {
@@ -51,14 +60,26 @@ export const validateNumbersForProof = (
 
 /// Ensure that the amount if compressed accounts is allowed.
 export const validateNumbersForInclusionProof = (hashesLength: number) => {
-    validateNumbers(hashesLength, [1, 2, 3, 4, 8], 'compressed accounts');
+    if (!featureFlags.isV2()) {
+        validateNumbers(hashesLength, [1, 2, 3, 4], 'compressed accounts');
+    } else {
+        validateNumbers(
+            hashesLength,
+            [1, 2, 3, 4, 5, 8],
+            'compressed accounts',
+        );
+    }
 };
 
 /// Ensure that the amount if new addresses is allowed.
 export const validateNumbersForNonInclusionProof = (
     newAddressesLength: number,
 ) => {
-    validateNumbers(newAddressesLength, [1, 2], 'new addresses');
+    if (!featureFlags.isV2()) {
+        validateNumbers(newAddressesLength, [1, 2], 'new addresses');
+    } else {
+        validateNumbers(newAddressesLength, [1, 2, 3, 4], 'new addresses');
+    }
 };
 
 /// V1 circuit safeguards.

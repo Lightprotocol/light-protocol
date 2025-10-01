@@ -1,5 +1,9 @@
 import BN from 'bn.js';
 import { Buffer } from 'buffer';
+
+// Re-export BN class
+export { default as BN } from 'bn.js';
+
 export const bn = (
     number: string | number | BN | Buffer | Uint8Array | number[],
     base?: number | 'hex' | undefined,

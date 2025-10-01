@@ -15,10 +15,10 @@ pub use indexer_trait::Indexer;
 pub use response::{Context, Items, ItemsWithCursor, Response};
 pub use types::{
     AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs, AddressQueueIndex,
-    AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount, Hash, MerkleProof,
-    MerkleProofWithContext, NewAddressProofWithContext, NextTreeInfo, OwnerBalance, ProofOfLeaf,
-    RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts, TokenAccount, TokenBalance,
-    TreeInfo, ValidityProofWithContext,
+    AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount, CompressedTokenAccount,
+    Hash, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, NextTreeInfo,
+    OwnerBalance, ProofOfLeaf, RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts,
+    TokenBalance, TreeInfo, ValidityProofWithContext,
 };
 mod options;
 pub use options::*;
