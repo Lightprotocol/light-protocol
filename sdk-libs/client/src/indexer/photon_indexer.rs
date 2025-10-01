@@ -11,7 +11,10 @@ use solana_pubkey::Pubkey;
 use tracing::{debug, error, warn};
 
 use super::{
-    types::{CompressedAccount, OwnerBalance, SignatureWithMetadata, TokenAccount, TokenBalance},
+    types::{
+        CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata,
+        TokenBalance,
+    },
     BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
 };
 use crate::indexer::{
@@ -542,7 +545,7 @@ impl Indexer for PhotonIndexer {
         delegate: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
@@ -574,7 +577,7 @@ impl Indexer for PhotonIndexer {
                     .value
                     .items
                     .iter()
-                    .map(TokenAccount::try_from)
+                    .map(CompressedTokenAccount::try_from)
                     .collect();
 
                 let cursor = response.value.cursor;
@@ -618,7 +621,7 @@ impl Indexer for PhotonIndexer {
                     .value
                     .items
                     .iter()
-                    .map(TokenAccount::try_from)
+                    .map(CompressedTokenAccount::try_from)
                     .collect();
 
                 let cursor = response.value.cursor;
@@ -642,7 +645,7 @@ impl Indexer for PhotonIndexer {
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError> {
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError> {
         let config = config.unwrap_or_default();
         self.retry(config.retry_config, || async {
             #[cfg(feature = "v2")]
@@ -675,7 +678,7 @@ impl Indexer for PhotonIndexer {
                     .value
                     .items
                     .iter()
-                    .map(TokenAccount::try_from)
+                    .map(CompressedTokenAccount::try_from)
                     .collect();
 
                 let cursor = response.value.cursor;
@@ -726,7 +729,7 @@ impl Indexer for PhotonIndexer {
                     .value
                     .items
                     .iter()
-                    .map(TokenAccount::try_from)
+                    .map(CompressedTokenAccount::try_from)
                     .collect();
 
                 let cursor = response.value.cursor;

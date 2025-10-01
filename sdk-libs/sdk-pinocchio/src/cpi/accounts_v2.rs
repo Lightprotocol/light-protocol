@@ -1,5 +1,5 @@
 use light_sdk_types::{
-    CompressionCpiAccountIndexV2, CpiAccountsV2 as GenericCpiAccountsV2, PROGRAM_ACCOUNTS_LEN,
+    CompressionCpiAccountIndexV2, CpiAccountsV2 as GenericCpiAccountsV2, V2_PROGRAM_ACCOUNTS_LEN,
 };
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta};
 
@@ -9,7 +9,7 @@ pub type CpiAccountsV2<'a> = GenericCpiAccountsV2<'a, AccountInfo>;
 
 pub fn to_account_metas_v2<'a>(cpi_accounts: &CpiAccountsV2<'a>) -> Result<Vec<AccountMeta<'a>>> {
     let mut account_metas =
-        Vec::with_capacity(1 + cpi_accounts.account_infos().len() - PROGRAM_ACCOUNTS_LEN);
+        Vec::with_capacity(1 + cpi_accounts.account_infos().len() - V2_PROGRAM_ACCOUNTS_LEN);
 
     account_metas.push(AccountMeta::writable_signer(cpi_accounts.fee_payer().key()));
     account_metas.push(AccountMeta::readonly_signer(

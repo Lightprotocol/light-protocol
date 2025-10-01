@@ -58,7 +58,7 @@ impl LightClientConfig {
             commitment_config: Some(CommitmentConfig::confirmed()),
             photon_url: Some("http://127.0.0.1:8784".to_string()),
             api_key: None,
-            fetch_active_tree: false,
+            fetch_active_tree: true,
         }
     }
 
@@ -83,8 +83,6 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         match error {
             // Do not retry transaction errors.
             RpcError::ClientError(error) => error.kind.get_transaction_error().is_none(),
-            // Do not retry signing errors.
-            RpcError::SigningError(_) => false,
             _ => true,
         }
     }
@@ -172,9 +170,16 @@ pub trait Rpc: Send + Sync + Debug + 'static {
     ) -> Result<Signature, RpcError> {
         let blockhash = self.get_latest_blockhash().await?.0;
         let mut transaction = Transaction::new_with_payer(instructions, Some(payer));
-        transaction
-            .try_sign(signers, blockhash)
-            .map_err(|e| RpcError::SigningError(e.to_string()))?;
+        transaction.try_sign(signers, blockhash).map_err(|e| {
+            let message = transaction.message();
+            let num_required_signatures = message.header.num_required_signatures as usize;
+            println!(
+                "Expected signers (first {} accounts in message): {:?}",
+                num_required_signatures,
+                message.account_keys[..num_required_signatures].to_vec()
+            );
+            RpcError::CustomError(e.to_string())
+        })?;
         self.process_transaction(transaction).await
     }
 
@@ -191,8 +196,9 @@ pub trait Rpc: Send + Sync + Debug + 'static {
         payer: &Pubkey,
         signers: &[&Keypair],
     ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError>;
-
+    #[allow(clippy::result_large_err)]
     fn indexer(&self) -> Result<&impl Indexer, RpcError>;
+    #[allow(clippy::result_large_err)]
     fn indexer_mut(&mut self) -> Result<&mut impl Indexer, RpcError>;
 
     /// Fetch the latest state tree addresses from the cluster.
@@ -204,6 +210,7 @@ pub trait Rpc: Send + Sync + Debug + 'static {
 
     /// Gets a random state tree info.
     /// State trees are cached and have to be fetched or set.
+    #[allow(clippy::result_large_err)]
     fn get_random_state_tree_info(&self) -> Result<TreeInfo, RpcError>;
 
     fn get_address_tree_v1(&self) -> TreeInfo;

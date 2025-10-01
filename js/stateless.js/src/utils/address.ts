@@ -1,12 +1,48 @@
 import { PublicKey } from '@solana/web3.js';
-import {
-    hashToBn254FieldSizeBe,
-    hashvToBn254FieldSizeBe,
-    hashvToBn254FieldSizeBeU8Array,
-} from './conversion';
+import { hashToBn254FieldSizeBe, hashvToBn254FieldSizeBe } from './conversion';
 import { defaultTestStateTreeAccounts } from '../constants';
 import { getIndexOrAdd } from '../programs/system/pack';
 import { keccak_256 } from '@noble/hashes/sha3';
+
+/**
+ * Derive an address for a compressed account from a seed and an address Merkle
+ * tree public key.
+ *
+ * @param seed                     32 bytes seed to derive the address from
+ * @param addressMerkleTreePubkey  Address Merkle tree public key as bytes.
+ * @param programIdBytes           Program ID bytes.
+ * @returns                        Derived address as bytes
+ */
+export function deriveAddressV2(
+    seed: Uint8Array,
+    addressMerkleTreePubkey: Uint8Array,
+    programIdBytes: Uint8Array,
+): Uint8Array {
+    const slices = [seed, addressMerkleTreePubkey, programIdBytes];
+
+    return hashVWithBumpSeed(slices);
+}
+
+export function hashVWithBumpSeed(bytes: Uint8Array[]): Uint8Array {
+    const HASH_TO_FIELD_SIZE_SEED = 255; // u8::MAX
+
+    const hasher = keccak_256.create();
+
+    // Hash all input bytes
+    for (const input of bytes) {
+        hasher.update(input);
+    }
+
+    // Add the bump seed (just like Rust version)
+    hasher.update(new Uint8Array([HASH_TO_FIELD_SIZE_SEED]));
+
+    const hash = hasher.digest();
+
+    // Truncate to BN254 field size (just like Rust version)
+    hash[0] = 0;
+
+    return hash;
+}
 
 export function deriveAddressSeed(
     seeds: Uint8Array[],
@@ -17,7 +53,9 @@ export function deriveAddressSeed(
     return hash;
 }
 
-/*
+/**
+ * @deprecated Use {@link deriveAddressV2} instead, unless you're using v1.
+ *
  * Derive an address for a compressed account from a seed and an address Merkle
  * tree public key.
  *
@@ -43,42 +81,6 @@ export function deriveAddress(
     }
     const buf = hash[0];
     return new PublicKey(buf);
-}
-
-export function deriveAddressSeedV2(seeds: Uint8Array[]): Uint8Array {
-    const combinedSeeds: Uint8Array[] = seeds.map(seed =>
-        Uint8Array.from(seed),
-    );
-    const hash = hashvToBn254FieldSizeBeU8Array(combinedSeeds);
-    return hash;
-}
-
-/**
- * Derives an address from a seed using the v2 method (matching Rust's derive_address_from_seed)
- *
- * @param addressSeed              The address seed (32 bytes)
- * @param addressMerkleTreePubkey  Merkle tree public key
- * @param programId                Program ID
- * @returns                        Derived address
- */
-export function deriveAddressV2(
-    addressSeed: Uint8Array,
-    addressMerkleTreePubkey: PublicKey,
-    programId: PublicKey,
-): PublicKey {
-    if (addressSeed.length != 32) {
-        throw new Error('Address seed length is not 32 bytes.');
-    }
-    const merkleTreeBytes = addressMerkleTreePubkey.toBytes();
-    const programIdBytes = programId.toBytes();
-    // Match Rust implementation: hash [seed, merkle_tree_pubkey, program_id]
-    const combined = [
-        Uint8Array.from(addressSeed),
-        Uint8Array.from(merkleTreeBytes),
-        Uint8Array.from(programIdBytes),
-    ];
-    const hash = hashvToBn254FieldSizeBeU8Array(combined);
-    return new PublicKey(hash);
 }
 
 export interface NewAddressParams {

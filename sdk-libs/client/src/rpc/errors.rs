@@ -33,19 +33,12 @@ pub enum RpcError {
     #[error("Error: `{0}`")]
     CustomError(String),
 
-    #[error("Signing error: {0}")]
-    SigningError(String),
-
     #[error("Assert Rpc Error: {0}")]
     AssertRpcError(String),
 
     /// The chosen warp slot is not in the future, so warp is not performed
     #[error("Warp slot not in the future")]
     InvalidWarpSlot,
-
-    #[cfg(feature = "program-test")]
-    #[error("LiteSVM Error: {0}")]
-    LiteSvmError(String),
 
     #[error("Account {0} does not exist")]
     AccountDoesNotExist(String),
@@ -80,7 +73,6 @@ impl Clone for RpcError {
             RpcError::ClientError(_) => RpcError::CustomError("ClientError".to_string()),
             RpcError::IoError(e) => RpcError::IoError(e.kind().into()),
             RpcError::CustomError(e) => RpcError::CustomError(e.clone()),
-            RpcError::SigningError(e) => RpcError::SigningError(e.clone()),
             RpcError::AssertRpcError(e) => RpcError::AssertRpcError(e.clone()),
             RpcError::InvalidWarpSlot => RpcError::InvalidWarpSlot,
             RpcError::AccountDoesNotExist(e) => RpcError::AccountDoesNotExist(e.clone()),
@@ -91,15 +83,6 @@ impl Clone for RpcError {
             RpcError::InvalidStateTreeLookupTable => RpcError::InvalidStateTreeLookupTable,
             RpcError::NullifyTableNotFound => RpcError::NullifyTableNotFound,
             RpcError::NoStateTreesAvailable => RpcError::NoStateTreesAvailable,
-            #[cfg(feature = "program-test")]
-            RpcError::LiteSvmError(e) => RpcError::LiteSvmError(e.clone()),
         }
-    }
-}
-
-#[cfg(feature = "program-test")]
-impl From<litesvm::error::LiteSVMError> for RpcError {
-    fn from(e: litesvm::error::LiteSVMError) -> Self {
-        RpcError::LiteSvmError(e.to_string())
     }
 }

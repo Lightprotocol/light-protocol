@@ -39,7 +39,7 @@ thiserror = { workspace = true }
 light-sdk-macros = { workspace = true }
 light-sdk-types = { workspace = true }
 light-macros = { workspace = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["solana"] }
 light-hasher = { workspace = true }
 light-account-checks = { workspace = true, features = ["solana"] }
 light-zero-copy = { workspace = true }

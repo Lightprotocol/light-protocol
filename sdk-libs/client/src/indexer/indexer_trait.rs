@@ -5,8 +5,8 @@ use solana_pubkey::Pubkey;
 use super::{
     response::{Items, ItemsWithCursor, Response},
     types::{
-        CompressedAccount, OwnerBalance, SignatureWithMetadata, TokenAccount, TokenBalance,
-        ValidityProofWithContext,
+        CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata,
+        TokenBalance, ValidityProofWithContext,
     },
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
     GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
@@ -75,14 +75,14 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         delegate: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError>;
 
     async fn get_compressed_token_accounts_by_owner(
         &self,
         owner: &Pubkey,
         options: Option<GetCompressedTokenAccountsByOwnerOrDelegateOptions>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<ItemsWithCursor<TokenAccount>>, IndexerError>;
+    ) -> Result<Response<ItemsWithCursor<CompressedTokenAccount>>, IndexerError>;
 
     /// Returns the token balances for a given owner.
     async fn get_compressed_token_balances_by_owner_v2(

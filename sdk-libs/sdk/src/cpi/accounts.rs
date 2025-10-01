@@ -23,6 +23,27 @@ pub struct CpiInstructionConfig<'a, 'info> {
 
 pub type CpiAccounts<'c, 'info> = GenericCpiAccounts<'c, AccountInfo<'info>>;
 
+/// Trait to provide convenient access to packed account metas from CpiAccounts
+pub trait CpiAccountsExt {
+    /// Returns AccountMetas for all tree accounts (packed accounts)
+    fn get_packed_account_metas(&self) -> Result<Vec<AccountMeta>>;
+}
+
+impl CpiAccountsExt for CpiAccounts<'_, '_> {
+    fn get_packed_account_metas(&self) -> Result<Vec<AccountMeta>> {
+        let tree_accounts = self.tree_accounts()?;
+        let mut metas = Vec::with_capacity(tree_accounts.len());
+        for info in tree_accounts {
+            metas.push(AccountMeta {
+                pubkey: *info.key,
+                is_signer: info.is_signer,
+                is_writable: info.is_writable,
+            });
+        }
+        Ok(metas)
+    }
+}
+
 pub fn get_account_metas_from_config(config: CpiInstructionConfig<'_, '_>) -> Vec<AccountMeta> {
     let mut account_metas = Vec::with_capacity(1 + SYSTEM_ACCOUNTS_LEN);
 

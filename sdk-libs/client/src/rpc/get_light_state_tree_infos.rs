@@ -41,6 +41,7 @@ pub fn default_state_tree_lookup_tables() -> (Vec<StateTreeLUTPair>, Vec<StateTr
 ///
 /// # Returns
 /// A random tree and queue
+#[allow(clippy::result_large_err)]
 pub fn pick_random_tree_and_queue(info: &[TreeInfo]) -> Result<(Pubkey, Pubkey), RpcError> {
     let length = info.len();
     if length == 0 {

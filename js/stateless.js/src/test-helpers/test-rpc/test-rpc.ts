@@ -1,4 +1,9 @@
-import { Connection, ConnectionConfig, PublicKey } from '@solana/web3.js';
+import {
+    AccountInfo,
+    Connection,
+    ConnectionConfig,
+    PublicKey,
+} from '@solana/web3.js';
 import BN from 'bn.js';
 import {
     getCompressedAccountByHashTest,
@@ -13,6 +18,7 @@ import {
 import { MerkleTree } from '../merkle-tree/merkle-tree';
 import { getParsedEvents } from './get-parsed-events';
 import {
+    COMPRESSED_TOKEN_PROGRAM_ID,
     defaultTestStateTreeAccounts,
     localTestActiveStateTreeInfos,
 } from '../../constants';
@@ -39,8 +45,10 @@ import {
 import {
     BN254,
     CompressedAccountWithMerkleContext,
+    MerkleContext,
     MerkleContextWithMerkleProof,
     PublicTransactionEvent,
+    TokenData,
     TreeType,
     bn,
 } from '../../state';
@@ -148,7 +156,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         connectionConfig?: ConnectionConfig,
         testRpcConfig?: TestRpcConfig,
     ) {
-        super(endpoint, connectionConfig || { commitment: 'confirmed' });
+        super(endpoint, connectionConfig || 'confirmed');
 
         this.compressionApiEndpoint = compressionApiEndpoint;
         this.proverEndpoint = proverEndpoint;
