@@ -27,7 +27,7 @@ pub use accounts_cpi_context::*;
 ///
 /// ## Common Methods
 ///
-/// - [`with_light_account()`](crate::cpi::v2::LightSystemProgramCpi::with_light_account) - Add a compressed account (handles output hashing, and type conversion to instruction data).
+/// - [`with_light_account()`](crate::cpi::LightCpiInstruction::with_light_account) - Add a compressed account (handles output hashing, and type conversion to instruction data).
 /// - [`with_new_addresses()`](crate::cpi::v2::LightSystemProgramCpi::with_new_addresses) - Create new compressed account addresses.
 /// - [`with_read_only_addresses()`](crate::cpi::v2::LightSystemProgramCpi::with_read_only_addresses) - Validate that addresses don't exist without creating them.
 /// - [`with_read_only_accounts()`](crate::cpi::v2::LightSystemProgramCpi::with_read_only_accounts) - Validate that compressed account state exists without updating it.
@@ -37,7 +37,7 @@ pub use accounts_cpi_context::*;
 /// **Note**: An instruction can either compress **or** decompress lamports, not both.
 /// ## Advanced Methods
 ///
-/// For fine-grained control, use these low-level methods instead of [`with_light_account()`](crate::cpi::v2::LightSystemProgramCpi::with_light_account):
+/// For fine-grained control, use these low-level methods instead of [`with_light_account()`](crate::cpi::LightCpiInstruction::with_light_account):
 ///
 /// - [`with_account_infos()`](crate::cpi::v2::LightSystemProgramCpi::with_account_infos) - Manually specify CompressedAccountInfos.
 ///

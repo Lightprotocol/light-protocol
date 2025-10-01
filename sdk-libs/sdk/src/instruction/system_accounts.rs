@@ -40,7 +40,8 @@ use crate::{find_cpi_signer_macro, AccountMeta, Pubkey};
 ///
 /// With CPI context (v2 batched operations):
 ///
-/// ```rust
+#[cfg_attr(not(feature = "cpi-context"), doc = "```ignore")]
+#[cfg_attr(feature = "cpi-context", doc = "```rust")]
 /// # use light_sdk::instruction::SystemAccountMetaConfig;
 /// # use solana_pubkey::Pubkey;
 /// let program_id = Pubkey::new_unique();
@@ -57,12 +58,9 @@ use crate::{find_cpi_signer_macro, AccountMeta, Pubkey};
 /// let sol_pool_pda = Pubkey::new_unique();
 /// let recipient = Pubkey::new_unique();
 ///
-/// let config = SystemAccountMetaConfig {
-///     self_program: program_id,
-///     sol_pool_pda: Some(sol_pool_pda),
-///     sol_compression_recipient: Some(recipient),
-///     cpi_context: None,
-/// };
+/// let mut config = SystemAccountMetaConfig::new(program_id);
+/// config.sol_pool_pda = Some(sol_pool_pda);
+/// config.sol_compression_recipient = Some(recipient);
 /// ```
 #[derive(Debug, Default, Copy, Clone)]
 #[non_exhaustive]

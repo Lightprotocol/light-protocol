@@ -3,9 +3,10 @@ use light_compressed_account::instruction_data::{
 };
 use light_sdk_types::CpiSigner;
 
-use super::lowlevel::{
-    to_account_metas, CompressedCpiContext, InAccount, InstructionDataInvokeCpiWithReadOnly,
-};
+#[cfg(feature = "cpi-context")]
+use super::lowlevel::CompressedCpiContext;
+use super::lowlevel::{to_account_metas, InAccount, InstructionDataInvokeCpiWithReadOnly};
+
 use crate::{
     account::{poseidon::LightAccount as LightAccountPoseidon, LightAccount},
     cpi::{account::CpiAccountsTrait, instruction::LightCpiInstruction, v2::CpiAccounts},

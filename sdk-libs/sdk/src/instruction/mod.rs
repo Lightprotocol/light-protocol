@@ -4,21 +4,21 @@
 //! compressed accounts. The main workflow involves:
 //! ```text
 //!  ├─ 𝐂𝐥𝐢𝐞𝐧𝐭
-//!  │  ├─ Get ValidityProof from RPC
-//!  │  ├─ pack accounts with PackedAccounts into PackedAddressTreeInfo and PackedStateTreeInfo
-//!  │  ├─ pack CompressedAccountMeta
+//!  │  ├─ Get ValidityProof from RPC.
+//!  │  ├─ pack accounts with PackedAccounts into PackedAddressTreeInfo and PackedStateTreeInfo.
+//!  │  ├─ pack CompressedAccountMeta.
 //!  │  ├─ Build Instruction from packed accounts and CompressedAccountMetas.
 //!  │  └─ Send transaction
 //!  │
-//!  └─ 𝐂𝐮𝐬𝐭𝐨𝐦 𝐏𝐑𝐎𝐆𝐑𝐀𝐌
+//!  └─ 𝐂𝐮𝐬𝐭𝐨𝐦 𝐏𝐫𝐨𝐠𝐫𝐚𝐦
 //!     ├─ use PackedAddressTreeInfo to create a new address.
 //!     ├─ use CompressedAccountMeta to instantiate a LightAccount struct.
 //!     │
 //!     └─ 𝐋𝐢𝐠𝐡𝐭 𝐒𝐲𝐬𝐭𝐞𝐦 𝐏𝐫𝐨𝐠𝐫𝐚𝐦 𝐂𝐏𝐈
-//!        ├─ Verify ValidityProof
-//!        ├─ Update State Merkle tree
-//!        ├─ Update Address Merkle tree
-//!        └─ Complete atomic state transition
+//!        ├─ Verify ValidityProof.
+//!        ├─ Update State Merkle tree.
+//!        ├─ Update Address Merkle tree.
+//!        └─ Complete atomic state transition.
 //! ```
 //! ## Main Types
 //!
