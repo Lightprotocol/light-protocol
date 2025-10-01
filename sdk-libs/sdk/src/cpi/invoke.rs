@@ -176,6 +176,11 @@ where
     invoke_light_system_program(&account_infos, instruction, instruction_data.get_bump())
 }
 
+/// Low-level function to invoke the Light system program with a PDA signer.
+///
+/// **Note**: This is a low-level function. In most cases, you should use the
+/// [`InvokeLightSystemProgram`] trait methods instead, which provide a higher-level
+/// interface with better type safety and ergonomics.
 #[inline(always)]
 pub fn invoke_light_system_program(
     account_infos: &[AccountInfo],

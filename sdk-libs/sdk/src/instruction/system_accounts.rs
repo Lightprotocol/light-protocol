@@ -9,7 +9,7 @@ use crate::{find_cpi_signer_macro, AccountMeta, Pubkey};
 ///
 /// This struct specifies which system accounts to include when using
 /// [`PackedAccounts::add_system_accounts()`](crate::instruction::PackedAccounts::add_system_accounts)
-/// or [`PackedAccounts::add_system_accounts_v2()`](crate::instruction::PackedAccounts::add_system_accounts_v2).
+/// or `PackedAccounts::add_system_accounts_v2()`.
 ///
 /// # Required Fields
 ///
@@ -167,7 +167,7 @@ impl Default for SystemAccountPubkeys {
     }
 }
 
-/// InvokeSystemCpi, not with read only
+/// InvokeSystemCpi v1.
 pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
     let cpi_signer = find_cpi_signer_macro!(&config.self_program).0;
     let default_pubkeys = SystemAccountPubkeys::default();

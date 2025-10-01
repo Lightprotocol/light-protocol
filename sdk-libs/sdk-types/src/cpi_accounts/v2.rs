@@ -49,6 +49,20 @@ impl<'a, T: AccountInfoTrait + Clone> TryFrom<&CpiAccounts<'a, T>>
 }
 
 impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
+    /// Creates a new CpiAccounts instance.
+    ///
+    /// The `accounts` slice must start at the system accounts (Light system program and related accounts).
+    ///
+    /// When using `PackedAccounts`, obtain the `system_accounts_offset`
+    /// from `to_account_metas()` and slice from that offset:
+    /// ```ignore
+    /// // In client
+    /// let (remaining_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();
+    ///
+    /// // In program
+    /// let accounts_for_cpi = &ctx.remaining_accounts[system_accounts_offset..];
+    /// let cpi_accounts = CpiAccounts::new(fee_payer, accounts_for_cpi, cpi_signer);
+    /// ```
     pub fn new(fee_payer: &'a T, accounts: &'a [T], cpi_signer: CpiSigner) -> Self {
         Self {
             fee_payer,

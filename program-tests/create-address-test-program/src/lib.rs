@@ -23,9 +23,9 @@ use light_compressed_account::instruction_data::{
 use light_sdk::{
     constants::LIGHT_SYSTEM_PROGRAM_ID,
     cpi::{
-        invoke_light_system_program,
-        v1::{get_account_metas_from_config, CpiInstructionConfig},
-        v2::to_account_metas,
+        invoke::invoke_light_system_program,
+        v1::lowlevel::{get_account_metas_from_config, CpiInstructionConfig},
+        v2::lowlevel::to_account_metas,
     },
 };
 

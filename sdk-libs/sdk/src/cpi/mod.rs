@@ -28,7 +28,6 @@
 //! );
 //!
 //! my_compressed_account.name = name;
-//! my_compressed_account.nested = NestedData::default();
 //!
 //! LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, proof)
 //!     .with_light_account(my_compressed_account)?
@@ -38,7 +37,7 @@
 
 mod account;
 mod instruction;
-mod invoke;
+pub mod invoke;
 
 pub mod v1;
 #[cfg(feature = "v2")]
@@ -46,7 +45,8 @@ pub mod v2;
 
 pub use account::*;
 pub use instruction::*;
-pub use invoke::*;
+pub use invoke::InvokeLightSystemProgram;
+pub use light_compressed_account::instruction_data::traits::LightInstructionData;
 /// Derives cpi signer and bump to invoke the light system program at compile time.
 pub use light_sdk_macros::derive_light_cpi_signer;
 /// Contains program id, derived cpi signer, and bump,

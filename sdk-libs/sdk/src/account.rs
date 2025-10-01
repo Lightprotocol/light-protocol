@@ -1,8 +1,7 @@
 //! # Light Account
 //!
-//! LightAccount is a wrapper around a compressed account similar to anchor Account.
-//! LightAccount abstracts hashing of compressed account data,
-//! and wraps the compressed account data so that it is easy to use.
+//! LightAccount wraps the compressed account data so that it is easy to use similar to anchor Account.
+//! LightAccount sets the discriminator and creates the compressed account data hash.
 //!
 //! Data structs used with LightAccount must implement the traits:
 //! - LightDiscriminator
@@ -36,24 +35,22 @@
 //!
 //! ### Create compressed account
 //! ```rust
-//! use light_sdk::{LightAccount, LightDiscriminator};
-//! use borsh::{BorshSerialize, BorshDeserialize};
-//! use solana_pubkey::Pubkey;
-//!
-//! #[derive(Clone, Debug, Default, LightDiscriminator, BorshSerialize, BorshDeserialize)]
-//! pub struct CounterAccount {
-//!     pub owner: Pubkey,
-//!     pub counter: u64,
-//! };
-//!
-//! let program_id = Pubkey::new_unique();
-//! let address = [0u8; 32];
-//! let output_tree_index = 0u8;
-//! let owner = Pubkey::new_unique();
-//!
+//! # use light_sdk::{LightAccount, LightDiscriminator};
+//! # use borsh::{BorshSerialize, BorshDeserialize};
+//! # use solana_pubkey::Pubkey;
+//! #
+//! # #[derive(Clone, Debug, Default, LightDiscriminator, BorshSerialize, BorshDeserialize)]
+//! # pub struct CounterAccount {
+//! #     pub owner: Pubkey,
+//! #     pub counter: u64,
+//! # }
+//! #
+//! # let program_id = Pubkey::new_unique();
+//! # let address = [0u8; 32];
+//! # let output_tree_index = 0u8;
+//! # let owner = Pubkey::new_unique();
 //! let mut my_compressed_account = LightAccount::<'_, CounterAccount>::new_init(
 //!     &program_id,
-//!     // Address
 //!     Some(address),
 //!     output_tree_index,
 //! );
@@ -62,57 +59,63 @@
 //! ```
 //! ### Update compressed account
 //! ```rust
-//! use light_sdk::{LightAccount, LightDiscriminator};
-//! use light_sdk::instruction::account_meta::CompressedAccountMeta;
-//! use borsh::{BorshSerialize, BorshDeserialize};
-//! use solana_pubkey::Pubkey;
-//!
-//! #[derive(Clone, Debug, Default, LightDiscriminator, BorshSerialize, BorshDeserialize)]
-//! pub struct CounterAccount {
-//!     pub owner: Pubkey,
-//!     pub counter: u64,
-//! };
-//!
-//! let program_id = Pubkey::new_unique();
-//! let account_meta = CompressedAccountMeta {
-//!     output_state_tree_index: 0,
-//!     ..Default::default()
-//! };
-//! let compressed_account_data = CounterAccount::default();
-//!
+//! # use light_sdk::{LightAccount, LightDiscriminator};
+//! # use light_sdk::instruction::account_meta::CompressedAccountMeta;
+//! # use borsh::{BorshSerialize, BorshDeserialize};
+//! # use solana_pubkey::Pubkey;
+//! # use solana_program_error::ProgramError;
+//! #
+//! # #[derive(Clone, Debug, Default, LightDiscriminator, BorshSerialize, BorshDeserialize)]
+//! # pub struct CounterAccount {
+//! #     pub owner: Pubkey,
+//! #     pub counter: u64,
+//! # }
+//! #
+//! # fn example() -> Result<(), ProgramError> {
+//! # let program_id = Pubkey::new_unique();
+//! # let account_meta = CompressedAccountMeta {
+//! #     output_state_tree_index: 0,
+//! #     ..Default::default()
+//! # };
+//! # let compressed_account_data = CounterAccount::default();
 //! let mut my_compressed_account = LightAccount::<'_, CounterAccount>::new_mut(
 //!     &program_id,
 //!     &account_meta,
 //!     compressed_account_data,
-//! ).unwrap();
+//! )?;
 //! // Increment counter.
 //! my_compressed_account.counter += 1;
+//! # Ok(())
+//! # }
 //! ```
 //! ### Close compressed account
 //! ```rust
-//! use light_sdk::{LightAccount, LightDiscriminator};
-//! use light_sdk::instruction::account_meta::CompressedAccountMeta;
-//! use borsh::{BorshSerialize, BorshDeserialize};
-//! use solana_pubkey::Pubkey;
-//!
-//! #[derive(Clone, Debug, Default, LightDiscriminator, BorshSerialize, BorshDeserialize)]
-//! pub struct CounterAccount {
-//!     pub owner: Pubkey,
-//!     pub counter: u64,
-//! };
-//!
-//! let program_id = Pubkey::new_unique();
-//! let account_meta = CompressedAccountMeta {
-//!     output_state_tree_index: 0,
-//!     ..Default::default()
-//! };
-//! let compressed_account_data = CounterAccount::default();
-//!
-//! let _my_compressed_account = LightAccount::<'_, CounterAccount>::new_close(
+//! # use light_sdk::{LightAccount, LightDiscriminator};
+//! # use light_sdk::instruction::account_meta::CompressedAccountMeta;
+//! # use borsh::{BorshSerialize, BorshDeserialize};
+//! # use solana_pubkey::Pubkey;
+//! # use solana_program_error::ProgramError;
+//! #
+//! # #[derive(Clone, Debug, Default, LightDiscriminator, BorshSerialize, BorshDeserialize)]
+//! # pub struct CounterAccount {
+//! #     pub owner: Pubkey,
+//! #     pub counter: u64,
+//! # }
+//! #
+//! # fn example() -> Result<(), ProgramError> {
+//! # let program_id = Pubkey::new_unique();
+//! # let account_meta = CompressedAccountMeta {
+//! #     output_state_tree_index: 0,
+//! #     ..Default::default()
+//! # };
+//! # let compressed_account_data = CounterAccount::default();
+//! let my_compressed_account = LightAccount::<'_, CounterAccount>::new_close(
 //!     &program_id,
 //!     &account_meta,
 //!     compressed_account_data,
-//! ).unwrap();
+//! )?;
+//! # Ok(())
+//! # }
 //! ```
 // TODO: add example for manual hashing
 

@@ -1,23 +1,14 @@
-//! LightSystemProgramCpi optimized for Compressed Pdas.
-//!
-//! InstructionDataInvokeCpiWithReadOnly provides more flexibility
-//! for complex operations such as changing the compressed account owner.
-
-use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
-pub use light_compressed_account::instruction_data::{
-    cpi_context::*,
-    with_account_info::{InstructionDataInvokeCpiWithAccountInfo as LightSystemProgramCpi, *},
-    with_readonly::*,
+use light_compressed_account::instruction_data::{
+    compressed_proof::ValidityProof, with_account_info::InstructionDataInvokeCpiWithAccountInfo,
 };
 use light_sdk_types::CpiSigner;
 
+use super::lowlevel::{
+    to_account_metas, CompressedCpiContext, InAccount, InstructionDataInvokeCpiWithReadOnly,
+};
 use crate::{
     account::{poseidon::LightAccount as LightAccountPoseidon, LightAccount},
-    cpi::{
-        account::CpiAccountsTrait,
-        instruction::LightCpiInstruction,
-        v2::{to_account_metas, CpiAccounts},
-    },
+    cpi::{account::CpiAccountsTrait, instruction::LightCpiInstruction, v2::CpiAccounts},
     error::LightSdkError,
     instruction::account_info::CompressedAccountInfoTrait,
     AccountInfo, AccountMeta, AnchorDeserialize, AnchorSerialize, DataHasher, LightDiscriminator,

@@ -4,7 +4,10 @@ use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
 #[cfg(all(feature = "v2", feature = "cpi-context"))]
 use crate::cpi::v2::get_account_metas_from_config_cpi_context;
 use crate::{
-    cpi::v1::{get_account_metas_from_config, CpiAccounts, CpiInstructionConfig},
+    cpi::v1::{
+        lowlevel::{get_account_metas_from_config, CpiInstructionConfig},
+        CpiAccounts,
+    },
     AccountInfo, AccountMeta, ProgramError,
 };
 

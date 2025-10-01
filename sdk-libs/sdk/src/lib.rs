@@ -1,23 +1,43 @@
 //!
 //! # Core Functionality
 //! 1. Instruction
-//!     - `AccountMeta` - Compressed account metadata structs for instruction data.
-//!     - `PackedAccounts` - Abstraction to prepare accounts offchain for instructions with compressed accounts.
+//!     - [`CompressedAccountMeta`](crate::instruction::account_meta::CompressedAccountMeta) - Compressed account metadata structs for instruction data.
+//!     - [`PackedAccounts`](crate::instruction::PackedAccounts) - Abstraction to prepare accounts offchain for instructions with compressed accounts.
+//!     - [`ValidityProof`](crate::instruction::ValidityProof) - Proves that new addresses don't exist yet, and compressed account state exists.
 //! 2. Program logic
-//!     - `LightAccount` - Compressed account abstraction similar to anchor Account.
-//!     - `derive_address` - Create a compressed account address.
-//!     - `LightDiscriminator` - DeriveMacro to derive a compressed account discriminator.
+//!     - [`LightAccount`] - Compressed account abstraction similar to anchor Account.
+//!     - [`derive_address`](crate::address) - Create a compressed account address.
+//!     - [`LightDiscriminator`] - DeriveMacro to derive a compressed account discriminator.
 //! 3. Cpi
-//!     - `CpiAccounts` - Prepare accounts to cpi the light system program.
-//!     - `LightSystemProgramCpi` - Prepare instruction data to cpi the light system program.
-//!     - `LightSystemProgramCpi::invoke` - Invoke the light system program via cpi.
+//!     - [`CpiAccounts`](crate::cpi::v1::CpiAccounts) - Prepare accounts to cpi the light system program.
+//!     - [`LightSystemProgramCpi`](crate::cpi::v1::LightSystemProgramCpi) - Prepare instruction data to cpi the light system program.
+//!     - [`InvokeLightSystemProgram::invoke`](crate::cpi::InvokeLightSystemProgram::invoke) - Invoke the light system program via cpi.
 //!
+//! ```text
+//!  ├─ 𝐂𝐥𝐢𝐞𝐧𝐭
+//!  │  ├─ Get ValidityProof from RPC.
+//!  │  ├─ pack accounts with PackedAccounts into PackedAddressTreeInfo and PackedStateTreeInfo.
+//!  │  ├─ pack CompressedAccountMeta.
+//!  │  ├─ Build Instruction from PackedAccounts and CompressedAccountMetas.
+//!  │  └─ Send transaction.
+//!  │
+//!  └─ 𝐂𝐮𝐬𝐭𝐨𝐦 𝐏𝐑𝐎𝐆𝐑𝐀𝐌
+//!     ├─ CpiAccounts parse accounts consistent with PackedAccounts.
+//!     ├─ LightAccount instantiates from CompressedAccountMeta.
+//!     │
+//!     └─ 𝐋𝐢𝐠𝐡𝐭 𝐒𝐲𝐬𝐭𝐞𝐦 𝐏𝐫𝐨𝐠𝐫𝐚𝐦 𝐂𝐏𝐈
+//!        ├─ Verify ValidityProof.
+//!        ├─ Update State Merkle tree.
+//!        ├─ Update Address Merkle tree.
+//!        └─ Complete atomic state transition.
+//! ```
 //!
 //! # Features
 //! 1. `anchor` - Derives AnchorSerialize, AnchorDeserialize instead of BorshSerialize, BorshDeserialize.
 //!
 //! 2. `v2`
 //!     - available on devnet, localnet, and light-program-test.
+//!     - Support for optimized v2 light system program instructions.
 //!
 //! 3. `cpi-context` - Enables CPI context operations for batched compressed account operations.
 //!    - available on devnet, localnet, and light-program-test.
@@ -25,6 +45,7 @@
 //!    - For example spending compressed tokens (owned by the ctoken program) and updating a compressed pda (owned by a custom program)
 //!      with one validity proof.
 //!    - An instruction should not use more than one validity proof.
+//!    - Requires the v2 feature.
 //!
 //! ### Example Solana program code to create a compressed account
 //! ```rust, compile_fail
@@ -103,13 +124,6 @@
 /// Compressed account abstraction similar to anchor Account.
 pub mod account;
 pub use account::sha::LightAccount;
-
-/// SHA256-based variants
-pub mod sha {
-    pub use light_sdk_macros::LightHasherSha as LightHasher;
-
-    pub use crate::account::sha::LightAccount;
-}
 
 /// Functions to derive compressed account addresses.
 pub mod address;

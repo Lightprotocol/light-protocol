@@ -9,9 +9,9 @@ use light_compressed_account::{
 };
 use light_sdk::{
     cpi::{
-        invoke_light_system_program,
+        invoke::invoke_light_system_program,
         v1::{CpiAccounts, LightSystemProgramCpi},
-        v2::{CompressedAccountInfo, OutAccountInfo},
+        v2::lowlevel::{CompressedAccountInfo, OutAccountInfo},
         CpiAccountsConfig, CpiAccountsTrait, InvokeLightSystemProgram, LightCpiInstruction,
     },
     error::LightSdkError,

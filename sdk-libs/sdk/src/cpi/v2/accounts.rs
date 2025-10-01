@@ -4,6 +4,9 @@ use light_sdk_types::cpi_accounts::v2::{
 
 use crate::{error::Result, AccountInfo, AccountMeta};
 
+/// Light system program CPI accounts struct.
+///
+/// Use with [`LightSystemProgramCpi`](super::LightSystemProgramCpi) to invoke the Light system program.
 pub type CpiAccounts<'c, 'info> = GenericCpiAccounts<'c, AccountInfo<'info>>;
 
 pub fn to_account_metas(cpi_accounts: &CpiAccounts<'_, '_>) -> Result<Vec<AccountMeta>> {

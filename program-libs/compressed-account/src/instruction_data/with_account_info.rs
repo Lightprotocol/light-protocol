@@ -353,8 +353,8 @@ impl<'a> CompressedAccountInfo {
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InstructionDataInvokeCpiWithAccountInfo {
-    /// 0 With program ids
-    /// 1 without program ids
+    /// 0 V1 instruction accounts.
+    /// 1 Optimized V2 instruction accounts.
     pub mode: u8,
     pub bump: u8,
     pub invoking_program_id: Pubkey,

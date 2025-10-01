@@ -78,6 +78,46 @@
 //! let index3 = accounts.insert_or_get(other_tree);
 //! assert_eq!(index3, 1);
 //! ```
+//!
+//! # Building Instructions with Anchor Programs
+//!
+//! When building instructions for Anchor programs, concatenate your custom accounts with the packed accounts:
+//!
+//! ```rust,ignore
+//! # use anchor_lang::InstructionData;
+//! # use light_sdk::instruction::{PackedAccounts, SystemAccountMetaConfig};
+//! # use solana_instruction::{AccountMeta, Instruction};
+//!
+//! // 1. Set up packed accounts
+//! let config = SystemAccountMetaConfig::new(program_id);
+//! let mut remaining_accounts = PackedAccounts::default();
+//! remaining_accounts.add_system_accounts(config)?;
+//!
+//! // 2. Pack tree accounts from proof result
+//! let packed_tree_info = proof_result.pack_tree_infos(&mut remaining_accounts);
+//! let output_tree_index = state_tree_info.pack_output_tree_index(&mut remaining_accounts)?;
+//!
+//! // 3. Convert to account metas
+//! let (remaining_accounts, _, _) = remaining_accounts.to_account_metas();
+//!
+//! // 4. Build instruction: custom accounts first, then remaining_accounts
+//! let instruction = Instruction {
+//!     program_id: your_program::ID,
+//!     accounts: [
+//!         vec![AccountMeta::new(payer.pubkey(), true)],  // Your program's accounts
+//!         // Add other custom accounts here if needed
+//!         remaining_accounts,                             // Light system accounts + trees
+//!     ]
+//!     .concat(),
+//!     data: your_program::instruction::YourInstruction {
+//!         proof: proof_result.proof,
+//!         address_tree_info: packed_tree_info.address_trees[0],
+//!         output_tree_index,
+//!         // ... your other fields
+//!     }
+//!     .data(),
+//! };
+//! ```
 
 use std::collections::HashMap;
 
@@ -89,9 +129,9 @@ use crate::{
 /// Builder for organizing accounts into compressed account instructions.
 ///
 /// Manages three categories of accounts:
-/// - **Pre-accounts**: Signers and other accounts that come before system accounts
-/// - **System accounts**: Light system program accounts (authority, trees, queues)
-/// - **Packed accounts**: Dynamically tracked accounts with automatic deduplication
+/// - **Pre-accounts**: Signers and other custom accounts that come before system accounts.
+/// - **System accounts**: Light system program accounts (authority, trees, queues).
+/// - **Packed accounts**: Dynamically tracked deduplicted accounts.
 ///
 /// # Example
 ///
@@ -315,6 +355,22 @@ impl PackedAccounts {
     /// Converts the collection of accounts to a vector of
     /// [`AccountMeta`](solana_instruction::AccountMeta), which can be used
     /// as remaining accounts in instructions or CPI calls.
+    ///
+    /// # Returns
+    ///
+    /// A tuple of `(account_metas, system_accounts_offset, packed_accounts_offset)`:
+    /// - `account_metas`: All accounts concatenated in order: `[pre_accounts][system_accounts][packed_accounts]`
+    /// - `system_accounts_offset`: Index where system accounts start (= pre_accounts.len())
+    /// - `packed_accounts_offset`: Index where packed accounts start (= pre_accounts.len() + system_accounts.len())
+    ///
+    /// The `system_accounts_offset` can be used to slice the accounts when creating [`CpiAccounts`](crate::cpi::v1::CpiAccounts):
+    /// ```ignore
+    /// let accounts_for_cpi = &ctx.remaining_accounts[system_accounts_offset..];
+    /// let cpi_accounts = CpiAccounts::new(fee_payer, accounts_for_cpi, cpi_signer)?;
+    /// ```
+    ///
+    /// The offset can be hardcoded if your program always has the same pre-accounts layout, or passed
+    /// as a field in your instruction data.
     pub fn to_account_metas(&self) -> (Vec<AccountMeta>, usize, usize) {
         let packed_accounts = self.hash_set_accounts_to_metas();
         let (system_accounts_start_offset, packed_accounts_start_offset) = self.get_offsets();

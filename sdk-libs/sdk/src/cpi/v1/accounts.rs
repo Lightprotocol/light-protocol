@@ -1,9 +1,8 @@
-pub use light_sdk_types::cpi_accounts::v1::{
-    CpiAccounts as GenericCpiAccounts, SYSTEM_ACCOUNTS_LEN,
-};
+pub use light_sdk_types::cpi_accounts::v1::SYSTEM_ACCOUNTS_LEN;
 use light_sdk_types::{
-    ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
-    NOOP_PROGRAM_ID, REGISTERED_PROGRAM_PDA,
+    cpi_accounts::v1::CpiAccounts as GenericCpiAccounts, ACCOUNT_COMPRESSION_AUTHORITY_PDA,
+    ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID,
+    REGISTERED_PROGRAM_PDA,
 };
 
 use crate::{
@@ -22,6 +21,9 @@ pub struct CpiInstructionConfig<'a, 'info> {
     pub packed_accounts: &'a [AccountInfo<'info>],
 }
 
+/// Light system program CPI accounts struct.
+///
+/// Use with [`LightSystemProgramCpi`](super::LightSystemProgramCpi) to invoke the Light system program.
 pub type CpiAccounts<'c, 'info> = GenericCpiAccounts<'c, AccountInfo<'info>>;
 
 pub fn get_account_metas_from_config(config: CpiInstructionConfig<'_, '_>) -> Vec<AccountMeta> {

@@ -10,7 +10,127 @@ use crate::{
     AnchorDeserialize, AnchorSerialize, DataHasher, LightDiscriminator, ProgramError,
 };
 
-/// V1 wrapper struct for InstructionDataInvokeCpi with CpiSigner
+/// Light system program CPI instruction data builder.
+///
+/// Use this builder to construct instructions for compressed account operations:
+/// creating, updating, closing accounts, and compressing/decompressing SOL.
+///
+/// # Builder Methods
+///
+/// ## Common Methods
+///
+/// - [`with_light_account()`](Self::with_light_account) - Add a compressed account (handles output hashing, and type conversion to instruction data)
+/// - [`with_new_addresses()`](Self::with_new_addresses) - Create new compressed account addresses
+/// - [`compress_lamports()`](Self::compress_lamports) - Compress SOL into compressed accounts
+/// - [`decompress_lamports()`](Self::decompress_lamports) - Decompress SOL from compressed accounts
+///
+/// **Note**: An instruction can either compress **or** decompress lamports, not both.
+///
+/// ## Advanced Methods
+///
+/// For fine-grained control, use these low-level methods instead of [`with_light_account()`](Self::with_light_account):
+///
+/// - [`with_input_compressed_accounts_with_merkle_context()`](Self::with_input_compressed_accounts_with_merkle_context) - Manually specify input accounts
+/// - [`with_output_compressed_accounts()`](Self::with_output_compressed_accounts) - Manually specify output accounts
+///
+/// # Examples
+///
+/// ## Create a compressed account with an address
+/// ```rust,no_run
+/// # use light_sdk::cpi::{v1::LightSystemProgramCpi, InvokeLightSystemProgram, LightCpiInstruction, CpiSigner};
+/// # use light_sdk::instruction::ValidityProof;
+/// # use light_compressed_account::instruction_data::data::NewAddressParamsPacked;
+/// # use light_sdk::{LightAccount, LightDiscriminator};
+/// # use borsh::{BorshSerialize, BorshDeserialize};
+/// # use solana_pubkey::Pubkey;
+/// # use solana_program_error::ProgramError;
+/// #
+/// # const LIGHT_CPI_SIGNER: CpiSigner = CpiSigner {
+/// #     program_id: [0; 32],
+/// #     cpi_signer: [0; 32],
+/// #     bump: 255,
+/// # };
+/// #
+/// # #[derive(Clone, Debug, Default, LightDiscriminator, BorshSerialize, BorshDeserialize)]
+/// # pub struct MyAccount {
+/// #     pub value: u64,
+/// # }
+/// #
+/// # fn example() -> Result<(), ProgramError> {
+/// # let proof = ValidityProof::default();
+/// # let new_address_params = NewAddressParamsPacked::default();
+/// # let program_id = Pubkey::new_unique();
+/// # let account = LightAccount::<MyAccount>::new_init(&program_id, None, 0);
+/// # let key = Pubkey::new_unique();
+/// # let owner = Pubkey::default();
+/// # let mut lamports = 0u64;
+/// # let mut data = [];
+/// # let fee_payer = &solana_account_info::AccountInfo::new(
+/// #     &key,
+/// #     true,
+/// #     true,
+/// #     &mut lamports,
+/// #     &mut data,
+/// #     &owner,
+/// #     false,
+/// #     0,
+/// # );
+/// # let cpi_accounts = light_sdk::cpi::v1::CpiAccounts::new(fee_payer, &[], LIGHT_CPI_SIGNER);
+/// LightSystemProgramCpi::new_cpi(LIGHT_CPI_SIGNER, proof)
+///     .with_new_addresses(&[new_address_params])
+///     .with_light_account(account)?
+///     .invoke(cpi_accounts)?;
+/// # Ok(())
+/// # }
+/// ```
+/// ## Update a compressed account
+/// ```rust,no_run
+/// # use light_sdk::cpi::{v1::LightSystemProgramCpi, InvokeLightSystemProgram, LightCpiInstruction, CpiSigner};
+/// # use light_sdk::instruction::ValidityProof;
+/// # use light_sdk::{LightAccount, LightDiscriminator};
+/// # use light_sdk::instruction::account_meta::CompressedAccountMeta;
+/// # use borsh::{BorshSerialize, BorshDeserialize};
+/// # use solana_pubkey::Pubkey;
+/// # use solana_program_error::ProgramError;
+/// #
+/// # const LIGHT_CPI_SIGNER: CpiSigner = CpiSigner {
+/// #     program_id: [0; 32],
+/// #     cpi_signer: [0; 32],
+/// #     bump: 255,
+/// # };
+/// #
+/// # #[derive(Clone, Debug, Default, LightDiscriminator, BorshSerialize, BorshDeserialize)]
+/// # pub struct MyAccount {
+/// #     pub value: u64,
+/// # }
+/// #
+/// # fn example() -> Result<(), ProgramError> {
+/// # let proof = ValidityProof::default();
+/// # let program_id = Pubkey::new_unique();
+/// # let account_meta = CompressedAccountMeta::default();
+/// # let account_data = MyAccount::default();
+/// # let account = LightAccount::<MyAccount>::new_mut(&program_id, &account_meta, account_data)?;
+/// # let key = Pubkey::new_unique();
+/// # let owner = Pubkey::default();
+/// # let mut lamports = 0u64;
+/// # let mut data = [];
+/// # let fee_payer = &solana_account_info::AccountInfo::new(
+/// #     &key,
+/// #     true,
+/// #     true,
+/// #     &mut lamports,
+/// #     &mut data,
+/// #     &owner,
+/// #     false,
+/// #     0,
+/// # );
+/// # let cpi_accounts = light_sdk::cpi::v1::CpiAccounts::new(fee_payer, &[], LIGHT_CPI_SIGNER);
+/// LightSystemProgramCpi::new_cpi(LIGHT_CPI_SIGNER, proof)
+///     .with_light_account(account)?
+///     .invoke(cpi_accounts)?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Clone)]
 pub struct LightSystemProgramCpi {
     cpi_signer: CpiSigner,
