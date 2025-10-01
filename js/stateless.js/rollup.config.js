@@ -16,7 +16,7 @@ const rolls = (fmt, env) => ({
         entryFileNames: `[name].${fmt === 'cjs' ? 'cjs' : 'js'}`,
         sourcemap: true,
     },
-    external: ['@solana/web3.js'],
+    external: ['@solana/web3.js', 'bn.js'],
     plugins: [
         replace({
             preventAssignment: true,
