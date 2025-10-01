@@ -27,15 +27,12 @@ use crate::{
 /// Close the source PDA account manually at the end of the caller program's
 /// init instruction.
 #[cfg(feature = "anchor")]
-#[allow(clippy::too_many_arguments)]
 pub fn compress_account_on_init<'info, A>(
     solana_account: &Account<'info, A>,
     address: &[u8; 32],
     new_address_param: &NewAddressParamsAssignedPacked,
     output_state_tree_index: u8,
     cpi_accounts: CpiAccountsSmall<'_, 'info>,
-    address_space: &[Pubkey],
-    rent_recipient: &AccountInfo<'info>,
     proof: ValidityProof,
 ) -> Result<()>
 where
@@ -50,19 +47,12 @@ where
         + HasCompressionInfo,
     A: std::fmt::Debug,
 {
-    let solana_accounts: [&Account<'info, A>; 1] = [&solana_account];
-    let addresses: [[u8; 32]; 1] = [*address];
-    let new_address_params: [NewAddressParamsAssignedPacked; 1] = [*new_address_param];
-    let output_state_tree_indices: [u8; 1] = [output_state_tree_index];
-
     let compressed_infos = prepare_accounts_for_compression_on_init(
-        &solana_accounts,
-        &addresses,
-        &new_address_params,
-        &output_state_tree_indices,
+        std::slice::from_ref(&solana_account),
+        std::slice::from_ref(address),
+        std::slice::from_ref(new_address_param),
+        std::slice::from_ref(&output_state_tree_index),
         &cpi_accounts,
-        address_space,
-        rent_recipient,
     )?;
 
     let cpi_inputs =
@@ -84,22 +74,17 @@ where
 /// * `output_state_tree_indices` - Output state tree indices for the compressed
 ///   accounts
 /// * `cpi_accounts` - Accounts needed for validation
-/// * `owner_program` - The program that will own the compressed accounts
-/// * `address_space` - The address space to validate uniqueness against
 ///
 /// # Returns
 /// * `Ok(Vec<CompressedAccountInfo>)` - CompressedAccountInfo for CPI batching
 /// * `Err(LightSdkError)` if there was an error
 #[cfg(feature = "anchor")]
-#[allow(clippy::too_many_arguments)]
 pub fn prepare_accounts_for_compression_on_init<'info, A>(
     solana_accounts: &[&Account<'info, A>],
     addresses: &[[u8; 32]],
     new_address_params: &[NewAddressParamsAssignedPacked],
     output_state_tree_indices: &[u8],
     cpi_accounts: &CpiAccountsSmall<'_, 'info>,
-    _address_space: &[Pubkey],            // TODO: remove.
-    _rent_recipient: &AccountInfo<'info>, // TODO: remove.
 ) -> Result<Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>>
 where
     A: DataHasher
@@ -126,29 +111,6 @@ where
         );
         return Err(LightSdkError::ConstraintViolation);
     }
-
-    // TODO: consider enabling, or move outside.
-    // Address space validation
-    // for params in new_address_params {
-    //     let tree = cpi_accounts
-    //         .get_tree_account_info(params.address_merkle_tree_account_index as usize)
-    //         .map_err(|_| {
-    //             msg!(
-    //                 "Failed to get tree account info at index {}",
-    //                 params.address_merkle_tree_account_index
-    //             );
-    //             LightSdkError::ConstraintViolation
-    //         })?
-    //         .pubkey();
-    //     if !address_space.iter().any(|a| a == &tree) {
-    //         msg!(
-    //             "Address tree {:?} not found in allowed address space: {:?}",
-    //             tree,
-    //             address_space
-    //         );
-    //         return Err(LightSdkError::ConstraintViolation);
-    //     }
-    // }
 
     let mut compressed_account_infos = Vec::new();
 
@@ -193,12 +155,11 @@ where
 #[cfg(feature = "anchor")]
 #[allow(clippy::too_many_arguments)]
 pub fn compress_empty_account_on_init<'info, A>(
-    solana_account: &mut Account<'info, A>,
+    solana_account: &Account<'info, A>,
     address: &[u8; 32],
     new_address_param: &NewAddressParamsAssignedPacked,
     output_state_tree_index: u8,
     cpi_accounts: CpiAccountsSmall<'_, 'info>,
-    address_space: &[Pubkey],
     proof: ValidityProof,
 ) -> Result<()>
 where
@@ -212,18 +173,12 @@ where
         + Clone
         + HasCompressionInfo,
 {
-    let mut solana_accounts: [&mut Account<'info, A>; 1] = [solana_account];
-    let addresses: [[u8; 32]; 1] = [*address];
-    let new_address_params: [NewAddressParamsAssignedPacked; 1] = [*new_address_param];
-    let output_state_tree_indices: [u8; 1] = [output_state_tree_index];
-
     let compressed_infos = prepare_empty_compressed_accounts_on_init(
-        &mut solana_accounts,
-        &addresses,
-        &new_address_params,
-        &output_state_tree_indices,
+        std::slice::from_ref(&solana_account),
+        std::slice::from_ref(address),
+        std::slice::from_ref(new_address_param),
+        std::slice::from_ref(&output_state_tree_index),
         &cpi_accounts,
-        address_space,
     )?;
 
     let cpi_inputs =
@@ -248,20 +203,17 @@ where
 /// * `output_state_tree_indices` - Output state tree indices for the compressed
 ///   accounts
 /// * `cpi_accounts` - Accounts needed for validation
-/// * `address_space` - The address space to validate uniqueness against
 ///
 /// # Returns
 /// * `Ok(Vec<CompressedAccountInfo>)` - CompressedAccountInfo for CPI batching
 /// * `Err(LightSdkError)` if there was an error
 #[cfg(feature = "anchor")]
-#[allow(clippy::too_many_arguments)]
 pub fn prepare_empty_compressed_accounts_on_init<'info, A>(
-    solana_accounts: &mut [&mut Account<'info, A>],
+    solana_accounts: &[&Account<'info, A>],
     addresses: &[[u8; 32]],
     new_address_params: &[NewAddressParamsAssignedPacked],
     output_state_tree_indices: &[u8],
     cpi_accounts: &CpiAccountsSmall<'_, 'info>,
-    address_space: &[Pubkey],
 ) -> Result<Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>>
 where
     A: DataHasher
@@ -292,11 +244,19 @@ where
 
     for (((_solana_account, &address), &_new_address_param), &output_state_tree_index) in
         solana_accounts
-            .iter_mut()
+            .iter()
             .zip(addresses.iter())
             .zip(new_address_params.iter())
             .zip(output_state_tree_indices.iter())
     {
+        // TODO: check security of not setting compressed so we don't need to pass as mut.
+        // Ensure the account is marked as compressed We need to init first
+        // because it's none. Setting to compressed prevents lamports funding
+        // attack.
+        // *solana_account.compression_info_mut_opt() =
+        //     Some(super::CompressionInfo::new_decompressed()?);
+        // solana_account.compression_info_mut().set_compressed();
+
         let owner_program_id = cpi_accounts.self_program_id();
 
         // Create an empty compressed account with the specified address
@@ -305,35 +265,6 @@ where
             Some(address),
             output_state_tree_index,
         );
-
-        // TODO: Remove this once we have a better error message for address
-        // mismatch.
-        {
-            use light_compressed_account::address::derive_address;
-
-            let c_pda = compressed_account.address().ok_or_else(|| {
-                msg!("Compressed account address is missing in compress_account_on_init");
-                LightSdkError::ConstraintViolation
-            })?;
-
-            let derived_c_pda = derive_address(
-                &_solana_account.key().to_bytes(),
-                &address_space[0].to_bytes(),
-                &cpi_accounts.self_program_id().to_bytes(),
-            );
-
-            // CHECK: pda and c_pda are related
-            if c_pda != derived_c_pda {
-                msg!(
-                "cPDA {:?} does not match derived cPDA {:?} for PDA {:?} with address space {:?}",
-                c_pda,
-                derived_c_pda,
-                _solana_account.key(),
-                address_space,
-            );
-                return Err(LightSdkError::ConstraintViolation);
-            }
-        }
 
         compressed_account.remove_data();
         compressed_account_infos.push(compressed_account.to_account_info()?);

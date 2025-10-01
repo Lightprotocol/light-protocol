@@ -46,8 +46,11 @@ arrayvec = { workspace = true }
 thiserror = { workspace = true }
 
 # Optional Anchor dependency
+
 anchor-lang = { workspace = true, optional = true }
-anchor-spl = { version = "=0.31.1", git = "https://github.com/lightprotocol/anchor", rev = "d8a2b3d9", features = ["memo", "metadata", "idl-build"] }
+anchor-spl = { workspace = true }
+#anchor-spl = { version = "=0.31.1", git = "https://github.com/lightprotocol/anchor", rev = "d8a2b3d9", features = ["memo", "metadata", "idl-build"] }
+
 
 [dev-dependencies]
 light-account-checks = { workspace = true, features = ["test-only", "pinocchio"] }

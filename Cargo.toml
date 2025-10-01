@@ -128,8 +128,10 @@ bs58 = "^0.5.1"
 litesvm = { git = "https://github.com/Lightprotocol/litesvm", rev = "d4f7ffb0025b73cb75ef2f198121a4e51b725b5d" }
 
 # Anchor
-anchor-lang = { version = "=0.31.1", features = ["idl-build"] }
-anchor-spl = "=0.31.1"
+# anchor-lang = { version = "=0.31.1", features = ["idl-build"] }
+anchor-lang = { path = "./../anchor/lang", features = ["idl-build"] }
+anchor-spl = { path = "./../anchor/spl", features = ["memo", "metadata", "idl-build"] }
+# anchor-spl = "=0.31.1"
 
 # Anchor compatibility
 borsh = "0.10.0"

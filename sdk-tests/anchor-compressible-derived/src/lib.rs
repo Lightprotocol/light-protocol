@@ -111,8 +111,6 @@ pub mod anchor_compressible_derived {
             &new_address_params,
             output_state_tree_index,
             cpi_accounts,
-            &config.address_space,
-            &ctx.accounts.rent_recipient,
             proof,
         )?;
 
@@ -177,8 +175,6 @@ pub mod anchor_compressible_derived {
             &new_address_params,
             output_state_tree_index,
             cpi_accounts,
-            &config.address_space,
-            &ctx.accounts.rent_recipient,
             proof,
         )?;
 
@@ -247,8 +243,6 @@ pub mod anchor_compressible_derived {
             &[user_new_address_params],
             &[compression_params.user_output_state_tree_index],
             &cpi_accounts,
-            &config.address_space,
-            &ctx.accounts.rent_recipient,
         )?;
 
         all_compressed_infos.extend(user_compressed_infos);
@@ -264,8 +258,6 @@ pub mod anchor_compressible_derived {
             &[game_new_address_params],
             &[compression_params.game_output_state_tree_index],
             &cpi_accounts,
-            &config.address_space,
-            &ctx.accounts.rent_recipient,
         )?;
         all_compressed_infos.extend(game_compressed_infos);
 
@@ -433,7 +425,6 @@ pub mod anchor_compressible_derived {
             &new_address_params,
             output_state_tree_index,
             cpi_accounts,
-            &config.address_space,
             proof,
         )?;
 

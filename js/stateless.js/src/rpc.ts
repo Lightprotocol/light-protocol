@@ -605,8 +605,6 @@ function buildCompressedAccountWithMaybeTokenData(
         return { account: compressedAccount, maybeTokenData: null };
     }
 
-    console.log('tokenDataResult', JSON.stringify(tokenDataResult));
-
     const parsed: TokenData = {
         mint: tokenDataResult.mint,
         owner: tokenDataResult.owner,
@@ -2067,8 +2065,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
             this.getCompressedTokenAccountsByOwner(address),
         ]);
 
-        console.log('onchainResult', onchainResult);
-        console.log('compressedResult', compressedResult);
         const onchainAccount =
             onchainResult.status === 'fulfilled' ? onchainResult.value : null;
         const compressedAccount =
@@ -2076,9 +2072,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
             compressedResult.value.items.length > 0
                 ? compressedResult.value.items[0].compressedAccount
                 : null;
-
-        console.log('onchainAccount', onchainAccount);
-        console.log('compressedAccount', compressedAccount);
 
         if (onchainAccount) {
             if (!onchainAccount.owner.equals(tokenProgramId)) {

@@ -17,7 +17,7 @@ name = "account-compression"
 version = "2.0.0"
 dependencies = [
  "aligned-sized",
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "bytemuck",
  "light-account-checks",
  "light-batched-merkle-tree",
@@ -43,8 +43,8 @@ name = "account-compression-test"
 version = "1.1.0"
 dependencies = [
  "account-compression",
- "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-lang 0.31.1",
+ "anchor-spl 0.31.1",
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "light-account-checks",
@@ -177,10 +177,31 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 [[package]]
 name = "anchor-attribute-access-control"
 version = "0.31.1"
+dependencies = [
+ "anchor-syn 0.31.1",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "anchor-attribute-access-control"
+version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3f70fd141a4d18adf11253026b32504f885447048c7494faf5fa83b01af9c0cf"
 dependencies = [
- "anchor-syn",
+ "anchor-syn 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "anchor-attribute-account"
+version = "0.31.1"
+dependencies = [
+ "anchor-syn 0.31.1",
+ "bs58",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
@@ -192,9 +213,18 @@ version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "715a261c57c7679581e06f07a74fa2af874ac30f86bd8ea07cca4a7e5388a064"
 dependencies = [
- "anchor-syn",
+ "anchor-syn 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "bs58",
  "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "anchor-attribute-constant"
+version = "0.31.1"
+dependencies = [
+ "anchor-syn 0.31.1",
  "quote",
  "syn 1.0.109",
 ]
@@ -205,7 +235,16 @@ version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "730d6df8ae120321c5c25e0779e61789e4b70dc8297102248902022f286102e4"
 dependencies = [
- "anchor-syn",
+ "anchor-syn 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "anchor-attribute-error"
+version = "0.31.1"
+dependencies = [
+ "anchor-syn 0.31.1",
  "quote",
  "syn 1.0.109",
 ]
@@ -216,7 +255,17 @@ version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "27e6e449cc3a37b2880b74dcafb8e5a17b954c0e58e376432d7adc646fb333ef"
 dependencies = [
- "anchor-syn",
+ "anchor-syn 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "anchor-attribute-event"
+version = "0.31.1"
+dependencies = [
+ "anchor-syn 0.31.1",
+ "proc-macro2",
  "quote",
  "syn 1.0.109",
 ]
@@ -227,9 +276,24 @@ version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7710e4c54adf485affcd9be9adec5ef8846d9c71d7f31e16ba86ff9fc1dd49f"
 dependencies = [
- "anchor-syn",
+ "anchor-syn 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "proc-macro2",
  "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "anchor-attribute-program"
+version = "0.31.1"
+dependencies = [
+ "anchor-lang-idl 0.1.2",
+ "anchor-syn 0.31.1",
+ "anyhow",
+ "bs58",
+ "heck 0.3.3",
+ "proc-macro2",
+ "quote",
+ "serde_json",
  "syn 1.0.109",
 ]
 
@@ -239,8 +303,8 @@ version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "05ecfd49b2aeadeb32f35262230db402abed76ce87e27562b34f61318b2ec83c"
 dependencies = [
- "anchor-lang-idl",
- "anchor-syn",
+ "anchor-lang-idl 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-syn 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "anyhow",
  "bs58",
  "heck 0.3.3",
@@ -255,8 +319,8 @@ name = "anchor-compressed-token"
 version = "2.0.0"
 dependencies = [
  "account-compression",
- "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-lang 0.31.1",
+ "anchor-spl 0.31.1",
  "light-compressed-account",
  "light-ctoken-types",
  "light-hasher",
@@ -277,7 +341,7 @@ dependencies = [
 name = "anchor-compressible"
 version = "0.1.0"
 dependencies = [
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "anchor-spl 0.31.1 (git+https://github.com/lightprotocol/anchor?rev=d8a2b3d9)",
  "borsh 0.10.4",
  "light-client",
@@ -310,7 +374,7 @@ dependencies = [
 name = "anchor-compressible-derived"
 version = "0.1.0"
 dependencies = [
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "anchor-spl 0.31.1 (git+https://github.com/lightprotocol/anchor?rev=d8a2b3d9)",
  "borsh 0.10.4",
  "light-client",
@@ -343,10 +407,30 @@ dependencies = [
 [[package]]
 name = "anchor-derive-accounts"
 version = "0.31.1"
+dependencies = [
+ "anchor-syn 0.31.1",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "anchor-derive-accounts"
+version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be89d160793a88495af462a7010b3978e48e30a630c91de47ce2c1d3cb7a6149"
 dependencies = [
- "anchor-syn",
+ "anchor-syn 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "anchor-derive-serde"
+version = "0.31.1"
+dependencies = [
+ "anchor-syn 0.31.1",
+ "borsh-derive-internal",
+ "proc-macro2",
  "quote",
  "syn 1.0.109",
 ]
@@ -357,8 +441,17 @@ version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abc6ee78acb7bfe0c2dd2abc677aaa4789c0281a0c0ef01dbf6fe85e0fd9e6e4"
 dependencies = [
- "anchor-syn",
+ "anchor-syn 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "borsh-derive-internal",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "anchor-derive-space"
+version = "0.31.1"
+dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
@@ -378,19 +471,41 @@ dependencies = [
 [[package]]
 name = "anchor-lang"
 version = "0.31.1"
+dependencies = [
+ "anchor-attribute-access-control 0.31.1",
+ "anchor-attribute-account 0.31.1",
+ "anchor-attribute-constant 0.31.1",
+ "anchor-attribute-error 0.31.1",
+ "anchor-attribute-event 0.31.1",
+ "anchor-attribute-program 0.31.1",
+ "anchor-derive-accounts 0.31.1",
+ "anchor-derive-serde 0.31.1",
+ "anchor-derive-space 0.31.1",
+ "anchor-lang-idl 0.1.2",
+ "base64 0.21.7",
+ "bincode",
+ "borsh 0.10.4",
+ "bytemuck",
+ "solana-program",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "anchor-lang"
+version = "0.31.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6bab117055905e930f762c196e08f861f8dfe7241b92cee46677a3b15561a0a"
 dependencies = [
- "anchor-attribute-access-control",
- "anchor-attribute-account",
- "anchor-attribute-constant",
- "anchor-attribute-error",
- "anchor-attribute-event",
- "anchor-attribute-program",
- "anchor-derive-accounts",
- "anchor-derive-serde",
- "anchor-derive-space",
- "anchor-lang-idl",
+ "anchor-attribute-access-control 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-attribute-account 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-attribute-constant 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-attribute-error 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-attribute-event 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-attribute-program 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-derive-accounts 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-derive-serde 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-derive-space 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-lang-idl 0.1.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "base64 0.21.7",
  "bincode",
  "borsh 0.10.4",
@@ -402,16 +517,37 @@ dependencies = [
 [[package]]
 name = "anchor-lang-idl"
 version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32e8599d21995f68e296265aa5ab0c3cef582fd58afec014d01bd0bce18a4418"
 dependencies = [
- "anchor-lang-idl-spec",
+ "anchor-lang-idl-spec 0.1.0",
  "anyhow",
  "heck 0.3.3",
  "regex",
  "serde",
  "serde_json",
  "sha2 0.10.9",
+]
+
+[[package]]
+name = "anchor-lang-idl"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32e8599d21995f68e296265aa5ab0c3cef582fd58afec014d01bd0bce18a4418"
+dependencies = [
+ "anchor-lang-idl-spec 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anyhow",
+ "heck 0.3.3",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+]
+
+[[package]]
+name = "anchor-lang-idl-spec"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde",
 ]
 
 [[package]]
@@ -427,11 +563,11 @@ dependencies = [
 [[package]]
 name = "anchor-spl"
 version = "0.31.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c08cb5d762c0694f74bd02c9a5b04ea53cefc496e2c27b3234acffca5cd076b"
 dependencies = [
- "anchor-lang",
+ "anchor-lang 0.31.1",
+ "mpl-token-metadata",
  "spl-associated-token-account",
+ "spl-memo",
  "spl-pod",
  "spl-token",
  "spl-token-2022 6.0.0",
@@ -444,7 +580,7 @@ name = "anchor-spl"
 version = "0.31.1"
 source = "git+https://github.com/lightprotocol/anchor?rev=d8a2b3d9#d8a2b3d99d61ef900d1f6cdaabcef14eb9af6279"
 dependencies = [
- "anchor-lang",
+ "anchor-lang 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "mpl-token-metadata",
  "spl-associated-token-account",
  "spl-memo",
@@ -453,6 +589,24 @@ dependencies = [
  "spl-token-2022 6.0.0",
  "spl-token-group-interface",
  "spl-token-metadata-interface",
+]
+
+[[package]]
+name = "anchor-syn"
+version = "0.31.1"
+dependencies = [
+ "anyhow",
+ "bs58",
+ "cargo_toml",
+ "heck 0.3.3",
+ "proc-macro2",
+ "quote",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "spl-pod",
+ "syn 1.0.109",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -1427,8 +1581,8 @@ name = "compressed-token-test"
 version = "1.1.0"
 dependencies = [
  "account-compression",
- "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-lang 0.31.1",
+ "anchor-spl 0.31.1",
  "forester-utils",
  "light-batched-merkle-tree",
  "light-client",
@@ -1570,7 +1724,7 @@ name = "create-address-test-program"
 version = "1.0.0"
 dependencies = [
  "account-compression",
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "light-compressed-account",
  "light-hasher",
  "light-sdk",
@@ -2254,7 +2408,7 @@ name = "forester"
 version = "1.1.0"
 dependencies = [
  "account-compression",
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "anyhow",
  "async-stream",
  "async-trait",
@@ -2311,7 +2465,7 @@ name = "forester-utils"
 version = "2.0.0"
 dependencies = [
  "account-compression",
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "async-stream",
  "async-trait",
  "bb8",
@@ -3477,7 +3631,7 @@ dependencies = [
 name = "light-client"
 version = "0.13.1"
 dependencies = [
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "async-trait",
  "base64 0.13.1",
  "borsh 0.10.4",
@@ -3525,7 +3679,7 @@ dependencies = [
 name = "light-compressed-account"
 version = "0.3.0"
 dependencies = [
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "borsh 0.10.4",
@@ -3553,7 +3707,7 @@ version = "2.0.0"
 dependencies = [
  "account-compression",
  "anchor-compressed-token",
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "arrayvec",
  "borsh 0.10.4",
  "lazy_static",
@@ -3587,8 +3741,8 @@ dependencies = [
 name = "light-compressed-token-sdk"
 version = "0.1.0"
 dependencies = [
- "anchor-lang",
- "anchor-spl 0.31.1 (git+https://github.com/lightprotocol/anchor?rev=d8a2b3d9)",
+ "anchor-lang 0.31.1",
+ "anchor-spl 0.31.1",
  "arrayvec",
  "borsh 0.10.4",
  "light-account-checks",
@@ -3617,7 +3771,7 @@ dependencies = [
 name = "light-compressed-token-types"
 version = "0.1.0"
 dependencies = [
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "borsh 0.10.4",
  "light-account-checks",
  "light-compressed-account",
@@ -3632,7 +3786,7 @@ name = "light-compressible"
 version = "0.1.0"
 dependencies = [
  "aligned-sized",
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "borsh 0.10.4",
  "bytemuck",
  "light-account-checks",
@@ -3656,7 +3810,7 @@ dependencies = [
 name = "light-compressible-client"
 version = "0.13.1"
 dependencies = [
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "borsh 0.10.4",
  "light-client",
  "light-sdk",
@@ -3692,7 +3846,7 @@ name = "light-ctoken-types"
 version = "0.1.0"
 dependencies = [
  "aligned-sized",
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "arrayvec",
  "borsh 0.10.4",
  "bytemuck",
@@ -3759,7 +3913,7 @@ dependencies = [
 name = "light-heap"
 version = "2.0.0"
 dependencies = [
- "anchor-lang",
+ "anchor-lang 0.31.1",
 ]
 
 [[package]]
@@ -3804,7 +3958,7 @@ dependencies = [
 name = "light-merkle-tree-metadata"
 version = "0.3.0"
 dependencies = [
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "borsh 0.10.4",
  "bytemuck",
  "light-compressed-account",
@@ -3867,7 +4021,7 @@ name = "light-program-test"
 version = "0.13.2"
 dependencies = [
  "account-compression",
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "async-trait",
  "base64 0.22.1",
  "borsh 0.10.4",
@@ -3947,7 +4101,7 @@ version = "2.0.0"
 dependencies = [
  "account-compression",
  "aligned-sized",
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "light-batched-merkle-tree",
  "light-compressed-token-sdk",
  "light-compressible",
@@ -3961,7 +4115,7 @@ dependencies = [
 name = "light-sdk"
 version = "0.13.0"
 dependencies = [
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "arrayvec",
  "bincode",
  "borsh 0.10.4",
@@ -4026,7 +4180,7 @@ dependencies = [
 name = "light-sdk-types"
 version = "0.13.0"
 dependencies = [
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "borsh 0.10.4",
  "light-account-checks",
  "light-compressed-account",
@@ -4057,7 +4211,7 @@ version = "2.0.0"
 dependencies = [
  "account-compression",
  "aligned-sized",
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "light-compressed-account",
  "light-zero-copy",
  "zerocopy",
@@ -4098,8 +4252,8 @@ name = "light-test-utils"
 version = "1.2.1"
 dependencies = [
  "account-compression",
- "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-lang 0.31.1",
+ "anchor-spl 0.31.1",
  "base64 0.13.1",
  "create-address-test-program",
  "forester-utils",
@@ -5385,7 +5539,7 @@ name = "registry-test"
 version = "1.1.0"
 dependencies = [
  "account-compression",
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "forester-utils",
  "light-account-checks",
  "light-batched-merkle-tree",
@@ -5789,7 +5943,7 @@ checksum = "490dcfcbfef26be6800d11870ff2df8774fa6e86d047e3e8c8a76b25655e41ca"
 name = "sdk-anchor-test"
 version = "0.7.0"
 dependencies = [
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "light-client",
  "light-compressed-account",
  "light-hasher",
@@ -5844,8 +5998,8 @@ dependencies = [
 name = "sdk-token-test"
 version = "1.0.0"
 dependencies = [
- "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-lang 0.31.1",
+ "anchor-spl 0.31.1",
  "arrayvec",
  "light-batched-merkle-tree",
  "light-client",
@@ -9514,8 +9668,8 @@ name = "system-cpi-test"
 version = "1.1.0"
 dependencies = [
  "account-compression",
- "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-lang 0.31.1",
+ "anchor-spl 0.31.1",
  "create-address-test-program",
  "light-account-checks",
  "light-batched-merkle-tree",
@@ -9543,8 +9697,8 @@ name = "system-cpi-v2-test"
 version = "0.1.0"
 dependencies = [
  "account-compression",
- "anchor-lang",
- "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "anchor-lang 0.31.1",
+ "anchor-spl 0.31.1",
  "create-address-test-program",
  "light-account-checks",
  "light-batched-merkle-tree",
@@ -9572,7 +9726,7 @@ name = "system-test"
 version = "1.1.0"
 dependencies = [
  "account-compression",
- "anchor-lang",
+ "anchor-lang 0.31.1",
  "light-account-checks",
  "light-batched-merkle-tree",
  "light-bloom-filter",
