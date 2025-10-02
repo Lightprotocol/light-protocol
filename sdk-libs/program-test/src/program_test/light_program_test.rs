@@ -203,7 +203,7 @@ impl LightProgramTest {
                     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
                 };
 
-                for i in 0..5 {
+                for i in 0..context.test_accounts.v2_state_trees.len() {
                     let merkle_tree_pubkey = context.test_accounts.v2_state_trees[i].merkle_tree;
                     let output_queue_pubkey = context.test_accounts.v2_state_trees[i].output_queue;
                     let cpi_context_pubkey = context.test_accounts.v2_state_trees[i].cpi_context;
