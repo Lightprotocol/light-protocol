@@ -15,11 +15,7 @@ on:
       - "program-libs/**"
       - "sdk-tests/**"
       - "sdk-libs/**"
-    types:
-      - opened
-      - synchronize
-      - reopened
-      - ready_for_review
+    types: [opened, synchronize, reopened, ready_for_review]
 
 name: examples-tests
 

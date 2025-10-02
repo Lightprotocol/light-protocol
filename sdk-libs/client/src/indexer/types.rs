@@ -298,7 +298,7 @@ impl ValidityProofWithContext {
                         tree_type: tree_info.tree_type,
                         tree: tree_pubkey,
                         queue: tree_info.queue,
-                        cpi_context: None,
+                        cpi_context: tree_info.cpi_context,
                         next_tree_info: None,
                     },
                 })
