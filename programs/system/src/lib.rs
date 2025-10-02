@@ -2,6 +2,7 @@ pub mod account_compression_state;
 pub mod accounts;
 pub mod constants;
 pub mod context;
+pub mod cpi_context;
 pub mod errors;
 pub mod invoke;
 pub mod invoke_cpi;
@@ -27,6 +28,8 @@ use pinocchio::{
     account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
 };
 
+#[cfg(feature = "reinit")]
+use crate::accounts::init_context_account::reinit_cpi_context_account;
 use crate::{
     invoke::verify_signer::input_compressed_accounts_signer_check, processor::process::process,
 };
@@ -50,6 +53,7 @@ pub enum InstructionDiscriminator {
     InvokeCpi,
     InvokeCpiWithReadOnly,
     InvokeCpiWithAccountInfo,
+    ReInitCpiContextAccount,
 }
 #[cfg(not(feature = "no-entrypoint"))]
 use pinocchio::entrypoint;
@@ -80,6 +84,8 @@ pub fn process_instruction(
         InstructionDiscriminator::InvokeCpiWithAccountInfo => {
             invoke_cpi_with_account_info(accounts, instruction_data)
         }
+        #[cfg(feature = "reinit")]
+        InstructionDiscriminator::ReInitCpiContextAccount => reinit_cpi_context_account(accounts),
     }?;
     Ok(())
 }
@@ -105,7 +111,6 @@ pub fn invoke<'a, 'b, 'c: 'info, 'info>(
         &ctx,
         0,
         remaining_accounts,
-        None,
     )?;
     Ok(())
 }
@@ -183,7 +188,7 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a>>(
         AccountMode::V2 => {
             let (ctx, remaining_accounts) = InvokeCpiInstructionV2::from_account_infos(
                 accounts,
-                inputs.account_option_config(),
+                inputs.account_option_config()?,
             )?;
             process_invoke_cpi::<true, InvokeCpiInstructionV2, T>(
                 invoking_program,

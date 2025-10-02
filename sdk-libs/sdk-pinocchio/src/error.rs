@@ -75,10 +75,14 @@ pub enum LightSdkError {
     InvalidSolPoolPdaAccount,
     #[error("CpiAccounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
     InvalidCpiAccountsOffset,
+    #[error("Mode mismatch between accounts and instruction")]
+    ModeMismatch,
     #[error(transparent)]
     Hasher(#[from] HasherError),
     #[error(transparent)]
     ZeroCopy(#[from] ZeroCopyError),
+    #[error("Compressed account error: {0:?}")]
+    CompressedAccount(light_compressed_account::CompressedAccountError),
     #[error("Program error: {0:?}")]
     ProgramError(ProgramError),
     #[error(transparent)]
@@ -88,6 +92,12 @@ pub enum LightSdkError {
 impl From<ProgramError> for LightSdkError {
     fn from(error: ProgramError) -> Self {
         LightSdkError::ProgramError(error)
+    }
+}
+
+impl From<light_compressed_account::CompressedAccountError> for LightSdkError {
+    fn from(error: light_compressed_account::CompressedAccountError) -> Self {
+        LightSdkError::CompressedAccount(error)
     }
 }
 
@@ -164,8 +174,10 @@ impl From<LightSdkError> for u32 {
             LightSdkError::InvalidCpiContextAccount => 16032,
             LightSdkError::InvalidSolPoolPdaAccount => 16033,
             LightSdkError::InvalidCpiAccountsOffset => 16034,
+            LightSdkError::ModeMismatch => 16035,
             LightSdkError::Hasher(e) => e.into(),
             LightSdkError::ZeroCopy(e) => e.into(),
+            LightSdkError::CompressedAccount(_) => 16036,
             LightSdkError::ProgramError(e) => u64::from(e) as u32,
             LightSdkError::AccountError(e) => e.into(),
         }

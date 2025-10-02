@@ -32,6 +32,17 @@ impl Configuration {
     pub fn new() -> Configuration {
         Configuration::default()
     }
+
+    pub fn new_with_api(url: String, api_key: Option<String>) -> Configuration {
+        Configuration {
+            base_path: url,
+            api_key: api_key.map(|key| ApiKey {
+                prefix: Some("api-key".to_string()),
+                key,
+            }),
+            ..Default::default()
+        }
+    }
 }
 
 impl Default for Configuration {

@@ -21,6 +21,7 @@ pub mod tx_hash;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+pub use instruction_data::traits::{InstructionDiscriminator, LightInstructionData};
 pub use light_hasher::{
     bigint::bigint_to_be_bytes_array,
     hash_to_field_size::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be},
@@ -55,6 +56,24 @@ pub enum CompressedAccountError {
     DeriveAddressError,
     #[error("Invalid argument.")]
     InvalidArgument,
+    #[error("Expected address for compressed account got None.")]
+    ZeroCopyExpectedAddress,
+    #[error("Expected address for compressed account got None.")]
+    InstructionDataExpectedAddress,
+    #[error("Compressed account data not initialized.")]
+    CompressedAccountDataNotInitialized,
+    #[error(
+        "Invalid CPI context configuration: cannot write to CPI context without valid context"
+    )]
+    InvalidCpiContext,
+    #[error("Expected discriminator for compressed account got None.")]
+    ExpectedDiscriminator,
+    #[error("Expected data hash for compressed account got None.")]
+    ExpectedDataHash,
+    #[error("Expected proof for compressed account got None.")]
+    InstructionDataExpectedProof,
+    #[error("Expected proof for compressed account got None.")]
+    ZeroCopyExpectedProof,
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand.
@@ -74,6 +93,14 @@ impl From<CompressedAccountError> for u32 {
             CompressedAccountError::FailedBorrowRentSysvar => 12014,
             CompressedAccountError::DeriveAddressError => 12015,
             CompressedAccountError::InvalidArgument => 12016,
+            CompressedAccountError::ZeroCopyExpectedAddress => 12017,
+            CompressedAccountError::InstructionDataExpectedAddress => 12018,
+            CompressedAccountError::CompressedAccountDataNotInitialized => 12019,
+            CompressedAccountError::ExpectedDiscriminator => 12020,
+            CompressedAccountError::InstructionDataExpectedProof => 12021,
+            CompressedAccountError::ZeroCopyExpectedProof => 12022,
+            CompressedAccountError::ExpectedDataHash => 12023,
+            CompressedAccountError::InvalidCpiContext => 12024,
             CompressedAccountError::HasherError(e) => u32::from(e),
         }
     }

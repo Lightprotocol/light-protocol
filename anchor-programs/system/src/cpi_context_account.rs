@@ -25,6 +25,15 @@ pub struct CpiContextAccount {
     pub context: Vec<InstructionDataInvokeCpi>,
 }
 
+#[aligned_sized(anchor)]
+#[derive(Debug, PartialEq, Default)]
+#[account]
+#[repr(C)]
+pub struct CpiContextAccount2 {
+    pub fee_payer: Pubkey,
+    pub associated_merkle_tree: Pubkey,
+}
+
 impl CpiContextAccount {
     pub fn init(&mut self, associated_merkle_tree: Pubkey) {
         self.associated_merkle_tree = associated_merkle_tree;
@@ -32,7 +41,7 @@ impl CpiContextAccount {
     }
 }
 
-pub struct ZCpiContextAccount<'a> {
+pub struct ZCpiContextAccount2<'a> {
     pub fee_payer: Ref<&'a mut [u8], light_compressed_account::pubkey::Pubkey>,
     pub associated_merkle_tree: Ref<&'a mut [u8], light_compressed_account::pubkey::Pubkey>,
     pub context: Vec<ZInstructionDataInvokeCpi<'a>>,
@@ -40,7 +49,7 @@ pub struct ZCpiContextAccount<'a> {
 
 pub fn deserialize_cpi_context_account<'info, 'a>(
     account_info: &AccountInfo<'info>,
-) -> std::result::Result<ZCpiContextAccount<'a>, ZeroCopyError> {
+) -> std::result::Result<ZCpiContextAccount2<'a>, ZeroCopyError> {
     let mut account_data = account_info.try_borrow_mut_data().unwrap();
     let data = unsafe { slice::from_raw_parts_mut(account_data.as_mut_ptr(), account_data.len()) };
     let (fee_payer, data) =
@@ -55,7 +64,7 @@ pub fn deserialize_cpi_context_account<'info, 'a>(
         context.push(context_item);
         data = new_data;
     }
-    Ok(ZCpiContextAccount {
+    Ok(ZCpiContextAccount2 {
         fee_payer,
         associated_merkle_tree,
         context,

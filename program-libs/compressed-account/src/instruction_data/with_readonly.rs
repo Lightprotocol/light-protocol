@@ -1,6 +1,8 @@
 use std::ops::Deref;
 
-use light_zero_copy::{errors::ZeroCopyError, slice::ZeroCopySliceBorsh, traits::ZeroCopyAt};
+use light_zero_copy::{
+    errors::ZeroCopyError, slice::ZeroCopySliceBorsh, traits::ZeroCopyAt, ZeroCopyMut,
+};
 use zerocopy::{
     little_endian::{U16, U32, U64},
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
@@ -26,11 +28,14 @@ use crate::{
         PackedCompressedAccountWithMerkleContext, PackedMerkleContext,
         PackedReadOnlyCompressedAccount,
     },
+    discriminators::DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY,
+    instruction_data::traits::LightInstructionData,
     pubkey::Pubkey,
-    AnchorDeserialize, AnchorSerialize, CompressedAccountError,
+    AnchorDeserialize, AnchorSerialize, CompressedAccountError, InstructionDiscriminator,
 };
 
-#[derive(Debug, Default, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
+#[repr(C)]
+#[derive(Debug, Default, PartialEq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
 pub struct InAccount {
     pub discriminator: [u8; 8],
     /// Data hash
@@ -64,6 +69,26 @@ impl From<PackedCompressedAccountWithMerkleContext> for InAccount {
             root_index: value.root_index,
             lamports: value.compressed_account.lamports,
             address: value.compressed_account.address,
+        }
+    }
+}
+
+impl From<InAccount> for PackedCompressedAccountWithMerkleContext {
+    fn from(value: InAccount) -> Self {
+        Self {
+            read_only: false,
+            merkle_context: value.merkle_context,
+            root_index: value.root_index,
+            compressed_account: CompressedAccount {
+                owner: Pubkey::default(), // Placeholder, as owner is not part of InAccount
+                address: value.address,
+                lamports: value.lamports,
+                data: Some(CompressedAccountData {
+                    discriminator: value.discriminator,
+                    data: Vec::new(),
+                    data_hash: value.data_hash,
+                }),
+            },
         }
     }
 }
@@ -193,7 +218,8 @@ impl<'a> Deref for ZInAccount<'a> {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[repr(C)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
 pub struct InstructionDataInvokeCpiWithReadOnly {
     /// 0 With program ids
     /// 1 without program ids
@@ -214,6 +240,130 @@ pub struct InstructionDataInvokeCpiWithReadOnly {
     pub read_only_addresses: Vec<PackedReadOnlyAddress>,
     pub read_only_accounts: Vec<PackedReadOnlyCompressedAccount>,
 }
+
+impl InstructionDataInvokeCpiWithReadOnly {
+    pub fn new(invoking_program_id: Pubkey, bump: u8, proof: Option<CompressedProof>) -> Self {
+        Self {
+            invoking_program_id,
+            bump,
+            proof,
+            mode: 1,
+            ..Default::default()
+        }
+    }
+
+    #[must_use = "mode_v1 returns a new value"]
+    pub fn mode_v1(mut self) -> Self {
+        self.mode = 0;
+        self
+    }
+
+    #[must_use = "write_to_cpi_context_set returns a new value"]
+    pub fn write_to_cpi_context_set(mut self) -> Self {
+        self.with_cpi_context = true;
+        self.cpi_context = CompressedCpiContext::set();
+        self
+    }
+
+    #[must_use = "write_to_cpi_context_first returns a new value"]
+    pub fn write_to_cpi_context_first(mut self) -> Self {
+        self.with_cpi_context = true;
+        self.cpi_context = CompressedCpiContext::first();
+        self
+    }
+
+    #[must_use = "execute_with_cpi_context returns a new value"]
+    pub fn execute_with_cpi_context(mut self) -> Self {
+        self.with_cpi_context = true;
+        self
+    }
+
+    #[must_use = "with_with_transaction_hash returns a new value"]
+    pub fn with_with_transaction_hash(mut self, with_transaction_hash: bool) -> Self {
+        self.with_transaction_hash = with_transaction_hash;
+        self
+    }
+
+    #[must_use = "with_cpi_context returns a new value"]
+    pub fn with_cpi_context(mut self, cpi_context: CompressedCpiContext) -> Self {
+        self.cpi_context = cpi_context;
+        self
+    }
+
+    #[must_use = "with_proof returns a new value"]
+    pub fn with_proof(mut self, proof: Option<CompressedProof>) -> Self {
+        self.proof = proof;
+        self
+    }
+
+    #[must_use = "with_new_addresses returns a new value"]
+    pub fn with_new_addresses(
+        mut self,
+        new_address_params: &[NewAddressParamsAssignedPacked],
+    ) -> Self {
+        if !new_address_params.is_empty() {
+            self.new_address_params
+                .extend_from_slice(new_address_params);
+        }
+        self
+    }
+
+    #[must_use = "with_input_compressed_accounts returns a new value"]
+    pub fn with_input_compressed_accounts(
+        mut self,
+        input_compressed_accounts: &[InAccount],
+    ) -> Self {
+        if !input_compressed_accounts.is_empty() {
+            self.input_compressed_accounts
+                .extend_from_slice(input_compressed_accounts);
+        }
+        self
+    }
+
+    #[must_use = "with_output_compressed_accounts returns a new value"]
+    pub fn with_output_compressed_accounts(
+        mut self,
+        output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
+    ) -> Self {
+        if !output_compressed_accounts.is_empty() {
+            self.output_compressed_accounts
+                .extend_from_slice(output_compressed_accounts);
+        }
+        self
+    }
+
+    #[must_use = "with_read_only_addresses returns a new value"]
+    pub fn with_read_only_addresses(
+        mut self,
+        read_only_addresses: &[PackedReadOnlyAddress],
+    ) -> Self {
+        if !read_only_addresses.is_empty() {
+            self.read_only_addresses
+                .extend_from_slice(read_only_addresses);
+        }
+        self
+    }
+
+    #[must_use = "with_read_only_accounts returns a new value"]
+    pub fn with_read_only_accounts(
+        mut self,
+        read_only_accounts: &[PackedReadOnlyCompressedAccount],
+    ) -> Self {
+        if !read_only_accounts.is_empty() {
+            self.read_only_accounts
+                .extend_from_slice(read_only_accounts);
+        }
+        self
+    }
+}
+
+impl InstructionDiscriminator for InstructionDataInvokeCpiWithReadOnly {
+    fn discriminator(&self) -> &'static [u8] {
+        &DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY
+    }
+}
+
+impl LightInstructionData for InstructionDataInvokeCpiWithReadOnly {}
 
 #[repr(C)]
 #[derive(
@@ -258,13 +408,24 @@ pub struct ZInstructionDataInvokeCpiWithReadOnly<'a> {
 }
 
 impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithReadOnly<'a> {
-    fn account_option_config(&self) -> AccountOptions {
-        AccountOptions {
-            sol_pool_pda: self.compress_or_decompress_lamports().is_some(),
-            decompression_recipient: self.compress_or_decompress_lamports().is_some()
-                && !self.is_compress(),
-            cpi_context_account: self.cpi_context().is_some(),
+    fn account_option_config(&self) -> Result<AccountOptions, CompressedAccountError> {
+        let sol_pool_pda = self.compress_or_decompress_lamports().is_some();
+        let decompression_recipient = sol_pool_pda && !self.is_compress();
+        let cpi_context_account = self.cpi_context().is_some();
+        let write_to_cpi_context =
+            self.cpi_context.first_set_context() || self.cpi_context.set_context();
+
+        // Validate: if we want to write to CPI context, we must have a CPI context
+        if write_to_cpi_context && !cpi_context_account {
+            return Err(CompressedAccountError::InvalidCpiContext);
         }
+
+        Ok(AccountOptions {
+            sol_pool_pda,
+            decompression_recipient,
+            cpi_context_account,
+            write_to_cpi_context,
+        })
     }
 
     fn with_transaction_hash(&self) -> bool {
@@ -507,7 +668,7 @@ fn test_read_only_zero_copy() {
     assert_eq!(zero_copy, borsh_struct);
 }
 
-#[cfg(not(feature = "pinocchio"))]
+#[cfg(all(not(feature = "pinocchio"), feature = "new-unique"))]
 #[cfg(test)]
 mod test {
     use borsh::BorshSerialize;

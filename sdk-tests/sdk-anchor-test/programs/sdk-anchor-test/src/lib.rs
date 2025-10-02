@@ -3,12 +3,20 @@
 
 use anchor_lang::{prelude::*, Discriminator};
 use light_sdk::{
+    // anchor test test poseidon LightAccount, native tests sha256 LightAccount
     account::LightAccount,
     address::v1::derive_address,
-    cpi::{CpiAccounts, CpiInputs, CpiSigner},
+    cpi::{
+        v1::CpiAccounts, v2::lowlevel::InstructionDataInvokeCpiWithReadOnly, CpiSigner,
+        InvokeLightSystemProgram, LightCpiInstruction,
+    },
     derive_light_cpi_signer,
-    instruction::{account_meta::CompressedAccountMeta, PackedAddressTreeInfo, ValidityProof},
-    LightDiscriminator, LightHasher,
+    instruction::{
+        account_meta::{CompressedAccountMeta, CompressedAccountMetaBurn},
+        PackedAddressTreeInfo, ValidityProof,
+    },
+    LightDiscriminator,
+    LightHasher,
 };
 
 declare_id!("2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt");
@@ -41,7 +49,8 @@ pub mod sdk_anchor_test {
                 .map_err(|_| ErrorCode::AccountNotEnoughKeys)?,
             &crate::ID,
         );
-        let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
+        let new_address_params =
+            address_tree_info.into_new_address_params_assigned_packed(address_seed, Some(0));
 
         let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
             &crate::ID,
@@ -52,17 +61,11 @@ pub mod sdk_anchor_test {
         my_compressed_account.name = name;
         my_compressed_account.nested = NestedData::default();
 
-        let cpi_inputs = CpiInputs::new_with_address(
-            proof,
-            vec![my_compressed_account
-                .to_account_info()
-                .map_err(ProgramError::from)?],
-            vec![new_address_params],
-        );
-
-        cpi_inputs
-            .invoke_light_system_program(light_cpi_accounts)
-            .map_err(ProgramError::from)?;
+        InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .mode_v1()
+            .with_light_account(my_compressed_account)?
+            .with_new_addresses(&[new_address_params])
+            .invoke(light_cpi_accounts)?;
 
         Ok(())
     }
@@ -78,8 +81,7 @@ pub mod sdk_anchor_test {
             &crate::ID,
             &account_meta,
             my_compressed_account,
-        )
-        .map_err(ProgramError::from)?;
+        )?;
 
         my_compressed_account.nested = nested_data;
 
@@ -88,17 +90,82 @@ pub mod sdk_anchor_test {
             ctx.remaining_accounts,
             crate::LIGHT_CPI_SIGNER,
         );
+        InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .mode_v1()
+            .with_light_account(my_compressed_account)?
+            .invoke(light_cpi_accounts)?;
 
-        let cpi_inputs = CpiInputs::new(
-            proof,
-            vec![my_compressed_account
-                .to_account_info()
-                .map_err(ProgramError::from)?],
+        Ok(())
+    }
+
+    pub fn close_compressed_account<'info>(
+        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        proof: ValidityProof,
+        my_compressed_account: MyCompressedAccount,
+        account_meta: CompressedAccountMeta,
+    ) -> Result<()> {
+        let my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_close(
+            &crate::ID,
+            &account_meta,
+            my_compressed_account,
+        )?;
+
+        let light_cpi_accounts = CpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.remaining_accounts,
+            crate::LIGHT_CPI_SIGNER,
         );
 
-        cpi_inputs
-            .invoke_light_system_program(light_cpi_accounts)
-            .map_err(ProgramError::from)?;
+        InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .mode_v1()
+            .with_light_account(my_compressed_account)?
+            .invoke(light_cpi_accounts)?;
+
+        Ok(())
+    }
+
+    pub fn reinit_closed_account<'info>(
+        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        proof: ValidityProof,
+        account_meta: CompressedAccountMeta,
+    ) -> Result<()> {
+        let my_compressed_account =
+            LightAccount::<'_, MyCompressedAccount>::new_empty(&crate::ID, &account_meta)?;
+
+        let light_cpi_accounts = CpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.remaining_accounts,
+            crate::LIGHT_CPI_SIGNER,
+        );
+
+        InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .mode_v1()
+            .with_light_account(my_compressed_account)?
+            .invoke(light_cpi_accounts)?;
+
+        Ok(())
+    }
+
+    pub fn close_compressed_account_permanent<'info>(
+        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        proof: ValidityProof,
+        account_meta: CompressedAccountMetaBurn,
+    ) -> Result<()> {
+        let my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_burn(
+            &crate::ID,
+            &account_meta,
+            MyCompressedAccount::default(),
+        )?;
+
+        let light_cpi_accounts = CpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.remaining_accounts,
+            crate::LIGHT_CPI_SIGNER,
+        );
+        InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .mode_v1()
+            .with_light_account(my_compressed_account)?
+            .invoke(light_cpi_accounts)?;
 
         Ok(())
     }

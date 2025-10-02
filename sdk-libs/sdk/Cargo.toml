@@ -19,7 +19,9 @@ anchor = [
     "light-sdk-types/anchor",
 ]
 v2 = ["light-sdk-types/v2"]
-v2_ix = ["light-sdk-types/v2_ix"]
+cpi-context = ["light-sdk-types/cpi-context"]
+devnet = []
+
 
 [dependencies]
 solana-pubkey = { workspace = true, features = ["borsh", "sha2", "curve25519"] }
@@ -47,3 +49,4 @@ light-zero-copy = { workspace = true }
 [dev-dependencies]
 num-bigint = { workspace = true }
 light-compressed-account = { workspace = true, features = ["new-unique"] }
+anchor-lang = { workspace = true }

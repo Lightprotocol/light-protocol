@@ -1,4 +1,5 @@
 use light_account_checks::error::AccountError;
+use light_compressed_account::CompressedAccountError;
 use light_hasher::HasherError;
 use light_sdk_types::error::LightSdkTypesError;
 use light_zero_copy::errors::ZeroCopyError;
@@ -76,14 +77,22 @@ pub enum LightSdkError {
     InvalidSolPoolPdaAccount,
     #[error("CpigAccounts accounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
     InvalidCpiAccountsOffset,
+    #[error("Expected LightAccount to have no data for closure.")]
+    ExpectedNoData,
+    #[error("CPI context must be added before any other accounts (next_index must be 0)")]
+    CpiContextOrderingViolation,
+    #[error(transparent)]
+    AccountError(#[from] AccountError),
     #[error(transparent)]
     Hasher(#[from] HasherError),
     #[error(transparent)]
     ZeroCopy(#[from] ZeroCopyError),
     #[error("Program error: {0}")]
     ProgramError(#[from] ProgramError),
-    #[error(transparent)]
-    AccountError(#[from] AccountError),
+    #[error("Compressed account error: {0}")]
+    CompressedAccountError(#[from] CompressedAccountError),
+    #[error("Expected tree info to be provided for init_if_needed")]
+    ExpectedTreeInfo,
 }
 
 impl From<LightSdkError> for ProgramError {
@@ -159,10 +168,14 @@ impl From<LightSdkError> for u32 {
             LightSdkError::InvalidCpiContextAccount => 16032,
             LightSdkError::InvalidSolPoolPdaAccount => 16033,
             LightSdkError::InvalidCpiAccountsOffset => 16034,
+            LightSdkError::ExpectedNoData => 16035,
+            LightSdkError::CpiContextOrderingViolation => 16036,
             LightSdkError::AccountError(e) => e.into(),
             LightSdkError::Hasher(e) => e.into(),
             LightSdkError::ZeroCopy(e) => e.into(),
             LightSdkError::ProgramError(e) => u64::from(e) as u32,
+            LightSdkError::CompressedAccountError(e) => e.into(),
+            LightSdkError::ExpectedTreeInfo => 16021,
         }
     }
 }

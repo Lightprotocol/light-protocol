@@ -5,24 +5,119 @@ use light_sdk_types::constants::{
 
 use crate::{find_cpi_signer_macro, AccountMeta, Pubkey};
 
+/// Configuration for Light system program accounts when building instructions.
+///
+/// This struct specifies which system accounts to include when using
+/// [`PackedAccounts::add_system_accounts()`](crate::instruction::PackedAccounts::add_system_accounts)
+/// or `PackedAccounts::add_system_accounts_v2()`.
+///
+/// # Required Fields
+///
+/// - **`self_program`**: Your program's ID (the one calling the Light system program).
+///   Used to derive the CPI signer PDA.
+///
+/// # Optional Fields
+///
+/// - **`cpi_context`**: CPI context account for batched operations (v2 only).
+///   Required when using CPI context for multi-step compressed account operations.
+///
+/// - **`sol_compression_recipient`**: Account to receive decompressed SOL.
+///   Required when decompressing SOL from compressed accounts.
+///
+/// - **`sol_pool_pda`**: SOL pool PDA for SOL compression/decompression.
+///   Required when compressing or decompressing SOL.
+///
+/// # Examples
+///
+/// Basic usage (no SOL operations):
+///
+/// ```rust
+/// # use light_sdk::instruction::SystemAccountMetaConfig;
+/// # use solana_pubkey::Pubkey;
+/// let program_id = Pubkey::new_unique();
+/// let config = SystemAccountMetaConfig::new(program_id);
+/// ```
+///
+/// With CPI context (v2 batched operations):
+///
+#[cfg_attr(not(feature = "cpi-context"), doc = "```ignore")]
+#[cfg_attr(feature = "cpi-context", doc = "```rust")]
+/// # use light_sdk::instruction::SystemAccountMetaConfig;
+/// # use solana_pubkey::Pubkey;
+/// let program_id = Pubkey::new_unique();
+/// let cpi_context_account = Pubkey::new_unique();
+/// let config = SystemAccountMetaConfig::new_with_cpi_context(program_id, cpi_context_account);
+/// ```
+///
+/// With SOL compression:
+///
+/// ```rust
+/// # use light_sdk::instruction::SystemAccountMetaConfig;
+/// # use solana_pubkey::Pubkey;
+/// let program_id = Pubkey::new_unique();
+/// let sol_pool_pda = Pubkey::new_unique();
+/// let recipient = Pubkey::new_unique();
+///
+/// let mut config = SystemAccountMetaConfig::new(program_id);
+/// config.sol_pool_pda = Some(sol_pool_pda);
+/// config.sol_compression_recipient = Some(recipient);
+/// ```
 #[derive(Debug, Default, Copy, Clone)]
+#[non_exhaustive]
 pub struct SystemAccountMetaConfig {
+    /// Your program's ID (required). Used to derive the CPI signer PDA.
     pub self_program: Pubkey,
+    /// Optional CPI context account for batched operations (v2 only).
+    #[cfg(feature = "cpi-context")]
     pub cpi_context: Option<Pubkey>,
+    /// Optional account to receive decompressed SOL.
     pub sol_compression_recipient: Option<Pubkey>,
+    /// Optional SOL pool PDA for SOL compression/decompression.
     pub sol_pool_pda: Option<Pubkey>,
 }
 
 impl SystemAccountMetaConfig {
+    /// Creates a basic configuration with only the program ID.
+    ///
+    /// Use this for simple compressed account operations without SOL compression
+    /// or CPI context.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use light_sdk::instruction::SystemAccountMetaConfig;
+    /// # use solana_pubkey::Pubkey;
+    /// let program_id = Pubkey::new_unique();
+    /// let config = SystemAccountMetaConfig::new(program_id);
+    /// ```
     pub fn new(self_program: Pubkey) -> Self {
         Self {
             self_program,
+            #[cfg(feature = "cpi-context")]
             cpi_context: None,
             sol_compression_recipient: None,
             sol_pool_pda: None,
         }
     }
 
+    /// Creates a configuration with CPI context for batched operations (v2 only).
+    ///
+    /// Use this when you need to batch multiple compressed account operations
+    /// using a CPI context account.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// # use light_sdk::instruction::SystemAccountMetaConfig;
+    /// # use solana_pubkey::Pubkey;
+    /// let program_id = Pubkey::new_unique();
+    /// let cpi_context_account = Pubkey::new_unique();
+    /// let config = SystemAccountMetaConfig::new_with_cpi_context(
+    ///     program_id,
+    ///     cpi_context_account
+    /// );
+    /// ```
+    #[cfg(feature = "cpi-context")]
     pub fn new_with_cpi_context(self_program: Pubkey, cpi_context: Pubkey) -> Self {
         Self {
             self_program,
@@ -61,12 +156,16 @@ impl Default for SystemAccountPubkeys {
             )
             .0,
             noop_program: Pubkey::from(NOOP_PROGRAM_ID),
-            // TODO: add correct pubkey
-            sol_pool_pda: Pubkey::default(),
+            sol_pool_pda: Pubkey::find_program_address(
+                &[b"sol_pool_pda"],
+                &Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
+            )
+            .0,
         }
     }
 }
 
+/// InvokeSystemCpi v1.
 pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
     let cpi_signer = find_cpi_signer_macro!(&config.self_program).0;
     let default_pubkeys = SystemAccountPubkeys::default();
@@ -78,7 +177,7 @@ pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<Ac
         AccountMeta::new_readonly(default_pubkeys.noop_program, false),
         AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
         AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-        AccountMeta::new_readonly(config.self_program, false),
+        AccountMeta::new_readonly(config.self_program, false), // with read only doesnt have this one
     ];
 
     if let Some(pubkey) = config.sol_pool_pda {
@@ -99,6 +198,7 @@ pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<Ac
         default_pubkeys.system_program,
         false,
     ));
+    #[cfg(feature = "cpi-context")]
     if let Some(pubkey) = config.cpi_context {
         vec.push(AccountMeta {
             pubkey,
@@ -126,11 +226,11 @@ pub fn get_light_system_account_metas_v2(config: SystemAccountMetaConfig) -> Vec
 
     let mut vec = vec![
         AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
-        AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-        AccountMeta::new_readonly(default_pubkeys.system_program, false),
-        AccountMeta::new_readonly(cpi_signer, false),
+        AccountMeta::new_readonly(cpi_signer, false), // authority (cpi_signer)
         AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
         AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
+        AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
+        AccountMeta::new_readonly(default_pubkeys.system_program, false),
     ];
 
     if let Some(pubkey) = config.sol_pool_pda {
@@ -147,6 +247,7 @@ pub fn get_light_system_account_metas_v2(config: SystemAccountMetaConfig) -> Vec
             is_writable: true,
         });
     }
+    #[cfg(feature = "cpi-context")]
     if let Some(pubkey) = config.cpi_context {
         vec.push(AccountMeta {
             pubkey,

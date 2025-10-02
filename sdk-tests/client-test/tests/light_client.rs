@@ -834,7 +834,7 @@ async fn create_address(
         .unwrap();
 
     let new_address_params = NewAddressParams {
-        seed: address_seed,
+        seed: address_seed.into(),
         address_queue_pubkey: address_merkle_tree.queue.into(),
         address_merkle_tree_pubkey: address_merkle_tree.tree.into(),
         address_merkle_tree_root_index: rpc_proof_result.value.addresses[0].root_index,

@@ -2,6 +2,13 @@
 //!
 //! A client library for interacting with Light Protocol compressed accounts and RPC endpoints.
 //!
+//! For detailed documentation, visit [zkcompression.com](https://www.zkcompression.com/).
+//! For full program examples, see the [Program Examples](https://github.com/Lightprotocol/program-examples).
+//! For pinocchio solana program development see [`light-sdk-pinocchio`](https://docs.rs/light-sdk-pinocchio).
+//! For rust client developement see [`light-client`](https://docs.rs/light-client).
+//! For rust program testing see [`light-program-test`](https://docs.rs/light-program-test).
+//! For local test validator with light system programs see [Light CLI](https://www.npmjs.com/package/@lightprotocol/zk-compression-cli).
+//!
 //! ## Features
 //! - Connect to various RPC endpoints (local test validator, devnet/mainnet)
 //! - Query compressed accounts and validity proofs from RPC endpoints

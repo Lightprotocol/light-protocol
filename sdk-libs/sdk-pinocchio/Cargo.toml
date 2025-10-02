@@ -9,7 +9,6 @@ edition = "2021"
 [features]
 default = []
 v2 = ["light-sdk-types/v2"]
-v2_ix = ["light-sdk-types/v2_ix"]
 
 [dependencies]
 pinocchio = { workspace = true }
@@ -23,3 +22,4 @@ borsh = { workspace = true }
 thiserror = { workspace = true }
 light-compressed-account = { workspace = true }
 solana-pubkey = { workspace = true }
+solana-msg = { workspace = true }

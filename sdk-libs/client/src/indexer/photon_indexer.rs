@@ -122,6 +122,10 @@ impl PhotonIndexer {
         PhotonIndexer { configuration }
     }
 
+    pub fn new_with_config(configuration: Configuration) -> Self {
+        PhotonIndexer { configuration }
+    }
+
     fn extract_result<T>(context: &str, result: Option<T>) -> Result<T, IndexerError> {
         result.ok_or_else(|| IndexerError::missing_result(context, "value not present"))
     }

@@ -1232,7 +1232,7 @@ impl TransactionFormatter {
             "7Hp52chxaew8bW1ApR4fck2bh6Y8qA1pu3qwH6N9zaLj" => "v2 cpi context".to_string(),
 
             // V2 Address Trees (test accounts)
-            "EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK" => "v2 address merkle tree".to_string(),
+            "amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx" => "v2 address merkle tree".to_string(),
 
             // CPI Authority (commonly used in tests)
             "HZH7qSLcpAeDqCopVU4e5XkhT9j3JFsQiq8CmruY3aru" => "cpi authority pda".to_string(),

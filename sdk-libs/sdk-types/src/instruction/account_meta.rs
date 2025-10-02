@@ -115,6 +115,22 @@ impl CompressedAccountMetaTrait for CompressedAccountMeta {
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
+pub struct CompressedAccountMetaInitIfNeeded {
+    /// Initialize account.
+    /// False if account is currently initialized.
+    pub init: bool,
+    /// Account is initialized and the address is created in the same intruction.
+    /// False if account is currently initialized.
+    pub with_new_adress: bool,
+    /// Output merkle tree index.
+    pub output_state_tree_index: u8,
+    /// Address.
+    pub address: [u8; 32],
+    /// Merkle tree context.
+    pub tree_info: Option<PackedStateTreeInfo>,
+}
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressedAccountMetaWithLamports {
     /// Merkle tree context.
     pub tree_info: PackedStateTreeInfo,
@@ -153,14 +169,14 @@ impl CompressedAccountMetaTrait for CompressedAccountMetaWithLamports {
 }
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
-pub struct CompressedAccountMetaClose {
+pub struct CompressedAccountMetaBurn {
     /// State Merkle tree context.
     pub tree_info: PackedStateTreeInfo,
     /// Address.
     pub address: [u8; 32],
 }
 
-impl CompressedAccountMetaTrait for CompressedAccountMetaClose {
+impl CompressedAccountMetaTrait for CompressedAccountMetaBurn {
     fn get_tree_info(&self) -> &PackedStateTreeInfo {
         &self.tree_info
     }

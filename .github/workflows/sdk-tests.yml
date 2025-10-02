@@ -52,14 +52,16 @@ jobs:
       matrix:
         include:
           - program: sdk-test-program
-            sub-tests: '["cargo-test-sbf -p sdk-native-test"]'
+            sub-tests: '["cargo-test-sbf -p sdk-native-test", "cargo-test-sbf -p sdk-v1-native-test"]'
           - program: sdk-anchor-test-program
-            sub-tests: '["cargo-test-sbf -p sdk-anchor-test", "cargo-test-sbf -p sdk-pinocchio-test"]'
+            sub-tests: '["cargo-test-sbf -p sdk-anchor-test", "cargo-test-sbf -p sdk-pinocchio-v1-test", "cargo-test-sbf -p sdk-pinocchio-v2-test"]'
           - program: sdk-libs
-            packages: light-macros light-sdk light-program-test light-client light-batched-merkle-tree
+            packages: light-sdk-macros light-sdk light-program-test light-client light-batched-merkle-tree
             test_cmd: |
-              cargo test -p light-macros
+              cargo test -p light-sdk-macros
+              cargo test -p light-sdk-macros --all-features
               cargo test -p light-sdk
+              cargo test -p light-sdk --all-features
               cargo test -p light-program-test
               cargo test -p light-client
               cargo test -p client-test
