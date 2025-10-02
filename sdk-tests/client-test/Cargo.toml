@@ -7,6 +7,9 @@ license = "Apache-2.0"
 edition = "2021"
 publish = false
 
+[features]
+test-sbf = []
+
 [lib]
 crate-type = ["lib","cdylib"]
 name = "client_test"
