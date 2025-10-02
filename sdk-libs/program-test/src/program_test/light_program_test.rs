@@ -159,7 +159,19 @@ impl LightProgramTest {
                     }
                     context.set_account(nullifier_queue_pubkey, queue_account_data);
 
-                    context.set_account(cpi_context_pubkey, cpi_acc.clone());
+                    // Update CPI context account with correct associated merkle tree and queue
+                    let mut cpi_account_data = cpi_acc.clone();
+                    {
+                        let associated_merkle_tree_offset = 8 + 32; // discriminator + fee_payer
+                        let associated_queue_offset = 8 + 32 + 32; // discriminator + fee_payer + associated_merkle_tree
+                        cpi_account_data.data_as_mut_slice()
+                            [associated_merkle_tree_offset..associated_merkle_tree_offset + 32]
+                            .copy_from_slice(&state_mt.to_bytes());
+                        cpi_account_data.data_as_mut_slice()
+                            [associated_queue_offset..associated_queue_offset + 32]
+                            .copy_from_slice(&nullifier_queue_pubkey.to_bytes());
+                    }
+                    context.set_account(cpi_context_pubkey, cpi_account_data);
                 }
             }
         }
@@ -227,7 +239,19 @@ impl LightProgramTest {
                     }
                     context.set_account(output_queue_pubkey, queue_account_data);
 
-                    context.set_account(cpi_context_pubkey, cpi_acc.clone());
+                    // Update CPI context account with correct associated merkle tree and queue
+                    let mut cpi_account_data = cpi_acc.clone();
+                    {
+                        let associated_merkle_tree_offset = 8 + 32; // discriminator + fee_payer
+                        let associated_queue_offset = 8 + 32 + 32; // discriminator + fee_payer + associated_merkle_tree
+                        cpi_account_data.data_as_mut_slice()
+                            [associated_merkle_tree_offset..associated_merkle_tree_offset + 32]
+                            .copy_from_slice(&merkle_tree_pubkey.to_bytes());
+                        cpi_account_data.data_as_mut_slice()
+                            [associated_queue_offset..associated_queue_offset + 32]
+                            .copy_from_slice(&output_queue_pubkey.to_bytes());
+                    }
+                    context.set_account(cpi_context_pubkey, cpi_account_data);
                 }
             }
         }
