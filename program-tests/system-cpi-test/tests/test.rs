@@ -1483,6 +1483,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         merkle_tree: program_owned_state_merkle_tree_keypair.pubkey(),
         nullifier_queue: program_owned_state_queue_keypair.pubkey(),
         cpi_context: program_owned_cpi_context_keypair.pubkey(),
+        tree_type: TreeType::StateV1,
     }];
 
     perform_create_pda_failing(
@@ -1540,6 +1541,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         merkle_tree: program_owned_state_merkle_tree_keypair.pubkey(),
         nullifier_queue: program_owned_state_queue_keypair.pubkey(),
         cpi_context: program_owned_cpi_context_keypair.pubkey(),
+        tree_type: TreeType::StateV1,
     }];
 
     // TestAccounts {

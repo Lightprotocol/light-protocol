@@ -691,13 +691,43 @@ impl Rpc for LightClient {
             use crate::indexer::TreeInfo;
 
             #[cfg(feature = "v2")]
-            let default_trees = vec![TreeInfo {
-                tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
-                queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
-                cpi_context: Some(pubkey!("7Hp52chxaew8bW1ApR4fck2bh6Y8qA1pu3qwH6N9zaLj")),
-                next_tree_info: None,
-                tree_type: TreeType::StateV2,
-            }];
+            let default_trees = vec![
+                TreeInfo {
+                    tree: pubkey!("bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU"),
+                    queue: pubkey!("oq1na8gojfdUhsfCpyjNt6h4JaDWtHf1yQj4koBWfto"),
+                    cpi_context: Some(pubkey!("cpi15BoVPKgEPw5o8wc2T816GE7b378nMXnhH3Xbq4y")),
+                    next_tree_info: None,
+                    tree_type: TreeType::StateV2,
+                },
+                TreeInfo {
+                    tree: pubkey!("bmt2UxoBxB9xWev4BkLvkGdapsz6sZGkzViPNph7VFi"),
+                    queue: pubkey!("oq2UkeMsJLfXt2QHzim242SUi3nvjJs8Pn7Eac9H9vg"),
+                    cpi_context: Some(pubkey!("cpi2yGapXUR3As5SjnHBAVvmApNiLsbeZpF3euWnW6B")),
+                    next_tree_info: None,
+                    tree_type: TreeType::StateV2,
+                },
+                TreeInfo {
+                    tree: pubkey!("bmt3ccLd4bqSVZVeCJnH1F6C8jNygAhaDfxDwePyyGb"),
+                    queue: pubkey!("oq3AxjekBWgo64gpauB6QtuZNesuv19xrhaC1ZM1THQ"),
+                    cpi_context: Some(pubkey!("cpi3mbwMpSX8FAGMZVP85AwxqCaQMfEk9Em1v8QK9Rf")),
+                    next_tree_info: None,
+                    tree_type: TreeType::StateV2,
+                },
+                TreeInfo {
+                    tree: pubkey!("bmt4d3p1a4YQgk9PeZv5s4DBUmbF5NxqYpk9HGjQsd8"),
+                    queue: pubkey!("oq4ypwvVGzCUMoiKKHWh4S1SgZJ9vCvKpcz6RT6A8dq"),
+                    cpi_context: Some(pubkey!("cpi4yyPDc4bCgHAnsenunGA8Y77j3XEDyjgfyCKgcoc")),
+                    next_tree_info: None,
+                    tree_type: TreeType::StateV2,
+                },
+                TreeInfo {
+                    tree: pubkey!("bmt5yU97jC88YXTuSukYHa8Z5Bi2ZDUtmzfkDTA2mG2"),
+                    queue: pubkey!("oq5oh5ZR3yGomuQgFduNDzjtGvVWfDRGLuDVjv9a96P"),
+                    cpi_context: Some(pubkey!("cpi5ZTjdgYpZ1Xr7B1cMLLUE81oTtJbNNAyKary2nV6")),
+                    next_tree_info: None,
+                    tree_type: TreeType::StateV2,
+                },
+            ];
 
             #[cfg(not(feature = "v2"))]
             let default_trees = vec![TreeInfo {

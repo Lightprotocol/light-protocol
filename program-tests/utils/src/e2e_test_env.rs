@@ -1282,6 +1282,7 @@ where
                     merkle_tree: merkle_tree_keypair.pubkey(),
                     nullifier_queue: nullifier_queue_keypair.pubkey(),
                     cpi_context: cpi_context_keypair.pubkey(),
+                    tree_type: TreeType::StateV1,
                 },
                 tree_type: TreeType::StateV1,
                 merkle_tree,
@@ -2381,6 +2382,7 @@ where
                     merkle_tree: new_merkle_tree_keypair.pubkey(),
                     nullifier_queue: new_nullifier_queue_keypair.pubkey(),
                     cpi_context: new_cpi_signature_keypair.pubkey(),
+                    tree_type: TreeType::StateV1,
                 },
                 tree_type: TreeType::StateV1,
                 merkle_tree: Box::new(light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
