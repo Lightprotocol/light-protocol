@@ -1,8 +1,8 @@
 //! The base library to use Compressed Accounts in Solana on-chain Rust and Anchor programs.
 //!
-//! Compressed Accounts reduce state costs by orders of magnitude by storing account hashes in
-//! State Merkle trees and unique addresses in Address Merkle trees managed by Light Protocol.
-//! Validity proofs (zero-knowledge proofs) enable efficient verification that compressed account
+//! Compressed Accounts stores state as account hashes in State Merkle trees.
+//! and unique addresses in Address Merkle trees.
+//! Validity proofs (zero-knowledge proofs) verify that compressed account
 //! state exists and new addresses do not exist yet.
 //!
 //! - No rent exemption payment required.
