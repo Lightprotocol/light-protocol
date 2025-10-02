@@ -48,7 +48,7 @@ jobs:
       matrix:
         include:
           - program: sdk-test-program
-            sub-tests: '["cargo-test-sbf -p sdk-native-test", "cargo-test-sbf -p sdk-v1-native-test"]'
+            sub-tests: '["cargo-test-sbf -p sdk-native-test", "cargo-test-sbf -p sdk-v1-native-test", "cargo sbf-test -p client-test"]'
           - program: sdk-anchor-test-program
             sub-tests: '["cargo-test-sbf -p sdk-anchor-test", "cargo-test-sbf -p sdk-pinocchio-v1-test", "cargo-test-sbf -p sdk-pinocchio-v2-test"]'
           - program: sdk-libs
@@ -60,7 +60,6 @@ jobs:
               cargo test -p light-sdk --all-features
               cargo test -p light-program-test
               cargo test -p light-client
-              cargo sbf-test -p client-test
               cargo test -p light-sparse-merkle-tree
     steps:
       - name: Checkout sources
