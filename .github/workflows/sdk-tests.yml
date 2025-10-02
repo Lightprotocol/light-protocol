@@ -48,7 +48,7 @@ jobs:
       matrix:
         include:
           - program: sdk-test-program
-            sub-tests: '["cargo-test-sbf -p sdk-native-test", "cargo-test-sbf -p sdk-v1-native-test", "cargo sbf-test -p client-test"]'
+            sub-tests: '["cargo-test-sbf -p sdk-native-test", "cargo-test-sbf -p sdk-v1-native-test", "cargo test-sbf -p client-test"]'
           - program: sdk-anchor-test-program
             sub-tests: '["cargo-test-sbf -p sdk-anchor-test", "cargo-test-sbf -p sdk-pinocchio-v1-test", "cargo-test-sbf -p sdk-pinocchio-v2-test"]'
           - program: sdk-libs
