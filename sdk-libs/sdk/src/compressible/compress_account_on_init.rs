@@ -155,7 +155,7 @@ where
 #[cfg(feature = "anchor")]
 #[allow(clippy::too_many_arguments)]
 pub fn compress_empty_account_on_init<'info, A>(
-    solana_account: &Account<'info, A>,
+    solana_account: &mut Account<'info, A>,
     address: &[u8; 32],
     new_address_param: &NewAddressParamsAssignedPacked,
     output_state_tree_index: u8,
@@ -174,7 +174,7 @@ where
         + HasCompressionInfo,
 {
     let compressed_infos = prepare_empty_compressed_accounts_on_init(
-        std::slice::from_ref(&solana_account),
+        &mut [solana_account],
         std::slice::from_ref(address),
         std::slice::from_ref(new_address_param),
         std::slice::from_ref(&output_state_tree_index),
@@ -209,7 +209,7 @@ where
 /// * `Err(LightSdkError)` if there was an error
 #[cfg(feature = "anchor")]
 pub fn prepare_empty_compressed_accounts_on_init<'info, A>(
-    solana_accounts: &[&Account<'info, A>],
+    solana_accounts: &mut [&mut Account<'info, A>],
     addresses: &[[u8; 32]],
     new_address_params: &[NewAddressParamsAssignedPacked],
     output_state_tree_indices: &[u8],
@@ -242,9 +242,9 @@ where
 
     let mut compressed_account_infos = Vec::new();
 
-    for (((_solana_account, &address), &_new_address_param), &output_state_tree_index) in
+    for (((solana_account, &address), &_new_address_param), &output_state_tree_index) in
         solana_accounts
-            .iter()
+            .iter_mut()
             .zip(addresses.iter())
             .zip(new_address_params.iter())
             .zip(output_state_tree_indices.iter())
@@ -253,9 +253,8 @@ where
         // Ensure the account is marked as compressed We need to init first
         // because it's none. Setting to compressed prevents lamports funding
         // attack.
-        // *solana_account.compression_info_mut_opt() =
-        //     Some(super::CompressionInfo::new_decompressed()?);
-        // solana_account.compression_info_mut().set_compressed();
+        *solana_account.compression_info_mut_opt() =
+            Some(super::CompressionInfo::new_decompressed()?);
 
         let owner_program_id = cpi_accounts.self_program_id();
 

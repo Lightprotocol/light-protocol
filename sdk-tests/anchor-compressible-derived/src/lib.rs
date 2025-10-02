@@ -420,7 +420,7 @@ pub mod anchor_compressible_derived {
         // Use the new compress_empty_account_on_init function
         // This creates an empty compressed account but does NOT close the PDA
         compress_empty_account_on_init::<PlaceholderRecord>(
-            placeholder_record,
+            &mut placeholder_record,
             &compressed_address,
             &new_address_params,
             output_state_tree_index,
