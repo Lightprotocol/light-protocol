@@ -6,6 +6,9 @@ repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
 
+[features]
+test-sbf = []
+
 [lib]
 crate-type = ["lib","cdylib"]
 name = "client_test"
