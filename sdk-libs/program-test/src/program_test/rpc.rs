@@ -227,8 +227,8 @@ impl Rpc for LightProgramTest {
         return Ok(self
             .test_accounts
             .v1_state_trees
-            .to_vec()
-            .into_iter()
+            .iter()
+            .copied()
             .map(|tree| tree.into())
             .collect());
         #[cfg(feature = "v2")]
@@ -246,8 +246,8 @@ impl Rpc for LightProgramTest {
         return self
             .test_accounts
             .v1_state_trees
-            .to_vec()
-            .into_iter()
+            .iter()
+            .copied()
             .map(|tree| tree.into())
             .collect();
         #[cfg(feature = "v2")]
