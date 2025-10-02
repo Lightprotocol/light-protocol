@@ -310,7 +310,6 @@ pub fn hash_with_hashed_values(
         vec.push(&discriminator_bytes);
         vec.push(data_hash);
     }
-
     Ok(Poseidon::hashv(&vec)?)
 }
 
@@ -344,6 +343,7 @@ impl CompressedAccount {
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError> {
         let hashed_mt = hash_to_bn254_field_size_be(merkle_tree_pubkey.as_ref());
+
         self.hash_with_hashed_values(
             &hash_to_bn254_field_size_be(self.owner.as_ref()),
             &hashed_mt,

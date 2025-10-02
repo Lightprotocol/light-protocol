@@ -693,6 +693,7 @@ pub struct StateMerkleTreeAccounts {
     pub merkle_tree: Pubkey,
     pub nullifier_queue: Pubkey,
     pub cpi_context: Pubkey,
+    pub tree_type: TreeType,
 }
 
 #[allow(clippy::from_over_into)]
@@ -702,7 +703,7 @@ impl Into<TreeInfo> for StateMerkleTreeAccounts {
             tree: self.merkle_tree,
             queue: self.nullifier_queue,
             cpi_context: Some(self.cpi_context),
-            tree_type: TreeType::StateV1,
+            tree_type: self.tree_type,
             next_tree_info: None,
         }
     }
