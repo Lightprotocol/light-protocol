@@ -68,11 +68,20 @@ impl TestAccounts {
                 registered_registry_program_pda: get_registered_program_pda(&light_registry::ID),
                 registered_forester_pda: Pubkey::default(),
             },
-            v1_state_trees: vec![StateMerkleTreeAccounts {
-                merkle_tree: pubkey!("smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT"),
-                nullifier_queue: pubkey!("nfq1NvQDJ2GEgnS8zt9prAe8rjjpAW1zFkrvZoBR148"),
-                cpi_context: pubkey!("cpi1uHzrEhBG733DoEJNgHCyRS3XmmyVNZx5fonubE4"),
-            }],
+            v1_state_trees: vec![
+                StateMerkleTreeAccounts {
+                    merkle_tree: pubkey!("smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT"),
+                    nullifier_queue: pubkey!("nfq1NvQDJ2GEgnS8zt9prAe8rjjpAW1zFkrvZoBR148"),
+                    cpi_context: pubkey!("cpi1uHzrEhBG733DoEJNgHCyRS3XmmyVNZx5fonubE4"),
+                    tree_type: TreeType::StateV1,
+                },
+                StateMerkleTreeAccounts {
+                    merkle_tree: pubkey!("smt2rJAFdyJJupwMKAqTNAJwvjhmiZ4JYGZmbVRw1Ho"),
+                    nullifier_queue: pubkey!("nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X"),
+                    cpi_context: pubkey!("cpi2cdhkH5roePvcudTgUL8ppEBfTay1desGh8G8QxK"),
+                    tree_type: TreeType::StateV1,
+                },
+            ],
 
             v1_address_trees: vec![AddressMerkleTreeAccounts {
                 merkle_tree: pubkey!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2"),
@@ -111,8 +120,6 @@ impl TestAccounts {
     }
 
     pub fn get_program_test_test_accounts() -> TestAccounts {
-        let merkle_tree_keypair = Keypair::from_bytes(&MERKLE_TREE_TEST_KEYPAIR).unwrap();
-        let nullifier_queue_keypair = Keypair::from_bytes(&NULLIFIER_QUEUE_TEST_KEYPAIR).unwrap();
         let group_seed_keypair = Keypair::from_bytes(&GROUP_PDA_SEED_TEST_KEYPAIR).unwrap();
         let group_pda = get_group_pda(group_seed_keypair.pubkey());
 
@@ -125,7 +132,6 @@ impl TestAccounts {
             Pubkey::from(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID),
         );
 
-        let cpi_context_keypair = Keypair::from_bytes(&SIGNATURE_CPI_TEST_KEYPAIR).unwrap();
         let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
         let forester = Keypair::from_bytes(&FORESTER_TEST_KEYPAIR).unwrap();
 
@@ -140,11 +146,20 @@ impl TestAccounts {
                 registered_registry_program_pda,
                 registered_forester_pda: get_forester_pda(&forester_pubkey).0,
             },
-            v1_state_trees: vec![StateMerkleTreeAccounts {
-                merkle_tree: merkle_tree_keypair.pubkey(),
-                nullifier_queue: nullifier_queue_keypair.pubkey(),
-                cpi_context: cpi_context_keypair.pubkey(),
-            }],
+            v1_state_trees: vec![
+                StateMerkleTreeAccounts {
+                    merkle_tree: pubkey!("smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT"),
+                    nullifier_queue: pubkey!("nfq1NvQDJ2GEgnS8zt9prAe8rjjpAW1zFkrvZoBR148"),
+                    cpi_context: pubkey!("cpi1uHzrEhBG733DoEJNgHCyRS3XmmyVNZx5fonubE4"),
+                    tree_type: TreeType::StateV1,
+                },
+                StateMerkleTreeAccounts {
+                    merkle_tree: pubkey!("smt2rJAFdyJJupwMKAqTNAJwvjhmiZ4JYGZmbVRw1Ho"),
+                    nullifier_queue: pubkey!("nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X"),
+                    cpi_context: pubkey!("cpi2cdhkH5roePvcudTgUL8ppEBfTay1desGh8G8QxK"),
+                    tree_type: TreeType::StateV1,
+                },
+            ],
             v1_address_trees: vec![AddressMerkleTreeAccounts {
                 merkle_tree: pubkey!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2"),
                 queue: pubkey!("aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F"),

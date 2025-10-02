@@ -87,7 +87,6 @@ use crate::{
     accounts::{
         address_tree::create_address_merkle_tree_and_queue_account,
         state_tree::create_state_merkle_tree_and_queue_account, test_accounts::TestAccounts,
-        test_keypairs::BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR,
     },
     indexer::TestIndexerExtensions,
 };
@@ -1260,6 +1259,7 @@ impl TestIndexer {
                 merkle_tree: v2_state_tree.merkle_tree,
                 nullifier_queue: v2_state_tree.output_queue,
                 cpi_context: v2_state_tree.cpi_context,
+                tree_type: TreeType::StateV2,
             });
         }
 
@@ -1293,32 +1293,29 @@ impl TestIndexer {
     ) -> Self {
         let mut state_merkle_trees = Vec::new();
         for state_merkle_tree_account in state_merkle_tree_accounts.iter() {
-            let test_batched_output_queue =
-                Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap();
-            let (tree_type, merkle_tree, output_queue_batch_size) = if state_merkle_tree_account
-                .nullifier_queue
-                == test_batched_output_queue.pubkey()
-            {
-                let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
-                    DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
-                    0,
-                    0,
-                    DEFAULT_BATCH_ROOT_HISTORY_LEN as usize,
-                ));
-                (
-                    TreeType::StateV2,
-                    merkle_tree,
-                    Some(output_queue_batch_size),
-                )
-            } else {
-                let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
-                    account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
-                    account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-                    0,
-                    account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
-                ));
-                (TreeType::StateV1, merkle_tree, None)
-            };
+            let (tree_type, merkle_tree, output_queue_batch_size) =
+                if state_merkle_tree_account.tree_type == TreeType::StateV2 {
+                    let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
+                        DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
+                        0,
+                        0,
+                        DEFAULT_BATCH_ROOT_HISTORY_LEN as usize,
+                    ));
+                    (
+                        TreeType::StateV2,
+                        merkle_tree,
+                        Some(output_queue_batch_size),
+                    )
+                } else {
+                    let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
+                        account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
+                        account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH
+                            as usize,
+                        0,
+                        account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
+                    ));
+                    (TreeType::StateV1, merkle_tree, None)
+                };
 
             state_merkle_trees.push(StateMerkleTreeBundle {
                 accounts: *state_merkle_tree_account,
@@ -1533,6 +1530,7 @@ impl TestIndexer {
             merkle_tree: merkle_tree_keypair.pubkey(),
             nullifier_queue: queue_keypair.pubkey(),
             cpi_context: cpi_context_keypair.pubkey(),
+            tree_type,
         };
 
         self.state_merkle_trees.push(StateMerkleTreeBundle {
@@ -1597,7 +1595,6 @@ impl TestIndexer {
         compressed_accounts: &mut Vec<CompressedAccountWithMerkleContext>,
     ) {
         let mut input_addresses = vec![];
-
         let mut new_addresses = vec![];
         if event.output_compressed_accounts.len() > i {
             let compressed_account = &event.output_compressed_accounts[i];
