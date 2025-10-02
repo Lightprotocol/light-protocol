@@ -122,6 +122,31 @@ impl LightProgramTest {
                 context.set_account(address_mt, account);
             }
         }
+        // Copy batched state merkle tree accounts to devnet pubkeys
+        {
+            let tree_account = context
+                .context
+                .get_account(&keypairs.batched_state_merkle_tree.pubkey());
+            let queue_account = context
+                .context
+                .get_account(&keypairs.batched_output_queue.pubkey());
+            let cpi_account = context
+                .context
+                .get_account(&keypairs.batched_cpi_context.pubkey());
+
+            if let (Some(tree_acc), Some(queue_acc), Some(cpi_acc)) =
+                (tree_account, queue_account, cpi_account)
+            {
+                for i in 0..5 {
+                    let merkle_tree = context.test_accounts.v2_state_trees[i].merkle_tree;
+                    let output_queue = context.test_accounts.v2_state_trees[i].output_queue;
+                    let cpi_context = context.test_accounts.v2_state_trees[i].cpi_context;
+                    context.set_account(merkle_tree, tree_acc.clone());
+                    context.set_account(output_queue, queue_acc.clone());
+                    context.set_account(cpi_context, cpi_acc.clone());
+                }
+            }
+        }
 
         // reset tx counter after program setup.
         context.transaction_counter = 0;

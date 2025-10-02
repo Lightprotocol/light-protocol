@@ -64,7 +64,7 @@ jobs:
               cargo test -p light-sdk --all-features
               cargo test -p light-program-test
               cargo test -p light-client
-              cargo test -p client-test
+              cargo sbf-test -p client-test
               cargo test -p light-sparse-merkle-tree
     steps:
       - name: Checkout sources

@@ -1226,10 +1226,22 @@ impl TransactionFormatter {
             "amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2" => "v1 address merkle tree".to_string(),
             "aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F" => "v1 address queue".to_string(),
 
-            // V2 State Trees and Queues (test accounts)
-            "6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU" => "v2 state output queue".to_string(),
-            "HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu" => "v2 state merkle tree".to_string(),
-            "7Hp52chxaew8bW1ApR4fck2bh6Y8qA1pu3qwH6N9zaLj" => "v2 cpi context".to_string(),
+            // V2 State Trees and Queues (5 tree triples)
+            "bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU" => "v2 state merkle tree 1".to_string(),
+            "oq1na8gojfdUhsfCpyjNt6h4JaDWtHf1yQj4koBWfto" => "v2 state output queue 1".to_string(),
+            "cpi15BoVPKgEPw5o8wc2T816GE7b378nMXnhH3Xbq4y" => "v2 cpi context 1".to_string(),
+            "bmt2UxoBxB9xWev4BkLvkGdapsz6sZGkzViPNph7VFi" => "v2 state merkle tree 2".to_string(),
+            "oq2UkeMsJLfXt2QHzim242SUi3nvjJs8Pn7Eac9H9vg" => "v2 state output queue 2".to_string(),
+            "cpi2yGapXUR3As5SjnHBAVvmApNiLsbeZpF3euWnW6B" => "v2 cpi context 2".to_string(),
+            "bmt3ccLd4bqSVZVeCJnH1F6C8jNygAhaDfxDwePyyGb" => "v2 state merkle tree 3".to_string(),
+            "oq3AxjekBWgo64gpauB6QtuZNesuv19xrhaC1ZM1THQ" => "v2 state output queue 3".to_string(),
+            "cpi3mbwMpSX8FAGMZVP85AwxqCaQMfEk9Em1v8QK9Rf" => "v2 cpi context 3".to_string(),
+            "bmt4d3p1a4YQgk9PeZv5s4DBUmbF5NxqYpk9HGjQsd8" => "v2 state merkle tree 4".to_string(),
+            "oq4ypwvVGzCUMoiKKHWh4S1SgZJ9vCvKpcz6RT6A8dq" => "v2 state output queue 4".to_string(),
+            "cpi4yyPDc4bCgHAnsenunGA8Y77j3XEDyjgfyCKgcoc" => "v2 cpi context 4".to_string(),
+            "bmt5yU97jC88YXTuSukYHa8Z5Bi2ZDUtmzfkDTA2mG2" => "v2 state merkle tree 5".to_string(),
+            "oq5oh5ZR3yGomuQgFduNDzjtGvVWfDRGLuDVjv9a96P" => "v2 state output queue 5".to_string(),
+            "cpi5ZTjdgYpZ1Xr7B1cMLLUE81oTtJbNNAyKary2nV6" => "v2 cpi context 5".to_string(),
 
             // V2 Address Trees (test accounts)
             "amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx" => "v2 address merkle tree".to_string(),
