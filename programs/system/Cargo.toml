@@ -49,7 +49,7 @@ light-zero-copy = { workspace = true, features = ["pinocchio"] }
 zerocopy = { workspace = true }
 light-account-checks = { workspace = true, features = ["pinocchio"] }
 pinocchio = { workspace = true }
-pinocchio-system = { version = "0.2.3" }
+pinocchio-system = { version = "0.3.0" }
 solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
 pinocchio-pubkey = { workspace = true }
 solana-msg = { workspace = true }

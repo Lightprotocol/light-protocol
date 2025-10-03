@@ -70,12 +70,12 @@ fn functional_from_account_infos_v2() {
         };
 
         let account_info_array = [
-            fee_payer.clone(),
-            authority.clone(),
-            registered_program_pda.clone(),
-            account_compression_authority.clone(),
-            account_compression_program.clone(),
-            system_program.clone(),
+            fee_payer,
+            authority,
+            registered_program_pda,
+            account_compression_authority,
+            account_compression_program,
+            system_program,
             get_mut_account_info(), // Dummy remaining account
             get_mut_account_info(), // Another dummy remaining account
         ];
@@ -142,13 +142,13 @@ fn functional_from_account_infos_v2() {
         };
 
         let account_info_array = [
-            fee_payer.clone(),
-            authority.clone(),
-            registered_program_pda.clone(),
-            account_compression_authority.clone(),
-            account_compression_program.clone(),
-            system_program.clone(),
-            decompression_recipient.clone(),
+            fee_payer,
+            authority,
+            registered_program_pda,
+            account_compression_authority,
+            account_compression_program,
+            system_program,
+            decompression_recipient,
             get_mut_account_info(), // Remaining account required for CPI
         ];
 
@@ -195,13 +195,13 @@ fn functional_from_account_infos_v2() {
         };
 
         let account_info_array = [
-            fee_payer.clone(),
-            authority.clone(),
-            registered_program_pda.clone(),
-            account_compression_authority.clone(),
-            account_compression_program.clone(),
-            system_program.clone(),
-            cpi_context_account.clone(),
+            fee_payer,
+            authority,
+            registered_program_pda,
+            account_compression_authority,
+            account_compression_program,
+            system_program,
+            cpi_context_account,
             get_mut_account_info(), // Remaining account required for CPI
         ];
 
@@ -252,13 +252,13 @@ fn test_cpi_context_account_error_handling() {
         let account_compression_program = get_account_compression_program_account_info();
         let system_program = get_system_program_account_info();
         let account_info_array = [
-            fee_payer.clone(),
-            authority.clone(),
-            registered_program_pda.clone(),
-            account_compression_authority.clone(),
-            account_compression_program.clone(),
-            system_program.clone(),
-            invalid_cpi_context_account.clone(),
+            fee_payer,
+            authority,
+            registered_program_pda,
+            account_compression_authority,
+            account_compression_program,
+            system_program,
+            invalid_cpi_context_account,
             get_mut_account_info(), // Remaining account required for CPI
         ];
 
@@ -276,13 +276,13 @@ fn test_cpi_context_account_error_handling() {
         let account_compression_program = get_account_compression_program_account_info();
         let system_program = get_system_program_account_info();
         let account_info_array = [
-            fee_payer.clone(),
-            authority.clone(),
-            registered_program_pda.clone(),
-            account_compression_authority.clone(),
-            account_compression_program.clone(),
-            system_program.clone(),
-            invalid_cpi_context_account.clone(),
+            fee_payer,
+            authority,
+            registered_program_pda,
+            account_compression_authority,
+            account_compression_program,
+            system_program,
+            invalid_cpi_context_account,
             get_mut_account_info(), // Remaining account required for CPI
         ];
 
@@ -316,14 +316,14 @@ fn test_decompression_recipient_and_cpi_context_validation() {
     let system_program = get_system_program_account_info();
 
     let account_info_array = [
-        fee_payer.clone(),
-        authority.clone(),
-        registered_program_pda.clone(),
-        account_compression_authority.clone(),
-        account_compression_program.clone(),
-        system_program.clone(),
-        decompression_recipient.clone(),
-        cpi_context_account.clone(),
+        fee_payer,
+        authority,
+        registered_program_pda,
+        account_compression_authority,
+        account_compression_program,
+        system_program,
+        decompression_recipient,
+        cpi_context_account,
         get_mut_account_info(), // Remaining account required for CPI
     ];
 
@@ -368,12 +368,12 @@ fn failing_from_account_infos_v2() {
 
     // Base array for tests
     let account_info_array = [
-        fee_payer.clone(),
-        authority.clone(),
-        registered_program_pda.clone(),
-        account_compression_authority.clone(),
-        account_compression_program.clone(),
-        system_program.clone(),
+        fee_payer,
+        authority,
+        registered_program_pda,
+        account_compression_authority,
+        account_compression_program,
+        system_program,
         get_mut_account_info(), // Remaining account required for CPI
     ];
 
@@ -402,7 +402,7 @@ fn failing_from_account_infos_v2() {
             write_to_cpi_context: false,
         };
 
-        let mut account_info_array_clone = account_info_array.clone();
+        let mut account_info_array_clone = account_info_array;
         account_info_array_clone[1] = get_fee_payer_account_info(); // Use a mutable account
 
         let result = InvokeCpiInstructionV2::from_account_infos(
@@ -425,7 +425,7 @@ fn failing_from_account_infos_v2() {
             write_to_cpi_context: false,
         };
 
-        let mut account_info_array_clone = account_info_array.clone();
+        let mut account_info_array_clone = account_info_array;
         account_info_array_clone[2] = get_mut_account_info();
 
         let result = InvokeCpiInstructionV2::from_account_infos(
@@ -448,7 +448,7 @@ fn failing_from_account_infos_v2() {
             write_to_cpi_context: false,
         };
 
-        let mut account_info_array_clone = account_info_array.clone();
+        let mut account_info_array_clone = account_info_array;
         account_info_array_clone[3] = get_mut_account_info();
 
         let result = InvokeCpiInstructionV2::from_account_infos(
@@ -474,8 +474,8 @@ fn failing_from_account_infos_v2() {
         };
 
         let insufficient_array = [
-            fee_payer.clone(),
-            authority.clone(),
+            fee_payer,
+            authority,
             // Missing registered_program_pda and account_compression_authority
         ];
 
@@ -501,13 +501,13 @@ fn failing_from_account_infos_v2() {
         };
 
         let account_array_with_decompression = [
-            fee_payer.clone(),
-            authority.clone(),
-            registered_program_pda.clone(),
-            account_compression_authority.clone(),
-            account_compression_program.clone(),
-            system_program.clone(),
-            decompression_recipient.clone(),
+            fee_payer,
+            authority,
+            registered_program_pda,
+            account_compression_authority,
+            account_compression_program,
+            system_program,
+            decompression_recipient,
             get_mut_account_info(), // Remaining account required for CPI
         ];
 
