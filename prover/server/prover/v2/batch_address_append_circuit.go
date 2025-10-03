@@ -329,3 +329,29 @@ func ImportBatchAddressAppendSetup(treeHeight uint32, batchSize uint32, pkPath s
 		ConstraintSystem: ccs,
 	}, nil
 }
+
+func ImportBatchAddressAppendSetupWithR1CS(treeHeight uint32, batchSize uint32, pkPath string, vkPath string, r1csPath string) (*common.BatchProofSystem, error) {
+	pk, err := common.LoadProvingKey(pkPath)
+	if err != nil {
+		return nil, err
+	}
+
+	vk, err := common.LoadVerifyingKey(vkPath)
+	if err != nil {
+		return nil, err
+	}
+
+	ccs, err := common.LoadConstraintSystem(r1csPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &common.BatchProofSystem{
+		CircuitType:      common.BatchAddressAppendCircuitType,
+		TreeHeight:       treeHeight,
+		BatchSize:        batchSize,
+		ProvingKey:       pk,
+		VerifyingKey:     vk,
+		ConstraintSystem: ccs,
+	}, nil
+}
