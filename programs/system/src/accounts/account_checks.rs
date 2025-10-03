@@ -143,7 +143,7 @@ pub fn check_option_cpi_context_account<'a>(
                 "ERROR: check_owner {:?} owner: {:?} for cpi_context failed. {}:{}:{}",
                 solana_pubkey::Pubkey::new_from_array(*account_info.key()),
                 // SAFETY: owner() returns a valid pointer to a 32-byte aligned Pubkey
-                solana_pubkey::Pubkey::new_from_array(unsafe { *account_info.owner() }),
+                solana_pubkey::Pubkey::new_from_array(*account_info.owner()),
                 location.file(),
                 location.line(),
                 location.column()
