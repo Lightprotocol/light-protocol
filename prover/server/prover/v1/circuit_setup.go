@@ -134,3 +134,83 @@ func SetupCombined(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccoun
 		Version:                                1, // V1 circuits have version 1
 	}, nil
 }
+
+func ImportInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint32, pkPath string, vkPath string, r1csPath string) (*common.MerkleProofSystem, error) {
+	pk, err := common.LoadProvingKey(pkPath)
+	if err != nil {
+		return nil, err
+	}
+
+	vk, err := common.LoadVerifyingKey(vkPath)
+	if err != nil {
+		return nil, err
+	}
+
+	ccs, err := common.LoadConstraintSystem(r1csPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &common.MerkleProofSystem{
+		InclusionTreeHeight:                 treeHeight,
+		InclusionNumberOfCompressedAccounts: numberOfCompressedAccounts,
+		ProvingKey:                          pk,
+		VerifyingKey:                        vk,
+		ConstraintSystem:                    ccs,
+		Version:                             1,
+	}, nil
+}
+
+func ImportNonInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint32, pkPath string, vkPath string, r1csPath string) (*common.MerkleProofSystem, error) {
+	pk, err := common.LoadProvingKey(pkPath)
+	if err != nil {
+		return nil, err
+	}
+
+	vk, err := common.LoadVerifyingKey(vkPath)
+	if err != nil {
+		return nil, err
+	}
+
+	ccs, err := common.LoadConstraintSystem(r1csPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &common.MerkleProofSystem{
+		NonInclusionTreeHeight:                 treeHeight,
+		NonInclusionNumberOfCompressedAccounts: numberOfCompressedAccounts,
+		ProvingKey:                             pk,
+		VerifyingKey:                           vk,
+		ConstraintSystem:                       ccs,
+		Version:                                1,
+	}, nil
+}
+
+func ImportCombinedSetup(inclusionTreeHeight uint32, inclusionNumberOfCompressedAccounts uint32, nonInclusionTreeHeight uint32, nonInclusionNumberOfCompressedAccounts uint32, pkPath string, vkPath string, r1csPath string) (*common.MerkleProofSystem, error) {
+	pk, err := common.LoadProvingKey(pkPath)
+	if err != nil {
+		return nil, err
+	}
+
+	vk, err := common.LoadVerifyingKey(vkPath)
+	if err != nil {
+		return nil, err
+	}
+
+	ccs, err := common.LoadConstraintSystem(r1csPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return &common.MerkleProofSystem{
+		InclusionTreeHeight:                    inclusionTreeHeight,
+		InclusionNumberOfCompressedAccounts:    inclusionNumberOfCompressedAccounts,
+		NonInclusionTreeHeight:                 nonInclusionTreeHeight,
+		NonInclusionNumberOfCompressedAccounts: nonInclusionNumberOfCompressedAccounts,
+		ProvingKey:                             pk,
+		VerifyingKey:                           vk,
+		ConstraintSystem:                       ccs,
+		Version:                                1,
+	}, nil
+}

@@ -273,8 +273,11 @@ func runCli() {
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "circuit", Usage: "Type of circuit (\"inclusion\" / \"non-inclusion\" / \"combined\")", Required: true},
 					&cli.StringFlag{Name: "output", Usage: "Output file", Required: true},
+					&cli.StringFlag{Name: "vkey-output", Usage: "Verifying key output file (optional)", Required: false},
 					&cli.StringFlag{Name: "pk", Usage: "Proving key", Required: true},
 					&cli.StringFlag{Name: "vk", Usage: "Verifying key", Required: true},
+					&cli.StringFlag{Name: "r1cs", Usage: "R1CS file", Required: false},
+					&cli.BoolFlag{Name: "v1", Usage: "use v1 circuits", Required: false},
 					&cli.UintFlag{Name: "inclusion-tree-height", Usage: "[Inclusion]: merkle tree height", Required: false},
 					&cli.UintFlag{Name: "inclusion-compressed-accounts", Usage: "[Inclusion]: number of compressed accounts", Required: false},
 					&cli.UintFlag{Name: "non-inclusion-tree-height", Usage: "[Non-inclusion]: merkle tree height", Required: false},
@@ -290,8 +293,11 @@ func runCli() {
 					circuit := context.String("circuit")
 
 					path := context.String("output")
+					pathVkey := context.String("vkey-output")
 					pk := context.String("pk")
 					vk := context.String("vk")
+					r1csPath := context.String("r1cs")
+					useLegacy := context.Bool("legacy")
 
 					inclusionTreeHeight := uint32(context.Uint("inclusion-tree-height"))
 					inclusionNumberOfCompressedAccounts := uint32(context.Uint("inclusion-compressed-accounts"))
@@ -317,7 +323,7 @@ func runCli() {
 						if err != nil {
 							return err
 						}
-						err = common.WriteProvingSystem(system, path, "")
+						err = common.WriteProvingSystem(system, path, pathVkey)
 					} else if circuit == "update" {
 						if batchUpdateTreeHeight == 0 || batchUpdateBatchSize == 0 {
 							return fmt.Errorf("append tree height and batch size must be provided")
@@ -327,17 +333,21 @@ func runCli() {
 						if err != nil {
 							return err
 						}
-						err = common.WriteProvingSystem(system, path, "")
+						err = common.WriteProvingSystem(system, path, pathVkey)
 					} else if circuit == "address-append" {
 						if batchAddressAppendTreeHeight == 0 || batchAddressAppendBatchSize == 0 {
 							return fmt.Errorf("append tree height and batch size must be provided")
 						}
 						var system *common.BatchProofSystem
-						system, err = v2.ImportBatchAddressAppendSetup(batchAddressAppendTreeHeight, batchAddressAppendBatchSize, pk, vk)
+						if r1csPath != "" {
+							system, err = v2.ImportBatchAddressAppendSetupWithR1CS(batchAddressAppendTreeHeight, batchAddressAppendBatchSize, pk, vk, r1csPath)
+						} else {
+							system, err = v2.ImportBatchAddressAppendSetup(batchAddressAppendTreeHeight, batchAddressAppendBatchSize, pk, vk)
+						}
 						if err != nil {
 							return err
 						}
-						err = common.WriteProvingSystem(system, path, "")
+						err = common.WriteProvingSystem(system, path, pathVkey)
 					} else {
 						if circuit == "inclusion" || circuit == "combined" {
 							if inclusionTreeHeight == 0 || inclusionNumberOfCompressedAccounts == 0 {
@@ -351,18 +361,31 @@ func runCli() {
 						}
 
 						var system *common.MerkleProofSystem
-						switch circuit {
-						case "inclusion":
-							system, err = v2.ImportInclusionSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, pk, vk)
-						case "non-inclusion":
-							system, err = v2.ImportNonInclusionSetup(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
-						case "combined":
-							system, err = v2.ImportCombinedSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
+						// Use V1 import if --legacy flag is set
+						// This ensures we use the ceremony R1CS which was generated with --legacy flag
+						if useLegacy {
+							switch circuit {
+							case "inclusion":
+								system, err = v1.ImportInclusionSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, pk, vk, r1csPath)
+							case "non-inclusion":
+								system, err = v1.ImportNonInclusionSetup(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk, r1csPath)
+							case "combined":
+								system, err = v1.ImportCombinedSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk, r1csPath)
+							}
+						} else {
+							switch circuit {
+							case "inclusion":
+								system, err = v2.ImportInclusionSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, pk, vk)
+							case "non-inclusion":
+								system, err = v2.ImportNonInclusionSetup(nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
+							case "combined":
+								system, err = v2.ImportCombinedSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts, pk, vk)
+							}
 						}
 						if err != nil {
 							return err
 						}
-						err = common.WriteProvingSystem(system, path, "")
+						err = common.WriteProvingSystem(system, path, pathVkey)
 					}
 
 					if err != nil {

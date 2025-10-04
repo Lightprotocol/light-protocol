@@ -9,6 +9,7 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
+	"github.com/consensys/gnark/constraint"
 	gnarkio "github.com/consensys/gnark/io"
 )
 
@@ -89,6 +90,23 @@ func LoadVerifyingKey(filepath string) (verifyingKey groth16.VerifyingKey, err e
 	}
 
 	return verifyingKey, nil
+}
+
+func LoadConstraintSystem(filepath string) (constraint.ConstraintSystem, error) {
+	logging.Logger().Info().Str("filepath", filepath).Msg("start reading constraint system")
+	cs := groth16.NewCS(ecc.BN254)
+	f, err := os.Open(filepath)
+	if err != nil {
+		return nil, fmt.Errorf("error opening constraint system file: %v", err)
+	}
+	defer f.Close()
+
+	_, err = cs.ReadFrom(f)
+	if err != nil {
+		return nil, fmt.Errorf("error reading constraint system: %v", err)
+	}
+
+	return cs, nil
 }
 
 func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
@@ -334,24 +352,38 @@ func WriteProvingSystem(system interface{}, path string, pathVkey string) error 
 
 	logging.Logger().Info().Int64("bytesWritten", written).Msg("Proving system written to file")
 
-	var vk interface{}
-	switch s := system.(type) {
-	case *MerkleProofSystem:
-		vk = s.VerifyingKey
-	case *BatchProofSystem:
-		vk = s.VerifyingKey
-	}
+	// Only write separate vkey file if path is provided
+	if pathVkey != "" {
+		var vk interface{}
+		switch s := system.(type) {
+		case *MerkleProofSystem:
+			vk = s.VerifyingKey
+		case *BatchProofSystem:
+			vk = s.VerifyingKey
+		}
 
-	var buf bytes.Buffer
-	_, err = vk.(gnarkio.WriterRawTo).WriteRawTo(&buf)
-	if err != nil {
-		return err
-	}
+		var buf bytes.Buffer
+		_, err = vk.(gnarkio.WriterRawTo).WriteRawTo(&buf)
+		if err != nil {
+			return err
+		}
 
-	proofBytes := buf.Bytes()
-	err = createFileAndWriteBytes(pathVkey, proofBytes)
-	if err != nil {
-		return err
+		// Write vkey in text format for cargo xtask: [byte1 byte2 byte3 ...]
+		proofBytes := buf.Bytes()
+		vkeyFile, err := os.Create(pathVkey)
+		if err != nil {
+			return err
+		}
+		defer vkeyFile.Close()
+
+		vkeyFile.WriteString("[")
+		for i, b := range proofBytes {
+			if i > 0 {
+				vkeyFile.WriteString(" ")
+			}
+			fmt.Fprintf(vkeyFile, "%d", b)
+		}
+		vkeyFile.WriteString("]")
 	}
 
 	return nil
