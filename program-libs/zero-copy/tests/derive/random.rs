@@ -9,7 +9,7 @@ use rand::{
     Rng,
 };
 
-mod instruction_data;
+use super::instruction_data;
 use instruction_data::{
     CompressedAccount,
     CompressedAccountConfig,

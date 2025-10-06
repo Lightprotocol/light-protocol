@@ -3680,7 +3680,8 @@ dependencies = [
 [[package]]
 name = "light-profiler-macro"
 version = "0.1.0"
-source = "git+https://github.com/Lightprotocol/light-program-profiler?rev=36a75e14f54dd862bf2f338c97435ffc7e3e8de9#36a75e14f54dd862bf2f338c97435ffc7e3e8de9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ea8e975b7151078d0ce470657b2cc5546d8dab75ad0fe8c62c5ac5b980eb6735"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3690,7 +3691,8 @@ dependencies = [
 [[package]]
 name = "light-program-profiler"
 version = "0.1.0"
-source = "git+https://github.com/Lightprotocol/light-program-profiler?rev=36a75e14f54dd862bf2f338c97435ffc7e3e8de9#36a75e14f54dd862bf2f338c97435ffc7e3e8de9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "74d6510198436b28f85a5995c6ccfff8ad58bbc5985e8d60cc5ea9702d4e52d2"
 dependencies = [
  "light-profiler-macro",
 ]
@@ -3973,6 +3975,7 @@ dependencies = [
  "pinocchio",
  "rand 0.8.5",
  "solana-program-error",
+ "trybuild",
  "zerocopy",
 ]
 
@@ -3980,15 +3983,11 @@ dependencies = [
 name = "light-zero-copy-derive"
 version = "0.3.0"
 dependencies = [
- "borsh 0.10.4",
  "lazy_static",
- "light-zero-copy",
  "proc-macro2",
  "quote",
  "rand 0.8.5",
  "syn 2.0.106",
- "trybuild",
- "zerocopy",
 ]
 
 [[package]]

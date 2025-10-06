@@ -19,8 +19,4 @@ syn = { version = "2.0", features = ["full", "extra-traits"] }
 lazy_static = "1.4"
 
 [dev-dependencies]
-trybuild = "1.0"
-rand = "0.8"
-borsh = { workspace = true }
-light-zero-copy = { workspace = true, features = ["std", "derive"] }
-zerocopy = { workspace = true, features = ["derive"] }
+rand = { workspace = true }

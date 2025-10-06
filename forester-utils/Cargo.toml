@@ -5,6 +5,7 @@ edition = "2021"
 license = "Apache-2.0"
 repository = "https://github.com/lightprotocol/light-protocol"
 description = "Utility library for Light's Forester node implementation"
+publish = false
 
 [features]
 default = ["v2"]

@@ -24,3 +24,5 @@ light-zero-copy-derive = { workspace = true, optional = true }
 rand = { workspace = true }
 zerocopy = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
+trybuild = "1.0"
+light-zero-copy-derive = { workspace = true }

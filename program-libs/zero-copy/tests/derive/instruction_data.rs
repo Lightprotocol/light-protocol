@@ -15,13 +15,13 @@ use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
     Copy,
     PartialEq,
     Clone,
+    Default,
     Immutable,
     FromBytes,
     IntoBytes,
     KnownLayout,
     BorshDeserialize,
     BorshSerialize,
-    Default,
     Unaligned,
 )]
 #[repr(C)]

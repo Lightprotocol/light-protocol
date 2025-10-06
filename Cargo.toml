@@ -200,7 +200,7 @@ light-bounded-vec = { version = "2.0.0" }
 light-poseidon = { version = "0.3.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
 light-indexed-array = { path = "program-libs/indexed-array", version = "0.1.0" }
-light-program-profiler = { git = "https://github.com/Lightprotocol/light-program-profiler", rev = "36a75e14f54dd862bf2f338c97435ffc7e3e8de9", version = "0.1.0" }
+light-program-profiler = { version = "0.1.0" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
 groth16-solana = { version = "0.2.0" }
 bytemuck = { version = "1.19.0" }

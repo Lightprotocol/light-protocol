@@ -1,5 +1,5 @@
 error: ZeroCopyMut requires #[repr(C)] attribute for memory layout safety. Add #[repr(C)] above the zerocopymut declaration.
- --> tests/ui/fail_mut/missing_repr_c_mut.rs:4:10
+ --> tests/derive/ui/fail_mut/missing_repr_c_mut.rs:4:10
   |
 4 | #[derive(ZeroCopyMut)]
   |          ^^^^^^^^^^^
