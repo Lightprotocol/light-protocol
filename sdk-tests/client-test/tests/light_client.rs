@@ -23,9 +23,9 @@ use light_test_utils::{system_program::create_invoke_instruction, Rpc, RpcError}
 use solana_compute_budget_interface::ComputeBudgetInstruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
+use solana_sdk::system_instruction::create_account;
 use solana_signature::Signature;
 use solana_signer::Signer;
-use solana_system_interface::instruction::create_account;
 use solana_transaction::Transaction;
 
 // Constants
