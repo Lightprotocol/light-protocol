@@ -1,4 +1,3 @@
-#![cfg(feature = "test-only")]
 use light_batched_merkle_tree::{
     batch::Batch,
     constants::NUM_BATCHES,

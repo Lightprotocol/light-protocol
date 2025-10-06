@@ -55,13 +55,9 @@ light-macros = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
-light-prover-client = { workspace = true, features = ["devenv"] }
 light-merkle-tree-reference = { workspace = true }
-tokio = { workspace = true }
-serial_test = { workspace = true }
 light-account-checks = { workspace = true, features = ["test-only"] }
 light-compressed-account = { workspace = true, features = ["new-unique"] }
-light-test-utils = { workspace = true, features = ["test-only"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

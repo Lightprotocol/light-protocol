@@ -1,4 +1,3 @@
-#![cfg(feature = "test-only")]
 #![allow(unused_assignments)]
 use std::cmp::min;
 

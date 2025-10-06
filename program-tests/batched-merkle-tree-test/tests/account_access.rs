@@ -1,6 +1,3 @@
-#![cfg(feature = "test-only")]
-#![cfg(feature = "solana")]
-
 use light_account_checks::account_info::test_account_info::solana_program::TestAccount;
 use light_batched_merkle_tree::{
     constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, ADDRESS_TREE_INIT_ROOT_40},

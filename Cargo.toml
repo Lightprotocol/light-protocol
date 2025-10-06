@@ -28,6 +28,7 @@ members = [
     "sdk-libs/program-test",
     "xtask",
     "program-tests/account-compression-test",
+    "program-tests/batched-merkle-tree-test",
     "program-tests/compressed-token-test",
     "program-tests/e2e-test",
     "program-tests/registry-test",

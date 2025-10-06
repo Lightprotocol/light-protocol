@@ -39,9 +39,10 @@ jobs:
             test_cmd: |
               cargo test -p light-concurrent-merkle-tree
           - name: batched-merkle-tree-simulate
-            packages: light-batched-merkle-tree
+            packages: light-batched-merkle-tree batched-merkle-tree-tests
             test_cmd: |
-              RUST_LOG=light_prover_client=debug cargo test -p light-batched-merkle-tree --features test-only -- --test test_simulate_transactions
+              cargo test -p light-batched-merkle-tree --features test-only
+              RUST_LOG=light_prover_client=debug cargo test -p batched-merkle-tree-tests -- --test test_simulate_transactions
           - name: program-libs-fast
             packages:
               aligned-sized light-hasher light-compressed-account light-account-checks \
@@ -60,12 +61,13 @@ jobs:
               cargo build -p light-zero-copy --no-default-features  # Ensure no_std builds
               cargo test -p light-zero-copy-derive --all-features
               cargo test -p light-hash-set --all-features
+              cargo test -p batched-merkle-tree-tests -- --skip test_simulate_transactions --skip test_e2e
           - name: program-libs-slow
-            packages: light-bloom-filter light-indexed-merkle-tree light-batched-merkle-tree
+            packages: light-bloom-filter light-indexed-merkle-tree batched-merkle-tree-tests
             test_cmd: |
               cargo test -p light-bloom-filter --all-features
               cargo test -p light-indexed-merkle-tree --all-features
-              cargo test -p light-batched-merkle-tree --all-features -- --test test_e2e
+              cargo test -p batched-merkle-tree-tests -- --test test_e2e
 
     name: Test ${{ matrix.group.name }}
 
