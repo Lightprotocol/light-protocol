@@ -5,6 +5,7 @@ description = "Utilities used in Light Protocol program tests"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
+publish = false
 
 [features]
 default = []

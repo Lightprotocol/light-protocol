@@ -1,0 +1,723 @@
+error[E0404]: expected trait, found associated type `light_zero_copy::traits::ZeroCopyStructInner::ZeroCopyInner`
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ not a trait
+  |
+  = note: this error originates in the derive macro `ZeroCopy` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0404]: expected trait, found associated type `light_zero_copy::traits::ZeroCopyStructInnerMut::ZeroCopyInnerMut`
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ not a trait
+  |
+  = note: this error originates in the derive macro `ZeroCopyMut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: light_zero_copy::Unaligned` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ the trait `light_zero_copy::Unaligned` is not implemented for `char`
+  |
+  = note: Consider adding `#[derive(Unaligned)]` to `char`
+  = help: the following other types implement trait `light_zero_copy::Unaligned`:
+            ()
+            AtomicBool
+            AtomicI8
+            AtomicU8
+            Cell<T>
+            F32<O>
+            F64<O>
+            I128<O>
+          and $N others
+  = help: see issue #48214
+  = note: this error originates in the derive macro `::light_zero_copy::Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: FromBytes` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ the trait `FromBytes` is not implemented for `char`
+  |
+  = note: Consider adding `#[derive(FromBytes)]` to `char`
+  = help: the following other types implement trait `FromBytes`:
+            ()
+            AtomicI16
+            AtomicI32
+            AtomicI64
+            AtomicI8
+            AtomicIsize
+            AtomicU16
+            AtomicU32
+          and $N others
+  = help: see issue #48214
+  = note: this error originates in the derive macro `::light_zero_copy::FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: ZeroCopyAt<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ the trait `ZeroCopyAt<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyAt<'a>`:
+            `CharFields` implements `ZeroCopyAt<'a>`
+            `I16<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `I32<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `I64<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `Option<T>` implements `ZeroCopyAt<'a>`
+            `U16<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `U32<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `U64<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyAt<'a>`
+  = note: this error originates in the derive macro `ZeroCopy` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: ZeroCopyNew<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `ZeroCopyNew<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyNew<'a>`:
+            CharFields
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+            Vec<T>
+            [T; N]
+            bool
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyNew<'static>`
+  = note: this error originates in the derive macro `ZeroCopyMut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: ZeroCopyNew<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `ZeroCopyNew<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyNew<'a>`:
+            CharFields
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+            Vec<T>
+            [T; N]
+            bool
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyNew<'static>`
+note: required because it appears within the type `CharFieldsConfig`
+ --> tests/ui/fail/67_char_type.rs:7:12
+  |
+7 | pub struct CharFields {
+  |            ^^^^^^^^^^
+note: required by a bound in `Clone`
+ --> $RUST/core/src/clone.rs
+  |
+  | pub trait Clone: Sized {
+  |                  ^^^^^ required by this bound in `Clone`
+
+error[E0277]: the trait bound `char: light_zero_copy::Unaligned` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `light_zero_copy::Unaligned` is not implemented for `char`
+  |
+  = note: Consider adding `#[derive(Unaligned)]` to `char`
+  = help: the following other types implement trait `light_zero_copy::Unaligned`:
+            ()
+            AtomicBool
+            AtomicI8
+            AtomicU8
+            Cell<T>
+            F32<O>
+            F64<O>
+            I128<O>
+          and $N others
+  = help: see issue #48214
+  = note: this error originates in the derive macro `::light_zero_copy::Unaligned` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: FromBytes` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `FromBytes` is not implemented for `char`
+  |
+  = note: Consider adding `#[derive(FromBytes)]` to `char`
+  = help: the following other types implement trait `FromBytes`:
+            ()
+            AtomicI16
+            AtomicI32
+            AtomicI64
+            AtomicI8
+            AtomicIsize
+            AtomicU16
+            AtomicU32
+          and $N others
+  = help: see issue #48214
+  = note: this error originates in the derive macro `::light_zero_copy::FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: ZeroCopyAtMut<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `ZeroCopyAtMut<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyAtMut<'a>`:
+            CharFields
+            I16<zerocopy::LittleEndian>
+            I32<zerocopy::LittleEndian>
+            I64<zerocopy::LittleEndian>
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyAtMut<'a>`
+  = note: this error originates in the derive macro `ZeroCopyMut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: ZeroCopyNew<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:7:12
+  |
+7 | pub struct CharFields {
+  |            ^^^^^^^^^^ the trait `ZeroCopyNew<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyNew<'a>`:
+            CharFields
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+            Vec<T>
+            [T; N]
+            bool
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyNew<'static>`
+note: required because it appears within the type `CharFieldsConfig`
+ --> tests/ui/fail/67_char_type.rs:7:12
+  |
+7 | pub struct CharFields {
+  |            ^^^^^^^^^^
+note: required by a bound in `light_zero_copy::ZeroCopyNew::ZeroCopyConfig`
+ --> $WORKSPACE/program-libs/zero-copy/src/traits/zero_copy_new.rs
+  |
+  |     type ZeroCopyConfig;
+  |     ^^^^^^^^^^^^^^^^^^^^ required by this bound in `ZeroCopyNew::ZeroCopyConfig`
+
+error[E0277]: the trait bound `char: ZeroCopyNew<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `ZeroCopyNew<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyNew<'a>`:
+            CharFields
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+            Vec<T>
+            [T; N]
+            bool
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyNew<'static>`
+note: required because it appears within the type `CharFieldsConfig`
+ --> tests/ui/fail/67_char_type.rs:7:12
+  |
+7 | pub struct CharFields {
+  |            ^^^^^^^^^^
+  = note: the return type of a function must have a statically known size
+
+error[E0277]: the trait bound `char: FromBytes` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ the trait `FromBytes` is not implemented for `char`
+  |
+  = note: Consider adding `#[derive(FromBytes)]` to `char`
+  = help: the following other types implement trait `FromBytes`:
+            ()
+            AtomicI16
+            AtomicI32
+            AtomicI64
+            AtomicI8
+            AtomicIsize
+            AtomicU16
+            AtomicU32
+          and $N others
+note: required for `ZCharFieldsMeta` to implement `FromBytes`
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ unsatisfied trait bound introduced in this `derive` macro
+note: required by a bound in `<ZCharFieldsMeta as TryFromBytes>::is_bit_valid::assert_is_from_bytes`
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ required by this bound in `assert_is_from_bytes`
+  = note: this error originates in the derive macro `::light_zero_copy::FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: ZeroCopyAt<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ the trait `ZeroCopyAt<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyAt<'a>`:
+            `CharFields` implements `ZeroCopyAt<'a>`
+            `I16<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `I32<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `I64<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `Option<T>` implements `ZeroCopyAt<'a>`
+            `U16<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `U32<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `U64<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyAt<'a>`
+
+error[E0277]: the trait bound `char: FromBytes` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ the trait `FromBytes` is not implemented for `char`
+  |
+  = note: Consider adding `#[derive(FromBytes)]` to `char`
+  = help: the following other types implement trait `FromBytes`:
+            ()
+            AtomicI16
+            AtomicI32
+            AtomicI64
+            AtomicI8
+            AtomicIsize
+            AtomicU16
+            AtomicU32
+          and $N others
+note: required for `ZCharFieldsMeta` to implement `FromBytes`
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ unsatisfied trait bound introduced in this `derive` macro
+  = note: required for `light_zero_copy::Ref<&'a [u8], ZCharFieldsMeta>` to implement `Debug`
+  = note: required for the cast from `&light_zero_copy::Ref<&'a [u8], ZCharFieldsMeta>` to `&dyn Debug`
+  = note: this error originates in the derive macro `Debug` which comes from the expansion of the derive macro `::light_zero_copy::FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0369]: binary operation `==` cannot be applied to type `light_zero_copy::Ref<&[u8], ZCharFieldsMeta>`
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^
+
+error[E0277]: the trait bound `char: ZeroCopyAt<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ the trait `ZeroCopyAt<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyAt<'a>`:
+            `CharFields` implements `ZeroCopyAt<'a>`
+            `I16<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `I32<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `I64<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `Option<T>` implements `ZeroCopyAt<'a>`
+            `U16<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `U32<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `U64<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyAt<'a>`
+
+error[E0369]: binary operation `==` cannot be applied to type `light_zero_copy::Ref<&[u8], [char; 10]>`
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^
+
+error[E0277]: the trait bound `char: ZeroCopyAt<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ the trait `ZeroCopyAt<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyAt<'a>`:
+            `CharFields` implements `ZeroCopyAt<'a>`
+            `I16<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `I32<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `I64<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `Option<T>` implements `ZeroCopyAt<'a>`
+            `U16<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `U32<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `U64<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyAt<'_>`
+
+error[E0277]: the trait bound `char: ZeroCopyStructInner` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:9:20
+  |
+9 |     pub chars: Vec<char>,
+  |                    ^^^^ the trait `ZeroCopyStructInner` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyStructInner`:
+            CharFields
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+            Vec<T>
+            [u8; N]
+            u16
+          and $N others
+
+error[E0277]: the trait bound `char: ZeroCopyStructInner` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ the trait `ZeroCopyStructInner` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyStructInner`:
+            CharFields
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+            Vec<T>
+            [u8; N]
+            u16
+          and $N others
+  = note: this error originates in the derive macro `ZeroCopy` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: ZeroCopyAt<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ the trait `ZeroCopyAt<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyAt<'a>`:
+            `CharFields` implements `ZeroCopyAt<'a>`
+            `I16<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `I32<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `I64<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `Option<T>` implements `ZeroCopyAt<'a>`
+            `U16<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `U32<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+            `U64<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyAt<'_>`
+  = note: this error originates in the derive macro `ZeroCopy` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: ZeroCopyAt<'_>` is not satisfied
+  --> tests/ui/fail/67_char_type.rs:10:9
+   |
+10 |     pub maybe_char: Option<char>,
+   |         ^^^^^^^^^^ the trait `ZeroCopyAt<'_>` is not implemented for `char`
+   |
+   = help: the following other types implement trait `ZeroCopyAt<'a>`:
+             `CharFields` implements `ZeroCopyAt<'a>`
+             `I16<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+             `I32<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+             `I64<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+             `Option<T>` implements `ZeroCopyAt<'a>`
+             `U16<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+             `U32<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+             `U64<zerocopy::LittleEndian>` implements `ZeroCopyAt<'a>`
+           and $N others
+   = note: required for `Option<char>` to implement `ZeroCopyAt<'_>`
+
+error[E0277]: the trait bound `char: ZeroCopyNew<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `ZeroCopyNew<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyNew<'a>`:
+            CharFields
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+            Vec<T>
+            [T; N]
+            bool
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyNew<'static>`
+
+error[E0277]: the trait bound `char: ZeroCopyNew<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `ZeroCopyNew<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyNew<'a>`:
+            CharFields
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+            Vec<T>
+            [T; N]
+            bool
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyNew<'static>`
+
+error[E0277]: the trait bound `char: ZeroCopyNew<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `ZeroCopyNew<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyNew<'a>`:
+            CharFields
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+            Vec<T>
+            [T; N]
+            bool
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyNew<'static>`
+
+error[E0277]: the trait bound `char: FromBytes` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `FromBytes` is not implemented for `char`
+  |
+  = note: Consider adding `#[derive(FromBytes)]` to `char`
+  = help: the following other types implement trait `FromBytes`:
+            ()
+            AtomicI16
+            AtomicI32
+            AtomicI64
+            AtomicI8
+            AtomicIsize
+            AtomicU16
+            AtomicU32
+          and $N others
+note: required for `ZCharFieldsMetaMut` to implement `FromBytes`
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ unsatisfied trait bound introduced in this `derive` macro
+note: required by a bound in `<ZCharFieldsMetaMut as TryFromBytes>::is_bit_valid::assert_is_from_bytes`
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ required by this bound in `assert_is_from_bytes`
+  = note: this error originates in the derive macro `::light_zero_copy::FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: ZeroCopyAtMut<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `ZeroCopyAtMut<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyAtMut<'a>`:
+            CharFields
+            I16<zerocopy::LittleEndian>
+            I32<zerocopy::LittleEndian>
+            I64<zerocopy::LittleEndian>
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyAtMut<'a>`
+
+error[E0277]: the trait bound `char: FromBytes` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `FromBytes` is not implemented for `char`
+  |
+  = note: Consider adding `#[derive(FromBytes)]` to `char`
+  = help: the following other types implement trait `FromBytes`:
+            ()
+            AtomicI16
+            AtomicI32
+            AtomicI64
+            AtomicI8
+            AtomicIsize
+            AtomicU16
+            AtomicU32
+          and $N others
+note: required for `ZCharFieldsMetaMut` to implement `FromBytes`
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ unsatisfied trait bound introduced in this `derive` macro
+  = note: required for `light_zero_copy::Ref<&'a mut [u8], ZCharFieldsMetaMut>` to implement `Debug`
+  = note: required for the cast from `&light_zero_copy::Ref<&'a mut [u8], ZCharFieldsMetaMut>` to `&dyn Debug`
+  = note: this error originates in the derive macro `Debug` which comes from the expansion of the derive macro `::light_zero_copy::FromBytes` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: ZeroCopyStructInnerMut` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:9:20
+  |
+9 |     pub chars: Vec<char>,
+  |                    ^^^^ the trait `ZeroCopyStructInnerMut` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyStructInnerMut`:
+            CharFields
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+            Vec<T>
+            [u8; N]
+            u16
+          and $N others
+
+error[E0277]: the trait bound `char: ZeroCopyStructInnerMut` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `ZeroCopyStructInnerMut` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyStructInnerMut`:
+            CharFields
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+            Vec<T>
+            [u8; N]
+            u16
+          and $N others
+  = note: this error originates in the derive macro `ZeroCopyMut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: ZeroCopyAtMut<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `ZeroCopyAtMut<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyAtMut<'a>`:
+            CharFields
+            I16<zerocopy::LittleEndian>
+            I32<zerocopy::LittleEndian>
+            I64<zerocopy::LittleEndian>
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyAtMut<'_>`
+  = note: this error originates in the derive macro `ZeroCopyMut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: ZeroCopyAtMut<'_>` is not satisfied
+  --> tests/ui/fail/67_char_type.rs:10:9
+   |
+10 |     pub maybe_char: Option<char>,
+   |         ^^^^^^^^^^ the trait `ZeroCopyAtMut<'_>` is not implemented for `char`
+   |
+   = help: the following other types implement trait `ZeroCopyAtMut<'a>`:
+             CharFields
+             I16<zerocopy::LittleEndian>
+             I32<zerocopy::LittleEndian>
+             I64<zerocopy::LittleEndian>
+             Option<T>
+             U16<zerocopy::LittleEndian>
+             U32<zerocopy::LittleEndian>
+             U64<zerocopy::LittleEndian>
+           and $N others
+   = note: required for `Option<char>` to implement `ZeroCopyAtMut<'_>`
+
+error[E0277]: the trait bound `char: ZeroCopyNew<'_>` is not satisfied
+  --> tests/ui/fail/67_char_type.rs:10:21
+   |
+10 |     pub maybe_char: Option<char>,
+   |                     ^^^^^^^^^^^^ the trait `ZeroCopyNew<'_>` is not implemented for `char`
+   |
+   = help: the following other types implement trait `ZeroCopyNew<'a>`:
+             CharFields
+             Option<T>
+             U16<zerocopy::LittleEndian>
+             U32<zerocopy::LittleEndian>
+             U64<zerocopy::LittleEndian>
+             Vec<T>
+             [T; N]
+             bool
+           and $N others
+   = note: required for `Option<char>` to implement `ZeroCopyNew<'static>`
+
+error[E0277]: the trait bound `char: ZeroCopyNew<'_>` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `ZeroCopyNew<'_>` is not implemented for `char`
+  |
+  = help: the following other types implement trait `ZeroCopyNew<'a>`:
+            CharFields
+            Option<T>
+            U16<zerocopy::LittleEndian>
+            U32<zerocopy::LittleEndian>
+            U64<zerocopy::LittleEndian>
+            Vec<T>
+            [T; N]
+            bool
+          and $N others
+  = note: required for `Option<char>` to implement `ZeroCopyNew<'static>`
+note: required because it appears within the type `CharFieldsConfig`
+ --> tests/ui/fail/67_char_type.rs:7:12
+  |
+7 | pub struct CharFields {
+  |            ^^^^^^^^^^
+  = note: this error originates in the derive macro `ZeroCopyMut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: FromBytes` is not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `FromBytes` is not implemented for `char`
+  |
+  = note: Consider adding `#[derive(FromBytes)]` to `char`
+  = help: the following other types implement trait `FromBytes`:
+            ()
+            AtomicI16
+            AtomicI32
+            AtomicI64
+            AtomicI8
+            AtomicIsize
+            AtomicU16
+            AtomicU32
+          and $N others
+  = note: required for `char` to implement `ZeroCopyTraits`
+note: required by a bound in `ZeroCopySliceMut`
+ --> $WORKSPACE/program-libs/zero-copy/src/slice_mut.rs
+  |
+  | pub struct ZeroCopySliceMut<'a, L, T, const PAD: bool = true>
+  |            ---------------- required by a bound in this struct
+...
+  |     T: ZeroCopyTraits,
+  |        ^^^^^^^^^^^^^^ required by this bound in `ZeroCopySliceMut`
+  = note: this error originates in the derive macro `ZeroCopyMut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: the function or associated item `new_at` exists for struct `ZeroCopySliceMut<'_, U32<zerocopy::LittleEndian>, char, false>`, but its trait bounds were not satisfied
+ --> tests/ui/fail/67_char_type.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ function or associated item cannot be called due to unsatisfied trait bounds
+  |
+  = note: the following trait bounds were not satisfied:
+          `char: FromBytes`
+          which is required by `char: ZeroCopyTraits`
+  = note: this error originates in the derive macro `ZeroCopyMut` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0277]: the trait bound `char: ZeroCopyNew<'_>` is not satisfied
+  --> tests/ui/fail/67_char_type.rs:10:21
+   |
+10 |     pub maybe_char: Option<char>,
+   |                     ^^^^^^^^^^^^ the trait `ZeroCopyNew<'_>` is not implemented for `char`
+   |
+   = help: the following other types implement trait `ZeroCopyNew<'a>`:
+             CharFields
+             Option<T>
+             U16<zerocopy::LittleEndian>
+             U32<zerocopy::LittleEndian>
+             U64<zerocopy::LittleEndian>
+             Vec<T>
+             [T; N]
+             bool
+           and $N others
+   = note: required for `Option<char>` to implement `ZeroCopyNew<'a>`

@@ -4,6 +4,7 @@ version = "0.7.0"
 description = "Test program for Light SDK and Light Macros"
 edition = "2021"
 license = "Apache-2.0"
+publish = false
 
 [lib]
 crate-type = ["cdylib", "lib"]

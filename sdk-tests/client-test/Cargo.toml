@@ -5,6 +5,7 @@ description = "Tests for light-client and light-program-test."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
+publish = false
 
 [lib]
 crate-type = ["lib"]

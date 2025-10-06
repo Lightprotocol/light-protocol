@@ -1,0 +1,20 @@
+[package]
+name = "zero-copy-derive-test"
+version = "0.1.0"
+description = "Zero-copy derive macro tests."
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+publish = false
+
+[dev-dependencies]
+rand = { workspace = true }
+zerocopy = { workspace = true, features = ["derive"] }
+borsh = { workspace = true }
+trybuild = "1.0"
+light-zero-copy-derive = { workspace = true, features = ["mut"]}
+light-zero-copy = { workspace = true, features = ["derive", "mut", "std"] }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = ['cfg(target_os, values("solana"))']
