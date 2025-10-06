@@ -32,33 +32,30 @@ echo "Changed files:"
 git diff --name-only | grep Cargo.toml || echo "  (no Cargo.toml changes)"
 echo ""
 
-# Extract version changes with crate names
-VERSION_CHANGES=$(git diff -- '**/Cargo.toml' | awk '
-  /^diff --git/ {
-    split($3, parts, "/");
-    if (parts[2] == "program-libs" && parts[4] == "Cargo.toml") {
-      crate = parts[3];
-    } else if (parts[2] == "sdk-libs" && parts[4] == "Cargo.toml") {
-      crate = parts[3];
-    } else {
-      crate = "";
-    }
-  }
-  /^-version = / {
-    old_ver = $3;
-    gsub(/"/, "", old_ver);
-  }
-  /^\+version = / {
-    new_ver = $3;
-    gsub(/"/, "", new_ver);
-    if (crate && old_ver && new_ver) {
-      printf "  %s: %s → %s\n", crate, old_ver, new_ver;
-      crate = "";
-      old_ver = "";
-      new_ver = "";
-    }
-  }
-')
+# Extract version changes with package names
+VERSION_CHANGES=""
+PACKAGES=()
+
+# Get list of changed Cargo.toml files in program-libs, sdk-libs, and program-tests/merkle-tree
+for file in $(git diff --name-only -- '**/Cargo.toml' | grep -E '(program-libs|sdk-libs|program-tests/merkle-tree)/'); do
+    # Extract old and new version from the diff
+    versions=$(git diff "$file" | grep -E '^\+version|^-version' | grep -v '+++\|---')
+    old_ver=$(echo "$versions" | grep '^-version' | head -1 | awk -F'"' '{print $2}')
+    new_ver=$(echo "$versions" | grep '^\+version' | head -1 | awk -F'"' '{print $2}')
+
+    # Only process if version actually changed
+    if [ -n "$old_ver" ] && [ -n "$new_ver" ] && [ "$old_ver" != "$new_ver" ]; then
+        # Extract actual package name from Cargo.toml
+        pkg_name=$(grep '^name = ' "$file" | head -1 | awk -F'"' '{print $2}')
+
+        if [ -n "$pkg_name" ]; then
+            VERSION_CHANGES="${VERSION_CHANGES}  ${pkg_name}: ${old_ver} → ${new_ver}\n"
+            PACKAGES+=("$pkg_name")
+        fi
+    fi
+done
+
+VERSION_CHANGES=$(echo -e "$VERSION_CHANGES")
 
 echo "Version changes:"
 if [ -z "$VERSION_CHANGES" ]; then
@@ -92,30 +89,14 @@ echo "Running cargo release dry-run validation..."
 echo "========================================="
 echo ""
 
-# Determine which packages to validate
-if [ "$RELEASE_TYPE" == "program-libs" ]; then
-    PACKAGES=(
-        "light-account-checks" "aligned-sized" "light-batched-merkle-tree"
-        "light-bloom-filter" "light-compressed-account" "light-concurrent-merkle-tree"
-        "light-hash-set" "light-hasher" "light-heap" "light-indexed-array"
-        "light-indexed-merkle-tree" "light-macros" "light-merkle-tree-metadata"
-        "light-merkle-tree-reference" "light-verifier" "light-zero-copy-derive" "light-zero-copy"
-    )
-else
-    PACKAGES=(
-        "light-sdk-macros" "light-sdk-types" "light-sdk-pinocchio"
-        "light-sdk" "light-client" "photon-api" "light-program-test"
-    )
-fi
-
-# Build package args for workspace publish command
+# Build package args for workspace publish command (using detected packages from version changes)
 PACKAGE_ARGS=""
 for pkg in "${PACKAGES[@]}"; do
     PACKAGE_ARGS="$PACKAGE_ARGS -p $pkg"
 done
 
-echo "Validating packages in correct dependency order..."
-ERROR_OUTPUT=$(cargo publish --dry-run --allow-dirty $PACKAGE_ARGS 2>&1)
+echo "Validating packages with cargo publis --dry-run"
+ERROR_OUTPUT=$(cargo publish --dry-run --allow-dirty $PACKAGE_ARGS )
 if [ $? -ne 0 ]; then
     echo "✗ Validation failed"
     echo ""
@@ -151,7 +132,11 @@ git push -u origin "$BRANCH_NAME"
 echo ""
 echo "Creating pull request..."
 
-PR_BODY="## ${RELEASE_TYPE^} Release
+# Capitalize first letter of release type (bash 3.2 compatible)
+RELEASE_TYPE_CAPS="$(echo ${RELEASE_TYPE:0:1} | tr '[:lower:]' '[:upper:]')${RELEASE_TYPE:1}"
+
+# Build PR body with proper escaping
+PR_BODY="## ${RELEASE_TYPE_CAPS} Release
 
 This PR bumps versions for ${RELEASE_TYPE} crates.
 
