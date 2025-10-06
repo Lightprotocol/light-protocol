@@ -1,6 +1,9 @@
 /// UI tests using trybuild to validate error messages and compilation behavior
+/// These tests verify that derive macros produce helpful error messages.
+/// They are skipped in CI because compiler error messages vary between platforms.
 
 #[test]
+#[ignore = "fails in ci for unrelated reasons"]
 fn ui_tests() {
     let t = trybuild::TestCases::new();
 
@@ -12,6 +15,7 @@ fn ui_tests() {
 }
 
 #[test]
+#[ignore = "fails in ci for unrelated reasons"]
 fn ui_tests_zerocopy_mut() {
     let t = trybuild::TestCases::new();
 
