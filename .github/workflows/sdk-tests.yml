@@ -56,7 +56,7 @@ jobs:
           - program: sdk-anchor-test-program
             sub-tests: '["cargo-test-sbf -p sdk-anchor-test", "cargo-test-sbf -p sdk-pinocchio-v1-test", "cargo-test-sbf -p sdk-pinocchio-v2-test"]'
           - program: sdk-libs
-            packages: light-sdk-macros light-sdk light-program-test light-client batched-merkle-tree-tests
+            packages: light-sdk-macros light-sdk light-program-test light-client batched-merkle-tree-test
             test_cmd: |
               cargo test -p light-sdk-macros
               cargo test -p light-sdk-macros --all-features
