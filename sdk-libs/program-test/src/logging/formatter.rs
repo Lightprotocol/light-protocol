@@ -926,12 +926,8 @@ impl TransactionFormatter {
                             super::types::AddressAssignment::AssignedIndex(idx) => {
                                 format!("{}", idx)
                             }
-                            super::types::AddressAssignment::None => {
-                                "none".to_string()
-                            }
-                            super::types::AddressAssignment::V1 => {
-                                "n/a (v1)".to_string()
-                            }
+                            super::types::AddressAssignment::None => "none".to_string(),
+                            super::types::AddressAssignment::V1 => "n/a (v1)".to_string(),
                         };
                         writeln!(
                             output,
