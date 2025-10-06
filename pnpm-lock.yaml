@@ -25,16 +25,16 @@ importers:
         version: 0.7.5
       syncpack:
         specifier: ^13.0.4
-        version: 13.0.4(typescript@5.9.2)
+        version: 13.0.4(typescript@5.9.3)
       typescript:
-        specifier: ^5.9.2
-        version: 5.9.2
+        specifier: ^5.9.3
+        version: 5.9.3
 
   cli:
     dependencies:
       '@coral-xyz/anchor':
         specifier: 0.29.0
-        version: 0.29.0(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+        version: 0.29.0(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@lightprotocol/compressed-token':
         specifier: workspace:*
         version: link:../js/compressed-token
@@ -64,7 +64,7 @@ importers:
         version: 0.4.14(bufferutil@4.0.8)(utf-8-validate@5.0.10)
       '@solana/web3.js':
         specifier: 1.98.4
-        version: 1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+        version: 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
       axios:
         specifier: 1.12.2
         version: 1.12.2
@@ -116,7 +116,7 @@ importers:
         version: 4.1.14(@oclif/core@4.5.4)
       '@solana/spl-token':
         specifier: ^0.3.11
-        version: 0.3.11(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)(utf-8-validate@5.0.10)
+        version: 0.3.11(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@types/bn.js':
         specifier: ^5.1.5
         version: 5.2.0
@@ -143,10 +143,10 @@ importers:
         version: 3.0.4
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.44.0
-        version: 8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.2))(eslint@9.36.0)(typescript@5.9.2)
+        version: 8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0)(typescript@5.9.3)
       '@typescript-eslint/parser':
         specifier: ^8.44.0
-        version: 8.44.0(eslint@9.36.0)(typescript@5.9.2)
+        version: 8.44.0(eslint@9.36.0)(typescript@5.9.3)
       chai:
         specifier: ^6.0.1
         version: 6.0.1
@@ -179,7 +179,7 @@ importers:
         version: 4.20.5
       typescript:
         specifier: ^5.9.2
-        version: 5.9.2
+        version: 5.9.3
 
   forester:
     devDependencies:
@@ -191,7 +191,7 @@ importers:
     dependencies:
       '@coral-xyz/borsh':
         specifier: ^0.29.0
-        version: 0.29.0(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))
+        version: 0.29.0(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))
       '@lightprotocol/stateless.js':
         specifier: workspace:*
         version: link:../stateless.js
@@ -204,7 +204,7 @@ importers:
     devDependencies:
       '@coral-xyz/anchor':
         specifier: ^0.29.0
-        version: 0.29.0(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+        version: 0.29.0(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@esbuild-plugins/node-globals-polyfill':
         specifier: ^0.2.3
         version: 0.2.3(esbuild@0.25.10)
@@ -240,13 +240,13 @@ importers:
         version: 0.4.4(rollup@4.21.3)
       '@rollup/plugin-typescript':
         specifier: ^11.1.6
-        version: 11.1.6(rollup@4.21.3)(tslib@2.7.0)(typescript@5.9.2)
+        version: 11.1.6(rollup@4.21.3)(tslib@2.7.0)(typescript@5.9.3)
       '@solana/spl-token':
         specifier: 0.4.8
-        version: 0.4.8(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)(utf-8-validate@5.0.10)
+        version: 0.4.8(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@solana/web3.js':
         specifier: 1.98.4
-        version: 1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+        version: 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@types/bn.js':
         specifier: ^5.1.5
         version: 5.2.0
@@ -255,10 +255,10 @@ importers:
         version: 22.16.5
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.44.0
-        version: 8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.2))(eslint@9.36.0)(typescript@5.9.2)
+        version: 8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0)(typescript@5.9.3)
       '@typescript-eslint/parser':
         specifier: ^8.44.0
-        version: 8.44.0(eslint@9.36.0)(typescript@5.9.2)
+        version: 8.44.0(eslint@9.36.0)(typescript@5.9.3)
       add:
         specifier: ^2.0.6
         version: 2.0.6
@@ -270,7 +270,7 @@ importers:
         version: 9.36.0
       eslint-plugin-import:
         specifier: ^2.30.0
-        version: 2.30.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.2))(eslint@9.36.0)
+        version: 2.30.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0)
       eslint-plugin-n:
         specifier: ^17.10.2
         version: 17.10.2(eslint@9.36.0)
@@ -279,7 +279,7 @@ importers:
         version: 7.1.0(eslint@9.36.0)
       eslint-plugin-vitest:
         specifier: ^0.5.4
-        version: 0.5.4(@typescript-eslint/eslint-plugin@8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.2))(eslint@9.36.0)(typescript@5.9.2))(eslint@9.36.0)(typescript@5.9.2)(vitest@2.1.1(@types/node@22.16.5)(terser@5.43.1))
+        version: 0.5.4(@typescript-eslint/eslint-plugin@8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0)(typescript@5.9.3)(vitest@2.1.1(@types/node@22.16.5)(terser@5.43.1))
       prettier:
         specifier: ^3.3.3
         version: 3.6.2
@@ -294,7 +294,7 @@ importers:
         version: 3.5.0
       rollup-plugin-dts:
         specifier: ^6.1.1
-        version: 6.1.1(rollup@4.21.3)(typescript@5.9.2)
+        version: 6.1.1(rollup@4.21.3)(typescript@5.9.3)
       rollup-plugin-polyfill-node:
         specifier: ^0.13.0
         version: 0.13.0(rollup@4.21.3)
@@ -303,13 +303,13 @@ importers:
         version: 5.12.0(rollup@4.21.3)
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@types/node@22.16.5)(typescript@5.9.2)
+        version: 10.9.2(@types/node@22.16.5)(typescript@5.9.3)
       tslib:
         specifier: ^2.7.0
         version: 2.7.0
       typescript:
         specifier: ^5.6.2
-        version: 5.9.2
+        version: 5.9.3
       vitest:
         specifier: ^2.1.1
         version: 2.1.1(@types/node@22.16.5)(terser@5.43.1)
@@ -318,7 +318,7 @@ importers:
     dependencies:
       '@coral-xyz/borsh':
         specifier: ^0.29.0
-        version: 0.29.0(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))
+        version: 0.29.0(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))
       '@noble/hashes':
         specifier: 1.5.0
         version: 1.5.0
@@ -346,7 +346,7 @@ importers:
     devDependencies:
       '@coral-xyz/anchor':
         specifier: 0.29.0
-        version: 0.29.0(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+        version: 0.29.0(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@esbuild-plugins/node-globals-polyfill':
         specifier: ^0.2.3
         version: 0.2.3(esbuild@0.25.10)
@@ -382,10 +382,10 @@ importers:
         version: 0.4.4(rollup@4.21.3)
       '@rollup/plugin-typescript':
         specifier: ^11.1.6
-        version: 11.1.6(rollup@4.21.3)(tslib@2.7.0)(typescript@5.9.2)
+        version: 11.1.6(rollup@4.21.3)(tslib@2.7.0)(typescript@5.9.3)
       '@solana/web3.js':
         specifier: 1.98.4
-        version: 1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+        version: 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@types/bn.js':
         specifier: ^5.1.5
         version: 5.2.0
@@ -394,10 +394,10 @@ importers:
         version: 22.16.5
       '@typescript-eslint/eslint-plugin':
         specifier: ^8.44.0
-        version: 8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.2))(eslint@9.36.0)(typescript@5.9.2)
+        version: 8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0)(typescript@5.9.3)
       '@typescript-eslint/parser':
         specifier: ^8.44.0
-        version: 8.44.0(eslint@9.36.0)(typescript@5.9.2)
+        version: 8.44.0(eslint@9.36.0)(typescript@5.9.3)
       eslint:
         specifier: ^9.36.0
         version: 9.36.0
@@ -409,7 +409,7 @@ importers:
         version: 7.1.0(eslint@9.36.0)
       eslint-plugin-vitest:
         specifier: ^0.5.4
-        version: 0.5.4(@typescript-eslint/eslint-plugin@8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.2))(eslint@9.36.0)(typescript@5.9.2))(eslint@9.36.0)(typescript@5.9.2)(vitest@2.1.1(@types/node@22.16.5)(terser@5.43.1))
+        version: 0.5.4(@typescript-eslint/eslint-plugin@8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0)(typescript@5.9.3)(vitest@2.1.1(@types/node@22.16.5)(terser@5.43.1))
       http-server:
         specifier: ^14.1.1
         version: 14.1.1
@@ -427,13 +427,13 @@ importers:
         version: 4.21.3
       rollup-plugin-dts:
         specifier: ^6.1.1
-        version: 6.1.1(rollup@4.21.3)(typescript@5.9.2)
+        version: 6.1.1(rollup@4.21.3)(typescript@5.9.3)
       rollup-plugin-polyfill-node:
         specifier: ^0.13.0
         version: 0.13.0(rollup@4.21.3)
       ts-node:
         specifier: ^10.9.2
-        version: 10.9.2(@types/node@22.16.5)(typescript@5.9.2)
+        version: 10.9.2(@types/node@22.16.5)(typescript@5.9.3)
       tslib:
         specifier: ^2.7.0
         version: 2.7.0
@@ -442,7 +442,7 @@ importers:
         version: 1.0.3
       typescript:
         specifier: ^5.6.2
-        version: 5.9.2
+        version: 5.9.3
       vitest:
         specifier: ^2.1.1
         version: 2.1.1(@types/node@22.16.5)(terser@5.43.1)
@@ -2469,8 +2469,8 @@ packages:
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
 
-  baseline-browser-mapping@2.8.9:
-    resolution: {integrity: sha512-hY/u2lxLrbecMEWSB0IpGzGyDyeoMFQhCvZd2jGFSE5I17Fh01sYUBPCJtkWERw7zrac9+cIghxm/ytJa2X8iA==}
+  baseline-browser-mapping@2.8.12:
+    resolution: {integrity: sha512-vAPMQdnyKCBtkmQA6FMCBvU9qFIppS3nzyXnEM+Lo2IAhG4Mpjv9cCxMudhgV3YdNNJv6TNqXy97dfRVL2LmaQ==}
     hasBin: true
 
   basic-auth@2.0.1:
@@ -2547,8 +2547,8 @@ packages:
     resolution: {integrity: sha512-JWCZW6SKhfhjJxO8Tyiiy+XYB7cqd2S5/+WeYHsKdNKFlCBhKbblba1A/HN/90YwtxKc8tCErjffZl++UNmGiw==}
     engines: {node: '>= 0.12'}
 
-  browserslist@4.26.2:
-    resolution: {integrity: sha512-ECFzp6uFOSB+dcZ5BK/IBaGWssbSYBHvuMeMt3MMFyhI0Z8SqGgEkBLARgpRH3hutIgPVsALcMwbDrJqPxQ65A==}
+  browserslist@4.26.3:
+    resolution: {integrity: sha512-lAUU+02RFBuCKQPj/P6NgjlbCnLBMp4UtgTx7vNHd3XSIJF87s9a5rA3aH2yw3GS9DqZAUbOtZdCCiZeVRqt0w==}
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
 
@@ -2632,8 +2632,8 @@ packages:
     resolution: {integrity: sha512-8WB3Jcas3swSvjIeA2yvCJ+Miyz5l1ZmB6HFb9R1317dt9LCQoswg/BGrmAmkWVEszSrrg4RwmO46qIm2OEnSA==}
     engines: {node: '>=16'}
 
-  caniuse-lite@1.0.30001745:
-    resolution: {integrity: sha512-ywt6i8FzvdgrrrGbr1jZVObnVv6adj+0if2/omv9cmR2oiZs30zL4DIyaptKcbOrBdOIc74QTMoJvSE2QHh5UQ==}
+  caniuse-lite@1.0.30001748:
+    resolution: {integrity: sha512-5P5UgAr0+aBmNiplks08JLw+AW/XG/SurlgZLgB1dDLfAw7EfRGxIwzPHxdSCGY/BTKDqIVyJL87cCN6s0ZR0w==}
 
   capital-case@1.0.4:
     resolution: {integrity: sha512-ds37W8CytHgwnhGGTi88pcPyR15qoNkOpYwmMMfnWqqWgESapLqvDx6huFjQ5vqWSn2Z06173XNA7LtMOeUh1A==}
@@ -3033,8 +3033,8 @@ packages:
     engines: {node: '>=0.10.0'}
     hasBin: true
 
-  electron-to-chromium@1.5.227:
-    resolution: {integrity: sha512-ITxuoPfJu3lsNWUi2lBM2PaBPYgH3uqmxut5vmBxgYvyI4AlJ6P3Cai1O76mOrkJCBzq0IxWg/NtqOrpu/0gKA==}
+  electron-to-chromium@1.5.230:
+    resolution: {integrity: sha512-A6A6Fd3+gMdaed9wX83CvHYJb4UuapPD5X5SLq72VZJzxHSY0/LUweGXRWmQlh2ln7KV7iw7jnwXK7dlPoOnHQ==}
 
   elliptic@6.5.4:
     resolution: {integrity: sha512-iLhC6ULemrljPZb+QutR5TQGB+pdW6KGD5RSegS+8sorOZT+rdQFbsQFJgvN3eRqNALqJer4oQ16YvJHlU8hzQ==}
@@ -4454,8 +4454,8 @@ packages:
   node-machine-id@1.1.12:
     resolution: {integrity: sha512-QNABxbrPa3qEIfrE6GOJ7BYIuignnJw7iQ2YPbc3Nla1HzRJjXzZOiikfF8m7eAMfichLt3M4VgLOetqgDmgGQ==}
 
-  node-releases@2.0.21:
-    resolution: {integrity: sha512-5b0pgg78U3hwXkCM8Z9b2FJdPZlr9Psr9V2gQPESdGHqbntyFJKFW4r5TeWGFzafGY3hzs1JC62VEQMbl1JFkw==}
+  node-releases@2.0.23:
+    resolution: {integrity: sha512-cCmFDMSm26S6tQSDpBCg/NR8NENrVPhAJSf+XbxBG4rPFaaonlEoE9wHQmun+cls499TQGSb7ZyPBRlzgKfpeg==}
 
   normalize-package-data@6.0.2:
     resolution: {integrity: sha512-V6gygoYb/5EmNI+MEGrWkC+e6+Rr7mTmfHrxDbLzxQogBkgzo76rkok0Am6thgSF7Mv2nLOajAJj5vDJZEFn7g==}
@@ -5546,8 +5546,8 @@ packages:
     resolution: {integrity: sha512-3KS2b+kL7fsuk/eJZ7EQdnEmQoaho/r6KUef7hxvltNA5DR8NAUM+8wJMbJyZ4G9/7i3v5zPBIMN5aybAh2/Jg==}
     engines: {node: '>= 0.4'}
 
-  typescript@5.9.2:
-    resolution: {integrity: sha512-CWBzXQrc/qOkhidw1OzBTQuYRbfyxDXJMVJ1XNwUHGROVmuaeiEm3OslpZ1RV96d7SKKjZKrSJu3+t/xlw3R9A==}
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
     hasBin: true
 
@@ -6447,7 +6447,7 @@ snapshots:
     dependencies:
       '@babel/compat-data': 7.28.4
       '@babel/helper-validator-option': 7.27.1
-      browserslist: 4.26.2
+      browserslist: 4.26.3
       lru-cache: 5.1.1
       semver: 6.3.1
 
@@ -6536,11 +6536,11 @@ snapshots:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.27.1
 
-  '@coral-xyz/anchor@0.29.0(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)':
+  '@coral-xyz/anchor@0.29.0(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)':
     dependencies:
-      '@coral-xyz/borsh': 0.29.0(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))
+      '@coral-xyz/borsh': 0.29.0(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))
       '@noble/hashes': 1.5.0
-      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
       bn.js: 5.2.1
       bs58: 4.0.1
       buffer-layout: 1.2.2
@@ -6558,9 +6558,9 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@coral-xyz/borsh@0.29.0(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))':
+  '@coral-xyz/borsh@0.29.0(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))':
     dependencies:
-      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
       bn.js: 5.2.1
       buffer-layout: 1.2.2
 
@@ -7281,11 +7281,11 @@ snapshots:
     optionalDependencies:
       rollup: 4.21.3
 
-  '@rollup/plugin-typescript@11.1.6(rollup@4.21.3)(tslib@2.7.0)(typescript@5.9.2)':
+  '@rollup/plugin-typescript@11.1.6(rollup@4.21.3)(tslib@2.7.0)(typescript@5.9.3)':
     dependencies:
       '@rollup/pluginutils': 5.1.0(rollup@4.21.3)
       resolve: 1.22.8
-      typescript: 5.9.2
+      typescript: 5.9.3
     optionalDependencies:
       rollup: 4.21.3
       tslib: 2.7.0
@@ -7698,10 +7698,10 @@ snapshots:
       '@smithy/types': 4.5.0
       tslib: 2.8.1
 
-  '@solana/buffer-layout-utils@0.2.0(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)':
+  '@solana/buffer-layout-utils@0.2.0(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)':
     dependencies:
       '@solana/buffer-layout': 4.0.1
-      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
       bigint-buffer: 1.1.5
       bignumber.js: 9.1.2
     transitivePeerDependencies:
@@ -7716,61 +7716,61 @@ snapshots:
 
   '@solana/codecs-core@2.0.0-experimental.8618508': {}
 
-  '@solana/codecs-core@2.0.0-preview.4(typescript@5.9.2)':
+  '@solana/codecs-core@2.0.0-preview.4(typescript@5.9.3)':
     dependencies:
-      '@solana/errors': 2.0.0-preview.4(typescript@5.9.2)
-      typescript: 5.9.2
+      '@solana/errors': 2.0.0-preview.4(typescript@5.9.3)
+      typescript: 5.9.3
 
-  '@solana/codecs-core@2.0.0-rc.1(typescript@5.9.2)':
+  '@solana/codecs-core@2.0.0-rc.1(typescript@5.9.3)':
     dependencies:
-      '@solana/errors': 2.0.0-rc.1(typescript@5.9.2)
-      typescript: 5.9.2
+      '@solana/errors': 2.0.0-rc.1(typescript@5.9.3)
+      typescript: 5.9.3
 
-  '@solana/codecs-core@2.3.0(typescript@5.9.2)':
+  '@solana/codecs-core@2.3.0(typescript@5.9.3)':
     dependencies:
-      '@solana/errors': 2.3.0(typescript@5.9.2)
-      typescript: 5.9.2
+      '@solana/errors': 2.3.0(typescript@5.9.3)
+      typescript: 5.9.3
 
   '@solana/codecs-data-structures@2.0.0-experimental.8618508':
     dependencies:
       '@solana/codecs-core': 2.0.0-experimental.8618508
       '@solana/codecs-numbers': 2.0.0-experimental.8618508
 
-  '@solana/codecs-data-structures@2.0.0-preview.4(typescript@5.9.2)':
+  '@solana/codecs-data-structures@2.0.0-preview.4(typescript@5.9.3)':
     dependencies:
-      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.2)
-      '@solana/codecs-numbers': 2.0.0-preview.4(typescript@5.9.2)
-      '@solana/errors': 2.0.0-preview.4(typescript@5.9.2)
-      typescript: 5.9.2
+      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/errors': 2.0.0-preview.4(typescript@5.9.3)
+      typescript: 5.9.3
 
-  '@solana/codecs-data-structures@2.0.0-rc.1(typescript@5.9.2)':
+  '@solana/codecs-data-structures@2.0.0-rc.1(typescript@5.9.3)':
     dependencies:
-      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.2)
-      '@solana/codecs-numbers': 2.0.0-rc.1(typescript@5.9.2)
-      '@solana/errors': 2.0.0-rc.1(typescript@5.9.2)
-      typescript: 5.9.2
+      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/errors': 2.0.0-rc.1(typescript@5.9.3)
+      typescript: 5.9.3
 
   '@solana/codecs-numbers@2.0.0-experimental.8618508':
     dependencies:
       '@solana/codecs-core': 2.0.0-experimental.8618508
 
-  '@solana/codecs-numbers@2.0.0-preview.4(typescript@5.9.2)':
+  '@solana/codecs-numbers@2.0.0-preview.4(typescript@5.9.3)':
     dependencies:
-      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.2)
-      '@solana/errors': 2.0.0-preview.4(typescript@5.9.2)
-      typescript: 5.9.2
+      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/errors': 2.0.0-preview.4(typescript@5.9.3)
+      typescript: 5.9.3
 
-  '@solana/codecs-numbers@2.0.0-rc.1(typescript@5.9.2)':
+  '@solana/codecs-numbers@2.0.0-rc.1(typescript@5.9.3)':
     dependencies:
-      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.2)
-      '@solana/errors': 2.0.0-rc.1(typescript@5.9.2)
-      typescript: 5.9.2
+      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/errors': 2.0.0-rc.1(typescript@5.9.3)
+      typescript: 5.9.3
 
-  '@solana/codecs-numbers@2.3.0(typescript@5.9.2)':
+  '@solana/codecs-numbers@2.3.0(typescript@5.9.3)':
     dependencies:
-      '@solana/codecs-core': 2.3.0(typescript@5.9.2)
-      '@solana/errors': 2.3.0(typescript@5.9.2)
-      typescript: 5.9.2
+      '@solana/codecs-core': 2.3.0(typescript@5.9.3)
+      '@solana/errors': 2.3.0(typescript@5.9.3)
+      typescript: 5.9.3
 
   '@solana/codecs-strings@2.0.0-experimental.8618508(fastestsmallesttextencoderdecoder@1.0.22)':
     dependencies:
@@ -7778,99 +7778,99 @@ snapshots:
       '@solana/codecs-numbers': 2.0.0-experimental.8618508
       fastestsmallesttextencoderdecoder: 1.0.22
 
-  '@solana/codecs-strings@2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)':
+  '@solana/codecs-strings@2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
     dependencies:
-      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.2)
-      '@solana/codecs-numbers': 2.0.0-preview.4(typescript@5.9.2)
-      '@solana/errors': 2.0.0-preview.4(typescript@5.9.2)
+      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/errors': 2.0.0-preview.4(typescript@5.9.3)
       fastestsmallesttextencoderdecoder: 1.0.22
-      typescript: 5.9.2
+      typescript: 5.9.3
 
-  '@solana/codecs-strings@2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)':
+  '@solana/codecs-strings@2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
     dependencies:
-      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.2)
-      '@solana/codecs-numbers': 2.0.0-rc.1(typescript@5.9.2)
-      '@solana/errors': 2.0.0-rc.1(typescript@5.9.2)
+      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/errors': 2.0.0-rc.1(typescript@5.9.3)
       fastestsmallesttextencoderdecoder: 1.0.22
-      typescript: 5.9.2
+      typescript: 5.9.3
 
-  '@solana/codecs@2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)':
+  '@solana/codecs@2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
     dependencies:
-      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.2)
-      '@solana/codecs-data-structures': 2.0.0-preview.4(typescript@5.9.2)
-      '@solana/codecs-numbers': 2.0.0-preview.4(typescript@5.9.2)
-      '@solana/codecs-strings': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
-      '@solana/options': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
-      typescript: 5.9.2
+      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-data-structures': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-strings': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/options': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      typescript: 5.9.3
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/codecs@2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)':
+  '@solana/codecs@2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
     dependencies:
-      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.2)
-      '@solana/codecs-data-structures': 2.0.0-rc.1(typescript@5.9.2)
-      '@solana/codecs-numbers': 2.0.0-rc.1(typescript@5.9.2)
-      '@solana/codecs-strings': 2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
-      '@solana/options': 2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
-      typescript: 5.9.2
+      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-data-structures': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-strings': 2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/options': 2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      typescript: 5.9.3
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/errors@2.0.0-preview.4(typescript@5.9.2)':
+  '@solana/errors@2.0.0-preview.4(typescript@5.9.3)':
     dependencies:
       chalk: 5.4.1
       commander: 12.1.0
-      typescript: 5.9.2
+      typescript: 5.9.3
 
-  '@solana/errors@2.0.0-rc.1(typescript@5.9.2)':
+  '@solana/errors@2.0.0-rc.1(typescript@5.9.3)':
     dependencies:
       chalk: 5.4.1
       commander: 12.1.0
-      typescript: 5.9.2
+      typescript: 5.9.3
 
-  '@solana/errors@2.3.0(typescript@5.9.2)':
+  '@solana/errors@2.3.0(typescript@5.9.3)':
     dependencies:
       chalk: 5.4.1
       commander: 14.0.1
-      typescript: 5.9.2
+      typescript: 5.9.3
 
   '@solana/options@2.0.0-experimental.8618508':
     dependencies:
       '@solana/codecs-core': 2.0.0-experimental.8618508
       '@solana/codecs-numbers': 2.0.0-experimental.8618508
 
-  '@solana/options@2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)':
+  '@solana/options@2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
     dependencies:
-      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.2)
-      '@solana/codecs-data-structures': 2.0.0-preview.4(typescript@5.9.2)
-      '@solana/codecs-numbers': 2.0.0-preview.4(typescript@5.9.2)
-      '@solana/codecs-strings': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
-      '@solana/errors': 2.0.0-preview.4(typescript@5.9.2)
-      typescript: 5.9.2
+      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-data-structures': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-strings': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/errors': 2.0.0-preview.4(typescript@5.9.3)
+      typescript: 5.9.3
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/options@2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)':
+  '@solana/options@2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
     dependencies:
-      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.2)
-      '@solana/codecs-data-structures': 2.0.0-rc.1(typescript@5.9.2)
-      '@solana/codecs-numbers': 2.0.0-rc.1(typescript@5.9.2)
-      '@solana/codecs-strings': 2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
-      '@solana/errors': 2.0.0-rc.1(typescript@5.9.2)
-      typescript: 5.9.2
+      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-data-structures': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-strings': 2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/errors': 2.0.0-rc.1(typescript@5.9.3)
+      typescript: 5.9.3
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/spl-token-group@0.0.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)':
+  '@solana/spl-token-group@0.0.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
     dependencies:
-      '@solana/codecs': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
+      '@solana/codecs': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
       '@solana/spl-type-length-value': 0.1.0
-      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
       - typescript
 
-  '@solana/spl-token-metadata@0.1.2(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)':
+  '@solana/spl-token-metadata@0.1.2(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)':
     dependencies:
       '@solana/codecs-core': 2.0.0-experimental.8618508
       '@solana/codecs-data-structures': 2.0.0-experimental.8618508
@@ -7878,25 +7878,25 @@ snapshots:
       '@solana/codecs-strings': 2.0.0-experimental.8618508(fastestsmallesttextencoderdecoder@1.0.22)
       '@solana/options': 2.0.0-experimental.8618508
       '@solana/spl-type-length-value': 0.1.0
-      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
-  '@solana/spl-token-metadata@0.1.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)':
+  '@solana/spl-token-metadata@0.1.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
     dependencies:
-      '@solana/codecs': 2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
+      '@solana/codecs': 2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
       '@solana/spl-type-length-value': 0.1.0
-      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
       - typescript
 
-  '@solana/spl-token@0.3.11(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)(utf-8-validate@5.0.10)':
+  '@solana/spl-token@0.3.11(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)':
     dependencies:
       '@solana/buffer-layout': 4.0.1
-      '@solana/buffer-layout-utils': 0.2.0(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
-      '@solana/spl-token-metadata': 0.1.2(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)
-      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+      '@solana/buffer-layout-utils': 0.2.0(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      '@solana/spl-token-metadata': 0.1.2(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)
+      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
       buffer: 6.0.3
     transitivePeerDependencies:
       - bufferutil
@@ -7905,13 +7905,13 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@solana/spl-token@0.4.8(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)(utf-8-validate@5.0.10)':
+  '@solana/spl-token@0.4.8(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)':
     dependencies:
       '@solana/buffer-layout': 4.0.1
-      '@solana/buffer-layout-utils': 0.2.0(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
-      '@solana/spl-token-group': 0.0.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
-      '@solana/spl-token-metadata': 0.1.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
-      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+      '@solana/buffer-layout-utils': 0.2.0(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      '@solana/spl-token-group': 0.0.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/spl-token-metadata': 0.1.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
       buffer: 6.0.3
     transitivePeerDependencies:
       - bufferutil
@@ -7924,13 +7924,13 @@ snapshots:
     dependencies:
       buffer: 6.0.3
 
-  '@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)':
+  '@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)':
     dependencies:
       '@babel/runtime': 7.25.6
       '@noble/curves': 1.4.2
       '@noble/hashes': 1.5.0
       '@solana/buffer-layout': 4.0.1
-      '@solana/codecs-numbers': 2.3.0(typescript@5.9.2)
+      '@solana/codecs-numbers': 2.3.0(typescript@5.9.3)
       agentkeepalive: 4.5.0
       bn.js: 5.2.1
       borsh: 0.7.0
@@ -8054,41 +8054,41 @@ snapshots:
     dependencies:
       '@types/node': 22.16.5
 
-  '@typescript-eslint/eslint-plugin@8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.2))(eslint@9.36.0)(typescript@5.9.2)':
+  '@typescript-eslint/eslint-plugin@8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0)(typescript@5.9.3)':
     dependencies:
       '@eslint-community/regexpp': 4.12.1
-      '@typescript-eslint/parser': 8.44.0(eslint@9.36.0)(typescript@5.9.2)
+      '@typescript-eslint/parser': 8.44.0(eslint@9.36.0)(typescript@5.9.3)
       '@typescript-eslint/scope-manager': 8.44.0
-      '@typescript-eslint/type-utils': 8.44.0(eslint@9.36.0)(typescript@5.9.2)
-      '@typescript-eslint/utils': 8.44.0(eslint@9.36.0)(typescript@5.9.2)
+      '@typescript-eslint/type-utils': 8.44.0(eslint@9.36.0)(typescript@5.9.3)
+      '@typescript-eslint/utils': 8.44.0(eslint@9.36.0)(typescript@5.9.3)
       '@typescript-eslint/visitor-keys': 8.44.0
       eslint: 9.36.0
       graphemer: 1.4.0
       ignore: 7.0.5
       natural-compare: 1.4.0
-      ts-api-utils: 2.1.0(typescript@5.9.2)
-      typescript: 5.9.2
+      ts-api-utils: 2.1.0(typescript@5.9.3)
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.2)':
+  '@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.3)':
     dependencies:
       '@typescript-eslint/scope-manager': 8.44.0
       '@typescript-eslint/types': 8.44.0
-      '@typescript-eslint/typescript-estree': 8.44.0(typescript@5.9.2)
+      '@typescript-eslint/typescript-estree': 8.44.0(typescript@5.9.3)
       '@typescript-eslint/visitor-keys': 8.44.0
       debug: 4.4.3(supports-color@8.1.1)
       eslint: 9.36.0
-      typescript: 5.9.2
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/project-service@8.44.0(typescript@5.9.2)':
+  '@typescript-eslint/project-service@8.44.0(typescript@5.9.3)':
     dependencies:
-      '@typescript-eslint/tsconfig-utils': 8.44.0(typescript@5.9.2)
+      '@typescript-eslint/tsconfig-utils': 8.44.0(typescript@5.9.3)
       '@typescript-eslint/types': 8.44.0
       debug: 4.4.3(supports-color@8.1.1)
-      typescript: 5.9.2
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
@@ -8102,19 +8102,19 @@ snapshots:
       '@typescript-eslint/types': 8.44.0
       '@typescript-eslint/visitor-keys': 8.44.0
 
-  '@typescript-eslint/tsconfig-utils@8.44.0(typescript@5.9.2)':
+  '@typescript-eslint/tsconfig-utils@8.44.0(typescript@5.9.3)':
     dependencies:
-      typescript: 5.9.2
+      typescript: 5.9.3
 
-  '@typescript-eslint/type-utils@8.44.0(eslint@9.36.0)(typescript@5.9.2)':
+  '@typescript-eslint/type-utils@8.44.0(eslint@9.36.0)(typescript@5.9.3)':
     dependencies:
       '@typescript-eslint/types': 8.44.0
-      '@typescript-eslint/typescript-estree': 8.44.0(typescript@5.9.2)
-      '@typescript-eslint/utils': 8.44.0(eslint@9.36.0)(typescript@5.9.2)
+      '@typescript-eslint/typescript-estree': 8.44.0(typescript@5.9.3)
+      '@typescript-eslint/utils': 8.44.0(eslint@9.36.0)(typescript@5.9.3)
       debug: 4.4.3(supports-color@8.1.1)
       eslint: 9.36.0
-      ts-api-utils: 2.1.0(typescript@5.9.2)
-      typescript: 5.9.2
+      ts-api-utils: 2.1.0(typescript@5.9.3)
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
@@ -8122,7 +8122,7 @@ snapshots:
 
   '@typescript-eslint/types@8.44.0': {}
 
-  '@typescript-eslint/typescript-estree@7.13.1(typescript@5.9.2)':
+  '@typescript-eslint/typescript-estree@7.13.1(typescript@5.9.3)':
     dependencies:
       '@typescript-eslint/types': 7.13.1
       '@typescript-eslint/visitor-keys': 7.13.1
@@ -8131,16 +8131,16 @@ snapshots:
       is-glob: 4.0.3
       minimatch: 9.0.5
       semver: 7.6.3
-      ts-api-utils: 1.3.0(typescript@5.9.2)
+      ts-api-utils: 1.3.0(typescript@5.9.3)
     optionalDependencies:
-      typescript: 5.9.2
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/typescript-estree@8.44.0(typescript@5.9.2)':
+  '@typescript-eslint/typescript-estree@8.44.0(typescript@5.9.3)':
     dependencies:
-      '@typescript-eslint/project-service': 8.44.0(typescript@5.9.2)
-      '@typescript-eslint/tsconfig-utils': 8.44.0(typescript@5.9.2)
+      '@typescript-eslint/project-service': 8.44.0(typescript@5.9.3)
+      '@typescript-eslint/tsconfig-utils': 8.44.0(typescript@5.9.3)
       '@typescript-eslint/types': 8.44.0
       '@typescript-eslint/visitor-keys': 8.44.0
       debug: 4.4.3(supports-color@8.1.1)
@@ -8148,30 +8148,30 @@ snapshots:
       is-glob: 4.0.3
       minimatch: 9.0.5
       semver: 7.7.2
-      ts-api-utils: 2.1.0(typescript@5.9.2)
-      typescript: 5.9.2
+      ts-api-utils: 2.1.0(typescript@5.9.3)
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
-  '@typescript-eslint/utils@7.13.1(eslint@9.36.0)(typescript@5.9.2)':
+  '@typescript-eslint/utils@7.13.1(eslint@9.36.0)(typescript@5.9.3)':
     dependencies:
       '@eslint-community/eslint-utils': 4.7.0(eslint@9.36.0)
       '@typescript-eslint/scope-manager': 7.13.1
       '@typescript-eslint/types': 7.13.1
-      '@typescript-eslint/typescript-estree': 7.13.1(typescript@5.9.2)
+      '@typescript-eslint/typescript-estree': 7.13.1(typescript@5.9.3)
       eslint: 9.36.0
     transitivePeerDependencies:
       - supports-color
       - typescript
 
-  '@typescript-eslint/utils@8.44.0(eslint@9.36.0)(typescript@5.9.2)':
+  '@typescript-eslint/utils@8.44.0(eslint@9.36.0)(typescript@5.9.3)':
     dependencies:
       '@eslint-community/eslint-utils': 4.9.0(eslint@9.36.0)
       '@typescript-eslint/scope-manager': 8.44.0
       '@typescript-eslint/types': 8.44.0
-      '@typescript-eslint/typescript-estree': 8.44.0(typescript@5.9.2)
+      '@typescript-eslint/typescript-estree': 8.44.0(typescript@5.9.3)
       eslint: 9.36.0
-      typescript: 5.9.2
+      typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
 
@@ -8441,7 +8441,7 @@ snapshots:
 
   base64-js@1.5.1: {}
 
-  baseline-browser-mapping@2.8.9: {}
+  baseline-browser-mapping@2.8.12: {}
 
   basic-auth@2.0.1:
     dependencies:
@@ -8551,13 +8551,13 @@ snapshots:
       readable-stream: 2.3.8
       safe-buffer: 5.2.1
 
-  browserslist@4.26.2:
+  browserslist@4.26.3:
     dependencies:
-      baseline-browser-mapping: 2.8.9
-      caniuse-lite: 1.0.30001745
-      electron-to-chromium: 1.5.227
-      node-releases: 2.0.21
-      update-browserslist-db: 1.1.3(browserslist@4.26.2)
+      baseline-browser-mapping: 2.8.12
+      caniuse-lite: 1.0.30001748
+      electron-to-chromium: 1.5.230
+      node-releases: 2.0.23
+      update-browserslist-db: 1.1.3(browserslist@4.26.3)
 
   bs58@4.0.1:
     dependencies:
@@ -8652,7 +8652,7 @@ snapshots:
 
   camelcase@8.0.0: {}
 
-  caniuse-lite@1.0.30001745: {}
+  caniuse-lite@1.0.30001748: {}
 
   capital-case@1.0.4:
     dependencies:
@@ -8828,14 +8828,14 @@ snapshots:
 
   corser@2.0.1: {}
 
-  cosmiconfig@9.0.0(typescript@5.9.2):
+  cosmiconfig@9.0.0(typescript@5.9.3):
     dependencies:
       env-paths: 2.2.1
       import-fresh: 3.3.1
       js-yaml: 4.1.0
       parse-json: 5.2.0
     optionalDependencies:
-      typescript: 5.9.2
+      typescript: 5.9.3
 
   create-ecdh@4.0.4:
     dependencies:
@@ -9048,7 +9048,7 @@ snapshots:
     dependencies:
       jake: 10.9.2
 
-  electron-to-chromium@1.5.227: {}
+  electron-to-chromium@1.5.230: {}
 
   elliptic@6.5.4:
     dependencies:
@@ -9396,11 +9396,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.11.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.2))(eslint-import-resolver-node@0.3.9)(eslint@9.36.0):
+  eslint-module-utils@2.11.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint@9.36.0):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
-      '@typescript-eslint/parser': 8.44.0(eslint@9.36.0)(typescript@5.9.2)
+      '@typescript-eslint/parser': 8.44.0(eslint@9.36.0)(typescript@5.9.3)
       eslint: 9.36.0
       eslint-import-resolver-node: 0.3.9
     transitivePeerDependencies:
@@ -9413,7 +9413,7 @@ snapshots:
       eslint: 9.36.0
       eslint-compat-utils: 0.5.1(eslint@9.36.0)
 
-  eslint-plugin-import@2.30.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.2))(eslint@9.36.0):
+  eslint-plugin-import@2.30.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.8
@@ -9424,7 +9424,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 9.36.0
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.11.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.2))(eslint-import-resolver-node@0.3.9)(eslint@9.36.0)
+      eslint-module-utils: 2.11.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.3))(eslint-import-resolver-node@0.3.9)(eslint@9.36.0)
       hasown: 2.0.2
       is-core-module: 2.15.1
       is-glob: 4.0.3
@@ -9435,7 +9435,7 @@ snapshots:
       semver: 6.3.1
       tsconfig-paths: 3.15.0
     optionalDependencies:
-      '@typescript-eslint/parser': 8.44.0(eslint@9.36.0)(typescript@5.9.2)
+      '@typescript-eslint/parser': 8.44.0(eslint@9.36.0)(typescript@5.9.3)
     transitivePeerDependencies:
       - eslint-import-resolver-typescript
       - eslint-import-resolver-webpack
@@ -9457,12 +9457,12 @@ snapshots:
     dependencies:
       eslint: 9.36.0
 
-  eslint-plugin-vitest@0.5.4(@typescript-eslint/eslint-plugin@8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.2))(eslint@9.36.0)(typescript@5.9.2))(eslint@9.36.0)(typescript@5.9.2)(vitest@2.1.1(@types/node@22.16.5)(terser@5.43.1)):
+  eslint-plugin-vitest@0.5.4(@typescript-eslint/eslint-plugin@8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0)(typescript@5.9.3)(vitest@2.1.1(@types/node@22.16.5)(terser@5.43.1)):
     dependencies:
-      '@typescript-eslint/utils': 7.13.1(eslint@9.36.0)(typescript@5.9.2)
+      '@typescript-eslint/utils': 7.13.1(eslint@9.36.0)(typescript@5.9.3)
       eslint: 9.36.0
     optionalDependencies:
-      '@typescript-eslint/eslint-plugin': 8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.2))(eslint@9.36.0)(typescript@5.9.2)
+      '@typescript-eslint/eslint-plugin': 8.44.0(@typescript-eslint/parser@8.44.0(eslint@9.36.0)(typescript@5.9.3))(eslint@9.36.0)(typescript@5.9.3)
       vitest: 2.1.1(@types/node@22.16.5)(terser@5.43.1)
     transitivePeerDependencies:
       - supports-color
@@ -10722,7 +10722,7 @@ snapshots:
 
   node-machine-id@1.1.12: {}
 
-  node-releases@2.0.21: {}
+  node-releases@2.0.23: {}
 
   normalize-package-data@6.0.2:
     dependencies:
@@ -11307,11 +11307,11 @@ snapshots:
       globby: 10.0.1
       is-plain-object: 3.0.1
 
-  rollup-plugin-dts@6.1.1(rollup@4.21.3)(typescript@5.9.2):
+  rollup-plugin-dts@6.1.1(rollup@4.21.3)(typescript@5.9.3):
     dependencies:
       magic-string: 0.30.11
       rollup: 4.21.3
-      typescript: 5.9.2
+      typescript: 5.9.3
     optionalDependencies:
       '@babel/code-frame': 7.24.2
 
@@ -11718,12 +11718,12 @@ snapshots:
 
   supports-preserve-symlinks-flag@1.0.0: {}
 
-  syncpack@13.0.4(typescript@5.9.2):
+  syncpack@13.0.4(typescript@5.9.3):
     dependencies:
       chalk: 5.4.1
       chalk-template: 1.1.0
       commander: 13.1.0
-      cosmiconfig: 9.0.0(typescript@5.9.2)
+      cosmiconfig: 9.0.0(typescript@5.9.3)
       effect: 3.15.0
       enquirer: 2.4.1
       fast-check: 3.23.2
@@ -11811,13 +11811,13 @@ snapshots:
 
   tryer@1.0.1: {}
 
-  ts-api-utils@1.3.0(typescript@5.9.2):
+  ts-api-utils@1.3.0(typescript@5.9.3):
     dependencies:
-      typescript: 5.9.2
+      typescript: 5.9.3
 
-  ts-api-utils@2.1.0(typescript@5.9.2):
+  ts-api-utils@2.1.0(typescript@5.9.3):
     dependencies:
-      typescript: 5.9.2
+      typescript: 5.9.3
 
   ts-mocha@10.1.0(mocha@11.7.2):
     dependencies:
@@ -11826,7 +11826,7 @@ snapshots:
     optionalDependencies:
       tsconfig-paths: 3.15.0
 
-  ts-node@10.9.2(@types/node@22.16.5)(typescript@5.9.2):
+  ts-node@10.9.2(@types/node@22.16.5)(typescript@5.9.3):
     dependencies:
       '@cspotcode/source-map-support': 0.8.1
       '@tsconfig/node10': 1.0.9
@@ -11840,7 +11840,7 @@ snapshots:
       create-require: 1.1.1
       diff: 4.0.2
       make-error: 1.3.6
-      typescript: 5.9.2
+      typescript: 5.9.3
       v8-compile-cache-lib: 3.0.1
       yn: 3.1.1
 
@@ -11991,7 +11991,7 @@ snapshots:
       possible-typed-array-names: 1.1.0
       reflect.getprototypeof: 1.0.10
 
-  typescript@5.9.2: {}
+  typescript@5.9.3: {}
 
   unbox-primitive@1.0.2:
     dependencies:
@@ -12019,9 +12019,9 @@ snapshots:
 
   universalify@0.1.2: {}
 
-  update-browserslist-db@1.1.3(browserslist@4.26.2):
+  update-browserslist-db@1.1.3(browserslist@4.26.3):
     dependencies:
-      browserslist: 4.26.2
+      browserslist: 4.26.3
       escalade: 3.2.0
       picocolors: 1.1.1
 
