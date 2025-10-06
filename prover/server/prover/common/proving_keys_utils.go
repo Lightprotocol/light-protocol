@@ -178,27 +178,27 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	}
 
 	var appendKeys []string = []string{
-		keysDir + "v2_append_32_500.key",
+		keysDir + "batch_append_32_500.key",
 	}
 
 	var updateKeys []string = []string{
-		keysDir + "v2_update_32_500.key",
+		keysDir + "batch_update_32_500.key",
 	}
 
 	var appendTestKeys []string = []string{
-		keysDir + "v2_append_32_10.key",
+		keysDir + "batch_append_32_10.key",
 	}
 
 	var updateTestKeys []string = []string{
-		keysDir + "v2_update_32_10.key",
+		keysDir + "batch_update_32_10.key",
 	}
 
 	var addressAppendKeys []string = []string{
-		keysDir + "v2_address-append_40_250.key",
+		keysDir + "batch_address-append_40_250.key",
 	}
 
 	var addressAppendTestKeys []string = []string{
-		keysDir + "v2_address-append_40_10.key",
+		keysDir + "batch_address-append_40_10.key",
 	}
 
 	switch runMode {
