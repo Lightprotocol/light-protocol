@@ -229,11 +229,9 @@ rand = "0.8.5"
 
 [patch.crates-io]
 # Profiling logs and state is handled here
-solana-program-runtime = { git = "https://github.com/Lightprotocol/agave", rev = "35e7c295981a195e61b4f4039a5a6ef707d2210d" }
+solana-program-runtime = { git = "https://github.com/Lightprotocol/agave", rev = "be34dc76559e14921a2c8610f2fa2402bf0684bb" }
 # Profiling syscalls are defined here
-solana-bpf-loader-program = { git = "https://github.com/Lightprotocol/agave", rev = "35e7c295981a195e61b4f4039a5a6ef707d2210d" }
-# Patch solana-program-memory to use older version where is_nonoverlapping is public
-solana-program-memory = { git = "https://github.com/anza-xyz/solana-sdk", rev = "1c1d667f161666f12f5a43ebef8eda9470a8c6ee" }
+solana-bpf-loader-program = { git = "https://github.com/Lightprotocol/agave", rev = "be34dc76559e14921a2c8610f2fa2402bf0684bb" }
 
 [workspace.metadata.release]
 allow-branch = ["main", "release/*"]
