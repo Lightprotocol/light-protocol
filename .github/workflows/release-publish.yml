@@ -1,0 +1,148 @@
+name: Publish Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  publish-release:
+    # Only run on merged release PRs
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Install cargo-release
+        run: cargo install cargo-release
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Detect release type from PR
+        id: detect_type
+        env:
+          PR_BRANCH: ${{ github.event.pull_request.head.ref }}
+        run: |
+          if [[ "$PR_BRANCH" == release/program-libs-* ]]; then
+            echo "type=program-libs" >> "$GITHUB_OUTPUT"
+          elif [[ "$PR_BRANCH" == release/sdk-libs-* ]]; then
+            echo "type=sdk-libs" >> "$GITHUB_OUTPUT"
+          else
+            echo "type=unknown" >> "$GITHUB_OUTPUT"
+            echo "Error: Could not detect release type from branch: $PR_BRANCH"
+            exit 1
+          fi
+
+      - name: Get tags before publish
+        id: tags_before
+        run: |
+          git fetch --tags
+          git tag | sort > /tmp/tags_before.txt
+          cat /tmp/tags_before.txt
+
+      - name: Publish to crates.io (program-libs)
+        if: steps.detect_type.outputs.type == 'program-libs'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          PROGRAM_LIBS=(
+            "light-account-checks" "aligned-sized" "light-batched-merkle-tree"
+            "light-bloom-filter" "light-compressed-account" "light-concurrent-merkle-tree"
+            "light-hash-set" "light-hasher" "light-heap" "light-indexed-array"
+            "light-indexed-merkle-tree" "light-macros" "light-merkle-tree-metadata"
+            "light-verifier" "light-zero-copy-derive" "light-zero-copy"
+          )
+
+          PACKAGE_ARGS=()
+          for pkg in "${PROGRAM_LIBS[@]}"; do
+            PACKAGE_ARGS+=("-p" "$pkg")
+          done
+
+          echo "Publishing program-libs to crates.io and creating tags..."
+          cargo release publish "${PACKAGE_ARGS[@]}" --execute --no-confirm
+
+      - name: Publish to crates.io (sdk-libs)
+        if: steps.detect_type.outputs.type == 'sdk-libs'
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          SDK_LIBS=(
+            "light-sdk-macros" "light-sdk-types" "light-sdk-pinocchio"
+            "light-sdk" "light-client" "photon-api" "light-program-test"
+          )
+
+          PACKAGE_ARGS=()
+          for pkg in "${SDK_LIBS[@]}"; do
+            PACKAGE_ARGS+=("-p" "$pkg")
+          done
+
+          echo "Publishing sdk-libs to crates.io and creating tags..."
+          cargo release publish "${PACKAGE_ARGS[@]}" --execute --no-confirm
+
+      - name: Get new tags
+        id: new_tags
+        run: |
+          git fetch --tags
+          git tag | sort > /tmp/tags_after.txt
+          comm -13 /tmp/tags_before.txt /tmp/tags_after.txt > /tmp/new_tags.txt
+          cat /tmp/new_tags.txt
+
+      - name: Create GitHub releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -s /tmp/new_tags.txt ]; then
+            echo "Creating GitHub releases for new tags..."
+            while IFS= read -r tag; do
+              if [[ -n "$tag" ]]; then
+                echo "Creating release for $tag..."
+                gh release create "$tag" --generate-notes --title "$tag" || echo "Warning: Failed to create release for $tag"
+              fi
+            done < /tmp/new_tags.txt
+            echo "✓ GitHub releases created!"
+          else
+            echo "No new tags found"
+          fi
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const newTags = fs.readFileSync('/tmp/new_tags.txt', 'utf8').trim().split('\n').filter(t => t);
+
+            let body = '🚀 **Release published successfully!**\n\n';
+
+            if (newTags.length > 0) {
+              body += '**Published versions:**\n';
+              newTags.forEach(tag => {
+                body += `- [\`${tag}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/${tag})\n`;
+              });
+            }
+
+            body += '\n✅ Crates published to crates.io\n';
+            body += '✅ Git tags created and pushed\n';
+            body += '✅ GitHub releases created\n';
+
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body
+            });
