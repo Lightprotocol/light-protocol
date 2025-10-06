@@ -106,6 +106,17 @@ pub struct FeeSummary {
     pub compression_fee: Option<u64>,
 }
 
+/// Address assignment state
+#[derive(Debug, Clone)]
+pub enum AddressAssignment {
+    /// V1 address param (no assignment tracking)
+    V1,
+    /// Not assigned to any output account
+    None,
+    /// Assigned to output account at index
+    AssignedIndex(u8),
+}
+
 /// Address parameter information
 #[derive(Debug, Clone)]
 pub struct AddressParam {
@@ -114,6 +125,7 @@ pub struct AddressParam {
     pub merkle_tree_index: Option<u8>,
     pub root_index: Option<u16>,
     pub derived_address: Option<[u8; 32]>,
+    pub assigned_account_index: AddressAssignment,
 }
 
 /// Input account data

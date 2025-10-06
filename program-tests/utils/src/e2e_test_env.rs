@@ -2701,11 +2701,36 @@ where
             root_indices.as_slice(),
             &mut remaining_accounts,
         );
-        let output_compressed_accounts = pack_output_compressed_accounts(
+
+        // Pack output accounts and track original creation order
+        let packed_outputs_with_index = pack_output_compressed_accounts(
             output_accounts.as_slice(),
             output_merkle_trees.as_slice(),
             &mut remaining_accounts,
+        )
+        .into_iter()
+        .enumerate()
+        .collect::<Vec<_>>();
+
+        // Sort by merkle_tree_index while tracking original indices
+        let mut sorted_outputs = packed_outputs_with_index.clone();
+        sorted_outputs.sort_by_key(|(_, account)| account.merkle_tree_index);
+
+        // Create mapping: creation_order_index -> sorted_index
+        let mut creation_to_sorted_index = vec![0usize; sorted_outputs.len()];
+        for (sorted_idx, (creation_idx, _)) in sorted_outputs.iter().enumerate() {
+            creation_to_sorted_index[*creation_idx] = sorted_idx;
+        }
+        println!(
+            "creation_to_sorted_index mapping: {:?}",
+            creation_to_sorted_index
         );
+
+        let output_compressed_accounts = sorted_outputs
+            .into_iter()
+            .map(|(_, account)| account)
+            .collect::<Vec<_>>();
+
         println!(
             "output_compressed_accounts: {:?}",
             output_compressed_accounts
@@ -2734,13 +2759,15 @@ where
         );
         let mut new_address_params = Vec::new();
         for (index, new_address_param) in invoke_cpi.new_address_params.into_iter().enumerate() {
-            if let Some((_, account_index)) = new_address_indices
+            if let Some((_, creation_order_idx)) = new_address_indices
                 .iter()
                 .find(|(address_index, _)| *address_index == index)
             {
+                // Map creation order index to sorted index
+                let sorted_idx = creation_to_sorted_index[*creation_order_idx as usize];
                 new_address_params.push(NewAddressParamsAssignedPacked::new(
                     new_address_param,
-                    Some(*account_index),
+                    Some(sorted_idx.try_into().unwrap()),
                 ));
             } else {
                 new_address_params

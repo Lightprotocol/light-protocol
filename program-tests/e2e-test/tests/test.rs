@@ -115,8 +115,8 @@ async fn test_batched_only() {
         None,
     )
     .await;
-    // remove concurrent Merkle trees
-    env.indexer.state_merkle_trees.remove(0);
+    // remove the two concurrent Merkle trees
+    env.indexer.state_merkle_trees.drain(..2);
     env.indexer.address_merkle_trees.remove(0);
     println!(
         "address_merkle_trees {:?}",
