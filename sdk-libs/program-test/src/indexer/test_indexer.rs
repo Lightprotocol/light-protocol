@@ -362,7 +362,7 @@ impl Indexer for TestIndexer {
                     },
                     value: Items { items: accounts? },
                 })
-            }
+    }
             (_, Some(hashes)) => {
                 let accounts: Result<Vec<Option<CompressedAccount>>, IndexerError> = hashes
                     .iter()
@@ -379,8 +379,8 @@ impl Indexer for TestIndexer {
                         slot: self.get_current_slot(),
                     },
                     value: Items { items: accounts? },
-                })
-            }
+        })
+    }
             (None, None) => Err(IndexerError::InvalidParameters(
                 "Either addresses or hashes must be provided".to_string(),
             )),
@@ -880,7 +880,7 @@ impl Indexer for TestIndexer {
                             } else {
                                 Some(queue_elements[0].1)
                             },
-                        ),
+                        },
                     });
                 }
             }
