@@ -49,13 +49,28 @@ jobs:
             "light-verifier" "light-zero-copy-derive" "light-zero-copy"
           )
 
-          PACKAGE_ARGS=()
+          echo "Running dry-run publish for program-libs individually..."
+          FAILED_CRATES=()
+
           for pkg in "${PROGRAM_LIBS[@]}"; do
-            PACKAGE_ARGS+=("-p" "$pkg")
+            echo "----------------------------------------"
+            echo "Validating $pkg..."
+            if cargo publish --dry-run -p "$pkg"; then
+              echo "✓ $pkg validation passed"
+            else
+              echo "✗ $pkg validation failed"
+              FAILED_CRATES+=("$pkg")
+            fi
           done
 
-          echo "Running dry-run publish for program-libs..."
-          cargo publish --dry-run "${PACKAGE_ARGS[@]}"
+          if [ ${#FAILED_CRATES[@]} -ne 0 ]; then
+            echo ""
+            echo "Failed crates: ${FAILED_CRATES[*]}"
+            exit 1
+          fi
+
+          echo ""
+          echo "✓ All program-libs crates validated successfully"
 
       - name: Dry-run publish (sdk-libs)
         if: steps.detect_type.outputs.type == 'sdk-libs'
@@ -65,13 +80,28 @@ jobs:
             "light-sdk" "light-client" "photon-api" "light-program-test"
           )
 
-          PACKAGE_ARGS=()
+          echo "Running dry-run publish for sdk-libs individually..."
+          FAILED_CRATES=()
+
           for pkg in "${SDK_LIBS[@]}"; do
-            PACKAGE_ARGS+=("-p" "$pkg")
+            echo "----------------------------------------"
+            echo "Validating $pkg..."
+            if cargo publish --dry-run -p "$pkg"; then
+              echo "✓ $pkg validation passed"
+            else
+              echo "✗ $pkg validation failed"
+              FAILED_CRATES+=("$pkg")
+            fi
           done
 
-          echo "Running dry-run publish for sdk-libs..."
-          cargo publish --dry-run "${PACKAGE_ARGS[@]}"
+          if [ ${#FAILED_CRATES[@]} -ne 0 ]; then
+            echo ""
+            echo "Failed crates: ${FAILED_CRATES[*]}"
+            exit 1
+          fi
+
+          echo ""
+          echo "✓ All sdk-libs crates validated successfully"
 
       - name: Comment PR with validation result
         if: success()
@@ -82,5 +112,5 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.issue.number,
-              body: '✅ **Release validation passed!**\n\nDry-run publish completed successfully. This PR is ready to merge.'
+              body: '**Release validation passed!**\n\nDry-run publish completed successfully. This PR is ready to merge.'
             });

@@ -49,17 +49,11 @@ jobs:
             exit 1
           fi
 
-      - name: Get tags before publish
-        id: tags_before
-        run: |
-          git fetch --tags
-          git tag | sort > /tmp/tags_before.txt
-          cat /tmp/tags_before.txt
-
       - name: Publish to crates.io (program-libs)
         if: steps.detect_type.outputs.type == 'program-libs'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           PROGRAM_LIBS=(
             "light-account-checks" "aligned-sized" "light-batched-merkle-tree"
@@ -69,76 +63,108 @@ jobs:
             "light-verifier" "light-zero-copy-derive" "light-zero-copy"
           )
 
-          PACKAGE_ARGS=()
-          for pkg in "${PROGRAM_LIBS[@]}"; do
-            PACKAGE_ARGS+=("-p" "$pkg")
-          done
+          echo "Publishing program-libs crates individually..."
+          > /tmp/published_tags.txt
 
-          echo "Publishing program-libs to crates.io and creating tags..."
-          cargo release publish "${PACKAGE_ARGS[@]}" --execute --no-confirm
+          for pkg in "${PROGRAM_LIBS[@]}"; do
+            echo "----------------------------------------"
+            echo "Publishing $pkg..."
+
+            # Publish to crates.io and create tag
+            if cargo release publish -p "$pkg" --execute --no-confirm; then
+              echo "✓ Published $pkg"
+
+              # Get the tag that was just created
+              VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r ".packages[] | select(.name == \"$pkg\") | .version")
+              TAG="${pkg}-v${VERSION}"
+
+              # Create GitHub release
+              echo "Creating GitHub release for $TAG..."
+              if gh release create "$TAG" --generate-notes --title "$TAG"; then
+                echo "✓ Created release for $TAG"
+                echo "$TAG" >> /tmp/published_tags.txt
+              else
+                echo "Warning: Failed to create release for $TAG"
+              fi
+
+              # Rate limiting: wait between publishes
+              sleep 10
+            else
+              echo "Warning: Failed to publish $pkg"
+            fi
+          done
 
       - name: Publish to crates.io (sdk-libs)
         if: steps.detect_type.outputs.type == 'sdk-libs'
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           SDK_LIBS=(
             "light-sdk-macros" "light-sdk-types" "light-sdk-pinocchio"
             "light-sdk" "light-client" "photon-api" "light-program-test"
           )
 
-          PACKAGE_ARGS=()
+          echo "Publishing sdk-libs crates individually..."
+          > /tmp/published_tags.txt
+
           for pkg in "${SDK_LIBS[@]}"; do
-            PACKAGE_ARGS+=("-p" "$pkg")
-          done
+            echo "----------------------------------------"
+            echo "Publishing $pkg..."
 
-          echo "Publishing sdk-libs to crates.io and creating tags..."
-          cargo release publish "${PACKAGE_ARGS[@]}" --execute --no-confirm
+            # Publish to crates.io and create tag
+            if cargo release publish -p "$pkg" --execute --no-confirm; then
+              echo "✓ Published $pkg"
 
-      - name: Get new tags
-        id: new_tags
-        run: |
-          git fetch --tags
-          git tag | sort > /tmp/tags_after.txt
-          comm -13 /tmp/tags_before.txt /tmp/tags_after.txt > /tmp/new_tags.txt
-          cat /tmp/new_tags.txt
+              # Get the tag that was just created
+              VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r ".packages[] | select(.name == \"$pkg\") | .version")
+              TAG="${pkg}-v${VERSION}"
 
-      - name: Create GitHub releases
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if [ -s /tmp/new_tags.txt ]; then
-            echo "Creating GitHub releases for new tags..."
-            while IFS= read -r tag; do
-              if [[ -n "$tag" ]]; then
-                echo "Creating release for $tag..."
-                gh release create "$tag" --generate-notes --title "$tag" || echo "Warning: Failed to create release for $tag"
+              # Create GitHub release
+              echo "Creating GitHub release for $TAG..."
+              if gh release create "$TAG" --generate-notes --title "$TAG"; then
+                echo "✓ Created release for $TAG"
+                echo "$TAG" >> /tmp/published_tags.txt
+              else
+                echo "Warning: Failed to create release for $TAG"
               fi
-            done < /tmp/new_tags.txt
-            echo "✓ GitHub releases created!"
-          else
-            echo "No new tags found"
-          fi
+
+              # Rate limiting: wait between publishes
+              sleep 10
+            else
+              echo "Warning: Failed to publish $pkg"
+            fi
+          done
 
       - name: Comment on PR
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            const newTags = fs.readFileSync('/tmp/new_tags.txt', 'utf8').trim().split('\n').filter(t => t);
+            let publishedTags = [];
 
-            let body = '🚀 **Release published successfully!**\n\n';
-
-            if (newTags.length > 0) {
-              body += '**Published versions:**\n';
-              newTags.forEach(tag => {
-                body += `- [\`${tag}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/${tag})\n`;
-              });
+            try {
+              publishedTags = fs.readFileSync('/tmp/published_tags.txt', 'utf8').trim().split('\n').filter(t => t);
+            } catch (e) {
+              console.log('No published tags file found');
             }
 
-            body += '\n✅ Crates published to crates.io\n';
-            body += '✅ Git tags created and pushed\n';
-            body += '✅ GitHub releases created\n';
+            let body = '**Release published successfully!**\n\n';
+
+            if (publishedTags.length > 0) {
+              body += '**Published versions:**\n';
+              publishedTags.forEach(tag => {
+                const crateUrl = `https://crates.io/crates/${tag.split('-v')[0]}`;
+                body += `- [\`${tag}\`](https://github.com/${context.repo.owner}/${context.repo.repo}/releases/tag/${tag}) ([crates.io](${crateUrl}))\n`;
+              });
+            } else {
+              body += 'No new versions published (all crates were up to date).\n';
+            }
+
+            body += '\n---\n';
+            body += '✓ Crates published to crates.io\n';
+            body += '✓ Git tags created and pushed\n';
+            body += '✓ GitHub releases created\n';
 
             github.rest.issues.createComment({
               owner: context.repo.owner,
