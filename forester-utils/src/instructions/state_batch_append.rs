@@ -130,7 +130,8 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
 
             let (batch_elements, batch_first_queue_idx) = match queue_elements_result {
                 Ok(res) => {
-                    let (items, first_idx) = res.value;
+                    let items = res.value.elements;
+                    let first_idx = res.value.first_value_queue_index;
                     if items.len() != zkp_batch_size as usize {
                         warn!(
                             "Got {} elements but expected {}, stopping",

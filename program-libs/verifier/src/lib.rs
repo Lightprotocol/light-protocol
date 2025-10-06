@@ -77,6 +77,27 @@ pub fn verify_create_addresses_proof(
             compressed_proof,
             &v1_non_inclusion_26_2::VERIFYINGKEY,
         ),
+        3 => verify::<6>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &v1_non_inclusion_26_3::VERIFYINGKEY,
+        ),
+        4 => verify::<8>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &v1_non_inclusion_26_4::VERIFYINGKEY,
+        ),
+        8 => verify::<16>(
+            &public_inputs
+                .try_into()
+                .map_err(|_| PublicInputsTryIntoFailed)?,
+            compressed_proof,
+            &v1_non_inclusion_26_8::VERIFYINGKEY,
+        ),
         _ => Err(InvalidPublicInputsLength),
     }
 }
@@ -248,14 +269,56 @@ pub fn select_verifying_key<'a>(
         (2, _) => Ok(&v2_inclusion_32_2::VERIFYINGKEY),
         (3, _) => Ok(&v2_inclusion_32_3::VERIFYINGKEY),
         (4, _) => Ok(&v2_inclusion_32_4::VERIFYINGKEY),
+        (5, _) => Ok(&v2_inclusion_32_5::VERIFYINGKEY),
+        (6, _) => Ok(&v2_inclusion_32_6::VERIFYINGKEY),
+        (7, _) => Ok(&v2_inclusion_32_7::VERIFYINGKEY),
         (8, _) => Ok(&v2_inclusion_32_8::VERIFYINGKEY),
+        (9, _) => Ok(&v2_inclusion_32_9::VERIFYINGKEY),
+        (10, _) => Ok(&v2_inclusion_32_10::VERIFYINGKEY),
+        (11, _) => Ok(&v2_inclusion_32_11::VERIFYINGKEY),
+        (12, _) => Ok(&v2_inclusion_32_12::VERIFYINGKEY),
+        (13, _) => Ok(&v2_inclusion_32_13::VERIFYINGKEY),
+        (14, _) => Ok(&v2_inclusion_32_14::VERIFYINGKEY),
+        (15, _) => Ok(&v2_inclusion_32_15::VERIFYINGKEY),
+        (16, _) => Ok(&v2_inclusion_32_16::VERIFYINGKEY),
+        (17, _) => Ok(&v2_inclusion_32_17::VERIFYINGKEY),
+        (18, _) => Ok(&v2_inclusion_32_18::VERIFYINGKEY),
+        (19, _) => Ok(&v2_inclusion_32_19::VERIFYINGKEY),
+        (20, _) => Ok(&v2_inclusion_32_20::VERIFYINGKEY),
 
         // Non-inclusion cases (depend on num_addresses)
         (_, 1) => Ok(&v2_non_inclusion_40_1::VERIFYINGKEY),
         (_, 2) => Ok(&v2_non_inclusion_40_2::VERIFYINGKEY),
         (_, 3) => Ok(&v2_non_inclusion_40_3::VERIFYINGKEY),
         (_, 4) => Ok(&v2_non_inclusion_40_4::VERIFYINGKEY),
+        (_, 5) => Ok(&v2_non_inclusion_40_5::VERIFYINGKEY),
+        (_, 6) => Ok(&v2_non_inclusion_40_6::VERIFYINGKEY),
+        (_, 7) => Ok(&v2_non_inclusion_40_7::VERIFYINGKEY),
         (_, 8) => Ok(&v2_non_inclusion_40_8::VERIFYINGKEY),
+        (_, 9) => Ok(&v2_non_inclusion_40_9::VERIFYINGKEY),
+        (_, 10) => Ok(&v2_non_inclusion_40_10::VERIFYINGKEY),
+        (_, 11) => Ok(&v2_non_inclusion_40_11::VERIFYINGKEY),
+        (_, 12) => Ok(&v2_non_inclusion_40_12::VERIFYINGKEY),
+        (_, 13) => Ok(&v2_non_inclusion_40_13::VERIFYINGKEY),
+        (_, 14) => Ok(&v2_non_inclusion_40_14::VERIFYINGKEY),
+        (_, 15) => Ok(&v2_non_inclusion_40_15::VERIFYINGKEY),
+        (_, 16) => Ok(&v2_non_inclusion_40_16::VERIFYINGKEY),
+        (_, 17) => Ok(&v2_non_inclusion_40_17::VERIFYINGKEY),
+        (_, 18) => Ok(&v2_non_inclusion_40_18::VERIFYINGKEY),
+        (_, 19) => Ok(&v2_non_inclusion_40_19::VERIFYINGKEY),
+        (_, 20) => Ok(&v2_non_inclusion_40_20::VERIFYINGKEY),
+        (_, 21) => Ok(&v2_non_inclusion_40_21::VERIFYINGKEY),
+        (_, 22) => Ok(&v2_non_inclusion_40_22::VERIFYINGKEY),
+        (_, 23) => Ok(&v2_non_inclusion_40_23::VERIFYINGKEY),
+        (_, 24) => Ok(&v2_non_inclusion_40_24::VERIFYINGKEY),
+        (_, 25) => Ok(&v2_non_inclusion_40_25::VERIFYINGKEY),
+        (_, 26) => Ok(&v2_non_inclusion_40_26::VERIFYINGKEY),
+        (_, 27) => Ok(&v2_non_inclusion_40_27::VERIFYINGKEY),
+        (_, 28) => Ok(&v2_non_inclusion_40_28::VERIFYINGKEY),
+        (_, 29) => Ok(&v2_non_inclusion_40_29::VERIFYINGKEY),
+        (_, 30) => Ok(&v2_non_inclusion_40_30::VERIFYINGKEY),
+        (_, 31) => Ok(&v2_non_inclusion_40_31::VERIFYINGKEY),
+        (_, 32) => Ok(&v2_non_inclusion_40_32::VERIFYINGKEY),
 
         // Invalid configuration
         _ => Err(InvalidPublicInputsLength),
@@ -309,12 +372,12 @@ pub fn verify_batch_append_with_proofs(
         10 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &v2_append_32_10::VERIFYINGKEY,
+            &batch_append_32_10::VERIFYINGKEY,
         ),
         500 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &v2_append_32_500::VERIFYINGKEY,
+            &batch_append_32_500::VERIFYINGKEY,
         ),
         _ => Err(InvalidPublicInputsLength),
     }
@@ -330,12 +393,12 @@ pub fn verify_batch_update(
         10 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &v2_update_32_10::VERIFYINGKEY,
+            &batch_update_32_10::VERIFYINGKEY,
         ),
         500 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &v2_update_32_500::VERIFYINGKEY,
+            &batch_update_32_500::VERIFYINGKEY,
         ),
         _ => Err(InvalidPublicInputsLength),
     }
@@ -351,12 +414,12 @@ pub fn verify_batch_address_update(
         10 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &v2_address_append_40_10::VERIFYINGKEY,
+            &batch_address_append_40_10::VERIFYINGKEY,
         ),
         250 => verify::<1>(
             &[public_input_hash],
             compressed_proof,
-            &v2_address_append_40_250::VERIFYINGKEY,
+            &batch_address_append_40_250::VERIFYINGKEY,
         ),
         _ => Err(InvalidPublicInputsLength),
     }

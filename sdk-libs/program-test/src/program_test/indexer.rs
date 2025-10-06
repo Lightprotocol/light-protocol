@@ -4,7 +4,7 @@ use light_client::indexer::{
     CompressedTokenAccount, GetCompressedAccountsByOwnerConfig,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
     IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MerkleProofWithContext,
-    NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig,
+    NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig, QueueElementsResult,
     SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
 };
 use light_compressed_account::QueueType;
@@ -205,7 +205,7 @@ impl Indexer for LightProgramTest {
         num_elements: u16,
         start_queue_index: Option<u64>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<(Vec<MerkleProofWithContext>, Option<u64>)>, IndexerError> {
+    ) -> Result<Response<QueueElementsResult>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()

@@ -1612,10 +1612,7 @@ impl Indexer for PhotonIndexer {
                     request,
                 )
                 .await;
-                let result: Result<
-                    Response<QueueElementsResult>,
-                    IndexerError,
-                > = match result {
+                let result: Result<Response<QueueElementsResult>, IndexerError> = match result {
                     Ok(api_response) => match api_response.result {
                         Some(api_result) => {
                             if api_result.context.slot < config.slot {
@@ -1656,7 +1653,9 @@ impl Indexer for PhotonIndexer {
                                 },
                                 value: QueueElementsResult {
                                     elements: proofs,
-                                    first_value_queue_index: Some(api_result.first_value_queue_index as u64),
+                                    first_value_queue_index: Some(
+                                        api_result.first_value_queue_index as u64,
+                                    ),
                                 },
                             })
                         }

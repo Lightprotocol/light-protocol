@@ -12,14 +12,14 @@ echo "Regenerating all verification keys..."
 echo "========================================"
 
 # Counter for progress
-total=$(find "$PROVING_KEYS_DIR" -name "*.key" | wc -l | tr -d ' ')
+total=$(find "$PROVING_KEYS_DIR" -name "*.vkey" | wc -l | tr -d ' ')
 current=0
 
-for key_file in "$PROVING_KEYS_DIR"/*.key; do
+for key_file in "$PROVING_KEYS_DIR"/*.vkey; do
     current=$((current + 1))
 
     # Extract the base name without extension
-    base_name=$(basename "$key_file" .key)
+    base_name=$(basename "$key_file" .vkey)
 
     # Determine the output path
     output_file="$VKEY_OUTPUT_DIR/${base_name}.rs"

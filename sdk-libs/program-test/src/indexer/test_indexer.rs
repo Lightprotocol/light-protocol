@@ -20,7 +20,7 @@ use light_client::{
         CompressedTokenAccount, Context, GetCompressedAccountsByOwnerConfig,
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer, IndexerError,
         IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MerkleProofWithContext,
-        NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig,
+        NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig, QueueElementsResult,
         RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance,
         ValidityProofWithContext,
     },
@@ -602,6 +602,88 @@ impl Indexer for TestIndexer {
         }
     }
 
+    async fn get_address_queue_with_proofs(
+        &mut self,
+        _merkle_tree_pubkey: &Pubkey,
+        _zkp_batch_size: u16,
+        _start_offset: Option<u64>,
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError> {
+        #[cfg(not(feature = "v2"))]
+        unimplemented!("get_address_queue_with_proofs");
+        #[cfg(feature = "v2")]
+        {
+            use light_client::indexer::AddressQueueIndex;
+            let merkle_tree_pubkey = _merkle_tree_pubkey;
+            let zkp_batch_size = _zkp_batch_size;
+
+            let batch_start_index = self
+                .get_address_merkle_trees()
+                .iter()
+                .find(|x| x.accounts.merkle_tree == *merkle_tree_pubkey)
+                .unwrap()
+                .get_v2_indexed_merkle_tree()
+                .ok_or(IndexerError::Unknown(
+                    "Failed to get v2 indexed merkle tree".into(),
+                ))?
+                .merkle_tree
+                .rightmost_index;
+
+            let address_proofs = self
+                .get_queue_elements(
+                    merkle_tree_pubkey.to_bytes(),
+                    QueueType::AddressV2,
+                    zkp_batch_size,
+                    None,
+                    None,
+                )
+                .await
+                .map_err(|_| IndexerError::Unknown("Failed to get queue elements".into()))?
+                .value;
+
+            let (address_proof_items, _) = address_proofs;
+            let addresses: Vec<AddressQueueIndex> = address_proof_items
+                .iter()
+                .enumerate()
+                .map(|(i, proof)| AddressQueueIndex {
+                    address: proof.account_hash,
+                    queue_index: proof.root_seq + i as u64,
+                })
+                .collect();
+            let non_inclusion_proofs = self
+                .get_multiple_new_address_proofs(
+                    merkle_tree_pubkey.to_bytes(),
+                    address_proof_items.iter().map(|x| x.account_hash).collect(),
+                    None,
+                )
+                .await
+                .map_err(|_| {
+                    IndexerError::Unknown(
+                        "Failed to get get_multiple_new_address_proofs_full".into(),
+                    )
+                })?
+                .value;
+
+            let subtrees = self
+                .get_subtrees(merkle_tree_pubkey.to_bytes(), None)
+                .await
+                .map_err(|_| IndexerError::Unknown("Failed to get subtrees".into()))?
+                .value;
+
+            Ok(Response {
+                context: Context {
+                    slot: self.get_current_slot(),
+                },
+                value: BatchAddressUpdateIndexerResponse {
+                    batch_start_index: batch_start_index as u64,
+                    addresses,
+                    non_inclusion_proofs: non_inclusion_proofs.items,
+                    subtrees: subtrees.items,
+                },
+            })
+        }
+    }
+
     async fn get_queue_elements(
         &mut self,
         _merkle_tree_pubkey: [u8; 32],
@@ -609,7 +691,7 @@ impl Indexer for TestIndexer {
         _num_elements: u16,
         _start_offset: Option<u64>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<(Vec<MerkleProofWithContext>, Option<u64>)>, IndexerError> {
+    ) -> Result<Response<QueueElementsResult, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!("get_queue_elements");
         #[cfg(feature = "v2")]
@@ -717,7 +799,10 @@ impl Indexer for TestIndexer {
                         context: Context {
                             slot: self.get_current_slot(),
                         },
-                        value: (merkle_proofs_with_context, None),
+                        value: QueueElementsResult {
+                            elements: merkle_proofs_with_context,
+                            first_value_queue_index: None,
+                        },
                     });
                 }
             }
@@ -788,11 +873,14 @@ impl Indexer for TestIndexer {
                         context: Context {
                             slot: self.get_current_slot(),
                         },
-                        value: (merkle_proofs_with_context, if queue_elements.is_empty() {
-                            None
-                        } else {
-                            Some(queue_elements[0].1)
-                        }),
+                        value: QueueElementsResult {
+                            elements: merkle_proofs_with_context,
+                            first_value_queue_index: if queue_elements.is_empty() {
+                                None
+                            } else {
+                                Some(queue_elements[0].1)
+                            },
+                        ),
                     });
                 }
             }
@@ -1289,27 +1377,27 @@ impl TestIndexer {
         for state_merkle_tree_account in state_merkle_tree_accounts.iter() {
             let (tree_type, merkle_tree, output_queue_batch_size) =
                 if state_merkle_tree_account.tree_type == TreeType::StateV2 {
-                    let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
-                        DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
-                        0,
-                        0,
-                        DEFAULT_BATCH_ROOT_HISTORY_LEN as usize,
-                    ));
-                    (
-                        TreeType::StateV2,
-                        merkle_tree,
-                        Some(output_queue_batch_size),
-                    )
-                } else {
-                    let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
-                        account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
+                let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
+                    DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
+                    0,
+                    0,
+                    DEFAULT_BATCH_ROOT_HISTORY_LEN as usize,
+                ));
+                (
+                    TreeType::StateV2,
+                    merkle_tree,
+                    Some(output_queue_batch_size),
+                )
+            } else {
+                let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
+                    account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
                         account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH
                             as usize,
-                        0,
-                        account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
-                    ));
-                    (TreeType::StateV1, merkle_tree, None)
-                };
+                    0,
+                    account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
+                ));
+                (TreeType::StateV1, merkle_tree, None)
+            };
 
             state_merkle_trees.push(StateMerkleTreeBundle {
                 accounts: *state_merkle_tree_account,
