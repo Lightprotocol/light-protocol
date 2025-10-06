@@ -1,5 +1,5 @@
 [package]
-name = "batched-merkle-tree-tests"
+name = "batched-merkle-tree-test"
 version = "0.1.0"
 description = "Batch Merkle tree integration tests."
 repository = "https://github.com/Lightprotocol/light-protocol"

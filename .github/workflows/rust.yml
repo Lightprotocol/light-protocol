@@ -60,6 +60,7 @@ jobs:
               cargo test -p light-zero-copy --no-default-features  # Test no_std compatibility
               cargo build -p light-zero-copy --no-default-features  # Ensure no_std builds
               cargo test -p light-zero-copy-derive --all-features
+              cargo test -p zero-copy-derive-test
               cargo test -p light-hash-set --all-features
               cargo test -p batched-merkle-tree-tests -- --skip test_simulate_transactions --skip test_e2e
           - name: program-libs-slow

@@ -1,0 +1,165 @@
+error[E0277]: the trait bound `Option<U32<zerocopy::LittleEndian>>: FromBytes` is not satisfied
+ --> tests/ui/fail/58_array_of_options.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ the trait `FromBytes` is not implemented for `Option<U32<zerocopy::LittleEndian>>`
+  |
+  = note: Consider adding `#[derive(FromBytes)]` to `Option<U32<zerocopy::LittleEndian>>`
+  = help: the following other types implement trait `FromBytes`:
+            Option<NonZero<i128>>
+            Option<NonZero<i16>>
+            Option<NonZero<i32>>
+            Option<NonZero<i64>>
+            Option<NonZero<i8>>
+            Option<NonZero<isize>>
+            Option<NonZero<u128>>
+            Option<NonZero<u16>>
+          and $N others
+  = note: required for `[Option<U32<zerocopy::LittleEndian>>; 10]` to implement `FromBytes`
+  = note: required for `light_zero_copy::Ref<&'a [u8], [Option<U32<zerocopy::LittleEndian>>; 10]>` to implement `Debug`
+  = note: required for the cast from `&light_zero_copy::Ref<&'a [u8], [Option<U32<zerocopy::LittleEndian>>; 10]>` to `&dyn Debug`
+
+error[E0277]: the trait bound `Option<u8>: FromBytes` is not satisfied
+ --> tests/ui/fail/58_array_of_options.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ the trait `FromBytes` is not implemented for `Option<u8>`
+  |
+  = note: Consider adding `#[derive(FromBytes)]` to `Option<u8>`
+  = help: the following other types implement trait `FromBytes`:
+            Option<NonZero<i128>>
+            Option<NonZero<i16>>
+            Option<NonZero<i32>>
+            Option<NonZero<i64>>
+            Option<NonZero<i8>>
+            Option<NonZero<isize>>
+            Option<NonZero<u128>>
+            Option<NonZero<u16>>
+          and $N others
+  = note: required for `[Option<u8>; 8]` to implement `FromBytes`
+  = note: required for `light_zero_copy::Ref<&'a [u8], [Option<u8>; 8]>` to implement `Debug`
+  = note: required for the cast from `&light_zero_copy::Ref<&'a [u8], [Option<u8>; 8]>` to `&dyn Debug`
+
+error[E0277]: the trait bound `Option<U64<zerocopy::LittleEndian>>: FromBytes` is not satisfied
+ --> tests/ui/fail/58_array_of_options.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^ the trait `FromBytes` is not implemented for `Option<U64<zerocopy::LittleEndian>>`
+  |
+  = note: Consider adding `#[derive(FromBytes)]` to `Option<U64<zerocopy::LittleEndian>>`
+  = help: the following other types implement trait `FromBytes`:
+            Option<NonZero<i128>>
+            Option<NonZero<i16>>
+            Option<NonZero<i32>>
+            Option<NonZero<i64>>
+            Option<NonZero<i8>>
+            Option<NonZero<isize>>
+            Option<NonZero<u128>>
+            Option<NonZero<u16>>
+          and $N others
+  = note: required for `[Option<U64<zerocopy::LittleEndian>>; 4]` to implement `FromBytes`
+  = note: required for `light_zero_copy::Ref<&'a [u8], [Option<U64<zerocopy::LittleEndian>>; 4]>` to implement `Debug`
+  = note: 1 redundant requirement hidden
+  = note: required for `&light_zero_copy::Ref<&'a [u8], [Option<U64<zerocopy::LittleEndian>>; 4]>` to implement `Debug`
+  = note: required for the cast from `&&light_zero_copy::Ref<&'a [u8], [Option<U64<zerocopy::LittleEndian>>; 4]>` to `&dyn Debug`
+
+error[E0369]: binary operation `==` cannot be applied to type `light_zero_copy::Ref<&[u8], [Option<U32<zerocopy::LittleEndian>>; 10]>`
+ --> tests/ui/fail/58_array_of_options.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^
+  |
+note: the foreign item type `Option<U32<zerocopy::LittleEndian>>` doesn't implement `FromBytes`
+ --> $RUST/core/src/option.rs
+  |
+  | pub enum Option<T> {
+  | ^^^^^^^^^^^^^^^^^^ not implement `FromBytes`
+
+error[E0369]: binary operation `==` cannot be applied to type `light_zero_copy::Ref<&[u8], [Option<u8>; 8]>`
+ --> tests/ui/fail/58_array_of_options.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^
+  |
+note: the foreign item type `Option<u8>` doesn't implement `FromBytes`
+ --> $RUST/core/src/option.rs
+  |
+  | pub enum Option<T> {
+  | ^^^^^^^^^^^^^^^^^^ not implement `FromBytes`
+
+error[E0369]: binary operation `==` cannot be applied to type `light_zero_copy::Ref<&[u8], [Option<U64<zerocopy::LittleEndian>>; 4]>`
+ --> tests/ui/fail/58_array_of_options.rs:5:10
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |          ^^^^^^^^
+  |
+note: the foreign item type `Option<U64<zerocopy::LittleEndian>>` doesn't implement `FromBytes`
+ --> $RUST/core/src/option.rs
+  |
+  | pub enum Option<T> {
+  | ^^^^^^^^^^^^^^^^^^ not implement `FromBytes`
+
+error[E0277]: the trait bound `Option<U32<zerocopy::LittleEndian>>: FromBytes` is not satisfied
+ --> tests/ui/fail/58_array_of_options.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `FromBytes` is not implemented for `Option<U32<zerocopy::LittleEndian>>`
+  |
+  = note: Consider adding `#[derive(FromBytes)]` to `Option<U32<zerocopy::LittleEndian>>`
+  = help: the following other types implement trait `FromBytes`:
+            Option<NonZero<i128>>
+            Option<NonZero<i16>>
+            Option<NonZero<i32>>
+            Option<NonZero<i64>>
+            Option<NonZero<i8>>
+            Option<NonZero<isize>>
+            Option<NonZero<u128>>
+            Option<NonZero<u16>>
+          and $N others
+  = note: required for `[Option<U32<zerocopy::LittleEndian>>; 10]` to implement `FromBytes`
+  = note: required for `light_zero_copy::Ref<&'a mut [u8], [Option<U32<zerocopy::LittleEndian>>; 10]>` to implement `Debug`
+  = note: required for the cast from `&light_zero_copy::Ref<&'a mut [u8], [Option<U32<zerocopy::LittleEndian>>; 10]>` to `&dyn Debug`
+
+error[E0277]: the trait bound `Option<u8>: FromBytes` is not satisfied
+ --> tests/ui/fail/58_array_of_options.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `FromBytes` is not implemented for `Option<u8>`
+  |
+  = note: Consider adding `#[derive(FromBytes)]` to `Option<u8>`
+  = help: the following other types implement trait `FromBytes`:
+            Option<NonZero<i128>>
+            Option<NonZero<i16>>
+            Option<NonZero<i32>>
+            Option<NonZero<i64>>
+            Option<NonZero<i8>>
+            Option<NonZero<isize>>
+            Option<NonZero<u128>>
+            Option<NonZero<u16>>
+          and $N others
+  = note: required for `[Option<u8>; 8]` to implement `FromBytes`
+  = note: required for `light_zero_copy::Ref<&'a mut [u8], [Option<u8>; 8]>` to implement `Debug`
+  = note: required for the cast from `&light_zero_copy::Ref<&'a mut [u8], [Option<u8>; 8]>` to `&dyn Debug`
+
+error[E0277]: the trait bound `Option<U64<zerocopy::LittleEndian>>: FromBytes` is not satisfied
+ --> tests/ui/fail/58_array_of_options.rs:5:20
+  |
+5 | #[derive(ZeroCopy, ZeroCopyMut)]
+  |                    ^^^^^^^^^^^ the trait `FromBytes` is not implemented for `Option<U64<zerocopy::LittleEndian>>`
+  |
+  = note: Consider adding `#[derive(FromBytes)]` to `Option<U64<zerocopy::LittleEndian>>`
+  = help: the following other types implement trait `FromBytes`:
+            Option<NonZero<i128>>
+            Option<NonZero<i16>>
+            Option<NonZero<i32>>
+            Option<NonZero<i64>>
+            Option<NonZero<i8>>
+            Option<NonZero<isize>>
+            Option<NonZero<u128>>
+            Option<NonZero<u16>>
+          and $N others
+  = note: required for `[Option<U64<zerocopy::LittleEndian>>; 4]` to implement `FromBytes`
+  = note: required for `light_zero_copy::Ref<&'a mut [u8], [Option<U64<zerocopy::LittleEndian>>; 4]>` to implement `Debug`
+  = note: 1 redundant requirement hidden
+  = note: required for `&light_zero_copy::Ref<&'a mut [u8], [Option<U64<zerocopy::LittleEndian>>; 4]>` to implement `Debug`
+  = note: required for the cast from `&&light_zero_copy::Ref<&'a mut [u8], [Option<U64<zerocopy::LittleEndian>>; 4]>` to `&dyn Debug`
