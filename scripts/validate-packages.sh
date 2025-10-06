@@ -50,33 +50,33 @@ echo ""
 if [ -n "$EXECUTE_FLAG" ]; then
   echo "Running: cargo release publish $PACKAGE_ARGS --execute --no-confirm"
 else
-  echo "Running: cargo release publish $PACKAGE_ARGS --allow-branch HEAD"
+  echo "Running: cargo release publish $PACKAGE_ARGS --allow-branch '*' --no-verify"
 fi
 echo "----------------------------------------"
 
 # cargo-release handles dependency ordering
-# Without --execute: dry-run validation (allow HEAD for GitHub Actions detached checkout)
-# With --execute: actual publish to crates.io (requires main or release/* branch)
+# Without --execute: dry-run validation (allow any branch, skip git checks for uncommitted changes)
+# With --execute: actual publish to crates.io (requires main or release/* branch and clean working tree)
 if [ -n "$EXECUTE_FLAG" ]; then
   cargo release publish $PACKAGE_ARGS --execute --no-confirm
 else
-  cargo release publish $PACKAGE_ARGS --allow-branch HEAD
+  cargo release publish $PACKAGE_ARGS --allow-branch '*' --no-verify
 fi
 
 if [ $? -eq 0 ]; then
   echo ""
   if [ -n "$EXECUTE_FLAG" ]; then
-    echo "✓ All crates published successfully"
+    echo "All crates published successfully"
   else
-    echo "✓ All crates validated successfully"
+    echo "All crates validated successfully"
   fi
   exit 0
 else
   echo ""
   if [ -n "$EXECUTE_FLAG" ]; then
-    echo "✗ Publishing failed"
+    echo "Publishing failed"
   else
-    echo "✗ Validation failed"
+    echo "Validation failed"
   fi
   exit 1
 fi

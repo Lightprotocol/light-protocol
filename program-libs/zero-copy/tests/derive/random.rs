@@ -3,13 +3,6 @@
 use std::assert_eq;
 
 use borsh::BorshDeserialize;
-use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
-use rand::{
-    rngs::{StdRng, ThreadRng},
-    Rng,
-};
-
-use super::instruction_data;
 use instruction_data::{
     CompressedAccount,
     CompressedAccountConfig,
@@ -33,6 +26,13 @@ use instruction_data::{
     ZInstructionDataInvokeCpiMut,
     ZInstructionDataInvokeMut,
 };
+use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
+use rand::{
+    rngs::{StdRng, ThreadRng},
+    Rng,
+};
+
+use super::instruction_data;
 
 // Function to populate mutable zero-copy structure with data from InstructionDataInvokeCpi
 fn populate_invoke_cpi_zero_copy(

@@ -20,10 +20,19 @@ fi
 # Extract packages with version changes
 PACKAGES=()
 
+# Set up diff arguments based on HEAD_REF
+# If HEAD_REF is "HEAD", compare against working tree (includes uncommitted changes)
+# Otherwise use three-dot diff for commits
+if [ "$HEAD_REF" = "HEAD" ]; then
+  DIFF_ARGS=("$BASE_REF")
+else
+  DIFF_ARGS=("$BASE_REF...$HEAD_REF")
+fi
+
 # Get list of changed Cargo.toml files in program-libs, sdk-libs, and program-tests/merkle-tree
-for file in $(git diff "$BASE_REF"..."$HEAD_REF" --name-only -- '**/Cargo.toml' | grep -E '(program-libs|sdk-libs|program-tests/merkle-tree)/'); do
+for file in $(git diff "${DIFF_ARGS[@]}" --name-only -- '**/Cargo.toml' | grep -E '(program-libs|sdk-libs|program-tests/merkle-tree)/'); do
   # Extract old and new version from the diff
-  versions=$(git diff "$BASE_REF"..."$HEAD_REF" "$file" | grep -E '^\+version|^-version' | grep -v '+++\|---')
+  versions=$(git diff "${DIFF_ARGS[@]}" -- "$file" | grep -E '^\+version|^-version' | grep -v '+++\|---')
   old_ver=$(echo "$versions" | grep '^-version' | head -1 | awk -F'"' '{print $2}')
   new_ver=$(echo "$versions" | grep '^\+version' | head -1 | awk -F'"' '{print $2}')
 

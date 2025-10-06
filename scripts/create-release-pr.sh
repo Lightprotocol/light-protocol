@@ -34,10 +34,20 @@ get_version_changes() {
         git fetch origin "$branch" 2>/dev/null || true
     fi
 
+    # Set up diff arguments based on head_ref
+    # If head_ref is "HEAD", compare against working tree (includes uncommitted changes)
+    # Otherwise use three-dot diff for commits
+    local diff_args=()
+    if [ "$head_ref" = "HEAD" ]; then
+        diff_args=("$base_ref")
+    else
+        diff_args=("$base_ref...$head_ref")
+    fi
+
     # Get list of changed Cargo.toml files in program-libs, sdk-libs, and program-tests/merkle-tree
-    for file in $(git diff "$base_ref"..."$head_ref" --name-only -- '**/Cargo.toml' | grep -E '(program-libs|sdk-libs|program-tests/merkle-tree)/'); do
+    while IFS= read -r file; do
         # Extract old and new version from the diff
-        local versions=$(git diff "$base_ref"..."$head_ref" "$file" | grep -E '^\+version|^-version' | grep -v '+++\|---')
+        local versions=$(git diff "${diff_args[@]}" -- "$file" | grep -E '^\+version|^-version' | grep -v '+++\|---')
         local old_ver=$(echo "$versions" | grep '^-version' | head -1 | awk -F'"' '{print $2}')
         local new_ver=$(echo "$versions" | grep '^\+version' | head -1 | awk -F'"' '{print $2}')
 
@@ -50,7 +60,7 @@ get_version_changes() {
                 echo "$pkg_name $old_ver $new_ver"
             fi
         fi
-    done
+    done < <(git diff "${diff_args[@]}" --name-only -- '**/Cargo.toml' | grep -E '(program-libs|sdk-libs|program-tests/merkle-tree)/')
 }
 
 # Check if there are changes
@@ -108,19 +118,26 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
     exit 1
 fi
 
+echo "Creating release branch..."
+git checkout -b "$BRANCH_NAME"
+
+# Commit changes
+git add -A
+git commit -m "chore(${RELEASE_TYPE}): bump versions"
+
 echo ""
 echo "========================================="
 echo "Running cargo release dry-run validation..."
 echo "========================================="
 echo ""
 
-# Validate packages using the validation script
-if "$SCRIPT_DIR/validate-packages.sh" "$TARGET_BRANCH" "HEAD"; then
+# Validate packages using the validation script (comparing against target branch)
+if "$SCRIPT_DIR/validate-packages.sh" "$TARGET_BRANCH" "$BRANCH_NAME"; then
     echo ""
-    echo "✓ All crates validated successfully"
+    echo "All crates validated successfully"
 else
     echo ""
-    echo "✗ Validation failed"
+    echo "Validation failed"
     echo ""
     echo "The GitHub Actions PR validation will run the same checks."
     echo "Continue anyway and let CI validate? (y/N) "
@@ -132,13 +149,6 @@ else
     fi
 fi
 echo ""
-
-echo "Creating release branch..."
-git checkout -b "$BRANCH_NAME"
-
-# Commit changes
-git add -A
-git commit -m "chore(${RELEASE_TYPE}): bump versions"
 
 # Push branch
 echo "Pushing branch to origin..."
