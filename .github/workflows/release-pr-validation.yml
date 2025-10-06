@@ -2,7 +2,6 @@ name: Release PR Validation
 
 permissions:
   contents: read
-  issues: write
 
 on:
   pull_request:
@@ -19,98 +18,16 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           toolchain: stable
 
-      - name: Detect release type
-        id: detect_type
-        env:
-          BRANCH_NAME: ${{ github.head_ref }}
-        run: |
-          if [[ "$BRANCH_NAME" == release/program-libs-* ]]; then
-            echo "type=program-libs" >> "$GITHUB_OUTPUT"
-          elif [[ "$BRANCH_NAME" == release/sdk-libs-* ]]; then
-            echo "type=sdk-libs" >> "$GITHUB_OUTPUT"
-          else
-            echo "type=unknown" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Install cargo-release
+        run: cargo install cargo-release
 
-      - name: Dry-run publish (program-libs)
-        if: steps.detect_type.outputs.type == 'program-libs'
-        run: |
-          PROGRAM_LIBS=(
-            "light-account-checks" "aligned-sized" "light-batched-merkle-tree"
-            "light-bloom-filter" "light-compressed-account" "light-concurrent-merkle-tree"
-            "light-hash-set" "light-hasher" "light-heap" "light-indexed-array"
-            "light-indexed-merkle-tree" "light-macros" "light-merkle-tree-metadata"
-            "light-verifier" "light-zero-copy-derive" "light-zero-copy"
-          )
-
-          echo "Running dry-run publish for program-libs individually..."
-          FAILED_CRATES=()
-
-          for pkg in "${PROGRAM_LIBS[@]}"; do
-            echo "----------------------------------------"
-            echo "Validating $pkg..."
-            if cargo publish --dry-run -p "$pkg"; then
-              echo "✓ $pkg validation passed"
-            else
-              echo "✗ $pkg validation failed"
-              FAILED_CRATES+=("$pkg")
-            fi
-          done
-
-          if [ ${#FAILED_CRATES[@]} -ne 0 ]; then
-            echo ""
-            echo "Failed crates: ${FAILED_CRATES[*]}"
-            exit 1
-          fi
-
-          echo ""
-          echo "✓ All program-libs crates validated successfully"
-
-      - name: Dry-run publish (sdk-libs)
-        if: steps.detect_type.outputs.type == 'sdk-libs'
-        run: |
-          SDK_LIBS=(
-            "light-sdk-macros" "light-sdk-types" "light-sdk-pinocchio"
-            "light-sdk" "light-client" "photon-api" "light-program-test"
-          )
-
-          echo "Running dry-run publish for sdk-libs individually..."
-          FAILED_CRATES=()
-
-          for pkg in "${SDK_LIBS[@]}"; do
-            echo "----------------------------------------"
-            echo "Validating $pkg..."
-            if cargo publish --dry-run -p "$pkg"; then
-              echo "✓ $pkg validation passed"
-            else
-              echo "✗ $pkg validation failed"
-              FAILED_CRATES+=("$pkg")
-            fi
-          done
-
-          if [ ${#FAILED_CRATES[@]} -ne 0 ]; then
-            echo ""
-            echo "Failed crates: ${FAILED_CRATES[*]}"
-            exit 1
-          fi
-
-          echo ""
-          echo "✓ All sdk-libs crates validated successfully"
-
-      - name: Comment PR with validation result
-        if: success()
-        uses: actions/github-script@v7
-        with:
-          script: |
-            github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              body: '**Release validation passed!**\n\nDry-run publish completed successfully. This PR is ready to merge.'
-            });
+      - name: Validate packages for publishing
+        run: ./scripts/validate-packages.sh
