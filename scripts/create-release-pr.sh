@@ -2,19 +2,56 @@
 set -euo pipefail
 
 # Create release PR with current changes
-# Usage: ./scripts/create-release-pr.sh <program-libs|sdk-libs>
+# Usage: ./scripts/create-release-pr.sh <program-libs|sdk-libs> [target-branch]
+# Arguments:
+#   release-type: Type of release (program-libs or sdk-libs)
+#   target-branch: Branch to compare against (default: origin/main)
 
-if [ $# -ne 1 ]; then
-    echo "Usage: $0 <program-libs|sdk-libs>"
+if [ $# -lt 1 ] || [ $# -gt 2 ]; then
+    echo "Usage: $0 <program-libs|sdk-libs> [target-branch]"
     exit 1
 fi
 
 RELEASE_TYPE=$1
+TARGET_BRANCH="${2:-origin/main}"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [[ ! "$RELEASE_TYPE" =~ ^(program-libs|sdk-libs)$ ]]; then
     echo "Error: Release type must be 'program-libs' or 'sdk-libs'"
     exit 1
 fi
+
+# Function to get version changes between two git refs
+# Output format: One line per package: "package-name old-version new-version"
+get_version_changes() {
+    local base_ref="$1"
+    local head_ref="$2"
+
+    # Fetch if comparing against remote refs
+    if [[ "$base_ref" == origin/* ]]; then
+        local branch="${base_ref#origin/}"
+        git fetch origin "$branch" 2>/dev/null || true
+    fi
+
+    # Get list of changed Cargo.toml files in program-libs, sdk-libs, and program-tests/merkle-tree
+    for file in $(git diff "$base_ref"..."$head_ref" --name-only -- '**/Cargo.toml' | grep -E '(program-libs|sdk-libs|program-tests/merkle-tree)/'); do
+        # Extract old and new version from the diff
+        local versions=$(git diff "$base_ref"..."$head_ref" "$file" | grep -E '^\+version|^-version' | grep -v '+++\|---')
+        local old_ver=$(echo "$versions" | grep '^-version' | head -1 | awk -F'"' '{print $2}')
+        local new_ver=$(echo "$versions" | grep '^\+version' | head -1 | awk -F'"' '{print $2}')
+
+        # Only process if version actually changed
+        if [ -n "$old_ver" ] && [ -n "$new_ver" ] && [ "$old_ver" != "$new_ver" ]; then
+            # Extract actual package name from Cargo.toml
+            local pkg_name=$(grep '^name = ' "$file" | head -1 | awk -F'"' '{print $2}')
+
+            if [ -n "$pkg_name" ]; then
+                echo "$pkg_name $old_ver $new_ver"
+            fi
+        fi
+    done
+}
 
 # Check if there are changes
 if git diff --quiet; then
@@ -32,41 +69,29 @@ echo "Changed files:"
 git diff --name-only | grep Cargo.toml || echo "  (no Cargo.toml changes)"
 echo ""
 
-# Extract version changes with package names
-VERSION_CHANGES=""
+# Detect packages with version changes
+echo "Detecting packages with version changes..."
+echo "Comparing against: $TARGET_BRANCH"
+echo ""
+
+# Get version changes using the function
+VERSION_CHANGES_RAW=$(get_version_changes "$TARGET_BRANCH" "HEAD")
+
+# Build packages array and formatted version changes
 PACKAGES=()
-
-# Get list of changed Cargo.toml files in program-libs, sdk-libs, and program-tests/merkle-tree
-for file in $(git diff --name-only -- '**/Cargo.toml' | grep -E '(program-libs|sdk-libs|program-tests/merkle-tree)/'); do
-    # Extract old and new version from the diff
-    versions=$(git diff "$file" | grep -E '^\+version|^-version' | grep -v '+++\|---')
-    old_ver=$(echo "$versions" | grep '^-version' | head -1 | awk -F'"' '{print $2}')
-    new_ver=$(echo "$versions" | grep '^\+version' | head -1 | awk -F'"' '{print $2}')
-
-    # Only process if version actually changed
-    if [ -n "$old_ver" ] && [ -n "$new_ver" ] && [ "$old_ver" != "$new_ver" ]; then
-        # Extract actual package name from Cargo.toml
-        pkg_name=$(grep '^name = ' "$file" | head -1 | awk -F'"' '{print $2}')
-
-        if [ -n "$pkg_name" ]; then
-            VERSION_CHANGES="${VERSION_CHANGES}  ${pkg_name}: ${old_ver} → ${new_ver}\n"
-            PACKAGES+=("$pkg_name")
-        fi
+VERSION_CHANGES=""
+while IFS= read -r line; do
+    if [ -n "$line" ]; then
+        read -r pkg old_ver new_ver <<< "$line"
+        PACKAGES+=("$pkg")
+        VERSION_CHANGES="${VERSION_CHANGES}  ${pkg}: ${old_ver} → ${new_ver}\n"
     fi
-done
+done <<< "$VERSION_CHANGES_RAW"
 
 VERSION_CHANGES=$(echo -e "$VERSION_CHANGES")
 
 echo "Version changes:"
-if [ -z "$VERSION_CHANGES" ]; then
-  echo "  (no version changes detected)"
-  echo ""
-  echo "Error: No version changes found. Please bump versions first."
-  exit 1
-else
-  echo "$VERSION_CHANGES"
-fi
-echo ""
+echo "$VERSION_CHANGES"
 
 # Create release branch
 BRANCH_NAME="release/${RELEASE_TYPE}"
@@ -89,21 +114,14 @@ echo "Running cargo release dry-run validation..."
 echo "========================================="
 echo ""
 
-# Build package args for workspace publish command (using detected packages from version changes)
-PACKAGE_ARGS=""
-for pkg in "${PACKAGES[@]}"; do
-    PACKAGE_ARGS="$PACKAGE_ARGS -p $pkg"
-done
-
-echo "Validating packages with cargo publis --dry-run"
-ERROR_OUTPUT=$(cargo publish --dry-run --allow-dirty $PACKAGE_ARGS )
-if [ $? -ne 0 ]; then
+# Validate packages using the validation script
+if "$SCRIPT_DIR/validate-packages.sh" "$TARGET_BRANCH" "HEAD"; then
+    echo ""
+    echo "✓ All crates validated successfully"
+else
+    echo ""
     echo "✗ Validation failed"
     echo ""
-    echo "Error output:"
-    echo "$ERROR_OUTPUT"
-    echo ""
-
     echo "The GitHub Actions PR validation will run the same checks."
     echo "Continue anyway and let CI validate? (y/N) "
     read -n 1 -r
@@ -112,8 +130,6 @@ if [ $? -ne 0 ]; then
         echo "Cancelled."
         exit 1
     fi
-else
-    echo "✓ All crates validated successfully"
 fi
 echo ""
 
