@@ -64,7 +64,7 @@ jobs:
           )
 
           echo "Publishing program-libs crates individually..."
-          > /tmp/published_tags.txt
+          : > /tmp/published_tags.txt
 
           for pkg in "${PROGRAM_LIBS[@]}"; do
             echo "----------------------------------------"
@@ -106,7 +106,7 @@ jobs:
           )
 
           echo "Publishing sdk-libs crates individually..."
-          > /tmp/published_tags.txt
+          : > /tmp/published_tags.txt
 
           for pkg in "${SDK_LIBS[@]}"; do
             echo "----------------------------------------"
