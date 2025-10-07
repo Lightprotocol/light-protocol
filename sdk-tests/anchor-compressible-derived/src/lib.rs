@@ -65,7 +65,7 @@ pub enum ErrorCode {
 pub mod anchor_compressible_derived {
 
     use light_compressed_token_sdk::instructions::{
-        create_mint_action_cpi, find_spl_mint_address, MintActionInputs,
+        create_mint_action_cpi, find_mint_address, MintActionInputs,
     };
     use light_ctoken_types::state::TokenDataVersion;
     use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
@@ -276,7 +276,7 @@ pub mod anchor_compressible_derived {
 
         // these are custom seeds of the caller program that are used to derive the program owned onchain token account PDA.
         // dual use: as owner of the compressed token account.
-        let mint = find_spl_mint_address(&ctx.accounts.mint_signer.key()).0;
+        let mint = find_mint_address(&ctx.accounts.mint_signer.key()).0;
 
         // Use the auto-generated seed functions for all 5 token accounts
         let token_account_address = get_ctokensigner_seeds(&ctx.accounts.user.key(), &mint).1;
@@ -420,7 +420,7 @@ pub mod anchor_compressible_derived {
         // Use the new compress_empty_account_on_init function
         // This creates an empty compressed account but does NOT close the PDA
         compress_empty_account_on_init::<PlaceholderRecord>(
-            &mut placeholder_record,
+            placeholder_record,
             &compressed_address,
             &new_address_params,
             output_state_tree_index,

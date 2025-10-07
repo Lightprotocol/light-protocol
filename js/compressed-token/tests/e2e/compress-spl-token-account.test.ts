@@ -10,7 +10,7 @@ import {
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import {
-    createMint,
+    createMintSPL,
     decompress,
     mintTo,
     compressSplTokenAccount,
@@ -48,7 +48,7 @@ describe('compressSplTokenAccount', () => {
         const mintKeypair = Keypair.generate();
 
         mint = (
-            await createMint(
+            await createMintSPL(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
@@ -325,7 +325,7 @@ describe('compressSplTokenAccount', () => {
         const mintKeypair = Keypair.generate();
 
         mint = (
-            await createMint(
+            await createMintSPL(
                 rpc,
                 payer,
                 mintAuthority.publicKey,

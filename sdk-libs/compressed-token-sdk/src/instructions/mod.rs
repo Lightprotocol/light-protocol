@@ -32,7 +32,12 @@ pub use compress_and_close::{
     compress_and_close_ctoken_accounts_with_indices, CompressAndCloseIndices,
 };
 pub use create_associated_token_account::*;
-pub use create_compressed_mint::*;
+pub use create_compressed_mint::{
+    create_compressed_mint, create_compressed_mint_cpi, derive_compressed_address_from_mint_signer,
+    find_mint_address, get_create_compressed_mint_instruction_account_metas,
+    CreateCompressedMintInputs, CreateCompressedMintMetaConfig,
+    CREATE_COMPRESSED_MINT_DISCRIMINATOR,
+};
 pub use create_spl_mint::*;
 pub use create_token_account::create_token_account;
 pub use ctoken_accounts::*;

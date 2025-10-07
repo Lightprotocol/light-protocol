@@ -20,8 +20,10 @@ const rolls = (fmt, env) => ({
     external: [
         '@solana/web3.js',
         '@solana/spl-token',
-        // '@coral-xyz/borsh',
+        '@solana/buffer-layout',
+        '@solana/buffer-layout-utils',
         '@lightprotocol/stateless.js',
+        '@aws-sdk/client-s3',
     ],
     plugins: [
         replace({

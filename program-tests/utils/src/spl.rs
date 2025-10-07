@@ -353,7 +353,7 @@ pub fn create_initialize_mint_22_instructions(
         create_account_instruction(payer, Mint::LEN, rent, &program_id, Some(mint_keypair));
 
     let mint_pubkey = mint_keypair.pubkey();
-    let create_mint_instruction = if token_22 {
+    let init_mint_instruction = if token_22 {
         spl_token_2022::instruction::initialize_mint(
             &program_id,
             &mint_keypair.pubkey(),
@@ -381,7 +381,7 @@ pub fn create_initialize_mint_22_instructions(
     (
         [
             account_create_ix,
-            create_mint_instruction,
+            init_mint_instruction,
             transfer_ix,
             instruction,
         ],

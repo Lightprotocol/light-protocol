@@ -2,17 +2,17 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_compressed_token_sdk::instructions::{
-    derive_ctoken_mint_address,
-    mint_action::{MintActionType, MintToRecipient},
-};
+use light_compressed_token_sdk::instructions::mint_action::{MintActionType, MintToRecipient};
 use light_ctoken_types::instructions::mint_action::Recipient;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
-use crate::instructions::mint_action::{create_mint_action_instruction, MintActionParams};
+use crate::{
+    ctoken::{derive_compressed_address_from_mint_signer, find_mint_address},
+    instructions::mint_action::{create_mint_action_instruction, MintActionParams},
+};
 
 /// Executes a mint action that can perform multiple operations in a single instruction
 ///
@@ -77,17 +77,15 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     // Parameters for mint creation (required if create_spl_mint is true)
     new_mint: Option<crate::instructions::mint_action::NewMint>,
 ) -> Result<Signature, RpcError> {
-    use light_compressed_token_sdk::instructions::find_spl_mint_address;
-
     // Derive addresses
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-    let compressed_mint_address =
-        derive_ctoken_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (_, _, compressed_mint_address) =
+        derive_compressed_address_from_mint_signer(mint_seed.pubkey(), &address_tree_pubkey);
 
     // Build actions
     let mut actions = Vec::new();
     if create_spl_mint {
-        let mint_bump = find_spl_mint_address(&mint_seed.pubkey()).1;
+        let mint_bump = find_mint_address(mint_seed.pubkey()).1;
         actions.push(MintActionType::CreateSplMint { mint_bump });
     }
 
@@ -107,9 +105,9 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     }
 
     if !mint_to_decompressed_recipients.is_empty() {
-        use light_compressed_token_sdk::instructions::{derive_ctoken_ata, find_spl_mint_address};
+        use light_compressed_token_sdk::instructions::derive_ctoken_ata;
 
-        let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());
+        let (spl_mint_pda, _) = find_mint_address(mint_seed.pubkey());
 
         for recipient in mint_to_decompressed_recipients {
             let recipient_pubkey = solana_pubkey::Pubkey::from(recipient.recipient.to_bytes());

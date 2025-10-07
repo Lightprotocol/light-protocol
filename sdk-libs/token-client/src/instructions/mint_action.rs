@@ -4,7 +4,8 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::instructions::{
-    create_mint_action, derive_ctoken_mint_address, derive_token_pool, find_spl_mint_address,
+    create_mint_action, derive_compressed_address_from_mint_signer, derive_token_pool,
+    find_mint_address,
     mint_action::{MintActionInputs, MintActionType, MintToRecipient},
 };
 use light_ctoken_types::{
@@ -79,7 +80,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                 decimals: new_mint.decimals,
                 metadata: light_ctoken_types::state::CompressedMintMetadata {
                     version: new_mint.version,
-                    spl_mint: find_spl_mint_address(&params.mint_seed).0.to_bytes().into(),
+                    spl_mint: find_mint_address(&params.mint_seed).0.to_bytes().into(),
                     spl_mint_initialized: false, // Will be set to true if CreateSplMint action is present
                 },
                 mint_authority: Some(new_mint.mint_authority.to_bytes().into()),
@@ -133,9 +134,9 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
         (compressed_mint_inputs, rpc_proof_result.proof.into())
     };
     println!("compressed_mint_inputs {:?}", compressed_mint_inputs);
-    // Get mint bump from find_spl_mint_address if we're creating a compressed mint
+    // Get mint bump from find_mint_address if we're creating a compressed mint
     let mint_bump = if is_creating_mint {
-        Some(find_spl_mint_address(&params.mint_seed).1)
+        Some(find_mint_address(&params.mint_seed).1)
     } else {
         None
     };
@@ -149,7 +150,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
     }) || compressed_mint_inputs.mint.metadata.spl_mint_initialized;
 
     let token_pool = if needs_token_pool {
-        let spl_mint = find_spl_mint_address(&params.mint_seed).0;
+        let spl_mint = find_mint_address(&params.mint_seed).0;
         Some(derive_token_pool(&spl_mint, 0))
     } else {
         None
@@ -207,8 +208,8 @@ pub async fn create_comprehensive_mint_action_instruction<R: Rpc + Indexer>(
     // Derive addresses
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
-        derive_ctoken_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (_, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
+        derive_compressed_address_from_mint_signer(&mint_seed.pubkey(), &address_tree_pubkey).2;
+    let (_, mint_bump) = find_mint_address(&mint_seed.pubkey());
 
     // Build actions
     let mut actions = Vec::new();

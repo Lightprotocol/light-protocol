@@ -1,6 +1,12 @@
 pub mod actions;
 pub mod instructions;
+pub mod utils;
+
+// Re-export the main utility functions for easy access
 use solana_pubkey::{pubkey, Pubkey};
+pub use utils::{
+    derive_compressed_address, derive_compressed_address_from_mint_signer, find_mint_address,
+};
 
 pub const CTOKEN_PROGRAM_ID: Pubkey = pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
@@ -48,16 +54,25 @@ pub mod ctoken {
         99, 111, 109, 112, 114, 101, 115, 115, 101, 100, 95, 109, 105, 110, 116,
     ];
 
-    pub fn find_mint_address(mint_signer: Pubkey) -> (Pubkey, u8) {
-        Pubkey::find_program_address(&[CTOKEN_MINT_SEED, mint_signer.to_bytes().as_ref()], &ID)
+    /// Derives the cToken program mint PDA from the provided signer pubkey (keypair or PDA).
+    /// The signer must sign when creating the SPL mint PDA on-chain.
+    pub fn find_mint_address(signer: Pubkey) -> (Pubkey, u8) {
+        Pubkey::find_program_address(&[CTOKEN_MINT_SEED, signer.to_bytes().as_ref()], &ID)
     }
 
-    pub fn derive_ctoken_mint_address(mint_address: Pubkey, address_tree: &Pubkey) -> [u8; 32] {
-        derive_address(
-            &mint_address.to_bytes(),
-            &address_tree.to_bytes(),
-            &ID.to_bytes(),
-        )
+    pub fn derive_compressed_address(mint: Pubkey, address_tree: &Pubkey) -> [u8; 32] {
+        derive_address(&mint.to_bytes(), &address_tree.to_bytes(), &ID.to_bytes())
+    }
+
+    /// Comprehensive helper that derives all addresses from a signer in one call
+    /// Returns: (mint_address, mint_bump, compressed_address)
+    pub fn derive_compressed_address_from_mint_signer(
+        signer: Pubkey,
+        address_tree: &Pubkey,
+    ) -> (Pubkey, u8, [u8; 32]) {
+        let (mint_address, mint_bump) = find_mint_address(signer);
+        let compressed_address = derive_compressed_address(mint_address, address_tree);
+        (mint_address, mint_bump, compressed_address)
     }
 
     pub fn derive_ctoken_program_config(_version: Option<u64>) -> (Pubkey, u8) {

@@ -5,7 +5,7 @@ use light_compressed_token::{
     instructions::create_token_pool::find_token_pool_pda_with_index, LIGHT_CPI_SIGNER,
 };
 use light_compressed_token_sdk::instructions::{
-    derive_ctoken_mint_address, find_spl_mint_address,
+    derive_compressed_address_from_mint_signer, find_mint_address,
 };
 use light_ctoken_types::state::CompressedMint;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
@@ -21,8 +21,9 @@ pub async fn assert_spl_mint<R: Rpc + Indexer>(
 ) {
     // Derive all necessary addresses from the seed
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-    let compressed_mint_address = derive_ctoken_mint_address(&seed, &address_tree_pubkey);
-    let (spl_mint_pda, _) = find_spl_mint_address(&seed);
+    let (_, _, compressed_mint_address) =
+        derive_compressed_address_from_mint_signer(&seed, &address_tree_pubkey);
+    let (spl_mint_pda, _) = find_mint_address(&seed);
 
     // Get the compressed mint data
     let compressed_mint_account = rpc

@@ -19,7 +19,7 @@ import {
 } from '@lightprotocol/stateless.js';
 
 /**
- * Create and initialize a new compressed token mint
+ * Create and initialize a new SPL token mint
  *
  * @param rpc               RPC connection to use
  * @param payer             Fee payer
@@ -35,7 +35,7 @@ import {
  *
  * @return Object with mint address and transaction signature
  */
-export async function createMint(
+export async function createMintSPL(
     rpc: Rpc,
     payer: Signer,
     mintAuthority: PublicKey | Signer,
@@ -56,7 +56,7 @@ export async function createMint(
             ? TOKEN_2022_PROGRAM_ID
             : tokenProgramId || TOKEN_PROGRAM_ID;
 
-    const ixs = await CompressedTokenProgram.createMint({
+    const ixs = await CompressedTokenProgram.createMintSPL({
         feePayer: payer.publicKey,
         mint: keypair.publicKey,
         decimals,

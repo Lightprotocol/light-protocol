@@ -34,6 +34,7 @@ import {
     SignatureWithMetadata,
     WithContext,
     WithCursor,
+    AddressWithTreeInfoV2,
 } from '../../rpc-interface';
 import {
     ValidityProofWithContext,
@@ -960,7 +961,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         );
     }
 
-    async getCompressibleAccountInfo(
+    async getValidityProofV2(
+        accountMerkleContexts: (MerkleContext | undefined)[] = [],
+        newAddresses: AddressWithTreeInfoV2[] = [],
+    ): Promise<ValidityProofWithContext> {
+        throw new Error('getValidityProofV2 not implemented in test-rpc');
+    }
+
+    async getAccountInfoInterface(
         _address: PublicKey,
         _programId: PublicKey,
         _addressTreeInfo: TreeInfo,
@@ -969,21 +977,19 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         isCompressed: boolean;
         merkleContext?: MerkleContext;
     } | null> {
-        throw new Error(
-            'getCompressibleAccountInfo not implemented in test-rpc',
-        );
+        throw new Error('getAccountInfoInterface not implemented in test-rpc');
     }
-    async getCompressibleTokenAccount(
-        _address: PublicKey,
-        _tokenProgramId: PublicKey = CTOKEN_PROGRAM_ID,
-    ): Promise<{
-        accountInfo: AccountInfo<Buffer>;
-        parsed: TokenData;
-        isCompressed: boolean;
-        merkleContext?: MerkleContext;
-    } | null> {
-        throw new Error(
-            'getCompressibleTokenAccount not implemented in test-rpc',
-        );
-    }
+    // async getCompressibleTokenAccount(
+    //     _address: PublicKey,
+    //     _tokenProgramId: PublicKey = CTOKEN_PROGRAM_ID,
+    // ): Promise<{
+    //     accountInfo: AccountInfo<Buffer>;
+    //     parsed: TokenData;
+    //     isCompressed: boolean;
+    //     merkleContext?: MerkleContext;
+    // } | null> {
+    //     throw new Error(
+    //         'getCompressibleTokenAccount not implemented in test-rpc',
+    //     );
+    // }
 }

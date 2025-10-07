@@ -4,8 +4,8 @@ use light_client::{
     indexer::{CompressedTokenAccount, Indexer},
     rpc::Rpc,
 };
+use light_compressed_account::address::derive_address;
 use light_compressed_token::instructions::create_token_pool::find_token_pool_pda_with_index;
-use light_compressed_token_sdk::instructions::derive_compressed_mint_from_spl_mint;
 use light_ctoken_types::{
     instructions::mint_action::Recipient, state::CompressedMint, CTOKEN_PROGRAM_ID,
 };
@@ -21,8 +21,11 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
 ) -> Vec<CompressedTokenAccount> {
     // Derive compressed mint address from SPL mint PDA (same as instruction)
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-    let compressed_mint_address =
-        derive_compressed_mint_from_spl_mint(&spl_mint_pda, &address_tree_pubkey);
+    let compressed_mint_address = derive_address(
+        &spl_mint_pda.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &CTOKEN_PROGRAM_ID,
+    );
     // Verify each recipient received their tokens
     let mut all_token_accounts = Vec::new();
     let mut total_minted = 0u64;

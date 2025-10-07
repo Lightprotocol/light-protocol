@@ -10,8 +10,8 @@ use light_compressed_token_sdk::{
             create_compressible_associated_token_account, derive_ctoken_ata,
             CreateCompressibleAssociatedTokenAccountInputs,
         },
-        create_compressed_mint::find_spl_mint_address,
-        derive_ctoken_mint_address,
+        create_compressed_mint::find_mint_address,
+        derive_compressed_address_from_mint_signer,
         mint_action::MintToRecipient,
     },
     CPI_AUTHORITY_PDA,
@@ -196,11 +196,11 @@ pub async fn create_mint(
     let tree_info = rpc.get_random_state_tree_info()?;
 
     // Derive compressed mint address using utility function
-    let compressed_mint_address =
-        derive_ctoken_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let (_, _, compressed_mint_address) =
+        derive_compressed_address_from_mint_signer(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint bump for the instruction
-    let (spl_mint, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
+    let (spl_mint, mint_bump) = find_mint_address(&mint_seed.pubkey());
 
     // Create compressed token associated token account for the mint authority
     let (token_account, _) = derive_ctoken_ata(&mint_authority.pubkey(), &spl_mint);

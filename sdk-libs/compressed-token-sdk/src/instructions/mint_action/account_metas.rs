@@ -60,7 +60,7 @@ pub fn get_mint_action_instruction_account_metas(
         // mint - either derived from mint_signer (for creation) or from existing mint data
         if let Some(mint_signer) = config.mint_signer {
             // For mint creation - derive from mint_signer
-            let (spl_mint_pda, _) = crate::instructions::find_spl_mint_address(&mint_signer);
+            let (spl_mint_pda, _) = crate::instructions::find_mint_address(&mint_signer);
             metas.push(AccountMeta::new(spl_mint_pda, false)); // mutable: true, signer: false
 
             // token_pool_pda (derived from mint)

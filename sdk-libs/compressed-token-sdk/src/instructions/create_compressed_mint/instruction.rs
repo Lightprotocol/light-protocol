@@ -53,10 +53,7 @@ pub fn create_compressed_mint_cpi(
             decimals: input.decimals,
             metadata: light_ctoken_types::state::CompressedMintMetadata {
                 version: input.version,
-                spl_mint: find_spl_mint_address(&input.mint_signer)
-                    .0
-                    .to_bytes()
-                    .into(),
+                spl_mint: find_mint_address(&input.mint_signer).0.to_bytes().into(),
                 spl_mint_initialized: false,
             },
             mint_authority: Some(input.mint_authority.to_bytes().into()),
@@ -140,10 +137,7 @@ pub fn create_compressed_mint_cpi_write(
             decimals: input.decimals,
             metadata: light_ctoken_types::state::CompressedMintMetadata {
                 version: input.version,
-                spl_mint: find_spl_mint_address(&input.mint_signer)
-                    .0
-                    .to_bytes()
-                    .into(),
+                spl_mint: find_mint_address(&input.mint_signer).0.to_bytes().into(),
                 spl_mint_initialized: false,
             },
             mint_authority: Some(input.mint_authority.to_bytes().into()),
@@ -184,19 +178,51 @@ pub fn create_compressed_mint_cpi_write(
 
 /// Creates a compressed mint instruction with automatic mint address derivation
 pub fn create_compressed_mint(input: CreateCompressedMintInputs) -> Result<Instruction> {
-    let mint_address = derive_ctoken_mint_address(&input.mint_signer, &input.address_tree_pubkey);
-    create_compressed_mint_cpi(input, mint_address, None, None)
+    let (_, _, compressed_address) =
+        derive_compressed_address_from_mint_signer(&input.mint_signer, &input.address_tree_pubkey);
+    create_compressed_mint_cpi(input, compressed_address, None, None)
 }
 
+/// DEPRECATED: Use derive_compressed_address_from_signer instead
 /// Derives the compressed mint address from the mint seed and address tree
 pub fn derive_ctoken_mint_address(mint_seed: &Pubkey, address_tree_pubkey: &Pubkey) -> [u8; 32] {
+    let (mint_pda, _) = find_mint_address(mint_seed);
     light_compressed_account::address::derive_address(
-        &find_spl_mint_address(mint_seed).0.to_bytes(),
+        &mint_pda.to_bytes(),
         &address_tree_pubkey.to_bytes(),
         &light_sdk_types::CTOKEN_PROGRAM_ID,
     )
 }
 
+pub fn find_mint_address(signer: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[COMPRESSED_MINT_SEED, signer.as_ref()],
+        &Pubkey::new_from_array(light_sdk_types::CTOKEN_PROGRAM_ID),
+    )
+}
+
+/// Derives mint from a signer
+/// Returns: (mint_address, mint_bump, compressed_address)
+pub fn derive_compressed_address_from_mint_signer(
+    signer: &Pubkey,
+    address_tree_pubkey: &Pubkey,
+) -> (Pubkey, u8, [u8; 32]) {
+    let (mint_address, mint_bump) = find_mint_address(signer);
+    let compressed_address = light_compressed_account::address::derive_address(
+        &mint_address.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &light_sdk_types::CTOKEN_PROGRAM_ID,
+    );
+    (mint_address, mint_bump, compressed_address)
+}
+
+// Backward compatibility aliases - DEPRECATED
+#[deprecated(since = "0.1.0", note = "Use derive_mint_from_signer instead")]
+pub fn find_spl_mint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
+    find_mint_address(mint_seed)
+}
+
+#[deprecated(since = "0.1.0", note = "Use derive_compressed_address instead")]
 pub fn derive_compressed_mint_from_spl_mint(
     spl_mint: &Pubkey,
     address_tree_pubkey: &Pubkey,
@@ -205,12 +231,5 @@ pub fn derive_compressed_mint_from_spl_mint(
         &spl_mint.to_bytes(),
         &address_tree_pubkey.to_bytes(),
         &light_sdk_types::CTOKEN_PROGRAM_ID,
-    )
-}
-
-pub fn find_spl_mint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
-    Pubkey::find_program_address(
-        &[COMPRESSED_MINT_SEED, mint_seed.as_ref()],
-        &Pubkey::new_from_array(light_sdk_types::CTOKEN_PROGRAM_ID),
     )
 }

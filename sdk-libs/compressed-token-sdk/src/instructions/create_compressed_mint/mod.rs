@@ -5,10 +5,17 @@ pub use account_metas::{
     get_create_compressed_mint_instruction_account_metas, CreateCompressedMintMetaConfig,
 };
 pub use instruction::{
-    create_compressed_mint, create_compressed_mint_cpi, derive_ctoken_mint_address,
-    derive_compressed_mint_from_spl_mint, find_spl_mint_address, CreateCompressedMintInputs,
+    create_compressed_mint,
+    create_compressed_mint_cpi,
+    derive_compressed_address_from_mint_signer,
+    derive_ctoken_mint_address,
+    find_mint_address as find_mint_address_internal, // internal name, re-exported below
+    CreateCompressedMintInputs,
     CREATE_COMPRESSED_MINT_DISCRIMINATOR,
 };
+
+// Public re-export with canonical name
+pub use instruction::find_mint_address;
 use light_account_checks::AccountInfoTrait;
 use light_sdk::cpi::CpiSigner;
 

@@ -5,7 +5,7 @@ use light_client::{
 };
 use light_compressed_token_sdk::instructions::{
     create_spl_mint_instruction as sdk_create_spl_mint_instruction, derive_token_pool,
-    find_spl_mint_address, CreateSplMintInputs,
+    find_mint_address, CreateSplMintInputs,
 };
 use light_ctoken_types::{
     instructions::mint_action::CompressedMintWithContext, state::CompressedMint,
@@ -61,7 +61,7 @@ pub async fn create_spl_mint_instruction<R: Rpc + Indexer>(
         .await?
         .value;
 
-    let (spl_mint_pda, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
+    let (spl_mint_pda, mint_bump) = find_mint_address(&mint_seed.pubkey());
 
     let token_pool = derive_token_pool(&spl_mint_pda, 0);
 

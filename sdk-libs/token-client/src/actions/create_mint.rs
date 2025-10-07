@@ -8,9 +8,9 @@ use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
-use crate::instructions::create_mint::create_compressed_mint_instruction;
+use crate::instructions::create_mint::create_compressed_mint_instruction_async;
 
-/// Create a compressed mint and send the transaction.
+/// Create a compressed mint and send the transaction (async). Fetches proof+context and uses the non-async ix builder internally.
 ///
 /// # Arguments
 /// * `rpc` - RPC client with indexer capabilities
@@ -23,7 +23,7 @@ use crate::instructions::create_mint::create_compressed_mint_instruction;
 ///
 /// # Returns
 /// `Result<Signature, RpcError>` - The transaction signature
-pub async fn create_mint<R: Rpc + Indexer>(
+pub async fn create_mint_async<R: Rpc + Indexer>(
     rpc: &mut R,
     mint_seed: &Keypair,
     decimals: u8,
@@ -33,7 +33,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
     // Create the instruction
-    let ix = create_compressed_mint_instruction(
+    let ix = create_compressed_mint_instruction_async(
         rpc,
         mint_seed,
         decimals,

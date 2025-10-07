@@ -336,8 +336,7 @@ pub mod anchor_compressible {
 
     use light_compressed_token_sdk::instructions::{
         compress_and_close::compress_and_close_ctoken_accounts_signed, create_mint_action_cpi,
-        create_token_account::create_ctoken_account_signed, find_spl_mint_address,
-        MintActionInputs,
+        create_token_account::create_ctoken_account_signed, find_mint_address, MintActionInputs,
     };
     use light_sdk::compressible::compress_account::prepare_account_for_compression;
     use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
@@ -1137,7 +1136,7 @@ pub mod anchor_compressible {
 
         // these are custom seeds of the caller program that are used to derive the program owned onchain tokenb account PDA.
         // dual use: as owner of the compressed token account.
-        let mint = find_spl_mint_address(&ctx.accounts.mint_signer.key()).0;
+        let mint = find_mint_address(&ctx.accounts.mint_signer.key()).0;
         let (_, token_account_address) = get_ctoken_signer_seeds(&ctx.accounts.user.key(), &mint);
 
         let actions = vec![
@@ -1273,7 +1272,7 @@ pub mod anchor_compressible {
         // Use the new compress_empty_account_on_init function
         // This creates an empty compressed account but does NOT close the PDA
         compress_empty_account_on_init::<PlaceholderRecord>(
-            &mut placeholder_record,
+            placeholder_record,
             &compressed_address,
             &new_address_params,
             output_state_tree_index,
