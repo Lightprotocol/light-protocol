@@ -211,7 +211,7 @@ install_photon() {
         echo "Installing Photon indexer (version $expected_version)..."
         # Use git commit for now as specified in constants.ts
         # Allow dead code warnings for external dependency compilation
-        RUSTFLAGS="-A dead-code" cargo install --git https://github.com/helius-labs/photon.git --rev 443e0929bc4fc1fb8cb926aa438db7b72a945150 --locked --force
+        RUSTFLAGS="-A dead-code" cargo install --git https://github.com/helius-labs/photon.git --rev ad49094e59195c664a683b7c7814e26563640d57 --locked --force
         log "photon"
     else
         echo "Photon already installed with correct version, skipping..."
