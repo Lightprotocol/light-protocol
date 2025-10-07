@@ -310,11 +310,7 @@ const BNFromStringOrNumber = coerce(
  *
  * @internal
  */
-const Base64EncodedCompressedAccountDataResult = coerce(
-    string(),
-    string(),
-    value => (value === '' ? '' : value),
-);
+const Base64EncodedCompressedAccountDataResult = string();
 /**
  * @internal
  */
