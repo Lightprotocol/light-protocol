@@ -7,7 +7,6 @@
     "type": "module",
     "exports": {
         ".": {
-            "import": "./dist/es/browser/index.js",
             "require": "./dist/cjs/node/index.cjs",
             "types": "./dist/types/index.d.ts",
             "default": "./dist/cjs/node/index.cjs"
