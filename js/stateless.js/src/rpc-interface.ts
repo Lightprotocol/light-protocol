@@ -278,6 +278,16 @@ const BN254FromString = coerce(instance(BN), string(), value => {
 });
 
 /**
+ * @internal
+ * Coerce number (0/1) or boolean to boolean
+ */
+const BooleanFromNumberOrBoolean = coerce(
+    boolean(),
+    union([number(), boolean()]),
+    value => Boolean(value),
+);
+
+/**
  *
  * @internal
  * expects bigints to be supplied as strings.
@@ -421,7 +431,7 @@ export const CompressedAccountResultV2 = pick({
     seq: nullable(BNFromStringOrNumber),
     slotCreated: BNFromStringOrNumber,
     merkleContext: TreeInfoResultV2,
-    proveByIndex: boolean(),
+    proveByIndex: BooleanFromNumberOrBoolean,
 });
 
 export const TokenDataResult = pick({
@@ -552,7 +562,7 @@ export const MerkleProofResultV2 = pick({
     proof: array(BN254FromString),
     root: BN254FromString,
     rootSeq: number(),
-    proveByIndex: boolean(),
+    proveByIndex: BooleanFromNumberOrBoolean,
     treeContext: TreeInfoResultV2,
 });
 
@@ -585,7 +595,7 @@ const CompressedProofResult = pick({
  */
 export const RootIndexResultV2 = pick({
     rootIndex: number(),
-    proveByIndex: boolean(),
+    proveByIndex: BooleanFromNumberOrBoolean,
 });
 
 /**
