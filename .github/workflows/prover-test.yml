@@ -60,7 +60,7 @@ jobs:
         if: ${{ github.event.pull_request.base.ref == 'main' }}
         run: |
           cd prover/server
-          ./scripts/download_keys.sh light
+          ./scripts/download_keys.sh full
 
       - name: Download keys for full tests
         if: ${{ github.event.pull_request.base.ref == 'release' }}
@@ -71,12 +71,12 @@ jobs:
       - name: Build
         run: |
           cd prover/server
-          go build
+          go build ./...
 
       - name: Unit tests
         run: |
           cd prover/server
-          go test ./prover -timeout 60m
+          go test ./prover/... -timeout 60m
 
       - name: Redis Queue tests
         env:
@@ -131,6 +131,7 @@ jobs:
       - name: Extract circuit to Lean
         run: |
           cd prover/server
+          go build
           ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --address-tree-height 40 --compressed-accounts 8 --state-tree-height 32
 
       - name: Build lean project

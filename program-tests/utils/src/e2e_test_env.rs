@@ -756,7 +756,7 @@ where
                                     .await
                                     .unwrap();
                                 let addresses =
-                                    addresses.value.items.iter().map(|x| x.account_hash).collect::<Vec<_>>();
+                                    addresses.value.elements.iter().map(|x| x.account_hash).collect::<Vec<_>>();
                                 // // local_leaves_hash_chain is only used for a test assertion.
                                 // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
                                 // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);

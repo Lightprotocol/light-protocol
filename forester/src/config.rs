@@ -64,8 +64,8 @@ pub struct IndexerConfig {
 #[derive(Debug, Clone)]
 pub struct TransactionConfig {
     pub legacy_ixs_per_tx: usize,
-    pub batch_ixs_per_tx: usize,
     pub max_concurrent_batches: usize,
+    pub max_concurrent_sends: usize,
     pub cu_limit: u32,
     pub enable_priority_fees: bool,
     pub tx_cache_ttl_seconds: u64,
@@ -81,6 +81,7 @@ pub struct GeneralConfig {
     pub skip_v1_address_trees: bool,
     pub skip_v2_state_trees: bool,
     pub skip_v2_address_trees: bool,
+    pub tree_id: Option<Pubkey>,
 }
 
 impl Default for GeneralConfig {
@@ -93,6 +94,7 @@ impl Default for GeneralConfig {
             skip_v1_address_trees: false,
             skip_v2_state_trees: false,
             skip_v2_address_trees: false,
+            tree_id: None,
         }
     }
 }
@@ -107,6 +109,7 @@ impl GeneralConfig {
             skip_v1_address_trees: true,
             skip_v2_state_trees: true,
             skip_v2_address_trees: false,
+            tree_id: None,
         }
     }
 
@@ -119,6 +122,7 @@ impl GeneralConfig {
             skip_v1_address_trees: true,
             skip_v2_state_trees: false,
             skip_v2_address_trees: true,
+            tree_id: None,
         }
     }
 }
@@ -157,8 +161,8 @@ impl Default for TransactionConfig {
     fn default() -> Self {
         Self {
             legacy_ixs_per_tx: 1,
-            batch_ixs_per_tx: 3,
             max_concurrent_batches: 20,
+            max_concurrent_sends: 50,
             cu_limit: 1_000_000,
             enable_priority_fees: false,
             tx_cache_ttl_seconds: 15,
@@ -251,8 +255,8 @@ impl ForesterConfig {
             },
             transaction_config: TransactionConfig {
                 legacy_ixs_per_tx: args.legacy_ixs_per_tx,
-                batch_ixs_per_tx: args.batch_ixs_per_tx,
                 max_concurrent_batches: args.transaction_max_concurrent_batches,
+                max_concurrent_sends: args.max_concurrent_sends,
                 cu_limit: args.cu_limit,
                 enable_priority_fees: args.enable_priority_fees,
                 tx_cache_ttl_seconds: args.tx_cache_ttl_seconds,
@@ -266,6 +270,10 @@ impl ForesterConfig {
                 skip_v2_state_trees: args.processor_mode == ProcessorMode::V1,
                 skip_v1_address_trees: args.processor_mode == ProcessorMode::V2,
                 skip_v2_address_trees: args.processor_mode == ProcessorMode::V1,
+                tree_id: args
+                    .tree_id
+                    .as_ref()
+                    .and_then(|id| Pubkey::from_str(id).ok()),
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: args.rpc_pool_size,
@@ -320,6 +328,7 @@ impl ForesterConfig {
                 skip_v2_state_trees: false,
                 skip_v1_address_trees: false,
                 skip_v2_address_trees: false,
+                tree_id: None,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: 10,

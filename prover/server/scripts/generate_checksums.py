@@ -1,7 +1,6 @@
 import os
 import hashlib
-import boto3
-from tqdm import tqdm
+import sys
 
 def calculate_sha256(filepath):
     sha256_hash = hashlib.sha256()
@@ -14,14 +13,21 @@ def generate_checksums(directory):
     checksums = {}
     files = [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
 
-    print("Calculating checksums...")
-    for filename in tqdm(files):
+    print(f"Calculating checksums for {len(files)} files...")
+    for i, filename in enumerate(files, 1):
         filepath = os.path.join(directory, filename)
         checksums[filename] = calculate_sha256(filepath)
+        sys.stdout.write(f"\rProgress: {i}/{len(files)} files processed")
+        sys.stdout.flush()
 
-    with open("CHECKSUM", "w") as f:
+    print()
+
+    checksum_file = os.path.join(directory, "CHECKSUM")
+    with open(checksum_file, "w") as f:
         for filename, checksum in sorted(checksums.items()):
             f.write(f"{checksum}  {filename}\n")
+
+    print(f"Checksums written to {checksum_file}")
 
 if __name__ == "__main__":
     generate_checksums("./proving-keys")

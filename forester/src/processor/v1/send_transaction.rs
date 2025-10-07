@@ -22,7 +22,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use tokio::time::Instant;
-use tracing::{debug, error, info, trace, warn};
+use tracing::{error, trace, warn};
 
 use crate::{
     epoch_manager::WorkItem,
@@ -54,22 +54,15 @@ enum TransactionSendResult {
 /// Setting:
 /// 1. We have 1 light slot (n solana slots), and elements in queue
 /// 2. we want to send as many elements from the queue as possible
-pub async fn send_batched_transactions<T: TransactionBuilder, R: Rpc>(
+pub async fn send_batched_transactions<T: TransactionBuilder + Send + Sync + 'static, R: Rpc>(
     payer: &Keypair,
     derivation: &Pubkey,
     pool: Arc<SolanaRpcPool<R>>,
     config: &SendBatchedTransactionsConfig,
     tree_accounts: TreeAccounts,
-    transaction_builder: &T,
+    transaction_builder: Arc<T>,
 ) -> Result<usize> {
     let function_start_time = Instant::now();
-
-    info!(
-        "V1_TPS_METRIC: operation_start tree_type={} tree={} epoch={}",
-        tree_accounts.tree_type,
-        tree_accounts.merkle_tree,
-        transaction_builder.epoch()
-    );
 
     let num_sent_transactions = Arc::new(AtomicUsize::new(0));
     let operation_cancel_signal = Arc::new(AtomicBool::new(false));
@@ -80,7 +73,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: Rpc>(
         &pool,
         config,
         tree_accounts,
-        transaction_builder,
+        &*transaction_builder,
         function_start_time,
     )
     .await?
@@ -138,7 +131,7 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: Rpc>(
         trace!(tree = %tree_accounts.merkle_tree, "Built {} transactions in {:?}", transactions_to_send.len(), build_start_time.elapsed());
 
         if Instant::now() >= data.timeout_deadline {
-            warn!(tree = %tree_accounts.merkle_tree, "Reached global timeout deadline after building transactions, stopping.");
+            trace!(tree = %tree_accounts.merkle_tree, "Reached global timeout deadline after building transactions, stopping.");
             break;
         }
 
@@ -160,15 +153,6 @@ pub async fn send_batched_transactions<T: TransactionBuilder, R: Rpc>(
 
     let total_sent_successfully = num_sent_transactions.load(Ordering::SeqCst);
     trace!(tree = %tree_accounts.merkle_tree, "Transaction sending loop finished. Total transactions sent successfully: {}", total_sent_successfully);
-
-    let total_duration = function_start_time.elapsed();
-    let tps = if total_duration.as_secs_f64() > 0.0 {
-        total_sent_successfully as f64 / total_duration.as_secs_f64()
-    } else {
-        0.0
-    };
-
-    info!("V1_TPS_METRIC: operation_complete tree_type={} tree={} epoch={} transactions={} duration_ms={} tps={:.2}", tree_accounts.tree_type, tree_accounts.merkle_tree, transaction_builder.epoch(), total_sent_successfully, total_duration.as_millis(), tps);
 
     Ok(total_sent_successfully)
 }
@@ -228,20 +212,9 @@ async fn prepare_batch_prerequisites<R: Rpc, T: TransactionBuilder>(
     };
 
     if queue_item_data.is_empty() {
-        info!(
-            "QUEUE_METRIC: queue_empty tree_type={} tree={}",
-            tree_accounts.tree_type, tree_accounts.merkle_tree
-        );
         trace!(tree = %tree_id_str, "Queue is empty, no transactions to send.");
         return Ok(None); // Return None to indicate no work
     }
-
-    info!(
-        "QUEUE_METRIC: queue_has_elements tree_type={} tree={} count={}",
-        tree_accounts.tree_type,
-        tree_accounts.merkle_tree,
-        queue_item_data.len()
-    );
 
     let (recent_blockhash, last_valid_block_height) = {
         let mut rpc = pool.get_connection().await.map_err(|e| {
@@ -339,7 +312,7 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
                     let send_time = Instant::now();
                     match rpc.send_transaction_with_config(&tx, rpc_send_config).await {
                         Ok(signature) => {
-                            if !cancel_signal_clone.load(Ordering::SeqCst) { // Re-check before incrementing
+                            if !cancel_signal_clone.load(Ordering::SeqCst) {
                                 num_sent_transactions_clone.fetch_add(1, Ordering::SeqCst);
                                 trace!(tx.signature = %signature, elapsed = ?send_time.elapsed(), "Transaction sent successfully");
                                 TransactionSendResult::Success(signature)
@@ -367,36 +340,29 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
         max_concurrent_sends
     );
     let exec_start = Instant::now();
-    let results = futures::stream::iter(transaction_send_futures)
+    let result = futures::stream::iter(transaction_send_futures)
         .buffer_unordered(max_concurrent_sends) // buffer_unordered for concurrency
         .collect::<Vec<TransactionSendResult>>()
         .await;
-    trace!("Finished executing batch in {:?}", exec_start.elapsed());
-
-    let mut successes = 0;
-    let mut failures = 0;
-    let mut cancelled_or_timeout = 0;
-    for outcome in results {
-        match outcome {
+    for res in result {
+        match res {
             TransactionSendResult::Success(sig) => {
-                trace!(tx.signature = %sig, outcome = "SuccessInChunkSummary");
-                successes += 1;
+                trace!(tx.signature = %sig, "Transaction confirmed sent");
             }
-            TransactionSendResult::Failure(err, opt_sig) => {
-                failures += 1;
-                if let Some(sig) = opt_sig {
-                    trace!(tx.signature = %sig, error = ?err, outcome = "FailureInChunkSummary");
+            TransactionSendResult::Failure(err, sig_opt) => {
+                if let Some(sig) = sig_opt {
+                    warn!(tx.signature = %sig, error = ?err, "Transaction failed to send");
                 } else {
-                    trace!(error = ?err, outcome = "FailureInChunkSummary (no signature)");
+                    error!(error = ?err, "Transaction failed to send, no signature available");
                 }
             }
-            TransactionSendResult::Cancelled | TransactionSendResult::Timeout => {
-                cancelled_or_timeout += 1;
+            TransactionSendResult::Cancelled => {
+                trace!("Transaction send cancelled due to global signal or timeout");
+            }
+            TransactionSendResult::Timeout => {
+                warn!("Transaction send timed out due to global timeout");
             }
         }
     }
-    debug!(
-        "Chunk send summary: {} successes, {} failures, {} cancelled/timeout",
-        successes, failures, cancelled_or_timeout
-    );
+    trace!("Finished executing batch in {:?}", exec_start.elapsed());
 }

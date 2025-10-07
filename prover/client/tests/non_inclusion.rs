@@ -26,10 +26,10 @@ async fn prove_non_inclusion() {
             assert!(response_result.status().is_success());
         }
     }
-    // height 40
+    // height 40 - test all keys from 1 to 32
     {
-        for i in [1, 2].iter() {
-            let inputs = non_inclusion_inputs_string_v2(i.to_owned());
+        for i in 1..=32 {
+            let inputs = non_inclusion_inputs_string_v2(i);
 
             let response_result = client
                 .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))

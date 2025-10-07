@@ -13,9 +13,9 @@ async fn prove_inclusion() {
     spawn_prover(ProverConfig::default()).await;
     let client = Client::new();
 
-    // v2
-    for number_of_utxos in &[1, 2, 3, 4, 8] {
-        let inputs = inclusion_inputs_string_v2(*number_of_utxos as usize);
+    // v2 - test all keys from 1 to 20
+    for number_of_utxos in 1..=20 {
+        let inputs = inclusion_inputs_string_v2(number_of_utxos);
         let response_result = client
             .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))
             .header("Content-Type", "text/plain; charset=utf-8")

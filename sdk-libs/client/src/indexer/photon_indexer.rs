@@ -8,12 +8,12 @@ use photon_api::{
     models::GetCompressedAccountsByOwnerPostRequestParams,
 };
 use solana_pubkey::Pubkey;
-use tracing::{debug, error, warn};
+use tracing::{error, trace, warn};
 
 use super::{
     types::{
-        CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata,
-        TokenBalance,
+        CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsResult,
+        SignatureWithMetadata, TokenBalance,
     },
     BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
 };
@@ -55,17 +55,18 @@ impl PhotonIndexer {
         loop {
             attempts += 1;
 
-            debug!(
+            trace!(
                 "Attempt {}/{}: No rate limiter configured",
-                attempts, max_retries
+                attempts,
+                max_retries
             );
 
-            debug!("Attempt {}/{}: Executing operation", attempts, max_retries);
+            trace!("Attempt {}/{}: Executing operation", attempts, max_retries);
             let result = operation().await;
 
             match result {
                 Ok(value) => {
-                    debug!("Attempt {}/{}: Operation succeeded.", attempts, max_retries);
+                    trace!("Attempt {}/{}: Operation succeeded.", attempts, max_retries);
                     return Ok(value);
                 }
                 Err(e) => {
@@ -1290,11 +1291,6 @@ impl Indexer for PhotonIndexer {
             )
             .await;
 
-            match &result {
-                Ok(response) => debug!("Raw API response: {:?}", response),
-                Err(e) => error!("API request failed: {:?}", e),
-            }
-
             let result = result?;
 
             let api_response = match Self::extract_result_with_error_check(
@@ -1587,9 +1583,9 @@ impl Indexer for PhotonIndexer {
         _pubkey: [u8; 32],
         _queue_type: QueueType,
         _num_elements: u16,
-        _start_offset: Option<u64>,
+        _start_queue_index: Option<u64>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<MerkleProofWithContext>>, IndexerError> {
+    ) -> Result<Response<QueueElementsResult>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!("get_queue_elements");
         #[cfg(feature = "v2")]
@@ -1597,7 +1593,7 @@ impl Indexer for PhotonIndexer {
             let pubkey = _pubkey;
             let queue_type = _queue_type;
             let limit = _num_elements;
-            let start_queue_index = _start_offset;
+            let start_queue_index = _start_queue_index;
             let config = _config.unwrap_or_default();
             self.retry(config.retry_config, || async {
                 let request: photon_api::models::GetQueueElementsPostRequest =
@@ -1610,79 +1606,81 @@ impl Indexer for PhotonIndexer {
                         }),
                         ..Default::default()
                     };
+
                 let result = photon_api::apis::default_api::get_queue_elements_post(
                     &self.configuration,
                     request,
                 )
                 .await;
-
-                let result: Result<Response<Items<MerkleProofWithContext>>, IndexerError> =
-                    match result {
-                        Ok(api_response) => match api_response.result {
-                            Some(api_result) => {
-                                if api_result.context.slot < config.slot {
-                                    return Err(IndexerError::IndexerNotSyncedToSlot);
-                                }
-                                let response = api_result.value;
-                                let proofs: Vec<MerkleProofWithContext> = response
-                                    .iter()
-                                    .map(|x| {
-                                        let proof = x
-                                            .proof
-                                            .iter()
-                                            .map(|x| Hash::from_base58(x).unwrap())
-                                            .collect();
-                                        let root = Hash::from_base58(&x.root).unwrap();
-                                        let leaf = Hash::from_base58(&x.leaf).unwrap();
-                                        let merkle_tree = Hash::from_base58(&x.tree).unwrap();
-                                        let tx_hash = x
-                                            .tx_hash
-                                            .as_ref()
-                                            .map(|x| Hash::from_base58(x).unwrap());
-                                        let account_hash =
-                                            Hash::from_base58(&x.account_hash).unwrap();
-
-                                        MerkleProofWithContext {
-                                            proof,
-                                            root,
-                                            leaf_index: x.leaf_index,
-                                            leaf,
-                                            merkle_tree,
-                                            root_seq: x.root_seq,
-                                            tx_hash,
-                                            account_hash,
-                                        }
-                                    })
-                                    .collect();
-
-                                Ok(Response {
-                                    context: Context {
-                                        slot: api_result.context.slot,
-                                    },
-                                    value: Items { items: proofs },
-                                })
+                let result: Result<Response<QueueElementsResult>, IndexerError> = match result {
+                    Ok(api_response) => match api_response.result {
+                        Some(api_result) => {
+                            if api_result.context.slot < config.slot {
+                                return Err(IndexerError::IndexerNotSyncedToSlot);
                             }
-                            None => {
-                                let error = api_response.error.ok_or_else(|| {
-                                    IndexerError::PhotonError {
+                            let response = api_result.value;
+                            let proofs: Vec<MerkleProofWithContext> = response
+                                .iter()
+                                .map(|x| {
+                                    let proof = x
+                                        .proof
+                                        .iter()
+                                        .map(|x| Hash::from_base58(x).unwrap())
+                                        .collect();
+                                    let root = Hash::from_base58(&x.root).unwrap();
+                                    let leaf = Hash::from_base58(&x.leaf).unwrap();
+                                    let merkle_tree = Hash::from_base58(&x.tree).unwrap();
+                                    let tx_hash =
+                                        x.tx_hash.as_ref().map(|x| Hash::from_base58(x).unwrap());
+                                    let account_hash = Hash::from_base58(&x.account_hash).unwrap();
+
+                                    MerkleProofWithContext {
+                                        proof,
+                                        root,
+                                        leaf_index: x.leaf_index,
+                                        leaf,
+                                        merkle_tree,
+                                        root_seq: x.root_seq,
+                                        tx_hash,
+                                        account_hash,
+                                    }
+                                })
+                                .collect();
+
+                            Ok(Response {
+                                context: Context {
+                                    slot: api_result.context.slot,
+                                },
+                                value: QueueElementsResult {
+                                    elements: proofs,
+                                    first_value_queue_index: Some(
+                                        api_result.first_value_queue_index as u64,
+                                    ),
+                                },
+                            })
+                        }
+                        None => {
+                            let error =
+                                api_response
+                                    .error
+                                    .ok_or_else(|| IndexerError::PhotonError {
                                         context: "get_queue_elements".to_string(),
                                         message: "No error details provided".to_string(),
-                                    }
-                                })?;
+                                    })?;
 
-                                Err(IndexerError::PhotonError {
-                                    context: "get_queue_elements".to_string(),
-                                    message: error
-                                        .message
-                                        .unwrap_or_else(|| "Unknown error".to_string()),
-                                })
-                            }
-                        },
-                        Err(e) => Err(IndexerError::PhotonError {
-                            context: "get_queue_elements".to_string(),
-                            message: e.to_string(),
-                        }),
-                    };
+                            Err(IndexerError::PhotonError {
+                                context: "get_queue_elements".to_string(),
+                                message: error
+                                    .message
+                                    .unwrap_or_else(|| "Unknown error".to_string()),
+                            })
+                        }
+                    },
+                    Err(e) => Err(IndexerError::PhotonError {
+                        context: "get_queue_elements".to_string(),
+                        message: e.to_string(),
+                    }),
+                };
 
                 result
             })

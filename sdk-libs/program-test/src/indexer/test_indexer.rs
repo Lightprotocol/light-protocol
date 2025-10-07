@@ -20,8 +20,8 @@ use light_client::{
         CompressedTokenAccount, Context, GetCompressedAccountsByOwnerConfig,
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer, IndexerError,
         IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MerkleProofWithContext,
-        NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig,
-        RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance,
+        NewAddressProofWithContext, OwnerBalance, PaginatedOptions, QueueElementsResult, Response,
+        RetryConfig, RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance,
         ValidityProofWithContext,
     },
     rpc::{Rpc, RpcError},
@@ -609,7 +609,7 @@ impl Indexer for TestIndexer {
         _num_elements: u16,
         _start_offset: Option<u64>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<MerkleProofWithContext>>, IndexerError> {
+    ) -> Result<Response<QueueElementsResult>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!("get_queue_elements");
         #[cfg(feature = "v2")]
@@ -646,8 +646,9 @@ impl Indexer for TestIndexer {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: Items {
-                        items: merkle_proofs_with_context,
+                    value: QueueElementsResult {
+                        elements: merkle_proofs_with_context,
+                        first_value_queue_index: None,
                     },
                 });
             }
@@ -719,8 +720,9 @@ impl Indexer for TestIndexer {
                         context: Context {
                             slot: self.get_current_slot(),
                         },
-                        value: Items {
-                            items: merkle_proofs_with_context,
+                        value: QueueElementsResult {
+                            elements: merkle_proofs_with_context,
+                            first_value_queue_index: None,
                         },
                     });
                 }
@@ -792,8 +794,13 @@ impl Indexer for TestIndexer {
                         context: Context {
                             slot: self.get_current_slot(),
                         },
-                        value: Items {
-                            items: merkle_proofs_with_context,
+                        value: QueueElementsResult {
+                            elements: merkle_proofs_with_context,
+                            first_value_queue_index: if queue_elements.is_empty() {
+                                None
+                            } else {
+                                Some(queue_elements[0].1)
+                            },
                         },
                     });
                 }
@@ -878,7 +885,7 @@ impl Indexer for TestIndexer {
                 .merkle_tree
                 .rightmost_index;
 
-            let address_proofs = self
+            let address_proof_items = self
                 .get_queue_elements(
                     merkle_tree_pubkey.to_bytes(),
                     QueueType::AddressV2,
@@ -890,8 +897,8 @@ impl Indexer for TestIndexer {
                 .map_err(|_| IndexerError::Unknown("Failed to get queue elements".into()))?
                 .value;
 
-            let addresses: Vec<AddressQueueIndex> = address_proofs
-                .items
+            let addresses: Vec<AddressQueueIndex> = address_proof_items
+                .elements
                 .iter()
                 .enumerate()
                 .map(|(i, proof)| AddressQueueIndex {
@@ -902,8 +909,8 @@ impl Indexer for TestIndexer {
             let non_inclusion_proofs = self
                 .get_multiple_new_address_proofs(
                     merkle_tree_pubkey.to_bytes(),
-                    address_proofs
-                        .items
+                    address_proof_items
+                        .elements
                         .iter()
                         .map(|x| x.account_hash)
                         .collect(),
@@ -998,6 +1005,10 @@ impl Indexer for TestIndexer {
 
 #[async_trait]
 impl TestIndexerExtensions for TestIndexer {
+    fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
+        &self.address_merkle_trees
+    }
+
     fn get_address_merkle_tree(
         &self,
         merkle_tree_pubkey: Pubkey,
@@ -1088,10 +1099,6 @@ impl TestIndexerExtensions for TestIndexer {
 
     fn get_state_merkle_trees_mut(&mut self) -> &mut Vec<StateMerkleTreeBundle> {
         &mut self.state_merkle_trees
-    }
-
-    fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
-        &self.address_merkle_trees
     }
 
     fn get_address_merkle_trees_mut(&mut self) -> &mut Vec<AddressMerkleTreeBundle> {
