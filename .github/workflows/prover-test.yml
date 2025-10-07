@@ -60,7 +60,7 @@ jobs:
         if: ${{ github.event.pull_request.base.ref == 'main' }}
         run: |
           cd prover/server
-          ./scripts/download_keys.sh light
+          ./scripts/download_keys.sh full
 
       - name: Download keys for full tests
         if: ${{ github.event.pull_request.base.ref == 'release' }}
