@@ -26,10 +26,10 @@ for key_file in "$PROVING_KEYS_DIR"/*.vkey; do
 
     echo "[$current/$total] Processing: $base_name"
 
-    # Run cargo xtask
-    cargo xtask generate-vkey-rs \
-        --input-path "$key_file" \
-        --output-path "$output_file"
+    # Run xtask from repo root
+    (cd ../.. && cargo run --package xtask -- generate-vkey-rs \
+        --input-path "prover/server/$key_file" \
+        --output-path "program-libs/verifier/src/verifying_keys/${base_name}.rs")
 done
 
 echo ""

@@ -297,7 +297,7 @@ func runCli() {
 					pk := context.String("pk")
 					vk := context.String("vk")
 					r1csPath := context.String("r1cs")
-					useLegacy := context.Bool("legacy")
+					useV1 := context.Bool("v1")
 
 					inclusionTreeHeight := uint32(context.Uint("inclusion-tree-height"))
 					inclusionNumberOfCompressedAccounts := uint32(context.Uint("inclusion-compressed-accounts"))
@@ -361,9 +361,9 @@ func runCli() {
 						}
 
 						var system *common.MerkleProofSystem
-						// Use V1 import if --legacy flag is set
-						// This ensures we use the ceremony R1CS which was generated with --legacy flag
-						if useLegacy {
+						// Use V1 import if --v1 flag is set
+						// This ensures we use v1 circuits
+						if useV1 {
 							switch circuit {
 							case "inclusion":
 								system, err = v1.ImportInclusionSetup(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, pk, vk, r1csPath)

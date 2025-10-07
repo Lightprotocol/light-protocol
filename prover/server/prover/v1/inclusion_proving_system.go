@@ -65,10 +65,12 @@ func ProveInclusion(ps *common.MerkleProofSystem, params *InclusionParameters) (
 	}
 
 	assignment := InclusionCircuit{
-		Roots:          roots,
-		Leaves:         leaves,
-		InPathIndices:  inPathIndices,
-		InPathElements: inPathElements,
+		Roots:                      roots,
+		Leaves:                     leaves,
+		InPathIndices:              inPathIndices,
+		InPathElements:             inPathElements,
+		NumberOfCompressedAccounts: ps.InclusionNumberOfCompressedAccounts,
+		Height:                     ps.InclusionTreeHeight,
 	}
 
 	witness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())

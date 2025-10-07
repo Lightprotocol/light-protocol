@@ -78,13 +78,15 @@ func ProveNonInclusion(ps *common.MerkleProofSystem, params *NonInclusionParamet
 	}
 
 	assignment := NonInclusionCircuit{
-		Roots:                 roots,
-		Values:                values,
-		LeafLowerRangeValues:  leafLowerRangeValues,
-		LeafHigherRangeValues: leafHigherRangeValues,
-		NextIndices:           nextIndices,
-		InPathIndices:         inPathIndices,
-		InPathElements:        inPathElements,
+		Roots:                      roots,
+		Values:                     values,
+		LeafLowerRangeValues:       leafLowerRangeValues,
+		LeafHigherRangeValues:      leafHigherRangeValues,
+		NextIndices:                nextIndices,
+		InPathIndices:              inPathIndices,
+		InPathElements:             inPathElements,
+		NumberOfCompressedAccounts: ps.NonInclusionNumberOfCompressedAccounts,
+		Height:                     ps.NonInclusionTreeHeight,
 	}
 
 	witness, err := frontend.NewWitness(&assignment, ecc.BN254.ScalarField())

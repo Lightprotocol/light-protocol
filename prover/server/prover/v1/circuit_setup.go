@@ -146,7 +146,9 @@ func ImportInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint32, 
 		return nil, err
 	}
 
-	ccs, err := common.LoadConstraintSystem(r1csPath)
+	// Regenerate constraint system to match witness generation
+	// The ceremony R1CS has a different variable layout than runtime witness generation
+	ccs, err := R1CSInclusion(treeHeight, numberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
 	}
@@ -172,7 +174,9 @@ func ImportNonInclusionSetup(treeHeight uint32, numberOfCompressedAccounts uint3
 		return nil, err
 	}
 
-	ccs, err := common.LoadConstraintSystem(r1csPath)
+	// Regenerate constraint system to match witness generation
+	// The ceremony R1CS has a different variable layout than runtime witness generation
+	ccs, err := R1CSNonInclusion(treeHeight, numberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +202,9 @@ func ImportCombinedSetup(inclusionTreeHeight uint32, inclusionNumberOfCompressed
 		return nil, err
 	}
 
-	ccs, err := common.LoadConstraintSystem(r1csPath)
+	// Regenerate constraint system to match witness generation
+	// The ceremony R1CS has a different variable layout than runtime witness generation
+	ccs, err := R1CSCombined(inclusionTreeHeight, inclusionNumberOfCompressedAccounts, nonInclusionTreeHeight, nonInclusionNumberOfCompressedAccounts)
 	if err != nil {
 		return nil, err
 	}
