@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"light/light-prover/logging"
 	"light/light-prover/prover"
@@ -63,7 +64,7 @@ func (rq *RedisQueue) DequeueProof(queueName string, timeout time.Duration) (*Pr
 	}
 
 	if len(result) < 2 {
-		return nil, fmt.Errorf("invalid result from Redis")
+		return nil, errors.New("invalid result from Redis")
 	}
 
 	var job ProofJob

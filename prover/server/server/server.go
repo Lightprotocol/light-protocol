@@ -30,7 +30,7 @@ func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 
 	jobID := r.URL.Query().Get("job_id")
 	if jobID == "" {
-		malformedBodyError(fmt.Errorf("job_id parameter required")).send(w)
+		malformedBodyError(errors.New("job_id parameter required")).send(w)
 		return
 	}
 

@@ -2,6 +2,7 @@ package prover
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"light/light-prover/logging"
@@ -81,7 +82,7 @@ func LoadVerifyingKey(filepath string) (verifyingKey groth16.VerifyingKey, err e
 	f, _ := os.Open(filepath)
 	_, err = verifyingKey.ReadFrom(f)
 	if err != nil {
-		return verifyingKey, fmt.Errorf("read file error")
+		return verifyingKey, errors.New("read file error")
 	}
 	err = f.Close()
 	if err != nil {
@@ -284,7 +285,7 @@ func LoadKeys(keysDirPath string, runMode RunMode, circuits []string) ([]*Provin
 				Uint32("batchSize", s.BatchSize).
 				Msg("Read ProvingSystemV2")
 		default:
-			return nil, nil, fmt.Errorf("unknown proving system type")
+			return nil, nil, errors.New("unknown proving system type")
 		}
 	}
 	return pssv1, pssv2, nil
@@ -325,7 +326,7 @@ func WriteProvingSystem(system interface{}, path string, pathVkey string) error 
 	case *ProvingSystemV2:
 		written, err = s.WriteTo(file)
 	default:
-		return fmt.Errorf("unknown proving system type")
+		return errors.New("unknown proving system type")
 	}
 
 	if err != nil {

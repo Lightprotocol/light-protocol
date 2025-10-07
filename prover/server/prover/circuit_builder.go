@@ -2,6 +2,7 @@ package prover
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -88,7 +89,7 @@ func ParseProofRequestMeta(data []byte) (ProofRequestMeta, error) {
 	}
 
 	if addressTreeHeight == 0 && stateTreeHeight == 0 && treeHeight == 0 {
-		return ProofRequestMeta{}, fmt.Errorf("no 'addressTreeHeight' or stateTreeHeight'or 'treeHeight' provided")
+		return ProofRequestMeta{}, errors.New("no 'addressTreeHeight' or stateTreeHeight'or 'treeHeight' provided")
 	}
 
 	version := uint32(0)
