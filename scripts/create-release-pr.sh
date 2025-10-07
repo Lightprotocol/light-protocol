@@ -105,7 +105,7 @@ echo "$VERSION_CHANGES"
 
 echo ""
 echo "========================================="
-echo "Running cargo release dry-run validation..."
+echo "Running cargo publish dry-run validation..."
 echo "========================================="
 echo ""
 
