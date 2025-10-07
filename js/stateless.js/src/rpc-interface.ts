@@ -303,7 +303,7 @@ const BNFromStringOrNumber = coerce(
 const Base64EncodedCompressedAccountDataResult = coerce(
     string(),
     string(),
-    value => (value === '' ? '' : value),
+    value => value,
 );
 /**
  * @internal
