@@ -103,6 +103,32 @@ VERSION_CHANGES=$(echo -e "$VERSION_CHANGES")
 echo "Version changes:"
 echo "$VERSION_CHANGES"
 
+echo ""
+echo "========================================="
+echo "Running cargo release dry-run validation..."
+echo "========================================="
+echo ""
+
+# Validate packages using the validation script (comparing against target branch)
+# Note: Changes are in working directory but not yet committed
+if "$SCRIPT_DIR/validate-packages.sh" "$TARGET_BRANCH" "HEAD"; then
+    echo ""
+    echo "All crates validated successfully"
+else
+    echo ""
+    echo "Validation failed"
+    echo ""
+    echo "The GitHub Actions PR validation will run the same checks."
+    echo "Continue anyway and let CI validate? (y/N) "
+    read -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Cancelled."
+        exit 1
+    fi
+fi
+echo ""
+
 # Create release branch
 BRANCH_NAME="release/${RELEASE_TYPE}"
 PR_TITLE="chore: bump ${RELEASE_TYPE} versions"
@@ -124,31 +150,6 @@ git checkout -b "$BRANCH_NAME"
 # Commit changes
 git add -A
 git commit -m "chore(${RELEASE_TYPE}): bump versions"
-
-echo ""
-echo "========================================="
-echo "Running cargo release dry-run validation..."
-echo "========================================="
-echo ""
-
-# Validate packages using the validation script (comparing against target branch)
-if "$SCRIPT_DIR/validate-packages.sh" "$TARGET_BRANCH" "$BRANCH_NAME"; then
-    echo ""
-    echo "All crates validated successfully"
-else
-    echo ""
-    echo "Validation failed"
-    echo ""
-    echo "The GitHub Actions PR validation will run the same checks."
-    echo "Continue anyway and let CI validate? (y/N) "
-    read -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "Cancelled."
-        exit 1
-    fi
-fi
-echo ""
 
 # Push branch
 echo "Pushing branch to origin..."
