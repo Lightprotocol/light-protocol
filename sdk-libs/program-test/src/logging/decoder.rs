@@ -249,13 +249,22 @@ fn parse_invoke_instruction(data: &[u8], accounts: &[AccountMeta]) -> Instructio
             instruction_data
                 .new_address_params
                 .iter()
-                .map(|param| super::types::AddressParam {
-                    seed: param.seed,
-                    address_queue_index: Some(param.address_queue_account_index),
-                    merkle_tree_index: Some(param.address_merkle_tree_account_index),
-                    root_index: Some(param.address_merkle_tree_root_index),
-                    derived_address: None,
-                    assigned_account_index: super::types::AddressAssignment::V1,
+                .map(|param| {
+                    let tree_idx = Some(param.address_merkle_tree_account_index);
+                    let queue_idx = Some(param.address_queue_account_index);
+                    let (tree_pubkey, queue_pubkey) =
+                        resolve_tree_and_queue_pubkeys(accounts, tree_idx, queue_idx);
+
+                    super::types::AddressParam {
+                        seed: param.seed,
+                        address_queue_index: queue_idx,
+                        address_queue_pubkey: queue_pubkey,
+                        merkle_tree_index: tree_idx,
+                        address_merkle_tree_pubkey: tree_pubkey,
+                        root_index: Some(param.address_merkle_tree_root_index),
+                        derived_address: None,
+                        assigned_account_index: super::types::AddressAssignment::V1,
+                    }
                 })
                 .collect(),
         )
@@ -394,13 +403,22 @@ fn parse_invoke_cpi_instruction(data: &[u8], accounts: &[AccountMeta]) -> Instru
             instruction_data
                 .new_address_params
                 .iter()
-                .map(|param| super::types::AddressParam {
-                    seed: param.seed,
-                    address_queue_index: Some(param.address_queue_account_index),
-                    merkle_tree_index: Some(param.address_merkle_tree_account_index),
-                    root_index: Some(param.address_merkle_tree_root_index),
-                    derived_address: None,
-                    assigned_account_index: super::types::AddressAssignment::V1,
+                .map(|param| {
+                    let tree_idx = Some(param.address_merkle_tree_account_index);
+                    let queue_idx = Some(param.address_queue_account_index);
+                    let (tree_pubkey, queue_pubkey) =
+                        resolve_tree_and_queue_pubkeys(accounts, tree_idx, queue_idx);
+
+                    super::types::AddressParam {
+                        seed: param.seed,
+                        address_queue_index: queue_idx,
+                        address_queue_pubkey: queue_pubkey,
+                        merkle_tree_index: tree_idx,
+                        address_merkle_tree_pubkey: tree_pubkey,
+                        root_index: Some(param.address_merkle_tree_root_index),
+                        derived_address: None,
+                        assigned_account_index: super::types::AddressAssignment::V1,
+                    }
                 })
                 .collect(),
         )
@@ -534,10 +552,17 @@ fn parse_invoke_cpi_readonly_instruction(
 
     // Add new address parameters with actual values
     for param in &instruction_data.new_address_params {
+        let tree_idx = Some(param.address_merkle_tree_account_index);
+        let queue_idx = Some(param.address_queue_account_index);
+        let (tree_pubkey, queue_pubkey) =
+            resolve_tree_and_queue_pubkeys(accounts, tree_idx, queue_idx);
+
         address_params.push(super::types::AddressParam {
             seed: param.seed,
-            address_queue_index: Some(param.address_queue_account_index),
-            merkle_tree_index: Some(param.address_merkle_tree_account_index),
+            address_queue_index: queue_idx,
+            address_queue_pubkey: queue_pubkey,
+            merkle_tree_index: tree_idx,
+            address_merkle_tree_pubkey: tree_pubkey,
             root_index: Some(param.address_merkle_tree_root_index),
             derived_address: None,
             assigned_account_index: if param.assigned_to_account {
@@ -550,10 +575,15 @@ fn parse_invoke_cpi_readonly_instruction(
 
     // Add readonly address parameters
     for readonly_addr in &instruction_data.read_only_addresses {
+        let tree_idx = Some(readonly_addr.address_merkle_tree_account_index);
+        let (tree_pubkey, _queue_pubkey) = resolve_tree_and_queue_pubkeys(accounts, tree_idx, None);
+
         address_params.push(super::types::AddressParam {
             seed: [0; 32], // ReadOnly addresses don't have seeds in the same way
             address_queue_index: None,
-            merkle_tree_index: Some(readonly_addr.address_merkle_tree_account_index),
+            address_queue_pubkey: None,
+            merkle_tree_index: tree_idx,
+            address_merkle_tree_pubkey: tree_pubkey,
             root_index: Some(readonly_addr.address_merkle_tree_root_index),
             derived_address: Some(readonly_addr.address),
             assigned_account_index: super::types::AddressAssignment::None,
@@ -686,10 +716,17 @@ fn parse_invoke_cpi_account_info_instruction(
 
     // Add new address parameters with actual values
     for param in &instruction_data.new_address_params {
+        let tree_idx = Some(param.address_merkle_tree_account_index);
+        let queue_idx = Some(param.address_queue_account_index);
+        let (tree_pubkey, queue_pubkey) =
+            resolve_tree_and_queue_pubkeys(accounts, tree_idx, queue_idx);
+
         address_params.push(super::types::AddressParam {
             seed: param.seed,
-            address_queue_index: Some(param.address_queue_account_index),
-            merkle_tree_index: Some(param.address_merkle_tree_account_index),
+            address_queue_index: queue_idx,
+            address_queue_pubkey: queue_pubkey,
+            merkle_tree_index: tree_idx,
+            address_merkle_tree_pubkey: tree_pubkey,
             root_index: Some(param.address_merkle_tree_root_index),
             derived_address: None,
             assigned_account_index: if param.assigned_to_account {
@@ -702,10 +739,15 @@ fn parse_invoke_cpi_account_info_instruction(
 
     // Add readonly address parameters
     for readonly_addr in &instruction_data.read_only_addresses {
+        let tree_idx = Some(readonly_addr.address_merkle_tree_account_index);
+        let (tree_pubkey, _queue_pubkey) = resolve_tree_and_queue_pubkeys(accounts, tree_idx, None);
+
         address_params.push(super::types::AddressParam {
             seed: [0; 32], // ReadOnly addresses don't have seeds in the same way
             address_queue_index: None,
-            merkle_tree_index: Some(readonly_addr.address_merkle_tree_account_index),
+            address_queue_pubkey: None,
+            merkle_tree_index: tree_idx,
+            address_merkle_tree_pubkey: tree_pubkey,
             root_index: Some(readonly_addr.address_merkle_tree_root_index),
             derived_address: Some(readonly_addr.address),
             assigned_account_index: super::types::AddressAssignment::None,
