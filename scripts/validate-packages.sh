@@ -50,17 +50,20 @@ echo ""
 if [ -n "$EXECUTE_FLAG" ]; then
   echo "Running: cargo release publish $PACKAGE_ARGS --execute --no-confirm"
 else
-  echo "Running: cargo release publish $PACKAGE_ARGS --allow-branch '*' --no-verify"
+  echo "Running: cargo publish $PACKAGE_ARGS --dry-run"
 fi
 echo "----------------------------------------"
 
-# cargo-release handles dependency ordering
-# Without --execute: dry-run validation (allow any branch, skip git checks for uncommitted changes)
-# With --execute: actual publish to crates.io (requires main or release/* branch and clean working tree)
+# Native cargo 1.90.0+ handles dependency ordering for interdependent workspace crates
+# Without --execute: dry-run validation using native cargo publish
+# With --execute: use cargo-release for actual publish to crates.io
 if [ -n "$EXECUTE_FLAG" ]; then
   cargo release publish $PACKAGE_ARGS --execute --no-confirm
 else
-  cargo release publish $PACKAGE_ARGS --allow-branch '*' --no-verify
+  # Use native cargo publish --dry-run with all packages at once
+  # This allows interdependent workspace crates to validate together
+  # Allow dirty state and skip verification due to cargo bug with unpublished dep hashes
+  cargo publish $PACKAGE_ARGS --dry-run --allow-dirty --no-verify
 fi
 
 if [ $? -eq 0 ]; then
