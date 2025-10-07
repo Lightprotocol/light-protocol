@@ -79,7 +79,7 @@ jobs:
             VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r ".packages[] | select(.name == \"$pkg\") | .version")
             TAG="${pkg}-v${VERSION}"
 
-            echo "Creating GitHub release for $TAG..."
+            echo "Creating GitHub release for $TAG.."
             if gh release create "$TAG" --generate-notes --title "$TAG"; then
               echo "✓ Created release for $TAG"
             else
