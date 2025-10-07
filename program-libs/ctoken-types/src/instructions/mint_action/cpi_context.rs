@@ -4,7 +4,9 @@ use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use crate::{AnchorDeserialize, AnchorSerialize};
 
 #[repr(C)]
-#[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy, ZeroCopyMut, PartialEq)]
+#[derive(
+    Debug, Clone, AnchorSerialize, Default, AnchorDeserialize, ZeroCopy, ZeroCopyMut, PartialEq,
+)]
 pub struct CpiContext {
     pub set_context: bool,
     pub first_set_context: bool,
@@ -15,6 +17,9 @@ pub struct CpiContext {
     pub token_out_queue_index: u8,
     // Index of the compressed account that should receive the new address (0 = mint, 1+ = token accounts)
     pub assigned_account_index: u8,
+    /// Placeholder to enable cmints in multiple address trees.
+    /// Currently set to 0.
+    pub read_only_address_trees: [u8; 4],
 }
 
 impl CompressedCpiContextTrait for ZCpiContext<'_> {

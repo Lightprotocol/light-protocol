@@ -47,6 +47,7 @@ pub fn process_mint_action<'c, 'info>(
             out_queue_index: 0,
             token_out_queue_index: 0,
             assigned_account_index: 1,
+            ..Default::default()
         }),
         Some(*cpi_accounts.cpi_context().unwrap().key),
     )

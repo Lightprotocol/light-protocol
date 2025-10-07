@@ -38,6 +38,7 @@ fn test_queue_indices_comprehensive() {
                     out_queue_index: 7,
                     token_out_queue_index: 8,
                     assigned_account_index: 0,
+                    ..Default::default()
                 }),
                 create_mint: true,
                 tokens_out_queue_exists: false, // Ignored when CPI context exists
@@ -63,6 +64,7 @@ fn test_queue_indices_comprehensive() {
                     out_queue_index: 7,
                     token_out_queue_index: 8,
                     assigned_account_index: 0,
+                    ..Default::default()
                 }),
                 create_mint: false,
                 tokens_out_queue_exists: true, // Ignored when CPI context exists
@@ -88,6 +90,7 @@ fn test_queue_indices_comprehensive() {
                     out_queue_index: 8,       // Same as token_out_queue_index
                     token_out_queue_index: 8, // Same as out_queue_index
                     assigned_account_index: 0,
+                    ..Default::default()
                 }),
                 create_mint: false,
                 tokens_out_queue_exists: true,
@@ -113,6 +116,7 @@ fn test_queue_indices_comprehensive() {
                     out_queue_index: 7, // Different from token_out_queue_index
                     token_out_queue_index: 8, // Different from out_queue_index
                     assigned_account_index: 0,
+                    ..Default::default()
                 }),
                 create_mint: false,
                 tokens_out_queue_exists: true,

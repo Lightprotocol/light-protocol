@@ -539,6 +539,7 @@ async fn test_compress_and_close_cpi_with_context() {
             token_out_queue_index: remaining_accounts
                 .insert_or_get(compressed_mint_account.tree_info.queue),
             assigned_account_index: 0,
+            ..Default::default()
         },
         cpi_context_pubkey,
     };

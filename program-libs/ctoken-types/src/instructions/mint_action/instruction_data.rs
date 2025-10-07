@@ -40,10 +40,6 @@ pub enum Action {
 #[repr(C)]
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopy)]
 pub struct MintActionCompressedInstructionData {
-    /// First action, create mint or not.
-    pub create_mint: bool,
-    /// Only used if create mint
-    pub mint_bump: u8,
     /// Only set if mint already exists
     pub leaf_index: u32,
     /// Only set if mint already exists
@@ -61,13 +57,24 @@ pub struct MintActionCompressedInstructionData {
     /// Used to check token pool derivation.
     /// Only required if associated spl mint exists and actions contain mint actions.
     pub token_pool_index: u8,
-    /// Placeholder to enable cmints in multiple address trees.
-    /// Currently set to 0.
-    pub read_only_address_trees: [u8; 4],
+    pub create_mint: Option<CreateMint>,
     pub actions: Vec<Action>,
     pub proof: Option<CompressedProof>,
     pub cpi_context: Option<CpiContext>,
     pub mint: CompressedMintInstructionData,
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, AnchorSerialize, Default, AnchorDeserialize, ZeroCopy)]
+pub struct CreateMint {
+    /// Only used if create mint
+    pub mint_bump: u8,
+    /// Placeholder to enable cmints in multiple address trees.
+    /// Currently set to 0.
+    pub read_only_address_trees: [u8; 4],
+    /// Placeholder to enable cmints in multiple address trees.
+    /// Currently set to 0.
+    pub read_only_address_tree_root_indices: [u16; 4],
 }
 
 #[repr(C)]

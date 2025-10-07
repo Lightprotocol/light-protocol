@@ -9,7 +9,7 @@ use light_ctoken_types::{
     instructions::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{
-            Action, CompressedMintInstructionData, CpiContext, CreateSplMintAction,
+            Action, CompressedMintInstructionData, CpiContext, CreateMint, CreateSplMintAction,
             DecompressedRecipient, MintActionCompressedInstructionData, MintToCTokenAction,
             MintToCompressedAction, Recipient, RemoveMetadataKeyAction, UpdateAuthority,
             UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
@@ -137,6 +137,7 @@ fn random_cpi_context(rng: &mut StdRng) -> CpiContext {
         out_queue_index: rng.gen::<u8>(),
         token_out_queue_index: rng.gen::<u8>(),
         assigned_account_index: rng.gen::<u8>(),
+        read_only_address_trees: [0u8; 4],
     }
 }
 
@@ -157,11 +158,19 @@ fn generate_random_instruction_data(
     action_count_range: std::ops::Range<usize>,
 ) -> MintActionCompressedInstructionData {
     let create_mint = force_create_mint.unwrap_or_else(|| rng.gen_bool(0.3));
+    let create_mint = if create_mint {
+        Some(CreateMint {
+            mint_bump: rng.gen(),
+            ..Default::default()
+        })
+    } else {
+        None
+    };
     let has_cpi_context = force_cpi_context.unwrap_or_else(|| rng.gen_bool(0.4));
 
     let mut mint_metadata = random_compressed_mint_metadata(rng);
     if let Some(spl_init) = force_spl_initialized {
-        mint_metadata.spl_mint_initialized = spl_init && !create_mint;
+        mint_metadata.spl_mint_initialized = spl_init && !create_mint.is_some();
     }
 
     // Generate actions
@@ -173,8 +182,6 @@ fn generate_random_instruction_data(
 
     MintActionCompressedInstructionData {
         create_mint,
-        read_only_address_trees: [0u8; 4],
-        mint_bump: rng.gen::<u8>(),
         leaf_index: rng.gen::<u32>(),
         prove_by_index: rng.gen_bool(0.5),
         root_index: rng.gen::<u16>(),
@@ -237,10 +244,10 @@ fn compute_expected_config(data: &MintActionCompressedInstructionData) -> Accoun
     let spl_mint_initialized = data.mint.metadata.spl_mint_initialized || create_spl_mint;
 
     // 6. with_mint_signer
-    let with_mint_signer = data.create_mint || create_spl_mint;
+    let with_mint_signer = data.create_mint.is_some() || create_spl_mint;
 
     // 7. create_mint
-    let create_mint = data.create_mint;
+    let create_mint = data.create_mint.is_some();
 
     AccountsConfig {
         with_cpi_context,

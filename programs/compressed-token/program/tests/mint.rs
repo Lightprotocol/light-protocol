@@ -125,9 +125,8 @@ fn test_rnd_create_compressed_mint_account() {
 
         // Step 3: Create MintActionCompressedInstructionData
         let mint_action_data = MintActionCompressedInstructionData {
-            create_mint: false, // We're testing with existing mint
-            mint_bump: 0,
-            read_only_address_trees: [0u8; 4],
+            create_mint: None, // We're testing with existing mint
+
             leaf_index,
             prove_by_index,
             root_index,
@@ -154,7 +153,7 @@ fn test_rnd_create_compressed_mint_account() {
                 .unwrap();
 
         // Step 6: Test input compressed mint account creation (if not create_mint)
-        if !parsed_instruction_data.create_mint() {
+        if parsed_instruction_data.create_mint.is_none() {
             let input_account = &mut cpi_instruction_struct.input_compressed_accounts[0];
 
             use light_sdk::instruction::PackedMerkleContext;
@@ -279,7 +278,7 @@ fn test_rnd_create_compressed_mint_account() {
             "Should have exactly 1 output account (mint)"
         );
 
-        if !parsed_instruction_data.create_mint() {
+        if parsed_instruction_data.create_mint.is_none() {
             assert_eq!(
                 cpi_borsh.input_compressed_accounts.len(),
                 1,

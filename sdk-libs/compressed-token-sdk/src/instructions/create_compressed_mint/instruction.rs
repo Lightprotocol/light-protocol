@@ -78,6 +78,7 @@ pub fn create_compressed_mint_cpi(
             out_queue_index: 0,
             token_out_queue_index: 0,
             assigned_account_index: 0, // Default for create mint
+            ..Default::default()
         }
     });
 
@@ -164,6 +165,7 @@ pub fn create_compressed_mint_cpi_write(
         out_queue_index: 0,
         token_out_queue_index: 0,
         assigned_account_index: 0, // Default for create mint
+        ..Default::default()
     };
 
     // Create mint action inputs for compressed mint creation (CPI write mode)

@@ -84,7 +84,7 @@ pub fn get_zero_copy_configs(
         input_accounts: {
             let mut inputs = ArrayVec::new();
             // Add input mint if not creating mint
-            if !parsed_instruction_data.create_mint() {
+            if parsed_instruction_data.create_mint.is_none() {
                 inputs.push(true); // Input mint has address
             }
             inputs
@@ -103,7 +103,7 @@ pub fn get_zero_copy_configs(
         },
         has_proof: parsed_instruction_data.proof.is_some(),
         // Add new address params if creating a mint
-        new_address_params: if parsed_instruction_data.create_mint() {
+        new_address_params: if parsed_instruction_data.create_mint.is_some() {
             1
         } else {
             0

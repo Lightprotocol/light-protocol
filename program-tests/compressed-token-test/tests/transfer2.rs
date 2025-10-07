@@ -7,12 +7,15 @@ use light_compressed_token_sdk::instructions::{
         get_transfer2_instruction_account_metas, Transfer2AccountsMetaConfig,
     },
 };
-use light_ctoken_types::{instructions::mint_action::Recipient, state::TokenDataVersion};
 use light_ctoken_types::{
-    instructions::transfer2::{
-        CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
-        MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
+    instructions::{
+        mint_action::Recipient,
+        transfer2::{
+            CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
+            MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
+        },
     },
+    state::TokenDataVersion,
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};

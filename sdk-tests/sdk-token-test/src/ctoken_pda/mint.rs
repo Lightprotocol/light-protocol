@@ -39,6 +39,7 @@ pub fn process_mint_action<'c, 'info>(
             out_queue_index: 1,
             token_out_queue_index: 1,
             assigned_account_index: 0,
+            ..Default::default()
         },
         cpi_context_pubkey: *cpi_accounts.cpi_context().unwrap().key,
     };

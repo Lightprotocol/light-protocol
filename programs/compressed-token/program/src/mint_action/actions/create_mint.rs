@@ -27,7 +27,11 @@ pub fn process_create_mint_action(
         &[
             COMPRESSED_MINT_SEED,
             mint_signer.as_slice(),
-            &[parsed_instruction_data.mint_bump],
+            &[parsed_instruction_data
+                .create_mint
+                .as_ref()
+                .ok_or(ProgramError::InvalidInstructionData)?
+                .mint_bump],
         ],
         &crate::ID,
     )?

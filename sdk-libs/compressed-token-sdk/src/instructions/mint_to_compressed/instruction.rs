@@ -112,6 +112,7 @@ pub fn create_mint_to_compressed_instruction(
                 out_queue_index: ctx.out_queue_index,
                 token_out_queue_index: ctx.token_out_queue_index,
                 assigned_account_index: 0, // Default value for mint operation
+                ..Default::default()
             }
         }),
         cpi_context_pubkey,

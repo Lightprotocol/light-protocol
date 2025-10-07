@@ -65,7 +65,7 @@ pub fn process_mint_action(
     let queue_keys_match = validated_accounts.queue_keys_match();
     let queue_indices = QueueIndices::new(
         parsed_instruction_data.cpi_context.as_ref(),
-        parsed_instruction_data.create_mint(),
+        parsed_instruction_data.create_mint.is_some(),
         tokens_out_queue_exists,
         queue_keys_match,
     )?;
@@ -75,7 +75,7 @@ pub fn process_mint_action(
     // 2. set create address
     // else
     // 1. set input compressed mint account
-    let mint = if parsed_instruction_data.create_mint() {
+    let mint = if parsed_instruction_data.create_mint.is_some() {
         process_create_mint_action(
             &parsed_instruction_data,
             validated_accounts

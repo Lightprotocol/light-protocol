@@ -6,6 +6,7 @@ use light_ctoken_types::{
     CMINT_ADDRESS_TREE,
 };
 use light_profiler::profile;
+use light_zero_copy::U16;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 
@@ -378,10 +379,17 @@ impl AccountsConfig {
     pub fn new(
         parsed_instruction_data: &ZMintActionCompressedInstructionData,
     ) -> Result<AccountsConfig, ProgramError> {
-        if [0u8; 4] != parsed_instruction_data.read_only_address_trees {
-            msg!("read_only_address_trees must be 0");
-            return Err(ProgramError::InvalidInstructionData);
+        if let Some(create_mint) = parsed_instruction_data.create_mint.as_ref() {
+            if [0u8; 4] != create_mint.read_only_address_trees {
+                msg!("read_only_address_trees must be 0");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            if [U16::from(0); 4] != create_mint.read_only_address_tree_root_indices {
+                msg!("read_only_address_tree_root_indices must be 0");
+                return Err(ProgramError::InvalidInstructionData);
+            }
         }
+
         // 1.cpi context
         let with_cpi_context = parsed_instruction_data.cpi_context.is_some();
 
@@ -398,7 +406,7 @@ impl AccountsConfig {
             .any(|action| matches!(action, ZAction::CreateSplMint(_)));
 
         // We need mint signer if create mint, and create spl mint.
-        let with_mint_signer = parsed_instruction_data.create_mint() || create_spl_mint;
+        let with_mint_signer = parsed_instruction_data.create_mint.is_some() || create_spl_mint;
         // Scenarios:
         // 1. mint is already decompressed
         // 2. mint is decompressed in this instruction
@@ -438,7 +446,7 @@ impl AccountsConfig {
                 spl_mint_initialized,
                 has_mint_to_actions,
                 with_mint_signer,
-                create_mint: parsed_instruction_data.create_mint(),
+                create_mint: parsed_instruction_data.create_mint.is_some(),
             })
         } else {
             // For MintTo or MintToCToken actions
@@ -456,7 +464,7 @@ impl AccountsConfig {
                 spl_mint_initialized,
                 has_mint_to_actions,
                 with_mint_signer,
-                create_mint: parsed_instruction_data.create_mint(),
+                create_mint: parsed_instruction_data.create_mint.is_some(),
             })
         }
     }

@@ -2,7 +2,7 @@ use light_compressed_account::instruction_data::compressed_proof::CompressedProo
 use light_ctoken_types::{
     self,
     instructions::mint_action::{
-        Action, CompressedMintWithContext, CpiContext, CreateSplMintAction,
+        Action, CompressedMintWithContext, CpiContext, CreateMint, CreateSplMintAction,
         MintActionCompressedInstructionData, MintToCompressedAction, Recipient,
         RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
         UpdateMetadataFieldAction,
@@ -251,7 +251,7 @@ pub struct TokenPool {
     pub bump: u8,
     pub index: u8,
 }
-
+// TODO: remove duplicate code
 /// Creates a mint action instruction
 #[profile]
 pub fn create_mint_action_cpi(
@@ -261,8 +261,15 @@ pub fn create_mint_action_cpi(
 ) -> Result<Instruction> {
     // Convert high-level actions to program-level actions
     let mut program_actions = Vec::new();
-    let create_mint = input.create_mint;
     let mint_bump = input.mint_bump.unwrap_or(0u8);
+    let create_mint = if input.create_mint {
+        Some(CreateMint {
+            mint_bump,
+            ..Default::default()
+        })
+    } else {
+        None
+    };
 
     // Check for lamports, decompressed status, and mint actions before moving
     let with_lamports = false;
@@ -282,14 +289,14 @@ pub fn create_mint_action_cpi(
         )
     });
     // Match onchain logic: with_mint_signer = create_mint() | has_CreateSplMint_action
-    let with_mint_signer = create_mint
+    let with_mint_signer = create_mint.is_some()
         || input
             .actions
             .iter()
             .any(|action| matches!(action, MintActionType::CreateSplMint { .. }));
 
     // Only require mint to sign when creating a new compressed mint
-    let mint_needs_to_sign = create_mint;
+    let mint_needs_to_sign = create_mint.is_some();
 
     // Collect decompressed accounts for account index mapping
     let mut decompressed_accounts: Vec<Pubkey> = Vec::new();
@@ -402,7 +409,7 @@ pub fn create_mint_action_cpi(
         spl_mint_initialized,
         has_mint_to_actions,
         with_cpi_context: cpi_context_pubkey,
-        create_mint,
+        create_mint: create_mint.is_some(),
         with_mint_signer,
         mint_needs_to_sign,
         ctoken_accounts: decompressed_accounts,
@@ -414,8 +421,6 @@ pub fn create_mint_action_cpi(
     msg!("account metas {:?}", accounts);
     let instruction_data = MintActionCompressedInstructionData {
         create_mint,
-        mint_bump,
-        read_only_address_trees: [0u8; 4],
         leaf_index: input.compressed_mint_inputs.leaf_index,
         prove_by_index: input.compressed_mint_inputs.prove_by_index,
         root_index: input.compressed_mint_inputs.root_index,
@@ -503,6 +508,7 @@ impl MintActionInputsCpiWrite {
             out_queue_index: inputs.output_queue_index,
             token_out_queue_index: 0, // Set when adding MintTo action
             assigned_account_index: inputs.assigned_account_index,
+            ..Default::default()
         };
 
         Self {
@@ -528,6 +534,7 @@ impl MintActionInputsCpiWrite {
             out_queue_index: inputs.output_queue_index,
             token_out_queue_index: 0, // Set when adding MintTo action
             assigned_account_index: inputs.assigned_account_index,
+            ..Default::default()
         };
 
         Self {
@@ -654,13 +661,20 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
 
     // Convert high-level actions to program-level actions
     let mut program_actions = Vec::new();
-    let create_mint = input.create_mint;
     let mint_bump = input.mint_bump.unwrap_or(0u8);
+    let create_mint = if input.create_mint {
+        Some(CreateMint {
+            mint_bump,
+            ..Default::default()
+        })
+    } else {
+        None
+    };
 
-    let with_mint_signer = create_mint;
+    let with_mint_signer = create_mint.is_some();
 
     // Only require mint to sign when creating a new compressed mint
-    let mint_needs_to_sign = create_mint;
+    let mint_needs_to_sign = create_mint.is_some();
 
     for action in input.actions {
         match action {
@@ -756,8 +770,6 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
 
     let instruction_data = MintActionCompressedInstructionData {
         create_mint,
-        mint_bump,
-        read_only_address_trees: [0u8; 4],
         leaf_index: input.compressed_mint_inputs.leaf_index,
         prove_by_index: input.compressed_mint_inputs.prove_by_index,
         root_index: input.compressed_mint_inputs.root_index,

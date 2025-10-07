@@ -48,6 +48,7 @@ pub fn update_compressed_mint_cpi(
             out_queue_index: update_cpi_ctx.out_queue_index,
             token_out_queue_index: 0, // Default value - not used for authority updates
             assigned_account_index: 0, // Default value - mint account index for authority updates
+            ..Default::default()
         }
     });
 
@@ -119,6 +120,7 @@ pub fn create_update_compressed_mint_cpi_write(
         out_queue_index: inputs.cpi_context.out_queue_index,
         token_out_queue_index: 0, // Default value - not used for authority updates
         assigned_account_index: 0, // Default value - mint account index for authority updates
+        ..Default::default()
     };
 
     // Create the appropriate action based on authority type
