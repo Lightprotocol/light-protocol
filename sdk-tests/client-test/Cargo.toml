@@ -7,13 +7,16 @@ license = "Apache-2.0"
 edition = "2021"
 publish = false
 
+[features]
+test-sbf = []
+
 [lib]
-crate-type = ["lib"]
+crate-type = ["lib","cdylib"]
 name = "client_test"
 
 [dev-dependencies]
 light-client = { workspace = true, features = ["devenv"] }
-light-program-test = { workspace = true, features = ["devenv"] }
+light-program-test = { workspace = true, features = ["devenv", "v2"] }
 light-prover-client = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true }
 light-sdk = { workspace = true }
@@ -25,6 +28,7 @@ light-compressed-account = { workspace = true }
 light-compressed-token = { workspace = true }
 light-indexed-array = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
+light-macros = { workspace = true }
 
 tokio = { workspace = true }
 rand = { workspace = true }

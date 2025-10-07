@@ -900,8 +900,6 @@ mod test {
 
             let mut vec = Vec::new();
             value.serialize(&mut vec).unwrap();
-            println!("value {:?}", value);
-            println!("vec {:?}", vec);
             let (zero_copy, _) = InstructionDataInvokeCpiWithReadOnly::zero_copy_at(&vec).unwrap();
 
             // Use the PartialEq implementation first

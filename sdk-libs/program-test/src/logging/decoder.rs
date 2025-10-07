@@ -255,6 +255,7 @@ fn parse_invoke_instruction(data: &[u8], accounts: &[AccountMeta]) -> Instructio
                     merkle_tree_index: Some(param.address_merkle_tree_account_index),
                     root_index: Some(param.address_merkle_tree_root_index),
                     derived_address: None,
+                    assigned_account_index: super::types::AddressAssignment::V1,
                 })
                 .collect(),
         )
@@ -399,6 +400,7 @@ fn parse_invoke_cpi_instruction(data: &[u8], accounts: &[AccountMeta]) -> Instru
                     merkle_tree_index: Some(param.address_merkle_tree_account_index),
                     root_index: Some(param.address_merkle_tree_root_index),
                     derived_address: None,
+                    assigned_account_index: super::types::AddressAssignment::V1,
                 })
                 .collect(),
         )
@@ -538,6 +540,11 @@ fn parse_invoke_cpi_readonly_instruction(
             merkle_tree_index: Some(param.address_merkle_tree_account_index),
             root_index: Some(param.address_merkle_tree_root_index),
             derived_address: None,
+            assigned_account_index: if param.assigned_to_account {
+                super::types::AddressAssignment::AssignedIndex(param.assigned_account_index)
+            } else {
+                super::types::AddressAssignment::None
+            },
         });
     }
 
@@ -549,6 +556,7 @@ fn parse_invoke_cpi_readonly_instruction(
             merkle_tree_index: Some(readonly_addr.address_merkle_tree_account_index),
             root_index: Some(readonly_addr.address_merkle_tree_root_index),
             derived_address: Some(readonly_addr.address),
+            assigned_account_index: super::types::AddressAssignment::None,
         });
     }
 
@@ -684,6 +692,11 @@ fn parse_invoke_cpi_account_info_instruction(
             merkle_tree_index: Some(param.address_merkle_tree_account_index),
             root_index: Some(param.address_merkle_tree_root_index),
             derived_address: None,
+            assigned_account_index: if param.assigned_to_account {
+                super::types::AddressAssignment::AssignedIndex(param.assigned_account_index)
+            } else {
+                super::types::AddressAssignment::None
+            },
         });
     }
 
@@ -695,6 +708,7 @@ fn parse_invoke_cpi_account_info_instruction(
             merkle_tree_index: Some(readonly_addr.address_merkle_tree_account_index),
             root_index: Some(readonly_addr.address_merkle_tree_root_index),
             derived_address: Some(readonly_addr.address),
+            assigned_account_index: super::types::AddressAssignment::None,
         });
     }
 

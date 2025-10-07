@@ -1322,6 +1322,7 @@ dependencies = [
  "light-compressed-token",
  "light-hasher",
  "light-indexed-array",
+ "light-macros",
  "light-merkle-tree-reference",
  "light-program-test",
  "light-prover-client",

@@ -5,6 +5,7 @@ use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::{merkle_tree::MerkleTreeExt, RpcError},
 };
+use light_compressed_account::hash_to_bn254_field_size_be;
 use light_prover_client::prover::{spawn_prover, ProverConfig};
 use litesvm::LiteSVM;
 use solana_account::WritableAccount;
@@ -113,6 +114,67 @@ impl LightProgramTest {
                 context.set_account(address_queue_pubkey, account);
             }
         }
+        // Copy v1 state merkle tree accounts to devnet pubkeys
+        {
+            let tree_account = context
+                .context
+                .get_account(&keypairs.state_merkle_tree.pubkey());
+            let queue_account = context
+                .context
+                .get_account(&keypairs.nullifier_queue.pubkey());
+            let cpi_account = context
+                .context
+                .get_account(&keypairs.cpi_context_account.pubkey());
+
+            if let (Some(tree_acc), Some(queue_acc), Some(cpi_acc)) =
+                (tree_account, queue_account, cpi_account)
+            {
+                for i in 0..context.test_accounts.v1_state_trees.len() {
+                    let state_mt = context.test_accounts.v1_state_trees[i].merkle_tree;
+                    let nullifier_queue_pubkey =
+                        context.test_accounts.v1_state_trees[i].nullifier_queue;
+                    let cpi_context_pubkey = context.test_accounts.v1_state_trees[i].cpi_context;
+
+                    // Update tree account with correct associated queue
+                    let mut tree_account_data = tree_acc.clone();
+                    {
+                        let merkle_tree_account = bytemuck::from_bytes_mut::<
+                            account_compression::StateMerkleTreeAccount,
+                        >(
+                            &mut tree_account_data.data_as_mut_slice()
+                                [8..account_compression::StateMerkleTreeAccount::LEN],
+                        );
+                        merkle_tree_account.metadata.associated_queue =
+                            nullifier_queue_pubkey.into();
+                    }
+                    context.set_account(state_mt, tree_account_data);
+
+                    // Update queue account with correct associated merkle tree
+                    let mut queue_account_data = queue_acc.clone();
+                    {
+                        let queue_account = bytemuck::from_bytes_mut::<QueueAccount>(
+                            &mut queue_account_data.data_as_mut_slice()[8..QueueAccount::LEN],
+                        );
+                        queue_account.metadata.associated_merkle_tree = state_mt.into();
+                    }
+                    context.set_account(nullifier_queue_pubkey, queue_account_data);
+
+                    // Update CPI context account with correct associated merkle tree and queue
+                    let mut cpi_account_data = cpi_acc.clone();
+                    {
+                        let associated_merkle_tree_offset = 8 + 32; // discriminator + fee_payer
+                        let associated_queue_offset = 8 + 32 + 32; // discriminator + fee_payer + associated_merkle_tree
+                        cpi_account_data.data_as_mut_slice()
+                            [associated_merkle_tree_offset..associated_merkle_tree_offset + 32]
+                            .copy_from_slice(&state_mt.to_bytes());
+                        cpi_account_data.data_as_mut_slice()
+                            [associated_queue_offset..associated_queue_offset + 32]
+                            .copy_from_slice(&nullifier_queue_pubkey.to_bytes());
+                    }
+                    context.set_account(cpi_context_pubkey, cpi_account_data);
+                }
+            }
+        }
         {
             let address_mt = context.test_accounts.v2_address_trees[0];
             let account = context
@@ -120,6 +182,77 @@ impl LightProgramTest {
                 .get_account(&keypairs.batch_address_merkle_tree.pubkey());
             if let Some(account) = account {
                 context.set_account(address_mt, account);
+            }
+        }
+        // Copy batched state merkle tree accounts to devnet pubkeys
+        {
+            let tree_account = context
+                .context
+                .get_account(&keypairs.batched_state_merkle_tree.pubkey());
+            let queue_account = context
+                .context
+                .get_account(&keypairs.batched_output_queue.pubkey());
+            let cpi_account = context
+                .context
+                .get_account(&keypairs.batched_cpi_context.pubkey());
+
+            if let (Some(tree_acc), Some(queue_acc), Some(cpi_acc)) =
+                (tree_account, queue_account, cpi_account)
+            {
+                use light_batched_merkle_tree::{
+                    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
+                };
+
+                for i in 0..context.test_accounts.v2_state_trees.len() {
+                    let merkle_tree_pubkey = context.test_accounts.v2_state_trees[i].merkle_tree;
+                    let output_queue_pubkey = context.test_accounts.v2_state_trees[i].output_queue;
+                    let cpi_context_pubkey = context.test_accounts.v2_state_trees[i].cpi_context;
+
+                    // Update tree account with correct associated queue and hashed pubkey
+                    let mut tree_account_data = tree_acc.clone();
+                    {
+                        let mut tree = BatchedMerkleTreeAccount::state_from_bytes(
+                            tree_account_data.data_as_mut_slice(),
+                            &merkle_tree_pubkey.into(),
+                        )
+                        .unwrap();
+                        let metadata = tree.get_metadata_mut();
+                        metadata.metadata.associated_queue = output_queue_pubkey.into();
+                        metadata.hashed_pubkey =
+                            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes());
+                    }
+                    context.set_account(merkle_tree_pubkey, tree_account_data);
+
+                    // Update queue account with correct associated merkle tree and hashed pubkeys
+                    let mut queue_account_data = queue_acc.clone();
+                    {
+                        let mut queue = BatchedQueueAccount::output_from_bytes(
+                            queue_account_data.data_as_mut_slice(),
+                        )
+                        .unwrap();
+                        let metadata = queue.get_metadata_mut();
+                        metadata.metadata.associated_merkle_tree = merkle_tree_pubkey.into();
+                        metadata.hashed_merkle_tree_pubkey =
+                            hash_to_bn254_field_size_be(&merkle_tree_pubkey.to_bytes());
+                        metadata.hashed_queue_pubkey =
+                            hash_to_bn254_field_size_be(&output_queue_pubkey.to_bytes());
+                    }
+                    context.set_account(output_queue_pubkey, queue_account_data);
+
+                    // Update CPI context account with correct associated merkle tree and queue
+                    let mut cpi_account_data = cpi_acc.clone();
+                    {
+                        let associated_merkle_tree_offset = 8 + 32; // discriminator + fee_payer
+                        let associated_queue_offset = 8 + 32 + 32; // discriminator + fee_payer + associated_merkle_tree
+                        cpi_account_data.data_as_mut_slice()
+                            [associated_merkle_tree_offset..associated_merkle_tree_offset + 32]
+                            .copy_from_slice(&merkle_tree_pubkey.to_bytes());
+                        cpi_account_data.data_as_mut_slice()
+                            [associated_queue_offset..associated_queue_offset + 32]
+                            .copy_from_slice(&output_queue_pubkey.to_bytes());
+                    }
+                    context.set_account(cpi_context_pubkey, cpi_account_data);
+                }
             }
         }
 

@@ -71,4 +71,9 @@ const typesConfig = {
     plugins: [dts()],
 };
 
-export default [rolls('cjs', 'browser'), rolls('cjs', 'node'), typesConfig];
+export default [
+    rolls('cjs', 'browser'),
+    rolls('cjs', 'node'),
+    rolls('es', 'browser'),
+    typesConfig,
+];
