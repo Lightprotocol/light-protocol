@@ -233,18 +233,3 @@ solana-program-runtime = { git = "https://github.com/Lightprotocol/agave", rev =
 solana-bpf-loader-program = { git = "https://github.com/Lightprotocol/agave", rev = "be34dc76559e14921a2c8610f2fa2402bf0684bb" }
 # Patch solana-program-memory to use older version where is_nonoverlapping is public
 solana-program-memory = { git = "https://github.com/anza-xyz/solana-sdk", rev = "1c1d667f161666f12f5a43ebef8eda9470a8c6ee" }
-
-[workspace.metadata.release]
-allow-branch = ["main", "release/*"]
-tag-name = "{{crate_name}}-v{{version}}"
-publish = true
-push = true
-shared-version = false
-sign-commit = false
-sign-tag = false
-# Update workspace dependencies when releasing
-dependent-version = "upgrade"
-# Don't consolidate commits - create one commit per package
-consolidate-commits = false
-# Don't verify (skip tests/build checks)
-verify = false

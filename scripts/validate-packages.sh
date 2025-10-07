@@ -48,20 +48,19 @@ done
 
 echo ""
 if [ -n "$EXECUTE_FLAG" ]; then
-  echo "Running: cargo release publish $PACKAGE_ARGS --execute --no-confirm"
+  echo "Running: cargo publish $PACKAGE_ARGS --no-verify"
 else
   echo "Running: cargo publish $PACKAGE_ARGS --dry-run"
 fi
 echo "----------------------------------------"
 
 # Native cargo 1.90.0+ handles dependency ordering for interdependent workspace crates
-# Without --execute: dry-run validation using native cargo publish
-# With --execute: use cargo-release for actual publish to crates.io
 if [ -n "$EXECUTE_FLAG" ]; then
-  cargo release publish $PACKAGE_ARGS --execute --no-confirm
+  # Actual publish to crates.io using native cargo
+  # Skip verification to avoid build issues with interdependent packages
+  cargo publish $PACKAGE_ARGS --no-verify
 else
-  # Use native cargo publish --dry-run with all packages at once
-  # This allows interdependent workspace crates to validate together
+  # Dry-run validation using native cargo publish
   # Allow dirty state and skip verification due to cargo bug with unpublished dep hashes
   cargo publish $PACKAGE_ARGS --dry-run --allow-dirty --no-verify
 fi
