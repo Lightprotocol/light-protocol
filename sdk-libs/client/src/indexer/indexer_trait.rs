@@ -5,13 +5,13 @@ use solana_pubkey::Pubkey;
 use super::{
     response::{Items, ItemsWithCursor, Response},
     types::{
-        CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsResult, SignatureWithMetadata,
-        TokenBalance, ValidityProofWithContext,
+        CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsResult,
+        SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
     },
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
     GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
-    IndexerError, IndexerRpcConfig, MerkleProof, MerkleProofWithContext,
-    NewAddressProofWithContext, PaginatedOptions, RetryConfig,
+    IndexerError, IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
+    RetryConfig,
 };
 // TODO: remove all references in input types.
 #[async_trait]

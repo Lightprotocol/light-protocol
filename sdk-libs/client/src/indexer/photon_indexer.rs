@@ -12,8 +12,8 @@ use tracing::{error, trace, warn};
 
 use super::{
     types::{
-        CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsResult, SignatureWithMetadata,
-        TokenBalance,
+        CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsResult,
+        SignatureWithMetadata, TokenBalance,
     },
     BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
 };

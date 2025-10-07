@@ -7,9 +7,9 @@ use crate::indexer::{
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount,
     CompressedTokenAccount, GetCompressedAccountsByOwnerConfig,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
-    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MerkleProofWithContext,
-    NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig,
-    SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
+    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
+    OwnerBalance, PaginatedOptions, Response, RetryConfig, SignatureWithMetadata, TokenBalance,
+    ValidityProofWithContext,
 };
 
 #[async_trait]

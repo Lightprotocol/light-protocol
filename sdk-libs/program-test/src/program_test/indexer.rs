@@ -3,8 +3,8 @@ use light_client::indexer::{
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount,
     CompressedTokenAccount, GetCompressedAccountsByOwnerConfig,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
-    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MerkleProofWithContext,
-    NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig, QueueElementsResult,
+    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
+    OwnerBalance, PaginatedOptions, QueueElementsResult, Response, RetryConfig,
     SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
 };
 use light_compressed_account::QueueType;
