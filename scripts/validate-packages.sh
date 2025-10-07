@@ -48,20 +48,33 @@ done
 
 echo ""
 if [ -n "$EXECUTE_FLAG" ]; then
-  echo "Running: cargo publish $PACKAGE_ARGS --no-verify"
+  echo "Running: cargo check (all packages) then cargo release publish $PACKAGE_ARGS --execute --no-confirm --no-verify"
 else
-  echo "Running: cargo publish $PACKAGE_ARGS --dry-run"
+  echo "Running: cargo check (all packages) then cargo publish $PACKAGE_ARGS --dry-run --allow-dirty --no-verify"
 fi
 echo "----------------------------------------"
 
 # Native cargo 1.90.0+ handles dependency ordering for interdependent workspace crates
+
+# First: Always run compilation check to catch errors
+echo ""
+echo "Running compilation check..."
+for pkg in "${PACKAGES[@]}"; do
+  echo "  Checking $pkg..."
+  if ! cargo check -p "$pkg" --all-features 2>&1 | tail -20; then
+    echo "Error: Compilation check failed for $pkg"
+    exit 1
+  fi
+done
+echo "✓ All packages compile successfully"
+echo ""
+
+# Then: Either publish or dry-run
 if [ -n "$EXECUTE_FLAG" ]; then
-  # Actual publish to crates.io using native cargo
-  # Skip verification to avoid build issues with interdependent packages
-  cargo publish $PACKAGE_ARGS --no-verify
+  # Publish with --no-verify to avoid cargo bug with unpublished deps
+  cargo release publish $PACKAGE_ARGS --execute --no-confirm --no-verify
 else
-  # Dry-run validation using native cargo publish
-  # Allow dirty state and skip verification due to cargo bug with unpublished dep hashes
+  # Dry-run validation - allow dirty state and skip verification
   cargo publish $PACKAGE_ARGS --dry-run --allow-dirty --no-verify
 fi
 

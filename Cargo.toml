@@ -157,11 +157,11 @@ ark-std = "0.5"
 light-hash-set = { version = "3.0.0", path = "program-libs/hash-set" }
 light-indexed-merkle-tree = { version = "3.0.0", path = "program-libs/indexed-merkle-tree" }
 light-concurrent-merkle-tree = { version = "3.0.0", path = "program-libs/concurrent-merkle-tree" }
-light-sparse-merkle-tree = { version = "0.1.0", path = "sparse-merkle-tree" }
+light-sparse-merkle-tree = { version = "0.2.0", path = "sparse-merkle-tree" }
 light-client = { path = "sdk-libs/client", version = "0.14.0" }
 light-hasher = { path = "program-libs/hasher", version = "4.0.0" }
 light-macros = { path = "program-libs/macros", version = "2.1.0" }
-light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "3.0.0" }
+light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "3.0.1" }
 light-heap = { path = "program-libs/heap", version = "2.0.0" }
 light-prover-client = { path = "prover/client", version = "2.0.0" }
 light-sdk = { path = "sdk-libs/sdk", version = "0.13.0" }
@@ -199,7 +199,7 @@ light-bloom-filter = { path = "program-libs/bloom-filter", version = "0.4.0" }
 light-bounded-vec = { version = "2.0.0" }
 light-poseidon = { version = "0.3.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
-light-indexed-array = { path = "program-libs/indexed-array", version = "0.1.0" }
+light-indexed-array = { path = "program-libs/indexed-array", version = "0.2.0" }
 light-program-profiler = { version = "0.1.0" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }
 groth16-solana = { version = "0.2.0" }
