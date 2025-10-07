@@ -26,8 +26,5 @@ jobs:
         with:
           toolchain: stable
 
-      - name: Install cargo-release
-        run: cargo install cargo-release
-
       - name: Validate packages for publishing
         run: ./scripts/validate-packages.sh
