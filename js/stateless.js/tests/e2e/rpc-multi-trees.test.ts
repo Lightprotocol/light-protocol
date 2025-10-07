@@ -222,8 +222,12 @@ describe('rpc-multi-trees', () => {
                 const actualQueue = proof.treeInfo.queue;
 
                 console.log(`Iteration ${round + 1}, Account ${index}:`);
-                console.log(`  Expected tree (from getCompressedAccountsByOwner): ${expectedTree.toBase58()}`);
-                console.log(`  Actual tree (from getMultipleCompressedAccountProofs): ${actualTree.toBase58()}`);
+                console.log(
+                    `  Expected tree (from getCompressedAccountsByOwner): ${expectedTree.toBase58()}`,
+                );
+                console.log(
+                    `  Actual tree (from getMultipleCompressedAccountProofs): ${actualTree.toBase58()}`,
+                );
                 console.log(`  Expected queue: ${expectedQueue.toBase58()}`);
                 console.log(`  Actual queue: ${actualQueue.toBase58()}`);
 
@@ -238,7 +242,9 @@ describe('rpc-multi-trees', () => {
             });
 
             const tree = selectStateTreeInfo(await rpc.getStateTreeInfos());
-            console.log(`Selected tree for transfer in round ${round + 1}: ${tree.tree.toBase58()}`);
+            console.log(
+                `Selected tree for transfer in round ${round + 1}: ${tree.tree.toBase58()}`,
+            );
             await transfer(rpc, payer, transferAmount, payer, bob.publicKey);
             executedTxs++;
         }
