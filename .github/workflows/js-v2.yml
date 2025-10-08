@@ -89,7 +89,6 @@ jobs:
         run: |
           source ./scripts/devenv.sh
           cd sdk-tests/sdk-anchor-test
-          anchor build
           npm run test-ts
 
       - name: Display prover logs on failure
