@@ -164,6 +164,19 @@
           "{workspaceRoot}/lib",
           "{workspaceRoot}/test_bin"
         ]
+      },
+      "build-ci": {
+        "dependsOn": ["^build"],
+        "inputs": [
+          "{workspaceRoot}/js",
+          "{workspaceRoot}/programs"
+        ],
+        "outputs": [
+          "{workspaceRoot}/bin",
+          "{workspaceRoot}/dist",
+          "{workspaceRoot}/lib",
+          "{workspaceRoot}/test_bin"
+        ]
       }
     }
   }
