@@ -85,6 +85,13 @@ jobs:
           source ./scripts/devenv.sh
           npx nx test @lightprotocol/compressed-token
 
+      - name: Run sdk-anchor-test TypeScript tests with V2
+        run: |
+          source ./scripts/devenv.sh
+          npx nx build @lightprotocol/sdk-anchor-test
+          cd sdk-tests/sdk-anchor-test
+          npm run test-ts
+
       - name: Display prover logs on failure
         if: failure()
         run: |

@@ -3,7 +3,7 @@ use light_account_checks::AccountInfoTrait;
 #[cfg(feature = "cpi-context")]
 use crate::cpi_context_write::CpiContextWriteAccounts;
 use crate::{
-    cpi_accounts::CpiAccountsConfig,
+    cpi_accounts::{CpiAccountsConfig, TreeAccounts},
     error::{LightSdkTypesError, Result},
     CpiSigner,
 };
@@ -222,5 +222,11 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
             .iter()
             .map(|x| x.pubkey())
             .collect::<Vec<T::Pubkey>>())
+    }
+}
+
+impl<'a, T: AccountInfoTrait + Clone> TreeAccounts<T> for CpiAccounts<'a, T> {
+    fn get_tree_account_info(&self, tree_index: usize) -> Result<&T> {
+        self.get_tree_account_info(tree_index)
     }
 }

@@ -122,7 +122,9 @@ pub enum AddressAssignment {
 pub struct AddressParam {
     pub seed: [u8; 32],
     pub address_queue_index: Option<u8>,
+    pub address_queue_pubkey: Option<solana_sdk::pubkey::Pubkey>,
     pub merkle_tree_index: Option<u8>,
+    pub address_merkle_tree_pubkey: Option<solana_sdk::pubkey::Pubkey>,
     pub root_index: Option<u16>,
     pub derived_address: Option<[u8; 32]>,
     pub assigned_account_index: AddressAssignment,

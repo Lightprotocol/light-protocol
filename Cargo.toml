@@ -114,7 +114,7 @@ pinocchio-pubkey = { version = "0.3.0" }
 bs58 = "^0.5.1"
 litesvm = "0.7"
 # Anchor
-anchor-lang = { version = "=0.31.1", features = ["idl-build"] }
+anchor-lang = { version = "=0.31.1" }
 anchor-spl = "=0.31.1"
 
 # Anchor compatibility

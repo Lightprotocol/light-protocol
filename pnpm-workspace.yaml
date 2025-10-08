@@ -5,6 +5,7 @@ packages:
   - "cli/**"
   - "account-compression/programs/**"
   - "sdk/**"
+  - "sdk-tests/**"
   - "js/stateless.js/**"
   - "js/compressed-token/**"
   - "examples/**"

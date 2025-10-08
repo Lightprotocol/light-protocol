@@ -878,39 +878,41 @@ impl TransactionFormatter {
                             addr_param.seed,
                             self.colors.reset
                         )?;
-                        if let Some(queue_idx) = addr_param.address_queue_index {
+
+                        // Check if v2 by comparing tree and queue pubkeys
+                        let is_v2 = addr_param.address_merkle_tree_pubkey
+                            == addr_param.address_queue_pubkey;
+
+                        // Display address tree
+                        if let Some(tree_pubkey) = addr_param.address_merkle_tree_pubkey {
                             writeln!(
                                 output,
-                                "{}      {}queue_idx: {}{}{}",
+                                "{}      {}tree[{}]: {}{}{}",
                                 indent,
                                 self.colors.gray,
-                                self.colors.cyan,
-                                queue_idx,
+                                addr_param.merkle_tree_index.unwrap_or(0),
+                                self.colors.yellow,
+                                tree_pubkey,
                                 self.colors.reset
                             )?;
                         }
-                        if let Some(tree_idx) = addr_param.merkle_tree_index {
-                            writeln!(
-                                output,
-                                "{}      {}tree_idx: {}{}{}",
-                                indent,
-                                self.colors.gray,
-                                self.colors.cyan,
-                                tree_idx,
-                                self.colors.reset
-                            )?;
+
+                        // Only display queue for v1 trees (when different from tree)
+                        if !is_v2 {
+                            if let Some(queue_pubkey) = addr_param.address_queue_pubkey {
+                                writeln!(
+                                    output,
+                                    "{}      {}queue[{}]: {}{}{}",
+                                    indent,
+                                    self.colors.gray,
+                                    addr_param.address_queue_index.unwrap_or(0),
+                                    self.colors.yellow,
+                                    queue_pubkey,
+                                    self.colors.reset
+                                )?;
+                            }
                         }
-                        if let Some(root_idx) = addr_param.root_index {
-                            writeln!(
-                                output,
-                                "{}      {}root_idx: {}{}{}",
-                                indent,
-                                self.colors.gray,
-                                self.colors.cyan,
-                                root_idx,
-                                self.colors.reset
-                            )?;
-                        }
+
                         if let Some(ref derived_addr) = addr_param.derived_address {
                             writeln!(
                                 output,
@@ -931,7 +933,7 @@ impl TransactionFormatter {
                         };
                         writeln!(
                             output,
-                            "{}      {}assigned_to_output_account: {}{}{}",
+                            "{}      {}assigned: {}{}{}",
                             indent,
                             self.colors.gray,
                             self.colors.yellow,
