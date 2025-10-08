@@ -1,5 +1,5 @@
-use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use anchor_lang::solana_program::{instruction::Instruction, system_instruction};
+use solana_pubkey::Pubkey;
 use solana_sdk::signature::{Keypair, Signer};
 
 pub fn create_account_instruction(
