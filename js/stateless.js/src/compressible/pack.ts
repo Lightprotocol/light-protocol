@@ -38,6 +38,9 @@ export function packWithAccounts<TInput, TOutput = PackedType<TInput>>(
     if (obj instanceof PublicKey) {
         return packedAccounts.insertOrGet(obj) as TOutput;
     }
+    if (typeof obj === 'bigint') {
+        return new BN(obj.toString()) as TOutput;
+    }
     if (obj instanceof BN) {
         return obj as TOutput;
     }
