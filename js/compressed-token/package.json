@@ -39,7 +39,7 @@
         "buffer": "6.0.3"
     },
     "devDependencies": {
-        "@coral-xyz/anchor": "^0.29.0",
+        "@coral-xyz/anchor": "^0.31.1",
         "@esbuild-plugins/node-globals-polyfill": "^0.2.3",
         "@eslint/js": "9.36.0",
         "@lightprotocol/hasher.rs": "0.2.1",

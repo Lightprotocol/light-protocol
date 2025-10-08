@@ -64,7 +64,6 @@ import {
     ValidityProof,
     TreeType,
     AddressTreeInfo,
-    CompressedAccount,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import {
@@ -711,7 +710,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
         return {
             tree,
             queue: tree,
-            cpiContext: PublicKey.default,
+            cpiContext: undefined,
             treeType: TreeType.AddressV2,
             nextTreeInfo: null,
         };

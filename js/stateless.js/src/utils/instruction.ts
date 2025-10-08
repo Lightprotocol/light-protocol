@@ -137,9 +137,6 @@ export function getLightSystemAccountMetas(
         config.selfProgram,
     )[0];
     const defaults = defaultStaticAccountsStruct();
-    const noopProgram = new PublicKey(
-        'noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV',
-    );
     const metas: AccountMeta[] = [
         {
             pubkey: LightSystemProgram.programId,
@@ -152,7 +149,7 @@ export function getLightSystemAccountMetas(
             isSigner: false,
             isWritable: false,
         },
-        { pubkey: noopProgram, isSigner: false, isWritable: false },
+        { pubkey: defaults.noopProgram, isSigner: false, isWritable: false },
         {
             pubkey: defaults.accountCompressionAuthority,
             isSigner: false,

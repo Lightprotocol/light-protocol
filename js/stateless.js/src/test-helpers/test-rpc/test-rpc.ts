@@ -188,7 +188,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         return {
             tree,
             queue: tree,
-            cpiContext: PublicKey.default,
+            cpiContext: undefined,
             treeType: TreeType.AddressV2,
             nextTreeInfo: null,
         };

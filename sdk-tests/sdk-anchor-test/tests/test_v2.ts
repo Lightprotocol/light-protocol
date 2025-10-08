@@ -201,7 +201,6 @@ async function updateCompressedAccount(
   outputMerkleTree: web3.PublicKey,
   signer: web3.Keypair,
   coder: anchor.BorshCoder,
-  name: string,
   nestedData: any
 ) {
   const proofRpcResult = await rpc.getValidityProofV0(
