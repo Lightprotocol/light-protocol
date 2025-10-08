@@ -71,10 +71,9 @@ jobs:
           pnpm build:v2
 
       - name: Build CLI (CI mode - Linux x64 only)
-        working-directory: cli
         run: |
-          source ../scripts/devenv.sh
-          pnpm build-ci
+          source ./scripts/devenv.sh
+          npx nx build-ci @lightprotocol/zk-compression-cli
 
       - name: Run stateless.js tests with V2
         run: |

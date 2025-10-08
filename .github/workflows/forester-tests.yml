@@ -43,7 +43,7 @@ jobs:
   test:
     name: Forester e2e test
     runs-on: warp-ubuntu-latest-x64-4x
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     services:
       redis:
