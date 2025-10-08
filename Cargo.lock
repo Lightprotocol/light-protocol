@@ -3429,7 +3429,7 @@ dependencies = [
 
 [[package]]
 name = "light-client"
-version = "0.14.0"
+version = "0.15.0"
 dependencies = [
  "async-trait",
  "base64 0.13.1",
@@ -3694,7 +3694,7 @@ dependencies = [
 
 [[package]]
 name = "light-program-test"
-version = "0.14.0"
+version = "0.15.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -3742,7 +3742,7 @@ dependencies = [
 
 [[package]]
 name = "light-prover-client"
-version = "2.0.0"
+version = "3.0.0"
 dependencies = [
  "ark-bn254 0.5.0",
  "ark-serialize 0.5.0",
@@ -3781,7 +3781,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk"
-version = "0.13.0"
+version = "0.15.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
@@ -3804,7 +3804,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk-macros"
-version = "0.13.0"
+version = "0.15.0"
 dependencies = [
  "borsh 0.10.4",
  "light-account-checks",
@@ -3840,7 +3840,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk-types"
-version = "0.13.0"
+version = "0.15.0"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
@@ -4596,7 +4596,7 @@ dependencies = [
 
 [[package]]
 name = "photon-api"
-version = "0.51.0"
+version = "0.52.0"
 dependencies = [
  "reqwest 0.12.23",
  "serde",

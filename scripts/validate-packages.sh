@@ -61,7 +61,7 @@ echo ""
 echo "Running compilation check..."
 for pkg in "${PACKAGES[@]}"; do
   echo "  Checking $pkg..."
-  if ! cargo check -p "$pkg" --all-features 2>&1 | tail -20; then
+  if ! cargo test -p "$pkg" --all-features --no-run 2>&1 | tail -20; then
     echo "Error: Compilation check failed for $pkg"
     exit 1
   fi

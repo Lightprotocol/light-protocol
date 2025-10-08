@@ -44,7 +44,7 @@ get_version_changes() {
         diff_args=("$base_ref...$head_ref")
     fi
 
-    # Get list of changed Cargo.toml files in program-libs, sdk-libs, and program-tests/merkle-tree
+    # Get list of changed Cargo.toml files in program-libs, sdk-libs, program-tests/merkle-tree, sparse-merkle-tree, and prover
     while IFS= read -r file; do
         # Extract old and new version from the diff
         local versions=$(git diff "${diff_args[@]}" -- "$file" | grep -E '^\+version|^-version' | grep -v '+++\|---')
@@ -60,7 +60,7 @@ get_version_changes() {
                 echo "$pkg_name $old_ver $new_ver"
             fi
         fi
-    done < <(git diff "${diff_args[@]}" --name-only -- '**/Cargo.toml' | grep -E '(program-libs|sdk-libs|program-tests/merkle-tree)/')
+    done < <(git diff "${diff_args[@]}" --name-only -- '**/Cargo.toml' | grep -E '(program-libs|sdk-libs|program-tests/merkle-tree|sparse-merkle-tree|prover)/')
 }
 
 # Check if there are changes
