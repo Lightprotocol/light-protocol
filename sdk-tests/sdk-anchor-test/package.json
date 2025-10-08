@@ -1,9 +1,13 @@
 {
+  "name": "@lightprotocol/sdk-anchor-test",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
   "scripts": {
     "lint:fix": "prettier \"**/*.ts\" -w",
     "lint": "prettier \"**/*.ts\" --check",
     "test": "cargo test-sbf -p sdk-native-test",
-    "test-ts": "light test-validator --sbf-program 2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt ../../target/deploy/sdk_anchor_test.so && ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+    "test-ts": "light test-validator --sbf-program 2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt ../../target/deploy/sdk_anchor_test.so && ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts",
+    "build": "cd programs/sdk-anchor-test && cargo build-sbf"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",

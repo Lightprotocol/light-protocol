@@ -88,6 +88,7 @@ jobs:
       - name: Run sdk-anchor-test TypeScript tests with V2
         run: |
           source ./scripts/devenv.sh
+          npx nx build @lightprotocol/sdk-anchor-test
           cd sdk-tests/sdk-anchor-test
           npm run test-ts
 
