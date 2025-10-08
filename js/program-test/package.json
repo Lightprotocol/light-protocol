@@ -1,0 +1,49 @@
+{
+  "name": "@lightprotocol/program-test",
+  "version": "0.1.0",
+  "description": "LiteSVM-based testing utilities for Light Protocol programs (Node.js equivalent of light-program-test Rust crate)",
+  "main": "dist/cjs/node/index.cjs",
+  "type": "module",
+  "exports": {
+    ".": {
+      "require": "./dist/cjs/node/index.cjs",
+      "types": "./dist/types/index.d.ts",
+      "default": "./dist/cjs/node/index.cjs"
+    }
+  },
+  "keywords": [
+    "zk",
+    "compression",
+    "light",
+    "testing",
+    "litesvm",
+    "solana"
+  ],
+  "maintainers": [
+    {
+      "name": "Light Protocol Maintainers",
+      "email": "friends@lightprotocol.com"
+    }
+  ],
+  "license": "Apache-2.0",
+  "dependencies": {
+    "litesvm": "^0.3.3",
+    "@lightprotocol/stateless.js": "workspace:*",
+    "@lightprotocol/hasher.rs": "0.2.1",
+    "@solana/web3.js": "1.98.4",
+    "bn.js": "^5.2.1",
+    "bs58": "^6.0.0",
+    "buffer": "6.0.3"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.1.5",
+    "@types/node": "^22",
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.1",
+    "rimraf": "^6.0.1"
+  },
+  "scripts": {
+    "build": "rimraf dist && tsc",
+    "test": "vitest run"
+  }
+}

@@ -311,6 +311,46 @@ importers:
         specifier: ^2.1.1
         version: 2.1.1(@types/node@22.16.5)(terser@5.43.1)
 
+  js/program-test:
+    dependencies:
+      '@lightprotocol/hasher.rs':
+        specifier: 0.2.1
+        version: 0.2.1
+      '@lightprotocol/stateless.js':
+        specifier: workspace:*
+        version: link:../stateless.js
+      '@solana/web3.js':
+        specifier: 1.98.4
+        version: 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      bn.js:
+        specifier: ^5.2.1
+        version: 5.2.1
+      bs58:
+        specifier: ^6.0.0
+        version: 6.0.0
+      buffer:
+        specifier: 6.0.3
+        version: 6.0.3
+      litesvm:
+        specifier: ^0.3.3
+        version: 0.3.3(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
+    devDependencies:
+      '@types/bn.js':
+        specifier: ^5.1.5
+        version: 5.2.0
+      '@types/node':
+        specifier: ^22
+        version: 22.16.5
+      rimraf:
+        specifier: ^6.0.1
+        version: 6.0.1
+      typescript:
+        specifier: ^5.6.2
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.1
+        version: 2.1.1(@types/node@22.16.5)(terser@5.43.1)
+
   js/stateless.js:
     dependencies:
       '@coral-xyz/borsh':
@@ -4289,6 +4329,40 @@ packages:
   lines-and-columns@2.0.3:
     resolution: {integrity: sha512-cNOjgCnLB+FnvWWtyRTzmB3POJ+cXxTA81LoW7u8JdmhfXzriropYwpjShnz1QLLWsQwY7nIxoDmcPTwphDK9w==}
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
+
+  litesvm-darwin-arm64@0.3.3:
+    resolution: {integrity: sha512-81YimsV3ezWjWLgoKixsXfVznaaecbURE3RtECgNb6Din6Za03pKGKGEN4gkyecHkv8uoPaEZv5cl6ARsgeN1Q==}
+    engines: {node: '>= 20'}
+    cpu: [arm64]
+    os: [darwin]
+
+  litesvm-darwin-x64@0.3.3:
+    resolution: {integrity: sha512-pYietuU165Bl+2eDnVp2Eidiedfjt+pljyyBAfJPbYriaFyG577mU364NiNcsfQ8ZZWbe+ygIEAVq4Ol247+1g==}
+    engines: {node: '>= 20'}
+    cpu: [x64]
+    os: [darwin]
+
+  litesvm-linux-arm64-musl@0.3.3:
+    resolution: {integrity: sha512-mkI15rWtNbaJxVFUfh+qnolqnDCZEqhwSZo/XZ48TZNsQ69vAqY00KhyFhTVJ+jeaYCAZTSNamuFIiRBxqVmNg==}
+    engines: {node: '>= 20'}
+    cpu: [arm64]
+    os: [linux]
+
+  litesvm-linux-x64-gnu@0.3.3:
+    resolution: {integrity: sha512-Qai2/E8Eq03w8VKnJDREyiWxwavjykW/H6onE179ayMnBjVVmkj5fN7XF50VV4z73kasx5bpDzBNK8fcaxMdzA==}
+    engines: {node: '>= 20'}
+    cpu: [x64]
+    os: [linux]
+
+  litesvm-linux-x64-musl@0.3.3:
+    resolution: {integrity: sha512-bpWZ2f506hbfu1y6bkmuZf+qqtnLDxggpOMTQbibjd+q6faEO3sETWwKGlIgHB99P8wyU+aXKwLSGQX2sJEw6Q==}
+    engines: {node: '>= 20'}
+    cpu: [x64]
+    os: [linux]
+
+  litesvm@0.3.3:
+    resolution: {integrity: sha512-QHXjAIXzvG0uAMOza6aJcYl19yTKz3guwq/z0Zml4KnQxyQvPhjaBpUFc5sf2ey/NxMVdqFhoXmL02CXOOomjw==}
+    engines: {node: '>= 20'}
 
   locate-path@6.0.0:
     resolution: {integrity: sha512-iPZK6eYjbxRu3uB4/WZ3EsEIMJFMqAoopl3R+zuq0UjcAm/MO6KCweDgPfP3elTztoKP3KtnVHxTn2NHBSDVUw==}
@@ -10693,6 +10767,38 @@ snapshots:
   lines-and-columns@1.2.4: {}
 
   lines-and-columns@2.0.3: {}
+
+  litesvm-darwin-arm64@0.3.3:
+    optional: true
+
+  litesvm-darwin-x64@0.3.3:
+    optional: true
+
+  litesvm-linux-arm64-musl@0.3.3:
+    optional: true
+
+  litesvm-linux-x64-gnu@0.3.3:
+    optional: true
+
+  litesvm-linux-x64-musl@0.3.3:
+    optional: true
+
+  litesvm@0.3.3(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10):
+    dependencies:
+      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      bs58: 6.0.0
+      fastestsmallesttextencoderdecoder: 1.0.22
+    optionalDependencies:
+      litesvm-darwin-arm64: 0.3.3
+      litesvm-darwin-x64: 0.3.3
+      litesvm-linux-arm64-musl: 0.3.3
+      litesvm-linux-x64-gnu: 0.3.3
+      litesvm-linux-x64-musl: 0.3.3
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
 
   locate-path@6.0.0:
     dependencies:
