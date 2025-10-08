@@ -87,10 +87,11 @@ jobs:
           source ./scripts/devenv.sh
           npx nx build @lightprotocol/zk-compression-cli
 
-      - name: build-programs
+      # NOTE: Program build removed - already handled by setup-and-build action (10min saved!)
+      # Only build program-tests here since it's not in setup-and-build
+      - name: build-program-tests
         run: |
           source ./scripts/devenv.sh
-          npx nx build @lightprotocol/programs
           npx nx build @lightprotocol/program-tests
 
       - name: ${{ matrix.program }}

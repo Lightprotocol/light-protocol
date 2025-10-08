@@ -106,7 +106,7 @@ install_rust() {
         rustup install 1.90 nightly
         export PATH="${PREFIX}/cargo/bin:${PATH}"
         rustup component add --toolchain 1.90-x86_64-unknown-linux-gnu clippy
-        cargo install cargo-expand --locked
+        # cargo-expand removed - not used in CI or required for development
         log "rust"
     else
         echo "Rust already installed, skipping..."
