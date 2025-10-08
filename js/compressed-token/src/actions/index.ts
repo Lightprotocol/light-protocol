@@ -7,7 +7,7 @@ export * from './create-token-pool';
 export * from './create-token-program-lookup-table';
 export * from './decompress';
 export * from './merge-token-accounts';
-export * from './mint-to';
+export * from './mint-spl-to';
 export * from './revoke';
 export * from './transfer';
 export * from './transfer-delegated';

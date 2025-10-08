@@ -9,7 +9,7 @@ import BN from 'bn.js';
 import {
     createMintSPL,
     createTokenProgramLookupTable,
-    mintTo,
+    mintSplTo,
 } from '../../src/actions';
 import {
     getTestKeypair,
@@ -60,7 +60,7 @@ async function assertMintTo(
 
 const TEST_TOKEN_DECIMALS = 2;
 
-describe('mintTo', () => {
+describe('mintSplTo', () => {
     let rpc: Rpc;
     let payer: Signer;
     let bob: Signer;
@@ -103,7 +103,7 @@ describe('mintTo', () => {
 
     it('should mint to bob', async () => {
         const amount = bn(1000);
-        const txId = await mintTo(
+        const txId = await mintSplTo(
             rpc,
             payer,
             mint,
@@ -119,11 +119,18 @@ describe('mintTo', () => {
         /// wrong authority
         /// is not checked in cToken program, so it throws invalid owner inside spl token program.
         await expect(
-            mintTo(rpc, payer, mint, bob.publicKey, Keypair.generate(), amount),
+            mintSplTo(
+                rpc,
+                payer,
+                mint,
+                bob.publicKey,
+                Keypair.generate(),
+                amount,
+            ),
         ).rejects.toThrowError(/custom program error: 0x4/);
 
         /// with output state merkle tree defined
-        await mintTo(
+        await mintSplTo(
             rpc,
             payer,
             mint,
@@ -145,7 +152,7 @@ describe('mintTo', () => {
 
     it('should mint to multiple recipients', async () => {
         /// mint to three recipients
-        await mintTo(
+        await mintSplTo(
             rpc,
             payer,
             mint,
@@ -157,7 +164,7 @@ describe('mintTo', () => {
         );
 
         /// Mint to 10 recipients
-        const tx = await mintTo(
+        const tx = await mintSplTo(
             rpc,
             payer,
             mint,
@@ -170,7 +177,7 @@ describe('mintTo', () => {
 
         // Uneven amounts
         await expect(
-            mintTo(
+            mintSplTo(
                 rpc,
                 payer,
                 mint,

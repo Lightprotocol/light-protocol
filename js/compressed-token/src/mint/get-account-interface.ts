@@ -130,7 +130,7 @@ export async function getAccountInterface(
     parsed: Account;
     isCompressed: boolean;
     merkleContext?: MerkleContext;
-} | null> {
+}> {
     if (programId.equals(CTOKEN_PROGRAM_ID)) {
         const [onchainResult, compressedResult] = await Promise.allSettled([
             rpc.getAccountInfo(address, commitment),
@@ -209,7 +209,7 @@ export async function getAccountInterface(
             };
         }
 
-        return null;
+        throw new Error('Expected not to throw');
     }
 
     if (
@@ -218,7 +218,7 @@ export async function getAccountInterface(
     ) {
         const info = await rpc.getAccountInfo(address, commitment);
         if (!info) {
-            return null;
+            throw new Error('Expected not to throw');
         }
 
         const account = splUnpackAccount(address, info, programId);

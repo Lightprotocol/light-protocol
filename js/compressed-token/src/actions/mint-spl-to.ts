@@ -22,7 +22,7 @@ import {
 } from '../utils/get-token-pool-infos';
 
 /**
- * Mint compressed tokens to a solana address
+ * Mint SPL tokens to compressed token accounts
  *
  * @param rpc                   Rpc connection to use
  * @param payer                 Fee payer
@@ -41,7 +41,7 @@ import {
  *
  * @return Signature of the confirmed transaction
  */
-export async function mintTo(
+export async function mintSplTo(
     rpc: Rpc,
     payer: Signer,
     mint: PublicKey,

@@ -98,6 +98,8 @@
         "test-validator-skip-prover": "./../../cli/test_bin/run test-validator --skip-prover",
         "test:e2e:create-mint": "pnpm test-validator && NODE_OPTIONS='--trace-deprecation' vitest run tests/e2e/create-mint.test.ts --reporter=verbose",
         "test:e2e:create-compressed-mint": "pnpm test-validator && vitest run tests/e2e/create-compressed-mint.test.ts --reporter=verbose",
+        "test:e2e:mint-to-compressed": "pnpm test-validator && vitest run tests/e2e/mint-to-compressed.test.ts --reporter=verbose",
+        "test:e2e:mint-to-ctoken": "pnpm test-validator && vitest run tests/e2e/mint-to-ctoken.test.ts --reporter=verbose",
         "test:e2e:update-mint": "pnpm test-validator && vitest run tests/e2e/update-mint.test.ts --reporter=verbose",
         "test:e2e:update-metadata": "pnpm test-validator && vitest run tests/e2e/update-metadata.test.ts --reporter=verbose",
         "test:e2e:create-associated-ctoken": "pnpm test-validator && vitest run tests/e2e/create-associated-ctoken.test.ts --reporter=verbose",
