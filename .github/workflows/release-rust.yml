@@ -5,20 +5,11 @@ on:
     types: [closed]
     branches:
       - main
-  workflow_dispatch:
-    inputs:
-      base_sha:
-        description: 'Base commit SHA'
-        required: false
-        default: 'a31725d0de490f83ffc3b51c16d46ab98bef6214'
-      head_sha:
-        description: 'Head commit SHA'
-        required: false
-        default: 'c448992824d6410e08d07e0af3e41e44b2ec746d'
 
 jobs:
   publish-release:
-    # Temporarily hardcoded to fix failed release
+    # Only run on merged release PRs
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -47,8 +38,8 @@ jobs:
 
       - name: Validate packages before publishing
         env:
-          BASE_SHA: a31725d0de490f83ffc3b51c16d46ab98bef6214
-          HEAD_SHA: c448992824d6410e08d07e0af3e41e44b2ec746d
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           echo "========================================="
           echo "Phase 1: Validation (dry-run)"
@@ -58,8 +49,8 @@ jobs:
       - name: Publish packages to crates.io
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-          BASE_SHA: a31725d0de490f83ffc3b51c16d46ab98bef6214
-          HEAD_SHA: c448992824d6410e08d07e0af3e41e44b2ec746d
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           echo ""
           echo "========================================="
@@ -70,8 +61,8 @@ jobs:
       - name: Create GitHub releases
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          BASE_SHA: a31725d0de490f83ffc3b51c16d46ab98bef6214
-          HEAD_SHA: c448992824d6410e08d07e0af3e41e44b2ec746d
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           echo ""
           echo "========================================="
