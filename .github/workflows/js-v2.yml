@@ -70,10 +70,11 @@ jobs:
           cd js/compressed-token
           pnpm build:v2
 
-      - name: Build CLI
+      - name: Build CLI (CI mode - Linux x64 only)
+        working-directory: cli
         run: |
-          source ./scripts/devenv.sh
-          npx nx build @lightprotocol/zk-compression-cli
+          source ../scripts/devenv.sh
+          pnpm build-ci
 
       - name: Run stateless.js tests with V2
         run: |

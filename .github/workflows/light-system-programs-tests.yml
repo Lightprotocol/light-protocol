@@ -82,13 +82,12 @@ jobs:
         with:
           skip-components: "redis"
 
-      - name: Build CLI
+      - name: Build CLI (CI mode - Linux x64 only)
+        working-directory: cli
         run: |
-          source ./scripts/devenv.sh
-          npx nx build @lightprotocol/zk-compression-cli
+          source ../scripts/devenv.sh
+          pnpm build-ci
 
-      # NOTE: Program build removed - already handled by setup-and-build action (10min saved!)
-      # Only build program-tests here since it's not in setup-and-build
       - name: build-program-tests
         run: |
           source ./scripts/devenv.sh

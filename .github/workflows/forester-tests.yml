@@ -79,10 +79,11 @@ jobs:
           df -h /
           du -sh /home/runner/work/* | sort -hr | head -n 10
 
-      - name: Build CLI
+      - name: Build CLI (CI mode - Linux x64 only)
+        working-directory: cli
         run: |
-          source ./scripts/devenv.sh
-          npx nx build @lightprotocol/zk-compression-cli
+          source ../scripts/devenv.sh
+          pnpm build-ci
 
       - name: Build test program
         run: |

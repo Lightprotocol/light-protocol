@@ -8,15 +8,20 @@ build_prover() {
 
 # Parse command line arguments
 RELEASE_ONLY=false
+CI_MODE=false
 while [[ $# -gt 0 ]]; do
   case $1 in
     --release-only)
       RELEASE_ONLY=true
       shift
       ;;
+    --ci)
+      CI_MODE=true
+      shift
+      ;;
     *)
       echo "Unknown option: $1"
-      echo "Usage: $0 [--release-only]"
+      echo "Usage: $0 [--release-only] [--ci]"
       exit 1
       ;;
   esac
@@ -76,14 +81,21 @@ fi
 
 cd "$gnark_dir"
 
-# Windows
-build_prover windows amd64 "$out_dir"/prover-windows-x64.exe
-build_prover windows arm64 "$out_dir"/prover-windows-arm64.exe
+if [ "$CI_MODE" = true ]; then
+    echo "CI mode: Building only Linux x64 prover"
+    # Linux x64 only (for CI)
+    build_prover linux amd64 "$out_dir"/prover-linux-x64
+else
+    echo "Building all prover binaries for release"
+    # Windows
+    build_prover windows amd64 "$out_dir"/prover-windows-x64.exe
+    build_prover windows arm64 "$out_dir"/prover-windows-arm64.exe
 
-# MacOS
-build_prover darwin amd64 "$out_dir"/prover-darwin-x64
-build_prover darwin arm64 "$out_dir"/prover-darwin-arm64
+    # MacOS
+    build_prover darwin amd64 "$out_dir"/prover-darwin-x64
+    build_prover darwin arm64 "$out_dir"/prover-darwin-arm64
 
-# Linux
-build_prover linux amd64 "$out_dir"/prover-linux-x64
-build_prover linux arm64 "$out_dir"/prover-linux-arm64
+    # Linux
+    build_prover linux amd64 "$out_dir"/prover-linux-x64
+    build_prover linux arm64 "$out_dir"/prover-linux-arm64
+fi

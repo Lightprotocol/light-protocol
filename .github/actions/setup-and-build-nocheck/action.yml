@@ -126,7 +126,8 @@ runs:
           solana-keygen new --no-bip39-passphrase -o /home/runner/.config/solana/id.json
         fi
         npx nx build @lightprotocol/programs
-        npx nx build @lightprotocol/zk-compression-cli
+        cd cli
+        pnpm build-ci
 
     - name: Save .local directory cache
       if: steps.restore-local-cache.outputs.cache-hit != 'true'
