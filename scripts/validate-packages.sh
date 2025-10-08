@@ -48,7 +48,7 @@ done
 
 echo ""
 if [ -n "$EXECUTE_FLAG" ]; then
-  echo "Running: cargo check (all packages) then cargo release publish $PACKAGE_ARGS --execute --no-confirm --no-verify"
+  echo "Running: cargo check (all packages) then cargo publish $PACKAGE_ARGS --no-verify"
 else
   echo "Running: cargo check (all packages) then cargo publish $PACKAGE_ARGS --dry-run --allow-dirty --no-verify"
 fi
@@ -72,7 +72,7 @@ echo ""
 # Then: Either publish or dry-run
 if [ -n "$EXECUTE_FLAG" ]; then
   # Publish with --no-verify to avoid cargo bug with unpublished deps
-  cargo release publish $PACKAGE_ARGS --execute --no-confirm --no-verify
+  cargo publish $PACKAGE_ARGS --no-verify
 else
   # Dry-run validation - allow dirty state and skip verification
   cargo publish $PACKAGE_ARGS --dry-run --allow-dirty --no-verify
