@@ -24,7 +24,7 @@ describe("sdk-anchor-test-v2", () => {
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
   const programId = new web3.PublicKey(
-    "2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt",
+    "2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt"
   );
   const program = anchor.workspace.sdkAnchorTest;
   const coder = new anchor.BorshCoder(idl as anchor.Idl);
@@ -37,7 +37,7 @@ describe("sdk-anchor-test-v2", () => {
       "http://127.0.0.1:3001",
       {
         commitment: "confirmed",
-      },
+      }
     );
 
     // Get existing tree infos
@@ -53,7 +53,7 @@ describe("sdk-anchor-test-v2", () => {
 
     // Use an actual existing state tree from the environment
     const stateTreeInfo = existingTreeInfos.find(
-      (info) => info.treeType === 2 || info.treeType === 3,
+      (info) => info.treeType === 2 || info.treeType === 3
     ); // StateV1 or StateV2
     if (!stateTreeInfo) {
       throw new Error("No state tree available");
@@ -77,12 +77,12 @@ describe("sdk-anchor-test-v2", () => {
       program,
       outputQueue,
       signer,
-      name,
+      name
     );
     await sleep(2000);
 
     let compressedAccount = await rpc.getCompressedAccount(
-      bn(address.toBytes()),
+      bn(address.toBytes())
     );
     console.log("Created account:", compressedAccount);
 
@@ -110,7 +110,7 @@ describe("sdk-anchor-test-v2", () => {
       outputQueue,
       signer,
       coder,
-      newNestedData,
+      newNestedData
     );
     await sleep(2000);
 
@@ -125,7 +125,7 @@ describe("sdk-anchor-test-v2", () => {
       program,
       outputQueue,
       signer,
-      coder,
+      coder
     );
     await sleep(2000);
 
@@ -141,7 +141,7 @@ async function createCompressedAccount(
   program: Program<SdkAnchorTest>,
   outputMerkleTree: web3.PublicKey,
   signer: web3.Keypair,
-  name: string,
+  name: string
 ) {
   const proofRpcResult = await rpc.getValidityProofV0(
     [],
@@ -151,7 +151,7 @@ async function createCompressedAccount(
         queue: addressTree,
         address: bn(address.toBytes()),
       },
-    ],
+    ]
   );
   const systemAccountConfig = SystemAccountMetaConfig.new(program.programId);
   let remainingAccounts =
@@ -177,7 +177,7 @@ async function createCompressedAccount(
       proof,
       packedAddressTreeInfo,
       outputMerkleTreeIndex,
-      name,
+      name
     )
     .accounts({
       signer: signer.publicKey,
@@ -202,7 +202,7 @@ async function updateCompressedAccount(
   signer: web3.Keypair,
   coder: anchor.BorshCoder,
   name: string,
-  nestedData: any,
+  nestedData: any
 ) {
   const proofRpcResult = await rpc.getValidityProofV0(
     [
@@ -212,17 +212,17 @@ async function updateCompressedAccount(
         queue: compressedAccount.treeInfo.queue,
       },
     ],
-    [],
+    []
   );
   const systemAccountConfig = SystemAccountMetaConfig.new(program.programId);
   let remainingAccounts =
     PackedAccounts.newWithSystemAccountsV2(systemAccountConfig);
 
   const merkleTreePubkeyIndex = remainingAccounts.insertOrGet(
-    compressedAccount.treeInfo.tree,
+    compressedAccount.treeInfo.tree
   );
   const queuePubkeyIndex = remainingAccounts.insertOrGet(
-    compressedAccount.treeInfo.queue,
+    compressedAccount.treeInfo.queue
   );
   const outputMerkleTreeIndex = remainingAccounts.insertOrGet(outputMerkleTree);
   const compressedAccountMeta = {
@@ -240,7 +240,7 @@ async function updateCompressedAccount(
   // Decode current account state
   const myCompressedAccount = coder.types.decode(
     "MyCompressedAccount",
-    compressedAccount.data.data,
+    compressedAccount.data.data
   );
 
   let proof = {
@@ -254,7 +254,7 @@ async function updateCompressedAccount(
       proof,
       myCompressedAccount,
       compressedAccountMeta,
-      nestedData,
+      nestedData
     )
     .accounts({
       signer: signer.publicKey,
@@ -277,7 +277,7 @@ async function closeCompressedAccount(
   program: Program,
   outputMerkleTree: web3.PublicKey,
   signer: web3.Keypair,
-  coder: anchor.BorshCoder,
+  coder: anchor.BorshCoder
 ) {
   const proofRpcResult = await rpc.getValidityProofV0(
     [
@@ -287,17 +287,17 @@ async function closeCompressedAccount(
         queue: compressedAccount.treeInfo.queue,
       },
     ],
-    [],
+    []
   );
   const systemAccountConfig = SystemAccountMetaConfig.new(program.programId);
   let remainingAccounts =
     PackedAccounts.newWithSystemAccountsV2(systemAccountConfig);
 
   const merkleTreePubkeyIndex = remainingAccounts.insertOrGet(
-    compressedAccount.treeInfo.tree,
+    compressedAccount.treeInfo.tree
   );
   const queuePubkeyIndex = remainingAccounts.insertOrGet(
-    compressedAccount.treeInfo.queue,
+    compressedAccount.treeInfo.queue
   );
   const outputMerkleTreeIndex = remainingAccounts.insertOrGet(outputMerkleTree);
 
@@ -316,7 +316,7 @@ async function closeCompressedAccount(
   // Decode current account state
   const myCompressedAccount = coder.types.decode(
     "MyCompressedAccount",
-    compressedAccount.data.data,
+    compressedAccount.data.data
   );
 
   let proof = {

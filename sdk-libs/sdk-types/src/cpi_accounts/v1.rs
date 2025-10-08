@@ -1,7 +1,7 @@
 use light_account_checks::AccountInfoTrait;
 
 use crate::{
-    cpi_accounts::CpiAccountsConfig,
+    cpi_accounts::{CpiAccountsConfig, TreeAccounts},
     error::{LightSdkTypesError, Result},
     CpiSigner, CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR, LIGHT_SYSTEM_PROGRAM_ID, SOL_POOL_PDA,
 };
@@ -255,5 +255,11 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
         account_infos.push(self.fee_payer().clone());
         account_infos.extend_from_slice(refs);
         account_infos
+    }
+}
+
+impl<'a, T: AccountInfoTrait + Clone> TreeAccounts<T> for CpiAccounts<'a, T> {
+    fn get_tree_account_info(&self, tree_index: usize) -> Result<&T> {
+        self.get_tree_account_info(tree_index)
     }
 }

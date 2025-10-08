@@ -25,10 +25,10 @@ importers:
         version: 0.7.5
       syncpack:
         specifier: ^13.0.4
-        version: 13.0.4(typescript@5.9.2)
+        version: 13.0.4(typescript@5.9.3)
       typescript:
-        specifier: ^5.9.2
-        version: 5.9.2
+        specifier: ^5.9.3
+        version: 5.9.3
 
   cli:
     dependencies:
@@ -455,7 +455,7 @@ importers:
     dependencies:
       '@coral-xyz/anchor':
         specifier: ^0.31.1
-        version: 0.31.1(bufferutil@4.0.8)(typescript@4.9.5)(utf-8-validate@5.0.10)
+        version: 0.31.1(typescript@4.9.5)
       '@lightprotocol/stateless.js':
         specifier: workspace:*
         version: link:../../js/stateless.js
@@ -5717,6 +5717,11 @@ packages:
     engines: {node: '>=14.17'}
     hasBin: true
 
+  typescript@5.9.3:
+    resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
+    engines: {node: '>=14.17'}
+    hasBin: true
+
   unbox-primitive@1.0.2:
     resolution: {integrity: sha512-61pPlCD9h51VoreyJ0BReideM3MDKMKnh6+V9L08331ipq6Q8OFXZYiqP6n/tbHx4s5I9uRhcye6BrbkizkBDw==}
 
@@ -6737,12 +6742,12 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@coral-xyz/anchor@0.31.1(bufferutil@4.0.8)(typescript@4.9.5)(utf-8-validate@5.0.10)':
+  '@coral-xyz/anchor@0.31.1(typescript@4.9.5)':
     dependencies:
       '@coral-xyz/anchor-errors': 0.31.1
-      '@coral-xyz/borsh': 0.31.1(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@4.9.5)(utf-8-validate@5.0.10))
+      '@coral-xyz/borsh': 0.31.1(@solana/web3.js@1.98.4(typescript@4.9.5))
       '@noble/hashes': 1.5.0
-      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@4.9.5)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.4(typescript@4.9.5)
       bn.js: 5.2.1
       bs58: 4.0.1
       buffer-layout: 1.2.2
@@ -6764,9 +6769,9 @@ snapshots:
       bn.js: 5.2.1
       buffer-layout: 1.2.2
 
-  '@coral-xyz/borsh@0.31.1(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@4.9.5)(utf-8-validate@5.0.10))':
+  '@coral-xyz/borsh@0.31.1(@solana/web3.js@1.98.4(typescript@4.9.5))':
     dependencies:
-      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@4.9.5)(utf-8-validate@5.0.10)
+      '@solana/web3.js': 1.98.4(typescript@4.9.5)
       bn.js: 5.2.1
       buffer-layout: 1.2.2
 
@@ -8147,13 +8152,13 @@ snapshots:
     dependencies:
       buffer: 6.0.3
 
-  '@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@4.9.5)(utf-8-validate@5.0.10)':
+  '@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)':
     dependencies:
       '@babel/runtime': 7.25.6
       '@noble/curves': 1.4.2
       '@noble/hashes': 1.5.0
       '@solana/buffer-layout': 4.0.1
-      '@solana/codecs-numbers': 2.3.0(typescript@4.9.5)
+      '@solana/codecs-numbers': 2.3.0(typescript@5.9.2)
       agentkeepalive: 4.5.0
       bn.js: 5.2.1
       borsh: 0.7.0
@@ -8170,13 +8175,13 @@ snapshots:
       - typescript
       - utf-8-validate
 
-  '@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)':
+  '@solana/web3.js@1.98.4(typescript@4.9.5)':
     dependencies:
       '@babel/runtime': 7.25.6
       '@noble/curves': 1.4.2
       '@noble/hashes': 1.5.0
       '@solana/buffer-layout': 4.0.1
-      '@solana/codecs-numbers': 2.3.0(typescript@5.9.2)
+      '@solana/codecs-numbers': 2.3.0(typescript@4.9.5)
       agentkeepalive: 4.5.0
       bn.js: 5.2.1
       borsh: 0.7.0
@@ -9123,14 +9128,14 @@ snapshots:
 
   corser@2.0.1: {}
 
-  cosmiconfig@9.0.0(typescript@5.9.2):
+  cosmiconfig@9.0.0(typescript@5.9.3):
     dependencies:
       env-paths: 2.2.1
       import-fresh: 3.3.1
       js-yaml: 4.1.0
       parse-json: 5.2.0
     optionalDependencies:
-      typescript: 5.9.2
+      typescript: 5.9.3
 
   create-ecdh@4.0.4:
     dependencies:
@@ -10723,7 +10728,7 @@ snapshots:
 
   isexe@3.1.1: {}
 
-  isomorphic-ws@4.0.1(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)):
+  isomorphic-ws@4.0.1(ws@7.5.10):
     dependencies:
       ws: 7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)
 
@@ -10756,7 +10761,7 @@ snapshots:
       delay: 5.0.0
       es6-promisify: 5.0.0
       eyes: 0.1.8
-      isomorphic-ws: 4.0.1(ws@7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10))
+      isomorphic-ws: 4.0.1(ws@7.5.10)
       json-stringify-safe: 5.0.1
       uuid: 8.3.2
       ws: 7.5.10(bufferutil@4.0.8)(utf-8-validate@5.0.10)
@@ -12093,12 +12098,12 @@ snapshots:
 
   supports-preserve-symlinks-flag@1.0.0: {}
 
-  syncpack@13.0.4(typescript@5.9.2):
+  syncpack@13.0.4(typescript@5.9.3):
     dependencies:
       chalk: 5.4.1
       chalk-template: 1.1.0
       commander: 13.1.0
-      cosmiconfig: 9.0.0(typescript@5.9.2)
+      cosmiconfig: 9.0.0(typescript@5.9.3)
       effect: 3.15.0
       enquirer: 2.4.1
       fast-check: 3.23.2
@@ -12378,6 +12383,8 @@ snapshots:
   typescript@4.9.5: {}
 
   typescript@5.9.2: {}
+
+  typescript@5.9.3: {}
 
   unbox-primitive@1.0.2:
     dependencies:
