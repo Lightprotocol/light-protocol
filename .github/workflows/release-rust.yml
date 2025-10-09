@@ -44,7 +44,7 @@ jobs:
           echo "========================================="
           echo "Phase 1: Validation (dry-run)"
           echo "========================================="
-          ./scripts/validate-packages.sh "$BASE_SHA" "$HEAD_SHA"
+          ./scripts/release/validate-packages.sh "$BASE_SHA" "$HEAD_SHA"
 
       - name: Publish packages to crates.io
         env:
@@ -56,7 +56,7 @@ jobs:
           echo "========================================="
           echo "Phase 2: Publishing (atomic)"
           echo "========================================="
-          ./scripts/validate-packages.sh --execute "$BASE_SHA" "$HEAD_SHA"
+          ./scripts/release/validate-packages.sh --execute "$BASE_SHA" "$HEAD_SHA"
 
       - name: Create GitHub releases
         env:
@@ -70,7 +70,7 @@ jobs:
           echo "========================================="
 
           # Detect packages that were published
-          PACKAGES_STRING=$(./scripts/detect-version-changes.sh "$BASE_SHA" "$HEAD_SHA")
+          PACKAGES_STRING=$(./scripts/release/detect-version-changes.sh "$BASE_SHA" "$HEAD_SHA")
           read -ra PACKAGES <<< "$PACKAGES_STRING"
 
           for pkg in "${PACKAGES[@]}"; do

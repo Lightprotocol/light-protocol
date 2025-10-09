@@ -32,7 +32,6 @@ jobs:
       - name: Run linters
         run: |
           set -euxo pipefail
-          source ./scripts/devenv.sh
           rustup install nightly
           rustup target add x86_64-unknown-linux-gnu --toolchain nightly
           rustup component add --toolchain nightly rustfmt

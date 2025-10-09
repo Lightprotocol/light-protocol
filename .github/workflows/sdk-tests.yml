@@ -72,13 +72,11 @@ jobs:
 
       - name: Build CLI (CI mode - Linux x64 only)
         run: |
-          source ./scripts/devenv.sh
           npx nx build-ci @lightprotocol/zk-compression-cli
 
       - name: Run sub-tests for ${{ matrix.program }}
         if: matrix.sub-tests != null
         run: |
-          source ./scripts/devenv.sh
 
           IFS=',' read -r -a sub_tests <<< "${{ join(fromJSON(matrix.sub-tests), ', ') }}"
           for subtest in "${sub_tests[@]}"
@@ -90,5 +88,4 @@ jobs:
       - name: Run tests for ${{ matrix.program }}
         if: matrix.test_cmd != null
         run: |
-          source ./scripts/devenv.sh
           ${{ matrix.test_cmd }}

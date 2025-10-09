@@ -60,34 +60,28 @@ jobs:
 
       - name: Build stateless.js with V2
         run: |
-          source ./scripts/devenv.sh
           cd js/stateless.js
           pnpm build:v2
 
       - name: Build compressed-token with V2
         run: |
-          source ./scripts/devenv.sh
           cd js/compressed-token
           pnpm build:v2
 
       - name: Build CLI (CI mode - Linux x64 only)
         run: |
-          source ./scripts/devenv.sh
           npx nx build-ci @lightprotocol/zk-compression-cli
 
       - name: Run stateless.js tests with V2
         run: |
-          source ./scripts/devenv.sh
           npx nx test @lightprotocol/stateless.js
 
       - name: Run compressed-token tests with V2
         run: |
-          source ./scripts/devenv.sh
           npx nx test @lightprotocol/compressed-token
 
       - name: Run sdk-anchor-test TypeScript tests with V2
         run: |
-          source ./scripts/devenv.sh
           npx nx build @lightprotocol/sdk-anchor-test
           cd sdk-tests/sdk-anchor-test
           npm run test-ts

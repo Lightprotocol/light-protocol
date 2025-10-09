@@ -27,4 +27,4 @@ jobs:
           toolchain: stable
 
       - name: Validate packages for publishing
-        run: ./scripts/validate-packages.sh
+        run: ./scripts/release/validate-packages.sh

@@ -67,12 +67,6 @@ jobs:
         with:
           skip-components: "redis"
 
-      - name: Clean build artifacts before tests
-        shell: bash
-        run: |
-          cargo clean
-          rm -rf target/debug/deps/*
-
       - name: Check available disk space
         shell: bash
         run: |
@@ -80,16 +74,10 @@ jobs:
           du -sh /home/runner/work/* | sort -hr | head -n 10
 
       - name: Build CLI (CI mode - Linux x64 only)
-        run: |
-          source ./scripts/devenv.sh
-          npx nx build-ci @lightprotocol/zk-compression-cli
+        run: npx nx build-ci @lightprotocol/zk-compression-cli
 
       - name: Build test program
-        run: |
-          source ./scripts/devenv.sh
-          cargo test-sbf -p create-address-test-program
+        run: cargo test-sbf -p create-address-test-program
 
       - name: Test
-        run: |
-          source ./scripts/devenv.sh
-          cargo test --package forester e2e_test -- --nocapture
+        run: cargo test --package forester e2e_test -- --nocapture

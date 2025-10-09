@@ -96,10 +96,8 @@ jobs:
 
       - name: Build CLI (CI mode - Linux x64 only)
         run: |
-          source ./scripts/devenv.sh
           npx nx build-ci @lightprotocol/zk-compression-cli
 
       - name: Run tests for ${{ matrix.group.name }}
         run: |
-          source ./scripts/devenv.sh
           ${{ matrix.group.test_cmd }}
