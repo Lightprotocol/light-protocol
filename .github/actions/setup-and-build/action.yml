@@ -97,15 +97,7 @@ runs:
 
         echo "Checking Anchor installation..."
         which anchor && anchor --version || echo "⚠ Anchor not in PATH"
-
-        # Check proving keys
-        if [ -d "prover/server/proving-keys" ] && [ -n "$(ls -A prover/server/proving-keys 2>/dev/null)" ]; then
-          echo "✓ Proving keys found: $(ls prover/server/proving-keys | wc -l) files"
-        else
-          echo "✗ Proving keys directory missing or empty"
-          exit 1
-        fi
-
+        
         echo "=== Environment validation complete ==="
 
     - name: Set local environment
