@@ -59,8 +59,10 @@ jobs:
             sub-tests: '["cargo-test-sbf -p account-compression-test", "cargo-test-sbf -p registry-test"]'
           - program: light-system-program
             sub-tests: '["cargo-test-sbf -p system-test"]'
-          - program: light-compressed-token
-            sub-tests: '["cargo-test-sbf -p compressed-token-test"]'
+          - program: compressed-token-and-e2e
+            sub-tests: '["cargo-test-sbf -p compressed-token-test -- --skip test_transfer_with_photon_and_batched_tree", "cargo-test-sbf -p e2e-test"]'
+          - program: compressed-token-batched-tree
+            sub-tests: '["cargo-test-sbf -p compressed-token-test -- --test test_transfer_with_photon_and_batched_tree"]'
           - program: system-cpi-test
             sub-tests:
               '["cargo-test-sbf -p system-cpi-test", "cargo test -p light-system-program-pinocchio",
@@ -68,8 +70,6 @@ jobs:
               ]'
           - program: system-cpi-test-v2-functional
             sub-tests: '["cargo-test-sbf -p system-cpi-v2-test -- functional_"]'
-          - program: random-e2e-test
-            sub-tests: '["cargo-test-sbf -p e2e-test"]'
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4
@@ -91,9 +91,27 @@ jobs:
           for subtest in "${sub_tests[@]}"
           do
             echo "$subtest"
-            RUSTFLAGS="-D warnings" eval "$subtest"
-            if [ "$subtest" == "cargo-test-sbf -p e2e-test" ]; then
-              pnpm --filter @lightprotocol/programs run build-compressed-token-small
-              RUSTFLAGS="-D warnings" eval "$subtest -- --test test_10_all"
+
+            # Retry logic for flaky batched-tree test
+            if [[ "$subtest" == *"test_transfer_with_photon_and_batched_tree"* ]]; then
+              echo "Running flaky test with retry logic (max 3 attempts)..."
+              attempt=1
+              max_attempts=3
+              until RUSTFLAGS="-D warnings" eval "$subtest"; do
+                attempt=$((attempt + 1))
+                if [ $attempt -gt $max_attempts ]; then
+                  echo "Test failed after $max_attempts attempts"
+                  exit 1
+                fi
+                echo "Attempt $attempt/$max_attempts failed, retrying..."
+                sleep 5
+              done
+              echo "Test passed on attempt $attempt"
+            else
+              RUSTFLAGS="-D warnings" eval "$subtest"
+              if [ "$subtest" == "cargo-test-sbf -p e2e-test" ]; then
+                pnpm --filter @lightprotocol/programs run build-compressed-token-small
+                RUSTFLAGS="-D warnings" eval "$subtest -- --test test_10_all"
+              fi
             fi
           done

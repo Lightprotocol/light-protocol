@@ -77,8 +77,5 @@ jobs:
       - name: Build CLI (CI mode - Linux x64 only)
         run: npx nx build-ci @lightprotocol/zk-compression-cli
 
-      - name: Build test program
-        run: cargo test-sbf -p create-address-test-program
-
       - name: Test
         run: cargo test --package forester e2e_test -- --nocapture
