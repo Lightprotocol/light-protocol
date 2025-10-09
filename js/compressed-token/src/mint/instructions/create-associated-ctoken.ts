@@ -9,6 +9,7 @@ import {
     ASSOCIATED_TOKEN_PROGRAM_ID,
     TOKEN_PROGRAM_ID,
     createAssociatedTokenAccountInstruction as createSplAssociatedTokenAccountInstruction,
+    createAssociatedTokenAccountIdempotentInstruction as createSplAssociatedTokenAccountIdempotentInstruction,
 } from '@solana/spl-token';
 import { struct, u8, publicKey, option, vec } from '@coral-xyz/borsh';
 
@@ -208,6 +209,44 @@ export function createAssociatedTokenAccountInterfaceInstruction(
         );
     } else {
         return createSplAssociatedTokenAccountInstruction(
+            payer,
+            associatedToken,
+            owner,
+            mint,
+            programId,
+            effectiveAssociatedTokenProgramId,
+        );
+    }
+}
+
+export function createAssociatedTokenAccountInterfaceIdempotentInstruction(
+    payer: PublicKey,
+    associatedToken: PublicKey,
+    owner: PublicKey,
+    mint: PublicKey,
+    programId: PublicKey = TOKEN_PROGRAM_ID,
+    associatedTokenProgramId?: PublicKey,
+    compressibleConfig?: CompressibleConfig,
+    configAccount?: PublicKey,
+    rentPayerPda?: PublicKey,
+): TransactionInstruction {
+    const effectiveAssociatedTokenProgramId =
+        associatedTokenProgramId ??
+        (programId.equals(CTOKEN_PROGRAM_ID)
+            ? CTOKEN_PROGRAM_ID
+            : ASSOCIATED_TOKEN_PROGRAM_ID);
+
+    if (programId.equals(CTOKEN_PROGRAM_ID)) {
+        return createAssociatedCTokenAccountIdempotentInstruction(
+            payer,
+            owner,
+            mint,
+            compressibleConfig,
+            configAccount,
+            rentPayerPda,
+        );
+    } else {
+        return createSplAssociatedTokenAccountIdempotentInstruction(
             payer,
             associatedToken,
             owner,

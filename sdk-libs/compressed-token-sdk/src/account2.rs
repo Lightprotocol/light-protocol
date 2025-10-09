@@ -516,8 +516,8 @@ pub fn create_ctoken_to_spl_transfer_instruction(
         AccountMeta::new(source_ctoken_account, false), // Source ctoken account (index 1) - writable
         AccountMeta::new(destination_spl_token_account, false), // Destination SPL token account (index 2) - writable
         AccountMeta::new_readonly(authority, true),             // Authority (index 3) - signer
-        AccountMeta::new(token_pool_pda, false), // Token pool PDA (index 4) - writable
-        AccountMeta::new_readonly(spl_token_program, false), // SPL Token program (index 5) - needed for CPI
+                                                                // AccountMeta::new(token_pool_pda, false), // Token pool PDA (index 4) - writable
+                                                                // AccountMeta::new_readonly(spl_token_program, false), // SPL Token program (index 5) - needed for CPI
     ];
 
     // First operation: compress from ctoken account to pool using compress_spl

@@ -49,6 +49,14 @@ pub enum TokenSdkError {
     CannotMintWithDecompressedInCpiWrite,
     #[error("RentAuthorityIsNone")]
     RentAuthorityIsNone,
+    #[error("SPL bridge configuration required for SPL<->ctoken transfers")]
+    SplBridgeConfigRequired,
+    #[error("Incomplete SPL bridge configuration: missing required fields")]
+    IncompleteSplBridgeConfig,
+    #[error("Use regular SPL transfer for SPL->SPL transfers")]
+    UseRegularSplTransfer,
+    #[error("Cannot determine account type")]
+    CannotDetermineAccountType,
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
     #[error(transparent)]
@@ -97,6 +105,10 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::PackedAccountIndexOutOfBounds => 17017,
             TokenSdkError::CannotMintWithDecompressedInCpiWrite => 17018,
             TokenSdkError::RentAuthorityIsNone => 17019,
+            TokenSdkError::SplBridgeConfigRequired => 17020,
+            TokenSdkError::IncompleteSplBridgeConfig => 17021,
+            TokenSdkError::UseRegularSplTransfer => 17022,
+            TokenSdkError::CannotDetermineAccountType => 17023,
             TokenSdkError::CompressedTokenTypes(e) => e.into(),
             TokenSdkError::CTokenError(e) => e.into(),
             TokenSdkError::LightSdkTypesError(e) => e.into(),
