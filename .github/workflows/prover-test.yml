@@ -1,4 +1,6 @@
 name: Test gnark prover
+permissions:
+  contents: read
 on:
   push:
     branches:
