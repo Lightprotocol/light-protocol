@@ -474,6 +474,93 @@ func runCli() {
 				},
 			},
 			{
+				Name:  "download",
+				Usage: "Download proving keys",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "run-mode",
+						Usage: "Download keys for specific run mode (rpc, forester, forester-test, full, full-test, local-rpc)",
+						Value: "local-rpc",
+					},
+					&cli.StringSliceFlag{
+						Name:  "circuit",
+						Usage: "Download keys for specific circuits (inclusion, non-inclusion, combined, append, update, append-test, update-test, address-append, address-append-test)",
+					},
+					&cli.StringFlag{
+						Name:  "keys-dir",
+						Usage: "Directory where key files will be stored",
+						Value: "./proving-keys/",
+					},
+					&cli.StringFlag{
+						Name:  "download-url",
+						Usage: "Base URL for downloading key files",
+						Value: common.DefaultBaseURL,
+					},
+					&cli.IntFlag{
+						Name:  "max-retries",
+						Usage: "Maximum number of retries for downloading keys",
+						Value: common.DefaultMaxRetries,
+					},
+					&cli.BoolFlag{
+						Name:  "verify-only",
+						Usage: "Only verify existing keys without downloading",
+						Value: false,
+					},
+				},
+				Action: func(context *cli.Context) error {
+					circuits := context.StringSlice("circuit")
+					runMode, err := parseRunMode(context.String("run-mode"))
+					if err != nil {
+						return err
+					}
+
+					keysDirPath := context.String("keys-dir")
+					verifyOnly := context.Bool("verify-only")
+
+					// Configure download settings
+					downloadConfig := &common.DownloadConfig{
+						BaseURL:       context.String("download-url"),
+						MaxRetries:    context.Int("max-retries"),
+						RetryDelay:    common.DefaultRetryDelay,
+						MaxRetryDelay: common.DefaultMaxRetryDelay,
+						AutoDownload:  !verifyOnly,
+					}
+
+					logging.Logger().Info().
+						Str("run_mode", string(runMode)).
+						Strs("circuits", circuits).
+						Str("keys_dir", keysDirPath).
+						Bool("verify_only", verifyOnly).
+						Str("download_url", downloadConfig.BaseURL).
+						Int("max_retries", downloadConfig.MaxRetries).
+						Msg("Download configuration")
+
+					// Get required keys
+					keys := common.GetKeys(keysDirPath, runMode, circuits)
+
+					if len(keys) == 0 {
+						return fmt.Errorf("no keys to download for run-mode=%s circuits=%v", runMode, circuits)
+					}
+
+					logging.Logger().Info().
+						Int("total_keys", len(keys)).
+						Msg("Starting key download/verification")
+
+					// Download/verify keys
+					if err := common.EnsureKeysExist(keys, downloadConfig); err != nil {
+						return fmt.Errorf("failed to ensure keys exist: %w", err)
+					}
+
+					if verifyOnly {
+						logging.Logger().Info().Msg("All keys verified successfully")
+					} else {
+						logging.Logger().Info().Msg("All keys downloaded and verified successfully")
+					}
+
+					return nil
+				},
+			},
+			{
 				Name: "start",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "json-logging", Usage: "enable JSON logging", Required: false},
@@ -503,6 +590,21 @@ func runCli() {
 						Usage: "Run only HTTP server (no queue workers)",
 						Value: false,
 					},
+					&cli.BoolFlag{
+						Name:  "auto-download",
+						Usage: "Automatically download missing key files",
+						Value: true,
+					},
+					&cli.StringFlag{
+						Name:  "download-url",
+						Usage: "Base URL for downloading key files",
+						Value: common.DefaultBaseURL,
+					},
+					&cli.IntFlag{
+						Name:  "download-max-retries",
+						Usage: "Maximum number of retries for downloading keys",
+						Value: common.DefaultMaxRetries,
+					},
 				},
 				Action: func(context *cli.Context) error {
 					if context.Bool("json-logging") {
@@ -518,8 +620,24 @@ func runCli() {
 					}
 
 					var keysDirPath = context.String("keys-dir")
+
+					// Configure download settings
+					downloadConfig := &common.DownloadConfig{
+						BaseURL:       context.String("download-url"),
+						MaxRetries:    context.Int("download-max-retries"),
+						RetryDelay:    common.DefaultRetryDelay,
+						MaxRetryDelay: common.DefaultMaxRetryDelay,
+						AutoDownload:  context.Bool("auto-download"),
+					}
+
+					logging.Logger().Info().
+						Bool("auto_download", downloadConfig.AutoDownload).
+						Str("download_url", downloadConfig.BaseURL).
+						Int("max_retries", downloadConfig.MaxRetries).
+						Msg("Download configuration")
+
 					debugProvingSystemKeys(keysDirPath, runMode, circuits)
-					psv1, psv2, err := common.LoadKeys(keysDirPath, runMode, circuits)
+					psv1, psv2, err := common.LoadKeysWithConfig(keysDirPath, runMode, circuits, downloadConfig)
 					if err != nil {
 						return err
 					}

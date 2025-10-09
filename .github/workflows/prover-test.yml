@@ -56,18 +56,6 @@ jobs:
           path: prover/server/formal-verification/lake-packages
           key: "${{ env.LAKE_VERSION }}"
 
-      - name: Download keys for lightweight tests
-        if: ${{ github.event.pull_request.base.ref == 'main' }}
-        run: |
-          cd prover/server
-          ./scripts/download_keys.sh full
-
-      - name: Download keys for full tests
-        if: ${{ github.event.pull_request.base.ref == 'release' }}
-        run: |
-          cd prover/server
-          ./scripts/download_keys.sh full
-
       - name: Build
         run: |
           cd prover/server

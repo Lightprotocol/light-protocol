@@ -276,9 +276,18 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 }
 
 func LoadKeys(keysDirPath string, runMode RunMode, circuits []string) ([]*MerkleProofSystem, []*BatchProofSystem, error) {
+	return LoadKeysWithConfig(keysDirPath, runMode, circuits, DefaultDownloadConfig())
+}
+
+func LoadKeysWithConfig(keysDirPath string, runMode RunMode, circuits []string, config *DownloadConfig) ([]*MerkleProofSystem, []*BatchProofSystem, error) {
 	var pssv1 []*MerkleProofSystem
 	var pssv2 []*BatchProofSystem
 	keys := GetKeys(keysDirPath, runMode, circuits)
+
+	// Ensure all required keys exist (download if necessary)
+	if err := EnsureKeysExist(keys, config); err != nil {
+		return nil, nil, fmt.Errorf("failed to ensure keys exist: %w", err)
+	}
 
 	for _, key := range keys {
 		logging.Logger().Info().Msg("Reading proving system from file " + key + "...")
