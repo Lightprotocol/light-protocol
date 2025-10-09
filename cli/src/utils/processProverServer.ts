@@ -105,11 +105,21 @@ export async function startProver(
 
   const keysDir = path.join(path.resolve(__dirname, BASE_PATH), KEYS_DIR);
   const args = ["start"];
-  args.push("--keys-dir", keysDir);
-  args.push("--prover-address", `0.0.0.0:${proverPort}`);
+
+  // Handle fallback to local-rpc mode if no mode or circuits specified
+  if ((!circuits || circuits.length === 0) && runMode == null) {
+    runMode = "local-rpc";
+    console.log(`Starting prover with fallback ${runMode} mode...`);
+  }
+
+  // Add run-mode first to avoid flag parsing issues
   if (runMode != null) {
     args.push("--run-mode", runMode);
   }
+
+  args.push("--keys-dir", keysDir);
+  args.push("--prover-address", `0.0.0.0:${proverPort}`);
+  args.push("--auto-download", "true");
 
   for (const circuit of circuits) {
     args.push("--circuit", circuit);
@@ -119,12 +129,6 @@ export async function startProver(
     console.log(`Starting prover in ${runMode} mode...`);
   } else if (circuits && circuits.length > 0) {
     console.log(`Starting prover with circuits: ${circuits.join(", ")}...`);
-  }
-
-  if ((!circuits || circuits.length === 0) && runMode == null) {
-    runMode = "local-rpc";
-    args.push("--run-mode", runMode);
-    console.log(`Starting prover with fallback ${runMode} mode...`);
   }
 
   if (redisUrl) {

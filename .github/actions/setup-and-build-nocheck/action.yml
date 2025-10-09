@@ -20,7 +20,7 @@ runs:
         path: |
           .local
           prover/server/proving-keys
-        key: ${{ runner.os }}-local-v3-${{ hashFiles('scripts/install.sh', 'prover/server/scripts/download_keys.sh') }}
+        key: ${{ runner.os }}-local-v3-${{ hashFiles('scripts/install.sh') }}
         restore-keys: |
           ${{ runner.os }}-local-v3-
           ${{ runner.os }}-local-v2-
@@ -136,4 +136,4 @@ runs:
         path: |
           .local
           prover/server/proving-keys
-        key: ${{ runner.os }}-local-v3-${{ hashFiles('scripts/install.sh', 'prover/server/scripts/download_keys.sh') }}
+        key: ${{ runner.os }}-local-v3-${{ hashFiles('scripts/install.sh') }}

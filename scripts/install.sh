@@ -218,18 +218,6 @@ install_photon() {
     fi
 }
 
-download_gnark_keys() {
-    ROOT_DIR="$(git rev-parse --show-toplevel)"
-    # Always check if keys actually exist, not just the install log
-    if [ ! -d "${ROOT_DIR}/prover/server/proving-keys" ] || [ -z "$(ls -A "${ROOT_DIR}/prover/server/proving-keys" 2>/dev/null)" ]; then
-        echo "Downloading gnark keys..."
-        "${ROOT_DIR}/prover/server/scripts/download_keys.sh" "$1"
-        log "gnark_keys"
-    else
-        echo "Gnark keys already exist, skipping download..."
-    fi
-}
-
 install_dependencies() {
     # Check if node_modules exists and has content
     if [ ! -d "node_modules" ] || [ -z "$(ls -A node_modules 2>/dev/null)" ]; then
@@ -449,7 +437,6 @@ main() {
     should_skip "solana" || install_solana
     should_skip "anchor" || install_anchor
     should_skip "jq" || install_jq
-    should_skip "keys" || download_gnark_keys "$key_type"
     should_skip "dependencies" || install_dependencies
     should_skip "redis" || install_redis
 

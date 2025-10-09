@@ -111,9 +111,6 @@ The Docker image is configured to include only the necessary proving-key files:
 ### Building the Docker Image
 
 ```shell
-# First ensure you have the proving keys downloaded
-./scripts/download_keys.sh light
-
 # Build the Docker image with the selected proving keys
 # Make sure to run this command from the prover/server directory
 docker build -t light-prover .
