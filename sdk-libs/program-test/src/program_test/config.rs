@@ -5,7 +5,6 @@ use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
-use light_prover_client::prover::ProverConfig;
 use light_registry::protocol_config::state::ProtocolConfig;
 use solana_sdk::pubkey::Pubkey;
 
@@ -17,7 +16,6 @@ pub struct ProgramTestConfig {
     pub additional_programs: Option<Vec<(&'static str, Pubkey)>>,
     pub protocol_config: ProtocolConfig,
     pub with_prover: bool,
-    pub prover_config: Option<ProverConfig>,
     pub skip_register_programs: bool,
     pub skip_v1_trees: bool,
     pub skip_second_v1_tree: bool,
@@ -67,7 +65,6 @@ impl ProgramTestConfig {
     pub fn default_with_batched_trees(with_prover: bool) -> Self {
         Self {
             additional_programs: None,
-            prover_config: Some(ProverConfig::default()),
             with_prover,
             v2_state_tree_config: Some(InitStateTreeAccountsInstructionData::test_default()),
             v2_address_tree_config: Some(InitAddressTreeAccountsInstructionData::test_default()),
@@ -82,7 +79,6 @@ impl ProgramTestConfig {
             with_prover,
             v2_state_tree_config: Some(InitStateTreeAccountsInstructionData::test_default()),
             v2_address_tree_config: Some(InitAddressTreeAccountsInstructionData::test_default()),
-            prover_config: Some(ProverConfig::default()),
             ..Default::default()
         }
     }
@@ -113,7 +109,6 @@ impl Default for ProgramTestConfig {
                 ..Default::default()
             },
             with_prover: true,
-            prover_config: None,
             skip_second_v1_tree: false,
             skip_register_programs: false,
             v1_state_tree_config: StateMerkleTreeConfig::default(),

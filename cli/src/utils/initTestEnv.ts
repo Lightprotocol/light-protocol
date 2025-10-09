@@ -152,7 +152,7 @@ export async function initTestEnv({
     setConfig(config);
     try {
       // TODO: check if using redisUrl is better here.
-      await startProver(proverPort, proverRunMode, circuits);
+      await startProver(proverPort);
     } catch (error) {
       console.error("Failed to start prover:", error);
       // Prover logs will be automatically displayed by spawnBinary in process.ts

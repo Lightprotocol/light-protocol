@@ -30,7 +30,6 @@
 //!     indexer::{Indexer, IndexerRpcConfig, RetryConfig},
 //!     local_test_validator::{spawn_validator, LightValidatorConfig},
 //! };
-//! use light_prover_client::prover::ProverConfig;
 //! use solana_pubkey::Pubkey;
 //!
 //! #[tokio::main]
@@ -38,7 +37,7 @@
 //!     // Start local test validator with Light Protocol programs
 //!     let config = LightValidatorConfig {
 //!         enable_indexer: true,
-//!         prover_config: Some(ProverConfig::default()),
+//!         enable_prover: true,
 //!         wait_time: 75,
 //!         sbf_programs: vec![],
 //!         limit_ledger_size: None,

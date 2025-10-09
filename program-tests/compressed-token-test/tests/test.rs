@@ -44,7 +44,7 @@ use light_program_test::{
     utils::assert::assert_rpc_error,
     LightProgramTest, ProgramTestConfig,
 };
-use light_prover_client::prover::{spawn_prover, ProverConfig, ProverMode};
+use light_prover_client::prover::spawn_prover;
 use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_system_program::{errors::SystemProgramError, utils::get_sol_pool_pda};
 use light_test_utils::{
@@ -594,11 +594,7 @@ pub async fn add_token_pool<R: Rpc>(
 #[serial]
 #[tokio::test]
 async fn test_wrapped_sol() {
-    spawn_prover(ProverConfig {
-        run_mode: Some(ProverMode::ForesterTest),
-        circuits: vec![],
-    })
-    .await;
+    spawn_prover().await;
     // is token 22 fails with Instruction: InitializeAccount, Program log: Error: Invalid Mint line 216
     for is_token_22 in [false] {
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
@@ -888,7 +884,7 @@ async fn test_5_mint_to() {
 #[tokio::test]
 async fn test_10_mint_to() {
     let mut rng = thread_rng();
-    // Make sure that the tokal token supply does not exceed `u64::MAX`.
+    // Make sure that the total token supply does not exceed `u64::MAX`.
     let amounts: Vec<u64> = (0..10).map(|_| rng.gen_range(0..(u64::MAX / 10))).collect();
     test_mint_to(amounts, 1, Some(1_000_000)).await
 }
@@ -1254,11 +1250,7 @@ async fn test_mint_to_failing() {
 #[serial]
 #[tokio::test]
 async fn test_transfers() {
-    spawn_prover(ProverConfig {
-        run_mode: Some(ProverMode::ForesterTest),
-        circuits: vec![],
-    })
-    .await;
+    spawn_prover().await;
     let possible_inputs = [1, 2, 3, 4, 8];
     for input_num in possible_inputs {
         for output_num in 1..8 {
@@ -1337,7 +1329,7 @@ async fn perform_transfer_test(
     perform_transfer_22_test(inputs, outputs, amount, false, start_prover_server, false).await;
 }
 
-// TODO: reexport these types from ligth-program test.
+// TODO: reexport these types from light-program test.
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
@@ -1421,12 +1413,7 @@ async fn perform_transfer_22_test(
 #[serial]
 #[tokio::test]
 async fn test_decompression() {
-    spawn_prover(ProverConfig {
-        // is overkill but we run everything on ForesterTest
-        run_mode: Some(ProverMode::ForesterTest),
-        circuits: vec![],
-    })
-    .await;
+    spawn_prover().await;
     for is_token_22 in [false, true] {
         println!("is_token_22: {}", is_token_22);
         let mut context = LightProgramTest::new(ProgramTestConfig::new(false, None))
@@ -1570,11 +1557,7 @@ pub async fn assert_minted_to_all_token_pools<R: Rpc>(
 #[serial]
 #[tokio::test]
 async fn test_mint_to_and_burn_from_all_token_pools() {
-    spawn_prover(ProverConfig {
-        run_mode: Some(ProverMode::ForesterTest),
-        circuits: vec![],
-    })
-    .await;
+    spawn_prover().await;
     for is_token_22 in [false, true] {
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
@@ -1649,7 +1632,7 @@ async fn test_mint_to_and_burn_from_all_token_pools() {
 #[serial]
 #[tokio::test]
 async fn test_multiple_decompression() {
-    spawn_prover(ProverConfig::default()).await;
+    spawn_prover().await;
     let rng = &mut thread_rng();
     for is_token_22 in [false, true] {
         println!("is_token_22: {}", is_token_22);
@@ -2837,11 +2820,7 @@ async fn test_revoke_failing() {
 #[serial]
 #[tokio::test]
 async fn test_burn() {
-    spawn_prover(ProverConfig {
-        run_mode: Some(ProverMode::ForesterTest),
-        circuits: vec![],
-    })
-    .await;
+    spawn_prover().await;
     for is_token_22 in [false, true] {
         println!("is_token_22: {}", is_token_22);
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
@@ -3119,11 +3098,7 @@ async fn test_burn() {
 #[serial]
 #[tokio::test]
 async fn failing_tests_burn() {
-    spawn_prover(ProverConfig {
-        run_mode: Some(ProverMode::ForesterTest),
-        circuits: vec![],
-    })
-    .await;
+    spawn_prover().await;
     for is_token_22 in [false, true] {
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
@@ -3487,11 +3462,7 @@ async fn failing_tests_burn() {
 /// 4. Freeze delegated tokens
 /// 5. Thaw delegated tokens
 async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
-    spawn_prover(ProverConfig {
-        run_mode: Some(ProverMode::ForesterTest),
-        circuits: vec![],
-    })
-    .await;
+    spawn_prover().await;
     for is_token_22 in [false, true] {
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
@@ -3680,11 +3651,7 @@ async fn test_freeze_and_thaw_10000() {
 #[serial]
 #[tokio::test]
 async fn test_failing_freeze() {
-    spawn_prover(ProverConfig {
-        run_mode: Some(ProverMode::ForesterTest),
-        circuits: vec![],
-    })
-    .await;
+    spawn_prover().await;
     for is_token_22 in [false, true] {
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
@@ -3948,11 +3915,7 @@ async fn test_failing_freeze() {
 #[serial]
 #[tokio::test]
 async fn test_failing_thaw() {
-    spawn_prover(ProverConfig {
-        run_mode: Some(ProverMode::ForesterTest),
-        circuits: vec![],
-    })
-    .await;
+    spawn_prover().await;
     for is_token_22 in [false, true] {
         let mut rpc = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
@@ -4246,11 +4209,7 @@ async fn test_failing_thaw() {
 #[serial]
 #[tokio::test]
 async fn test_failing_decompression() {
-    spawn_prover(ProverConfig {
-        run_mode: Some(ProverMode::ForesterTest),
-        circuits: vec![],
-    })
-    .await;
+    spawn_prover().await;
     for is_token_22 in [false, true] {
         let mut context = LightProgramTest::new(ProgramTestConfig::new(false, None))
             .await
@@ -5486,8 +5445,8 @@ async fn test_transfer_with_transaction_hash() {
 async fn test_transfer_with_photon_and_batched_tree() {
     spawn_validator(LightValidatorConfig {
         enable_indexer: false,
+        enable_prover: true,
         wait_time: 15,
-        prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![],
         limit_ledger_size: None,
     })
