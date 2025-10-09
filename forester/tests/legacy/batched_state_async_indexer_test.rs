@@ -11,7 +11,7 @@ use light_client::{
         photon_indexer::PhotonIndexer, AddressWithTree,
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer,
     },
-    local_test_validator::{LightValidatorConfig, ProverConfig},
+    local_test_validator::LightValidatorConfig,
     rpc::{LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::{
@@ -84,7 +84,7 @@ async fn test_state_indexer_async_batched() {
         limit_ledger_size: None,
     }))
     .await;
-    spawn_prover(ProverConfig::default()).await;
+    spawn_prover().await;
 
     let env = TestAccounts::get_local_test_validator_accounts();
     let mut config = forester_config();
