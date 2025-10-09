@@ -58,6 +58,7 @@ jobs:
 
     env:
       REDIS_URL: redis://localhost:6379
+      NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"
 
     steps:
       - uses: actions/checkout@v4

@@ -38,6 +38,7 @@ jobs:
       LIGHT_PROTOCOL_VERSION: V2
       REDIS_URL: redis://localhost:6379
       CI: true
+      NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"
 
     steps:
       - name: Checkout sources
