@@ -69,8 +69,6 @@ export async function getMintInterface(
         const compressedMintData = deserializeMint(
             Buffer.from(compressedAccount.data.data),
         );
-        console.log('compressedMintData', compressedMintData);
-        console.log('compressedMintData', compressedMintData.extensions);
 
         const mint: Mint = {
             address,

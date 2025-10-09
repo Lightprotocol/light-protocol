@@ -5,6 +5,11 @@ import {
 } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 import { CTOKEN_PROGRAM_ID } from '@lightprotocol/stateless.js';
+import {
+    ASSOCIATED_TOKEN_PROGRAM_ID,
+    TOKEN_PROGRAM_ID,
+    createAssociatedTokenAccountInstruction as createSplAssociatedTokenAccountInstruction,
+} from '@solana/spl-token';
 import { struct, u8, publicKey, option, vec } from '@coral-xyz/borsh';
 
 const CREATE_ASSOCIATED_TOKEN_ACCOUNT_DISCRIMINATOR = Buffer.from([103]);
@@ -167,4 +172,48 @@ export function createAssociatedCTokenAccountIdempotentInstruction(
         keys,
         data,
     });
+}
+
+export function createAssociatedTokenAccountInterfaceInstruction(
+    payer: PublicKey,
+    associatedToken: PublicKey,
+    owner: PublicKey,
+    mint: PublicKey,
+    programId: PublicKey = TOKEN_PROGRAM_ID,
+    associatedTokenProgramId?: PublicKey,
+    compressibleConfig?: CompressibleConfig,
+    configAccount?: PublicKey,
+    rentPayerPda?: PublicKey,
+): TransactionInstruction {
+    const effectiveAssociatedTokenProgramId =
+        associatedTokenProgramId ??
+        (programId.equals(CTOKEN_PROGRAM_ID)
+            ? CTOKEN_PROGRAM_ID
+            : ASSOCIATED_TOKEN_PROGRAM_ID);
+
+    console.log(
+        'createAssociatedTokenAccountInterfaceInstruction',
+        programId,
+        associatedTokenProgramId,
+    );
+
+    if (programId.equals(CTOKEN_PROGRAM_ID)) {
+        return createAssociatedCTokenAccountInstruction(
+            payer,
+            owner,
+            mint,
+            compressibleConfig,
+            configAccount,
+            rentPayerPda,
+        );
+    } else {
+        return createSplAssociatedTokenAccountInstruction(
+            payer,
+            associatedToken,
+            owner,
+            mint,
+            programId,
+            effectiveAssociatedTokenProgramId,
+        );
+    }
 }

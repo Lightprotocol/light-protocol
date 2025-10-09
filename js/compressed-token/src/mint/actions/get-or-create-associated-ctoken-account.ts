@@ -13,19 +13,14 @@ import {
 import type {
     Commitment,
     ConfirmOptions,
-    Connection,
     PublicKey,
     Signer,
 } from '@solana/web3.js';
 import { sendAndConfirmTransaction, Transaction } from '@solana/web3.js';
-import { getAccountInterface } from '../get-account-interface';
-import { createAssociatedCTokenAccountInstruction } from '../instructions/create-associated-ctoken';
-// import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from '../constants.js';
-
-// import { createAssociatedTokenAccountInstruction } from '../instructions/associatedTokenAccount.js';
-// import type { Account } from '../state/account.js';
-// import { getAccount } from '../state/account.js';
-// import { getAssociatedTokenAddressSync } from '../state/mint.js';
+import {
+    createAssociatedCTokenAccountInstruction,
+    createAssociatedTokenAccountInterfaceInstruction,
+} from '../instructions/create-associated-ctoken';
 
 /**
  * Retrieve the associated token account, or create it if it doesn't exist
@@ -51,7 +46,7 @@ export async function getOrCreateAssociatedTokenAccountInterface(
     commitment?: Commitment,
     confirmOptions?: ConfirmOptions,
     programId = TOKEN_PROGRAM_ID,
-    associatedTokenProgramId = programId === CTOKEN_PROGRAM_ID
+    associatedTokenProgramId = programId.equals(CTOKEN_PROGRAM_ID)
         ? CTOKEN_PROGRAM_ID
         : ASSOCIATED_TOKEN_PROGRAM_ID,
 ): Promise<Account> {
@@ -67,13 +62,8 @@ export async function getOrCreateAssociatedTokenAccountInterface(
     // Sadly we can't do this atomically.
     let account: Account;
     try {
-        const accountInterface = await getAccountInterface(
-            rpc,
-            associatedToken,
-            commitment,
-            programId,
-        );
-        account = accountInterface.parsed;
+        // TODO: dynamically handle compressed or partially compressed TOKENS for user+mint
+        account = await getAccount(rpc, associatedToken, commitment, programId);
     } catch (error: unknown) {
         // TokenAccountNotFoundError can be possible if the associated address has already received some lamports,
         // becoming a system account. Assuming program derived addressing is safe, this is the only case for the
@@ -84,14 +74,15 @@ export async function getOrCreateAssociatedTokenAccountInterface(
         ) {
             // As this isn't atomic, it's possible others can create associated accounts meanwhile.
             try {
+                // TODO: add one with interface!
                 const transaction = new Transaction().add(
-                    createAssociatedCTokenAccountInstruction(
+                    createAssociatedTokenAccountInterfaceInstruction(
                         payer.publicKey,
-                        // associatedToken,
+                        associatedToken,
                         owner,
                         mint,
-                        // programId,
-                        // associatedTokenProgramId,
+                        programId,
+                        associatedTokenProgramId,
                     ),
                 );
 
@@ -107,18 +98,12 @@ export async function getOrCreateAssociatedTokenAccountInterface(
             }
 
             // Now this should always succeed
-            console.log(
-                '001 associatedToken, should fetch now ',
-                associatedToken.toBase58(),
-            );
-            const { parsed } = await getAccountInterface(
+            account = await getAccount(
                 rpc,
                 associatedToken,
                 commitment,
                 programId,
             );
-            account = parsed;
-            console.log('001 account, ', account);
         } else {
             throw error;
         }

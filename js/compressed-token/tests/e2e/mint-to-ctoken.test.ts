@@ -72,8 +72,8 @@ describe('mintTo (MintToCToken)', () => {
             rpc,
             payer,
             mint,
-            mintAuthority,
             recipientCToken,
+            mintAuthority,
             amount,
         );
 
@@ -95,7 +95,7 @@ describe('mintTo (MintToCToken)', () => {
         const wrongAuthority = Keypair.generate();
 
         await expect(
-            mintTo(rpc, payer, mint, wrongAuthority, recipientCToken, 100),
+            mintTo(rpc, payer, mint, recipientCToken, wrongAuthority, 100),
         ).rejects.toThrow();
     });
 
@@ -106,8 +106,8 @@ describe('mintTo (MintToCToken)', () => {
             rpc,
             payer,
             mint,
-            mintAuthority,
             recipientCToken,
+            mintAuthority,
             amount,
         );
 
