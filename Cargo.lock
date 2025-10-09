@@ -5554,6 +5554,7 @@ dependencies = [
  "light-sdk",
  "light-sdk-types",
  "light-test-utils",
+ "serial_test",
  "solana-sdk",
  "tokio",
 ]

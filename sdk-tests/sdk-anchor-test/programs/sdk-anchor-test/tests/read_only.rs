@@ -13,11 +13,13 @@ use light_sdk::{
 };
 use light_test_utils::{Rpc, RpcError};
 use sdk_anchor_test::MyCompressedAccount;
+use serial_test::serial;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     signature::{Keypair, Signature, Signer},
 };
 
+#[serial]
 #[tokio::test]
 async fn test_read_sha256() {
     let config =
@@ -57,6 +59,7 @@ async fn test_read_sha256() {
         .unwrap();
 }
 
+#[serial]
 #[tokio::test]
 async fn test_read_poseidon() {
     let config =

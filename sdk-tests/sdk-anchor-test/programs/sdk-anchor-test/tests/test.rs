@@ -13,11 +13,13 @@ use light_sdk::{
 };
 use light_test_utils::{Rpc, RpcError};
 use sdk_anchor_test::{MyCompressedAccount, NestedData};
+use serial_test::serial;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
     signature::{Keypair, Signature, Signer},
 };
 
+#[serial]
 #[tokio::test]
 async fn test_anchor_sdk_test() {
     let config =
