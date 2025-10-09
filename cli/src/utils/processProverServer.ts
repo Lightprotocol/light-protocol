@@ -1,4 +1,5 @@
 import path from "path";
+import fs from "fs";
 import {
   killProcess,
   killProcessByPort,
@@ -7,6 +8,7 @@ import {
 } from "./process";
 import { LIGHT_PROVER_PROCESS_NAME, BASE_PATH } from "./constants";
 import find from "find-process";
+import { downloadProverBinary } from "./downloadProverBinary";
 
 const KEYS_DIR = "proving-keys/";
 
@@ -85,6 +87,29 @@ export async function isProverRunningWithFlags(
   return found;
 }
 
+/**
+ * Ensures the prover binary exists, downloading it if necessary
+ */
+async function ensureProverBinary(): Promise<void> {
+  const binaryPath = getProverPathByArch();
+  const binaryName = getProverNameByArch();
+
+  if (fs.existsSync(binaryPath)) {
+    return;
+  }
+
+  console.log("Prover binary not found. Downloading...");
+
+  try {
+    await downloadProverBinary(binaryPath, binaryName);
+  } catch (error) {
+    throw new Error(
+      `Failed to download prover binary: ${error instanceof Error ? error.message : String(error)}\n` +
+        `Please download manually from: https://github.com/Lightprotocol/light-protocol/releases`
+    );
+  }
+}
+
 export async function startProver(
   proverPort: number,
   runMode: string | undefined,
@@ -92,6 +117,8 @@ export async function startProver(
   force: boolean = false,
   redisUrl?: string,
 ) {
+  await ensureProverBinary();
+
   if (
     !force &&
     (await isProverRunningWithFlags(runMode, circuits, proverPort))
