@@ -19,6 +19,7 @@ import (
 )
 
 var isLightweightMode bool
+var preloadKeys bool
 
 const ProverAddress = "localhost:8081"
 const MetricsAddress = "localhost:9999"
@@ -103,7 +104,7 @@ func TestMain(m *testing.M) {
 
 	runIntegrationTests := false
 	isLightweightMode = true
-	preloadKeys := true
+	preloadKeys = true
 
 	for _, arg := range os.Args {
 		if strings.Contains(arg, "-test.run=TestFull") {
@@ -169,6 +170,10 @@ func TestLightweight(t *testing.T) {
 }
 
 func TestLightweightLazy(t *testing.T) {
+	if preloadKeys {
+		t.Skip("This test only runs when preloadKeys is false (lazy mode)")
+	}
+
 	logging.Logger().Info().Msg("TestLightweightLazy: Running tests with lazy key loading")
 
 	runCommonTests(t)
