@@ -531,7 +531,7 @@ export const CompressedTokenInstructionDataRevokeLayout = struct([
     u8('outputAccountMerkleTreeIndex'),
 ]);
 
-// Approve and revoke instuctions do not support optional proof yet.
+// Approve and revoke instructions do not support optional proof yet.
 const emptyProof: ValidityProof = {
     a: new Array(32).fill(0),
     b: new Array(64).fill(0),
