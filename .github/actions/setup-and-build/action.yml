@@ -19,9 +19,6 @@ runs:
         large-packages: false
         docker-images: false
 
-    - name: Checkout sources
-      uses: actions/checkout@v4
-
     - name: Install system dependencies
       shell: bash
       run: |
