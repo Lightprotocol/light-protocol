@@ -15,7 +15,7 @@ interface DownloadOptions {
 export async function downloadProverBinary(
   binaryPath: string,
   binaryName: string,
-  options: DownloadOptions = {}
+  options: DownloadOptions = {},
 ): Promise<void> {
   const { maxRetries = 3, retryDelay = 2000 } = options;
   const url = `${GITHUB_RELEASES_BASE_URL}/${binaryName}`;
@@ -44,7 +44,7 @@ export async function downloadProverBinary(
     } catch (error) {
       lastError = error as Error;
       console.error(
-        `\nDownload attempt ${attempt}/${maxRetries} failed: ${lastError.message}`
+        `\nDownload attempt ${attempt}/${maxRetries} failed: ${lastError.message}`,
       );
 
       if (attempt < maxRetries) {
@@ -55,7 +55,7 @@ export async function downloadProverBinary(
   }
 
   throw new Error(
-    `Failed to download prover binary after ${maxRetries} attempts: ${lastError?.message}`
+    `Failed to download prover binary after ${maxRetries} attempts: ${lastError?.message}`,
   );
 }
 
@@ -79,11 +79,14 @@ async function downloadFile(url: string, outputPath: string): Promise<void> {
 
       if (response.statusCode !== 200) {
         return reject(
-          new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`)
+          new Error(`HTTP ${response.statusCode}: ${response.statusMessage}`),
         );
       }
 
-      const totalBytes = parseInt(response.headers["content-length"] || "0", 10);
+      const totalBytes = parseInt(
+        response.headers["content-length"] || "0",
+        10,
+      );
       let downloadedBytes = 0;
       let lastProgress = 0;
 
@@ -99,7 +102,7 @@ async function downloadFile(url: string, outputPath: string): Promise<void> {
             const mb = (downloadedBytes / 1024 / 1024).toFixed(1);
             const totalMb = (totalBytes / 1024 / 1024).toFixed(1);
             process.stdout.write(
-              `\r   Progress: ${progress}% (${mb}MB / ${totalMb}MB)`
+              `\r   Progress: ${progress}% (${mb}MB / ${totalMb}MB)`,
             );
           }
         }

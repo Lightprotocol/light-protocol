@@ -105,7 +105,7 @@ async function ensureProverBinary(): Promise<void> {
   } catch (error) {
     throw new Error(
       `Failed to download prover binary: ${error instanceof Error ? error.message : String(error)}\n` +
-        `Please download manually from: https://github.com/Lightprotocol/light-protocol/releases`
+        `Please download manually from: https://github.com/Lightprotocol/light-protocol/releases`,
     );
   }
 }
