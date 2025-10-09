@@ -44,6 +44,13 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
     where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
     {
+        // Check if this is a read-only account
+        if account.read_only_account_hash.is_some() {
+            let read_only_account = account.to_packed_read_only_account()?;
+            self.read_only_accounts.push(read_only_account);
+            return Ok(self);
+        }
+
         // Convert LightAccount to instruction data format
         let account_info = account.to_account_info()?;
 
@@ -94,6 +101,13 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
     where
         A: AnchorSerialize + AnchorDeserialize + DataHasher + LightDiscriminator + Default,
     {
+        // Check if this is a read-only account
+        if account.read_only_account_hash.is_some() {
+            let read_only_account = account.to_packed_read_only_account()?;
+            self.read_only_accounts.push(read_only_account);
+            return Ok(self);
+        }
+
         // Convert LightAccount to instruction data format
         let account_info = account.to_account_info()?;
 
@@ -169,6 +183,11 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
     fn get_bump(&self) -> u8 {
         self.bump
     }
+
+    #[cfg(feature = "cpi-context")]
+    fn has_read_only_accounts(&self) -> bool {
+        !self.read_only_accounts.is_empty()
+    }
 }
 
 impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
@@ -186,6 +205,13 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
     where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
     {
+        // Check if this is a read-only account
+        if account.read_only_account_hash.is_some() {
+            let read_only_account = account.to_packed_read_only_account()?;
+            self.read_only_accounts.push(read_only_account);
+            return Ok(self);
+        }
+
         // Convert LightAccount to instruction data format
         let account_info = account.to_account_info()?;
         self.account_infos.push(account_info);
@@ -199,6 +225,13 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
     where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,
     {
+        // Check if this is a read-only account
+        if account.read_only_account_hash.is_some() {
+            let read_only_account = account.to_packed_read_only_account()?;
+            self.read_only_accounts.push(read_only_account);
+            return Ok(self);
+        }
+
         // Convert LightAccount to instruction data format
         let account_info = account.to_account_info()?;
         self.account_infos.push(account_info);
@@ -236,5 +269,10 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
 
     fn get_bump(&self) -> u8 {
         self.bump
+    }
+
+    #[cfg(feature = "cpi-context")]
+    fn has_read_only_accounts(&self) -> bool {
+        !self.read_only_accounts.is_empty()
     }
 }

@@ -10,22 +10,13 @@ use crate::accounts::test_accounts::TestAccounts;
 pub(crate) const STATE_MERKLE_TREE_HEIGHT: u64 = 26;
 pub(crate) const STATE_MERKLE_TREE_CANOPY_DEPTH: u64 = 10;
 pub(crate) const STATE_MERKLE_TREE_ROOTS: u64 = 2400;
-#[cfg(not(feature = "devenv"))]
 pub(crate) const DEFAULT_BATCH_STATE_TREE_HEIGHT: usize = 32;
-#[cfg(not(feature = "devenv"))]
 pub(crate) const DEFAULT_BATCH_ADDRESS_TREE_HEIGHT: usize = 40;
-#[cfg(not(feature = "devenv"))]
 pub(crate) const DEFAULT_BATCH_ROOT_HISTORY_LEN: usize = 200;
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
 #[cfg(feature = "devenv")]
-use light_batched_merkle_tree::{
-    constants::{
-        DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_ROOT_HISTORY_LEN,
-        DEFAULT_BATCH_STATE_TREE_HEIGHT,
-    },
-    merkle_tree::BatchedMerkleTreeAccount,
-};
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 #[cfg(feature = "v2")]
 use light_client::indexer::MerkleProofWithContext;
 #[cfg(feature = "devenv")]
@@ -1327,10 +1318,10 @@ impl TestIndexer {
             let (tree_type, merkle_tree, output_queue_batch_size) =
                 if state_merkle_tree_account.tree_type == TreeType::StateV2 {
                     let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
-                        DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
+                        DEFAULT_BATCH_STATE_TREE_HEIGHT,
                         0,
                         0,
-                        DEFAULT_BATCH_ROOT_HISTORY_LEN as usize,
+                        DEFAULT_BATCH_ROOT_HISTORY_LEN,
                     ));
                     (
                         TreeType::StateV2,
@@ -1541,10 +1532,10 @@ impl TestIndexer {
                         params,
                     ).await.unwrap();
                     let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
-                        DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
+                        DEFAULT_BATCH_STATE_TREE_HEIGHT,
                         0,
                         0,
-                        DEFAULT_BATCH_ROOT_HISTORY_LEN as usize,
+                        DEFAULT_BATCH_ROOT_HISTORY_LEN,
 
                     ));
                     (FeeConfig::test_batched().state_merkle_tree_rollover as i64,merkle_tree, Some(params.output_queue_batch_size as usize))
@@ -2002,9 +1993,7 @@ impl TestIndexer {
             });
         }
 
-        let (batch_inclusion_proof_inputs, legacy) = if height
-            == DEFAULT_BATCH_STATE_TREE_HEIGHT as usize
-        {
+        let (batch_inclusion_proof_inputs, legacy) = if height == DEFAULT_BATCH_STATE_TREE_HEIGHT {
             let inclusion_proof_inputs =
                 InclusionProofInputs::new(inclusion_proofs.as_slice()).unwrap();
             (
@@ -2263,8 +2252,8 @@ impl TestIndexer {
 
                             CombinedJsonStruct {
                                 circuit_type: ProofType::Combined.to_string(),
-                                state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
-                                address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
+                                state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT as u32,
+                                address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as u32,
                                 public_input_hash: big_int_to_string(&public_input_hash),
                                 inclusion: inclusion_payload.unwrap().inputs,
                                 non_inclusion: non_inclusion_payload.inputs,

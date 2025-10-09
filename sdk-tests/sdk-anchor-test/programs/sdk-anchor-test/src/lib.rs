@@ -1,6 +1,8 @@
 #![allow(unexpected_cfgs)]
 #![allow(deprecated)]
 
+mod read_only;
+
 use anchor_lang::{prelude::*, Discriminator};
 use light_sdk::{
     // anchor test test poseidon LightAccount, native tests sha256 LightAccount
@@ -178,6 +180,49 @@ pub mod sdk_anchor_test {
         Ok(())
     }
 
+    /// Create compressed account with Poseidon hashing
+    pub fn create_compressed_account_poseidon<'info>(
+        ctx: Context<'_, '_, '_, 'info, WithNestedData<'info>>,
+        proof: ValidityProof,
+        address_tree_info: PackedAddressTreeInfo,
+        output_tree_index: u8,
+        name: String,
+    ) -> Result<()> {
+        let light_cpi_accounts = CpiAccounts::new(
+            ctx.accounts.signer.as_ref(),
+            ctx.remaining_accounts,
+            crate::LIGHT_CPI_SIGNER,
+        );
+
+        let (address, address_seed) = derive_address(
+            &[b"compressed", name.as_bytes()],
+            &address_tree_info
+                .get_tree_pubkey(&light_cpi_accounts)
+                .map_err(|_| ErrorCode::AccountNotEnoughKeys)?,
+            &crate::ID,
+        );
+        let new_address_params =
+            address_tree_info.into_new_address_params_assigned_packed(address_seed, Some(0));
+
+        let mut my_compressed_account = light_sdk::account::poseidon::LightAccount::<
+            '_,
+            MyCompressedAccount,
+        >::new_init(
+            &crate::ID, Some(address), output_tree_index
+        );
+
+        my_compressed_account.name = name;
+        my_compressed_account.nested = NestedData::default();
+
+        InstructionDataInvokeCpiWithReadOnly::new_cpi(LIGHT_CPI_SIGNER, proof)
+            .mode_v1()
+            .with_light_account_poseidon(my_compressed_account)?
+            .with_new_addresses(&[new_address_params])
+            .invoke(light_cpi_accounts)?;
+
+        Ok(())
+    }
+
     // V2 Instructions
     pub fn create_compressed_account_v2<'info>(
         ctx: Context<'_, '_, '_, 'info, WithNestedData<'info>>,
@@ -275,6 +320,56 @@ pub mod sdk_anchor_test {
             .invoke(light_cpi_accounts)?;
 
         Ok(())
+    }
+
+    /// Test read-only account with SHA256 hasher using LightSystemProgramCpi
+    pub fn read_sha256_light_system_cpi<'info>(
+        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        proof: ValidityProof,
+        my_compressed_account: MyCompressedAccount,
+        account_meta: CompressedAccountMetaBurn,
+    ) -> Result<()> {
+        read_only::process_read_sha256_light_system_cpi(
+            ctx,
+            proof,
+            my_compressed_account,
+            account_meta,
+        )
+    }
+
+    /// Test read-only account with Poseidon hasher using LightSystemProgramCpi
+    pub fn read_poseidon_light_system_cpi<'info>(
+        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        proof: ValidityProof,
+        my_compressed_account: MyCompressedAccount,
+        account_meta: CompressedAccountMetaBurn,
+    ) -> Result<()> {
+        read_only::process_read_poseidon_light_system_cpi(
+            ctx,
+            proof,
+            my_compressed_account,
+            account_meta,
+        )
+    }
+
+    /// Test read-only account with SHA256 hasher using InstructionDataInvokeCpiWithReadOnly
+    pub fn read_sha256_lowlevel<'info>(
+        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        proof: ValidityProof,
+        my_compressed_account: MyCompressedAccount,
+        account_meta: CompressedAccountMetaBurn,
+    ) -> Result<()> {
+        read_only::process_read_sha256_lowlevel(ctx, proof, my_compressed_account, account_meta)
+    }
+
+    /// Test read-only account with Poseidon hasher using InstructionDataInvokeCpiWithReadOnly
+    pub fn read_poseidon_lowlevel<'info>(
+        ctx: Context<'_, '_, '_, 'info, UpdateNestedData<'info>>,
+        proof: ValidityProof,
+        my_compressed_account: MyCompressedAccount,
+        account_meta: CompressedAccountMetaBurn,
+    ) -> Result<()> {
+        read_only::process_read_poseidon_lowlevel(ctx, proof, my_compressed_account, account_meta)
     }
 }
 

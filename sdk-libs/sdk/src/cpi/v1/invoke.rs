@@ -347,6 +347,12 @@ impl LightCpiInstruction for LightSystemProgramCpi {
             .as_ref()
             .unwrap_or(&DEFAULT)
     }
+
+    #[cfg(feature = "cpi-context")]
+    fn has_read_only_accounts(&self) -> bool {
+        // V1 doesn't support read-only accounts
+        false
+    }
 }
 
 // Manual BorshSerialize implementation that only serializes instruction_data

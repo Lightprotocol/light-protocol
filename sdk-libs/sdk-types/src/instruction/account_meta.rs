@@ -167,16 +167,17 @@ impl CompressedAccountMetaTrait for CompressedAccountMetaWithLamports {
         Some(self.output_state_tree_index)
     }
 }
+pub type CompressedAccountMetaBurn = CompressedAccountMetaReadOnly;
 
 #[derive(Default, Debug, Clone, Copy, PartialEq, AnchorSerialize, AnchorDeserialize)]
-pub struct CompressedAccountMetaBurn {
+pub struct CompressedAccountMetaReadOnly {
     /// State Merkle tree context.
     pub tree_info: PackedStateTreeInfo,
     /// Address.
     pub address: [u8; 32],
 }
 
-impl CompressedAccountMetaTrait for CompressedAccountMetaBurn {
+impl CompressedAccountMetaTrait for CompressedAccountMetaReadOnly {
     fn get_tree_info(&self) -> &PackedStateTreeInfo {
         &self.tree_info
     }

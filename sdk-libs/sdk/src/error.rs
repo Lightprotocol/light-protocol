@@ -81,6 +81,16 @@ pub enum LightSdkError {
     ExpectedNoData,
     #[error("CPI context must be added before any other accounts (next_index must be 0)")]
     CpiContextOrderingViolation,
+    #[error("Invalid merkle tree index in CPI accounts")]
+    InvalidMerkleTreeIndex,
+    #[error(
+        "Read-only account cannot use to_account_info(), use to_packed_read_only_account() instead"
+    )]
+    ReadOnlyAccountCannotUseToAccountInfo,
+    #[error("Account is not read-only, cannot use to_packed_read_only_account()")]
+    NotReadOnlyAccount,
+    #[error("Read-only accounts are not supported in write_to_cpi_context operations")]
+    ReadOnlyAccountsNotSupportedInCpiContext,
     #[error(transparent)]
     AccountError(#[from] AccountError),
     #[error(transparent)]
@@ -170,6 +180,10 @@ impl From<LightSdkError> for u32 {
             LightSdkError::InvalidCpiAccountsOffset => 16034,
             LightSdkError::ExpectedNoData => 16035,
             LightSdkError::CpiContextOrderingViolation => 16036,
+            LightSdkError::InvalidMerkleTreeIndex => 16037,
+            LightSdkError::ReadOnlyAccountCannotUseToAccountInfo => 16038,
+            LightSdkError::NotReadOnlyAccount => 16039,
+            LightSdkError::ReadOnlyAccountsNotSupportedInCpiContext => 16040,
             LightSdkError::AccountError(e) => e.into(),
             LightSdkError::Hasher(e) => e.into(),
             LightSdkError::ZeroCopy(e) => e.into(),
