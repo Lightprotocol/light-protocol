@@ -168,16 +168,23 @@ export async function startProver(
 }
 
 export function getProverNameByArch(): string {
-  const platform = process.platform;
-  const arch = process.arch;
+  let platform = process.platform;
+  let arch = process.arch;
 
   if (!platform || !arch) {
     throw new Error("Unsupported platform or architecture");
   }
 
+  if (arch === "x64") {
+    arch = "amd64";
+  }
+  if (platform === "win32") {
+    platform = "windows";
+  }
+
   let binaryName = `prover-${platform}-${arch}`;
 
-  if (platform.toString() === "windows") {
+  if (platform === "windows") {
     binaryName += ".exe";
   }
   return binaryName;
