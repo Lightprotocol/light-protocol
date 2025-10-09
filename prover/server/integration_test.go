@@ -69,9 +69,7 @@ func StartServer(isLightweight bool) {
 	}
 
 	if len(missingKeys) > 0 {
-		logging.Logger().Warn().Msgf("Some key files are missing. To download %s keys, run: ./scripts/download_keys.sh %s",
-			map[bool]string{true: "lightweight", false: "full"}[isLightweight],
-			map[bool]string{true: "lightweight", false: "full"}[isLightweight])
+		logging.Logger().Warn().Msg("key files are missing")
 	}
 
 	if len(pssv1) == 0 && len(pssv2) == 0 {
@@ -109,10 +107,8 @@ func TestMain(m *testing.M) {
 
 	if isLightweightMode {
 		logging.Logger().Info().Msg("Running in lightweight mode")
-		logging.Logger().Info().Msg("If you encounter missing key errors, run: ./scripts/download_keys.sh light")
 	} else {
 		logging.Logger().Info().Msg("Running in full mode")
-		logging.Logger().Info().Msg("If you encounter missing key errors, run: ./scripts/download_keys.sh full")
 	}
 
 	StartServer(isLightweightMode)
