@@ -56,7 +56,15 @@ func StartServerWithPreload(isLightweight bool, preload bool) {
 			return
 		}
 	} else {
-		logging.Logger().Info().Msg("Starting server with lazy runtime loading")
+		testCircuits := []string{
+			"inclusion", "non-inclusion", "combined",
+			"append", "update", "address-append",
+		}
+
+		err := keyManager.PreloadCircuits(testCircuits)
+		if err != nil {
+			logging.Logger().Warn().Err(err).Msg("Failed to preload some test keys, will download on-demand")
+		}
 	}
 
 	serverCfg := server.Config{
