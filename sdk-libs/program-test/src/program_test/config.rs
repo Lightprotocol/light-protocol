@@ -129,6 +129,7 @@ impl Default for ProgramTestConfig {
                 ..Default::default()
             },
             with_prover: true,
+            #[cfg(feature = "devenv")]
             skip_second_v1_tree: false,
             #[cfg(feature = "devenv")]
             skip_register_programs: false,
