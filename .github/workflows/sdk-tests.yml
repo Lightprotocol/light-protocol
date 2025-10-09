@@ -68,7 +68,7 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
-          skip-components: "redis"
+          skip-components: "redis,disk-cleanup"
 
       - name: Build CLI (CI mode - Linux x64 only)
         run: |
