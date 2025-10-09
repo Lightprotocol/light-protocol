@@ -43,7 +43,6 @@ jobs:
 
     env:
       REDIS_URL: redis://localhost:6379
-      NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"
 
     strategy:
       matrix:
@@ -70,6 +69,7 @@ jobs:
         uses: ./.github/actions/setup-and-build
         with:
           skip-components: "redis,disk-cleanup"
+          cache-suffix: "sdk-tests"
 
       - name: Build CLI (CI mode - Linux x64 only)
         run: |

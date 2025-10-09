@@ -22,10 +22,6 @@ jobs:
     name: lint
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-
-    env:
-      NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"
-
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4

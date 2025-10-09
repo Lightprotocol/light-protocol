@@ -38,7 +38,6 @@ jobs:
       LIGHT_PROTOCOL_VERSION: V2
       REDIS_URL: redis://localhost:6379
       CI: true
-      NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"
 
     steps:
       - name: Checkout sources
@@ -58,6 +57,7 @@ jobs:
         uses: ./.github/actions/setup-and-build
         with:
           skip-components: "redis,disk-cleanup"
+          cache-suffix: "js"
 
       - name: Build stateless.js with V2
         run: |
@@ -75,7 +75,7 @@ jobs:
 
       - name: Run CLI tests with V2
         run: |
-          npx nx test @lightprotocol/zk-compression-cli
+          npx nx test-ci @lightprotocol/zk-compression-cli
 
       - name: Display prover logs on failure
         if: failure()

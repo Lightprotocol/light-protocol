@@ -51,7 +51,6 @@ jobs:
 
     env:
       REDIS_URL: redis://localhost:6379
-      NX_REJECT_UNKNOWN_LOCAL_CACHE: "0"
 
     strategy:
       matrix:
@@ -79,14 +78,11 @@ jobs:
         uses: ./.github/actions/setup-and-build
         with:
           skip-components: "redis,disk-cleanup"
+          cache-suffix: "system-programs"
 
       - name: Build CLI (CI mode - Linux x64 only)
         run: |
           npx nx build-ci @lightprotocol/zk-compression-cli
-
-      # - name: build-program-tests
-      #   run: |
-      #     npx nx build @lightprotocol/program-tests
 
       - name: ${{ matrix.program }}
         run: |
@@ -95,9 +91,6 @@ jobs:
           for subtest in "${sub_tests[@]}"
           do
             echo "$subtest"
-            if [ "$subtest" == "cargo-test-sbf -p compressed-token-test" ]; then
-                npx nx build-ci @lightprotocol/zk-compression-cli
-            fi
             RUSTFLAGS="-D warnings" eval "$subtest"
             if [ "$subtest" == "cargo-test-sbf -p e2e-test" ]; then
               pnpm --filter @lightprotocol/programs run build-compressed-token-small

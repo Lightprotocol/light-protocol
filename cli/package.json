@@ -166,7 +166,10 @@
         ]
       },
       "build-ci": {
-        "dependsOn": ["^build"],
+        "dependsOn": [
+          "@lightprotocol/stateless.js:build",
+          "@lightprotocol/compressed-token:build"
+        ],
         "inputs": [
           "{workspaceRoot}/js",
           "{workspaceRoot}/programs",
@@ -179,6 +182,9 @@
           "{workspaceRoot}/lib",
           "{workspaceRoot}/test_bin"
         ]
+      },
+      "test-ci": {
+        "dependsOn": []
       }
     }
   }

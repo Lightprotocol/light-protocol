@@ -6,6 +6,10 @@ inputs:
     description: 'Comma-separated list of components to skip (e.g., "redis,go"). If not specified, all components are installed.'
     required: false
     default: ""
+  cache-suffix:
+    description: 'Optional suffix for cache keys to enable separate caches per workflow (e.g., "system-programs", "sdk-tests", "rust")'
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -114,7 +118,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: prover/server/proving-keys
-        key: ${{ runner.os }}-proving-keys-${{ hashFiles('prover/server/scripts/download_keys.sh') }}
+        key: ${{ runner.os }}-proving-keys-${{ inputs.cache-suffix }}${{ inputs.cache-suffix && '-' || '' }}${{ hashFiles('prover/server/scripts/download_keys.sh') }}
 
     - name: Download proving keys
       if: "!contains(inputs.skip-components, 'proving-keys') && steps.cache-keys.outputs.cache-hit != 'true'"
