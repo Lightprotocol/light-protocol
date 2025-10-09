@@ -56,9 +56,17 @@ func StartServerWithPreload(isLightweight bool, preload bool) {
 			return
 		}
 	} else {
-		testCircuits := []string{
-			"inclusion", "non-inclusion", "combined",
-			"append", "update", "address-append",
+		var testCircuits []string
+		if isLightweight {
+			testCircuits = []string{
+				"inclusion", "non-inclusion", "combined",
+				"append-test", "update-test", "address-append-test",
+			}
+		} else {
+			testCircuits = []string{
+				"inclusion", "non-inclusion", "combined",
+				"append", "update", "address-append",
+			}
 		}
 
 		err := keyManager.PreloadCircuits(testCircuits)
