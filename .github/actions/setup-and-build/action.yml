@@ -121,7 +121,6 @@ runs:
         workspaces: |
           . -> target
           cli -> cli/target
-          examples -> examples/target
 
     - name: Setup pnpm
       uses: pnpm/action-setup@v4

@@ -69,11 +69,9 @@ runs:
       with:
         cache-all-crates: true
         cache-on-failure: true
-        # Add workspace target directory
         workspaces: |
           . -> target
           cli -> cli/target
-          examples -> examples/target
 
     - name: Setup pnpm
       uses: pnpm/action-setup@v4
