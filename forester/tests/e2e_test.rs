@@ -18,7 +18,7 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     indexer::{AddressWithTree, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer},
-    local_test_validator::{LightValidatorConfig, ProverConfig},
+    local_test_validator::LightValidatorConfig,
     rpc::{LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::{
@@ -243,8 +243,8 @@ async fn e2e_test() {
     if test_mode == TestMode::Local {
         init(Some(LightValidatorConfig {
             enable_indexer: true,
+            enable_prover: false,
             wait_time: 60,
-            prover_config: None,
             sbf_programs: vec![(
                 "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
                 "../target/deploy/create_address_test_program.so".to_string(),
