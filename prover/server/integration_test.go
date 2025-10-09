@@ -31,49 +31,24 @@ func proveEndpoint() string {
 
 func StartServer(isLightweight bool) {
 	logging.Logger().Info().Msg("Setting up the prover")
-	var keys []string
 	var runMode common.RunMode
 	if isLightweight {
-		keys = common.GetKeys("./proving-keys/", common.FullTest, []string{})
 		runMode = common.FullTest
 	} else {
-		keys = common.GetKeys("./proving-keys/", common.Full, []string{})
 		runMode = common.Full
 	}
-	var pssv1 []*common.MerkleProofSystem
-	var pssv2 []*common.BatchProofSystem
 
-	missingKeys := []string{}
+	downloadConfig := common.DefaultDownloadConfig()
+	downloadConfig.AutoDownload = true
 
-	for _, key := range keys {
-		system, err := common.ReadSystemFromFile(key)
-		if err != nil {
-			if os.IsNotExist(err) {
-				logging.Logger().Warn().Msgf("Key file not found: %s. Skipping this key.", key)
-				missingKeys = append(missingKeys, key)
-				continue
-			}
-			logging.Logger().Error().Msgf("Error reading proving system from file: %s. Error: %v", key, err)
-			continue
-		}
-
-		switch s := system.(type) {
-		case *common.MerkleProofSystem:
-			pssv1 = append(pssv1, s)
-		case *common.BatchProofSystem:
-			pssv2 = append(pssv2, s)
-		default:
-			logging.Logger().Info().Msgf("Unknown proving system type for file: %s", key)
-			panic("Unknown proving system type")
-		}
-	}
-
-	if len(missingKeys) > 0 {
-		logging.Logger().Warn().Msg("key files are missing")
+	pssv1, pssv2, err := common.LoadKeysWithConfig("./proving-keys/", runMode, []string{}, downloadConfig)
+	if err != nil {
+		logging.Logger().Fatal().Err(err).Msg("Failed to load proving keys")
+		return
 	}
 
 	if len(pssv1) == 0 && len(pssv2) == 0 {
-		logging.Logger().Fatal().Msg("No valid proving systems found. Cannot start the server. Please ensure you have downloaded the necessary key files.")
+		logging.Logger().Fatal().Msg("No valid proving systems found. Cannot start the server.")
 		return
 	}
 
@@ -97,23 +72,54 @@ func StopServer() {
 
 func TestMain(m *testing.M) {
 	gnarkLogger.Set(*logging.Logger())
+
+	runIntegrationTests := false
 	isLightweightMode = true
+
 	for _, arg := range os.Args {
-		if arg == "-test.run=TestFull" {
+		if strings.Contains(arg, "-test.run=TestFull") {
 			isLightweightMode = false
+			runIntegrationTests = true
+			break
+		}
+		if strings.Contains(arg, "-test.run=TestLightweight") {
+			runIntegrationTests = true
 			break
 		}
 	}
 
-	if isLightweightMode {
-		logging.Logger().Info().Msg("Running in lightweight mode")
-	} else {
-		logging.Logger().Info().Msg("Running in full mode")
+	if !runIntegrationTests {
+		hasTestRunFlag := false
+		for _, arg := range os.Args {
+			if strings.HasPrefix(arg, "-test.run=") {
+				hasTestRunFlag = true
+				pattern := strings.TrimPrefix(arg, "-test.run=")
+				if pattern == "" || pattern == "^Test" || strings.Contains(pattern, "Lightweight") || strings.Contains(pattern, "Full") {
+					runIntegrationTests = true
+				}
+				break
+			}
+		}
+		if !hasTestRunFlag {
+			runIntegrationTests = true
+		}
 	}
 
-	StartServer(isLightweightMode)
-	m.Run()
-	StopServer()
+	if runIntegrationTests {
+		if isLightweightMode {
+			logging.Logger().Info().Msg("Running in lightweight mode - loading keys")
+		} else {
+			logging.Logger().Info().Msg("Running in full mode - loading keys")
+		}
+
+		StartServer(isLightweightMode)
+		code := m.Run()
+		StopServer()
+		os.Exit(code)
+	} else {
+		logging.Logger().Info().Msg("Skipping key loading - no integration tests in this run")
+		os.Exit(m.Run())
+	}
 }
 
 func TestLightweight(t *testing.T) {

@@ -22,10 +22,96 @@ on:
       - ready_for_review
 
 jobs:
-  build-and-test:
-    if: github.event.pull_request.draft == false
+  build:
+    if: github.event_name == 'push' || github.event.pull_request.draft == false
     runs-on: buildjet-8vcpu-ubuntu-2204
-    timeout-minutes: 120
+    timeout-minutes: 15
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "./prover/server/go.mod"
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('prover/server/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build Go project
+        run: |
+          cd prover/server
+          go build ./...
+          go build -o light-prover
+
+      - name: Upload prover binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: light-prover-binary
+          retention-days: 1
+          path: ''
+
+  test-no-redis:
+    needs: build
+    runs-on: buildjet-8vcpu-ubuntu-2204
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        test-suite:
+          - name: "Unit tests"
+            command: "go test ./prover/... -timeout 60m"
+          - name: "Worker selection tests"
+            command: "go test -v -run TestWorkerSelection -timeout 5m"
+          - name: "Batch operations queue routing tests"
+            command: "go test -v -run TestBatchOperations -timeout 5m"
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "./prover/server/go.mod"
+
+      - name: Restore Go cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('prover/server/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Run ${{ matrix.test-suite.name }}
+        run: |
+          cd prover/server
+          ${{ matrix.test-suite.command }}
+
+  test-with-redis:
+    needs: build
+    runs-on: buildjet-8vcpu-ubuntu-2204
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        test-suite:
+          - name: "Redis Queue tests"
+            command: "go test -v -run TestRedis -timeout 10m"
+          - name: "Queue cleanup tests"
+            command: "go test -v -run TestCleanup -timeout 5m"
+          - name: "Queue processing flow tests"
+            command: "go test -v -run TestJobProcessingFlow -timeout 5m"
+          - name: "Failed job status tests"
+            command: "go test -v -run TestFailedJobStatus -timeout 5m"
     services:
       redis:
         image: redis:7-alpine
@@ -45,84 +131,133 @@ jobs:
         with:
           go-version-file: "./prover/server/go.mod"
 
-      - name: Install Elan
-        run: |
-          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y -v --default-toolchain leanprover/lean4:v4.2.0
-          echo "LAKE_VERSION=$(~/.elan/bin/lake --version)" >> "$GITHUB_ENV"
-
-      - name: Cache dependencies
+      - name: Restore Go cache
         uses: actions/cache@v4
         with:
-          path: prover/server/formal-verification/lake-packages
-          key: "${{ env.LAKE_VERSION }}"
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('prover/server/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
-      - name: Build
-        run: |
-          cd prover/server
-          go build ./...
-
-      - name: Unit tests
-        run: |
-          cd prover/server
-          go test ./prover/... -timeout 60m
-
-      - name: Redis Queue tests
+      - name: Run ${{ matrix.test-suite.name }}
         env:
           TEST_REDIS_URL: redis://localhost:6379/15
         run: |
           cd prover/server
-          go test -v -run TestRedis -timeout 10m
+          ${{ matrix.test-suite.command }}
 
-      - name: Queue cleanup tests
-        env:
-          TEST_REDIS_URL: redis://localhost:6379/15
-        run: |
-          cd prover/server
-          go test -v -run TestCleanup -timeout 5m
+  integration-test-lightweight:
+    needs: build
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.draft == false &&
+       github.event.pull_request.base.ref == 'main')
+    runs-on: buildjet-8vcpu-ubuntu-2204
+    timeout-minutes: 30
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
 
-      - name: Worker selection tests
-        run: |
-          cd prover/server
-          go test -v -run TestWorkerSelection -timeout 5m
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "./prover/server/go.mod"
 
-      - name: Batch operations queue routing tests
-        run: |
-          cd prover/server
-          go test -v -run TestBatchOperations -timeout 5m
-
-      - name: Queue processing flow tests
-        env:
-          TEST_REDIS_URL: redis://localhost:6379/15
-        run: |
-          cd prover/server
-          go test -v -run TestJobProcessingFlow -timeout 5m
-
-      - name: Failed job status tests
-        env:
-          TEST_REDIS_URL: redis://localhost:6379/15
-        run: |
-          cd prover/server
-          go test -v -run TestFailedJobStatus -timeout 5m
+      - name: Restore Go cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('prover/server/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
 
       - name: Lightweight integration tests
-        if: ${{ github.event.pull_request.base.ref == 'main' }}
         run: |
           cd prover/server
           go test -run TestLightweight -timeout 15m
 
+  integration-test-full:
+    needs: build
+    if: |
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.draft == false &&
+      startsWith(github.event.pull_request.base.ref, 'release')
+    runs-on: buildjet-8vcpu-ubuntu-2204
+    timeout-minutes: 120
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "./prover/server/go.mod"
+
+      - name: Restore Go cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('prover/server/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
       - name: Full integration tests
-        if: ${{ github.event.pull_request.base.ref == 'release' }}
         run: |
           cd prover/server
           go test -run TestFull -timeout 120m
 
+  lean-verification:
+    needs: build
+    runs-on: buildjet-8vcpu-ubuntu-2204
+    timeout-minutes: 30
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "./prover/server/go.mod"
+
+      - name: Download prover binary
+        uses: actions/download-artifact@v4
+        with:
+          name: light-prover-binary
+          path: prover/server/
+
+      - name: Make binary executable
+        run: chmod +x prover/server/light-prover
+
+      - name: Install Elan
+        run: |
+          curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh -s -- -y -v --default-toolchain leanprover/lean4:v4.2.0
+
+      - name: Get Lake version for cache key
+        id: lake-version
+        run: |
+          echo "version=$(~/.elan/bin/lake --version)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Lean dependencies
+        uses: actions/cache@v4
+        with:
+          path: prover/server/formal-verification/lake-packages
+          key: lean-${{ steps.lake-version.outputs.version }}-${{ hashFiles('prover/server/formal-verification/lakefile.lean') }}
+          restore-keys: |
+            lean-${{ steps.lake-version.outputs.version }}-
+
       - name: Extract circuit to Lean
         run: |
           cd prover/server
-          go build
           ./light-prover extract-circuit --output formal-verification/FormalVerification/Circuit.lean --address-tree-height 40 --compressed-accounts 8 --state-tree-height 32
 
-      - name: Build lean project
+      - name: Build Lean project
         run: |
           cd prover/server/formal-verification
           ~/.elan/bin/lake exe cache get
