@@ -1,11 +1,14 @@
+#[cfg(feature = "devenv")]
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
+#[cfg(feature = "devenv")]
 use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
 use light_prover_client::prover::ProverConfig;
+#[cfg(feature = "devenv")]
 use light_registry::protocol_config::state::ProtocolConfig;
 use solana_sdk::pubkey::Pubkey;
 
@@ -15,18 +18,29 @@ use crate::logging::EnhancedLoggingConfig;
 #[derive(Debug, Clone)]
 pub struct ProgramTestConfig {
     pub additional_programs: Option<Vec<(&'static str, Pubkey)>>,
+    #[cfg(feature = "devenv")]
     pub protocol_config: ProtocolConfig,
     pub with_prover: bool,
     pub prover_config: Option<ProverConfig>,
+    #[cfg(feature = "devenv")]
     pub skip_register_programs: bool,
+    #[cfg(feature = "devenv")]
     pub skip_v1_trees: bool,
+    #[cfg(feature = "devenv")]
     pub skip_second_v1_tree: bool,
+    #[cfg(feature = "devenv")]
     pub v1_state_tree_config: StateMerkleTreeConfig,
+    #[cfg(feature = "devenv")]
     pub v1_nullifier_queue_config: NullifierQueueConfig,
+    #[cfg(feature = "devenv")]
     pub v1_address_tree_config: AddressMerkleTreeConfig,
+    #[cfg(feature = "devenv")]
     pub v1_address_queue_config: AddressQueueConfig,
+    #[cfg(feature = "devenv")]
     pub v2_state_tree_config: Option<InitStateTreeAccountsInstructionData>,
+    #[cfg(feature = "devenv")]
     pub v2_address_tree_config: Option<InitAddressTreeAccountsInstructionData>,
+    #[cfg(feature = "devenv")]
     pub skip_protocol_init: bool,
     /// Log failed transactions
     pub log_failed_tx: bool,
@@ -57,13 +71,19 @@ impl ProgramTestConfig {
         with_prover: bool,
         additional_programs: Option<Vec<(&'static str, Pubkey)>>,
     ) -> Self {
-        let mut res = Self::default_with_batched_trees(with_prover);
-        res.additional_programs = additional_programs;
-
-        res
+        Self {
+            additional_programs,
+            prover_config: Some(ProverConfig::default()),
+            with_prover,
+            #[cfg(feature = "devenv")]
+            v2_state_tree_config: Some(InitStateTreeAccountsInstructionData::test_default()),
+            #[cfg(feature = "devenv")]
+            v2_address_tree_config: Some(InitAddressTreeAccountsInstructionData::test_default()),
+            ..Default::default()
+        }
     }
 
-    #[cfg(feature = "v2")]
+    #[cfg(feature = "devenv")]
     pub fn default_with_batched_trees(with_prover: bool) -> Self {
         Self {
             additional_programs: None,
@@ -104,6 +124,7 @@ impl Default for ProgramTestConfig {
     fn default() -> Self {
         Self {
             additional_programs: None,
+            #[cfg(feature = "devenv")]
             protocol_config: ProtocolConfig {
                 // Init with an active epoch which doesn't end
                 active_phase_length: 1_000_000_000,
@@ -114,15 +135,25 @@ impl Default for ProgramTestConfig {
             },
             with_prover: true,
             prover_config: None,
+            #[cfg(feature = "devenv")]
             skip_second_v1_tree: false,
+            #[cfg(feature = "devenv")]
             skip_register_programs: false,
+            #[cfg(feature = "devenv")]
             v1_state_tree_config: StateMerkleTreeConfig::default(),
+            #[cfg(feature = "devenv")]
             v1_address_tree_config: AddressMerkleTreeConfig::default(),
+            #[cfg(feature = "devenv")]
             v1_address_queue_config: AddressQueueConfig::default(),
+            #[cfg(feature = "devenv")]
             v1_nullifier_queue_config: NullifierQueueConfig::default(),
+            #[cfg(feature = "devenv")]
             v2_state_tree_config: None,
+            #[cfg(feature = "devenv")]
             v2_address_tree_config: None,
+            #[cfg(feature = "devenv")]
             skip_protocol_init: false,
+            #[cfg(feature = "devenv")]
             skip_v1_trees: false,
             log_failed_tx: true,
             no_logs: false,

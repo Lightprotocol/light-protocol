@@ -13,7 +13,6 @@ use light_sdk::{self as sdk};
 //         prove_by_index: sdk_merkle_context.prove_by_index,
 //     }
 // }
-
 // pub fn program_to_sdk_merkle_context(
 //     program_merkle_context: ProgramMerkleContext,
 // ) -> sdk::merkle_context::MerkleContext {

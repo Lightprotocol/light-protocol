@@ -15,7 +15,7 @@ use super::{
         CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsResult,
         SignatureWithMetadata, TokenBalance,
     },
-    BatchAddressUpdateIndexerResponse, MerkleProofWithContext,
+    BatchAddressUpdateIndexerResponse,
 };
 use crate::indexer::{
     base58::Base58Conversions,
@@ -1590,6 +1590,7 @@ impl Indexer for PhotonIndexer {
         unimplemented!("get_queue_elements");
         #[cfg(feature = "v2")]
         {
+            use super::MerkleProofWithContext;
             let pubkey = _pubkey;
             let queue_type = _queue_type;
             let limit = _num_elements;

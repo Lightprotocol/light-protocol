@@ -136,6 +136,14 @@ fn inner_invoke_write_to_cpi_context_typed<'info, T>(
 where
     T: LightInstructionData + LightCpiInstruction,
 {
+    // Check if read-only accounts are present
+    if instruction_data.has_read_only_accounts() {
+        solana_msg::msg!(
+            "Read-only accounts are not supported in write_to_cpi_context operations. Use invoke_execute_cpi_context() instead."
+        );
+        return Err(LightSdkError::ReadOnlyAccountsNotSupportedInCpiContext.into());
+    }
+
     // Serialize instruction data with discriminator
     let data = instruction_data
         .data()

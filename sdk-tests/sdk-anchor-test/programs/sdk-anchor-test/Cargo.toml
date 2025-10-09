@@ -26,6 +26,7 @@ light-hasher = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor", "v2"] }
 light-sdk-types = { workspace = true }
+serial_test = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

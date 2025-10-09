@@ -7,7 +7,7 @@ edition = "2021"
 
 [features]
 default = []
-devenv = ["v2", "light-client/devenv", "light-prover-client/devenv"]
+devenv = ["v2", "light-client/devenv", "light-prover-client/devenv", "dep:account-compression", "dep:light-compressed-token", "dep:light-registry", "dep:light-batched-merkle-tree", "dep:light-concurrent-merkle-tree"]
 v2 = ["light-client/v2"]
 
 [dependencies]
@@ -16,19 +16,19 @@ light-indexed-merkle-tree = { workspace = true, features = ["solana"] }
 light-indexed-array = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
-light-concurrent-merkle-tree = { workspace = true }
+light-concurrent-merkle-tree = { workspace = true, optional = true }
 light-hasher = { workspace = true }
 light-compressed-account = { workspace = true, features = ["anchor"] }
-light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
+light-batched-merkle-tree = { workspace = true, features = ["test-only"], optional = true }
 
 # unreleased
 light-client = { workspace = true, features = ["program-test"] }
 light-prover-client = { workspace = true }
 litesvm = { workspace = true }
 
-light-registry = { workspace = true, features = ["cpi"] }
-light-compressed-token = { workspace = true, features = ["cpi"] }
-account-compression = { workspace = true, features = ["cpi"] }
+light-registry = { workspace = true, features = ["cpi"], optional = true }
+light-compressed-token = { workspace = true, features = ["cpi"], optional = true }
+account-compression = { workspace = true, features = ["cpi"], optional = true }
 photon-api = { workspace = true }
 
 log = { workspace = true }
@@ -58,3 +58,4 @@ bs58 = { workspace = true }
 light-sdk-types = { workspace = true }
 tabled = { workspace = true }
 chrono = "0.4"
+base64 = "0.22"

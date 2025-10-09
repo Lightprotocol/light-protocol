@@ -3699,6 +3699,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "async-trait",
+ "base64 0.22.1",
  "borsh 0.10.4",
  "bs58",
  "bytemuck",
@@ -5553,6 +5554,7 @@ dependencies = [
  "light-sdk",
  "light-sdk-types",
  "light-test-utils",
+ "serial_test",
  "solana-sdk",
  "tokio",
 ]

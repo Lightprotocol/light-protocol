@@ -119,10 +119,7 @@
 //! ```
 // TODO: add example for manual hashing
 
-use std::{
-    marker::PhantomData,
-    ops::{Deref, DerefMut},
-};
+use std::marker::PhantomData;
 
 use light_compressed_account::{
     compressed_account::PackedMerkleContext,
@@ -191,6 +188,8 @@ pub mod __internal {
         data::OutputCompressedAccountWithPackedContext, with_readonly::InAccount,
     };
     use light_sdk_types::instruction::account_meta::CompressedAccountMetaBurn;
+    #[cfg(feature = "v2")]
+    use light_sdk_types::instruction::account_meta::CompressedAccountMetaReadOnly;
     use solana_program_error::ProgramError;
 
     use super::*;
@@ -207,7 +206,39 @@ pub mod __internal {
         pub account: A,
         account_info: CompressedAccountInfo,
         should_remove_data: bool,
+        /// If set, this account is read-only and this contains the precomputed account hash.
+        pub read_only_account_hash: Option<[u8; 32]>,
         _hasher: PhantomData<H>,
+    }
+
+    impl<
+            'a,
+            H: Hasher,
+            A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
+            const HASH_FLAT: bool,
+        > core::ops::Deref for LightAccountInner<'a, H, A, HASH_FLAT>
+    {
+        type Target = A;
+
+        fn deref(&self) -> &Self::Target {
+            &self.account
+        }
+    }
+
+    impl<
+            'a,
+            H: Hasher,
+            A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
+            const HASH_FLAT: bool,
+        > core::ops::DerefMut for LightAccountInner<'a, H, A, HASH_FLAT>
+    {
+        fn deref_mut(&mut self) -> &mut Self::Target {
+            assert!(
+                self.read_only_account_hash.is_none(),
+                "Cannot mutate read-only account"
+            );
+            &mut self.account
+        }
     }
 
     impl<
@@ -236,6 +267,7 @@ pub mod __internal {
                     output: Some(output_account_info),
                 },
                 should_remove_data: false,
+                read_only_account_hash: None,
                 _hasher: PhantomData,
             }
         }
@@ -331,6 +363,7 @@ pub mod __internal {
                     output: Some(output_account_info),
                 },
                 should_remove_data: false,
+                read_only_account_hash: None,
                 _hasher: PhantomData,
             })
         }
@@ -376,6 +409,7 @@ pub mod __internal {
                     output: Some(output_account_info),
                 },
                 should_remove_data: false,
+                read_only_account_hash: None,
                 _hasher: PhantomData,
             })
         }
@@ -428,11 +462,101 @@ pub mod __internal {
                     output: None,
                 },
                 should_remove_data: false,
+                read_only_account_hash: None,
+                _hasher: PhantomData,
+            })
+        }
+
+        /// Creates a read-only compressed account for validation without state updates.
+        /// Read-only accounts are used to prove that an account exists in a specific state
+        /// without modifying it (v2 only).
+        ///
+        /// # Arguments
+        /// * `owner` - The program that owns this compressed account
+        /// * `input_account_meta` - Metadata about the existing compressed account
+        /// * `input_account` - The account data to validate
+        /// * `packed_account_pubkeys` - Slice of packed pubkeys from CPI accounts (packed accounts after system accounts)
+        ///
+        /// # Note
+        /// Data hashing is consistent with the hasher type (H): SHA256 for `sha::LightAccount`,
+        /// Poseidon for `LightAccount`. The same hasher is used for both the data hash and account hash.
+        #[cfg(feature = "v2")]
+        pub fn new_read_only(
+            owner: &'a Pubkey,
+            input_account_meta: &CompressedAccountMetaReadOnly,
+            input_account: A,
+            packed_account_pubkeys: &[Pubkey],
+        ) -> Result<Self, ProgramError> {
+            // Hash account data once and reuse
+            let input_data_hash = input_account
+                .hash::<H>()
+                .map_err(LightSdkError::from)
+                .map_err(ProgramError::from)?;
+            let tree_info = input_account_meta.get_tree_info();
+
+            let input_account_info = InAccountInfo {
+                data_hash: input_data_hash,
+                lamports: 0, // read-only accounts don't track lamports
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
+                    queue_pubkey_index: tree_info.queue_pubkey_index,
+                    leaf_index: tree_info.leaf_index,
+                    prove_by_index: tree_info.prove_by_index,
+                },
+                root_index: input_account_meta.get_root_index().unwrap_or_default(),
+                discriminator: A::LIGHT_DISCRIMINATOR,
+            };
+
+            // Compute account hash for read-only account
+            let account_hash = {
+                use light_compressed_account::compressed_account::{
+                    CompressedAccount, CompressedAccountData,
+                };
+
+                let compressed_account = CompressedAccount {
+                    address: Some(input_account_meta.address),
+                    owner: owner.to_bytes().into(),
+                    data: Some(CompressedAccountData {
+                        data: vec![],               // not used for hash computation
+                        data_hash: input_data_hash, // Reuse already computed hash
+                        discriminator: A::LIGHT_DISCRIMINATOR,
+                    }),
+                    lamports: 0,
+                };
+
+                // Get merkle tree pubkey from packed pubkeys slice
+                let merkle_tree_pubkey = packed_account_pubkeys
+                    .get(tree_info.merkle_tree_pubkey_index as usize)
+                    .ok_or(LightSdkError::InvalidMerkleTreeIndex)
+                    .map_err(ProgramError::from)?
+                    .to_bytes()
+                    .into();
+
+                compressed_account
+                    .hash(&merkle_tree_pubkey, &tree_info.leaf_index, true)
+                    .map_err(LightSdkError::from)
+                    .map_err(ProgramError::from)?
+            };
+
+            Ok(Self {
+                owner,
+                account: input_account,
+                account_info: CompressedAccountInfo {
+                    address: Some(input_account_meta.address),
+                    input: Some(input_account_info),
+                    output: None,
+                },
+                should_remove_data: false,
+                read_only_account_hash: Some(account_hash),
                 _hasher: PhantomData,
             })
         }
 
         pub fn to_account_info(mut self) -> Result<CompressedAccountInfo, ProgramError> {
+            if self.read_only_account_hash.is_some() {
+                return Err(LightSdkError::ReadOnlyAccountCannotUseToAccountInfo.into());
+            }
+
             if let Some(output) = self.account_info.output.as_mut() {
                 if self.should_remove_data {
                     // Data should be empty to close account.
@@ -455,6 +579,30 @@ pub mod __internal {
                 }
             }
             Ok(self.account_info)
+        }
+
+        #[cfg(feature = "v2")]
+        pub fn to_packed_read_only_account(
+            self,
+        ) -> Result<
+            light_compressed_account::compressed_account::PackedReadOnlyCompressedAccount,
+            ProgramError,
+        > {
+            let account_hash = self
+                .read_only_account_hash
+                .ok_or(LightSdkError::NotReadOnlyAccount)?;
+
+            let input_account = self
+                .account_info
+                .input
+                .ok_or(ProgramError::InvalidAccountData)?;
+
+            use light_compressed_account::compressed_account::PackedReadOnlyCompressedAccount;
+            Ok(PackedReadOnlyCompressedAccount {
+                root_index: input_account.root_index,
+                merkle_context: input_account.merkle_context,
+                account_hash,
+            })
         }
         pub fn to_in_account(&self) -> Option<InAccount> {
             self.account_info
@@ -563,6 +711,7 @@ pub mod __internal {
                     output: Some(output_account_info),
                 },
                 should_remove_data: false,
+                read_only_account_hash: None,
                 _hasher: PhantomData,
             })
         }
@@ -649,6 +798,7 @@ pub mod __internal {
                     output: Some(output_account_info),
                 },
                 should_remove_data: false,
+                read_only_account_hash: None,
                 _hasher: PhantomData,
             })
         }
@@ -708,11 +858,105 @@ pub mod __internal {
                     output: None,
                 },
                 should_remove_data: false,
+                read_only_account_hash: None,
+                _hasher: PhantomData,
+            })
+        }
+
+        /// Creates a read-only compressed account for validation without state updates.
+        /// Read-only accounts are used to prove that an account exists in a specific state
+        /// without modifying it (v2 only).
+        ///
+        /// # Arguments
+        /// * `owner` - The program that owns this compressed account
+        /// * `input_account_meta` - Metadata about the existing compressed account
+        /// * `input_account` - The account data to validate
+        /// * `packed_account_pubkeys` - Slice of packed pubkeys from CPI accounts (packed accounts after system accounts)
+        ///
+        /// # Note
+        /// Uses SHA256 flat hashing with borsh serialization (HASH_FLAT = true).
+        #[cfg(feature = "v2")]
+        pub fn new_read_only(
+            owner: &'a Pubkey,
+            input_account_meta: &CompressedAccountMetaReadOnly,
+            input_account: A,
+            packed_account_pubkeys: &[Pubkey],
+        ) -> Result<Self, ProgramError> {
+            // Hash account data once and reuse (SHA256 flat: borsh serialize then hash)
+            let data = input_account
+                .try_to_vec()
+                .map_err(|_| LightSdkError::Borsh)
+                .map_err(ProgramError::from)?;
+            let mut input_data_hash = H::hash(data.as_slice())
+                .map_err(LightSdkError::from)
+                .map_err(ProgramError::from)?;
+            input_data_hash[0] = 0;
+
+            let tree_info = input_account_meta.get_tree_info();
+
+            let input_account_info = InAccountInfo {
+                data_hash: input_data_hash,
+                lamports: 0, // read-only accounts don't track lamports
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: tree_info.merkle_tree_pubkey_index,
+                    queue_pubkey_index: tree_info.queue_pubkey_index,
+                    leaf_index: tree_info.leaf_index,
+                    prove_by_index: tree_info.prove_by_index,
+                },
+                root_index: input_account_meta.get_root_index().unwrap_or_default(),
+                discriminator: A::LIGHT_DISCRIMINATOR,
+            };
+
+            // Compute account hash for read-only account
+            let account_hash = {
+                use light_compressed_account::compressed_account::{
+                    CompressedAccount, CompressedAccountData,
+                };
+
+                let compressed_account = CompressedAccount {
+                    address: Some(input_account_meta.address),
+                    owner: owner.to_bytes().into(),
+                    data: Some(CompressedAccountData {
+                        data: vec![],               // not used for hash computation
+                        data_hash: input_data_hash, // Reuse already computed hash
+                        discriminator: A::LIGHT_DISCRIMINATOR,
+                    }),
+                    lamports: 0,
+                };
+
+                // Get merkle tree pubkey from packed pubkeys slice
+                let merkle_tree_pubkey = packed_account_pubkeys
+                    .get(tree_info.merkle_tree_pubkey_index as usize)
+                    .ok_or(LightSdkError::InvalidMerkleTreeIndex)
+                    .map_err(ProgramError::from)?
+                    .to_bytes()
+                    .into();
+
+                compressed_account
+                    .hash(&merkle_tree_pubkey, &tree_info.leaf_index, true)
+                    .map_err(LightSdkError::from)
+                    .map_err(ProgramError::from)?
+            };
+
+            Ok(Self {
+                owner,
+                account: input_account,
+                account_info: CompressedAccountInfo {
+                    address: Some(input_account_meta.address),
+                    input: Some(input_account_info),
+                    output: None,
+                },
+                should_remove_data: false,
+                read_only_account_hash: Some(account_hash),
                 _hasher: PhantomData,
             })
         }
 
         pub fn to_account_info(mut self) -> Result<CompressedAccountInfo, ProgramError> {
+            if self.read_only_account_hash.is_some() {
+                return Err(LightSdkError::ReadOnlyAccountCannotUseToAccountInfo.into());
+            }
+
             if let Some(output) = self.account_info.output.as_mut() {
                 if self.should_remove_data {
                     // Data should be empty to close account.
@@ -735,12 +979,38 @@ pub mod __internal {
             }
             Ok(self.account_info)
         }
+
+        #[cfg(feature = "v2")]
+        pub fn to_packed_read_only_account(
+            self,
+        ) -> Result<
+            light_compressed_account::compressed_account::PackedReadOnlyCompressedAccount,
+            ProgramError,
+        > {
+            let account_hash = self
+                .read_only_account_hash
+                .ok_or(LightSdkError::NotReadOnlyAccount)?;
+
+            let input_account = self
+                .account_info
+                .input
+                .ok_or(ProgramError::InvalidAccountData)?;
+
+            use light_compressed_account::compressed_account::PackedReadOnlyCompressedAccount;
+            Ok(PackedReadOnlyCompressedAccount {
+                root_index: input_account.root_index,
+                merkle_context: input_account.merkle_context,
+                account_hash,
+            })
+        }
+
         pub fn to_in_account(&self) -> Option<InAccount> {
             self.account_info
                 .input
                 .as_ref()
                 .map(|input| input.into_in_account(self.account_info.address))
         }
+
         pub fn to_output_compressed_account_with_packed_context(
             &self,
             owner: Option<solana_pubkey::Pubkey>,
@@ -784,30 +1054,6 @@ pub mod __internal {
             } else {
                 Ok(None)
             }
-        }
-    }
-
-    impl<
-            H: Hasher,
-            A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
-            const HASH_FLAT: bool,
-        > Deref for LightAccountInner<'_, H, A, HASH_FLAT>
-    {
-        type Target = A;
-
-        fn deref(&self) -> &Self::Target {
-            &self.account
-        }
-    }
-
-    impl<
-            H: Hasher,
-            A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
-            const HASH_FLAT: bool,
-        > DerefMut for LightAccountInner<'_, H, A, HASH_FLAT>
-    {
-        fn deref_mut(&mut self) -> &mut <Self as Deref>::Target {
-            &mut self.account
         }
     }
 }

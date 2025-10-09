@@ -92,4 +92,11 @@ pub trait LightCpiInstruction: Sized {
     fn get_cpi_context(
         &self,
     ) -> &light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
+
+    /// Returns whether this instruction has any read-only accounts.
+    ///
+    /// # Availability
+    /// Only available with the `cpi-context` feature enabled.
+    #[cfg(feature = "cpi-context")]
+    fn has_read_only_accounts(&self) -> bool;
 }
