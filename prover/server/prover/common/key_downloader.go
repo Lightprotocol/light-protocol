@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -38,18 +39,32 @@ func DefaultDownloadConfig() *DownloadConfig {
 	}
 }
 
-type checksumCache struct {
+type checksumCacheEntry struct {
 	checksums map[string]string
 	loaded    bool
 }
 
-var globalChecksumCache = &checksumCache{
-	checksums: make(map[string]string),
-	loaded:    false,
+type checksumCacheManager struct {
+	mu     sync.RWMutex
+	caches map[string]*checksumCacheEntry
+}
+
+var globalChecksumCaches = &checksumCacheManager{
+	caches: make(map[string]*checksumCacheEntry),
 }
 
 func downloadChecksum(config *DownloadConfig) error {
-	if globalChecksumCache.loaded {
+	globalChecksumCaches.mu.RLock()
+	if entry, exists := globalChecksumCaches.caches[config.BaseURL]; exists && entry.loaded {
+		globalChecksumCaches.mu.RUnlock()
+		return nil
+	}
+	globalChecksumCaches.mu.RUnlock()
+
+	globalChecksumCaches.mu.Lock()
+	defer globalChecksumCaches.mu.Unlock()
+
+	if entry, exists := globalChecksumCaches.caches[config.BaseURL]; exists && entry.loaded {
 		return nil
 	}
 
@@ -73,6 +88,11 @@ func downloadChecksum(config *DownloadConfig) error {
 		return fmt.Errorf("failed to read CHECKSUM file: %w", err)
 	}
 
+	entry := &checksumCacheEntry{
+		checksums: make(map[string]string),
+		loaded:    false,
+	}
+
 	// Parse CHECKSUM file (format: "checksum  filename")
 	lines := strings.Split(string(content), "\n")
 	for _, line := range lines {
@@ -84,13 +104,16 @@ func downloadChecksum(config *DownloadConfig) error {
 		if len(parts) >= 2 {
 			checksum := parts[0]
 			filename := parts[1]
-			globalChecksumCache.checksums[filename] = checksum
+			entry.checksums[filename] = checksum
 		}
 	}
 
-	globalChecksumCache.loaded = true
+	entry.loaded = true
+	globalChecksumCaches.caches[config.BaseURL] = entry
+
 	logging.Logger().Info().
-		Int("count", len(globalChecksumCache.checksums)).
+		Int("count", len(entry.checksums)).
+		Str("base_url", config.BaseURL).
 		Msg("Loaded checksums")
 
 	return nil
@@ -266,8 +289,16 @@ func DownloadKey(keyPath string, config *DownloadConfig) error {
 		return fmt.Errorf("failed to load checksums: %w", err)
 	}
 
-	expectedChecksum, exists := globalChecksumCache.checksums[filename]
+	globalChecksumCaches.mu.RLock()
+	entry, exists := globalChecksumCaches.caches[config.BaseURL]
 	if !exists {
+		globalChecksumCaches.mu.RUnlock()
+		return fmt.Errorf("checksum cache not found for BaseURL: %s", config.BaseURL)
+	}
+	expectedChecksum, checksumExists := entry.checksums[filename]
+	globalChecksumCaches.mu.RUnlock()
+
+	if !checksumExists {
 		return fmt.Errorf("no checksum found for %s", filename)
 	}
 
@@ -279,6 +310,9 @@ func DownloadKey(keyPath string, config *DownloadConfig) error {
 
 		valid, err := verifyChecksum(keyPath, expectedChecksum)
 		if err != nil {
+			if !config.AutoDownload {
+				return fmt.Errorf("key file %s exists but failed verification (auto-download disabled): %w", filename, err)
+			}
 			logging.Logger().Warn().
 				Err(err).
 				Str("file", filename).
@@ -289,11 +323,20 @@ func DownloadKey(keyPath string, config *DownloadConfig) error {
 				Msg("Key file is valid, skipping download")
 			return nil
 		} else {
+			if !config.AutoDownload {
+				return fmt.Errorf("key file %s checksum mismatch (auto-download disabled)", filename)
+			}
 			logging.Logger().Warn().
 				Str("file", filename).
 				Msg("Checksum mismatch, re-downloading")
 			os.Remove(keyPath)
 		}
+	} else if os.IsNotExist(err) {
+		if !config.AutoDownload {
+			return fmt.Errorf("required key file not found: %s (auto-download disabled)", filename)
+		}
+	} else {
+		return fmt.Errorf("failed to check key file %s: %w", filename, err)
 	}
 
 	if err := os.MkdirAll(filepath.Dir(keyPath), 0755); err != nil {
