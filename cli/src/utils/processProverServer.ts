@@ -168,23 +168,26 @@ export async function startProver(
 }
 
 export function getProverNameByArch(): string {
-  let platform = process.platform;
-  let arch = process.arch;
+  const nodePlatform = process.platform;
+  const nodeArch = process.arch;
 
-  if (!platform || !arch) {
+  if (!nodePlatform || !nodeArch) {
     throw new Error("Unsupported platform or architecture");
   }
 
-  if (arch === "x64") {
-    arch = "amd64";
+  let goPlatform: string = nodePlatform;
+  let goArch: string = nodeArch;
+
+  if (nodeArch === "x64") {
+    goArch = "amd64";
   }
-  if (platform === "win32") {
-    platform = "windows";
+  if (nodePlatform === "win32") {
+    goPlatform = "windows";
   }
 
-  let binaryName = `prover-${platform}-${arch}`;
+  let binaryName = `prover-${goPlatform}-${goArch}`;
 
-  if (platform === "windows") {
+  if (goPlatform === "windows") {
     binaryName += ".exe";
   }
   return binaryName;
