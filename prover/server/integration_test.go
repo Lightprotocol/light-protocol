@@ -24,12 +24,17 @@ const ProverAddress = "localhost:8081"
 const MetricsAddress = "localhost:9999"
 
 var instance server.RunningJob
+var serverStopped bool
 
 func proveEndpoint() string {
 	return "http://" + ProverAddress + "/prove"
 }
 
 func StartServer(isLightweight bool) {
+	StartServerWithPreload(isLightweight, true)
+}
+
+func StartServerWithPreload(isLightweight bool, preload bool) {
 	logging.Logger().Info().Msg("Setting up the prover")
 	var runMode common.RunMode
 	if isLightweight {
@@ -41,15 +46,17 @@ func StartServer(isLightweight bool) {
 	downloadConfig := common.DefaultDownloadConfig()
 	downloadConfig.AutoDownload = true
 
-	pssv1, pssv2, err := common.LoadKeysWithConfig("./proving-keys/", runMode, []string{}, downloadConfig)
-	if err != nil {
-		logging.Logger().Fatal().Err(err).Msg("Failed to load proving keys")
-		return
-	}
+	keyManager := common.NewLazyKeyManager("./proving-keys/", downloadConfig)
 
-	if len(pssv1) == 0 && len(pssv2) == 0 {
-		logging.Logger().Fatal().Msg("No valid proving systems found. Cannot start the server.")
-		return
+	if preload {
+		// Preload keys for the test run mode
+		err := keyManager.PreloadForRunMode(runMode)
+		if err != nil {
+			logging.Logger().Fatal().Err(err).Msg("Failed to preload proving keys")
+			return
+		}
+	} else {
+		logging.Logger().Info().Msg("Starting server with lazy runtime loading")
 	}
 
 	serverCfg := server.Config{
@@ -57,7 +64,8 @@ func StartServer(isLightweight bool) {
 		MetricsAddress: MetricsAddress,
 	}
 	logging.Logger().Info().Msg("Starting the server")
-	instance = server.Run(&serverCfg, []string{}, runMode, pssv1, pssv2)
+	instance = server.Run(&serverCfg, keyManager)
+	serverStopped = false
 
 	// sleep for 1 sec to ensure that the server is up and running before running the tests
 	time.Sleep(1 * time.Second)
@@ -66,8 +74,12 @@ func StartServer(isLightweight bool) {
 }
 
 func StopServer() {
+	if serverStopped {
+		return
+	}
 	instance.RequestStop()
 	instance.AwaitStop()
+	serverStopped = true
 }
 
 func TestMain(m *testing.M) {
@@ -75,11 +87,17 @@ func TestMain(m *testing.M) {
 
 	runIntegrationTests := false
 	isLightweightMode = true
+	preloadKeys := true
 
 	for _, arg := range os.Args {
 		if strings.Contains(arg, "-test.run=TestFull") {
 			isLightweightMode = false
 			runIntegrationTests = true
+			break
+		}
+		if strings.Contains(arg, "-test.run=TestLightweightLazy") {
+			runIntegrationTests = true
+			preloadKeys = false
 			break
 		}
 		if strings.Contains(arg, "-test.run=TestLightweight") {
@@ -107,12 +125,16 @@ func TestMain(m *testing.M) {
 
 	if runIntegrationTests {
 		if isLightweightMode {
-			logging.Logger().Info().Msg("Running in lightweight mode - loading keys")
+			if preloadKeys {
+				logging.Logger().Info().Msg("Running in lightweight mode - preloading keys")
+			} else {
+				logging.Logger().Info().Msg("Running in lazy lightweight mode")
+			}
 		} else {
-			logging.Logger().Info().Msg("Running in full mode - loading keys")
+			logging.Logger().Info().Msg("Running in full mode - preloading keys")
 		}
 
-		StartServer(isLightweightMode)
+		StartServerWithPreload(isLightweightMode, preloadKeys)
 		code := m.Run()
 		StopServer()
 		os.Exit(code)
@@ -128,6 +150,15 @@ func TestLightweight(t *testing.T) {
 	}
 	runCommonTests(t)
 	runLightweightOnlyTests(t)
+}
+
+func TestLightweightLazy(t *testing.T) {
+	logging.Logger().Info().Msg("TestLightweightLazy: Running tests with lazy key loading")
+
+	runCommonTests(t)
+	runLightweightOnlyTests(t)
+
+	logging.Logger().Info().Msg("TestLightweightLazy: All tests passed with lazy loading")
 }
 
 func TestFull(t *testing.T) {

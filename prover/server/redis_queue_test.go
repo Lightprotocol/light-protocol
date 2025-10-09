@@ -676,20 +676,19 @@ func TestWorkerCreation(t *testing.T) {
 	rq := setupRedisQueue(t)
 	defer teardownRedisQueue(t, rq)
 
-	var psv1 []*common.MerkleProofSystem
-	var psv2 []*common.BatchProofSystem
+	keyManager := common.NewLazyKeyManager("./proving-keys/", common.DefaultDownloadConfig())
 
-	updateWorker := server.NewUpdateQueueWorker(rq, psv1, psv2)
+	updateWorker := server.NewUpdateQueueWorker(rq, keyManager)
 	if updateWorker == nil {
 		t.Errorf("Expected update worker to be created, got nil")
 	}
 
-	appendWorker := server.NewAppendQueueWorker(rq, psv1, psv2)
+	appendWorker := server.NewAppendQueueWorker(rq, keyManager)
 	if appendWorker == nil {
 		t.Errorf("Expected append worker to be created, got nil")
 	}
 
-	addressAppendWorker := server.NewAddressAppendQueueWorker(rq, psv1, psv2)
+	addressAppendWorker := server.NewAddressAppendQueueWorker(rq, keyManager)
 	if addressAppendWorker == nil {
 		t.Errorf("Expected address append worker to be created, got nil")
 	}
@@ -846,8 +845,7 @@ func TestFailedJobStatusHTTPEndpoint(t *testing.T) {
 	rq := setupRedisQueue(t)
 	defer teardownRedisQueue(t, rq)
 
-	var psv1 []*common.MerkleProofSystem
-	var psv2 []*common.BatchProofSystem
+	keyManager := common.NewLazyKeyManager("./proving-keys/", common.DefaultDownloadConfig())
 
 	config := &server.EnhancedConfig{
 		ProverAddress:  "localhost:8082",
@@ -858,7 +856,7 @@ func TestFailedJobStatusHTTPEndpoint(t *testing.T) {
 		},
 	}
 
-	serverJob := server.RunEnhanced(config, rq, []string{}, common.FullTest, psv1, psv2)
+	serverJob := server.RunEnhanced(config, rq, keyManager)
 	defer serverJob.RequestStop()
 
 	time.Sleep(100 * time.Millisecond)

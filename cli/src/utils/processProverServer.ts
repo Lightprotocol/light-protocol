@@ -110,53 +110,18 @@ async function ensureProverBinary(): Promise<void> {
   }
 }
 
-export async function startProver(
-  proverPort: number,
-  runMode: string | undefined,
-  circuits: string[] | undefined = [],
-  force: boolean = false,
-  redisUrl?: string,
-) {
+export async function startProver(proverPort: number, redisUrl?: string) {
   await ensureProverBinary();
 
-  if (
-    !force &&
-    (await isProverRunningWithFlags(runMode, circuits, proverPort))
-  ) {
-    return;
-  }
-
-  console.log("Kill existing prover process...");
   await killProver();
   await killProcessByPort(proverPort);
 
   const keysDir = path.join(path.resolve(__dirname, BASE_PATH), KEYS_DIR);
   const args = ["start"];
 
-  // Handle fallback to local-rpc mode if no mode or circuits specified
-  if ((!circuits || circuits.length === 0) && runMode == null) {
-    runMode = "local-rpc";
-    console.log(`Starting prover with fallback ${runMode} mode...`);
-  }
-
-  // Add run-mode first to avoid flag parsing issues
-  if (runMode != null) {
-    args.push("--run-mode", runMode);
-  }
-
   args.push("--keys-dir", keysDir);
   args.push("--prover-address", `0.0.0.0:${proverPort}`);
   args.push("--auto-download", "true");
-
-  for (const circuit of circuits) {
-    args.push("--circuit", circuit);
-  }
-
-  if (runMode != null) {
-    console.log(`Starting prover in ${runMode} mode...`);
-  } else if (circuits && circuits.length > 0) {
-    console.log(`Starting prover with circuits: ${circuits.join(", ")}...`);
-  }
 
   if (redisUrl) {
     args.push("--redis-url", redisUrl);

@@ -183,6 +183,39 @@ jobs:
           cd prover/server
           go test -run TestLightweight -timeout 15m
 
+  integration-test-lightweight-lazy:
+    needs: build
+    if: |
+      github.event_name == 'push' ||
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.draft == false &&
+       github.event.pull_request.base.ref == 'main')
+    runs-on: buildjet-8vcpu-ubuntu-2204
+    timeout-minutes: 30
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "./prover/server/go.mod"
+
+      - name: Restore Go cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('prover/server/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Lightweight lazy loading integration tests
+        run: |
+          cd prover/server
+          go test -run TestLightweightLazy -timeout 15m
+
   integration-test-full:
     needs: build
     if: |

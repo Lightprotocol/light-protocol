@@ -7,7 +7,6 @@ use light_batched_merkle_tree::{
     initialize_address_tree::InitAddressTreeAccountsInstructionData,
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
-use light_prover_client::prover::ProverConfig;
 #[cfg(feature = "devenv")]
 use light_registry::protocol_config::state::ProtocolConfig;
 use solana_sdk::pubkey::Pubkey;
@@ -21,7 +20,6 @@ pub struct ProgramTestConfig {
     #[cfg(feature = "devenv")]
     pub protocol_config: ProtocolConfig,
     pub with_prover: bool,
-    pub prover_config: Option<ProverConfig>,
     #[cfg(feature = "devenv")]
     pub skip_register_programs: bool,
     #[cfg(feature = "devenv")]
@@ -73,7 +71,6 @@ impl ProgramTestConfig {
     ) -> Self {
         Self {
             additional_programs,
-            prover_config: Some(ProverConfig::default()),
             with_prover,
             #[cfg(feature = "devenv")]
             v2_state_tree_config: Some(InitStateTreeAccountsInstructionData::test_default()),
@@ -87,7 +84,6 @@ impl ProgramTestConfig {
     pub fn default_with_batched_trees(with_prover: bool) -> Self {
         Self {
             additional_programs: None,
-            prover_config: Some(ProverConfig::default()),
             with_prover,
             v2_state_tree_config: Some(InitStateTreeAccountsInstructionData::test_default()),
             v2_address_tree_config: Some(InitAddressTreeAccountsInstructionData::test_default()),
@@ -102,7 +98,6 @@ impl ProgramTestConfig {
             with_prover,
             v2_state_tree_config: Some(InitStateTreeAccountsInstructionData::test_default()),
             v2_address_tree_config: Some(InitAddressTreeAccountsInstructionData::test_default()),
-            prover_config: Some(ProverConfig::default()),
             ..Default::default()
         }
     }
@@ -134,8 +129,6 @@ impl Default for ProgramTestConfig {
                 ..Default::default()
             },
             with_prover: true,
-            prover_config: None,
-            #[cfg(feature = "devenv")]
             skip_second_v1_tree: false,
             #[cfg(feature = "devenv")]
             skip_register_programs: false,

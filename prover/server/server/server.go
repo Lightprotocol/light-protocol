@@ -268,12 +268,9 @@ type EnhancedConfig struct {
 }
 
 type proveHandler struct {
-	provingSystemsV1 []*common.MerkleProofSystem
-	provingSystemsV2 []*common.BatchProofSystem
-	redisQueue       *RedisQueue
-	enableQueue      bool
-	runMode          common.RunMode
-	circuits         []string
+	keyManager  *common.LazyKeyManager
+	redisQueue  *RedisQueue
+	enableQueue bool
 }
 
 func (handler proveHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -459,17 +456,17 @@ func (handler queueCleanupHandler) ServeHTTP(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-func RunWithQueue(config *Config, redisQueue *RedisQueue, circuits []string, runMode common.RunMode, provingSystemsV1 []*common.MerkleProofSystem, provingSystemsV2 []*common.BatchProofSystem) RunningJob {
+func RunWithQueue(config *Config, redisQueue *RedisQueue, keyManager *common.LazyKeyManager) RunningJob {
 	return RunEnhanced(&EnhancedConfig{
 		ProverAddress:  config.ProverAddress,
 		MetricsAddress: config.MetricsAddress,
 		Queue: &QueueConfig{
 			Enabled: redisQueue != nil,
 		},
-	}, redisQueue, circuits, runMode, provingSystemsV1, provingSystemsV2)
+	}, redisQueue, keyManager)
 }
 
-func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []string, runMode common.RunMode, provingSystemsV1 []*common.MerkleProofSystem, provingSystemsV2 []*common.BatchProofSystem) RunningJob {
+func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, keyManager *common.LazyKeyManager) RunningJob {
 	apiKey := getAPIKeyFromEnv()
 	if apiKey != "" {
 		logging.Logger().Info().Msg("API key authentication enabled for prover server")
@@ -485,12 +482,9 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 	proverMux := http.NewServeMux()
 
 	proverMux.Handle("/prove", proveHandler{
-		provingSystemsV1: provingSystemsV1,
-		provingSystemsV2: provingSystemsV2,
-		redisQueue:       redisQueue,
-		enableQueue:      config.Queue != nil && config.Queue.Enabled,
-		runMode:          runMode,
-		circuits:         circuits,
+		keyManager:  keyManager,
+		redisQueue:  redisQueue,
+		enableQueue: config.Queue != nil && config.Queue.Enabled,
 	})
 
 	proverMux.Handle("/health", healthHandler{})
@@ -585,8 +579,8 @@ func RunEnhanced(config *EnhancedConfig, redisQueue *RedisQueue, circuits []stri
 	return CombineJobs(metricsJob, proverJob)
 }
 
-func Run(config *Config, circuits []string, runMode common.RunMode, provingSystemsV1 []*common.MerkleProofSystem, provingSystemsV2 []*common.BatchProofSystem) RunningJob {
-	return RunWithQueue(config, nil, circuits, runMode, provingSystemsV1, provingSystemsV2)
+func Run(config *Config, keyManager *common.LazyKeyManager) RunningJob {
+	return RunWithQueue(config, nil, keyManager)
 }
 
 type Error struct {
@@ -898,16 +892,9 @@ func (handler proveHandler) batchAddressAppendProof(buf []byte) (*common.Proof, 
 	treeHeight := params.TreeHeight
 	batchSize := params.BatchSize
 
-	var ps *common.BatchProofSystem
-	for _, provingSystem := range handler.provingSystemsV2 {
-		if provingSystem.CircuitType == common.BatchAddressAppendCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
-			ps = provingSystem
-			break
-		}
-	}
-
-	if ps == nil {
-		return nil, provingError(fmt.Errorf("batch address append: no proving system for tree height %d and batch size %d", treeHeight, batchSize))
+	ps, err := handler.keyManager.GetBatchSystem(common.BatchAddressAppendCircuitType, treeHeight, batchSize)
+	if err != nil {
+		return nil, provingError(fmt.Errorf("batch address append: %w", err))
 	}
 
 	proof, err := v2.ProveBatchAddressAppend(ps, &params)
@@ -928,16 +915,9 @@ func (handler proveHandler) batchAppendHandler(buf []byte) (*common.Proof, *Erro
 	treeHeight := params.Height
 	batchSize := params.BatchSize
 
-	var ps *common.BatchProofSystem
-	for _, provingSystem := range handler.provingSystemsV2 {
-		if provingSystem.CircuitType == common.BatchAppendCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
-			ps = provingSystem
-			break
-		}
-	}
-
-	if ps == nil {
-		return nil, provingError(fmt.Errorf("no proving system for tree height %d and batch size %d", treeHeight, batchSize))
+	ps, err := handler.keyManager.GetBatchSystem(common.BatchAppendCircuitType, treeHeight, batchSize)
+	if err != nil {
+		return nil, provingError(fmt.Errorf("batch append: %w", err))
 	}
 
 	proof, err := v2.ProveBatchAppend(ps, &params)
@@ -959,16 +939,9 @@ func (handler proveHandler) batchUpdateProof(buf []byte) (*common.Proof, *Error)
 	treeHeight := params.Height
 	batchSize := params.BatchSize
 
-	var ps *common.BatchProofSystem
-	for _, provingSystem := range handler.provingSystemsV2 {
-		if provingSystem.CircuitType == common.BatchUpdateCircuitType && provingSystem.TreeHeight == treeHeight && provingSystem.BatchSize == batchSize {
-			ps = provingSystem
-			break
-		}
-	}
-
-	if ps == nil {
-		return nil, provingError(fmt.Errorf("no proving system for tree height %d and batch size %d", treeHeight, batchSize))
+	ps, err := handler.keyManager.GetBatchSystem(common.BatchUpdateCircuitType, treeHeight, batchSize)
+	if err != nil {
+		return nil, provingError(fmt.Errorf("batch update: %w", err))
 	}
 
 	proof, err := v2.ProveBatchUpdate(ps, &params)
@@ -980,16 +953,15 @@ func (handler proveHandler) batchUpdateProof(buf []byte) (*common.Proof, *Error)
 }
 
 func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta common.ProofRequestMeta) (*common.Proof, *Error) {
-	var ps *common.MerkleProofSystem
-	for _, provingSystem := range handler.provingSystemsV1 {
-		if provingSystem.InclusionNumberOfCompressedAccounts == proofRequestMeta.NumInputs && provingSystem.InclusionTreeHeight == proofRequestMeta.StateTreeHeight && provingSystem.Version == proofRequestMeta.Version && provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(0) {
-			ps = provingSystem
-			break
-		}
-	}
-
-	if ps == nil {
-		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
+	ps, err := handler.keyManager.GetMerkleSystem(
+		proofRequestMeta.StateTreeHeight,
+		proofRequestMeta.NumInputs,
+		0,
+		0,
+		proofRequestMeta.Version,
+	)
+	if err != nil {
+		return nil, provingError(fmt.Errorf("inclusion proof: %w", err))
 	}
 
 	if proofRequestMeta.Version == 1 {
@@ -1019,17 +991,20 @@ func (handler proveHandler) inclusionProof(buf []byte, proofRequestMeta common.P
 }
 
 func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta common.ProofRequestMeta) (*common.Proof, *Error) {
-
-	var ps *common.MerkleProofSystem
-	for _, provingSystem := range handler.provingSystemsV1 {
-		if provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(proofRequestMeta.NumAddresses) && provingSystem.NonInclusionTreeHeight == uint32(proofRequestMeta.AddressTreeHeight) && provingSystem.InclusionNumberOfCompressedAccounts == uint32(0) {
-			ps = provingSystem
-			break
-		}
+	version := uint32(1)
+	if proofRequestMeta.AddressTreeHeight == 40 {
+		version = 2
 	}
 
-	if ps == nil {
-		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
+	ps, err := handler.keyManager.GetMerkleSystem(
+		0,
+		0,
+		proofRequestMeta.AddressTreeHeight,
+		proofRequestMeta.NumAddresses,
+		version,
+	)
+	if err != nil {
+		return nil, provingError(fmt.Errorf("non-inclusion proof: %w", err))
 	}
 
 	if proofRequestMeta.AddressTreeHeight == 26 {
@@ -1068,16 +1043,20 @@ func (handler proveHandler) nonInclusionProof(buf []byte, proofRequestMeta commo
 }
 
 func (handler proveHandler) combinedProof(buf []byte, proofRequestMeta common.ProofRequestMeta) (*common.Proof, *Error) {
-	var ps *common.MerkleProofSystem
-	for _, provingSystem := range handler.provingSystemsV1 {
-		if provingSystem.InclusionNumberOfCompressedAccounts == proofRequestMeta.NumInputs && provingSystem.NonInclusionNumberOfCompressedAccounts == proofRequestMeta.NumAddresses && provingSystem.InclusionTreeHeight == proofRequestMeta.StateTreeHeight && provingSystem.NonInclusionTreeHeight == proofRequestMeta.AddressTreeHeight {
-			ps = provingSystem
-			break
-		}
+	version := uint32(1)
+	if proofRequestMeta.AddressTreeHeight == 40 {
+		version = 2
 	}
 
-	if ps == nil {
-		return nil, provingError(fmt.Errorf("no proving system for %+v proofRequest", proofRequestMeta))
+	ps, err := handler.keyManager.GetMerkleSystem(
+		proofRequestMeta.StateTreeHeight,
+		proofRequestMeta.NumInputs,
+		proofRequestMeta.AddressTreeHeight,
+		proofRequestMeta.NumAddresses,
+		version,
+	)
+	if err != nil {
+		return nil, provingError(fmt.Errorf("combined proof: %w", err))
 	}
 
 	if proofRequestMeta.AddressTreeHeight == 26 {

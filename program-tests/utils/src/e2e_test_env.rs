@@ -136,9 +136,7 @@ use light_program_test::{
 use light_prover_client::{
     constants::{PROVE_PATH, SERVER_ADDRESS},
     proof::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
-    proof_type::ProofType,
     proof_types::batch_address_append::{get_batch_address_append_circuit_inputs, to_json},
-    prover::ProverConfig,
 };
 use light_registry::{
     account_compression_cpi::sdk::create_batch_update_address_tree_instruction,
@@ -3196,20 +3194,6 @@ pub struct KeypairActionConfig {
 }
 
 impl KeypairActionConfig {
-    pub fn prover_config(&self) -> ProverConfig {
-        let mut config = ProverConfig::default();
-
-        if self.inclusion() {
-            config.circuits.push(ProofType::Inclusion);
-        }
-
-        if self.non_inclusion() {
-            config.circuits.push(ProofType::NonInclusion);
-        }
-
-        config
-    }
-
     pub fn inclusion(&self) -> bool {
         self.transfer_sol.is_some() || self.transfer_spl.is_some()
     }

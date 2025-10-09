@@ -6,7 +6,7 @@ use light_prover_client::{
     proof_types::batch_address_append::{
         get_batch_address_append_circuit_inputs, to_json, BatchAddressAppendInputs,
     },
-    prover::{spawn_prover, ProverConfig},
+    prover::spawn_prover,
 };
 use light_sparse_merkle_tree::{
     changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry, SparseMerkleTree,
@@ -23,7 +23,7 @@ async fn prove_batch_address_append() {
     use light_merkle_tree_reference::indexed::IndexedMerkleTree;
 
     println!("spawning prover");
-    spawn_prover(ProverConfig::default()).await;
+    spawn_prover().await;
 
     // Initialize test data
     let mut new_element_values = vec![];
