@@ -1,6 +1,6 @@
 use light_prover_client::{
     constants::{PROVE_PATH, SERVER_ADDRESS},
-    prover::{spawn_prover, ProverConfig},
+    prover::spawn_prover,
 };
 use reqwest::Client;
 use serial_test::serial;
@@ -10,7 +10,7 @@ use crate::init_merkle_tree::{inclusion_inputs_string_v1, inclusion_inputs_strin
 #[serial]
 #[tokio::test]
 async fn prove_inclusion() {
-    spawn_prover(ProverConfig::default()).await;
+    spawn_prover().await;
     let client = Client::new();
 
     // v2 - test all keys from 1 to 20

@@ -8,7 +8,7 @@ use light_client::{
 };
 #[cfg(feature = "devenv")]
 use light_compressed_account::hash_to_bn254_field_size_be;
-use light_prover_client::prover::{spawn_prover, ProverConfig};
+use light_prover_client::prover::spawn_prover;
 use litesvm::LiteSVM;
 #[cfg(feature = "devenv")]
 use solana_account::WritableAccount;
@@ -318,22 +318,16 @@ impl LightProgramTest {
 
         // reset tx counter after program setup.
         context.transaction_counter = 0;
-        // Will always start a prover server.
+
         #[cfg(feature = "devenv")]
-        let prover_config = if config.prover_config.is_none() {
-            Some(ProverConfig::default())
-        } else {
-            config.prover_config
-        };
-        #[cfg(not(feature = "devenv"))]
-        let prover_config = if config.with_prover && config.prover_config.is_none() {
-            Some(ProverConfig::default())
-        } else {
-            config.prover_config
-        };
-        if let Some(ref prover_config) = prover_config {
-            spawn_prover(prover_config.clone()).await;
+        {
+            spawn_prover().await;
         }
+        #[cfg(not(feature = "devenv"))]
+        if config.with_prover {
+            spawn_prover().await;
+        }
+
         Ok(context)
     }
 
