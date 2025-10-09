@@ -252,7 +252,7 @@ async fn e2e_test() {
             limit_ledger_size: None,
         }))
         .await;
-        spawn_prover(ProverConfig::default()).await;
+        spawn_prover().await;
     }
 
     let mut rpc = setup_rpc_connection(&env.protocol.forester).await;
