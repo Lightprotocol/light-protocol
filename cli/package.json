@@ -140,6 +140,7 @@
     "kill": "killall solana-test-validator || true && killall solana-test-val || true && sleep 1",
     "test-cli": "pnpm test-config && pnpm kill",
     "test": "pnpm kill && pnpm test-cli && pnpm test-utils && pnpm test-create-mint && pnpm test-mint-to && pnpm test-transfer && pnpm test-merge-token-accounts && pnpm test-create-token-pool && pnpm test-compress-spl && pnpm test-decompress-spl && pnpm test-token-balance && pnpm test-compress-sol && pnpm test-balance && pnpm test-decompress-sol && pnpm test-approve-and-mint-to && pnpm test-test-validator",
+    "test-ci": "pnpm kill && pnpm test-cli && pnpm test-utils && pnpm test-create-mint && pnpm test-mint-to && pnpm test-transfer && pnpm test-merge-token-accounts && pnpm test-create-token-pool && pnpm test-compress-spl && pnpm test-decompress-spl && pnpm test-token-balance && pnpm test-compress-sol && pnpm test-balance && pnpm test-decompress-sol && pnpm test-approve-and-mint-to && pnpm test-test-validator",
     "install-local": "pnpm build && pnpm global remove @lightprotocol/zk-compression-cli || true && pnpm global add $PWD",
     "version": "oclif readme && git add README.md"
   },
@@ -167,8 +168,8 @@
       },
       "build-ci": {
         "dependsOn": [
-          "@lightprotocol/stateless.js:build",
-          "@lightprotocol/compressed-token:build"
+          "@lightprotocol/stateless.js:build-ci",
+          "@lightprotocol/compressed-token:build-ci"
         ],
         "inputs": [
           "{workspaceRoot}/js",
