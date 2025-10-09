@@ -78,8 +78,8 @@ async fn test_state_indexer_async_batched() {
 
     init(Some(LightValidatorConfig {
         enable_indexer: true,
+        enable_prover: true,
         wait_time: 30,
-        prover_config: None,
         sbf_programs: vec![],
         limit_ledger_size: None,
     }))

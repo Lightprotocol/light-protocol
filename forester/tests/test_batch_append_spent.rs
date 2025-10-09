@@ -46,8 +46,8 @@ async fn test_batch_sequence() {
 
     init(Some(LightValidatorConfig {
         enable_indexer: false,
+        enable_prover: true,
         wait_time: 10,
-        prover_config: None,
         sbf_programs: vec![],
         limit_ledger_size: None,
     }))
