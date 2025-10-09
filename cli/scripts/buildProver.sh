@@ -9,7 +9,7 @@ build_prover() {
 # Parse command line arguments
 RELEASE_ONLY=false
 CI_MODE=false
-while [[ $# -gt 0 ]]; do
+while [ $# -gt 0 ]; do
   case $1 in
     --release-only)
       RELEASE_ONLY=true

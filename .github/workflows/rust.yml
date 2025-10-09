@@ -34,10 +34,6 @@ jobs:
     strategy:
       matrix:
         group:
-          - name: concurrent-merkle-tree
-            packages: light-concurrent-merkle-tree
-            test_cmd: |
-              cargo test -p light-concurrent-merkle-tree
           - name: batched-merkle-tree-simulate
             packages: light-batched-merkle-tree batched-merkle-tree-test
             test_cmd: |
@@ -46,7 +42,7 @@ jobs:
           - name: program-libs-fast
             packages:
               aligned-sized light-hasher light-compressed-account light-account-checks \
-              light-verifier light-merkle-tree-metadata light-zero-copy light-hash-set
+              light-verifier light-merkle-tree-metadata light-zero-copy light-hash-set light-concurrent-merkle-tree
             test_cmd: |
               cargo test -p light-macros
               cargo test -p aligned-sized
@@ -63,6 +59,7 @@ jobs:
               cargo test -p zero-copy-derive-test
               cargo test -p light-hash-set --all-features
               cargo test -p batched-merkle-tree-test -- --skip test_simulate_transactions --skip test_e2e
+              cargo test -p light-concurrent-merkle-tree
           - name: program-libs-slow
             packages: light-bloom-filter light-indexed-merkle-tree batched-merkle-tree-test
             test_cmd: |
@@ -94,9 +91,9 @@ jobs:
         with:
           skip-components: "redis"
 
-      - name: Build CLI (CI mode - Linux x64 only)
-        run: |
-          npx nx build-ci @lightprotocol/zk-compression-cli
+      # - name: Build CLI (CI mode - Linux x64 only)
+      #   run: |
+      #     npx nx build-ci @lightprotocol/zk-compression-cli
 
       - name: Run tests for ${{ matrix.group.name }}
         run: |

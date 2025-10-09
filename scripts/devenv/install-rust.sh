@@ -9,8 +9,8 @@ install_rust() {
         export RUSTUP_HOME="${PREFIX}/rustup"
         export CARGO_HOME="${PREFIX}/cargo"
         curl --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
-        rustup install ${RUST_VERSION} nightly
         export PATH="${PREFIX}/cargo/bin:${PATH}"
+        rustup install ${RUST_VERSION} nightly
         rustup component add --toolchain ${RUST_VERSION} clippy
         log "rust"
     else

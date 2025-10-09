@@ -126,6 +126,7 @@ runs:
       run: bash scripts/devenv/install-redis.sh
 
     - name: Cache proving keys
+      if: "!contains(inputs.skip-components, 'proving-keys')"
       id: cache-keys
       uses: actions/cache@v4
       with:
@@ -133,7 +134,7 @@ runs:
         key: ${{ runner.os }}-proving-keys-${{ hashFiles('prover/server/scripts/download_keys.sh') }}
 
     - name: Download proving keys
-      if: steps.cache-keys.outputs.cache-hit != 'true'
+      if: "!contains(inputs.skip-components, 'proving-keys') && steps.cache-keys.outputs.cache-hit != 'true'"
       shell: bash
       run: bash scripts/devenv/download-gnark-keys.sh
 
@@ -230,22 +231,20 @@ runs:
       shell: bash
       run: |
         echo "Building Rust programs..."
-        npx nx build @lightprotocol/programs || {
+        if ! npx nx build @lightprotocol/programs; then
           echo "Failed to build programs, retrying with verbose output..."
           npx nx build @lightprotocol/programs --verbose
-          exit 1
-        }
+        fi
 
     - name: Build Rust program-tests
       if: steps.cache-program-tests.outputs.cache-hit != 'true'
       shell: bash
       run: |
         echo "Building Rust program-tests..."
-        npx nx build @lightprotocol/program-tests || {
+        if ! npx nx build @lightprotocol/program-tests; then
           echo "Failed to build program-tests, retrying with verbose output..."
           npx nx build @lightprotocol/program-tests --verbose
-          exit 1
-        }
+        fi
 
     - name: Check for git changes
       shell: bash

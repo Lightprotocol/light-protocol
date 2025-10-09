@@ -169,7 +169,9 @@
         "dependsOn": ["^build"],
         "inputs": [
           "{workspaceRoot}/js",
-          "{workspaceRoot}/programs"
+          "{workspaceRoot}/programs",
+          "{workspaceRoot}/gnark-prover",
+          "{projectRoot}/scripts/**"
         ],
         "outputs": [
           "{workspaceRoot}/bin",

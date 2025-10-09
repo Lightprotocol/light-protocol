@@ -55,22 +55,19 @@ jobs:
     strategy:
       matrix:
         include:
-          - program: account-compression
-            sub-tests: '["cargo-test-sbf -p account-compression-test"]'
+          - program: account-compression-and-registry
+            sub-tests: '["cargo-test-sbf -p account-compression-test", "cargo-test-sbf -p registry-test"]'
           - program: light-system-program
             sub-tests: '["cargo-test-sbf -p system-test"]'
-          - program: light-registry
-            sub-tests: '["cargo-test-sbf -p registry-test"]'
           - program: light-compressed-token
             sub-tests: '["cargo-test-sbf -p compressed-token-test"]'
           - program: system-cpi-test
-            sub-tests: '["cargo-test-sbf -p system-cpi-test", "cargo test -p light-system-program-pinocchio"]'
-          - program: system-cpi-test-v2-event
-            sub-tests: '["cargo-test-sbf -p system-cpi-v2-test -- event::parse"]'
+            sub-tests:
+              '["cargo-test-sbf -p system-cpi-test", "cargo test -p light-system-program-pinocchio",
+              "cargo-test-sbf -p system-cpi-v2-test -- --skip functional_ --skip event::parse", "cargo-test-sbf -p system-cpi-v2-test -- event::parse"
+              ]'
           - program: system-cpi-test-v2-functional
             sub-tests: '["cargo-test-sbf -p system-cpi-v2-test -- functional_"]'
-          - program: system-cpi-test-v2-other
-            sub-tests: '["cargo-test-sbf -p system-cpi-v2-test -- --skip functional_ --skip event::parse"]'
           - program: random-e2e-test
             sub-tests: '["cargo-test-sbf -p e2e-test"]'
     steps:
@@ -82,13 +79,13 @@ jobs:
         with:
           skip-components: "redis"
 
-      - name: Build CLI (CI mode - Linux x64 only)
-        run: |
-          npx nx build-ci @lightprotocol/zk-compression-cli
+      # - name: Build CLI (CI mode - Linux x64 only)
+      #   run: |
+      #     npx nx build-ci @lightprotocol/zk-compression-cli
 
-      - name: build-program-tests
-        run: |
-          npx nx build @lightprotocol/program-tests
+      # - name: build-program-tests
+      #   run: |
+      #     npx nx build @lightprotocol/program-tests
 
       - name: ${{ matrix.program }}
         run: |
@@ -97,7 +94,9 @@ jobs:
           for subtest in "${sub_tests[@]}"
           do
             echo "$subtest"
-
+            if [ "$subtest" == "cargo-test-sbf -p compressed-token-test" ]; then
+                npx nx build-ci @lightprotocol/zk-compression-cli
+            fi
             RUSTFLAGS="-D warnings" eval "$subtest"
             if [ "$subtest" == "cargo-test-sbf -p e2e-test" ]; then
               pnpm --filter @lightprotocol/programs run build-compressed-token-small
