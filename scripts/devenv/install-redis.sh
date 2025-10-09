@@ -50,7 +50,7 @@ EOF
         mkdir -p "${PREFIX}/bin"
         cat > "${PREFIX}/bin/redis-start" << 'EOF'
 #!/bin/bash
-REDIS_DIR="$(dirname "$(dirname "$(readlink -f "$0")")")"
+REDIS_DIR="$(cd "$(dirname "$(dirname "$0")")" && pwd)"
 REDIS_CONF="${REDIS_DIR}/etc/redis.conf"
 REDIS_PID="${REDIS_DIR}/var/redis.pid"
 REDIS_LOG="${REDIS_DIR}/var/redis.log"
@@ -82,7 +82,7 @@ EOF
 
         cat > "${PREFIX}/bin/redis-stop" << 'EOF'
 #!/bin/bash
-REDIS_DIR="$(dirname "$(dirname "$(readlink -f "$0")")")"
+REDIS_DIR="$(cd "$(dirname "$(dirname "$0")")" && pwd)"
 REDIS_PID="${REDIS_DIR}/var/redis.pid"
 
 if [ ! -f "$REDIS_PID" ]; then
@@ -116,7 +116,7 @@ EOF
 
         cat > "${PREFIX}/bin/redis-status" << 'EOF'
 #!/bin/bash
-REDIS_DIR="$(dirname "$(dirname "$(readlink -f "$0")")")"
+REDIS_DIR="$(cd "$(dirname "$(dirname "$0")")" && pwd)"
 REDIS_PID="${REDIS_DIR}/var/redis.pid"
 
 if [ -f "$REDIS_PID" ] && kill -0 "$(cat "$REDIS_PID")" 2>/dev/null; then

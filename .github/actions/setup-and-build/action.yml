@@ -76,6 +76,7 @@ runs:
           .local/bin/solana*
           .local/bin/agave*
           .local/bin/cargo-*
+          .local/bin/platform-tools-sdk
         key: ${{ runner.os }}-solana-${{ steps.versions.outputs.solana }}
 
     - name: Install Solana CLI
