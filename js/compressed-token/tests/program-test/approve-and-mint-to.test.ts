@@ -20,7 +20,7 @@ import {
 import {
     createLiteSVMRpc,
     newAccountWithLamports,
-    splGetOrCreateAssociatedTokenAccount
+    splGetOrCreateAssociatedTokenAccount,
 } from '@lightprotocol/program-test';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import BN from 'bn.js';
@@ -30,7 +30,11 @@ import {
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
 import { CompressedTokenProgram } from '../../src/program';
-import { ComputeBudgetProgram, TransactionSignature, ConfirmOptions } from '@solana/web3.js';
+import {
+    ComputeBudgetProgram,
+    TransactionSignature,
+    ConfirmOptions,
+} from '@solana/web3.js';
 import { toArray } from '@lightprotocol/stateless.js';
 
 // Custom version of approveAndMintTo for LiteSVM testing

@@ -101,13 +101,15 @@ export async function confirmTx(
             // finalized > confirmed > processed
             const meetsCommitment =
                 statusValue === commitment ||
-                (commitment === 'processed' && (statusValue === 'confirmed' || statusValue === 'finalized')) ||
+                (commitment === 'processed' &&
+                    (statusValue === 'confirmed' ||
+                        statusValue === 'finalized')) ||
                 (commitment === 'confirmed' && statusValue === 'finalized');
 
             console.log('[confirmTx] Comparing:', {
                 statusValue,
                 expectedCommitment: commitment,
-                meetsCommitment
+                meetsCommitment,
             });
 
             if (meetsCommitment) {

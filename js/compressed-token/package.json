@@ -93,7 +93,6 @@
         "test:program-test:decompress-delegated": "vitest run tests/program-test/decompress-delegated.test.ts --reporter=verbose",
         "test:program-test:decompress": "vitest run tests/program-test/decompress.test.ts --reporter=verbose",
         "test:program-test:delegate": "vitest run tests/program-test/delegate.test.ts --reporter=verbose --bail=1",
-        "test:program-test:merge-token-accounts": "vitest run tests/program-test/merge-token-accounts.test.ts --reporter=verbose",
         "test:program-test:mint-to": "vitest run tests/program-test/mint-to.test.ts --reporter=verbose --bail=1",
         "test:program-test:multi-pool": "vitest run tests/program-test/multi-pool.test.ts --reporter=verbose",
         "test:program-test:transfer-delegated": "vitest run tests/program-test/transfer-delegated.test.ts --reporter=verbose --bail=1",

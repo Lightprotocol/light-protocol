@@ -5,7 +5,10 @@ import { unpackMint, unpackAccount } from '@solana/spl-token';
 import { createMint } from '../../src/actions';
 import { Rpc } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { createLiteSVMRpc, newAccountWithLamports } from '@lightprotocol/program-test';
+import {
+    createLiteSVMRpc,
+    newAccountWithLamports,
+} from '@lightprotocol/program-test';
 
 /**
  * Asserts that createMint() creates a new spl mint account + the respective

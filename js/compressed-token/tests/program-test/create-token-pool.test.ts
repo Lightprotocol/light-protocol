@@ -16,7 +16,10 @@ import {
     sendAndConfirmTx,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { createLiteSVMRpc, newAccountWithLamports } from '@lightprotocol/program-test';
+import {
+    createLiteSVMRpc,
+    newAccountWithLamports,
+} from '@lightprotocol/program-test';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { getTokenPoolInfos } from '../../src/utils';
 

@@ -13,9 +13,7 @@ import {
     mintTo,
     compressSplTokenAccount,
 } from '../../src/actions';
-import {
-    TOKEN_2022_PROGRAM_ID,
-} from '@solana/spl-token';
+import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import {
     createLiteSVMRpc,
@@ -265,14 +263,7 @@ describe('compressSplTokenAccount', () => {
         const nonOwner = await newAccountWithLamports(rpc, 1e9);
 
         // Mint some tokens to ensure non-zero balance
-        await splMintTo(
-            rpc,
-            payer,
-            mint,
-            aliceAta,
-            mintAuthority,
-            100,
-        );
+        await splMintTo(rpc, payer, mint, aliceAta, mintAuthority, 100);
 
         await expect(
             compressSplTokenAccount(
@@ -296,14 +287,7 @@ describe('compressSplTokenAccount', () => {
         invalidTreeInfo.queue = Keypair.generate().publicKey;
 
         // Mint some tokens to ensure non-zero balance
-        await splMintTo(
-            rpc,
-            payer,
-            mint,
-            aliceAta,
-            mintAuthority,
-            100,
-        );
+        await splMintTo(rpc, payer, mint, aliceAta, mintAuthority, 100);
 
         await expect(
             compressSplTokenAccount(

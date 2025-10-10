@@ -10,7 +10,7 @@ import {
   Signer,
   Keypair,
   SYSVAR_RENT_PUBKEY,
-} from '@solana/web3.js';
+} from "@solana/web3.js";
 import {
   TOKEN_PROGRAM_ID,
   TOKEN_2022_PROGRAM_ID,
@@ -24,8 +24,8 @@ import {
   getMinimumBalanceForRentExemptMint,
   AccountLayout,
   MintLayout,
-} from '@solana/spl-token';
-import { Rpc } from '@lightprotocol/stateless.js';
+} from "@solana/spl-token";
+import { Rpc } from "@lightprotocol/stateless.js";
 
 /**
  * Create a new SPL token mint using LiteSVM
@@ -187,7 +187,7 @@ export async function splGetTokenAccountBalance(
   const accountInfo = await rpc.getAccountInfo(tokenAccount);
 
   if (!accountInfo) {
-    throw new Error('Token account not found');
+    throw new Error("Token account not found");
   }
 
   const data = AccountLayout.decode(accountInfo.data);
@@ -210,17 +210,21 @@ export async function splGetMintInfo(
   const accountInfo = await rpc.getAccountInfo(mint);
 
   if (!accountInfo) {
-    throw new Error('Mint not found');
+    throw new Error("Mint not found");
   }
 
   const data = MintLayout.decode(accountInfo.data);
 
   return {
-    mintAuthority: data.mintAuthorityOption === 0 ? null : new PublicKey(data.mintAuthority),
+    mintAuthority:
+      data.mintAuthorityOption === 0 ? null : new PublicKey(data.mintAuthority),
     supply: data.supply,
     decimals: data.decimals,
     isInitialized: data.isInitialized,
-    freezeAuthority: data.freezeAuthorityOption === 0 ? null : new PublicKey(data.freezeAuthority),
+    freezeAuthority:
+      data.freezeAuthorityOption === 0
+        ? null
+        : new PublicKey(data.freezeAuthority),
   };
 }
 

@@ -176,7 +176,7 @@ export class LiteSVMRpc extends TestRpc {
    */
   override async sendRawTransaction(
     rawTransaction: Buffer | Uint8Array | Array<number>,
-    options?: any
+    options?: any,
   ): Promise<string> {
     // Deserialize and send
     const tx = Transaction.from(Buffer.from(rawTransaction));
@@ -190,10 +190,10 @@ export class LiteSVMRpc extends TestRpc {
   async sendAndConfirmTransaction(
     transaction: Transaction | VersionedTransaction,
     signers?: any[],
-    options?: any
+    options?: any,
   ): Promise<string> {
     // Sign the transaction if signers are provided
-    if (signers && signers.length > 0 && 'sign' in transaction) {
+    if (signers && signers.length > 0 && "sign" in transaction) {
       (transaction as Transaction).sign(...(signers as any));
     }
 
@@ -209,15 +209,19 @@ export class LiteSVMRpc extends TestRpc {
     ...args: any[]
   ): Promise<string> {
     // If it's a legacy transaction without recentBlockhash, add one
-    if ('recentBlockhash' in transaction && !transaction.recentBlockhash) {
+    if ("recentBlockhash" in transaction && !transaction.recentBlockhash) {
       transaction.recentBlockhash = this.litesvm.latestBlockhash();
     }
 
     // If it's a legacy transaction without fee payer, try to get it from signatures or signers
-    if ('feePayer' in transaction && !transaction.feePayer) {
+    if ("feePayer" in transaction && !transaction.feePayer) {
       // Try to get fee payer from signers in args
       const signers = args[0];
-      if (Array.isArray(signers) && signers.length > 0 && signers[0].publicKey) {
+      if (
+        Array.isArray(signers) &&
+        signers.length > 0 &&
+        signers[0].publicKey
+      ) {
         transaction.feePayer = signers[0].publicKey;
       } else if (transaction.signatures && transaction.signatures.length > 0) {
         transaction.feePayer = transaction.signatures[0].publicKey;
@@ -225,42 +229,76 @@ export class LiteSVMRpc extends TestRpc {
     }
 
     // Check transaction size before sending
-    const serialized = transaction.serialize({ requireAllSignatures: false, verifySignatures: false });
+    const serialized = transaction.serialize({
+      requireAllSignatures: false,
+      verifySignatures: false,
+    });
     const txSize = serialized.length;
     const MAX_TRANSACTION_SIZE = 1232; // Solana's practical max transaction size
 
     // Detailed logging for transaction size analysis
-    if ('message' in transaction) {
+    if ("message" in transaction) {
       // VersionedTransaction
       const msg = transaction.message;
-      console.log('[LiteSVM] VersionedTransaction details:');
-      console.log('  - Static account keys:', msg.staticAccountKeys?.length || 0);
-      console.log('  - Instructions:', msg.compiledInstructions?.length || 0);
-      console.log('  - Address table lookups:', msg.addressTableLookups?.length || 0);
+      console.log("[LiteSVM] VersionedTransaction details:");
+      console.log(
+        "  - Static account keys:",
+        msg.staticAccountKeys?.length || 0,
+      );
+      console.log("  - Instructions:", msg.compiledInstructions?.length || 0);
+      console.log(
+        "  - Address table lookups:",
+        msg.addressTableLookups?.length || 0,
+      );
       if (msg.addressTableLookups?.length > 0) {
         msg.addressTableLookups.forEach((lookup, i) => {
-          console.log(`    - Lookup ${i}: ${lookup.writableIndexes.length} writable, ${lookup.readonlyIndexes.length} readonly`);
+          console.log(
+            `    - Lookup ${i}: ${lookup.writableIndexes.length} writable, ${lookup.readonlyIndexes.length} readonly`,
+          );
         });
       }
     } else {
       // Legacy Transaction
-      console.log('[LiteSVM] Legacy Transaction details:');
-      console.log('  - Instructions:', transaction.instructions?.length || 0);
-      console.log('  - Signatures:', transaction.signatures?.length || 0);
+      console.log("[LiteSVM] Legacy Transaction details:");
+      console.log("  - Instructions:", transaction.instructions?.length || 0);
+      console.log("  - Signatures:", transaction.signatures?.length || 0);
     }
 
-    console.log('[LiteSVM] Serialized transaction size:', txSize, 'bytes (max:', MAX_TRANSACTION_SIZE, ')');
+    console.log(
+      "[LiteSVM] Serialized transaction size:",
+      txSize,
+      "bytes (max:",
+      MAX_TRANSACTION_SIZE,
+      ")",
+    );
 
     if (txSize > MAX_TRANSACTION_SIZE) {
-      console.error('[LiteSVM] Transaction too large:', txSize, 'bytes exceeds', MAX_TRANSACTION_SIZE, 'bytes');
+      console.error(
+        "[LiteSVM] Transaction too large:",
+        txSize,
+        "bytes exceeds",
+        MAX_TRANSACTION_SIZE,
+        "bytes",
+      );
 
       // Check if it's a versioned transaction with lookup tables
-      if ('message' in transaction && transaction.message.addressTableLookups?.length > 0) {
-        console.error('[LiteSVM] Transaction uses', transaction.message.addressTableLookups.length, 'lookup tables but still exceeds size limit');
-        console.error('[LiteSVM] This suggests the transaction is too complex even with LUT optimization');
+      if (
+        "message" in transaction &&
+        transaction.message.addressTableLookups?.length > 0
+      ) {
+        console.error(
+          "[LiteSVM] Transaction uses",
+          transaction.message.addressTableLookups.length,
+          "lookup tables but still exceeds size limit",
+        );
+        console.error(
+          "[LiteSVM] This suggests the transaction is too complex even with LUT optimization",
+        );
       }
 
-      throw new Error(`Transaction size ${txSize} bytes exceeds maximum of ${MAX_TRANSACTION_SIZE} bytes. Consider using fewer recipients or optimizing with address lookup tables.`);
+      throw new Error(
+        `Transaction size ${txSize} bytes exceeds maximum of ${MAX_TRANSACTION_SIZE} bytes. Consider using fewer recipients or optimizing with address lookup tables.`,
+      );
     }
 
     const result = this.litesvm.sendTransaction(transaction);
@@ -271,8 +309,8 @@ export class LiteSVMRpc extends TestRpc {
       const sim_result = this.litesvm.simulateTransaction(transaction);
       const logs = sim_result.meta().prettyLogs();
 
-      console.error('[LiteSVM] Transaction error:', error);
-      console.error('[LiteSVM] Transaction logs:', logs);
+      console.error("[LiteSVM] Transaction error:", error);
+      console.error("[LiteSVM] Transaction logs:", logs);
 
       const errorMessage =
         logs.length > 0
@@ -303,7 +341,7 @@ export class LiteSVMRpc extends TestRpc {
     );
 
     // Store transaction metadata for TestRpc to query later
-    console.log('[LiteSVM] Storing transaction:', signature);
+    console.log("[LiteSVM] Storing transaction:", signature);
     this.storedTransactions.set(signature, {
       signature,
       logs,
@@ -696,27 +734,35 @@ export class LiteSVMRpc extends TestRpc {
     config?: any,
   ): Promise<any> {
     // LiteSVM executes synchronously, so all transactions are immediately finalized
-    const commitment = 'finalized';
+    const commitment = "finalized";
 
-    console.log('[LiteSVM] getSignatureStatuses queried for:', signatures);
-    console.log('[LiteSVM] Stored transactions:', Array.from(this.storedTransactions.keys()));
+    console.log("[LiteSVM] getSignatureStatuses queried for:", signatures);
+    console.log(
+      "[LiteSVM] Stored transactions:",
+      Array.from(this.storedTransactions.keys()),
+    );
 
     return {
       context: { slot: 1 },
-      value: signatures.map(signature => {
+      value: signatures.map((signature) => {
         // Check if we have this transaction stored
         const tx = this.storedTransactions.get(signature);
         if (!tx) {
-          console.log('[LiteSVM] Transaction not found:', signature);
+          console.log("[LiteSVM] Transaction not found:", signature);
           return null; // Transaction not found
         }
         const statusObj = {
           slot: 1,
           confirmations: null,
           err: null,
-          confirmationStatus: commitment as any,  // Return the requested commitment level
+          confirmationStatus: commitment as any, // Return the requested commitment level
         };
-        console.log('[LiteSVM] Returning status for', signature, ':', JSON.stringify(statusObj));
+        console.log(
+          "[LiteSVM] Returning status for",
+          signature,
+          ":",
+          JSON.stringify(statusObj),
+        );
         return statusObj;
       }),
     };
@@ -782,12 +828,14 @@ export class LiteSVMRpc extends TestRpc {
     if (!account) {
       return {
         context: { slot: 1 },
-        value: null
+        value: null,
       };
     }
 
     try {
-      const state = AddressLookupTableAccount.deserialize(new Uint8Array(account.data));
+      const state = AddressLookupTableAccount.deserialize(
+        new Uint8Array(account.data),
+      );
 
       return {
         context: { slot: 1 },
@@ -797,10 +845,13 @@ export class LiteSVMRpc extends TestRpc {
         },
       };
     } catch (error) {
-      console.error('[LiteSVM] Failed to deserialize address lookup table:', error);
+      console.error(
+        "[LiteSVM] Failed to deserialize address lookup table:",
+        error,
+      );
       return {
         context: { slot: 1 },
-        value: null
+        value: null,
       };
     }
   }
