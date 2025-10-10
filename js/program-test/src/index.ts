@@ -14,3 +14,4 @@ export {
 export type { LiteSVMConfig, CustomProgram } from "./types";
 export * from "./merkle-tree";
 export * from "./test-rpc";
+export * from "./spl-token-utils";

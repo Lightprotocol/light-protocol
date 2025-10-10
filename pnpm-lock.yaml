@@ -211,6 +211,9 @@ importers:
       '@lightprotocol/hasher.rs':
         specifier: 0.2.1
         version: 0.2.1
+      '@lightprotocol/program-test':
+        specifier: workspace:*
+        version: link:../program-test
       '@lightprotocol/programs':
         specifier: workspace:*
         version: link:../../programs
@@ -322,6 +325,9 @@ importers:
       '@lightprotocol/stateless.js':
         specifier: workspace:*
         version: link:../stateless.js
+      '@solana/spl-token':
+        specifier: 0.4.8
+        version: 0.4.8(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
       '@solana/web3.js':
         specifier: 1.98.4
         version: 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
@@ -7969,6 +7975,18 @@ snapshots:
       - typescript
       - utf-8-validate
 
+  '@solana/buffer-layout-utils@0.2.0(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)':
+    dependencies:
+      '@solana/buffer-layout': 4.0.1
+      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      bigint-buffer: 1.1.5
+      bignumber.js: 9.1.2
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - typescript
+      - utf-8-validate
+
   '@solana/buffer-layout@4.0.1':
     dependencies:
       buffer: 6.0.3
@@ -7980,10 +7998,20 @@ snapshots:
       '@solana/errors': 2.0.0-preview.4(typescript@5.9.2)
       typescript: 5.9.2
 
+  '@solana/codecs-core@2.0.0-preview.4(typescript@5.9.3)':
+    dependencies:
+      '@solana/errors': 2.0.0-preview.4(typescript@5.9.3)
+      typescript: 5.9.3
+
   '@solana/codecs-core@2.0.0-rc.1(typescript@5.9.2)':
     dependencies:
       '@solana/errors': 2.0.0-rc.1(typescript@5.9.2)
       typescript: 5.9.2
+
+  '@solana/codecs-core@2.0.0-rc.1(typescript@5.9.3)':
+    dependencies:
+      '@solana/errors': 2.0.0-rc.1(typescript@5.9.3)
+      typescript: 5.9.3
 
   '@solana/codecs-core@2.3.0(typescript@4.9.5)':
     dependencies:
@@ -8012,12 +8040,26 @@ snapshots:
       '@solana/errors': 2.0.0-preview.4(typescript@5.9.2)
       typescript: 5.9.2
 
+  '@solana/codecs-data-structures@2.0.0-preview.4(typescript@5.9.3)':
+    dependencies:
+      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/errors': 2.0.0-preview.4(typescript@5.9.3)
+      typescript: 5.9.3
+
   '@solana/codecs-data-structures@2.0.0-rc.1(typescript@5.9.2)':
     dependencies:
       '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.2)
       '@solana/codecs-numbers': 2.0.0-rc.1(typescript@5.9.2)
       '@solana/errors': 2.0.0-rc.1(typescript@5.9.2)
       typescript: 5.9.2
+
+  '@solana/codecs-data-structures@2.0.0-rc.1(typescript@5.9.3)':
+    dependencies:
+      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/errors': 2.0.0-rc.1(typescript@5.9.3)
+      typescript: 5.9.3
 
   '@solana/codecs-numbers@2.0.0-experimental.8618508':
     dependencies:
@@ -8029,11 +8071,23 @@ snapshots:
       '@solana/errors': 2.0.0-preview.4(typescript@5.9.2)
       typescript: 5.9.2
 
+  '@solana/codecs-numbers@2.0.0-preview.4(typescript@5.9.3)':
+    dependencies:
+      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/errors': 2.0.0-preview.4(typescript@5.9.3)
+      typescript: 5.9.3
+
   '@solana/codecs-numbers@2.0.0-rc.1(typescript@5.9.2)':
     dependencies:
       '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.2)
       '@solana/errors': 2.0.0-rc.1(typescript@5.9.2)
       typescript: 5.9.2
+
+  '@solana/codecs-numbers@2.0.0-rc.1(typescript@5.9.3)':
+    dependencies:
+      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/errors': 2.0.0-rc.1(typescript@5.9.3)
+      typescript: 5.9.3
 
   '@solana/codecs-numbers@2.3.0(typescript@4.9.5)':
     dependencies:
@@ -8067,6 +8121,14 @@ snapshots:
       fastestsmallesttextencoderdecoder: 1.0.22
       typescript: 5.9.2
 
+  '@solana/codecs-strings@2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
+    dependencies:
+      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/errors': 2.0.0-preview.4(typescript@5.9.3)
+      fastestsmallesttextencoderdecoder: 1.0.22
+      typescript: 5.9.3
+
   '@solana/codecs-strings@2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)':
     dependencies:
       '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.2)
@@ -8074,6 +8136,14 @@ snapshots:
       '@solana/errors': 2.0.0-rc.1(typescript@5.9.2)
       fastestsmallesttextencoderdecoder: 1.0.22
       typescript: 5.9.2
+
+  '@solana/codecs-strings@2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
+    dependencies:
+      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/errors': 2.0.0-rc.1(typescript@5.9.3)
+      fastestsmallesttextencoderdecoder: 1.0.22
+      typescript: 5.9.3
 
   '@solana/codecs@2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)':
     dependencies:
@@ -8083,6 +8153,17 @@ snapshots:
       '@solana/codecs-strings': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
       '@solana/options': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
       typescript: 5.9.2
+    transitivePeerDependencies:
+      - fastestsmallesttextencoderdecoder
+
+  '@solana/codecs@2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
+    dependencies:
+      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-data-structures': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-strings': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/options': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      typescript: 5.9.3
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
@@ -8097,17 +8178,40 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
+  '@solana/codecs@2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
+    dependencies:
+      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-data-structures': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-strings': 2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/options': 2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - fastestsmallesttextencoderdecoder
+
   '@solana/errors@2.0.0-preview.4(typescript@5.9.2)':
     dependencies:
       chalk: 5.4.1
       commander: 12.1.0
       typescript: 5.9.2
 
+  '@solana/errors@2.0.0-preview.4(typescript@5.9.3)':
+    dependencies:
+      chalk: 5.4.1
+      commander: 12.1.0
+      typescript: 5.9.3
+
   '@solana/errors@2.0.0-rc.1(typescript@5.9.2)':
     dependencies:
       chalk: 5.4.1
       commander: 12.1.0
       typescript: 5.9.2
+
+  '@solana/errors@2.0.0-rc.1(typescript@5.9.3)':
+    dependencies:
+      chalk: 5.4.1
+      commander: 12.1.0
+      typescript: 5.9.3
 
   '@solana/errors@2.3.0(typescript@4.9.5)':
     dependencies:
@@ -8143,6 +8247,17 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
+  '@solana/options@2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
+    dependencies:
+      '@solana/codecs-core': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-data-structures': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-preview.4(typescript@5.9.3)
+      '@solana/codecs-strings': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/errors': 2.0.0-preview.4(typescript@5.9.3)
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - fastestsmallesttextencoderdecoder
+
   '@solana/options@2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)':
     dependencies:
       '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.2)
@@ -8154,11 +8269,31 @@ snapshots:
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
 
+  '@solana/options@2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
+    dependencies:
+      '@solana/codecs-core': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-data-structures': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-numbers': 2.0.0-rc.1(typescript@5.9.3)
+      '@solana/codecs-strings': 2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/errors': 2.0.0-rc.1(typescript@5.9.3)
+      typescript: 5.9.3
+    transitivePeerDependencies:
+      - fastestsmallesttextencoderdecoder
+
   '@solana/spl-token-group@0.0.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)':
     dependencies:
       '@solana/codecs': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
       '@solana/spl-type-length-value': 0.1.0
       '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+    transitivePeerDependencies:
+      - fastestsmallesttextencoderdecoder
+      - typescript
+
+  '@solana/spl-token-group@0.0.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
+    dependencies:
+      '@solana/codecs': 2.0.0-preview.4(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/spl-type-length-value': 0.1.0
+      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
     transitivePeerDependencies:
       - fastestsmallesttextencoderdecoder
       - typescript
@@ -8184,6 +8319,15 @@ snapshots:
       - fastestsmallesttextencoderdecoder
       - typescript
 
+  '@solana/spl-token-metadata@0.1.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)':
+    dependencies:
+      '@solana/codecs': 2.0.0-rc.1(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/spl-type-length-value': 0.1.0
+      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
+    transitivePeerDependencies:
+      - fastestsmallesttextencoderdecoder
+      - typescript
+
   '@solana/spl-token@0.3.11(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)(utf-8-validate@5.0.10)':
     dependencies:
       '@solana/buffer-layout': 4.0.1
@@ -8205,6 +8349,21 @@ snapshots:
       '@solana/spl-token-group': 0.0.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
       '@solana/spl-token-metadata': 0.1.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.2)
       '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
+      buffer: 6.0.3
+    transitivePeerDependencies:
+      - bufferutil
+      - encoding
+      - fastestsmallesttextencoderdecoder
+      - typescript
+      - utf-8-validate
+
+  '@solana/spl-token@0.4.8(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)':
+    dependencies:
+      '@solana/buffer-layout': 4.0.1
+      '@solana/buffer-layout-utils': 0.2.0(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
+      '@solana/spl-token-group': 0.0.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/spl-token-metadata': 0.1.5(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)
+      '@solana/web3.js': 1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10)
       buffer: 6.0.3
     transitivePeerDependencies:
       - bufferutil

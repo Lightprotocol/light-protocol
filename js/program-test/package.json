@@ -32,6 +32,7 @@
     "@coral-xyz/borsh": "^0.29.0",
     "@lightprotocol/hasher.rs": "0.2.1",
     "@lightprotocol/stateless.js": "workspace:*",
+    "@solana/spl-token": "0.4.8",
     "@solana/web3.js": "1.98.4",
     "bs58": "^6.0.0",
     "buffer": "6.0.3",

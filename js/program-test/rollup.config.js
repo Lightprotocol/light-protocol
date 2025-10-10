@@ -14,6 +14,8 @@ const rolls = (fmt) => ({
   },
   external: [
     "@solana/web3.js",
+    "@solana/spl-token",
+    "@solana/codecs",
     "@lightprotocol/stateless.js",
     "@lightprotocol/hasher.rs",
     "litesvm",
