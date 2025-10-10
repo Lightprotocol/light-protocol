@@ -6,6 +6,7 @@ import (
 	"io"
 	"light/light-prover/logging"
 	"os"
+	"path/filepath"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark/backend/groth16"
@@ -116,22 +117,22 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	var inclusionKeys []string
 	// V2 inclusion keys (height 32) - 1 to 20
 	for i := 1; i <= 20; i++ {
-		inclusionKeys = append(inclusionKeys, fmt.Sprintf("%sv2_inclusion_32_%d.key", keysDir, i))
+		inclusionKeys = append(inclusionKeys, filepath.Join(keysDir, fmt.Sprintf("v2_inclusion_32_%d.key", i)))
 	}
 	// V1 inclusion keys (legacy, height 26)
 	for _, i := range []int{1, 2, 3, 4, 8} {
-		inclusionKeys = append(inclusionKeys, fmt.Sprintf("%sv1_inclusion_26_%d.key", keysDir, i))
+		inclusionKeys = append(inclusionKeys, filepath.Join(keysDir, fmt.Sprintf("v1_inclusion_26_%d.key", i)))
 	}
 
 	// Build non-inclusion keys
 	var nonInclusionKeys []string
 	// V1 non-inclusion keys (legacy, height 26)
 	for i := 1; i <= 2; i++ {
-		nonInclusionKeys = append(nonInclusionKeys, fmt.Sprintf("%sv1_non-inclusion_26_%d.key", keysDir, i))
+		nonInclusionKeys = append(nonInclusionKeys, filepath.Join(keysDir, fmt.Sprintf("v1_non-inclusion_26_%d.key", i)))
 	}
 	// V2 non-inclusion keys (height 40) - 1 to 32
 	for i := 1; i <= 32; i++ {
-		nonInclusionKeys = append(nonInclusionKeys, fmt.Sprintf("%sv2_non-inclusion_40_%d.key", keysDir, i))
+		nonInclusionKeys = append(nonInclusionKeys, filepath.Join(keysDir, fmt.Sprintf("v2_non-inclusion_40_%d.key", i)))
 	}
 
 	// Build combined keys
@@ -139,66 +140,66 @@ func GetKeys(keysDir string, runMode RunMode, circuits []string) []string {
 	// V1 combined keys (legacy, heights 26/26)
 	for i := 1; i <= 4; i++ {
 		for j := 1; j <= 2; j++ {
-			combinedKeys = append(combinedKeys, fmt.Sprintf("%sv1_combined_26_26_%d_%d.key", keysDir, i, j))
+			combinedKeys = append(combinedKeys, filepath.Join(keysDir, fmt.Sprintf("v1_combined_26_26_%d_%d.key", i, j)))
 		}
 	}
 	// V2 combined keys (heights 32/40)
 	for i := 1; i <= 4; i++ {
 		for j := 1; j <= 4; j++ {
-			combinedKeys = append(combinedKeys, fmt.Sprintf("%sv2_combined_32_40_%d_%d.key", keysDir, i, j))
+			combinedKeys = append(combinedKeys, filepath.Join(keysDir, fmt.Sprintf("v2_combined_32_40_%d_%d.key", i, j)))
 		}
 	}
 
 	// Keys for local-rpc mode - matching the 18 keys in cli/package.json
 	var localRpcKeys []string = []string{
 		// V1 combined keys
-		keysDir + "v1_combined_26_26_1_1.key",
-		keysDir + "v1_combined_26_26_1_2.key",
-		keysDir + "v1_combined_26_26_2_1.key",
+		filepath.Join(keysDir, "v1_combined_26_26_1_1.key"),
+		filepath.Join(keysDir, "v1_combined_26_26_1_2.key"),
+		filepath.Join(keysDir, "v1_combined_26_26_2_1.key"),
 		// V2 combined keys
-		keysDir + "v2_combined_32_40_1_1.key",
-		keysDir + "v2_combined_32_40_1_2.key",
-		keysDir + "v2_combined_32_40_2_1.key",
+		filepath.Join(keysDir, "v2_combined_32_40_1_1.key"),
+		filepath.Join(keysDir, "v2_combined_32_40_1_2.key"),
+		filepath.Join(keysDir, "v2_combined_32_40_2_1.key"),
 		// V2 inclusion keys
-		keysDir + "v2_inclusion_32_1.key",
-		keysDir + "v2_inclusion_32_2.key",
-		keysDir + "v2_inclusion_32_3.key",
-		keysDir + "v2_inclusion_32_4.key",
+		filepath.Join(keysDir, "v2_inclusion_32_1.key"),
+		filepath.Join(keysDir, "v2_inclusion_32_2.key"),
+		filepath.Join(keysDir, "v2_inclusion_32_3.key"),
+		filepath.Join(keysDir, "v2_inclusion_32_4.key"),
 		// V1 inclusion keys
-		keysDir + "v1_inclusion_26_1.key",
-		keysDir + "v1_inclusion_26_2.key",
-		keysDir + "v1_inclusion_26_3.key",
-		keysDir + "v1_inclusion_26_4.key",
+		filepath.Join(keysDir, "v1_inclusion_26_1.key"),
+		filepath.Join(keysDir, "v1_inclusion_26_2.key"),
+		filepath.Join(keysDir, "v1_inclusion_26_3.key"),
+		filepath.Join(keysDir, "v1_inclusion_26_4.key"),
 		// V1 non-inclusion keys
-		keysDir + "v1_non-inclusion_26_1.key",
-		keysDir + "v1_non-inclusion_26_2.key",
+		filepath.Join(keysDir, "v1_non-inclusion_26_1.key"),
+		filepath.Join(keysDir, "v1_non-inclusion_26_2.key"),
 		// V2 non-inclusion keys
-		keysDir + "v2_non-inclusion_40_1.key",
-		keysDir + "v2_non-inclusion_40_2.key",
+		filepath.Join(keysDir, "v2_non-inclusion_40_1.key"),
+		filepath.Join(keysDir, "v2_non-inclusion_40_2.key"),
 	}
 
 	var appendKeys []string = []string{
-		keysDir + "batch_append_32_500.key",
+		filepath.Join(keysDir, "batch_append_32_500.key"),
 	}
 
 	var updateKeys []string = []string{
-		keysDir + "batch_update_32_500.key",
+		filepath.Join(keysDir, "batch_update_32_500.key"),
 	}
 
 	var appendTestKeys []string = []string{
-		keysDir + "batch_append_32_10.key",
+		filepath.Join(keysDir, "batch_append_32_10.key"),
 	}
 
 	var updateTestKeys []string = []string{
-		keysDir + "batch_update_32_10.key",
+		filepath.Join(keysDir, "batch_update_32_10.key"),
 	}
 
 	var addressAppendKeys []string = []string{
-		keysDir + "batch_address-append_40_250.key",
+		filepath.Join(keysDir, "batch_address-append_40_250.key"),
 	}
 
 	var addressAppendTestKeys []string = []string{
-		keysDir + "batch_address-append_40_10.key",
+		filepath.Join(keysDir, "batch_address-append_40_10.key"),
 	}
 
 	switch runMode {
