@@ -6,6 +6,7 @@ import { pipeline } from "stream/promises";
 
 const PROVER_VERSION = "1.0.2";
 const GITHUB_RELEASES_BASE_URL = `https://github.com/Lightprotocol/light-protocol/releases/download/light-prover-v${PROVER_VERSION}`;
+const MAX_REDIRECTS = 10;
 
 interface DownloadOptions {
   maxRetries?: number;
@@ -59,7 +60,11 @@ export async function downloadProverBinary(
   );
 }
 
-async function downloadFile(url: string, outputPath: string): Promise<void> {
+async function downloadFile(
+  url: string,
+  outputPath: string,
+  redirectDepth: number = 0,
+): Promise<void> {
   return new Promise((resolve, reject) => {
     const protocol = url.startsWith("https") ? https : http;
 
@@ -74,7 +79,17 @@ async function downloadFile(url: string, outputPath: string): Promise<void> {
         if (!redirectUrl) {
           return reject(new Error("Redirect without location header"));
         }
-        return downloadFile(redirectUrl, outputPath).then(resolve, reject);
+        if (redirectDepth >= MAX_REDIRECTS) {
+          return reject(
+            new Error(
+              `Too many redirects: exceeded maximum of ${MAX_REDIRECTS} redirects`,
+            ),
+          );
+        }
+        return downloadFile(redirectUrl, outputPath, redirectDepth + 1).then(
+          resolve,
+          reject,
+        );
       }
 
       if (response.statusCode !== 200) {
