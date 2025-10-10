@@ -729,42 +729,21 @@ func runCli() {
 
 						logging.Logger().Info().Msg("Starting queue workers")
 
-						circuits := context.StringSlice("circuit")
-						startAllWorkers := runMode == common.Forester || runMode == common.ForesterTest || runMode == common.Full || runMode == common.FullTest
+						updateWorker := server.NewUpdateQueueWorker(redisQueue, keyManager)
+						workers = append(workers, updateWorker)
+						go updateWorker.Start()
 
-						var workersStarted []string
+						appendWorker := server.NewAppendQueueWorker(redisQueue, keyManager)
+						workers = append(workers, appendWorker)
+						go appendWorker.Start()
 
-						logging.Logger().Info().Bool("startAllWorkers", startAllWorkers).Strs("circuits", circuits).Msg("Determining which workers to start")
+						addressAppendWorker := server.NewAddressAppendQueueWorker(redisQueue, keyManager)
+						workers = append(workers, addressAppendWorker)
+						go addressAppendWorker.Start()
 
-						if startAllWorkers || containsCircuit(circuits, "update") || containsCircuit(circuits, "update-test") {
-							updateWorker := server.NewUpdateQueueWorker(redisQueue, keyManager)
-							workers = append(workers, updateWorker)
-							go updateWorker.Start()
-							workersStarted = append(workersStarted, "update")
-						}
-
-						if startAllWorkers || containsCircuit(circuits, "append") || containsCircuit(circuits, "append-test") {
-							appendWorker := server.NewAppendQueueWorker(redisQueue, keyManager)
-							workers = append(workers, appendWorker)
-							go appendWorker.Start()
-							workersStarted = append(workersStarted, "append")
-						}
-
-						if startAllWorkers || containsCircuit(circuits, "address-append") || containsCircuit(circuits, "address-append-test") {
-							addressAppendWorker := server.NewAddressAppendQueueWorker(redisQueue, keyManager)
-							workers = append(workers, addressAppendWorker)
-							go addressAppendWorker.Start()
-							workersStarted = append(workersStarted, "address-append")
-						}
-
-						if len(workersStarted) == 0 {
-							logging.Logger().Warn().Msg("No queue workers started - no matching circuits found")
-						} else {
-							logging.Logger().Info().
-								Strs("workers_started", workersStarted).
-								Bool("forester_mode", startAllWorkers).
-								Msg("Queue workers started")
-						}
+						logging.Logger().Info().
+							Strs("workers_started", []string{"update", "append", "address-append"}).
+							Msg("Queue workers started")
 					}
 
 					if enableServer {
