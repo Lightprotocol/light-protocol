@@ -12,6 +12,8 @@ export default defineConfig({
             forks: {
                 // Run all tests sequentially in a single forked process
                 singleFork: true,
+                // Set max heap size to 4GB
+                execArgv: ['--max-old-space-size=4096'],
             },
         },
         include: process.env.EXCLUDE_E2E

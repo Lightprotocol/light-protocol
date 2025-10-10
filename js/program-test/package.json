@@ -87,7 +87,11 @@
   "nx": {
     "targets": {
       "build": {
-        "inputs": []
+        "inputs": [
+          "{projectRoot}/src/**/*",
+          "{projectRoot}/tsconfig.json",
+          "{projectRoot}/rollup.config.js"
+        ]
       }
     }
   }
