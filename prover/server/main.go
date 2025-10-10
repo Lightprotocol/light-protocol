@@ -635,23 +635,12 @@ func runCli() {
 
 					preloadKeys := context.String("preload-keys")
 					preloadCircuits := context.StringSlice("preload-circuits")
-					runModeStr := context.String("run-mode")
 
 					logging.Logger().Info().
 						Str("preload_keys", preloadKeys).
 						Strs("preload_circuits", preloadCircuits).
-						Str("run_mode", runModeStr).
 						Str("keys_dir", keysDirPath).
 						Msg("Initializing lazy key manager")
-
-					var runMode common.RunMode
-					var err error
-					if runModeStr != "" {
-						runMode, err = parseRunMode(runModeStr)
-						if err != nil {
-							return err
-						}
-					}
 
 					if preloadKeys == "all" {
 						logging.Logger().Info().Msg("Preloading all keys")
