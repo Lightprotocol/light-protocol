@@ -33,6 +33,8 @@ export class LiteSVMRpc extends TestRpc {
     config?: LiteSVMConfig,
     proverEndpoint: string = "http://127.0.0.1:3001",
   ) {
+    console.log('[LITESVM] Constructor called, PID:', process.pid);
+
     // Initialize TestRpc with dummy endpoints
     super(
       "http://127.0.0.1:8899",
@@ -47,11 +49,13 @@ export class LiteSVMRpc extends TestRpc {
     this.storedRawTransactions = new Map();
 
     // Initialize LiteSVM with configuration
+    console.log('[LITESVM] Creating new LiteSVM()...');
     this.litesvm = new LiteSVM()
       .withSysvars()
       .withBuiltins()
       .withDefaultPrograms()
       .withPrecompiles();
+    console.log('[LITESVM] LiteSVM created successfully');
 
     if (config?.sigverify !== undefined) {
       this.litesvm = this.litesvm.withSigverify(config.sigverify);
@@ -109,18 +113,22 @@ export class LiteSVMRpc extends TestRpc {
       "cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m",
     );
 
+    console.log('[LITESVM] addProgramFromFile: light_system_program_pinocchio.so');
     this.litesvm.addProgramFromFile(
       LIGHT_SYSTEM_PROGRAM_ID,
       path.join(deployPath, "light_system_program_pinocchio.so"),
     );
+    console.log('[LITESVM] addProgramFromFile: account_compression.so');
     this.litesvm.addProgramFromFile(
       ACCOUNT_COMPRESSION_PROGRAM_ID,
       path.join(deployPath, "account_compression.so"),
     );
+    console.log('[LITESVM] addProgramFromFile: light_compressed_token.so');
     this.litesvm.addProgramFromFile(
       COMPRESSED_TOKEN_PROGRAM_ID,
       path.join(deployPath, "light_compressed_token.so"),
     );
+    console.log('[LITESVM] All programs loaded successfully');
   }
 
   /**
@@ -132,6 +140,7 @@ export class LiteSVMRpc extends TestRpc {
    * transactions are processed.
    */
   private loadAccountFixtures(): void {
+    console.log('[LITESVM] loadAccountFixtures: Starting...');
     // Find repo root by looking for cli/accounts
     // Works whether running from source (src/) or built (dist/cjs/)
     let repoRoot = __dirname;
@@ -143,13 +152,16 @@ export class LiteSVMRpc extends TestRpc {
       repoRoot = parent;
     }
     const accountsPath = path.join(repoRoot, "cli/accounts");
+    console.log('[LITESVM] loadAccountFixtures: Found accounts path:', accountsPath);
 
     // Load all account JSON files from cli/accounts
     const files = fs.readdirSync(accountsPath);
+    console.log('[LITESVM] loadAccountFixtures: Found', files.length, 'files');
 
     for (const filename of files) {
       if (!filename.endsWith(".json")) continue;
 
+      console.log('[LITESVM] loadAccountFixtures: Loading', filename);
       const filepath = path.join(accountsPath, filename);
       const accountData = JSON.parse(fs.readFileSync(filepath, "utf-8"));
       const pubkey = new PublicKey(accountData.pubkey);
@@ -168,8 +180,11 @@ export class LiteSVMRpc extends TestRpc {
         executable: accountData.account.executable,
         rentEpoch,
       };
+      console.log('[LITESVM] setAccount:', pubkey.toBase58(), 'lamports:', account.lamports);
       this.litesvm.setAccount(pubkey, account);
+      console.log('[LITESVM] setAccount: Success for', filename);
     }
+    console.log('[LITESVM] loadAccountFixtures: Complete');
   }
 
   /**
@@ -295,7 +310,9 @@ export class LiteSVMRpc extends TestRpc {
       );
     }
 
+    console.log('[LITESVM] sendTransaction: Calling litesvm.sendTransaction()...');
     const result = this.litesvm.sendTransaction(transaction);
+    console.log('[LITESVM] sendTransaction: Transaction sent');
 
     // Check if transaction succeeded or failed
     if ("err" in result && typeof result.err === "function") {
@@ -568,7 +585,9 @@ export class LiteSVMRpc extends TestRpc {
     pubkey: PublicKey,
     lamports: number,
   ): Promise<string> {
+    console.log('[LITESVM] airdrop:', pubkey.toBase58(), lamports);
     this.litesvm.airdrop(pubkey, BigInt(lamports));
+    console.log('[LITESVM] airdrop: Success');
     return "mock-airdrop-signature";
   }
 
@@ -579,10 +598,13 @@ export class LiteSVMRpc extends TestRpc {
     publicKey: PublicKey,
     commitmentOrConfig?: any,
   ): Promise<any> {
+    console.log('[LITESVM] getAccount:', publicKey.toBase58());
     const account = this.litesvm.getAccount(publicKey);
     if (!account) {
+      console.log('[LITESVM] getAccount: Not found');
       return null;
     }
+    console.log('[LITESVM] getAccount: Found');
     return {
       executable: account.executable,
       owner: new PublicKey(account.owner),
@@ -618,7 +640,10 @@ export class LiteSVMRpc extends TestRpc {
    * Get balance using LiteSVM
    */
   override async getBalance(publicKey: PublicKey): Promise<number> {
-    return Number(this.litesvm.getBalance(publicKey));
+    console.log('[LITESVM] getBalance:', publicKey.toBase58());
+    const balance = Number(this.litesvm.getBalance(publicKey));
+    console.log('[LITESVM] getBalance: Result:', balance);
+    return balance;
   }
 
   /**
@@ -628,9 +653,12 @@ export class LiteSVMRpc extends TestRpc {
     dataLength: number,
     commitment?: any,
   ): Promise<number> {
-    return Number(
+    console.log('[LITESVM] minimumBalanceForRentExemption:', dataLength);
+    const balance = Number(
       this.litesvm.minimumBalanceForRentExemption(BigInt(dataLength)),
     );
+    console.log('[LITESVM] minimumBalanceForRentExemption: Result:', balance);
+    return balance;
   }
 
   /**
@@ -647,7 +675,9 @@ export class LiteSVMRpc extends TestRpc {
         ? transactionOrMessage
         : transactionOrMessage;
 
+    console.log('[LITESVM] simulateTransaction: Calling...');
     const result = this.litesvm.simulateTransaction(transaction);
+    console.log('[LITESVM] simulateTransaction: Complete');
 
     // Check if simulation failed
     if ("err" in result && typeof result.err === "function") {
@@ -693,7 +723,9 @@ export class LiteSVMRpc extends TestRpc {
    * Get epoch schedule
    */
   override async getEpochSchedule(): Promise<any> {
+    console.log('[LITESVM] getEpochSchedule: Calling...');
     const schedule = this.litesvm.getEpochSchedule();
+    console.log('[LITESVM] getEpochSchedule: Success');
     return {
       slotsPerEpoch: Number(schedule.slotsPerEpoch),
       leaderScheduleSlotOffset: Number(schedule.leaderScheduleSlotOffset),
@@ -720,7 +752,9 @@ export class LiteSVMRpc extends TestRpc {
    * Get latest blockhash (modern API)
    */
   override async getLatestBlockhash(commitment?: any): Promise<any> {
+    console.log('[LITESVM] latestBlockhash: Calling...');
     const blockhash = this.litesvm.latestBlockhash();
+    console.log('[LITESVM] latestBlockhash:', blockhash);
     return {
       blockhash,
       lastValidBlockHeight: 1000000,
@@ -773,7 +807,10 @@ export class LiteSVMRpc extends TestRpc {
    * Get current slot from LiteSVM
    */
   override async getSlot(commitment?: any): Promise<number> {
-    return Number(this.litesvm.getClock().slot);
+    console.log('[LITESVM] getClock: Calling...');
+    const slot = Number(this.litesvm.getClock().slot);
+    console.log('[LITESVM] getClock: slot =', slot);
+    return slot;
   }
 
   /**
