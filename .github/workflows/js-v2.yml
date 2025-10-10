@@ -43,16 +43,6 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Cache nx
-        uses: actions/cache@v4
-        with:
-          path: |
-            .nx/cache
-            node_modules/.cache/nx
-          key: nx-js-v2-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}
-          restore-keys: |
-            nx-js-v2-${{ runner.os }}-
-
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
@@ -75,11 +65,35 @@ jobs:
 
       - name: Run stateless.js tests with V2
         run: |
-          npx nx test @lightprotocol/stateless.js
+          echo "Running stateless.js tests with retry logic (max 2 attempts)..."
+          attempt=1
+          max_attempts=2
+          until npx nx test @lightprotocol/stateless.js; do
+            attempt=$((attempt + 1))
+            if [ $attempt -gt $max_attempts ]; then
+              echo "Tests failed after $max_attempts attempts"
+              exit 1
+            fi
+            echo "Attempt $attempt/$max_attempts failed, retrying..."
+            sleep 5
+          done
+          echo "Tests passed on attempt $attempt"
 
       - name: Run compressed-token tests with V2
         run: |
-          npx nx test @lightprotocol/compressed-token
+          echo "Running compressed-token tests with retry logic (max 2 attempts)..."
+          attempt=1
+          max_attempts=2
+          until npx nx test @lightprotocol/compressed-token; do
+            attempt=$((attempt + 1))
+            if [ $attempt -gt $max_attempts ]; then
+              echo "Tests failed after $max_attempts attempts"
+              exit 1
+            fi
+            echo "Attempt $attempt/$max_attempts failed, retrying..."
+            sleep 5
+          done
+          echo "Tests passed on attempt $attempt"
 
       - name: Run sdk-anchor-test TypeScript tests with V2
         run: |

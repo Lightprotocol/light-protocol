@@ -43,16 +43,6 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
-      - name: Cache nx
-        uses: actions/cache@v4
-        with:
-          path: |
-            .nx/cache
-            node_modules/.cache/nx
-          key: nx-cli-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}
-          restore-keys: |
-            nx-cli-v1-${{ runner.os }}-
-
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
