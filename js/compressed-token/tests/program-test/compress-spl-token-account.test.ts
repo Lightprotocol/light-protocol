@@ -124,9 +124,12 @@ describe('compressSplTokenAccount', () => {
             bn(0),
         );
 
+        // Defensive type conversion: ensure amount is always a string before passing to bn()
         expect(
             totalCompressedAmount.eq(
-                bn(ataBalanceBefore.value.amount).add(initialCompressedAmount),
+                bn(String(ataBalanceBefore.value.amount)).add(
+                    initialCompressedAmount,
+                ),
             ),
         ).toBe(true);
     });
@@ -387,10 +390,18 @@ describe('compressSplTokenAccount', () => {
             (sum, item) => sum.add(item.parsed.amount),
             bn(0),
         );
-
+        console.log('totalCompressedAmount ', totalCompressedAmount);
+        console.log('ataBalanceBefore', ataBalanceBefore);
+        console.log(
+            'ataBalanceBefore.value.amount ',
+            ataBalanceBefore.value.amount,
+        );
+        // Defensive type conversion: ensure amount is always a string before passing to bn()
         expect(
             totalCompressedAmount.eq(
-                bn(ataBalanceBefore.value.amount).add(initialCompressedAmount),
+                bn(String(ataBalanceBefore.value.amount)).add(
+                    initialCompressedAmount,
+                ),
             ),
         ).toBe(true);
     });

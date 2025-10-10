@@ -910,7 +910,7 @@ export class LiteSVMRpc extends TestRpc {
     const result = {
       context: { slot: 1 },
       value: {
-        amount: amountBigInt.toLocaleString(),
+        amount: amountBigInt.toString(), // Use toString() instead of toLocaleString() to ensure consistent string format
         decimals,
         uiAmount: Number(amountBigInt) / Math.pow(10, decimals),
         uiAmountString: (
