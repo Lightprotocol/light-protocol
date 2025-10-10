@@ -4,8 +4,6 @@ import BN from 'bn.js';
 import {
     Rpc,
     bn,
-    newAccountWithLamports,
-    getTestRpc,
     TreeInfo,
     selectStateTreeInfo,
     ParsedTokenAccount,
@@ -17,7 +15,11 @@ import {
     approve,
     decompressDelegated,
 } from '../../src/actions';
-import { createAssociatedTokenAccount } from '@solana/spl-token';
+import {
+    createLiteSVMRpc,
+    newAccountWithLamports,
+    splCreateAssociatedTokenAccount,
+} from '@lightprotocol/program-test';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
@@ -108,7 +110,7 @@ describe('decompressDelegated', () => {
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = await createLiteSVMRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
         bob = await newAccountWithLamports(rpc, 1e9);
         charlie = await newAccountWithLamports(rpc, 1e9);
@@ -128,7 +130,7 @@ describe('decompressDelegated', () => {
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
         tokenPoolInfos = await getTokenPoolInfos(rpc, mint);
 
-        charlieAta = await createAssociatedTokenAccount(
+        charlieAta = await splCreateAssociatedTokenAccount(
             rpc,
             payer,
             mint,

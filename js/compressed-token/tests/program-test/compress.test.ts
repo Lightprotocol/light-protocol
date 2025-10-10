@@ -329,7 +329,7 @@ describe('compress', () => {
                 mintKeypair, // keypair
                 undefined, // confirmOptions
                 TOKEN_2022_PROGRAM_ID, // tokenProgramId
-                null, // freezeAuthority
+                undefined, // freezeAuthority
             )
         ).mint;
         const mintAccountInfo = await rpc.getAccountInfo(token22Mint);

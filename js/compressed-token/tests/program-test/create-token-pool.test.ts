@@ -13,11 +13,10 @@ import {
     Rpc,
     buildAndSignTx,
     dedupeSigner,
-    newAccountWithLamports,
     sendAndConfirmTx,
-    getTestRpc,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { createLiteSVMRpc, newAccountWithLamports } from '@lightprotocol/program-test';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { getTokenPoolInfos } from '../../src/utils';
 
@@ -105,7 +104,7 @@ describe('createTokenPool', () => {
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = await createLiteSVMRpc(lightWasm);
         payer = await newAccountWithLamports(rpc);
         mintAuthority = Keypair.generate();
         mintKeypair = Keypair.generate();

@@ -25,13 +25,13 @@ import {
   AccountLayout,
   MintLayout,
 } from '@solana/spl-token';
-import { LiteSVMRpc } from './litesvm-rpc';
+import { Rpc } from '@lightprotocol/stateless.js';
 
 /**
  * Create a new SPL token mint using LiteSVM
  */
 export async function splCreateMint(
-  rpc: LiteSVMRpc,
+  rpc: Rpc,
   payer: Signer,
   mintAuthority: PublicKey,
   freezeAuthority: PublicKey | null,
@@ -64,7 +64,7 @@ export async function splCreateMint(
   transaction.sign(payer, keypair);
 
   // Send transaction using LiteSVM
-  await rpc.sendTransaction(transaction);
+  await rpc.sendTransaction(transaction as any);
 
   return keypair.publicKey;
 }
@@ -73,7 +73,7 @@ export async function splCreateMint(
  * Create an associated token account using LiteSVM
  */
 export async function splCreateAssociatedTokenAccount(
-  rpc: LiteSVMRpc,
+  rpc: Rpc,
   payer: Signer,
   mint: PublicKey,
   owner: PublicKey,
@@ -104,7 +104,7 @@ export async function splCreateAssociatedTokenAccount(
   transaction.sign(payer);
 
   // Send transaction using LiteSVM
-  await rpc.sendTransaction(transaction);
+  await rpc.sendTransaction(transaction as any);
 
   return associatedToken;
 }
@@ -113,7 +113,7 @@ export async function splCreateAssociatedTokenAccount(
  * Mint tokens to an account using LiteSVM
  */
 export async function splMintTo(
-  rpc: LiteSVMRpc,
+  rpc: Rpc,
   payer: Signer,
   mint: PublicKey,
   destination: PublicKey,
@@ -138,14 +138,14 @@ export async function splMintTo(
   transaction.sign(payer, authority);
 
   // Send transaction using LiteSVM
-  return rpc.sendTransaction(transaction);
+  return rpc.sendTransaction(transaction as any);
 }
 
 /**
  * Transfer tokens between accounts using LiteSVM
  */
 export async function splTransfer(
-  rpc: LiteSVMRpc,
+  rpc: Rpc,
   payer: Signer,
   source: PublicKey,
   mint: PublicKey,
@@ -174,14 +174,14 @@ export async function splTransfer(
   transaction.sign(payer, owner);
 
   // Send transaction using LiteSVM
-  return rpc.sendTransaction(transaction);
+  return rpc.sendTransaction(transaction as any);
 }
 
 /**
  * Get token account balance
  */
 export async function splGetTokenAccountBalance(
-  rpc: LiteSVMRpc,
+  rpc: Rpc,
   tokenAccount: PublicKey,
 ): Promise<bigint> {
   const accountInfo = await rpc.getAccountInfo(tokenAccount);
@@ -198,7 +198,7 @@ export async function splGetTokenAccountBalance(
  * Get mint info
  */
 export async function splGetMintInfo(
-  rpc: LiteSVMRpc,
+  rpc: Rpc,
   mint: PublicKey,
 ): Promise<{
   mintAuthority: PublicKey | null;
@@ -228,9 +228,63 @@ export async function splGetMintInfo(
  * Check if a token account exists
  */
 export async function splTokenAccountExists(
-  rpc: LiteSVMRpc,
+  rpc: Rpc,
   tokenAccount: PublicKey,
 ): Promise<boolean> {
   const accountInfo = await rpc.getAccountInfo(tokenAccount);
   return accountInfo !== null;
+}
+
+/**
+ * Get or create an associated token account
+ * Replicates the behavior of getOrCreateAssociatedTokenAccount from @solana/spl-token
+ */
+export async function splGetOrCreateAssociatedTokenAccount(
+  rpc: Rpc,
+  payer: Signer,
+  mint: PublicKey,
+  owner: PublicKey,
+  allowOwnerOffCurve = false,
+  commitment?: any,
+  confirmOptions?: any,
+  programId = TOKEN_PROGRAM_ID,
+  associatedTokenProgramId = ASSOCIATED_TOKEN_PROGRAM_ID,
+): Promise<{ address: PublicKey; isNew: boolean }> {
+  const associatedToken = getAssociatedTokenAddressSync(
+    mint,
+    owner,
+    allowOwnerOffCurve,
+    programId,
+    associatedTokenProgramId,
+  );
+
+  // Check if the account exists
+  const accountInfo = await rpc.getAccountInfo(associatedToken);
+
+  if (accountInfo !== null) {
+    // Account already exists
+    return { address: associatedToken, isNew: false };
+  }
+
+  // Create the account
+  const transaction = new Transaction().add(
+    createAssociatedTokenAccountInstruction(
+      payer.publicKey,
+      associatedToken,
+      owner,
+      mint,
+      programId,
+      associatedTokenProgramId,
+    ),
+  );
+
+  // Get blockhash and sign
+  const { blockhash } = await rpc.getLatestBlockhash();
+  transaction.recentBlockhash = blockhash;
+  transaction.sign(payer);
+
+  // Send transaction using LiteSVM
+  await rpc.sendTransaction(transaction as any);
+
+  return { address: associatedToken, isNew: true };
 }

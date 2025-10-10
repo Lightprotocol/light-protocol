@@ -1,11 +1,11 @@
 import { Keypair, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
-import { LiteSVMRpc } from "./litesvm-rpc";
+import { Rpc } from "@lightprotocol/stateless.js";
 
 /**
  * Create a new account with lamports airdropped
  */
 export async function newAccountWithLamports(
-  rpc: LiteSVMRpc,
+  rpc: Rpc,
   lamports: number = LAMPORTS_PER_SOL,
 ): Promise<Keypair> {
   const keypair = Keypair.generate();

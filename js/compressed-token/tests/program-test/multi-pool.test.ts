@@ -5,8 +5,6 @@ import {
     MINT_SIZE,
     TOKEN_PROGRAM_ID,
     createInitializeMint2Instruction,
-    getOrCreateAssociatedTokenAccount,
-    mintTo,
 } from '@solana/spl-token';
 import {
     addTokenPools,
@@ -19,11 +17,15 @@ import {
     Rpc,
     buildAndSignTx,
     dedupeSigner,
-    newAccountWithLamports,
     sendAndConfirmTx,
-    getTestRpc,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
+import {
+    createLiteSVMRpc,
+    newAccountWithLamports,
+    splGetOrCreateAssociatedTokenAccount,
+    splMintTo,
+} from '@lightprotocol/program-test';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import {
@@ -82,8 +84,8 @@ describe('multi-pool', () => {
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
-        payer = await newAccountWithLamports(rpc);
+        rpc = await createLiteSVMRpc(lightWasm);
+        payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         mintKeypair = Keypair.generate();
         mint = mintKeypair.publicKey;
@@ -91,25 +93,25 @@ describe('multi-pool', () => {
         /// Create external SPL mint
         await createTestSplMint(rpc, payer, mintKeypair, mintAuthority);
 
-        bob = await newAccountWithLamports(rpc);
+        bob = await newAccountWithLamports(rpc, 1e9);
         bobAta = (
-            await getOrCreateAssociatedTokenAccount(
+            await splGetOrCreateAssociatedTokenAccount(
                 rpc,
                 payer,
                 mint,
                 bob.publicKey,
             )
         ).address;
-        charlie = await newAccountWithLamports(rpc);
+        charlie = await newAccountWithLamports(rpc, 1e9);
         charlieAta = (
-            await getOrCreateAssociatedTokenAccount(
+            await splGetOrCreateAssociatedTokenAccount(
                 rpc,
                 payer,
                 mint,
                 charlie.publicKey,
             )
         ).address;
-        await mintTo(rpc, payer, mint, bobAta, mintAuthority, BigInt(1000));
+        await splMintTo(rpc, payer, mint, bobAta, mintAuthority, 1000);
     });
 
     it('should register 4 pools', async () => {

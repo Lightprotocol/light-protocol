@@ -6,10 +6,12 @@ import {
     ComputeBudgetProgram,
 } from '@solana/web3.js';
 import BN from 'bn.js';
-import { createMint, createTokenProgramLookupTable } from '../../src/actions';
 import {
-    getTestKeypair,
-    newAccountWithLamports,
+    createMint,
+    createTokenProgramLookupTable,
+    mintTo,
+} from '../../src/actions';
+import {
     bn,
     Rpc,
     sendAndConfirmTx,
@@ -18,6 +20,10 @@ import {
     TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
+import {
+    createLiteSVMRpc,
+    newAccountWithLamports,
+} from '@lightprotocol/program-test';
 
 import { CompressedTokenProgram } from '../../src/program';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
@@ -26,7 +32,6 @@ import {
     selectTokenPoolInfo,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
-import { getTestRpc } from '@lightprotocol/program-test';
 
 /**
  * Asserts that mintTo() creates a new compressed token account for the
@@ -68,9 +73,9 @@ describe('mintTo', () => {
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
-        payer = await newAccountWithLamports(rpc);
-        bob = getTestKeypair();
+        rpc = await createLiteSVMRpc(lightWasm);
+        payer = await newAccountWithLamports(rpc, 1e9);
+        bob = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = payer as Keypair;
         const mintKeypair = Keypair.generate();
 
@@ -97,6 +102,40 @@ describe('mintTo', () => {
         lut = address;
     }, 80_000);
 
+    it('should mint to bob', async () => {
+        const amount = bn(1000);
+        const txId = await mintTo(
+            rpc,
+            payer,
+            mint,
+            bob.publicKey,
+            mintAuthority,
+            amount,
+            stateTreeInfo,
+            tokenPoolInfo,
+        );
+
+        await assertMintTo(rpc, mint, amount, bob.publicKey);
+
+        /// wrong authority
+        /// is not checked in cToken program, so it throws invalid owner inside spl token program.
+        await expect(
+            mintTo(rpc, payer, mint, bob.publicKey, Keypair.generate(), amount),
+        ).rejects.toThrowError(/code: 4/);
+
+        /// with output state merkle tree defined
+        await mintTo(
+            rpc,
+            payer,
+            mint,
+            bob.publicKey,
+            mintAuthority,
+            amount,
+            stateTreeInfo,
+            tokenPoolInfo,
+        );
+    });
+
     // const maxRecipients = 18;
     const maxRecipients = 22;
     const recipients = Array.from(
@@ -105,30 +144,45 @@ describe('mintTo', () => {
     );
     const amounts = Array.from({ length: maxRecipients }, (_, i) => bn(i + 1));
 
-    it(`should mint to ${recipients.length} recipients optimized with LUT`, async () => {
-        const lookupTableAccount = (await rpc.getAddressLookupTable(lut))
-            .value!;
-
-        const ix = await CompressedTokenProgram.mintTo({
-            feePayer: payer.publicKey,
-            mint,
-            authority: mintAuthority.publicKey,
-            amount: amounts,
-            toPubkey: recipients,
-            outputStateTreeInfo: stateTreeInfo,
-            tokenPoolInfo,
-        });
-
-        const { blockhash } = await rpc.getLatestBlockhash();
-        const additionalSigners = dedupeSigner(payer, [mintAuthority]);
-
-        const tx = buildAndSignTx(
-            [ComputeBudgetProgram.setComputeUnitLimit({ units: 600_000 }), ix],
+    it('should mint to multiple recipients', async () => {
+        /// mint to three recipients
+        await mintTo(
+            rpc,
             payer,
-            blockhash,
-            additionalSigners,
-            [lookupTableAccount],
+            mint,
+            recipients.slice(0, 3),
+            mintAuthority,
+            amounts.slice(0, 3),
+            stateTreeInfo,
+            tokenPoolInfo,
         );
-        const txId = await sendAndConfirmTx(rpc, tx);
+
+        /// Mint to 10 recipients
+        const tx = await mintTo(
+            rpc,
+            payer,
+            mint,
+            recipients.slice(0, 10),
+            mintAuthority,
+            amounts.slice(0, 10),
+            stateTreeInfo,
+            tokenPoolInfo,
+        );
+
+        // Uneven amounts
+        await expect(
+            mintTo(
+                rpc,
+                payer,
+                mint,
+                recipients,
+                mintAuthority,
+                amounts.slice(0, 2),
+                stateTreeInfo,
+                tokenPoolInfo,
+            ),
+        ).rejects.toThrowError(
+            /Amount and toPubkey arrays must have the same length/,
+        );
     });
 });

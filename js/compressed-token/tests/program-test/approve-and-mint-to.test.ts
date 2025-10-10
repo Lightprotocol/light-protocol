@@ -6,19 +6,22 @@ import {
     TOKEN_PROGRAM_ID,
     createInitializeMint2Instruction,
 } from '@solana/spl-token';
-import { approveAndMintTo, createTokenPool } from '../../src/actions';
+import { createTokenPool } from '../../src/actions';
 import {
     Rpc,
     bn,
     buildAndSignTx,
     dedupeSigner,
-    newAccountWithLamports,
     sendAndConfirmTx,
-    getTestRpc,
     defaultTestStateTreeAccounts,
     TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
+import {
+    createLiteSVMRpc,
+    newAccountWithLamports,
+    splGetOrCreateAssociatedTokenAccount
+} from '@lightprotocol/program-test';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import BN from 'bn.js';
 import {
@@ -26,6 +29,69 @@ import {
     selectTokenPoolInfo,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
+import { CompressedTokenProgram } from '../../src/program';
+import { ComputeBudgetProgram, TransactionSignature, ConfirmOptions } from '@solana/web3.js';
+import { toArray } from '@lightprotocol/stateless.js';
+
+// Custom version of approveAndMintTo for LiteSVM testing
+async function splApproveAndMintTo(
+    rpc: Rpc,
+    payer: Signer,
+    mint: PublicKey,
+    toPubkey: PublicKey,
+    authority: Signer,
+    amount: number | BN,
+    outputStateTreeInfo?: TreeInfo,
+    tokenPoolInfo?: TokenPoolInfo,
+    confirmOptions?: ConfirmOptions,
+): Promise<TransactionSignature> {
+    outputStateTreeInfo =
+        outputStateTreeInfo ??
+        selectStateTreeInfo(await rpc.getStateTreeInfos());
+    tokenPoolInfo =
+        tokenPoolInfo ??
+        selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
+
+    // Use our LiteSVM-compatible function
+    const authorityTokenAccount = await splGetOrCreateAssociatedTokenAccount(
+        rpc,
+        payer,
+        mint,
+        authority.publicKey,
+        false,
+        undefined,
+        confirmOptions,
+        tokenPoolInfo.tokenProgram,
+    );
+
+    const ixs = await CompressedTokenProgram.approveAndMintTo({
+        feePayer: payer.publicKey,
+        mint,
+        authority: authority.publicKey,
+        authorityTokenAccount: authorityTokenAccount.address,
+        amount,
+        toPubkey,
+        outputStateTreeInfo,
+        tokenPoolInfo,
+    });
+
+    const { blockhash } = await rpc.getLatestBlockhash();
+    const additionalSigners = dedupeSigner(payer, [authority]);
+
+    const tx = buildAndSignTx(
+        [
+            ComputeBudgetProgram.setComputeUnitLimit({
+                units: 150_000 + toArray(amount).length * 20_000,
+            }),
+            ...ixs,
+        ],
+        payer,
+        blockhash,
+        additionalSigners,
+    );
+
+    return await sendAndConfirmTx(rpc, tx, confirmOptions);
+}
 
 async function createTestSplMint(
     rpc: Rpc,
@@ -76,7 +142,7 @@ describe('approveAndMintTo', () => {
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = await createLiteSVMRpc(lightWasm);
         payer = await newAccountWithLamports(rpc);
         bob = Keypair.generate().publicKey;
         mintAuthority = Keypair.generate();
@@ -95,7 +161,7 @@ describe('approveAndMintTo', () => {
     it('should mintTo compressed account with external spl mint', async () => {
         assert(mint.equals(mintKeypair.publicKey));
 
-        await approveAndMintTo(
+        await splApproveAndMintTo(
             rpc,
             payer,
             mint,
@@ -134,7 +200,7 @@ describe('approveAndMintTo', () => {
             await getTokenPoolInfos(rpc, token22Mint),
         );
 
-        await approveAndMintTo(
+        await splApproveAndMintTo(
             rpc,
             payer,
             token22Mint,

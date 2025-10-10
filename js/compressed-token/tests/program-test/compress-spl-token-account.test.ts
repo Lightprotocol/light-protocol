@@ -4,8 +4,6 @@ import {
     Rpc,
     bn,
     defaultTestStateTreeAccounts,
-    newAccountWithLamports,
-    getTestRpc,
     TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
@@ -16,11 +14,15 @@ import {
     compressSplTokenAccount,
 } from '../../src/actions';
 import {
-    createAssociatedTokenAccount,
-    mintToChecked,
     TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import {
+    createLiteSVMRpc,
+    newAccountWithLamports,
+    splCreateAssociatedTokenAccount,
+    splMintTo,
+} from '@lightprotocol/program-test';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
@@ -41,7 +43,7 @@ describe('compressSplTokenAccount', () => {
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = await createLiteSVMRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
 
         mintAuthority = Keypair.generate();
@@ -61,7 +63,7 @@ describe('compressSplTokenAccount', () => {
         tokenPoolInfo = selectTokenPoolInfo(await getTokenPoolInfos(rpc, mint));
 
         alice = await newAccountWithLamports(rpc, 1e9);
-        aliceAta = await createAssociatedTokenAccount(
+        aliceAta = await splCreateAssociatedTokenAccount(
             rpc,
             payer,
             mint,
@@ -135,14 +137,13 @@ describe('compressSplTokenAccount', () => {
         // Mint new tokens for this test
         const testAmount = bn(100);
 
-        await mintToChecked(
+        await splMintTo(
             rpc,
             payer,
             mint,
             aliceAta,
             mintAuthority,
             testAmount.toNumber(),
-            TEST_TOKEN_DECIMALS,
         );
 
         // Try to compress more than available
@@ -219,14 +220,13 @@ describe('compressSplTokenAccount', () => {
     it('should handle remainingAmount = current balance', async () => {
         // Mint some tokens for testing
         const testAmount = bn(100);
-        await mintToChecked(
+        await splMintTo(
             rpc,
             payer,
             mint,
             aliceAta,
             mintAuthority,
             testAmount.toNumber(),
-            TEST_TOKEN_DECIMALS,
         );
 
         const balanceBefore = await rpc.getTokenAccountBalance(aliceAta);
@@ -265,14 +265,13 @@ describe('compressSplTokenAccount', () => {
         const nonOwner = await newAccountWithLamports(rpc, 1e9);
 
         // Mint some tokens to ensure non-zero balance
-        await mintToChecked(
+        await splMintTo(
             rpc,
             payer,
             mint,
             aliceAta,
             mintAuthority,
             100,
-            TEST_TOKEN_DECIMALS,
         );
 
         await expect(
@@ -297,14 +296,13 @@ describe('compressSplTokenAccount', () => {
         invalidTreeInfo.queue = Keypair.generate().publicKey;
 
         // Mint some tokens to ensure non-zero balance
-        await mintToChecked(
+        await splMintTo(
             rpc,
             payer,
             mint,
             aliceAta,
             mintAuthority,
             100,
-            TEST_TOKEN_DECIMALS,
         );
 
         await expect(
@@ -346,12 +344,11 @@ describe('compressSplTokenAccount', () => {
         );
 
         alice = await newAccountWithLamports(rpc, 1e9);
-        aliceAta = await createAssociatedTokenAccount(
+        aliceAta = await splCreateAssociatedTokenAccount(
             rpc,
             payer,
             mint,
             alice.publicKey,
-            undefined,
             TOKEN_2022_PROGRAM_ID,
         );
 

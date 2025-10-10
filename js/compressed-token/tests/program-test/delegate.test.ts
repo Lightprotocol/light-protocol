@@ -4,12 +4,14 @@ import BN from 'bn.js';
 import {
     Rpc,
     bn,
-    newAccountWithLamports,
-    getTestRpc,
     TreeInfo,
     selectStateTreeInfo,
     ParsedTokenAccount,
 } from '@lightprotocol/stateless.js';
+import {
+    createLiteSVMRpc,
+    newAccountWithLamports,
+} from '@lightprotocol/program-test';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import {
     createMint,
@@ -114,7 +116,7 @@ describe('delegate', () => {
 
     beforeAll(async () => {
         const lightWasm = await WasmFactory.getInstance();
-        rpc = await getTestRpc(lightWasm);
+        rpc = await createLiteSVMRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
