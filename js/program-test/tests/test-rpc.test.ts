@@ -97,7 +97,6 @@ describe.sequential("test-rpc with LiteSVM", () => {
 
     preCompressBalance = await rpc.getBalance(payer.publicKey);
 
-    console.log("pre transfer");
     await transfer(rpc, payer, compressLamportsAmount, payer, payer.publicKey);
     const compressedAccounts1 = await rpc.getCompressedAccountsByOwner(
       payer.publicKey,
@@ -111,7 +110,6 @@ describe.sequential("test-rpc with LiteSVM", () => {
         STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber() -
         STATE_MERKLE_TREE_NETWORK_FEE.toNumber(),
     );
-    console.log("pre compress");
     await compress(rpc, payer, compressLamportsAmount, payer.publicKey);
     const compressedAccounts2 = await rpc.getCompressedAccountsByOwner(
       payer.publicKey,
@@ -121,7 +119,6 @@ describe.sequential("test-rpc with LiteSVM", () => {
 
   it("getCompressedAccountProof: get many valid proofs (10)", async () => {
     for (let lamports = 1; lamports <= 10; lamports++) {
-      console.log("pre decompress");
       await decompress(rpc, payer, lamports, payer.publicKey);
     }
   });

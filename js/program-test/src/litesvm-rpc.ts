@@ -6,10 +6,8 @@ import {
   ConfirmedSignatureInfo,
   ParsedTransactionWithMeta,
 } from "@solana/web3.js";
-import {
-  TestRpc,
-  defaultTestStateTreeAccounts,
-} from "@lightprotocol/stateless.js";
+import { defaultTestStateTreeAccounts } from "@lightprotocol/stateless.js";
+import { TestRpc } from "./test-rpc/test-rpc";
 import { LiteSVMConfig } from "./types";
 import * as path from "path";
 import * as fs from "fs";
@@ -71,6 +69,13 @@ export class LiteSVMRpc extends TestRpc {
     // Load Light Protocol programs
     this.loadLightPrograms();
 
+    // Load custom programs if provided
+    if (config?.customPrograms) {
+      for (const { programId, programPath } of config.customPrograms) {
+        this.litesvm.addProgramFromFile(programId, programPath);
+      }
+    }
+
     // Load state tree account fixtures
     this.loadAccountFixtures();
   }
@@ -79,9 +84,16 @@ export class LiteSVMRpc extends TestRpc {
    * Load Light Protocol program binaries from target/deploy
    */
   private loadLightPrograms(): void {
-    // When running from dist/, we need to go up to repo root
-    // dist/ -> ../ -> js/program-test/ -> ../../ -> repo root
-    const repoRoot = path.join(__dirname, "../../..");
+    // Find repo root by looking for target/deploy
+    // Works whether running from source (src/) or built (dist/cjs/)
+    let repoRoot = __dirname;
+    while (!fs.existsSync(path.join(repoRoot, "target/deploy"))) {
+      const parent = path.dirname(repoRoot);
+      if (parent === repoRoot) {
+        throw new Error("Could not find target/deploy directory");
+      }
+      repoRoot = parent;
+    }
     const deployPath = path.join(repoRoot, "target/deploy");
 
     // Load Light Protocol programs
@@ -111,7 +123,16 @@ export class LiteSVMRpc extends TestRpc {
    * transactions are processed.
    */
   private loadAccountFixtures(): void {
-    const repoRoot = path.join(__dirname, "../../..");
+    // Find repo root by looking for cli/accounts
+    // Works whether running from source (src/) or built (dist/cjs/)
+    let repoRoot = __dirname;
+    while (!fs.existsSync(path.join(repoRoot, "cli/accounts"))) {
+      const parent = path.dirname(repoRoot);
+      if (parent === repoRoot) {
+        throw new Error("Could not find cli/accounts directory");
+      }
+      repoRoot = parent;
+    }
     const accountsPath = path.join(repoRoot, "cli/accounts");
 
     // Load all account JSON files from cli/accounts
@@ -149,7 +170,6 @@ export class LiteSVMRpc extends TestRpc {
     transaction: Transaction | VersionedTransaction,
     ...args: any[]
   ): Promise<string> {
-    console.log("transaction ", transaction);
     const result = this.litesvm.sendTransaction(transaction);
 
     // Check if transaction succeeded or failed
@@ -352,12 +372,8 @@ export class LiteSVMRpc extends TestRpc {
         accountKeys = compiledMessage.accountKeys;
       }
 
-      // Convert signatures to base58 strings
-      const rawSignatures =
-        "signatures" in rawTx ? rawTx.signatures : [(rawTx as any).signature];
-      const signatures = rawSignatures.map((sig: string | Uint8Array) =>
-        typeof sig === "string" ? sig : bs58.encode(sig),
-      );
+      // Use the stored signature directly since we already have it as a base58 string
+      const signatures = [tx.signature];
 
       return {
         slot: tx.slot,

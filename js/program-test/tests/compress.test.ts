@@ -1,51 +1,56 @@
-import { describe, it, assert, beforeAll, expect } from 'vitest';
-import { Keypair } from '@solana/web3.js';
-import { createLiteSVMRpc, newAccountWithLamports } from '../src';
-import { compress, bn } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { describe, it, assert, beforeAll, expect } from "vitest";
+import { Keypair } from "@solana/web3.js";
+import { createLiteSVMRpc, newAccountWithLamports } from "../src";
+import { compress, bn } from "@lightprotocol/stateless.js";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 
-describe('compress with LiteSVM', () => {
-    let rpc: any;
-    let payer: Keypair;
+describe("compress with LiteSVM", () => {
+  let rpc: any;
+  let payer: Keypair;
 
-    beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
-        rpc = await createLiteSVMRpc(lightWasm);
+  beforeAll(async () => {
+    const lightWasm = await WasmFactory.getInstance();
+    rpc = await createLiteSVMRpc(lightWasm);
 
-        // Create test account with lamports
-        payer = await newAccountWithLamports(rpc, 10e9);
-    });
+    // Create test account with lamports
+    payer = await newAccountWithLamports(rpc, 10e9);
+  });
 
-    it('should compress SOL', async () => {
-        const compressAmount = 1e9;
+  it("should compress SOL", async () => {
+    const compressAmount = 1e9;
 
-        // Get pre-compress balance
-        const preBalance = await rpc.getBalance(payer.publicKey);
-        console.log('Pre-compress balance:', preBalance);
+    // Get pre-compress balance
+    const preBalance = await rpc.getBalance(payer.publicKey);
+    console.log("Pre-compress balance:", preBalance);
 
-        // Compress SOL
-        const signature = await compress(rpc, payer, compressAmount, payer.publicKey);
-        console.log('Compress signature:', signature);
+    // Compress SOL
+    const signature = await compress(
+      rpc,
+      payer,
+      compressAmount,
+      payer.publicKey,
+    );
+    console.log("Compress signature:", signature);
 
-        // Get post-compress balance
-        const postBalance = await rpc.getBalance(payer.publicKey);
-        console.log('Post-compress balance:', postBalance);
+    // Get post-compress balance
+    const postBalance = await rpc.getBalance(payer.publicKey);
+    console.log("Post-compress balance:", postBalance);
 
-        // Get compressed accounts
-        const compressedAccounts = await rpc.getCompressedAccountsByOwner(
-            payer.publicKey
-        );
-        console.log('Compressed accounts:', compressedAccounts);
+    // Get compressed accounts
+    const compressedAccounts = await rpc.getCompressedAccountsByOwner(
+      payer.publicKey,
+    );
+    console.log("Compressed accounts:", compressedAccounts);
 
-        // Verify compression worked
-        expect(compressedAccounts.items.length).toBeGreaterThan(0);
+    // Verify compression worked
+    expect(compressedAccounts.items.length).toBeGreaterThan(0);
 
-        // Verify compressed balance
-        const compressedBalance = await rpc.getCompressedBalanceByOwner(
-            payer.publicKey
-        );
-        console.log('Compressed balance:', compressedBalance.toString());
+    // Verify compressed balance
+    const compressedBalance = await rpc.getCompressedBalanceByOwner(
+      payer.publicKey,
+    );
+    console.log("Compressed balance:", compressedBalance.toString());
 
-        expect(compressedBalance.gte(bn(compressAmount))).toBe(true);
-    });
+    expect(compressedBalance.gte(bn(compressAmount))).toBe(true);
+  });
 });
