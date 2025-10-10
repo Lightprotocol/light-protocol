@@ -4,7 +4,7 @@ import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { createTestSplMint, requestAirdrop } from "../../helpers/helpers";
 import { Keypair } from "@solana/web3.js";
-import { getTestRpc } from "@lightprotocol/stateless.js";
+import { getTestRpc } from "@lightprotocol/program-test";
 import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 describe("create-mint", () => {
