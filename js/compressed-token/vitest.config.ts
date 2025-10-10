@@ -9,8 +9,11 @@ export default defineConfig({
         pool: 'forks',
         poolOptions: {
             forks: {
-                maxForks: 4,
+                maxForks: 1,
                 minForks: 1,
+                // Recycle worker after each test file to prevent GC corruption
+                // This kills and restarts the process, wiping all memory
+                memoryLimit: 1,
             },
         },
         include: process.env.EXCLUDE_E2E

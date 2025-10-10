@@ -108,9 +108,6 @@ importers:
       '@lightprotocol/program-test':
         specifier: workspace:*
         version: link:../js/program-test
-      '@lightprotocol/programs':
-        specifier: workspace:*
-        version: link:../programs
       '@oclif/test':
         specifier: ^4.1.14
         version: 4.1.14(@oclif/core@4.5.4)
