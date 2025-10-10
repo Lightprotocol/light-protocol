@@ -105,9 +105,6 @@ importers:
       '@eslint/js':
         specifier: 9.36.0
         version: 9.36.0
-      '@lightprotocol/programs':
-        specifier: workspace:*
-        version: link:../programs
       '@oclif/test':
         specifier: ^4.1.14
         version: 4.1.14(@oclif/core@4.5.4)
@@ -211,9 +208,6 @@ importers:
       '@lightprotocol/hasher.rs':
         specifier: 0.2.1
         version: 0.2.1
-      '@lightprotocol/programs':
-        specifier: workspace:*
-        version: link:../../programs
       '@rollup/plugin-alias':
         specifier: ^5.1.0
         version: 5.1.0(rollup@4.21.3)
@@ -353,9 +347,6 @@ importers:
       '@lightprotocol/hasher.rs':
         specifier: 0.2.1
         version: 0.2.1
-      '@lightprotocol/programs':
-        specifier: workspace:*
-        version: link:../../programs
       '@playwright/test':
         specifier: ^1.47.1
         version: 1.47.1
