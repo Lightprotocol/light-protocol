@@ -59,16 +59,16 @@ jobs:
           cd js/compressed-token
           pnpm build:v2
 
-      - name: Build CLI (CI mode - Linux x64 only)
+      - name: Build CLI
         run: |
-          npx nx build-ci @lightprotocol/zk-compression-cli
+          npx nx build @lightprotocol/zk-compression-cli
 
       - name: Run stateless.js tests with V2
         run: |
           echo "Running stateless.js tests with retry logic (max 2 attempts)..."
           attempt=1
           max_attempts=2
-          until npx nx test-ci @lightprotocol/stateless.js; do
+          until npx nx test @lightprotocol/stateless.js; do
             attempt=$((attempt + 1))
             if [ $attempt -gt $max_attempts ]; then
               echo "Tests failed after $max_attempts attempts"
@@ -84,7 +84,7 @@ jobs:
           echo "Running compressed-token tests with retry logic (max 2 attempts)..."
           attempt=1
           max_attempts=2
-          until npx nx test-ci @lightprotocol/compressed-token; do
+          until npx nx test @lightprotocol/compressed-token; do
             attempt=$((attempt + 1))
             if [ $attempt -gt $max_attempts ]; then
               echo "Tests failed after $max_attempts attempts"

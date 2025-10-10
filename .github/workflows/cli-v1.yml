@@ -49,13 +49,13 @@ jobs:
           skip-components: "redis,disk-cleanup"
           cache-suffix: "js"
 
-      - name: Build CLI with V1 (CI mode - Linux x64 only)
+      - name: Build CLI
         run: |
-          npx nx build-ci @lightprotocol/zk-compression-cli
+          npx nx build @lightprotocol/zk-compression-cli
 
       - name: Run CLI tests with V1
         run: |
-          npx nx test-ci @lightprotocol/zk-compression-cli
+          npx nx test @lightprotocol/zk-compression-cli
 
       - name: Display prover logs on failure
         if: failure()
