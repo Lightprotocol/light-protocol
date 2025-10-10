@@ -272,14 +272,23 @@ export class TestRpc extends Connection implements CompressionApiInterface {
   async getMultipleCompressedAccountProofs(
     hashes: BN254[],
   ): Promise<MerkleContextWithMerkleProof[]> {
-    console.log('[TEST-RPC] getMultipleCompressedAccountProofs: INPUT - hashes:', hashes.map(h => h.toString('hex').slice(0, 16) + '...'));
+    console.log(
+      "[TEST-RPC] getMultipleCompressedAccountProofs: INPUT - hashes:",
+      hashes.map((h) => h.toString("hex").slice(0, 16) + "..."),
+    );
 
     // Parse events and organize leaves by their respective merkle trees
-    console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Calling getParsedEvents...');
+    console.log(
+      "[TEST-RPC] getMultipleCompressedAccountProofs: Calling getParsedEvents...",
+    );
     const events: PublicTransactionEvent[] = await getParsedEvents(this).then(
       (events) => events.reverse(),
     );
-    console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Got', events.length, 'events');
+    console.log(
+      "[TEST-RPC] getMultipleCompressedAccountProofs: Got",
+      events.length,
+      "events",
+    );
     const leavesByTree: Map<
       string,
       {
@@ -329,17 +338,41 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     const merkleProofsMap: Map<string, MerkleContextWithMerkleProof> =
       new Map();
 
-    console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Processing', leavesByTree.size, 'trees');
+    console.log(
+      "[TEST-RPC] getMultipleCompressedAccountProofs: Processing",
+      leavesByTree.size,
+      "trees",
+    );
 
     for (const [treeKey, { leaves, treeInfo }] of leavesByTree.entries()) {
       const tree = new PublicKey(treeKey);
-      console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Processing tree:', treeKey, 'with', leaves.length, 'leaves, treeType:', treeInfo.treeType);
+      console.log(
+        "[TEST-RPC] getMultipleCompressedAccountProofs: Processing tree:",
+        treeKey,
+        "with",
+        leaves.length,
+        "leaves, treeType:",
+        treeInfo.treeType,
+      );
 
       let merkleTree: MerkleTree | undefined;
-      console.log('[TEST-RPC] treeInfo.treeType value:', treeInfo.treeType, 'TreeType.StateV1:', TreeType.StateV1, 'TreeType.StateV2:', TreeType.StateV2);
+      console.log(
+        "[TEST-RPC] treeInfo.treeType value:",
+        treeInfo.treeType,
+        "TreeType.StateV1:",
+        TreeType.StateV1,
+        "TreeType.StateV2:",
+        TreeType.StateV2,
+      );
       if (treeInfo.treeType === TreeType.StateV1) {
-        console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Creating V1 MerkleTree with depth', this.depth);
-        console.log('[TEST-RPC] getMultipleCompressedAccountProofs: All leaves:', JSON.stringify(leaves));
+        console.log(
+          "[TEST-RPC] getMultipleCompressedAccountProofs: Creating V1 MerkleTree with depth",
+          this.depth,
+        );
+        console.log(
+          "[TEST-RPC] getMultipleCompressedAccountProofs: All leaves:",
+          JSON.stringify(leaves),
+        );
 
         // Detailed logging for each leaf
         const leafStrings = leaves.map((leaf, idx) => {
@@ -348,54 +381,80 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             const leafStr = leafBn.toString();
             console.log(`[TEST-RPC] Leaf[${idx}]:`, {
               raw: JSON.stringify(leaf).slice(0, 100),
-              bn: leafBn.toString(16).slice(0, 32) + '...',
+              bn: leafBn.toString(16).slice(0, 32) + "...",
               decimal: leafStr,
               length: leafStr.length,
-              valid: /^[0-9]+$/.test(leafStr)
+              valid: /^[0-9]+$/.test(leafStr),
             });
             return leafStr;
           } catch (err) {
-            console.log(`[TEST-RPC] ERROR converting leaf[${idx}]:`, err, 'raw:', JSON.stringify(leaf).slice(0, 100));
+            console.log(
+              `[TEST-RPC] ERROR converting leaf[${idx}]:`,
+              err,
+              "raw:",
+              JSON.stringify(leaf).slice(0, 100),
+            );
             throw err;
           }
         });
 
-        console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Leaf strings:', JSON.stringify(leafStrings));
-        console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Calling new MerkleTree...');
-        merkleTree = new MerkleTree(
-          this.depth,
-          this.lightWasm,
-          leafStrings,
+        console.log(
+          "[TEST-RPC] getMultipleCompressedAccountProofs: Leaf strings:",
+          JSON.stringify(leafStrings),
         );
-        console.log('[TEST-RPC] getMultipleCompressedAccountProofs: MerkleTree created successfully');
+        console.log(
+          "[TEST-RPC] getMultipleCompressedAccountProofs: Calling new MerkleTree...",
+        );
+        merkleTree = new MerkleTree(this.depth, this.lightWasm, leafStrings);
+        console.log(
+          "[TEST-RPC] getMultipleCompressedAccountProofs: MerkleTree created successfully",
+        );
       } else if (treeInfo.treeType === TreeType.StateV2) {
         /// In V2 State trees, The Merkle tree stays empty until the
         /// first forester transaction. And since test-rpc is only used
         /// for non-forested tests, we must return a tree with
         /// zerovalues.
-        console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Creating V2 MerkleTree (empty, depth 32)');
-        console.log('[TEST-RPC] lightWasm object:', typeof this.lightWasm, 'has poseidonHashString:', typeof this.lightWasm.poseidonHashString);
+        console.log(
+          "[TEST-RPC] getMultipleCompressedAccountProofs: Creating V2 MerkleTree (empty, depth 32)",
+        );
+        console.log(
+          "[TEST-RPC] lightWasm object:",
+          typeof this.lightWasm,
+          "has poseidonHashString:",
+          typeof this.lightWasm.poseidonHashString,
+        );
         try {
-          console.log('[TEST-RPC] Testing poseidonHashString with ["0", "0"]...');
+          console.log(
+            '[TEST-RPC] Testing poseidonHashString with ["0", "0"]...',
+          );
           const testHash = this.lightWasm.poseidonHashString(["0", "0"]);
-          console.log('[TEST-RPC] poseidonHashString test result:', testHash);
+          console.log("[TEST-RPC] poseidonHashString test result:", testHash);
         } catch (err) {
-          console.log('[TEST-RPC] ERROR testing poseidonHashString:', err);
+          console.log("[TEST-RPC] ERROR testing poseidonHashString:", err);
         }
-        console.log('[TEST-RPC] Creating MerkleTree...');
+        console.log("[TEST-RPC] Creating MerkleTree...");
         merkleTree = new MerkleTree(32, this.lightWasm, []);
-        console.log('[TEST-RPC] V2 MerkleTree created successfully');
+        console.log("[TEST-RPC] V2 MerkleTree created successfully");
       } else {
         throw new Error(
           `Invalid tree type: ${treeInfo.treeType} in test-rpc.ts`,
         );
       }
 
-      console.log('[TEST-RPC] Starting hash matching loop, hashes.length:', hashes.length);
+      console.log(
+        "[TEST-RPC] Starting hash matching loop, hashes.length:",
+        hashes.length,
+      );
       for (let i = 0; i < hashes.length; i++) {
-        console.log(`[TEST-RPC] Processing hash[${i}]:`, hashes[i].toString('hex').slice(0, 16) + '...');
-        console.log(`[TEST-RPC] Finding leafIndex in`, leaves.length, 'leaves');
-        console.log(`[TEST-RPC] leaves[0] sample:`, JSON.stringify(leaves[0]).slice(0, 100));
+        console.log(
+          `[TEST-RPC] Processing hash[${i}]:`,
+          hashes[i].toString("hex").slice(0, 16) + "...",
+        );
+        console.log(`[TEST-RPC] Finding leafIndex in`, leaves.length, "leaves");
+        console.log(
+          `[TEST-RPC] leaves[0] sample:`,
+          JSON.stringify(leaves[0]).slice(0, 100),
+        );
 
         let leafIndex: number;
         try {
@@ -404,18 +463,32 @@ export class TestRpc extends Connection implements CompressionApiInterface {
               const leafBn = bn(leaf);
               const matches = leafBn.eq(hashes[i]);
               if (leafIdx === 0) {
-                console.log(`[TEST-RPC] First leaf comparison: leaf[0] as BN:`, leafBn.toString(16).slice(0, 32) + '...', 'matches:', matches);
+                console.log(
+                  `[TEST-RPC] First leaf comparison: leaf[0] as BN:`,
+                  leafBn.toString(16).slice(0, 32) + "...",
+                  "matches:",
+                  matches,
+                );
               }
               return matches;
             } catch (err) {
-              console.log(`[TEST-RPC] ERROR in findIndex at leafIdx=${leafIdx}:`, err);
-              console.log(`[TEST-RPC] Problematic leaf:`, JSON.stringify(leaf).slice(0, 200));
+              console.log(
+                `[TEST-RPC] ERROR in findIndex at leafIdx=${leafIdx}:`,
+                err,
+              );
+              console.log(
+                `[TEST-RPC] Problematic leaf:`,
+                JSON.stringify(leaf).slice(0, 200),
+              );
               throw err;
             }
           });
           console.log(`[TEST-RPC] Found leafIndex:`, leafIndex);
         } catch (err) {
-          console.log(`[TEST-RPC] ERROR finding leafIndex for hash[${i}]:`, err);
+          console.log(
+            `[TEST-RPC] ERROR finding leafIndex for hash[${i}]:`,
+            err,
+          );
           throw err;
         }
 
@@ -510,7 +583,11 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     }
 
     // Return proofs in the order of requested hashes
-    console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Returning proofs for', hashes.length, 'hashes');
+    console.log(
+      "[TEST-RPC] getMultipleCompressedAccountProofs: Returning proofs for",
+      hashes.length,
+      "hashes",
+    );
     const results = hashes.map((hash) => {
       const proof = merkleProofsMap.get(hash.toString());
       if (!proof) {
@@ -518,7 +595,11 @@ export class TestRpc extends Connection implements CompressionApiInterface {
       }
       return proof;
     });
-    console.log('[TEST-RPC] getMultipleCompressedAccountProofs: OUTPUT - Success, returning', results.length, 'proofs');
+    console.log(
+      "[TEST-RPC] getMultipleCompressedAccountProofs: OUTPUT - Success, returning",
+      results.length,
+      "proofs",
+    );
     return results;
   }
   /**
@@ -594,11 +675,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
   async getCompressedTokenAccountBalance(hash: BN254): Promise<{ amount: BN }> {
     const account = await getCompressedTokenAccountByHashTest(this, hash);
     const rawAmount = account.parsed.amount;
-    console.log('[test-rpc.ts:524] Converting amount:', typeof rawAmount, rawAmount);
+    console.log(
+      "[test-rpc.ts:524] Converting amount:",
+      typeof rawAmount,
+      rawAmount,
+    );
     // Convert amount to BN first (could be bigint or BN from Borsh u64 decoder)
-    const amountBN = typeof rawAmount === 'bigint'
-      ? bn(String(rawAmount))
-      : bn(rawAmount);
+    const amountBN =
+      typeof rawAmount === "bigint" ? bn(String(rawAmount)) : bn(rawAmount);
     return { amount: amountBN };
   }
 
@@ -619,11 +703,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     return {
       items: accounts.items.map((account) => {
         const rawAmount = account.parsed.amount;
-        console.log('[test-rpc.ts:543] Converting amount:', typeof rawAmount, rawAmount);
+        console.log(
+          "[test-rpc.ts:543] Converting amount:",
+          typeof rawAmount,
+          rawAmount,
+        );
         // Convert amount to BN first (could be bigint or BN from Borsh u64 decoder)
-        const balance = typeof rawAmount === 'bigint'
-          ? bn(String(rawAmount))
-          : bn(rawAmount);
+        const balance =
+          typeof rawAmount === "bigint" ? bn(String(rawAmount)) : bn(rawAmount);
         return {
           balance,
           mint: account.parsed.mint,
@@ -651,11 +738,16 @@ export class TestRpc extends Connection implements CompressionApiInterface {
       value: {
         items: accounts.items.map((account) => {
           const rawAmount = account.parsed.amount;
-          console.log('[test-rpc.ts:567] Converting amount:', typeof rawAmount, rawAmount);
+          console.log(
+            "[test-rpc.ts:567] Converting amount:",
+            typeof rawAmount,
+            rawAmount,
+          );
           // Convert amount to BN first (could be bigint or BN from Borsh u64 decoder)
-          const balance = typeof rawAmount === 'bigint'
-            ? bn(String(rawAmount))
-            : bn(rawAmount);
+          const balance =
+            typeof rawAmount === "bigint"
+              ? bn(String(rawAmount))
+              : bn(rawAmount);
           return {
             balance,
             mint: account.parsed.mint,
