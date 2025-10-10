@@ -40,6 +40,7 @@
   },
   "devDependencies": {
     "@eslint/js": "9.36.0",
+    "@noble/curves": "^2.0.1",
     "@rollup/plugin-commonjs": "^26.0.1",
     "@rollup/plugin-json": "^6.1.0",
     "@rollup/plugin-node-resolve": "^15.2.3",
@@ -73,6 +74,7 @@
     "test:unit:transfer": "vitest run tests/transfer.test.ts --reporter=verbose",
     "test:unit:test-rpc": "vitest run tests/test-rpc.test.ts --reporter=verbose",
     "test:unit:merkle-tree": "vitest run tests/merkle-tree.test.ts --reporter=verbose",
+    "test:unit:poseidon": "vitest run tests/poseidon-comparison.test.ts --reporter=verbose",
     "test-validator": "./../../cli/test_bin/run test-validator",
     "test-validator-skip-prover": "./../../cli/test_bin/run test-validator --skip-prover",
     "test:e2e:rpc-interop": "pnpm test-validator && vitest run tests/rpc-interop.test.ts --reporter=verbose --bail=1",
