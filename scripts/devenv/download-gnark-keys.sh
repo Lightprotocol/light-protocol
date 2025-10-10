@@ -28,11 +28,16 @@ download_gnark_keys() {
             echo "Error: Failed to change directory to ${PROVER_DIR}" >&2
             exit 1
         }
-        go run . download \
+        if go run . download \
             --run-mode="${RUN_MODE}" \
             --keys-dir="${KEYS_DIR}" \
-            --max-retries=10
-        log "gnark_keys"
+            --max-retries=10; then
+            log "gnark_keys"
+        else
+            exit_code=$?
+            echo "Error: Failed to download gnark keys (exit code: ${exit_code})" >&2
+            exit ${exit_code}
+        fi
     else
         echo "Gnark keys already exist, skipping download..."
     fi
