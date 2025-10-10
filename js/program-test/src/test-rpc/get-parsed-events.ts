@@ -79,7 +79,7 @@ export async function getParsedEvents(
         const decodedData =
           typeof ix.data === "string"
             ? new Uint8Array(Buffer.from(ix.data, "base64"))
-            : new Uint8Array(Buffer.from(ix.data as any, "base64"));
+            : new Uint8Array(ix.data); // Already Uint8Array, no need to convert
         if (
           decodedData.length === COMPUTE_BUDGET_PATTERN.length &&
           COMPUTE_BUDGET_PATTERN.every((byte, idx) => byte === decodedData[idx])

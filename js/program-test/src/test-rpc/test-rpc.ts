@@ -525,7 +525,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     console.log('[test-rpc.ts:524] Converting amount:', typeof rawAmount, rawAmount);
     // Convert amount to BN first (could be bigint or BN from Borsh u64 decoder)
     const amountBN = typeof rawAmount === 'bigint'
-      ? bn((rawAmount as any).toString())
+      ? bn(String(rawAmount))
       : bn(rawAmount);
     return { amount: amountBN };
   }
@@ -550,7 +550,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         console.log('[test-rpc.ts:543] Converting amount:', typeof rawAmount, rawAmount);
         // Convert amount to BN first (could be bigint or BN from Borsh u64 decoder)
         const balance = typeof rawAmount === 'bigint'
-          ? bn((rawAmount as any).toString())
+          ? bn(String(rawAmount))
           : bn(rawAmount);
         return {
           balance,
@@ -582,7 +582,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
           console.log('[test-rpc.ts:567] Converting amount:', typeof rawAmount, rawAmount);
           // Convert amount to BN first (could be bigint or BN from Borsh u64 decoder)
           const balance = typeof rawAmount === 'bigint'
-            ? bn((rawAmount as any).toString())
+            ? bn(String(rawAmount))
             : bn(rawAmount);
           return {
             balance,

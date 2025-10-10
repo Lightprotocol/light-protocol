@@ -313,13 +313,20 @@ export class LiteSVMRpc extends TestRpc {
       throw new Error(errorMessage);
     }
 
-    const successResult = result as any;
-    const logs = successResult.logs();
-    const signatureBytes = successResult.signature();
+    // Check for success by presence of logs() method
+    if (!("logs" in result) || typeof result.logs !== "function") {
+      throw new Error("Unexpected transaction result type");
+    }
+
+    // TypeScript now knows result has logs() method (TransactionMetadata)
+    const logs = result.logs();
+    const signatureBytes = result.signature();
+    console.log("signatureBytes ", signatureBytes);
     const signature = bs58.encode(signatureBytes);
+    console.log("bs58 signature ", signature);
 
     // Extract inner instructions from LiteSVM result
-    const innerInstructionsRaw = successResult.innerInstructions();
+    const innerInstructionsRaw = result.innerInstructions();
     const innerInstructions = innerInstructionsRaw.map(
       (group: any[], index: number) => ({
         index,
@@ -783,7 +790,11 @@ export class LiteSVMRpc extends TestRpc {
 
     // Parse SPL token account data using proper layout
     const accountData = AccountLayout.decode(Buffer.from(account.data));
-    console.log('[litesvm-rpc.ts:787] Converting amount:', typeof accountData.amount, accountData.amount);
+    console.log(
+      "[litesvm-rpc.ts:787] Converting amount:",
+      typeof accountData.amount,
+      accountData.amount,
+    );
     // Convert amount to bigint first (it could be BN or bigint depending on spl-token version)
     const amountBigInt =
       typeof accountData.amount === "bigint"

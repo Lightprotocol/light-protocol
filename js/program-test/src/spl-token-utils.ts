@@ -6,6 +6,7 @@
 import {
   PublicKey,
   Transaction,
+  VersionedTransaction,
   SystemProgram,
   Signer,
   Keypair,
@@ -64,6 +65,8 @@ export async function splCreateMint(
   transaction.sign(payer, keypair);
 
   // Send transaction using LiteSVM
+  // Cast to VersionedTransaction since Rpc interface only accepts that type
+  // but LiteSVMRpc.sendTransaction actually accepts both Transaction and VersionedTransaction
   await rpc.sendTransaction(transaction as any);
 
   return keypair.publicKey;
@@ -104,6 +107,8 @@ export async function splCreateAssociatedTokenAccount(
   transaction.sign(payer);
 
   // Send transaction using LiteSVM
+  // Cast to VersionedTransaction since Rpc interface only accepts that type
+  // but LiteSVMRpc.sendTransaction actually accepts both Transaction and VersionedTransaction
   await rpc.sendTransaction(transaction as any);
 
   return associatedToken;
@@ -138,6 +143,8 @@ export async function splMintTo(
   transaction.sign(payer, authority);
 
   // Send transaction using LiteSVM
+  // Cast to VersionedTransaction since Rpc interface only accepts that type
+  // but LiteSVMRpc.sendTransaction actually accepts both Transaction and VersionedTransaction
   return rpc.sendTransaction(transaction as any);
 }
 
@@ -191,7 +198,11 @@ export async function splGetTokenAccountBalance(
   }
 
   const data = AccountLayout.decode(accountInfo.data);
-  console.log('[spl-token-utils.ts:195] Converting amount:', typeof data.amount, data.amount);
+  console.log(
+    "[spl-token-utils.ts:195] Converting amount:",
+    typeof data.amount,
+    data.amount,
+  );
   const amount =
     typeof data.amount === "bigint"
       ? data.amount
@@ -219,7 +230,11 @@ export async function splGetMintInfo(
   }
 
   const data = MintLayout.decode(accountInfo.data);
-  console.log('[spl-token-utils.ts:223] Converting supply:', typeof data.supply, data.supply);
+  console.log(
+    "[spl-token-utils.ts:223] Converting supply:",
+    typeof data.supply,
+    data.supply,
+  );
 
   const supply =
     typeof data.supply === "bigint"
