@@ -110,9 +110,11 @@
   },
   "scripts": {
     "add-bins": "./scripts/copyLocalProgramBinaries.sh && scripts/buildProver.sh",
+    "add-bins-ci": "./scripts/copyLocalProgramBinaries.sh && scripts/buildProver.sh --ci",
     "add-bins-release": "./scripts/copyLocalProgramBinaries.sh && scripts/buildProver.sh --release-only",
     "postinstall": "[ -d ./bin ] && find ./bin -type f -exec chmod +x {} + || echo 'No bin directory found, skipping chmod'",
     "build": "shx rm -rf dist && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json && pnpm add-bins",
+    "build-ci": "shx rm -rf dist && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json && pnpm add-bins-ci",
     "build-release": "shx rm -rf dist && pnpm tsc -p tsconfig.json && pnpm tsc -p tsconfig.test.json && pnpm add-bins-release",
     "format": "pnpm prettier --write \"src/**/*.{ts,js}\" \"test/**/*.{ts,js}\" -w",
     "format:check": "pnpm prettier \"src/**/*{ts,js}\"  \"test/**/*.{ts,js}\" --check",
@@ -138,6 +140,7 @@
     "kill": "killall solana-test-validator || true && killall solana-test-val || true && sleep 1",
     "test-cli": "pnpm test-config && pnpm kill",
     "test": "pnpm kill && pnpm test-cli && pnpm test-utils && pnpm test-create-mint && pnpm test-mint-to && pnpm test-transfer && pnpm test-merge-token-accounts && pnpm test-create-token-pool && pnpm test-compress-spl && pnpm test-decompress-spl && pnpm test-token-balance && pnpm test-compress-sol && pnpm test-balance && pnpm test-decompress-sol && pnpm test-approve-and-mint-to && pnpm test-test-validator",
+    "test-ci": "pnpm kill && pnpm test-cli && pnpm test-utils && pnpm test-create-mint && pnpm test-mint-to && pnpm test-transfer && pnpm test-merge-token-accounts && pnpm test-create-token-pool && pnpm test-compress-spl && pnpm test-decompress-spl && pnpm test-token-balance && pnpm test-compress-sol && pnpm test-balance && pnpm test-decompress-sol && pnpm test-approve-and-mint-to && pnpm test-test-validator",
     "install-local": "pnpm build && pnpm global remove @lightprotocol/zk-compression-cli || true && pnpm global add $PWD",
     "version": "oclif readme && git add README.md"
   },
@@ -162,6 +165,26 @@
           "{workspaceRoot}/lib",
           "{workspaceRoot}/test_bin"
         ]
+      },
+      "build-ci": {
+        "dependsOn": [
+          "@lightprotocol/stateless.js:build-ci",
+          "@lightprotocol/compressed-token:build-ci"
+        ],
+        "inputs": [
+          "{workspaceRoot}/js",
+          "{workspaceRoot}/gnark-prover",
+          "{projectRoot}/scripts/**"
+        ],
+        "outputs": [
+          "{workspaceRoot}/bin",
+          "{workspaceRoot}/dist",
+          "{workspaceRoot}/lib",
+          "{workspaceRoot}/test_bin"
+        ]
+      },
+      "test-ci": {
+        "dependsOn": []
       }
     }
   }

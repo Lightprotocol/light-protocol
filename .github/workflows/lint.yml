@@ -28,11 +28,12 @@ jobs:
 
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
+        with:
+          skip-components: "proving-keys,redis,disk-cleanup"
 
       - name: Run linters
         run: |
           set -euxo pipefail
-          source ./scripts/devenv.sh
           rustup install nightly
           rustup target add x86_64-unknown-linux-gnu --toolchain nightly
           rustup component add --toolchain nightly rustfmt
