@@ -191,7 +191,11 @@ export async function splGetTokenAccountBalance(
   }
 
   const data = AccountLayout.decode(accountInfo.data);
-  return data.amount;
+  const amount =
+    typeof data.amount === "bigint"
+      ? data.amount
+      : BigInt(data.amount.toString());
+  return amount;
 }
 
 /**
@@ -215,12 +219,21 @@ export async function splGetMintInfo(
 
   const data = MintLayout.decode(accountInfo.data);
 
+  const supply =
+    typeof data.supply === "bigint"
+      ? data.supply
+      : BigInt(data.supply.toString());
+  const isInitialized =
+    typeof data.isInitialized === "boolean"
+      ? data.isInitialized
+      : data.isInitialized !== 0;
+
   return {
     mintAuthority:
       data.mintAuthorityOption === 0 ? null : new PublicKey(data.mintAuthority),
-    supply: data.supply,
+    supply,
     decimals: data.decimals,
-    isInitialized: data.isInitialized,
+    isInitialized,
     freezeAuthority:
       data.freezeAuthorityOption === 0
         ? null

@@ -95,8 +95,20 @@ export async function confirmTx(
             }
 
             const status = await rpc.getSignatureStatuses([txId]);
+            const result = status?.value[0];
 
-            const statusValue = status?.value[0]?.confirmationStatus;
+            // Check for transaction errors
+            if (result?.err) {
+                clearInterval(intervalId);
+                reject(
+                    new Error(
+                        `Transaction ${txId} failed: ${JSON.stringify(result.err)}`,
+                    ),
+                );
+                return;
+            }
+
+            const statusValue = result?.confirmationStatus;
             // Check if the status meets or exceeds the requested commitment
             // finalized > confirmed > processed
             const meetsCommitment =

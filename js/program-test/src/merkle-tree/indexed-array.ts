@@ -89,7 +89,7 @@ export class IndexedArray {
   public findElement(value: BN): IndexedElement | undefined {
     return this.elements
       .slice(0, this.length() + 1)
-      .find((node) => node.value === value);
+      .find((node) => node.value.eq(value));
   }
 
   public init(): IndexedElementBundle {

@@ -373,14 +373,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             const bnPathElements = pathElements.map((value) => bn(value));
             const root = bn(merkleTree.root());
 
-            /// get leafIndex from leavesByTree for the given hash
-            const leafIndex = leavesByTree
+            /// Find array position, then get actual on-chain leaf index
+            const arrayPosition = leavesByTree
               .get(tree.toBase58())!
-              .leafIndices.findIndex((index) =>
-                hashes[i].eq(
-                  bn(leavesByTree.get(tree.toBase58())!.leaves[index]),
-                ),
-              );
+              .leaves.findIndex((leaf) => bn(leaf).eq(hashes[i]));
+
+            const leafIndex = leavesByTree.get(tree.toBase58())!.leafIndices[
+              arrayPosition
+            ];
 
             const merkleProof: MerkleContextWithMerkleProof = {
               // Hash is 0 for proveByIndex trees in test-rpc.

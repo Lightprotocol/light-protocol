@@ -9,7 +9,8 @@ export async function newAccountWithLamports(
   lamports: number = LAMPORTS_PER_SOL,
 ): Promise<Keypair> {
   const keypair = Keypair.generate();
-  await rpc.requestAirdrop(keypair.publicKey, lamports);
+  const signature = await rpc.requestAirdrop(keypair.publicKey, lamports);
+  await rpc.confirmTransaction(signature);
   return keypair;
 }
 

@@ -333,10 +333,7 @@ describe('compress', () => {
             )
         ).mint;
         const mintAccountInfo = await rpc.getAccountInfo(token22Mint);
-        expect(
-            mintAccountInfo!.owner.toBase58(),
-            TOKEN_2022_PROGRAM_ID.toBase58(),
-        );
+        expect(mintAccountInfo!.owner.equals(TOKEN_2022_PROGRAM_ID)).toBe(true);
 
         bob = await newAccountWithLamports(rpc, 1e9);
         charlie = await newAccountWithLamports(rpc, 1e9);

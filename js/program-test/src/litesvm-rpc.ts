@@ -7,6 +7,7 @@ import {
   ParsedTransactionWithMeta,
   AddressLookupTableAccount,
 } from "@solana/web3.js";
+import { AccountLayout, MintLayout } from "@solana/spl-token";
 import { defaultTestStateTreeAccounts } from "@lightprotocol/stateless.js";
 import { TestRpc } from "./test-rpc/test-rpc";
 import { LiteSVMConfig } from "./types";
@@ -178,8 +179,23 @@ export class LiteSVMRpc extends TestRpc {
     rawTransaction: Buffer | Uint8Array | Array<number>,
     options?: any,
   ): Promise<string> {
-    // Deserialize and send
-    const tx = Transaction.from(Buffer.from(rawTransaction));
+    const buffer = Buffer.from(rawTransaction);
+
+    // Use VersionedMessage to detect transaction type
+    // Legacy: highest bit NOT set (< 0x80)
+    // Versioned: highest bit IS set (>= 0x80)
+    const VERSION_PREFIX_MASK = 0x80;
+    const firstByte = buffer[0];
+
+    let tx: Transaction | VersionedTransaction;
+    if ((firstByte & VERSION_PREFIX_MASK) === 0) {
+      // Legacy transaction
+      tx = Transaction.from(buffer);
+    } else {
+      // Versioned transaction
+      tx = VersionedTransaction.deserialize(buffer);
+    }
+
     return this.sendTransaction(tx);
   }
 
@@ -765,24 +781,20 @@ export class LiteSVMRpc extends TestRpc {
       throw new Error(`Token account ${tokenAccount.toBase58()} not found`);
     }
 
-    // Parse SPL token account data
-    // Token account layout (165 bytes total):
-    // 0-32: mint
-    // 32-64: owner
-    // 64-72: amount (u64)
-    // 72-108: delegate (36 bytes, optional)
-    // 108-109: state (1 byte)
-    // 109-117: is_native (8 bytes, optional u64)
-    // 117-125: delegated_amount (8 bytes, u64)
-    // 125-157: close_authority (32 bytes, optional)
-    const data = Buffer.from(account.data);
+    // Parse SPL token account data using proper layout
+    const accountData = AccountLayout.decode(Buffer.from(account.data));
+    const amount = accountData.amount;
+    const mintPubkey = new PublicKey(accountData.mint);
 
-    // Read amount as u64 little-endian at offset 64
-    const amount = data.readBigUInt64LE(64);
+    // Fetch mint account to get decimals
+    const mintAccount = await this.getAccountInfo(mintPubkey);
+    if (!mintAccount) {
+      throw new Error(`Mint account ${mintPubkey.toBase58()} not found`);
+    }
 
-    // Read decimals from mint account (we'll default to 9 for now)
-    // In a real implementation, we'd read the mint account to get decimals
-    const decimals = 9; // Default SOL decimals
+    // Parse mint account using MintLayout to get decimals
+    const mintData = MintLayout.decode(Buffer.from(mintAccount.data));
+    const decimals = mintData.decimals;
 
     return {
       context: { slot: 1 },
