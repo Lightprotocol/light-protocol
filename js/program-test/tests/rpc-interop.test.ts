@@ -673,7 +673,7 @@ describe("rpc-interop", () => {
     assert.equal(signaturesUnspent.items.length, 1);
   });
 
-  it("[test-rpc missing] getCompressedAccount with address param should work ", async () => {
+  it("getCompressedAccount with address param should work", async () => {
     const seeds = [new Uint8Array(randomBytes(32))];
     const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
 
@@ -705,13 +705,27 @@ describe("rpc-interop", () => {
       undefined,
     );
 
-    await expect(
-      testRpc.getCompressedAccount(bn(latestAccount.address!), undefined),
-    ).rejects.toThrow();
+    // TestRpc now supports address-based lookups
+    const compressedAccountByAddressTest = await testRpc.getCompressedAccount(
+      bn(latestAccount.address!),
+      undefined,
+    );
 
     assert.isTrue(
       bn(compressedAccountByHash!.address!).eq(
         bn(compressedAccountByAddress!.address!),
+      ),
+    );
+
+    // Verify testRpc returns the same account
+    assert.isTrue(
+      bn(compressedAccountByHash!.address!).eq(
+        bn(compressedAccountByAddressTest!.address!),
+      ),
+    );
+    assert.isTrue(
+      bn(compressedAccountByHash!.hash).eq(
+        bn(compressedAccountByAddressTest!.hash),
       ),
     );
   });
