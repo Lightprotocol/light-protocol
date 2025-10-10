@@ -38,6 +38,7 @@ light-heap = { workspace = true, optional = true }
 [dev-dependencies]
 rand = { workspace = true }
 light-poseidon = { workspace = true }
+light-hasher = { workspace = true, features = ["poseidon"] }
 borsh = { workspace = true }
 ark-ff = { workspace = true }
 ark-bn254 = { workspace = true }
