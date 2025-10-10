@@ -4,16 +4,17 @@ import { resolve } from 'path';
 export default defineConfig({
     logLevel: 'info',
     test: {
-        // Use forks pool for better native module support (LiteSVM)
-        // Threads pool can cause std::bad_alloc with non-thread-safe native code
-        pool: 'forks',
+        // Use vmForks pool to enable memoryLimit for worker recycling
+        // This prevents GC corruption from std::bad_alloc issues
+        pool: 'vmForks',
+        // Run all tests sequentially (no parallel test files)
+        fileParallelism: false,
         poolOptions: {
-            forks: {
+            vmForks: {
                 maxForks: 1,
                 minForks: 1,
-                // Recycle worker after each test file to prevent GC corruption
-                // This kills and restarts the process, wiping all memory
-                memoryLimit: 1,
+                // Recycle worker when it exceeds 100MB to prevent GC corruption
+                memoryLimit: '100MB',
             },
         },
         include: process.env.EXCLUDE_E2E
