@@ -521,7 +521,13 @@ export class TestRpc extends Connection implements CompressionApiInterface {
    */
   async getCompressedTokenAccountBalance(hash: BN254): Promise<{ amount: BN }> {
     const account = await getCompressedTokenAccountByHashTest(this, hash);
-    return { amount: bn(account.parsed.amount) };
+    const rawAmount = account.parsed.amount;
+    console.log('[test-rpc.ts:524] Converting amount:', typeof rawAmount, rawAmount);
+    // Convert amount to BN first (could be bigint or BN from Borsh u64 decoder)
+    const amountBN = typeof rawAmount === 'bigint'
+      ? bn((rawAmount as any).toString())
+      : bn(rawAmount);
+    return { amount: amountBN };
   }
 
   /**
@@ -539,10 +545,18 @@ export class TestRpc extends Connection implements CompressionApiInterface {
       options.mint!,
     );
     return {
-      items: accounts.items.map((account) => ({
-        balance: bn(account.parsed.amount),
-        mint: account.parsed.mint,
-      })),
+      items: accounts.items.map((account) => {
+        const rawAmount = account.parsed.amount;
+        console.log('[test-rpc.ts:543] Converting amount:', typeof rawAmount, rawAmount);
+        // Convert amount to BN first (could be bigint or BN from Borsh u64 decoder)
+        const balance = typeof rawAmount === 'bigint'
+          ? bn((rawAmount as any).toString())
+          : bn(rawAmount);
+        return {
+          balance,
+          mint: account.parsed.mint,
+        };
+      }),
       cursor: null,
     };
   }
@@ -563,10 +577,18 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     return {
       context: { slot: 1 },
       value: {
-        items: accounts.items.map((account) => ({
-          balance: bn(account.parsed.amount),
-          mint: account.parsed.mint,
-        })),
+        items: accounts.items.map((account) => {
+          const rawAmount = account.parsed.amount;
+          console.log('[test-rpc.ts:567] Converting amount:', typeof rawAmount, rawAmount);
+          // Convert amount to BN first (could be bigint or BN from Borsh u64 decoder)
+          const balance = typeof rawAmount === 'bigint'
+            ? bn((rawAmount as any).toString())
+            : bn(rawAmount);
+          return {
+            balance,
+            mint: account.parsed.mint,
+          };
+        }),
         cursor: null,
       },
     };

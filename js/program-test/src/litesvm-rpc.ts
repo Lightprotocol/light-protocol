@@ -783,6 +783,7 @@ export class LiteSVMRpc extends TestRpc {
 
     // Parse SPL token account data using proper layout
     const accountData = AccountLayout.decode(Buffer.from(account.data));
+    console.log('[litesvm-rpc.ts:787] Converting amount:', typeof accountData.amount, accountData.amount);
     // Convert amount to bigint first (it could be BN or bigint depending on spl-token version)
     const amountBigInt =
       typeof accountData.amount === "bigint"

@@ -191,6 +191,7 @@ export async function splGetTokenAccountBalance(
   }
 
   const data = AccountLayout.decode(accountInfo.data);
+  console.log('[spl-token-utils.ts:195] Converting amount:', typeof data.amount, data.amount);
   const amount =
     typeof data.amount === "bigint"
       ? data.amount
@@ -218,6 +219,7 @@ export async function splGetMintInfo(
   }
 
   const data = MintLayout.decode(accountInfo.data);
+  console.log('[spl-token-utils.ts:223] Converting supply:', typeof data.supply, data.supply);
 
   const supply =
     typeof data.supply === "bigint"
