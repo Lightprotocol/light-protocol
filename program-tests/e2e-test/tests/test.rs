@@ -5,7 +5,6 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
 };
 use light_program_test::{indexer::TestIndexer, LightProgramTest, ProgramTestConfig};
-use light_prover_client::prover::ProverConfig;
 use light_registry::protocol_config::state::ProtocolConfig;
 use light_test_utils::{
     e2e_test_env::{E2ETestEnv, GeneralActionConfig, KeypairActionConfig},
@@ -31,7 +30,6 @@ async fn test_10_all() {
     config.v2_address_tree_config = Some(address_params);
     config.protocol_config = protocol_config;
     config.with_prover = true;
-    config.prover_config = Some(ProverConfig::default());
     let rpc = LightProgramTest::new(config).await.unwrap();
 
     let indexer: TestIndexer = TestIndexer::init_from_acounts(
@@ -81,7 +79,6 @@ async fn test_batched_only() {
     config.v2_address_tree_config = Some(address_params);
     config.protocol_config = protocol_config;
     config.with_prover = true;
-    config.prover_config = Some(ProverConfig::default());
     config.additional_programs = Some(vec![(
         "create_address_test_program",
         CREATE_ADDRESS_TEST_PROGRAM_ID,
@@ -153,7 +150,6 @@ async fn test_10000_all() {
     config.v2_address_tree_config = Some(address_params);
     config.protocol_config = protocol_config;
     config.with_prover = true;
-    config.prover_config = Some(ProverConfig::default());
     config.additional_programs = Some(vec![(
         "create_address_test_program",
         CREATE_ADDRESS_TEST_PROGRAM_ID,
