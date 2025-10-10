@@ -9,7 +9,6 @@ edition = "2021"
 [features]
 default = ["solana"]
 test-only = []
-poseidon = ["light-hasher/poseidon"]
 solana = [
     "solana-program-error",
     "solana-account-info",
@@ -43,7 +42,7 @@ solana-sysvar = { workspace = true, optional = true }
 solana-msg = { workspace = true }
 solana-account-info = { workspace = true, optional = true }
 light-zero-copy = { workspace = true, features = ["std"] }
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, features = ["poseidon"] }
 light-bloom-filter = { workspace = true }
 light-verifier = { workspace = true }
 thiserror = { workspace = true }

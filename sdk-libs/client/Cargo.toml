@@ -10,7 +10,6 @@ description = "Client library for Light Protocol"
 devenv = ["v2"]
 v2 = []
 program-test = ["solana-banks-client", "litesvm"]
-poseidon = ["light-hasher/poseidon"]
 
 [dependencies]
 # Solana dependencies
@@ -42,7 +41,7 @@ light-merkle-tree-metadata = { workspace = true, features = ["solana"] }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-sdk = { workspace = true }
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, features = ["poseidon"] }
 light-compressed-account = { workspace = true, features = ["solana", "poseidon"] }
 
 photon-api = { workspace = true }
