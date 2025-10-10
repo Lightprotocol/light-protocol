@@ -39,15 +39,47 @@ export interface MintInterface {
  * @param rpc - RPC connection
  * @param address - The mint address
  * @param commitment - Optional commitment level
- * @param programId - Token program ID (defaults to TOKEN_PROGRAM_ID)
+ * @param programId - Token program ID. If not provided, tries all programs to auto-detect
  * @returns Object with mint, optional merkleContext, mintContext, and tokenMetadata for compressed mints
  */
 export async function getMintInterface(
     rpc: Rpc,
     address: PublicKey,
     commitment?: Commitment,
-    programId: PublicKey = TOKEN_PROGRAM_ID,
+    programId?: PublicKey,
 ): Promise<MintInterface> {
+    // Auto-detect: try all three programs in parallel
+    if (!programId) {
+        const [tokenResult, token2022Result, compressedResult] =
+            await Promise.allSettled([
+                getMintInterface(rpc, address, commitment, TOKEN_PROGRAM_ID),
+                getMintInterface(
+                    rpc,
+                    address,
+                    commitment,
+                    TOKEN_2022_PROGRAM_ID,
+                ),
+                getMintInterface(rpc, address, commitment, CTOKEN_PROGRAM_ID),
+            ]);
+
+        // Return whichever succeeded
+        if (tokenResult.status === 'fulfilled') {
+            return tokenResult.value;
+        }
+        if (token2022Result.status === 'fulfilled') {
+            return token2022Result.value;
+        }
+        if (compressedResult.status === 'fulfilled') {
+            return compressedResult.value;
+        }
+
+        // None succeeded - mint not found
+        throw new Error(
+            `Mint not found: ${address.toString()}. ` +
+                `Tried TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, and CTOKEN_PROGRAM_ID.`,
+        );
+    }
+
     // If programId is compressed token program, fetch compressed mint
     if (programId.equals(CTOKEN_PROGRAM_ID)) {
         const addressTree = getDefaultAddressTreeInfo().tree;

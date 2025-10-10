@@ -100,6 +100,7 @@
         "test:e2e:create-compressed-mint": "pnpm test-validator && vitest run tests/e2e/create-compressed-mint.test.ts --reporter=verbose",
         "test:e2e:mint-to-compressed": "pnpm test-validator && vitest run tests/e2e/mint-to-compressed.test.ts --reporter=verbose",
         "test:e2e:mint-to-ctoken": "pnpm test-validator && vitest run tests/e2e/mint-to-ctoken.test.ts --reporter=verbose",
+        "test:e2e:mint-to-interface": "pnpm test-validator && vitest run tests/e2e/mint-to-interface.test.ts --reporter=verbose",
         "test:e2e:update-mint": "pnpm test-validator && vitest run tests/e2e/update-mint.test.ts --reporter=verbose",
         "test:e2e:update-metadata": "pnpm test-validator && vitest run tests/e2e/update-metadata.test.ts --reporter=verbose",
         "test:e2e:create-associated-ctoken": "pnpm test-validator && vitest run tests/e2e/create-associated-ctoken.test.ts --reporter=verbose",

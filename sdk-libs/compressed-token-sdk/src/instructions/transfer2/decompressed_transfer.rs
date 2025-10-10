@@ -191,8 +191,8 @@ pub fn transfer_ctoken_to_spl_signed<'info>(
         destination_spl_token_account, // Index 1: Destination owner
         authority,                     // Index 2: Authority (signer)
         source_ctoken_account,         // Index 3: Source SPL token account
-                                       // compressed_token_pool_pda,     // Index 4: Token pool PDA
-                                       // spl_token_program,             // Index 5: SPL Token program
+        compressed_token_pool_pda,     // Index 4: Token pool PDA
+        spl_token_program,             // Index 5: SPL Token program
     ];
 
     invoke_signed(&instruction, &account_infos, signer_seeds)?;

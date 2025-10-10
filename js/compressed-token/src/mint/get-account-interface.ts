@@ -3,6 +3,8 @@ import {
     TOKEN_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID,
     unpackAccount as splUnpackAccount,
+    TokenAccountNotFoundError,
+    TokenInvalidAccountOwnerError,
 } from '@solana/spl-token';
 import {
     Rpc,
@@ -116,7 +118,7 @@ function convertTokenDataToAccount(
  * @param rpc        RPC connection to use
  * @param address    Token account address
  * @param commitment Desired level of commitment for querying the state
- * @param programId  Token program ID (defaults to TOKEN_PROGRAM_ID)
+ * @param programId  Token program ID. If not provided, tries all programs concurrently to auto-detect
  *
  * @return Token account information with compression context if applicable
  */
@@ -124,13 +126,131 @@ export async function getAccountInterface(
     rpc: Rpc,
     address: PublicKey,
     commitment?: Commitment,
-    programId: PublicKey = TOKEN_PROGRAM_ID,
+    programId?: PublicKey,
 ): Promise<{
     accountInfo: AccountInfo<Buffer>;
     parsed: Account;
     isCompressed: boolean;
     merkleContext?: MerkleContext;
 }> {
+    // Auto-detect: try all programs in parallel (4 calls max)
+    if (!programId) {
+        const [
+            tokenResult,
+            token2022Result,
+            ctokenOnchainResult,
+            ctokenCompressedResult,
+        ] = await Promise.allSettled([
+            // 1. TOKEN_PROGRAM_ID onchain
+            rpc.getAccountInfo(address, commitment).then(info => {
+                if (!info || !info.owner.equals(TOKEN_PROGRAM_ID)) {
+                    throw new Error('Not a TOKEN_PROGRAM_ID account');
+                }
+                const account = splUnpackAccount(
+                    address,
+                    info,
+                    TOKEN_PROGRAM_ID,
+                );
+                return {
+                    accountInfo: info,
+                    parsed: account,
+                    isCompressed: false,
+                    merkleContext: undefined,
+                };
+            }),
+            // 2. TOKEN_2022_PROGRAM_ID onchain
+            rpc.getAccountInfo(address, commitment).then(info => {
+                if (!info || !info.owner.equals(TOKEN_2022_PROGRAM_ID)) {
+                    throw new Error('Not a TOKEN_2022_PROGRAM_ID account');
+                }
+                const account = splUnpackAccount(
+                    address,
+                    info,
+                    TOKEN_2022_PROGRAM_ID,
+                );
+                return {
+                    accountInfo: info,
+                    parsed: account,
+                    isCompressed: false,
+                    merkleContext: undefined,
+                };
+            }),
+            // 3. CTOKEN_PROGRAM_ID onchain
+            rpc.getAccountInfo(address, commitment).then(info => {
+                if (!info || !info.owner.equals(CTOKEN_PROGRAM_ID)) {
+                    throw new Error('Not a CTOKEN onchain account');
+                }
+                const parsed = parseTokenData(info.data);
+                if (!parsed) throw new Error('Invalid token data');
+                return {
+                    accountInfo: info,
+                    merkleContext: undefined,
+                    parsed: convertTokenDataToAccount(address, parsed),
+                    isCompressed: false,
+                };
+            }),
+            // 4. CTOKEN_PROGRAM_ID compressed
+            rpc.getCompressedTokenAccountsByOwner(address).then(result => {
+                const compressedAccount =
+                    result.items.length > 0
+                        ? result.items[0].compressedAccount
+                        : null;
+                if (!compressedAccount?.data?.data.length) {
+                    throw new Error('Not a compressed token account');
+                }
+                if (!compressedAccount.owner.equals(CTOKEN_PROGRAM_ID)) {
+                    throw new Error('Invalid owner for compressed token');
+                }
+                const parsed = parseTokenData(compressedAccount.data.data);
+                if (!parsed) throw new Error('Invalid token data');
+
+                const accountInfo: AccountInfo<Buffer> = {
+                    executable: false,
+                    owner: compressedAccount.owner,
+                    lamports: compressedAccount.lamports.toNumber(),
+                    data: Buffer.concat([
+                        Buffer.from(compressedAccount.data.discriminator),
+                        compressedAccount.data.data,
+                    ]),
+                    rentEpoch: undefined,
+                };
+
+                return {
+                    accountInfo,
+                    merkleContext: {
+                        treeInfo: compressedAccount.treeInfo,
+                        hash: compressedAccount.hash,
+                        leafIndex: compressedAccount.leafIndex,
+                        proveByIndex: compressedAccount.proveByIndex,
+                    },
+                    parsed: convertTokenDataToAccount(address, parsed),
+                    isCompressed: true,
+                };
+            }),
+        ]);
+
+        // Return whichever succeeded
+        if (tokenResult.status === 'fulfilled') {
+            return tokenResult.value;
+        }
+        if (token2022Result.status === 'fulfilled') {
+            return token2022Result.value;
+        }
+        if (ctokenOnchainResult.status === 'fulfilled') {
+            return ctokenOnchainResult.value;
+        }
+        if (ctokenCompressedResult.status === 'fulfilled') {
+            return ctokenCompressedResult.value;
+        }
+
+        // None succeeded - account not found
+        throw new Error(
+            `Token account not found: ${address.toString()}. ` +
+                `Tried TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, and CTOKEN_PROGRAM_ID (both onchain and compressed).`,
+        );
+    }
+
+    // Handle specific programId
     if (programId.equals(CTOKEN_PROGRAM_ID)) {
         const [onchainResult, compressedResult] = await Promise.allSettled([
             rpc.getAccountInfo(address, commitment),
@@ -209,7 +329,7 @@ export async function getAccountInterface(
             };
         }
 
-        throw new Error('Expected not to throw');
+        throw new TokenAccountNotFoundError();
     }
 
     if (
@@ -218,7 +338,7 @@ export async function getAccountInterface(
     ) {
         const info = await rpc.getAccountInfo(address, commitment);
         if (!info) {
-            throw new Error('Expected not to throw');
+            throw new TokenAccountNotFoundError();
         }
 
         const account = splUnpackAccount(address, info, programId);
