@@ -4,6 +4,15 @@ import { resolve } from 'path';
 export default defineConfig({
     logLevel: 'info',
     test: {
+        // Use forks pool for better native module support (LiteSVM)
+        // Threads pool can cause std::bad_alloc with non-thread-safe native code
+        pool: 'forks',
+        poolOptions: {
+            forks: {
+                maxForks: 4,
+                minForks: 1,
+            },
+        },
         include: process.env.EXCLUDE_E2E
             ? []
             : ['src/**/__tests__/*.test.ts', 'tests/**/*.test.ts'],

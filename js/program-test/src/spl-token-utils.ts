@@ -194,7 +194,7 @@ export async function splGetTokenAccountBalance(
   const amount =
     typeof data.amount === "bigint"
       ? data.amount
-      : BigInt(data.amount.toString());
+      : BigInt((data.amount as any).toString());
   return amount;
 }
 
@@ -222,7 +222,7 @@ export async function splGetMintInfo(
   const supply =
     typeof data.supply === "bigint"
       ? data.supply
-      : BigInt(data.supply.toString());
+      : BigInt((data.supply as any).toString());
   const isInitialized =
     typeof data.isInitialized === "boolean"
       ? data.isInitialized

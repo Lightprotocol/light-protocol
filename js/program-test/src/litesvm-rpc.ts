@@ -783,7 +783,11 @@ export class LiteSVMRpc extends TestRpc {
 
     // Parse SPL token account data using proper layout
     const accountData = AccountLayout.decode(Buffer.from(account.data));
-    const amount = accountData.amount;
+    // Convert amount to bigint first (it could be BN or bigint depending on spl-token version)
+    const amountBigInt =
+      typeof accountData.amount === "bigint"
+        ? accountData.amount
+        : BigInt((accountData.amount as any).toString());
     const mintPubkey = new PublicKey(accountData.mint);
 
     // Fetch mint account to get decimals
@@ -799,10 +803,12 @@ export class LiteSVMRpc extends TestRpc {
     return {
       context: { slot: 1 },
       value: {
-        amount: amount.toString(),
+        amount: amountBigInt.toString(),
         decimals,
-        uiAmount: Number(amount) / Math.pow(10, decimals),
-        uiAmountString: (Number(amount) / Math.pow(10, decimals)).toString(),
+        uiAmount: Number(amountBigInt) / Math.pow(10, decimals),
+        uiAmountString: (
+          Number(amountBigInt) / Math.pow(10, decimals)
+        ).toString(),
       },
     };
   }

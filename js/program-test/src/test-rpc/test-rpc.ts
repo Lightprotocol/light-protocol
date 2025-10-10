@@ -378,6 +378,12 @@ export class TestRpc extends Connection implements CompressionApiInterface {
               .get(tree.toBase58())!
               .leaves.findIndex((leaf) => bn(leaf).eq(hashes[i]));
 
+            if (arrayPosition === -1) {
+              throw new Error(
+                `Hash ${hashes[i].toString()} not found in tree ${tree.toBase58()}`,
+              );
+            }
+
             const leafIndex = leavesByTree.get(tree.toBase58())!.leafIndices[
               arrayPosition
             ];

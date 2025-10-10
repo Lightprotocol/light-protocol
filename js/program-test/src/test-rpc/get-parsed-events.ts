@@ -75,7 +75,11 @@ export async function getParsedEvents(
 
     for (const ix of txRaw?.transaction.message.compiledInstructions || []) {
       if (ix.data && ix.data.length > 0) {
-        const decodedData = new Uint8Array(Buffer.from(ix.data, "base64"));
+        // ix.data can be either a base64 string or Uint8Array depending on transaction type
+        const decodedData =
+          typeof ix.data === "string"
+            ? new Uint8Array(Buffer.from(ix.data, "base64"))
+            : new Uint8Array(Buffer.from(ix.data as any, "base64"));
         if (
           decodedData.length === COMPUTE_BUDGET_PATTERN.length &&
           COMPUTE_BUDGET_PATTERN.every((byte, idx) => byte === decodedData[idx])
