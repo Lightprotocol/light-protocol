@@ -1,8 +1,9 @@
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 
+#[cfg(feature = "poseidon")]
+use crate::DataHasher;
 use crate::{
-    account::LightAccount, AnchorDeserialize, AnchorSerialize, DataHasher, LightDiscriminator,
-    ProgramError,
+    account::LightAccount, AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
 };
 
 /// Trait for Light CPI instruction types
@@ -39,6 +40,7 @@ pub trait LightCpiInstruction: Sized {
     ///
     /// # Type Parameters
     /// * `A` - The compressed account data type that implements DataHasher
+    #[cfg(feature = "poseidon")]
     #[must_use = "with_light_account_poseidon returns a new value"]
     fn with_light_account_poseidon<A>(
         self,

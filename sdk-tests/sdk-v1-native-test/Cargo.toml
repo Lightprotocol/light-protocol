@@ -22,7 +22,7 @@ default = []
 [dependencies]
 light-sdk = { workspace = true }
 light-sdk-types = { workspace = true }
-light-hasher = { workspace = true, features = ["solana"] }
+light-hasher = { workspace = true, features = ["solana", "poseidon"] }
 solana-program = { workspace = true }
 light-macros = { workspace = true, features = ["solana"] }
 borsh = { workspace = true }

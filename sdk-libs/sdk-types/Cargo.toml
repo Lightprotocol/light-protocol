@@ -10,6 +10,7 @@ description = "Core types for Light Protocol SDK"
 anchor = ["anchor-lang", "light-compressed-account/anchor"]
 v2 = []
 cpi-context = []
+poseidon = ["light-hasher/poseidon"]
 
 [dependencies]
 anchor-lang = { workspace = true, optional = true }

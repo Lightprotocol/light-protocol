@@ -12,7 +12,7 @@ v2 = ["light-sdk-types/v2"]
 
 [dependencies]
 pinocchio = { workspace = true }
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, features = ["poseidon"] }
 light-account-checks = { workspace = true, features = ["pinocchio"] }
 light-macros = { workspace = true }
 light-sdk-macros = { workspace = true }

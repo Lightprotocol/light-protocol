@@ -10,6 +10,7 @@ description = "Client library for Light Protocol"
 devenv = ["v2"]
 v2 = []
 program-test = ["solana-banks-client", "litesvm"]
+poseidon = ["light-hasher/poseidon"]
 
 [dependencies]
 # Solana dependencies

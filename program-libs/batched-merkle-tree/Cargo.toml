@@ -9,6 +9,7 @@ edition = "2021"
 [features]
 default = ["solana"]
 test-only = []
+poseidon = ["light-hasher/poseidon"]
 solana = [
     "solana-program-error",
     "solana-account-info",

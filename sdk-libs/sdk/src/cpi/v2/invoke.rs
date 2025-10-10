@@ -6,13 +6,14 @@ use light_sdk_types::CpiSigner;
 #[cfg(feature = "cpi-context")]
 use super::lowlevel::CompressedCpiContext;
 use super::lowlevel::{to_account_metas, InAccount, InstructionDataInvokeCpiWithReadOnly};
+#[cfg(feature = "poseidon")]
+use crate::{account::poseidon::LightAccount as LightAccountPoseidon, DataHasher};
 use crate::{
-    account::{poseidon::LightAccount as LightAccountPoseidon, LightAccount},
+    account::LightAccount,
     cpi::{account::CpiAccountsTrait, instruction::LightCpiInstruction, v2::CpiAccounts},
     error::LightSdkError,
     instruction::account_info::CompressedAccountInfoTrait,
-    AccountInfo, AccountMeta, AnchorDeserialize, AnchorSerialize, DataHasher, LightDiscriminator,
-    ProgramError,
+    AccountInfo, AccountMeta, AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
 };
 
 impl<'info> CpiAccountsTrait<'info> for CpiAccounts<'_, 'info> {
@@ -94,6 +95,7 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
         Ok(self)
     }
 
+    #[cfg(feature = "poseidon")]
     fn with_light_account_poseidon<A>(
         mut self,
         account: LightAccountPoseidon<'_, A>,
@@ -218,6 +220,7 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
         Ok(self)
     }
 
+    #[cfg(feature = "poseidon")]
     fn with_light_account_poseidon<A>(
         mut self,
         account: crate::account::poseidon::LightAccount<'_, A>,

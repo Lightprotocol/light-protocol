@@ -45,6 +45,7 @@ solana-sdk = { workspace = true }
 [dev-dependencies]
 rand = { workspace = true }
 num-bigint = { workspace = true }
+light-hasher = { workspace = true, features = ["poseidon"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

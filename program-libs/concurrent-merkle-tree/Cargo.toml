@@ -14,7 +14,7 @@ pinocchio = ["dep:pinocchio", "light-hasher/pinocchio"]
 [dependencies]
 borsh = { workspace = true }
 light-bounded-vec = { workspace = true, features = ["solana"] }
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, features = ["poseidon"]}
 memoffset = "0.9"
 solana-program-error = { workspace = true, optional = true }
 pinocchio = { workspace = true, optional = true }

@@ -9,6 +9,7 @@ edition = "2021"
 default = []
 devenv = ["v2", "light-client/devenv", "light-prover-client/devenv", "dep:account-compression", "dep:light-compressed-token", "dep:light-registry", "dep:light-batched-merkle-tree", "dep:light-concurrent-merkle-tree"]
 v2 = ["light-client/v2"]
+poseidon = ["light-hasher/poseidon"]
 
 [dependencies]
 light-sdk = { workspace = true, features = ["anchor"] }

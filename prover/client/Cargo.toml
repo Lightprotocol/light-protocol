@@ -12,7 +12,7 @@ devenv = []
 
 [dependencies]
 
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, features = ["poseidon"] }
 light-indexed-array = { workspace = true }
 light-sparse-merkle-tree = { workspace = true }
 

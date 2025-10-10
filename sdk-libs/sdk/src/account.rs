@@ -128,9 +128,11 @@ use light_compressed_account::{
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaTrait;
 use solana_pubkey::Pubkey;
 
+#[cfg(feature = "poseidon")]
+use crate::light_hasher::Poseidon;
 use crate::{
     error::LightSdkError,
-    light_hasher::{DataHasher, Hasher, Poseidon, Sha256},
+    light_hasher::{DataHasher, Hasher, Sha256},
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
 
@@ -151,6 +153,7 @@ pub mod sha {
 
 /// Poseidon hashed Light Account.
 /// Poseidon hashing is zk friendly and enables you to do zk proofs over your compressed account data.
+#[cfg(feature = "poseidon")]
 pub mod poseidon {
     use super::*;
     /// Light Account type using Poseidon hashing.
