@@ -1,3 +1,2 @@
-test-ledger/photon.log
-test-ledger/*.log
+test-ledger
 dist/
