@@ -79,9 +79,9 @@
         "vitest": "^2.1.1"
     },
     "scripts": {
-        "test": "pnpm test:e2e:all",
-        "test:v1": "LIGHT_PROTOCOL_VERSION=V1 pnpm test",
-        "test:v2": "LIGHT_PROTOCOL_VERSION=V2 pnpm test",
+        "test": "pnpm test:program-test && pnpm test:e2e:all",
+        "test:v1": "LIGHT_PROTOCOL_VERSION=V1 pnpm test:program-test && LIGHT_PROTOCOL_VERSION=V1 pnpm test:e2e:all",
+        "test:v2": "LIGHT_PROTOCOL_VERSION=V2 pnpm test:program-test && LIGHT_PROTOCOL_VERSION=V2 pnpm test:e2e:all",
         "test:program-test": "vitest run tests/program-test --reporter=verbose",
         "test:program-test:v1": "LIGHT_PROTOCOL_VERSION=V1 pnpm test:program-test",
         "test:program-test:v2": "LIGHT_PROTOCOL_VERSION=V2 pnpm test:program-test",
@@ -142,10 +142,15 @@
                 ]
             },
             "build-ci": {
-                "dependsOn": ["@lightprotocol/stateless.js:build-ci"]
+                "dependsOn": [
+                    "@lightprotocol/stateless.js:build-ci"
+                ]
             },
             "test-ci": {
-                "dependsOn": ["@lightprotocol/stateless.js:test-ci"]
+                "dependsOn": [
+                    "@lightprotocol/stateless.js:test-ci",
+                    "@lightprotocol/program-test:build"
+                ]
             }
         }
     }
