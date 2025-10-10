@@ -4,17 +4,14 @@ import { resolve } from 'path';
 export default defineConfig({
     logLevel: 'info',
     test: {
-        // Use vmForks pool to enable memoryLimit for worker recycling
-        // This prevents GC corruption from std::bad_alloc issues
-        pool: 'vmForks',
+        // Use forks pool with singleFork to run all tests in one process
+        pool: 'forks',
         // Run all tests sequentially (no parallel test files)
         fileParallelism: false,
         poolOptions: {
-            vmForks: {
-                maxForks: 1,
-                minForks: 1,
-                // Recycle worker when it exceeds 100MB to prevent GC corruption
-                memoryLimit: '100MB',
+            forks: {
+                // Run all tests sequentially in a single forked process
+                singleFork: true,
             },
         },
         include: process.env.EXCLUDE_E2E
