@@ -40,13 +40,17 @@ async function getBalances(
     recipient: PublicKey,
     mint: PublicKey,
 ): Promise<BalanceInfo> {
+    const recipientBalance = await rpc.getTokenAccountBalance(recipient);
+    console.log('[TEST] getBalances - recipientBalance:', JSON.stringify(recipientBalance));
+    console.log('[TEST] getBalances - recipientBalance.value:', recipientBalance.value);
+    console.log('[TEST] getBalances - recipientBalance.value.amount:', recipientBalance.value?.amount);
     return {
         delegate: (
             await rpc.getCompressedTokenAccountsByDelegate(delegate, { mint })
         ).items,
         owner: (await rpc.getCompressedTokenAccountsByOwner(owner, { mint }))
             .items,
-        recipient: await rpc.getTokenAccountBalance(recipient),
+        recipient: recipientBalance,
     };
 }
 

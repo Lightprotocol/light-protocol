@@ -858,15 +858,34 @@ export class LiteSVMRpc extends TestRpc {
       throw err;
     }
     console.log(
-      "[litesvm-rpc.ts:787] Converting amount:",
-      typeof accountData.amount,
-      accountData.amount,
+      "[litesvm-rpc.ts] accountData full object:",
+      JSON.stringify(accountData, (key, value) =>
+        typeof value === 'bigint' ? value.toString() + 'n' : value
+      )
+    );
+    console.log(
+      "[litesvm-rpc.ts] Converting amount:",
+      "type:", typeof accountData.amount,
+      "value:", accountData.amount,
+      "isUndefined:", accountData.amount === undefined,
+      "isNull:", accountData.amount === null,
     );
     // Convert amount to bigint first (it could be BN or bigint depending on spl-token version)
-    const amountBigInt =
-      typeof accountData.amount === "bigint"
-        ? accountData.amount
-        : BigInt((accountData.amount as any).toString());
+    let amountBigInt: bigint;
+    if (accountData.amount === undefined || accountData.amount === null) {
+      console.warn("[litesvm-rpc.ts] WARNING: accountData.amount is undefined/null, using 0 as fallback");
+      amountBigInt = BigInt(0);
+    } else if (typeof accountData.amount === "bigint") {
+      amountBigInt = accountData.amount;
+    } else {
+      try {
+        amountBigInt = BigInt((accountData.amount as any).toString());
+      } catch (err) {
+        console.error("[litesvm-rpc.ts] ERROR converting amount to BigInt:", err);
+        console.error("[litesvm-rpc.ts] Falling back to 0");
+        amountBigInt = BigInt(0);
+      }
+    }
     const mintPubkey = new PublicKey(accountData.mint);
 
     // Fetch mint account to get decimals
