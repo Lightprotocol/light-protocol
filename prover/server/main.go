@@ -577,7 +577,7 @@ func runCli() {
 					},
 					&cli.StringFlag{
 						Name:  "preload-keys",
-						Usage: "Preload: none (lazy load all), run-mode (preload for run mode), all (preload everything)",
+						Usage: "Preload keys: none (lazy load all), all (preload everything), or a run mode (rpc, forester, forester-test, full, full-test, local-rpc)",
 						Value: "none",
 					},
 					&cli.StringSliceFlag{
@@ -653,21 +653,20 @@ func runCli() {
 						}
 					}
 
-					if preloadKeys == "run-mode" {
-						if runModeStr == "" {
-							return fmt.Errorf("--run-mode must be specified when using --preload-keys=run-mode")
-						}
-						logging.Logger().Info().Str("run_mode", string(runMode)).Msg("Preloading keys for run mode")
-						if err := keyManager.PreloadForRunMode(runMode); err != nil {
-							return fmt.Errorf("failed to preload keys for run mode: %w", err)
-						}
-					} else if preloadKeys == "all" {
+					if preloadKeys == "all" {
 						logging.Logger().Info().Msg("Preloading all keys")
 						if err := keyManager.PreloadAll(); err != nil {
 							return fmt.Errorf("failed to preload all keys: %w", err)
 						}
 					} else if preloadKeys != "none" {
-						return fmt.Errorf("invalid --preload-keys value: %s (must be none, run-mode, or all)", preloadKeys)
+						preloadRunMode, err := parseRunMode(preloadKeys)
+						if err != nil {
+							return fmt.Errorf("invalid --preload-keys value: %s (must be none, all, or a valid run mode: rpc, forester, forester-test, full, full-test, local-rpc)", preloadKeys)
+						}
+						logging.Logger().Info().Str("run_mode", string(preloadRunMode)).Msg("Preloading keys for run mode")
+						if err := keyManager.PreloadForRunMode(preloadRunMode); err != nil {
+							return fmt.Errorf("failed to preload keys for run mode: %w", err)
+						}
 					}
 
 					if len(preloadCircuits) > 0 {
