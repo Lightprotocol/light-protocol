@@ -59,10 +59,18 @@ async function assertCompress(
 
     const totalAmount = refAmounts.reduce((acc, curr) => acc.add(curr), bn(0));
 
+    // Defensive type conversion: ensure amount is always a string before passing to bn()
+    const afterAmountStr = String(refSenderAtaBalanceAfter.value.amount);
+    console.log('[TEST] assertCompress - refSenderAtaBalanceAfter.value.amount:', typeof refSenderAtaBalanceAfter.value.amount, refSenderAtaBalanceAfter.value.amount);
+    console.log('[TEST] assertCompress - afterAmountStr:', typeof afterAmountStr, afterAmountStr);
+    console.log('[TEST] assertCompress - refSenderAtaBalanceBefore:', refSenderAtaBalanceBefore.toString());
+    console.log('[TEST] assertCompress - totalAmount:', totalAmount.toString());
+    console.log('[TEST] assertCompress - expected:', refSenderAtaBalanceBefore.sub(totalAmount).toString());
+
     expect(
         refSenderAtaBalanceBefore
             .sub(totalAmount)
-            .eq(bn(refSenderAtaBalanceAfter.value.amount)),
+            .eq(bn(afterAmountStr)),
     ).toBe(true);
 
     for (let i = 0; i < refRecipients.length; i++) {
@@ -194,9 +202,10 @@ describe('compress', () => {
             stateTreeInfo,
             tokenPoolInfo,
         );
+        // Defensive type conversion: ensure amount is always a string before passing to bn()
         await assertCompress(
             rpc,
-            bn(senderAtaBalanceBefore.value.amount),
+            bn(String(senderAtaBalanceBefore.value.amount)),
             bobAta,
             mint,
             [bn(700)],
@@ -229,10 +238,11 @@ describe('compress', () => {
             tokenPoolInfo,
         );
 
+        // Defensive type conversion: ensure amount is always a string before passing to bn()
         for (let i = 0; i < recipients.length; i++) {
             await assertCompress(
                 rpc,
-                bn(senderAtaBalanceBefore.value.amount),
+                bn(String(senderAtaBalanceBefore.value.amount)),
                 bobAta,
                 mint,
                 amounts.slice(0, 11),
@@ -245,8 +255,16 @@ describe('compress', () => {
         const totalCompressed = amounts
             .slice(0, 11)
             .reduce((sum, amount) => sum.add(amount), bn(0));
-        expect(senderAtaBalanceAfter.value.amount).toEqual(
-            bn(senderAtaBalanceBefore.value.amount)
+
+        // Defensive type conversion: ensure amount is always a string before passing to bn()
+        const beforeAmount = String(senderAtaBalanceBefore.value.amount);
+        const afterAmount = String(senderAtaBalanceAfter.value.amount);
+        console.log('[TEST] compress.test - beforeAmount:', typeof beforeAmount, beforeAmount);
+        console.log('[TEST] compress.test - afterAmount:', typeof afterAmount, afterAmount);
+        console.log('[TEST] compress.test - totalCompressed:', totalCompressed.toString());
+
+        expect(afterAmount).toEqual(
+            bn(beforeAmount)
                 .sub(totalCompressed)
                 .toString(),
         );
@@ -399,9 +417,10 @@ describe('compress', () => {
             stateTreeInfo,
             tokenPoolInfoT22,
         );
+        // Defensive type conversion: ensure amount is always a string before passing to bn()
         await assertCompress(
             rpc,
-            bn(senderAtaBalanceBefore.value.amount),
+            bn(String(senderAtaBalanceBefore.value.amount)),
             bobToken2022Ata,
             token22Mint,
             [bn(701)],

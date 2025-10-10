@@ -860,20 +860,26 @@ export class LiteSVMRpc extends TestRpc {
     console.log(
       "[litesvm-rpc.ts] accountData full object:",
       JSON.stringify(accountData, (key, value) =>
-        typeof value === 'bigint' ? value.toString() + 'n' : value
-      )
+        typeof value === "bigint" ? value.toString() + "n" : value,
+      ),
     );
     console.log(
       "[litesvm-rpc.ts] Converting amount:",
-      "type:", typeof accountData.amount,
-      "value:", accountData.amount,
-      "isUndefined:", accountData.amount === undefined,
-      "isNull:", accountData.amount === null,
+      "type:",
+      typeof accountData.amount,
+      "value:",
+      accountData.amount,
+      "isUndefined:",
+      accountData.amount === undefined,
+      "isNull:",
+      accountData.amount === null,
     );
     // Convert amount to bigint first (it could be BN or bigint depending on spl-token version)
     let amountBigInt: bigint;
     if (accountData.amount === undefined || accountData.amount === null) {
-      console.warn("[litesvm-rpc.ts] WARNING: accountData.amount is undefined/null, using 0 as fallback");
+      console.warn(
+        "[litesvm-rpc.ts] WARNING: accountData.amount is undefined/null, using 0 as fallback",
+      );
       amountBigInt = BigInt(0);
     } else if (typeof accountData.amount === "bigint") {
       amountBigInt = accountData.amount;
@@ -881,7 +887,10 @@ export class LiteSVMRpc extends TestRpc {
       try {
         amountBigInt = BigInt((accountData.amount as any).toString());
       } catch (err) {
-        console.error("[litesvm-rpc.ts] ERROR converting amount to BigInt:", err);
+        console.error(
+          "[litesvm-rpc.ts] ERROR converting amount to BigInt:",
+          err,
+        );
         console.error("[litesvm-rpc.ts] Falling back to 0");
         amountBigInt = BigInt(0);
       }
@@ -901,7 +910,7 @@ export class LiteSVMRpc extends TestRpc {
     const result = {
       context: { slot: 1 },
       value: {
-        amount: amountBigInt.toString(),
+        amount: amountBigInt.toLocaleString(),
         decimals,
         uiAmount: Number(amountBigInt) / Math.pow(10, decimals),
         uiAmountString: (
