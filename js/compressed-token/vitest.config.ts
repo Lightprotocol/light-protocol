@@ -4,16 +4,15 @@ import { resolve } from 'path';
 export default defineConfig({
     logLevel: 'info',
     test: {
-        // Use forks pool with singleFork to run all tests in one process
-        pool: 'forks',
+        // Use threads pool instead of forks to avoid native addon corruption
+        // Threads share the same V8 isolate and native addon context
+        pool: 'threads',
         // Run all tests sequentially (no parallel test files)
         fileParallelism: false,
         poolOptions: {
-            forks: {
-                // Run all tests sequentially in a single forked process
-                singleFork: true,
-                // Set max heap size to 4GB
-                execArgv: ['--max-old-space-size=4096'],
+            threads: {
+                // Run all tests sequentially in a single thread
+                singleThread: true,
             },
         },
         include: process.env.EXCLUDE_E2E

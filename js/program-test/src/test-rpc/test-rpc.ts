@@ -336,10 +336,30 @@ export class TestRpc extends Connection implements CompressionApiInterface {
       console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Processing tree:', treeKey, 'with', leaves.length, 'leaves, treeType:', treeInfo.treeType);
 
       let merkleTree: MerkleTree | undefined;
+      console.log('[TEST-RPC] treeInfo.treeType value:', treeInfo.treeType, 'TreeType.StateV1:', TreeType.StateV1, 'TreeType.StateV2:', TreeType.StateV2);
       if (treeInfo.treeType === TreeType.StateV1) {
         console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Creating V1 MerkleTree with depth', this.depth);
         console.log('[TEST-RPC] getMultipleCompressedAccountProofs: All leaves:', JSON.stringify(leaves));
-        const leafStrings = leaves.map((leaf) => bn(leaf).toString());
+
+        // Detailed logging for each leaf
+        const leafStrings = leaves.map((leaf, idx) => {
+          try {
+            const leafBn = bn(leaf);
+            const leafStr = leafBn.toString();
+            console.log(`[TEST-RPC] Leaf[${idx}]:`, {
+              raw: JSON.stringify(leaf).slice(0, 100),
+              bn: leafBn.toString(16).slice(0, 32) + '...',
+              decimal: leafStr,
+              length: leafStr.length,
+              valid: /^[0-9]+$/.test(leafStr)
+            });
+            return leafStr;
+          } catch (err) {
+            console.log(`[TEST-RPC] ERROR converting leaf[${idx}]:`, err, 'raw:', JSON.stringify(leaf).slice(0, 100));
+            throw err;
+          }
+        });
+
         console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Leaf strings:', JSON.stringify(leafStrings));
         console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Calling new MerkleTree...');
         merkleTree = new MerkleTree(
@@ -353,15 +373,51 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         /// first forester transaction. And since test-rpc is only used
         /// for non-forested tests, we must return a tree with
         /// zerovalues.
+        console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Creating V2 MerkleTree (empty, depth 32)');
+        console.log('[TEST-RPC] lightWasm object:', typeof this.lightWasm, 'has poseidonHashString:', typeof this.lightWasm.poseidonHashString);
+        try {
+          console.log('[TEST-RPC] Testing poseidonHashString with ["0", "0"]...');
+          const testHash = this.lightWasm.poseidonHashString(["0", "0"]);
+          console.log('[TEST-RPC] poseidonHashString test result:', testHash);
+        } catch (err) {
+          console.log('[TEST-RPC] ERROR testing poseidonHashString:', err);
+        }
+        console.log('[TEST-RPC] Creating MerkleTree...');
         merkleTree = new MerkleTree(32, this.lightWasm, []);
+        console.log('[TEST-RPC] V2 MerkleTree created successfully');
       } else {
         throw new Error(
           `Invalid tree type: ${treeInfo.treeType} in test-rpc.ts`,
         );
       }
 
+      console.log('[TEST-RPC] Starting hash matching loop, hashes.length:', hashes.length);
       for (let i = 0; i < hashes.length; i++) {
-        const leafIndex = leaves.findIndex((leaf) => bn(leaf).eq(hashes[i]));
+        console.log(`[TEST-RPC] Processing hash[${i}]:`, hashes[i].toString('hex').slice(0, 16) + '...');
+        console.log(`[TEST-RPC] Finding leafIndex in`, leaves.length, 'leaves');
+        console.log(`[TEST-RPC] leaves[0] sample:`, JSON.stringify(leaves[0]).slice(0, 100));
+
+        let leafIndex: number;
+        try {
+          leafIndex = leaves.findIndex((leaf, leafIdx) => {
+            try {
+              const leafBn = bn(leaf);
+              const matches = leafBn.eq(hashes[i]);
+              if (leafIdx === 0) {
+                console.log(`[TEST-RPC] First leaf comparison: leaf[0] as BN:`, leafBn.toString(16).slice(0, 32) + '...', 'matches:', matches);
+              }
+              return matches;
+            } catch (err) {
+              console.log(`[TEST-RPC] ERROR in findIndex at leafIdx=${leafIdx}:`, err);
+              console.log(`[TEST-RPC] Problematic leaf:`, JSON.stringify(leaf).slice(0, 200));
+              throw err;
+            }
+          });
+          console.log(`[TEST-RPC] Found leafIndex:`, leafIndex);
+        } catch (err) {
+          console.log(`[TEST-RPC] ERROR finding leafIndex for hash[${i}]:`, err);
+          throw err;
+        }
 
         /// If leaf is part of current tree, return proof
         if (leafIndex !== -1) {
