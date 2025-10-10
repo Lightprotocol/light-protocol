@@ -4,7 +4,7 @@ import { PublicKey, Signer, Keypair } from '@solana/web3.js';
 import { unpackMint, unpackAccount } from '@solana/spl-token';
 import { createMint } from '../../src/actions';
 import { Rpc } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { NobleHasherFactory } from '@lightprotocol/program-test';
 import {
     createLiteSVMRpc,
     newAccountWithLamports,
@@ -52,7 +52,7 @@ describe('createMint', () => {
     let mintAuthority: Keypair;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
+        const lightWasm = await NobleHasherFactory.getInstance();
         rpc = await createLiteSVMRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
     });

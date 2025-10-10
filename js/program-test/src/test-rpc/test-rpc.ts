@@ -61,7 +61,6 @@ export interface TestRpcConfig {
 
 export type ClientSubscriptionId = number;
 export interface LightWasm {
-  blakeHash(input: string | Uint8Array, hashLength: number): Uint8Array;
   poseidonHash(input: string[] | BN[]): Uint8Array;
   poseidonHashString(input: string[] | BN[]): string;
   poseidonHashBN(input: string[] | BN[]): BN;

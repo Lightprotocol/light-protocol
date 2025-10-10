@@ -9,7 +9,7 @@ import {
     TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { NobleHasherFactory } from '@lightprotocol/program-test';
 import { createMint, mintTo, transfer } from '../../src/actions';
 import {
     getTokenPoolInfos,
@@ -32,7 +32,7 @@ describe('rpc-interop token', () => {
     let tokenPoolInfo: TokenPoolInfo;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
+        const lightWasm = await NobleHasherFactory.getInstance();
         rpc = createRpc();
         testRpc = await getTestRpc(lightWasm);
         payer = await newAccountWithLamports(rpc);

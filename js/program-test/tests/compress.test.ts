@@ -1,15 +1,18 @@
 import { describe, it, assert, beforeAll, expect } from "vitest";
 import { Keypair } from "@solana/web3.js";
-import { createLiteSVMRpc, newAccountWithLamports } from "../src";
+import {
+  createLiteSVMRpc,
+  newAccountWithLamports,
+  NobleHasherFactory,
+} from "../src";
 import { compress, bn } from "@lightprotocol/stateless.js";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 describe("compress with LiteSVM", () => {
   let rpc: any;
   let payer: Keypair;
 
   beforeAll(async () => {
-    const lightWasm = await WasmFactory.getInstance();
+    const lightWasm = await NobleHasherFactory.getInstance();
     rpc = await createLiteSVMRpc(lightWasm);
 
     // Create test account with lamports

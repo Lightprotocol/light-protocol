@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll } from "vitest";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
+import { NobleHasherFactory } from "../src";
 import { LightWasm } from "../src/test-rpc/test-rpc";
+import { WasmFactory } from "@lightprotocol/hasher.rs";
 import * as mod from "@noble/curves/abstract/modular.js";
 import * as poseidon from "@noble/curves/abstract/poseidon.js";
 
@@ -263,7 +264,7 @@ describe("Poseidon Hash Comparison: Light Protocol vs @noble/curves", () => {
   let lightWasm: LightWasm;
 
   beforeAll(async () => {
-    lightWasm = await WasmFactory.getInstance();
+    lightWasm = await NobleHasherFactory.getInstance();
   });
 
   describe("Hash comparison with 2 inputs", () => {
@@ -423,6 +424,155 @@ describe("Poseidon Hash Comparison: Light Protocol vs @noble/curves", () => {
       expect(BigInt(lightHash2)).toBe(nobleHash2[0]);
 
       console.log("✓ Input order affects hash (as expected)");
+    });
+  });
+
+  describe("Hash comparison with 3 inputs (t=4)", () => {
+    let wasmHasher: LightWasm;
+
+    beforeAll(async () => {
+      wasmHasher = await WasmFactory.getInstance();
+    });
+
+    it("should match hasher.rs for [0, 0, 0]", () => {
+      const input1 = BigInt("0");
+      const input2 = BigInt("0");
+      const input3 = BigInt("0");
+
+      const wasmHash = wasmHasher.poseidonHashString([
+        input1.toString(),
+        input2.toString(),
+        input3.toString(),
+      ]);
+      const nobleHash = lightWasm.poseidonHashString([
+        input1.toString(),
+        input2.toString(),
+        input3.toString(),
+      ]);
+
+      console.log("WASM hash [0, 0, 0]:", wasmHash);
+      console.log("Noble hash [0, 0, 0]:", nobleHash);
+
+      expect(BigInt(nobleHash)).toBe(BigInt(wasmHash));
+    });
+
+    it("should match hasher.rs for [1, 2, 3]", () => {
+      const input1 = BigInt("1");
+      const input2 = BigInt("2");
+      const input3 = BigInt("3");
+
+      const wasmHash = wasmHasher.poseidonHashString([
+        input1.toString(),
+        input2.toString(),
+        input3.toString(),
+      ]);
+      const nobleHash = lightWasm.poseidonHashString([
+        input1.toString(),
+        input2.toString(),
+        input3.toString(),
+      ]);
+
+      console.log("WASM hash [1, 2, 3]:", wasmHash);
+      console.log("Noble hash [1, 2, 3]:", nobleHash);
+
+      expect(BigInt(nobleHash)).toBe(BigInt(wasmHash));
+    });
+
+    it("should match hasher.rs for large numbers", () => {
+      const input1 = BigInt("123456789012345678901234567890");
+      const input2 = BigInt("987654321098765432109876543210");
+      const input3 = BigInt("555555555555555555555555555555");
+
+      const wasmHash = wasmHasher.poseidonHashString([
+        input1.toString(),
+        input2.toString(),
+        input3.toString(),
+      ]);
+      const nobleHash = lightWasm.poseidonHashString([
+        input1.toString(),
+        input2.toString(),
+        input3.toString(),
+      ]);
+
+      console.log("WASM hash [large, large, large]:", wasmHash);
+      console.log("Noble hash [large, large, large]:", nobleHash);
+
+      expect(BigInt(nobleHash)).toBe(BigInt(wasmHash));
+    });
+
+    it("should be deterministic with 3 inputs", () => {
+      const input1 = BigInt("42");
+      const input2 = BigInt("99");
+      const input3 = BigInt("777");
+
+      // Test WASM
+      const wasmHash1 = wasmHasher.poseidonHashString([
+        input1.toString(),
+        input2.toString(),
+        input3.toString(),
+      ]);
+      const wasmHash2 = wasmHasher.poseidonHashString([
+        input1.toString(),
+        input2.toString(),
+        input3.toString(),
+      ]);
+      expect(wasmHash1).toBe(wasmHash2);
+
+      // Test Noble
+      const nobleHash1 = lightWasm.poseidonHashString([
+        input1.toString(),
+        input2.toString(),
+        input3.toString(),
+      ]);
+      const nobleHash2 = lightWasm.poseidonHashString([
+        input1.toString(),
+        input2.toString(),
+        input3.toString(),
+      ]);
+      expect(nobleHash1).toBe(nobleHash2);
+
+      // Compare across implementations
+      expect(BigInt(nobleHash1)).toBe(BigInt(wasmHash1));
+
+      console.log("Both implementations are deterministic and match (3 inputs)!");
+    });
+
+    it("should produce different hashes for swapped inputs (3 inputs)", () => {
+      const input1 = BigInt("100");
+      const input2 = BigInt("200");
+      const input3 = BigInt("300");
+
+      const wasmHash1 = wasmHasher.poseidonHashString([
+        input1.toString(),
+        input2.toString(),
+        input3.toString(),
+      ]);
+      const wasmHash2 = wasmHasher.poseidonHashString([
+        input3.toString(),
+        input2.toString(),
+        input1.toString(),
+      ]);
+
+      const nobleHash1 = lightWasm.poseidonHashString([
+        input1.toString(),
+        input2.toString(),
+        input3.toString(),
+      ]);
+      const nobleHash2 = lightWasm.poseidonHashString([
+        input3.toString(),
+        input2.toString(),
+        input1.toString(),
+      ]);
+
+      // Both implementations should show order matters
+      expect(BigInt(wasmHash1)).not.toBe(BigInt(wasmHash2));
+      expect(BigInt(nobleHash1)).not.toBe(BigInt(nobleHash2));
+
+      // And they should match across implementations
+      expect(BigInt(nobleHash1)).toBe(BigInt(wasmHash1));
+      expect(BigInt(nobleHash2)).toBe(BigInt(wasmHash2));
+
+      console.log("✓ Input order affects hash (3 inputs, as expected)");
     });
   });
 });

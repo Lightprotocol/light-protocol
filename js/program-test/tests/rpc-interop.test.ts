@@ -19,7 +19,7 @@ import {
   newAccountWithLamports,
 } from "@lightprotocol/stateless.js";
 import { getTestRpc, TestRpc } from "../src";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
+import { NobleHasherFactory } from "../src";
 import { randomBytes } from "tweetnacl";
 
 const log = async (
@@ -51,7 +51,7 @@ describe("rpc-interop", () => {
   let executedTxs = 0;
   let stateTreeInfo: TreeInfo;
   beforeAll(async () => {
-    const lightWasm = await WasmFactory.getInstance();
+    const lightWasm = await NobleHasherFactory.getInstance();
     rpc = createRpc();
 
     testRpc = await getTestRpc(lightWasm);

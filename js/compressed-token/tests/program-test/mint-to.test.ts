@@ -26,7 +26,7 @@ import {
 } from '@lightprotocol/program-test';
 
 import { CompressedTokenProgram } from '../../src/program';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { NobleHasherFactory } from '@lightprotocol/program-test';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
@@ -72,7 +72,7 @@ describe('mintTo', () => {
     let tokenPoolInfo: TokenPoolInfo;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
+        const lightWasm = await NobleHasherFactory.getInstance();
         rpc = await createLiteSVMRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
         bob = await newAccountWithLamports(rpc, 1e9);

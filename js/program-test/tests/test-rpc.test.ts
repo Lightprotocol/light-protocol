@@ -11,8 +11,11 @@ import {
   bn,
   CompressedAccountWithMerkleContext,
 } from "@lightprotocol/stateless.js";
-import { createLiteSVMRpc, newAccountWithLamports } from "../src";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
+import {
+  createLiteSVMRpc,
+  newAccountWithLamports,
+  NobleHasherFactory,
+} from "../src";
 
 describe.sequential("test-rpc with LiteSVM", () => {
   const { merkleTree } = defaultTestStateTreeAccounts();
@@ -27,7 +30,7 @@ describe.sequential("test-rpc with LiteSVM", () => {
   const refCompressLamports = 1e7;
 
   beforeAll(async () => {
-    const lightWasm = await WasmFactory.getInstance();
+    const lightWasm = await NobleHasherFactory.getInstance();
     rpc = await createLiteSVMRpc(lightWasm);
 
     refPayer = await newAccountWithLamports(rpc, 1e9);

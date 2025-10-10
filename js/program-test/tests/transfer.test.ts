@@ -1,8 +1,12 @@
 import { describe, it, assert, beforeAll } from "vitest";
 import { Keypair } from "@solana/web3.js";
-import { createLiteSVMRpc, newAccountWithLamports, LiteSVMRpc } from "../src";
+import {
+  createLiteSVMRpc,
+  newAccountWithLamports,
+  LiteSVMRpc,
+  NobleHasherFactory,
+} from "../src";
 import { bn, compress, transfer } from "@lightprotocol/stateless.js";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
 
 describe("transfer", () => {
   let rpc: LiteSVMRpc;
@@ -10,7 +14,7 @@ describe("transfer", () => {
   let bob: Keypair;
 
   beforeAll(async () => {
-    const lightWasm = await WasmFactory.getInstance();
+    const lightWasm = await NobleHasherFactory.getInstance();
     rpc = await createLiteSVMRpc(lightWasm);
     payer = await newAccountWithLamports(rpc, 2e9);
     bob = await newAccountWithLamports(rpc, 2e9);

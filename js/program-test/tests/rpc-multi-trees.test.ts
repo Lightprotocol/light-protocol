@@ -17,7 +17,7 @@ import {
   newAccountWithLamports,
 } from "@lightprotocol/stateless.js";
 import { getTestRpc, TestRpc } from "../src";
-import { WasmFactory } from "@lightprotocol/hasher.rs";
+import { NobleHasherFactory } from "../src";
 import { randomBytes } from "tweetnacl";
 
 describe("rpc-multi-trees", () => {
@@ -31,7 +31,7 @@ describe("rpc-multi-trees", () => {
   const randQueues: PublicKey[] = [];
   let stateTreeInfo2: TreeInfo;
   beforeAll(async () => {
-    const lightWasm = await WasmFactory.getInstance();
+    const lightWasm = await NobleHasherFactory.getInstance();
     rpc = createRpc();
 
     testRpc = await getTestRpc(lightWasm);

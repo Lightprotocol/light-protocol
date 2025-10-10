@@ -22,7 +22,7 @@ import {
     newAccountWithLamports,
     splGetOrCreateAssociatedTokenAccount,
 } from '@lightprotocol/program-test';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { NobleHasherFactory } from '@lightprotocol/program-test';
 import BN from 'bn.js';
 import {
     getTokenPoolInfos,
@@ -145,7 +145,7 @@ describe('approveAndMintTo', () => {
     let stateTreeInfo: TreeInfo;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
+        const lightWasm = await NobleHasherFactory.getInstance();
         rpc = await createLiteSVMRpc(lightWasm);
         payer = await newAccountWithLamports(rpc);
         bob = Keypair.generate().publicKey;

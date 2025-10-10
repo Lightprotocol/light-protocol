@@ -9,7 +9,7 @@ import {
     selectStateTreeInfo,
     TreeInfo,
 } from '@lightprotocol/stateless.js';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { NobleHasherFactory } from '@lightprotocol/program-test';
 import { createMint, mintTo, decompress } from '../../src/actions';
 import {
     createLiteSVMRpc,
@@ -79,7 +79,7 @@ describe('decompress', () => {
     let tokenPoolInfos: TokenPoolInfo[];
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
+        const lightWasm = await NobleHasherFactory.getInstance();
         rpc = await createLiteSVMRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
         bob = await newAccountWithLamports(rpc, 1e9);

@@ -12,7 +12,7 @@ import {
     createLiteSVMRpc,
     newAccountWithLamports,
 } from '@lightprotocol/program-test';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { NobleHasherFactory } from '@lightprotocol/program-test';
 import {
     createMint,
     mintTo,
@@ -115,7 +115,7 @@ describe('delegate', () => {
     let tokenPoolInfo: TokenPoolInfo;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
+        const lightWasm = await NobleHasherFactory.getInstance();
         rpc = await createLiteSVMRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();

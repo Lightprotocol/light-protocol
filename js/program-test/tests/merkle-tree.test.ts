@@ -34,7 +34,7 @@ describe("MerkleTree", () => {
 
   describe("IndexedArray", () => {
     beforeAll(async () => {
-      WasmFactory = (await import("@lightprotocol/hasher.rs")).WasmFactory;
+      WasmFactory = (await import("../src")).NobleHasherFactory;
     });
 
     it("should findLowElementIndex", () => {

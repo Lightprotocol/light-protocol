@@ -26,7 +26,7 @@ import {
     splGetOrCreateAssociatedTokenAccount,
     splMintTo,
 } from '@lightprotocol/program-test';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { NobleHasherFactory } from '@lightprotocol/program-test';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import {
     getTokenPoolInfos,
@@ -83,7 +83,7 @@ describe('multi-pool', () => {
     let charlieAta: PublicKey;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
+        const lightWasm = await NobleHasherFactory.getInstance();
         rpc = await createLiteSVMRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();

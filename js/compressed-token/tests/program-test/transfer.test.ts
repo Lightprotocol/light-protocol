@@ -20,7 +20,7 @@ import {
     createLiteSVMRpc,
     newAccountWithLamports,
 } from '@lightprotocol/program-test';
-import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { NobleHasherFactory } from '@lightprotocol/program-test';
 import { createMint, mintTo, transfer } from '../../src/actions';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { CompressedTokenProgram } from '../../src/program';
@@ -101,7 +101,7 @@ describe('transfer', () => {
     let stateTreeInfo: TreeInfo;
 
     beforeAll(async () => {
-        const lightWasm = await WasmFactory.getInstance();
+        const lightWasm = await NobleHasherFactory.getInstance();
         rpc = await createLiteSVMRpc(lightWasm);
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
@@ -299,7 +299,7 @@ describe('e2e transfer with multiple accounts', () => {
     let stateTreeInfo: TreeInfo;
 
     beforeAll(async () => {
-        rpc = await createLiteSVMRpc(await WasmFactory.getInstance());
+        rpc = await createLiteSVMRpc(await NobleHasherFactory.getInstance());
         payer = await newAccountWithLamports(rpc, 1e9);
         mintAuthority = Keypair.generate();
         const mintKeypair = Keypair.generate();
