@@ -41,9 +41,18 @@ async function getBalances(
     mint: PublicKey,
 ): Promise<BalanceInfo> {
     const recipientBalance = await rpc.getTokenAccountBalance(recipient);
-    console.log('[TEST] getBalances - recipientBalance:', JSON.stringify(recipientBalance));
-    console.log('[TEST] getBalances - recipientBalance.value:', recipientBalance.value);
-    console.log('[TEST] getBalances - recipientBalance.value.amount:', recipientBalance.value?.amount);
+    console.log(
+        '[TEST] getBalances - recipientBalance:',
+        JSON.stringify(recipientBalance),
+    );
+    console.log(
+        '[TEST] getBalances - recipientBalance.value:',
+        recipientBalance.value,
+    );
+    console.log(
+        '[TEST] getBalances - recipientBalance.value.amount:',
+        recipientBalance.value?.amount,
+    );
     return {
         delegate: (
             await rpc.getCompressedTokenAccountsByDelegate(delegate, { mint })
@@ -80,17 +89,33 @@ async function assertDecompress(
 
     // Check recipient balance
     // Defensive type conversion: ensure amount is always a string before passing to bn()
-    console.log('[TEST] assertDecompress - initialBalances.recipient.value.amount:', typeof initialBalances.recipient.value.amount, initialBalances.recipient.value.amount);
-    console.log('[TEST] assertDecompress - finalBalances.recipient.value.amount:', typeof finalBalances.recipient.value.amount, finalBalances.recipient.value.amount);
+    console.log(
+        '[TEST] assertDecompress - initialBalances.recipient.value.amount:',
+        typeof initialBalances.recipient.value.amount,
+        initialBalances.recipient.value.amount,
+    );
+    console.log(
+        '[TEST] assertDecompress - finalBalances.recipient.value.amount:',
+        typeof finalBalances.recipient.value.amount,
+        finalBalances.recipient.value.amount,
+    );
     console.log('[TEST] assertDecompress - amount:', amount.toString());
 
     const expectedRecipientBalance = bn(
         String(initialBalances.recipient.value.amount),
     ).add(amount);
-    const actualRecipientBalance = bn(String(finalBalances.recipient.value.amount));
+    const actualRecipientBalance = bn(
+        String(finalBalances.recipient.value.amount),
+    );
 
-    console.log('[TEST] assertDecompress - expectedRecipientBalance:', expectedRecipientBalance.toString());
-    console.log('[TEST] assertDecompress - actualRecipientBalance:', actualRecipientBalance.toString());
+    console.log(
+        '[TEST] assertDecompress - expectedRecipientBalance:',
+        expectedRecipientBalance.toString(),
+    );
+    console.log(
+        '[TEST] assertDecompress - actualRecipientBalance:',
+        actualRecipientBalance.toString(),
+    );
 
     expect(actualRecipientBalance.toString()).toBe(
         expectedRecipientBalance.toString(),

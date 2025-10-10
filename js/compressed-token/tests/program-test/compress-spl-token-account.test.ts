@@ -195,7 +195,9 @@ describe('compressSplTokenAccount', () => {
             });
 
         // Assert remaining amount in ATA
-        expect(bn(String(ataBalanceAfter.value.amount)).eq(remainingAmount)).toBe(true);
+        expect(
+            bn(String(ataBalanceAfter.value.amount)).eq(remainingAmount),
+        ).toBe(true);
 
         // Assert compressed amount is correct
         const totalCompressedAmount = compressedBalanceAfter.items.reduce(

@@ -61,16 +61,28 @@ async function assertCompress(
 
     // Defensive type conversion: ensure amount is always a string before passing to bn()
     const afterAmountStr = String(refSenderAtaBalanceAfter.value.amount);
-    console.log('[TEST] assertCompress - refSenderAtaBalanceAfter.value.amount:', typeof refSenderAtaBalanceAfter.value.amount, refSenderAtaBalanceAfter.value.amount);
-    console.log('[TEST] assertCompress - afterAmountStr:', typeof afterAmountStr, afterAmountStr);
-    console.log('[TEST] assertCompress - refSenderAtaBalanceBefore:', refSenderAtaBalanceBefore.toString());
+    console.log(
+        '[TEST] assertCompress - refSenderAtaBalanceAfter.value.amount:',
+        typeof refSenderAtaBalanceAfter.value.amount,
+        refSenderAtaBalanceAfter.value.amount,
+    );
+    console.log(
+        '[TEST] assertCompress - afterAmountStr:',
+        typeof afterAmountStr,
+        afterAmountStr,
+    );
+    console.log(
+        '[TEST] assertCompress - refSenderAtaBalanceBefore:',
+        refSenderAtaBalanceBefore.toString(),
+    );
     console.log('[TEST] assertCompress - totalAmount:', totalAmount.toString());
-    console.log('[TEST] assertCompress - expected:', refSenderAtaBalanceBefore.sub(totalAmount).toString());
+    console.log(
+        '[TEST] assertCompress - expected:',
+        refSenderAtaBalanceBefore.sub(totalAmount).toString(),
+    );
 
     expect(
-        refSenderAtaBalanceBefore
-            .sub(totalAmount)
-            .eq(bn(afterAmountStr)),
+        refSenderAtaBalanceBefore.sub(totalAmount).eq(bn(afterAmountStr)),
     ).toBe(true);
 
     for (let i = 0; i < refRecipients.length; i++) {
@@ -259,14 +271,23 @@ describe('compress', () => {
         // Defensive type conversion: ensure amount is always a string before passing to bn()
         const beforeAmount = String(senderAtaBalanceBefore.value.amount);
         const afterAmount = String(senderAtaBalanceAfter.value.amount);
-        console.log('[TEST] compress.test - beforeAmount:', typeof beforeAmount, beforeAmount);
-        console.log('[TEST] compress.test - afterAmount:', typeof afterAmount, afterAmount);
-        console.log('[TEST] compress.test - totalCompressed:', totalCompressed.toString());
+        console.log(
+            '[TEST] compress.test - beforeAmount:',
+            typeof beforeAmount,
+            beforeAmount,
+        );
+        console.log(
+            '[TEST] compress.test - afterAmount:',
+            typeof afterAmount,
+            afterAmount,
+        );
+        console.log(
+            '[TEST] compress.test - totalCompressed:',
+            totalCompressed.toString(),
+        );
 
         expect(afterAmount).toEqual(
-            bn(beforeAmount)
-                .sub(totalCompressed)
-                .toString(),
+            bn(beforeAmount).sub(totalCompressed).toString(),
         );
     });
 

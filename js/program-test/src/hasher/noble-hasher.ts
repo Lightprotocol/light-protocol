@@ -23,7 +23,7 @@ const BN254_MODULUS = BigInt(
 const Fp = mod.Field(BN254_MODULUS);
 
 // Capacity element for Poseidon (first element in state array)
-const POSEIDON_CAPACITY = 0n;
+const POSEIDON_CAPACITY = BigInt(0);
 
 // Initialize Poseidon hash function for t=3 (2 inputs)
 const roundConstants3 = poseidon.splitConstants(CONSTANTS_3_FLAT, 3);
@@ -57,8 +57,12 @@ function toBigIntArray(input: string[] | BN[]): bigint[] {
     if (typeof val === "string") {
       return BigInt(val);
     } else {
-      // BN type
-      return BigInt(val.toString());
+      // BN type - use toString(10) to ensure decimal representation
+      const str = val.toString(10);
+      if (!str || str === "NaN" || str.includes("NaN")) {
+        throw new Error(`Invalid BN value: ${str}`);
+      }
+      return BigInt(str);
     }
   });
 }
@@ -94,7 +98,12 @@ export class NobleHasher implements LightWasm {
       hash = state[0];
     } else if (inputs.length === 3) {
       // Use t=4 Poseidon: [CAPACITY, input1, input2, input3]
-      const state = poseidonNoble4([POSEIDON_CAPACITY, inputs[0], inputs[1], inputs[2]]);
+      const state = poseidonNoble4([
+        POSEIDON_CAPACITY,
+        inputs[0],
+        inputs[1],
+        inputs[2],
+      ]);
       hash = state[0];
     } else {
       throw new Error(`Expected 2 or 3 inputs, got ${inputs.length}`);
@@ -118,7 +127,12 @@ export class NobleHasher implements LightWasm {
       hash = state[0];
     } else if (inputs.length === 3) {
       // Use t=4 Poseidon: [CAPACITY, input1, input2, input3]
-      const state = poseidonNoble4([POSEIDON_CAPACITY, inputs[0], inputs[1], inputs[2]]);
+      const state = poseidonNoble4([
+        POSEIDON_CAPACITY,
+        inputs[0],
+        inputs[1],
+        inputs[2],
+      ]);
       hash = state[0];
     } else {
       throw new Error(`Expected 2 or 3 inputs, got ${inputs.length}`);
@@ -142,7 +156,12 @@ export class NobleHasher implements LightWasm {
       hash = state[0];
     } else if (inputs.length === 3) {
       // Use t=4 Poseidon: [CAPACITY, input1, input2, input3]
-      const state = poseidonNoble4([POSEIDON_CAPACITY, inputs[0], inputs[1], inputs[2]]);
+      const state = poseidonNoble4([
+        POSEIDON_CAPACITY,
+        inputs[0],
+        inputs[1],
+        inputs[2],
+      ]);
       hash = state[0];
     } else {
       throw new Error(`Expected 2 or 3 inputs, got ${inputs.length}`);

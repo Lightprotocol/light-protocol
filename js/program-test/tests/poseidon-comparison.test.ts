@@ -338,7 +338,11 @@ describe("Poseidon Hash Comparison: Light Protocol vs @noble/curves", () => {
         lightLevel0,
         lightLevel0,
       ]);
-      const nobleLevel1 = poseidonNoble([POSEIDON_CAPACITY, nobleLevel0[0], nobleLevel0[0]]);
+      const nobleLevel1 = poseidonNoble([
+        POSEIDON_CAPACITY,
+        nobleLevel0[0],
+        nobleLevel0[0],
+      ]);
 
       expect(BigInt(lightLevel1)).toBe(nobleLevel1[0]);
       console.log("✓ Merkle tree level 1 hashes match:", lightLevel1);
@@ -348,7 +352,11 @@ describe("Poseidon Hash Comparison: Light Protocol vs @noble/curves", () => {
         lightLevel1,
         lightLevel1,
       ]);
-      const nobleLevel2 = poseidonNoble([POSEIDON_CAPACITY, nobleLevel1[0], nobleLevel1[0]]);
+      const nobleLevel2 = poseidonNoble([
+        POSEIDON_CAPACITY,
+        nobleLevel1[0],
+        nobleLevel1[0],
+      ]);
 
       expect(BigInt(lightLevel2)).toBe(nobleLevel2[0]);
       console.log("✓ Merkle tree level 2 hashes match:", lightLevel2);
@@ -534,7 +542,9 @@ describe("Poseidon Hash Comparison: Light Protocol vs @noble/curves", () => {
       // Compare across implementations
       expect(BigInt(nobleHash1)).toBe(BigInt(wasmHash1));
 
-      console.log("Both implementations are deterministic and match (3 inputs)!");
+      console.log(
+        "Both implementations are deterministic and match (3 inputs)!",
+      );
     });
 
     it("should produce different hashes for swapped inputs (3 inputs)", () => {
