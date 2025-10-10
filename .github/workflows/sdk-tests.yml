@@ -71,9 +71,9 @@ jobs:
           skip-components: "redis,disk-cleanup"
           cache-suffix: "sdk-tests"
 
-      - name: Build CLI (CI mode - Linux x64 only)
+      - name: Build CLI
         run: |
-          npx nx build-ci @lightprotocol/zk-compression-cli
+          npx nx build @lightprotocol/zk-compression-cli
 
       - name: Run sub-tests for ${{ matrix.program }}
         if: matrix.sub-tests != null

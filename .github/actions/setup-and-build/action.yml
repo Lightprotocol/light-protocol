@@ -118,7 +118,7 @@ runs:
       uses: actions/cache@v4
       with:
         path: prover/server/proving-keys
-        key: ${{ runner.os }}-proving-keys-${{ inputs.cache-suffix }}${{ inputs.cache-suffix && '-' || '' }}${{ hashFiles('prover/server/scripts/download_keys.sh') }}
+        key: ${{ runner.os }}-proving-keys-${{ inputs.cache-suffix }}${{ inputs.cache-suffix && '-' || '' }}${{ hashFiles('prover/server/prover/common/key_downloader.go', 'prover/server/prover/common/proving_keys_utils.go') }}
 
     - name: Download proving keys
       if: "!contains(inputs.skip-components, 'proving-keys') && steps.cache-keys.outputs.cache-hit != 'true'"

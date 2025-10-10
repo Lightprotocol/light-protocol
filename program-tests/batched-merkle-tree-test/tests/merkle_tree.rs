@@ -37,7 +37,7 @@ use light_compressed_account::{
 };
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
-use light_prover_client::prover::{spawn_prover, ProverConfig};
+use light_prover_client::prover::spawn_prover;
 use light_test_utils::mock_batched_forester::{
     MockBatchedAddressForester, MockBatchedForester, MockTxEvent,
 };
@@ -446,7 +446,7 @@ pub fn simulate_transaction(
 #[serial]
 #[tokio::test]
 async fn test_simulate_transactions() {
-    spawn_prover(ProverConfig::default()).await;
+    spawn_prover().await;
     let mut mock_indexer =
         MockBatchedForester::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>::default();
 
@@ -885,7 +885,7 @@ pub fn get_random_leaf(rng: &mut StdRng, active_leaves: &mut Vec<[u8; 32]>) -> (
 #[serial]
 #[tokio::test]
 async fn test_e2e() {
-    spawn_prover(ProverConfig::default()).await;
+    spawn_prover().await;
     let mut mock_indexer =
         MockBatchedForester::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>::default();
 
@@ -1580,7 +1580,7 @@ pub fn get_rnd_bytes(rng: &mut StdRng) -> [u8; 32] {
 #[serial]
 #[tokio::test]
 async fn test_fill_state_queues_completely() {
-    spawn_prover(ProverConfig::default()).await;
+    spawn_prover().await;
     let mut current_slot = 1;
     let roothistory_capacity = vec![17, 80];
     for root_history_capacity in roothistory_capacity {
@@ -1980,7 +1980,7 @@ async fn test_fill_state_queues_completely() {
 #[serial]
 #[tokio::test]
 async fn test_fill_address_tree_completely() {
-    spawn_prover(ProverConfig::default()).await;
+    spawn_prover().await;
     let mut current_slot = 1;
     let roothistory_capacity = vec![17, 80]; //
     for root_history_capacity in roothistory_capacity {

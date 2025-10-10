@@ -14,7 +14,6 @@ use light_compressed_token::mint_sdk::{
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::{indexed::IndexedMerkleTree, MerkleTree};
 use light_program_test::accounts::test_accounts::TestAccounts;
-use light_prover_client::prover::ProverConfig;
 use light_sdk::{
     address::{v1::derive_address, NewAddressParams},
     token::{AccountState, TokenData},
@@ -53,8 +52,8 @@ const LAMPORTS_PER_SOL: u64 = 1_000_000_000;
 async fn test_all_endpoints() {
     let config = LightValidatorConfig {
         enable_indexer: true,
-        prover_config: Some(ProverConfig::default()),
-        wait_time: 75,
+        enable_prover: true,
+        wait_time: 10,
         sbf_programs: vec![],
         limit_ledger_size: None,
     };

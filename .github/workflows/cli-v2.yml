@@ -59,13 +59,13 @@ jobs:
           cd js/compressed-token
           pnpm build:v2
 
-      - name: Build CLI with V2 (CI mode - Linux x64 only)
+      - name: Build CLI with V2
         run: |
-          npx nx build-ci @lightprotocol/zk-compression-cli
+          npx nx build @lightprotocol/zk-compression-cli
 
       - name: Run CLI tests with V2
         run: |
-          npx nx test-ci @lightprotocol/zk-compression-cli
+          npx nx test @lightprotocol/zk-compression-cli
 
       - name: Display prover logs on failure
         if: failure()

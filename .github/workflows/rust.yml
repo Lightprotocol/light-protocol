@@ -92,9 +92,9 @@ jobs:
           skip-components: "redis,disk-cleanup"
           cache-suffix: "rust"
 
-      - name: Build CLI (CI mode - Linux x64 only)
+      - name: Build CLI
         run: |
-          npx nx build-ci @lightprotocol/zk-compression-cli
+          npx nx build @lightprotocol/zk-compression-cli
 
       - name: Run tests for ${{ matrix.group.name }}
         run: |

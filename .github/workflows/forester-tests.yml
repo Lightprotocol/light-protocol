@@ -74,8 +74,8 @@ jobs:
           df -h /
           du -sh /home/runner/work/* | sort -hr | head -n 10
 
-      - name: Build CLI (CI mode - Linux x64 only)
-        run: npx nx build-ci @lightprotocol/zk-compression-cli
+      - name: Build CLI
+        run: npx nx build @lightprotocol/zk-compression-cli
 
       - name: Test
         run: cargo test --package forester e2e_test -- --nocapture

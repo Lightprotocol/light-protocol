@@ -474,6 +474,93 @@ func runCli() {
 				},
 			},
 			{
+				Name:  "download",
+				Usage: "Download proving keys",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:  "run-mode",
+						Usage: "Download keys for specific run mode (rpc, forester, forester-test, full, full-test, local-rpc)",
+						Value: "local-rpc",
+					},
+					&cli.StringSliceFlag{
+						Name:  "circuit",
+						Usage: "Download keys for specific circuits (inclusion, non-inclusion, combined, append, update, append-test, update-test, address-append, address-append-test)",
+					},
+					&cli.StringFlag{
+						Name:  "keys-dir",
+						Usage: "Directory where key files will be stored",
+						Value: "./proving-keys/",
+					},
+					&cli.StringFlag{
+						Name:  "download-url",
+						Usage: "Base URL for downloading key files",
+						Value: common.DefaultBaseURL,
+					},
+					&cli.IntFlag{
+						Name:  "max-retries",
+						Usage: "Maximum number of retries for downloading keys",
+						Value: common.DefaultMaxRetries,
+					},
+					&cli.BoolFlag{
+						Name:  "verify-only",
+						Usage: "Only verify existing keys without downloading",
+						Value: false,
+					},
+				},
+				Action: func(context *cli.Context) error {
+					circuits := context.StringSlice("circuit")
+					runMode, err := parseRunMode(context.String("run-mode"))
+					if err != nil {
+						return err
+					}
+
+					keysDirPath := context.String("keys-dir")
+					verifyOnly := context.Bool("verify-only")
+
+					// Configure download settings
+					downloadConfig := &common.DownloadConfig{
+						BaseURL:       context.String("download-url"),
+						MaxRetries:    context.Int("max-retries"),
+						RetryDelay:    common.DefaultRetryDelay,
+						MaxRetryDelay: common.DefaultMaxRetryDelay,
+						AutoDownload:  !verifyOnly,
+					}
+
+					logging.Logger().Info().
+						Str("run_mode", string(runMode)).
+						Strs("circuits", circuits).
+						Str("keys_dir", keysDirPath).
+						Bool("verify_only", verifyOnly).
+						Str("download_url", downloadConfig.BaseURL).
+						Int("max_retries", downloadConfig.MaxRetries).
+						Msg("Download configuration")
+
+					// Get required keys
+					keys := common.GetKeys(keysDirPath, runMode, circuits)
+
+					if len(keys) == 0 {
+						return fmt.Errorf("no keys to download for run-mode=%s circuits=%v", runMode, circuits)
+					}
+
+					logging.Logger().Info().
+						Int("total_keys", len(keys)).
+						Msg("Starting key download/verification")
+
+					// Download/verify keys
+					if err := common.EnsureKeysExist(keys, downloadConfig); err != nil {
+						return fmt.Errorf("failed to ensure keys exist: %w", err)
+					}
+
+					if verifyOnly {
+						logging.Logger().Info().Msg("All keys verified successfully")
+					} else {
+						logging.Logger().Info().Msg("All keys downloaded and verified successfully")
+					}
+
+					return nil
+				},
+			},
+			{
 				Name: "start",
 				Flags: []cli.Flag{
 					&cli.BoolFlag{Name: "json-logging", Usage: "enable JSON logging", Required: false},
@@ -487,6 +574,15 @@ func runCli() {
 					&cli.StringFlag{
 						Name:  "run-mode",
 						Usage: "Specify the running mode (rpc, forester, forester-test, full, or full-test)",
+					},
+					&cli.StringFlag{
+						Name:  "preload-keys",
+						Usage: "Preload keys: none (lazy load all), all (preload everything), or a run mode (rpc, forester, forester-test, full, full-test, local-rpc)",
+						Value: "none",
+					},
+					&cli.StringSliceFlag{
+						Name:  "preload-circuits",
+						Usage: "Preload specific circuits, e.g.: update,append,batch_update_32_500,batch_append_32_500)",
 					},
 					&cli.StringFlag{
 						Name:  "redis-url",
@@ -503,30 +599,76 @@ func runCli() {
 						Usage: "Run only HTTP server (no queue workers)",
 						Value: false,
 					},
+					&cli.BoolFlag{
+						Name:  "auto-download",
+						Usage: "Automatically download missing key files",
+						Value: true,
+					},
+					&cli.StringFlag{
+						Name:  "download-url",
+						Usage: "Base URL for downloading key files",
+						Value: common.DefaultBaseURL,
+					},
+					&cli.IntFlag{
+						Name:  "download-max-retries",
+						Usage: "Maximum number of retries for downloading keys",
+						Value: common.DefaultMaxRetries,
+					},
 				},
 				Action: func(context *cli.Context) error {
 					if context.Bool("json-logging") {
 						logging.SetJSONOutput()
 					}
 
-					circuits := context.StringSlice("circuit")
-					runMode, err := parseRunMode(context.String("run-mode"))
-					if err != nil {
-						if len(circuits) == 0 {
-							return err
+					var keysDirPath = context.String("keys-dir")
+
+					// Configure download settings
+					downloadConfig := &common.DownloadConfig{
+						BaseURL:       context.String("download-url"),
+						MaxRetries:    context.Int("download-max-retries"),
+						RetryDelay:    common.DefaultRetryDelay,
+						MaxRetryDelay: common.DefaultMaxRetryDelay,
+						AutoDownload:  context.Bool("auto-download"),
+					}
+
+					keyManager := common.NewLazyKeyManager(keysDirPath, downloadConfig)
+
+					preloadKeys := context.String("preload-keys")
+					preloadCircuits := context.StringSlice("preload-circuits")
+
+					logging.Logger().Info().
+						Str("preload_keys", preloadKeys).
+						Strs("preload_circuits", preloadCircuits).
+						Str("keys_dir", keysDirPath).
+						Msg("Initializing lazy key manager")
+
+					if preloadKeys == "all" {
+						logging.Logger().Info().Msg("Preloading all keys")
+						if err := keyManager.PreloadAll(); err != nil {
+							return fmt.Errorf("failed to preload all keys: %w", err)
+						}
+					} else if preloadKeys != "none" {
+						preloadRunMode, err := parseRunMode(preloadKeys)
+						if err != nil {
+							return fmt.Errorf("invalid --preload-keys value: %s (must be none, all, or a valid run mode: rpc, forester, forester-test, full, full-test, local-rpc)", preloadKeys)
+						}
+						logging.Logger().Info().Str("run_mode", string(preloadRunMode)).Msg("Preloading keys for run mode")
+						if err := keyManager.PreloadForRunMode(preloadRunMode); err != nil {
+							return fmt.Errorf("failed to preload keys for run mode: %w", err)
 						}
 					}
 
-					var keysDirPath = context.String("keys-dir")
-					debugProvingSystemKeys(keysDirPath, runMode, circuits)
-					psv1, psv2, err := common.LoadKeys(keysDirPath, runMode, circuits)
-					if err != nil {
-						return err
+					if len(preloadCircuits) > 0 {
+						logging.Logger().Info().Strs("circuits", preloadCircuits).Msg("Preloading specific circuits")
+						if err := keyManager.PreloadCircuits(preloadCircuits); err != nil {
+							return fmt.Errorf("failed to preload circuits: %w", err)
+						}
 					}
 
-					if len(psv1) == 0 && len(psv2) == 0 {
-						return fmt.Errorf("no proving systems loaded")
-					}
+					stats := keyManager.GetStats()
+					logging.Logger().Info().
+						Interface("stats", stats).
+						Msg("Key manager initialized")
 
 					redisURL := context.String("redis-url")
 					if redisURL == "" {
@@ -561,6 +703,7 @@ func runCli() {
 							return fmt.Errorf("Redis URL is required for queue mode. Use --redis-url or set REDIS_URL environment variable")
 						}
 
+						var err error
 						redisQueue, err = server.NewRedisQueue(redisURL)
 						if err != nil {
 							return fmt.Errorf("failed to connect to Redis: %w", err)
@@ -574,47 +717,21 @@ func runCli() {
 
 						logging.Logger().Info().Msg("Starting queue workers")
 
-						startAllWorkers := runMode == common.Forester || runMode == common.ForesterTest || runMode == common.Full || runMode == common.FullTest
+						updateWorker := server.NewUpdateQueueWorker(redisQueue, keyManager)
+						workers = append(workers, updateWorker)
+						go updateWorker.Start()
 
-						var workersStarted []string
+						appendWorker := server.NewAppendQueueWorker(redisQueue, keyManager)
+						workers = append(workers, appendWorker)
+						go appendWorker.Start()
 
-						logging.Logger().Info().Bool("startAllWorkers", startAllWorkers)
+						addressAppendWorker := server.NewAddressAppendQueueWorker(redisQueue, keyManager)
+						workers = append(workers, addressAppendWorker)
+						go addressAppendWorker.Start()
 
-						for _, circuit := range circuits {
-							logging.Logger().Info().Str("circuit", circuit)
-						}
-						// Start update worker for batch-update circuits or forester modes
-						if startAllWorkers || containsCircuit(circuits, "update") || containsCircuit(circuits, "update-test") {
-							updateWorker := server.NewUpdateQueueWorker(redisQueue, psv1, psv2)
-							workers = append(workers, updateWorker)
-							go updateWorker.Start()
-							workersStarted = append(workersStarted, "update")
-						}
-
-						// Start append worker for batch-append circuits or forester modes
-						if startAllWorkers || containsCircuit(circuits, "append") || containsCircuit(circuits, "append-test") {
-							appendWorker := server.NewAppendQueueWorker(redisQueue, psv1, psv2)
-							workers = append(workers, appendWorker)
-							go appendWorker.Start()
-							workersStarted = append(workersStarted, "append")
-						}
-
-						// Start address append worker for address-append circuits or forester modes
-						if startAllWorkers || containsCircuit(circuits, "address-append") || containsCircuit(circuits, "address-append-test") {
-							addressAppendWorker := server.NewAddressAppendQueueWorker(redisQueue, psv1, psv2)
-							workers = append(workers, addressAppendWorker)
-							go addressAppendWorker.Start()
-							workersStarted = append(workersStarted, "address-append")
-						}
-
-						if len(workersStarted) == 0 {
-							logging.Logger().Warn().Msg("No queue workers started - no matching circuits found")
-						} else {
-							logging.Logger().Info().
-								Strs("workers_started", workersStarted).
-								Bool("forester_mode", startAllWorkers).
-								Msg("Queue workers started")
-						}
+						logging.Logger().Info().
+							Strs("workers_started", []string{"update", "append", "address-append"}).
+							Msg("Queue workers started")
 					}
 
 					if enableServer {
@@ -624,13 +741,13 @@ func runCli() {
 						}
 
 						if redisQueue != nil {
-							instance = server.RunWithQueue(&config, redisQueue, circuits, runMode, psv1, psv2)
+							instance = server.RunWithQueue(&config, redisQueue, keyManager)
 							logging.Logger().Info().
 								Str("prover_address", config.ProverAddress).
 								Str("metrics_address", config.MetricsAddress).
 								Msg("Started enhanced server with Redis queue support")
 						} else {
-							instance = server.Run(&config, circuits, runMode, psv1, psv2)
+							instance = server.Run(&config, keyManager)
 							logging.Logger().Info().
 								Str("prover_address", config.ProverAddress).
 								Str("metrics_address", config.MetricsAddress).

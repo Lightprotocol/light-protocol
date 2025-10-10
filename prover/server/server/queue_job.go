@@ -30,8 +30,7 @@ type QueueWorker interface {
 
 type BaseQueueWorker struct {
 	queue               *RedisQueue
-	provingSystemsV1    []*common.MerkleProofSystem
-	provingSystemsV2    []*common.BatchProofSystem
+	keyManager          *common.LazyKeyManager
 	stopChan            chan struct{}
 	queueName           string
 	processingQueueName string
@@ -49,12 +48,11 @@ type AddressAppendQueueWorker struct {
 	*BaseQueueWorker
 }
 
-func NewUpdateQueueWorker(redisQueue *RedisQueue, psv1 []*common.MerkleProofSystem, psv2 []*common.BatchProofSystem) *UpdateQueueWorker {
+func NewUpdateQueueWorker(redisQueue *RedisQueue, keyManager *common.LazyKeyManager) *UpdateQueueWorker {
 	return &UpdateQueueWorker{
 		BaseQueueWorker: &BaseQueueWorker{
 			queue:               redisQueue,
-			provingSystemsV1:    psv1,
-			provingSystemsV2:    psv2,
+			keyManager:          keyManager,
 			stopChan:            make(chan struct{}),
 			queueName:           "zk_update_queue",
 			processingQueueName: "zk_update_processing_queue",
@@ -62,12 +60,11 @@ func NewUpdateQueueWorker(redisQueue *RedisQueue, psv1 []*common.MerkleProofSyst
 	}
 }
 
-func NewAppendQueueWorker(redisQueue *RedisQueue, psv1 []*common.MerkleProofSystem, psv2 []*common.BatchProofSystem) *AppendQueueWorker {
+func NewAppendQueueWorker(redisQueue *RedisQueue, keyManager *common.LazyKeyManager) *AppendQueueWorker {
 	return &AppendQueueWorker{
 		BaseQueueWorker: &BaseQueueWorker{
 			queue:               redisQueue,
-			provingSystemsV1:    psv1,
-			provingSystemsV2:    psv2,
+			keyManager:          keyManager,
 			stopChan:            make(chan struct{}),
 			queueName:           "zk_append_queue",
 			processingQueueName: "zk_append_processing_queue",
@@ -75,12 +72,11 @@ func NewAppendQueueWorker(redisQueue *RedisQueue, psv1 []*common.MerkleProofSyst
 	}
 }
 
-func NewAddressAppendQueueWorker(redisQueue *RedisQueue, psv1 []*common.MerkleProofSystem, psv2 []*common.BatchProofSystem) *AddressAppendQueueWorker {
+func NewAddressAppendQueueWorker(redisQueue *RedisQueue, keyManager *common.LazyKeyManager) *AddressAppendQueueWorker {
 	return &AddressAppendQueueWorker{
 		BaseQueueWorker: &BaseQueueWorker{
 			queue:               redisQueue,
-			provingSystemsV1:    psv1,
-			provingSystemsV2:    psv2,
+			keyManager:          keyManager,
 			stopChan:            make(chan struct{}),
 			queueName:           "zk_address_append_queue",
 			processingQueueName: "zk_address_append_processing_queue",
@@ -268,19 +264,15 @@ func (w *BaseQueueWorker) processProofJob(job *ProofJob) error {
 }
 
 func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta common.ProofRequestMeta) (*common.Proof, error) {
-	var ps *common.MerkleProofSystem
-	for _, provingSystem := range w.provingSystemsV1 {
-		if provingSystem.InclusionNumberOfCompressedAccounts == meta.NumInputs &&
-			provingSystem.InclusionTreeHeight == meta.StateTreeHeight &&
-			provingSystem.Version == meta.Version &&
-			provingSystem.NonInclusionNumberOfCompressedAccounts == uint32(0) {
-			ps = provingSystem
-			break
-		}
-	}
-
-	if ps == nil {
-		return nil, fmt.Errorf("no proving system found for inclusion proof with meta: %+v", meta)
+	ps, err := w.keyManager.GetMerkleSystem(
+		meta.StateTreeHeight,
+		meta.NumInputs,
+		0,
+		0,
+		meta.Version,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("inclusion proof: %w", err)
 	}
 
 	if meta.Version == 1 {
@@ -301,18 +293,15 @@ func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta co
 }
 
 func (w *BaseQueueWorker) processNonInclusionProof(payload json.RawMessage, meta common.ProofRequestMeta) (*common.Proof, error) {
-	var ps *common.MerkleProofSystem
-	for _, provingSystem := range w.provingSystemsV1 {
-		if provingSystem.NonInclusionNumberOfCompressedAccounts == meta.NumAddresses &&
-			provingSystem.NonInclusionTreeHeight == meta.AddressTreeHeight &&
-			provingSystem.InclusionNumberOfCompressedAccounts == uint32(0) {
-			ps = provingSystem
-			break
-		}
-	}
-
-	if ps == nil {
-		return nil, fmt.Errorf("no proving system found for non-inclusion proof with meta: %+v", meta)
+	ps, err := w.keyManager.GetMerkleSystem(
+		0, 
+		0,
+		meta.AddressTreeHeight,
+		meta.NumAddresses,
+		meta.Version,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("non-inclusion proof: %w", err)
 	}
 
 	if meta.AddressTreeHeight == 26 {
@@ -333,19 +322,15 @@ func (w *BaseQueueWorker) processNonInclusionProof(payload json.RawMessage, meta
 }
 
 func (w *BaseQueueWorker) processCombinedProof(payload json.RawMessage, meta common.ProofRequestMeta) (*common.Proof, error) {
-	var ps *common.MerkleProofSystem
-	for _, provingSystem := range w.provingSystemsV1 {
-		if provingSystem.InclusionNumberOfCompressedAccounts == meta.NumInputs &&
-			provingSystem.NonInclusionNumberOfCompressedAccounts == meta.NumAddresses &&
-			provingSystem.InclusionTreeHeight == meta.StateTreeHeight &&
-			provingSystem.NonInclusionTreeHeight == meta.AddressTreeHeight {
-			ps = provingSystem
-			break
-		}
-	}
-
-	if ps == nil {
-		return nil, fmt.Errorf("no proving system found for combined proof with meta: %+v", meta)
+	ps, err := w.keyManager.GetMerkleSystem(
+		meta.StateTreeHeight,
+		meta.NumInputs,
+		meta.AddressTreeHeight,
+		meta.NumAddresses,
+		meta.Version,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("combined proof: %w", err)
 	}
 
 	if meta.AddressTreeHeight == 26 {
@@ -371,15 +356,16 @@ func (w *BaseQueueWorker) processBatchUpdateProof(payload json.RawMessage) (*com
 		return nil, fmt.Errorf("failed to unmarshal batch update parameters: %w", err)
 	}
 
-	for _, provingSystem := range w.provingSystemsV2 {
-		if provingSystem.CircuitType == common.BatchUpdateCircuitType &&
-			provingSystem.TreeHeight == params.Height &&
-			provingSystem.BatchSize == params.BatchSize {
-			return v2.ProveBatchUpdate(provingSystem, &params)
-		}
+	ps, err := w.keyManager.GetBatchSystem(
+		common.BatchUpdateCircuitType,
+		params.Height,
+		params.BatchSize,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("batch update proof: %w", err)
 	}
 
-	return nil, fmt.Errorf("no proving system found for batch update with height %d and batch size %d", params.Height, params.BatchSize)
+	return v2.ProveBatchUpdate(ps, &params)
 }
 
 func (w *BaseQueueWorker) processBatchAppendProof(payload json.RawMessage) (*common.Proof, error) {
@@ -388,15 +374,16 @@ func (w *BaseQueueWorker) processBatchAppendProof(payload json.RawMessage) (*com
 		return nil, fmt.Errorf("failed to unmarshal batch append parameters: %w", err)
 	}
 
-	for _, provingSystem := range w.provingSystemsV2 {
-		if provingSystem.CircuitType == common.BatchAppendCircuitType &&
-			provingSystem.TreeHeight == params.Height &&
-			provingSystem.BatchSize == params.BatchSize {
-			return v2.ProveBatchAppend(provingSystem, &params)
-		}
+	ps, err := w.keyManager.GetBatchSystem(
+		common.BatchAppendCircuitType,
+		params.Height,
+		params.BatchSize,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("batch append proof: %w", err)
 	}
 
-	return nil, fmt.Errorf("no proving system found for batch append with height %d and batch size %d", params.Height, params.BatchSize)
+	return v2.ProveBatchAppend(ps, &params)
 }
 
 func (w *BaseQueueWorker) processBatchAddressAppendProof(payload json.RawMessage) (*common.Proof, error) {
@@ -405,17 +392,17 @@ func (w *BaseQueueWorker) processBatchAddressAppendProof(payload json.RawMessage
 		return nil, fmt.Errorf("failed to unmarshal batch address append parameters: %w", err)
 	}
 
-	for _, provingSystem := range w.provingSystemsV2 {
-		logging.Logger().Info().Str(string(provingSystem.CircuitType), "proving system")
-		if provingSystem.CircuitType == common.BatchAddressAppendCircuitType &&
-			provingSystem.TreeHeight == params.TreeHeight &&
-			provingSystem.BatchSize == params.BatchSize {
-			logging.Logger().Info().Msg("Processing batch address append proof")
-			return v2.ProveBatchAddressAppend(provingSystem, &params)
-		}
+	ps, err := w.keyManager.GetBatchSystem(
+		common.BatchAddressAppendCircuitType,
+		params.TreeHeight,
+		params.BatchSize,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("batch address append proof: %w", err)
 	}
 
-	return nil, fmt.Errorf("no proving system found for batch address append with height %d and batch size %d", params.TreeHeight, params.BatchSize)
+	logging.Logger().Info().Msg("Processing batch address append proof")
+	return v2.ProveBatchAddressAppend(ps, &params)
 }
 
 func (w *BaseQueueWorker) removeFromProcessingQueue(jobID string) {
