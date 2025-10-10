@@ -4,7 +4,7 @@ import https from "https";
 import http from "http";
 import { pipeline } from "stream/promises";
 
-const PROVER_VERSION = "1.0.1";
+const PROVER_VERSION = "1.0.2";
 const GITHUB_RELEASES_BASE_URL = `https://github.com/Lightprotocol/light-protocol/releases/download/light-prover-v${PROVER_VERSION}`;
 
 interface DownloadOptions {
