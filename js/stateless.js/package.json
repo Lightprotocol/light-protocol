@@ -115,6 +115,7 @@
         "build:v1": "LIGHT_PROTOCOL_VERSION=V1 pnpm build:bundle",
         "build:v2": "LIGHT_PROTOCOL_VERSION=V2 pnpm build:bundle",
         "build-ci": "if [ \"$LIGHT_PROTOCOL_VERSION\" = \"V2\" ]; then LIGHT_PROTOCOL_VERSION=V2 pnpm build:bundle; else LIGHT_PROTOCOL_VERSION=V1 pnpm build:bundle; fi",
+        "test-ci": "pnpm test",
         "format": "prettier --write .",
         "lint": "eslint ."
     },
@@ -128,6 +129,9 @@
                 ]
             },
             "build-ci": {
+                "dependsOn": []
+            },
+            "test-ci": {
                 "dependsOn": []
             }
         }

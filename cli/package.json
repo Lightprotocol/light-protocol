@@ -173,7 +173,6 @@
         ],
         "inputs": [
           "{workspaceRoot}/js",
-          "{workspaceRoot}/programs",
           "{workspaceRoot}/gnark-prover",
           "{projectRoot}/scripts/**"
         ],
