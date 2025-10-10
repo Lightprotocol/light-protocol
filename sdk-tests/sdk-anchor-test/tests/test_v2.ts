@@ -4,6 +4,7 @@ import idl from "../target/idl/sdk_anchor_test.json";
 import {
   bn,
   type CompressedAccountWithMerkleContext,
+  defaultTestStateTreeAccounts,
   deriveAddressSeedV2,
   deriveAddressV2,
   PackedAccounts,

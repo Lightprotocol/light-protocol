@@ -63,6 +63,11 @@ jobs:
         run: |
           npx nx build @lightprotocol/zk-compression-cli
 
+      - name: Build program-test
+        run: |
+          source ./scripts/devenv.sh
+          npx nx build @lightprotocol/program-test
+
       - name: Run stateless.js tests with V2
         run: |
           echo "Running stateless.js tests with retry logic (max 2 attempts)..."
@@ -94,6 +99,11 @@ jobs:
             sleep 5
           done
           echo "Tests passed on attempt $attempt"
+
+      - name: Run program-test tests with V2
+        run: |
+          source ./scripts/devenv.sh
+          npx nx test @lightprotocol/program-test
 
       - name: Run sdk-anchor-test TypeScript tests with V2
         run: |
