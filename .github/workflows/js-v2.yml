@@ -65,8 +65,8 @@ jobs:
 
       - name: Build program-test
         run: |
-          source ./scripts/devenv.sh
-          npx nx build @lightprotocol/program-test
+          cd js/program-test
+          pnpm build:v2
 
       - name: Run stateless.js tests with V2
         run: |

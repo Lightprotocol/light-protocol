@@ -240,16 +240,7 @@ export class LiteSVMRpc extends TestRpc {
     if ("message" in transaction) {
       // VersionedTransaction
       const msg = transaction.message;
-      console.log("[LiteSVM] VersionedTransaction details:");
-      console.log(
-        "  - Static account keys:",
-        msg.staticAccountKeys?.length || 0,
-      );
-      console.log("  - Instructions:", msg.compiledInstructions?.length || 0);
-      console.log(
-        "  - Address table lookups:",
-        msg.addressTableLookups?.length || 0,
-      );
+
       if (msg.addressTableLookups?.length > 0) {
         msg.addressTableLookups.forEach((lookup, i) => {
           console.log(
@@ -257,20 +248,7 @@ export class LiteSVMRpc extends TestRpc {
           );
         });
       }
-    } else {
-      // Legacy Transaction
-      console.log("[LiteSVM] Legacy Transaction details:");
-      console.log("  - Instructions:", transaction.instructions?.length || 0);
-      console.log("  - Signatures:", transaction.signatures?.length || 0);
     }
-
-    console.log(
-      "[LiteSVM] Serialized transaction size:",
-      txSize,
-      "bytes (max:",
-      MAX_TRANSACTION_SIZE,
-      ")",
-    );
 
     if (txSize > MAX_TRANSACTION_SIZE) {
       console.error(
@@ -341,7 +319,6 @@ export class LiteSVMRpc extends TestRpc {
     );
 
     // Store transaction metadata for TestRpc to query later
-    console.log("[LiteSVM] Storing transaction:", signature);
     this.storedTransactions.set(signature, {
       signature,
       logs,
@@ -386,14 +363,29 @@ export class LiteSVMRpc extends TestRpc {
   }
 
   /**
-   * Override getStateTreeInfos to return only the first tree
+   * Override getStateTreeInfos to return only the first tree of the correct type
    * This ensures all compress operations use the same tree, avoiding the
    * random tree selection that causes leafIndex mismatches
    */
   override async getStateTreeInfos(): Promise<any[]> {
     const allInfos = await super.getStateTreeInfos();
-    // Return only the first tree to ensure consistent tree selection
-    return allInfos.slice(0, 1);
+    // In V2, localTestActiveStateTreeInfos returns both V1 and V2 trees
+    // We need to find the first V2 tree, not just take the first tree overall
+    const { TreeType, featureFlags } = await import(
+      "@lightprotocol/stateless.js"
+    );
+    const expectedType = featureFlags.isV2()
+      ? TreeType.StateV2
+      : TreeType.StateV1;
+    const matchingTree = allInfos.find(
+      (info) => info.treeType === expectedType,
+    );
+    if (!matchingTree) {
+      throw new Error(
+        `No ${expectedType} tree found in localTestActiveStateTreeInfos`,
+      );
+    }
+    return [matchingTree];
   }
 
   /**
@@ -735,20 +727,12 @@ export class LiteSVMRpc extends TestRpc {
   ): Promise<any> {
     // LiteSVM executes synchronously, so all transactions are immediately finalized
     const commitment = "finalized";
-
-    console.log("[LiteSVM] getSignatureStatuses queried for:", signatures);
-    console.log(
-      "[LiteSVM] Stored transactions:",
-      Array.from(this.storedTransactions.keys()),
-    );
-
     return {
       context: { slot: 1 },
       value: signatures.map((signature) => {
         // Check if we have this transaction stored
         const tx = this.storedTransactions.get(signature);
         if (!tx) {
-          console.log("[LiteSVM] Transaction not found:", signature);
           return null; // Transaction not found
         }
         const statusObj = {
@@ -757,12 +741,6 @@ export class LiteSVMRpc extends TestRpc {
           err: null,
           confirmationStatus: commitment as any, // Return the requested commitment level
         };
-        console.log(
-          "[LiteSVM] Returning status for",
-          signature,
-          ":",
-          JSON.stringify(statusObj),
-        );
         return statusObj;
       }),
     };

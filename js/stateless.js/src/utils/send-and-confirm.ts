@@ -106,12 +106,6 @@ export async function confirmTx(
                         statusValue === 'finalized')) ||
                 (commitment === 'confirmed' && statusValue === 'finalized');
 
-            console.log('[confirmTx] Comparing:', {
-                statusValue,
-                expectedCommitment: commitment,
-                meetsCommitment,
-            });
-
             if (meetsCommitment) {
                 clearInterval(intervalId);
                 resolve(txId);
