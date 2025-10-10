@@ -208,9 +208,6 @@ importers:
       '@eslint/js':
         specifier: 9.36.0
         version: 9.36.0
-      '@lightprotocol/hasher.rs':
-        specifier: 0.2.1
-        version: 0.2.1
       '@lightprotocol/program-test':
         specifier: workspace:*
         version: link:../program-test
@@ -316,12 +313,12 @@ importers:
       '@coral-xyz/borsh':
         specifier: ^0.29.0
         version: 0.29.0(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))
-      '@lightprotocol/hasher.rs':
-        specifier: 0.2.1
-        version: 0.2.1
       '@lightprotocol/stateless.js':
         specifier: workspace:*
         version: link:../stateless.js
+      '@noble/curves':
+        specifier: ^2.0.1
+        version: 2.0.1
       '@solana/spl-token':
         specifier: 0.4.8
         version: 0.4.8(@solana/web3.js@1.98.4(bufferutil@4.0.8)(typescript@5.9.3)(utf-8-validate@5.0.10))(bufferutil@4.0.8)(fastestsmallesttextencoderdecoder@1.0.22)(typescript@5.9.3)(utf-8-validate@5.0.10)
@@ -341,9 +338,9 @@ importers:
       '@eslint/js':
         specifier: 9.36.0
         version: 9.36.0
-      '@noble/curves':
-        specifier: ^2.0.1
-        version: 2.0.1
+      '@lightprotocol/hasher.rs':
+        specifier: 0.2.1
+        version: 0.2.1
       '@rollup/plugin-commonjs':
         specifier: ^26.0.1
         version: 26.0.1(rollup@4.21.3)
@@ -444,9 +441,6 @@ importers:
       '@eslint/js':
         specifier: 9.36.0
         version: 9.36.0
-      '@lightprotocol/hasher.rs':
-        specifier: 0.2.1
-        version: 0.2.1
       '@playwright/test':
         specifier: ^1.47.1
         version: 1.47.1
