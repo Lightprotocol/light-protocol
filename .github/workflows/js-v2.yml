@@ -21,7 +21,7 @@ jobs:
   stateless-js-v2:
     name: stateless-js-v2
     if: github.event.pull_request.draft == false
-    runs-on: ubuntu-latest
+    runs-on: warp-ubuntu-latest-x64-4x
 
     services:
       redis:

@@ -5,7 +5,6 @@ import {
     newAccountWithLamports,
     bn,
     createRpc,
-    getTestRpc,
     defaultTestStateTreeAccounts,
     TreeInfo,
     selectStateTreeInfo,
@@ -17,6 +16,7 @@ import {
     selectTokenPoolInfo,
     TokenPoolInfo,
 } from '../../src/utils/get-token-pool-infos';
+import { getTestRpc } from '@lightprotocol/program-test';
 
 const TEST_TOKEN_DECIMALS = 2;
 

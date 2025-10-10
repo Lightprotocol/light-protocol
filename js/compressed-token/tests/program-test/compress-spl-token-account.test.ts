@@ -112,7 +112,7 @@ describe('compressSplTokenAccount', () => {
             });
 
         // Assert ATA is empty
-        expect(bn(ataBalanceAfter.value.amount).eq(bn(0))).toBe(true);
+        expect(bn(String(ataBalanceAfter.value.amount)).eq(bn(0))).toBe(true);
 
         // Assert compressed balance equals original ATA balance
         const totalCompressedAmount = compressedBalanceAfter.items.reduce(
@@ -195,7 +195,7 @@ describe('compressSplTokenAccount', () => {
             });
 
         // Assert remaining amount in ATA
-        expect(bn(ataBalanceAfter.value.amount).eq(remainingAmount)).toBe(true);
+        expect(bn(String(ataBalanceAfter.value.amount)).eq(remainingAmount)).toBe(true);
 
         // Assert compressed amount is correct
         const totalCompressedAmount = compressedBalanceAfter.items.reduce(
@@ -211,7 +211,7 @@ describe('compressSplTokenAccount', () => {
         // Initial ATA balance - remaining amount + initial compressed amount
         expect(
             totalCompressedAmount.eq(
-                bn(ataBalanceBefore.value.amount)
+                bn(String(ataBalanceBefore.value.amount))
                     .sub(remainingAmount)
                     .add(initialCompressedAmount),
             ),
@@ -242,7 +242,7 @@ describe('compressSplTokenAccount', () => {
             mint,
             alice,
             aliceAta,
-            bn(balanceBefore.value.amount),
+            bn(String(balanceBefore.value.amount)),
             stateTreeInfo,
             tokenPoolInfo,
         );
@@ -379,7 +379,7 @@ describe('compressSplTokenAccount', () => {
             });
 
         // Assert ATA is empty
-        expect(bn(ataBalanceAfter.value.amount).eq(bn(0))).toBe(true);
+        expect(bn(String(ataBalanceAfter.value.amount)).eq(bn(0))).toBe(true);
 
         // Assert compressed balance equals original ATA balance
         const totalCompressedAmount = compressedBalanceAfter.items.reduce(

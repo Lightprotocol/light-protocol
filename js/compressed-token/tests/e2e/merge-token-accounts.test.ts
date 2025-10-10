@@ -5,11 +5,11 @@ import {
     bn,
     defaultTestStateTreeAccounts,
     newAccountWithLamports,
-    getTestRpc,
     TreeInfo,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
+import { getTestRpc } from '@lightprotocol/program-test';
 
 import { createMint, mintTo, mergeTokenAccounts } from '../../src/actions';
 
