@@ -272,10 +272,14 @@ export class TestRpc extends Connection implements CompressionApiInterface {
   async getMultipleCompressedAccountProofs(
     hashes: BN254[],
   ): Promise<MerkleContextWithMerkleProof[]> {
+    console.log('[TEST-RPC] getMultipleCompressedAccountProofs: INPUT - hashes:', hashes.map(h => h.toString('hex').slice(0, 16) + '...'));
+
     // Parse events and organize leaves by their respective merkle trees
+    console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Calling getParsedEvents...');
     const events: PublicTransactionEvent[] = await getParsedEvents(this).then(
       (events) => events.reverse(),
     );
+    console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Got', events.length, 'events');
     const leavesByTree: Map<
       string,
       {
@@ -325,16 +329,25 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     const merkleProofsMap: Map<string, MerkleContextWithMerkleProof> =
       new Map();
 
+    console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Processing', leavesByTree.size, 'trees');
+
     for (const [treeKey, { leaves, treeInfo }] of leavesByTree.entries()) {
       const tree = new PublicKey(treeKey);
+      console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Processing tree:', treeKey, 'with', leaves.length, 'leaves, treeType:', treeInfo.treeType);
 
       let merkleTree: MerkleTree | undefined;
       if (treeInfo.treeType === TreeType.StateV1) {
+        console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Creating V1 MerkleTree with depth', this.depth);
+        console.log('[TEST-RPC] getMultipleCompressedAccountProofs: All leaves:', JSON.stringify(leaves));
+        const leafStrings = leaves.map((leaf) => bn(leaf).toString());
+        console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Leaf strings:', JSON.stringify(leafStrings));
+        console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Calling new MerkleTree...');
         merkleTree = new MerkleTree(
           this.depth,
           this.lightWasm,
-          leaves.map((leaf) => bn(leaf).toString()),
+          leafStrings,
         );
+        console.log('[TEST-RPC] getMultipleCompressedAccountProofs: MerkleTree created successfully');
       } else if (treeInfo.treeType === TreeType.StateV2) {
         /// In V2 State trees, The Merkle tree stays empty until the
         /// first forester transaction. And since test-rpc is only used
@@ -441,13 +454,16 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     }
 
     // Return proofs in the order of requested hashes
-    return hashes.map((hash) => {
+    console.log('[TEST-RPC] getMultipleCompressedAccountProofs: Returning proofs for', hashes.length, 'hashes');
+    const results = hashes.map((hash) => {
       const proof = merkleProofsMap.get(hash.toString());
       if (!proof) {
         throw new Error(`No proof found for hash: ${hash.toString()}`);
       }
       return proof;
     });
+    console.log('[TEST-RPC] getMultipleCompressedAccountProofs: OUTPUT - Success, returning', results.length, 'proofs');
+    return results;
   }
   /**
    * Fetch all the compressed accounts owned by the specified public key.
