@@ -112,19 +112,6 @@ runs:
       shell: bash
       run: bash scripts/devenv/install-photon.sh
 
-    - name: Cache proving keys
-      if: "!contains(inputs.skip-components, 'proving-keys')"
-      id: cache-keys
-      uses: actions/cache@v4
-      with:
-        path: prover/server/proving-keys
-        key: ${{ runner.os }}-proving-keys-${{ inputs.cache-suffix }}${{ inputs.cache-suffix && '-' || '' }}${{ hashFiles('prover/server/prover/common/key_downloader.go', 'prover/server/prover/common/proving_keys_utils.go') }}
-
-    - name: Download proving keys
-      if: "!contains(inputs.skip-components, 'proving-keys') && steps.cache-keys.outputs.cache-hit != 'true'"
-      shell: bash
-      run: bash scripts/devenv/download-gnark-keys.sh
-
     - name: Set Light Protocol environment variables
       shell: bash
       run: |

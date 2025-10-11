@@ -54,7 +54,6 @@
   },
   "devDependencies": {
     "@eslint/js": "9.36.0",
-    "@lightprotocol/programs": "workspace:*",
     "@oclif/test": "^4.1.14",
     "@solana/spl-token": "^0.3.11",
     "@types/bn.js": "^5.1.5",
