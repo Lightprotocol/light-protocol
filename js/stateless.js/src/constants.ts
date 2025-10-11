@@ -165,52 +165,10 @@ export const localTestActiveStateTreeInfos = (): TreeInfo[] => {
             nextTreeInfo: null,
         },
         {
-            tree: new PublicKey(batchMerkleTree1),
-            queue: new PublicKey(batchQueue1),
-            cpiContext: new PublicKey(batchCpiContext1),
-            treeType: TreeType.StateV2,
-            nextTreeInfo: null,
-        },
-        {
-            tree: new PublicKey(batchMerkleTree2),
-            queue: new PublicKey(batchQueue2),
-            cpiContext: new PublicKey(batchCpiContext2),
-            treeType: TreeType.StateV2,
-            nextTreeInfo: null,
-        },
-        {
-            tree: new PublicKey(batchMerkleTree3),
-            queue: new PublicKey(batchQueue3),
-            cpiContext: new PublicKey(batchCpiContext3),
-            treeType: TreeType.StateV2,
-            nextTreeInfo: null,
-        },
-        {
-            tree: new PublicKey(batchMerkleTree4),
-            queue: new PublicKey(batchQueue4),
-            cpiContext: new PublicKey(batchCpiContext4),
-            treeType: TreeType.StateV2,
-            nextTreeInfo: null,
-        },
-        {
-            tree: new PublicKey(batchMerkleTree5),
-            queue: new PublicKey(batchQueue5),
-            cpiContext: new PublicKey(batchCpiContext5),
-            treeType: TreeType.StateV2,
-            nextTreeInfo: null,
-        },
-        {
-            tree: new PublicKey(batchAddressTree),
-            queue: new PublicKey(batchAddressTree), // v2 address queue is part of the tree account.
+            tree: new PublicKey(batchMerkleTree),
+            queue: new PublicKey(batchQueue),
             cpiContext: PublicKey.default,
-            treeType: TreeType.AddressV2,
-            nextTreeInfo: null,
-        },
-        {
-            tree: new PublicKey(testBatchAddressTree),
-            queue: new PublicKey(testBatchAddressTree), // v2 address queue is part of the tree account.
-            cpiContext: PublicKey.default,
-            treeType: TreeType.AddressV2,
+            treeType: TreeType.StateV2,
             nextTreeInfo: null,
         },
     ].filter(info =>
@@ -279,35 +237,9 @@ export const nullifierQueue2Pubkey =
     'nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X';
 export const cpiContext2Pubkey = 'cpi2cdhkH5roePvcudTgUL8ppEBfTay1desGh8G8QxK';
 
-// V2 testing - State Trees (5 triples)
-export const batchMerkleTree1 = 'bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU';
-export const batchQueue1 = 'oq1na8gojfdUhsfCpyjNt6h4JaDWtHf1yQj4koBWfto';
-export const batchCpiContext1 = 'cpi15BoVPKgEPw5o8wc2T816GE7b378nMXnhH3Xbq4y';
-
-export const batchMerkleTree2 = 'bmt2UxoBxB9xWev4BkLvkGdapsz6sZGkzViPNph7VFi';
-export const batchQueue2 = 'oq2UkeMsJLfXt2QHzim242SUi3nvjJs8Pn7Eac9H9vg';
-export const batchCpiContext2 = 'cpi2yGapXUR3As5SjnHBAVvmApNiLsbeZpF3euWnW6B';
-
-export const batchMerkleTree3 = 'bmt3ccLd4bqSVZVeCJnH1F6C8jNygAhaDfxDwePyyGb';
-export const batchQueue3 = 'oq3AxjekBWgo64gpauB6QtuZNesuv19xrhaC1ZM1THQ';
-export const batchCpiContext3 = 'cpi3mbwMpSX8FAGMZVP85AwxqCaQMfEk9Em1v8QK9Rf';
-
-export const batchMerkleTree4 = 'bmt4d3p1a4YQgk9PeZv5s4DBUmbF5NxqYpk9HGjQsd8';
-export const batchQueue4 = 'oq4ypwvVGzCUMoiKKHWh4S1SgZJ9vCvKpcz6RT6A8dq';
-export const batchCpiContext4 = 'cpi4yyPDc4bCgHAnsenunGA8Y77j3XEDyjgfyCKgcoc';
-
-export const batchMerkleTree5 = 'bmt5yU97jC88YXTuSukYHa8Z5Bi2ZDUtmzfkDTA2mG2';
-export const batchQueue5 = 'oq5oh5ZR3yGomuQgFduNDzjtGvVWfDRGLuDVjv9a96P';
-export const batchCpiContext5 = 'cpi5ZTjdgYpZ1Xr7B1cMLLUE81oTtJbNNAyKary2nV6';
-
-// V2 Address Trees
-export const batchAddressTree = 'amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx'; // v2 address tree (queue is part of the tree account)
-export const testBatchAddressTree =
-    'EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK'; // v2 address tree (queue is part of the tree account)
-
-// Deprecated: Use batchMerkleTree1, batchQueue1, batchCpiContext1 instead
-export const batchMerkleTree = batchMerkleTree1;
-export const batchQueue = batchQueue1;
+// V2 testing.
+export const batchMerkleTree = 'HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu'; // v2 merkle tree (includes nullifier queue)
+export const batchQueue = '6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU'; // v2 output queue
 
 export const confirmConfig: ConfirmOptions = {
     commitment: 'confirmed',

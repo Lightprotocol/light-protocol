@@ -2,7 +2,7 @@ package poseidon
 
 import (
 	"github.com/consensys/gnark/frontend"
-	"github.com/reilabs/gnark-lean-extractor/v3/abstractor"
+	"github.com/reilabs/gnark-lean-extractor/v2/abstractor"
 )
 
 type cfg struct {

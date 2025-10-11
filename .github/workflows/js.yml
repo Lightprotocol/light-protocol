@@ -43,54 +43,44 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
+      - name: Cache nx
+        uses: actions/cache@v4
+        with:
+          path: |
+            .nx/cache
+            node_modules/.cache/nx
+          key: nx-js-v1-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml', 'nx.json') }}
+          restore-keys: |
+            nx-js-v1-${{ runner.os }}-
+
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
-          skip-components: "redis,disk-cleanup"
-          cache-suffix: "js"
+          skip-components: "redis"
 
       - name: Build stateless.js with V1
         run: |
+          source ./scripts/devenv.sh
           cd js/stateless.js
           pnpm build:v1
 
       - name: Build compressed-token with V1
         run: |
+          source ./scripts/devenv.sh
           cd js/compressed-token
           pnpm build:v1
 
       - name: Build CLI
         run: |
+          source ./scripts/devenv.sh
           npx nx build @lightprotocol/zk-compression-cli
 
       - name: Run stateless.js tests with V1
         run: |
-          echo "Running stateless.js tests with retry logic (max 2 attempts)..."
-          attempt=1
-          max_attempts=2
-          until npx nx test @lightprotocol/stateless.js; do
-            attempt=$((attempt + 1))
-            if [ $attempt -gt $max_attempts ]; then
-              echo "Tests failed after $max_attempts attempts"
-              exit 1
-            fi
-            echo "Attempt $attempt/$max_attempts failed, retrying..."
-            sleep 5
-          done
-          echo "Tests passed on attempt $attempt"
+          source ./scripts/devenv.sh
+          npx nx test @lightprotocol/stateless.js
 
       - name: Run compressed-token tests with V1
         run: |
-          echo "Running compressed-token tests with retry logic (max 2 attempts)..."
-          attempt=1
-          max_attempts=2
-          until npx nx test @lightprotocol/compressed-token; do
-            attempt=$((attempt + 1))
-            if [ $attempt -gt $max_attempts ]; then
-              echo "Tests failed after $max_attempts attempts"
-              exit 1
-            fi
-            echo "Attempt $attempt/$max_attempts failed, retrying..."
-            sleep 5
-          done
-          echo "Tests passed on attempt $attempt"
+          source ./scripts/devenv.sh
+          npx nx test @lightprotocol/compressed-token

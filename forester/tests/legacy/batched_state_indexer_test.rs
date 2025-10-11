@@ -11,7 +11,7 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, Indexer, IndexerRpcConfig, RetryConfig},
-    local_test_validator::LightValidatorConfig,
+    local_test_validator::{LightValidatorConfig, ProverConfig},
     rpc::{LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::TreeType;
@@ -39,8 +39,8 @@ async fn test_state_indexer_batched() {
 
     init(Some(LightValidatorConfig {
         enable_indexer: true,
-        enable_prover: true,
         wait_time: 90,
+        prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![],
         limit_ledger_size: None,
     }))
@@ -51,6 +51,7 @@ async fn test_state_indexer_batched() {
     env.protocol.forester = forester_keypair.insecure_clone();
 
     let mut config = forester_config();
+    config.transaction_config.batch_ixs_per_tx = 1;
     config.payer_keypair = forester_keypair.insecure_clone();
 
     let pool = SolanaRpcPoolBuilder::<LightClient>::default()

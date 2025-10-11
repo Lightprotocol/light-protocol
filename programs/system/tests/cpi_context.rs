@@ -161,7 +161,6 @@ fn assert_cpi_context_cleared_bytes(account_info: &AccountInfo, expected_merkle_
 
     let associated_merkle_tree_start = 40;
     let associated_merkle_tree_end = 72;
-    let place_holder_data_end = 136;
 
     // Vector metadata: each has [length: 1 byte, capacity: 1 byte, data: capacity * element_size]
     // Element sizes using size_of for accuracy
@@ -183,7 +182,7 @@ fn assert_cpi_context_cleared_bytes(account_info: &AccountInfo, expected_merkle_
         _new_addresses_capacity_offset,
         new_addresses_data_start,
         new_addresses_data_end,
-    ) = calculate_vector_offsets(&data, place_holder_data_end, new_addresses_element_size);
+    ) = calculate_vector_offsets(&data, 72, new_addresses_element_size);
 
     // readonly_addresses vector
     let (
@@ -238,7 +237,7 @@ fn assert_cpi_context_cleared_bytes(account_info: &AccountInfo, expected_merkle_
     // 1. Check discriminator (should match expected)
     assert_eq!(
         &data[discriminator_start..discriminator_end],
-        &light_system_program_pinocchio::CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR
+        &light_system_program_pinocchio::CPI_CONTEXT_ACCOUNT_DISCRIMINATOR
     );
 
     // 2. Check fee payer (should be all zeros)
@@ -926,7 +925,8 @@ fn test_deserialize_invalid_discriminator() {
         vec![0u8; 20000],
     );
     // Set invalid discriminator
-    account_info.try_borrow_mut_data().unwrap()[0..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    account_info.try_borrow_mut_data().unwrap()[0..8]
+        .copy_from_slice(&[180, 4, 231, 26, 220, 144, 55, 168]);
 
     let result = deserialize_cpi_context_account(&account_info);
     assert_eq!(
@@ -1000,7 +1000,7 @@ fn test_cpi_context_init_nonzero_discriminator() {
     );
 }
 
-/// Randomized test for ZCpiContextAccount2 zero copy implementation
+/// Randomized test for ZCpiContextAccount zero copy implementation
 /// Tests:
 /// 0. Create account bytes and init the account data (once)
 /// Then 1000 iterations of:
@@ -1033,7 +1033,6 @@ fn test_cpi_context_zero_copy_randomized() {
 
     let params = CpiContextAccountInitParams {
         associated_merkle_tree,
-        associated_queue: Pubkey::default(),
         new_addresses_len,
         readonly_addresses_len,
         readonly_accounts_len,
@@ -1133,7 +1132,6 @@ fn test_cpi_context_zero_copy_randomized() {
                 owner: owner.into(),
                 discriminator,
                 data_hash,
-                has_data: rng.gen(),
                 merkle_context: ZPackedMerkleContext {
                     merkle_tree_pubkey_index: rng.gen(),
                     queue_pubkey_index: rng.gen(),
@@ -1162,7 +1160,6 @@ fn test_cpi_context_zero_copy_randomized() {
                 owner: owner.into(),
                 discriminator,
                 data_hash,
-                has_data: rng.gen(),
                 output_merkle_tree_index: rng.gen(),
                 lamports: U64::new(rng.gen()),
                 with_address: rng.gen_range(0..=1),

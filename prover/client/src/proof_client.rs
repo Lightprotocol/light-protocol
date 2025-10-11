@@ -21,7 +21,7 @@ use crate::{
 const MAX_RETRIES: u32 = 10;
 const BASE_RETRY_DELAY_SECS: u64 = 1;
 const DEFAULT_POLLING_INTERVAL_SECS: u64 = 1;
-const DEFAULT_MAX_WAIT_TIME_SECS: u64 = 600;
+const DEFAULT_MAX_WAIT_TIME_SECS: u64 = 120;
 const DEFAULT_LOCAL_SERVER: &str = "http://localhost:3001";
 
 #[derive(Debug, Deserialize)]

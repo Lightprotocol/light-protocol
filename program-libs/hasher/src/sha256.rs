@@ -5,22 +5,10 @@ use crate::{
     Hash, Hasher,
 };
 
-/// Compile-time assertion trait that ensures a generic Hasher type is SHA256.
-/// Used by LightHasherSha macro to enforce SHA256-only implementation at compile time.
-pub trait RequireSha256: Hasher {
-    const ASSERT: () = assert!(
-        Self::ID == 1,
-        "DataHasher for LightHasherSha only works with SHA256 (ID=1). Example: your_struct.hash::<Sha256>()?"
-    );
-}
-
-impl<T: Hasher> RequireSha256 for T {}
-
 #[derive(Clone, Copy)] // To allow using with zero copy Solana accounts.
 pub struct Sha256;
 
 impl Hasher for Sha256 {
-    const ID: u8 = 1;
     fn hash(val: &[u8]) -> Result<Hash, HasherError> {
         Self::hashv(&[val])
     }
@@ -59,5 +47,30 @@ impl Hasher for Sha256 {
 
     fn zero_indexed_leaf() -> [u8; 32] {
         ZERO_INDEXED_LEAF
+    }
+}
+/// Sha256 hash that is truncated to 248 be bit
+#[derive(Clone, Copy)] // To allow using with zero copy Solana accounts.
+pub struct Sha256BE;
+
+impl Hasher for Sha256BE {
+    fn hash(val: &[u8]) -> Result<Hash, HasherError> {
+        let mut hash = Self::hashv(&[val])?;
+        hash[0] = 0;
+        Ok(hash)
+    }
+
+    fn hashv(vals: &[&[u8]]) -> Result<Hash, HasherError> {
+        let mut hash = Sha256::hashv(vals)?;
+        hash[0] = 0;
+        Ok(hash)
+    }
+
+    fn zero_bytes() -> ZeroBytes {
+        unimplemented!()
+    }
+
+    fn zero_indexed_leaf() -> [u8; 32] {
+        unimplemented!()
     }
 }

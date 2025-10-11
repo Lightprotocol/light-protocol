@@ -11,7 +11,7 @@ use forester_utils::{
 };
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
-    local_test_validator::LightValidatorConfig,
+    local_test_validator::{LightValidatorConfig, ProverConfig},
     rpc::{client::RpcUrl, LightClient, LightClientConfig, Rpc, RpcError},
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
@@ -35,8 +35,8 @@ use test_utils::*;
 async fn test_epoch_monitor_with_2_foresters() {
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        enable_prover: true,
         wait_time: 90,
+        prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![],
         limit_ledger_size: None,
     }))
@@ -381,8 +381,8 @@ async fn test_epoch_double_registration() {
 
     init(Some(LightValidatorConfig {
         enable_indexer: false,
-        enable_prover: true,
         wait_time: 90,
+        prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![],
         limit_ledger_size: None,
     }))

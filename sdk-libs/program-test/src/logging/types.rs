@@ -31,6 +31,14 @@ pub enum TransactionStatus {
 }
 
 impl TransactionStatus {
+    pub fn symbol(&self) -> &'static str {
+        match self {
+            TransactionStatus::Success => "✅",
+            TransactionStatus::Failed(_) => "❌",
+            TransactionStatus::Unknown => "⚠️",
+        }
+    }
+
     pub fn text(&self) -> String {
         match self {
             TransactionStatus::Success => "Success".to_string(),
@@ -106,28 +114,14 @@ pub struct FeeSummary {
     pub compression_fee: Option<u64>,
 }
 
-/// Address assignment state
-#[derive(Debug, Clone)]
-pub enum AddressAssignment {
-    /// V1 address param (no assignment tracking)
-    V1,
-    /// Not assigned to any output account
-    None,
-    /// Assigned to output account at index
-    AssignedIndex(u8),
-}
-
 /// Address parameter information
 #[derive(Debug, Clone)]
 pub struct AddressParam {
     pub seed: [u8; 32],
     pub address_queue_index: Option<u8>,
-    pub address_queue_pubkey: Option<solana_sdk::pubkey::Pubkey>,
     pub merkle_tree_index: Option<u8>,
-    pub address_merkle_tree_pubkey: Option<solana_sdk::pubkey::Pubkey>,
     pub root_index: Option<u16>,
     pub derived_address: Option<[u8; 32]>,
-    pub assigned_account_index: AddressAssignment,
 }
 
 /// Input account data
@@ -142,8 +136,6 @@ pub struct InputAccountData {
     pub address: Option<[u8; 32]>,
     pub data_hash: Vec<u8>,
     pub discriminator: Vec<u8>,
-    pub leaf_index: Option<u32>,
-    pub root_index: Option<u16>,
 }
 
 /// Output account data
@@ -167,7 +159,6 @@ pub struct AccountChange {
     pub pubkey: Pubkey,
     pub account_type: String,
     pub access: AccountAccess,
-    pub account_index: usize,
     pub lamports_before: u64,
     pub lamports_after: u64,
     pub data_len_before: usize,
@@ -187,8 +178,13 @@ pub enum AccountAccess {
 }
 
 impl AccountAccess {
-    pub fn symbol(&self, index: usize) -> String {
-        format!("#{}", index)
+    pub fn symbol(&self) -> &'static str {
+        match self {
+            AccountAccess::Readonly => "👁️",
+            AccountAccess::Writable => "✏️",
+            AccountAccess::Signer => "🔑",
+            AccountAccess::SignerWritable => "🔐",
+        }
     }
 
     pub fn text(&self) -> &'static str {

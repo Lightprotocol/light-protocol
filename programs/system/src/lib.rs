@@ -13,7 +13,7 @@ use accounts::{init_context_account::init_cpi_context_account, mode::AccountMode
 pub use constants::*;
 use invoke::instruction::InvokeInstruction;
 use invoke_cpi::{
-    instruction::InvokeCpiInstruction, instruction_v2::InvokeCpiInstructionV2,
+    instruction::InvokeCpiInstruction, instruction_small::InvokeCpiInstructionSmall,
     processor::process_invoke_cpi,
 };
 use light_compressed_account::instruction_data::{
@@ -185,12 +185,13 @@ fn shared_invoke_cpi<'a, 'info, T: InstructionData<'a>>(
                 remaining_accounts,
             )
         }
-        AccountMode::V2 => {
-            let (ctx, remaining_accounts) = InvokeCpiInstructionV2::from_account_infos(
+        AccountMode::Small => {
+            let (ctx, remaining_accounts) = InvokeCpiInstructionSmall::from_account_infos(
                 accounts,
                 inputs.account_option_config()?,
             )?;
-            process_invoke_cpi::<true, InvokeCpiInstructionV2, T>(
+
+            process_invoke_cpi::<true, InvokeCpiInstructionSmall, T>(
                 invoking_program,
                 ctx,
                 inputs,

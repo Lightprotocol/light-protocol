@@ -140,7 +140,7 @@ async fn test_create_and_update_group() {
         .await
         .unwrap();
     let system_program_id_keypair =
-        Keypair::try_from(OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR.as_slice()).unwrap();
+        Keypair::from_bytes(&OLD_SYSTEM_PROGRAM_ID_TEST_KEYPAIR).unwrap();
     // add new program to group
     let registered_program_pda = Pubkey::find_program_address(
         &[system_program_id_keypair.pubkey().to_bytes().as_slice()],
@@ -324,7 +324,7 @@ async fn test_create_and_update_group() {
             .unwrap();
         let closed_registered_program_account =
             context.get_account(registered_program_pda).await.unwrap();
-        assert_eq!(closed_registered_program_account, None);
+        assert_eq!(closed_registered_program_account.unwrap().data.len(), 0);
         let recipient_balance = context.get_balance(&close_recipient).await.unwrap();
         let rent_exemption = context
             .get_minimum_balance_for_rent_exemption(RegisteredProgram::LEN)
@@ -374,7 +374,7 @@ async fn test_resize_registered_program_pda() {
         let account_data = RegisteredProgramV1::deserialize(&mut &pre_account.data[8..]).unwrap();
         println!("account_data: {:?}", account_data);
         let mut transaction =
-            Transaction::new_with_payer(std::slice::from_ref(&instruction), Some(&payer.pubkey()));
+            Transaction::new_with_payer(&[instruction.clone()], Some(&payer.pubkey()));
         let recent_blockhash = context.get_latest_blockhash().await.unwrap().0;
         transaction.sign(&[&payer], recent_blockhash);
         context.process_transaction(transaction).await.unwrap();
@@ -400,7 +400,7 @@ async fn test_resize_registered_program_pda() {
     // Resize again should fail.
     {
         let mut transaction =
-            Transaction::new_with_payer(std::slice::from_ref(&instruction), Some(&payer.pubkey()));
+            Transaction::new_with_payer(&[instruction.clone()], Some(&payer.pubkey()));
         let recent_blockhash = context.get_latest_blockhash().await.unwrap().0;
         transaction.sign(&[&payer], recent_blockhash);
         let result = context.process_transaction(transaction).await;
@@ -443,7 +443,7 @@ async fn test_resize_registered_program_pda() {
             data: instruction_data.data(),
         };
         let mut transaction =
-            Transaction::new_with_payer(std::slice::from_ref(&instruction), Some(&payer.pubkey()));
+            Transaction::new_with_payer(&[instruction.clone()], Some(&payer.pubkey()));
         let recent_blockhash = context.get_latest_blockhash().await.unwrap().0;
         transaction.sign(&[&payer], recent_blockhash);
         let result = context.process_transaction(transaction).await;

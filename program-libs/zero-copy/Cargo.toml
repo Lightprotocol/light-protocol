@@ -1,6 +1,6 @@
 [package]
 name = "light-zero-copy"
-version = "0.4.0"
+version = "0.2.0"
 description = "Zero copy vector and utils for Solana programs."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -11,7 +11,7 @@ default = []
 solana = ["solana-program-error"]
 pinocchio = ["dep:pinocchio"]
 std = []
-derive = ["light-zero-copy-derive"]
+derive = ["light-zero-copy-derive", "zerocopy/derive"]
 mut = ["light-zero-copy-derive/mut"]
 
 [dependencies]
@@ -19,10 +19,9 @@ solana-program-error = { workspace = true, optional = true }
 pinocchio = { workspace = true, optional = true }
 zerocopy = { workspace = true }
 light-zero-copy-derive = { workspace = true, optional = true }
+arrayvec = {workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
 zerocopy = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
-trybuild = "1.0"
-light-zero-copy-derive = { workspace = true }

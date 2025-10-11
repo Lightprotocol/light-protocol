@@ -1,6 +1,6 @@
 extern crate proc_macro;
 use accounts::{process_light_accounts, process_light_system_accounts};
-use hasher::{derive_light_hasher, derive_light_hasher_sha};
+use hasher::derive_light_hasher;
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput, ItemMod, ItemStruct};
 use traits::process_light_traits;
@@ -142,10 +142,10 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
 
 /// Makes the annotated struct hashable by implementing the following traits:
 ///
-/// - [`ToByteArray`](light_hasher::to_byte_array::ToByteArray), which makes the struct
+/// - [`AsByteVec`](light_hasher::bytes::AsByteVec), which makes the struct
 ///   convertable to a 2D byte vector.
 /// - [`DataHasher`](light_hasher::DataHasher), which makes the struct hashable
-///   with the `hash()` method, based on the byte inputs from `ToByteArray`
+///   with the `hash()` method, based on the byte inputs from `AsByteVec`
 ///   implementation.
 ///
 /// This macro assumes that all the fields of the struct implement the
@@ -156,7 +156,7 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
 ///
 /// 1. The most recommended one - annotating that type with the `light_hasher`
 ///    macro as well.
-/// 2. Manually implementing the `ToByteArray` trait.
+/// 2. Manually implementing the `AsByteVec` trait.
 ///
 /// # Attributes
 ///
@@ -222,37 +222,36 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
 /// }
 /// ```
 ///
+/// Compressed account with a type with a custom `AsByteVec` implementation:
+///
+/// ```ignore
+/// #[derive(LightHasher)]
+/// pub struct MyCompressedAccount {
+///     a: i64
+///     b: Option<u64>,
+///     c: RData,
+/// }
+///
+/// pub enum RData {
+///     A(Ipv4Addr),
+///     AAAA(Ipv6Addr),
+///     CName(String),
+/// }
+///
+/// impl AsByteVec for RData {
+///     fn as_byte_vec(&self) -> Vec<Vec<u8>> {
+///         match self {
+///             Self::A(ipv4_addr) => vec![ipv4_addr.octets().to_vec()],
+///             Self::AAAA(ipv6_addr) => vec![ipv6_addr.octets().to_vec()],
+///             Self::CName(cname) => cname.as_byte_vec(),
+///         }
+///     }
+/// }
+/// ```
 #[proc_macro_derive(LightHasher, attributes(skip, hash))]
 pub fn light_hasher(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
     derive_light_hasher(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-/// SHA256 variant of the LightHasher derive macro.
-///
-/// This derive macro automatically implements the `DataHasher` and `ToByteArray` traits
-/// for structs, using SHA256 as the hashing algorithm instead of Poseidon.
-///
-/// ## Example
-///
-/// ```rust
-/// use light_sdk_macros::LightHasherSha;
-/// use borsh::{BorshSerialize, BorshDeserialize};
-/// use solana_pubkey::Pubkey;
-///
-/// #[derive(LightHasherSha, BorshSerialize, BorshDeserialize)]
-/// pub struct GameState {
-///     pub player: Pubkey,  // Will be hashed to 31 bytes
-///     pub level: u32,
-/// }
-/// ```
-#[proc_macro_derive(LightHasherSha, attributes(hash, skip))]
-pub fn light_hasher_sha(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemStruct);
-
-    derive_light_hasher_sha(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }

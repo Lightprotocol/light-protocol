@@ -1,8 +1,5 @@
 {
-  "node-option": [
-    "require=tsx/cjs"
-  ],
-  "require": ["test/helpers/init.js"],
+  "require": ["test/helpers/init.js", "ts-node/register"],
   "watch-extensions": ["ts"],
   "recursive": true,
   "reporter": "spec",

@@ -352,7 +352,6 @@ pub async fn create_rollover_state_merkle_tree_instructions<R: Rpc>(
             merkle_tree: *merkle_tree_pubkey,
             nullifier_queue: *nullifier_queue_pubkey,
             cpi_context: *old_cpi_context_pubkey, // TODO: check if this is correct
-            tree_type: TreeType::StateV1,         // not used.
         },
     )
     .await;

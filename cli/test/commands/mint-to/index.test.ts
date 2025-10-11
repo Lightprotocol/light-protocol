@@ -1,5 +1,4 @@
-import { runCommand } from "@oclif/test";
-import { expect } from "chai";
+import { expect, test } from "@oclif/test";
 import { before } from "mocha";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
@@ -21,14 +20,19 @@ describe("mint-to", () => {
     await createTestMint(mintKeypair);
   });
 
-  it(`mint-to ${mintAmount} tokens to ${mintAuthority.publicKey.toBase58()} from mint: ${mintAddress.toBase58()} with authority ${mintAuthority.publicKey.toBase58()}`, async () => {
-    const { stdout } = await runCommand([
+  test
+    .stdout({ print: true })
+    .command([
       "mint-to",
       `--amount=${mintAmount}`,
       `--mint=${mintAddress.toBase58()}`,
       `--mint-authority=${mintAuthorityPath}`,
       `--to=${mintAuthority.publicKey.toBase58()}`,
-    ]);
-    expect(stdout).to.contain("mint-to successful");
-  });
+    ])
+    .it(
+      `mint-to ${mintAmount} tokens to ${mintAuthority.publicKey.toBase58()} from mint: ${mintAddress.toBase58()} with authority ${mintAuthority.publicKey.toBase58()}`,
+      (ctx: any) => {
+        expect(ctx.stdout).to.contain("mint-to successful");
+      },
+    );
 });

@@ -56,9 +56,6 @@ pub enum ForesterError {
     #[error("Invalid tree type: {0}")]
     InvalidTreeType(TreeType),
 
-    #[error("Not in active phase")]
-    NotInActivePhase,
-
     #[error("Forester error: {error}")]
     General { error: String },
 

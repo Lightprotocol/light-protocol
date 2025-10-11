@@ -1,26 +1,17 @@
 use std::{fmt::Debug, time::Duration};
 
-#[cfg(feature = "devenv")]
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
-
-use crate::accounts::test_accounts::TestAccounts;
-// Constants from account_compression and light_batched_merkle_tree for non-devenv mode
-pub(crate) const STATE_MERKLE_TREE_HEIGHT: u64 = 26;
-pub(crate) const STATE_MERKLE_TREE_CANOPY_DEPTH: u64 = 10;
-pub(crate) const STATE_MERKLE_TREE_ROOTS: u64 = 2400;
-pub(crate) const DEFAULT_BATCH_STATE_TREE_HEIGHT: usize = 32;
-pub(crate) const DEFAULT_BATCH_ADDRESS_TREE_HEIGHT: usize = 40;
-pub(crate) const DEFAULT_BATCH_ROOT_HISTORY_LEN: usize = 200;
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
-#[cfg(feature = "devenv")]
-use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
-#[cfg(feature = "v2")]
-use light_client::indexer::MerkleProofWithContext;
-#[cfg(feature = "devenv")]
-use light_client::rpc::{Rpc, RpcError};
+use light_batched_merkle_tree::{
+    constants::{
+        DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, DEFAULT_BATCH_ROOT_HISTORY_LEN,
+        DEFAULT_BATCH_STATE_TREE_HEIGHT,
+    },
+    merkle_tree::BatchedMerkleTreeAccount,
+};
 use light_client::{
     fee::FeeConfig,
     indexer::{
@@ -28,10 +19,12 @@ use light_client::{
         AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount,
         CompressedTokenAccount, Context, GetCompressedAccountsByOwnerConfig,
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer, IndexerError,
-        IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
-        OwnerBalance, PaginatedOptions, QueueElementsResult, Response, RetryConfig, RootIndex,
-        SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance, ValidityProofWithContext,
+        IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MerkleProofWithContext,
+        NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig,
+        RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance,
+        ValidityProofWithContext,
     },
+    rpc::{Rpc, RpcError},
 };
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
@@ -81,20 +74,23 @@ use solana_sdk::{
     signature::{Keypair, Signer},
 };
 
-#[cfg(feature = "devenv")]
-use super::address_tree::IndexedMerkleTreeVersion;
 use super::{
-    address_tree::AddressMerkleTreeBundle,
+    address_tree::{AddressMerkleTreeBundle, IndexedMerkleTreeVersion},
     state_tree::{LeafIndexInfo, StateMerkleTreeBundle},
 };
 #[cfg(feature = "devenv")]
 use crate::accounts::{
-    address_tree::create_address_merkle_tree_and_queue_account,
     address_tree_v2::create_batch_address_merkle_tree,
-    state_tree::create_state_merkle_tree_and_queue_account,
     state_tree_v2::create_batched_state_merkle_tree,
 };
-use crate::indexer::TestIndexerExtensions;
+use crate::{
+    accounts::{
+        address_tree::create_address_merkle_tree_and_queue_account,
+        state_tree::create_state_merkle_tree_and_queue_account, test_accounts::TestAccounts,
+        test_keypairs::BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR,
+    },
+    indexer::TestIndexerExtensions,
+};
 
 #[derive(Debug)]
 pub struct TestIndexer {
@@ -193,16 +189,16 @@ impl Indexer for TestIndexer {
         &self,
         address: Address,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<CompressedAccount>>, IndexerError> {
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
         let account = self
             .compressed_accounts
             .iter()
             .find(|acc| acc.compressed_account.address == Some(address));
 
-        let account_data = match account {
-            Some(acc) => Some(acc.clone().try_into()?),
-            None => None,
-        };
+        let account_data = account
+            .ok_or(IndexerError::AccountNotFound)?
+            .clone()
+            .try_into()?;
 
         Ok(Response {
             context: Context {
@@ -216,7 +212,7 @@ impl Indexer for TestIndexer {
         &self,
         hash: Hash,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<CompressedAccount>>, IndexerError> {
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
         let res = self
             .compressed_accounts
             .iter()
@@ -233,10 +229,10 @@ impl Indexer for TestIndexer {
             res
         };
 
-        let account_data = match account {
-            Some(acc) => Some(acc.clone().try_into()?),
-            None => None,
-        };
+        let account_data = account
+            .ok_or(IndexerError::AccountNotFound)?
+            .clone()
+            .try_into()?;
 
         Ok(Response {
             context: Context {
@@ -298,14 +294,11 @@ impl Indexer for TestIndexer {
                 ))
             }
         };
-        let account = account_response
-            .value
-            .ok_or(IndexerError::AccountNotFound)?;
         Ok(Response {
             context: Context {
                 slot: self.get_current_slot(),
             },
-            value: account.lamports,
+            value: account_response.value.lamports,
         })
     }
 
@@ -348,42 +341,38 @@ impl Indexer for TestIndexer {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<Option<CompressedAccount>>>, IndexerError> {
+    ) -> Result<Response<Items<CompressedAccount>>, IndexerError> {
         match (addresses, hashes) {
             (Some(addresses), _) => {
-                let accounts: Result<Vec<Option<CompressedAccount>>, IndexerError> = addresses
+                let accounts = self
+                    .compressed_accounts
                     .iter()
-                    .map(|addr| {
-                        self.compressed_accounts
-                            .iter()
-                            .find(|acc| acc.compressed_account.address == Some(*addr))
-                            .map(|acc| acc.clone().try_into())
-                            .transpose()
+                    .filter(|acc| {
+                        acc.compressed_account
+                            .address
+                            .is_some_and(|addr| addresses.contains(&addr))
                     })
-                    .collect();
+                    .map(|acc| acc.clone().try_into())
+                    .collect::<Result<Vec<CompressedAccount>, IndexerError>>()?;
                 Ok(Response {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: Items { items: accounts? },
+                    value: Items { items: accounts },
                 })
             }
             (_, Some(hashes)) => {
-                let accounts: Result<Vec<Option<CompressedAccount>>, IndexerError> = hashes
+                let accounts = self
+                    .compressed_accounts
                     .iter()
-                    .map(|hash| {
-                        self.compressed_accounts
-                            .iter()
-                            .find(|acc| acc.hash() == Ok(*hash))
-                            .map(|acc| acc.clone().try_into())
-                            .transpose()
-                    })
-                    .collect();
+                    .filter(|acc| acc.hash().is_ok_and(|hash| hashes.contains(&hash)))
+                    .map(|acc| acc.clone().try_into())
+                    .collect::<Result<Vec<CompressedAccount>, IndexerError>>()?;
                 Ok(Response {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: Items { items: accounts? },
+                    value: Items { items: accounts },
                 })
             }
             (None, None) => Err(IndexerError::InvalidParameters(
@@ -462,11 +451,8 @@ impl Indexer for TestIndexer {
 
             for hash in hashes.iter() {
                 let account = self.get_compressed_account_by_hash(*hash, None).await?;
-                let account_data = account.value.ok_or(IndexerError::AccountNotFound)?;
-                state_merkle_tree_pubkeys.push(account_data.tree_info.tree);
+                state_merkle_tree_pubkeys.push(account.value.tree_info.tree);
             }
-            println!("state_merkle_tree_pubkeys {:?}", state_merkle_tree_pubkeys);
-            println!("hashes {:?}", hashes);
             let mut proof_inputs = vec![];
 
             let mut indices_to_remove = Vec::new();
@@ -488,14 +474,7 @@ impl Indexer for TestIndexer {
                             .output_queue_elements
                             .iter()
                             .find(|(hash, _)| hash == compressed_account);
-                        println!("queue_element {:?}", queue_element);
-
                         if let Some((_, index)) = queue_element {
-                            println!("index {:?}", index);
-                            println!(
-                                "accounts.output_queue_batch_size {:?}",
-                                accounts.output_queue_batch_size
-                            );
                             if accounts.output_queue_batch_size.is_some()
                                 && accounts.leaf_index_in_queue_range(*index as usize)?
                             {
@@ -623,7 +602,7 @@ impl Indexer for TestIndexer {
         _num_elements: u16,
         _start_offset: Option<u64>,
         _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<QueueElementsResult>, IndexerError> {
+    ) -> Result<Response<Items<MerkleProofWithContext>>, IndexerError> {
         #[cfg(not(feature = "v2"))]
         unimplemented!("get_queue_elements");
         #[cfg(feature = "v2")]
@@ -660,9 +639,8 @@ impl Indexer for TestIndexer {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
-                    value: QueueElementsResult {
-                        elements: merkle_proofs_with_context,
-                        first_value_queue_index: None,
+                    value: Items {
+                        items: merkle_proofs_with_context,
                     },
                 });
             }
@@ -734,9 +712,8 @@ impl Indexer for TestIndexer {
                         context: Context {
                             slot: self.get_current_slot(),
                         },
-                        value: QueueElementsResult {
-                            elements: merkle_proofs_with_context,
-                            first_value_queue_index: None,
+                        value: Items {
+                            items: merkle_proofs_with_context,
                         },
                     });
                 }
@@ -808,13 +785,8 @@ impl Indexer for TestIndexer {
                         context: Context {
                             slot: self.get_current_slot(),
                         },
-                        value: QueueElementsResult {
-                            elements: merkle_proofs_with_context,
-                            first_value_queue_index: if queue_elements.is_empty() {
-                                None
-                            } else {
-                                Some(queue_elements[0].1)
-                            },
+                        value: Items {
+                            items: merkle_proofs_with_context,
                         },
                     });
                 }
@@ -899,7 +871,7 @@ impl Indexer for TestIndexer {
                 .merkle_tree
                 .rightmost_index;
 
-            let address_proof_items = self
+            let address_proofs = self
                 .get_queue_elements(
                     merkle_tree_pubkey.to_bytes(),
                     QueueType::AddressV2,
@@ -911,8 +883,8 @@ impl Indexer for TestIndexer {
                 .map_err(|_| IndexerError::Unknown("Failed to get queue elements".into()))?
                 .value;
 
-            let addresses: Vec<AddressQueueIndex> = address_proof_items
-                .elements
+            let addresses: Vec<AddressQueueIndex> = address_proofs
+                .items
                 .iter()
                 .enumerate()
                 .map(|(i, proof)| AddressQueueIndex {
@@ -923,8 +895,8 @@ impl Indexer for TestIndexer {
             let non_inclusion_proofs = self
                 .get_multiple_new_address_proofs(
                     merkle_tree_pubkey.to_bytes(),
-                    address_proof_items
-                        .elements
+                    address_proofs
+                        .items
                         .iter()
                         .map(|x| x.account_hash)
                         .collect(),
@@ -1019,10 +991,6 @@ impl Indexer for TestIndexer {
 
 #[async_trait]
 impl TestIndexerExtensions for TestIndexer {
-    fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
-        &self.address_merkle_trees
-    }
-
     fn get_address_merkle_tree(
         &self,
         merkle_tree_pubkey: Pubkey,
@@ -1113,6 +1081,10 @@ impl TestIndexerExtensions for TestIndexer {
 
     fn get_state_merkle_trees_mut(&mut self) -> &mut Vec<StateMerkleTreeBundle> {
         &mut self.state_merkle_trees
+    }
+
+    fn get_address_merkle_trees(&self) -> &Vec<AddressMerkleTreeBundle> {
+        &self.address_merkle_trees
     }
 
     fn get_address_merkle_trees_mut(&mut self) -> &mut Vec<AddressMerkleTreeBundle> {
@@ -1223,7 +1195,6 @@ impl TestIndexerExtensions for TestIndexer {
         }
     }
 
-    #[cfg(feature = "devenv")]
     async fn finalize_batched_address_tree_update(
         &mut self,
         merkle_tree_pubkey: Pubkey,
@@ -1281,7 +1252,6 @@ impl TestIndexer {
                 merkle_tree: v2_state_tree.merkle_tree,
                 nullifier_queue: v2_state_tree.output_queue,
                 cpi_context: v2_state_tree.cpi_context,
-                tree_type: TreeType::StateV2,
             });
         }
 
@@ -1315,28 +1285,32 @@ impl TestIndexer {
     ) -> Self {
         let mut state_merkle_trees = Vec::new();
         for state_merkle_tree_account in state_merkle_tree_accounts.iter() {
-            let (tree_type, merkle_tree, output_queue_batch_size) =
-                if state_merkle_tree_account.tree_type == TreeType::StateV2 {
-                    let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
-                        DEFAULT_BATCH_STATE_TREE_HEIGHT,
-                        0,
-                        0,
-                        DEFAULT_BATCH_ROOT_HISTORY_LEN,
-                    ));
-                    (
-                        TreeType::StateV2,
-                        merkle_tree,
-                        Some(output_queue_batch_size),
-                    )
-                } else {
-                    let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
-                        STATE_MERKLE_TREE_HEIGHT as usize,
-                        STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
-                        0,
-                        STATE_MERKLE_TREE_ROOTS as usize,
-                    ));
-                    (TreeType::StateV1, merkle_tree, None)
-                };
+            let test_batched_output_queue =
+                Keypair::from_bytes(&BATCHED_OUTPUT_QUEUE_TEST_KEYPAIR).unwrap();
+            let (tree_type, merkle_tree, output_queue_batch_size) = if state_merkle_tree_account
+                .nullifier_queue
+                == test_batched_output_queue.pubkey()
+            {
+                let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
+                    DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
+                    0,
+                    0,
+                    DEFAULT_BATCH_ROOT_HISTORY_LEN as usize,
+                ));
+                (
+                    TreeType::StateV2,
+                    merkle_tree,
+                    Some(output_queue_batch_size),
+                )
+            } else {
+                let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
+                    account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
+                    account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+                    0,
+                    account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
+                ));
+                (TreeType::StateV1, merkle_tree, None)
+            };
 
             state_merkle_trees.push(StateMerkleTreeBundle {
                 accounts: *state_merkle_tree_account,
@@ -1379,7 +1353,7 @@ impl TestIndexer {
             AddressMerkleTreeBundle::new_v1(address_merkle_tree_accounts)
         }
     }
-    #[cfg(feature = "devenv")]
+
     async fn add_address_merkle_tree_v1<R: Rpc>(
         &mut self,
         rpc: &mut R,
@@ -1443,7 +1417,6 @@ impl TestIndexer {
         Ok(accounts)
     }
 
-    #[cfg(feature = "devenv")]
     pub async fn add_address_merkle_tree<R: Rpc>(
         &mut self,
         rpc: &mut R,
@@ -1480,7 +1453,6 @@ impl TestIndexer {
     }
 
     #[allow(clippy::too_many_arguments)]
-    #[cfg(feature = "devenv")]
     pub async fn add_state_merkle_tree<R: Rpc>(
         &mut self,
         rpc: &mut R,
@@ -1509,10 +1481,10 @@ impl TestIndexer {
                     .await
                     .unwrap();
                 let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
-                    STATE_MERKLE_TREE_HEIGHT as usize,
-                    STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
+                    account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize,
+                    account_compression::utils::constants::STATE_MERKLE_TREE_CANOPY_DEPTH as usize,
                     0,
-                    STATE_MERKLE_TREE_ROOTS as usize,
+                    account_compression::utils::constants::STATE_MERKLE_TREE_ROOTS as usize,
 
                 ));
                 (FeeConfig::default().state_merkle_tree_rollover as i64,merkle_tree, None)
@@ -1532,10 +1504,10 @@ impl TestIndexer {
                         params,
                     ).await.unwrap();
                     let merkle_tree = Box::new(MerkleTree::<Poseidon>::new_with_history(
-                        DEFAULT_BATCH_STATE_TREE_HEIGHT,
+                        DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
                         0,
                         0,
-                        DEFAULT_BATCH_ROOT_HISTORY_LEN,
+                        DEFAULT_BATCH_ROOT_HISTORY_LEN as usize,
 
                     ));
                     (FeeConfig::test_batched().state_merkle_tree_rollover as i64,merkle_tree, Some(params.output_queue_batch_size as usize))
@@ -1553,7 +1525,6 @@ impl TestIndexer {
             merkle_tree: merkle_tree_keypair.pubkey(),
             nullifier_queue: queue_keypair.pubkey(),
             cpi_context: cpi_context_keypair.pubkey(),
-            tree_type,
         };
 
         self.state_merkle_trees.push(StateMerkleTreeBundle {
@@ -1618,6 +1589,7 @@ impl TestIndexer {
         compressed_accounts: &mut Vec<CompressedAccountWithMerkleContext>,
     ) {
         let mut input_addresses = vec![];
+
         let mut new_addresses = vec![];
         if event.output_compressed_accounts.len() > i {
             let compressed_account = &event.output_compressed_accounts[i];
@@ -1659,18 +1631,13 @@ impl TestIndexer {
             match compressed_account.compressed_account.data.as_ref() {
                 Some(data) => {
                     // Check for both V1 and V2 token account discriminators
-                    const TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR: [u8; 8] =
-                        [2, 0, 0, 0, 0, 0, 0, 0];
-                    let is_v1_token = data.discriminator == TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
+                    let is_v1_token = data.discriminator == light_compressed_token::constants::TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR; // [2, 0, 0, 0, 0, 0, 0, 0]
                     let is_v2_token = data.discriminator == [0, 0, 0, 0, 0, 0, 0, 3]; // V2 discriminator
-
-                    use solana_sdk::pubkey;
-                    const LIGHT_COMPRESSED_TOKEN_ID: solana_sdk::pubkey::Pubkey =
-                        pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
+                    let is_v3_token = data.discriminator == [0, 0, 0, 0, 0, 0, 0, 4]; // ShaFlat discriminator
 
                     if compressed_account.compressed_account.owner
-                        == LIGHT_COMPRESSED_TOKEN_ID.to_bytes()
-                        && (is_v1_token || is_v2_token)
+                        == light_compressed_token::ID.to_bytes()
+                        && (is_v1_token || is_v2_token || is_v3_token)
                     {
                         if let Ok(token_data) = TokenData::deserialize(&mut data.data.as_slice()) {
                             let token_account = TokenDataWithMerkleContext {
@@ -1942,7 +1909,6 @@ impl TestIndexer {
                         x.accounts.merkle_tree == pubkey || x.accounts.nullifier_queue == pubkey
                     })
                     .unwrap();
-                println!("accounts {:?}", bundle.accounts);
                 let merkle_tree = &bundle.merkle_tree;
                 queues.push(bundle.accounts.nullifier_queue);
                 cpi_contextes.push(bundle.accounts.cpi_context);
@@ -1993,7 +1959,9 @@ impl TestIndexer {
             });
         }
 
-        let (batch_inclusion_proof_inputs, legacy) = if height == DEFAULT_BATCH_STATE_TREE_HEIGHT {
+        let (batch_inclusion_proof_inputs, legacy) = if height
+            == DEFAULT_BATCH_STATE_TREE_HEIGHT as usize
+        {
             let inclusion_proof_inputs =
                 InclusionProofInputs::new(inclusion_proofs.as_slice()).unwrap();
             (
@@ -2002,7 +1970,8 @@ impl TestIndexer {
                 )),
                 None,
             )
-        } else if height == STATE_MERKLE_TREE_HEIGHT as usize {
+        } else if height == account_compression::utils::constants::STATE_MERKLE_TREE_HEIGHT as usize
+        {
             let inclusion_proof_inputs = InclusionProofInputsLegacy(inclusion_proofs.as_slice());
             (
                 None,
@@ -2122,9 +2091,13 @@ impl TestIndexer {
         let mut state_merkle_tree_pubkeys = Vec::new();
 
         for hash in hashes.iter() {
-            let account = self.get_compressed_account_by_hash(*hash, None).await?;
-            let account_data = account.value.ok_or(IndexerError::AccountNotFound)?;
-            state_merkle_tree_pubkeys.push(account_data.tree_info.tree);
+            state_merkle_tree_pubkeys.push(
+                self.get_compressed_account_by_hash(*hash, None)
+                    .await?
+                    .value
+                    .tree_info
+                    .tree,
+            );
         }
 
         let state_merkle_tree_pubkeys = if state_merkle_tree_pubkeys.is_empty() {
@@ -2252,8 +2225,8 @@ impl TestIndexer {
 
                             CombinedJsonStruct {
                                 circuit_type: ProofType::Combined.to_string(),
-                                state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT as u32,
-                                address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as u32,
+                                state_tree_height: DEFAULT_BATCH_STATE_TREE_HEIGHT,
+                                address_tree_height: DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
                                 public_input_hash: big_int_to_string(&public_input_hash),
                                 inclusion: inclusion_payload.unwrap().inputs,
                                 non_inclusion: non_inclusion_payload.inputs,

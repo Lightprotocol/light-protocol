@@ -1,4 +1,3 @@
-#[cfg(feature = "poseidon")]
 use light_poseidon::PoseidonError;
 use thiserror::Error;
 
@@ -8,7 +7,6 @@ use crate::poseidon::PoseidonSyscallError;
 pub enum HasherError {
     #[error("Integer overflow, value too large")]
     IntegerOverflow,
-    #[cfg(feature = "poseidon")]
     #[error("Poseidon hasher error: {0}")]
     Poseidon(#[from] PoseidonError),
     #[error("Poseidon syscall error: {0}")]
@@ -27,8 +25,6 @@ pub enum HasherError {
         "Option hash to field size returned [0u8;32], a collision with None for an Option type."
     )]
     OptionHashToFieldSizeZero,
-    #[error("Poseidon feature is not enabled. Without feature poseidon only syscalls are accessible in target os solana")]
-    PoseidonFeatureNotEnabled,
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand. `num_derive::ToPrimitive`
@@ -37,7 +33,6 @@ impl From<HasherError> for u32 {
     fn from(e: HasherError) -> u32 {
         match e {
             HasherError::IntegerOverflow => 7001,
-            #[cfg(feature = "poseidon")]
             HasherError::Poseidon(_) => 7002,
             HasherError::PoseidonSyscall(e) => (u64::from(e)).try_into().unwrap_or(7003),
             HasherError::UnknownSolanaSyscall(e) => e.try_into().unwrap_or(7004),
@@ -46,7 +41,6 @@ impl From<HasherError> for u32 {
             HasherError::EmptyInput => 7007,
             HasherError::BorshError => 7008,
             HasherError::OptionHashToFieldSizeZero => 7009,
-            HasherError::PoseidonFeatureNotEnabled => 7010,
         }
     }
 }

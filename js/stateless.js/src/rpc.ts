@@ -64,6 +64,7 @@ import {
     ValidityProof,
     TreeType,
     AddressTreeInfo,
+    CompressedAccount,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import {
@@ -73,7 +74,6 @@ import {
     defaultStateTreeLookupTables,
     versionedEndpoint,
     featureFlags,
-    batchAddressTree,
 } from './constants';
 import BN from 'bn.js';
 import { toCamelCase, toHex } from './utils/conversion';
@@ -700,20 +700,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
                 );
             }
         }
-    }
-
-    /**
-     * Get a V2 address tree info.
-     */
-    async getAddressTreeInfoV2(): Promise<TreeInfo> {
-        const tree = new PublicKey(batchAddressTree);
-        return {
-            tree,
-            queue: tree,
-            cpiContext: undefined,
-            treeType: TreeType.AddressV2,
-            nextTreeInfo: null,
-        };
     }
 
     /**

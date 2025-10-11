@@ -9,7 +9,7 @@ use light_compressed_account::{
         zero_copy::{ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
     },
 };
-use light_program_profiler::profile;
+use light_profiler::profile;
 use light_verifier::{
     select_verifying_key, verify_create_addresses_and_inclusion_proof,
     verify_create_addresses_proof, verify_inclusion_proof,

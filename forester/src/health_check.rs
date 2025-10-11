@@ -151,7 +151,7 @@ async fn check_wallet_balance<R: Rpc>(
         }
     };
 
-    let keypair = match Keypair::try_from(payer_bytes.as_slice()) {
+    let keypair = match Keypair::from_bytes(&payer_bytes) {
         Ok(kp) => kp,
         Err(e) => {
             return HealthCheckResult::new(

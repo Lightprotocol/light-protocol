@@ -46,7 +46,7 @@ where
             .zip(H::zero_bytes().iter())
             .enumerate()
         {
-            if current_index.is_multiple_of(2) {
+            if current_index % 2 == 0 {
                 left = current_level_hash;
                 right = *zero_byte;
                 *subtree = current_level_hash;

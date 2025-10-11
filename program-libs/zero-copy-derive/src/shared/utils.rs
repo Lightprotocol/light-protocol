@@ -69,7 +69,7 @@ pub fn process_input_generic(
 ) -> syn::Result<(
     &Ident,             // Original name
     proc_macro2::Ident, // Z-name
-    InputType<'_>,      // Input type (struct or enum)
+    InputType,          // Input type (struct or enum)
 )> {
     let name = &input.ident;
     let z_name = format_ident!("Z{}", name);

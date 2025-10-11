@@ -4,7 +4,6 @@ version = "0.7.0"
 description = "Test program for Light SDK and Light Macros"
 edition = "2021"
 license = "Apache-2.0"
-publish = false
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -15,18 +14,17 @@ no-entrypoint = []
 no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
-default = []
+default = ["idl-build"]
 test-sbf = []
 bench-sbf = []
 idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
 
 [dependencies]
 # Needs to be imported for LightHasher
-light-hasher = { workspace = true, features = ["solana", "poseidon"] }
+light-hasher = { workspace = true, features = ["solana"] }
 anchor-lang = { workspace = true }
-light-sdk = { workspace = true, features = ["anchor", "v2", "poseidon"] }
+light-sdk = { workspace = true, features = ["anchor", "v2"] }
 light-sdk-types = { workspace = true }
-serial_test = { workspace = true }
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }

@@ -1,7 +1,9 @@
-mod traits;
-pub mod v1;
-#[cfg(feature = "v2")]
-pub mod v2;
+pub mod accounts;
+//#[cfg(feature = "v2")]
+//pub mod accounts_small;
+pub mod invoke;
 
-pub use light_sdk_types::cpi_accounts::CpiAccountsConfig;
-pub use traits::*;
+pub use accounts::*;
+//#[cfg(feature = "v2")]
+//pub use accounts_small::*;
+pub use invoke::*;

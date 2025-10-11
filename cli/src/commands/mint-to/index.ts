@@ -3,9 +3,9 @@ import {
   CustomLoader,
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
-  getKeypairFromFile,
   rpc,
 } from "../../utils/utils";
+import { getKeypairFromFile } from "@solana-developers/helpers";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { mintTo } from "@lightprotocol/compressed-token";
 

@@ -12,7 +12,8 @@
 //!     ctx.accounts.fee_payer.as_ref(),
 //!     ctx.remaining_accounts,
 //!     crate::LIGHT_CPI_SIGNER,
-//! )?;
+//! )
+//! .map_err(ProgramError::from)?;
 //!
 //! let (address, address_seed) = derive_address(
 //!     &[b"compressed", name.as_bytes()],
@@ -28,26 +29,36 @@
 //! );
 //!
 //! my_compressed_account.name = name;
+//! my_compressed_account.nested = NestedData::default();
 //!
-//! LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, proof)
-//!     .with_light_account(my_compressed_account)?
-//!     .with_new_addresses(&[new_address_params])
-//!     .invoke(light_cpi_accounts)?;
+//! let cpi_inputs = CpiInputs::new_with_address(
+//!     proof,
+//!     // add compressed accounts to create, update or close here
+//!     vec![my_compressed_account
+//!         .to_account_info()
+//!         .map_err(ProgramError::from)?],
+//!     // add new addresses here
+//!     // (existing addresses are part of the account info and must not be added here)
+//!     vec![new_address_params],
+//! );
+//!
+//! cpi_inputs
+//!     .invoke_light_system_program(light_cpi_accounts)
+//!     .map_err(ProgramError::from)?;
 //! ```
 
-mod account;
-mod instruction;
-pub mod invoke;
-
-pub mod v1;
+mod accounts;
+mod accounts_cpi_context;
 #[cfg(feature = "v2")]
-pub mod v2;
+mod accounts_small_ix;
+mod invoke;
 
-pub use account::*;
-pub use instruction::*;
-pub use invoke::InvokeLightSystemProgram;
-pub use light_compressed_account::instruction_data::traits::LightInstructionData;
+pub use accounts::*;
+pub use accounts_cpi_context::get_account_metas_from_config_cpi_context;
+#[cfg(feature = "v2")]
+pub use accounts_small_ix::*;
+pub use invoke::*;
 /// Derives cpi signer and bump to invoke the light system program at compile time.
 pub use light_sdk_macros::derive_light_cpi_signer;
 /// Contains program id, derived cpi signer, and bump,
-pub use light_sdk_types::{cpi_accounts::CpiAccountsConfig, CpiSigner};
+pub use light_sdk_types::CpiSigner;

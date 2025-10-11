@@ -259,64 +259,33 @@ lazy_static! {
             );
         }
 
-        // V2 State Trees (5 tree triples)
-        let state_trees_v2 = [
-            (
-                pubkey!("bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU"),
-                pubkey!("oq1na8gojfdUhsfCpyjNt6h4JaDWtHf1yQj4koBWfto"),
-                Some(pubkey!("cpi15BoVPKgEPw5o8wc2T816GE7b378nMXnhH3Xbq4y")),
-            ),
-            (
-                pubkey!("bmt2UxoBxB9xWev4BkLvkGdapsz6sZGkzViPNph7VFi"),
-                pubkey!("oq2UkeMsJLfXt2QHzim242SUi3nvjJs8Pn7Eac9H9vg"),
-                Some(pubkey!("cpi2yGapXUR3As5SjnHBAVvmApNiLsbeZpF3euWnW6B")),
-            ),
-            (
-                pubkey!("bmt3ccLd4bqSVZVeCJnH1F6C8jNygAhaDfxDwePyyGb"),
-                pubkey!("oq3AxjekBWgo64gpauB6QtuZNesuv19xrhaC1ZM1THQ"),
-                Some(pubkey!("cpi3mbwMpSX8FAGMZVP85AwxqCaQMfEk9Em1v8QK9Rf")),
-            ),
-            (
-                pubkey!("bmt4d3p1a4YQgk9PeZv5s4DBUmbF5NxqYpk9HGjQsd8"),
-                pubkey!("oq4ypwvVGzCUMoiKKHWh4S1SgZJ9vCvKpcz6RT6A8dq"),
-                Some(pubkey!("cpi4yyPDc4bCgHAnsenunGA8Y77j3XEDyjgfyCKgcoc")),
-            ),
-            (
-                pubkey!("bmt5yU97jC88YXTuSukYHa8Z5Bi2ZDUtmzfkDTA2mG2"),
-                pubkey!("oq5oh5ZR3yGomuQgFduNDzjtGvVWfDRGLuDVjv9a96P"),
-                Some(pubkey!("cpi5ZTjdgYpZ1Xr7B1cMLLUE81oTtJbNNAyKary2nV6")),
-            ),
-        ];
-
-        for (tree, queue, cpi_context) in state_trees_v2.iter() {
-            m.insert(
-                queue.to_string(),
-                TreeInfo {
-                    tree: *tree,
-                    queue: *queue,
-                    cpi_context: *cpi_context,
-                    tree_type: TreeType::StateV2,
-                    next_tree_info: None,
-                },
-            );
-
-            m.insert(
-                tree.to_string(),
-                TreeInfo {
-                    tree: *tree,
-                    queue: *queue,
-                    cpi_context: *cpi_context,
-                    tree_type: TreeType::StateV2,
-                    next_tree_info: None,
-                },
-            );
-        }
+        m.insert(
+            "6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU".to_string(),
+            TreeInfo {
+                tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
+                queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
+                cpi_context: None,
+                tree_type: TreeType::StateV2,
+                next_tree_info: None,
+            },
+        );
 
         m.insert(
-            "amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx".to_string(),
+            "HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu".to_string(),
             TreeInfo {
-                tree: pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx"),
-                queue: pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx"),
+                tree: pubkey!("HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu"),
+                queue: pubkey!("6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU"),
+                cpi_context: None,
+                tree_type: TreeType::StateV2,
+                next_tree_info: None,
+            },
+        );
+
+        m.insert(
+            "EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK".to_string(),
+            TreeInfo {
+                tree: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
+                queue: pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK"),
                 cpi_context: None,
                 tree_type: TreeType::AddressV2,
                 next_tree_info: None,

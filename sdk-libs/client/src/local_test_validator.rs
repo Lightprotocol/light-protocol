@@ -1,11 +1,12 @@
 use std::process::{Command, Stdio};
 
 use light_prover_client::helpers::get_project_root;
+pub use light_prover_client::prover::ProverConfig;
 
 #[derive(Debug)]
 pub struct LightValidatorConfig {
     pub enable_indexer: bool,
-    pub enable_prover: bool,
+    pub prover_config: Option<ProverConfig>,
     pub wait_time: u64,
     pub sbf_programs: Vec<(String, String)>,
     pub limit_ledger_size: Option<u64>,
@@ -15,7 +16,7 @@ impl Default for LightValidatorConfig {
     fn default() -> Self {
         Self {
             enable_indexer: false,
-            enable_prover: false,
+            prover_config: None,
             wait_time: 35,
             sbf_programs: vec![],
             limit_ledger_size: None,
@@ -42,7 +43,14 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
             ));
         }
 
-        if !config.enable_prover {
+        if let Some(prover_config) = config.prover_config {
+            prover_config.circuits.iter().for_each(|circuit| {
+                path.push_str(&format!(" --circuit {}", circuit));
+            });
+            if let Some(prover_mode) = prover_config.run_mode {
+                path.push_str(&format!(" --prover-run-mode {}", prover_mode));
+            }
+        } else {
             path.push_str(" --skip-prover");
         }
 

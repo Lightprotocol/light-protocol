@@ -169,10 +169,13 @@ pub async fn push_metrics(url: &Option<String>) -> Result<()> {
     let mut buffer = Vec::new();
     encoder.encode(&metric_families, &mut buffer)?;
 
+    debug!("Pushing metrics to Pushgateway");
+
     let client = Client::new();
     let res = client.post(url).body(buffer).send().await?;
 
     if res.status().is_success() {
+        debug!("Successfully pushed metrics to Pushgateway");
         Ok(())
     } else {
         let error_message = format!(

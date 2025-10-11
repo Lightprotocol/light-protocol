@@ -1,6 +1,6 @@
 [package]
 name = "light-batched-merkle-tree"
-version = "0.5.0"
+version = "0.3.0"
 description = "Batch Merkle tree implementation."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -42,7 +42,7 @@ solana-sysvar = { workspace = true, optional = true }
 solana-msg = { workspace = true }
 solana-account-info = { workspace = true, optional = true }
 light-zero-copy = { workspace = true, features = ["std"] }
-light-hasher = { workspace = true, features = ["poseidon"] }
+light-hasher = { workspace = true }
 light-bloom-filter = { workspace = true }
 light-verifier = { workspace = true }
 thiserror = { workspace = true }
@@ -55,9 +55,13 @@ light-macros = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
+light-prover-client = { workspace = true, features = ["devenv"] }
 light-merkle-tree-reference = { workspace = true }
+tokio = { workspace = true }
+serial_test = { workspace = true }
 light-account-checks = { workspace = true, features = ["test-only"] }
 light-compressed-account = { workspace = true, features = ["new-unique"] }
+light-test-utils = { workspace = true, features = ["test-only"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

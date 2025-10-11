@@ -1,12 +1,11 @@
 use std::fmt::Debug;
 
-#[cfg(feature = "devenv")]
 use light_batched_merkle_tree::constants::DEFAULT_BATCH_ROOT_HISTORY_LEN;
 use light_client::{
     fee::FeeConfig,
     indexer::{AddressMerkleTreeAccounts, IndexerError},
 };
-use light_hasher::Poseidon;
+use light_concurrent_merkle_tree::light_hasher::Poseidon;
 use light_indexed_merkle_tree::{
     array::{IndexedArray, IndexedElement, IndexedElementBundle},
     reference::IndexedMerkleTree,
@@ -15,9 +14,6 @@ use light_prover_client::proof_types::non_inclusion::v2::NonInclusionMerkleProof
 use light_sdk::constants::STATE_MERKLE_TREE_ROOTS;
 use num_bigint::{BigInt, BigUint};
 use num_traits::ops::bytes::FromBytes;
-
-#[cfg(not(feature = "devenv"))]
-use super::test_indexer::DEFAULT_BATCH_ROOT_HISTORY_LEN;
 
 #[derive(Debug, Clone)]
 pub enum IndexedMerkleTreeVersion {

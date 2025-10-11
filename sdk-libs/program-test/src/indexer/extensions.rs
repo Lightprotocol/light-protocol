@@ -72,7 +72,6 @@ pub trait TestIndexerExtensions {
 
     fn get_proof_by_index(&mut self, merkle_tree_pubkey: Pubkey, index: u64) -> MerkleProof;
 
-    #[cfg(feature = "devenv")]
     async fn finalize_batched_address_tree_update(
         &mut self,
         merkle_tree_pubkey: Pubkey,

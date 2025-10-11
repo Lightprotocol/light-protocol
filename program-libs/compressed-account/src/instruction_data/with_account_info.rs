@@ -19,16 +19,11 @@ use super::{
 };
 use crate::{
     compressed_account::{
-        hash_with_hashed_values, CompressedAccount, CompressedAccountData, PackedMerkleContext,
+        hash_with_hashed_values, CompressedAccountData, PackedMerkleContext,
         PackedReadOnlyCompressedAccount,
     },
-    discriminators::INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION,
-    instruction_data::{
-        data::OutputCompressedAccountWithPackedContext, traits::LightInstructionData,
-        with_readonly::InAccount,
-    },
     pubkey::Pubkey,
-    AnchorDeserialize, AnchorSerialize, CompressedAccountError, InstructionDiscriminator,
+    AnchorDeserialize, AnchorSerialize, CompressedAccountError,
 };
 
 #[derive(Debug, Default, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
@@ -42,31 +37,6 @@ pub struct InAccountInfo {
     pub root_index: u16,
     /// Lamports.
     pub lamports: u64,
-}
-
-impl From<InAccount> for InAccountInfo {
-    fn from(account: InAccount) -> Self {
-        Self {
-            discriminator: account.discriminator,
-            data_hash: account.data_hash,
-            merkle_context: account.merkle_context,
-            root_index: account.root_index,
-            lamports: account.lamports,
-        }
-    }
-}
-
-impl InAccountInfo {
-    pub fn into_in_account(&self, address: Option<[u8; 32]>) -> InAccount {
-        InAccount {
-            discriminator: self.discriminator,
-            data_hash: self.data_hash,
-            merkle_context: self.merkle_context,
-            root_index: self.root_index,
-            lamports: self.lamports,
-            address,
-        }
-    }
 }
 
 #[repr(C)]
@@ -95,48 +65,6 @@ pub struct OutAccountInfo {
     pub lamports: u64,
     /// Account data.
     pub data: Vec<u8>,
-}
-
-impl TryFrom<OutputCompressedAccountWithPackedContext> for OutAccountInfo {
-    type Error = CompressedAccountError;
-
-    fn try_from(output: OutputCompressedAccountWithPackedContext) -> Result<Self, Self::Error> {
-        let data = output
-            .compressed_account
-            .data
-            .as_ref()
-            .ok_or(CompressedAccountError::ExpectedDataHash)?;
-
-        Ok(Self {
-            discriminator: data.discriminator,
-            data_hash: data.data_hash,
-            output_merkle_tree_index: output.merkle_tree_index,
-            lamports: output.compressed_account.lamports,
-            data: data.data.clone(),
-        })
-    }
-}
-
-impl OutputCompressedAccountWithPackedContext {
-    pub fn from_with_owner(
-        info: &OutAccountInfo,
-        owner: Pubkey,
-        address: Option<[u8; 32]>,
-    ) -> Self {
-        Self {
-            compressed_account: CompressedAccount {
-                owner,
-                lamports: info.lamports,
-                address,
-                data: Some(CompressedAccountData {
-                    discriminator: info.discriminator,
-                    data: info.data.to_vec(),
-                    data_hash: info.data_hash,
-                }),
-            },
-            merkle_tree_index: info.output_merkle_tree_index,
-        }
-    }
 }
 
 impl<'a> InputAccount<'a> for ZCompressedAccountInfo<'a> {
@@ -353,8 +281,8 @@ impl<'a> CompressedAccountInfo {
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
 pub struct InstructionDataInvokeCpiWithAccountInfo {
-    /// 0 V1 instruction accounts.
-    /// 1 Optimized V2 instruction accounts.
+    /// 0 With program ids
+    /// 1 without program ids
     pub mode: u8,
     pub bump: u8,
     pub invoking_program_id: Pubkey,
@@ -371,122 +299,6 @@ pub struct InstructionDataInvokeCpiWithAccountInfo {
     pub read_only_addresses: Vec<PackedReadOnlyAddress>,
     pub read_only_accounts: Vec<PackedReadOnlyCompressedAccount>,
 }
-
-impl InstructionDataInvokeCpiWithAccountInfo {
-    pub fn new(invoking_program_id: Pubkey, bump: u8, proof: Option<CompressedProof>) -> Self {
-        Self {
-            invoking_program_id,
-            bump,
-            proof,
-            mode: 1,
-            ..Default::default()
-        }
-    }
-
-    #[must_use = "mode_v1 returns a new value"]
-    pub fn mode_v1(mut self) -> Self {
-        self.mode = 0;
-        self
-    }
-
-    #[must_use = "write_to_cpi_context_set returns a new value"]
-    pub fn write_to_cpi_context_set(mut self) -> Self {
-        self.with_cpi_context = true;
-        self.cpi_context = CompressedCpiContext::set();
-        self
-    }
-
-    #[must_use = "write_to_cpi_context_first returns a new value"]
-    pub fn write_to_cpi_context_first(mut self) -> Self {
-        self.with_cpi_context = true;
-        self.cpi_context = CompressedCpiContext::first();
-        self
-    }
-
-    #[must_use = "execute_with_cpi_context returns a new value"]
-    pub fn execute_with_cpi_context(mut self) -> Self {
-        self.with_cpi_context = true;
-        self
-    }
-
-    #[must_use = "with_cpi_context returns a new value"]
-    pub fn with_cpi_context(mut self, cpi_context: CompressedCpiContext) -> Self {
-        self.cpi_context = cpi_context;
-        self
-    }
-
-    #[must_use = "with_with_transaction_hash returns a new value"]
-    pub fn with_with_transaction_hash(mut self, with_transaction_hash: bool) -> Self {
-        self.with_transaction_hash = with_transaction_hash;
-        self
-    }
-
-    #[must_use = "compress_lamports returns a new value"]
-    pub fn compress_lamports(mut self, lamports: u64) -> Self {
-        self.compress_or_decompress_lamports = lamports;
-        self.is_compress = true;
-        self
-    }
-
-    #[must_use = "decompress_lamports returns a new value"]
-    pub fn decompress_lamports(mut self, lamports: u64) -> Self {
-        self.compress_or_decompress_lamports = lamports;
-        self.is_compress = false;
-        self
-    }
-
-    #[must_use = "with_new_addresses returns a new value"]
-    pub fn with_new_addresses(
-        mut self,
-        new_address_params: &[NewAddressParamsAssignedPacked],
-    ) -> Self {
-        if !new_address_params.is_empty() {
-            self.new_address_params
-                .extend_from_slice(new_address_params);
-        }
-        self
-    }
-
-    #[must_use = "with_account_infos returns a new value"]
-    pub fn with_account_infos(mut self, account_infos: &[CompressedAccountInfo]) -> Self {
-        if !account_infos.is_empty() {
-            self.account_infos.extend_from_slice(account_infos);
-        }
-        self
-    }
-
-    #[must_use = "with_read_only_addresses returns a new value"]
-    pub fn with_read_only_addresses(
-        mut self,
-        read_only_addresses: &[PackedReadOnlyAddress],
-    ) -> Self {
-        if !read_only_addresses.is_empty() {
-            self.read_only_addresses
-                .extend_from_slice(read_only_addresses);
-        }
-        self
-    }
-
-    #[must_use = "with_read_only_accounts returns a new value"]
-    pub fn with_read_only_accounts(
-        mut self,
-        read_only_accounts: &[PackedReadOnlyCompressedAccount],
-    ) -> Self {
-        if !read_only_accounts.is_empty() {
-            self.read_only_accounts
-                .extend_from_slice(read_only_accounts);
-        }
-        self
-    }
-}
-
-impl InstructionDiscriminator for InstructionDataInvokeCpiWithAccountInfo {
-    fn discriminator(&self) -> &'static [u8] {
-        &INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION
-    }
-}
-
-impl LightInstructionData for InstructionDataInvokeCpiWithAccountInfo {}
 
 impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
     fn bump(&self) -> Option<u8> {
@@ -533,6 +345,10 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpiWithAccountInfo<'a> {
 
     fn new_addresses(&self) -> &[impl NewAddress<'a>] {
         self.new_address_params.as_slice()
+    }
+
+    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
+        vec![Some(self.invoking_program_id); self.new_address_params.len()]
     }
 
     fn proof(&self) -> Option<Ref<&'a [u8], CompressedProof>> {

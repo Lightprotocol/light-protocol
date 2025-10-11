@@ -7,9 +7,9 @@ use crate::indexer::{
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount,
     CompressedTokenAccount, GetCompressedAccountsByOwnerConfig,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
-    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
-    OwnerBalance, PaginatedOptions, Response, RetryConfig, SignatureWithMetadata, TokenBalance,
-    ValidityProofWithContext,
+    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MerkleProofWithContext,
+    NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig,
+    SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
 };
 
 #[async_trait]
@@ -68,7 +68,7 @@ impl Indexer for LightClient {
         &self,
         address: Address,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<CompressedAccount>>, IndexerError> {
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -81,7 +81,7 @@ impl Indexer for LightClient {
         &self,
         hash: Hash,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Option<CompressedAccount>>, IndexerError> {
+    ) -> Result<Response<CompressedAccount>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -137,7 +137,7 @@ impl Indexer for LightClient {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<Option<CompressedAccount>>>, IndexerError> {
+    ) -> Result<Response<Items<CompressedAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -207,9 +207,9 @@ impl Indexer for LightClient {
         merkle_tree_pubkey: [u8; 32],
         queue_type: QueueType,
         num_elements: u16,
-        start_queue_index: Option<u64>,
+        start_offset: Option<u64>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<crate::indexer::QueueElementsResult>, IndexerError> {
+    ) -> Result<Response<Items<MerkleProofWithContext>>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()
@@ -218,7 +218,7 @@ impl Indexer for LightClient {
                 merkle_tree_pubkey,
                 queue_type,
                 num_elements,
-                start_queue_index,
+                start_offset,
                 config,
             )
             .await?)

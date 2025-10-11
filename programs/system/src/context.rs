@@ -1,5 +1,3 @@
-use std::panic::Location;
-
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
@@ -8,12 +6,11 @@ use light_compressed_account::{
         zero_copy::{ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
     },
 };
-use light_program_profiler::profile;
+use light_profiler::profile;
 use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
-use solana_msg::msg;
 
 use crate::{
-    cpi_context::state::ZCpiContextAccount2, errors::SystemProgramError,
+    cpi_context::state::ZCpiContextAccount, errors::SystemProgramError,
     utils::transfer_lamports_invoke, Result, MAX_OUTPUT_ACCOUNTS,
 };
 
@@ -86,43 +83,27 @@ impl SystemContext<'_> {
 }
 
 impl<'info> SystemContext<'info> {
-    #[track_caller]
     pub fn get_index_or_insert(
         &mut self,
         ix_data_index: u8,
         remaining_accounts: &'info [AccountInfo],
-        name: &str,
-    ) -> std::result::Result<u8, SystemProgramError> {
+    ) -> u8 {
         let queue_index = self
             .account_indices
             .iter()
             .position(|a| *a == ix_data_index);
         match queue_index {
-            Some(index) => Ok(index as u8),
+            Some(index) => index as u8,
             None => {
                 self.account_indices.push(ix_data_index);
-                let account_info =
-                    &remaining_accounts
-                        .get(ix_data_index as usize)
-                        .ok_or_else(|| {
-                            let location = Location::caller();
-                            msg!(
-                                "Index: {}, account name: {} {}:{}:{}",
-                                ix_data_index,
-                                name,
-                                location.file(),
-                                location.line(),
-                                location.column()
-                            );
-                            SystemProgramError::PackedAccountIndexOutOfBounds
-                        })?;
+                let account_info = &remaining_accounts[ix_data_index as usize];
                 self.accounts.push(AccountMeta {
                     pubkey: account_info.key(),
                     is_signer: false,
                     is_writable: true,
                 });
                 self.account_infos.push(account_info);
-                Ok(self.account_indices.len() as u8 - 1)
+                self.account_indices.len() as u8 - 1
             }
         }
     }
@@ -159,7 +140,7 @@ impl<'info> SystemContext<'info> {
 #[derive(Debug)]
 pub struct WrappedInstructionData<'a, T: InstructionData<'a>> {
     instruction_data: T,
-    cpi_context: Option<ZCpiContextAccount2<'a>>,
+    cpi_context: Option<ZCpiContextAccount<'a>>,
     address_len: usize,
     input_len: usize,
     outputs_len: usize,
@@ -200,7 +181,7 @@ where
     }
 
     #[profile]
-    pub fn set_cpi_context(&mut self, cpi_context: ZCpiContextAccount2<'a>) -> Result<()> {
+    pub fn set_cpi_context(&mut self, cpi_context: ZCpiContextAccount<'a>) -> Result<()> {
         if self.cpi_context.is_none() {
             self.outputs_len += cpi_context.out_accounts.len();
             if self.outputs_len > MAX_OUTPUT_ACCOUNTS {
@@ -208,28 +189,26 @@ where
             }
             self.address_len += cpi_context.new_addresses.len();
             self.input_len += cpi_context.in_accounts.len();
-
-            // Calculate offsets from the CPI context account
-            let (outputs_start_offset, outputs_end_offset) = cpi_context.calculate_output_offsets();
-
             self.cpi_context = Some(cpi_context);
-            self.cpi_context_outputs_start_offset = outputs_start_offset;
-            self.cpi_context_outputs_end_offset = outputs_end_offset;
+            // TODO: set correctly for correct cpi data allocation
+            // self.cpi_context_outputs_start_offset = outputs_start_offset;
+            // self.cpi_context_outputs_end_offset = outputs_end_offset;
         } else {
             return Err(SystemProgramError::CpiContextAlreadySet.into());
         }
         Ok(())
     }
-
+    // TODO: hardcode will be a standard value
     pub fn get_cpi_context_outputs_start_offset(&self) -> usize {
         self.cpi_context_outputs_start_offset
     }
 
+    // TODO: hardcode will be a standard value
     pub fn get_cpi_context_outputs_end_offset(&self) -> usize {
         self.cpi_context_outputs_end_offset
     }
 
-    pub fn get_cpi_context_account(&'b self) -> &'b Option<ZCpiContextAccount2<'a>> {
+    pub fn get_cpi_context_account(&'b self) -> &'b Option<ZCpiContextAccount<'a>> {
         &self.cpi_context
     }
 
@@ -261,6 +240,7 @@ where
     }
 
     pub fn with_transaction_hash(&self) -> bool {
+        // TODO: if any cpi context invocation requires transaction hash it should be set.
         self.instruction_data.with_transaction_hash()
     }
 
@@ -292,6 +272,7 @@ where
     }
 }
 
+// TODO: add read only cpi context accounts
 impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
     pub fn owner(&self) -> light_compressed_account::pubkey::Pubkey {
         self.instruction_data.owner()
@@ -322,6 +303,18 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
         } else {
             let empty_slice = &[];
             chain_new_addresses(empty_slice, self.instruction_data.new_addresses())
+        }
+    }
+
+    pub fn new_addresses_owners(&self) -> Vec<Option<light_compressed_account::Pubkey>> {
+        if let Some(cpi_context) = &self.cpi_context {
+            [
+                cpi_context.new_address_owner(),
+                self.instruction_data.new_address_owner(),
+            ]
+            .concat()
+        } else {
+            self.instruction_data.new_address_owner()
         }
     }
 
@@ -365,7 +358,7 @@ impl<'a, T: InstructionData<'a>> WrappedInstructionData<'a, T> {
 pub fn chain_outputs<'a, 'b: 'a>(
     slice1: &'a [impl OutputAccount<'b>],
     slice2: &'a [impl OutputAccount<'b>],
-) -> impl Iterator<Item = &'a dyn OutputAccount<'b>> {
+) -> impl Iterator<Item = &'a (dyn OutputAccount<'b>)> {
     slice1
         .iter()
         .filter(|x| !x.skip())
@@ -382,7 +375,7 @@ pub fn chain_outputs<'a, 'b: 'a>(
 pub fn chain_inputs<'a, 'b: 'a>(
     slice1: &'a [impl InputAccount<'b>],
     slice2: &'a [impl InputAccount<'b>],
-) -> impl Iterator<Item = &'a dyn InputAccount<'b>> {
+) -> impl Iterator<Item = &'a (dyn InputAccount<'b>)> {
     slice1
         .iter()
         .filter(|x| !x.skip())
@@ -399,7 +392,7 @@ pub fn chain_inputs<'a, 'b: 'a>(
 pub fn chain_new_addresses<'a, 'b: 'a>(
     slice1: &'a [impl NewAddress<'b>],
     slice2: &'a [impl NewAddress<'b>],
-) -> impl Iterator<Item = &'a dyn NewAddress<'b>> {
+) -> impl Iterator<Item = &'a (dyn NewAddress<'b>)> {
     slice1
         .iter()
         .map(|item| item as &dyn NewAddress<'b>)

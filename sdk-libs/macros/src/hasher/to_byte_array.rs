@@ -4,12 +4,11 @@ use syn::Result;
 
 use crate::hasher::field_processor::FieldProcessingContext;
 
-pub(crate) fn generate_to_byte_array_impl_with_hasher(
+pub(crate) fn generate_to_byte_array_impl(
     struct_name: &syn::Ident,
     generics: &syn::Generics,
     field_count: usize,
     context: &FieldProcessingContext,
-    hasher: &TokenStream,
 ) -> Result<TokenStream> {
     let (impl_gen, type_gen, where_clause) = generics.split_for_impl();
 
@@ -21,70 +20,34 @@ pub(crate) fn generate_to_byte_array_impl_with_hasher(
             Some(s) => s,
             None => &alt_res,
         };
+        let field_assignment: TokenStream = syn::parse_str(str)?;
 
-        let content: TokenStream = str.parse().expect("Invalid generated code");
-        Ok(quote! {
-            impl #impl_gen ::light_hasher::to_byte_array::ToByteArray for #struct_name #type_gen #where_clause {
-                const NUM_FIELDS: usize = 1;
+        // Create a token stream with the field_assignment and the import code
+        let mut hash_imports = proc_macro2::TokenStream::new();
+        for code in &context.hash_to_field_size_code {
+            hash_imports.extend(code.clone());
+        }
 
-                fn to_byte_array(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
-                    use ::light_hasher::to_byte_array::ToByteArray;
-                    use ::light_hasher::hash_to_field_size::HashToFieldSize;
-                    #content
-                }
-            }
-        })
-    } else {
-        let data_hasher_assignments = &context.data_hasher_assignments;
         Ok(quote! {
             impl #impl_gen ::light_hasher::to_byte_array::ToByteArray for #struct_name #type_gen #where_clause {
                 const NUM_FIELDS: usize = #field_count;
 
                 fn to_byte_array(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
-                    use ::light_hasher::to_byte_array::ToByteArray;
-                    use ::light_hasher::hash_to_field_size::HashToFieldSize;
-                    use ::light_hasher::Hasher;
-                    let mut result = #hasher::hashv(&[
-                        #(#data_hasher_assignments.as_slice(),)*
-                    ])?;
-
-                    // Truncate field size for non-Poseidon hashers
-                    if #hasher::ID != ::light_hasher::Poseidon::ID {
-                        result[0] = 0;
-                    }
-
-                    Ok(result)
+                    #hash_imports
+                    #field_assignment
                 }
             }
         })
-    }
-}
+    } else {
+        Ok(quote! {
+            impl #impl_gen ::light_hasher::to_byte_array::ToByteArray for #struct_name #type_gen #where_clause {
+                const NUM_FIELDS: usize = #field_count;
 
-/// SHA256-specific ToByteArray implementation that serializes the whole struct
-pub(crate) fn generate_to_byte_array_impl_sha(
-    struct_name: &syn::Ident,
-    generics: &syn::Generics,
-    field_count: usize,
-) -> Result<TokenStream> {
-    let (impl_gen, type_gen, where_clause) = generics.split_for_impl();
+                fn to_byte_array(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
+                    ::light_hasher::DataHasher::hash::<::light_hasher::Poseidon>(self)
+                }
 
-    Ok(quote! {
-        impl #impl_gen ::light_hasher::to_byte_array::ToByteArray for #struct_name #type_gen #where_clause {
-            const NUM_FIELDS: usize = #field_count;
-
-            fn to_byte_array(&self) -> ::std::result::Result<[u8; 32], ::light_hasher::HasherError> {
-                use borsh::BorshSerialize;
-                use ::light_hasher::Hasher;
-
-                // For SHA256, we can serialize the whole struct and hash it in one go
-                let serialized = self.try_to_vec().map_err(|_| ::light_hasher::HasherError::BorshError)?;
-                let mut result = ::light_hasher::Sha256::hash(&serialized)?;
-
-                // Truncate field size for SHA256
-                result[0] = 0;
-
-                Ok(result)
             }
-        }
-    })
+        })
+    }
 }

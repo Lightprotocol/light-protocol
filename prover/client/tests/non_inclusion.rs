@@ -1,6 +1,6 @@
 use light_prover_client::{
     constants::{PROVE_PATH, SERVER_ADDRESS},
-    prover::spawn_prover,
+    prover::{spawn_prover, ProverConfig},
 };
 use reqwest::Client;
 use serial_test::serial;
@@ -10,7 +10,7 @@ use crate::init_merkle_tree::{non_inclusion_inputs_string_v1, non_inclusion_inpu
 #[serial]
 #[tokio::test]
 async fn prove_non_inclusion() {
-    spawn_prover().await;
+    spawn_prover(ProverConfig::default()).await;
     let client = Client::new();
     // legacy height 26
     {
@@ -26,10 +26,10 @@ async fn prove_non_inclusion() {
             assert!(response_result.status().is_success());
         }
     }
-    // height 40 - test all keys from 1 to 32
+    // height 40
     {
-        for i in 1..=32 {
-            let inputs = non_inclusion_inputs_string_v2(i);
+        for i in [1, 2].iter() {
+            let inputs = non_inclusion_inputs_string_v2(i.to_owned());
 
             let response_result = client
                 .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))

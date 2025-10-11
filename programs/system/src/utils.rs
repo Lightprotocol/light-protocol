@@ -1,5 +1,5 @@
 use light_compressed_account::constants::ACCOUNT_COMPRESSION_PROGRAM_ID;
-use light_program_profiler::profile;
+use light_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
     pubkey::{find_program_address, Pubkey},

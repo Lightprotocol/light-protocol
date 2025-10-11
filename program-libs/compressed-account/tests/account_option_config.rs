@@ -17,7 +17,7 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 
 /// Tests for account_option_config() implementations
 /// Structs tested:
-/// 1. ZInstructionDataInvokeCpi - 4 tests for lamports/compress/context combinations
+/// 1. ZInstructionDataInvokeCpi - 4 tests for lamports/compress/context combinations  
 /// 2. ZInstructionDataInvokeCpiWithReadOnly - 4 tests for write_to_cpi_context logic
 /// 3. ZInstructionDataInvokeCpiWithAccountInfo - 2 tests for full config scenarios
 /// 4. AccountOptions::get_num_expected_accounts - 6 tests for account counting
@@ -378,6 +378,89 @@ fn test_account_info_compress_mode() {
         write_to_cpi_context: false,
     };
     assert_eq!(options, expected);
+}
+
+// =============================================================================
+// AccountOptions::get_num_expected_accounts Tests
+// =============================================================================
+
+#[test]
+fn test_get_num_accounts_base() {
+    // All flags false
+    let options = AccountOptions {
+        sol_pool_pda: false,
+        decompression_recipient: false,
+        cpi_context_account: false,
+        write_to_cpi_context: false,
+    };
+
+    // Base=3, +1 for !write_to_cpi_context = 4
+    assert_eq!(options.get_num_expected_accounts(), 4);
+}
+
+#[test]
+fn test_get_num_accounts_sol_pool() {
+    let options = AccountOptions {
+        sol_pool_pda: true,
+        decompression_recipient: false,
+        cpi_context_account: false,
+        write_to_cpi_context: false,
+    };
+
+    // Base=3, +1 for !write_to_cpi_context, +1 for sol_pool = 5
+    assert_eq!(options.get_num_expected_accounts(), 5);
+}
+
+#[test]
+fn test_get_num_accounts_decompression() {
+    let options = AccountOptions {
+        sol_pool_pda: false,
+        decompression_recipient: true,
+        cpi_context_account: false,
+        write_to_cpi_context: false,
+    };
+
+    // Base=3, +1 for !write_to_cpi_context, +1 for decompression = 5
+    assert_eq!(options.get_num_expected_accounts(), 5);
+}
+
+#[test]
+fn test_get_num_accounts_cpi_context() {
+    let options = AccountOptions {
+        sol_pool_pda: false,
+        decompression_recipient: false,
+        cpi_context_account: true,
+        write_to_cpi_context: false,
+    };
+
+    // Base=3, +1 for !write_to_cpi_context, +1 for cpi_context = 5
+    assert_eq!(options.get_num_expected_accounts(), 5);
+}
+
+#[test]
+fn test_get_num_accounts_write_context() {
+    let options = AccountOptions {
+        sol_pool_pda: false,
+        decompression_recipient: false,
+        cpi_context_account: false,
+        write_to_cpi_context: true,
+    };
+
+    // Base=3 only (no +1 because write_to_cpi_context=true)
+    assert_eq!(options.get_num_expected_accounts(), 3);
+}
+
+#[test]
+fn test_get_num_accounts_all_flags() {
+    let options = AccountOptions {
+        sol_pool_pda: true,
+        decompression_recipient: true,
+        cpi_context_account: true,
+        write_to_cpi_context: false,
+    };
+
+    // Base=3, +1 for !write_to_cpi_context, +3 for other flags = 7
+    assert_eq!(options.get_num_expected_accounts(), 7);
 }
 
 // =============================================================================

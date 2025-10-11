@@ -14,7 +14,6 @@ use light_program_test::{
     accounts::{initialize::initialize_accounts, test_keypairs::TestKeypairs},
     ProgramTestConfig,
 };
-#[allow(deprecated)]
 use solana_sdk::{
     native_token::LAMPORTS_PER_SOL,
     signature::{read_keypair_file, write_keypair_file, Keypair, Signer},

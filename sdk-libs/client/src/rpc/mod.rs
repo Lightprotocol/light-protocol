@@ -1,5 +1,3 @@
-#![allow(clippy::result_large_err)]
-
 pub mod client;
 pub mod errors;
 pub mod indexer;

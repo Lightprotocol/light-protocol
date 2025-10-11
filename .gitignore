@@ -31,7 +31,6 @@
 
 # Rust
 **/target/
-!sdk-tests/sdk-anchor-test/target/
 
 **/dist/
 

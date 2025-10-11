@@ -17,8 +17,8 @@ pub use types::{
     AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs, AddressQueueIndex,
     AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount, CompressedTokenAccount,
     Hash, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, NextTreeInfo,
-    OwnerBalance, ProofOfLeaf, QueueElementsResult, RootIndex, SignatureWithMetadata,
-    StateMerkleTreeAccounts, TokenBalance, TreeInfo, ValidityProofWithContext,
+    OwnerBalance, ProofOfLeaf, RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts,
+    TokenBalance, TreeInfo, ValidityProofWithContext,
 };
 mod options;
 pub use options::*;

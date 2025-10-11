@@ -51,7 +51,7 @@ impl StateMerkleTreeAccount {
 
 pub fn state_merkle_tree_from_bytes_zero_copy(
     data: &[u8],
-) -> Result<ConcurrentMerkleTreeZeroCopy<'_, Poseidon, 26>> {
+) -> Result<ConcurrentMerkleTreeZeroCopy<Poseidon, 26>> {
     let required_size = 8 + mem::size_of::<StateMerkleTreeAccount>();
     if data.len() < required_size {
         return Err(crate::errors::SystemProgramError::InvalidAccount.into());
@@ -63,7 +63,7 @@ pub fn state_merkle_tree_from_bytes_zero_copy(
 
 pub fn state_merkle_tree_from_bytes_zero_copy_mut(
     data: &mut [u8],
-) -> Result<ConcurrentMerkleTreeZeroCopyMut<'_, Poseidon, 26>> {
+) -> Result<ConcurrentMerkleTreeZeroCopyMut<Poseidon, 26>> {
     let required_size = 8 + mem::size_of::<StateMerkleTreeAccount>();
     if data.len() < required_size {
         return Err(crate::errors::SystemProgramError::InvalidAccount.into());

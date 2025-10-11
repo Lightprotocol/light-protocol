@@ -10,7 +10,7 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     indexer::AddressWithTree,
-    local_test_validator::LightValidatorConfig,
+    local_test_validator::{LightValidatorConfig, ProverConfig},
     rpc::{merkle_tree::MerkleTreeExt, LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::{
@@ -54,8 +54,8 @@ async fn test_create_v2_address() {
 
     init(Some(LightValidatorConfig {
         enable_indexer: true,
-        enable_prover: true,
         wait_time: 90,
+        prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![(
             "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
             "../target/deploy/create_address_test_program.so".to_string(),
@@ -66,6 +66,7 @@ async fn test_create_v2_address() {
 
     let env = TestAccounts::get_local_test_validator_accounts();
     let mut config = forester_config();
+    config.transaction_config.batch_ixs_per_tx = 1;
     config.payer_keypair = env.protocol.forester.insecure_clone();
     config.derivation_pubkey = env.protocol.forester.pubkey();
     config.general_config = GeneralConfig::test_address_v2();

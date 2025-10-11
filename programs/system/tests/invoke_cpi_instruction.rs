@@ -152,16 +152,16 @@ fn functional_from_account_infos() {
     let decompression_recipient = get_self_program_account_info();
 
     let ref_invoke_cpi_instruction = InvokeCpiInstruction {
-        fee_payer: &fee_payer.clone(),
-        authority: &authority.clone(),
-        registered_program_pda: &registered_program_pda.clone(),
-        account_compression_authority: &account_compression_authority.clone(),
-        account_compression_program: &account_compression_program.clone(),
-        invoking_program: &invoking_program.clone(),
+        fee_payer: &fee_payer,
+        authority: &authority,
+        registered_program_pda: &registered_program_pda,
+        account_compression_authority: &account_compression_authority,
+        account_compression_program: &account_compression_program,
+        invoking_program: &invoking_program,
         sol_pool_pda: None,
         decompression_recipient: None,
         cpi_context_account: None,
-        system_program: &system_program.clone(),
+        system_program: &system_program,
     };
     let account_info_array = [
         fee_payer,
@@ -196,16 +196,16 @@ fn failing_from_account_infos() {
     let decompression_recipient = get_self_program_account_info();
 
     let ref_invoke_cpi_instruction = InvokeCpiInstruction {
-        fee_payer: &fee_payer.clone(),
-        authority: &authority.clone(),
-        registered_program_pda: &registered_program_pda.clone(),
-        account_compression_authority: &account_compression_authority.clone(),
-        account_compression_program: &account_compression_program.clone(),
-        invoking_program: &invoking_program.clone(),
+        fee_payer: &fee_payer,
+        authority: &authority,
+        registered_program_pda: &registered_program_pda,
+        account_compression_authority: &account_compression_authority,
+        account_compression_program: &account_compression_program,
+        invoking_program: &invoking_program,
         sol_pool_pda: None,
         decompression_recipient: None,
         cpi_context_account: None,
-        system_program: &system_program.clone(),
+        system_program: &system_program,
     };
     let account_info_array = [
         fee_payer,

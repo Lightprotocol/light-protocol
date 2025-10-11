@@ -1,5 +1,4 @@
-import { runCommand } from "@oclif/test";
-import { expect } from "chai";
+import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { createTestSplMint, requestAirdrop } from "../../helpers/helpers";
@@ -24,11 +23,16 @@ describe("create-mint", () => {
     );
   });
 
-  it(`register mint for mintAuthority: ${mintAuthority.publicKey.toBase58()}`, async () => {
-    const { stdout } = await runCommand([
+  test
+    .stdout({ print: true })
+    .command([
       "create-token-pool",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
-    ]);
-    expect(stdout).to.contain("create-token-pool successful");
-  });
+    ])
+    .it(
+      `register mint for mintAuthority: ${mintAuthority.publicKey.toBase58()}`,
+      (ctx: any) => {
+        expect(ctx.stdout).to.contain("create-token-pool successful");
+      },
+    );
 });

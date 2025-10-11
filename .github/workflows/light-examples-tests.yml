@@ -1,0 +1,79 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "examples/**"
+      - "sdk-libs/**"
+  pull_request:
+    branches:
+      - "*"
+    paths:
+      - "examples/**"
+      - "sdk-libs/**"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+name: examples-tests
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  system-programs:
+    name: system-programs
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    services:
+      redis:
+        image: redis:8.0.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      REDIS_URL: redis://localhost:6379
+
+    strategy:
+      matrix:
+        include:
+          - program: sdk-test-program
+            sub-tests: '["cargo-test-sbf -p sdk-native-test"]'
+          - program: sdk-anchor-test-program
+            sub-tests: '["cargo-test-sbf -p sdk-anchor-test", "cargo-test-sbf -p sdk-pinocchio-test"]'
+
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+        with:
+          skip-components: "redis"
+
+      - name: build-programs
+        run: |
+          source ./scripts/devenv.sh
+          npx nx build @lightprotocol/programs
+
+      - name: ${{ matrix.program }}
+        run: |
+          source ./scripts/devenv.sh
+          npx nx build @lightprotocol/zk-compression-cli
+
+          IFS=',' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
+          for subtest in "${sub_tests[@]}"
+          do
+            echo "$subtest"
+            eval "RUSTFLAGS=\"-D warnings\" $subtest"
+          done

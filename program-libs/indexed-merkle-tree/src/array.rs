@@ -169,7 +169,7 @@ where
         self.current_node_index == I::zero()
     }
 
-    pub fn iter(&self) -> IndexingArrayIter<'_, H, I> {
+    pub fn iter(&self) -> IndexingArrayIter<H, I> {
         IndexingArrayIter {
             indexing_array: self,
             front: 0,

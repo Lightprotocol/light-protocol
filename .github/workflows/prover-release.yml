@@ -12,25 +12,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v5
         with:
-          go-version-file: "./prover/server/go.mod"
+          go-version: 1.21
 
       - name: Build artifacts
         run: |
           cd prover/server
-          for cfgstr in "darwin amd64" "darwin arm64" "linux amd64" "linux arm64" "windows amd64"; do
+          for cfgstr in "darwin amd64" "darwin arm64" "linux amd64" "windows amd64"; do
             IFS=' ' read -r -a cfg <<< "$cfgstr"
             export GOOS="${cfg[0]}"
             export GOARCH="${cfg[1]}"
             export CGO_ENABLED=0
-
-            ext=""
-            if [ "$GOOS" = "windows" ]; then
-              ext=".exe"
-            fi
-
-            go build -o prover-"$GOOS"-"$GOARCH""$ext"
+            go build -o prover-"$GOOS"-"$GOARCH"
           done
 
       - name: Create Release
@@ -40,5 +34,4 @@ jobs:
             prover/server/prover-darwin-amd64
             prover/server/prover-darwin-arm64
             prover/server/prover-linux-amd64
-            prover/server/prover-linux-arm64
-            prover/server/prover-windows-amd64.exe
+            prover/server/prover-windows-amd64

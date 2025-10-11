@@ -3,7 +3,6 @@ name = "e2e-test"
 version = "1.1.0"
 description = "Created with Anchor"
 edition = "2021"
-publish = false
 
 [lib]
 crate-type = ["cdylib", "lib"]

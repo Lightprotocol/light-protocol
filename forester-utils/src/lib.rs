@@ -1,7 +1,3 @@
-#![allow(clippy::result_large_err)]
-#![allow(clippy::large_enum_variant)]
-#![allow(deprecated)]
-
 pub mod account_zero_copy;
 pub mod address_merkle_tree_config;
 pub mod error;

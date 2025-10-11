@@ -1,6 +1,6 @@
 [package]
 name = "light-hasher"
-version = "4.0.0"
+version = "3.1.0"
 description = "Trait for generic usage of hash functions on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -11,11 +11,10 @@ default = []
 solana = ["solana-program-error", "solana-pubkey"]
 pinocchio = ["dep:pinocchio"]
 zero-copy = ["dep:zerocopy"]
-poseidon = ["dep:light-poseidon", "dep:ark-bn254", "dep:ark-ff"]
 
 
 [dependencies]
-light-poseidon = { workspace = true, optional = true }
+light-poseidon = { workspace = true }
 thiserror = { workspace = true }
 arrayvec = { workspace = true }
 num-bigint = { workspace = true }
@@ -29,10 +28,10 @@ borsh = { workspace = true }
 solana-nostd-keccak = "0.1.3"
 
 [target.'cfg(not(target_os = "solana"))'.dependencies]
-ark-bn254 = { workspace = true, optional = true }
+ark-bn254 = { workspace = true }
 sha2 = "0.10"
 sha3 = "0.10"
-ark-ff = { workspace = true, optional = true  }
+ark-ff = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
@@ -44,4 +43,3 @@ check-cfg = [
 [dev-dependencies]
 rand = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }
-light-poseidon = { workspace = true }

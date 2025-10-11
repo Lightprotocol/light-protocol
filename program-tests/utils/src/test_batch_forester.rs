@@ -74,7 +74,6 @@ pub async fn perform_batch_append<R: Rpc>(
         .create_and_send_transaction(&[instruction], &forester.pubkey(), &[forester])
         .await?;
     bundle.merkle_tree.num_root_updates += 1;
-
     Ok(res)
 }
 
@@ -663,7 +662,7 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<R: Rpc
         .unwrap();
     let addresses = addresses
         .value
-        .elements
+        .items
         .iter()
         .map(|x| x.account_hash)
         .collect::<Vec<[u8; 32]>>();

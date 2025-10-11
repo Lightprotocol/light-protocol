@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+//#![cfg(feature = "test-sbf")]
 
 use std::collections::HashMap;
 
@@ -531,8 +531,8 @@ async fn generate_photon_test_data_multiple_events() {
     for num_expected_events in 4..5 {
         spawn_validator(LightValidatorConfig {
             enable_indexer: false,
-            enable_prover: true,
             wait_time: 10,
+            prover_config: None,
             sbf_programs: vec![(
                 create_address_test_program::ID.to_string(),
                 "../../target/deploy/create_address_test_program.so".to_string(),

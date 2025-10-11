@@ -1,200 +1,308 @@
-pub use light_compressed_account::LightInstructionData;
-use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
-
-#[cfg(feature = "cpi-context")]
-use crate::AccountMeta;
-use crate::{
-    cpi::{account::CpiAccountsTrait, instruction::LightCpiInstruction},
-    error::LightSdkError,
-    invoke_signed, AccountInfo, Instruction, ProgramError,
+use light_compressed_account::{
+    compressed_account::PackedReadOnlyCompressedAccount,
+    instruction_data::{
+        cpi_context::CompressedCpiContext,
+        data::{NewAddressParamsAssignedPacked, NewAddressParamsPacked, PackedReadOnlyAddress},
+        invoke_cpi::InstructionDataInvokeCpi,
+        with_account_info::{CompressedAccountInfo, InstructionDataInvokeCpiWithAccountInfo},
+    },
+};
+use light_sdk_types::{
+    constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID},
+    cpi_context_write::CpiContextWriteAccounts,
 };
 
-pub trait InvokeLightSystemProgram {
-    fn invoke<'info>(self, accounts: impl CpiAccountsTrait<'info>) -> Result<(), ProgramError>;
+use crate::{
+    cpi::{
+        accounts_cpi_context::get_account_metas_from_config_cpi_context,
+        get_account_metas_from_config, to_account_metas_small, CpiAccounts, CpiAccountsSmall,
+        CpiInstructionConfig,
+    },
+    error::{LightSdkError, Result},
+    instruction::{account_info::CompressedAccountInfoTrait, ValidityProof},
+    invoke_signed, AccountInfo, AnchorSerialize, Instruction,
+};
 
-    #[cfg(feature = "cpi-context")]
-    fn invoke_write_to_cpi_context_first<'info>(
-        self,
-        accounts: impl CpiAccountsTrait<'info>,
-    ) -> Result<(), ProgramError>;
-
-    #[cfg(feature = "cpi-context")]
-    fn invoke_write_to_cpi_context_set<'info>(
-        self,
-        accounts: impl CpiAccountsTrait<'info>,
-    ) -> Result<(), ProgramError>;
-
-    #[cfg(feature = "cpi-context")]
-    fn invoke_execute_cpi_context<'info>(
-        self,
-        accounts: impl CpiAccountsTrait<'info>,
-    ) -> Result<(), ProgramError>;
+#[derive(Debug, Default, PartialEq, Clone)]
+pub struct CpiInputs {
+    pub proof: ValidityProof,
+    pub account_infos: Option<Vec<CompressedAccountInfo>>,
+    pub read_only_accounts: Option<Vec<PackedReadOnlyCompressedAccount>>,
+    pub new_addresses: Option<Vec<NewAddressParamsPacked>>,
+    pub new_assigned_addresses: Option<Vec<NewAddressParamsAssignedPacked>>,
+    pub read_only_address: Option<Vec<PackedReadOnlyAddress>>,
+    pub compress_or_decompress_lamports: Option<u64>,
+    pub is_compress: bool,
+    pub cpi_context: Option<CompressedCpiContext>,
 }
 
-// Blanket implementation for types that implement both LightInstructionData and LightCpiInstruction
-impl<T> InvokeLightSystemProgram for T
-where
-    T: LightInstructionData + LightCpiInstruction,
-{
-    fn invoke<'info>(self, accounts: impl CpiAccountsTrait<'info>) -> Result<(), ProgramError> {
-        #[cfg(feature = "cpi-context")]
-        {
-            // Check if CPI context operations are being attempted
-            use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
-            if self.get_with_cpi_context()
-                || *self.get_cpi_context() == CompressedCpiContext::set()
-                || *self.get_cpi_context() == CompressedCpiContext::first()
-            {
-                solana_msg::msg!(
-                    "CPI context operations not supported in invoke(). Use invoke_write_to_cpi_context_first(), invoke_write_to_cpi_context_set(), or invoke_execute_cpi_context() instead"
-                );
-                return Err(ProgramError::InvalidInstructionData);
-            }
+impl CpiInputs {
+    pub fn new(proof: ValidityProof, account_infos: Vec<CompressedAccountInfo>) -> Self {
+        Self {
+            proof,
+            account_infos: Some(account_infos),
+            ..Default::default()
         }
+    }
 
-        // Validate mode consistency
-        if let Some(account_mode) = accounts.get_mode() {
-            if account_mode != self.get_mode() {
-                solana_msg::msg!(
-                    "Mode mismatch: accounts have mode {} but instruction data has mode {}",
-                    account_mode,
-                    self.get_mode()
-                );
-                return Err(ProgramError::InvalidInstructionData);
-            }
+    pub fn new_with_address(
+        proof: ValidityProof,
+        account_infos: Vec<CompressedAccountInfo>,
+        new_addresses: Vec<NewAddressParamsPacked>,
+    ) -> Self {
+        Self {
+            proof,
+            account_infos: Some(account_infos),
+            new_addresses: Some(new_addresses),
+            ..Default::default()
         }
-
-        // Serialize instruction data with discriminator
-        let data = self
-            .data()
-            .map_err(LightSdkError::from)
-            .map_err(ProgramError::from)?;
-
-        // Get account infos and metas
-        let account_infos = accounts.to_account_infos();
-        let account_metas = accounts.to_account_metas()?;
-
-        let instruction = Instruction {
-            program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
-            accounts: account_metas,
-            data,
-        };
-
-        invoke_light_system_program(&account_infos, instruction, self.get_bump())
     }
 
-    #[cfg(feature = "cpi-context")]
-    fn invoke_write_to_cpi_context_first<'info>(
-        self,
-        accounts: impl CpiAccountsTrait<'info>,
-    ) -> Result<(), ProgramError> {
-        let instruction_data = self.write_to_cpi_context_first();
-        inner_invoke_write_to_cpi_context_typed(instruction_data, accounts)
+    pub fn new_with_assigned_address(
+        proof: ValidityProof,
+        account_infos: Vec<CompressedAccountInfo>,
+        new_addresses: Vec<NewAddressParamsAssignedPacked>,
+    ) -> Self {
+        Self {
+            proof,
+            account_infos: Some(account_infos),
+            new_assigned_addresses: Some(new_addresses),
+            ..Default::default()
+        }
     }
 
-    #[cfg(feature = "cpi-context")]
-    fn invoke_write_to_cpi_context_set<'info>(
-        self,
-        accounts: impl CpiAccountsTrait<'info>,
-    ) -> Result<(), ProgramError> {
-        let instruction_data = self.write_to_cpi_context_set();
-        inner_invoke_write_to_cpi_context_typed(instruction_data, accounts)
+    pub fn invoke_light_system_program(self, cpi_accounts: CpiAccounts<'_, '_>) -> Result<()> {
+        let bump = cpi_accounts.bump();
+        let account_infos = cpi_accounts.to_account_infos();
+        let instruction = create_light_system_progam_instruction_invoke_cpi(self, cpi_accounts)?;
+        invoke_light_system_program(account_infos.as_slice(), instruction, bump)
     }
 
-    #[cfg(feature = "cpi-context")]
-    fn invoke_execute_cpi_context<'info>(
+    pub fn invoke_light_system_program_small(
         self,
-        accounts: impl CpiAccountsTrait<'info>,
-    ) -> Result<(), ProgramError> {
-        let instruction_data = self.execute_with_cpi_context();
-        // Serialize instruction data with discriminator
-        let data = instruction_data
-            .data()
-            .map_err(LightSdkError::from)
-            .map_err(ProgramError::from)?;
-
-        // Get account infos and metas
-        let account_infos = accounts.to_account_infos();
-        let account_metas = accounts.to_account_metas()?;
-
-        let instruction = Instruction {
-            program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
-            accounts: account_metas,
-            data,
-        };
-        invoke_light_system_program(&account_infos, instruction, instruction_data.get_bump())
+        cpi_accounts: CpiAccountsSmall<'_, '_>,
+    ) -> Result<()> {
+        let bump = cpi_accounts.bump();
+        let account_infos = cpi_accounts.to_account_infos();
+        let instruction =
+            create_light_system_progam_instruction_invoke_cpi_small(self, cpi_accounts)?;
+        invoke_light_system_program(account_infos.as_slice(), instruction, bump)
+    }
+    pub fn invoke_light_system_program_cpi_context(
+        self,
+        cpi_accounts: CpiContextWriteAccounts<AccountInfo>,
+    ) -> Result<()> {
+        let bump = cpi_accounts.bump();
+        let account_infos = cpi_accounts.to_account_infos();
+        let instruction =
+            create_light_system_progam_instruction_invoke_cpi_context_write(self, cpi_accounts)?;
+        invoke_light_system_program(account_infos.as_slice(), instruction, bump)
     }
 }
 
-// Generic inner helper for write_to_cpi_context operations
-#[cfg(feature = "cpi-context")]
-#[inline(always)]
-fn inner_invoke_write_to_cpi_context_typed<'info, T>(
-    instruction_data: T,
-    accounts: impl CpiAccountsTrait<'info>,
-) -> Result<(), ProgramError>
+pub fn create_light_system_progam_instruction_invoke_cpi_small(
+    cpi_inputs: CpiInputs,
+    cpi_accounts: CpiAccountsSmall<'_, '_>,
+) -> Result<Instruction> {
+    if cpi_inputs.new_addresses.is_some() {
+        unimplemented!("new_addresses must be new assigned addresses.");
+    }
+
+    let inputs = InstructionDataInvokeCpiWithAccountInfo {
+        proof: cpi_inputs.proof.into(),
+        mode: 1,
+        bump: cpi_accounts.bump(),
+        invoking_program_id: cpi_accounts.invoking_program().into(),
+        new_address_params: cpi_inputs.new_assigned_addresses.unwrap_or_default(),
+        read_only_accounts: cpi_inputs.read_only_accounts.unwrap_or_default(),
+        read_only_addresses: cpi_inputs.read_only_address.unwrap_or_default(),
+        account_infos: cpi_inputs.account_infos.unwrap_or_default(),
+        with_transaction_hash: false,
+        compress_or_decompress_lamports: cpi_inputs
+            .compress_or_decompress_lamports
+            .unwrap_or_default(),
+        is_compress: cpi_inputs.is_compress,
+        with_cpi_context: cpi_inputs.cpi_context.is_some(),
+        cpi_context: cpi_inputs.cpi_context.unwrap_or_default(),
+    };
+    // TODO: bench vs zero copy and set.
+    let inputs = inputs.try_to_vec().map_err(|_| LightSdkError::Borsh)?;
+
+    let mut data = Vec::with_capacity(8 + inputs.len());
+    data.extend_from_slice(
+        &light_compressed_account::discriminators::INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION,
+    );
+    data.extend(inputs);
+
+    let account_metas = to_account_metas_small(cpi_accounts)?;
+
+    Ok(Instruction {
+        program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
+        accounts: account_metas,
+        data,
+    })
+}
+
+pub fn create_light_system_progam_instruction_invoke_cpi_context_write(
+    cpi_inputs: CpiInputs,
+    cpi_accounts: CpiContextWriteAccounts<AccountInfo>,
+) -> Result<Instruction> {
+    if cpi_inputs.new_addresses.is_some() {
+        unimplemented!("new_addresses must be new assigned addresses.");
+    }
+
+    let inputs = InstructionDataInvokeCpiWithAccountInfo {
+        proof: cpi_inputs.proof.into(),
+        mode: 1,
+        bump: cpi_accounts.bump(),
+        invoking_program_id: cpi_accounts.invoking_program().into(),
+        new_address_params: cpi_inputs.new_assigned_addresses.unwrap_or_default(),
+        read_only_accounts: cpi_inputs.read_only_accounts.unwrap_or_default(),
+        read_only_addresses: cpi_inputs.read_only_address.unwrap_or_default(),
+        account_infos: cpi_inputs.account_infos.unwrap_or_default(),
+        with_transaction_hash: false,
+        compress_or_decompress_lamports: cpi_inputs
+            .compress_or_decompress_lamports
+            .unwrap_or_default(),
+        is_compress: cpi_inputs.is_compress,
+        with_cpi_context: cpi_inputs.cpi_context.is_some(),
+        cpi_context: cpi_inputs.cpi_context.unwrap_or_default(),
+    };
+    // TODO: bench vs zero copy and set.
+    let inputs = inputs.try_to_vec().map_err(|_| LightSdkError::Borsh)?;
+
+    let mut data = Vec::with_capacity(8 + inputs.len());
+    data.extend_from_slice(
+        &light_compressed_account::discriminators::INVOKE_CPI_WITH_ACCOUNT_INFO_INSTRUCTION,
+    );
+    data.extend(inputs);
+
+    let account_metas = get_account_metas_from_config_cpi_context(cpi_accounts);
+    Ok(Instruction {
+        program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
+        accounts: account_metas.to_vec(),
+        data,
+    })
+}
+
+pub fn create_light_system_progam_instruction_invoke_cpi(
+    cpi_inputs: CpiInputs,
+    cpi_accounts: CpiAccounts<'_, '_>,
+) -> Result<Instruction> {
+    let owner = *cpi_accounts.invoking_program()?.key;
+    let (input_compressed_accounts_with_merkle_context, output_compressed_accounts) =
+        if let Some(account_infos) = cpi_inputs.account_infos.as_ref() {
+            let mut input_compressed_accounts_with_merkle_context =
+                Vec::with_capacity(account_infos.len());
+            let mut output_compressed_accounts = Vec::with_capacity(account_infos.len());
+            for account_info in account_infos.iter() {
+                if let Some(input_account) =
+                    account_info.input_compressed_account(owner.to_bytes().into())?
+                {
+                    input_compressed_accounts_with_merkle_context.push(input_account);
+                }
+                if let Some(output_account) =
+                    account_info.output_compressed_account(owner.to_bytes().into())?
+                {
+                    output_compressed_accounts.push(output_account);
+                }
+            }
+            (
+                input_compressed_accounts_with_merkle_context,
+                output_compressed_accounts,
+            )
+        } else {
+            (vec![], vec![])
+        };
+    #[cfg(not(feature = "v2"))]
+    if cpi_inputs.read_only_accounts.is_some() {
+        unimplemented!("read_only_accounts are only supported with v2 soon on Devnet.");
+    }
+    #[cfg(not(feature = "v2"))]
+    if cpi_inputs.read_only_address.is_some() {
+        unimplemented!("read_only_addresses are only supported with v2 soon on Devnet.");
+    }
+
+    let inputs = InstructionDataInvokeCpi {
+        proof: cpi_inputs.proof.into(),
+        new_address_params: cpi_inputs.new_addresses.unwrap_or_default(),
+        relay_fee: None,
+        input_compressed_accounts_with_merkle_context,
+        output_compressed_accounts,
+        compress_or_decompress_lamports: cpi_inputs.compress_or_decompress_lamports,
+        is_compress: cpi_inputs.is_compress,
+        cpi_context: cpi_inputs.cpi_context,
+    };
+    let inputs = inputs.try_to_vec().map_err(|_| LightSdkError::Borsh)?;
+
+    let mut data = Vec::with_capacity(8 + 4 + inputs.len());
+    data.extend_from_slice(&light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI);
+    data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
+    data.extend(inputs);
+
+    let config = CpiInstructionConfig::try_from(&cpi_accounts)?;
+
+    let account_metas = get_account_metas_from_config(config);
+
+    Ok(Instruction {
+        program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
+        accounts: account_metas,
+        data,
+    })
+}
+
+/// Invokes the light system program to verify and apply a zk-compressed state
+/// transition. Serializes CPI instruction data, configures necessary accounts,
+/// and executes the CPI.
+pub fn verify_borsh<T>(cpi_accounts: CpiAccounts, inputs: &T) -> Result<()>
 where
-    T: LightInstructionData + LightCpiInstruction,
+    T: AnchorSerialize,
 {
-    // Check if read-only accounts are present
-    if instruction_data.has_read_only_accounts() {
-        solana_msg::msg!(
-            "Read-only accounts are not supported in write_to_cpi_context operations. Use invoke_execute_cpi_context() instead."
-        );
-        return Err(LightSdkError::ReadOnlyAccountsNotSupportedInCpiContext.into());
-    }
+    let inputs = inputs.try_to_vec().map_err(|_| LightSdkError::Borsh)?;
 
-    // Serialize instruction data with discriminator
-    let data = instruction_data
-        .data()
-        .map_err(LightSdkError::from)
-        .map_err(ProgramError::from)?;
+    let mut data = Vec::with_capacity(8 + 4 + inputs.len());
+    data.extend_from_slice(&light_compressed_account::discriminators::DISCRIMINATOR_INVOKE_CPI);
+    data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
+    data.extend(inputs);
+    let account_infos = cpi_accounts.to_account_infos();
 
-    // Get account infos and metas
-    let account_infos = accounts.to_account_infos();
-
-    // Extract account pubkeys from account_infos
-    // Assuming order: [fee_payer, authority, cpi_context, ...]
-    if account_infos.len() < 3 {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    }
+    let bump = cpi_accounts.bump();
+    let config = CpiInstructionConfig::try_from(&cpi_accounts)?;
+    let account_metas = get_account_metas_from_config(config);
 
     let instruction = Instruction {
         program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
-        accounts: vec![
-            AccountMeta {
-                pubkey: *account_infos[0].key, // fee_payer
-                is_writable: true,
-                is_signer: true,
-            },
-            AccountMeta {
-                pubkey: *account_infos[1].key, // authority
-                is_writable: false,
-                is_signer: true,
-            },
-            AccountMeta {
-                pubkey: *account_infos[2].key, // cpi_context
-                is_writable: true,
-                is_signer: false,
-            },
-        ],
+        accounts: account_metas,
         data,
     };
-
-    invoke_light_system_program(&account_infos, instruction, instruction_data.get_bump())
+    invoke_light_system_program(account_infos.as_slice(), instruction, bump)
 }
 
-/// Low-level function to invoke the Light system program with a PDA signer.
-///
-/// **Note**: This is a low-level function. In most cases, you should use the
-/// [`InvokeLightSystemProgram`] trait methods instead, which provide a higher-level
-/// interface with better type safety and ergonomics.
 #[inline(always)]
 pub fn invoke_light_system_program(
     account_infos: &[AccountInfo],
     instruction: Instruction,
     bump: u8,
-) -> Result<(), ProgramError> {
+) -> Result<()> {
     let signer_seeds = [CPI_AUTHORITY_PDA_SEED, &[bump]];
-    invoke_signed(&instruction, account_infos, &[signer_seeds.as_slice()])
+
+    // TODO: restore but not a priority it is a convenience check
+    // It's index 0 for small instruction accounts.
+    // if *account_infos[1].key != authority {
+    //     #[cfg(feature = "anchor")]
+    //     anchor_lang::prelude::msg!(
+    //         "System program signer authority is invalid. Expected {:?}, found {:?}",
+    //         authority,
+    //         account_infos[1].key
+    //     );
+    //     #[cfg(feature = "anchor")]
+    //     anchor_lang::prelude::msg!(
+    //         "Seeds to derive expected pubkey: [CPI_AUTHORITY_PDA_SEED] {:?}",
+    //         [CPI_AUTHORITY_PDA_SEED]
+    //     );
+    //     return Err(LightSdkError::InvalidCpiSignerAccount);
+    // }
+
+    invoke_signed(&instruction, account_infos, &[signer_seeds.as_slice()])?;
+    Ok(())
 }

@@ -1,5 +1,4 @@
-import { runCommand } from "@oclif/test";
-import { expect } from "chai";
+import { expect, test } from "@oclif/test";
 import { before } from "mocha";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
@@ -25,22 +24,23 @@ describe("mint-to", () => {
     await createTestSplMint(rpc, mintAuthority, mintKeypair, mintAuthority);
   });
 
-  it(`approve-and-mint-to ${mintAmount} tokens to ${mintAuthority.publicKey.toBase58()} from mint: ${mintAddress.toBase58()} with authority ${mintAuthority.publicKey.toBase58()}`, async () => {
-    // First create the token pool
-    const { stdout: poolStdout } = await runCommand([
+  test
+    .command([
       "create-token-pool",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
-    ]);
-    console.log(poolStdout);
-
-    // Then approve and mint
-    const { stdout } = await runCommand([
+    ])
+    .stdout({ print: true })
+    .command([
       "approve-and-mint-to",
       `--amount=${mintAmount}`,
       `--mint=${mintAddress.toBase58()}`,
       `--mint-authority=${mintAuthorityPath}`,
       `--to=${mintAuthority.publicKey.toBase58()}`,
-    ]);
-    expect(stdout).to.contain("approve-and-mint-to successful");
-  });
+    ])
+    .it(
+      `approve-and-mint-to ${mintAmount} tokens to ${mintAuthority.publicKey.toBase58()} from mint: ${mintAddress.toBase58()} with authority ${mintAuthority.publicKey.toBase58()}`,
+      (ctx: any) => {
+        expect(ctx.stdout).to.contain("approve-and-mint-to successful");
+      },
+    );
 });

@@ -1,4 +1,4 @@
-import { Command, Flags } from "@oclif/core";
+import { Command, Flags, ux } from "@oclif/core";
 import {
   CustomLoader,
   getConfig,
@@ -36,7 +36,7 @@ class ConfigCommand extends Command {
     try {
       const config = getConfig();
       if (get) {
-        await logConfig(config);
+        logConfig(config);
         return;
       }
       const loader = new CustomLoader("Updating configuration...");
@@ -50,7 +50,6 @@ class ConfigCommand extends Command {
           this.error(`\nInvalid URL format`);
         }
       }
-
       if (indexerUrl) {
         if (isValidURL(indexerUrl)) {
           config.indexerUrl = indexerUrl;
@@ -58,7 +57,6 @@ class ConfigCommand extends Command {
           this.error(`\nInvalid URL format`);
         }
       }
-
       if (proverUrl) {
         if (isValidURL(proverUrl)) {
           config.proverUrl = proverUrl;
@@ -66,49 +64,44 @@ class ConfigCommand extends Command {
           this.error(`\nInvalid URL format`);
         }
       }
-
       setConfig(config);
-      this.log("\nConfiguration values updated successfully \x1B[32m✔\x1B[0m");
+      this.log("\nConfiguration values updated successfully \x1b[32m✔\x1b[0m");
       loader.stop(false);
       // logging updated config values
-      await logConfig(config);
+      logConfig(config);
     } catch (error) {
       this.error(`\nFailed to update configuration values\n${error}`);
     }
   }
 }
 
-async function logConfig(config: any) {
+function logConfig(config: any) {
   const tableData = [];
 
-  tableData.push(
-    {
-      name: "Solana RPC URL",
-      value: config.solanaRpcUrl,
-    },
-    {
-      name: "Indexer URL",
-      value: config.indexerUrl,
-    },
-    {
-      name: "Prover URL",
-      value: config.proverUrl,
-    },
-    {
-      name: "",
-      value: "",
-    },
-  );
+  tableData.push({
+    name: "Solana RPC URL",
+    value: config.solanaRpcUrl,
+  });
 
-  // Dynamically import @oclif/table since it's ESM-only
-  const { printTable } = await import("@oclif/table");
+  tableData.push({
+    name: "Indexer URL",
+    value: config.indexerUrl,
+  });
 
-  printTable({
-    data: tableData,
-    columns: [
-      { key: "name", name: "" },
-      { key: "value", name: "" },
-    ],
+  tableData.push({
+    name: "Prover URL",
+    value: config.proverUrl,
+  });
+
+  // space
+  tableData.push({
+    name: "",
+    value: "",
+  });
+
+  ux.table(tableData, {
+    name: { header: "" },
+    value: { header: "" },
   });
 }
 export default ConfigCommand;

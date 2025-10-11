@@ -29,12 +29,6 @@ pub type Address = [u8; 32];
 pub type Hash = [u8; 32];
 
 #[derive(Debug, Clone, PartialEq, Default)]
-pub struct QueueElementsResult {
-    pub elements: Vec<MerkleProofWithContext>,
-    pub first_value_queue_index: Option<u64>,
-}
-
-#[derive(Debug, Clone, PartialEq, Default)]
 pub struct MerkleProofWithContext {
     pub proof: Vec<[u8; 32]>,
     pub root: [u8; 32],
@@ -304,7 +298,7 @@ impl ValidityProofWithContext {
                         tree_type: tree_info.tree_type,
                         tree: tree_pubkey,
                         queue: tree_info.queue,
-                        cpi_context: tree_info.cpi_context,
+                        cpi_context: None,
                         next_tree_info: None,
                     },
                 })
@@ -389,7 +383,7 @@ impl ValidityProofWithContext {
     }
 }
 
-#[derive(Clone, Copy, Default, Debug, PartialEq)]
+#[derive(Clone, Copy, Hash, Eq, Default, Debug, PartialEq)]
 pub struct NextTreeInfo {
     pub cpi_context: Option<Pubkey>,
     pub queue: Pubkey,
@@ -438,7 +432,7 @@ impl TryFrom<&photon_api::models::TreeContextInfo> for NextTreeInfo {
     }
 }
 
-#[derive(Clone, Copy, Default, Debug, PartialEq)]
+#[derive(Clone, Copy, Hash, Eq, Default, Debug, PartialEq)]
 pub struct TreeInfo {
     pub cpi_context: Option<Pubkey>,
     pub next_tree_info: Option<NextTreeInfo>,
@@ -504,7 +498,7 @@ impl TreeInfo {
     }
 }
 
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Eq, Hash, Debug, PartialEq)]
 pub struct CompressedAccount {
     pub address: Option<[u8; 32]>,
     pub data: Option<CompressedAccountData>,
@@ -699,7 +693,6 @@ pub struct StateMerkleTreeAccounts {
     pub merkle_tree: Pubkey,
     pub nullifier_queue: Pubkey,
     pub cpi_context: Pubkey,
-    pub tree_type: TreeType,
 }
 
 #[allow(clippy::from_over_into)]
@@ -709,7 +702,7 @@ impl Into<TreeInfo> for StateMerkleTreeAccounts {
             tree: self.merkle_tree,
             queue: self.nullifier_queue,
             cpi_context: Some(self.cpi_context),
-            tree_type: self.tree_type,
+            tree_type: TreeType::StateV1,
             next_tree_info: None,
         }
     }
@@ -721,7 +714,7 @@ pub struct AddressMerkleTreeAccounts {
     pub queue: Pubkey,
 }
 
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Eq, Hash, Debug, PartialEq)]
 pub struct CompressedTokenAccount {
     /// Token-specific data (mint, owner, amount, delegate, state, tlv)
     pub token: TokenData,

@@ -3,7 +3,7 @@ use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
     constants::{DEFAULT_BATCH_STATE_TREE_HEIGHT, PROVE_PATH, SERVER_ADDRESS},
     proof_types::batch_append::{get_batch_append_inputs, BatchAppendInputsJson},
-    prover::spawn_prover,
+    prover::{spawn_prover, ProverConfig},
 };
 use reqwest::Client;
 use serial_test::serial;
@@ -12,7 +12,8 @@ mod init_merkle_tree;
 #[serial]
 #[tokio::test]
 async fn prove_batch_append_with_proofs() {
-    spawn_prover().await;
+    // Spawn the prover with specific configuration
+    spawn_prover(ProverConfig::default()).await;
 
     const HEIGHT: usize = DEFAULT_BATCH_STATE_TREE_HEIGHT as usize;
     const CANOPY: usize = 0;

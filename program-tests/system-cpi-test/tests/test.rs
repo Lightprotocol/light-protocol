@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+//#![cfg(feature = "test-sbf")]
 
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
@@ -1144,7 +1144,7 @@ async fn only_test_create_pda() {
             let compressed_account =
                 test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&ID)[0].clone();
 
-            let keypair = Keypair::try_from(CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR.as_slice()).unwrap();
+            let keypair = Keypair::from_bytes(&CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR).unwrap();
             let result = transfer_compressed_sol_test(
                 &mut rpc,
                 &mut test_indexer,
@@ -1258,7 +1258,15 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         )
         .await
         .unwrap();
-
+        println!(
+            "approve accounts: {:?}",
+            test_indexer
+                .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
+                .await
+                .unwrap()
+                .value
+                .items
+        );
         let compressed_token_data = test_indexer
             .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
@@ -1288,7 +1296,7 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
             .filter(|x| x.token.delegate.is_some())
             .collect::<Vec<_>>()[0]
             .clone();
-
+        println!("compressed_token_data {:?}", compressed_token_data);
         perform_with_input_accounts(
             &mut test_indexer,
             &mut rpc,
@@ -1301,7 +1309,15 @@ async fn test_approve_revoke_burn_freeze_thaw_with_cpi_context() {
         )
         .await
         .unwrap();
-
+        println!(
+            "revoke accounts {:?}",
+            test_indexer
+                .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
+                .await
+                .unwrap()
+                .value
+                .items
+        );
         let compressed_token_data = test_indexer
             .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
             .await
@@ -1483,7 +1499,6 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         merkle_tree: program_owned_state_merkle_tree_keypair.pubkey(),
         nullifier_queue: program_owned_state_queue_keypair.pubkey(),
         cpi_context: program_owned_cpi_context_keypair.pubkey(),
-        tree_type: TreeType::StateV1,
     }];
 
     perform_create_pda_failing(
@@ -1541,7 +1556,6 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         merkle_tree: program_owned_state_merkle_tree_keypair.pubkey(),
         nullifier_queue: program_owned_state_queue_keypair.pubkey(),
         cpi_context: program_owned_cpi_context_keypair.pubkey(),
-        tree_type: TreeType::StateV1,
     }];
 
     // TestAccounts {

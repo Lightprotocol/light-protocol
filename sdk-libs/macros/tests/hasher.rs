@@ -1199,15 +1199,11 @@ fn test_solana_program_pubkey() {
             assert_eq!(manual_hash, hash);
 
             // Sha256
-            let mut manual_hash = Sha256::hash(
+            let manual_hash = Sha256::hash(
                 light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
                     .as_slice(),
             )
             .unwrap();
-            // Apply truncation for non-Poseidon hashers
-            if Sha256::ID != 0 {
-                manual_hash[0] = 0;
-            }
             let hash = pubkey_struct.hash::<Sha256>().unwrap();
             assert_eq!(manual_hash, hash);
         }
@@ -1219,11 +1215,7 @@ fn test_solana_program_pubkey() {
             assert_eq!(manual_hash, hash);
 
             // Sha256
-            let mut manual_hash = Sha256::hash([0u8; 32].as_slice()).unwrap();
-            // Apply truncation for non-Poseidon hashers
-            if Sha256::ID != 0 {
-                manual_hash[0] = 0;
-            }
+            let manual_hash = Sha256::hash([0u8; 32].as_slice()).unwrap();
             let hash = pubkey_struct.hash::<Sha256>().unwrap();
             assert_eq!(manual_hash, hash);
         }
@@ -1248,15 +1240,11 @@ fn test_solana_program_pubkey() {
         assert_eq!(manual_hash, hash);
 
         // Sha256
-        let mut manual_hash = Sha256::hash(
+        let manual_hash = Sha256::hash(
             light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
                 .as_slice(),
         )
         .unwrap();
-        // Apply truncation for non-Poseidon hashers
-        if Sha256::ID != 0 {
-            manual_hash[0] = 0;
-        }
         let hash = pubkey_struct.hash::<Sha256>().unwrap();
         assert_eq!(manual_hash, hash);
     }
@@ -1284,15 +1272,11 @@ fn test_solana_program_pubkey() {
             assert_eq!(manual_hash, hash);
 
             // Sha256
-            let mut manual_hash = Sha256::hash(
+            let manual_hash = Sha256::hash(
                 light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
                     .as_slice(),
             )
             .unwrap();
-            // Apply truncation for non-Poseidon hashers
-            if Sha256::ID != 0 {
-                manual_hash[0] = 0;
-            }
             let hash = pubkey_struct.hash::<Sha256>().unwrap();
             assert_eq!(manual_hash, hash);
         }
@@ -1310,129 +1294,15 @@ fn test_solana_program_pubkey() {
             assert_eq!(manual_hash, hash);
 
             // Sha256
-            let mut manual_hash = Sha256::hash(
+            let manual_hash = Sha256::hash(
                 light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
                     .as_slice(),
             )
             .unwrap();
-            // Apply truncation for non-Poseidon hashers
-            if Sha256::ID != 0 {
-                manual_hash[0] = 0;
-            }
             let hash = pubkey_struct.hash::<Sha256>().unwrap();
             assert_eq!(manual_hash, hash);
         }
     }
-}
-
-#[test]
-fn test_light_hasher_sha_macro() {
-    use light_sdk_macros::LightHasherSha;
-
-    // Test struct with many fields that would exceed Poseidon's limit
-    #[derive(LightHasherSha, BorshSerialize, BorshDeserialize, Clone)]
-    struct LargeShaStruct {
-        pub field1: u64,
-        pub field2: u64,
-        pub field3: u64,
-        pub field4: u64,
-        pub field5: u64,
-        pub field6: u64,
-        pub field7: u64,
-        pub field8: u64,
-        pub field9: u64,
-        pub field10: u64,
-        pub field11: u64,
-        pub field12: u64,
-        pub field13: u64,
-        pub field14: u64,
-        pub field15: u64,
-        pub owner: Pubkey,
-        pub authority: Pubkey,
-    }
-
-    let test_struct = LargeShaStruct {
-        field1: 1,
-        field2: 2,
-        field3: 3,
-        field4: 4,
-        field5: 5,
-        field6: 6,
-        field7: 7,
-        field8: 8,
-        field9: 9,
-        field10: 10,
-        field11: 11,
-        field12: 12,
-        field13: 13,
-        field14: 14,
-        field15: 15,
-        owner: Pubkey::new_unique(),
-        authority: Pubkey::new_unique(),
-    };
-
-    // Verify the hash matches manual SHA256 hashing
-    let bytes = test_struct.try_to_vec().unwrap();
-    let mut ref_hash = Sha256::hash(bytes.as_slice()).unwrap();
-
-    // Apply truncation for non-Poseidon hashers (ID != 0)
-    if Sha256::ID != 0 {
-        ref_hash[0] = 0;
-    }
-
-    // Test with SHA256 hasher
-    let hash_result = test_struct.hash::<Sha256>().unwrap();
-    assert_eq!(
-        hash_result, ref_hash,
-        "SHA256 hash should match manual hash"
-    );
-
-    // Test ToByteArray implementation
-    let byte_array_result = test_struct.to_byte_array().unwrap();
-    assert_eq!(
-        byte_array_result, ref_hash,
-        "ToByteArray should match SHA256 hash"
-    );
-
-    // Test another struct with different values
-    let test_struct2 = LargeShaStruct {
-        field1: 100,
-        field2: 200,
-        field3: 300,
-        field4: 400,
-        field5: 500,
-        field6: 600,
-        field7: 700,
-        field8: 800,
-        field9: 900,
-        field10: 1000,
-        field11: 1100,
-        field12: 1200,
-        field13: 1300,
-        field14: 1400,
-        field15: 1500,
-        owner: Pubkey::new_unique(),
-        authority: Pubkey::new_unique(),
-    };
-
-    let bytes2 = test_struct2.try_to_vec().unwrap();
-    let mut ref_hash2 = Sha256::hash(bytes2.as_slice()).unwrap();
-
-    if Sha256::ID != 0 {
-        ref_hash2[0] = 0;
-    }
-
-    let hash_result2 = test_struct2.hash::<Sha256>().unwrap();
-    assert_eq!(
-        hash_result2, ref_hash2,
-        "Second SHA256 hash should match manual hash"
-    );
-
-    // Ensure different structs produce different hashes
-    assert_ne!(
-        hash_result, hash_result2,
-        "Different structs should produce different hashes"
-    );
 }
 
 // Option<BorshStruct>
@@ -1470,15 +1340,11 @@ fn test_borsh() {
             assert_eq!(manual_hash, hash);
 
             // Sha256
-            let mut manual_hash = Sha256::hash(
+            let manual_hash = Sha256::hash(
                 light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
                     .as_slice(),
             )
             .unwrap();
-            // Apply truncation for non-Poseidon hashers
-            if Sha256::ID != 0 {
-                manual_hash[0] = 0;
-            }
             let hash = pubkey_struct.hash::<Sha256>().unwrap();
             assert_eq!(manual_hash, hash);
         }
@@ -1490,11 +1356,7 @@ fn test_borsh() {
             assert_eq!(manual_hash, hash);
 
             // Sha256
-            let mut manual_hash = Sha256::hash([0u8; 32].as_slice()).unwrap();
-            // Apply truncation for non-Poseidon hashers
-            if Sha256::ID != 0 {
-                manual_hash[0] = 0;
-            }
+            let manual_hash = Sha256::hash([0u8; 32].as_slice()).unwrap();
             let hash = pubkey_struct.hash::<Sha256>().unwrap();
             assert_eq!(manual_hash, hash);
         }
@@ -1521,15 +1383,11 @@ fn test_borsh() {
         assert_eq!(manual_hash, hash);
 
         // Sha256
-        let mut manual_hash = Sha256::hash(
+        let manual_hash = Sha256::hash(
             light_compressed_account::hash_to_bn254_field_size_be(manual_bytes.as_slice())
                 .as_slice(),
         )
         .unwrap();
-        // Apply truncation for non-Poseidon hashers
-        if Sha256::ID != 0 {
-            manual_hash[0] = 0;
-        }
         let hash = pubkey_struct.hash::<Sha256>().unwrap();
         assert_eq!(manual_hash, hash);
     }

@@ -146,7 +146,7 @@ pub const BATCHED_CPI_CONTEXT_TEST_KEYPAIR: [u8; 64] = [
     3, 12, 228,
 ];
 
-// EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK (just used to init but is reinited in light program test to amt2)
+// EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK
 pub const BATCHED_ADDRESS_MERKLE_TREE_TEST_KEYPAIR: [u8; 64] = [
     39, 24, 219, 214, 174, 34, 141, 22, 238, 96, 128, 5, 244, 12, 239, 3, 45, 61, 42, 53, 92, 87,
     28, 24, 35, 87, 72, 11, 158, 224, 210, 70, 207, 214, 165, 6, 152, 46, 60, 129, 118, 32, 27,

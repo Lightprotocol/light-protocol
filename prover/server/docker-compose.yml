@@ -15,7 +15,7 @@ services:
       - ./proving-keys:/proving-keys/:ro
     command: >
       start
-      --preload-keys forester-test
+      --run-mode forester-test
       --redis-url=redis://redis:6379
     depends_on:
       - redis

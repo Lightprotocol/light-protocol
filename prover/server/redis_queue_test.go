@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"light/light-prover/prover/common"
+	"light/light-prover/prover"
 	"light/light-prover/server"
 	"net/http"
 	"os"
@@ -515,30 +515,30 @@ func TestQueueNameForCircuitType(t *testing.T) {
 		circuitType   string
 		expectedQueue string
 	}{
-		{string(common.BatchUpdateCircuitType), "zk_update_queue"},
-		{string(common.BatchAppendCircuitType), "zk_append_queue"},
-		{string(common.BatchAddressAppendCircuitType), "zk_address_append_queue"},
-		{string(common.InclusionCircuitType), "zk_update_queue"},    // Default to update queue
-		{string(common.NonInclusionCircuitType), "zk_update_queue"}, // Default to update queue
-		{string(common.CombinedCircuitType), "zk_update_queue"},     // Default to update queue
+		{string(prover.BatchUpdateCircuitType), "zk_update_queue"},
+		{string(prover.BatchAppendCircuitType), "zk_append_queue"},
+		{string(prover.BatchAddressAppendCircuitType), "zk_address_append_queue"},
+		{string(prover.InclusionCircuitType), "zk_update_queue"},    // Default to update queue
+		{string(prover.NonInclusionCircuitType), "zk_update_queue"}, // Default to update queue
+		{string(prover.CombinedCircuitType), "zk_update_queue"},     // Default to update queue
 	}
 
 	for _, test := range tests {
 		t.Run(fmt.Sprintf("CircuitType_%s", test.circuitType), func(t *testing.T) {
-			var circuitType common.CircuitType
+			var circuitType prover.CircuitType
 			switch test.circuitType {
-			case string(common.BatchUpdateCircuitType):
-				circuitType = common.BatchUpdateCircuitType
-			case string(common.BatchAppendCircuitType):
-				circuitType = common.BatchAppendCircuitType
-			case string(common.BatchAddressAppendCircuitType):
-				circuitType = common.BatchAddressAppendCircuitType
-			case string(common.InclusionCircuitType):
-				circuitType = common.InclusionCircuitType
-			case string(common.NonInclusionCircuitType):
-				circuitType = common.NonInclusionCircuitType
-			case string(common.CombinedCircuitType):
-				circuitType = common.CombinedCircuitType
+			case string(prover.BatchUpdateCircuitType):
+				circuitType = prover.BatchUpdateCircuitType
+			case string(prover.BatchAppendCircuitType):
+				circuitType = prover.BatchAppendCircuitType
+			case string(prover.BatchAddressAppendCircuitType):
+				circuitType = prover.BatchAddressAppendCircuitType
+			case string(prover.InclusionCircuitType):
+				circuitType = prover.InclusionCircuitType
+			case string(prover.NonInclusionCircuitType):
+				circuitType = prover.NonInclusionCircuitType
+			case string(prover.CombinedCircuitType):
+				circuitType = prover.CombinedCircuitType
 			}
 
 			queueName := server.GetQueueNameForCircuit(circuitType)
@@ -676,19 +676,20 @@ func TestWorkerCreation(t *testing.T) {
 	rq := setupRedisQueue(t)
 	defer teardownRedisQueue(t, rq)
 
-	keyManager := common.NewLazyKeyManager("./proving-keys/", common.DefaultDownloadConfig())
+	var psv1 []*prover.ProvingSystemV1
+	var psv2 []*prover.ProvingSystemV2
 
-	updateWorker := server.NewUpdateQueueWorker(rq, keyManager)
+	updateWorker := server.NewUpdateQueueWorker(rq, psv1, psv2)
 	if updateWorker == nil {
 		t.Errorf("Expected update worker to be created, got nil")
 	}
 
-	appendWorker := server.NewAppendQueueWorker(rq, keyManager)
+	appendWorker := server.NewAppendQueueWorker(rq, psv1, psv2)
 	if appendWorker == nil {
 		t.Errorf("Expected append worker to be created, got nil")
 	}
 
-	addressAppendWorker := server.NewAddressAppendQueueWorker(rq, keyManager)
+	addressAppendWorker := server.NewAddressAppendQueueWorker(rq, psv1, psv2)
 	if addressAppendWorker == nil {
 		t.Errorf("Expected address append worker to be created, got nil")
 	}
@@ -845,7 +846,8 @@ func TestFailedJobStatusHTTPEndpoint(t *testing.T) {
 	rq := setupRedisQueue(t)
 	defer teardownRedisQueue(t, rq)
 
-	keyManager := common.NewLazyKeyManager("./proving-keys/", common.DefaultDownloadConfig())
+	var psv1 []*prover.ProvingSystemV1
+	var psv2 []*prover.ProvingSystemV2
 
 	config := &server.EnhancedConfig{
 		ProverAddress:  "localhost:8082",
@@ -856,7 +858,7 @@ func TestFailedJobStatusHTTPEndpoint(t *testing.T) {
 		},
 	}
 
-	serverJob := server.RunEnhanced(config, rq, keyManager)
+	serverJob := server.RunEnhanced(config, rq, []string{}, prover.FullTest, psv1, psv2)
 	defer serverJob.RequestStop()
 
 	time.Sleep(100 * time.Millisecond)
@@ -1055,12 +1057,12 @@ func containsCircuit(circuits []string, circuit string) bool {
 
 func TestBatchOperationsAlwaysUseQueue(t *testing.T) {
 	batchTests := []struct {
-		circuitType   common.CircuitType
+		circuitType   prover.CircuitType
 		expectedQueue string
 	}{
-		{common.BatchUpdateCircuitType, "zk_update_queue"},
-		{common.BatchAppendCircuitType, "zk_append_queue"},
-		{common.BatchAddressAppendCircuitType, "zk_address_append_queue"},
+		{prover.BatchUpdateCircuitType, "zk_update_queue"},
+		{prover.BatchAppendCircuitType, "zk_append_queue"},
+		{prover.BatchAddressAppendCircuitType, "zk_address_append_queue"},
 	}
 
 	for _, test := range batchTests {
@@ -1073,10 +1075,10 @@ func TestBatchOperationsAlwaysUseQueue(t *testing.T) {
 		})
 	}
 
-	nonBatchTests := []common.CircuitType{
-		common.InclusionCircuitType,
-		common.NonInclusionCircuitType,
-		common.CombinedCircuitType,
+	nonBatchTests := []prover.CircuitType{
+		prover.InclusionCircuitType,
+		prover.NonInclusionCircuitType,
+		prover.CombinedCircuitType,
 	}
 
 	for _, circuitType := range nonBatchTests {

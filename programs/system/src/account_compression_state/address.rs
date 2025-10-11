@@ -7,7 +7,7 @@ use light_indexed_merkle_tree::zero_copy::{
     IndexedMerkleTreeZeroCopy, IndexedMerkleTreeZeroCopyMut,
 };
 use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
-use light_program_profiler::profile;
+use light_profiler::profile;
 
 use crate::Result;
 
@@ -21,7 +21,7 @@ pub struct AddressMerkleTreeAccount {
 #[profile]
 pub fn address_merkle_tree_from_bytes_zero_copy(
     data: &[u8],
-) -> Result<IndexedMerkleTreeZeroCopy<'_, Poseidon, usize, 26, 16>> {
+) -> Result<IndexedMerkleTreeZeroCopy<Poseidon, usize, 26, 16>> {
     let required_size = 8 + mem::size_of::<AddressMerkleTreeAccount>();
     if data.len() < required_size {
         return Err(crate::errors::SystemProgramError::InvalidAccount.into());
@@ -34,7 +34,7 @@ pub fn address_merkle_tree_from_bytes_zero_copy(
 #[profile]
 pub fn address_merkle_tree_from_bytes_zero_copy_mut(
     data: &mut [u8],
-) -> Result<IndexedMerkleTreeZeroCopyMut<'_, Poseidon, usize, 26, 16>> {
+) -> Result<IndexedMerkleTreeZeroCopyMut<Poseidon, usize, 26, 16>> {
     let required_size = 8 + mem::size_of::<AddressMerkleTreeAccount>();
     if data.len() < required_size {
         return Err(crate::errors::SystemProgramError::InvalidAccount.into());

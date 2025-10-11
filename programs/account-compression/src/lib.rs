@@ -1,6 +1,8 @@
+// Allow deprecated to suppress warnings from anchor_lang::AccountInfo::realloc
+// which is used in the #[program] macro but we don't directly control
+#![allow(deprecated)]
 #![allow(clippy::too_many_arguments)]
 #![allow(unexpected_cfgs)]
-#![allow(deprecated)]
 pub mod errors;
 pub mod instructions;
 pub use instructions::*;

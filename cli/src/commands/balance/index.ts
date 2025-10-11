@@ -20,8 +20,7 @@ class BalanceCommand extends Command {
     const loader = new CustomLoader(`Performing balance...\n`);
     loader.start();
     try {
-      const { owner } = flags;
-      const refOwner = new PublicKey(owner);
+      const refOwner = new PublicKey(flags["owner"]);
 
       const accounts = await rpc().getCompressedAccountsByOwner(refOwner);
 
@@ -38,7 +37,7 @@ class BalanceCommand extends Command {
       }
 
       console.log(
-        "\u001B[1mCompressed SOL balance:\u001B[0m",
+        "\x1b[1mCompressed SOL balance:\x1b[0m ",
         totalAmount.toString(),
       );
     } catch (error) {

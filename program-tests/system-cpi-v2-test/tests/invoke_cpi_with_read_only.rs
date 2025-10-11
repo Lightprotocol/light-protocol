@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 mod event;
 
@@ -27,7 +27,7 @@ use light_program_test::{
     utils::assert::assert_rpc_error,
     LightProgramTest, ProgramTestConfig,
 };
-use light_prover_client::prover::spawn_prover;
+use light_prover_client::prover::{spawn_prover, ProverConfig};
 use light_sdk::{
     address::{NewAddressParamsAssigned, ReadOnlyAddress},
     instruction::ValidityProof,
@@ -47,8 +47,8 @@ use solana_sdk::pubkey::Pubkey;
 #[serial]
 #[tokio::test]
 async fn functional_read_only() {
-    spawn_prover().await;
-    for (batched, is_v2_ix) in [(true, false), (true, true), (false, false), (false, true)] {
+    spawn_prover(ProverConfig::default()).await;
+    for (batched, is_small_ix) in [(true, false), (true, true), (false, false), (false, true)] {
         let config = if batched {
             let mut config = ProgramTestConfig::default_with_batched_trees(false);
             config.with_prover = false;
@@ -114,7 +114,7 @@ async fn functional_read_only() {
                 None,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 true,
                 Vec::new(),
                 Vec::new(),
@@ -314,7 +314,7 @@ async fn functional_read_only() {
                             proof_res.proof.0,
                             None,
                             Some(account_infos),
-                            is_v2_ix,
+                            is_small_ix,
                             true,
                             read_only_accounts,
                             readonly_addresses,
@@ -346,8 +346,8 @@ async fn functional_read_only() {
 #[serial]
 #[tokio::test]
 async fn functional_account_infos() {
-    spawn_prover().await;
-    for (batched, is_v2_ix) in
+    spawn_prover(ProverConfig::default()).await;
+    for (batched, is_small_ix) in
         [(true, false), (true, true), (false, false), (false, true)].into_iter()
     {
         let config = if batched {
@@ -411,7 +411,7 @@ async fn functional_account_infos() {
                 None,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 true,
                 Vec::new(),
                 Vec::new(),
@@ -619,7 +619,7 @@ async fn functional_account_infos() {
                             proof_res.value.proof.0,
                             None,
                             Some(account_infos),
-                            is_v2_ix,
+                            is_small_ix,
                             true,
                             read_only_accounts,
                             readonly_addresses,
@@ -660,9 +660,9 @@ async fn functional_account_infos() {
 #[serial]
 #[tokio::test]
 async fn create_addresses_with_account_info() {
-    spawn_prover().await;
+    spawn_prover(ProverConfig::default()).await;
     let with_transaction_hash = true;
-    for (batched, is_v2_ix) in
+    for (batched, is_small_ix) in
         [(true, false), (true, true), (false, false), (false, true)].into_iter()
     {
         let config = if batched {
@@ -788,7 +788,7 @@ async fn create_addresses_with_account_info() {
                 rpc_result.value.proof.0,
                 None,
                 Some(vec![account_info.clone()]),
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -815,7 +815,7 @@ async fn create_addresses_with_account_info() {
                 rpc_result.value.proof.0,
                 None,
                 Some(vec![]),
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -850,7 +850,7 @@ async fn create_addresses_with_account_info() {
                 rpc_result.value.proof.0,
                 None,
                 Some(vec![account_info]),
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -877,7 +877,7 @@ async fn create_addresses_with_account_info() {
                 rpc_result.value.proof.0,
                 None,
                 Some(vec![account_info1.clone()]),
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -906,7 +906,7 @@ async fn create_addresses_with_account_info() {
                 rpc_result.value.proof.0,
                 None,
                 Some(vec![account_info.clone()]),
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -933,7 +933,7 @@ async fn create_addresses_with_account_info() {
                 rpc_result.value.proof.0,
                 None,
                 Some(vec![account_info.clone(), account_info1.clone()]),
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1012,7 +1012,7 @@ async fn create_addresses_with_account_info() {
                 rpc_result.value.proof.0,
                 None,
                 Some(vec![]),
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1068,7 +1068,7 @@ async fn create_addresses_with_account_info() {
                 rpc_result.value.proof.0,
                 None,
                 Some(vec![]),
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1156,7 +1156,7 @@ async fn create_addresses_with_account_info() {
                 rpc_result.value.proof.0,
                 None,
                 Some(vec![account_info]),
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1222,7 +1222,7 @@ async fn create_addresses_with_account_info() {
                 rpc_result.value.proof.0,
                 None,
                 Some(vec![account_info]),
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1260,12 +1260,12 @@ async fn create_addresses_with_account_info() {
 #[serial]
 #[tokio::test]
 async fn create_addresses_with_read_only() {
-    spawn_prover().await;
+    spawn_prover(ProverConfig::default()).await;
     let with_transaction_hash = true;
-    for (batched, is_v2_ix) in
+    for (batched, is_small_ix) in
         [(true, false), (true, true), (false, false), (false, true)].into_iter()
     {
-        println!("batched {}, v2 ix {}", batched, is_v2_ix);
+        println!("batched {}, small ix {}", batched, is_small_ix);
         let config = if batched {
             let mut config = ProgramTestConfig::default_with_batched_trees(false);
             config.with_prover = false;
@@ -1380,7 +1380,7 @@ async fn create_addresses_with_read_only() {
                 rpc_result.value.proof.0,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1408,7 +1408,7 @@ async fn create_addresses_with_read_only() {
                 rpc_result.value.proof.0,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1444,7 +1444,7 @@ async fn create_addresses_with_read_only() {
                 rpc_result.value.proof.0,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1472,7 +1472,7 @@ async fn create_addresses_with_read_only() {
                 rpc_result.value.proof.0,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1502,7 +1502,7 @@ async fn create_addresses_with_read_only() {
                 rpc_result.value.proof.0,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1530,7 +1530,7 @@ async fn create_addresses_with_read_only() {
                 rpc_result.value.proof.0,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1610,7 +1610,7 @@ async fn create_addresses_with_read_only() {
                 rpc_result.value.proof.0,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1667,7 +1667,7 @@ async fn create_addresses_with_read_only() {
                 rpc_result.value.proof.0,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1752,7 +1752,7 @@ async fn create_addresses_with_read_only() {
                 rpc_result.value.proof.0,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1815,7 +1815,7 @@ async fn create_addresses_with_read_only() {
                 rpc_result.value.proof.0,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -1837,7 +1837,7 @@ async fn create_addresses_with_read_only() {
 async fn compress_sol_with_account_info() {
     let with_transaction_hash = false;
     let batched = true;
-    for is_v2_ix in [true, false].into_iter() {
+    for is_small_ix in [true, false].into_iter() {
         let config = {
             let mut config = ProgramTestConfig::default_with_batched_trees(false);
             config.with_prover = false;
@@ -1891,7 +1891,7 @@ async fn compress_sol_with_account_info() {
                     None,
                     None,
                     Some(vec![account_info.clone()]),
-                    is_v2_ix,
+                    is_small_ix,
                     with_transaction_hash,
                     Vec::new(),
                     Vec::new(),
@@ -1918,7 +1918,7 @@ async fn compress_sol_with_account_info() {
                     None,
                     None,
                     Some(vec![account_info.clone()]),
-                    is_v2_ix,
+                    is_small_ix,
                     with_transaction_hash,
                     Vec::new(),
                     Vec::new(),
@@ -1969,7 +1969,7 @@ async fn compress_sol_with_account_info() {
                     None,
                     Some(recipient),
                     Some(vec![account_info.clone()]),
-                    is_v2_ix,
+                    is_small_ix,
                     with_transaction_hash,
                     Vec::new(),
                     Vec::new(),
@@ -1996,7 +1996,7 @@ async fn compress_sol_with_account_info() {
                     None,
                     Some(recipient),
                     Some(vec![account_info.clone()]),
-                    is_v2_ix,
+                    is_small_ix,
                     with_transaction_hash,
                     Vec::new(),
                     Vec::new(),
@@ -2020,10 +2020,10 @@ async fn compress_sol_with_account_info() {
 #[serial]
 #[tokio::test]
 async fn cpi_context_with_read_only() {
-    spawn_prover().await;
+    spawn_prover(ProverConfig::default()).await;
     let with_transaction_hash = false;
     let batched = true;
-    for is_v2_ix in [true, false].into_iter() {
+    for is_small_ix in [true, false].into_iter() {
         let config = {
             let mut config = ProgramTestConfig::default_with_batched_trees(false);
             config.with_prover = false;
@@ -2091,7 +2091,7 @@ async fn cpi_context_with_read_only() {
                 None,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 true,
                 Vec::new(),
                 Vec::new(),
@@ -2181,7 +2181,7 @@ async fn cpi_context_with_read_only() {
                 None,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -2224,7 +2224,7 @@ async fn cpi_context_with_read_only() {
                 None,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -2267,7 +2267,7 @@ async fn cpi_context_with_read_only() {
                 rpc_result.value.proof.0,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -2294,14 +2294,12 @@ async fn cpi_context_with_read_only() {
                 output_account_balance[0].compressed_account.address,
                 Some(address)
             );
-
+            println!("{:?}", address1);
             let account = test_indexer
                 .get_compressed_account(address1, None)
                 .await
-                .unwrap()
-                .value
                 .unwrap();
-            assert_eq!(account.owner, owner_account1);
+            assert_eq!(account.value.owner, owner_account1);
             let output_account_balance =
                 test_indexer.get_compressed_accounts_with_merkle_context_by_owner(&owner_account1);
             assert_eq!(
@@ -2318,10 +2316,10 @@ async fn cpi_context_with_read_only() {
 #[serial]
 #[tokio::test]
 async fn cpi_context_with_account_info() {
-    spawn_prover().await;
+    spawn_prover(ProverConfig::default()).await;
     let with_transaction_hash = false;
     let batched = true;
-    for is_v2_ix in [true, false].into_iter() {
+    for is_small_ix in [true, false].into_iter() {
         let config = if batched {
             let mut config = ProgramTestConfig::default_with_batched_trees(false);
             config.with_prover = false;
@@ -2395,7 +2393,7 @@ async fn cpi_context_with_account_info() {
                 None,
                 None,
                 None,
-                is_v2_ix,
+                is_small_ix,
                 true,
                 Vec::new(),
                 Vec::new(),
@@ -2485,7 +2483,7 @@ async fn cpi_context_with_account_info() {
                 None,
                 None,
                 Some(vec![account_info]),
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -2542,7 +2540,7 @@ async fn cpi_context_with_account_info() {
                 None,
                 None,
                 Some(vec![account_info1, account_info2]),
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -2593,7 +2591,7 @@ async fn cpi_context_with_account_info() {
                 rpc_result.value.proof.0,
                 None,
                 Some(vec![account_info1, account_info2]),
-                is_v2_ix,
+                is_small_ix,
                 with_transaction_hash,
                 Vec::new(),
                 Vec::new(),
@@ -2639,7 +2637,7 @@ async fn cpi_context_with_account_info() {
 async fn compress_sol_with_read_only() {
     let with_transaction_hash = false;
     let batched = true;
-    for is_v2_ix in [true, false].into_iter() {
+    for is_small_ix in [true, false].into_iter() {
         let config = if batched {
             let mut config = ProgramTestConfig::default_with_batched_trees(false);
             config.with_prover = false;
@@ -2692,7 +2690,7 @@ async fn compress_sol_with_read_only() {
                     None,
                     None,
                     None,
-                    is_v2_ix,
+                    is_small_ix,
                     with_transaction_hash,
                     Vec::new(),
                     Vec::new(),
@@ -2719,7 +2717,7 @@ async fn compress_sol_with_read_only() {
                     None,
                     None,
                     None,
-                    is_v2_ix,
+                    is_small_ix,
                     with_transaction_hash,
                     Vec::new(),
                     Vec::new(),
@@ -2767,7 +2765,7 @@ async fn compress_sol_with_read_only() {
                     None,
                     Some(recipient),
                     None,
-                    is_v2_ix,
+                    is_small_ix,
                     with_transaction_hash,
                     Vec::new(),
                     Vec::new(),
@@ -2794,7 +2792,7 @@ async fn compress_sol_with_read_only() {
                     None,
                     Some(recipient),
                     None,
-                    is_v2_ix,
+                    is_small_ix,
                     with_transaction_hash,
                     Vec::new(),
                     Vec::new(),
@@ -2837,7 +2835,7 @@ fn get_output_account_info(output_merkle_tree_index: u8) -> OutAccountInfo {
 #[serial]
 #[tokio::test]
 async fn test_duplicate_account_in_inputs_and_read_only() {
-    spawn_prover().await;
+    spawn_prover(ProverConfig::default()).await;
 
     let mut config = ProgramTestConfig::default_with_batched_trees(false);
     config.with_prover = false;
@@ -2915,7 +2913,7 @@ async fn test_duplicate_account_in_inputs_and_read_only() {
         rpc_result.value.proof.0, // proof
         None,                     // sol_compression_recipient
         None,                     // account_infos
-        false,                    // v2_ix
+        false,                    // small_ix
         false,                    // with_transaction_hash
         vec![read_only_account],  // read_only_accounts
         Vec::new(),               // read_only_addresses
@@ -3003,7 +3001,7 @@ pub mod local_sdk {
         proof: Option<CompressedProof>,
         sol_compression_recipient: Option<Pubkey>,
         account_infos: Option<Vec<CompressedAccountInfo>>,
-        v2_ix: bool,
+        small_ix: bool,
         with_transaction_hash: bool,
         read_only_accounts: Vec<ReadOnlyCompressedAccount>,
         read_only_addresses: Vec<ReadOnlyAddress>,
@@ -3056,7 +3054,7 @@ pub mod local_sdk {
 
         let ix_data = if account_infos.is_none() {
             InstructionDataInvokeCpiWithReadOnly {
-                mode: if v2_ix { 1 } else { 0 },
+                mode: if small_ix { 1 } else { 0 },
                 bump: 255,
                 invoking_program_id: create_address_test_program::ID.into(),
                 proof,
@@ -3086,7 +3084,7 @@ pub mod local_sdk {
             .unwrap()
         } else if let Some(account_infos) = account_infos.as_ref() {
             InstructionDataInvokeCpiWithAccountInfo {
-                mode: if v2_ix { 1 } else { 0 },
+                mode: if small_ix { 1 } else { 0 },
                 bump: 255,
                 invoking_program_id: create_address_test_program::ID.into(),
                 proof,
@@ -3125,7 +3123,7 @@ pub mod local_sdk {
                 None
             },
             sol_compression_recipient,
-            v2_ix,
+            small_ix,
         };
 
         let instruction_discriminator = if account_infos.is_none() {
@@ -3140,7 +3138,7 @@ pub mod local_sdk {
         onchain_config.sol_pool_pda = config.sol_pool_pda.is_some();
         onchain_config.sol_compression_recipient = config.sol_compression_recipient.is_some();
         let write_into_cpi_context = if let Some(cpi_context) = cpi_context.as_ref() {
-            if v2_ix {
+            if small_ix {
                 cpi_context.first_set_context || cpi_context.set_context
             } else {
                 false
@@ -3165,11 +3163,11 @@ pub mod local_sdk {
             payer.pubkey(),
             [instruction_discriminator.to_vec(), ix_data].concat(),
             onchain_config,
-            v2_ix,
+            small_ix,
             remaining_accounts,
             write_into_cpi_context,
         );
-
+        println!("instruction {:?}", instruction);
         let res = rpc
             .create_and_send_transaction_with_batched_event(
                 &[instruction],
@@ -3195,7 +3193,7 @@ pub mod local_sdk {
         pub cpi_context: Option<Pubkey>,
         pub sol_compression_recipient: Option<Pubkey>,
         pub sol_pool_pda: Option<Pubkey>,
-        pub v2_ix: bool,
+        pub small_ix: bool,
     }
 
     impl SystemAccountMetaConfig {
@@ -3205,7 +3203,7 @@ pub mod local_sdk {
                 cpi_context: None,
                 sol_compression_recipient: None,
                 sol_pool_pda: None,
-                v2_ix: false,
+                small_ix: false,
             }
         }
         pub fn new_with_account_options(self_program: Pubkey) -> Self {
@@ -3214,7 +3212,7 @@ pub mod local_sdk {
                 cpi_context: None,
                 sol_compression_recipient: None,
                 sol_pool_pda: None,
-                v2_ix: true,
+                small_ix: true,
             }
         }
 
@@ -3224,7 +3222,7 @@ pub mod local_sdk {
                 cpi_context: Some(cpi_context),
                 sol_compression_recipient: None,
                 sol_pool_pda: None,
-                v2_ix: false,
+                small_ix: false,
             }
         }
     }
@@ -3354,7 +3352,7 @@ pub mod local_sdk {
         let cpi_signer = Pubkey::new_from_array(LIGHT_CPI_SIGNER.cpi_signer);
 
         let default_pubkeys = SystemAccountPubkeys::default();
-        let mut vec = if config.v2_ix {
+        let mut vec = if config.small_ix {
             // Accounts without noop and self program.
             let vec = vec![
                 AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
@@ -3393,7 +3391,7 @@ pub mod local_sdk {
                 is_writable: true,
             });
         }
-        if !config.v2_ix {
+        if !config.small_ix {
             vec.push(AccountMeta::new_readonly(
                 default_pubkeys.system_program,
                 false,

@@ -11,10 +11,7 @@ use zerocopy::{
     FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned,
 };
 
-use crate::{
-    discriminators::DISCRIMINATOR_INSERT_INTO_QUEUES, pubkey::Pubkey, InstructionDiscriminator,
-    TreeType,
-};
+use crate::{pubkey::Pubkey, TreeType};
 
 #[repr(C)]
 #[derive(
@@ -87,12 +84,6 @@ impl Deref for InsertIntoQueuesInstructionData<'_> {
 
     fn deref(&self) -> &Self::Target {
         &self.meta
-    }
-}
-
-impl InstructionDiscriminator for InsertIntoQueuesInstructionData<'_> {
-    fn discriminator(&self) -> &'static [u8] {
-        &DISCRIMINATOR_INSERT_INTO_QUEUES
     }
 }
 

@@ -1,5 +1,4 @@
-import { runCommand } from "@oclif/test";
-import { expect } from "chai";
+import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { Keypair } from "@solana/web3.js";
@@ -32,12 +31,17 @@ describe("Get balance", () => {
     );
   });
 
-  it(`check balance of ${mintAmount} tokens for ${mintDestination.toBase58()} from mint ${mintKeypair.publicKey.toBase58()}`, async () => {
-    const { stdout } = await runCommand([
+  test
+    .stdout({ print: true })
+    .command([
       "token-balance",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
       `--owner=${mintDestination.toBase58()}`,
-    ]);
-    expect(stdout).to.contain("Balance:");
-  });
+    ])
+    .it(
+      `transfer ${mintAmount} tokens to ${mintDestination.toBase58()} from ${mintKeypair.publicKey.toBase58()}, fee-payer: ${payerKeypair.publicKey.toBase58()} `,
+      (ctx: any) => {
+        expect(ctx.stdout).to.contain("Balance:");
+      },
+    );
 });

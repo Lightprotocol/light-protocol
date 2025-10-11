@@ -20,7 +20,7 @@ use light_compressed_account::{
 };
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
-    accounts::test_accounts::TestAccounts,
+    accounts::{initialize::initialize_accounts, test_accounts::TestAccounts},
     indexer::{TestIndexer, TestIndexerExtensions},
     program_test::{LightProgramTest, TestRpc},
     utils::assert::assert_rpc_error,
@@ -1327,7 +1327,7 @@ async fn test_with_address() {
         &mut rpc,
         &mut indexer,
         &payer,
-        std::slice::from_ref(&compressed_account_with_context),
+        &[compressed_account_with_context.clone()],
         &[recipient_pubkey],
         &[compressed_account_with_context
             .merkle_context
@@ -1650,8 +1650,8 @@ async fn regenerate_accounts() {
     };
     let mut config = ProgramTestConfig::default_with_batched_trees(false);
     config.protocol_config = protocol_config;
+    config.skip_protocol_init = true;
     let mut rpc = LightProgramTest::new(config).await.unwrap();
-    let env = rpc.test_accounts.clone();
     let keypairs = for_regenerate_accounts();
 
     airdrop_lamports(
@@ -1665,14 +1665,34 @@ async fn regenerate_accounts() {
     airdrop_lamports(&mut rpc, &keypairs.forester.pubkey(), 10_000_000_000)
         .await
         .unwrap();
+    // Note this will not regenerate the registered program accounts.
+    let mut config = ProgramTestConfig::default_with_batched_trees(false);
+    config.skip_register_programs = true;
+    config.protocol_config = protocol_config;
+    let env = initialize_accounts(&mut rpc, &config, &keypairs)
+        .await
+        .unwrap();
+    let keypairs = for_regenerate_accounts();
 
     // Setup forester and get epoch information
     let forester_epoch = setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
         .await
         .unwrap();
 
-    // List of public keys to fetch and export - dynamically built from test accounts
-    let mut pubkeys = vec![
+    // List of public keys to fetch and export
+    let pubkeys = vec![
+        ("merkle_tree_pubkey", env.v1_state_trees[0].merkle_tree),
+        (
+            "nullifier_queue_pubkey",
+            env.v1_state_trees[0].nullifier_queue,
+        ),
+        ("cpi_context", env.v1_state_trees[0].cpi_context),
+        ("merkle_tree_pubkey", keypairs.state_merkle_tree_2.pubkey()),
+        (
+            "nullifier_queue_pubkey",
+            keypairs.nullifier_queue_2.pubkey(),
+        ),
+        ("cpi_context", keypairs.cpi_context_2.pubkey()),
         (
             "governance_authority_pda",
             env.protocol.governance_authority_pda,
@@ -1682,6 +1702,8 @@ async fn regenerate_accounts() {
             "registered_program_pda",
             env.protocol.registered_program_pda,
         ),
+        ("address_merkle_tree", env.v1_address_trees[0].merkle_tree),
+        ("address_merkle_tree_queue", env.v1_address_trees[0].queue),
         (
             "registered_registry_program_pda",
             env.protocol.registered_registry_program_pda,
@@ -1692,32 +1714,10 @@ async fn regenerate_accounts() {
         ),
         ("forester_epoch_pda", forester_epoch.forester_epoch_pda),
         ("epoch_pda", forester_epoch.epoch_pda),
+        ("batch_state_merkle_tree", env.v2_state_trees[0].merkle_tree),
+        ("batched_output_queue", env.v2_state_trees[0].output_queue),
+        ("batch_address_merkle_tree", env.v2_address_trees[0]),
     ];
-
-    // Add all v1 state trees
-    for tree in &env.v1_state_trees {
-        pubkeys.push(("merkle_tree_pubkey", tree.merkle_tree));
-        pubkeys.push(("nullifier_queue_pubkey", tree.nullifier_queue));
-        pubkeys.push(("cpi_context", tree.cpi_context));
-    }
-
-    // Add all v1 address trees
-    for tree in &env.v1_address_trees {
-        pubkeys.push(("address_merkle_tree", tree.merkle_tree));
-        pubkeys.push(("address_merkle_tree_queue", tree.queue));
-    }
-
-    // Add all v2 state trees
-    for tree in &env.v2_state_trees {
-        pubkeys.push(("batch_state_merkle_tree", tree.merkle_tree));
-        pubkeys.push(("batched_output_queue", tree.output_queue));
-        pubkeys.push(("cpi_context", tree.cpi_context));
-    }
-
-    // Add all v2 address trees
-    for tree_pubkey in &env.v2_address_trees {
-        pubkeys.push(("batch_address_merkle_tree", *tree_pubkey));
-    }
 
     let mut rust_file = String::new();
     let code = quote::quote! {
@@ -1727,7 +1727,6 @@ async fn regenerate_accounts() {
     };
     rust_file.push_str(&code.to_string());
     for (name, pubkey) in pubkeys {
-        println!("pubkey {:?}", pubkey);
         // Fetch account data. Adjust this part to match how you retrieve and structure your account data.
         let account = rpc.get_account(pubkey).await.unwrap();
         println!(
@@ -1740,11 +1739,6 @@ async fn regenerate_accounts() {
 
         // Serialize the account data to JSON. Adjust according to your data structure.
         let json_data = serde_json::to_vec(&account).unwrap();
-        let pubkey = if name == "batch_address_merkle_tree" {
-            anchor_lang::pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx")
-        } else {
-            pubkey
-        };
 
         // Construct the output file path
         let file_name = format!("{}_{}.json", name, pubkey);

@@ -3,7 +3,6 @@ use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::{Rpc, RpcError},
 };
-use light_compressed_account::TreeType;
 use light_registry::{
     account_compression_cpi::sdk::get_registered_program_pda,
     sdk::{
@@ -31,6 +30,7 @@ use crate::{
         test_accounts::{ProtocolAccounts, StateMerkleTreeAccountsV2, TestAccounts},
         test_keypairs::*,
     },
+    compressible::FundingPoolConfig,
     program_test::TestRpc,
     ProgramTestConfig,
 };
@@ -117,6 +117,8 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
         )
         .await?;
     }
+    let merkle_tree_pubkey = keypairs.state_merkle_tree.pubkey();
+    let nullifier_queue_pubkey = keypairs.nullifier_queue.pubkey();
     if !config.skip_v1_trees {
         create_state_merkle_tree_and_queue_account(
             &keypairs.governance_authority,
@@ -188,10 +190,15 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
         .await?;
     }
 
+    // Register forester for epoch 0 if enabled
+    if config.with_forester {
+        use crate::forester::register_forester::register_forester_for_compress_and_close;
+        register_forester_for_compress_and_close(context, &keypairs.forester).await?;
+    }
+
     let registered_system_program_pda =
         get_registered_program_pda(&Pubkey::from(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID));
     let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
-    use solana_sdk::pubkey;
     Ok(TestAccounts {
         protocol: ProtocolAccounts {
             governance_authority: keypairs.governance_authority.insecure_clone(),
@@ -202,52 +209,22 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
             registered_registry_program_pda,
             registered_forester_pda: get_forester_pda(&keypairs.forester.pubkey()).0,
         },
-        v1_state_trees: vec![
-            StateMerkleTreeAccounts {
-                merkle_tree: pubkey!("smt1NamzXdq4AMqS2fS2F1i5KTYPZRhoHgWx38d8WsT"),
-                nullifier_queue: pubkey!("nfq1NvQDJ2GEgnS8zt9prAe8rjjpAW1zFkrvZoBR148"),
-                cpi_context: pubkey!("cpi1uHzrEhBG733DoEJNgHCyRS3XmmyVNZx5fonubE4"),
-                tree_type: TreeType::StateV1,
-            },
-            StateMerkleTreeAccounts {
-                merkle_tree: pubkey!("smt2rJAFdyJJupwMKAqTNAJwvjhmiZ4JYGZmbVRw1Ho"),
-                nullifier_queue: pubkey!("nfq2hgS7NYemXsFaFUCe3EMXSDSfnZnAe27jC6aPP1X"),
-                cpi_context: pubkey!("cpi2cdhkH5roePvcudTgUL8ppEBfTay1desGh8G8QxK"),
-                tree_type: TreeType::StateV1,
-            },
-        ],
+        v1_state_trees: vec![StateMerkleTreeAccounts {
+            merkle_tree: merkle_tree_pubkey,
+            nullifier_queue: nullifier_queue_pubkey,
+            cpi_context: keypairs.cpi_context_account.pubkey(),
+        }],
         v1_address_trees: vec![AddressMerkleTreeAccounts {
             merkle_tree: keypairs.address_merkle_tree.pubkey(),
             queue: keypairs.address_merkle_tree_queue.pubkey(),
         }],
-        v2_state_trees: vec![
-            StateMerkleTreeAccountsV2 {
-                merkle_tree: pubkey!("bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU"),
-                output_queue: pubkey!("oq1na8gojfdUhsfCpyjNt6h4JaDWtHf1yQj4koBWfto"),
-                cpi_context: pubkey!("cpi15BoVPKgEPw5o8wc2T816GE7b378nMXnhH3Xbq4y"),
-            },
-            StateMerkleTreeAccountsV2 {
-                merkle_tree: pubkey!("bmt2UxoBxB9xWev4BkLvkGdapsz6sZGkzViPNph7VFi"),
-                output_queue: pubkey!("oq2UkeMsJLfXt2QHzim242SUi3nvjJs8Pn7Eac9H9vg"),
-                cpi_context: pubkey!("cpi2yGapXUR3As5SjnHBAVvmApNiLsbeZpF3euWnW6B"),
-            },
-            StateMerkleTreeAccountsV2 {
-                merkle_tree: pubkey!("bmt3ccLd4bqSVZVeCJnH1F6C8jNygAhaDfxDwePyyGb"),
-                output_queue: pubkey!("oq3AxjekBWgo64gpauB6QtuZNesuv19xrhaC1ZM1THQ"),
-                cpi_context: pubkey!("cpi3mbwMpSX8FAGMZVP85AwxqCaQMfEk9Em1v8QK9Rf"),
-            },
-            StateMerkleTreeAccountsV2 {
-                merkle_tree: pubkey!("bmt4d3p1a4YQgk9PeZv5s4DBUmbF5NxqYpk9HGjQsd8"),
-                output_queue: pubkey!("oq4ypwvVGzCUMoiKKHWh4S1SgZJ9vCvKpcz6RT6A8dq"),
-                cpi_context: pubkey!("cpi4yyPDc4bCgHAnsenunGA8Y77j3XEDyjgfyCKgcoc"),
-            },
-            StateMerkleTreeAccountsV2 {
-                merkle_tree: pubkey!("bmt5yU97jC88YXTuSukYHa8Z5Bi2ZDUtmzfkDTA2mG2"),
-                output_queue: pubkey!("oq5oh5ZR3yGomuQgFduNDzjtGvVWfDRGLuDVjv9a96P"),
-                cpi_context: pubkey!("cpi5ZTjdgYpZ1Xr7B1cMLLUE81oTtJbNNAyKary2nV6"),
-            },
-        ],
+        v2_state_trees: vec![StateMerkleTreeAccountsV2 {
+            merkle_tree: keypairs.batched_state_merkle_tree.pubkey(),
+            output_queue: keypairs.batched_output_queue.pubkey(),
+            cpi_context: keypairs.batched_cpi_context.pubkey(),
+        }],
         v2_address_trees: vec![keypairs.batch_address_merkle_tree.pubkey()],
+        funding_pool_config: FundingPoolConfig::get_v1(),
     })
 }
 

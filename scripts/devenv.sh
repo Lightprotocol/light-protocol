@@ -87,13 +87,13 @@ export CARGO_HOME
 export NPM_CONFIG_PREFIX
 export LIGHT_PROTOCOL_TOPLEVEL
 export LIGHT_PROTOCOL_DEVENV
-export SBF_OUT_DIR=target/deploy
+export SBF_OUT_DIR=./target/deploy
 
 # Set Redis URL if not already set
 export REDIS_URL="${REDIS_URL:-redis://localhost:6379}"
 
-# Enable v2_ix feature by default in devenv
-export CARGO_FEATURES="${CARGO_FEATURES:-v2_ix}"
+# Enable small_ix feature by default in devenv
+export CARGO_FEATURES="${CARGO_FEATURES:-small_ix}"
 
 # macOS-specific settings
 if [[ "$(uname)" == "Darwin" ]]; then

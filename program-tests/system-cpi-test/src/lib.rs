@@ -4,15 +4,11 @@ use account_compression::{program::AccountCompression, utils::constants::CPI_AUT
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
 pub mod create_pda;
 pub use create_pda::*;
-pub mod cpi_context_event;
-pub mod cpi_context_event_inputs;
 pub mod invalidate_not_owned_account;
 pub mod sdk;
 use account_compression::{
     AddressMerkleTreeConfig, AddressQueueConfig, NullifierQueueConfig, StateMerkleTreeConfig,
 };
-pub use cpi_context_event::*;
-pub use cpi_context_event_inputs::*;
 pub use invalidate_not_owned_account::*;
 use light_compressed_account::{
     compressed_account::{
@@ -24,13 +20,8 @@ use light_compressed_account::{
         data::{NewAddressParamsPacked, PackedReadOnlyAddress},
     },
 };
-use light_sdk::derive_light_cpi_signer;
-use light_sdk_types::CpiSigner;
 
 declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
-
-pub const LIGHT_CPI_SIGNER: CpiSigner =
-    derive_light_cpi_signer!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 
 #[program]
 pub mod system_cpi_test {
@@ -208,21 +199,6 @@ pub mod system_cpi_test {
             queue_config,
             additional_bytes,
         )
-    }
-
-    pub fn cpi_context_indexing<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, GenericAnchorAccounts<'info>>,
-        mode: u8,
-    ) -> Result<()> {
-        process_cpi_context_indexing(ctx, mode)
-    }
-
-    pub fn cpi_context_indexing_inputs<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, GenericAnchorAccounts<'info>>,
-        mode: u8,
-        leaf_indices: [u8; 3],
-    ) -> Result<()> {
-        process_cpi_context_indexing_inputs(ctx, mode, leaf_indices)
     }
 }
 

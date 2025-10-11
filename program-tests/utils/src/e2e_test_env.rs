@@ -136,7 +136,9 @@ use light_program_test::{
 use light_prover_client::{
     constants::{PROVE_PATH, SERVER_ADDRESS},
     proof::{compress_proof, deserialize_gnark_proof_json, proof_from_json_struct},
+    proof_type::ProofType,
     proof_types::batch_address_append::{get_batch_address_append_circuit_inputs, to_json},
+    prover::ProverConfig,
 };
 use light_registry::{
     account_compression_cpi::sdk::create_batch_update_address_tree_instruction,
@@ -754,7 +756,7 @@ where
                                     .await
                                     .unwrap();
                                 let addresses =
-                                    addresses.value.elements.iter().map(|x| x.account_hash).collect::<Vec<_>>();
+                                    addresses.value.items.iter().map(|x| x.account_hash).collect::<Vec<_>>();
                                 // // local_leaves_hash_chain is only used for a test assertion.
                                 // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
                                 // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);
@@ -1280,7 +1282,6 @@ where
                     merkle_tree: merkle_tree_keypair.pubkey(),
                     nullifier_queue: nullifier_queue_keypair.pubkey(),
                     cpi_context: cpi_context_keypair.pubkey(),
-                    tree_type: TreeType::StateV1,
                 },
                 tree_type: TreeType::StateV1,
                 merkle_tree,
@@ -2380,7 +2381,6 @@ where
                     merkle_tree: new_merkle_tree_keypair.pubkey(),
                     nullifier_queue: new_nullifier_queue_keypair.pubkey(),
                     cpi_context: new_cpi_signature_keypair.pubkey(),
-                    tree_type: TreeType::StateV1,
                 },
                 tree_type: TreeType::StateV1,
                 merkle_tree: Box::new(light_merkle_tree_reference::MerkleTree::<Poseidon>::new(
@@ -2699,36 +2699,11 @@ where
             root_indices.as_slice(),
             &mut remaining_accounts,
         );
-
-        // Pack output accounts and track original creation order
-        let packed_outputs_with_index = pack_output_compressed_accounts(
+        let output_compressed_accounts = pack_output_compressed_accounts(
             output_accounts.as_slice(),
             output_merkle_trees.as_slice(),
             &mut remaining_accounts,
-        )
-        .into_iter()
-        .enumerate()
-        .collect::<Vec<_>>();
-
-        // Sort by merkle_tree_index while tracking original indices
-        let mut sorted_outputs = packed_outputs_with_index.clone();
-        sorted_outputs.sort_by_key(|(_, account)| account.merkle_tree_index);
-
-        // Create mapping: creation_order_index -> sorted_index
-        let mut creation_to_sorted_index = vec![0usize; sorted_outputs.len()];
-        for (sorted_idx, (creation_idx, _)) in sorted_outputs.iter().enumerate() {
-            creation_to_sorted_index[*creation_idx] = sorted_idx;
-        }
-        println!(
-            "creation_to_sorted_index mapping: {:?}",
-            creation_to_sorted_index
         );
-
-        let output_compressed_accounts = sorted_outputs
-            .into_iter()
-            .map(|(_, account)| account)
-            .collect::<Vec<_>>();
-
         println!(
             "output_compressed_accounts: {:?}",
             output_compressed_accounts
@@ -2757,15 +2732,13 @@ where
         );
         let mut new_address_params = Vec::new();
         for (index, new_address_param) in invoke_cpi.new_address_params.into_iter().enumerate() {
-            if let Some((_, creation_order_idx)) = new_address_indices
+            if let Some((_, account_index)) = new_address_indices
                 .iter()
                 .find(|(address_index, _)| *address_index == index)
             {
-                // Map creation order index to sorted index
-                let sorted_idx = creation_to_sorted_index[*creation_order_idx as usize];
                 new_address_params.push(NewAddressParamsAssignedPacked::new(
                     new_address_param,
-                    Some(sorted_idx.try_into().unwrap()),
+                    Some(*account_index),
                 ));
             } else {
                 new_address_params
@@ -3194,6 +3167,20 @@ pub struct KeypairActionConfig {
 }
 
 impl KeypairActionConfig {
+    pub fn prover_config(&self) -> ProverConfig {
+        let mut config = ProverConfig::default();
+
+        if self.inclusion() {
+            config.circuits.push(ProofType::Inclusion);
+        }
+
+        if self.non_inclusion() {
+            config.circuits.push(ProofType::NonInclusion);
+        }
+
+        config
+    }
+
     pub fn inclusion(&self) -> bool {
         self.transfer_sol.is_some() || self.transfer_spl.is_some()
     }

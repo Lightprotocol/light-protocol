@@ -610,7 +610,6 @@ mod tests {
 
                 let mut value = [0u8; 32];
                 value[24..].copy_from_slice(&i.to_be_bytes());
-                #[allow(clippy::manual_is_multiple_of)]
                 let ref_hash_chain = if i % batch.zkp_batch_size == 0 {
                     value
                 } else {
@@ -864,7 +863,6 @@ mod tests {
                     )
                     .unwrap();
             }
-            #[allow(clippy::manual_is_multiple_of)]
             if (i + 1) % batch.zkp_batch_size == 0 && i != 0 {
                 assert_eq!(
                     batch.get_first_ready_zkp_batch().unwrap(),
@@ -956,7 +954,6 @@ mod tests {
         let mut batch = get_test_batch();
         assert_eq!(batch.get_num_elements_inserted_into_tree(), 0);
         for i in 0..batch.get_num_zkp_batches() {
-            #[allow(clippy::manual_is_multiple_of)]
             if i % batch.zkp_batch_size == 0 {
                 batch.num_full_zkp_batches += 1;
                 batch

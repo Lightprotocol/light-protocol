@@ -55,8 +55,8 @@ async fn test_priority_fee_request() {
         indexer_batch_size: 50,
         indexer_max_concurrent_batches: 10,
         legacy_ixs_per_tx: 1,
+        batch_ixs_per_tx: 4,
         transaction_max_concurrent_batches: 20,
-        max_concurrent_sends: 50,
         tx_cache_ttl_seconds: 15,
         ops_cache_ttl_seconds: 180,
         cu_limit: 1_000_000,
@@ -80,7 +80,6 @@ async fn test_priority_fee_request() {
         photon_rate_limit: None,
         send_tx_rate_limit: None,
         processor_mode: ProcessorMode::All,
-        tree_id: None,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");

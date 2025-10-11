@@ -24,7 +24,6 @@ pub const HASH_BYTES: usize = 32;
 pub type Hash = [u8; HASH_BYTES];
 
 pub trait Hasher {
-    const ID: u8;
     fn hash(val: &[u8]) -> Result<Hash, HasherError>;
     fn hashv(vals: &[&[u8]]) -> Result<Hash, HasherError>;
     fn zero_bytes() -> ZeroBytes;

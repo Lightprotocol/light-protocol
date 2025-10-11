@@ -1,6 +1,6 @@
 [package]
 name = "light-indexed-merkle-tree"
-version = "3.0.0"
+version = "2.1.0"
 description = "Implementation of indexed (and concurrent) Merkle tree in Rust"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -22,7 +22,7 @@ pinocchio = [
 
 [dependencies]
 light-bounded-vec = { workspace = true }
-light-hasher = { workspace = true, features = ["poseidon"]}
+light-hasher = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 num-bigint = { workspace = true }

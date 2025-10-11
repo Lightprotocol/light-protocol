@@ -2,7 +2,7 @@ use std::fmt::Debug;
 
 use light_client::indexer::{IndexerError, StateMerkleTreeAccounts};
 use light_compressed_account::TreeType;
-use light_hasher::Poseidon;
+use light_concurrent_merkle_tree::light_hasher::Poseidon;
 use light_merkle_tree_reference::MerkleTree;
 
 #[derive(Debug, Clone)]

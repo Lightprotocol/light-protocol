@@ -1,5 +1,4 @@
-import { runCommand } from "@oclif/test";
-import { expect } from "chai";
+import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { Keypair } from "@solana/web3.js";
@@ -33,15 +32,20 @@ describe("decompress-spl", () => {
     );
   });
 
-  it(`decompress ${
-    mintAmount - 1
-  } tokens to ${payerKeypair.publicKey.toBase58()} from ${payerKeypair.publicKey.toBase58()}`, async () => {
-    const { stdout } = await runCommand([
+  test
+    .stdout({ print: true })
+    .command([
       "decompress-spl",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
       `--amount=${mintAmount - 1}`,
       `--to=${payerKeypair.publicKey.toBase58()}`,
-    ]);
-    expect(stdout).to.contain("decompress-spl successful");
-  });
+    ])
+    .it(
+      `decompress ${
+        mintAmount - 1
+      } tokens to ${payerKeypair.publicKey.toBase58()} from ${payerKeypair.publicKey.toBase58()}`,
+      (ctx: any) => {
+        expect(ctx.stdout).to.contain("decompress-spl successful");
+      },
+    );
 });

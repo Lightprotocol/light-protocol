@@ -1,6 +1,6 @@
 use light_prover_client::{
     constants::{PROVE_PATH, SERVER_ADDRESS},
-    prover::spawn_prover,
+    prover::{spawn_prover, ProverConfig},
 };
 use reqwest::Client;
 use serial_test::serial;
@@ -10,7 +10,7 @@ use crate::init_merkle_tree::{combined_inputs_string_v1, combined_inputs_string_
 #[serial]
 #[tokio::test]
 async fn prove_combined() {
-    spawn_prover().await;
+    spawn_prover(ProverConfig::default()).await;
     let client = Client::new();
     {
         for i in 1..=4 {
@@ -27,10 +27,9 @@ async fn prove_combined() {
             }
         }
     }
-    // V2 combined circuits - test 1..4 / 1..4
     {
         for i in 1..=4 {
-            for non_i in 1..=4 {
+            for non_i in 1..=2 {
                 let inputs = combined_inputs_string_v2(i, non_i);
                 let response_result = client
                     .post(format!("{}{}", SERVER_ADDRESS, PROVE_PATH))

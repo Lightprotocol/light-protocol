@@ -3,9 +3,8 @@
   "compilerOptions": {
     "esModuleInterop": true,
     "noEmit": true,
-    "rootDirs": ["src", "test"],
-    "module": "commonjs",
-    "moduleResolution": "node"
+    "rootDirs": ["src", "test"]
   },
+
   "include": ["./src/**/*", "./test/**/*"]
 }

@@ -116,8 +116,6 @@ pub enum SystemProgramError {
     BorrowingDataFailed,
     #[error("DuplicateAccountInInputsAndReadOnly")]
     DuplicateAccountInInputsAndReadOnly,
-    #[error("CpiContextDeactivated")]
-    CpiContextDeactivated,
     #[error("CPI context account doesn't exist, but CPI context passed as set_context or first_set_context")]
     CpiContextPassedAsSetContext,
     #[error("Invalid CPI context account owner")]
@@ -126,20 +124,6 @@ pub enum SystemProgramError {
     InvalidCpiContextDiscriminator,
     #[error("Account index out of bounds")]
     InvalidAccountIndex,
-    #[error("Account compression CPI data exceeds 10KB limit")]
-    AccountCompressionCpiDataExceedsLimit,
-    #[error("AddressOwnerIndexOutOfBounds")]
-    AddressOwnerIndexOutOfBounds,
-    #[error("AddressAssignedAccountIndexOutOfBounds")]
-    AddressAssignedAccountIndexOutOfBounds,
-    #[error("InputMerkleTreeIndexOutOfBounds (can be output queue for V2 state trees, Merkle tree for V1 state trees")]
-    InputMerkleTreeIndexOutOfBounds,
-    #[error("OutputMerkleTreeIndexOutOfBounds (can be output queue for V2 state trees, Merkle tree for V1 state trees")]
-    OutputMerkleTreeIndexOutOfBounds,
-    #[error("Packed Account index out of bounds index.")]
-    PackedAccountIndexOutOfBounds,
-    #[error("Unimplemented.")]
-    Unimplemented,
     #[error("Batched Merkle tree error {0}")]
     BatchedMerkleTreeError(#[from] BatchedMerkleTreeError),
     #[error("Concurrent Merkle tree error {0}")]
@@ -215,14 +199,6 @@ impl From<SystemProgramError> for u32 {
             SystemProgramError::InvalidCpiContextOwner => 6055,
             SystemProgramError::InvalidCpiContextDiscriminator => 6056,
             SystemProgramError::InvalidAccountIndex => 6057,
-            SystemProgramError::AccountCompressionCpiDataExceedsLimit => 6058,
-            SystemProgramError::AddressOwnerIndexOutOfBounds => 6059,
-            SystemProgramError::AddressAssignedAccountIndexOutOfBounds => 6060,
-            SystemProgramError::OutputMerkleTreeIndexOutOfBounds => 6061,
-            SystemProgramError::PackedAccountIndexOutOfBounds => 6062,
-            SystemProgramError::Unimplemented => 6063,
-            SystemProgramError::CpiContextDeactivated => 6064,
-            SystemProgramError::InputMerkleTreeIndexOutOfBounds => 6065,
             SystemProgramError::BatchedMerkleTreeError(e) => e.into(),
             SystemProgramError::IndexedMerkleTreeError(e) => e.into(),
             SystemProgramError::ConcurrentMerkleTreeError(e) => e.into(),

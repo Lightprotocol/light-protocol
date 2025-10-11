@@ -75,6 +75,35 @@ class SetupCommand extends Command {
       default: 3001,
       exclusive: ["skip-prover"],
     }),
+    "prover-run-mode": Flags.string({
+      description:
+        "Specify the running mode for the prover (local-rpc, forester, forester-test, rpc, or full). Default: local-rpc",
+      options: [
+        "local-rpc",
+        "rpc",
+        "forester",
+        "forester-test",
+        "full",
+        "full-test",
+      ] as const,
+      required: false,
+      exclusive: ["skip-prover"],
+    }),
+    circuit: Flags.string({
+      description: "Specify individual circuits to enable.",
+      options: [
+        "inclusion",
+        "non-inclusion",
+        "combined",
+        "append",
+        "update",
+        "append-test",
+        "update-test",
+      ],
+      multiple: true,
+      required: false,
+      exclusive: ["skip-prover"],
+    }),
     "limit-ledger-size": Flags.integer({
       description: "Keep this amount of shreds in root slots.",
       required: false,
@@ -197,6 +226,16 @@ class SetupCommand extends Command {
         proverPort: flags["prover-port"],
         prover: !flags["skip-prover"],
         skipSystemAccounts: flags["skip-system-accounts"],
+        proverRunMode: flags["prover-run-mode"] as
+          | "inclusion"
+          | "non-inclusion"
+          | "forester"
+          | "forester-test"
+          | "rpc"
+          | "full"
+          | "full-test"
+          | undefined,
+        circuits: flags["circuit"],
         geyserConfig: flags["geyser-config"],
         validatorArgs: flags["validator-args"],
       });

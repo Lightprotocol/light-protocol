@@ -1,5 +1,5 @@
 #!/usr/bin/env node
 
-const {run, flush, handle} = require('@oclif/core')
+const oclif = require('@oclif/core')
 
-run().then(flush).catch(handle)
+oclif.run().then(require('@oclif/core/flush')).catch(require('@oclif/core/handle'))

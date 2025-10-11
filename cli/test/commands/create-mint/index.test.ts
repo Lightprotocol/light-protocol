@@ -1,5 +1,4 @@
-import { runCommand } from "@oclif/test";
-import { expect } from "chai";
+import { expect, test } from "@oclif/test";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { requestAirdrop } from "../../helpers/helpers";
@@ -11,11 +10,16 @@ describe("create-mint", () => {
     await requestAirdrop(mintAuthority.publicKey);
   });
 
-  it(`create mint for mintAuthority: ${mintAuthority.publicKey.toBase58()}`, async () => {
-    const { stdout } = await runCommand([
+  test
+    .stdout({ print: true })
+    .command([
       "create-mint",
       `--mint-authority=${mintAuthority.publicKey.toBase58()}`,
-    ]);
-    expect(stdout).to.contain("create-mint successful");
-  });
+    ])
+    .it(
+      `create mint for mintAuthority: ${mintAuthority.publicKey.toBase58()}`,
+      (ctx: any) => {
+        expect(ctx.stdout).to.contain("create-mint successful");
+      },
+    );
 });

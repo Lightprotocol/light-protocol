@@ -3,11 +3,11 @@ import {
   CustomLoader,
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
-  getKeypairFromFile,
   rpc,
 } from "../../utils/utils";
 import { mergeTokenAccounts } from "@lightprotocol/compressed-token";
 import { PublicKey } from "@solana/web3.js";
+import { getKeypairFromFile } from "@solana-developers/helpers";
 
 class MergeTokenAccountsCommand extends Command {
   static summary = "Merge all token accounts for a specific mint.";

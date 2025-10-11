@@ -1,4 +1,4 @@
-import { expect } from "chai";
+import { expect } from "@oclif/test";
 import { defaultSolanaWalletKeypair, programsDirPath } from "../../../src";
 import { Connection, Keypair } from "@solana/web3.js";
 import * as path from "path";

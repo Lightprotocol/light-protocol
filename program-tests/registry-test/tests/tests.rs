@@ -194,11 +194,11 @@ async fn test_initialize_protocol_config() {
         payer,
         config: ProgramTestConfig::default(),
         transaction_counter: 0,
+        pre_context: None,
     };
 
     let payer = rpc.get_payer().insecure_clone();
-    let program_account_keypair =
-        Keypair::try_from(OLD_REGISTRY_ID_TEST_KEYPAIR.as_slice()).unwrap();
+    let program_account_keypair = Keypair::from_bytes(&OLD_REGISTRY_ID_TEST_KEYPAIR).unwrap();
     let protocol_config = ProtocolConfig::default();
     let (protocol_config_pda, bump) = get_protocol_config_pda_address();
     let ix_data = light_registry::instruction::InitializeProtocolConfig {
@@ -335,7 +335,7 @@ async fn test_initialize_protocol_config() {
     }
     let cpi_authority_pda = get_cpi_authority_pda();
 
-    let group_seed_keypair = Keypair::try_from(GROUP_PDA_SEED_TEST_KEYPAIR.as_slice()).unwrap();
+    let group_seed_keypair = Keypair::from_bytes(&GROUP_PDA_SEED_TEST_KEYPAIR).unwrap();
     let group_pda =
         initialize_new_group(&group_seed_keypair, &payer, &mut rpc, cpi_authority_pda.0)
             .await
@@ -923,7 +923,7 @@ async fn test_register_and_update_forester_pda() {
     let (mut state_merkle_tree_bundle, mut address_merkle_tree, mut rpc) = {
         let mut e2e_env = init_program_test_env(rpc, &env, 50).await;
         // remove batched Merkle tree, fee assert makes this test flaky otherwise
-        e2e_env.indexer.state_merkle_trees.truncate(1);
+        e2e_env.indexer.state_merkle_trees.remove(1);
         e2e_env.create_address(None, None).await;
         e2e_env
             .compress_sol_deterministic(&forester_keypair, 1_000_000, None)

@@ -1,12 +1,7 @@
 import { PublicKey } from '@solana/web3.js';
-import {
-    hashToBn254FieldSizeBe,
-    hashvToBn254FieldSizeBe,
-    hashvToBn254FieldSizeBeU8Array,
-} from './conversion';
+import { hashToBn254FieldSizeBe, hashvToBn254FieldSizeBe } from './conversion';
 import { defaultTestStateTreeAccounts } from '../constants';
 import { getIndexOrAdd } from '../programs/system/pack';
-import { keccak_256 } from '@noble/hashes/sha3';
 
 export function deriveAddressSeed(
     seeds: Uint8Array[],
@@ -17,7 +12,7 @@ export function deriveAddressSeed(
     return hash;
 }
 
-/*
+/**
  * Derive an address for a compressed account from a seed and an address Merkle
  * tree public key.
  *
@@ -43,42 +38,6 @@ export function deriveAddress(
     }
     const buf = hash[0];
     return new PublicKey(buf);
-}
-
-export function deriveAddressSeedV2(seeds: Uint8Array[]): Uint8Array {
-    const combinedSeeds: Uint8Array[] = seeds.map(seed =>
-        Uint8Array.from(seed),
-    );
-    const hash = hashvToBn254FieldSizeBeU8Array(combinedSeeds);
-    return hash;
-}
-
-/**
- * Derives an address from a seed using the v2 method (matching Rust's derive_address_from_seed)
- *
- * @param addressSeed              The address seed (32 bytes)
- * @param addressMerkleTreePubkey  Merkle tree public key
- * @param programId                Program ID
- * @returns                        Derived address
- */
-export function deriveAddressV2(
-    addressSeed: Uint8Array,
-    addressMerkleTreePubkey: PublicKey,
-    programId: PublicKey,
-): PublicKey {
-    if (addressSeed.length != 32) {
-        throw new Error('Address seed length is not 32 bytes.');
-    }
-    const merkleTreeBytes = addressMerkleTreePubkey.toBytes();
-    const programIdBytes = programId.toBytes();
-    // Match Rust implementation: hash [seed, merkle_tree_pubkey, program_id]
-    const combined = [
-        Uint8Array.from(addressSeed),
-        Uint8Array.from(merkleTreeBytes),
-        Uint8Array.from(programIdBytes),
-    ];
-    const hash = hashvToBn254FieldSizeBeU8Array(combined);
-    return new PublicKey(hash);
 }
 
 export interface NewAddressParams {

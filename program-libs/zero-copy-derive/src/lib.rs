@@ -63,7 +63,7 @@
 //! - All structs and enums must have `#[repr(C)]` attribute for memory layout safety
 //! - Fields must implement appropriate traits (Copy for meta fields, ZeroCopyAt for others)
 //!   Examples:
-//!     ```rust, ignore
+//!     ```rust
 //!     use light_zero_copy::slice::ZeroCopySliceBorsh;
 //!     use light_zero_copy::slice_mut::ZeroCopySliceMutBorsh;
 //!
@@ -111,7 +111,7 @@ mod tests;
 /// # Usage
 ///
 /// Basic usage:
-/// ```rust, ignore
+/// ```rust
 /// use light_zero_copy_derive::ZeroCopy;
 /// #[derive(ZeroCopy)]
 /// #[repr(C)]
@@ -121,7 +121,7 @@ mod tests;
 /// ```
 ///
 /// To derive PartialEq as well, use ZeroCopyEq in addition to ZeroCopy:
-/// ```rust, ignore
+/// ```rust
 /// use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq};
 /// #[derive(ZeroCopy, ZeroCopyEq)]
 /// #[repr(C)]
@@ -143,7 +143,7 @@ pub fn derive_zero_copy(input: TokenStream) -> TokenStream {
 ///
 /// Use this in addition to ZeroCopy when you want the generated struct to implement PartialEq:
 ///
-/// ```rust, ignore
+/// ```rust
 /// use light_zero_copy_derive::{ZeroCopy, ZeroCopyEq};
 /// #[derive(ZeroCopy, ZeroCopyEq)]
 /// #[repr(C)]
@@ -172,7 +172,7 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 ///
 /// # Usage
 ///
-/// ```rust, ignore
+/// ```rust
 /// use light_zero_copy_derive::ZeroCopyMut;
 ///
 /// #[derive(ZeroCopyMut)]
@@ -190,7 +190,7 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 /// - `ZeroCopyNew` trait implementation for initialization with config
 ///
 /// For fixed-size structs, generates unit config:
-/// ```rust, ignore
+/// ```rust
 /// use light_zero_copy_derive::ZeroCopyMut;
 /// #[derive(ZeroCopyMut)]
 /// #[repr(C)]
@@ -202,7 +202,7 @@ pub fn derive_zero_copy_eq(input: TokenStream) -> TokenStream {
 /// ```
 ///
 /// For both immutable and mutable functionality, use both derives:
-/// ```rust, ignore
+/// ```rust
 /// use light_zero_copy_derive::{ZeroCopy, ZeroCopyMut};
 ///
 /// #[derive(ZeroCopy, ZeroCopyMut)]

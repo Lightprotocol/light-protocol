@@ -7,11 +7,13 @@ use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_compressed_account::constants::{
     ACCOUNT_COMPRESSION_PROGRAM_ID, STATE_MERKLE_TREE_ACCOUNT_DISCRIMINATOR,
 };
-use light_program_profiler::profile;
+use light_profiler::profile;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
 use crate::{
-    cpi_context::state::{cpi_context_account_new, CpiContextAccount, CpiContextAccountInitParams},
+    cpi_context::state::{
+        cpi_context_account_new, CpiContextAccountInitParams, CpiContextAccountLegacy,
+    },
     errors::SystemProgramError,
     Result,
 };
@@ -73,7 +75,7 @@ pub fn reinit_cpi_context_account(accounts: &[AccountInfo]) -> Result<()> {
     let cpi_context_account = &accounts[0];
     let associated_merkle_tree = {
         let data = cpi_context_account.try_borrow_data()?;
-        CpiContextAccount::deserialize(&mut &data[8..])
+        CpiContextAccountLegacy::deserialize(&mut &data[8..])
             .map_err(|_| ProgramError::BorshIoError)?
             .associated_merkle_tree
     };

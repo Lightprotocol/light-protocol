@@ -107,7 +107,6 @@ pub fn forester_config() -> ForesterConfig {
             skip_v2_state_trees: false,
             skip_v1_address_trees: false,
             skip_v2_address_trees: false,
-            tree_id: None,
         },
         rpc_pool_config: RpcPoolConfig {
             max_size: 50,

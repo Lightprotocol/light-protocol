@@ -1,0 +1,167 @@
+name: Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+
+      - name: Install cargo-workspaces
+        run: |
+          source ./scripts/devenv.sh
+          cargo install cargo-release cargo-workspaces
+
+      - name: Extract project
+        id: extract-project
+        shell: bash
+        run: |
+          COMMIT_MESSAGE=$(git log -1 --pretty=format:'%s' | sed 's/([^()]*)//g' | head -n 1)
+          PACKAGE=""
+          LANGUAGE=""
+          echo "Commit message: $COMMIT_MESSAGE"
+
+          if [[ "$COMMIT_MESSAGE" == "chore: Bump version of all Rust projects" ]]; then
+            PACKAGE="all"
+            LANGUAGE="rust"
+          elif [[ "$COMMIT_MESSAGE" == *"Bump version of all TypeScript"* ]]; then
+            PACKAGE="all"
+            LANGUAGE="ts"
+          elif [[ "$COMMIT_MESSAGE" == "chore: Bump version of Rust project "* ]]; then
+            PACKAGE=$(echo "$COMMIT_MESSAGE" | sed -n 's/chore: Bump version of Rust project \(.*\)/\1/p')
+            LANGUAGE="rust"
+          elif [[ "$COMMIT_MESSAGE" == *"Bump version of TypeScript project"* ]]; then
+            PACKAGE=$(echo "$COMMIT_MESSAGE" | grep -o "version of TypeScript project [^ ]*" | cut -d " " -f5)
+            LANGUAGE="rust"
+          fi
+
+          # Needed for Anchor.
+          PACKAGE_SNAKE_CASE=$(echo "$PACKAGE" | tr '-' '_')
+
+          printf "package=%s\package-snake-case=%s\nlanguage=%s\n" "$PACKAGE" "$PACKAGE_SNAKE_CASE" "$LANGUAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Set Git user configuration
+        if: steps.extract-project.outputs.language != ''
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "github-actions@github.com"
+
+      - name: Tag all Rust projects
+        if: steps.extract-project.outputs.package == 'all' && steps.extract-project.outputs.language == 'rust'
+        run: |
+          for PACKAGE in $(cargo ws list); do
+            VERSION=$(cargo pkgid -p "$PACKAGE" | cut -d "@" -f2)
+            echo "Creating tag for Rust package: $PACKAGE v$VERSION"
+            git tag "${PACKAGE}-v${VERSION}"
+            git push origin "${PACKAGE}-v${VERSION}"
+          done
+
+      - name: Tag all TypeScript projects
+        if: steps.extract-project.outputs.package == 'all' && steps.extract-project.outputs.language == 'ts'
+        run: |
+          for dir in $(pnpm m ls --depth -1 --porcelain | grep -v examples | grep -v tsconfig | tail -n+2); do
+            pushd "$dir"
+            PACKAGE=$(basename "$dir")
+            VERSION=$(pnpm list --depth 0 --json | jq -r '.[0].version')
+            echo "Creating tag for TypeScript package: $PACKAGE v$VERSION"
+            git tag "${PACKAGE}-v${VERSION}"
+            git push origin "${PACKAGE}-v${VERSION}"
+            popd
+          done
+
+      - name: Tag Rust project
+        id: tag-rust
+        if: steps.extract-project.outputs.package != 'all' && steps.extract-project.outputs.language == 'rust'
+        env:
+          PACKAGE: ${{ steps.extract-project.outputs.version }}
+        run: |
+          VERSION=$(cargo pkgid -p "$PACKAGE" | cut -d "@" -f2)
+          echo "Creating tag for package: $PACKAGE v$VERSION"
+          git tag "${PACKAGE}-v${VERSION}"
+          git push origin "${PACKAGE}-v${VERSION}"
+
+      - name: Tag TypeScript project
+        id: tag-ts
+        if: steps.extract-project.outputs.package != 'all' && steps.extract-project.outputs.language == 'ts'
+        env:
+          PACKAGE: ${{ steps.extract-project.outputs.version }}
+        run: |
+          VERSION=$(pnpm list --filter "$1" --depth 0 --json | jq -r '.[0].version')
+          echo "Creating tag for package: $PACKAGE v$VERSION"
+          git tag "${PACKAGE}-v${VERSION}"
+          git push origin "${PACKAGE}-v${VERSION}"
+
+      - name: Log in to crates.io
+        if: steps.extract-project.outputs.language == 'rust'
+        run: |
+          cargo login "${{ secrets.CRATES_IO_TOKEN }}"
+
+      - name: Release all Rust projects
+        if: steps.extract-project.outputs.package == 'all' && steps.extract-project.outputs.language == 'rust'
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+          PACKAGE: ${{ steps.extract-project.outputs.package }}
+        run: |
+          source ./scripts/devenv.sh
+
+          npx nx build @lightprotocol/programs
+          cp -r ./target/deploy/*.so .
+
+          PACKAGES=("aligned-sized" "light-heap" "light-utils" "light-bounded-vec" "light-hasher" "light-macros" "light-hash-set" "light-merkle-tree-reference" "light-concurrent-merkle-tree" "light-indexed-merkle-tree" "light-prover-client" "light-verifier" "account-compression" "light-registry" "light-system-program" "light-compressed-token" "light-test-utils")
+          for PACKAGE in "${PACKAGES[@]}"; do
+            for attempt in {1..3}; do
+              echo "Attempt $attempt: Publishing $PACKAGE..."
+              cargo release publish --package "$PACKAGE" --execute --no-confirm && break || echo "Attempt $attempt failed, retrying in 60..."
+              sleep 60
+            done
+            echo "Sleeping for 60 seconds to handle rate limits..."
+            sleep 60
+          done
+
+      - name: Release Rust project
+        if: steps.extract-project.outputs.package != 'all' && steps.extract-project.outputs.language == 'rust'
+        shell: bash
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+          PACKAGE: ${{ steps.extract-project.outputs.package }}
+          PACKAGE_SNAKE_CASE: ${{ steps.extract-project.outputs.package-snake-case }}
+        run: |
+          source ./scripts/devenv.sh
+
+          # Check whether we are building an on-chain program.
+          if [[ $(anchor keys list | grep "$PACKAGE_SNAKE_CASE") -eq 0 ]]; then
+            anchor build -p "$PACKAGE_SNAKE_CASE"
+          fi
+          cp -r ./target/deploy/*.so .
+
+          cargo release publish \
+            --package "$PACKAGE"
+
+      - name: Release TypeScript
+        if: steps.extract-project.outputs.package != 'all' && steps.extract-project.outputs.language == 'ts'
+        shell: bash
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_ACCESS_TOKEN }}
+          NPM_CONFIG_PROVENANCE: true
+          PACKAGE: ${{ steps.extract-project.outputs.package }}
+        run: |
+          SUBDIR=$(grep "$PACKAGE" pnpm-workspace.yaml | awk -F '"' '{gsub("/\\*\\*", "", $2); print $2}')
+          cd "$SUBDIR"
+          pnpm publish --access public --no-git-checks
+
+      - name: GitHub release
+        uses: softprops/action-gh-release@v2
+        if: steps.extract-project.outputs.language != ''
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+          files: |
+            *.so

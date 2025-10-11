@@ -4,14 +4,15 @@
 seeds = false
 skip-lint = false
 
+[programs.localnet]
+sdk_test = "2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt"
 
 [registry]
 url = "https://api.apr.dev"
 
-[programs.localnet]
-sdk_anchor_test = "2tzfijPBGbrR5PboyFUFKzfEoLTwdDSHUjANCw929wyt"
-
-
 [provider]
 cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

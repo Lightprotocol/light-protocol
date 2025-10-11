@@ -14,7 +14,7 @@ use light_compressed_account::{
 use light_concurrent_merkle_tree::zero_copy::ConcurrentMerkleTreeZeroCopyMut;
 use light_hasher::Poseidon;
 use light_indexed_merkle_tree::zero_copy::IndexedMerkleTreeZeroCopyMut;
-use light_program_profiler::profile;
+use light_profiler::profile;
 use pinocchio::{account_info::AccountInfo, msg};
 
 use crate::{

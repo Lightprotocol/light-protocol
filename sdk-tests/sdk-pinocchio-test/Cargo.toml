@@ -1,0 +1,42 @@
+[package]
+name = "sdk-pinocchio-test"
+version = "1.0.0"
+description = "Test program using generalized account compression"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "sdk_pinocchio_test"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+test-sbf = []
+default = []
+
+[dependencies]
+light-sdk-pinocchio = { workspace = true, features = ["v2"] }
+light-sdk-types = { workspace = true }
+light-hasher = { workspace = true }
+pinocchio = { workspace = true }
+light-macros = { workspace = true }
+borsh = { workspace = true }
+
+[dev-dependencies]
+light-program-test = { workspace = true, features = ["devenv"] }
+tokio = { workspace = true }
+solana-sdk = { workspace = true }
+light-hasher = { workspace = true, features = ["solana"] }
+light-compressed-account = { workspace = true, features = ["solana"] }
+light-sdk = { workspace = true }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]
