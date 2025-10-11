@@ -6,7 +6,7 @@ use light_compressed_account::{
     },
 };
 use light_hasher::{Hasher, Poseidon};
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
 use crate::{
@@ -54,7 +54,10 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
         if current_mt_index != merkle_context.merkle_tree_pubkey_index || is_first_iter {
             is_first_iter = false;
             current_mt_index = merkle_context.merkle_tree_pubkey_index;
-            current_hashed_mt = match &accounts[current_mt_index as usize] {
+            current_hashed_mt = match &accounts
+                .get(current_mt_index as usize)
+                .ok_or(SystemProgramError::InputMerkleTreeIndexOutOfBounds)?
+            {
                 AcpAccount::BatchedStateTree(tree) => {
                     context.set_network_fee(
                         tree.metadata.rollover_metadata.network_fee,
@@ -93,10 +96,16 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
             hashed_owner = context.get_or_hash_pubkey(owner_pubkey.into());
         }
         let merkle_context = input_compressed_account_with_context.merkle_context();
-        let queue_index =
-            context.get_index_or_insert(merkle_context.queue_pubkey_index, remaining_accounts);
-        let tree_index = context
-            .get_index_or_insert(merkle_context.merkle_tree_pubkey_index, remaining_accounts);
+        let queue_index = context.get_index_or_insert(
+            merkle_context.queue_pubkey_index,
+            remaining_accounts,
+            "Input queue (nullifier queue for V1 state trees, output queue for V2 state trees)",
+        )?;
+        let tree_index = context.get_index_or_insert(
+            merkle_context.merkle_tree_pubkey_index,
+            remaining_accounts,
+            "Input tree",
+        )?;
 
         cpi_ix_data.nullifiers[j] = InsertNullifierInput {
             account_hash: input_compressed_account_with_context

@@ -5,6 +5,7 @@ description = "ZK Compression on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
+publish = false
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -25,8 +26,9 @@ default = ["debug", "readonly", "reinit"]
 test-sbf = []
 debug = []
 readonly = []
-profile-program = ["light-profiler/profile-program"]
-profile-heap = ["light-profiler/profile-heap", "dep:light-heap"]
+deactivate-cpi-context = []
+profile-program = ["light-program-profiler/profile-program"]
+profile-heap = ["light-program-profiler/profile-heap", "dep:light-heap"]
 custom-heap = []
 
 [dependencies]
@@ -48,11 +50,11 @@ light-zero-copy = { workspace = true, features = ["pinocchio"] }
 zerocopy = { workspace = true }
 light-account-checks = { workspace = true, features = ["pinocchio"] }
 pinocchio = { workspace = true }
-pinocchio-system = { workspace = true  }
+pinocchio-system = { version = "0.3.0" }
 solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
 pinocchio-pubkey = { workspace = true }
 solana-msg = { workspace = true }
-light-profiler = { workspace = true }
+light-program-profiler = { workspace = true }
 light-heap = { workspace = true, optional = true }
 [dev-dependencies]
 rand = { workspace = true }

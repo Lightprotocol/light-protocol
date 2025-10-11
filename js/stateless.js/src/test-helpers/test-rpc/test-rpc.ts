@@ -15,6 +15,7 @@ import { getParsedEvents } from './get-parsed-events';
 import {
     defaultTestStateTreeAccounts,
     localTestActiveStateTreeInfos,
+    batchAddressTree,
 } from '../../constants';
 import {
     AddressWithTree,
@@ -148,7 +149,7 @@ export class TestRpc extends Connection implements CompressionApiInterface {
         connectionConfig?: ConnectionConfig,
         testRpcConfig?: TestRpcConfig,
     ) {
-        super(endpoint, connectionConfig || 'confirmed');
+        super(endpoint, connectionConfig || { commitment: 'confirmed' });
 
         this.compressionApiEndpoint = compressionApiEndpoint;
         this.proverEndpoint = proverEndpoint;
@@ -177,6 +178,20 @@ export class TestRpc extends Connection implements CompressionApiInterface {
     }
     async doFetch(): Promise<TreeInfo[]> {
         throw new Error('doFetch not supported in test-rpc');
+    }
+
+    /**
+     * Get a V2 address tree info.
+     */
+    async getAddressTreeInfoV2(): Promise<TreeInfo> {
+        const tree = new PublicKey(batchAddressTree);
+        return {
+            tree,
+            queue: tree,
+            cpiContext: undefined,
+            treeType: TreeType.AddressV2,
+            nextTreeInfo: null,
+        };
     }
 
     /**

@@ -7,7 +7,7 @@ use light_compressed_account::{
     TreeType,
 };
 use light_hasher::{Hasher, Poseidon};
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, msg, program_error::ProgramError};
 
 use crate::{
@@ -67,7 +67,10 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
         } else if account.merkle_tree_index() as i16 > current_index {
             current_index = account.merkle_tree_index().into();
 
-            let pubkey = match &accounts[current_index as usize] {
+            let pubkey = match &accounts
+                .get(current_index as usize)
+                .ok_or(SystemProgramError::OutputMerkleTreeIndexOutOfBounds)?
+            {
                 AcpAccount::OutputQueue(output_queue) => {
                     context.set_network_fee(
                         output_queue.metadata.rollover_metadata.network_fee,
@@ -149,7 +152,11 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                 merkle_tree_pubkeys.push(pubkey);
             }
 
-            context.get_index_or_insert(account.merkle_tree_index(), remaining_accounts);
+            context.get_index_or_insert(
+                account.merkle_tree_index(),
+                remaining_accounts,
+                "Output queue for V2 state trees (Merkle tree for V1 state trees)",
+            )?;
             num_leaves_in_tree = 0;
             index_merkle_tree_account += 1;
             index_merkle_tree_account_account += 1;

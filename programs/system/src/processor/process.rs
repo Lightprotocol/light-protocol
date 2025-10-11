@@ -9,7 +9,7 @@ use light_compressed_account::{
     },
     tx_hash::create_tx_hash_from_hash_chains,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::slice_mut::ZeroCopySliceMut;
 use pinocchio::{
     account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey,
@@ -155,7 +155,6 @@ pub fn process<
     if num_new_addresses != 0 {
         derive_new_addresses::<ADDRESS_ASSIGNMENT>(
             inputs.new_addresses(),
-            inputs.new_addresses_owners().as_slice(),
             remaining_accounts,
             &mut context,
             &mut cpi_ix_data,

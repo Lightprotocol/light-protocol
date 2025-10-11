@@ -1,7 +1,9 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
 use borsh::BorshSerialize;
-use forester_utils::rpc_pool::SolanaRpcPool;
+use forester_utils::{
+    forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool, utils::wait_for_indexer,
+};
 pub use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
 use futures::{pin_mut, stream::StreamExt, Stream};
 use light_batched_merkle_tree::{
@@ -9,12 +11,16 @@ use light_batched_merkle_tree::{
 };
 use light_client::rpc::Rpc;
 use light_compressed_account::TreeType;
+use light_registry::protocol_config::state::EpochState;
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, signer::Signer};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
 use super::{address, state};
-use crate::{errors::ForesterError, processor::tx_cache::ProcessedHashCache, Result};
+use crate::{
+    errors::ForesterError, processor::tx_cache::ProcessedHashCache, slot_tracker::SlotTracker,
+    Result,
+};
 
 #[derive(Debug)]
 pub enum BatchReadyState {
@@ -39,7 +45,6 @@ pub struct BatchContext<R: Rpc> {
     pub epoch: u64,
     pub merkle_tree: Pubkey,
     pub output_queue: Pubkey,
-    pub ixs_per_tx: usize,
     pub prover_append_url: String,
     pub prover_update_url: String,
     pub prover_address_append_url: String,
@@ -47,6 +52,8 @@ pub struct BatchContext<R: Rpc> {
     pub prover_polling_interval: Duration,
     pub prover_max_wait_time: Duration,
     pub ops_cache: Arc<Mutex<ProcessedHashCache>>,
+    pub epoch_phases: EpochPhases,
+    pub slot_tracker: Arc<SlotTracker>,
 }
 
 #[derive(Debug)]
@@ -60,8 +67,6 @@ pub(crate) async fn process_stream<R, S, D, FutC>(
     context: &BatchContext<R>,
     stream_creator_future: FutC,
     instruction_builder: impl Fn(&D) -> Instruction,
-    tree_type_str: &str,
-    operation: Option<&str>,
 ) -> Result<usize>
 where
     R: Rpc,
@@ -69,7 +74,6 @@ where
     D: BorshSerialize,
     FutC: Future<Output = Result<(S, u16)>> + Send,
 {
-    let start_time = std::time::Instant::now();
     trace!("Executing batched stream processor (hybrid)");
 
     let (batch_stream, zkp_batch_size) = stream_creator_future.await?;
@@ -81,7 +85,6 @@ where
 
     pin_mut!(batch_stream);
     let mut total_instructions_processed = 0;
-    let mut transactions_sent = 0;
 
     while let Some(batch_result) = batch_stream.next().await {
         let instruction_batch = batch_result?;
@@ -90,22 +93,58 @@ where
             continue;
         }
 
+        let current_slot = context.slot_tracker.estimated_current_slot();
+        let phase_end_slot = context.epoch_phases.active.end;
+        let slots_remaining = phase_end_slot.saturating_sub(current_slot);
+
+        const MIN_SLOTS_FOR_TRANSACTION: u64 = 30;
+        if slots_remaining < MIN_SLOTS_FOR_TRANSACTION {
+            info!(
+                "Only {} slots remaining in active phase (need at least {}), stopping batch processing",
+                slots_remaining, MIN_SLOTS_FOR_TRANSACTION
+            );
+            if !instruction_batch.is_empty() {
+                let instructions: Vec<Instruction> =
+                    instruction_batch.iter().map(&instruction_builder).collect();
+                let _ = send_transaction_batch(context, instructions).await;
+            }
+            break;
+        }
+
         let instructions: Vec<Instruction> =
             instruction_batch.iter().map(&instruction_builder).collect();
 
-        let tx_start = std::time::Instant::now();
-        let signature = send_transaction_batch(context, instructions).await?;
-        transactions_sent += 1;
-        total_instructions_processed += instruction_batch.len();
-        let tx_duration = tx_start.elapsed();
+        match send_transaction_batch(context, instructions.clone()).await {
+            Ok(sig) => {
+                total_instructions_processed += instruction_batch.len();
+                debug!(
+                    "Successfully processed batch with {} instructions, signature: {}",
+                    instruction_batch.len(),
+                    sig
+                );
 
-        let operation_suffix = operation
-            .map(|op| format!(" operation={}", op))
-            .unwrap_or_default();
-        info!(
-            "V2_TPS_METRIC: transaction_sent tree_type={}{} tree={} tx_num={} signature={} instructions={} tx_duration_ms={} (hybrid)",
-            tree_type_str, operation_suffix, context.merkle_tree, transactions_sent, signature, instruction_batch.len(), tx_duration.as_millis()
-        );
+                {
+                    let rpc = context.rpc_pool.get_connection().await?;
+                    wait_for_indexer(&*rpc)
+                        .await
+                        .map_err(|e| anyhow::anyhow!("Error waiting for indexer: {:?}", e))?;
+                }
+            }
+            Err(e) => {
+                if let Some(ForesterError::NotInActivePhase) = e.downcast_ref::<ForesterError>() {
+                    info!("Active phase ended while processing batches, stopping gracefully");
+                    break;
+                } else {
+                    error!(
+                        "Failed to process batch with {} instructions for tree {}: {:?}",
+                        instructions.len(),
+                        context.merkle_tree,
+                        e
+                    );
+                    return Err(e);
+                }
+            }
+        }
     }
 
     if total_instructions_processed == 0 {
@@ -113,33 +152,7 @@ where
         return Ok(0);
     }
 
-    let total_duration = start_time.elapsed();
     let total_items_processed = total_instructions_processed * zkp_batch_size as usize;
-    let tps = if total_duration.as_secs_f64() > 0.0 {
-        transactions_sent as f64 / total_duration.as_secs_f64()
-    } else {
-        0.0
-    };
-    let ips = if total_duration.as_secs_f64() > 0.0 {
-        total_instructions_processed as f64 / total_duration.as_secs_f64()
-    } else {
-        0.0
-    };
-
-    let operation_suffix = operation
-        .map(|op| format!(" operation={}", op))
-        .unwrap_or_default();
-    info!(
-        "V2_TPS_METRIC: operation_complete tree_type={}{} tree={} epoch={} zkp_batches={} transactions={} instructions={} duration_ms={} tps={:.2} ips={:.2} items_processed={} (hybrid)", 
-        tree_type_str, operation_suffix, context.merkle_tree, context.epoch, total_instructions_processed, transactions_sent, total_instructions_processed,
-        total_duration.as_millis(), tps, ips, total_items_processed
-    );
-
-    info!(
-        "Batched stream processing complete. Processed {} total items.",
-        total_items_processed
-    );
-
     Ok(total_items_processed)
 }
 
@@ -147,9 +160,23 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
     context: &BatchContext<R>,
     instructions: Vec<Instruction>,
 ) -> Result<String> {
+    // Check if we're still in the active phase before sending the transaction
+    let current_slot = context.slot_tracker.estimated_current_slot();
+    let current_phase_state = context.epoch_phases.get_current_epoch_state(current_slot);
+
+    if current_phase_state != EpochState::Active {
+        trace!(
+            "Skipping transaction send: not in active phase (current phase: {:?}, slot: {})",
+            current_phase_state,
+            current_slot
+        );
+        return Err(ForesterError::NotInActivePhase.into());
+    }
+
     info!(
-        "Sending transaction with {} instructions...",
-        instructions.len()
+        "Sending transaction with {} instructions for tree: {}...",
+        instructions.len(),
+        context.merkle_tree
     );
     let mut rpc = context.rpc_pool.get_connection().await?;
     let signature = rpc
@@ -159,6 +186,23 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
             &[&context.authority],
         )
         .await?;
+
+    // Ensure transaction is confirmed before returning
+    debug!("Waiting for transaction confirmation: {}", signature);
+    let confirmed = rpc.confirm_transaction(signature).await?;
+    if !confirmed {
+        return Err(anyhow::anyhow!(
+            "Transaction {} failed to confirm for tree {}",
+            signature,
+            context.merkle_tree
+        ));
+    }
+
+    info!(
+        "Transaction confirmed successfully: {} for tree: {}",
+        signature, context.merkle_tree
+    );
+
     Ok(signature.to_string())
 }
 
@@ -300,16 +344,6 @@ impl<R: Rpc> BatchProcessor<R> {
             input_ready,
             output_ready
         );
-
-        if !input_ready && !output_ready {
-            info!(
-                "QUEUE_METRIC: queue_empty tree_type={} tree={}",
-                self.tree_type, self.context.merkle_tree
-            );
-        } else {
-            info!("QUEUE_METRIC: queue_has_elements tree_type={} tree={} input_ready={} output_ready={}",
-                self.tree_type, self.context.merkle_tree, input_ready, output_ready);
-        }
 
         if self.tree_type == TreeType::AddressV2 {
             return if input_ready {

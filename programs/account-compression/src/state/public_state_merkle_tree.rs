@@ -52,7 +52,7 @@ pub fn state_merkle_tree_from_bytes_zero_copy_init(
     canopy_depth: usize,
     changelog_capacity: usize,
     roots_capacity: usize,
-) -> Result<ConcurrentMerkleTreeZeroCopyMut<Poseidon, 26>> {
+) -> Result<ConcurrentMerkleTreeZeroCopyMut<'_, Poseidon, 26>> {
     let data = &mut data[8 + mem::size_of::<StateMerkleTreeAccount>()..];
     let merkle_tree = ConcurrentMerkleTreeZeroCopyMut::from_bytes_zero_copy_init(
         data,
@@ -67,7 +67,7 @@ pub fn state_merkle_tree_from_bytes_zero_copy_init(
 
 pub fn state_merkle_tree_from_bytes_zero_copy(
     data: &[u8],
-) -> Result<ConcurrentMerkleTreeZeroCopy<Poseidon, 26>> {
+) -> Result<ConcurrentMerkleTreeZeroCopy<'_, Poseidon, 26>> {
     let data = &data[8 + mem::size_of::<StateMerkleTreeAccount>()..];
     let merkle_tree =
         ConcurrentMerkleTreeZeroCopy::from_bytes_zero_copy(data).map_err(ProgramError::from)?;
@@ -76,7 +76,7 @@ pub fn state_merkle_tree_from_bytes_zero_copy(
 
 pub fn state_merkle_tree_from_bytes_zero_copy_mut(
     data: &mut [u8],
-) -> Result<ConcurrentMerkleTreeZeroCopyMut<Poseidon, 26>> {
+) -> Result<ConcurrentMerkleTreeZeroCopyMut<'_, Poseidon, 26>> {
     let data = &mut data[8 + mem::size_of::<StateMerkleTreeAccount>()..];
     let merkle_tree = ConcurrentMerkleTreeZeroCopyMut::from_bytes_zero_copy_mut(data)
         .map_err(ProgramError::from)?;

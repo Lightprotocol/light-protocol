@@ -10,7 +10,7 @@ use light_batched_merkle_tree::{
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
 use light_client::{
-    local_test_validator::{LightValidatorConfig, ProverConfig},
+    local_test_validator::LightValidatorConfig,
     rpc::{client::RpcUrl, LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::TreeType;
@@ -43,8 +43,8 @@ async fn test_state_batched() {
 
     init(Some(LightValidatorConfig {
         enable_indexer: false,
+        enable_prover: true,
         wait_time: 30,
-        prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![],
         limit_ledger_size: None,
     }))
@@ -55,7 +55,6 @@ async fn test_state_batched() {
     env.protocol.forester = forester_keypair.insecure_clone();
 
     let mut config = forester_config();
-    config.transaction_config.batch_ixs_per_tx = 1;
     config.payer_keypair = forester_keypair.insecure_clone();
     config.general_config = GeneralConfig::test_state_v2();
 

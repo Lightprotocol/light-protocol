@@ -1,17 +1,14 @@
 use std::{sync::Arc, time::Duration};
 
 use forester::run_pipeline;
-use forester_utils::{
-    registry::update_test_forester,
-    rpc_pool::SolanaRpcPoolBuilder,
-};
+use forester_utils::{registry::update_test_forester, rpc_pool::SolanaRpcPoolBuilder};
 use light_batched_merkle_tree::{
     batch::BatchState, initialize_address_tree::InitAddressTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
     indexer::{photon_indexer::PhotonIndexer, AddressMerkleTreeAccounts, Indexer},
-    local_test_validator::{LightValidatorConfig, ProverConfig},
+    local_test_validator::LightValidatorConfig,
     rpc::{client::RpcUrl, LightClient, LightClientConfig, Rpc},
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexer};
@@ -36,8 +33,8 @@ mod test_utils;
 async fn test_address_batched() {
     init(Some(LightValidatorConfig {
         enable_indexer: true,
+        enable_prover: true,
         wait_time: 90,
-        prover_config: Some(ProverConfig::default()),
         sbf_programs: vec![(
             "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
             "../target/deploy/create_address_test_program.so".to_string(),
@@ -52,7 +49,6 @@ async fn test_address_batched() {
     test_accounts.protocol.forester = forester_keypair.insecure_clone();
 
     let mut config = forester_config();
-    config.transaction_config.batch_ixs_per_tx = 1;
     config.payer_keypair = forester_keypair.insecure_clone();
 
     let pool = SolanaRpcPoolBuilder::<LightClient>::default()

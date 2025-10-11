@@ -10,11 +10,11 @@ use light_account_checks::{
 use light_compressed_account::{
     constants::ACCOUNT_COMPRESSION_PROGRAM_ID, instruction_data::traits::AccountOptions,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey};
 
 use crate::{
-    cpi_context::state::ZCpiContextAccount,
+    cpi_context::state::ZCpiContextAccount2,
     processor::sol_compression::{SOL_POOL_PDA_BUMP, SOL_POOL_PDA_SEED},
     Result,
 };
@@ -104,7 +104,7 @@ pub fn check_anchor_option_cpi_context_account(
     } else {
         {
             check_owner(&crate::ID, option_cpi_context_account)?;
-            check_discriminator::<ZCpiContextAccount>(
+            check_discriminator::<ZCpiContextAccount2>(
                 option_cpi_context_account.try_borrow_data()?.as_ref(),
             )?;
         }
@@ -149,7 +149,7 @@ pub fn check_option_cpi_context_account<'a>(
                 location.column()
             )
         })?;
-        check_discriminator::<ZCpiContextAccount>(account_info.try_borrow_data()?.as_ref())
+        check_discriminator::<ZCpiContextAccount2>(account_info.try_borrow_data()?.as_ref())
             .inspect_err(|_| {
                 let location = Location::caller();
                 solana_msg::msg!(

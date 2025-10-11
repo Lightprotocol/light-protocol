@@ -6,7 +6,7 @@ use light_client::{
 };
 use solana_sdk::{signature::Signer, transaction::Transaction};
 use tokio::time::sleep;
-use tracing::{debug, error};
+use tracing::{error, warn};
 
 use crate::error::ForesterUtilsError;
 
@@ -43,7 +43,7 @@ pub async fn wait_for_indexer<R: Rpc>(rpc: &R) -> Result<(), ForesterUtilsError>
         }
     };
 
-    let max_attempts = 20;
+    let max_attempts = 100;
     let mut attempts = 0;
 
     while rpc_slot > indexer_slot {
@@ -53,13 +53,16 @@ pub async fn wait_for_indexer<R: Rpc>(rpc: &R) -> Result<(), ForesterUtilsError>
             ));
         }
 
-        debug!(
-            "waiting for indexer to catch up, rpc_slot: {}, indexer_slot: {}",
-            rpc_slot, indexer_slot
-        );
+        if rpc_slot - indexer_slot > 50 {
+            warn!(
+                "indexer is behind {} slots (rpc_slot: {}, indexer_slot: {})",
+                rpc_slot - indexer_slot,
+                rpc_slot,
+                indexer_slot
+            );
+        }
 
-        tokio::task::yield_now().await;
-        sleep(std::time::Duration::from_millis(500)).await;
+        sleep(std::time::Duration::from_millis(1000)).await;
         indexer_slot = rpc.indexer()?.get_indexer_slot(None).await.map_err(|e| {
             error!("failed to get indexer slot from indexer: {:?}", e);
             ForesterUtilsError::Indexer("Failed to get indexer slot".into())

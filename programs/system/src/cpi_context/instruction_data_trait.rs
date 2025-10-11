@@ -10,9 +10,9 @@ use light_compressed_account::{
 };
 use zerocopy::Ref;
 
-use super::state::ZCpiContextAccount;
+use super::state::ZCpiContextAccount2;
 
-impl<'a> InstructionData<'a> for ZCpiContextAccount<'a> {
+impl<'a> InstructionData<'a> for ZCpiContextAccount2<'a> {
     fn owner(&self) -> Pubkey {
         // CPI context accounts don't have a single owner, they aggregate multiple programs
         // Return the fee payer as the primary owner
@@ -23,12 +23,6 @@ impl<'a> InstructionData<'a> for ZCpiContextAccount<'a> {
         self.new_addresses.as_slice()
     }
 
-    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
-        self.new_addresses
-            .iter()
-            .map(|x| Some(x.owner.into()))
-            .collect()
-    }
     fn input_accounts(&self) -> &[impl InputAccount<'a>] {
         self.in_accounts.as_slice()
     }

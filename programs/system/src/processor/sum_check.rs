@@ -1,5 +1,5 @@
 use light_compressed_account::instruction_data::traits::InstructionData;
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::program_error::ProgramError;
 
 use crate::{context::WrappedInstructionData, errors::SystemProgramError, Result};

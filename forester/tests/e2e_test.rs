@@ -18,7 +18,7 @@ use light_batched_merkle_tree::{
 };
 use light_client::{
     indexer::{AddressWithTree, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer},
-    local_test_validator::{LightValidatorConfig, ProverConfig},
+    local_test_validator::LightValidatorConfig,
     rpc::{LightClient, LightClientConfig, Rpc},
 };
 use light_compressed_account::{
@@ -144,7 +144,7 @@ fn get_forester_keypair() -> Keypair {
                 match bytes {
                     Ok(byte_vec) => {
                         if byte_vec.len() == 64 {
-                            return Keypair::from_bytes(&byte_vec)
+                            return Keypair::try_from(byte_vec.as_slice())
                                 .expect("Failed to create keypair from byte array");
                         } else {
                             panic!(
@@ -159,7 +159,7 @@ fn get_forester_keypair() -> Keypair {
 
             match bs58::decode(&keypair_string).into_vec() {
                 Ok(bytes) => {
-                    Keypair::from_bytes(&bytes).expect("Failed to create keypair from base58 bytes")
+                    Keypair::try_from(bytes.as_slice()).expect("Failed to create keypair from base58 bytes")
                 }
                 Err(_) => panic!(
                     "FORESTER_KEYPAIR must be either base58 encoded or byte array format [1,2,3,...]"
@@ -190,6 +190,7 @@ fn is_v2_address_test_enabled() -> bool {
 async fn e2e_test() {
     let state_tree_params = InitStateTreeAccountsInstructionData::test_default();
     let env = TestAccounts::get_local_test_validator_accounts();
+    println!("env {:?}", env);
     let config = ForesterConfig {
         external_services: ExternalServicesConfig {
             rpc_url: get_rpc_url(),
@@ -211,7 +212,6 @@ async fn e2e_test() {
         queue_config: Default::default(),
         indexer_config: Default::default(),
         transaction_config: TransactionConfig {
-            batch_ixs_per_tx: 4,
             ..Default::default()
         },
         general_config: GeneralConfig {
@@ -222,6 +222,7 @@ async fn e2e_test() {
             skip_v2_state_trees: false,
             skip_v1_address_trees: false,
             skip_v2_address_trees: false,
+            tree_id: None,
         },
         rpc_pool_config: RpcPoolConfig {
             max_size: 50,
@@ -242,8 +243,8 @@ async fn e2e_test() {
     if test_mode == TestMode::Local {
         init(Some(LightValidatorConfig {
             enable_indexer: true,
+            enable_prover: false,
             wait_time: 60,
-            prover_config: None,
             sbf_programs: vec![(
                 "FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy".to_string(),
                 "../target/deploy/create_address_test_program.so".to_string(),
@@ -251,7 +252,7 @@ async fn e2e_test() {
             limit_ledger_size: None,
         }))
         .await;
-        spawn_prover(ProverConfig::default()).await;
+        spawn_prover().await;
     }
 
     let mut rpc = setup_rpc_connection(&env.protocol.forester).await;

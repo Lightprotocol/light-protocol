@@ -14,7 +14,6 @@ pub fn process_insert_into_queues<'a, 'b, 'c: 'info, 'info>(
 ) -> Result<()> {
     let (inputs, _) = InsertIntoQueuesInstructionData::zero_copy_at(bytes.as_slice())
         .map_err(ProgramError::from)?;
-
     let authority = ctx.accounts.authority.to_account_info();
     // Checks accounts for every account in remaining accounts:
     // 1. program ownership

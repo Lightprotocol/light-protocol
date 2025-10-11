@@ -224,7 +224,7 @@ mod migrate_state_test {
 
     fn get_concurrent_merkle_tree(
         bytes: &mut [u8],
-    ) -> ConcurrentMerkleTreeZeroCopyMut<Poseidon, HEIGHT> {
+    ) -> ConcurrentMerkleTreeZeroCopyMut<'_, Poseidon, HEIGHT> {
         let mut mt =
             ConcurrentMerkleTreeZeroCopyMut::<Poseidon, HEIGHT>::from_bytes_zero_copy_init(
                 bytes, HEIGHT, 10, CHANGELOG, ROOTS,

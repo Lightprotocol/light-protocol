@@ -4,7 +4,7 @@ use light_compressed_account::{
     constants::ACCOUNT_COMPRESSION_PROGRAM_ID, discriminators::DISCRIMINATOR_INSERT_INTO_QUEUES,
     instruction_data::insert_into_queues::InsertIntoQueuesInstructionDataMut,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
     cpi::slice_invoke_signed,
@@ -16,6 +16,7 @@ use crate::{
     accounts::account_traits::{InvokeAccounts, SignerAccounts},
     constants::{CPI_AUTHORITY_PDA_BUMP, CPI_AUTHORITY_PDA_SEED},
     context::SystemContext,
+    errors::SystemProgramError,
     Result,
 };
 #[profile]
@@ -49,9 +50,15 @@ pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccou
         min(remaining_accounts.len() as u8, num_nullifiers),
         min(remaining_accounts.len() as u8, num_new_addresses),
     );
-    // Data size + 8 bytes for discriminator + 4 bytes for vec length, + 4 cpi data vec length, + cpi data length.
+    // Data size + 8 bytes for discriminator + 4 bytes for vec length + 4 bytes for cpi data vec length + cpi data length.
     let byte_len = bytes_size + 8 + 4 + 4 + cpi_data_len;
-    let mut bytes = vec![0u8; 10240];
+
+    // Enforce CPI account growth limit of 10KB
+    const MAX_CPI_BUFFER_SIZE: usize = 10240;
+    if byte_len > MAX_CPI_BUFFER_SIZE {
+        return Err(SystemProgramError::AccountCompressionCpiDataExceedsLimit.into());
+    }
+    let mut bytes = vec![0u8; byte_len];
     bytes[..8].copy_from_slice(&DISCRIMINATOR_INSERT_INTO_QUEUES);
     // Vec len.
     bytes[8..12].copy_from_slice(&u32::try_from(byte_len - 12).unwrap().to_le_bytes());

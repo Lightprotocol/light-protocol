@@ -39,4 +39,7 @@ impl NewAddress<'_> for CpiContextNewAddressParamsAssignedPacked {
             None
         }
     }
+    fn owner(&self) -> Option<&[u8; 32]> {
+        Some(&self.owner)
+    }
 }

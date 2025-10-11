@@ -1,5 +1,5 @@
 use light_compressed_account::instruction_data::zero_copy::ZPackedReadOnlyCompressedAccount;
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::{msg, program_error::ProgramError};
 
 use crate::{

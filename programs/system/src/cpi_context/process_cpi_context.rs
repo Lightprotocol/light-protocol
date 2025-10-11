@@ -11,28 +11,25 @@ use light_compressed_account::{
     },
     pubkey::AsPubkey,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use solana_msg::msg;
 
-use super::state::{deserialize_cpi_context_account, ZCpiContextAccount};
+use super::state::{deserialize_cpi_context_account, ZCpiContextAccount2};
 use crate::{
     context::WrappedInstructionData, cpi_context::state::deserialize_cpi_context_account_cleared,
     errors::SystemProgramError, Result,
 };
 
-/// Diff refactored Cpi context account:
-/// 1. return Cpi context instead of combined data.
-///
 /// Cpi context enables the use of input compressed accounts owned by different
 /// programs.
 ///
 /// Example:
-/// - a transaction calling a pda program needs to transfer tokens and modify a
+/// - a transaction invokes a pda program, which transfers tokens and modifies a
 ///   compressed pda
-/// - the pda is owned by pda program while the tokens are owned by the compressed
-///   token program
+/// - the compressed pda is owned by pda program while the
+///   compressed token accounts are owned by the compressed token program
 ///
 /// without cpi context:
 /// - naively invoking each compressed token via cpi and modifying the pda
@@ -59,7 +56,6 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
         msg!("cpi context account is some but cpi context is none");
         return Err(SystemProgramError::CpiContextMissing.into());
     }
-
     if let Some(cpi_context) = cpi_context {
         let cpi_context_account_info = match cpi_context_account_info {
             Some(cpi_context_account_info) => cpi_context_account_info,
@@ -70,8 +66,7 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
             set_cpi_context(fee_payer, cpi_context_account_info, instruction_data)?;
             return Ok(None);
         } else {
-            let mut cpi_context_account =
-                deserialize_cpi_context_account(cpi_context_account_info)?;
+            let cpi_context_account = deserialize_cpi_context_account(cpi_context_account_info)?;
             validate_cpi_context_associated_with_merkle_tree(
                 &instruction_data,
                 &cpi_context_account,
@@ -84,8 +79,7 @@ pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
                 msg!(format!(" {:?} != {:?}", fee_payer, cpi_context_account.fee_payer).as_str());
                 return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
             }
-            // Zero out the fee payer since the cpi context is being consumed in this instruction.
-            *cpi_context_account.fee_payer = Pubkey::default().into();
+
             instruction_data.set_cpi_context(cpi_context_account)?;
             return Ok(Some((1, instruction_data)));
         }
@@ -128,7 +122,13 @@ pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
         if *cpi_context_account.fee_payer == fee_payer && !cpi_context_account.is_empty() {
             cpi_context_account.store_data(&instruction_data)?;
         } else {
-            msg!(format!(" {:?} != {:?}", fee_payer, cpi_context_account.fee_payer).as_str());
+            msg!(format!(
+                " {:?} != {:?} or cpi context account empty {}",
+                fee_payer,
+                cpi_context_account.fee_payer,
+                cpi_context_account.is_empty()
+            )
+            .as_str());
             return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
         }
     }
@@ -142,7 +142,7 @@ pub fn set_cpi_context<'a, 'info, T: InstructionData<'a>>(
 /// and the indexer cannot find all output account data.
 #[profile]
 pub fn copy_cpi_context_outputs(
-    cpi_context_account: &Option<ZCpiContextAccount<'_>>,
+    cpi_context_account: &Option<ZCpiContextAccount2<'_>>,
     bytes: &mut [u8],
 ) -> Result<()> {
     if let Some(cpi_context) = cpi_context_account {
@@ -161,7 +161,7 @@ pub fn copy_cpi_context_outputs(
                 compressed_account: CompressedAccountConfig {
                     address: (output_account.address().is_some(), ()),
                     data: (
-                        !output_data.is_empty(),
+                        output_account.has_data() || !output_data.is_empty(),
                         CompressedAccountDataConfig {
                             data: output_data.len() as u32,
                         },
@@ -183,6 +183,8 @@ pub fn copy_cpi_context_outputs(
             }
             bytes = inner_bytes;
         }
+        // Debug assert TODO: remove pre mainnet deployment
+        assert_eq!(bytes.len(), 4);
     }
     Ok(())
 }
@@ -190,7 +192,7 @@ pub fn copy_cpi_context_outputs(
 #[profile]
 fn validate_cpi_context_associated_with_merkle_tree<'a, 'info, T: InstructionData<'a>>(
     instruction_data: &WrappedInstructionData<'a, T>,
-    cpi_context_account: &ZCpiContextAccount<'a>,
+    cpi_context_account: &ZCpiContextAccount2<'a>,
     remaining_accounts: &[AccountInfo],
 ) -> Result<()> {
     let first_merkle_tree_pubkey = if !instruction_data.inputs_empty() {

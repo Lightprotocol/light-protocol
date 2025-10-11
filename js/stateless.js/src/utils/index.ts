@@ -3,6 +3,7 @@ export * from './airdrop';
 export * from './calculate-compute-unit-price';
 export * from './conversion';
 export * from './dedupe-signer';
+export * from './instruction';
 export * from './parse-validity-proof';
 export * from './pipe';
 export * from './send-and-confirm';
