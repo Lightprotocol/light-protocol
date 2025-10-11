@@ -41,7 +41,7 @@ Constructor that stores owner for future validation extensions (currently unused
 fn next_account(&mut self, account_name: &str) -> Result<&'info T, AccountError>
 ```
 - Gets next account with descriptive name for error messages
-- **Error:** `NotEnoughAccountKeys` (12020) with detailed location
+- **Error:** `NotEnoughAccountKeys` (20014) with detailed location
 
 ### Validated Retrieval
 
@@ -51,8 +51,8 @@ fn next_signer(&mut self, account_name: &str) -> Result<&'info T, AccountError>
 ```
 - Gets next account and validates it's a signer
 - **Errors:**
-  - `NotEnoughAccountKeys` (12020)
-  - `InvalidSigner` (12015)
+  - `NotEnoughAccountKeys` (20014)
+  - `InvalidSigner` (20009)
 
 #### `next_signer_mut`
 ```rust
@@ -60,9 +60,9 @@ fn next_signer_mut(&mut self, account_name: &str) -> Result<&'info T, AccountErr
 ```
 - Gets next account validating signer AND writable
 - **Errors:**
-  - `NotEnoughAccountKeys` (12020)
-  - `InvalidSigner` (12015)
-  - `AccountNotMutable` (12008)
+  - `NotEnoughAccountKeys` (20014)
+  - `InvalidSigner` (20009)
+  - `AccountNotMutable` (20002)
 
 #### `next_mut`
 ```rust
@@ -70,8 +70,8 @@ fn next_mut(&mut self, account_name: &str) -> Result<&'info T, AccountError>
 ```
 - Gets next account validating it's writable
 - **Errors:**
-  - `NotEnoughAccountKeys` (12020)
-  - `AccountNotMutable` (12008)
+  - `NotEnoughAccountKeys` (20014)
+  - `AccountNotMutable` (20002)
 
 #### `next_non_mut`
 ```rust
@@ -79,8 +79,8 @@ fn next_non_mut(&mut self, account_name: &str) -> Result<&'info T, AccountError>
 ```
 - Gets next account validating it's NOT writable
 - **Errors:**
-  - `NotEnoughAccountKeys` (12020)
-  - `AccountMutable` (12011)
+  - `NotEnoughAccountKeys` (20014)
+  - `AccountMutable` (20005)
 
 ### Special Retrieval
 
@@ -94,8 +94,8 @@ fn next_checked_pubkey(
 ```
 - Gets next account and validates its public key matches
 - **Errors:**
-  - `NotEnoughAccountKeys` (12020)
-  - `InvalidAccount` (12021) with expected/actual keys
+  - `NotEnoughAccountKeys` (20014)
+  - `InvalidAccount` (20015) with expected/actual keys
 
 #### `next_option`
 ```rust
@@ -125,7 +125,7 @@ fn next_option_mut(
 fn remaining(&self) -> Result<&'info [T], AccountError>
 ```
 - Returns all unprocessed accounts
-- **Error:** `NotEnoughAccountKeys` (12020) if iterator exhausted
+- **Error:** `NotEnoughAccountKeys` (20014) if iterator exhausted
 
 ### `remaining_unchecked`
 ```rust

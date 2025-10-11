@@ -18,7 +18,7 @@ fn check_owner<A: AccountInfoTrait>(
 ) -> Result<(), AccountError>
 ```
 - Verifies account is owned by specified program
-- **Error:** `AccountOwnedByWrongProgram` (12007)
+- **Error:** `AccountOwnedByWrongProgram` (20001)
 
 #### `check_program`
 ```rust
@@ -29,8 +29,8 @@ fn check_program<A: AccountInfoTrait>(
 ```
 - Verifies account key matches program_id AND is executable
 - **Errors:**
-  - `InvalidProgramId` (12017) - Key mismatch
-  - `ProgramNotExecutable` (12018) - Not marked executable
+  - `InvalidProgramId` (20011) - Key mismatch
+  - `ProgramNotExecutable` (20012) - Not marked executable
 
 ### Permission Validation
 
@@ -41,7 +41,7 @@ fn check_signer<A: AccountInfoTrait>(
 ) -> Result<(), AccountError>
 ```
 - Verifies account is transaction signer
-- **Error:** `InvalidSigner` (12015)
+- **Error:** `InvalidSigner` (20009)
 
 #### `check_mut`
 ```rust
@@ -50,7 +50,7 @@ fn check_mut<A: AccountInfoTrait>(
 ) -> Result<(), AccountError>
 ```
 - Verifies account is writable
-- **Error:** `AccountNotMutable` (12008)
+- **Error:** `AccountNotMutable` (20002)
 
 #### `check_non_mut`
 ```rust
@@ -59,7 +59,7 @@ fn check_non_mut<A: AccountInfoTrait>(
 ) -> Result<(), AccountError>
 ```
 - Verifies account is NOT writable
-- **Error:** `AccountMutable` (12011)
+- **Error:** `AccountMutable` (20005)
 
 ### Discriminator Functions
 
@@ -71,8 +71,8 @@ fn check_discriminator<T: Discriminator>(
 ```
 - Verifies first 8 bytes match expected discriminator
 - **Errors:**
-  - `InvalidAccountSize` (12010) - Less than 8 bytes
-  - `InvalidDiscriminator` (12006) - Mismatch
+  - `InvalidAccountSize` (20004) - Less than 8 bytes
+  - `InvalidDiscriminator` (20000) - Mismatch
 
 #### `set_discriminator`
 ```rust
@@ -81,7 +81,7 @@ fn set_discriminator<T: Discriminator>(
 ) -> Result<(), AccountError>
 ```
 - Sets 8-byte discriminator on uninitialized account
-- **Error:** `AlreadyInitialized` (12012) - Non-zero discriminator
+- **Error:** `AlreadyInitialized` (20006) - Non-zero discriminator
 
 #### `account_info_init`
 ```rust
@@ -91,8 +91,8 @@ fn account_info_init<T: Discriminator, A: AccountInfoTrait>(
 ```
 - Initializes account with discriminator
 - **Errors:**
-  - `BorrowAccountDataFailed` (12009)
-  - `AlreadyInitialized` (12012)
+  - `BorrowAccountDataFailed` (20003)
+  - `AlreadyInitialized` (20006)
 
 ### Combined Validators
 
@@ -143,7 +143,7 @@ fn check_pda_seeds<A: AccountInfoTrait>(
 ```
 - Derives PDA and verifies it matches account key
 - Uses `find_program_address` (finds bump)
-- **Error:** `InvalidSeeds` (12016)
+- **Error:** `InvalidSeeds` (20010)
 
 #### `check_pda_seeds_with_bump`
 ```rust
@@ -155,7 +155,7 @@ fn check_pda_seeds_with_bump<A: AccountInfoTrait>(
 ```
 - Verifies PDA with known bump seed
 - Uses `create_program_address` (requires bump)
-- **Error:** `InvalidSeeds` (12016)
+- **Error:** `InvalidSeeds` (20010)
 
 ### Rent Validation
 
@@ -169,9 +169,9 @@ fn check_account_balance_is_rent_exempt<A: AccountInfoTrait>(
 - Verifies account size and rent exemption
 - Returns rent exemption amount
 - **Errors:**
-  - `InvalidAccountSize` (12010) - Size mismatch
-  - `InvalidAccountBalance` (12013) - Below rent exemption
-  - `FailedBorrowRentSysvar` (12014) - Can't access rent
+  - `InvalidAccountSize` (20004) - Size mismatch
+  - `InvalidAccountBalance` (20007) - Below rent exemption
+  - `FailedBorrowRentSysvar` (20008) - Can't access rent
 
 ### Initialization Check
 
@@ -182,7 +182,7 @@ fn check_data_is_zeroed<const N: usize>(
 ) -> Result<(), AccountError>
 ```
 - Verifies first N bytes are zero (uninitialized)
-- **Error:** `AccountNotZeroed` (12019)
+- **Error:** `AccountNotZeroed` (20013)
 
 ## Usage Examples
 
@@ -302,21 +302,21 @@ check_pda_seeds(seeds, program_id, account)?;
 
 | Function | Error Code | Error Name | Condition |
 |----------|------------|------------|-----------|
-| `check_owner` | 12007 | AccountOwnedByWrongProgram | Owner mismatch |
-| `check_mut` | 12008 | AccountNotMutable | Not writable |
-| `check_discriminator` | 12006 | InvalidDiscriminator | Wrong type |
-| `check_discriminator` | 12010 | InvalidAccountSize | < 8 bytes |
-| `set_discriminator` | 12012 | AlreadyInitialized | Non-zero disc |
-| `check_non_mut` | 12011 | AccountMutable | Is writable |
-| `check_signer` | 12015 | InvalidSigner | Not signer |
-| `check_pda_seeds*` | 12016 | InvalidSeeds | PDA mismatch |
-| `check_program` | 12017 | InvalidProgramId | Key mismatch |
-| `check_program` | 12018 | ProgramNotExecutable | Not executable |
-| `check_data_is_zeroed` | 12019 | AccountNotZeroed | Has data |
-| `check_account_balance_*` | 12010 | InvalidAccountSize | Size mismatch |
-| `check_account_balance_*` | 12013 | InvalidAccountBalance | Low balance |
-| `check_account_balance_*` | 12014 | FailedBorrowRentSysvar | Can't get rent |
-| `account_info_init` | 12009 | BorrowAccountDataFailed | Can't borrow |
+| `check_owner` | 20001 | AccountOwnedByWrongProgram | Owner mismatch |
+| `check_mut` | 20002 | AccountNotMutable | Not writable |
+| `check_discriminator` | 20000 | InvalidDiscriminator | Wrong type |
+| `check_discriminator` | 20004 | InvalidAccountSize | < 8 bytes |
+| `set_discriminator` | 20006 | AlreadyInitialized | Non-zero disc |
+| `check_non_mut` | 20005 | AccountMutable | Is writable |
+| `check_signer` | 20009 | InvalidSigner | Not signer |
+| `check_pda_seeds*` | 20010 | InvalidSeeds | PDA mismatch |
+| `check_program` | 20011 | InvalidProgramId | Key mismatch |
+| `check_program` | 20012 | ProgramNotExecutable | Not executable |
+| `check_data_is_zeroed` | 20013 | AccountNotZeroed | Has data |
+| `check_account_balance_*` | 20004 | InvalidAccountSize | Size mismatch |
+| `check_account_balance_*` | 20007 | InvalidAccountBalance | Low balance |
+| `check_account_balance_*` | 20008 | FailedBorrowRentSysvar | Can't get rent |
+| `account_info_init` | 20003 | BorrowAccountDataFailed | Can't borrow |
 
 ## See Also
 - [ACCOUNT_INFO_TRAIT.md](ACCOUNT_INFO_TRAIT.md) - AccountInfoTrait abstraction

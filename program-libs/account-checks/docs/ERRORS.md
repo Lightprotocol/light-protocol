@@ -8,7 +8,7 @@ AccountError enum provides comprehensive error types for account validation fail
 
 ## Error Code Ranges
 
-- **12006-12021**: AccountError variants
+- **20000-20015**: AccountError variants
 - **1-11**: Standard Pinocchio ProgramError codes (when using pinocchio feature)
 - **Variable**: Pass-through codes from PinocchioProgramError
 
@@ -16,22 +16,22 @@ AccountError enum provides comprehensive error types for account validation fail
 
 | Error Variant | Code | Description | Common Causes | Resolution |
 |---------------|------|-------------|---------------|------------|
-| `InvalidDiscriminator` | 12006 | Account discriminator mismatch | Wrong account type passed, uninitialized account | Verify correct account type, ensure account initialized |
-| `AccountOwnedByWrongProgram` | 12007 | Account owner doesn't match expected | Passing system account to program expecting owned account | Check account owner before passing |
-| `AccountNotMutable` | 12008 | Account not marked writable | Missing `mut` in instruction accounts | Add writable flag to account |
-| `BorrowAccountDataFailed` | 12009 | Can't borrow account data | Account already borrowed, concurrent access | Ensure no overlapping borrows |
-| `InvalidAccountSize` | 12010 | Account size doesn't match expected | Wrong account type, partial initialization | Verify account size matches struct |
-| `AccountMutable` | 12011 | Account is writable but shouldn't be | Incorrect mutability specification | Remove writable flag from account |
-| `AlreadyInitialized` | 12012 | Account discriminator already set | Attempting to reinitialize account | Check if account exists before init |
-| `InvalidAccountBalance` | 12013 | Account balance below rent exemption | Insufficient lamports | Fund account to rent-exempt amount |
-| `FailedBorrowRentSysvar` | 12014 | Can't access rent sysvar | Sysvar not available in context | Ensure rent sysvar accessible |
-| `InvalidSigner` | 12015 | Account not a signer | Missing signature | Add account as signer in transaction |
-| `InvalidSeeds` | 12016 | PDA derivation failed | Wrong seeds or bump | Verify PDA seeds and bump |
-| `InvalidProgramId` | 12017 | Program account key mismatch | Wrong program passed | Pass correct program account |
-| `ProgramNotExecutable` | 12018 | Program account not executable | Non-program account passed as program | Ensure account is deployed program |
-| `AccountNotZeroed` | 12019 | Account data not zeroed | Account has existing data | Clear account data or use existing |
-| `NotEnoughAccountKeys` | 12020 | Insufficient accounts provided | Missing required accounts | Provide all required accounts |
-| `InvalidAccount` | 12021 | Account validation failed | Wrong account passed | Verify account key matches expected |
+| `InvalidDiscriminator` | 20000 | Account discriminator mismatch | Wrong account type passed, uninitialized account | Verify correct account type, ensure account initialized |
+| `AccountOwnedByWrongProgram` | 20001 | Account owner doesn't match expected | Passing system account to program expecting owned account | Check account owner before passing |
+| `AccountNotMutable` | 20002 | Account not marked writable | Missing `mut` in instruction accounts | Add writable flag to account |
+| `BorrowAccountDataFailed` | 20003 | Can't borrow account data | Account already borrowed, concurrent access | Ensure no overlapping borrows |
+| `InvalidAccountSize` | 20004 | Account size doesn't match expected | Wrong account type, partial initialization | Verify account size matches struct |
+| `AccountMutable` | 20005 | Account is writable but shouldn't be | Incorrect mutability specification | Remove writable flag from account |
+| `AlreadyInitialized` | 20006 | Account discriminator already set | Attempting to reinitialize account | Check if account exists before init |
+| `InvalidAccountBalance` | 20007 | Account balance below rent exemption | Insufficient lamports | Fund account to rent-exempt amount |
+| `FailedBorrowRentSysvar` | 20008 | Can't access rent sysvar | Sysvar not available in context | Ensure rent sysvar accessible |
+| `InvalidSigner` | 20009 | Account not a signer | Missing signature | Add account as signer in transaction |
+| `InvalidSeeds` | 20010 | PDA derivation failed | Wrong seeds or bump | Verify PDA seeds and bump |
+| `InvalidProgramId` | 20011 | Program account key mismatch | Wrong program passed | Pass correct program account |
+| `ProgramNotExecutable` | 20012 | Program account not executable | Non-program account passed as program | Ensure account is deployed program |
+| `AccountNotZeroed` | 20013 | Account data not zeroed | Account has existing data | Clear account data or use existing |
+| `NotEnoughAccountKeys` | 20014 | Insufficient accounts provided | Missing required accounts | Provide all required accounts |
+| `InvalidAccount` | 20015 | Account validation failed | Wrong account passed | Verify account key matches expected |
 | `PinocchioProgramError` | (varies) | Pinocchio-specific error | Various SDK-level errors | Check embedded error code |
 
 ## Error Conversions
@@ -100,16 +100,16 @@ impl From<std::cell::BorrowMutError> for AccountError {
 Each validation function returns specific errors:
 
 ```rust
-// check_owner returns AccountOwnedByWrongProgram (12007)
+// check_owner returns AccountOwnedByWrongProgram (20001)
 check_owner(owner, account)?;
 
-// check_signer returns InvalidSigner (12015)
+// check_signer returns InvalidSigner (20009)
 check_signer(account)?;
 
-// check_discriminator returns InvalidDiscriminator (12006) or InvalidAccountSize (12010)
+// check_discriminator returns InvalidDiscriminator (20000) or InvalidAccountSize (20004)
 check_discriminator::<MyType>(data)?;
 
-// check_pda_seeds returns InvalidSeeds (12016)
+// check_pda_seeds returns InvalidSeeds (20010)
 check_pda_seeds(seeds, program_id, account)?;
 ```
 
@@ -119,26 +119,26 @@ Errors appear in transaction logs with their numeric codes:
 
 ```text
 Program log: ERROR: Invalid Discriminator.
-Program log: Custom program error: 0x2ee6  // 12006 in hex
+Program log: Custom program error: 0x4e20  // 20000 in hex
 
 Program log: ERROR: Not enough accounts. Requested 'mint' at index 3 but only 2 accounts available.
-Program log: Custom program error: 0x2ef4  // 12020 in hex
+Program log: Custom program error: 0x4e2e  // 20014 in hex
 ```
 
 ## Debugging Tips
 
 1. **Check error codes in hex**: Solana logs show custom errors in hexadecimal
-   - 12006 = 0x2EE6
-   - 12020 = 0x2EF4
-   - 12021 = 0x2EF5
+   - 20000 = 0x4E20
+   - 20014 = 0x4E2E
+   - 20015 = 0x4E2F
 
 2. **Use AccountIterator for detailed errors**: Provides file:line:column for debugging
 
 3. **Common error patterns**:
-   - 12006 + 12010: Usually uninitialized account
-   - 12007: Wrong program ownership
-   - 12015: Missing signer
-   - 12020: Not enough accounts in instruction
+   - 20000 + 20004: Usually uninitialized account
+   - 20001: Wrong program ownership
+   - 20009: Missing signer
+   - 20014: Not enough accounts in instruction
 
 ## Integration with Other Crates
 
