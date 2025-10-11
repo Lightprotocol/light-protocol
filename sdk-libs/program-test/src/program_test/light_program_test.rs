@@ -28,6 +28,7 @@ use crate::{
 pub struct LightProgramTest {
     pub config: ProgramTestConfig,
     pub context: LiteSVM,
+    pub pre_context: Option<LiteSVM>,
     pub indexer: Option<TestIndexer>,
     pub test_accounts: TestAccounts,
     pub payer: Keypair,
@@ -52,6 +53,13 @@ impl LightProgramTest {
     /// - registers a forester
     /// - advances to the active phase slot 2
     /// - active phase doesn't end
+    ///   Get an account from the pre-transaction context (before the last transaction)
+    pub fn get_pre_transaction_account(&self, pubkey: &solana_sdk::pubkey::Pubkey) -> Option<solana_sdk::account::Account> {
+        self.pre_context
+            .as_ref()
+            .and_then(|ctx| ctx.get_account(pubkey))
+    }
+
     pub async fn new(config: ProgramTestConfig) -> Result<LightProgramTest, RpcError> {
         let mut context = setup_light_programs(config.additional_programs.clone())?;
         let payer = Keypair::new();
@@ -60,6 +68,7 @@ impl LightProgramTest {
             .expect("Payer airdrop failed.");
         let mut context = Self {
             context,
+            pre_context: None,
             indexer: None,
             test_accounts: TestAccounts::get_program_test_test_accounts(),
             payer,
