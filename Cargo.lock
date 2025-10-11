@@ -1422,17 +1422,22 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressed-token",
+ "light-compressed-token-sdk",
+ "light-compressible",
+ "light-ctoken-types",
  "light-program-test",
  "light-prover-client",
  "light-registry",
  "light-sdk",
  "light-system-program-anchor",
  "light-test-utils",
+ "light-token-client",
  "light-verifier",
  "rand 0.8.5",
  "serial_test",
  "solana-sdk",
  "spl-token 7.0.0",
+ "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
 ]
 
@@ -3854,7 +3859,10 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressed-token",
+ "light-compressed-token-sdk",
+ "light-compressible",
  "light-concurrent-merkle-tree",
+ "light-ctoken-types",
  "light-hasher",
  "light-indexed-array",
  "light-indexed-merkle-tree",
@@ -3864,6 +3872,7 @@ dependencies = [
  "light-registry",
  "light-sdk",
  "light-sdk-types",
+ "light-zero-copy",
  "litesvm",
  "log",
  "num-bigint 0.4.6",
@@ -3883,6 +3892,7 @@ dependencies = [
  "solana-transaction",
  "solana-transaction-status",
  "solana-transaction-status-client-types",
+ "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tabled",
  "tokio",
 ]
@@ -4172,8 +4182,7 @@ checksum = "241eaef5fd12c88705a01fc1066c48c4b36e0dd4377dcdc7ec3942cea7a69956"
 [[package]]
 name = "litesvm"
 version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23bca37ac374948b348e29c74b324dc36f18bbbd1ccf80e2046d967521cbd143"
+source = "git+https://github.com/Lightprotocol/litesvm?rev=a04cb80b6847eb720c840a5e5d9a6f74ce630cc6#a04cb80b6847eb720c840a5e5d9a6f74ce630cc6"
 dependencies = [
  "agave-feature-set",
  "agave-precompiles",

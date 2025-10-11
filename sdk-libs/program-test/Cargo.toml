@@ -18,13 +18,18 @@ light-merkle-tree-reference = { workspace = true }
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-concurrent-merkle-tree = { workspace = true, optional = true }
 light-hasher = { workspace = true, features = ["poseidon"] }
+light-ctoken-types = { workspace = true }
+light-compressible = { workspace = true }
+light-compressed-token-sdk = { workspace = true }
 light-compressed-account = { workspace = true, features = ["anchor", "poseidon"] }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"], optional = true }
 
 # unreleased
 light-client = { workspace = true, features = ["program-test"] }
 light-prover-client = { workspace = true }
+light-zero-copy = { workspace = true }
 litesvm = { workspace = true }
+spl-token-2022 = { workspace = true }
 
 light-registry = { workspace = true, features = ["cpi"], optional = true }
 light-compressed-token = { workspace = true, features = ["cpi"], optional = true }

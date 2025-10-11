@@ -19,6 +19,8 @@ custom-heap = []
 default = ["custom-heap"]
 
 [dependencies]
+
+[dev-dependencies]
 anchor-lang = { workspace = true }
 light-compressed-token = { workspace = true }
 light-system-program-anchor = { workspace = true }
@@ -26,11 +28,8 @@ account-compression = { workspace = true }
 light-compressed-account = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-registry = { workspace = true }
-
-[target.'cfg(not(target_os = "solana"))'.dependencies]
 solana-sdk = { workspace = true }
 
-[dev-dependencies]
 forester-utils = { workspace = true }
 light-client = { workspace = true, features = ["devenv"] }
 light-sdk = { workspace = true, features = ["anchor"] }
@@ -43,3 +42,8 @@ spl-token = { workspace = true }
 anchor-spl = { workspace = true }
 rand = { workspace = true }
 serial_test = { workspace = true }
+light-ctoken-types = { workspace = true }
+light-token-client = { workspace = true }
+light-compressible = { workspace = true }
+light-compressed-token-sdk = { workspace = true }
+spl-token-2022 = { workspace = true }
