@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use light_compressed_account::Pubkey;
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::{
     errors::ZeroCopyError,
     traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew},

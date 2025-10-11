@@ -3,7 +3,7 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_signer, AccountInfoTrait};
 use light_compressible::rent::{calculate_close_lamports, get_rent_exemption_lamports};
 use light_ctoken_types::state::{CToken, ZCompressedTokenMut, ZExtensionStructMut};
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 use pinocchio::account_info::AccountInfo;
 #[cfg(target_os = "solana")]

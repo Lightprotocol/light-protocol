@@ -5,13 +5,13 @@ use solana_pubkey::Pubkey;
 use super::{
     response::{Items, ItemsWithCursor, Response},
     types::{
-        CompressedAccount, CompressedTokenAccount, OwnerBalance, SignatureWithMetadata,
-        TokenBalance, ValidityProofWithContext,
+        CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsResult,
+        SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
     },
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
     GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
-    IndexerError, IndexerRpcConfig, MerkleProof, MerkleProofWithContext,
-    NewAddressProofWithContext, PaginatedOptions, RetryConfig,
+    IndexerError, IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
+    RetryConfig,
 };
 // TODO: remove all references in input types.
 #[async_trait]
@@ -21,14 +21,14 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         &self,
         address: Address,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<CompressedAccount>, IndexerError>;
+    ) -> Result<Response<Option<CompressedAccount>>, IndexerError>;
 
     /// Returns the compressed account with the given address or hash.
     async fn get_compressed_account_by_hash(
         &self,
         hash: Hash,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<CompressedAccount>, IndexerError>;
+    ) -> Result<Response<Option<CompressedAccount>>, IndexerError>;
 
     /// Returns the owner’s compressed accounts.
     async fn get_compressed_accounts_by_owner(
@@ -153,7 +153,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<CompressedAccount>>, IndexerError>;
+    ) -> Result<Response<Items<Option<CompressedAccount>>>, IndexerError>;
 
     /// Returns proofs that the new addresses are not taken already and can be created.
     async fn get_multiple_new_address_proofs(
@@ -185,8 +185,7 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
     ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError>;
 
     // TODO: in different pr:
-    //      replace num_elements & start_offset with PaginatedOptions
-    //      - startoffset is not robust, we should use a queue index as cursor instead
+    //      replace num_elements & start_queue_index with PaginatedOptions
     //      - return type should be ItemsWithCursor
     /// Returns queue elements from the queue with the given merkle tree pubkey. For input
     /// queues account compression program does not store queue elements in the
@@ -197,9 +196,9 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         merkle_tree_pubkey: [u8; 32],
         queue_type: QueueType,
         num_elements: u16,
-        start_offset: Option<u64>,
+        start_queue_index: Option<u64>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<MerkleProofWithContext>>, IndexerError>;
+    ) -> Result<Response<QueueElementsResult>, IndexerError>;
 
     async fn get_subtrees(
         &self,

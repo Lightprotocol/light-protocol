@@ -1,5 +1,5 @@
 use light_compressed_account::Pubkey;
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopy, ZeroCopyMut};
 
 use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};

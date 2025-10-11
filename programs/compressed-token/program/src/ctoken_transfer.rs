@@ -3,7 +3,7 @@ use light_ctoken_types::{
     state::{CToken, ZExtensionStruct},
     CTokenError,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::account_info::AccountInfo;
 use spl_token::instruction::TokenInstruction;

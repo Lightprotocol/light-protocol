@@ -3,7 +3,7 @@ use light_ctoken_types::{
     instructions::transfer2::{CompressedCpiContext, CompressedTokenInstructionDataTransfer2},
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 

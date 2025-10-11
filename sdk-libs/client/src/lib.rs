@@ -2,6 +2,13 @@
 //!
 //! A client library for interacting with Light Protocol compressed accounts and RPC endpoints.
 //!
+//! For detailed documentation, visit [zkcompression.com](https://www.zkcompression.com/).
+//! For full program examples, see the [Program Examples](https://github.com/Lightprotocol/program-examples).
+//! For pinocchio solana program development see [`light-sdk-pinocchio`](https://docs.rs/light-sdk-pinocchio).
+//! For rust client developement see [`light-client`](https://docs.rs/light-client).
+//! For rust program testing see [`light-program-test`](https://docs.rs/light-program-test).
+//! For local test validator with light system programs see [Light CLI](https://www.npmjs.com/package/@lightprotocol/zk-compression-cli).
+//!
 //! ## Features
 //! - Connect to various RPC endpoints (local test validator, devnet/mainnet)
 //! - Query compressed accounts and validity proofs from RPC endpoints
@@ -23,7 +30,6 @@
 //!     indexer::{Indexer, IndexerRpcConfig, RetryConfig},
 //!     local_test_validator::{spawn_validator, LightValidatorConfig},
 //! };
-//! use light_prover_client::prover::ProverConfig;
 //! use solana_pubkey::Pubkey;
 //!
 //! #[tokio::main]
@@ -31,7 +37,7 @@
 //!     // Start local test validator with Light Protocol programs
 //!     let config = LightValidatorConfig {
 //!         enable_indexer: true,
-//!         prover_config: Some(ProverConfig::default()),
+//!         enable_prover: true,
 //!         wait_time: 75,
 //!         sbf_programs: vec![],
 //!         limit_ledger_size: None,
@@ -82,5 +88,4 @@ pub mod indexer;
 pub mod local_test_validator;
 pub mod rpc;
 
-/// Reexport for ProverConfig and other types.
 pub use light_prover_client;

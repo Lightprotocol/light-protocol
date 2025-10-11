@@ -1,12 +1,15 @@
 use light_account_checks::AccountInfoTrait;
 
+#[cfg(feature = "cpi-context")]
+use super::cpi_context_write::CpiContextWriteAccounts;
 use crate::{
+    cpi_accounts::{CpiAccountsConfig, TreeAccounts},
     error::{LightSdkTypesError, Result},
-    CpiAccountsConfig, CpiSigner,
+    CpiSigner,
 };
 
 #[repr(usize)]
-pub enum CompressionCpiAccountIndexSmall {
+pub enum CompressionCpiAccountIndex {
     LightSystemProgram,
     Authority, // index 0 - Cpi authority of the custom program, used to invoke the light system program.
     RegisteredProgramPda, // index 1 - registered_program_pda
@@ -20,16 +23,46 @@ pub enum CompressionCpiAccountIndexSmall {
 
 pub const PROGRAM_ACCOUNTS_LEN: usize = 0; // No program accounts in CPI
                                            // 6 base accounts + 3 optional accounts
-pub const SMALL_SYSTEM_ACCOUNTS_LEN: usize = 9;
+pub const SYSTEM_ACCOUNTS_LEN: usize = 9;
 
 #[derive(Clone)]
-pub struct CpiAccountsSmall<'a, T: AccountInfoTrait + Clone> {
+pub struct CpiAccounts<'a, T: AccountInfoTrait + Clone> {
     fee_payer: &'a T,
     accounts: &'a [T],
     config: CpiAccountsConfig,
 }
 
-impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
+#[cfg(feature = "cpi-context")]
+impl<'a, T: AccountInfoTrait + Clone> TryFrom<&CpiAccounts<'a, T>>
+    for CpiContextWriteAccounts<'a, T>
+{
+    type Error = LightSdkTypesError;
+
+    fn try_from(value: &CpiAccounts<'a, T>) -> std::result::Result<Self, Self::Error> {
+        Ok(Self {
+            fee_payer: value.fee_payer,
+            authority: value.authority()?,
+            cpi_context: value.cpi_context()?,
+            cpi_signer: value.config.cpi_signer,
+        })
+    }
+}
+
+impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
+    /// Creates a new CpiAccounts instance.
+    ///
+    /// The `accounts` slice must start at the system accounts (Light system program and related accounts).
+    ///
+    /// When using `PackedAccounts`, obtain the `system_accounts_offset`
+    /// from `to_account_metas()` and slice from that offset:
+    /// ```ignore
+    /// // In client
+    /// let (remaining_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();
+    ///
+    /// // In program
+    /// let accounts_for_cpi = &ctx.remaining_accounts[system_accounts_offset..];
+    /// let cpi_accounts = CpiAccounts::new(fee_payer, accounts_for_cpi, cpi_signer);
+    /// ```
     pub fn new(fee_payer: &'a T, accounts: &'a [T], cpi_signer: CpiSigner) -> Self {
         Self {
             fee_payer,
@@ -51,63 +84,56 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
     }
 
     pub fn authority(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::Authority as usize;
-        self.accounts
-            .get(index)
-            .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
-    }
-
-    pub fn light_system_program(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::LightSystemProgram as usize;
+        let index = CompressionCpiAccountIndex::Authority as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn registered_program_pda(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::RegisteredProgramPda as usize;
+        let index = CompressionCpiAccountIndex::RegisteredProgramPda as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn account_compression_authority(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::AccountCompressionAuthority as usize;
+        let index = CompressionCpiAccountIndex::AccountCompressionAuthority as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn account_compression_program(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::AccountCompressionProgram as usize;
+        let index = CompressionCpiAccountIndex::AccountCompressionProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn system_program(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::SystemProgram as usize;
+        let index = CompressionCpiAccountIndex::SystemProgram as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn sol_pool_pda(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::SolPoolPda as usize;
+        let index = CompressionCpiAccountIndex::SolPoolPda as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn decompression_recipient(&self) -> Result<&'a T> {
-        let index = CompressionCpiAccountIndexSmall::DecompressionRecipient as usize;
+        let index = CompressionCpiAccountIndex::DecompressionRecipient as usize;
         self.accounts
             .get(index)
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(index))
     }
 
     pub fn cpi_context(&self) -> Result<&'a T> {
-        let mut index = CompressionCpiAccountIndexSmall::CpiContext as usize;
+        let mut index = CompressionCpiAccountIndex::CpiContext as usize;
         if !self.config.sol_pool_pda {
             index -= 1;
         }
@@ -128,7 +154,7 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
     }
 
     pub fn system_accounts_end_offset(&self) -> usize {
-        let mut len = SMALL_SYSTEM_ACCOUNTS_LEN;
+        let mut len = SYSTEM_ACCOUNTS_LEN;
         if !self.config.sol_pool_pda {
             len -= 1;
         }
@@ -196,5 +222,11 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccountsSmall<'a, T> {
             .iter()
             .map(|x| x.pubkey())
             .collect::<Vec<T::Pubkey>>())
+    }
+}
+
+impl<'a, T: AccountInfoTrait + Clone> TreeAccounts<T> for CpiAccounts<'a, T> {
+    fn get_tree_account_info(&self, tree_index: usize) -> Result<&T> {
+        self.get_tree_account_info(tree_index)
     }
 }

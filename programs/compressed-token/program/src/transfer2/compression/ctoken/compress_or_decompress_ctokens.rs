@@ -6,7 +6,7 @@ use light_ctoken_types::{
     state::{CToken, ZExtensionStructMut},
     CTokenError,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::{
     account_info::AccountInfo,

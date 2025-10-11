@@ -26,7 +26,7 @@ bytemuck = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
 solana-pubkey = { workspace = true }
 pinocchio-pubkey = { workspace = true }
-light-profiler = { workspace = true }
+light-program-profiler = { workspace = true }
 light-heap = { workspace = true, optional = true }
 light-account-checks = { workspace= true }
 light-compressed-account = { workspace= true }

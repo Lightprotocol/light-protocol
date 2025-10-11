@@ -7,7 +7,7 @@ use light_ctoken_types::{
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
     state::CompressedMint,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
 use crate::mint_action::{

@@ -5,7 +5,7 @@ use light_ctoken_types::{
     instructions::extensions::compressible::CompressibleExtensionInstructionData,
     state::CompressionInfo, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::{clock::Clock, Sysvar};

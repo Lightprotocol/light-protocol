@@ -46,6 +46,9 @@ pub use selection::forester::*;
 pub mod sdk;
 use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseIndices;
 
+use constants::DEFAULT_WORK_V1;
+use light_compressible::config::CompressibleConfig;
+
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
     name: "light-registry",
@@ -59,9 +62,6 @@ declare_id!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
 
 #[program]
 pub mod light_registry {
-
-    use constants::DEFAULT_WORK_V1;
-    use light_compressible::config::CompressibleConfig;
 
     use super::*;
 

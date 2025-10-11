@@ -4,7 +4,7 @@ use light_ctoken_types::{
     instructions::mint_action::{ZCompressedMintInstructionData, ZCreateSplMintAction},
     CTokenError,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 
 use super::{
     create_mint_account, create_token_pool_account_manual, initialize_mint_account_for_action,

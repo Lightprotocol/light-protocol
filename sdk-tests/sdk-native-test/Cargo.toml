@@ -5,6 +5,7 @@ description = "Test program using generalized account compression"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
+publish = false
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -19,9 +20,9 @@ test-sbf = []
 default = []
 
 [dependencies]
-light-sdk = { workspace = true }
+light-sdk = { workspace = true, features = ["v2"] }
 light-sdk-types = { workspace = true }
-light-hasher = { workspace = true, features = ["solana"] }
+light-hasher = { workspace = true, features = ["solana", "poseidon"] }
 solana-program = { workspace = true }
 light-macros = { workspace = true, features = ["solana"] }
 borsh = { workspace = true }

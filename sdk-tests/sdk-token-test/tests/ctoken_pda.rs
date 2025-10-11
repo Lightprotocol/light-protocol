@@ -187,7 +187,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
         self_program: Some(ID),
         ..Default::default()
     };
-    packed_accounts.add_system_accounts_small(config).unwrap();
+    packed_accounts.add_system_accounts_v2(config).unwrap();
     rpc_result.pack_tree_infos(&mut packed_accounts);
 
     // Create PDA parameters

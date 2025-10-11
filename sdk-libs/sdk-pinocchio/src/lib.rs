@@ -6,7 +6,7 @@ pub mod instruction;
 
 pub use account::LightAccount;
 pub use borsh::{BorshDeserialize, BorshSerialize};
-pub use cpi::{CpiAccounts, CpiAccountsConfig, CpiInputs};
+pub use cpi::{v1::CpiAccounts, CpiAccountsConfig};
 pub use light_account_checks::discriminator::Discriminator as LightDiscriminator;
 pub use light_compressed_account::{
     self,

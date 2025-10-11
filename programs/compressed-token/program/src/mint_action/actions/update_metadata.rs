@@ -7,7 +7,7 @@ use light_ctoken_types::{
     },
     state::{CompressedMint, ExtensionStruct, TokenMetadata},
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use spl_pod::solana_msg::msg;
 
 use crate::mint_action::check_authority;

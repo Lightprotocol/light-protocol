@@ -3,7 +3,7 @@ use arrayvec::ArrayVec;
 use light_ctoken_types::{
     instructions::mint_action::ZCompressedMintInstructionData, COMPRESSED_MINT_SEED,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, instruction::Seed, pubkey::Pubkey};
 
 use crate::{

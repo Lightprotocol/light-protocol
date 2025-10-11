@@ -7,7 +7,7 @@ use light_ctoken_types::{
     state::CompressedMint,
 };
 use light_hasher::{sha256::Sha256BE, Hasher};
-use light_profiler::profile;
+use light_program_profiler::profile;
 use spl_pod::solana_msg::msg;
 
 use crate::{

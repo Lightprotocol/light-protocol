@@ -8,7 +8,7 @@ use light_ctoken_types::{
         UpdateMetadataFieldAction,
     },
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use solana_instruction::Instruction;
 use solana_msg::msg;
 use solana_pubkey::Pubkey;

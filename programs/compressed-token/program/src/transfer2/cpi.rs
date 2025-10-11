@@ -1,7 +1,7 @@
 use arrayvec::ArrayVec;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
 use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::program_error::ProgramError;
 
 use crate::shared::cpi_bytes_size::{

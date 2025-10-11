@@ -5,7 +5,7 @@ use light_ctoken_types::{
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
     CMINT_ADDRESS_TREE,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::U16;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;

@@ -2,7 +2,7 @@ use light_compressed_account::compressed_account::PackedMerkleContext;
 use light_ctoken_types::instructions::transfer2::{
     CompressedCpiContext, MultiInputTokenDataWithContext,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_sdk::{
     error::LightSdkError,
     instruction::{AccountMetasVec, PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
@@ -196,12 +196,11 @@ impl AccountMetasVec for DecompressFullAccounts {
     /// 2. compressed token program and ctoken cpi authority pda to pre accounts
     fn get_account_metas_vec(&self, accounts: &mut PackedAccounts) -> Result<(), LightSdkError> {
         if !accounts.system_accounts_set() {
-            let config = SystemAccountMetaConfig {
-                self_program: self.self_program,
-                cpi_context: self.cpi_context,
-                ..Default::default()
-            };
-            accounts.add_system_accounts_small(config)?;
+            let config = SystemAccountMetaConfig::new_with_cpi_context(
+                self.self_program.unwrap_or_default(),
+                self.cpi_context.unwrap_or_default(),
+            );
+            accounts.add_system_accounts_v2(config)?;
         }
         // Add both accounts in one operation for better performance
         accounts.pre_accounts.extend_from_slice(&[

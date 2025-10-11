@@ -1,7 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_hasher::{sha256::Sha256BE, Hasher};
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use solana_msg::msg;
 

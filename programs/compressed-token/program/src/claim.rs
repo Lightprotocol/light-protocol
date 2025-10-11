@@ -3,7 +3,7 @@ use anchor_lang::prelude::ProgramError;
 use light_account_checks::{AccountInfoTrait, AccountIterator};
 use light_compressible::{compression_info::ClaimAndUpdate, config::CompressibleConfig};
 use light_ctoken_types::state::{CToken, ZExtensionStructMut};
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
 use spl_pod::solana_msg::msg;

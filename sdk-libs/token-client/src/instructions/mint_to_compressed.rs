@@ -35,7 +35,8 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
     let compressed_mint_account = rpc
         .get_compressed_account(compressed_mint_address, None)
         .await?
-        .value;
+        .value
+        .unwrap();
 
     // Deserialize the compressed mint
     let compressed_mint: CompressedMint =

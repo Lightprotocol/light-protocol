@@ -9,7 +9,7 @@ use light_ctoken_types::{
     },
     CTokenError,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;

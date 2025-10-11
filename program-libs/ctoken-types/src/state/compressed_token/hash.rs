@@ -1,7 +1,7 @@
 use borsh::BorshSerialize;
 use light_compressed_account::hash_to_bn254_field_size_be;
 use light_hasher::{errors::HasherError, sha256::Sha256BE, Hasher, Poseidon};
-use light_profiler::profile;
+use light_program_profiler::profile;
 
 use super::TokenData;
 use crate::{state::compressed_token::CompressedTokenAccountState, NATIVE_MINT};

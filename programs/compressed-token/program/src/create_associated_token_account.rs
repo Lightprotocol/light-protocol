@@ -7,7 +7,7 @@ use light_ctoken_types::instructions::{
     create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
     extensions::compressible::CompressibleExtensionInstructionData,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, instruction::Seed, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 

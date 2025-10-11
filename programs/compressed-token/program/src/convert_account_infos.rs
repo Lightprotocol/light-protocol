@@ -1,5 +1,5 @@
 use anchor_lang::prelude::ProgramError;
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
 /// Convert Pinocchio AccountInfo to Solana AccountInfo with minimal safety overhead

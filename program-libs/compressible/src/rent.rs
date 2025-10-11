@@ -1,5 +1,5 @@
 use bytemuck::{Pod, Zeroable};
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopy, ZeroCopyMut};
 
 use crate::{error::CompressibleError, AnchorDeserialize, AnchorSerialize};

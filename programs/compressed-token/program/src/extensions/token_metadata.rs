@@ -4,7 +4,7 @@ use light_ctoken_types::{
     instructions::extensions::token_metadata::ZTokenMetadataInstructionData,
     state::ZTokenMetadataMut,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 
 #[inline(always)]
 #[profile]

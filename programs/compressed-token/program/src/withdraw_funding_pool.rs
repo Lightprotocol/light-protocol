@@ -1,6 +1,6 @@
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{AccountInfoTrait, AccountIterator};
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::{Seed, Signer},

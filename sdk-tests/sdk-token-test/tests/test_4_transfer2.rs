@@ -380,7 +380,7 @@ async fn test_four_transfer2_instruction(
         tree_info.cpi_context.unwrap(),
     );
     remaining_accounts
-        .add_system_accounts_small(config)
+        .add_system_accounts_v2(config)
         .unwrap();
     println!("next index {}", remaining_accounts.packed_pubkeys().len());
 

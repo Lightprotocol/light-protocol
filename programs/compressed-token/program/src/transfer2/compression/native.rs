@@ -12,7 +12,7 @@ use light_ctoken_types::{
     state::{CToken, ZCTokenMut, ZExtensionStructMut},
     CTokenError,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::sysvars::{clock::Clock, Sysvar};
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};

@@ -1,5 +1,5 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_sdk_types::CPI_AUTHORITY_PDA_SEED;
 use pinocchio::{
     account_info::AccountInfo,

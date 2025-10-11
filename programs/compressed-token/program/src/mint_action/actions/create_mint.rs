@@ -6,7 +6,7 @@ use light_compressed_account::{
 use light_ctoken_types::{
     instructions::mint_action::ZMintActionCompressedInstructionData, COMPRESSED_MINT_SEED,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use spl_pod::solana_msg::msg;
 
 /// Processes the create mint action by validating parameters and setting up the new address.

@@ -1,17 +1,20 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk::{
     account::LightAccount,
-    cpi::{CpiAccounts, CpiAccountsConfig, CpiInputs},
+    cpi::{
+        v1::CpiAccounts, v2::LightSystemProgramCpi, CpiAccountsConfig, InvokeLightSystemProgram,
+        LightCpiInstruction,
+    },
     error::LightSdkError,
     instruction::{PackedAddressTreeInfo, ValidityProof},
     light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array,
-    LightDiscriminator, LightHasher,
+    LightDiscriminator,
 };
 use solana_program::{account_info::AccountInfo, msg};
 
 use crate::ARRAY_LEN;
 
-/// TODO: write test program with A8JgviaEAByMVLBhcebpDQ7NMuZpqBTBigC1b83imEsd (inconvenient program id)
+/// TODO: write test program with A8JgviaEAByMVLBhcebpDQ7NMuZpqBTBigC1b83imEsd (inconvenient program id) use v2 instruction for this purpose
 /// CU usage:
 /// - sdk pre system program cpi 10,942 CU
 /// - total with V2 tree: 45,758 CU
@@ -46,7 +49,7 @@ pub fn create_pda<const BATCHED: bool>(
             &address_tree_pubkey,
             &crate::ID.to_bytes(),
         );
-        (address, address_seed)
+        (address, address_seed.into())
     } else {
         light_sdk::address::v1::derive_address(
             &[b"compressed", instruction_data.data.as_slice()],
@@ -54,7 +57,8 @@ pub fn create_pda<const BATCHED: bool>(
             &crate::ID,
         )
     };
-    let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
+    let new_address_params =
+        address_tree_info.into_new_address_params_assigned_packed(address_seed, Some(0));
     msg!("pre account");
     let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
         &crate::ID,
@@ -64,18 +68,16 @@ pub fn create_pda<const BATCHED: bool>(
 
     my_compressed_account.data = instruction_data.data;
 
-    let cpi_inputs = CpiInputs::new_with_address(
-        instruction_data.proof,
-        vec![my_compressed_account.to_account_info()?],
-        vec![new_address_params],
-    );
-    cpi_inputs.invoke_light_system_program(cpi_accounts)?;
+    LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, instruction_data.proof)
+        .mode_v1()
+        .with_light_account(my_compressed_account)?
+        .with_new_addresses(&[new_address_params])
+        .invoke(cpi_accounts)?;
     Ok(())
 }
 
-#[derive(Clone, Debug, LightHasher, LightDiscriminator, BorshDeserialize, BorshSerialize)]
+#[derive(Clone, Debug, LightDiscriminator, BorshDeserialize, BorshSerialize)]
 pub struct MyCompressedAccount {
-    #[hash]
     pub data: [u8; ARRAY_LEN],
 }
 

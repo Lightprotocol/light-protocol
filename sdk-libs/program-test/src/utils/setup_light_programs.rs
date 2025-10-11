@@ -1,9 +1,11 @@
 use light_client::rpc::RpcError;
 use light_compressed_account::constants::REGISTERED_PROGRAM_PDA;
+#[cfg(feature = "devenv")]
 use light_registry::account_compression_cpi::sdk::get_registered_program_pda;
 use litesvm::LiteSVM;
 use solana_compute_budget::compute_budget::ComputeBudget;
 use solana_pubkey::Pubkey;
+use solana_sdk::pubkey;
 
 use crate::{
     accounts::{
@@ -15,6 +17,11 @@ use crate::{
     },
     utils::find_light_bin::find_light_bin,
 };
+
+// Program IDs as Pubkeys
+const ACCOUNT_COMPRESSION_ID: Pubkey = pubkey!("compr6CUsB5m2jS4Y3831ztGSTnDpnKJTKS95d64XVq");
+const LIGHT_REGISTRY_ID: Pubkey = pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
+const LIGHT_COMPRESSED_TOKEN_ID: Pubkey = pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 /// Creates ProgramTestContext with light protocol and additional programs.
 ///
@@ -46,23 +53,23 @@ pub fn setup_light_programs(
         )))?;
     let path = format!("{}/light_registry.so", light_bin_path);
     program_test
-        .add_program_from_file(light_registry::ID, path.clone())
+        .add_program_from_file(LIGHT_REGISTRY_ID, path.clone())
         .inspect_err(|_| {
             println!("Program light_registry bin not found in {}", path);
         })?;
     let path = format!("{}/account_compression.so", light_bin_path);
     program_test
-        .add_program_from_file(account_compression::ID, path.clone())
+        .add_program_from_file(ACCOUNT_COMPRESSION_ID, path.clone())
         .inspect_err(|_| {
             println!("Program account_compression bin not found in {}", path);
         })?;
     let path = format!("{}/light_compressed_token.so", light_bin_path);
     program_test
-        .add_program_from_file(light_compressed_token::ID, path.clone())
+        .add_program_from_file(LIGHT_COMPRESSED_TOKEN_ID, path.clone())
         .inspect_err(|_| {
             println!("Program light_compressed_token bin not found in {}", path);
         })?;
-    let path = format!("{}/spl_noop.so", light_bin_path);
+    let path = format!("{}spl_noop.so", light_bin_path);
     program_test
         .add_program_from_file(NOOP_PROGRAM_ID, path.clone())
         .inspect_err(|_| {
@@ -71,10 +78,7 @@ pub fn setup_light_programs(
 
     let path = format!("{}/light_system_program_pinocchio.so", light_bin_path);
     program_test
-        .add_program_from_file(
-            light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID.into(),
-            path.clone(),
-        )
+        .add_program_from_file(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID, path.clone())
         .inspect_err(|_| {
             println!(
                 "Program light_system_program_pinocchio bin not found in {}",
@@ -92,11 +96,23 @@ pub fn setup_light_programs(
             RpcError::CustomError(format!("Setting registered program account failed {}", e))
         })?;
     let registered_program = registered_program_test_account_registry_program();
-    program_test
-        .set_account(
-            get_registered_program_pda(&light_registry::ID),
-            registered_program,
+
+    #[cfg(feature = "devenv")]
+    let registry_pda = get_registered_program_pda(&LIGHT_REGISTRY_ID);
+
+    #[cfg(not(feature = "devenv"))]
+    let registry_pda = {
+        // Compute the PDA manually in non-devenv mode
+        // This is the registered program PDA for light_registry
+        Pubkey::find_program_address(
+            &[b"registered_program", LIGHT_REGISTRY_ID.as_ref()],
+            &ACCOUNT_COMPRESSION_ID,
         )
+        .0
+    };
+
+    program_test
+        .set_account(registry_pda, registered_program)
         .map_err(|e| {
             RpcError::CustomError(format!("Setting registered program account failed {}", e))
         })?;

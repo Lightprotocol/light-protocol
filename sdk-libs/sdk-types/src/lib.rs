@@ -1,9 +1,7 @@
 pub mod address;
 pub mod constants;
 pub mod cpi_accounts;
-#[cfg(feature = "v2")]
-pub mod cpi_accounts_small;
-pub mod cpi_context_write;
+
 pub mod error;
 pub mod instruction;
 
@@ -13,12 +11,6 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 pub use constants::*;
-pub use cpi_accounts::*;
-#[cfg(feature = "v2")]
-pub use cpi_accounts_small::{
-    CompressionCpiAccountIndexSmall, CpiAccountsSmall, PROGRAM_ACCOUNTS_LEN,
-    SMALL_SYSTEM_ACCOUNTS_LEN,
-};
 
 /// Configuration struct containing program ID, CPI signer, and bump for Light Protocol
 #[derive(Debug, Clone, Copy, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]

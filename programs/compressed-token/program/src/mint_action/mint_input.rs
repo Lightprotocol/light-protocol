@@ -5,7 +5,7 @@ use light_ctoken_types::{
     instructions::mint_action::ZMintActionCompressedInstructionData, state::CompressedMint,
 };
 use light_hasher::{sha256::Sha256BE, Hasher};
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_sdk::instruction::PackedMerkleContext;
 
 use crate::constants::COMPRESSED_MINT_DISCRIMINATOR;

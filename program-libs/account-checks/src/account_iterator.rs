@@ -135,6 +135,15 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
 
     #[inline(always)]
     #[track_caller]
+    pub fn next_signer_non_mut(&mut self, account_name: &str) -> Result<&'info T, AccountError> {
+        let account_info = self.next_signer(account_name)?;
+        check_non_mut(account_info)
+            .inspect_err(|e| self.print_on_error(e, account_name, Location::caller()))?;
+        Ok(account_info)
+    }
+
+    #[inline(always)]
+    #[track_caller]
     pub fn next_non_mut(&mut self, account_name: &str) -> Result<&'info T, AccountError> {
         let account_info = self.next_account(account_name)?;
         check_non_mut(account_info)

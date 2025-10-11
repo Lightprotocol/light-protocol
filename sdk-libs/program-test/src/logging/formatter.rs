@@ -16,7 +16,7 @@ use super::{
 /// Row for account table display
 #[derive(Tabled)]
 struct AccountRow {
-    #[tabled(rename = "Access")]
+    #[tabled(rename = "#")]
     symbol: String,
     #[tabled(rename = "Account")]
     pubkey: String,
@@ -295,14 +295,13 @@ impl TransactionFormatter {
     ) -> fmt::Result {
         writeln!(
             output,
-            "{}│{} {}Transaction: {}{} | Slot: {} | Status: {} {}{}",
+            "{}│{} {}Transaction: {}{} | Slot: {} | Status: {}{}",
             self.colors.gray,
             self.colors.reset,
             self.colors.bold,
             self.colors.cyan,
             log.signature,
             log.slot,
-            log.status.symbol(),
             self.status_color(&log.status),
             log.status.text(),
         )?;
@@ -469,7 +468,7 @@ impl TransactionFormatter {
             // Create a table for better account formatting
             let mut account_rows: Vec<AccountRow> = Vec::new();
 
-            for account in instruction.accounts.iter() {
+            for (idx, account) in instruction.accounts.iter().enumerate() {
                 let access = if account.is_signer && account.is_writable {
                     AccountAccess::SignerWritable
                 } else if account.is_signer {
@@ -482,7 +481,7 @@ impl TransactionFormatter {
 
                 let account_name = self.get_account_name(&account.pubkey);
                 account_rows.push(AccountRow {
-                    symbol: access.symbol().to_string(),
+                    symbol: access.symbol(idx + 1),
                     pubkey: account.pubkey.to_string(),
                     access: access.text().to_string(),
                     name: account_name,
@@ -709,6 +708,30 @@ impl TransactionFormatter {
                                 self.colors.reset
                             )?;
                         }
+                        // Display leaf index after queue_pubkey
+                        if let Some(leaf_idx) = acc_data.leaf_index {
+                            writeln!(
+                                output,
+                                "{}      {}leaf_index: {}{}{}",
+                                indent,
+                                self.colors.gray,
+                                self.colors.cyan,
+                                leaf_idx,
+                                self.colors.reset
+                            )?;
+                        }
+                        // Display root index after leaf index
+                        if let Some(root_idx) = acc_data.root_index {
+                            writeln!(
+                                output,
+                                "{}      {}root_index: {}{}{}",
+                                indent,
+                                self.colors.gray,
+                                self.colors.cyan,
+                                root_idx,
+                                self.colors.reset
+                            )?;
+                        }
                     }
                 }
 
@@ -855,39 +878,41 @@ impl TransactionFormatter {
                             addr_param.seed,
                             self.colors.reset
                         )?;
-                        if let Some(queue_idx) = addr_param.address_queue_index {
+
+                        // Check if v2 by comparing tree and queue pubkeys
+                        let is_v2 = addr_param.address_merkle_tree_pubkey
+                            == addr_param.address_queue_pubkey;
+
+                        // Display address tree
+                        if let Some(tree_pubkey) = addr_param.address_merkle_tree_pubkey {
                             writeln!(
                                 output,
-                                "{}      {}queue_idx: {}{}{}",
+                                "{}      {}tree[{}]: {}{}{}",
                                 indent,
                                 self.colors.gray,
-                                self.colors.cyan,
-                                queue_idx,
+                                addr_param.merkle_tree_index.unwrap_or(0),
+                                self.colors.yellow,
+                                tree_pubkey,
                                 self.colors.reset
                             )?;
                         }
-                        if let Some(tree_idx) = addr_param.merkle_tree_index {
-                            writeln!(
-                                output,
-                                "{}      {}tree_idx: {}{}{}",
-                                indent,
-                                self.colors.gray,
-                                self.colors.cyan,
-                                tree_idx,
-                                self.colors.reset
-                            )?;
+
+                        // Only display queue for v1 trees (when different from tree)
+                        if !is_v2 {
+                            if let Some(queue_pubkey) = addr_param.address_queue_pubkey {
+                                writeln!(
+                                    output,
+                                    "{}      {}queue[{}]: {}{}{}",
+                                    indent,
+                                    self.colors.gray,
+                                    addr_param.address_queue_index.unwrap_or(0),
+                                    self.colors.yellow,
+                                    queue_pubkey,
+                                    self.colors.reset
+                                )?;
+                            }
                         }
-                        if let Some(root_idx) = addr_param.root_index {
-                            writeln!(
-                                output,
-                                "{}      {}root_idx: {}{}{}",
-                                indent,
-                                self.colors.gray,
-                                self.colors.cyan,
-                                root_idx,
-                                self.colors.reset
-                            )?;
-                        }
+
                         if let Some(ref derived_addr) = addr_param.derived_address {
                             writeln!(
                                 output,
@@ -899,6 +924,22 @@ impl TransactionFormatter {
                                 self.colors.reset
                             )?;
                         }
+                        let assignment_str = match addr_param.assigned_account_index {
+                            super::types::AddressAssignment::AssignedIndex(idx) => {
+                                format!("{}", idx)
+                            }
+                            super::types::AddressAssignment::None => "none".to_string(),
+                            super::types::AddressAssignment::V1 => "n/a (v1)".to_string(),
+                        };
+                        writeln!(
+                            output,
+                            "{}      {}assigned: {}{}{}",
+                            indent,
+                            self.colors.gray,
+                            self.colors.yellow,
+                            assignment_str,
+                            self.colors.reset
+                        )?;
                     }
                 }
 
@@ -1046,7 +1087,7 @@ impl TransactionFormatter {
         writeln!(
             output,
             "│ {}{} {} ({}) - {}{}{}",
-            change.access.symbol(),
+            change.access.symbol(change.account_index),
             self.colors.cyan,
             change.pubkey,
             change.access.text(),
@@ -1203,13 +1244,25 @@ impl TransactionFormatter {
             "amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2" => "v1 address merkle tree".to_string(),
             "aq1S9z4reTSQAdgWHGD2zDaS39sjGrAxbR31vxJ2F4F" => "v1 address queue".to_string(),
 
-            // V2 State Trees and Queues (test accounts)
-            "6L7SzhYB3anwEQ9cphpJ1U7Scwj57bx2xueReg7R9cKU" => "v2 state output queue".to_string(),
-            "HLKs5NJ8FXkJg8BrzJt56adFYYuwg5etzDtBbQYTsixu" => "v2 state merkle tree".to_string(),
-            "7Hp52chxaew8bW1ApR4fck2bh6Y8qA1pu3qwH6N9zaLj" => "v2 cpi context".to_string(),
+            // V2 State Trees and Queues (5 tree triples)
+            "bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU" => "v2 state merkle tree 1".to_string(),
+            "oq1na8gojfdUhsfCpyjNt6h4JaDWtHf1yQj4koBWfto" => "v2 state output queue 1".to_string(),
+            "cpi15BoVPKgEPw5o8wc2T816GE7b378nMXnhH3Xbq4y" => "v2 cpi context 1".to_string(),
+            "bmt2UxoBxB9xWev4BkLvkGdapsz6sZGkzViPNph7VFi" => "v2 state merkle tree 2".to_string(),
+            "oq2UkeMsJLfXt2QHzim242SUi3nvjJs8Pn7Eac9H9vg" => "v2 state output queue 2".to_string(),
+            "cpi2yGapXUR3As5SjnHBAVvmApNiLsbeZpF3euWnW6B" => "v2 cpi context 2".to_string(),
+            "bmt3ccLd4bqSVZVeCJnH1F6C8jNygAhaDfxDwePyyGb" => "v2 state merkle tree 3".to_string(),
+            "oq3AxjekBWgo64gpauB6QtuZNesuv19xrhaC1ZM1THQ" => "v2 state output queue 3".to_string(),
+            "cpi3mbwMpSX8FAGMZVP85AwxqCaQMfEk9Em1v8QK9Rf" => "v2 cpi context 3".to_string(),
+            "bmt4d3p1a4YQgk9PeZv5s4DBUmbF5NxqYpk9HGjQsd8" => "v2 state merkle tree 4".to_string(),
+            "oq4ypwvVGzCUMoiKKHWh4S1SgZJ9vCvKpcz6RT6A8dq" => "v2 state output queue 4".to_string(),
+            "cpi4yyPDc4bCgHAnsenunGA8Y77j3XEDyjgfyCKgcoc" => "v2 cpi context 4".to_string(),
+            "bmt5yU97jC88YXTuSukYHa8Z5Bi2ZDUtmzfkDTA2mG2" => "v2 state merkle tree 5".to_string(),
+            "oq5oh5ZR3yGomuQgFduNDzjtGvVWfDRGLuDVjv9a96P" => "v2 state output queue 5".to_string(),
+            "cpi5ZTjdgYpZ1Xr7B1cMLLUE81oTtJbNNAyKary2nV6" => "v2 cpi context 5".to_string(),
 
             // V2 Address Trees (test accounts)
-            "EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK" => "v2 address merkle tree".to_string(),
+            "amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx" => "v2 address merkle tree".to_string(),
 
             // CPI Authority (commonly used in tests)
             "HZH7qSLcpAeDqCopVU4e5XkhT9j3JFsQiq8CmruY3aru" => "cpi authority pda".to_string(),

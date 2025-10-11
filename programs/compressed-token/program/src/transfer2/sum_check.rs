@@ -3,7 +3,7 @@ use arrayvec::ArrayVec;
 use light_ctoken_types::instructions::transfer2::{
     ZCompression, ZCompressionMode, ZMultiInputTokenDataWithContext, ZMultiTokenTransferOutputData,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use spl_pod::solana_msg::msg;
 
 /// Process inputs and add amounts to mint sums with order validation

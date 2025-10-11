@@ -2,7 +2,7 @@ use anchor_compressed_token::check_spl_token_pool_derivation_with_index;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_ctoken_types::instructions::transfer2::{ZCompression, ZCompressionMode};
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_sdk_types::CPI_AUTHORITY_PDA_SEED;
 use pinocchio::{
     account_info::AccountInfo,

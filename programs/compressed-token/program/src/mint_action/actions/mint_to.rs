@@ -5,7 +5,7 @@ use light_ctoken_types::{
     hash_cache::HashCache, instructions::mint_action::ZMintToCompressedAction,
     state::CompressedMint,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_sdk_pinocchio::ZOutputCompressedAccountWithPackedContextMut;
 
 use crate::{

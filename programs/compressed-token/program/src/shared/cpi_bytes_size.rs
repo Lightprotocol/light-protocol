@@ -11,7 +11,7 @@ use light_compressed_account::{
     },
 };
 use light_ctoken_types::state::CompressedMint;
-use light_profiler::profile;
+use light_program_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
 use pinocchio::program_error::ProgramError;
 

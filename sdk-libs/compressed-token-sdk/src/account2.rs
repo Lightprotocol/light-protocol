@@ -4,7 +4,7 @@ use light_compressed_token_types::ValidityProof;
 use light_ctoken_types::instructions::transfer2::{
     Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use solana_account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;

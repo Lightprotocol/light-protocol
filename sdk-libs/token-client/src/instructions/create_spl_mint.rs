@@ -43,7 +43,8 @@ pub async fn create_spl_mint_instruction<R: Rpc + Indexer>(
     let compressed_mint_account = rpc
         .get_compressed_account(compressed_mint_address, None)
         .await?
-        .value;
+        .value
+        .unwrap();
 
     // Deserialize the compressed mint data
     let compressed_mint: CompressedMint = BorshDeserialize::deserialize(

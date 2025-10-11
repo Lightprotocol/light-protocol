@@ -5,7 +5,7 @@ use light_ctoken_types::{
     instructions::transfer2::{ZCompression, ZCompressionMode, ZMultiTokenTransferOutputData},
     state::{ZCompressedTokenMut, ZExtensionStructMut},
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 use spl_pod::solana_msg::msg;
 

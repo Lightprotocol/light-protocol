@@ -1,4 +1,4 @@
-use light_profiler::profile;
+use light_program_profiler::profile;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 use spl_token_2022;

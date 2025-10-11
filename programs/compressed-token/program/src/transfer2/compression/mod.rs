@@ -6,7 +6,7 @@ use light_compressed_account::pubkey::AsPubkey;
 use light_ctoken_types::instructions::transfer2::{
     ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 

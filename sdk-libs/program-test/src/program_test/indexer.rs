@@ -3,8 +3,8 @@ use light_client::indexer::{
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount,
     CompressedTokenAccount, GetCompressedAccountsByOwnerConfig,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
-    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, MerkleProofWithContext,
-    NewAddressProofWithContext, OwnerBalance, PaginatedOptions, Response, RetryConfig,
+    IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
+    OwnerBalance, PaginatedOptions, QueueElementsResult, Response, RetryConfig,
     SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
 };
 use light_compressed_account::QueueType;
@@ -68,7 +68,7 @@ impl Indexer for LightProgramTest {
         &self,
         address: Address,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<CompressedAccount>, IndexerError> {
+    ) -> Result<Response<Option<CompressedAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -81,7 +81,7 @@ impl Indexer for LightProgramTest {
         &self,
         hash: Hash,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<CompressedAccount>, IndexerError> {
+    ) -> Result<Response<Option<CompressedAccount>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -133,7 +133,7 @@ impl Indexer for LightProgramTest {
         addresses: Option<Vec<Address>>,
         hashes: Option<Vec<Hash>>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<CompressedAccount>>, IndexerError> {
+    ) -> Result<Response<Items<Option<CompressedAccount>>>, IndexerError> {
         Ok(self
             .indexer
             .as_ref()
@@ -203,9 +203,9 @@ impl Indexer for LightProgramTest {
         merkle_tree_pubkey: [u8; 32],
         queue_type: QueueType,
         num_elements: u16,
-        start_offset: Option<u64>,
+        start_queue_index: Option<u64>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<Items<MerkleProofWithContext>>, IndexerError> {
+    ) -> Result<Response<QueueElementsResult>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()
@@ -214,7 +214,7 @@ impl Indexer for LightProgramTest {
                 merkle_tree_pubkey,
                 queue_type,
                 num_elements,
-                start_offset,
+                start_queue_index,
                 config,
             )
             .await?)

@@ -11,7 +11,7 @@ use light_ctoken_types::{
     instructions::create_ctoken_account::CreateTokenAccountInstructionData,
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
     instruction::Seed,

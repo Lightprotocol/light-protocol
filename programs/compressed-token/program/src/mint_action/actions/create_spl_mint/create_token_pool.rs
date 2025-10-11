@@ -1,6 +1,6 @@
 use anchor_lang::solana_program::program_error::ProgramError;
 use arrayvec::ArrayVec;
-use light_profiler::profile;
+use light_program_profiler::profile;
 use pinocchio::{
     instruction::{AccountMeta, Seed},
     pubkey::Pubkey,

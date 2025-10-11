@@ -1,4 +1,5 @@
 use light_account_checks::error::AccountError;
+use light_compressed_account::CompressedAccountError;
 use light_hasher::HasherError;
 use light_sdk_types::error::LightSdkTypesError;
 use light_zero_copy::errors::ZeroCopyError;
@@ -12,8 +13,6 @@ pub type Result<T> = std::result::Result<T, LightSdkError>;
 pub enum LightSdkError {
     #[error("Constraint violation")]
     ConstraintViolation,
-    #[error("System accounts already set")]
-    SystemAccountsAlreadySet,
     #[error("Invalid light-system-program ID")]
     InvalidLightSystemProgram,
     #[error("Expected accounts in the instruction")]
@@ -78,8 +77,20 @@ pub enum LightSdkError {
     InvalidSolPoolPdaAccount,
     #[error("CpigAccounts accounts slice starts with an invalid account. It should start with LightSystemProgram SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7.")]
     InvalidCpiAccountsOffset,
+    #[error("Expected LightAccount to have no data for closure.")]
+    ExpectedNoData,
     #[error("CPI context must be added before any other accounts (next_index must be 0)")]
     CpiContextOrderingViolation,
+    #[error("Invalid merkle tree index in CPI accounts")]
+    InvalidMerkleTreeIndex,
+    #[error(
+        "Read-only account cannot use to_account_info(), use to_packed_read_only_account() instead"
+    )]
+    ReadOnlyAccountCannotUseToAccountInfo,
+    #[error("Account is not read-only, cannot use to_packed_read_only_account()")]
+    NotReadOnlyAccount,
+    #[error("Read-only accounts are not supported in write_to_cpi_context operations")]
+    ReadOnlyAccountsNotSupportedInCpiContext,
     #[error(transparent)]
     AccountError(#[from] AccountError),
     #[error(transparent)]
@@ -88,6 +99,12 @@ pub enum LightSdkError {
     ZeroCopy(#[from] ZeroCopyError),
     #[error("Program error: {0}")]
     ProgramError(#[from] ProgramError),
+    #[error("Compressed account error: {0}")]
+    CompressedAccountError(#[from] CompressedAccountError),
+    #[error("Expected tree info to be provided for init_if_needed")]
+    ExpectedTreeInfo,
+    #[error("System accounts already set")]
+    SystemAccountsAlreadySet,
 }
 
 impl From<LightSdkError> for ProgramError {
@@ -163,12 +180,19 @@ impl From<LightSdkError> for u32 {
             LightSdkError::InvalidCpiContextAccount => 16032,
             LightSdkError::InvalidSolPoolPdaAccount => 16033,
             LightSdkError::InvalidCpiAccountsOffset => 16034,
-            LightSdkError::CpiContextOrderingViolation => 16035,
-            LightSdkError::SystemAccountsAlreadySet => 16036,
+            LightSdkError::ExpectedNoData => 16035,
+            LightSdkError::CpiContextOrderingViolation => 16036,
+            LightSdkError::InvalidMerkleTreeIndex => 16037,
+            LightSdkError::ReadOnlyAccountCannotUseToAccountInfo => 16038,
+            LightSdkError::NotReadOnlyAccount => 16039,
+            LightSdkError::ReadOnlyAccountsNotSupportedInCpiContext => 16040,
             LightSdkError::AccountError(e) => e.into(),
             LightSdkError::Hasher(e) => e.into(),
             LightSdkError::ZeroCopy(e) => e.into(),
             LightSdkError::ProgramError(e) => u64::from(e) as u32,
+            LightSdkError::CompressedAccountError(e) => e.into(),
+            LightSdkError::ExpectedTreeInfo => 16041,
+            LightSdkError::SystemAccountsAlreadySet => 16042,
         }
     }
 }

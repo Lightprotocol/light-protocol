@@ -1,49 +1,10 @@
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 use light_account_checks::AccountInfoTrait;
 
 use crate::{
+    cpi_accounts::{CpiAccountsConfig, TreeAccounts},
     error::{LightSdkTypesError, Result},
-    CpiSigner, CPI_CONTEXT_ACCOUNT_DISCRIMINATOR, LIGHT_SYSTEM_PROGRAM_ID, SOL_POOL_PDA,
+    CpiSigner, CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR, LIGHT_SYSTEM_PROGRAM_ID, SOL_POOL_PDA,
 };
-
-#[derive(Debug, Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize)]
-pub struct CpiAccountsConfig {
-    pub cpi_context: bool,
-    pub sol_compression_recipient: bool,
-    pub sol_pool_pda: bool,
-    pub cpi_signer: CpiSigner,
-}
-
-impl CpiAccountsConfig {
-    pub const fn new(cpi_signer: CpiSigner) -> Self {
-        Self {
-            cpi_context: false,
-            sol_compression_recipient: false,
-            sol_pool_pda: false,
-            cpi_signer,
-        }
-    }
-
-    pub const fn new_with_cpi_context(cpi_signer: CpiSigner) -> Self {
-        Self {
-            cpi_context: true,
-            sol_compression_recipient: false,
-            sol_pool_pda: false,
-            cpi_signer,
-        }
-    }
-
-    pub fn cpi_signer(&self) -> [u8; 32] {
-        self.cpi_signer.cpi_signer
-    }
-
-    pub fn bump(&self) -> u8 {
-        self.cpi_signer.bump
-    }
-}
 
 #[repr(usize)]
 pub enum CompressionCpiAccountIndex {
@@ -69,6 +30,20 @@ pub struct CpiAccounts<'a, T: AccountInfoTrait + Clone> {
 }
 
 impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
+    /// Creates a new CpiAccounts instance.
+    ///
+    /// The `accounts` slice must start at the system accounts (Light system program and related accounts).
+    ///
+    /// When using `PackedAccounts`, obtain the `system_accounts_offset`
+    /// from `to_account_metas()` and slice from that offset:
+    /// ```ignore
+    /// // In client
+    /// let (remaining_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();
+    ///
+    /// // In program
+    /// let accounts_for_cpi = &ctx.remaining_accounts[system_accounts_offset..];
+    /// let cpi_accounts = CpiAccounts::new(fee_payer, accounts_for_cpi, cpi_signer);
+    /// ```
     pub fn new(fee_payer: &'a T, accounts: &'a [T], cpi_signer: CpiSigner) -> Self {
         Self {
             fee_payer,
@@ -112,7 +87,7 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
         if res.config().cpi_context {
             let cpi_context = res.cpi_context()?;
             let discriminator_bytes = &cpi_context.try_borrow_data()?[..8];
-            if discriminator_bytes != CPI_CONTEXT_ACCOUNT_DISCRIMINATOR.as_slice() {
+            if discriminator_bytes != CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR.as_slice() {
                 solana_msg::msg!("Invalid CPI context account: {:?}", cpi_context.pubkey());
                 return Err(LightSdkTypesError::InvalidCpiContextAccount);
             }
@@ -280,5 +255,11 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
         account_infos.push(self.fee_payer().clone());
         account_infos.extend_from_slice(refs);
         account_infos
+    }
+}
+
+impl<'a, T: AccountInfoTrait + Clone> TreeAccounts<T> for CpiAccounts<'a, T> {
+    fn get_tree_account_info(&self, tree_index: usize) -> Result<&T> {
+        self.get_tree_account_info(tree_index)
     }
 }

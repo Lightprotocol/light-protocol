@@ -7,12 +7,12 @@ edition = { workspace = true }
 
 anchor = ["anchor-lang", "light-compressed-token-types/anchor",  "light-ctoken-types/anchor"]
 profile-program = [
-    "light-profiler/profile-program",
+    "light-program-profiler/profile-program",
     "light-compressed-account/profile-program",
     "light-ctoken-types/profile-program",
 ]
 profile-heap = [
-    "light-profiler/profile-heap",
+    "light-program-profiler/profile-heap",
     "light-compressed-account/profile-heap",
     "light-ctoken-types/profile-heap",
 ]
@@ -40,7 +40,7 @@ spl-pod = { workspace = true }
 light-account-checks = { workspace = true, features = ["solana"] }
 light-sdk-types = { workspace = true }
 light-zero-copy = { workspace = true }
-light-profiler = { workspace = true }
+light-program-profiler = { workspace = true }
 
 # Optional Anchor dependency
 anchor-lang = { workspace = true, optional = true }
