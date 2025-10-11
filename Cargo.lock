@@ -4100,6 +4100,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-token-client"
+version = "0.1.0"
+dependencies = [
+ "borsh 0.10.4",
+ "light-client",
+ "light-compressed-account",
+ "light-compressed-token-sdk",
+ "light-compressed-token-types",
+ "light-ctoken-types",
+ "light-sdk",
+ "light-zero-copy",
+ "solana-instruction",
+ "solana-keypair",
+ "solana-msg 2.2.1",
+ "solana-pubkey 2.4.0",
+ "solana-signature",
+ "solana-signer",
+ "spl-pod",
+ "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
 name = "light-verifier"
 version = "4.0.0"
 dependencies = [
