@@ -315,6 +315,7 @@ check_pda_seeds(seeds, program_id, account)?;
 | `check_data_is_zeroed` | 12019 | AccountNotZeroed | Has data |
 | `check_account_balance_*` | 12010 | InvalidAccountSize | Size mismatch |
 | `check_account_balance_*` | 12013 | InvalidAccountBalance | Low balance |
+| `check_account_balance_*` | 12014 | FailedBorrowRentSysvar | Can't get rent |
 | `account_info_init` | 12009 | BorrowAccountDataFailed | Can't borrow |
 
 ## See Also

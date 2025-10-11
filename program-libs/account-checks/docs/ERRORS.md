@@ -117,20 +117,20 @@ check_pda_seeds(seeds, program_id, account)?;
 
 Errors appear in transaction logs with their numeric codes:
 
-```
+```text
 Program log: ERROR: Invalid Discriminator.
-Program log: Custom program error: 0x2ef6  // 12006 in hex
+Program log: Custom program error: 0x2ee6  // 12006 in hex
 
 Program log: ERROR: Not enough accounts. Requested 'mint' at index 3 but only 2 accounts available.
-Program log: Custom program error: 0x2f04  // 12020 in hex
+Program log: Custom program error: 0x2ef4  // 12020 in hex
 ```
 
 ## Debugging Tips
 
 1. **Check error codes in hex**: Solana logs show custom errors in hexadecimal
-   - 12006 = 0x2EF6
-   - 12020 = 0x2F04
-   - 12021 = 0x2F05
+   - 12006 = 0x2EE6
+   - 12020 = 0x2EF4
+   - 12021 = 0x2EF5
 
 2. **Use AccountIterator for detailed errors**: Provides file:line:column for debugging
 
