@@ -122,6 +122,7 @@
 use std::collections::HashMap;
 
 use crate::{
+    error::LightSdkError,
     instruction::system_accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
     AccountMeta, Pubkey,
 };
@@ -173,6 +174,8 @@ pub struct PackedAccounts {
     next_index: u8,
     /// Map of pubkey to (index, AccountMeta) for deduplication and index tracking.
     map: HashMap<Pubkey, (u8, AccountMeta)>,
+    /// Field to sanity check
+    system_accounts_set: bool,
 }
 
 impl PackedAccounts {
@@ -180,6 +183,10 @@ impl PackedAccounts {
         let mut remaining_accounts = PackedAccounts::default();
         remaining_accounts.add_system_accounts(config)?;
         Ok(remaining_accounts)
+    }
+
+    pub fn system_accounts_set(&self) -> bool {
+        self.system_accounts_set
     }
 
     pub fn add_pre_accounts_signer(&mut self, pubkey: Pubkey) {
@@ -392,6 +399,17 @@ impl PackedAccounts {
             .map(|meta| meta.pubkey)
             .collect()
     }
+
+    pub fn add_custom_system_accounts<T: AccountMetasVec>(
+        &mut self,
+        accounts: T,
+    ) -> crate::error::Result<()> {
+        accounts.get_account_metas_vec(self)
+    }
+}
+
+pub trait AccountMetasVec {
+    fn get_account_metas_vec(&self, accounts: &mut PackedAccounts) -> Result<(), LightSdkError>;
 }
 
 #[cfg(test)]

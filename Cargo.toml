@@ -23,6 +23,7 @@ members = [
     "programs/registry",
     "anchor-programs/system",
     "sdk-libs/client",
+    "sdk-libs/compressed-token-sdk",
     "sdk-libs/macros",
     "sdk-libs/sdk",
     "sdk-libs/sdk-pinocchio",
