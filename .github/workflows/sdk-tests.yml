@@ -1,0 +1,92 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "program-libs/**"
+      - "programs/**"
+      - "sdk-tests/**"
+      - "sdk-libs/**"
+  pull_request:
+    branches:
+      - "*"
+    paths:
+      - "programs/**"
+      - "program-libs/**"
+      - "sdk-tests/**"
+      - "sdk-libs/**"
+    types: [opened, synchronize, reopened, ready_for_review]
+
+name: examples-tests
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  system-programs:
+    name: system-programs
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    services:
+      redis:
+        image: redis:8.0.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      REDIS_URL: redis://localhost:6379
+
+    strategy:
+      matrix:
+        include:
+          - program: sdk-test-program
+            sub-tests: '["cargo-test-sbf -p sdk-native-test", "cargo-test-sbf -p sdk-v1-native-test", "cargo test-sbf -p client-test"]'
+          - program: sdk-anchor-test-program
+            sub-tests: '["cargo-test-sbf -p sdk-anchor-test", "cargo-test-sbf -p sdk-pinocchio-v1-test", "cargo-test-sbf -p sdk-pinocchio-v2-test"]'
+          - program: sdk-libs
+            packages: light-sdk-macros light-sdk light-program-test light-client
+            test_cmd: |
+              cargo test -p light-sdk-macros
+              cargo test -p light-sdk-macros --all-features
+              cargo test -p light-sdk
+              cargo test -p light-sdk --all-features
+              cargo test -p light-program-test
+              cargo test -p light-client
+              cargo test -p light-sparse-merkle-tree
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+        with:
+          skip-components: "redis,disk-cleanup"
+          cache-suffix: "sdk-tests"
+
+      - name: Build CLI
+        run: |
+          npx nx build @lightprotocol/zk-compression-cli
+
+      - name: Run sub-tests for ${{ matrix.program }}
+        if: matrix.sub-tests != null
+        run: |
+
+          IFS=',' read -r -a sub_tests <<< "${{ join(fromJSON(matrix.sub-tests), ', ') }}"
+          for subtest in "${sub_tests[@]}"
+          do
+            echo "$subtest"
+            eval "RUSTFLAGS=\"-D warnings\" $subtest"
+          done
+
+      - name: Run tests for ${{ matrix.program }}
+        if: matrix.test_cmd != null
+        run: |
+          ${{ matrix.test_cmd }}

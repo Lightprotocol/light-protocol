@@ -43,7 +43,7 @@ jobs:
   test:
     name: Forester e2e test
     runs-on: warp-ubuntu-latest-x64-4x
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     services:
       redis:
@@ -66,12 +66,7 @@ jobs:
         uses: ./.github/actions/setup-and-build
         with:
           skip-components: "redis"
-
-      - name: Clean build artifacts before tests
-        shell: bash
-        run: |
-          cargo clean
-          rm -rf target/debug/deps/*
+          cache-suffix: "rust"
 
       - name: Check available disk space
         shell: bash
@@ -80,16 +75,7 @@ jobs:
           du -sh /home/runner/work/* | sort -hr | head -n 10
 
       - name: Build CLI
-        run: |
-          source ./scripts/devenv.sh
-          npx nx build @lightprotocol/zk-compression-cli
-
-      - name: Build test program
-        run: |
-          source ./scripts/devenv.sh
-          cargo test-sbf -p create-address-test-program
+        run: npx nx build @lightprotocol/zk-compression-cli
 
       - name: Test
-        run: |
-          source ./scripts/devenv.sh
-          cargo test --package forester e2e_test -- --nocapture
+        run: cargo test --package forester e2e_test -- --nocapture

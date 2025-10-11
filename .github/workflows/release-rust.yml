@@ -1,0 +1,91 @@
+name: Publish Rust Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+jobs:
+  publish-release:
+    # Only run on merged release PRs
+    if: github.event.pull_request.merged == true && contains(github.event.pull_request.labels.*.name, 'release')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Fetch PR commits
+        run: |
+          git fetch origin ${{ github.event.pull_request.base.sha }}
+          git fetch origin ${{ github.event.pull_request.head.sha }}
+
+      - name: Set up Rust
+        uses: actions-rust-lang/setup-rust-toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Configure git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Validate packages before publishing
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo "========================================="
+          echo "Phase 1: Validation (dry-run)"
+          echo "========================================="
+          ./scripts/release/validate-packages.sh "$BASE_SHA" "$HEAD_SHA"
+
+      - name: Publish packages to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo ""
+          echo "========================================="
+          echo "Phase 2: Publishing (atomic)"
+          echo "========================================="
+          ./scripts/release/validate-packages.sh --execute "$BASE_SHA" "$HEAD_SHA"
+
+      - name: Create GitHub releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          echo ""
+          echo "========================================="
+          echo "Phase 3: Creating GitHub releases"
+          echo "========================================="
+
+          # Detect packages that were published
+          PACKAGES_STRING=$(./scripts/release/detect-version-changes.sh "$BASE_SHA" "$HEAD_SHA")
+          read -ra PACKAGES <<< "$PACKAGES_STRING"
+
+          for pkg in "${PACKAGES[@]}"; do
+            echo "----------------------------------------"
+            # Get the version from Cargo.toml
+            VERSION=$(cargo metadata --format-version 1 --no-deps | jq -r ".packages[] | select(.name == \"$pkg\") | .version")
+            TAG="${pkg}-v${VERSION}"
+
+            echo "Creating GitHub release for $TAG.."
+            if gh release create "$TAG" --generate-notes --title "$TAG"; then
+              echo "✓ Created release for $TAG"
+            else
+              echo "Warning: Failed to create release for $TAG"
+            fi
+          done
+
+          echo ""
+          echo "✓ GitHub releases created"
