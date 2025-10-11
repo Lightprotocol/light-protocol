@@ -1,4 +1,5 @@
-import { expect, test } from "@oclif/test";
+import { runCommand } from "@oclif/test";
+import { expect } from "chai";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { defaultSolanaWalletKeypair } from "../../../src";
 import { Keypair } from "@solana/web3.js";
@@ -33,26 +34,25 @@ describe("compress-spl", () => {
     );
   });
 
-  test
-    .command([
+  it(`compress ${
+    mintAmount - 2
+  } tokens to ${payerKeypair.publicKey.toBase58()} from ${payerKeypair.publicKey.toBase58()}`, async () => {
+    // First decompress some tokens to have them available
+    const { stdout: decompressStdout } = await runCommand([
       "decompress-spl",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
       `--amount=${mintAmount - 1}`,
       `--to=${payerKeypair.publicKey.toBase58()}`,
-    ])
-    .stdout({ print: true })
-    .command([
+    ]);
+    console.log(decompressStdout);
+
+    // Then compress tokens
+    const { stdout } = await runCommand([
       "compress-spl",
       `--mint=${mintKeypair.publicKey.toBase58()}`,
       `--amount=${mintAmount - 2}`,
       `--to=${payerKeypair.publicKey.toBase58()}`,
-    ])
-    .it(
-      `compress ${
-        mintAmount - 2
-      } tokens to ${payerKeypair.publicKey.toBase58()} from ${payerKeypair.publicKey.toBase58()}`,
-      (ctx: any) => {
-        expect(ctx.stdout).to.contain("compress-spl successful");
-      },
-    );
+    ]);
+    expect(stdout).to.contain("compress-spl successful");
+  });
 });

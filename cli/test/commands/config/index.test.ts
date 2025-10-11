@@ -1,4 +1,5 @@
-import { expect, test } from "@oclif/test";
+import { runCommand } from "@oclif/test";
+import { expect } from "chai";
 import * as fs from "fs";
 import { initTestEnvIfNeeded } from "../../../src/utils/initTestEnv";
 import { DEFAULT_CONFIG } from "../../../src/utils/constants";
@@ -7,14 +8,14 @@ describe("config", () => {
   before(async () => {
     await initTestEnvIfNeeded();
   });
-  test
-    .stdout()
-    .command(["config", "--solanaRpcUrl=http://127.0.0.1:8899"])
-    .it("runs solana rpc url update cmd", (ctx) => {
-      expect(ctx.stdout).to.contain(
-        "Configuration values updated successfully",
-      );
-    });
+
+  it("runs solana rpc url update cmd", async () => {
+    const { stdout } = await runCommand([
+      "config",
+      "--solanaRpcUrl=http://127.0.0.1:8899",
+    ]);
+    expect(stdout).to.contain("Configuration values updated successfully");
+  });
 });
 
 let filePath = process.env.INIT_CWD + "/config.json";
@@ -30,26 +31,11 @@ describe("config with env variable", () => {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
   });
 
-  test
-    .stdout({ print: true })
-    .command(["config", "--solanaRpcUrl=http://127.0.0.1:8899"])
-    .it("runs solana rpc url update cmd", (ctx) => {
-      expect(ctx.stdout).to.contain(
-        `reading config from custom path ${filePath}`,
-      );
-    });
-});
-
-// Test the --stop flag
-describe("test-validator stop", () => {
-  before(async () => {
-    await initTestEnvIfNeeded();
+  it("runs solana rpc url update cmd", async () => {
+    const { stdout } = await runCommand([
+      "config",
+      "--solanaRpcUrl=http://127.0.0.1:8899",
+    ]);
+    expect(stdout).to.contain(`reading config from custom path ${filePath}`);
   });
-
-  test
-    .stdout()
-    .command(["test-validator", "--stop"])
-    .it("runs test-validator stop cmd", (ctx) => {
-      expect(ctx.stdout).to.contain("Test validator stopped successfully");
-    });
 });

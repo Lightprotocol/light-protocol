@@ -3,11 +3,11 @@ import {
   CustomLoader,
   defaultSolanaWalletKeypair,
   generateSolanaTransactionURL,
+  getKeypairFromFile,
   rpc,
 } from "../../utils/utils";
 import { transfer } from "@lightprotocol/compressed-token";
 import { PublicKey } from "@solana/web3.js";
-import { getKeypairFromFile } from "@solana-developers/helpers";
 
 class TransferCommand extends Command {
   static summary = "Transfer tokens from one account to another.";
