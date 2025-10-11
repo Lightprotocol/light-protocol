@@ -17,8 +17,8 @@ light-indexed-array = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-concurrent-merkle-tree = { workspace = true, optional = true }
-light-hasher = { workspace = true }
-light-compressed-account = { workspace = true, features = ["anchor"] }
+light-hasher = { workspace = true, features = ["poseidon"] }
+light-compressed-account = { workspace = true, features = ["anchor", "poseidon"] }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"], optional = true }
 
 # unreleased

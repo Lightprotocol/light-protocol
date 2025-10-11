@@ -2,12 +2,14 @@ use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof, invoke_cpi::InstructionDataInvokeCpi,
 };
 
+#[cfg(feature = "poseidon")]
+use crate::{account::poseidon::LightAccount as LightAccountPoseidon, DataHasher};
 use crate::{
-    account::{poseidon::LightAccount as LightAccountPoseidon, LightAccount},
+    account::LightAccount,
     cpi::{instruction::LightCpiInstruction, invoke::LightInstructionData, CpiSigner},
     error::LightSdkError,
     instruction::account_info::CompressedAccountInfoTrait,
-    AnchorDeserialize, AnchorSerialize, DataHasher, LightDiscriminator, ProgramError,
+    AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
 };
 
 /// Light system program CPI instruction data builder.
@@ -256,6 +258,7 @@ impl LightCpiInstruction for LightSystemProgramCpi {
         Ok(self)
     }
 
+    #[cfg(feature = "poseidon")]
     fn with_light_account_poseidon<A>(
         mut self,
         account: LightAccountPoseidon<'_, A>,

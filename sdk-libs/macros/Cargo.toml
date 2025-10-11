@@ -17,7 +17,6 @@ syn = { workspace = true }
 solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
 
 light-hasher = { workspace = true }
-light-poseidon = { workspace = true }
 
 [dev-dependencies]
 light-compressed-account = { workspace = true }
@@ -27,6 +26,8 @@ solana-pubkey = { workspace = true, features = ["borsh"] }
 borsh = { workspace = true }
 light-macros = { workspace = true }
 light-account-checks = { workspace = true }
+light-hasher = { workspace = true , features = ["poseidon"]}
+light-poseidon = { workspace = true }
 
 [lib]
 proc-macro = true

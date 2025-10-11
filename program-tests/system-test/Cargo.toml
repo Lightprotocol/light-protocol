@@ -32,7 +32,7 @@ light-prover-client = { workspace = true, features = ["devenv"] }
 anchor-lang = { workspace = true }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 account-compression = { workspace = true, features = ["cpi"] }
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, features = ["poseidon"] }
 light-compressed-account = { workspace = true, features = ["anchor"] }
 light-client = { workspace = true, features = ["devenv"] }
 light-sdk = { workspace = true, features = ["anchor"] }

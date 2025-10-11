@@ -22,7 +22,7 @@ light-compressed-token = { workspace = true, features = ["cpi"] }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-registry = { workspace = true, features = ["cpi"] }
 account-compression = { workspace = true, features = ["cpi"] }
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, features = ["poseidon"] }
 light-compressed-account = { workspace = true, features = ["anchor"] }
 light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }

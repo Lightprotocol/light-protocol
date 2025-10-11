@@ -36,6 +36,7 @@ pub enum PoseidonSyscallError {
     #[error("Unexpected error")]
     Unexpected,
 }
+
 impl From<u64> for PoseidonSyscallError {
     fn from(error: u64) -> Self {
         match error {
@@ -84,18 +85,22 @@ impl Hasher for Poseidon {
         Self::hashv(&[val])
     }
 
-    fn hashv(vals: &[&[u8]]) -> Result<Hash, HasherError> {
+    fn hashv(_vals: &[&[u8]]) -> Result<Hash, HasherError> {
         // Perform the calculation inline, calling this from within a program is
         // not supported.
-        #[cfg(not(target_os = "solana"))]
+        #[cfg(all(not(target_os = "solana"), feature = "poseidon"))]
         {
             use ark_bn254::Fr;
             use light_poseidon::{Poseidon, PoseidonBytesHasher};
 
-            let mut hasher = Poseidon::<Fr>::new_circom(vals.len())?;
-            let res = hasher.hash_bytes_be(vals)?;
+            let mut hasher = Poseidon::<Fr>::new_circom(_vals.len())?;
+            let res = hasher.hash_bytes_be(_vals)?;
 
             Ok(res)
+        }
+        #[cfg(all(not(target_os = "solana"), not(feature = "poseidon")))]
+        {
+            Err(HasherError::PoseidonFeatureNotEnabled)
         }
         // Call via a system call to perform the calculation.
         #[cfg(target_os = "solana")]
@@ -113,8 +118,8 @@ impl Hasher for Poseidon {
                 crate::syscalls::sol_poseidon(
                     0, // bn254
                     0, // big-endian
-                    vals as *const _ as *const u8,
-                    vals.len() as u64,
+                    _vals as *const _ as *const u8,
+                    _vals.len() as u64,
                     &mut hash_result as *mut _ as *mut u8,
                 )
             };

@@ -15,7 +15,7 @@ v2 = ["light-client/v2"]
 [dependencies]
 
 light-hash-set = { workspace = true }
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, features = ["poseidon"] }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-compressed-account = { workspace = true }

@@ -22,7 +22,7 @@ default = []
 [dependencies]
 light-sdk-pinocchio = { workspace = true }
 light-sdk-types = { workspace = true }
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, features = ["poseidon"] }
 pinocchio = { workspace = true }
 light-macros = { workspace = true }
 borsh = { workspace = true }
@@ -31,7 +31,7 @@ borsh = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 tokio = { workspace = true }
 solana-sdk = { workspace = true }
-light-hasher = { workspace = true, features = ["solana"] }
+light-hasher = { workspace = true, features = ["solana", "poseidon"] }
 light-compressed-account = { workspace = true, features = ["solana"] }
 light-sdk = { workspace = true }
 

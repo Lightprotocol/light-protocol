@@ -390,8 +390,7 @@ impl ZCompressedAccount<'_> {
     }
 }
 
-#[cfg(not(feature = "pinocchio"))]
-#[cfg(test)]
+#[cfg(all(not(feature = "pinocchio"), test, feature = "poseidon"))]
 mod tests {
     use light_hasher::Poseidon;
     use light_zero_copy::traits::ZeroCopyAt;
