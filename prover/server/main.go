@@ -572,10 +572,6 @@ func runCli() {
 						Usage: "Specify the circuits to enable (inclusion, non-inclusion, combined, append, update, append-test, update-test, address-append, address-append-test)",
 					},
 					&cli.StringFlag{
-						Name:  "run-mode",
-						Usage: "Specify the running mode (rpc, forester, forester-test, full, or full-test)",
-					},
-					&cli.StringFlag{
 						Name:  "preload-keys",
 						Usage: "Preload keys: none (lazy load all), all (preload everything), or a run mode (rpc, forester, forester-test, full, full-test, local-rpc)",
 						Value: "none",

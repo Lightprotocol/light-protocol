@@ -7,7 +7,6 @@ import {
   waitForServers,
 } from "./process";
 import { LIGHT_PROVER_PROCESS_NAME, BASE_PATH } from "./constants";
-import find from "find-process";
 import { downloadProverBinary } from "./downloadProverBinary";
 
 const KEYS_DIR = "proving-keys/";
@@ -15,76 +14,6 @@ const KEYS_DIR = "proving-keys/";
 export async function killProver() {
   await killProcess(getProverNameByArch());
   await killProcess(LIGHT_PROVER_PROCESS_NAME);
-}
-
-export async function isProverRunningWithFlags(
-  runMode?: string,
-  circuits?: string[],
-  proverPort?: number,
-  redisUrl?: string,
-): Promise<boolean> {
-  // Use find-process to get prover processes by name pattern
-  const proverProcesses = await find("name", "prover-");
-
-  const expectedArgs = [];
-  if (runMode) {
-    expectedArgs.push("--run-mode", runMode);
-  }
-  if (Array.isArray(circuits)) {
-    for (const c of circuits) {
-      expectedArgs.push("--circuit", c);
-    }
-  }
-  if (proverPort) {
-    expectedArgs.push("--prover-address", `0.0.0.0:${proverPort}`);
-  }
-  if (redisUrl) {
-    expectedArgs.push("--redis-url", redisUrl);
-  }
-
-  let found = false;
-  for (const proc of proverProcesses) {
-    if (
-      proc.cmd &&
-      (proc.cmd.includes("prover-") || proc.name.startsWith("prover-"))
-    ) {
-      console.log("\n[Prover Process Detected]");
-      console.log(`  PID: ${proc.pid}`);
-      console.log(`  Command: ${proc.cmd}`);
-      let matches = true;
-      for (const arg of expectedArgs) {
-        if (!proc.cmd.includes(arg)) {
-          matches = false;
-          break;
-        }
-      }
-      if (matches) {
-        found = true;
-        console.log(
-          "\x1b[32m✔ Prover is already running with the same configuration.\x1b[0m",
-        );
-        console.log(
-          "  To restart the prover, stop the process above or use the --force flag.\n",
-        );
-        break;
-      } else {
-        const missing = proc.cmd
-          ? expectedArgs.filter((arg) => !proc.cmd!.includes(arg))
-          : [];
-        if (missing.length > 0) {
-          console.log(
-            `  (Not a match for current request. Missing args: ${missing.join(", ")})`,
-          );
-        }
-      }
-    }
-  }
-  if (!found) {
-    console.log(
-      "\x1b[33mNo running prover found with the requested configuration.\x1b[0m",
-    );
-  }
-  return found;
 }
 
 /**
