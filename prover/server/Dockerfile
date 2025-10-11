@@ -22,4 +22,4 @@ COPY --chown=nonroot:nonroot ./proving-keys/v2_* /proving-keys/
 WORKDIR /
 
 ENTRYPOINT [ "light-prover" ]
-CMD [ "start", "--run-mode", "rpc", "--keys-dir", "/proving-keys/" ]
+CMD [ "start", "--preload-keys", "rpc", "--keys-dir", "/proving-keys/" ]

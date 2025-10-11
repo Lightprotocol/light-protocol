@@ -135,10 +135,14 @@
                 ]
             },
             "build-ci": {
-                "dependsOn": ["@lightprotocol/stateless.js:build-ci"]
+                "dependsOn": [
+                    "@lightprotocol/stateless.js:build-ci"
+                ]
             },
             "test-ci": {
-                "dependsOn": ["@lightprotocol/stateless.js:test-ci"]
+                "dependsOn": [
+                    "@lightprotocol/stateless.js:test-ci"
+                ]
             }
         }
     }

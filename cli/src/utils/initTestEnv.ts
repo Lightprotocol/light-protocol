@@ -92,8 +92,6 @@ export async function initTestEnv({
   checkPhotonVersion = true,
   photonDatabaseUrl,
   limitLedgerSize,
-  proverRunMode,
-  circuits,
   geyserConfig,
   validatorArgs,
 }: {
@@ -108,16 +106,6 @@ export async function initTestEnv({
   checkPhotonVersion?: boolean;
   photonDatabaseUrl?: string;
   limitLedgerSize?: number;
-  proverRunMode?:
-    | "local-rpc"
-    | "inclusion"
-    | "non-inclusion"
-    | "forester"
-    | "forester-test"
-    | "rpc"
-    | "full"
-    | "full-test";
-  circuits?: string[];
   validatorArgs?: string;
   geyserConfig?: string;
 }) {
