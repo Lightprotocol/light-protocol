@@ -15,8 +15,7 @@ use solana_sdk::{
 
 use crate::{
     accounts::{
-        compressible_config::create_compressible_config, initialize::initialize_accounts,
-        test_accounts::TestAccounts, test_keypairs::TestKeypairs,
+        initialize::initialize_accounts, test_accounts::TestAccounts, test_keypairs::TestKeypairs,
     },
     indexer::TestIndexer,
     program_test::TestRpc,
@@ -91,7 +90,8 @@ impl LightProgramTest {
                 context.config.no_logs = true;
             }
             initialize_accounts(&mut context, &config, &keypairs).await?;
-            create_compressible_config(&mut context).await?;
+            #[cfg(feature = "v2")]
+            crate::accounts::compressible_config::create_compressible_config(&mut context).await?;
 
             if context.config.skip_startup_logs {
                 context.config.no_logs = restore_logs;

@@ -9,6 +9,7 @@ use solana_sdk::signer::Signer;
 use crate::LightProgramTest;
 
 /// Helper function to create CompressibleConfig
+#[cfg(feature = "v2")]
 pub async fn create_compressible_config(
     rpc: &mut LightProgramTest,
 ) -> Result<(Pubkey, Pubkey, Pubkey), RpcError> {
