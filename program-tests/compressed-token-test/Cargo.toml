@@ -3,7 +3,6 @@ name = "compressed-token-test"
 version = "1.1.0"
 description = "Created with Anchor"
 edition = "2021"
-publish = false
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -18,28 +17,31 @@ test-sbf = []
 custom-heap = []
 default = ["custom-heap"]
 
-[dependencies]
+[dev-dependencies]
+forester-utils = { workspace = true }
+light-client = { workspace = true, features = ["devenv", "v2"] }
+light-sdk = { workspace = true, features = ["anchor"] }
+light-verifier = { workspace = true }
+light-test-utils = { workspace = true, features = ["devenv"] }
+light-program-test = { workspace = true, features = ["devenv"] }
+light-compressed-token-sdk = { workspace = true }
+light-zero-copy = { workspace = true }
+tokio = { workspace = true }
+light-prover-client = { workspace = true, features = ["devenv"] }
+spl-token = { workspace = true }
+spl-token-2022 = { workspace = true }
+spl-pod = { workspace = true }
+anchor-spl = { workspace = true }
+rand = { workspace = true }
+serial_test = { workspace = true }
 anchor-lang = { workspace = true }
 light-compressed-token = { workspace = true }
+light-ctoken-types = { workspace = true }
+light-token-client = { workspace = true }
 light-system-program-anchor = { workspace = true }
 account-compression = { workspace = true }
 light-compressed-account = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-registry = { workspace = true }
-
-[target.'cfg(not(target_os = "solana"))'.dependencies]
+light-compressible = { workspace = true }
 solana-sdk = { workspace = true }
-
-[dev-dependencies]
-forester-utils = { workspace = true }
-light-client = { workspace = true, features = ["devenv"] }
-light-sdk = { workspace = true, features = ["anchor"] }
-light-verifier = { workspace = true }
-light-test-utils = { workspace = true, features = ["devenv"] }
-light-program-test = { workspace = true, features = ["devenv"] }
-tokio = { workspace = true }
-light-prover-client = { workspace = true, features = ["devenv"] }
-spl-token = { workspace = true }
-anchor-spl = { workspace = true }
-rand = { workspace = true }
-serial_test = { workspace = true }

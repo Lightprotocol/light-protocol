@@ -1,5 +1,5 @@
 #[cfg(all(feature = "v2", feature = "cpi-context"))]
-use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
+use light_sdk_types::cpi_accounts::cpi_context_write::CpiContextWriteAccounts;
 
 #[cfg(all(feature = "v2", feature = "cpi-context"))]
 use crate::cpi::v2::get_account_metas_from_config_cpi_context;

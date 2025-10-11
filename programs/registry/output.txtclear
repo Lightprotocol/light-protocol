@@ -1,0 +1,20 @@
+warning: unused import: `light_compressed_account::Pubkey`
+ --> program-libs/ctoken-types/src/instructions/extensions/compressible.rs:1:5
+  |
+1 | use light_compressed_account::Pubkey;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+warning: unused import: `light_compressed_account::Pubkey`
+ --> program-libs/ctoken-types/src/instructions/extensions/compressible.rs:1:5
+  |
+1 | use light_compressed_account::Pubkey;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+    Checking light-registry v2.0.0 (/Users/ananas/dev/light-protocol2/programs/registry)
+  = note: `#[warn(unused_imports)]` on by default
+    Checking light-registry v2.0.0 (/Users/ananas/dev/light-protocol2/programs/registry)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.90s
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.90s
+
+

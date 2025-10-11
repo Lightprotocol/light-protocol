@@ -14,7 +14,7 @@ pub mod zero_indexed_leaf;
 pub use data_hasher::DataHasher;
 pub use keccak::Keccak;
 pub use poseidon::Poseidon;
-pub use sha256::Sha256;
+pub use sha256::{Sha256, Sha256BE};
 
 pub use crate::errors::HasherError;
 use crate::zero_bytes::ZeroBytes;

@@ -122,6 +122,7 @@
 use std::collections::HashMap;
 
 use crate::{
+    error::LightSdkError,
     instruction::system_accounts::{get_light_system_account_metas, SystemAccountMetaConfig},
     AccountMeta, Pubkey,
 };
@@ -173,6 +174,8 @@ pub struct PackedAccounts {
     next_index: u8,
     /// Map of pubkey to (index, AccountMeta) for deduplication and index tracking.
     map: HashMap<Pubkey, (u8, AccountMeta)>,
+    /// Field to sanity check
+    system_accounts_set: bool,
 }
 
 impl PackedAccounts {
@@ -206,6 +209,10 @@ impl PackedAccounts {
         self.pre_accounts.extend_from_slice(account_metas);
     }
 
+    pub fn system_accounts_set(&self) -> bool {
+        self.system_accounts_set
+    }
+
     /// Adds v1 Light system program accounts to the account list.
     ///
     /// **Use with [`cpi::v1::CpiAccounts`](crate::cpi::v1::CpiAccounts) on the program side.**
@@ -230,6 +237,9 @@ impl PackedAccounts {
         &mut self,
         config: SystemAccountMetaConfig,
     ) -> crate::error::Result<()> {
+        if self.system_accounts_set {
+            return Err(LightSdkError::SystemAccountsAlreadySet);
+        }
         self.system_accounts
             .extend(get_light_system_account_metas(config));
         // note cpi context account is part of the system accounts
@@ -239,6 +249,7 @@ impl PackedAccounts {
             }
             self.insert_or_get(pubkey);
         }*/
+        self.system_accounts_set = true;
         Ok(())
     }
 
@@ -270,6 +281,9 @@ impl PackedAccounts {
         &mut self,
         config: SystemAccountMetaConfig,
     ) -> crate::error::Result<()> {
+        if self.system_accounts_set {
+            return Err(LightSdkError::SystemAccountsAlreadySet);
+        }
         self.system_accounts
             .extend(crate::instruction::get_light_system_account_metas_v2(
                 config,
@@ -281,7 +295,15 @@ impl PackedAccounts {
             }
             self.insert_or_get(pubkey);
         }*/
+        self.system_accounts_set = true;
         Ok(())
+    }
+
+    pub fn add_custom_system_accounts<T: AccountMetasVec>(
+        &mut self,
+        accounts: T,
+    ) -> crate::error::Result<()> {
+        accounts.get_account_metas_vec(self)
     }
 
     /// Returns the index of the provided `pubkey` in the collection.
@@ -392,6 +414,10 @@ impl PackedAccounts {
             .map(|meta| meta.pubkey)
             .collect()
     }
+}
+
+pub trait AccountMetasVec {
+    fn get_account_metas_vec(&self, accounts: &mut PackedAccounts) -> Result<(), LightSdkError>;
 }
 
 #[cfg(test)]

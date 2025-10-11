@@ -1,7 +1,7 @@
 use light_account_checks::AccountInfoTrait;
 
 #[cfg(feature = "cpi-context")]
-use crate::cpi_context_write::CpiContextWriteAccounts;
+use super::cpi_context_write::CpiContextWriteAccounts;
 use crate::{
     cpi_accounts::{CpiAccountsConfig, TreeAccounts},
     error::{LightSdkTypesError, Result},

@@ -1,4 +1,4 @@
-use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
+use light_sdk_types::cpi_accounts::cpi_context_write::CpiContextWriteAccounts;
 use solana_account_info::AccountInfo;
 use solana_instruction::AccountMeta;
 

@@ -105,7 +105,6 @@ async fn test_all_endpoints() {
 
     assert_eq!(accounts.items.len(), account_hashes.len());
     for item in accounts.items.iter() {
-        let item = item.as_ref().unwrap();
         assert!(initial_accounts.items.iter().any(|x| x.hash == item.hash));
     }
     // Currently fails because photon doesn't deliver cpi context accounts.
@@ -119,7 +118,6 @@ async fn test_all_endpoints() {
         .value;
     assert_eq!(accounts.items.len(), initial_accounts.items.len());
     for item in accounts.items.iter() {
-        let item = item.as_ref().unwrap();
         assert!(initial_accounts.items.iter().any(|x| x.hash == item.hash));
     }
     // Currently fails because photon doesn't deliver cpi context accounts.
@@ -143,14 +141,12 @@ async fn test_all_endpoints() {
         assert_eq!(result.addresses.len(), new_addresses.len());
     }
     // 4. get_compressed_account
-    let first_account = accounts.items[0].as_ref().unwrap();
-    let fetched_account = rpc
-        .get_compressed_account(first_account.address.unwrap(), None)
+    let first_account = rpc
+        .get_compressed_account(accounts.items[0].address.unwrap(), None)
         .await
         .unwrap()
-        .value
-        .unwrap();
-    assert_eq!(fetched_account, *first_account);
+        .value;
+    assert_eq!(first_account, accounts.items[0]);
 
     // 5. get_compressed_account_by_hash
     {
@@ -158,9 +154,8 @@ async fn test_all_endpoints() {
             .get_compressed_account_by_hash(first_account.hash, None)
             .await
             .unwrap()
-            .value
-            .unwrap();
-        assert_eq!(account, *first_account);
+            .value;
+        assert_eq!(account, first_account);
     }
     // 6. get_compressed_balance
     {
@@ -171,67 +166,7 @@ async fn test_all_endpoints() {
             .value;
         assert_eq!(balance, first_account.lamports);
     }
-    // 7. Test that non-existent accounts return None
-    {
-        // Test get_compressed_account with non-existent address
-        let non_existent_address = [0u8; 32];
-        let account = rpc
-            .get_compressed_account(non_existent_address, None)
-            .await
-            .unwrap()
-            .value;
-        assert!(account.is_none(), "Expected None for non-existent address");
-
-        // Test get_compressed_account_by_hash with non-existent hash
-        let non_existent_hash = [0u8; 32];
-        let account = rpc
-            .get_compressed_account_by_hash(non_existent_hash, None)
-            .await
-            .unwrap()
-            .value;
-        assert!(account.is_none(), "Expected None for non-existent hash");
-
-        // Test get_multiple_compressed_accounts with mix of existing and non-existent
-        let mixed_hashes = vec![
-            account_hashes[0], // existing
-            [0u8; 32],         // non-existent
-            account_hashes[1], // existing
-        ];
-        let accounts = rpc
-            .get_multiple_compressed_accounts(None, Some(mixed_hashes.clone()), None)
-            .await
-            .unwrap()
-            .value;
-        assert_eq!(accounts.items.len(), 3);
-        assert!(accounts.items[0].is_some(), "First account should exist");
-        assert!(
-            accounts.items[1].is_none(),
-            "Second account should not exist"
-        );
-        assert!(accounts.items[2].is_some(), "Third account should exist");
-
-        // Test with addresses
-        let first_existing_address = accounts.items[0].as_ref().unwrap().address.unwrap();
-        let mixed_addresses = vec![
-            first_existing_address, // existing
-            [0u8; 32],              // non-existent
-        ];
-        let accounts_by_addr = rpc
-            .get_multiple_compressed_accounts(Some(mixed_addresses), None, None)
-            .await
-            .unwrap()
-            .value;
-        assert_eq!(accounts_by_addr.items.len(), 2);
-        assert!(
-            accounts_by_addr.items[0].is_some(),
-            "First account should exist"
-        );
-        assert!(
-            accounts_by_addr.items[1].is_none(),
-            "Second account should not exist"
-        );
-    }
-    // // 8. get_compressed_balance_by_owner
+    // // 7. get_compressed_balance_by_owner
     // {
     //     let balance = rpc
     //         .get_compressed_balance_by_owner(&payer_pubkey, None)
@@ -718,7 +653,7 @@ async fn create_address(
         .unwrap();
 
     let new_address_params = NewAddressParams {
-        seed: address_seed.into(),
+        seed: address_seed,
         address_queue_pubkey: address_merkle_tree.queue.into(),
         address_merkle_tree_pubkey: address_merkle_tree.tree.into(),
         address_merkle_tree_root_index: rpc_proof_result.value.addresses[0].root_index,

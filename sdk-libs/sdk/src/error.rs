@@ -103,6 +103,8 @@ pub enum LightSdkError {
     CompressedAccountError(#[from] CompressedAccountError),
     #[error("Expected tree info to be provided for init_if_needed")]
     ExpectedTreeInfo,
+    #[error("System accounts already set")]
+    SystemAccountsAlreadySet,
 }
 
 impl From<LightSdkError> for ProgramError {
@@ -189,7 +191,8 @@ impl From<LightSdkError> for u32 {
             LightSdkError::ZeroCopy(e) => e.into(),
             LightSdkError::ProgramError(e) => u64::from(e) as u32,
             LightSdkError::CompressedAccountError(e) => e.into(),
-            LightSdkError::ExpectedTreeInfo => 16021,
+            LightSdkError::ExpectedTreeInfo => 16041,
+            LightSdkError::SystemAccountsAlreadySet => 16042,
         }
     }
 }

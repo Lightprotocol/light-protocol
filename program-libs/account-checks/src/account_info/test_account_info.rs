@@ -26,14 +26,13 @@ pub mod pinocchio {
         let mut raw_data = vec![0u8; account_size + data.len()];
 
         // Set the boolean flags - use 1 for true as the AccountInfo implementation checks for non-zero
-        // IMPORTANT: borrow_state needs to be 0xFF (all bits set) to indicate unborrowed state
-        raw_data[0] = 0xFF; // borrow_state - all bits set means unborrowed
+        raw_data[0] = 0; // borrow_state
         raw_data[1] = if is_signer { 1 } else { 0 }; // is_signer
         raw_data[2] = if is_writable { 1 } else { 0 }; // is_writable
         raw_data[3] = if is_executable { 1 } else { 0 }; // executable
 
-        // resize_delta at offset 4 (changed from original_data_len in pinocchio 0.9)
-        raw_data[4..8].copy_from_slice(&0i32.to_le_bytes());
+        // original_data_len at offset 4
+        raw_data[4..8].copy_from_slice(&0u32.to_le_bytes());
 
         // key at offset 8
         raw_data[8..40].copy_from_slice(address.as_ref());

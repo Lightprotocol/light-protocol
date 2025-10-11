@@ -1,8 +1,9 @@
 mod config;
+#[cfg(feature = "cpi-context")]
+pub mod cpi_context_write;
 pub mod v1;
 #[cfg(feature = "v2")]
 pub mod v2;
-
 pub use config::CpiAccountsConfig;
 use light_account_checks::AccountInfoTrait;
 

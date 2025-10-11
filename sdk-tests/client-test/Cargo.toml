@@ -5,30 +5,25 @@ description = "Tests for light-client and light-program-test."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
-publish = false
-
-[features]
-test-sbf = []
 
 [lib]
-crate-type = ["lib","cdylib"]
+crate-type = ["lib"]
 name = "client_test"
 
 [dev-dependencies]
 light-client = { workspace = true, features = ["devenv"] }
-light-program-test = { workspace = true, features = ["devenv", "v2"] }
+light-program-test = { workspace = true, features = ["devenv"] }
 light-prover-client = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true }
 light-sdk = { workspace = true }
 light-sdk-pinocchio = { workspace = true }
 light-sdk-types = { workspace = true }
 light-zero-copy = { workspace = true }
-light-hasher = { workspace = true, features = ["poseidon"] }
+light-hasher = { workspace = true }
 light-compressed-account = { workspace = true }
 light-compressed-token = { workspace = true }
 light-indexed-array = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
-light-macros = { workspace = true }
 
 tokio = { workspace = true }
 rand = { workspace = true }

@@ -52,7 +52,7 @@ pub struct TestStruct {
 }
 
 impl Discriminator for TestStruct {
-    const LIGHT_DISCRIMINATOR: [u8; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
+    const LIGHT_DISCRIMINATOR: [u8; 8] = [180, 4, 231, 26, 220, 144, 55, 168];
     const LIGHT_DISCRIMINATOR_SLICE: &[u8] = &Self::LIGHT_DISCRIMINATOR;
 }
 

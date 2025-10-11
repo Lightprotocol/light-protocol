@@ -32,6 +32,8 @@ pub enum AccountError {
     AccountNotZeroed,
     #[error("Not enough account keys provided.")]
     NotEnoughAccountKeys,
+    #[error("Invalid Account.")]
+    InvalidAccount,
     #[error("Pinocchio program error with code: {0}")]
     PinocchioProgramError(u32),
 }
@@ -55,6 +57,7 @@ impl From<AccountError> for u32 {
             AccountError::ProgramNotExecutable => 12018,
             AccountError::AccountNotZeroed => 12019,
             AccountError::NotEnoughAccountKeys => 12020,
+            AccountError::InvalidAccount => 12021,
             AccountError::PinocchioProgramError(code) => code,
         }
     }
