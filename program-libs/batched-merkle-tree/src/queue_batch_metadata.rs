@@ -91,6 +91,7 @@ impl QueueBatches {
         batch_size: u64,
         zkp_batch_size: u64,
     ) -> Result<(), BatchedMerkleTreeError> {
+        #[allow(clippy::manual_is_multiple_of)]
         if batch_size % zkp_batch_size != 0 {
             return Err(BatchedMerkleTreeError::BatchSizeNotDivisibleByZkpBatchSize);
         }

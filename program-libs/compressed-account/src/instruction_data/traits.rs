@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 
+use light_program_profiler::profile;
 use zerocopy::Ref;
 
 use super::{
@@ -7,12 +8,31 @@ use super::{
     cpi_context::CompressedCpiContext,
     zero_copy::{ZPackedMerkleContext, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
 };
-use crate::{compressed_account::CompressedAccountData, pubkey::Pubkey, CompressedAccountError};
+use crate::{
+    compressed_account::CompressedAccountData, pubkey::Pubkey, AnchorSerialize,
+    CompressedAccountError,
+};
+
+pub trait InstructionDiscriminator {
+    fn discriminator(&self) -> &'static [u8];
+}
+
+pub trait LightInstructionData: InstructionDiscriminator + AnchorSerialize {
+    #[profile]
+    fn data(&self) -> Result<Vec<u8>, CompressedAccountError> {
+        let inputs = self
+            .try_to_vec()
+            .map_err(|_| CompressedAccountError::InvalidArgument)?;
+        let mut data = Vec::with_capacity(8 + inputs.len());
+        data.extend_from_slice(self.discriminator());
+        data.extend_from_slice(inputs.as_slice());
+        Ok(data)
+    }
+}
 
 pub trait InstructionData<'a> {
     fn owner(&self) -> Pubkey;
     fn new_addresses(&self) -> &[impl NewAddress<'a>];
-    fn new_address_owner(&self) -> Vec<Option<Pubkey>>;
     fn input_accounts(&self) -> &[impl InputAccount<'a>];
     fn output_accounts(&self) -> &[impl OutputAccount<'a>];
     fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]>;
@@ -35,6 +55,9 @@ where
     fn address_merkle_tree_account_index(&self) -> u8;
     fn address_merkle_tree_root_index(&self) -> u16;
     fn assigned_compressed_account_index(&self) -> Option<usize>;
+    fn owner(&self) -> Option<&[u8; 32]> {
+        None
+    }
 }
 
 pub trait InputAccount<'a>

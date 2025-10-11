@@ -1,6 +1,6 @@
 [package]
 name = "light-compressed-account"
-version = "0.3.0"
+version = "0.5.0"
 description = "Compressed account struct and common utility functions used in Light Protocol."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -15,11 +15,13 @@ bytemuck-des = ["bytemuck"]
 new-unique = ["dep:solana-pubkey"]
 profile-program = []
 profile-heap = ["dep:light-heap"]
+poseidon = ["dep:light-poseidon", "light-hasher/poseidon"]
 
 [dependencies]
 thiserror = { workspace = true }
 zerocopy = { workspace = true, features = ["derive"] }
 light-hasher = { workspace = true }
+light-poseidon = { workspace = true, optional = true }
 light-zero-copy = { workspace = true, features = ["std", "mut", "derive"] }
 light-macros = { workspace = true }
 pinocchio = { workspace = true, optional = true }
@@ -30,12 +32,13 @@ anchor-lang = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true, features = ["derive"] }
 borsh = { workspace = true }
 solana-pubkey = { workspace = true, optional = true }
-light-profiler = { workspace = true }
+light-program-profiler = { workspace = true }
 light-heap = { workspace = true, optional = true }
 
 [dev-dependencies]
 rand = { workspace = true }
 light-poseidon = { workspace = true }
+light-hasher = { workspace = true, features = ["poseidon"] }
 borsh = { workspace = true }
 ark-ff = { workspace = true }
 ark-bn254 = { workspace = true }

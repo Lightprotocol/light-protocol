@@ -22,6 +22,24 @@ pub struct CompressedCpiContext {
     pub cpi_context_account_index: u8,
 }
 
+impl CompressedCpiContext {
+    pub fn first() -> Self {
+        Self {
+            set_context: false,
+            first_set_context: true,
+            cpi_context_account_index: 0,
+        }
+    }
+
+    pub fn set() -> Self {
+        Self {
+            set_context: true,
+            first_set_context: false,
+            cpi_context_account_index: 0,
+        }
+    }
+}
+
 impl CompressedCpiContextTrait for ZCompressedCpiContext {
     fn first_set_context(&self) -> u8 {
         self.first_set_context() as u8

@@ -4,8 +4,9 @@ use light_zero_copy::ZeroCopyMut;
 
 use crate::{
     compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
-    instruction_data::compressed_proof::CompressedProof,
-    AnchorDeserialize, AnchorSerialize, Pubkey,
+    discriminators::DISCRIMINATOR_INVOKE,
+    instruction_data::{compressed_proof::CompressedProof, traits::LightInstructionData},
+    AnchorDeserialize, AnchorSerialize, InstructionDiscriminator, Pubkey,
 };
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
@@ -19,6 +20,65 @@ pub struct InstructionDataInvoke {
     pub compress_or_decompress_lamports: Option<u64>,
     pub is_compress: bool,
 }
+
+impl InstructionDataInvoke {
+    pub fn new(proof: Option<CompressedProof>) -> Self {
+        Self {
+            proof,
+            ..Default::default()
+        }
+    }
+
+    pub fn with_input_compressed_accounts_with_merkle_context(
+        mut self,
+        input_compressed_accounts_with_merkle_context: &[PackedCompressedAccountWithMerkleContext],
+    ) -> Self {
+        if !input_compressed_accounts_with_merkle_context.is_empty() {
+            self.input_compressed_accounts_with_merkle_context
+                .extend_from_slice(input_compressed_accounts_with_merkle_context);
+        }
+        self
+    }
+
+    pub fn with_output_compressed_accounts(
+        mut self,
+        output_compressed_accounts: &[OutputCompressedAccountWithPackedContext],
+    ) -> Self {
+        if !output_compressed_accounts.is_empty() {
+            self.output_compressed_accounts
+                .extend_from_slice(output_compressed_accounts);
+        }
+        self
+    }
+
+    pub fn with_new_addresses(mut self, new_address_params: &[NewAddressParamsPacked]) -> Self {
+        if !new_address_params.is_empty() {
+            self.new_address_params
+                .extend_from_slice(new_address_params);
+        }
+        self
+    }
+
+    pub fn compress_lamports(mut self, lamports: u64) -> Self {
+        self.compress_or_decompress_lamports = Some(lamports);
+        self.is_compress = true;
+        self
+    }
+
+    pub fn decompress_lamports(mut self, lamports: u64) -> Self {
+        self.compress_or_decompress_lamports = Some(lamports);
+        self.is_compress = false;
+        self
+    }
+}
+
+impl InstructionDiscriminator for InstructionDataInvoke {
+    fn discriminator(&self) -> &'static [u8] {
+        &DISCRIMINATOR_INVOKE
+    }
+}
+
+impl LightInstructionData for InstructionDataInvoke {}
 
 #[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct OutputCompressedAccountWithContext {
