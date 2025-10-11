@@ -32,29 +32,31 @@ pub enum AccountError {
     AccountNotZeroed,
     #[error("Not enough account keys provided.")]
     NotEnoughAccountKeys,
+    #[error("Invalid Account.")]
+    InvalidAccount,
     #[error("Pinocchio program error with code: {0}")]
     PinocchioProgramError(u32),
 }
 
-// TODO: reconfigure error codes
 impl From<AccountError> for u32 {
     fn from(e: AccountError) -> u32 {
         match e {
-            AccountError::AccountOwnedByWrongProgram => 12007,
-            AccountError::AccountNotMutable => 12008,
-            AccountError::InvalidDiscriminator => 12006,
-            AccountError::BorrowAccountDataFailed => 12009,
-            AccountError::InvalidAccountSize => 12010,
-            AccountError::AccountMutable => 12011,
-            AccountError::AlreadyInitialized => 12012,
-            AccountError::InvalidAccountBalance => 12013,
-            AccountError::FailedBorrowRentSysvar => 12014,
-            AccountError::InvalidSigner => 12015,
-            AccountError::InvalidSeeds => 12016,
-            AccountError::InvalidProgramId => 12017,
-            AccountError::ProgramNotExecutable => 12018,
-            AccountError::AccountNotZeroed => 12019,
-            AccountError::NotEnoughAccountKeys => 12020,
+            AccountError::InvalidDiscriminator => 20000,
+            AccountError::AccountOwnedByWrongProgram => 20001,
+            AccountError::AccountNotMutable => 20002,
+            AccountError::BorrowAccountDataFailed => 20003,
+            AccountError::InvalidAccountSize => 20004,
+            AccountError::AccountMutable => 20005,
+            AccountError::AlreadyInitialized => 20006,
+            AccountError::InvalidAccountBalance => 20007,
+            AccountError::FailedBorrowRentSysvar => 20008,
+            AccountError::InvalidSigner => 20009,
+            AccountError::InvalidSeeds => 20010,
+            AccountError::InvalidProgramId => 20011,
+            AccountError::ProgramNotExecutable => 20012,
+            AccountError::AccountNotZeroed => 20013,
+            AccountError::NotEnoughAccountKeys => 20014,
+            AccountError::InvalidAccount => 20015,
             AccountError::PinocchioProgramError(code) => code,
         }
     }

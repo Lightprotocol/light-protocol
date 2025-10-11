@@ -7,7 +7,7 @@ use crate::error::AccountError;
 
 /// Trait to abstract over different AccountInfo implementations (pinocchio vs solana)
 pub trait AccountInfoTrait {
-    type Pubkey: Copy + Clone + Debug;
+    type Pubkey: Copy + Clone + Debug + PartialEq;
     type DataRef<'a>: Deref<Target = [u8]>
     where
         Self: 'a;
