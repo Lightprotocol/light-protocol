@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use account_compression::{
     utils::constants::{CPI_AUTHORITY_PDA_SEED, STATE_NULLIFIER_QUEUE_VALUES},
@@ -126,7 +126,13 @@ async fn test_program_owned_merkle_tree() {
     assert_ne!(post_merkle_tree.root(), pre_merkle_tree.root());
     assert_eq!(
         post_merkle_tree.root(),
-        test_indexer.state_merkle_trees[2].merkle_tree.root()
+        test_indexer
+            .state_merkle_trees
+            .iter()
+            .find(|e| e.accounts.merkle_tree == program_owned_merkle_tree_pubkey)
+            .unwrap()
+            .merkle_tree
+            .root()
     );
 
     let invalid_program_owned_merkle_tree_keypair = Keypair::new();
@@ -219,7 +225,8 @@ async fn test_invalid_registered_program() {
         .unwrap();
 
     let group_seed_keypair = Keypair::new();
-    let program_id_keypair = Keypair::from_bytes(&CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR).unwrap();
+    let program_id_keypair =
+        Keypair::try_from(CPI_SYSTEM_TEST_PROGRAM_ID_KEYPAIR.as_slice()).unwrap();
     println!("program_id_keypair: {:?}", program_id_keypair.pubkey());
     let invalid_group_pda =
         initialize_new_group(&group_seed_keypair, &payer, &mut rpc, payer.pubkey())

@@ -1,0 +1,28 @@
+[package]
+name = "batched-merkle-tree-test"
+version = "0.1.0"
+description = "Batch Merkle tree integration tests."
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+publish = false
+
+[dev-dependencies]
+light-batched-merkle-tree = { workspace = true , features = ["test-only", "solana"]}
+rand = { workspace = true }
+light-prover-client = { workspace = true, features = ["devenv"] }
+light-merkle-tree-reference = { workspace = true }
+tokio = { workspace = true }
+serial_test = { workspace = true }
+light-account-checks = { workspace = true, features = ["test-only"] }
+light-compressed-account = { workspace = true, features = ["new-unique"] }
+light-test-utils = { workspace = true, features = ["test-only"] }
+light-hasher = { workspace = true, features = ["solana", "poseidon"] }
+light-bloom-filter = { workspace = true, features = ["solana"] }
+light-zero-copy = { workspace = true }
+solana-pubkey = { workspace = true }
+light-merkle-tree-metadata = { workspace = true }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = ['cfg(target_os, values("solana"))']

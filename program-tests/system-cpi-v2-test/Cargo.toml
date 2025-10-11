@@ -5,6 +5,7 @@ description = "Test program using generalized account compression"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
 edition = "2021"
+publish = false
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -21,7 +22,7 @@ light-compressed-token = { workspace = true, features = ["cpi"] }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-registry = { workspace = true, features = ["cpi"] }
 account-compression = { workspace = true, features = ["cpi"] }
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, features = ["poseidon"] }
 light-compressed-account = { workspace = true, features = ["anchor"] }
 light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
