@@ -1,0 +1,41 @@
+[package]
+name = "light-compressible"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["pinocchio", "solana"]
+solana = ["dep:solana-program-error", "light-compressed-account/solana", "solana-sysvar"]
+anchor = ["anchor-lang", "light-compressed-account/anchor"]
+pinocchio = ["light-compressed-account/pinocchio"]
+profile-program = []
+profile-heap = ["dep:light-heap"]
+
+[dependencies]
+thiserror = { workspace = true }
+zerocopy = { workspace = true, features = ["derive"] }
+light-hasher = { workspace = true }
+light-zero-copy = { workspace = true, features = ["std", "mut", "derive"] }
+light-macros = { workspace = true }
+pinocchio = { workspace = true }
+solana-program-error = { workspace = true, optional = true }
+solana-msg = { workspace = true }
+# Feature-gated dependencies
+anchor-lang = { workspace = true, optional = true }
+bytemuck = { workspace = true, features = ["derive"] }
+borsh = { workspace = true }
+solana-pubkey = { workspace = true }
+pinocchio-pubkey = { workspace = true }
+light-program-profiler = { workspace = true }
+light-heap = { workspace = true, optional = true }
+light-account-checks = { workspace= true }
+light-compressed-account = { workspace= true }
+aligned-sized = { workspace= true }
+solana-sysvar = {workspace = true, optional = true}
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]
