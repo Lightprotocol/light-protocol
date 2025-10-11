@@ -6,15 +6,7 @@ use light_compressed_token_sdk::instructions::{
 use light_ctoken_types::state::{extensions::AdditionalMetadata, CompressedMint};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
-    assert_ctoken_transfer::assert_ctoken_transfer,
-    assert_mint_action::assert_mint_action,
-    assert_mint_to_compressed::{assert_mint_to_compressed, assert_mint_to_compressed_one},
-    assert_transfer2::{
-        assert_transfer2, assert_transfer2_compress, assert_transfer2_decompress,
-        assert_transfer2_transfer,
-    },
-    mint_assert::assert_compressed_mint_account,
-    Rpc,
+    assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
 };
 use light_token_client::actions::create_mint;
 use serial_test::serial;
@@ -97,7 +89,8 @@ async fn functional_all_in_one_instruction() {
             .get_compressed_account(compressed_mint_address, None)
             .await
             .unwrap()
-            .value.unwrap();
+            .value
+            .unwrap();
         assert_compressed_mint_account(
         &compressed_mint_account,
         compressed_mint_address,
@@ -233,7 +226,8 @@ async fn functional_all_in_one_instruction() {
         .get_compressed_account(compressed_mint_address, None)
         .await
         .unwrap()
-        .value.unwrap();
+        .value
+        .unwrap();
 
     let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
         &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),

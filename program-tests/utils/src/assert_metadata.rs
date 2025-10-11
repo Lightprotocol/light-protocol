@@ -47,7 +47,9 @@ pub async fn assert_metadata_state<R: Rpc + Indexer>(
         .get_compressed_account(compressed_mint_address, None)
         .await
         .expect("Failed to get compressed mint account")
-        .value;
+        .value
+        .ok_or(RpcError::AccountDoesNotExist(format!("{:?}", compressed_mint_address)))
+        .expect("Compressed mint account not found");
     assert_sha_account_hash(&compressed_mint_account).unwrap();
 
     // Deserialize the CompressedMint
@@ -156,7 +158,9 @@ pub async fn get_actual_mint_state<R: Rpc + Indexer>(
         .get_compressed_account(compressed_mint_address, None)
         .await
         .expect("Failed to get compressed mint account")
-        .value;
+        .value
+        .ok_or(RpcError::AccountDoesNotExist(format!("{:?}", compressed_mint_address)))
+        .expect("Compressed mint account not found");
     println!(
         "compressed_mint_account.data {:?}",
         compressed_mint_account.data
@@ -209,7 +213,9 @@ pub async fn assert_metadata_exists<R: Rpc + Indexer>(
         .get_compressed_account(compressed_mint_address, None)
         .await
         .expect("Failed to get compressed mint account")
-        .value;
+        .value
+        .ok_or(RpcError::AccountDoesNotExist(format!("{:?}", compressed_mint_address)))
+        .expect("Compressed mint account not found");
 
     let mint_data: CompressedMint =
         BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
@@ -243,7 +249,9 @@ pub async fn assert_metadata_not_exists<R: Rpc + Indexer>(
         .get_compressed_account(compressed_mint_address, None)
         .await
         .expect("Failed to get compressed mint account")
-        .value;
+        .value
+        .ok_or(RpcError::AccountDoesNotExist(format!("{:?}", compressed_mint_address)))
+        .expect("Compressed mint account not found");
 
     let mint_data: CompressedMint =
         BorshDeserialize::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())

@@ -84,7 +84,8 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
         .get_compressed_account(compressed_mint_address, None)
         .await
         .expect("Failed to get compressed mint account")
-        .value;
+        .value
+        .expect("Compressed mint account not found");
 
     let actual_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
         &mut updated_compressed_mint_account

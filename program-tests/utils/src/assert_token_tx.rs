@@ -6,7 +6,7 @@ use light_compressed_account::{
 };
 use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
 use light_program_test::indexer::TestIndexerExtensions;
-use light_ctoken_types::state::TokenDataWithMerkleContext;
+use light_sdk::token::TokenDataWithMerkleContext;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
 use crate::assert_compressed_tx::{

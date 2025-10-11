@@ -122,7 +122,8 @@ pub async fn assert_mint_action(
         .get_compressed_account(compressed_mint_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .expect("Compressed mint account not found");
 
     let actual_mint: CompressedMint =
         BorshDeserialize::deserialize(&mut actual_mint_account.data.unwrap().data.as_slice())
