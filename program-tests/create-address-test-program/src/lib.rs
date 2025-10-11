@@ -9,11 +9,11 @@ use anchor_lang::{
     InstructionData,
 };
 use light_sdk::{
-    cpi::{CpiAccountsSmall, CpiSigner},
+    cpi::{v2::CpiAccounts, CpiAccountsConfig, CpiSigner},
     derive_light_cpi_signer,
     error::LightSdkError,
 };
-use light_sdk_types::{CompressionCpiAccountIndexSmall, PROGRAM_ACCOUNTS_LEN};
+use light_sdk_types::cpi_accounts::v2::{CompressionCpiAccountIndex, PROGRAM_ACCOUNTS_LEN};
 use light_system_program::utils::get_registered_program_pda;
 pub mod create_pda;
 pub use create_pda::*;
@@ -23,8 +23,9 @@ use light_compressed_account::instruction_data::{
 use light_sdk::{
     constants::LIGHT_SYSTEM_PROGRAM_ID,
     cpi::{
-        get_account_metas_from_config, invoke_light_system_program, CpiAccountsConfig,
-        CpiInstructionConfig,
+        invoke::invoke_light_system_program,
+        v1::lowlevel::{get_account_metas_from_config, CpiInstructionConfig},
+        v2::lowlevel::to_account_metas,
     },
 };
 
@@ -63,20 +64,19 @@ pub mod system_cpi_test {
     pub fn invoke_with_read_only<'info>(
         ctx: Context<'_, '_, '_, 'info, InvokeCpiReadOnly<'info>>,
         config: CpiAccountsConfig,
-        small_ix: bool,
+        v2_ix: bool,
         inputs: Vec<u8>,
         write_cpi_context: bool,
     ) -> Result<()> {
         let fee_payer = ctx.accounts.signer.to_account_info();
 
-        let (account_infos, account_metas) = if small_ix {
-            use light_sdk::cpi::CpiAccountsSmall;
+        let (account_infos, account_metas) = if v2_ix {
             let cpi_accounts =
-                CpiAccountsSmall::new_with_config(&fee_payer, ctx.remaining_accounts, config);
+                CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config);
             let account_infos = cpi_accounts.to_account_infos();
 
             let account_metas = if !write_cpi_context {
-                to_account_metas_small(cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?
+                to_account_metas(&cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?
             } else {
                 let mut account_metas = vec![];
                 account_metas.push(AccountMeta {
@@ -99,7 +99,7 @@ pub mod system_cpi_test {
             };
             (account_infos, account_metas)
         } else {
-            use light_sdk::cpi::CpiAccounts;
+            use light_sdk::cpi::v1::CpiAccounts;
             let cpi_accounts =
                 CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config);
 
@@ -116,8 +116,7 @@ pub mod system_cpi_test {
             data: inputs,
         };
         let cpi_config = CpiAccountsConfig::new(crate::LIGHT_CPI_SIGNER);
-        invoke_light_system_program(&account_infos, instruction, cpi_config.bump())
-            .map_err(ProgramError::from)?;
+        invoke_light_system_program(&account_infos, instruction, cpi_config.bump())?;
         Ok(())
     }
 
@@ -236,12 +235,12 @@ pub fn create_invoke_read_only_account_info_instruction(
     signer: Pubkey,
     inputs: Vec<u8>,
     config: CpiAccountsConfig,
-    small: bool,
+    v2_ix: bool,
     remaining_accounts: Vec<AccountMeta>,
     write_cpi_context: bool,
 ) -> Instruction {
     let ix_data = crate::instruction::InvokeWithReadOnly {
-        small_ix: small,
+        v2_ix,
         inputs,
         config,
         write_cpi_context,
@@ -256,7 +255,7 @@ pub fn create_invoke_read_only_account_info_instruction(
 }
 // Manual impl for failing tests
 pub fn to_account_metas_small(
-    cpi_accounts: CpiAccountsSmall<'_, '_>,
+    cpi_accounts: CpiAccounts<'_, '_>,
 ) -> light_sdk::error::Result<Vec<AccountMeta>> {
     // TODO: do a version with a const array instead of vector.
     let mut account_metas =
@@ -297,7 +296,7 @@ pub fn to_account_metas_small(
     });
 
     let accounts = cpi_accounts.account_infos();
-    let mut index = CompressionCpiAccountIndexSmall::SolPoolPda as usize;
+    let mut index = CompressionCpiAccountIndex::SolPoolPda as usize;
 
     if cpi_accounts.config().sol_pool_pda {
         let account = cpi_accounts.get_account_info(index)?;

@@ -71,12 +71,9 @@ pub fn create_two_inputs_hash_chain(
 
 #[cfg(test)]
 mod hash_chain_tests {
-    use ark_ff::PrimeField;
-    use light_poseidon::PoseidonError;
-    use num_bigint::BigUint;
 
     use super::*;
-    use crate::{bigint::bigint_to_be_bytes_array, Hasher, HasherError, Poseidon};
+    use crate::{Hasher, HasherError, Poseidon};
 
     /// Tests for `create_hash_chain_from_slice` function:
     /// Functional tests:
@@ -175,9 +172,14 @@ mod hash_chain_tests {
             let result = create_hash_chain_from_slice(&inputs).unwrap();
             assert_eq!(result, [0u8; 32], "Empty input should return zero hash");
         }
-
         // 5. Failing - input larger than modulus
+        #[cfg(feature = "poseidon")]
         {
+            use ark_ff::PrimeField;
+            use light_poseidon::PoseidonError;
+            use num_bigint::BigUint;
+
+            use crate::bigint::bigint_to_be_bytes_array;
             let modulus: BigUint = ark_bn254::Fr::MODULUS.into();
             let modulus_bytes: [u8; 32] = bigint_to_be_bytes_array(&modulus).unwrap();
             let huge_input = vec![modulus_bytes, modulus_bytes];

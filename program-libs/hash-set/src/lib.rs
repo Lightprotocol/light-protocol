@@ -531,7 +531,7 @@ impl HashSet {
     }
 
     /// Returns an iterator over elements.
-    pub fn iter(&self) -> HashSetIterator {
+    pub fn iter(&self) -> HashSetIterator<'_> {
         HashSetIterator {
             hash_set: self,
             current: 0,

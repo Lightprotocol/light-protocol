@@ -10,6 +10,7 @@ pub mod compressed_account;
 pub mod constants;
 pub mod discriminators;
 pub use light_hasher::hash_chain;
+#[cfg(feature = "poseidon")]
 pub mod indexer_event;
 pub mod instruction_data;
 pub mod nullifier;
@@ -21,6 +22,7 @@ pub mod tx_hash;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+pub use instruction_data::traits::{InstructionDiscriminator, LightInstructionData};
 pub use light_hasher::{
     bigint::bigint_to_be_bytes_array,
     hash_to_field_size::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be},
@@ -155,7 +157,7 @@ pub const ADDRESS_MERKLE_TREE_TYPE_V2: u64 = 4;
 
 #[repr(u64)]
 #[derive(
-    Debug, Ord, PartialEq, Hash, PartialOrd, Eq, Clone, Copy, AnchorSerialize, AnchorDeserialize,
+    Debug, Ord, PartialEq, PartialOrd, Eq, Clone, Copy, AnchorSerialize, AnchorDeserialize,
 )]
 pub enum TreeType {
     StateV1 = STATE_MERKLE_TREE_TYPE_V1,
@@ -194,5 +196,3 @@ impl From<u64> for TreeType {
         }
     }
 }
-
-pub type CompressedAddress = [u8; 32];

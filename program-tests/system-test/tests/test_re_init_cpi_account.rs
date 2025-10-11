@@ -8,7 +8,7 @@ use light_program_test::{
     ProgramTestConfig,
 };
 use light_sdk::constants::{
-    CPI_CONTEXT_ACCOUNT_DISCRIMINATOR, CPI_CONTEXT_ACCOUNT_DISCRIMINATOR_V1,
+    CPI_CONTEXT_ACCOUNT_1_DISCRIMINATOR, CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR,
 };
 use light_system_program_pinocchio::cpi_context::state::deserialize_cpi_context_account;
 use light_test_utils::{legacy_cpi_context_account::get_legacy_cpi_context_account, Rpc};
@@ -63,7 +63,7 @@ async fn test_re_init_cpi_account() {
             .unwrap();
         assert_eq!(
             &pre_account.data[0..8],
-            &CPI_CONTEXT_ACCOUNT_DISCRIMINATOR_V1,
+            &CPI_CONTEXT_ACCOUNT_1_DISCRIMINATOR,
             "Account should have legacy discriminator"
         );
         assert_eq!(
@@ -89,7 +89,7 @@ async fn test_re_init_cpi_account() {
             .unwrap();
         assert_eq!(
             &post_account.data[0..8],
-            &CPI_CONTEXT_ACCOUNT_DISCRIMINATOR,
+            &CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR,
             "Account should have new discriminator after reinit"
         );
 

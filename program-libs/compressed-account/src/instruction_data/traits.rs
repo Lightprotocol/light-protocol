@@ -109,22 +109,3 @@ pub struct AccountOptions {
     pub cpi_context_account: bool,
     pub write_to_cpi_context: bool,
 }
-
-impl AccountOptions {
-    pub fn get_num_expected_accounts(&self) -> usize {
-        let mut num = 3;
-        if !self.write_to_cpi_context {
-            num += 1;
-        }
-        if self.sol_pool_pda {
-            num += 1;
-        }
-        if self.decompression_recipient {
-            num += 1;
-        }
-        if self.cpi_context_account {
-            num += 1;
-        }
-        num
-    }
-}

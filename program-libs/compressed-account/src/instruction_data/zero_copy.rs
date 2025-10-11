@@ -475,10 +475,6 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvoke<'a> {
         self.new_address_params.as_slice()
     }
 
-    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
-        vec![None; self.new_address_params.len()]
-    }
-
     fn input_accounts(&self) -> &[impl InputAccount<'a>] {
         self.input_compressed_accounts_with_merkle_context
             .as_slice()
@@ -606,10 +602,6 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpi<'a> {
 
     fn new_addresses(&self) -> &[impl NewAddress<'a>] {
         self.new_address_params.as_slice()
-    }
-
-    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
-        vec![None; self.new_address_params.len()]
     }
 
     fn output_accounts(&self) -> &[impl OutputAccount<'a>] {
@@ -1052,7 +1044,7 @@ pub mod test {
     fn get_test_account_data() -> CompressedAccountData {
         CompressedAccountData {
             discriminator: 1u64.to_le_bytes(),
-            data: vec![180, 4, 231, 26, 220, 144, 55, 168],
+            data: vec![1, 2, 3, 4, 5, 6, 7, 8],
             data_hash: [1; 32],
         }
     }
@@ -1128,7 +1120,7 @@ pub mod test {
                 address: Some(Pubkey::new_unique().to_bytes()),
                 data: Some(CompressedAccountData {
                     discriminator: 1u64.to_le_bytes(),
-                    data: vec![180, 4, 231, 26, 220, 144, 55, 168],
+                    data: vec![1, 2, 3, 4, 5, 6, 7, 8],
                     data_hash: [1; 32],
                 }),
             },
@@ -1197,7 +1189,7 @@ pub mod test {
     fn test_account_data_deserialize() {
         let test_data = CompressedAccountData {
             discriminator: 1u64.to_le_bytes(),
-            data: vec![180, 4, 231, 26, 220, 144, 55, 168],
+            data: vec![1, 2, 3, 4, 5, 6, 7, 8],
             data_hash: [1; 32],
         };
 

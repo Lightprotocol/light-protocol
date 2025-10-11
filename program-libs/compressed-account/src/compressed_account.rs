@@ -250,9 +250,7 @@ pub struct InCompressedAccount {
 }
 
 #[repr(C)]
-#[derive(
-    Debug, Eq, Hash, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut,
-)]
+#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
     pub data: Vec<u8>,
@@ -312,7 +310,6 @@ pub fn hash_with_hashed_values(
         vec.push(&discriminator_bytes);
         vec.push(data_hash);
     }
-
     Ok(Poseidon::hashv(&vec)?)
 }
 
@@ -346,6 +343,7 @@ impl CompressedAccount {
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError> {
         let hashed_mt = hash_to_bn254_field_size_be(merkle_tree_pubkey.as_ref());
+
         self.hash_with_hashed_values(
             &hash_to_bn254_field_size_be(self.owner.as_ref()),
             &hashed_mt,
@@ -392,8 +390,7 @@ impl ZCompressedAccount<'_> {
     }
 }
 
-#[cfg(not(feature = "pinocchio"))]
-#[cfg(test)]
+#[cfg(all(not(feature = "pinocchio"), test, feature = "poseidon"))]
 mod tests {
     use light_hasher::Poseidon;
     use light_zero_copy::traits::ZeroCopyAt;
@@ -735,7 +732,7 @@ mod tests {
             Ok(hash)
         }
 
-        pub fn hash_v1<H: Hasher>(
+        pub fn hash_legacy<H: Hasher>(
             &self,
             &merkle_tree_pubkey: &Pubkey,
             leaf_index: &u32,
@@ -776,8 +773,8 @@ mod tests {
             };
             let leaf_index = rng.gen::<u32>();
             let merkle_tree_pubkey = Pubkey::new_unique();
-            let hash_v1 = account
-                .hash_v1::<Poseidon>(&merkle_tree_pubkey, &leaf_index)
+            let hash_legacy = account
+                .hash_legacy::<Poseidon>(&merkle_tree_pubkey, &leaf_index)
                 .unwrap();
             let hash = account
                 .hash(&merkle_tree_pubkey, &leaf_index, false)
@@ -787,7 +784,7 @@ mod tests {
             let z_hash = z_account
                 .hash(&merkle_tree_pubkey.to_bytes(), &leaf_index, false)
                 .unwrap();
-            assert_eq!(hash_v1, hash);
+            assert_eq!(hash_legacy, hash);
             assert_eq!(hash, z_hash);
         }
     }

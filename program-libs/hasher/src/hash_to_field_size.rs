@@ -92,7 +92,7 @@ pub fn hash_to_bn254_field_size_be(bytes: &[u8]) -> [u8; 32] {
     hashv_to_bn254_field_size_be_const_array::<2>(&[bytes]).unwrap()
 }
 
-#[cfg(not(target_os = "solana"))]
+#[cfg(all(not(target_os = "solana"), feature = "poseidon"))]
 pub fn is_smaller_than_bn254_field_size_be(bytes: &[u8; 32]) -> bool {
     use ark_ff::PrimeField;
     use num_bigint::BigUint;
@@ -100,6 +100,7 @@ pub fn is_smaller_than_bn254_field_size_be(bytes: &[u8; 32]) -> bool {
     bigint < ark_bn254::Fr::MODULUS.into()
 }
 
+#[cfg(feature = "poseidon")]
 #[cfg(test)]
 mod tests {
     use ark_ff::PrimeField;
