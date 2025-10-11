@@ -9,4 +9,4 @@ scripts/ @ananas-block @sergeytimoshin
 third-party/ @ananas-block
 tsconfig/ @SwenSchaeferjohann
 web/ @SwenSchaeferjohann
-xtask/ @ananans-block
+xtask/ @ananas-block
