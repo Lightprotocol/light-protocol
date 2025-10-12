@@ -24,6 +24,99 @@ use light_token_client::{
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 // ============================================================================
+// Display helpers for actions
+// ============================================================================
+
+// Print methods for Meta action types
+impl MetaTransferInput {
+    pub fn print(&self, index: usize) {
+        println!("  Action {}: Transfer (Meta)", index);
+        println!("    - signer_index: {}", self.signer_index);
+        println!("    - recipient_index: {}", self.recipient_index);
+        println!("    - mint_index: {}", self.mint_index);
+        println!("    - amount: {}", self.amount);
+        println!("    - change_amount: {:?}", self.change_amount);
+        println!("    - is_delegate_transfer: {}", self.is_delegate_transfer);
+        println!("    - delegate_index: {:?}", self.delegate_index);
+        println!("    - token_data_version: {:?}", self.token_data_version);
+        println!(
+            "    - input_compressed_accounts: {:?}",
+            self.input_compressed_accounts
+        );
+    }
+}
+
+impl MetaCompressInput {
+    pub fn print(&self, index: usize) {
+        println!("  Action {}: Compress (Meta)", index);
+        println!("    - signer_index: {}", self.signer_index);
+        println!("    - recipient_index: {}", self.recipient_index);
+        println!("    - mint_index: {}", self.mint_index);
+        println!("    - amount: {}", self.amount);
+        println!("    - use_spl: {}", self.use_spl);
+        println!(
+            "    - num_input_compressed_accounts: {}",
+            self.num_input_compressed_accounts
+        );
+        println!("    - token_data_version: {:?}", self.token_data_version);
+    }
+}
+
+impl MetaDecompressInput {
+    pub fn print(&self, index: usize) {
+        println!("  Action {}: Decompress (Meta)", index);
+        println!("    - signer_index: {}", self.signer_index);
+        println!("    - recipient_index: {}", self.recipient_index);
+        println!("    - mint_index: {}", self.mint_index);
+        println!("    - decompress_amount: {}", self.decompress_amount);
+        println!("    - amount: {}", self.amount);
+        println!("    - to_spl: {}", self.to_spl);
+        println!(
+            "    - num_input_compressed_accounts: {}",
+            self.num_input_compressed_accounts
+        );
+        println!("    - token_data_version: {:?}", self.token_data_version);
+    }
+}
+
+impl MetaApproveInput {
+    pub fn print(&self, index: usize) {
+        println!("  Action {}: Approve (Meta)", index);
+        println!("    - signer_index: {}", self.signer_index);
+        println!("    - delegate_index: {}", self.delegate_index);
+        println!("    - mint_index: {}", self.mint_index);
+        println!("    - delegate_amount: {}", self.delegate_amount);
+        println!(
+            "    - num_input_compressed_accounts: {}",
+            self.num_input_compressed_accounts
+        );
+        println!("    - token_data_version: {:?}", self.token_data_version);
+    }
+}
+
+impl MetaCompressAndCloseInput {
+    pub fn print(&self, index: usize) {
+        println!("  Action {}: CompressAndClose (Meta)", index);
+        println!("    - signer_index: {}", self.signer_index);
+        println!("    - destination_index: {:?}", self.destination_index);
+        println!("    - mint_index: {}", self.mint_index);
+        println!("    - token_data_version: {:?}", self.token_data_version);
+    }
+}
+
+impl MetaTransfer2InstructionType {
+    pub fn print(&self, index: usize) {
+        match self {
+            MetaTransfer2InstructionType::Transfer(t) => t.print(index),
+            MetaTransfer2InstructionType::Compress(c) => c.print(index),
+            MetaTransfer2InstructionType::Decompress(d) => d.print(index),
+            MetaTransfer2InstructionType::Approve(a) => a.print(index),
+            MetaTransfer2InstructionType::CompressAndClose(c) => c.print(index),
+        }
+    }
+}
+
+// ============================================================================
 // Test Configuration
 // ============================================================================
 
@@ -1035,11 +1128,23 @@ impl TestContext {
         &mut self,
         test_case: &TestCase,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        for (i, action) in test_case.actions.iter().enumerate() {
+            action.print(i);
+        }
+
         // Convert meta actions to real actions and get required signers
         let (actions, signers) = self
             .convert_meta_actions_to_real(&test_case.actions)
             .await?;
 
+        // Print actions in readable format
+        println!("Actions ({} total):", actions.len());
+
+        println!(
+            "\nSigners ({} total): {:?}",
+            signers.len(),
+            signers.iter().map(|s| s.pubkey()).collect::<Vec<_>>()
+        );
         let payer_pubkey = self.payer.pubkey();
 
         // Create the transfer2 instruction
@@ -1049,10 +1154,6 @@ impl TestContext {
         // Create and send transaction
         let (recent_blockhash, _) = self.rpc.get_latest_blockhash().await?;
 
-        println!(
-            "Signers pubkeys: {:?}",
-            signers.iter().map(|s| s.pubkey()).collect::<Vec<_>>()
-        );
         println!("Payer pubkey: {}", payer_pubkey);
         println!(
             "Instruction accounts: {:?}",
@@ -1063,8 +1164,22 @@ impl TestContext {
                 .collect::<Vec<_>>()
         );
 
-        let signer_refs: Vec<&Keypair> = signers.iter().collect();
+        let instruction_signer_pubkeys: Vec<_> = ix
+            .accounts
+            .iter()
+            .filter(|a| a.is_signer)
+            .map(|a| a.pubkey)
+            .collect();
 
+        let mut signer_refs: Vec<&Keypair> = signers
+            .iter()
+            .filter(|s| instruction_signer_pubkeys.contains(&s.pubkey()))
+            .collect();
+        signer_refs.insert(0, &self.payer);
+        println!(
+            "Signers pubkeys: {:?}",
+            signer_refs.iter().map(|s| s.pubkey()).collect::<Vec<_>>()
+        );
         let tx = Transaction::new_signed_with_payer(
             &[ix.clone()],
             Some(&payer_pubkey),

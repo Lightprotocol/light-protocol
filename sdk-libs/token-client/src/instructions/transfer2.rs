@@ -32,7 +32,9 @@ pub fn pack_input_token_account(
     let has_delegate = account.token.delegate.is_some();
 
     // Determine who should be the signer
-    let owner_is_signer = !is_delegate_transfer;
+    // For delegate transfers, the account MUST have a delegate set
+    // If is_delegate_transfer is true but no delegate exists, owner must sign
+    let owner_is_signer = !is_delegate_transfer || !has_delegate;
 
     let delegate_index = if let Some(delegate) = account.token.delegate {
         // Delegate is signer only if this is explicitly a delegate transfer
@@ -432,7 +434,10 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     out_lamports.push(0);
                     token_accounts.push(recipient_token_account);
                 } else {
-                    let mut token_account = if input.is_delegate_transfer {
+                    // Only use new_delegated if the input accounts actually have delegates
+                    let has_delegates = token_data.iter().any(|data| data.has_delegate);
+                    println!("is_delegate_transfer: {}, has_delegates: {}", input.is_delegate_transfer, has_delegates);
+                    let mut token_account = if input.is_delegate_transfer && has_delegates {
                         CTokenAccount2::new_delegated(
                             token_data,
                             packed_tree_infos

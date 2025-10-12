@@ -80,10 +80,13 @@ pub async fn assert_transfer2_with_delegate(
 
                 // Use explicit change_amount if provided, otherwise calculate it
                 let change_amount = transfer_input.change_amount.unwrap_or_else(|| {
-                    transfer_input.compressed_token_account[0]
-                        .token
-                        .amount
-                        .saturating_sub(transfer_input.amount)
+                    // Sum all input amounts
+                    let total_input: u64 = transfer_input
+                        .compressed_token_account
+                        .iter()
+                        .map(|acc| acc.token.amount)
+                        .sum();
+                    total_input.saturating_sub(transfer_input.amount)
                 });
 
                 // Assert change account if there should be change
@@ -123,7 +126,7 @@ pub async fn assert_transfer2_with_delegate(
                     let matching_change_account = change_accounts
                         .iter()
                         .find(|acc| acc.token == expected_change_token)
-                        .unwrap_or_else(|| panic!("Should find change account with expected token data change_accounts: {:?}", change_accounts));
+                        .unwrap_or_else(|| panic!("Should find change account with expected token data change_accounts: {:?} expected change account {:?}", change_accounts, expected_change_token));
 
                     // Assert complete change token account
                     assert_eq!(

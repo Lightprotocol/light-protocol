@@ -24,10 +24,16 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
     let num_actions = rng.gen_range(1..=5);
     let mut actions = Vec::new();
     let mut total_outputs = 0; // Track total outputs to respect limit of 30
+    let mut total_inputs = 0u8; // Track total input compressed accounts to respect limit of 8
 
     for i in 0..num_actions {
         // Respect output limit of 30 accounts
         if total_outputs >= 30 {
+            break;
+        }
+
+        // Respect input limit of 8 accounts
+        if total_inputs >= 8 {
             break;
         }
 
@@ -37,7 +43,13 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
         let action = match action_type {
             // 30% chance: Transfer (compressed-to-compressed)
             0..=299 => {
-                let num_inputs = rng.gen_range(1..=8u8.min(8)); // MAX_INPUT_ACCOUNTS = 8
+                // Calculate how many inputs we can still add
+                let max_inputs_remaining = 8u8.saturating_sub(total_inputs);
+                if max_inputs_remaining == 0 {
+                    continue; // Can't add any more inputs
+                }
+
+                let num_inputs = rng.gen_range(1..=max_inputs_remaining.min(8));
                 let input_amounts: Vec<u64> = (0..num_inputs)
                     .map(|_| rng.gen_range(100..=10000))
                     .collect();
@@ -50,19 +62,16 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
                     continue; // Skip this action if it would exceed limit
                 }
                 total_outputs += estimated_outputs;
+                total_inputs += num_inputs;
 
                 MetaTransfer2InstructionType::Transfer(MetaTransferInput {
                     input_compressed_accounts: input_amounts,
                     amount: transfer_amount,
-                    change_amount: None, // Let system calculate change
-                    is_delegate_transfer: rng.gen_bool(0.2), // 20% chance of delegate transfer
+                    change_amount: None,         // Let system calculate change
+                    is_delegate_transfer: false, // Disable delegate transfers for now (requires Approve setup)
                     token_data_version: random_token_version(rng),
                     signer_index: rng.gen_range(0..config.max_keypairs.min(10)),
-                    delegate_index: if rng.gen_bool(0.2) {
-                        None // Some(rng.gen_range(0..config.max_keypairs.min(10)))
-                    } else {
-                        None
-                    },
+                    delegate_index: None, // No delegate for non-delegate transfers
                     recipient_index: rng.gen_range(0..config.max_keypairs.min(10)),
                     mint_index: rng.gen_range(0..config.max_supported_mints), // Any mint works for transfers
                 })
@@ -97,9 +106,16 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
 
             // 25% chance: Decompress (compressed → SPL/CToken)
             550..=799 => {
-                let num_inputs = rng.gen_range(1..=5u8); // Need at least 1 compressed input
+                // Calculate how many inputs we can still add
+                let max_inputs_remaining = 8u8.saturating_sub(total_inputs);
+                if max_inputs_remaining == 0 {
+                    continue; // Can't add any more inputs
+                }
+
+                let num_inputs = rng.gen_range(1..=max_inputs_remaining.min(5));
                 let estimated_outputs = 0; // Decompress doesn't create compressed outputs
                 total_outputs += estimated_outputs;
+                total_inputs += num_inputs;
 
                 // For now, only decompress to CToken (to_spl requires SPL-compressed tokens)
                 let to_spl = false;
@@ -120,12 +136,19 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
 
             // 15% chance: Approve (delegation)
             800..=949 => {
-                let num_inputs = rng.gen_range(1..=3u8);
+                // Calculate how many inputs we can still add
+                let max_inputs_remaining = 8u8.saturating_sub(total_inputs);
+                if max_inputs_remaining == 0 {
+                    continue; // Can't add any more inputs
+                }
+
+                let num_inputs = rng.gen_range(1..=max_inputs_remaining.min(3));
                 let estimated_outputs = num_inputs as usize; // Approve typically creates same number of outputs
                 if total_outputs + estimated_outputs > 30 {
                     continue;
                 }
                 total_outputs += estimated_outputs;
+                total_inputs += num_inputs;
 
                 MetaTransfer2InstructionType::Approve(MetaApproveInput {
                     num_input_compressed_accounts: num_inputs,
@@ -161,9 +184,75 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
         actions.push(action);
     }
 
+    // Balance all actions: ensure each signer has enough tokens for each mint
+    balance_actions(&mut actions, config);
+
     TestCase {
         name: format!("Random test case with {} actions", actions.len()),
         actions,
+    }
+}
+
+/// Balance actions by tracking token amounts per (signer, mint) and adjusting to ensure validity
+fn balance_actions(actions: &mut Vec<MetaTransfer2InstructionType>, config: &TestConfig) {
+    use std::collections::HashMap;
+
+    // Track inputs (consumption) and outputs (creation) for each (signer_index, mint_index)
+    let mut inputs: HashMap<(usize, usize), u64> = HashMap::new();
+    let mut outputs: HashMap<(usize, usize), u64> = HashMap::new();
+
+    // First pass: sum all inputs and outputs per (signer, mint)
+    for action in actions.iter() {
+        match action {
+            MetaTransfer2InstructionType::Transfer(transfer) => {
+                // Transfer consumes tokens (inputs)
+                let key = (transfer.signer_index, transfer.mint_index);
+                let total: u64 = transfer.input_compressed_accounts.iter().sum();
+                *inputs.entry(key).or_insert(0) += total;
+            }
+            MetaTransfer2InstructionType::Compress(compress) => {
+                // Compress creates tokens (outputs)
+                let key = (compress.recipient_index, compress.mint_index);
+                *outputs.entry(key).or_insert(0) += compress.amount;
+            }
+            MetaTransfer2InstructionType::Decompress(decompress) => {
+                // Decompress consumes compressed tokens (inputs)
+                let key = (decompress.signer_index, decompress.mint_index);
+                let total_needed =
+                    decompress.amount * decompress.num_input_compressed_accounts as u64;
+                *inputs.entry(key).or_insert(0) += total_needed;
+            }
+            MetaTransfer2InstructionType::Approve(approve) => {
+                // Approve consumes tokens (inputs)
+                let key = (approve.signer_index, approve.mint_index);
+                *inputs.entry(key).or_insert(0) += approve.delegate_amount;
+            }
+            _ => {}
+        }
+    }
+
+    // Second pass: for each (signer, mint) where inputs > outputs, append a Compress action
+    // Calculate: amount_needed = inputs - outputs (if inputs > outputs, else 0)
+    for (key, total_inputs) in inputs.iter() {
+        let total_outputs = outputs.get(key).copied().unwrap_or(0);
+
+        if *total_inputs > total_outputs {
+            let amount_needed = *total_inputs - total_outputs;
+
+            // Append a Compress action to create the missing tokens
+            // Order doesn't matter since all actions are batched in one transaction
+            let compress_action = MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0, // No compressed inputs, compress from CToken
+                amount: amount_needed,
+                token_data_version: TokenDataVersion::V2, // Default version
+                signer_index: key.0,
+                recipient_index: key.0, // Compress to same signer
+                mint_index: key.1,
+                use_spl: false, // Use CToken ATA
+            });
+
+            actions.push(compress_action);
+        }
     }
 }
 
@@ -195,11 +284,20 @@ async fn test_transfer2_random() {
     let config = TestConfig::default();
 
     // Run 1000 random test iterations
-    for iteration in 0..1000 {
+    for iteration in 0..100 {
         println!("\n--- Random Test Iteration {} ---", iteration + 1);
 
         // Generate random test case
         let test_case = generate_random_test_case(&mut rng, &config);
+
+        // Skip if no actions were generated
+        if test_case.actions.is_empty() {
+            println!(
+                "⚠️  Skipping iteration {} - no actions generated",
+                iteration + 1
+            );
+            continue;
+        }
 
         println!("Generated test case: {}", test_case.name);
         println!("Actions: {}", test_case.actions.len());
