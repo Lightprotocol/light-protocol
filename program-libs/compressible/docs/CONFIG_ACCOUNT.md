@@ -136,7 +136,7 @@ RentConfig {
 }
 
 // Default address space (V1)
-address_space[0] = pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK")
+address_space[0] = pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx")
 ```
 
 ### Methods

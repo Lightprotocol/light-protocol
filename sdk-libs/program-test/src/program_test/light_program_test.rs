@@ -54,7 +54,10 @@ impl LightProgramTest {
     /// - advances to the active phase slot 2
     /// - active phase doesn't end
     ///   Get an account from the pre-transaction context (before the last transaction)
-    pub fn get_pre_transaction_account(&self, pubkey: &solana_sdk::pubkey::Pubkey) -> Option<solana_sdk::account::Account> {
+    pub fn get_pre_transaction_account(
+        &self,
+        pubkey: &solana_sdk::pubkey::Pubkey,
+    ) -> Option<solana_sdk::account::Account> {
         self.pre_context
             .as_ref()
             .and_then(|ctx| ctx.get_account(pubkey))

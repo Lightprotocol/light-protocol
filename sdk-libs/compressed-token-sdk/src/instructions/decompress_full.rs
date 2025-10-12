@@ -200,8 +200,7 @@ impl AccountMetasVec for DecompressFullAccounts {
             let config = SystemAccountMetaConfig::new_with_cpi_context(
                 self.self_program
                     .ok_or(LightSdkError::ExpectedSelfProgram)?,
-                self.cpi_context
-                    .ok_or(LightSdkError::ExpectedCpiContext)?,
+                self.cpi_context.ok_or(LightSdkError::ExpectedCpiContext)?,
             );
             #[cfg(not(feature = "cpi-context"))]
             let config = SystemAccountMetaConfig::new(

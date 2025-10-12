@@ -5794,6 +5794,32 @@ dependencies = [
 ]
 
 [[package]]
+name = "sdk-token-test"
+version = "1.0.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "arrayvec",
+ "light-batched-merkle-tree",
+ "light-client",
+ "light-compressed-account",
+ "light-compressed-token-sdk",
+ "light-compressible",
+ "light-ctoken-types",
+ "light-hasher",
+ "light-program-profiler",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-types",
+ "light-test-utils",
+ "light-token-client",
+ "light-zero-copy",
+ "serial_test",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "sdk-v1-native-test"
 version = "1.0.0"
 dependencies = [

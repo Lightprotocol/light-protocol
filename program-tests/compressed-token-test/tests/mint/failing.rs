@@ -8,9 +8,7 @@ use light_compressed_token_sdk::instructions::{
 use light_ctoken_types::state::{extensions::AdditionalMetadata, CompressedMint};
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
-    assert_mint_action::assert_mint_action,
-    mint_assert::assert_compressed_mint_account,
-    Rpc,
+    assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
 };
 use light_token_client::actions::create_mint;
 use serial_test::serial;
@@ -84,7 +82,8 @@ async fn functional_and_failing_tests() {
             .get_compressed_account(compressed_mint_address, None)
             .await
             .unwrap()
-            .value.unwrap();
+            .value
+            .unwrap();
         assert_compressed_mint_account(
         &compressed_mint_account,
         compressed_mint_address,
@@ -206,7 +205,8 @@ async fn functional_and_failing_tests() {
             .get_compressed_account(compressed_mint_address, None)
             .await
             .unwrap()
-            .value.unwrap();
+            .value
+            .unwrap();
         let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
             &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
         )
@@ -255,7 +255,8 @@ async fn functional_and_failing_tests() {
         .get_compressed_account(compressed_mint_address, None)
         .await
         .unwrap()
-        .value.unwrap();
+        .value
+        .unwrap();
 
     // 5. UpdateMintAuthority with invalid mint authority
     {
@@ -285,7 +286,8 @@ async fn functional_and_failing_tests() {
             .get_compressed_account(compressed_mint_address, None)
             .await
             .unwrap()
-            .value.unwrap();
+            .value
+            .unwrap();
         let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
             &mut compressed_mint_account.data.unwrap().data.as_slice(),
         )
@@ -325,7 +327,8 @@ async fn functional_and_failing_tests() {
             .get_compressed_account(compressed_mint_address, None)
             .await
             .unwrap()
-            .value.unwrap();
+            .value
+            .unwrap();
 
         let result = light_token_client::actions::update_freeze_authority(
             &mut rpc,
@@ -355,7 +358,8 @@ async fn functional_and_failing_tests() {
             .get_compressed_account(compressed_mint_address, None)
             .await
             .unwrap()
-            .value.unwrap();
+            .value
+            .unwrap();
         let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
             &mut compressed_mint_account.data.unwrap().data.as_slice(),
         )
@@ -437,7 +441,8 @@ async fn functional_and_failing_tests() {
             .get_compressed_account(compressed_mint_address, None)
             .await
             .unwrap()
-            .value.unwrap();
+            .value
+            .unwrap();
         let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
             &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
         )
@@ -534,7 +539,8 @@ async fn functional_and_failing_tests() {
             .get_compressed_account(compressed_mint_address, None)
             .await
             .unwrap()
-            .value.unwrap();
+            .value
+            .unwrap();
         let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
             &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
         )
@@ -614,7 +620,8 @@ async fn functional_and_failing_tests() {
             .get_compressed_account(compressed_mint_address, None)
             .await
             .unwrap()
-            .value.unwrap();
+            .value
+            .unwrap();
         let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
             &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
         )
@@ -693,7 +700,8 @@ async fn functional_and_failing_tests() {
             .get_compressed_account(compressed_mint_address, None)
             .await
             .unwrap()
-            .value.unwrap();
+            .value
+            .unwrap();
         let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
             &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
         )
@@ -745,7 +753,8 @@ async fn functional_and_failing_tests() {
             .get_compressed_account(compressed_mint_address, None)
             .await
             .unwrap()
-            .value.unwrap();
+            .value
+            .unwrap();
         let pre_compressed_mint: CompressedMint = BorshDeserialize::deserialize(
             &mut pre_compressed_mint_account.data.unwrap().data.as_slice(),
         )

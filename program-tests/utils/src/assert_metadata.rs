@@ -48,7 +48,10 @@ pub async fn assert_metadata_state<R: Rpc + Indexer>(
         .await
         .expect("Failed to get compressed mint account")
         .value
-        .ok_or(RpcError::AccountDoesNotExist(format!("{:?}", compressed_mint_address)))
+        .ok_or(RpcError::AccountDoesNotExist(format!(
+            "{:?}",
+            compressed_mint_address
+        )))
         .expect("Compressed mint account not found");
     assert_sha_account_hash(&compressed_mint_account).unwrap();
 
@@ -159,7 +162,10 @@ pub async fn get_actual_mint_state<R: Rpc + Indexer>(
         .await
         .expect("Failed to get compressed mint account")
         .value
-        .ok_or(RpcError::AccountDoesNotExist(format!("{:?}", compressed_mint_address)))
+        .ok_or(RpcError::AccountDoesNotExist(format!(
+            "{:?}",
+            compressed_mint_address
+        )))
         .expect("Compressed mint account not found");
     println!(
         "compressed_mint_account.data {:?}",
@@ -214,7 +220,10 @@ pub async fn assert_metadata_exists<R: Rpc + Indexer>(
         .await
         .expect("Failed to get compressed mint account")
         .value
-        .ok_or(RpcError::AccountDoesNotExist(format!("{:?}", compressed_mint_address)))
+        .ok_or(RpcError::AccountDoesNotExist(format!(
+            "{:?}",
+            compressed_mint_address
+        )))
         .expect("Compressed mint account not found");
 
     let mint_data: CompressedMint =
@@ -250,7 +259,10 @@ pub async fn assert_metadata_not_exists<R: Rpc + Indexer>(
         .await
         .expect("Failed to get compressed mint account")
         .value
-        .ok_or(RpcError::AccountDoesNotExist(format!("{:?}", compressed_mint_address)))
+        .ok_or(RpcError::AccountDoesNotExist(format!(
+            "{:?}",
+            compressed_mint_address
+        )))
         .expect("Compressed mint account not found");
 
     let mint_data: CompressedMint =

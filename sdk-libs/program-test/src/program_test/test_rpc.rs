@@ -1,7 +1,10 @@
 use async_trait::async_trait;
 use light_client::rpc::{LightClient, Rpc, RpcError};
+use light_compressible::rent::SLOTS_PER_EPOCH;
 use solana_account::Account;
-use solana_sdk::{clock::Slot, pubkey::Pubkey};
+use solana_sdk::{clock::{Clock, Slot}, pubkey::Pubkey, sysvar::Sysvar};
+
+use crate::compressible::CompressibleAccountStore;
 #[cfg(feature = "devenv")]
 use {
     borsh::BorshDeserialize,
@@ -101,6 +104,17 @@ pub trait TestRpc: Rpc + Sized {
 
     fn set_account(&mut self, address: Pubkey, account: Account);
     fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError>;
+
+    /// Warps current slot forward by slots.
+    /// Claims and compresses compressible ctoken accounts.
+    async fn warp_slot_forward(&mut self, slot: Slot) -> Result<(), RpcError>;
+
+    /// Warps forward by the specified number of epochs.
+    /// Each epoch is SLOTS_PER_EPOCH slots.
+    async fn warp_epoch_forward(&mut self, epochs: u64) -> Result<(), RpcError> {
+        let slots_to_warp = epochs * SLOTS_PER_EPOCH;
+        self.warp_slot_forward(slots_to_warp).await
+    }
 }
 
 // Implementation required for E2ETestEnv.
@@ -111,6 +125,10 @@ impl TestRpc for LightClient {
     }
 
     fn warp_to_slot(&mut self, _slot: Slot) -> Result<(), RpcError> {
+        unimplemented!()
+    }
+
+    async fn warp_slot_forward(&mut self, _slot: Slot) -> Result<(), RpcError> {
         unimplemented!()
     }
 }
@@ -125,6 +143,17 @@ impl TestRpc for LightProgramTest {
 
     fn warp_to_slot(&mut self, slot: Slot) -> Result<(), RpcError> {
         self.context.warp_to_slot(slot);
+        Ok(())
+    }
+
+    /// Warps current slot forward by slots.
+    /// Claims and compresses compressible ctoken accounts.
+    async fn warp_slot_forward(&mut self, slot: Slot) -> Result<(), RpcError> {
+        let mut current_slot = self.context.get_sysvar::<Clock>().slot;
+        current_slot += slot;
+        self.context.warp_to_slot(current_slot);
+        let mut store = CompressibleAccountStore::new();
+        crate::compressible::claim_and_compress(self, &mut store).await?;
         Ok(())
     }
 }

@@ -10,11 +10,10 @@ use light_registry::{
 use solana_sdk::signature::Signer;
 use solana_sdk::{pubkey, pubkey::Pubkey, signature::Keypair};
 
-use crate::compressible::FundingPoolConfig;
-
 #[cfg(feature = "devenv")]
 use super::initialize::*;
 use super::test_keypairs::*;
+use crate::compressible::FundingPoolConfig;
 
 pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
 
@@ -263,7 +262,7 @@ impl Clone for TestAccounts {
             v1_address_trees: self.v1_address_trees.clone(),
             v2_state_trees: self.v2_state_trees.clone(),
             v2_address_trees: self.v2_address_trees.clone(),
-            funding_pool_config: self.funding_pool_config.clone(),
+            funding_pool_config: self.funding_pool_config,
         }
     }
 }

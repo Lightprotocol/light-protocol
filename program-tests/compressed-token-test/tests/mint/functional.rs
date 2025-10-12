@@ -1,5 +1,4 @@
-use anchor_lang::prelude::borsh::BorshDeserialize;
-use anchor_lang::solana_program::program_pack::Pack;
+use anchor_lang::{prelude::borsh::BorshDeserialize, solana_program::program_pack::Pack};
 use light_client::indexer::Indexer;
 use light_compressed_token_sdk::instructions::{
     create_associated_token_account::{

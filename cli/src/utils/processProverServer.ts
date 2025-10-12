@@ -90,7 +90,6 @@ export async function startProver(proverPort: number, redisUrl?: string) {
 
   args.push("--keys-dir", keysDir);
   args.push("--prover-address", `0.0.0.0:${proverPort}`);
-  args.push("--auto-download", "true");
 
   if (redisUrl) {
     args.push("--redis-url", redisUrl);

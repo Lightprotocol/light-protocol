@@ -168,7 +168,7 @@ impl CompressibleConfig {
         rent_config: RentConfig,
     ) -> Self {
         let mut address_space = [Pubkey::default(); 4];
-        address_space[0] = pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK");
+        address_space[0] = pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx");
         Self::new(
             version,
             active,
