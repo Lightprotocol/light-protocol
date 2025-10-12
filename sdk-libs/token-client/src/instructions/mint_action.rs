@@ -52,9 +52,9 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
 
     // Get address tree and output queue info
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-    let state_tree_info = rpc.get_random_state_tree_info()?;
 
-    let (compressed_mint_inputs, proof) = if is_creating_mint {
+    let (compressed_mint_inputs, proof, state_tree_info) = if is_creating_mint {
+        let state_tree_info = rpc.get_random_state_tree_info()?;
         // For creating mint: get address proof and create placeholder compressed mint inputs
         let rpc_proof_result = rpc
             .get_validity_proof(
@@ -98,7 +98,11 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
             mint: mint_data,
         };
 
-        (compressed_mint_inputs, rpc_proof_result.proof.0)
+        (
+            compressed_mint_inputs,
+            rpc_proof_result.proof.0,
+            state_tree_info,
+        )
     } else {
         // For existing mint: get validity proof for the compressed mint
         let compressed_mint_account = rpc
@@ -134,7 +138,11 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
             mint: compressed_mint.try_into().unwrap(),
         };
 
-        (compressed_mint_inputs, rpc_proof_result.proof.into())
+        (
+            compressed_mint_inputs,
+            rpc_proof_result.proof.into(),
+            rpc_proof_result.accounts[0].tree_info,
+        )
     };
     println!("compressed_mint_inputs {:?}", compressed_mint_inputs);
     // Get mint bump from find_spl_mint_address if we're creating a compressed mint
