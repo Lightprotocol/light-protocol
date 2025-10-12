@@ -39,7 +39,10 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
-use light_compressible::rent::RentConfig;
+use light_compressible::registry_instructions::{
+    CreateCompressibleConfig as CreateCompressibleConfigData,
+    CreateConfigCounter as CreateConfigCounterData,
+};
 use protocol_config::state::ProtocolConfig;
 pub use selection::forester::*;
 #[cfg(not(target_os = "solana"))]
@@ -668,7 +671,10 @@ pub mod light_registry {
     }
 
     /// Creates the config counter PDA
-    pub fn create_config_counter(ctx: Context<CreateConfigCounter>) -> Result<()> {
+    pub fn create_config_counter(
+        ctx: Context<CreateConfigCounter>,
+        _params: CreateConfigCounterData,
+    ) -> Result<()> {
         ctx.accounts.config_counter.counter += 1;
         Ok(())
     }
@@ -676,19 +682,16 @@ pub mod light_registry {
     /// Creates a new compressible config
     pub fn create_compressible_config(
         ctx: Context<CreateCompressibleConfig>,
-        rent_config: RentConfig,
-        update_authority: Pubkey,
-        withdrawal_authority: Pubkey,
-        active: bool,
+        params: CreateCompressibleConfigData,
     ) -> Result<()> {
         ctx.accounts
             .compressible_config
             .set_inner(CompressibleConfig::new_ctoken(
                 ctx.accounts.config_counter.counter,
-                active,
-                update_authority,
-                withdrawal_authority,
-                rent_config,
+                params.active,
+                params.update_authority,
+                params.withdrawal_authority,
+                params.rent_config,
             ));
         ctx.accounts.config_counter.counter += 1;
         Ok(())

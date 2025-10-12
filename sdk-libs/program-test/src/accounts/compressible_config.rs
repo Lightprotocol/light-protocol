@@ -1,13 +1,17 @@
-use anchor_lang::{pubkey, InstructionData, ToAccountMetas};
+use anchor_lang::pubkey;
 use borsh::BorshDeserialize;
 use light_client::rpc::{Rpc, RpcError};
-use light_compressible::{config::CompressibleConfig, rent::RentConfig};
-use light_registry::utils::get_protocol_config_pda_address;
+use light_compressible::{
+    config::CompressibleConfig,
+    registry_instructions::{
+        CreateCompressibleConfig, CreateCompressibleConfigAccounts, CreateConfigCounter,
+    },
+    rent::RentConfig,
+};
 use solana_pubkey::Pubkey;
 use solana_sdk::signer::Signer;
 
 use crate::LightProgramTest;
-
 /// Helper function to create CompressibleConfig
 pub async fn create_compressible_config(
     rpc: &mut LightProgramTest,
@@ -22,11 +26,11 @@ pub async fn create_compressible_config(
     // First, create the config counter if it doesn't exist
     let (config_counter_pda, _counter_bump) =
         Pubkey::find_program_address(&[b"compressible_config_counter"], &registry_program_id);
-    let protocol_config_pda = get_protocol_config_pda_address().0;
+    let protocol_config_pda = rpc.test_accounts.protocol.governance_authority_pda;
 
     // Check if counter exists, if not create it
     if rpc.get_account(config_counter_pda).await?.is_none() {
-        let instruction_data = light_registry::instruction::CreateConfigCounter {}; // Create config instruction
+        let instruction_data = CreateConfigCounter {};
 
         // Create counter instruction
         let create_counter_ix = solana_sdk::instruction::Instruction {
@@ -44,7 +48,7 @@ pub async fn create_compressible_config(
                     false,
                 ),
             ],
-            data: instruction_data.data(), // create_config_counter discriminator
+            data: instruction_data.data(),
         };
         let governance_authority = rpc
             .test_accounts
@@ -65,26 +69,31 @@ pub async fn create_compressible_config(
         &[b"compressible_config", &version.to_le_bytes()],
         &registry_program_id,
     );
-
-    let instruction_data = light_registry::instruction::CreateCompressibleConfig {
+    let instruction_data = CreateCompressibleConfig {
         rent_config: RentConfig::default(),
         update_authority: payer.pubkey(),
         withdrawal_authority: payer.pubkey(),
         active: true,
-    }; // Create config instruction
-
-    let accounts = light_registry::accounts::CreateCompressibleConfig {
+    };
+    let accounts = CreateCompressibleConfigAccounts {
         fee_payer: payer.pubkey(),
         authority: governance_authority.pubkey(),
-        system_program: Pubkey::default(),
-        compressible_config: compressible_config_pda,
         protocol_config_pda,
         config_counter: config_counter_pda,
+        compressible_config: compressible_config_pda,
+        system_program: Pubkey::default(),
     };
     let create_config_ix = solana_sdk::instruction::Instruction {
         program_id: registry_program_id,
-        accounts: accounts.to_account_metas(Some(true)),
-        data: instruction_data.data(), // create_compressible_config discriminator
+        accounts: vec![
+            solana_sdk::instruction::AccountMeta::new(accounts.fee_payer, true),
+            solana_sdk::instruction::AccountMeta::new_readonly(accounts.authority, true),
+            solana_sdk::instruction::AccountMeta::new_readonly(accounts.protocol_config_pda, false),
+            solana_sdk::instruction::AccountMeta::new(accounts.config_counter, false),
+            solana_sdk::instruction::AccountMeta::new(accounts.compressible_config, false),
+            solana_sdk::instruction::AccountMeta::new_readonly(accounts.system_program, false),
+        ],
+        data: instruction_data.data(),
     };
 
     rpc.create_and_send_transaction(

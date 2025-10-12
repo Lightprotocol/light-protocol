@@ -24,7 +24,7 @@ solana-msg = { workspace = true }
 anchor-lang = { workspace = true, optional = true }
 bytemuck = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
-solana-pubkey = { workspace = true }
+solana-pubkey = { workspace = true, features = ["std", "sha2", "curve25519", "borsh", "bytemuck"] }
 pinocchio-pubkey = { workspace = true }
 light-program-profiler = { workspace = true }
 light-heap = { workspace = true, optional = true }

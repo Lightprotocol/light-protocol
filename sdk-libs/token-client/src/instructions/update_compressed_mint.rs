@@ -26,7 +26,6 @@ use solana_signer::Signer;
 /// * `mint_authority` - Current mint authority (needed for freeze authority updates)
 /// * `compressed_mint_hash` - Hash of the compressed mint to update
 /// * `compressed_mint_leaf_index` - Leaf index of the compressed mint
-/// * `compressed_mint_merkle_tree` - Merkle tree containing the compressed mint
 /// * `payer` - Fee payer pubkey
 ///
 /// # Returns
@@ -102,7 +101,7 @@ pub async fn update_compressed_mint_instruction<R: Rpc + Indexer>(
         payer,
         authority: current_authority.pubkey(),
         in_merkle_tree: compressed_mint_merkle_tree,
-        in_output_queue: state_tree_info.queue,
+        in_output_queue: compressed_mint_account.tree_info.queue,
         out_output_queue: state_tree_info.queue, // Use same queue for output
     };
 

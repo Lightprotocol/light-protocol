@@ -1,6 +1,7 @@
 pub mod compression_info;
 pub mod config;
 pub mod error;
+pub mod registry_instructions;
 pub mod rent;
 
 #[cfg(feature = "anchor")]

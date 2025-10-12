@@ -14,7 +14,6 @@ use litesvm::LiteSVM;
 use solana_account::WritableAccount;
 use solana_sdk::signature::{Keypair, Signer};
 
-#[cfg(feature = "devenv")]
 use crate::accounts::compressible_config::create_compressible_config;
 #[cfg(feature = "devenv")]
 use crate::accounts::initialize::initialize_accounts;
