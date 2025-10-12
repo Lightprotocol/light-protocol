@@ -192,6 +192,13 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
     let registered_system_program_pda =
         get_registered_program_pda(&Pubkey::from(light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID));
     let registered_registry_program_pda = get_registered_program_pda(&light_registry::ID);
+
+    // Register forester for epoch 0 if enabled
+    if config.with_forester {
+        use crate::forester::register_forester::register_forester_for_compress_and_close;
+        register_forester_for_compress_and_close(context, &keypairs.forester).await?;
+    }
+
     use solana_sdk::pubkey;
     Ok(TestAccounts {
         protocol: ProtocolAccounts {

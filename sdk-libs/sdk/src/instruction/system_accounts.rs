@@ -65,8 +65,9 @@ use crate::{find_cpi_signer_macro, AccountMeta, Pubkey};
 #[derive(Debug, Default, Copy, Clone)]
 #[non_exhaustive]
 pub struct SystemAccountMetaConfig {
-    /// Your program's ID (required). Used to derive the CPI signer PDA.
-    pub self_program: Pubkey,
+    /// Your program's ID (optional). Used to derive the CPI signer PDA.
+    /// When None, the CPI signer is not included (for registry CPI flow).
+    pub self_program: Option<Pubkey>,
     /// Optional CPI context account for batched operations (v2 only).
     #[cfg(feature = "cpi-context")]
     pub cpi_context: Option<Pubkey>,
@@ -92,7 +93,7 @@ impl SystemAccountMetaConfig {
     /// ```
     pub fn new(self_program: Pubkey) -> Self {
         Self {
-            self_program,
+            self_program: Some(self_program),
             #[cfg(feature = "cpi-context")]
             cpi_context: None,
             sol_compression_recipient: None,
@@ -120,7 +121,7 @@ impl SystemAccountMetaConfig {
     #[cfg(feature = "cpi-context")]
     pub fn new_with_cpi_context(self_program: Pubkey, cpi_context: Pubkey) -> Self {
         Self {
-            self_program,
+            self_program: Some(self_program),
             cpi_context: Some(cpi_context),
             sol_compression_recipient: None,
             sol_pool_pda: None,
@@ -167,18 +168,28 @@ impl Default for SystemAccountPubkeys {
 
 /// InvokeSystemCpi v1.
 pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
-    let cpi_signer = find_cpi_signer_macro!(&config.self_program).0;
     let default_pubkeys = SystemAccountPubkeys::default();
 
-    let mut vec = vec![
-        AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
-        AccountMeta::new_readonly(cpi_signer, false),
-        AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
-        AccountMeta::new_readonly(default_pubkeys.noop_program, false),
-        AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
-        AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-        AccountMeta::new_readonly(config.self_program, false), // with read only doesnt have this one
-    ];
+    let mut vec = if let Some(self_program) = &config.self_program {
+        let cpi_signer = find_cpi_signer_macro!(self_program).0;
+        vec![
+            AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
+            AccountMeta::new_readonly(cpi_signer, false),
+            AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
+            AccountMeta::new_readonly(default_pubkeys.noop_program, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
+            AccountMeta::new_readonly(*self_program, false),
+        ]
+    } else {
+        vec![
+            AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
+            AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
+            AccountMeta::new_readonly(default_pubkeys.noop_program, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
+        ]
+    };
 
     if let Some(pubkey) = config.sol_pool_pda {
         vec.push(AccountMeta {
@@ -221,17 +232,27 @@ pub fn get_light_system_account_metas(config: SystemAccountMetaConfig) -> Vec<Ac
 /// 6. Account Compression Authority
 #[cfg(feature = "v2")]
 pub fn get_light_system_account_metas_v2(config: SystemAccountMetaConfig) -> Vec<AccountMeta> {
-    let cpi_signer = find_cpi_signer_macro!(&config.self_program).0;
     let default_pubkeys = SystemAccountPubkeys::default();
 
-    let mut vec = vec![
-        AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
-        AccountMeta::new_readonly(cpi_signer, false), // authority (cpi_signer)
-        AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
-        AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
-        AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-        AccountMeta::new_readonly(default_pubkeys.system_program, false),
-    ];
+    let mut vec = if let Some(self_program) = &config.self_program {
+        let cpi_signer = find_cpi_signer_macro!(self_program).0;
+        vec![
+            AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
+            AccountMeta::new_readonly(cpi_signer, false), // authority (cpi_signer)
+            AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
+            AccountMeta::new_readonly(default_pubkeys.system_program, false),
+        ]
+    } else {
+        vec![
+            AccountMeta::new_readonly(default_pubkeys.light_sytem_program, false),
+            AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
+            AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
+            AccountMeta::new_readonly(default_pubkeys.system_program, false),
+        ]
+    };
 
     if let Some(pubkey) = config.sol_pool_pda {
         vec.push(AccountMeta {

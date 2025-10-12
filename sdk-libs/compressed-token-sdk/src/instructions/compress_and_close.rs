@@ -440,17 +440,12 @@ impl AccountMetasVec for CompressAndCloseAccounts {
     /// 2. compressed token program and ctoken cpi authority pda to pre accounts
     fn get_account_metas_vec(&self, accounts: &mut PackedAccounts) -> Result<(), LightSdkError> {
         if !accounts.system_accounts_set() {
+            let mut config = SystemAccountMetaConfig::default();
+            config.self_program = self.self_program;
             #[cfg(feature = "cpi-context")]
-            let config = SystemAccountMetaConfig::new_with_cpi_context(
-                self.self_program
-                    .ok_or(LightSdkError::ExpectedSelfProgram)?,
-                self.cpi_context.ok_or(LightSdkError::ExpectedCpiContext)?,
-            );
-            #[cfg(not(feature = "cpi-context"))]
-            let config = SystemAccountMetaConfig::new(
-                self.self_program
-                    .ok_or(LightSdkError::ExpectedSelfProgram)?,
-            );
+            {
+                config.cpi_context = self.cpi_context;
+            }
             accounts.add_system_accounts_v2(config)?;
         }
         // Add both accounts in one operation for better performance
