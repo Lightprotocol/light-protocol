@@ -522,26 +522,27 @@ pub async fn failing_transaction_inputs_inner<R: Rpc>(
         .await
         .unwrap();
     }
-    // output Merkle tree is not unique (we need at least 2 outputs for this test)
-    if num_outputs > 1 {
-        let mut inputs_struct = inputs_struct.clone();
-        let mut remaining_accounts = remaining_accounts.clone();
-        let remaining_mt_acc = remaining_accounts
-            [inputs_struct.output_compressed_accounts[1].merkle_tree_index as usize]
-            .clone();
-        remaining_accounts.push(remaining_mt_acc);
-        inputs_struct.output_compressed_accounts[1].merkle_tree_index =
-            (remaining_accounts.len() - 1) as u8;
-        create_instruction_and_failing_transaction(
-            rpc,
-            payer,
-            inputs_struct,
-            remaining_accounts.clone(),
-            SystemProgramError::OutputMerkleTreeNotUnique.into(),
-        )
-        .await
-        .unwrap();
-    }
+    // System program supports unordered trees now.
+    // // output Merkle tree is not unique (we need at least 2 outputs for this test)
+    // if num_outputs > 1 {
+    //     let mut inputs_struct = inputs_struct.clone();
+    //     let mut remaining_accounts = remaining_accounts.clone();
+    //     let remaining_mt_acc = remaining_accounts
+    //         [inputs_struct.output_compressed_accounts[1].merkle_tree_index as usize]
+    //         .clone();
+    //     remaining_accounts.push(remaining_mt_acc);
+    //     inputs_struct.output_compressed_accounts[1].merkle_tree_index =
+    //         (remaining_accounts.len() - 1) as u8;
+    //     create_instruction_and_failing_transaction(
+    //         rpc,
+    //         payer,
+    //         inputs_struct,
+    //         remaining_accounts.clone(),
+    //         SystemProgramError::OutputMerkleTreeNotUnique.into(),
+    //     )
+    //     .await
+    //     .unwrap();
+    // }
     Ok(())
 }
 
@@ -1846,10 +1847,10 @@ async fn batch_invoke_test() {
     let config = ProgramTestConfig::default_test_forester(false);
 
     let mut rpc = LightProgramTest::new(config).await.unwrap();
-    let protocol_config = rpc.config.protocol_config;
-    setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
-        .await
-        .unwrap();
+    // let protocol_config = rpc.config.protocol_config;
+    // setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
+    //     .await
+    //     .unwrap();
 
     let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();

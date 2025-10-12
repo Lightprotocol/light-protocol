@@ -4045,6 +4045,7 @@ name = "light-system-program-pinocchio"
 version = "1.2.0"
 dependencies = [
  "aligned-sized",
+ "arrayvec",
  "borsh 0.10.4",
  "bytemuck",
  "light-account-checks",

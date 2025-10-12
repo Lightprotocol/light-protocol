@@ -16,7 +16,7 @@ no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 test-sbf = ["profile-program"]
-default = ["profile-program"]
+default = []
 profile-program = [
     "light-compressed-token-sdk/profile-program",
     "light-program-profiler/profile-program",
@@ -31,7 +31,7 @@ profile-heap = [
 ]
 
 [dependencies]
-light-compressed-token-sdk = { workspace = true, features = ["anchor"] }
+light-compressed-token-sdk = { workspace = true, features = ["anchor", "cpi-context"] }
 anchor-lang = { workspace = true }
 light-hasher = { workspace = true }
 light-sdk = { workspace = true, features = ["v2", "cpi-context"] }

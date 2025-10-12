@@ -446,6 +446,13 @@ impl AccountMetasVec for CompressAndCloseAccounts {
             {
                 config.cpi_context = self.cpi_context;
             }
+            #[cfg(not(feature = "cpi-context"))]
+            {
+                if self.cpi_context.is_some() {
+                    msg!("Error: cpi_context is set but 'cpi-context' feature is not enabled");
+                    return Err(LightSdkError::ExpectedCpiContext);
+                }
+            }
             accounts.add_system_accounts_v2(config)?;
         }
         // Add both accounts in one operation for better performance
