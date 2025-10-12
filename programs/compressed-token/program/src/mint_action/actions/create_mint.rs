@@ -37,7 +37,7 @@ pub fn process_create_mint_action(
     )?
     .into();
 
-    if spl_mint_pda.to_bytes() != parsed_instruction_data.mint.metadata.spl_mint.to_bytes() {
+    if spl_mint_pda.to_bytes() != parsed_instruction_data.mint.metadata.mint.to_bytes() {
         msg!("Invalid mint PDA derivation");
         return Err(ErrorCode::MintActionInvalidMintPda.into());
     }

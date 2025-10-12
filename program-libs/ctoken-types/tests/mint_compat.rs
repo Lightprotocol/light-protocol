@@ -142,7 +142,7 @@ fn test_base_mint_borsh_pack_compatibility() {
             generate_random_mint_data();
 
         // Create Light BaseCompressedMint
-        // Note: We generate a random spl_mint pubkey for completeness
+        // Note: We generate a random mint pubkey for completeness
         let mut spl_mint_bytes = [0u8; 32];
         thread_rng().fill(&mut spl_mint_bytes);
 
@@ -156,7 +156,7 @@ fn test_base_mint_borsh_pack_compatibility() {
         };
 
         // Create SPL Mint
-        let spl_mint = Mint {
+        let mint = Mint {
             mint_authority: mint_authority
                 .map(|p| solana_pubkey::Pubkey::from(p.to_bytes()))
                 .into(),
@@ -169,7 +169,7 @@ fn test_base_mint_borsh_pack_compatibility() {
         };
 
         // Compare the mints
-        compare_mints(&light_mint, &spl_mint, i);
+        compare_mints(&light_mint, &mint, i);
     }
 }
 

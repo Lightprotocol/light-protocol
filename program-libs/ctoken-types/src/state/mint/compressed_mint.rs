@@ -49,7 +49,7 @@ pub struct CompressedMintMetadata {
     /// Extension, necessary for mint to.
     pub spl_mint_initialized: bool,
     /// Pda with seed address of compressed mint
-    pub spl_mint: Pubkey,
+    pub mint: Pubkey,
 }
 
 impl CompressedMint {
@@ -84,7 +84,7 @@ impl ZCompressedMintMut<'_> {
         }
         // Set metadata fields from instruction data
         self.metadata.version = ix_data.metadata.version;
-        self.metadata.spl_mint = ix_data.metadata.spl_mint;
+        self.metadata.mint = ix_data.metadata.mint;
         self.metadata.spl_mint_initialized = if spl_mint_initialized { 1 } else { 0 };
 
         // Set base fields

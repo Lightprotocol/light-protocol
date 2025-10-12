@@ -37,7 +37,7 @@ pub fn process_mint_action(
     let validated_accounts = MintActionAccounts::validate_and_parse(
         accounts,
         &accounts_config,
-        &parsed_instruction_data.mint.metadata.spl_mint.into(),
+        &parsed_instruction_data.mint.metadata.mint.into(),
         parsed_instruction_data.token_pool_index,
         parsed_instruction_data.token_pool_bump,
     )?;

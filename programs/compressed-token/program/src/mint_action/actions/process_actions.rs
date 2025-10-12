@@ -45,7 +45,7 @@ pub fn process_actions<'a>(
                     validated_accounts,
                     output_accounts_iter,
                     hash_cache,
-                    parsed_instruction_data.mint.metadata.spl_mint,
+                    parsed_instruction_data.mint.metadata.mint,
                     queue_indices.out_token_queue_index,
                 )?;
             }
@@ -84,7 +84,7 @@ pub fn process_actions<'a>(
                     compressed_mint,
                     validated_accounts,
                     packed_accounts,
-                    parsed_instruction_data.mint.metadata.spl_mint,
+                    parsed_instruction_data.mint.metadata.mint,
                 )?;
             }
             ZAction::UpdateMetadataField(update_metadata_action) => {

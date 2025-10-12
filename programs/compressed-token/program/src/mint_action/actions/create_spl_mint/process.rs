@@ -32,8 +32,8 @@ pub fn process_create_spl_mint_action(
         }
     }
 
-    // Verify mint PDA matches the spl_mint field in compressed mint inputs
-    let expected_mint: [u8; 32] = mint_data.metadata.spl_mint.to_bytes();
+    // Verify mint PDA matches the mint field in compressed mint inputs
+    let expected_mint: [u8; 32] = mint_data.metadata.mint.to_bytes();
     if executing_accounts
         .mint
         .ok_or(ErrorCode::MintActionMissingMintAccount)?

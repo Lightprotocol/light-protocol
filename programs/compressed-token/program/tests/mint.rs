@@ -115,7 +115,7 @@ fn test_rnd_create_compressed_mint_account() {
             decimals,
             metadata: CompressedMintMetadata {
                 version,
-                spl_mint: mint_pda,
+                mint: mint_pda,
                 spl_mint_initialized,
             },
             mint_authority: Some(mint_authority),
@@ -193,8 +193,8 @@ fn test_rnd_create_compressed_mint_account() {
         // Test 3: Verify data matches between borsh and zero-copy
         assert_eq!(zc_mint.metadata.version, output_mint_data.metadata.version);
         assert_eq!(
-            zc_mint.metadata.spl_mint.to_bytes(),
-            output_mint_data.metadata.spl_mint.to_bytes()
+            zc_mint.metadata.mint.to_bytes(),
+            output_mint_data.metadata.mint.to_bytes()
         );
         assert_eq!(zc_mint.supply.get(), output_mint_data.supply);
         assert_eq!(zc_mint.decimals, output_mint_data.decimals);
@@ -366,7 +366,7 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
         },
         metadata: CompressedMintMetadata {
             version: 3u8,
-            spl_mint: Pubkey::new_from_array([3; 32]),
+            mint: Pubkey::new_from_array([3; 32]),
             spl_mint_initialized: false,
         },
         extensions: Some(vec![ExtensionStruct::TokenMetadata(token_metadata)]),
@@ -394,7 +394,7 @@ fn test_compressed_mint_borsh_zero_copy_compatibility() {
             },
             metadata: CompressedMintMetadata {
                 version: zc_mint.metadata.version,
-                spl_mint: zc_mint.metadata.spl_mint,
+                mint: zc_mint.metadata.mint,
                 spl_mint_initialized: zc_mint.metadata.spl_mint_initialized != 0,
             },
             extensions: zc_mint.extensions.as_ref().map(|zc_exts| {

@@ -35,7 +35,7 @@
 //             },
 //             metadata: CompressedMintMetadata {
 //                 version: 3,
-//                 spl_mint: Pubkey::new_unique(),
+//                 mint: Pubkey::new_unique(),
 //                 spl_mint_initialized: false,
 //             },
 //             extensions: None,
@@ -80,7 +80,7 @@
 //             },
 //             metadata: CompressedMintMetadata {
 //                 version: 3,
-//                 spl_mint: Pubkey::new_from_array([1u8; 32]),
+//                 mint: Pubkey::new_from_array([1u8; 32]),
 //                 spl_mint_initialized: false,
 //             },
 //             extensions: None,
@@ -88,10 +88,10 @@
 
 //         assert_to_previous_hashes(base.hash().unwrap(), &mut previous_hashes);
 
-//         // Test different spl_mint values
+//         // Test different mint values
 //         for i in 2u8..10u8 {
 //             let mut variant = base.clone();
-//             variant.metadata.spl_mint = Pubkey::new_from_array([i; 32]);
+//             variant.metadata.mint = Pubkey::new_from_array([i; 32]);
 //             assert_to_previous_hashes(variant.hash().unwrap(), &mut previous_hashes);
 //         }
 
@@ -155,7 +155,7 @@
 //             },
 //             metadata: CompressedMintMetadata {
 //                 version: 3,
-//                 spl_mint: Pubkey::new_from_array([0u8; 32]),
+//                 mint: Pubkey::new_from_array([0u8; 32]),
 //                 spl_mint_initialized: false,
 //             },
 //             extensions: None,
@@ -164,7 +164,7 @@
 
 //         // Test each field individually set to non-zero while others remain minimal
 //         let mut variant = all_minimal.clone();
-//         variant.metadata.spl_mint = Pubkey::new_from_array([1u8; 32]); // Only this field non-zero
+//         variant.metadata.mint = Pubkey::new_from_array([1u8; 32]); // Only this field non-zero
 //         assert_to_previous_hashes(variant.hash().unwrap(), &mut previous_hashes);
 
 //         variant = all_minimal.clone();
@@ -206,7 +206,7 @@
 //             },
 //             metadata: CompressedMintMetadata {
 //                 version: 3,
-//                 spl_mint: Pubkey::new_from_array([1u8; 32]),
+//                 mint: Pubkey::new_from_array([1u8; 32]),
 //                 spl_mint_initialized: false,
 //             },
 //             extensions: None,
@@ -236,7 +236,7 @@
 //         // Test pubkey boundaries (edge bytes in array) - avoid duplicating base values
 //         for pubkey_bytes in [[0u8; 32], [4u8; 32], [255u8; 32]] {
 //             let mut variant = base.clone();
-//             variant.metadata.spl_mint = Pubkey::new_from_array(pubkey_bytes);
+//             variant.metadata.mint = Pubkey::new_from_array(pubkey_bytes);
 //             assert_to_previous_hashes(variant.hash().unwrap(), &mut previous_hashes);
 //         }
 //     }
@@ -256,7 +256,7 @@
 //             },
 //             metadata: CompressedMintMetadata {
 //                 version: 3,
-//                 spl_mint: Pubkey::new_from_array([1u8; 32]),
+//                 mint: Pubkey::new_from_array([1u8; 32]),
 //                 spl_mint_initialized: false,
 //             },
 //             extensions: None,
@@ -333,7 +333,7 @@
 //             },
 //             metadata: CompressedMintMetadata {
 //                 version: 3,
-//                 spl_mint: Pubkey::new_from_array([1u8; 32]),
+//                 mint: Pubkey::new_from_array([1u8; 32]),
 //                 spl_mint_initialized: false,
 //             },
 //             extensions: None,
@@ -407,7 +407,7 @@
 //                 },
 //                 metadata: CompressedMintMetadata {
 //                     version: 3, // Always version 3
-//                     spl_mint: Pubkey::new_from_array(rng.gen::<[u8; 32]>()),
+//                     mint: Pubkey::new_from_array(rng.gen::<[u8; 32]>()),
 //                     spl_mint_initialized: rng.gen_bool(0.5),
 //                 },
 //                 extensions: if rng.gen_bool(0.3) {

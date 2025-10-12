@@ -26,7 +26,7 @@ fn generate_random_compressed_mint(rng: &mut impl Rng, with_extensions: bool) ->
         },
         metadata: CompressedMintMetadata {
             version: 3,
-            spl_mint: Pubkey::from(rng.gen::<[u8; 32]>()),
+            mint: Pubkey::from(rng.gen::<[u8; 32]>()),
             spl_mint_initialized: rng.gen_bool(0.5),
         },
         extensions: if with_extensions {
@@ -94,7 +94,7 @@ fn test_compressed_mint_borsh_zerocopy_compatibility() {
             .base
             .set_freeze_authority(original_mint.base.freeze_authority);
         zc_mint.metadata.version = original_mint.metadata.version;
-        zc_mint.metadata.spl_mint = original_mint.metadata.spl_mint;
+        zc_mint.metadata.mint = original_mint.metadata.mint;
         zc_mint.metadata.spl_mint_initialized = if original_mint.metadata.spl_mint_initialized {
             1
         } else {
@@ -145,7 +145,7 @@ fn test_compressed_mint_borsh_zerocopy_compatibility() {
             i
         );
         assert_eq!(
-            original_mint.metadata.spl_mint, zc_read.metadata.spl_mint,
+            original_mint.metadata.mint, zc_read.metadata.mint,
             "SPL mint mismatch at iteration {}",
             i
         );
@@ -172,7 +172,7 @@ fn test_compressed_mint_edge_cases() {
         },
         metadata: CompressedMintMetadata {
             version: 3,
-            spl_mint: Pubkey::from([0xff; 32]),
+            mint: Pubkey::from([0xff; 32]),
             spl_mint_initialized: false,
         },
         extensions: None,
@@ -206,7 +206,7 @@ fn test_compressed_mint_edge_cases() {
         .base
         .set_freeze_authority(mint_no_auth.base.freeze_authority);
     zc_mint.metadata.version = mint_no_auth.metadata.version;
-    zc_mint.metadata.spl_mint = mint_no_auth.metadata.spl_mint;
+    zc_mint.metadata.mint = mint_no_auth.metadata.mint;
     zc_mint.metadata.spl_mint_initialized = 0;
 
     let zc_as_borsh = CompressedMint::deserialize(&mut zc_bytes.as_slice()).unwrap();
@@ -223,7 +223,7 @@ fn test_compressed_mint_edge_cases() {
         },
         metadata: CompressedMintMetadata {
             version: 255,
-            spl_mint: Pubkey::from([0xbb; 32]),
+            mint: Pubkey::from([0xbb; 32]),
             spl_mint_initialized: true,
         },
         extensions: None,
@@ -247,7 +247,7 @@ fn test_base_mint_in_compressed_mint_spl_format() {
         },
         metadata: CompressedMintMetadata {
             version: 3,
-            spl_mint: Pubkey::from([3; 32]),
+            mint: Pubkey::from([3; 32]),
             spl_mint_initialized: false,
         },
         extensions: None,

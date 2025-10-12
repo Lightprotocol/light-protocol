@@ -40,7 +40,7 @@ fn random_compressed_mint_metadata(rng: &mut StdRng) -> CompressedMintMetadata {
     CompressedMintMetadata {
         version: rng.gen_range(1..=3) as u8,
         spl_mint_initialized: rng.gen_bool(0.5),
-        spl_mint: random_pubkey(rng),
+        mint: random_pubkey(rng),
     }
 }
 
@@ -170,7 +170,7 @@ fn generate_random_instruction_data(
 
     let mut mint_metadata = random_compressed_mint_metadata(rng);
     if let Some(spl_init) = force_spl_initialized {
-        mint_metadata.spl_mint_initialized = spl_init && !create_mint.is_some();
+        mint_metadata.spl_mint_initialized = spl_init && create_mint.is_none();
     }
 
     // Generate actions

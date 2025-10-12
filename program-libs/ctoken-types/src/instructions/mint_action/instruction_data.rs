@@ -166,7 +166,7 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
                                     .update_authority
                                     .map(|p| *p)
                                     .unwrap_or_else(|| Pubkey::from([0u8; 32])),
-                                mint: instruction_data.metadata.spl_mint, // Use the mint from metadata
+                                mint: instruction_data.metadata.mint, // Use the mint from metadata
                                 name: token_metadata_data.name.to_vec(),
                                 symbol: token_metadata_data.symbol.to_vec(),
                                 uri: token_metadata_data.uri.to_vec(),
@@ -203,7 +203,7 @@ impl<'a> TryFrom<&ZCompressedMintInstructionData<'a>> for CompressedMint {
             metadata: CompressedMintMetadata {
                 version: instruction_data.metadata.version,
                 spl_mint_initialized: instruction_data.metadata.spl_mint_initialized(),
-                spl_mint: instruction_data.metadata.spl_mint,
+                mint: instruction_data.metadata.mint,
             },
             extensions,
         })

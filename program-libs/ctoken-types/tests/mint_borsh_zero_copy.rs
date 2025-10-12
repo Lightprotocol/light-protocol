@@ -97,7 +97,7 @@ fn generate_random_mint() -> CompressedMint {
         metadata: CompressedMintMetadata {
             version: 3,
             spl_mint_initialized: rng.gen_bool(0.5),
-            spl_mint: {
+            mint: {
                 let mut bytes = [0u8; 32];
                 rng.fill(&mut bytes);
                 Pubkey::from(bytes)
@@ -160,7 +160,7 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
         metadata: CompressedMintMetadata {
             version: zc_mint.metadata.version,
             spl_mint_initialized: zc_mint.metadata.spl_mint_initialized != 0,
-            spl_mint: zc_mint.metadata.spl_mint,
+            mint: zc_mint.metadata.mint,
         },
         extensions: zc_extensions.clone(),
     };
@@ -181,7 +181,7 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
         metadata: CompressedMintMetadata {
             version: zc_mint_mut.metadata.version,
             spl_mint_initialized: zc_mint_mut.metadata.spl_mint_initialized != 0,
-            spl_mint: zc_mint_mut.metadata.spl_mint,
+            mint: zc_mint_mut.metadata.mint,
         },
         extensions: zc_extensions, // Extensions handling for mut is same as read-only
     };
@@ -195,17 +195,17 @@ fn compare_mint_borsh_vs_zero_copy(original: &CompressedMint, borsh_bytes: &[u8]
 
     // Test SPL mint pod deserialization on base mint only
     // Only use the first Mint::LEN bytes for SPL deserialization
-    let spl_mint = Mint::unpack(&borsh_bytes[..Mint::LEN]).unwrap();
+    let mint = Mint::unpack(&borsh_bytes[..Mint::LEN]).unwrap();
 
     // Reconstruct BaseMint from SPL mint for comparison
     let spl_reconstructed_base = BaseMint {
-        mint_authority: Option::<solana_pubkey::Pubkey>::from(spl_mint.mint_authority)
+        mint_authority: Option::<solana_pubkey::Pubkey>::from(mint.mint_authority)
             .map(|p| Pubkey::from(p.to_bytes())),
-        freeze_authority: Option::<solana_pubkey::Pubkey>::from(spl_mint.freeze_authority)
+        freeze_authority: Option::<solana_pubkey::Pubkey>::from(mint.freeze_authority)
             .map(|p| Pubkey::from(p.to_bytes())),
-        supply: spl_mint.supply,
-        decimals: spl_mint.decimals,
-        is_initialized: spl_mint.is_initialized,
+        supply: mint.supply,
+        decimals: mint.decimals,
+        is_initialized: mint.is_initialized,
     };
 
     // Additional assertion comparing base mints with SPL pod deserialization
