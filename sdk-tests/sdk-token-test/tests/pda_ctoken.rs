@@ -72,7 +72,7 @@ async fn test_pda_ctoken() {
     };
 
     // Create the compressed mint (with chained operations including update mint)
-    let (compressed_mint_address, token_account, spl_mint) = create_mint(
+    let (compressed_mint_address, token_account, mint) = create_mint(
         &mut rpc,
         &mint_seed,
         decimals,
@@ -108,7 +108,7 @@ async fn test_pda_ctoken() {
     .unwrap();
 
     println!("✅ Compressed mint created:");
-    println!("   - SPL mint: {:?}", compressed_mint.metadata.spl_mint);
+    println!("   - SPL mint: {:?}", compressed_mint.metadata.mint);
     println!("   - Decimals: {}", compressed_mint.base.decimals);
     println!("   - Supply: {}", compressed_mint.base.supply);
     println!(
@@ -155,7 +155,7 @@ async fn test_pda_ctoken() {
         "Token account should be owned by mint authority"
     );
     assert_eq!(
-        token_account_data.mint, spl_mint,
+        token_account_data.mint, mint,
         "Token account should be associated with the SPL mint"
     );
 
@@ -202,16 +202,16 @@ pub async fn create_mint(
         derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint bump for the instruction
-    let (spl_mint, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
+    let (mint, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
 
     // Create compressed token associated token account for the mint authority
-    let (token_account, _) = derive_ctoken_ata(&mint_authority.pubkey(), &spl_mint);
+    let (token_account, _) = derive_ctoken_ata(&mint_authority.pubkey(), &mint);
     println!("Created token_account (ATA): {:?}", token_account);
     let create_ata_instruction = create_compressible_associated_token_account(
         CreateCompressibleAssociatedTokenAccountInputs {
             payer: payer.pubkey(),
             owner: mint_authority.pubkey(),
-            mint: spl_mint,
+            mint,
             rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
             pre_pay_num_epochs: 1,
             lamports_per_write: Some(1000),
@@ -232,7 +232,7 @@ pub async fn create_mint(
             .concat()
             .as_slice(),
     );
-    println!("spl_mint: {:?}", spl_mint);
+    println!("mint: {:?}", mint);
     let pda_address = derive_address(
         &pda_address_seed,
         &address_tree_pubkey.to_bytes(),
@@ -257,10 +257,7 @@ pub async fn create_mint(
         .await?
         .value;
     let mut packed_accounts = PackedAccounts::default();
-    let config = SystemAccountMetaConfig::new_with_cpi_context(
-        ID,
-        tree_info.cpi_context.unwrap(),
-    );
+    let config = SystemAccountMetaConfig::new_with_cpi_context(ID, tree_info.cpi_context.unwrap());
     packed_accounts.add_system_accounts_v2(config).unwrap();
     rpc_result.pack_tree_infos(&mut packed_accounts);
 
@@ -278,7 +275,7 @@ pub async fn create_mint(
             decimals,
             metadata: CompressedMintMetadata {
                 version: 3,
-                spl_mint: spl_mint.into(),
+                mint: mint.into(),
                 spl_mint_initialized: false,
             },
             mint_authority: Some(mint_authority.pubkey().into()),
@@ -351,5 +348,5 @@ pub async fn create_mint(
         .await?;
 
     // Return the compressed mint address, token account, and SPL mint
-    Ok((compressed_mint_address, token_account, spl_mint))
+    Ok((compressed_mint_address, token_account, mint))
 }

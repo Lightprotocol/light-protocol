@@ -123,7 +123,7 @@ async fn test_compress_full_and_close() {
         },
         metadata: CompressedMintMetadata {
             version: 3,
-            spl_mint: mint_pda.into(),
+            mint: mint_pda.into(),
             spl_mint_initialized: false,
         },
         extensions: None,

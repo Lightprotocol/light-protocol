@@ -6,8 +6,6 @@ use solana_sdk::{
     clock::{Clock, Slot},
     pubkey::Pubkey,
 };
-
-use crate::compressible::CompressibleAccountStore;
 #[cfg(feature = "devenv")]
 use {
     borsh::BorshDeserialize,
@@ -22,7 +20,7 @@ use {
     std::{fmt::Debug, marker::Send},
 };
 
-use crate::program_test::LightProgramTest;
+use crate::{compressible::CompressibleAccountStore, program_test::LightProgramTest};
 
 #[async_trait]
 pub trait TestRpc: Rpc + Sized {

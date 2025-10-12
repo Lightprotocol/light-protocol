@@ -68,13 +68,12 @@ pub fn get_mint_action_instruction_account_metas(
                 crate::token_pool::find_token_pool_pda_with_index(&spl_mint_pda, 0);
             metas.push(AccountMeta::new(token_pool_pda, false));
         } else {
-            // For existing mint operations - use the spl_mint from compressed mint inputs
-            let spl_mint_pubkey = solana_pubkey::Pubkey::from(
-                compressed_mint_inputs.mint.metadata.spl_mint.to_bytes(),
-            );
+            // For existing mint operations - use the mint from compressed mint inputs
+            let spl_mint_pubkey =
+                solana_pubkey::Pubkey::from(compressed_mint_inputs.mint.metadata.mint.to_bytes());
             metas.push(AccountMeta::new(spl_mint_pubkey, false)); // mutable: true, signer: false
 
-            // token_pool_pda (derived from the spl_mint)
+            // token_pool_pda (derived from the mint)
             let (token_pool_pda, _) =
                 crate::token_pool::find_token_pool_pda_with_index(&spl_mint_pubkey, 0);
             metas.push(AccountMeta::new(token_pool_pda, false));

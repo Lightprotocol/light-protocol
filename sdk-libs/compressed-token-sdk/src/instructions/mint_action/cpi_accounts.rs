@@ -23,9 +23,9 @@ pub struct MintActionCpiAccounts<'a, A: AccountInfoTrait + Clone> {
     pub authority: &'a A,           // Always required to sign
 
     // Decompressed mint accounts (conditional group - all or none)
-    pub spl_mint: Option<&'a A>, // SPL mint account (when decompressed)
+    pub mint: Option<&'a A>,           // SPL mint account (when decompressed)
     pub token_pool_pda: Option<&'a A>, // Token pool PDA (when decompressed)
-    pub token_program: Option<&'a A>, // SPL Token 2022 (when decompressed)
+    pub token_program: Option<&'a A>,  // SPL Token 2022 (when decompressed)
 
     // Core Light system accounts
     pub fee_payer: &'a A,
@@ -86,8 +86,8 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         }
 
         // 5-7. Decompressed mint accounts (conditional group)
-        let (spl_mint, token_pool_pda, token_program) = if spl_mint_initialized {
-            let mint = Some(iter.next_account("spl_mint")?);
+        let (mint, token_pool_pda, token_program) = if spl_mint_initialized {
+            let mint = Some(iter.next_account("mint")?);
             let pool = Some(iter.next_account("token_pool_pda")?);
             let program = Some(iter.next_account("token_program")?);
 
@@ -196,7 +196,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             light_system_program,
             mint_signer,
             authority,
-            spl_mint,
+            mint,
             token_pool_pda,
             token_program,
             fee_payer,
@@ -305,7 +305,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         accounts.push(self.authority.clone());
 
         // Decompressed mint accounts
-        if let Some(mint) = self.spl_mint {
+        if let Some(mint) = self.mint {
             accounts.push(mint.clone());
         }
         if let Some(pool) = self.token_pool_pda {
@@ -393,7 +393,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         });
 
         // Decompressed mint accounts
-        if let Some(mint) = self.spl_mint {
+        if let Some(mint) = self.mint {
             metas.push(AccountMeta {
                 pubkey: mint.key().into(),
                 is_writable: true,

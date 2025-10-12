@@ -1,6 +1,8 @@
 use anchor_lang::InstructionData;
 use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
-use light_program_test::{program_test::TestRpc, Indexer, LightProgramTest, ProgramTestConfig, Rpc};
+use light_program_test::{
+    program_test::TestRpc, Indexer, LightProgramTest, ProgramTestConfig, Rpc,
+};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::spl::create_mint_helper;
 use solana_sdk::{

@@ -267,12 +267,7 @@ pub fn process_update_deposit<'info>(
 
     // 2. Update escrow pda balance
     // - settle tx 1 in the same instruction with the cpi context account
-    process_update_escrow_pda(
-        cpi_accounts,
-        pda_params,
-        proof,
-        token_params.deposit_amount,
-    )?;
+    process_update_escrow_pda(cpi_accounts, pda_params, proof, token_params.deposit_amount)?;
 
     // 3. Merge the newly escrowed tokens into the existing escrow account.
     merge_escrow_token_accounts(

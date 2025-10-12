@@ -392,8 +392,8 @@ async fn create_compressed_escrow_pda(
         .value;
 
     let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
-    let new_address_params =
-        packed_tree_info.address_trees[0].into_new_address_params_assigned_packed(address_seed, Some(0));
+    let new_address_params = packed_tree_info.address_trees[0]
+        .into_new_address_params_assigned_packed(address_seed, Some(0));
 
     let (accounts, _, _) = remaining_accounts.to_account_metas();
 

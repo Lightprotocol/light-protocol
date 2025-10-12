@@ -241,7 +241,7 @@ async fn mint_compressed_tokens(
         },
         metadata: CompressedMintMetadata {
             version: 3,
-            spl_mint: mint_pda.into(),
+            mint: mint_pda.into(),
             spl_mint_initialized: false,
         },
         extensions: None,
@@ -320,8 +320,8 @@ async fn create_compressed_escrow_pda(
         .value;
 
     let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
-    let new_address_params =
-        packed_tree_info.address_trees[0].into_new_address_params_assigned_packed(address_seed, Some(0));
+    let new_address_params = packed_tree_info.address_trees[0]
+        .into_new_address_params_assigned_packed(address_seed, Some(0));
 
     let (accounts, _, _) = remaining_accounts.to_account_metas();
 
@@ -381,9 +381,7 @@ async fn test_four_transfer2_instruction(
         sdk_token_test::ID,
         tree_info.cpi_context.unwrap(),
     );
-    remaining_accounts
-        .add_system_accounts_v2(config)
-        .unwrap();
+    remaining_accounts.add_system_accounts_v2(config).unwrap();
     println!("next index {}", remaining_accounts.packed_pubkeys().len());
 
     // Get validity proof - need to prove the escrow PDA and compressed token accounts

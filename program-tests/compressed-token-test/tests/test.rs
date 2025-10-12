@@ -5239,7 +5239,7 @@ async fn perform_transfer_failing_test<R: Rpc>(
     let mint = if invalid_mint {
         Pubkey::new_unique()
     } else {
-        input_compressed_account_token_data[0].mint
+        input_compressed_account_token_data[0].mint.into()
     };
     let instruction = create_transfer_instruction(
         &payer.pubkey(),

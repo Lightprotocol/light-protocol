@@ -79,7 +79,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                 decimals: new_mint.decimals,
                 metadata: light_ctoken_types::state::CompressedMintMetadata {
                     version: new_mint.version,
-                    spl_mint: find_spl_mint_address(&params.mint_seed).0.to_bytes().into(),
+                    mint: find_spl_mint_address(&params.mint_seed).0.to_bytes().into(),
                     spl_mint_initialized: false, // Will be set to true if CreateSplMint action is present
                 },
                 mint_authority: Some(new_mint.mint_authority.to_bytes().into()),
@@ -161,8 +161,8 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
     }) || compressed_mint_inputs.mint.metadata.spl_mint_initialized;
 
     let token_pool = if needs_token_pool {
-        let spl_mint = find_spl_mint_address(&params.mint_seed).0;
-        Some(derive_token_pool(&spl_mint, 0))
+        let mint = find_spl_mint_address(&params.mint_seed).0;
+        Some(derive_token_pool(&mint, 0))
     } else {
         None
     };

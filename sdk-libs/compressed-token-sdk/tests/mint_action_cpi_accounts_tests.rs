@@ -138,7 +138,7 @@ fn test_successful_parsing_minimal() {
     assert_eq!(*parsed.light_system_program.key(), LIGHT_SYSTEM_PROGRAM_ID);
     assert!(parsed.mint_signer.is_none());
     assert!(parsed.authority.is_signer());
-    assert!(parsed.spl_mint.is_none());
+    assert!(parsed.mint.is_none());
     assert!(parsed.token_pool_pda.is_none());
     assert!(parsed.token_program.is_none());
     assert!(parsed.sol_pool_pda.is_none());
@@ -151,7 +151,7 @@ fn test_successful_parsing_minimal() {
 #[test]
 fn test_successful_parsing_with_all_options() {
     let mint_signer = pubkey_unique();
-    let spl_mint = pubkey_unique();
+    let mint = pubkey_unique();
     let token_pool = pubkey_unique();
     let cpi_context = pubkey_unique();
 
@@ -178,7 +178,7 @@ fn test_successful_parsing_with_all_options() {
         // Authority
         create_test_account(pubkey_unique(), [0u8; 32], true, false, false, vec![]),
         // Decompressed mint accounts
-        create_test_account(spl_mint, [0u8; 32], false, true, false, vec![]),
+        create_test_account(mint, [0u8; 32], false, true, false, vec![]),
         create_test_account(token_pool, [0u8; 32], false, true, false, vec![]),
         create_test_account(
             spl_token_2022::ID.to_bytes(),
@@ -272,8 +272,8 @@ fn test_successful_parsing_with_all_options() {
     let parsed = result.unwrap();
     assert!(parsed.mint_signer.is_some());
     assert_eq!(*parsed.mint_signer.unwrap().key(), mint_signer);
-    assert!(parsed.spl_mint.is_some());
-    assert_eq!(*parsed.spl_mint.unwrap().key(), spl_mint);
+    assert!(parsed.mint.is_some());
+    assert_eq!(*parsed.mint.unwrap().key(), mint);
     assert!(parsed.token_pool_pda.is_some());
     assert_eq!(*parsed.token_pool_pda.unwrap().key(), token_pool);
     assert!(parsed.token_program.is_some());

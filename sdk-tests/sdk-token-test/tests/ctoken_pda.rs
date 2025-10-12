@@ -100,7 +100,7 @@ async fn test_ctoken_pda() {
     .unwrap();
 
     println!("✅ Compressed mint created:");
-    println!("   - SPL mint: {:?}", compressed_mint.metadata.spl_mint);
+    println!("   - SPL mint: {:?}", compressed_mint.metadata.mint);
     println!("   - Decimals: {}", compressed_mint.base.decimals);
     println!("   - Supply: {}", compressed_mint.base.supply);
     println!(
@@ -152,14 +152,14 @@ pub async fn create_mint<R: Rpc + Indexer>(
         derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint bump for the instruction
-    let (spl_mint, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
+    let (mint, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
 
     let pda_address_seed = hash_to_bn254_field_size_be(
         [b"escrow", payer.pubkey().to_bytes().as_ref()]
             .concat()
             .as_slice(),
     );
-    println!("spl_mint: {:?}", spl_mint);
+    println!("mint: {:?}", mint);
     let pda_address = derive_address(
         &pda_address_seed,
         &address_tree_pubkey.to_bytes(),
@@ -184,10 +184,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
         .await?
         .value;
     let mut packed_accounts = PackedAccounts::default();
-    let config = SystemAccountMetaConfig::new_with_cpi_context(
-        ID,
-        tree_info.cpi_context.unwrap(),
-    );
+    let config = SystemAccountMetaConfig::new_with_cpi_context(ID, tree_info.cpi_context.unwrap());
     packed_accounts.add_system_accounts_v2(config).unwrap();
     rpc_result.pack_tree_infos(&mut packed_accounts);
 
@@ -205,7 +202,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
             decimals,
             metadata: CompressedMintMetadata {
                 version: 3,
-                spl_mint: spl_mint.into(),
+                mint: mint.into(),
                 spl_mint_initialized: false,
             },
             mint_authority: Some(mint_authority.pubkey().into()),
@@ -277,5 +274,5 @@ pub async fn create_mint<R: Rpc + Indexer>(
         .await?;
 
     // Return the compressed mint address, token account, and SPL mint
-    Ok((compressed_mint_address, spl_mint))
+    Ok((compressed_mint_address, mint))
 }

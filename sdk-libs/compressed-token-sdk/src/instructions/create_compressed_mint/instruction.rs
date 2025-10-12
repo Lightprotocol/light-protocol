@@ -53,7 +53,7 @@ pub fn create_compressed_mint_cpi(
             decimals: input.decimals,
             metadata: light_ctoken_types::state::CompressedMintMetadata {
                 version: input.version,
-                spl_mint: find_spl_mint_address(&input.mint_signer)
+                mint: find_spl_mint_address(&input.mint_signer)
                     .0
                     .to_bytes()
                     .into(),
@@ -141,7 +141,7 @@ pub fn create_compressed_mint_cpi_write(
             decimals: input.decimals,
             metadata: light_ctoken_types::state::CompressedMintMetadata {
                 version: input.version,
-                spl_mint: find_spl_mint_address(&input.mint_signer)
+                mint: find_spl_mint_address(&input.mint_signer)
                     .0
                     .to_bytes()
                     .into(),
@@ -204,11 +204,11 @@ pub fn derive_compressed_mint_address(
 }
 
 pub fn derive_compressed_mint_from_spl_mint(
-    spl_mint: &Pubkey,
+    mint: &Pubkey,
     address_tree_pubkey: &Pubkey,
 ) -> [u8; 32] {
     light_compressed_account::address::derive_address(
-        &spl_mint.to_bytes(),
+        &mint.to_bytes(),
         &address_tree_pubkey.to_bytes(),
         &light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
     )

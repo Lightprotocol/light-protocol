@@ -50,6 +50,7 @@ pub async fn ctoken_transfer<R: Rpc>(
 ///
 /// # Returns
 /// `Result<Instruction, RpcError>`
+#[allow(clippy::result_large_err)]
 pub fn create_ctoken_transfer_instruction(
     source: Pubkey,
     destination: Pubkey,

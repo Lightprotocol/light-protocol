@@ -1156,7 +1156,7 @@ async fn test_mint_actions() {
         },
         metadata: CompressedMintMetadata {
             version: 3, // With metadata
-            spl_mint: spl_mint_pda.into(),
+            mint: spl_mint_pda.into(),
             spl_mint_initialized: false, // Should be true after CreateSplMint action
         },
         extensions: Some(vec![

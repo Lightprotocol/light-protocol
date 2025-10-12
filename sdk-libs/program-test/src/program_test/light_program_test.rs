@@ -15,6 +15,8 @@ use solana_account::WritableAccount;
 use solana_sdk::signature::{Keypair, Signer};
 
 #[cfg(feature = "devenv")]
+use crate::accounts::compressible_config::create_compressible_config;
+#[cfg(feature = "devenv")]
 use crate::accounts::initialize::initialize_accounts;
 #[cfg(feature = "devenv")]
 use crate::program_test::TestRpc;
@@ -97,6 +99,7 @@ impl LightProgramTest {
                     context.config.no_logs = true;
                 }
                 initialize_accounts(&mut context, &config, &keypairs).await?;
+                create_compressible_config(&mut context).await?;
                 if context.config.skip_startup_logs {
                     context.config.no_logs = restore_logs;
                 }
