@@ -29,6 +29,7 @@ light-compressed-account = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-registry = { workspace = true }
 solana-sdk = { workspace = true }
+solana-system-interface = { workspace = true, features = ["bincode"] }
 
 forester-utils = { workspace = true }
 light-client = { workspace = true, features = ["devenv"] }

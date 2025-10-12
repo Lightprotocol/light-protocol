@@ -27,7 +27,8 @@ use light_token_client::{
     instructions::transfer2::CompressInput,
 };
 use serial_test::serial;
-use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, system_instruction};
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+use solana_system_interface::instruction::create_account;
 use spl_token_2022::pod::PodAccount;
 
 /// Shared test context for account operations
@@ -102,7 +103,7 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
         .get_minimum_balance_for_rent_exemption(165)
         .await?;
 
-    let create_account_ix = system_instruction::create_account(
+    let create_account_ix = create_account(
         &payer_pubkey,
         &token_account_pubkey,
         rent_exemption,

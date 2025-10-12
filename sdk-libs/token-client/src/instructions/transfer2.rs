@@ -603,6 +603,11 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
             }
         }
     }
+
+    // Sort token accounts by merkle_tree index to ensure OutputMerkleTreeIndicesNotInOrder error doesn't occur
+    // The system program requires output merkle tree indices to be in ascending order
+    token_accounts.sort_by_key(|account| account.output.merkle_tree);
+
     let packed_accounts = packed_tree_accounts.to_account_metas().0;
     let inputs = Transfer2Inputs {
         validity_proof: rpc_proof_result.proof,

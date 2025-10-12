@@ -110,7 +110,7 @@ solana-instruction = "2.3"
 solana-rpc-client = "2.3"
 solana-compute-budget = { version = "2.3" }
 
-solana-system-interface = { version = "2" }
+solana-system-interface = { version = "1" }
 solana-security-txt = "1.1.1"
 spl-token = "7.0.0"
 spl-token-2022 = { version = "7.0.0", features = ["no-entrypoint"] }
