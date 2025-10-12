@@ -140,6 +140,10 @@ pub enum SystemProgramError {
     PackedAccountIndexOutOfBounds,
     #[error("Unimplemented.")]
     Unimplemented,
+    #[error("Too many output V2 queues (max 30).")]
+    TooManyOutputV2Queues,
+    #[error("Too many output V1 trees (max 30).")]
+    TooManyOutputV1Trees,
     #[error("Batched Merkle tree error {0}")]
     BatchedMerkleTreeError(#[from] BatchedMerkleTreeError),
     #[error("Concurrent Merkle tree error {0}")]
@@ -223,6 +227,8 @@ impl From<SystemProgramError> for u32 {
             SystemProgramError::Unimplemented => 6063,
             SystemProgramError::CpiContextDeactivated => 6064,
             SystemProgramError::InputMerkleTreeIndexOutOfBounds => 6065,
+            SystemProgramError::TooManyOutputV2Queues => 6066,
+            SystemProgramError::TooManyOutputV1Trees => 6067,
             SystemProgramError::BatchedMerkleTreeError(e) => e.into(),
             SystemProgramError::IndexedMerkleTreeError(e) => e.into(),
             SystemProgramError::ConcurrentMerkleTreeError(e) => e.into(),

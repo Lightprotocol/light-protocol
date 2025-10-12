@@ -1,3 +1,4 @@
+use arrayvec::ArrayVec;
 use light_compressed_account::{
     hash_to_bn254_field_size_be,
     instruction_data::{
@@ -42,132 +43,159 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
     if inputs.output_len() == 0 {
         return Ok([0u8; 32]);
     }
+
+    // Track (tree_pubkey, next_leaf_index) for each unique tree
+    let mut tree_leaf_indices: ArrayVec<(light_compressed_account::pubkey::Pubkey, u64), 30> =
+        ArrayVec::new();
+
     let mut current_index: i16 = -1;
-    let mut num_leaves_in_tree: u32 = 0;
-    let mut mt_next_index: u32 = 0;
     let mut hashed_merkle_tree = [0u8; 32];
     cpi_ix_data.start_output_appends = context.account_indices.len() as u8;
     let mut index_merkle_tree_account_account = cpi_ix_data.start_output_appends;
     let mut index_merkle_tree_account = 0;
-    let number_of_merkle_trees =
-        inputs.output_accounts().last().unwrap().merkle_tree_index() as usize + 1;
 
-    let mut merkle_tree_pubkeys =
-        Vec::<light_compressed_account::pubkey::Pubkey>::with_capacity(number_of_merkle_trees);
     let mut hash_chain = [0u8; 32];
     let mut rollover_fee = 0;
     let mut is_batched = true;
 
     for (j, account) in inputs.output_accounts().enumerate() {
-        // if mt index == current index Merkle tree account info has already been added.
-        // if mt index != current index, Merkle tree account info is new, add it.
-        #[allow(clippy::comparison_chain)]
-        if account.merkle_tree_index() as i16 == current_index {
-            // Do nothing, but it is the most common case.
-        } else if account.merkle_tree_index() as i16 > current_index {
-            current_index = account.merkle_tree_index().into();
+        current_index = account.merkle_tree_index() as i16;
 
-            let pubkey = match &accounts
-                .get(current_index as usize)
-                .ok_or(SystemProgramError::OutputMerkleTreeIndexOutOfBounds)?
-            {
-                AcpAccount::OutputQueue(output_queue) => {
+        // Get tree/queue pubkey and metadata
+        let leaf_index = match &accounts
+            .get(current_index as usize)
+            .ok_or(SystemProgramError::OutputMerkleTreeIndexOutOfBounds)?
+        {
+            AcpAccount::OutputQueue(output_queue) => {
+                let pubkey = *output_queue.pubkey();
+
+                // Check if we've seen this tree before
+                if let Some(entry) = tree_leaf_indices.iter_mut().find(|(p, _)| *p == pubkey) {
+                    // Tree exists, use and increment its next_leaf_index
+                    let idx = entry.1;
+                    entry.1 += 1;
+                    idx
+                } else {
+                    // New tree - set up metadata and add to tracking
                     context.set_network_fee(
                         output_queue.metadata.rollover_metadata.network_fee,
                         current_index as u8,
                     );
-
                     hashed_merkle_tree = output_queue.hashed_merkle_tree_pubkey;
                     rollover_fee = output_queue.metadata.rollover_metadata.rollover_fee;
-                    mt_next_index = output_queue.batch_metadata.next_index as u32;
+                    is_batched = true;
+
                     cpi_ix_data.output_sequence_numbers[index_merkle_tree_account as usize] =
                         MerkleTreeSequenceNumber {
                             tree_pubkey: output_queue.metadata.associated_merkle_tree,
-                            queue_pubkey: *output_queue.pubkey(),
+                            queue_pubkey: pubkey,
                             tree_type: (TreeType::StateV2 as u64).into(),
                             seq: output_queue.batch_metadata.next_index.into(),
                         };
-                    is_batched = true;
-                    *output_queue.pubkey()
+
+                    context.get_index_or_insert(
+                        account.merkle_tree_index(),
+                        remaining_accounts,
+                        "Output queue for V2 state trees (Merkle tree for V1 state trees)",
+                    )?;
+
+                    let next_idx = output_queue.batch_metadata.next_index as u64;
+                    tree_leaf_indices
+                        .try_push((pubkey, next_idx + 1))
+                        .map_err(|_| SystemProgramError::TooManyOutputV2Queues)?;
+                    index_merkle_tree_account += 1;
+                    index_merkle_tree_account_account += 1;
+                    next_idx
                 }
-                AcpAccount::StateTree((pubkey, tree)) => {
+            }
+            AcpAccount::StateTree((pubkey, tree)) => {
+                let pubkey = *pubkey;
+
+                // Check if we've seen this tree before
+                if let Some(entry) = tree_leaf_indices.iter_mut().find(|(p, _)| *p == pubkey) {
+                    // Tree exists, use and increment its next_leaf_index
+                    let idx = entry.1;
+                    entry.1 += 1;
+                    idx
+                } else {
+                    // New tree - set up metadata and add to tracking
                     cpi_ix_data.output_sequence_numbers[index_merkle_tree_account as usize] =
                         MerkleTreeSequenceNumber {
-                            tree_pubkey: *pubkey,
-                            queue_pubkey: *pubkey,
+                            tree_pubkey: pubkey,
+                            queue_pubkey: pubkey,
                             tree_type: (TreeType::StateV1 as u64).into(),
                             seq: (tree.sequence_number() as u64 + 1).into(),
                         };
+
                     let merkle_context = context
                         .get_legacy_merkle_context(current_index as u8)
                         .unwrap();
                     hashed_merkle_tree = merkle_context.hashed_pubkey;
                     rollover_fee = merkle_context.rollover_fee;
-                    mt_next_index = tree.next_index() as u32;
                     is_batched = false;
-                    *pubkey
-                }
-                AcpAccount::Unknown() => {
-                    msg!(
-                        format!("found batched unknown create outputs {} ", current_index).as_str()
-                    );
 
-                    return Err(
-                        SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
-                    );
-                }
-                AcpAccount::BatchedAddressTree(_) => {
-                    msg!(format!(
-                        "found batched address tree create outputs {} ",
-                        current_index
-                    )
-                    .as_str());
+                    context.get_index_or_insert(
+                        account.merkle_tree_index(),
+                        remaining_accounts,
+                        "Output queue for V2 state trees (Merkle tree for V1 state trees)",
+                    )?;
 
-                    return Err(
-                        SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
-                    );
+                    let next_idx = tree.next_index() as u64;
+                    tree_leaf_indices
+                        .try_push((pubkey, next_idx + 1))
+                        .map_err(|_| SystemProgramError::TooManyOutputV1Trees)?;
+                    index_merkle_tree_account += 1;
+                    index_merkle_tree_account_account += 1;
+                    next_idx
                 }
-                AcpAccount::BatchedStateTree(_) => {
-                    msg!(
-                        format!("found batched state tree create outputs {} ", current_index)
-                            .as_str()
-                    );
-
-                    return Err(
-                        SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
-                    );
-                }
-                _ => {
-                    msg!(format!("create outputs {} ", current_index).as_str());
-
-                    return Err(
-                        SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
-                    );
-                }
-            };
-            // check Merkle tree uniqueness
-            if merkle_tree_pubkeys.contains(&pubkey) {
-                return Err(SystemProgramError::OutputMerkleTreeNotUnique.into());
-            } else {
-                merkle_tree_pubkeys.push(pubkey);
             }
+            AcpAccount::Unknown() => {
+                msg!(format!("found batched unknown create outputs {} ", current_index).as_str());
 
-            context.get_index_or_insert(
-                account.merkle_tree_index(),
-                remaining_accounts,
-                "Output queue for V2 state trees (Merkle tree for V1 state trees)",
-            )?;
-            num_leaves_in_tree = 0;
-            index_merkle_tree_account += 1;
-            index_merkle_tree_account_account += 1;
-        } else {
-            // Check 2.
-            // Output Merkle tree indices must be in order since we use the
-            // number of leaves in a Merkle tree to determine the correct leaf
-            // index. Since the leaf index is part of the hash this is security
-            // critical.
-            return Err(SystemProgramError::OutputMerkleTreeIndicesNotInOrder.into());
-        }
+                return Err(SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into());
+            }
+            AcpAccount::BatchedAddressTree(_) => {
+                msg!(format!(
+                    "found batched address tree create outputs {} ",
+                    current_index
+                )
+                .as_str());
+
+                return Err(SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into());
+            }
+            AcpAccount::BatchedStateTree(_) => {
+                msg!(
+                    format!("found batched state tree create outputs {} ", current_index).as_str()
+                );
+
+                return Err(SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into());
+            }
+            _ => {
+                msg!(format!("create outputs {} ", current_index).as_str());
+
+                return Err(SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into());
+            }
+        };
+
+        // // Check if this tree already exists in our tracking array
+        // let leaf_index =
+        //     if let Some(entry) = tree_leaf_indices.iter_mut().find(|(p, _)| *p == pubkey) {
+        //         // Tree exists, use and increment its next_leaf_index
+        //         let idx = entry.1;
+        //         entry.1 += 1;
+        //         idx
+        //     } else {
+        //         context.get_index_or_insert(
+        //             account.merkle_tree_index(),
+        //             remaining_accounts,
+        //             "Output queue for V2 state trees (Merkle tree for V1 state trees)",
+        //         )?;
+
+        //         tree_leaf_indices.push((pubkey, mt_next_index + 1));
+        //         index_merkle_tree_account += 1;
+        //         index_merkle_tree_account_account += 1;
+        //         mt_next_index
+        //     };
 
         // Check 3.
         if let Some(address) = account.address() {
@@ -183,9 +211,11 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                 return Err(SystemProgramError::InvalidAddress.into());
             }
         }
-        cpi_ix_data.output_leaf_indices[j] = (mt_next_index + num_leaves_in_tree).into();
 
-        num_leaves_in_tree += 1;
+        // Use the tracked leaf index from our ArrayVec
+        cpi_ix_data.output_leaf_indices[j] = u32::try_from(leaf_index)
+            .map_err(|_| SystemProgramError::PackedAccountIndexOutOfBounds)?
+            .into();
         if account.has_data() && context.invoking_program_id.is_none() {
             msg!("Invoking program is not provided.");
             msg!("Only program owned compressed accounts can have data.");
