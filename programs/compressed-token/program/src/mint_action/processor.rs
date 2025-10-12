@@ -101,7 +101,6 @@ pub fn process_mint_action(
             },
         )?
     };
-    anchor_lang::prelude::msg!("mint {:?}", mint);
 
     process_output_compressed_account(
         &parsed_instruction_data,

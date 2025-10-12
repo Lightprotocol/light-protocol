@@ -43,13 +43,13 @@ pub async fn assert_close_token_account(
         .get_pre_transaction_account(&authority_pubkey)
         .map(|acc| acc.lamports)
         .unwrap_or(0);
-    // Verify authority received correct amount
+    // Verify authority received correct amount (account may not exist if never funded)
     let final_authority_lamports = rpc
         .get_account(authority_pubkey)
         .await
         .expect("Failed to get authority account")
-        .expect("Authority account should exist")
-        .lamports;
+        .map(|acc| acc.lamports)
+        .unwrap_or(0);
     // Validate compressible account closure (we already have the parsed data)
     // Extract the compressible extension (already parsed above)
     if let Some(extension) = compressed_token.extensions.as_ref() {
@@ -133,13 +133,13 @@ async fn assert_compressible_extension(
         .expect("Destination account should exist")
         .lamports;
 
-    // Verify authority received correct amount
+    // Verify authority received correct amount (account may not exist if never funded)
     let final_authority_lamports = rpc
         .get_account(authority_pubkey)
         .await
         .expect("Failed to get authority account")
-        .expect("Authority account should exist")
-        .lamports;
+        .map(|acc| acc.lamports)
+        .unwrap_or(0);
     // Verify compressible extension fields are valid
     let current_slot = rpc.get_slot().await.expect("Failed to get current slot");
     assert!(

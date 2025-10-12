@@ -120,7 +120,6 @@ async fn test_random_mint_action() {
         .unwrap();
 
     // Create 5 CToken ATAs upfront for MintToCToken actions
-    let mut ctoken_recipients = Vec::new();
     let mut ctoken_atas = Vec::new();
 
     for _ in 0..5 {
@@ -143,7 +142,6 @@ async fn test_random_mint_action() {
         )
         .0;
 
-        ctoken_recipients.push(recipient);
         ctoken_atas.push(ata);
     }
 
@@ -182,7 +180,6 @@ async fn test_random_mint_action() {
         for _ in 0..total_actions {
             // Weighted random selection of action type
             let action_type = rng.gen_range(0..1000);
-
             match action_type {
                 // 30% chance: MintToCompressed
                 0..=299 => {
@@ -311,9 +308,45 @@ async fn test_random_mint_action() {
             }
         }
 
+        // Skip if no actions were generated
+        if actions.is_empty() {
+            continue;
+        }
+
         // Shuffle the actions to randomize order
         use rand::seq::SliceRandom;
         actions.shuffle(&mut rng);
+
+        // Fix action ordering: move UpdateMetadataField before RemoveMetadataKey for the same key
+        use light_compressed_token_sdk::instructions::mint_action::MintActionType;
+        let mut i = 0;
+        while i < actions.len() {
+            if let MintActionType::RemoveMetadataKey {
+                key: remove_key, ..
+            } = &actions[i]
+            {
+                // Find any UpdateMetadataField with the same key that comes after this removal
+                let mut j = i + 1;
+                while j < actions.len() {
+                    if let MintActionType::UpdateMetadataField {
+                        key: update_key,
+                        field_type: 3,
+                        ..
+                    } = &actions[j]
+                    {
+                        if update_key == remove_key {
+                            // Move this update before the removal
+                            let update_action = actions.remove(j);
+                            actions.insert(i, update_action);
+                            i += 1; // Skip the moved action
+                            break;
+                        }
+                    }
+                    j += 1;
+                }
+            }
+            i += 1;
+        }
 
         // Get pre-state compressed mint
         let pre_compressed_mint_account = rpc
