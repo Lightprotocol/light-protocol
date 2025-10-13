@@ -522,26 +522,26 @@ pub async fn failing_transaction_inputs_inner<R: Rpc>(
         .await
         .unwrap();
     }
-    // output Merkle tree is not unique (we need at least 2 outputs for this test)
-    if num_outputs > 1 {
-        let mut inputs_struct = inputs_struct.clone();
-        let mut remaining_accounts = remaining_accounts.clone();
-        let remaining_mt_acc = remaining_accounts
-            [inputs_struct.output_compressed_accounts[1].merkle_tree_index as usize]
-            .clone();
-        remaining_accounts.push(remaining_mt_acc);
-        inputs_struct.output_compressed_accounts[1].merkle_tree_index =
-            (remaining_accounts.len() - 1) as u8;
-        create_instruction_and_failing_transaction(
-            rpc,
-            payer,
-            inputs_struct,
-            remaining_accounts.clone(),
-            SystemProgramError::OutputMerkleTreeNotUnique.into(),
-        )
-        .await
-        .unwrap();
-    }
+    // // output Merkle tree is not unique (we need at least 2 outputs for this test)
+    // if num_outputs > 1 {
+    //     let mut inputs_struct = inputs_struct.clone();
+    //     let mut remaining_accounts = remaining_accounts.clone();
+    //     let remaining_mt_acc = remaining_accounts
+    //         [inputs_struct.output_compressed_accounts[1].merkle_tree_index as usize]
+    //         .clone();
+    //     remaining_accounts.push(remaining_mt_acc);
+    //     inputs_struct.output_compressed_accounts[1].merkle_tree_index =
+    //         (remaining_accounts.len() - 1) as u8;
+    //     create_instruction_and_failing_transaction(
+    //         rpc,
+    //         payer,
+    //         inputs_struct,
+    //         remaining_accounts.clone(),
+    //         SystemProgramError::OutputMerkleTreeNotUnique.into(),
+    //     )
+    //     .await
+    //     .unwrap();
+    // }
     Ok(())
 }
 

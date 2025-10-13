@@ -7,4 +7,5 @@ pub mod read_only_account;
 pub mod read_only_address;
 pub mod sol_compression;
 pub mod sum_check;
+pub mod tree_leaf_tracker_ext;
 pub mod verify_proof;
