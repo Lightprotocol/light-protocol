@@ -74,7 +74,6 @@ use light_test_utils::{
     e2e_test_env::init_program_test_env,
     register_test_forester,
     setup_accounts::setup_accounts,
-    setup_forester_and_advance_to_epoch,
     test_batch_forester::{
         assert_perform_state_mt_roll_over, create_append_batch_ix_data,
         create_batch_update_address_tree_instruction_data_with_proof, perform_batch_append,
@@ -555,10 +554,7 @@ async fn test_custom_forester() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::default_with_batched_trees(true))
         .await
         .unwrap();
-    let protocol_config = rpc.config.protocol_config;
-    setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
-        .await
-        .unwrap();
+
     rpc.indexer = None;
 
     let env = rpc.test_accounts.clone();
@@ -638,10 +634,7 @@ async fn test_custom_forester_batched() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::default_test_forester(true))
         .await
         .unwrap();
-    let protocol_config = rpc.config.protocol_config;
-    setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
-        .await
-        .unwrap();
+
     rpc.indexer = None;
     let env = rpc.test_accounts.clone();
     let tree_params = ProgramTestConfig::default_with_batched_trees(true)
@@ -762,6 +755,7 @@ async fn test_register_and_update_forester_pda() {
     let config = ProgramTestConfig {
         protocol_config: ProtocolConfig::default(),
         with_prover: false,
+        with_forester: false,
         ..Default::default()
     };
 
@@ -1030,10 +1024,7 @@ async fn failing_test_forester() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::default_with_batched_trees(true))
         .await
         .unwrap();
-    let protocol_config = rpc.config.protocol_config;
-    setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
-        .await
-        .unwrap();
+
     rpc.indexer = None;
     let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
@@ -1425,10 +1416,7 @@ async fn test_migrate_state() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::default_with_batched_trees(true))
         .await
         .unwrap();
-    let protocol_config = rpc.config.protocol_config;
-    setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
-        .await
-        .unwrap();
+
     rpc.indexer = None;
     let test_accounts = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();
@@ -1698,10 +1686,7 @@ async fn test_rollover_batch_state_tree() {
         config.v2_state_tree_config = Some(params);
 
         let mut rpc = LightProgramTest::new(config).await.unwrap();
-        let protocol_config = rpc.config.protocol_config;
-        setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
-            .await
-            .unwrap();
+
         rpc.indexer = None;
         let test_accounts = rpc.test_accounts.clone();
         let payer = rpc.get_payer().insecure_clone();
@@ -1893,10 +1878,6 @@ async fn test_batch_address_tree() {
         CREATE_ADDRESS_TEST_PROGRAM_ID,
     )]);
     let mut rpc = LightProgramTest::new(config).await.unwrap();
-    let protocol_config = rpc.config.protocol_config;
-    setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
-        .await
-        .unwrap();
 
     rpc.indexer = None;
     let env = rpc.test_accounts.clone();
@@ -2073,10 +2054,7 @@ async fn test_rollover_batch_address_tree() {
     )]);
     config.v2_address_tree_config = Some(tree_params);
     let mut rpc = LightProgramTest::new(config).await.unwrap();
-    let protocol_config = rpc.config.protocol_config;
-    setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
-        .await
-        .unwrap();
+
     rpc.indexer = None;
     let env = rpc.test_accounts.clone();
 

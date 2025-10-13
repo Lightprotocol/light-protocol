@@ -13,6 +13,7 @@ use light_sdk::{
 };
 use num_bigint::BigUint;
 use solana_pubkey::Pubkey;
+use tracing::warn;
 
 use super::{
     base58::{decode_base58_option_to_pubkey, decode_base58_to_fixed_array},
@@ -527,9 +528,13 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
             .map_err(|_| IndexerError::InvalidResponseData)?;
         // Breaks light-program-test
         let tree_info = QUEUE_TREE_MAPPING
-            .get(&Pubkey::from(account.merkle_context.merkle_tree_pubkey).to_string())
-            .ok_or(IndexerError::InvalidResponseData)?;
-
+            .get(&Pubkey::from(account.merkle_context.merkle_tree_pubkey).to_string());
+        let cpi_context = if let Some(tree_info) = tree_info {
+            tree_info.cpi_context
+        } else {
+            warn!("Cpi context not found in queue tree mapping");
+            None
+        };
         Ok(CompressedAccount {
             address: account.compressed_account.address,
             data: account.compressed_account.data,
@@ -540,7 +545,7 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
                 tree: Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes()),
                 queue: Pubkey::new_from_array(account.merkle_context.queue_pubkey.to_bytes()),
                 tree_type: account.merkle_context.tree_type,
-                cpi_context: tree_info.cpi_context,
+                cpi_context,
                 next_tree_info: None,
             },
             owner: Pubkey::new_from_array(account.compressed_account.owner.to_bytes()),
