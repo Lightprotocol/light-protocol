@@ -42,10 +42,12 @@ jobs:
           - name: program-libs-fast
             packages:
               aligned-sized light-hasher light-compressed-account light-account-checks \
-              light-verifier light-merkle-tree-metadata light-zero-copy light-hash-set light-concurrent-merkle-tree
+              light-verifier light-merkle-tree-metadata light-zero-copy light-hash-set light-concurrent-merkle-tree \
+              light-array-map
             test_cmd: |
               cargo test -p light-macros
               cargo test -p aligned-sized
+              cargo test -p light-array-map --all-features
               cargo test -p light-hasher --all-features
               cargo test -p light-compressed-account --all-features
               cargo test -p light-compressed-account --features new-unique,poseidon
