@@ -660,7 +660,6 @@ fn test7_ten_output_accounts() -> TestCase {
 
             // 9 more transfers using the change from the first transfer
             for i in 1..10 {
-                let remaining_change = total_amount - (amount_per_output * (i as u64 + 1));
                 actions.push(MetaTransfer2InstructionType::Transfer(MetaTransferInput {
                     input_compressed_accounts: vec![], // Use change from previous
                     amount: amount_per_output,
@@ -703,7 +702,6 @@ fn test8_twenty_output_accounts() -> TestCase {
 
             // 19 more transfers using the change
             for i in 1..20 {
-                let remaining_change = total_amount - (amount_per_output * (i as u64 + 1));
                 actions.push(MetaTransfer2InstructionType::Transfer(MetaTransferInput {
                     input_compressed_accounts: vec![],
                     amount: amount_per_output,
@@ -746,7 +744,6 @@ fn test9_maximum_output_accounts() -> TestCase {
 
             // 34 more transfers to reach the maximum of 35 outputs
             for i in 1..29 {
-                let remaining_change = total_amount - (amount_per_output * (i as u64 + 1));
                 actions.push(MetaTransfer2InstructionType::Transfer(MetaTransferInput {
                     input_compressed_accounts: vec![],
                     amount: amount_per_output,

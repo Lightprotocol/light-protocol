@@ -215,6 +215,7 @@ pub struct TestCase {
     pub actions: Vec<MetaTransfer2InstructionType>,
 }
 
+#[allow(unused)]
 struct TestRequirements {
     // Map from (signer_index, mint_index) to their required token amounts per version
     pub signer_mint_compressed_amounts:
@@ -225,6 +226,7 @@ struct TestRequirements {
 }
 
 // Test context to pass to builder functions
+#[allow(unused)]
 pub struct TestContext {
     rpc: LightProgramTest,
     keypairs: Vec<Keypair>,
@@ -278,14 +280,18 @@ impl TestContext {
         // Check which mint types we need for each index
         // A mint needs SPL if it's used for SPL compression or SPL decompression
         let mut mint_needs_spl = vec![false; config.max_supported_mints];
-        for ((_, mint_index), _) in &requirements.signer_spl_amounts {
+        for (_, mint_index) in requirements.signer_spl_amounts.keys() {
             mint_needs_spl[*mint_index] = true;
         }
 
-        for i in 0..config.max_supported_mints {
+        for (i, mint_needs_spl) in mint_needs_spl
+            .iter()
+            .enumerate()
+            .take(config.max_supported_mints)
+        {
             let mint_authority = Keypair::new();
 
-            if mint_needs_spl[i] {
+            if *mint_needs_spl {
                 // Create SPL mint for SPL compression
                 let mint = create_mint_helper(&mut rpc, &payer).await;
                 println!("Created SPL mint {} at address: {}", i, mint);
@@ -780,11 +786,7 @@ impl TestContext {
                             // 2. The SPL portion of the compress operation
                             let compressed_total = config.base_compressed_account_amount
                                 * compress.num_input_compressed_accounts as u64;
-                            let spl_portion = if compress.amount > compressed_total {
-                                compress.amount - compressed_total
-                            } else {
-                                0
-                            };
+                            let spl_portion = compress.amount.saturating_sub(compressed_total);
                             // Total SPL tokens needed = tokens to compress into compressed accounts + SPL portion
                             *signer_spl_amounts.entry(key).or_insert(0) +=
                                 compressed_total + spl_portion;
@@ -1180,7 +1182,7 @@ impl TestContext {
             signer_refs.iter().map(|s| s.pubkey()).collect::<Vec<_>>()
         );
         let tx = Transaction::new_signed_with_payer(
-            &[ix.clone()],
+            std::slice::from_ref(&ix),
             Some(&payer_pubkey),
             &signer_refs,
             recent_blockhash,

@@ -1,10 +1,7 @@
 use anchor_lang::{prelude::AccountMeta, InstructionData};
-use light_compressed_token_sdk::{
-    instructions::{
-        create_compressed_mint, create_mint_to_compressed_instruction, CTokenDefaultAccounts,
-        CreateCompressedMintInputs, MintToCompressedInputs,
-    },
-    token_pool::get_token_pool_pda,
+use light_compressed_token_sdk::instructions::{
+    create_compressed_mint, create_mint_to_compressed_instruction, CTokenDefaultAccounts,
+    CreateCompressedMintInputs, MintToCompressedInputs,
 };
 use light_ctoken_types::{
     instructions::{

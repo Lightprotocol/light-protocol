@@ -1,4 +1,3 @@
-use light_client::rpc::Rpc;
 use light_ctoken_types::state::TokenDataVersion;
 use rand::{
     rngs::{StdRng, ThreadRng},
@@ -24,7 +23,7 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
     let mut total_outputs = 0; // Track total outputs to respect limit of 30
     let mut total_inputs = 0u8; // Track total input compressed accounts to respect limit of 8
 
-    for i in 0..num_actions {
+    for _ in 0..num_actions {
         // Respect output limit of 30 accounts
         if total_outputs >= 30 {
             break;
@@ -37,7 +36,8 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
 
         // Weighted random selection of action type
         let action_type = rng.gen_range(0..1000);
-
+        // TODO: include compressions into random test.
+        #[allow(unreachable_patterns)]
         let action = match action_type {
             // 30% chance: Transfer (compressed-to-compressed)
             0..=299 => {
@@ -192,7 +192,7 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
 }
 
 /// Balance actions by tracking token amounts per (signer, mint) and adjusting to ensure validity
-fn balance_actions(actions: &mut Vec<MetaTransfer2InstructionType>, config: &TestConfig) {
+fn balance_actions(actions: &mut Vec<MetaTransfer2InstructionType>, _config: &TestConfig) {
     use std::collections::HashMap;
 
     // Track inputs (consumption) and outputs (creation) for each (signer_index, mint_index)
