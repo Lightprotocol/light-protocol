@@ -35,7 +35,7 @@ pub fn process_create_escrow_pda<'a, 'info>(
     LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, proof)
         .with_light_account(my_compressed_account)?
         .with_new_addresses(&[new_address_params])
-        .invoke(cpi_accounts)?;
+        .invoke_execute_cpi_context(cpi_accounts)?;
 
     Ok(())
 }

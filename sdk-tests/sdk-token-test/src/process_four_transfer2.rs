@@ -172,7 +172,7 @@ pub fn process_four_transfer2<'info>(
     };
 
     // Invocation 4: Execute CPI context with system program
-    process_update_escrow_pda(cpi_context_account_info, pda_params, proof, 0, true)?;
+    process_update_escrow_pda(cpi_context_account_info, pda_params, proof, 0, false)?;
 
     {
         let mut token_account_compress = CTokenAccount2::new_empty(

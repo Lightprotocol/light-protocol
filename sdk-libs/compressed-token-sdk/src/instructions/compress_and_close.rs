@@ -183,6 +183,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
     packed_accounts: &[AccountInfo<'info>],
 ) -> Result<Instruction, TokenSdkError> {
     if indices.is_empty() {
+        msg!("indices empty");
         return Err(TokenSdkError::InvalidAccountData);
     }
     // Convert packed_accounts to AccountMetas using ArrayVec to avoid heap allocation
@@ -288,6 +289,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
     packed_accounts: &[AccountInfo<'info>],
 ) -> Result<Instruction, TokenSdkError> {
     if ctoken_solana_accounts.is_empty() {
+        msg!("ctoken_solana_accounts empty");
         return Err(TokenSdkError::InvalidAccountData);
     }
 

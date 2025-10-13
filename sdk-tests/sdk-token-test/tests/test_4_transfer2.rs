@@ -216,8 +216,8 @@ async fn mint_compressed_tokens(
     mint_pubkey: Pubkey,
     amount: u64,
 ) {
-    let state_merkle_tree = rpc.get_random_state_tree_info().unwrap().tree;
-    let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
+    let tree_info = rpc.get_random_state_tree_info().unwrap();
+    let output_queue = tree_info.queue;
 
     // Get the compressed mint account to use in the inputs
     let compressed_mint_account = rpc
@@ -264,9 +264,9 @@ async fn mint_compressed_tokens(
             }],
             mint_authority: payer.pubkey(),
             payer: payer.pubkey(),
-            state_merkle_tree,
-            input_queue: output_queue,
-            output_queue_cmint: output_queue,
+            state_merkle_tree: compressed_mint_account.tree_info.tree,
+            input_queue: compressed_mint_account.tree_info.queue,
+            output_queue_cmint: compressed_mint_account.tree_info.queue,
             output_queue_tokens: output_queue,
             decompressed_mint_config: None,
             token_account_version: 2,
@@ -292,7 +292,7 @@ async fn create_compressed_escrow_pda(
 
     // Add system accounts configuration
     let config = SystemAccountMetaConfig::new(sdk_token_test::ID);
-    remaining_accounts.add_system_accounts(config).unwrap();
+    remaining_accounts.add_system_accounts_v2(config).unwrap();
 
     // Get address tree info and derive the PDA address
     let address_tree_info = rpc.get_address_tree_v1();
@@ -357,7 +357,6 @@ async fn test_four_transfer2_instruction(
 ) -> Result<(), RpcError> {
     let default_pubkeys = CTokenDefaultAccounts::default();
     let mut remaining_accounts = PackedAccounts::default();
-    let _token_pool_pda1 = get_token_pool_pda(&mint1);
     // We don't need SPL token accounts for this test since we're using compressed tokens
     // Just add the compressed token program and CPI authority PDA
     // Remaining accounts 0
@@ -368,29 +367,6 @@ async fn test_four_transfer2_instruction(
     // Remaining accounts 1
     remaining_accounts
         .add_pre_accounts_meta(AccountMeta::new(default_pubkeys.cpi_authority_pda, false));
-
-    // Add system accounts configuration with CPI context
-    let tree_info = rpc.get_random_state_tree_info().unwrap();
-
-    // Check if CPI context is available, otherwise this instruction can't work
-    if tree_info.cpi_context.is_none() {
-        panic!("CPI context account is required for four_transfer2 instruction but not available in tree_info");
-    }
-
-    let config = SystemAccountMetaConfig::new_with_cpi_context(
-        sdk_token_test::ID,
-        tree_info.cpi_context.unwrap(),
-    );
-    remaining_accounts.add_system_accounts_v2(config).unwrap();
-    println!("next index {}", remaining_accounts.packed_pubkeys().len());
-
-    // Get validity proof - need to prove the escrow PDA and compressed token accounts
-    let escrow_account = rpc
-        .get_compressed_account(escrow_address, None)
-        .await?
-        .value
-        .ok_or_else(|| RpcError::CustomError("Escrow account not found".to_string()))?;
-
     // Get compressed token accounts for mint2 and mint3
     let compressed_token_accounts = rpc
         .indexer()
@@ -404,6 +380,23 @@ async fn test_four_transfer2_instruction(
         .iter()
         .find(|acc| acc.token.mint == mint2)
         .expect("Compressed token account for mint2 should exist");
+
+    let cpi_context = mint2_token_account
+        .account
+        .tree_info
+        .cpi_context
+        .expect("CPI context should exist");
+
+    let config = SystemAccountMetaConfig::new_with_cpi_context(sdk_token_test::ID, cpi_context);
+    remaining_accounts.add_system_accounts_v2(config).unwrap();
+    println!("next index {}", remaining_accounts.packed_pubkeys().len());
+
+    // Get validity proof - need to prove the escrow PDA and compressed token accounts
+    let escrow_account = rpc
+        .get_compressed_account(escrow_address, None)
+        .await?
+        .value
+        .ok_or_else(|| RpcError::CustomError("Escrow account not found".to_string()))?;
 
     let mint3_token_account = compressed_token_accounts
         .iter()

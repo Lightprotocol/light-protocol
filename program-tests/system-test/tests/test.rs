@@ -1,6 +1,4 @@
-#![cfg(feature = "test-sbf")]
-
-use std::println;
+// #![cfg(feature = "test-sbf")]
 
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
@@ -26,7 +24,10 @@ use light_program_test::{
     utils::assert::assert_rpc_error,
     ProgramTestConfig,
 };
-use light_registry::protocol_config::state::ProtocolConfig;
+use light_registry::{
+    protocol_config::state::ProtocolConfig,
+    utils::{get_epoch_pda_address, get_forester_epoch_pda},
+};
 use light_system_program::{
     errors::SystemProgramError,
     utils::{get_cpi_authority_pda, get_registered_program_pda},
@@ -1636,7 +1637,7 @@ async fn test_with_compression() {
 }
 
 #[ignore = "this is a helper function to regenerate accounts"]
-#[serial]
+// #[serial]
 #[tokio::test]
 async fn regenerate_accounts() {
     let output_dir = "../../cli/accounts/";
@@ -1667,11 +1668,12 @@ async fn regenerate_accounts() {
         .await
         .unwrap();
 
-    // Setup forester and get epoch information
-    let forester_epoch = setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
-        .await
-        .unwrap();
-
+    // // // Setup forester and get epoch information
+    // let forester_epoch = setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
+    //     .await
+    //     .unwrap();
+    // let forester_epoch_pda = get_forester_epoch_pda(&env.protocol.forester.pubkey(), 0).0;
+    // let epoch_pda = get_epoch_pda_address(0);
     // List of public keys to fetch and export - dynamically built from test accounts
     let mut pubkeys = vec![
         (
@@ -1691,8 +1693,8 @@ async fn regenerate_accounts() {
             "registered_forester_pda",
             env.protocol.registered_forester_pda,
         ),
-        ("forester_epoch_pda", forester_epoch.forester_epoch_pda),
-        ("epoch_pda", forester_epoch.epoch_pda),
+        // ("forester_epoch_pda", forester_epoch_pda),
+        // ("epoch_pda", epoch_pda),
     ];
 
     // Add all v1 state trees
@@ -1729,6 +1731,7 @@ async fn regenerate_accounts() {
     rust_file.push_str(&code.to_string());
     for (name, pubkey) in pubkeys {
         println!("pubkey {:?}", pubkey);
+        println!("name {:?}", name);
         // Fetch account data. Adjust this part to match how you retrieve and structure your account data.
         let account = rpc.get_account(pubkey).await.unwrap();
         println!(

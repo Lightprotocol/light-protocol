@@ -329,27 +329,8 @@ async fn test_decompress_full_cpi_with_context() {
         }
 
         let mut remaining_accounts = PackedAccounts::default();
-        let output_tree_info = rpc.get_random_state_tree_info().unwrap();
-        let cpi_context_pubkey = output_tree_info
-            .cpi_context
-            .expect("CPI context required for this test");
-        let config = DecompressFullAccounts::new(Some(cpi_context_pubkey));
-        remaining_accounts
-            .add_custom_system_accounts(config)
-            .unwrap();
-        remaining_accounts.insert_or_get(output_tree_info.queue);
+        // let output_tree_info = rpc.get_random_state_tree_info().unwrap();
 
-        let compressed_hashes: Vec<_> = initial_compressed_accounts
-            .iter()
-            .map(|acc| acc.account.hash)
-            .collect();
-        let rpc_result = rpc
-            .get_validity_proof(compressed_hashes, vec![], None)
-            .await
-            .unwrap()
-            .value;
-
-        let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
         let mint_recipients = vec![MintToRecipient {
             recipient: ctx.owner.pubkey(),
             amount: 500, // Mint some additional tokens
@@ -369,6 +350,30 @@ async fn test_decompress_full_cpi_with_context() {
             .value
             .ok_or("Compressed mint account not found")
             .unwrap();
+        println!(
+            "compressed_mint_account
+            .tree_info {:?}",
+            compressed_mint_account.tree_info
+        );
+        let cpi_context_pubkey = compressed_mint_account
+            .tree_info
+            .cpi_context
+            .expect("CPI context required for this test");
+
+        let config = DecompressFullAccounts::new(Some(cpi_context_pubkey));
+        remaining_accounts
+            .add_custom_system_accounts(config)
+            .unwrap();
+
+        let compressed_hashes: Vec<_> = initial_compressed_accounts
+            .iter()
+            .map(|acc| acc.account.hash)
+            .collect();
+        let rpc_result = rpc
+            .get_validity_proof(compressed_hashes, vec![], None)
+            .await
+            .unwrap()
+            .value;
 
         use light_ctoken_types::state::CompressedMint;
         let compressed_mint =
@@ -382,7 +387,7 @@ async fn test_decompress_full_cpi_with_context() {
             address: compressed_mint_address,
             mint: compressed_mint.try_into().unwrap(),
         };
-
+        let packed_tree_info = rpc_result.pack_tree_infos(&mut remaining_accounts);
         let mint_params = MintCompressedTokensCpiWriteParams {
             compressed_mint_with_context,
             recipients: mint_recipients,

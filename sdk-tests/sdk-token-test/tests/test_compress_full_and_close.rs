@@ -129,10 +129,6 @@ async fn test_compress_full_and_close() {
         extensions: None,
     };
 
-    let state_tree_info = rpc.get_random_state_tree_info().unwrap();
-    let state_tree_pubkey = state_tree_info.tree;
-    let state_output_queue = state_tree_info.queue;
-
     let compressed_mint_inputs = CompressedMintWithContext {
         prove_by_index: true,
         leaf_index: compressed_mint_account.leaf_index,
@@ -152,10 +148,10 @@ async fn test_compress_full_and_close() {
             }],
             mint_authority,
             payer: payer.pubkey(),
-            state_merkle_tree: state_tree_pubkey,
-            input_queue: state_output_queue,
-            output_queue_cmint: state_output_queue,
-            output_queue_tokens: state_output_queue,
+            state_merkle_tree: compressed_mint_account.tree_info.tree,
+            input_queue: compressed_mint_account.tree_info.queue,
+            output_queue_cmint: compressed_mint_account.tree_info.queue,
+            output_queue_tokens: compressed_mint_account.tree_info.queue,
             decompressed_mint_config: None,
             token_account_version: 2,
             token_pool: None,
@@ -257,7 +253,7 @@ async fn test_compress_full_and_close() {
         false,
     ));
     remaining_accounts
-        .add_system_accounts(SystemAccountMetaConfig::new(Pubkey::new_from_array(
+        .add_system_accounts_v2(SystemAccountMetaConfig::new(Pubkey::new_from_array(
             COMPRESSED_TOKEN_PROGRAM_ID,
         )))
         .unwrap();
