@@ -1,17 +1,21 @@
-use anchor_lang::pubkey;
-use light_compressible::{config::CompressibleConfig, rent::RentConfig};
-use solana_pubkey::Pubkey;
-
 #[cfg(feature = "devenv")]
 use std::collections::HashMap;
+
+use anchor_lang::pubkey;
 #[cfg(feature = "devenv")]
 use borsh::BorshDeserialize;
 #[cfg(feature = "devenv")]
 use light_client::rpc::{Rpc, RpcError};
 #[cfg(feature = "devenv")]
 use light_compressible::rent::SLOTS_PER_EPOCH;
+use light_compressible::{config::CompressibleConfig, rent::RentConfig};
 #[cfg(feature = "devenv")]
-use light_ctoken_types::{state::{CToken, ExtensionStruct}, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
+use light_ctoken_types::{
+    state::{CToken, ExtensionStruct},
+    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+};
+use solana_pubkey::Pubkey;
+
 #[cfg(feature = "devenv")]
 use crate::LightProgramTest;
 

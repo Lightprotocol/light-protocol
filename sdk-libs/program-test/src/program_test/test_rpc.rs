@@ -18,10 +18,9 @@ use {
     std::{fmt::Debug, marker::Send},
 };
 
-use crate::program_test::LightProgramTest;
-
 #[cfg(feature = "devenv")]
 use crate::compressible::CompressibleAccountStore;
+use crate::program_test::LightProgramTest;
 
 #[async_trait]
 pub trait TestRpc: Rpc + Sized {

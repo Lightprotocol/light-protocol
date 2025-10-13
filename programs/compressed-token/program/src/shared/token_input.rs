@@ -80,12 +80,17 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
     let data_hash = {
         match token_version {
             TokenDataVersion::ShaFlat => {
+                let state = if IS_FROZEN {
+                    CompressedTokenAccountState::Frozen as u8
+                } else {
+                    CompressedTokenAccountState::Initialized as u8
+                };
                 let token_data = TokenData {
                     mint: mint_account.key().into(),
                     owner: owner_account.key().into(),
                     amount: input_token_data.amount.into(),
                     delegate: delegate_account.map(|x| (*x.key()).into()),
-                    state: CompressedTokenAccountState::Initialized as u8,
+                    state,
                     tlv: None,
                 };
                 token_data.hash_sha_flat()?
@@ -127,6 +132,5 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
         lamports,
         None, // Token accounts don't have addresses
     )?;
-
     Ok(())
 }

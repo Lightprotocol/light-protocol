@@ -7,7 +7,10 @@ use light_compressed_account::instruction_data::with_readonly::{
     InAccount, InstructionDataInvokeCpiWithReadOnly,
 };
 use light_compressed_token::{
-    constants::TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
+    constants::{
+        TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR, TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
+        TOKEN_COMPRESSED_ACCOUNT_V3_DISCRIMINATOR,
+    },
     shared::{
         cpi_bytes_size::{
             allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
@@ -17,7 +20,7 @@ use light_compressed_token::{
 };
 use light_ctoken_types::{
     hash_cache::HashCache, instructions::transfer2::MultiInputTokenDataWithContext,
-    state::AccountState,
+    state::CompressedTokenAccountState,
 };
 use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyNew};
@@ -48,6 +51,7 @@ fn test_rnd_create_input_compressed_account() {
         let leaf_index = rng.gen::<u32>();
         let prove_by_index = rng.gen_bool(0.5);
         let root_index = rng.gen::<u16>();
+        let version = rng.gen_range(1..=3u8);
 
         // Create input token data
         let input_token_data = MultiInputTokenDataWithContext {
@@ -63,7 +67,7 @@ fn test_rnd_create_input_compressed_account() {
             owner: 1, // owner is at index 1 in remaining_accounts
             has_delegate,
             delegate: if has_delegate { 2 } else { 0 }, // delegate at index 2 if present
-            version: 2,
+            version,
         };
 
         // Serialize and get zero-copy reference
@@ -146,19 +150,34 @@ fn test_rnd_create_input_compressed_account() {
                 amount,
                 delegate: expected_delegate.map(|d| d.into()),
                 state: if is_frozen {
-                    AccountState::Frozen as u8
+                    CompressedTokenAccountState::Frozen as u8
                 } else {
-                    AccountState::Initialized as u8
+                    CompressedTokenAccountState::Initialized as u8
                 },
                 tlv: None,
             };
 
             // Calculate expected data hash
-            let expected_hash = expected_token_data.hash_v2().unwrap();
+            let (expected_hash, discriminator) = if version == 3 {
+                (
+                    expected_token_data.hash_sha_flat().unwrap(),
+                    TOKEN_COMPRESSED_ACCOUNT_V3_DISCRIMINATOR,
+                )
+            } else if version == 2 {
+                (
+                    expected_token_data.hash_v2().unwrap(),
+                    TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
+                )
+            } else {
+                (
+                    expected_token_data.hash_v1().unwrap(),
+                    TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR,
+                )
+            };
 
             // Build expected input account
             let expected_input_account = InAccount {
-                discriminator: TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR,
+                discriminator,
                 data_hash: expected_hash,
                 merkle_context: PackedMerkleContext {
                     merkle_tree_pubkey_index,

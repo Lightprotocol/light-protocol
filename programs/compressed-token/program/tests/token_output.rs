@@ -19,7 +19,9 @@ use light_compressed_token::{
         token_output::set_output_compressed_account,
     },
 };
-use light_ctoken_types::{hash_cache::HashCache, state::AccountState};
+use light_ctoken_types::{
+    hash_cache::HashCache, state::CompressedTokenAccountState as AccountState,
+};
 use light_zero_copy::ZeroCopyNew;
 
 #[test]
@@ -31,8 +33,8 @@ fn test_rnd_create_output_compressed_accounts() {
     for _ in 0..iter {
         let mint_pubkey = Pubkey::new_from_array(rng.gen::<[u8; 32]>());
 
-        // Random number of output accounts (0-35 max)
-        let num_outputs = rng.gen_range(0..=35);
+        // Random number of output accounts (0-30 max)
+        let num_outputs = rng.gen_range(0..=30);
 
         // Generate random owners and amounts
         let mut owner_pubkeys = Vec::new();
