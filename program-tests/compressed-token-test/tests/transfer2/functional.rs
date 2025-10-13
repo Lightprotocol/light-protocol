@@ -105,64 +105,6 @@ use crate::transfer2::shared::{
 //  68. Decompress from different pool indices
 //  69. Multiple pools for same mint in transaction
 
-//  Change Account Behavior
-
-//  70. Single change account from partial transfer
-//  71. Multiple change accounts from multiple partial transfers
-//  72. No change account when full amount transferred
-//  73. Change account preserving delegate
-//  74. Change account with different token version
-//  75. Zero-amount change accounts (SDK behavior)
-
-//  Sum Check Validation
-
-//  76. Perfect balance single mint (inputs = outputs)
-//  77. Perfect balance 2 mints
-//  78. Perfect balance 5 mints (max)
-//  79. Compress 1000, decompress 1000 (must balance)
-//  80. Multiple compress = multiple decompress
-//  81. Complex multi-mint balancing
-
-//  Merkle Tree/Queue Targeting
-
-//  82. All outputs to same merkle tree
-//  83. Outputs to different merkle trees
-//  84. Outputs to queue vs tree
-//  85. Multiple trees and queues in same transaction
-
-//  Account Reuse Patterns
-
-//  86. Same owner multiple inputs
-//  87. Same recipient multiple outputs
-//  88. Circular transfer A→B, B→A in same transaction
-//  89. Self-transfer (same account input and output)
-//  90. Multiple operations on same mint
-
-//  Proof Modes
-
-//  91. Proof by index (no ZK proof)
-//  92. With ZK proof
-//  93. Mixed proof modes in same transaction
-//  94. with_transaction_hash = true
-
-//  Transfer Deduplication
-
-//  95. Multiple transfers to same recipient (should deduplicate)
-//  96. Up to 40 compression transfers (maximum)
-//  97. Deduplication across different mints
-
-//  Cross-Type Implicit Transfers
-
-//  98. SPL to CToken without compressed intermediary
-//  99. CToken to SPL without compressed intermediary
-//  100. Mixed SPL and CToken operations
-
-//  Complex Scenarios
-
-//  101. Maximum complexity: 8 inputs, 35 outputs, 5 mints
-//  102. All operations: transfer + compress + decompress + CompressAndClose
-//  103. Circular transfers with multiple participants: A→B→C→A
-
 #[tokio::test]
 #[serial]
 async fn test_transfer2_functional() {

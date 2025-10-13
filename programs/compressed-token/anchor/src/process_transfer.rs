@@ -15,7 +15,10 @@ use light_compressed_account::{
 };
 use light_ctoken_types::state::{CompressedTokenAccountState, TokenData};
 use light_heap::{bench_sbf_end, bench_sbf_start};
-use light_system_program::account_traits::{InvokeAccounts, SignerAccounts};
+use light_system_program::{
+    account_traits::{InvokeAccounts, SignerAccounts},
+    errors::SystemProgramError,
+};
 use light_zero_copy::num_trait::ZeroCopyNumTrait;
 
 use crate::{
@@ -190,7 +193,7 @@ pub fn get_token_account_discriminator(tree_discriminator: &[u8]) -> Result<[u8;
         BATCHED_DISCRIMINATOR | OUTPUT_QUEUE_DISCRIMINATOR => {
             Ok(TOKEN_COMPRESSED_ACCOUNT_V2_DISCRIMINATOR)
         }
-        _ => err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch),
+        _ => err!(SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch),
     }
 }
 
@@ -276,7 +279,7 @@ pub fn create_output_compressed_accounts(
                     "{} is no Merkle tree or output queue account. ",
                     remaining_accounts[merkle_tree_indices[i] as usize].key()
                 );
-                err!(anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch)
+                err!(SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch)
             }
         }?;
 

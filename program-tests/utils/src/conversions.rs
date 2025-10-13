@@ -1,6 +1,4 @@
-use light_ctoken_types::state::{
-    AccountState as ProgramAccountState, TokenData as ProgramTokenData,
-};
+use light_ctoken_types::state::{CompressedTokenAccountState, TokenData as ProgramTokenData};
 use light_sdk::{self as sdk};
 
 // pub fn sdk_to_program_merkle_context(
@@ -85,10 +83,12 @@ use light_sdk::{self as sdk};
 //     }
 // }
 
-pub fn sdk_to_program_account_state(sdk_state: sdk::token::AccountState) -> ProgramAccountState {
+pub fn sdk_to_program_account_state(
+    sdk_state: sdk::token::AccountState,
+) -> CompressedTokenAccountState {
     match sdk_state {
-        sdk::token::AccountState::Initialized => ProgramAccountState::Initialized,
-        sdk::token::AccountState::Frozen => ProgramAccountState::Frozen,
+        sdk::token::AccountState::Initialized => CompressedTokenAccountState::Initialized,
+        sdk::token::AccountState::Frozen => CompressedTokenAccountState::Frozen,
     }
 }
 
