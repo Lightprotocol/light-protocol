@@ -90,7 +90,7 @@ use crate::transfer2::shared::{
 //  59. CompressAndClose with full balance
 //  60. CompressAndClose creating specific output (rent authority case)
 
-//  Delegate Operations - NOT YET IMPLEMENTED
+//  Delegate Operations
 
 //  61. Approve creating delegated account + change
 //  62. Transfer using delegate authority (full delegated amount)
@@ -99,7 +99,7 @@ use crate::transfer2::shared::{
 //  65. Multiple delegates in same transaction
 //  66. Delegate transfer with change account
 
-//  Token Pool Operations - NOT YET IMPLEMENTED
+//  Token Pool Operations
 
 //  67. Compress to pool index 0
 //  68. Compress to pool index 1
@@ -166,13 +166,20 @@ async fn test_transfer2_functional() {
         test45_decompress_to_spl(),
         test46_compress_spl_with_compressed_inputs(),
         test47_mixed_spl_ctoken_operations(),
-        // Delegate Operations (61-65)
+        // Delegate Operations (61-66)
         test61_approve_with_change(),
         test62_delegate_transfer_single_input(),
         test63_delegate_transfer_partial_amount(),
         test64_revoke_delegation(),
         test65_multiple_delegates(),
         test66_delegate_transfer_with_change(),
+        // Token Pool Operations (67-72)
+        test67_compress_to_pool_index_0(),
+        test68_compress_to_pool_index_1(),
+        test69_compress_to_pool_index_4(),
+        test70_decompress_from_pool_index_0(),
+        test71_decompress_from_different_pools(),
+        test72_multiple_pools_same_mint(),
     ];
 
     for (i, test_case) in test_cases.iter().enumerate() {
@@ -1408,6 +1415,7 @@ fn test39_compress_from_spl_only() -> TestCase {
             recipient_index: 0, // Compress to same owner
             mint_index: 0,
             use_spl: true, // Use SPL token account
+            pool_index: None,
         })],
     }
 }
@@ -1424,6 +1432,7 @@ fn test40_compress_from_ctoken_only() -> TestCase {
             recipient_index: 0, // Compress to same owner
             mint_index: 0,
             use_spl: false, // Use CToken ATA
+            pool_index: None,
         })],
     }
 }
@@ -1442,6 +1451,7 @@ fn test41_decompress_to_ctoken_only() -> TestCase {
                 recipient_index: 1, // Decompress to different recipient
                 mint_index: 0,
                 to_spl: false, // Decompress to CToken ATA
+                pool_index: None,
             },
         )],
     }
@@ -1461,6 +1471,7 @@ fn test42_multiple_compress_operations() -> TestCase {
                 recipient_index: 0,
                 mint_index: 0,
                 use_spl: false, // Use CToken ATA
+                pool_index: None,
             }),
             // Second compress from signer 1
             MetaTransfer2InstructionType::Compress(MetaCompressInput {
@@ -1471,6 +1482,7 @@ fn test42_multiple_compress_operations() -> TestCase {
                 recipient_index: 1,
                 mint_index: 0,
                 use_spl: false, // Use CToken ATA
+                pool_index: None,
             }),
             // Third compress from signer 2
             MetaTransfer2InstructionType::Compress(MetaCompressInput {
@@ -1481,6 +1493,7 @@ fn test42_multiple_compress_operations() -> TestCase {
                 recipient_index: 2,
                 mint_index: 0,
                 use_spl: false, // Use CToken ATA
+                pool_index: None,
             }),
         ],
     }
@@ -1501,6 +1514,7 @@ fn test43_multiple_decompress_operations() -> TestCase {
                 recipient_index: 3, // Different recipient
                 mint_index: 0,
                 to_spl: false, // Decompress to CToken ATA
+                pool_index: None,
             }),
             // Second decompress to recipient 1
             MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
@@ -1512,6 +1526,7 @@ fn test43_multiple_decompress_operations() -> TestCase {
                 recipient_index: 4, // Different recipient
                 mint_index: 0,
                 to_spl: false, // Decompress to CToken ATA
+                pool_index: None,
             }),
             // Third decompress to recipient 2
             MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
@@ -1523,6 +1538,7 @@ fn test43_multiple_decompress_operations() -> TestCase {
                 recipient_index: 5, // Different recipient
                 mint_index: 0,
                 to_spl: false, // Decompress to CToken ATA
+                pool_index: None,
             }),
         ],
     }
@@ -1542,6 +1558,7 @@ fn test44_compress_decompress_balance() -> TestCase {
                 recipient_index: 0,
                 mint_index: 0,
                 use_spl: false, // Use CToken ATA
+                pool_index: None,
             }),
             // Decompress 1000 tokens to different CToken
             MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
@@ -1553,6 +1570,7 @@ fn test44_compress_decompress_balance() -> TestCase {
                 recipient_index: 2, // Different recipient
                 mint_index: 0,
                 to_spl: false, // Decompress to CToken ATA
+                pool_index: None,
             }),
         ],
     }
@@ -1572,6 +1590,7 @@ fn test45_decompress_to_spl() -> TestCase {
                 recipient_index: 1, // Decompress to different recipient
                 mint_index: 0,
                 to_spl: true, // Decompress to SPL token account
+                pool_index: None,
             },
         )],
     }
@@ -1589,6 +1608,7 @@ fn test46_compress_spl_with_compressed_inputs() -> TestCase {
             recipient_index: 0,
             mint_index: 0,
             use_spl: true, // Use SPL token account
+            pool_index: None,
         })],
     }
 }
@@ -1607,6 +1627,7 @@ fn test47_mixed_spl_ctoken_operations() -> TestCase {
                 recipient_index: 0,
                 mint_index: 0,
                 use_spl: true, // SPL source
+                pool_index: None,
             }),
             // Compress from CToken
             MetaTransfer2InstructionType::Compress(MetaCompressInput {
@@ -1617,6 +1638,7 @@ fn test47_mixed_spl_ctoken_operations() -> TestCase {
                 recipient_index: 1,
                 mint_index: 1,
                 use_spl: false, // CToken source
+                pool_index: None,
             }),
             // Decompress to CToken
             MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
@@ -1628,6 +1650,203 @@ fn test47_mixed_spl_ctoken_operations() -> TestCase {
                 recipient_index: 3, // Different recipient
                 mint_index: 0,
                 to_spl: false, // Decompress to CToken ATA
+                pool_index: None,
+            }),
+        ],
+    }
+}
+
+// ============================================================================
+// Token Pool Operation Tests (67-72)
+// ============================================================================
+
+// Test 67: Compress to pool index 0 (default pool)
+fn test67_compress_to_pool_index_0() -> TestCase {
+    TestCase {
+        name: "Compress to pool index 0 (default pool)".to_string(),
+        actions: vec![MetaTransfer2InstructionType::Compress(MetaCompressInput {
+            num_input_compressed_accounts: 0, // No compressed inputs
+            amount: 1000,                     // Amount to compress from SPL token account
+            token_data_version: TokenDataVersion::ShaFlat,
+            signer_index: 0,    // Owner of the SPL token account
+            recipient_index: 0, // Compress to same owner
+            mint_index: 0,
+            use_spl: true,       // Use SPL token account
+            pool_index: Some(0), // Explicitly use pool 0
+        })],
+    }
+}
+
+// Test 68: Compress to pool index 1
+fn test68_compress_to_pool_index_1() -> TestCase {
+    TestCase {
+        name: "Compress to pool index 1".to_string(),
+        actions: vec![MetaTransfer2InstructionType::Compress(MetaCompressInput {
+            num_input_compressed_accounts: 0,
+            amount: 1500,
+            token_data_version: TokenDataVersion::ShaFlat,
+            signer_index: 0,
+            recipient_index: 0,
+            mint_index: 0,
+            use_spl: true,       // SPL only - CToken doesn't use pools
+            pool_index: Some(1), // Use pool 1 (will be created by test setup)
+        })],
+    }
+}
+
+// Test 69: Compress to pool index 4 (max valid index, max is 5 pools: 0-4)
+fn test69_compress_to_pool_index_4() -> TestCase {
+    TestCase {
+        name: "Compress to pool index 4 (maximum)".to_string(),
+        actions: vec![MetaTransfer2InstructionType::Compress(MetaCompressInput {
+            num_input_compressed_accounts: 0,
+            amount: 2000,
+            token_data_version: TokenDataVersion::ShaFlat,
+            signer_index: 0,
+            recipient_index: 0,
+            mint_index: 0,
+            use_spl: true,
+            pool_index: Some(4), // Maximum pool index (will be created by test setup)
+        })],
+    }
+}
+
+// Test 70: Decompress from pool index 0 (default pool)
+fn test70_decompress_from_pool_index_0() -> TestCase {
+    TestCase {
+        name: "Decompress from pool index 0 (default pool)".to_string(),
+        actions: vec![MetaTransfer2InstructionType::Decompress(
+            MetaDecompressInput {
+                num_input_compressed_accounts: 1, // One compressed account as input
+                decompress_amount: 800,
+                amount: 800,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,    // Owner of compressed tokens
+                recipient_index: 1, // Decompress to different recipient
+                mint_index: 0,
+                to_spl: true,        // Decompress to SPL token account
+                pool_index: Some(0), // Explicitly use pool 0
+            },
+        )],
+    }
+}
+
+// Test 71: Decompress from different pool indices in same transaction
+fn test71_decompress_from_different_pools() -> TestCase {
+    TestCase {
+        name: "Decompress from different pool indices".to_string(),
+        actions: vec![
+            // First compress to pool 0
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 500,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                recipient_index: 0,
+                mint_index: 0,
+                use_spl: true,
+                pool_index: Some(0),
+            }),
+            // Compress to pool 1
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 600,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 1,
+                recipient_index: 1,
+                mint_index: 0,
+                use_spl: true,
+                pool_index: Some(1),
+            }),
+            // Compress to pool 2
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 400,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 2,
+                recipient_index: 2,
+                mint_index: 0,
+                use_spl: true,
+                pool_index: Some(2),
+            }),
+            // Now decompress from pool 0
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 500,
+                amount: 500,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                recipient_index: 1,
+                mint_index: 0,
+                to_spl: true,
+                pool_index: Some(0),
+            }),
+            // Decompress from pool 1
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 600,
+                amount: 600,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 1,
+                recipient_index: 2,
+                mint_index: 0,
+                to_spl: true,
+                pool_index: Some(1),
+            }),
+            // Decompress from pool 2
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 400,
+                amount: 400,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 2,
+                recipient_index: 3,
+                mint_index: 0,
+                to_spl: true,
+                pool_index: Some(2),
+            }),
+        ],
+    }
+}
+
+// Test 72: Multiple pools for same mint in transaction
+fn test72_multiple_pools_same_mint() -> TestCase {
+    TestCase {
+        name: "Multiple pools for same mint in transaction".to_string(),
+        actions: vec![
+            // Compress to pool 0
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 1000,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                recipient_index: 0,
+                mint_index: 0,
+                use_spl: true,
+                pool_index: Some(0),
+            }),
+            // Compress to pool 1 (same mint)
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 1500,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 1,
+                recipient_index: 1,
+                mint_index: 0, // Same mint as above
+                use_spl: true,
+                pool_index: Some(1),
+            }),
+            // Decompress from pool 0
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 700,
+                amount: 700,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 2,
+                recipient_index: 3,
+                mint_index: 0, // Same mint
+                to_spl: true,
+                pool_index: Some(0),
             }),
         ],
     }

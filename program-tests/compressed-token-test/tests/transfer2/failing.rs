@@ -32,9 +32,27 @@
 // 5. Output out of bounds errors:
 //  5.1. authority out of bounds
 //  5.2. mint out of bounds
+//  5.3. recipient out of bounds
 //
-// TODO: Decompress, CompressAndClose later
-
+// TODO: CompressAndClose later
+//
+// Decompress:
+// 1. amount more than output (should fail with output sum check)
+// 2. amount less than output (should fail with input sum check)
+// 3. invalid authority has signed
+// 4. authority is valid but not signer
+// 5. Output out of bounds errors:
+//  5.1. authority out of bounds
+//  5.2. mint out of bounds
+//  5.3. recipient out of bounds
+// 6. spl token decompression
+//  6.1 invalid pool account (invalid derivation seed, valid pool index, valid bump)
+//  6.2 invalid pool account (valid derivation seed, valid pool index, invalid bump)
+//  6.3 invalid pool account (valid derivation seed, invalid pool index, valid bump)
+//  6.4. pool account out of bounds
+//  6.5. pool index 6 (hihher than max 5)
+//
+//
 // Test setup for Transfer:
 // 1. create and mint to one compressed token account (undelegated)
 //  - add option to delegate the entire balance

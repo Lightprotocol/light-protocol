@@ -56,6 +56,7 @@ pub async fn compress<R: Rpc + Indexer>(
             amount,
             authority: authority.pubkey(),
             output_queue,
+            pool_index: None,
         })],
         payer.pubkey(),
     )

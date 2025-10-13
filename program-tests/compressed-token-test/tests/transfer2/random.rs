@@ -99,6 +99,7 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
                     recipient_index: rng.gen_range(0..config.max_keypairs.min(10)),
                     mint_index,
                     use_spl,
+                    pool_index: None,
                 })
             }
 
@@ -129,6 +130,7 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
                     recipient_index: rng.gen_range(0..config.max_keypairs.min(10)),
                     mint_index,
                     to_spl,
+                    pool_index: None,
                 })
             }
 
@@ -248,6 +250,7 @@ fn balance_actions(actions: &mut Vec<MetaTransfer2InstructionType>, _config: &Te
                 recipient_index: key.0, // Compress to same signer
                 mint_index: key.1,
                 use_spl: false, // Use CToken ATA
+                pool_index: None,
             });
 
             actions.push(compress_action);

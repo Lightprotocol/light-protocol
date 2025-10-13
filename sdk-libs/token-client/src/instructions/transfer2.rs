@@ -78,6 +78,7 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
             decompress_amount,
             solana_token_account,
             amount: decompress_amount,
+            pool_index: None,
         })],
         payer,
     )
@@ -99,6 +100,7 @@ pub struct DecompressInput {
     pub decompress_amount: u64,
     pub solana_token_account: Pubkey,
     pub amount: u64,
+    pub pool_index: Option<u8>, // For SPL only. None = default (0), Some(n) = specific pool
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -110,6 +112,7 @@ pub struct CompressInput {
     pub amount: u64,
     pub authority: Pubkey,
     pub output_queue: Pubkey,
+    pub pool_index: Option<u8>, // For SPL only. None = default (0), Some(n) = specific pool
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -143,6 +146,15 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     payer: Pubkey,
 ) -> Result<Instruction, TokenSdkError> {
     println!("here");
+
+    // // Get a single shared output queue for ALL compress/compress-and-close operations
+    // // This prevents reordering issues caused by the sort_by_key at the end
+    // let shared_output_queue = rpc
+    //     .get_random_state_tree_info()
+    //     .unwrap()
+    //     .get_output_pubkey()
+    //     .unwrap();
+
     let mut hashes = Vec::new();
     actions.iter().for_each(|account| match account {
         Transfer2InstructionType::Compress(input) => {
@@ -179,29 +191,21 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     // tree infos must be packed before packing the token input accounts
     let packed_tree_infos = rpc_proof_result.pack_tree_infos(&mut packed_tree_accounts);
 
-    // Pre-scan actions to add all merkle trees/queues FIRST
-    // This ensures they get indices 0, 1, 2, etc. as required
-    for action in &actions {
-        match action {
-            Transfer2InstructionType::Compress(input) => {
-                // Add output queue for compress operations
-                let idx = packed_tree_accounts.insert_or_get(input.output_queue);
-                println!(
-                    "Pre-scan: Added output_queue {} at index {}",
-                    input.output_queue, idx
-                );
-            }
-            Transfer2InstructionType::CompressAndClose(input) => {
-                // Add output queue for compress and close operations
-                let idx = packed_tree_accounts.insert_or_get(input.output_queue);
-                println!(
-                    "Pre-scan: Added output_queue {} at index {}",
-                    input.output_queue, idx
-                );
-            }
-            _ => {}
-        }
-    }
+    // We use a single shared output queue for all compress/compress-and-close operations to avoid ordering failures.
+    let shared_output_queue = if packed_tree_infos.address_trees.is_empty() {
+        let shared_output_queue = rpc
+            .get_random_state_tree_info()
+            .unwrap()
+            .get_output_pubkey()
+            .unwrap();
+        packed_tree_accounts.insert_or_get(shared_output_queue)
+    } else {
+        packed_tree_infos
+            .state_trees
+            .as_ref()
+            .unwrap()
+            .output_tree_index
+    };
 
     let mut inputs_offset = 0;
     let mut in_lamports = Vec::new();
@@ -240,16 +244,12 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                             })
                             .collect::<Result<Vec<_>, _>>()?;
                         inputs_offset += token_data.len();
-                        CTokenAccount2::new(
-                            token_data,
-                            packed_tree_accounts.insert_or_get(input.output_queue),
-                        )?
+                        CTokenAccount2::new(token_data, shared_output_queue)?
                     } else {
-                        let output_queue = packed_tree_accounts.insert_or_get(input.output_queue);
                         CTokenAccount2::new_empty(
                             packed_tree_accounts.insert_or_get(input.to),
                             packed_tree_accounts.insert_or_get(input.mint),
-                            output_queue,
+                            shared_output_queue,
                         )
                     };
 
@@ -273,8 +273,8 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     let _token_program_index =
                         packed_tree_accounts.insert_or_get_read_only(source_account_owner);
 
-                    // Add token pool account (index 0 for now, could be extended for multiple pools)
-                    let pool_index = 0u8;
+                    // Use pool_index from input, default to 0
+                    let pool_index = input.pool_index.unwrap_or(0);
                     let (token_pool_pda, bump) = find_token_pool_pda_with_index(&mint, pool_index);
                     let pool_account_index = packed_tree_accounts.insert_or_get(token_pool_pda);
 
@@ -320,14 +320,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     })
                     .collect::<Vec<_>>();
                 inputs_offset += token_data.len();
-                let mut token_account = CTokenAccount2::new(
-                    token_data,
-                    packed_tree_infos
-                        .state_trees
-                        .as_ref()
-                        .unwrap()
-                        .output_tree_index,
-                )?;
+                let mut token_account = CTokenAccount2::new(token_data, shared_output_queue)?;
                 // Add recipient SPL token account
                 let recipient_index =
                     packed_tree_accounts.insert_or_get(input.solana_token_account);
@@ -346,8 +339,8 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     let _token_program_index =
                         packed_tree_accounts.insert_or_get_read_only(recipient_account_owner);
 
-                    // Add token pool account (index 0 for now, could be extended for multiple pools)
-                    let pool_index = 0u8;
+                    // Use pool_index from input, default to 0
+                    let pool_index = input.pool_index.unwrap_or(0);
                     let (token_pool_pda, bump) = find_token_pool_pda_with_index(&mint, pool_index);
                     let pool_account_index = packed_tree_accounts.insert_or_get(token_pool_pda);
 
@@ -420,11 +413,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                             delegate: 0,
                             mint: mint_index,
                             version: TokenDataVersion::V2 as u8, // Default to V2
-                            merkle_tree: packed_tree_infos
-                                .state_trees
-                                .as_ref()
-                                .unwrap()
-                                .output_tree_index,
+                            merkle_tree: shared_output_queue,
                         },
                         compression: None,
                         delegate_is_set: false,
@@ -441,23 +430,9 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         input.is_delegate_transfer, has_delegates
                     );
                     let mut token_account = if input.is_delegate_transfer && has_delegates {
-                        CTokenAccount2::new_delegated(
-                            token_data,
-                            packed_tree_infos
-                                .state_trees
-                                .as_ref()
-                                .unwrap()
-                                .output_tree_index,
-                        )
+                        CTokenAccount2::new_delegated(token_data, shared_output_queue)
                     } else {
-                        CTokenAccount2::new(
-                            token_data,
-                            packed_tree_infos
-                                .state_trees
-                                .as_ref()
-                                .unwrap()
-                                .output_tree_index,
-                        )
+                        CTokenAccount2::new(token_data, shared_output_queue)
                     }?;
                     let recipient_index = packed_tree_accounts.insert_or_get(input.to);
                     let recipient_token_account =
@@ -506,14 +481,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     })
                     .collect::<Vec<_>>();
                 inputs_offset += token_data.len();
-                let mut token_account = CTokenAccount2::new(
-                    token_data,
-                    packed_tree_infos
-                        .state_trees
-                        .as_ref()
-                        .unwrap()
-                        .output_tree_index,
-                )?;
+                let mut token_account = CTokenAccount2::new(token_data, shared_output_queue)?;
                 let delegate_index = packed_tree_accounts.insert_or_get(input.delegate);
                 let delegated_token_account =
                     token_account.approve(delegate_index, input.delegate_amount, None)?;
@@ -573,7 +541,6 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     } else {
                         return Err(TokenSdkError::InvalidAccountData);
                     };
-                let output_queue = packed_tree_accounts.insert_or_get(input.output_queue);
 
                 let owner_index =
                     packed_tree_accounts.insert_or_get(Pubkey::from(owner.to_bytes()));
@@ -584,7 +551,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
 
                 // Create token account with the full balance
                 let mut token_account =
-                    CTokenAccount2::new_empty(owner_index, mint_index, output_queue);
+                    CTokenAccount2::new_empty(owner_index, mint_index, shared_output_queue);
 
                 let source_index = packed_tree_accounts.insert_or_get(input.solana_ctoken_account);
                 let authority_index =
@@ -612,9 +579,9 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
         }
     }
 
-    // Sort token accounts by merkle_tree index to ensure OutputMerkleTreeIndicesNotInOrder error doesn't occur
-    // The system program requires output merkle tree indices to be in ascending order
-    token_accounts.sort_by_key(|account| account.output.merkle_tree);
+    // // Sort token accounts by merkle_tree index to ensure OutputMerkleTreeIndicesNotInOrder error doesn't occur
+    // // The system program requires output merkle tree indices to be in ascending order
+    // token_accounts.sort_by_key(|account| account.output.merkle_tree);
 
     let packed_accounts = packed_tree_accounts.to_account_metas().0;
     let inputs = Transfer2Inputs {

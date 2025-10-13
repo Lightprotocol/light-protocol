@@ -11,7 +11,7 @@ use light_program_test::{indexer::TestIndexerExtensions, LightProgramTest, Progr
 use light_test_utils::{
     airdrop_lamports,
     assert_transfer2::assert_transfer2,
-    spl::{create_mint_helper, create_token_account, mint_spl_tokens},
+    spl::{create_additional_token_pools, create_mint_helper, create_token_account, mint_spl_tokens},
 };
 use light_token_client::{
     actions::{create_mint, mint_to_compressed},
@@ -53,6 +53,7 @@ impl MetaCompressInput {
         println!("    - mint_index: {}", self.mint_index);
         println!("    - amount: {}", self.amount);
         println!("    - use_spl: {}", self.use_spl);
+        println!("    - pool_index: {:?}", self.pool_index);
         println!(
             "    - num_input_compressed_accounts: {}",
             self.num_input_compressed_accounts
@@ -70,6 +71,7 @@ impl MetaDecompressInput {
         println!("    - decompress_amount: {}", self.decompress_amount);
         println!("    - amount: {}", self.amount);
         println!("    - to_spl: {}", self.to_spl);
+        println!("    - pool_index: {:?}", self.pool_index);
         println!(
             "    - num_input_compressed_accounts: {}",
             self.num_input_compressed_accounts
@@ -170,6 +172,7 @@ pub struct MetaDecompressInput {
     pub recipient_index: usize, // Index of keypair to receive decompressed tokens
     pub mint_index: usize,      // Index of which mint to use (0-4)
     pub to_spl: bool,           // If true, decompress to SPL; if false, decompress to CToken ATA
+    pub pool_index: Option<u8>, // For SPL only. None = default (0), Some(n) = specific pool
 }
 
 #[derive(Debug, Clone)]
@@ -181,6 +184,7 @@ pub struct MetaCompressInput {
     pub recipient_index: usize, // Index of keypair to receive compressed tokens
     pub mint_index: usize,      // Index of which mint to use (0-4)
     pub use_spl: bool,          // If true, use SPL token account; if false, use CToken ATA
+    pub pool_index: Option<u8>, // For SPL only. None = default (0), Some(n) = specific pool
 }
 
 #[derive(Debug, Clone)]
@@ -320,6 +324,45 @@ impl TestContext {
                 mints.push(mint);
                 mint_seeds.push(mint_seed);
                 mint_authorities.push(mint_authority);
+            }
+        }
+
+        // Create additional token pools for SPL mints based on test requirements
+        // Scan test actions to find max pool_index for each mint
+        let mut max_pool_index_per_mint = vec![0u8; config.max_supported_mints];
+        for action in &test_case.actions {
+            match action {
+                MetaTransfer2InstructionType::Compress(compress) if compress.use_spl => {
+                    if let Some(pool_index) = compress.pool_index {
+                        let mint_index = compress.mint_index;
+                        if pool_index > max_pool_index_per_mint[mint_index] {
+                            max_pool_index_per_mint[mint_index] = pool_index;
+                        }
+                    }
+                }
+                MetaTransfer2InstructionType::Decompress(decompress) if decompress.to_spl => {
+                    if let Some(pool_index) = decompress.pool_index {
+                        let mint_index = decompress.mint_index;
+                        if pool_index > max_pool_index_per_mint[mint_index] {
+                            max_pool_index_per_mint[mint_index] = pool_index;
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        // Create additional pools for SPL mints that need them (pool 0 already exists)
+        for (mint_index, &max_pool_index) in max_pool_index_per_mint.iter().enumerate() {
+            if mint_needs_spl[mint_index] && max_pool_index > 0 {
+                let mint = mints[mint_index];
+                println!(
+                    "Creating additional token pools (1-{}) for SPL mint {} ({})",
+                    max_pool_index, mint_index, mint
+                );
+                create_additional_token_pools(&mut rpc, &payer, &mint, false, max_pool_index)
+                    .await
+                    .unwrap();
             }
         }
 
@@ -531,6 +574,7 @@ impl TestContext {
                                     * decompress.num_input_compressed_accounts as u64,
                                 authority: signer.pubkey(),
                                 output_queue,
+                                pool_index: None,
                             };
 
                             // Create and execute the compress instruction
@@ -617,6 +661,7 @@ impl TestContext {
                                 amount: setup_amount,
                                 authority: signer.pubkey(),
                                 output_queue,
+                                pool_index: None,
                             };
 
                             // Create and execute the compress instruction
@@ -671,6 +716,7 @@ impl TestContext {
                             amount: amount_to_compress,
                             authority: signer.pubkey(),
                             output_queue,
+                            pool_index: None,
                         };
 
                         let ix = create_generic_transfer2_instruction(
@@ -1148,6 +1194,7 @@ impl TestContext {
             amount: meta.amount,
             authority: self.keypairs[meta.signer_index].pubkey(),
             output_queue,
+            pool_index: meta.pool_index,
         })
     }
 
@@ -1200,6 +1247,7 @@ impl TestContext {
             decompress_amount: meta.decompress_amount,
             solana_token_account: recipient_account,
             amount: meta.amount,
+            pool_index: meta.pool_index,
         })
     }
 
@@ -1261,6 +1309,25 @@ impl TestContext {
 
         // Print actions in readable format
         println!("Actions ({} total):", actions.len());
+
+        // Print SPL token account balances
+        println!("\nSPL Token Account Balances:");
+        for ((signer_index, mint_index), token_account_keypair) in &self.spl_token_accounts {
+            let account_data = self.rpc
+                .get_account(token_account_keypair.pubkey())
+                .await
+                .unwrap()
+                .unwrap();
+
+            use anchor_spl::token_2022::spl_token_2022::state::Account as SplTokenAccount;
+            use solana_sdk::program_pack::Pack;
+            let spl_account = SplTokenAccount::unpack(&account_data.data[..165]).unwrap();
+
+            println!(
+                "  Signer {} Mint {}: {} (account: {})",
+                signer_index, mint_index, spl_account.amount, token_account_keypair.pubkey()
+            );
+        }
 
         println!(
             "\nSigners ({} total): {:?}",

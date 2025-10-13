@@ -322,6 +322,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() -> Res
             amount: 0,
             authority: context.owner_keypair.pubkey(),
             output_queue,
+            pool_index: None,
         };
         assert_transfer2_compress(&mut context.rpc, compress_input).await;
     }
@@ -498,6 +499,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_owner() -> 
             amount: 0,
             authority: context.owner_keypair.pubkey(),
             output_queue,
+            pool_index: None,
         };
         assert_transfer2_compress(&mut context.rpc, compress_input).await;
     }

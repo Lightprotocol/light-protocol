@@ -38,6 +38,7 @@ pub async fn decompress<R: Rpc + Indexer>(
             decompress_amount,
             solana_token_account,
             amount: decompress_amount,
+            pool_index: None,
         })],
         payer.pubkey(),
     )
