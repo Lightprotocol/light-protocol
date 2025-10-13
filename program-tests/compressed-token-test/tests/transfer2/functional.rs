@@ -2,8 +2,8 @@ use light_ctoken_types::state::TokenDataVersion;
 use serial_test::serial;
 
 use crate::transfer2::shared::{
-    MetaCompressInput, MetaDecompressInput, MetaTransfer2InstructionType, MetaTransferInput,
-    TestCase, TestConfig, TestContext,
+    MetaApproveInput, MetaCompressInput, MetaDecompressInput, MetaTransfer2InstructionType,
+    MetaTransferInput, TestCase, TestConfig, TestContext,
 };
 
 // Basic Transfer Operations
@@ -166,6 +166,13 @@ async fn test_transfer2_functional() {
         test45_decompress_to_spl(),
         test46_compress_spl_with_compressed_inputs(),
         test47_mixed_spl_ctoken_operations(),
+        // Delegate Operations (61-65)
+        test61_approve_with_change(),
+        test62_delegate_transfer_single_input(),
+        test63_delegate_transfer_partial_amount(),
+        test64_revoke_delegation(),
+        test65_multiple_delegates(),
+        test66_delegate_transfer_with_change(),
     ];
 
     for (i, test_case) in test_cases.iter().enumerate() {
@@ -1621,6 +1628,192 @@ fn test47_mixed_spl_ctoken_operations() -> TestCase {
                 recipient_index: 3, // Different recipient
                 mint_index: 0,
                 to_spl: false, // Decompress to CToken ATA
+            }),
+        ],
+    }
+}
+
+// ============================================================================
+// Delegate Operation Tests (61-62)
+// ============================================================================
+
+// Test 61: Approve creating delegated account + change
+fn test61_approve_with_change() -> TestCase {
+    TestCase {
+        name: "Approve creating delegated account + change".to_string(),
+        actions: vec![
+            // Approve delegate for partial amount, creating a delegated account and a change account
+            MetaTransfer2InstructionType::Approve(MetaApproveInput {
+                num_input_compressed_accounts: 1,
+                delegate_amount: 200, // Approve only 200 out of 500 tokens
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,   // Owner (keypair[0]) approves
+                delegate_index: 1, // Delegate is keypair[1]
+                mint_index: 0,
+                setup: false, // Execute in main test (not setup)
+            }),
+        ],
+    }
+}
+
+// Test 62: Transfer using delegate authority with single input
+fn test62_delegate_transfer_single_input() -> TestCase {
+    TestCase {
+        name: "Transfer using delegate authority (single input)".to_string(),
+        actions: vec![
+            // First, approve delegate to transfer tokens (executed in setup)
+            MetaTransfer2InstructionType::Approve(MetaApproveInput {
+                num_input_compressed_accounts: 1,
+                delegate_amount: 300,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,   // Owner (keypair[0]) approves
+                delegate_index: 1, // Delegate is keypair[1]
+                mint_index: 0,
+                setup: true, // Execute in setup phase
+            }),
+            // Transfer using delegate authority
+            MetaTransfer2InstructionType::Transfer(MetaTransferInput {
+                input_compressed_accounts: vec![300], // One delegated account with 300 tokens
+                amount: 300,
+                is_delegate_transfer: true, // This is a delegate transfer
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,         // Owner index (for fetching accounts)
+                delegate_index: Some(1), // Delegate (keypair[1]) signs the transfer
+                recipient_index: 2,      // Transfer to keypair[2]
+                change_amount: Some(0),  // Transfer full amount, no change
+                mint_index: 0,
+            }),
+        ],
+    }
+}
+
+// Test 63: Transfer using delegate authority (partial amount)
+fn test63_delegate_transfer_partial_amount() -> TestCase {
+    TestCase {
+        name: "Transfer using delegate authority (partial amount)".to_string(),
+        actions: vec![
+            // First, approve delegate to transfer tokens (executed in setup)
+            MetaTransfer2InstructionType::Approve(MetaApproveInput {
+                num_input_compressed_accounts: 1,
+                delegate_amount: 400, // Delegate can transfer up to 400 tokens
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,   // Owner (keypair[0]) approves
+                delegate_index: 1, // Delegate is keypair[1]
+                mint_index: 0,
+                setup: true, // Execute in setup phase
+            }),
+            // Transfer partial amount using delegate authority
+            MetaTransfer2InstructionType::Transfer(MetaTransferInput {
+                input_compressed_accounts: vec![400], // One delegated account with 400 tokens
+                amount: 250, // Transfer only 250 out of 400 delegated tokens
+                is_delegate_transfer: true, // This is a delegate transfer
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,         // Owner index (for fetching accounts)
+                delegate_index: Some(1), // Delegate (keypair[1]) signs the transfer
+                recipient_index: 2,      // Transfer to keypair[2]
+                change_amount: None, // Creates change account with remaining 150 delegated tokens
+                mint_index: 0,
+            }),
+        ],
+    }
+}
+
+// Test 64: Revoke delegation (merges all accounts)
+fn test64_revoke_delegation() -> TestCase {
+    TestCase {
+        name: "Revoke delegation (merges all accounts)".to_string(),
+        actions: vec![
+            // First, approve delegate to transfer tokens (executed in setup)
+            MetaTransfer2InstructionType::Approve(MetaApproveInput {
+                num_input_compressed_accounts: 1,
+                delegate_amount: 300, // Delegate can transfer up to 300 tokens
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,   // Owner (keypair[0]) approves
+                delegate_index: 1, // Delegate is keypair[1]
+                mint_index: 0,
+                setup: true, // Execute in setup phase
+            }),
+            // Revoke delegation by doing a regular transfer to self (merges delegated account back to undelegated)
+            MetaTransfer2InstructionType::Transfer(MetaTransferInput {
+                input_compressed_accounts: vec![300], // One delegated account with 300 tokens
+                amount: 300,
+                is_delegate_transfer: false, // Regular transfer (NOT delegate transfer) - this revokes delegation
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,        // Owner (keypair[0]) signs
+                delegate_index: None,   // No delegate for this transfer
+                recipient_index: 0,     // Transfer to self (same owner)
+                change_amount: Some(0), // Full amount transfer, no change
+                mint_index: 0,
+            }),
+        ],
+    }
+}
+
+// Test 65: Multiple delegates in same transaction
+fn test65_multiple_delegates() -> TestCase {
+    TestCase {
+        name: "Multiple delegates in same transaction".to_string(),
+        actions: vec![
+            // Approve first delegate (keypair[1]) for 200 tokens
+            MetaTransfer2InstructionType::Approve(MetaApproveInput {
+                num_input_compressed_accounts: 1,
+                delegate_amount: 200,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,   // Owner (keypair[0]) approves
+                delegate_index: 1, // Delegate is keypair[1]
+                mint_index: 0,
+                setup: false, // Execute in main test
+            }),
+            // Approve second delegate (keypair[2]) for 150 tokens from a different account
+            MetaTransfer2InstructionType::Approve(MetaApproveInput {
+                num_input_compressed_accounts: 1,
+                delegate_amount: 150,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 3,   // Different owner (keypair[3]) approves
+                delegate_index: 2, // Delegate is keypair[2]
+                mint_index: 0,
+                setup: false, // Execute in main test
+            }),
+            // Approve third delegate (keypair[4]) for 100 tokens from another account
+            MetaTransfer2InstructionType::Approve(MetaApproveInput {
+                num_input_compressed_accounts: 1,
+                delegate_amount: 100,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 5,   // Another owner (keypair[5]) approves
+                delegate_index: 4, // Delegate is keypair[4]
+                mint_index: 0,
+                setup: false, // Execute in main test
+            }),
+        ],
+    }
+}
+
+// Test 66: Delegate transfer with change account
+fn test66_delegate_transfer_with_change() -> TestCase {
+    TestCase {
+        name: "Delegate transfer with change account".to_string(),
+        actions: vec![
+            // Approve delegate for 500 tokens (executed in setup)
+            MetaTransfer2InstructionType::Approve(MetaApproveInput {
+                num_input_compressed_accounts: 1,
+                delegate_amount: 500,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,   // Owner (keypair[0]) approves
+                delegate_index: 1, // Delegate is keypair[1]
+                mint_index: 0,
+                setup: true, // Execute in setup phase
+            }),
+            // Delegate transfers partial amount, creating delegated change account
+            MetaTransfer2InstructionType::Transfer(MetaTransferInput {
+                input_compressed_accounts: vec![500], // One delegated account with 500 tokens
+                amount: 200, // Transfer 200, leaving 300 as delegated change
+                is_delegate_transfer: true, // This is a delegate transfer
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,         // Owner index (for fetching accounts)
+                delegate_index: Some(1), // Delegate (keypair[1]) signs the transfer
+                recipient_index: 2,      // Transfer to keypair[2]
+                change_amount: None, // Creates change account with 300 tokens (still delegated to keypair[1])
+                mint_index: 0,
             }),
         ],
     }

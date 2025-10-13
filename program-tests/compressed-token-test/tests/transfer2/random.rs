@@ -149,6 +149,7 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
                 total_inputs += num_inputs;
 
                 MetaTransfer2InstructionType::Approve(MetaApproveInput {
+                    setup: false,
                     num_input_compressed_accounts: num_inputs,
                     delegate_amount: rng.gen_range(100..=5000),
                     token_data_version: random_token_version(rng),

@@ -90,6 +90,7 @@ impl MetaApproveInput {
             self.num_input_compressed_accounts
         );
         println!("    - token_data_version: {:?}", self.token_data_version);
+        println!("    - setup: {}", self.setup);
     }
 }
 
@@ -198,6 +199,7 @@ pub struct MetaApproveInput {
     pub signer_index: usize, // Index of keypair that signs this action (owner)
     pub delegate_index: usize, // Index of keypair to set as delegate
     pub mint_index: usize,   // Index of which mint to use (0-4)
+    pub setup: bool,         // If true, execute in setup phase; if false, execute in main test
 }
 
 #[derive(Debug, Clone)]
@@ -688,6 +690,91 @@ impl TestContext {
             }
         }
 
+        // Execute Approve operations in setup phase (only if setup=true)
+        // These need to happen before the test runs so delegated accounts exist
+        for action in &test_case.actions {
+            if let MetaTransfer2InstructionType::Approve(approve) = action {
+                // Only execute in setup if setup flag is true
+                if !approve.setup {
+                    continue;
+                }
+
+                println!(
+                    "Setup: Executing Approve for signer {} delegate {} amount {}",
+                    approve.signer_index, approve.delegate_index, approve.delegate_amount
+                );
+
+                let owner = &keypairs[approve.signer_index];
+                let delegate_pubkey = keypairs[approve.delegate_index].pubkey();
+                let mint = mints[approve.mint_index];
+
+                // Fetch owner's compressed accounts
+                let accounts = rpc
+                    .indexer()
+                    .unwrap()
+                    .get_compressed_token_accounts_by_owner(&owner.pubkey(), None, None)
+                    .await?
+                    .value
+                    .items;
+
+                // Filter for matching version and mint, take first account with enough balance
+                let matching_accounts: Vec<_> = accounts
+                    .into_iter()
+                    .filter(|acc| {
+                        // Check version matches
+                        let version_matches = TokenDataVersion::from_discriminator(
+                            acc.account.data.clone().unwrap_or_default().discriminator,
+                        )
+                        .map(|v| v == approve.token_data_version)
+                        .unwrap_or(false);
+
+                        // Check mint matches
+                        let mint_matches = acc.token.mint == mint;
+
+                        // Check has enough balance
+                        let enough_balance = acc.token.amount >= approve.delegate_amount;
+
+                        version_matches && mint_matches && enough_balance
+                    })
+                    .take(1)
+                    .collect();
+
+                if matching_accounts.is_empty() {
+                    return Err(format!(
+                        "No matching account found for Approve: owner={}, mint={}, amount={}, version={:?}",
+                        owner.pubkey(),
+                        mint,
+                        approve.delegate_amount,
+                        approve.token_data_version
+                    )
+                    .into());
+                }
+
+                // Build ApproveInput
+                let approve_input = ApproveInput {
+                    compressed_token_account: matching_accounts,
+                    delegate: delegate_pubkey,
+                    delegate_amount: approve.delegate_amount,
+                };
+
+                // Create and execute the approve instruction
+                let ix = create_generic_transfer2_instruction(
+                    &mut rpc,
+                    vec![Transfer2InstructionType::Approve(approve_input)],
+                    payer.pubkey(),
+                )
+                .await?;
+
+                rpc.create_and_send_transaction(&[ix], &payer.pubkey(), &[&payer, owner])
+                    .await?;
+
+                println!(
+                    "Setup: Approve executed successfully - delegated account created for delegate {}",
+                    delegate_pubkey
+                );
+            }
+        }
+
         Ok(TestContext {
             rpc,
             keypairs,
@@ -823,13 +910,30 @@ impl TestContext {
         // Always add payer
         required_pubkeys.push(self.payer.pubkey());
 
-        for meta_action in meta_actions {
+        // Filter out Approve actions that were executed in setup (setup=true)
+        let filtered_actions: Vec<_> = meta_actions
+            .iter()
+            .filter(|action| {
+                !matches!(action, MetaTransfer2InstructionType::Approve(approve) if approve.setup)
+            })
+            .collect();
+
+        for meta_action in filtered_actions {
             match meta_action {
                 MetaTransfer2InstructionType::Transfer(meta_transfer) => {
                     let real_action = self.convert_meta_transfer_to_real(meta_transfer).await?;
                     // Only add signer if this transfer has input accounts (not reusing from previous)
                     if !meta_transfer.input_compressed_accounts.is_empty() {
-                        required_pubkeys.push(self.keypairs[meta_transfer.signer_index].pubkey());
+                        let signer_pubkey = if meta_transfer.is_delegate_transfer {
+                            // For delegate transfers, the actual signer is the delegate
+                            let delegate_index = meta_transfer.delegate_index
+                                .expect("Delegate index required for delegate transfers");
+                            self.keypairs[delegate_index].pubkey()
+                        } else {
+                            // For regular transfers, signer is the owner
+                            self.keypairs[meta_transfer.signer_index].pubkey()
+                        };
+                        required_pubkeys.push(signer_pubkey);
                     }
                     real_actions.push(Transfer2InstructionType::Transfer(real_action));
                 }
@@ -892,25 +996,42 @@ impl TestContext {
             vec![]
         } else if meta.is_delegate_transfer {
             // For delegate transfers, get accounts where the delegate is set
-            // This would need delegate filtering in real implementation
+            let delegate_index = meta
+                .delegate_index
+                .ok_or("Delegate index required for delegate transfers")?;
+            let delegate_pubkey = self.keypairs[delegate_index].pubkey();
+            let owner_pubkey = self.keypairs[meta.signer_index].pubkey();
+
+            println!(
+                "Fetching delegated accounts for owner {} with delegate {}",
+                owner_pubkey, delegate_pubkey
+            );
+
+            // Fetch accounts owned by the owner
             let accounts = self
                 .rpc
                 .indexer()
                 .unwrap()
-                .get_compressed_token_accounts_by_owner(&self.keypairs[0].pubkey(), None, None)
+                .get_compressed_token_accounts_by_owner(&owner_pubkey, None, None)
                 .await?
                 .value
                 .items;
-            // Take only the requested number of accounts and filter by version using discriminator
+
+            // Filter for accounts with matching delegate
             accounts
                 .into_iter()
                 .filter(|acc| {
-                    // Convert discriminator to TokenDataVersion and compare
-                    TokenDataVersion::from_discriminator(
+                    // Check if delegate matches
+                    let delegate_matches = acc.token.delegate == Some(delegate_pubkey);
+
+                    // Check version matches
+                    let version_matches = TokenDataVersion::from_discriminator(
                         acc.account.data.clone().unwrap_or_default().discriminator,
                     )
                     .map(|v| v == meta.token_data_version)
-                    .unwrap_or(false)
+                    .unwrap_or(false);
+
+                    delegate_matches && version_matches
                 })
                 .take(meta.input_compressed_accounts.len())
                 .collect()
