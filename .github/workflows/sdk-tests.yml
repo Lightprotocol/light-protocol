@@ -51,8 +51,10 @@ jobs:
             sub-tests: '["cargo-test-sbf -p sdk-native-test", "cargo-test-sbf -p sdk-v1-native-test", "cargo test-sbf -p client-test"]'
           - program: sdk-anchor-test-program
             sub-tests: '["cargo-test-sbf -p sdk-anchor-test", "cargo-test-sbf -p sdk-pinocchio-v1-test", "cargo-test-sbf -p sdk-pinocchio-v2-test"]'
+          - program: sdk-token-test-program
+            sub-tests: '["cargo-test-sbf -p sdk-token-test"]'
           - program: sdk-libs
-            packages: light-sdk-macros light-sdk light-program-test light-client
+            packages: light-sdk-macros light-sdk light-program-test light-client light-compressed-token-types light-compressed-token-sdk
             test_cmd: |
               cargo test -p light-sdk-macros
               cargo test -p light-sdk-macros --all-features
@@ -61,6 +63,8 @@ jobs:
               cargo test -p light-program-test
               cargo test -p light-client
               cargo test -p light-sparse-merkle-tree
+              cargo test -p light-compressed-token-types
+              cargo test -p light-compressed-token-sdk
     steps:
       - name: Checkout sources
         uses: actions/checkout@v4

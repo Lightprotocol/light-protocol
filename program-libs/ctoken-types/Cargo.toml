@@ -9,6 +9,7 @@ solana = ["dep:solana-program-error", "dep:solana-sysvar"]
 default = []
 profile-program = []
 profile-heap = ["dep:light-heap"]
+poseidon = ["light-hasher/poseidon"]
 
 [dependencies]
 borsh = { workspace = true }
