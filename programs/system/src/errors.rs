@@ -1,4 +1,5 @@
 use light_account_checks::error::AccountError;
+use light_array_map::ArrayMapError;
 use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
 use light_concurrent_merkle_tree::errors::ConcurrentMerkleTreeError;
 use light_indexed_merkle_tree::errors::IndexedMerkleTreeError;
@@ -140,6 +141,10 @@ pub enum SystemProgramError {
     PackedAccountIndexOutOfBounds,
     #[error("Unimplemented.")]
     Unimplemented,
+    #[error("Too many output V2 queues (max 30).")]
+    TooManyOutputV2Queues,
+    #[error("Too many output V1 trees (max 30).")]
+    TooManyOutputV1Trees,
     #[error("Batched Merkle tree error {0}")]
     BatchedMerkleTreeError(#[from] BatchedMerkleTreeError),
     #[error("Concurrent Merkle tree error {0}")]
@@ -223,6 +228,8 @@ impl From<SystemProgramError> for u32 {
             SystemProgramError::Unimplemented => 6063,
             SystemProgramError::CpiContextDeactivated => 6064,
             SystemProgramError::InputMerkleTreeIndexOutOfBounds => 6065,
+            SystemProgramError::TooManyOutputV2Queues => 6066,
+            SystemProgramError::TooManyOutputV1Trees => 6067,
             SystemProgramError::BatchedMerkleTreeError(e) => e.into(),
             SystemProgramError::IndexedMerkleTreeError(e) => e.into(),
             SystemProgramError::ConcurrentMerkleTreeError(e) => e.into(),
@@ -236,5 +243,14 @@ impl From<SystemProgramError> for u32 {
 impl From<SystemProgramError> for ProgramError {
     fn from(e: SystemProgramError) -> ProgramError {
         ProgramError::Custom(e.into())
+    }
+}
+
+impl From<ArrayMapError> for SystemProgramError {
+    fn from(e: ArrayMapError) -> Self {
+        match e {
+            ArrayMapError::CapacityExceeded => SystemProgramError::TooManyOutputV2Queues,
+            ArrayMapError::IndexOutOfBounds => SystemProgramError::OutputMerkleTreeIndexOutOfBounds,
+        }
     }
 }
