@@ -436,7 +436,10 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 } else {
                     // Only use new_delegated if the input accounts actually have delegates
                     let has_delegates = token_data.iter().any(|data| data.has_delegate);
-                    println!("is_delegate_transfer: {}, has_delegates: {}", input.is_delegate_transfer, has_delegates);
+                    println!(
+                        "is_delegate_transfer: {}, has_delegates: {}",
+                        input.is_delegate_transfer, has_delegates
+                    );
                     let mut token_account = if input.is_delegate_transfer && has_delegates {
                         CTokenAccount2::new_delegated(
                             token_data,

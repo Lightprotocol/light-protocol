@@ -26,14 +26,14 @@ pub async fn setup_forester_and_advance_to_epoch<R: Rpc + TestRpc>(
     protocol_config: &ProtocolConfig,
 ) -> Result<Epoch, RpcError> {
     let test_keypairs = TestKeypairs::program_test_default();
-    // // Register the test forester
-    // register_test_forester(
-    //     context,
-    //     &test_keypairs.governance_authority,
-    //     &test_keypairs.forester.pubkey(),
-    //     ForesterConfig::default(),
-    // )
-    // .await?;
+    // Register the test forester
+    register_test_forester(
+        context,
+        &test_keypairs.governance_authority,
+        &test_keypairs.forester.pubkey(),
+        ForesterConfig::default(),
+    )
+    .await?;
 
     // Register the epoch
     let mut registered_epoch = Epoch::register(

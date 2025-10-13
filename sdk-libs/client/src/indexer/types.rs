@@ -12,7 +12,7 @@ use light_sdk::{
     token::{AccountState, TokenData},
 };
 use num_bigint::BigUint;
-use solana_pubkey::{Pubkey, PubkeyError};
+use solana_pubkey::Pubkey;
 
 use super::{
     base58::{decode_base58_option_to_pubkey, decode_base58_to_fixed_array},

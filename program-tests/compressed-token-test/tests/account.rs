@@ -1003,7 +1003,7 @@ async fn test_create_ata_idempotent() -> Result<(), RpcError> {
 }
 
 #[tokio::test]
-async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
+async fn test_spl_to_ctoken_transfer() {
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new(true, None))
         .await
         .unwrap();
@@ -1048,20 +1048,22 @@ async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
         recipient.pubkey(),
         mint,
     )
-    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e)))?;
+    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e)))
+    .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
-        .await?;
+        .await
+        .unwrap();
     let associated_token_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
 
     // Get initial SPL token balance
     let spl_account_data = rpc
         .get_account(spl_token_account_keypair.pubkey())
-        .await?
+        .await
+        .unwrap()
         .unwrap();
     let spl_account = spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&spl_account_data.data)
-        .map_err(|e| {
-            RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e))
-        })?;
+        .map_err(|e| RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e)))
+        .unwrap();
     let initial_spl_balance: u64 = spl_account.amount.into();
     assert_eq!(initial_spl_balance, amount);
 
@@ -1074,29 +1076,37 @@ async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
         &sender,
         &payer,
     )
-    .await?;
+    .await
+    .unwrap();
 
     {
         // Verify SPL token balance decreased
         let spl_account_data = rpc
             .get_account(spl_token_account_keypair.pubkey())
-            .await?
+            .await
+            .unwrap()
             .unwrap();
         let spl_account = spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&spl_account_data.data)
             .map_err(|e| {
-            RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e))
-        })?;
+                RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e))
+            })
+            .unwrap();
         let final_spl_balance: u64 = spl_account.amount.into();
         assert_eq!(final_spl_balance, amount - transfer_amount);
     }
     {
         // Verify compressed token balance increased
-        let spl_account_data = rpc.get_account(associated_token_account).await?.unwrap();
+        let spl_account_data = rpc
+            .get_account(associated_token_account)
+            .await
+            .unwrap()
+            .unwrap();
         let spl_account =
             spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&spl_account_data.data[..165])
                 .map_err(|e| {
                     RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e))
-                })?;
+                })
+                .unwrap();
         assert_eq!(
             u64::from(spl_account.amount),
             transfer_amount,
@@ -1118,19 +1128,22 @@ async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
         mint,
         &payer,
     )
-    .await?;
+    .await
+    .unwrap();
 
     // Verify final balances
     {
         // Verify SPL token balance is restored
         let spl_account_data = rpc
             .get_account(spl_token_account_keypair.pubkey())
-            .await?
+            .await
+            .unwrap()
             .unwrap();
         let spl_account = spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&spl_account_data.data)
             .map_err(|e| {
-            RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e))
-        })?;
+                RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e))
+            })
+            .unwrap();
         let restored_spl_balance: u64 = spl_account.amount.into();
         assert_eq!(
             restored_spl_balance, amount,
@@ -1140,7 +1153,11 @@ async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
 
     {
         // Verify compressed token balance is now 0
-        let ctoken_account_data = rpc.get_account(associated_token_account).await?.unwrap();
+        let ctoken_account_data = rpc
+            .get_account(associated_token_account)
+            .await
+            .unwrap()
+            .unwrap();
         let ctoken_account =
             spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165])
                 .map_err(|e| {
@@ -1148,7 +1165,8 @@ async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
                         "Failed to parse compressed token account: {}",
                         e
                     ))
-                })?;
+                })
+                .unwrap();
         assert_eq!(
             u64::from(ctoken_account.amount),
             0,
@@ -1157,6 +1175,4 @@ async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
     }
 
     println!("Successfully completed round-trip transfer: SPL -> CToken -> SPL");
-
-    Ok(())
 }

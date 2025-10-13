@@ -1,7 +1,5 @@
 use light_client::rpc::Rpc;
-
 use light_ctoken_types::state::TokenDataVersion;
-
 use rand::{
     rngs::{StdRng, ThreadRng},
     Rng, RngCore, SeedableRng,

@@ -192,7 +192,11 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     // to be added to the accounts (it would be at the wrong position for Transfer2CpiAccounts parsing)
     let config = CTokenCompressAndCloseAccounts {
         compressed_token_program: compressed_token_program_id,
-        cpi_authority_pda: Pubkey::find_program_address(&[b"cpi_authority"], &compressed_token_program_id).0,
+        cpi_authority_pda: Pubkey::find_program_address(
+            &[b"cpi_authority"],
+            &compressed_token_program_id,
+        )
+        .0,
         cpi_context: None,
         self_program: None, // Critical: None means no light_system_cpi_authority is added
     };

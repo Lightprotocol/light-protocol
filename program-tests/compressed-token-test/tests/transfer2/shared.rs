@@ -20,7 +20,6 @@ use light_token_client::{
         DecompressInput, Transfer2InstructionType, TransferInput,
     },
 };
-
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
 
 // ============================================================================

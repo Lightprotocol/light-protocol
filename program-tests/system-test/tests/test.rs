@@ -1,4 +1,4 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
@@ -24,10 +24,7 @@ use light_program_test::{
     utils::assert::assert_rpc_error,
     ProgramTestConfig,
 };
-use light_registry::{
-    protocol_config::state::ProtocolConfig,
-    utils::{get_epoch_pda_address, get_forester_epoch_pda},
-};
+use light_registry::protocol_config::state::ProtocolConfig;
 use light_system_program::{
     errors::SystemProgramError,
     utils::{get_cpi_authority_pda, get_registered_program_pda},
@@ -35,7 +32,7 @@ use light_system_program::{
 use light_test_utils::{
     airdrop_lamports,
     assert_compressed_tx::assert_created_compressed_accounts,
-    assert_custom_error_or_program_error, setup_forester_and_advance_to_epoch,
+    assert_custom_error_or_program_error,
     system_program::{
         compress_sol_test, create_addresses_test, create_invoke_instruction,
         create_invoke_instruction_data_and_remaining_accounts, decompress_sol_test,
@@ -523,27 +520,26 @@ pub async fn failing_transaction_inputs_inner<R: Rpc>(
         .await
         .unwrap();
     }
-    // System program supports unordered trees now.
-    // // output Merkle tree is not unique (we need at least 2 outputs for this test)
-    // if num_outputs > 1 {
-    //     let mut inputs_struct = inputs_struct.clone();
-    //     let mut remaining_accounts = remaining_accounts.clone();
-    //     let remaining_mt_acc = remaining_accounts
-    //         [inputs_struct.output_compressed_accounts[1].merkle_tree_index as usize]
-    //         .clone();
-    //     remaining_accounts.push(remaining_mt_acc);
-    //     inputs_struct.output_compressed_accounts[1].merkle_tree_index =
-    //         (remaining_accounts.len() - 1) as u8;
-    //     create_instruction_and_failing_transaction(
-    //         rpc,
-    //         payer,
-    //         inputs_struct,
-    //         remaining_accounts.clone(),
-    //         SystemProgramError::OutputMerkleTreeNotUnique.into(),
-    //     )
-    //     .await
-    //     .unwrap();
-    // }
+    // output Merkle tree is not unique (we need at least 2 outputs for this test)
+    if num_outputs > 1 {
+        let mut inputs_struct = inputs_struct.clone();
+        let mut remaining_accounts = remaining_accounts.clone();
+        let remaining_mt_acc = remaining_accounts
+            [inputs_struct.output_compressed_accounts[1].merkle_tree_index as usize]
+            .clone();
+        remaining_accounts.push(remaining_mt_acc);
+        inputs_struct.output_compressed_accounts[1].merkle_tree_index =
+            (remaining_accounts.len() - 1) as u8;
+        create_instruction_and_failing_transaction(
+            rpc,
+            payer,
+            inputs_struct,
+            remaining_accounts.clone(),
+            SystemProgramError::OutputMerkleTreeNotUnique.into(),
+        )
+        .await
+        .unwrap();
+    }
     Ok(())
 }
 

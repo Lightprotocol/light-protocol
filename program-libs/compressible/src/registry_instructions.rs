@@ -3,14 +3,13 @@
 //! This module provides instruction data structures and account meta builders
 //! for creating compressible configs via the Light Registry program.
 
-use crate::rent::RentConfig;
-use crate::{AnchorDeserialize, AnchorSerialize};
-
 // Use Anchor's Pubkey when anchor feature is enabled, otherwise use solana-pubkey
 #[cfg(feature = "anchor")]
 use anchor_lang::prelude::Pubkey;
 #[cfg(not(feature = "anchor"))]
 use solana_pubkey::Pubkey;
+
+use crate::{rent::RentConfig, AnchorDeserialize, AnchorSerialize};
 
 /// Discriminator for CreateConfigCounter instruction
 pub const CREATE_CONFIG_COUNTER_DISCRIMINATOR: [u8; 8] = [221, 9, 219, 187, 215, 138, 209, 87];

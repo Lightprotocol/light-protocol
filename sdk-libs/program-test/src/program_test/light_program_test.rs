@@ -14,13 +14,15 @@ use litesvm::LiteSVM;
 use solana_account::WritableAccount;
 use solana_sdk::signature::{Keypair, Signer};
 
-use crate::accounts::compressible_config::create_compressible_config;
 #[cfg(feature = "devenv")]
 use crate::accounts::initialize::initialize_accounts;
 #[cfg(feature = "devenv")]
 use crate::program_test::TestRpc;
 use crate::{
-    accounts::{test_accounts::TestAccounts, test_keypairs::TestKeypairs},
+    accounts::{
+        compressible_config::create_compressible_config, test_accounts::TestAccounts,
+        test_keypairs::TestKeypairs,
+    },
     indexer::TestIndexer,
     utils::setup_light_programs::setup_light_programs,
     ProgramTestConfig,
