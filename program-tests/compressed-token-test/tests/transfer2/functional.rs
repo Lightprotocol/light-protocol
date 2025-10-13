@@ -8,161 +8,164 @@ use crate::transfer2::shared::{
 
 // Basic Transfer Operations
 
-//  1. 1 in 2 out Version::V1
-//  2. 1 in 2 out Version::V2
-//  3. 1 in 2 out Version::ShaFlat
-//  4. 2 in 2 out Version::ShaFlat
-//  5. 3 in 2 out Version::ShaFlat
-//  6. 4 in 2 out Version::ShaFlat
-//  7. 5 in 2 out Version::ShaFlat
-//  8. 6 in 2 out Version::ShaFlat
-//  9. 7 in 2 out Version::ShaFlat
-//  10. 8 in 2 out Version::ShaFlat (maximum inputs)
-//  11. Single input to multiple outputs (1→N split)
-//  12. Multiple inputs to single output (N→1 merge)
-//  13. Multiple inputs to multiple outputs (N→M complex)
-//  14. Transfer with 0 explicit outputs (change account only)
+//  1. 1 in 1 out Version::V1
+//  2. 1 in 1 out Version::V2
+//  3. 1 in 1 out Version::ShaFlat
+//  4. 8 transfers from different signers using ShaFlat (max concurrent signers)
+//  5. 2 in 1 out Version::ShaFlat
+//  6. 3 in 1 out Version::ShaFlat
+//  7. 4 in 1 out Version::ShaFlat
+//  8. 5 in 1 out Version::ShaFlat
+//  9. 6 in 1 out Version::ShaFlat
+//  10. 7 in 1 out Version::ShaFlat
+//  11. 8 in 1 out Version::ShaFlat (maximum inputs)
+//  12. Single input to multiple outputs (1→N split)
+//  13. Multiple inputs to single output (N→1 merge)
+//  14. Multiple inputs to multiple outputs (N→M complex)
+//  15. Transfer with 0 explicit outputs (change account only)
 
 //  Output Account Limits
 
-//  15. 1 output compressed account
-//  16. 10 output compressed accounts
-//  17. 20 output compressed accounts
-//  18. 35 output compressed accounts (maximum)
+//  16. 1 output compressed account
+//  17. 10 output compressed accounts
+//  18. 20 output compressed accounts
+//  19. 35 output compressed accounts (maximum)
 
 //  Amount Edge Cases
 
-//  19. Transfer 0 tokens (valid operation)
-//  20. Transfer 1 token (minimum non-zero)
-//  21. Transfer full balance (no change account created)
-//  22. Transfer partial balance (change account created)
-//  23. Transfer u64::MAX tokens
-//  24. Multiple partial transfers creating multiple change accounts
+//  20. Transfer 0 tokens (valid operation)
+//  21. Transfer 1 token (minimum non-zero)
+//  22. Transfer full balance (no change account created)
+//  23. Transfer partial balance (change account created)
+//  24. Transfer u64::MAX tokens
+//  25. Multiple partial transfers creating multiple change accounts
 
 //  Token Data Versions
 
-//  25. All V1 (Poseidon with pubkey hashing)
-//  26. All V2 (Poseidon with pubkey hashing)
-//  27. All V3/ShaFlat (SHA256)
-//  28. Mixed V1 and V2 in same transaction
-//  29. Mixed V1 and V3 in same transaction
-//  30. Mixed V2 and V3 in same transaction
-//  31. All three versions in same transaction
+//  26. All V1 (Poseidon with pubkey hashing)
+//  27. All V2 (Poseidon with pubkey hashing)
+//  28. All V3/ShaFlat (SHA256)
+//  29. Mixed V1 and V2 in same transaction
+//  30. Mixed V1 and V3 in same transaction
+//  31. Mixed V2 and V3 in same transaction
+//  32. All three versions in same transaction
 
 //  Multi-Mint Operations
 
-//  32. Single mint operations
-//  33. 2 different mints in same transaction
-//  34. 3 different mints in same transaction
-//  35. 4 different mints in same transaction
-//  36. 5 different mints in same transaction (maximum)
-//  37. Multiple operations per mint (e.g., 2 transfers of mint A, 3 of mint B)
+//  33. Single mint operations
+//  34. 2 different mints in same transaction
+//  35. 3 different mints in same transaction
+//  36. 4 different mints in same transaction
+//  37. 5 different mints in same transaction (maximum)
+//  38. Multiple operations per mint (e.g., 2 transfers of mint A, 3 of mint B)
 
 //  Compression Operations (Path A - no compressed accounts)
 
-//  38. Compress from SPL token only
-//  39. Compress from CToken only
-//  40. Decompress to SPL token only
+//  39. Compress from SPL token only
+//  40. Compress from CToken only
 //  41. Decompress to CToken only
 //  42. Multiple compress operations only
 //  43. Multiple decompress operations only
 //  44. Compress and decompress same amount (must balance)
+//  45. Decompress to SPL token only
+//  46. Compress SPL with multiple compressed account inputs
+//  47. Mixed SPL and CToken operations
 
-//  Mixed Compression + Transfer (Path B)
+//  Mixed Compression + Transfer (Path B) - NOT YET IMPLEMENTED
 
-//  45. Transfer + compress SPL in same transaction
-//  46. Transfer + decompress to SPL in same transaction
-//  47. Transfer + compress CToken in same transaction
-//  48. Transfer + decompress to CToken in same transaction
-//  49. Transfer + multiple compressions
-//  50. Transfer + multiple decompressions
-//  51. Transfer + compress + decompress (all must balance)
+//  48. Transfer + compress SPL in same transaction
+//  49. Transfer + decompress to SPL in same transaction
+//  50. Transfer + compress CToken in same transaction
+//  51. Transfer + decompress to CToken in same transaction
+//  52. Transfer + multiple compressions
+//  53. Transfer + multiple decompressions
+//  54. Transfer + compress + decompress (all must balance)
 
-//  CompressAndClose Operations
+//  CompressAndClose Operations - NOT YET IMPLEMENTED
 
-//  52. CompressAndClose as owner (no validation needed)
-//  53. CompressAndClose as rent authority (requires compressible account)
-//  54. Multiple CompressAndClose in single transaction
-//  55. CompressAndClose + regular transfer in same transaction
-//  56. CompressAndClose with full balance
-//  57. CompressAndClose creating specific output (rent authority case)
+//  55. CompressAndClose as owner (no validation needed)
+//  56. CompressAndClose as rent authority (requires compressible account)
+//  57. Multiple CompressAndClose in single transaction
+//  58. CompressAndClose + regular transfer in same transaction
+//  59. CompressAndClose with full balance
+//  60. CompressAndClose creating specific output (rent authority case)
 
-//  Delegate Operations
+//  Delegate Operations - NOT YET IMPLEMENTED
 
-//  58. Approve creating delegated account + change
-//  59. Transfer using delegate authority (full delegated amount)
-//  60. Transfer using delegate authority (partial amount)
-//  61. Revoke delegation (merges all accounts)
-//  62. Multiple delegates in same transaction
-//  63. Delegate transfer with change account
+//  61. Approve creating delegated account + change
+//  62. Transfer using delegate authority (full delegated amount)
+//  63. Transfer using delegate authority (partial amount)
+//  64. Revoke delegation (merges all accounts)
+//  65. Multiple delegates in same transaction
+//  66. Delegate transfer with change account
 
-//  Token Pool Operations
+//  Token Pool Operations - NOT YET IMPLEMENTED
 
-//  64. Compress to pool index 0
-//  65. Compress to pool index 1
-//  66. Compress to pool index 4 (max is 5)
-//  67. Decompress from pool index 0
-//  68. Decompress from different pool indices
-//  69. Multiple pools for same mint in transaction
+//  67. Compress to pool index 0
+//  68. Compress to pool index 1
+//  69. Compress to pool index 4 (max is 5)
+//  70. Decompress from pool index 0
+//  71. Decompress from different pool indices
+//  72. Multiple pools for same mint in transaction
 
 #[tokio::test]
 #[serial]
 async fn test_transfer2_functional() {
     let config = TestConfig::default();
     let test_cases = vec![
-        // Basic input account tests
+        // Basic Transfer Operations (1-15)
         test1_basic_transfer_poseidon_v1(),
-        test1_basic_transfer_poseidon_v2(),
-        test1_basic_transfer_sha_flat(),
-        test1_basic_transfer_sha_flat_8(),
-        test1_basic_transfer_sha_flat_2_inputs(),
-        test1_basic_transfer_sha_flat_3_inputs(),
-        test1_basic_transfer_sha_flat_4_inputs(),
-        test1_basic_transfer_sha_flat_5_inputs(),
-        test1_basic_transfer_sha_flat_6_inputs(),
-        test1_basic_transfer_sha_flat_7_inputs(),
-        test1_basic_transfer_sha_flat_8_inputs(),
-        // New complex transfer pattern tests
-        test2_single_input_multiple_outputs(),
-        test3_multiple_inputs_single_output(),
-        test4_multiple_inputs_multiple_outputs(),
-        test5_change_account_only(),
-        // Output account limit tests
-        test6_single_output_account(),
-        test7_ten_output_accounts(),
-        test8_twenty_output_accounts(),
-        test9_maximum_output_accounts(),
-        // Amount edge case tests
-        test10_transfer_zero_tokens(),
-        test11_transfer_one_token(),
-        test12_transfer_full_balance(),
-        test13_transfer_partial_balance(),
-        test14_transfer_max_tokens(),
-        test15_multiple_partial_transfers(),
-        test16_all_v1_poseidon(),
-        test17_all_v2_poseidon(),
-        test18_all_sha_flat(),
-        test19_mixed_v1_v2(),
-        test20_mixed_v1_sha_flat(),
-        test21_mixed_v2_sha_flat(),
-        test22_all_three_versions(),
-        // Multi-mint operation tests
-        test23_single_mint_operations(),
-        test24_two_different_mints(),
-        test25_three_different_mints(),
-        test26_four_different_mints(),
-        test27_five_different_mints_maximum(),
-        test28_multiple_operations_per_mint(),
-        // Compression operations tests
-        test38_compress_from_spl_only(),    // SPL compression
-        test39_compress_from_ctoken_only(), // CToken compression
-        test40_decompress_to_ctoken_only(),
-        test41_multiple_compress_operations(),
-        test42_multiple_decompress_operations(),
-        test43_compress_decompress_balance(),
-        test44_decompress_to_spl(),                   // SPL decompression
-        test45_compress_spl_with_compressed_inputs(), // SPL compress with compressed inputs
-        test46_mixed_spl_ctoken_operations(),         // Mixed SPL and CToken operations
+        test2_basic_transfer_poseidon_v2(),
+        test3_basic_transfer_sha_flat(),
+        test4_basic_transfer_sha_flat_8(),
+        test5_basic_transfer_sha_flat_2_inputs(),
+        test6_basic_transfer_sha_flat_3_inputs(),
+        test7_basic_transfer_sha_flat_4_inputs(),
+        test8_basic_transfer_sha_flat_5_inputs(),
+        test9_basic_transfer_sha_flat_6_inputs(),
+        test10_basic_transfer_sha_flat_7_inputs(),
+        test11_basic_transfer_sha_flat_8_inputs(),
+        test12_single_input_multiple_outputs(),
+        test13_multiple_inputs_single_output(),
+        test14_multiple_inputs_multiple_outputs(),
+        test15_change_account_only(),
+        // Output Account Limits (16-19)
+        test16_single_output_account(),
+        test17_ten_output_accounts(),
+        test18_twenty_output_accounts(),
+        test19_maximum_output_accounts(),
+        // Amount Edge Cases (20-25)
+        test20_transfer_zero_tokens(),
+        test21_transfer_one_token(),
+        test22_transfer_full_balance(),
+        test23_transfer_partial_balance(),
+        test24_transfer_max_tokens(),
+        test25_multiple_partial_transfers(),
+        // Token Data Versions (26-32)
+        test26_all_v1_poseidon(),
+        test27_all_v2_poseidon(),
+        test28_all_sha_flat(),
+        test29_mixed_v1_v2(),
+        test30_mixed_v1_sha_flat(),
+        test31_mixed_v2_sha_flat(),
+        test32_all_three_versions(),
+        // Multi-Mint Operations (33-38)
+        test33_single_mint_operations(),
+        test34_two_different_mints(),
+        test35_three_different_mints(),
+        test36_four_different_mints(),
+        test37_five_different_mints_maximum(),
+        test38_multiple_operations_per_mint(),
+        // Compression Operations (39-47)
+        test39_compress_from_spl_only(),
+        test40_compress_from_ctoken_only(),
+        test41_decompress_to_ctoken_only(),
+        test42_multiple_compress_operations(),
+        test43_multiple_decompress_operations(),
+        test44_compress_decompress_balance(),
+        test45_decompress_to_spl(),
+        test46_compress_spl_with_compressed_inputs(),
+        test47_mixed_spl_ctoken_operations(),
     ];
 
     for (i, test_case) in test_cases.iter().enumerate() {
@@ -203,7 +206,7 @@ fn test1_basic_transfer_poseidon_v1() -> TestCase {
     }
 }
 
-fn test1_basic_transfer_poseidon_v2() -> TestCase {
+fn test2_basic_transfer_poseidon_v2() -> TestCase {
     TestCase {
         name: "Basic compressed-to-compressed transfer".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -220,7 +223,7 @@ fn test1_basic_transfer_poseidon_v2() -> TestCase {
     }
 }
 
-fn test1_basic_transfer_sha_flat() -> TestCase {
+fn test3_basic_transfer_sha_flat() -> TestCase {
     TestCase {
         name: "Basic compressed-to-compressed transfer".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -237,7 +240,7 @@ fn test1_basic_transfer_sha_flat() -> TestCase {
     }
 }
 
-fn test1_basic_transfer_sha_flat_8() -> TestCase {
+fn test4_basic_transfer_sha_flat_8() -> TestCase {
     TestCase {
         name: "8 transfers from different signers using ShaFlat (max input limit)".to_string(),
         actions: (0..8) // MAX_INPUT_ACCOUNTS is 8
@@ -258,7 +261,7 @@ fn test1_basic_transfer_sha_flat_8() -> TestCase {
     }
 }
 
-fn test1_basic_transfer_sha_flat_2_inputs() -> TestCase {
+fn test5_basic_transfer_sha_flat_2_inputs() -> TestCase {
     TestCase {
         name: "2 transfers from different signers using ShaFlat".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -275,7 +278,7 @@ fn test1_basic_transfer_sha_flat_2_inputs() -> TestCase {
     }
 }
 
-fn test1_basic_transfer_sha_flat_3_inputs() -> TestCase {
+fn test6_basic_transfer_sha_flat_3_inputs() -> TestCase {
     TestCase {
         name: "3 transfers from different signers using ShaFlat".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -292,7 +295,7 @@ fn test1_basic_transfer_sha_flat_3_inputs() -> TestCase {
     }
 }
 
-fn test1_basic_transfer_sha_flat_4_inputs() -> TestCase {
+fn test7_basic_transfer_sha_flat_4_inputs() -> TestCase {
     TestCase {
         name: "4 transfers from different signers using ShaFlat".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -309,7 +312,7 @@ fn test1_basic_transfer_sha_flat_4_inputs() -> TestCase {
     }
 }
 
-fn test1_basic_transfer_sha_flat_5_inputs() -> TestCase {
+fn test8_basic_transfer_sha_flat_5_inputs() -> TestCase {
     TestCase {
         name: "5 transfers from different signers using ShaFlat".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -326,7 +329,7 @@ fn test1_basic_transfer_sha_flat_5_inputs() -> TestCase {
     }
 }
 
-fn test1_basic_transfer_sha_flat_6_inputs() -> TestCase {
+fn test9_basic_transfer_sha_flat_6_inputs() -> TestCase {
     TestCase {
         name: "6 transfers from different signers using ShaFlat".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -343,7 +346,7 @@ fn test1_basic_transfer_sha_flat_6_inputs() -> TestCase {
     }
 }
 
-fn test1_basic_transfer_sha_flat_7_inputs() -> TestCase {
+fn test10_basic_transfer_sha_flat_7_inputs() -> TestCase {
     TestCase {
         name: "7 transfers from different signers using ShaFlat".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -360,7 +363,7 @@ fn test1_basic_transfer_sha_flat_7_inputs() -> TestCase {
     }
 }
 
-fn test1_basic_transfer_sha_flat_8_inputs() -> TestCase {
+fn test11_basic_transfer_sha_flat_8_inputs() -> TestCase {
     TestCase {
         name: "8 transfers from different signers using ShaFlat (max input limit)".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -377,8 +380,8 @@ fn test1_basic_transfer_sha_flat_8_inputs() -> TestCase {
     }
 }
 
-// Test 1: Single input to multiple outputs (1→N split)
-fn test2_single_input_multiple_outputs() -> TestCase {
+// Test 12: Single input to multiple outputs (1→N split)
+fn test12_single_input_multiple_outputs() -> TestCase {
     TestCase {
         name: "Single input to multiple outputs (1→N split)".to_string(),
         actions: vec![
@@ -422,8 +425,8 @@ fn test2_single_input_multiple_outputs() -> TestCase {
     }
 }
 
-// Test 2: Multiple inputs to single output (N→1 merge)
-fn test3_multiple_inputs_single_output() -> TestCase {
+// Test 13: Multiple inputs to single output (N→1 merge)
+fn test13_multiple_inputs_single_output() -> TestCase {
     TestCase {
         name: "Multiple inputs to single output (N→1 merge)".to_string(),
         actions: vec![
@@ -467,8 +470,8 @@ fn test3_multiple_inputs_single_output() -> TestCase {
     }
 }
 
-// Test 3: Multiple inputs to multiple outputs (N→M complex)
-fn test4_multiple_inputs_multiple_outputs() -> TestCase {
+// Test 14: Multiple inputs to multiple outputs (N→M complex)
+fn test14_multiple_inputs_multiple_outputs() -> TestCase {
     TestCase {
         name: "Multiple inputs to multiple outputs (N→M complex)".to_string(),
         actions: vec![
@@ -534,8 +537,8 @@ fn test4_multiple_inputs_multiple_outputs() -> TestCase {
     }
 }
 
-// Test 4: Transfer with 0 explicit outputs (change account only)
-fn test5_change_account_only() -> TestCase {
+// Test 15: Transfer with 0 explicit outputs (change account only)
+fn test15_change_account_only() -> TestCase {
     TestCase {
         name: "Transfer with change account only (partial transfer to self)".to_string(),
         actions: vec![
@@ -556,11 +559,11 @@ fn test5_change_account_only() -> TestCase {
 }
 
 // ============================================================================
-// Output Account Limit Tests (12-15)
+// Output Account Limit Tests (16-19)
 // ============================================================================
 
-// Test 6: Single output compressed account (minimum)
-fn test6_single_output_account() -> TestCase {
+// Test 16: Single output compressed account (minimum)
+fn test16_single_output_account() -> TestCase {
     TestCase {
         name: "Single output compressed account".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -577,8 +580,8 @@ fn test6_single_output_account() -> TestCase {
     }
 }
 
-// Test 7: 10 output compressed accounts
-fn test7_ten_output_accounts() -> TestCase {
+// Test 17: 10 output compressed accounts
+fn test17_ten_output_accounts() -> TestCase {
     TestCase {
         name: "10 output compressed accounts".to_string(),
         actions: {
@@ -620,8 +623,8 @@ fn test7_ten_output_accounts() -> TestCase {
     }
 }
 
-// Test 8: 20 output compressed accounts
-fn test8_twenty_output_accounts() -> TestCase {
+// Test 18: 20 output compressed accounts
+fn test18_twenty_output_accounts() -> TestCase {
     TestCase {
         name: "20 output compressed accounts".to_string(),
         actions: {
@@ -662,8 +665,8 @@ fn test8_twenty_output_accounts() -> TestCase {
     }
 }
 
-// Test 9: 35 output compressed accounts (maximum per instruction)
-fn test9_maximum_output_accounts() -> TestCase {
+// Test 19: 35 output compressed accounts (maximum per instruction)
+fn test19_maximum_output_accounts() -> TestCase {
     TestCase {
         name: "35 output compressed accounts (maximum)".to_string(),
         actions: {
@@ -705,11 +708,11 @@ fn test9_maximum_output_accounts() -> TestCase {
 }
 
 // ============================================================================
-// Amount Edge Case Tests (16-21)
+// Amount Edge Case Tests (20-25)
 // ============================================================================
 
-// Test 10: Transfer 0 tokens (valid operation)
-fn test10_transfer_zero_tokens() -> TestCase {
+// Test 20: Transfer 0 tokens (valid operation)
+fn test20_transfer_zero_tokens() -> TestCase {
     TestCase {
         name: "Transfer 0 tokens (valid operation)".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -726,8 +729,8 @@ fn test10_transfer_zero_tokens() -> TestCase {
     }
 }
 
-// Test 11: Transfer 1 token (minimum non-zero)
-fn test11_transfer_one_token() -> TestCase {
+// Test 21: Transfer 1 token (minimum non-zero)
+fn test21_transfer_one_token() -> TestCase {
     TestCase {
         name: "Transfer 1 token (minimum non-zero)".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -744,8 +747,8 @@ fn test11_transfer_one_token() -> TestCase {
     }
 }
 
-// Test 12: Transfer full balance (no change account created)
-fn test12_transfer_full_balance() -> TestCase {
+// Test 22: Transfer full balance (no change account created)
+fn test22_transfer_full_balance() -> TestCase {
     TestCase {
         name: "Transfer full balance (no change account created)".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -762,8 +765,8 @@ fn test12_transfer_full_balance() -> TestCase {
     }
 }
 
-// Test 13: Transfer partial balance (change account created)
-fn test13_transfer_partial_balance() -> TestCase {
+// Test 23: Transfer partial balance (change account created)
+fn test23_transfer_partial_balance() -> TestCase {
     TestCase {
         name: "Transfer partial balance (change account created)".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -780,8 +783,8 @@ fn test13_transfer_partial_balance() -> TestCase {
     }
 }
 
-// Test 14: Transfer u64::MAX tokens (maximum possible)
-fn test14_transfer_max_tokens() -> TestCase {
+// Test 24: Transfer u64::MAX tokens (maximum possible)
+fn test24_transfer_max_tokens() -> TestCase {
     TestCase {
         name: "Transfer u64::MAX tokens (maximum possible)".to_string(),
         actions: vec![MetaTransfer2InstructionType::Transfer(MetaTransferInput {
@@ -798,8 +801,8 @@ fn test14_transfer_max_tokens() -> TestCase {
     }
 }
 
-// Test 15: Multiple partial transfers creating multiple change accounts
-fn test15_multiple_partial_transfers() -> TestCase {
+// Test 25: Multiple partial transfers creating multiple change accounts
+fn test25_multiple_partial_transfers() -> TestCase {
     TestCase {
         name: "Multiple partial transfers creating multiple change accounts".to_string(),
         actions: vec![
@@ -843,11 +846,11 @@ fn test15_multiple_partial_transfers() -> TestCase {
     }
 }
 // ============================================================================
-// Token Data Version Tests (22-28)
+// Token Data Version Tests (26-32)
 // ============================================================================
 
-// Test 16: All V1 (Poseidon with pubkey hashing)
-fn test16_all_v1_poseidon() -> TestCase {
+// Test 26: All V1 (Poseidon with pubkey hashing)
+fn test26_all_v1_poseidon() -> TestCase {
     TestCase {
         name: "All V1 (Poseidon with pubkey hashing)".to_string(),
         actions: vec![
@@ -877,8 +880,8 @@ fn test16_all_v1_poseidon() -> TestCase {
     }
 }
 
-// Test 17: All V2 (Poseidon with pubkey hashing)
-fn test17_all_v2_poseidon() -> TestCase {
+// Test 27: All V2 (Poseidon with pubkey hashing)
+fn test27_all_v2_poseidon() -> TestCase {
     TestCase {
         name: "All V2 (Poseidon with pubkey hashing)".to_string(),
         actions: vec![
@@ -908,8 +911,8 @@ fn test17_all_v2_poseidon() -> TestCase {
     }
 }
 
-// Test 18: All V3/ShaFlat (SHA256)
-fn test18_all_sha_flat() -> TestCase {
+// Test 28: All V3/ShaFlat (SHA256)
+fn test28_all_sha_flat() -> TestCase {
     TestCase {
         name: "All V3/ShaFlat (SHA256)".to_string(),
         actions: vec![
@@ -939,8 +942,8 @@ fn test18_all_sha_flat() -> TestCase {
     }
 }
 
-// Test 19: Mixed V1 and V2 in same transaction
-fn test19_mixed_v1_v2() -> TestCase {
+// Test 29: Mixed V1 and V2 in same transaction
+fn test29_mixed_v1_v2() -> TestCase {
     TestCase {
         name: "Mixed V1 and V2 in same transaction".to_string(),
         actions: vec![
@@ -970,8 +973,8 @@ fn test19_mixed_v1_v2() -> TestCase {
     }
 }
 
-// Test 20: Mixed V1 and V3 in same transaction
-fn test20_mixed_v1_sha_flat() -> TestCase {
+// Test 30: Mixed V1 and V3 in same transaction
+fn test30_mixed_v1_sha_flat() -> TestCase {
     TestCase {
         name: "Mixed V1 and V3 in same transaction".to_string(),
         actions: vec![
@@ -1001,8 +1004,8 @@ fn test20_mixed_v1_sha_flat() -> TestCase {
     }
 }
 
-// Test 21: Mixed V2 and V3 in same transaction
-fn test21_mixed_v2_sha_flat() -> TestCase {
+// Test 31: Mixed V2 and V3 in same transaction
+fn test31_mixed_v2_sha_flat() -> TestCase {
     TestCase {
         name: "Mixed V2 and V3 in same transaction".to_string(),
         actions: vec![
@@ -1032,8 +1035,8 @@ fn test21_mixed_v2_sha_flat() -> TestCase {
     }
 }
 
-// Test 22: All three versions in same transaction
-fn test22_all_three_versions() -> TestCase {
+// Test 32: All three versions in same transaction
+fn test32_all_three_versions() -> TestCase {
     TestCase {
         name: "All three versions in same transaction".to_string(),
         actions: vec![
@@ -1075,11 +1078,11 @@ fn test22_all_three_versions() -> TestCase {
 }
 
 // ============================================================================
-// Multi-Mint Operation Tests (29-34)
+// Multi-Mint Operation Tests (33-38)
 // ============================================================================
 
-// Test 23: Single mint operations
-fn test23_single_mint_operations() -> TestCase {
+// Test 33: Single mint operations
+fn test33_single_mint_operations() -> TestCase {
     TestCase {
         name: "Single mint operations".to_string(),
         actions: vec![
@@ -1109,8 +1112,8 @@ fn test23_single_mint_operations() -> TestCase {
     }
 }
 
-// Test 24: 2 different mints in same transaction
-fn test24_two_different_mints() -> TestCase {
+// Test 34: 2 different mints in same transaction
+fn test34_two_different_mints() -> TestCase {
     TestCase {
         name: "2 different mints in same transaction".to_string(),
         actions: vec![
@@ -1142,8 +1145,8 @@ fn test24_two_different_mints() -> TestCase {
     }
 }
 
-// Test 25: 3 different mints in same transaction
-fn test25_three_different_mints() -> TestCase {
+// Test 35: 3 different mints in same transaction
+fn test35_three_different_mints() -> TestCase {
     TestCase {
         name: "3 different mints in same transaction".to_string(),
         actions: vec![
@@ -1187,8 +1190,8 @@ fn test25_three_different_mints() -> TestCase {
     }
 }
 
-// Test 26: 4 different mints in same transaction
-fn test26_four_different_mints() -> TestCase {
+// Test 36: 4 different mints in same transaction
+fn test36_four_different_mints() -> TestCase {
     TestCase {
         name: "4 different mints in same transaction".to_string(),
         actions: vec![
@@ -1244,8 +1247,8 @@ fn test26_four_different_mints() -> TestCase {
     }
 }
 
-// Test 27: 5 different mints in same transaction (maximum)
-fn test27_five_different_mints_maximum() -> TestCase {
+// Test 37: 5 different mints in same transaction (maximum)
+fn test37_five_different_mints_maximum() -> TestCase {
     TestCase {
         name: "5 different mints in same transaction (maximum)".to_string(),
         actions: vec![
@@ -1313,8 +1316,8 @@ fn test27_five_different_mints_maximum() -> TestCase {
     }
 }
 
-// Test 28: Multiple operations per mint (2 transfers of mint A, 3 of mint B)
-fn test28_multiple_operations_per_mint() -> TestCase {
+// Test 38: Multiple operations per mint (2 transfers of mint A, 3 of mint B)
+fn test38_multiple_operations_per_mint() -> TestCase {
     TestCase {
         name: "Multiple operations per mint (2 transfers of mint A, 3 of mint B)".to_string(),
         actions: vec![
@@ -1383,11 +1386,11 @@ fn test28_multiple_operations_per_mint() -> TestCase {
 }
 
 // ============================================================================
-// Compression Operations Tests (39-44)
+// Compression Operations Tests (39-47)
 // ============================================================================
 
-// Test 38: Compress from SPL token only
-fn test38_compress_from_spl_only() -> TestCase {
+// Test 39: Compress from SPL token only
+fn test39_compress_from_spl_only() -> TestCase {
     TestCase {
         name: "Compress from SPL token only".to_string(),
         actions: vec![MetaTransfer2InstructionType::Compress(MetaCompressInput {
@@ -1402,8 +1405,8 @@ fn test38_compress_from_spl_only() -> TestCase {
     }
 }
 
-// Test 39: Compress from CToken only
-fn test39_compress_from_ctoken_only() -> TestCase {
+// Test 40: Compress from CToken only
+fn test40_compress_from_ctoken_only() -> TestCase {
     TestCase {
         name: "Compress from CToken only".to_string(),
         actions: vec![MetaTransfer2InstructionType::Compress(MetaCompressInput {
@@ -1418,8 +1421,8 @@ fn test39_compress_from_ctoken_only() -> TestCase {
     }
 }
 
-// Test 40: Decompress to CToken only
-fn test40_decompress_to_ctoken_only() -> TestCase {
+// Test 41: Decompress to CToken only
+fn test41_decompress_to_ctoken_only() -> TestCase {
     TestCase {
         name: "Decompress to CToken only".to_string(),
         actions: vec![MetaTransfer2InstructionType::Decompress(
@@ -1437,8 +1440,8 @@ fn test40_decompress_to_ctoken_only() -> TestCase {
     }
 }
 
-// Test 41: Multiple compress operations only
-fn test41_multiple_compress_operations() -> TestCase {
+// Test 42: Multiple compress operations only
+fn test42_multiple_compress_operations() -> TestCase {
     TestCase {
         name: "Multiple compress operations only".to_string(),
         actions: vec![
@@ -1476,8 +1479,8 @@ fn test41_multiple_compress_operations() -> TestCase {
     }
 }
 
-// Test 42: Multiple decompress operations only
-fn test42_multiple_decompress_operations() -> TestCase {
+// Test 43: Multiple decompress operations only
+fn test43_multiple_decompress_operations() -> TestCase {
     TestCase {
         name: "Multiple decompress operations only".to_string(),
         actions: vec![
@@ -1518,8 +1521,8 @@ fn test42_multiple_decompress_operations() -> TestCase {
     }
 }
 
-// Test 43: Compress and decompress same amount (must balance)
-fn test43_compress_decompress_balance() -> TestCase {
+// Test 44: Compress and decompress same amount (must balance)
+fn test44_compress_decompress_balance() -> TestCase {
     TestCase {
         name: "Compress and decompress same amount (must balance)".to_string(),
         actions: vec![
@@ -1548,8 +1551,8 @@ fn test43_compress_decompress_balance() -> TestCase {
     }
 }
 
-// Test 44: Decompress to SPL token account
-fn test44_decompress_to_spl() -> TestCase {
+// Test 45: Decompress to SPL token account
+fn test45_decompress_to_spl() -> TestCase {
     TestCase {
         name: "Decompress to SPL token account".to_string(),
         actions: vec![MetaTransfer2InstructionType::Decompress(
@@ -1567,8 +1570,8 @@ fn test44_decompress_to_spl() -> TestCase {
     }
 }
 
-// Test 45: Compress SPL with multiple compressed account inputs
-fn test45_compress_spl_with_compressed_inputs() -> TestCase {
+// Test 46: Compress SPL with multiple compressed account inputs
+fn test46_compress_spl_with_compressed_inputs() -> TestCase {
     TestCase {
         name: "Compress SPL with compressed inputs".to_string(),
         actions: vec![MetaTransfer2InstructionType::Compress(MetaCompressInput {
@@ -1583,8 +1586,8 @@ fn test45_compress_spl_with_compressed_inputs() -> TestCase {
     }
 }
 
-// Test 46: Mixed SPL and CToken operations
-fn test46_mixed_spl_ctoken_operations() -> TestCase {
+// Test 47: Mixed SPL and CToken operations
+fn test47_mixed_spl_ctoken_operations() -> TestCase {
     TestCase {
         name: "Mixed SPL and CToken operations".to_string(),
         actions: vec![
