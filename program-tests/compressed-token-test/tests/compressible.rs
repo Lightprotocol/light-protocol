@@ -282,8 +282,8 @@ async fn test_withdraw_funding_pool() -> Result<(), RpcError> {
         &payer,
     )
     .await?;
-    let pool_balance_after = rpc.get_account(rent_sponsor).await?.unwrap().lamports;
-    assert_eq!(pool_balance_after, 0, "Pool balance should be 0");
+    let pool_balance_after = rpc.get_account(rent_sponsor).await?;
+    assert!(pool_balance_after.is_none(), "Pool balance should be 0");
 
     Ok(())
 }
