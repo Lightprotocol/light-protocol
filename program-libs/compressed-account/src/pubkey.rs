@@ -74,6 +74,10 @@ impl Pubkey {
         array.copy_from_slice(slice);
         Self(array)
     }
+
+    pub fn array_ref(&self) -> &[u8; 32] {
+        &self.0
+    }
 }
 
 impl AsRef<Pubkey> for Pubkey {
