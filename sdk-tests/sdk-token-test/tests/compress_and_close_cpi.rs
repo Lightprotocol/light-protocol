@@ -477,25 +477,6 @@ async fn test_compress_and_close_cpi_with_context() {
 
     // Prepare accounts for CPI instruction with CPI context
     let mut remaining_accounts = PackedAccounts::default();
-
-    // Get output tree for compression
-    let output_tree_info = rpc.get_random_state_tree_info().unwrap();
-    let cpi_context_pubkey = output_tree_info
-        .cpi_context
-        .expect("CPI context required for this test");
-    // Add light system program accounts (following the pattern from other tests)
-    use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseAccounts;
-    let config = CompressAndCloseAccounts::new_with_cpi_context(Some(cpi_context_pubkey), None);
-    remaining_accounts.insert_or_get(output_tree_info.queue);
-    remaining_accounts
-        .add_custom_system_accounts(config)
-        .unwrap();
-
-    // Create mint params to populate CPI context
-    let mint_recipients = vec![MintToRecipient {
-        recipient: ctx.owners[0].pubkey(),
-        amount: 500, // Mint some additional tokens
-    }];
     // Derive compressed mint address using utility function
     let address_tree_info = rpc.get_address_tree_v2();
     let compressed_mint_address =
@@ -512,6 +493,23 @@ async fn test_compress_and_close_cpi_with_context() {
         .value
         .ok_or("Compressed mint account not found")
         .unwrap();
+
+    let cpi_context_pubkey = compressed_mint_account
+        .tree_info
+        .cpi_context
+        .expect("CPI context required for this test");
+    // Add light system program accounts (following the pattern from other tests)
+    use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseAccounts;
+    let config = CompressAndCloseAccounts::new_with_cpi_context(Some(cpi_context_pubkey), None);
+    remaining_accounts
+        .add_custom_system_accounts(config)
+        .unwrap();
+
+    // Create mint params to populate CPI context
+    let mint_recipients = vec![MintToRecipient {
+        recipient: ctx.owners[0].pubkey(),
+        amount: 500, // Mint some additional tokens
+    }];
 
     // Deserialize the mint data
     use light_ctoken_types::state::CompressedMint;
@@ -566,7 +564,7 @@ async fn test_compress_and_close_cpi_with_context() {
     let indices = pack_for_compress_and_close(
         token_account_pubkey,
         ctoken_solana_account.data.as_slice(),
-        output_tree_info.queue,
+        compressed_mint_account.tree_info.queue,
         &mut remaining_accounts,
         ctx.with_compressible_extension, // false - using owner as authority
     )
@@ -577,7 +575,10 @@ async fn test_compress_and_close_cpi_with_context() {
     println!("CPI Context test:");
     println!("  CPI context account: {:?}", cpi_context_pubkey);
     println!("  Token account: {:?}", token_account_pubkey);
-    println!("  Output queue: {:?}", output_tree_info.queue);
+    println!(
+        "  Output queue: {:?}",
+        compressed_mint_account.tree_info.queue
+    );
     println!(
         "  System accounts start offset: {}",
         system_accounts_start_offset
