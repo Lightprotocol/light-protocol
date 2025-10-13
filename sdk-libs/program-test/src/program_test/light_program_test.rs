@@ -19,10 +19,7 @@ use crate::accounts::initialize::initialize_accounts;
 #[cfg(feature = "devenv")]
 use crate::program_test::TestRpc;
 use crate::{
-    accounts::{
-        compressible_config::create_compressible_config, test_accounts::TestAccounts,
-        test_keypairs::TestKeypairs,
-    },
+    accounts::{test_accounts::TestAccounts, test_keypairs::TestKeypairs},
     indexer::TestIndexer,
     utils::setup_light_programs::setup_light_programs,
     ProgramTestConfig,
@@ -100,7 +97,8 @@ impl LightProgramTest {
                     context.config.no_logs = true;
                 }
                 initialize_accounts(&mut context, &config, &keypairs).await?;
-                create_compressible_config(&mut context).await?;
+                crate::accounts::compressible_config::create_compressible_config(&mut context)
+                    .await?;
                 if context.config.skip_startup_logs {
                     context.config.no_logs = restore_logs;
                 }

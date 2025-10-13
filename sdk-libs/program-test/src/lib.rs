@@ -133,6 +133,7 @@
 
 pub mod accounts;
 pub mod compressible;
+#[cfg(feature = "devenv")]
 pub mod forester;
 pub mod indexer;
 pub mod logging;

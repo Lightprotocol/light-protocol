@@ -1,11 +1,7 @@
 use async_trait::async_trait;
 use light_client::rpc::{LightClient, Rpc, RpcError};
-use light_compressible::rent::SLOTS_PER_EPOCH;
 use solana_account::Account;
-use solana_sdk::{
-    clock::{Clock, Slot},
-    pubkey::Pubkey,
-};
+use solana_sdk::{clock::Slot, pubkey::Pubkey};
 #[cfg(feature = "devenv")]
 use {
     borsh::BorshDeserialize,
@@ -13,14 +9,19 @@ use {
     light_compressed_account::indexer_event::event::{
         BatchPublicTransactionEvent, PublicTransactionEvent,
     },
+    light_compressible::rent::SLOTS_PER_EPOCH,
     solana_sdk::{
+        clock::Clock,
         instruction::Instruction,
         signature::{Keypair, Signature},
     },
     std::{fmt::Debug, marker::Send},
 };
 
-use crate::{compressible::CompressibleAccountStore, program_test::LightProgramTest};
+use crate::program_test::LightProgramTest;
+
+#[cfg(feature = "devenv")]
+use crate::compressible::CompressibleAccountStore;
 
 #[async_trait]
 pub trait TestRpc: Rpc + Sized {
@@ -108,10 +109,12 @@ pub trait TestRpc: Rpc + Sized {
 
     /// Warps current slot forward by slots.
     /// Claims and compresses compressible ctoken accounts.
+    #[cfg(feature = "devenv")]
     async fn warp_slot_forward(&mut self, slot: Slot) -> Result<(), RpcError>;
 
     /// Warps forward by the specified number of epochs.
     /// Each epoch is SLOTS_PER_EPOCH slots.
+    #[cfg(feature = "devenv")]
     async fn warp_epoch_forward(&mut self, epochs: u64) -> Result<(), RpcError> {
         let slots_to_warp = epochs * SLOTS_PER_EPOCH;
         self.warp_slot_forward(slots_to_warp).await
@@ -129,6 +132,7 @@ impl TestRpc for LightClient {
         unimplemented!()
     }
 
+    #[cfg(feature = "devenv")]
     async fn warp_slot_forward(&mut self, _slot: Slot) -> Result<(), RpcError> {
         unimplemented!()
     }
@@ -149,6 +153,7 @@ impl TestRpc for LightProgramTest {
 
     /// Warps current slot forward by slots.
     /// Claims and compresses compressible ctoken accounts.
+    #[cfg(feature = "devenv")]
     async fn warp_slot_forward(&mut self, slot: Slot) -> Result<(), RpcError> {
         let mut current_slot = self.context.get_sysvar::<Clock>().slot;
         current_slot += slot;

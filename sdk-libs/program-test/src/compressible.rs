@@ -1,22 +1,24 @@
-use std::collections::HashMap;
-
 use anchor_lang::pubkey;
-use borsh::BorshDeserialize;
-use light_client::rpc::{Rpc, RpcError};
-use light_compressible::{
-    config::CompressibleConfig,
-    rent::{RentConfig, SLOTS_PER_EPOCH},
-};
-use light_ctoken_types::{
-    state::{CToken, ExtensionStruct},
-    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-};
+use light_compressible::{config::CompressibleConfig, rent::RentConfig};
 use solana_pubkey::Pubkey;
 
+#[cfg(feature = "devenv")]
+use std::collections::HashMap;
+#[cfg(feature = "devenv")]
+use borsh::BorshDeserialize;
+#[cfg(feature = "devenv")]
+use light_client::rpc::{Rpc, RpcError};
+#[cfg(feature = "devenv")]
+use light_compressible::rent::SLOTS_PER_EPOCH;
+#[cfg(feature = "devenv")]
+use light_ctoken_types::{state::{CToken, ExtensionStruct}, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
+#[cfg(feature = "devenv")]
 use crate::LightProgramTest;
 
+#[cfg(feature = "devenv")]
 pub type CompressibleAccountStore = HashMap<Pubkey, StoredCompressibleAccount>;
 
+#[cfg(feature = "devenv")]
 #[derive(Eq, Hash, PartialEq)]
 pub struct StoredCompressibleAccount {
     pub pubkey: Pubkey,
@@ -62,6 +64,7 @@ impl FundingPoolConfig {
     }
 }
 
+#[cfg(feature = "devenv")]
 pub async fn claim_and_compress(
     rpc: &mut LightProgramTest,
     stored_compressible_accounts: &mut CompressibleAccountStore,
