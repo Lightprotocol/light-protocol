@@ -910,6 +910,7 @@ async fn test_compress_and_close_with_compression_authority() -> Result<(), RpcE
             authority: context.compression_authority,
             output_queue,
             destination: Some(destination.pubkey()),
+            is_compressible: true,
         },
     )
     .await;

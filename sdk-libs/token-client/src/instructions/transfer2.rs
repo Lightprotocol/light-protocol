@@ -121,6 +121,7 @@ pub struct CompressAndCloseInput {
     pub authority: Pubkey,
     pub output_queue: Pubkey,
     pub destination: Option<Pubkey>,
+    pub is_compressible: bool, // If true, account has extensions; if false, regular CToken ATA
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -515,31 +516,39 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 use light_zero_copy::traits::ZeroCopyAt;
                 let (compressed_token, _) = CToken::zero_copy_at(&token_account_info.data)
                     .map_err(|_| TokenSdkError::InvalidAccountData)?;
-
+                println!("compressed_token {:?}", compressed_token);
                 let mint = compressed_token.mint;
                 let balance = compressed_token.amount;
                 let owner = compressed_token.owner;
 
                 // Extract rent_sponsor and compression_authority from compressible extension
+                // For non-compressible accounts, use the owner as the rent_sponsor
                 let (rent_sponsor, _compression_authority) =
-                    if let Some(extensions) = compressed_token.extensions.as_ref() {
-                        let mut found_rent_sponsor = None;
-                        let mut found_compression_authority = None;
-                        for extension in extensions {
-                            if let ZExtensionStruct::Compressible(compressible_ext) = extension {
-                                found_rent_sponsor = Some(compressible_ext.rent_sponsor);
-                                found_compression_authority =
-                                    Some(compressible_ext.compression_authority);
-                                break;
+                    if input.is_compressible {
+                        if let Some(extensions) = compressed_token.extensions.as_ref() {
+                            let mut found_rent_sponsor = None;
+                            let mut found_compression_authority = None;
+                            for extension in extensions {
+                                if let ZExtensionStruct::Compressible(compressible_ext) = extension {
+                                    found_rent_sponsor = Some(compressible_ext.rent_sponsor);
+                                    found_compression_authority =
+                                        Some(compressible_ext.compression_authority);
+                                    break;
+                                }
                             }
+                            println!("rent sponsor {:?}", found_rent_sponsor);
+                            (
+                                found_rent_sponsor.ok_or(TokenSdkError::InvalidAccountData)?,
+                                found_compression_authority,
+                            )
+                        } else {
+                            println!("no extensions but is_compressible is true");
+                            return Err(TokenSdkError::InvalidAccountData);
                         }
-
-                        (
-                            found_rent_sponsor.ok_or(TokenSdkError::InvalidAccountData)?,
-                            found_compression_authority,
-                        )
                     } else {
-                        return Err(TokenSdkError::InvalidAccountData);
+                        // Non-compressible account: use owner as rent_sponsor
+                        println!("non-compressible account, using owner as rent sponsor");
+                        (owner.to_bytes(), None)
                     };
 
                 let owner_index =

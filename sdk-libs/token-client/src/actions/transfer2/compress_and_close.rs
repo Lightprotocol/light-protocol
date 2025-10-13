@@ -41,6 +41,7 @@ pub async fn compress_and_close<R: Rpc + Indexer>(
                 authority: authority.pubkey(),
                 output_queue,
                 destination,
+                is_compressible: true, // This function is for compressible accounts
             },
         )],
         payer.pubkey(),

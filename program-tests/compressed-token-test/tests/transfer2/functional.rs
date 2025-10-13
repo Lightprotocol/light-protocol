@@ -2,8 +2,8 @@ use light_ctoken_types::state::TokenDataVersion;
 use serial_test::serial;
 
 use crate::transfer2::shared::{
-    MetaApproveInput, MetaCompressInput, MetaDecompressInput, MetaTransfer2InstructionType,
-    MetaTransferInput, TestCase, TestConfig, TestContext,
+    MetaApproveInput, MetaCompressAndCloseInput, MetaCompressInput, MetaDecompressInput,
+    MetaTransfer2InstructionType, MetaTransferInput, TestCase, TestConfig, TestContext,
 };
 
 // Basic Transfer Operations
@@ -81,14 +81,14 @@ use crate::transfer2::shared::{
 //  53. Transfer + multiple decompressions
 //  54. Transfer + compress + decompress (all must balance)
 
-//  CompressAndClose Operations - NOT YET IMPLEMENTED
+//  CompressAndClose Operations
 
-//  55. CompressAndClose as owner (no validation needed)
-//  56. CompressAndClose as rent authority (requires compressible account)
-//  57. Multiple CompressAndClose in single transaction
-//  58. CompressAndClose + regular transfer in same transaction
-//  59. CompressAndClose with full balance
-//  60. CompressAndClose creating specific output (rent authority case)
+//  55. CompressAndClose as owner (both non-compressible and compressible versions)
+//  56. CompressAndClose with destination (compressible, rent to specific recipient)
+//  57. Multiple CompressAndClose in single transaction (compressible)
+//  58. CompressAndClose + regular transfer in same transaction (compressible)
+//  59. CompressAndClose with full balance (compressible)
+//  60. CompressAndClose creating specific output (compressible, rent authority case)
 
 //  Delegate Operations
 
@@ -166,6 +166,13 @@ async fn test_transfer2_functional() {
         test45_decompress_to_spl(),
         test46_compress_spl_with_compressed_inputs(),
         test47_mixed_spl_ctoken_operations(),
+        test55_compress_and_close_as_owner(),
+        test55_compress_and_close_as_owner_compressible(),
+        test56_compress_and_close_with_destination(),
+        test57_multiple_compress_and_close(),
+        test58_compress_and_close_with_transfer(),
+        test59_compress_and_close_full_balance(),
+        test60_compress_and_close_specific_output(),
         // Delegate Operations (61-66)
         test61_approve_with_change(),
         test62_delegate_transfer_single_input(),
@@ -1849,6 +1856,151 @@ fn test72_multiple_pools_same_mint() -> TestCase {
                 pool_index: Some(0),
             }),
         ],
+    }
+}
+
+// ============================================================================
+// CompressAndClose Operation Tests (55-60)
+// ============================================================================
+
+// Test 55: CompressAndClose as owner (not compressible)
+fn test55_compress_and_close_as_owner() -> TestCase {
+    TestCase {
+        name: "CompressAndClose as owner (no validation needed)".to_string(),
+        actions: vec![MetaTransfer2InstructionType::CompressAndClose(
+            MetaCompressAndCloseInput {
+                token_data_version: TokenDataVersion::ShaFlat, // Must be ShaFlat for security
+                signer_index: 0,         // Owner who signs and owns the CToken ATA
+                destination_index: None, // No destination = authority receives rent
+                mint_index: 0,           // Use first mint
+                is_compressible: false,  // Regular CToken ATA, no extensions
+            },
+        )],
+    }
+}
+// Test 55: CompressAndClose as owner (compressible)
+fn test55_compress_and_close_as_owner_compressible() -> TestCase {
+    TestCase {
+        name: "CompressAndClose as owner (no validation needed)".to_string(),
+        actions: vec![MetaTransfer2InstructionType::CompressAndClose(
+            MetaCompressAndCloseInput {
+                token_data_version: TokenDataVersion::ShaFlat, // Must be ShaFlat for security
+                signer_index: 0,         // Owner who signs and owns the CToken ATA
+                destination_index: None, // No destination = authority receives rent
+                mint_index: 0,           // Use first mint
+                is_compressible: true,   // Regular CToken ATA, no extensions
+            },
+        )],
+    }
+}
+
+// Test 56: CompressAndClose with destination
+fn test56_compress_and_close_with_destination() -> TestCase {
+    TestCase {
+        name: "CompressAndClose with destination (rent to specific recipient)".to_string(),
+        actions: vec![MetaTransfer2InstructionType::CompressAndClose(
+            MetaCompressAndCloseInput {
+                token_data_version: TokenDataVersion::ShaFlat, // Must be ShaFlat for security
+                signer_index: 0,            // Owner who signs and owns the CToken ATA
+                destination_index: Some(1), // Send rent lamports to keypair[1]
+                mint_index: 0,              // Use first mint
+                is_compressible: true,      // Compressible account with extensions
+            },
+        )],
+    }
+}
+
+// Test 57: Multiple CompressAndClose in single transaction
+fn test57_multiple_compress_and_close() -> TestCase {
+    TestCase {
+        name: "Multiple CompressAndClose in single transaction".to_string(),
+        actions: vec![
+            // Close first account from signer 0
+            MetaTransfer2InstructionType::CompressAndClose(MetaCompressAndCloseInput {
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,         // First owner
+                destination_index: None, // Rent back to authority
+                mint_index: 0,
+                is_compressible: true,
+            }),
+            // Close second account from signer 1
+            MetaTransfer2InstructionType::CompressAndClose(MetaCompressAndCloseInput {
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 1,         // Second owner
+                destination_index: None, // Rent back to authority
+                mint_index: 0,
+                is_compressible: true,
+            }),
+            // Close third account from signer 2
+            MetaTransfer2InstructionType::CompressAndClose(MetaCompressAndCloseInput {
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 2,         // Third owner
+                destination_index: None, // Rent back to authority
+                mint_index: 0,
+                is_compressible: true,
+            }),
+        ],
+    }
+}
+
+// Test 58: CompressAndClose + regular transfer in same transaction
+fn test58_compress_and_close_with_transfer() -> TestCase {
+    TestCase {
+        name: "CompressAndClose + regular transfer in same transaction".to_string(),
+        actions: vec![
+            // First: Close CToken account from signer 0
+            MetaTransfer2InstructionType::CompressAndClose(MetaCompressAndCloseInput {
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,         // Owner who closes
+                destination_index: None, // Rent back to authority
+                mint_index: 0,
+                is_compressible: true,
+            }),
+            // Second: Regular compressed transfer from signer 1 to signer 2
+            MetaTransfer2InstructionType::Transfer(MetaTransferInput {
+                input_compressed_accounts: vec![500], // One account with 500 tokens
+                amount: 300,
+                is_delegate_transfer: false,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 1, // Different signer than CompressAndClose
+                delegate_index: None,
+                recipient_index: 2,  // Transfer to keypair[2]
+                change_amount: None, // Keep 200 as change
+                mint_index: 0,
+            }),
+        ],
+    }
+}
+
+// Test 59: CompressAndClose with full balance
+fn test59_compress_and_close_full_balance() -> TestCase {
+    TestCase {
+        name: "CompressAndClose with full balance (compress all tokens before closing)".to_string(),
+        actions: vec![MetaTransfer2InstructionType::CompressAndClose(
+            MetaCompressAndCloseInput {
+                token_data_version: TokenDataVersion::ShaFlat, // Must be ShaFlat for security
+                signer_index: 0,         // Owner who signs and owns the CToken ATA
+                destination_index: None, // Rent back to authority
+                mint_index: 0,           // Use first mint
+                is_compressible: true,   // Compressible account with extensions
+            },
+        )],
+    }
+}
+
+// Test 60: CompressAndClose creating specific output (rent authority case)
+fn test60_compress_and_close_specific_output() -> TestCase {
+    TestCase {
+        name: "CompressAndClose creating specific output (rent authority case)".to_string(),
+        actions: vec![MetaTransfer2InstructionType::CompressAndClose(
+            MetaCompressAndCloseInput {
+                token_data_version: TokenDataVersion::ShaFlat, // Must be ShaFlat for security
+                signer_index: 0,            // Owner who signs and owns the CToken ATA
+                destination_index: Some(2), // Send rent lamports to specific recipient (keypair[2])
+                mint_index: 0,              // Use first mint
+                is_compressible: true,      // Compressible account with extensions
+            },
+        )],
     }
 }
 

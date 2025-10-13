@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use anchor_lang::AnchorDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_compressed_token_sdk::instructions::find_spl_mint_address;
+use light_compressed_token_sdk::instructions::{
+    find_spl_mint_address, CreateCompressibleAssociatedTokenAccountInputs,
+};
 use light_ctoken_types::{
     instructions::{mint_action::Recipient, transfer2::CompressedTokenInstructionDataTransfer2},
     state::TokenDataVersion,
@@ -103,6 +105,7 @@ impl MetaCompressAndCloseInput {
         println!("    - destination_index: {:?}", self.destination_index);
         println!("    - mint_index: {}", self.mint_index);
         println!("    - token_data_version: {:?}", self.token_data_version);
+        println!("    - is_compressible: {}", self.is_compressible);
     }
 }
 
@@ -193,6 +196,7 @@ pub struct MetaCompressAndCloseInput {
     pub signer_index: usize, // Index of keypair that signs this action
     pub destination_index: Option<usize>, // Index of keypair to receive lamports (None = no destination)
     pub mint_index: usize,                // Index of which mint to use (0-4)
+    pub is_compressible: bool, // If true, account has extensions (compressible); if false, regular CToken ATA
 }
 
 #[derive(Debug, Clone)]
@@ -229,6 +233,7 @@ struct TestRequirements {
     pub signer_solana_amounts: HashMap<usize, u64>, // For compress operations
     pub signer_ctoken_amounts: HashMap<(usize, usize), u64>, // For CToken accounts (signer_index, mint_index) -> amount
     pub signer_spl_amounts: HashMap<(usize, usize), u64>, // For SPL token accounts (signer_index, mint_index) -> amount
+    pub signer_ctoken_compressible: HashMap<(usize, usize), bool>, // Track which accounts need compressible extensions
 }
 
 // Test context to pass to builder functions
@@ -414,6 +419,9 @@ impl TestContext {
             }
         }
 
+        // Get compressible config from test accounts (already created in program test setup)
+        let funding_pool_config = rpc.test_accounts.funding_pool_config;
+
         // Create CToken ATAs for compress/decompress operations
         let mut ctoken_atas = HashMap::new();
         for ((signer_index, mint_index), &amount) in &requirements.signer_ctoken_amounts {
@@ -422,14 +430,39 @@ impl TestContext {
             let mint_authority = &mint_authorities[*mint_index];
             let signer = &keypairs[*signer_index];
 
-            // Create CToken ATA
-            let create_ata_ix =
+            // Check if this account needs compressible extensions
+            let is_compressible = *requirements
+                .signer_ctoken_compressible
+                .get(&(*signer_index, *mint_index))
+                .unwrap_or(&false);
+
+            // Create CToken ATA (compressible or regular based on requirements)
+            let create_ata_ix = if is_compressible {
+                println!(
+                    "Creating compressible CToken ATA for signer {} mint {}",
+                    signer_index, mint_index
+                );
+                light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
+                    CreateCompressibleAssociatedTokenAccountInputs {
+                        payer: payer.pubkey(),
+                        owner: signer.pubkey(),
+                        mint,
+                        compressible_config: funding_pool_config.compressible_config_pda,
+                        rent_sponsor: funding_pool_config.rent_sponsor_pda,
+                        pre_pay_num_epochs: 10, // Prepay 10 epochs of rent
+                        lamports_per_write: None,
+                        token_account_version: TokenDataVersion::ShaFlat, // CompressAndClose requires ShaFlat
+                    },
+                )
+                .unwrap()
+            } else {
                 light_compressed_token_sdk::instructions::create_associated_token_account(
                     payer.pubkey(),
                     signer.pubkey(),
                     mint,
                 )
-                .unwrap();
+                .unwrap()
+            };
 
             rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
                 .await
@@ -842,6 +875,7 @@ impl TestContext {
         let signer_solana_amounts: HashMap<usize, u64> = HashMap::new();
         let mut signer_ctoken_amounts: HashMap<(usize, usize), u64> = HashMap::new();
         let mut signer_spl_amounts: HashMap<(usize, usize), u64> = HashMap::new();
+        let mut signer_ctoken_compressible: HashMap<(usize, usize), bool> = HashMap::new();
 
         for action in &test_case.actions {
             match action {
@@ -932,8 +966,13 @@ impl TestContext {
                         *signer_ctoken_amounts.entry(key).or_insert(0) += compress.amount;
                     }
                 }
-                MetaTransfer2InstructionType::CompressAndClose(_) => {
-                    // CompressAndClose needs a Solana token account - handled separately
+                MetaTransfer2InstructionType::CompressAndClose(compress_and_close) => {
+                    // CompressAndClose needs a CToken ATA with balance
+                    let key = (compress_and_close.signer_index, compress_and_close.mint_index);
+                    // Use default setup amount as the balance for the CToken ATA
+                    *signer_ctoken_amounts.entry(key).or_insert(0) += config.default_setup_amount;
+                    // Track whether this account needs compressible extensions
+                    signer_ctoken_compressible.insert(key, compress_and_close.is_compressible);
                 }
             }
         }
@@ -943,6 +982,7 @@ impl TestContext {
             signer_solana_amounts,
             signer_ctoken_amounts,
             signer_spl_amounts,
+            signer_ctoken_compressible,
         }
     }
 
@@ -1284,13 +1324,25 @@ impl TestContext {
         let merkle_trees = self.rpc.get_state_merkle_trees();
         let output_queue = merkle_trees[0].accounts.nullifier_queue;
 
+        // Get the CToken ATA for the signer
+        let ctoken_ata = *self
+            .ctoken_atas
+            .get(&(meta.signer_index, meta.mint_index))
+            .ok_or_else(|| {
+                format!(
+                    "CToken ATA not found for signer {} mint {}",
+                    meta.signer_index, meta.mint_index
+                )
+            })?;
+
         Ok(CompressAndCloseInput {
-            solana_ctoken_account: self.keypairs[meta.signer_index].pubkey(), // TODO: Will need actual token account when we add that test
+            solana_ctoken_account: ctoken_ata,
             authority: self.keypairs[meta.signer_index].pubkey(), // Owner is always the authority
             output_queue,
             destination: meta
                 .destination_index
                 .map(|idx| self.keypairs[idx].pubkey()),
+            is_compressible: meta.is_compressible,
         })
     }
 

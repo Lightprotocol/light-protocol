@@ -178,6 +178,7 @@ fn generate_random_test_case(rng: &mut StdRng, config: &TestConfig) -> TestCase 
                         None
                     },
                     mint_index: rng.gen_range(0..config.max_supported_mints),
+                    is_compressible: rng.gen_bool(0.5), // Randomly choose compressible or not
                 })
             }
         };
