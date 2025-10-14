@@ -1,3 +1,5 @@
+use std::panic::Location;
+
 use anchor_compressed_token::TokenData;
 use anchor_lang::solana_program::program_error::ProgramError;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
@@ -58,14 +60,24 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
     // Get owner from remaining accounts using the owner index
     let owner_account = accounts
         .get(input_token_data.owner as usize)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        .ok_or_else(|| {
+            print_on_error_pubkey(input_token_data.owner, "owner", Location::caller());
+            ProgramError::NotEnoughAccountKeys
+        })?;
 
     // Verify signer authorization using shared function
     let delegate_account = if input_token_data.has_delegate() {
         Some(
             accounts
                 .get(input_token_data.delegate as usize)
-                .ok_or(ProgramError::NotEnoughAccountKeys)?,
+                .ok_or_else(|| {
+                    print_on_error_pubkey(
+                        input_token_data.delegate,
+                        "delegate",
+                        Location::caller(),
+                    );
+                    ProgramError::NotEnoughAccountKeys
+                })?,
         )
     } else {
         None
@@ -75,7 +87,10 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
     let token_version = TokenDataVersion::try_from(input_token_data.version)?;
     let mint_account = &accounts
         .get(input_token_data.mint as usize)
-        .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        .ok_or_else(|| {
+            print_on_error_pubkey(input_token_data.mint, "mint", Location::caller());
+            ProgramError::NotEnoughAccountKeys
+        })?;
 
     let data_hash = {
         match token_version {
@@ -133,4 +148,16 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
         None, // Token accounts don't have addresses
     )?;
     Ok(())
+}
+
+#[cold]
+fn print_on_error_pubkey(index: u8, account_name: &str, location: &Location) {
+    anchor_lang::prelude::msg!(
+        "ERROR: out of bounds. for account '{}' at index {}  {}:{}:{}",
+        account_name,
+        index,
+        location.file(),
+        location.line(),
+        location.column()
+    );
 }

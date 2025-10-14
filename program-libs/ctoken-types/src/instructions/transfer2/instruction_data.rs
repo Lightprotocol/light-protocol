@@ -74,5 +74,5 @@ pub struct MultiTokenTransferOutputData {
     pub delegate: u8,
     pub mint: u8,
     pub version: u8,
-    pub merkle_tree: u8,
+    pub merkle_tree: u8, // TODO: remove and replace with one unique tree index per instruction
 }

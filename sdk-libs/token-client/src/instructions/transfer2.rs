@@ -494,8 +494,8 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         .map(|account| account.account.lamports)
                         .sum::<u64>(),
                 );
-                // For consistency add 0 lamports for the delegated account
                 out_lamports.push(0);
+                // For consistency add 0 lamports for the delegated account
                 token_accounts.push(token_account);
                 token_accounts.push(delegated_token_account);
             }
@@ -523,33 +523,32 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
 
                 // Extract rent_sponsor and compression_authority from compressible extension
                 // For non-compressible accounts, use the owner as the rent_sponsor
-                let (rent_sponsor, _compression_authority) =
-                    if input.is_compressible {
-                        if let Some(extensions) = compressed_token.extensions.as_ref() {
-                            let mut found_rent_sponsor = None;
-                            let mut found_compression_authority = None;
-                            for extension in extensions {
-                                if let ZExtensionStruct::Compressible(compressible_ext) = extension {
-                                    found_rent_sponsor = Some(compressible_ext.rent_sponsor);
-                                    found_compression_authority =
-                                        Some(compressible_ext.compression_authority);
-                                    break;
-                                }
+                let (rent_sponsor, _compression_authority) = if input.is_compressible {
+                    if let Some(extensions) = compressed_token.extensions.as_ref() {
+                        let mut found_rent_sponsor = None;
+                        let mut found_compression_authority = None;
+                        for extension in extensions {
+                            if let ZExtensionStruct::Compressible(compressible_ext) = extension {
+                                found_rent_sponsor = Some(compressible_ext.rent_sponsor);
+                                found_compression_authority =
+                                    Some(compressible_ext.compression_authority);
+                                break;
                             }
-                            println!("rent sponsor {:?}", found_rent_sponsor);
-                            (
-                                found_rent_sponsor.ok_or(TokenSdkError::InvalidAccountData)?,
-                                found_compression_authority,
-                            )
-                        } else {
-                            println!("no extensions but is_compressible is true");
-                            return Err(TokenSdkError::InvalidAccountData);
                         }
+                        println!("rent sponsor {:?}", found_rent_sponsor);
+                        (
+                            found_rent_sponsor.ok_or(TokenSdkError::InvalidAccountData)?,
+                            found_compression_authority,
+                        )
                     } else {
-                        // Non-compressible account: use owner as rent_sponsor
-                        println!("non-compressible account, using owner as rent sponsor");
-                        (owner.to_bytes(), None)
-                    };
+                        println!("no extensions but is_compressible is true");
+                        return Err(TokenSdkError::InvalidAccountData);
+                    }
+                } else {
+                    // Non-compressible account: use owner as rent_sponsor
+                    println!("non-compressible account, using owner as rent sponsor");
+                    (owner.to_bytes(), None)
+                };
 
                 let owner_index =
                     packed_tree_accounts.insert_or_get(Pubkey::from(owner.to_bytes()));
@@ -595,7 +594,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     let packed_accounts = packed_tree_accounts.to_account_metas().0;
     let inputs = Transfer2Inputs {
         validity_proof: rpc_proof_result.proof,
-        transfer_config: Transfer2Config::default(),
+        transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
         meta_config: Transfer2AccountsMetaConfig {
             fee_payer: Some(payer),
             packed_accounts: Some(packed_accounts),
