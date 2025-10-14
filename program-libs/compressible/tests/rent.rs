@@ -1,6 +1,5 @@
 use light_compressible::rent::{
-    calculate_rent_and_balance, claimable_lamports, RentConfig, COMPRESSION_COST,
-    COMPRESSION_INCENTIVE, SLOTS_PER_EPOCH,
+    AccountRentState, RentConfig, COMPRESSION_COST, COMPRESSION_INCENTIVE, SLOTS_PER_EPOCH,
 };
 
 const TEST_BYTES: u64 = 261;
@@ -44,8 +43,7 @@ fn test_calculate_rent_and_balance() {
             name: "account creation instant compressible",
             input: TestInput {
                 current_slot: 0,
-                current_lamports: get_rent_exemption_lamports(TEST_BYTES)
-                    + FULL_COMPRESSION_COSTS,
+                current_lamports: get_rent_exemption_lamports(TEST_BYTES) + FULL_COMPRESSION_COSTS,
                 last_claimed_slot: 0,
             },
             expected: TestExpected {
@@ -113,8 +111,7 @@ fn test_calculate_rent_and_balance() {
             name: "one lamport short of required rent in epoch 1",
             input: TestInput {
                 current_slot: SLOTS_PER_EPOCH,
-                current_lamports: get_rent_exemption_lamports(TEST_BYTES)
-                    + (RENT_PER_EPOCH * 2)
+                current_lamports: get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 2)
                     - 1
                     + FULL_COMPRESSION_COSTS,
                 last_claimed_slot: 0,
@@ -156,8 +153,7 @@ fn test_calculate_rent_and_balance() {
             name: "account created in epoch 1 with no rent",
             input: TestInput {
                 current_slot: SLOTS_PER_EPOCH,
-                current_lamports: get_rent_exemption_lamports(TEST_BYTES)
-                    + FULL_COMPRESSION_COSTS,
+                current_lamports: get_rent_exemption_lamports(TEST_BYTES) + FULL_COMPRESSION_COSTS,
                 last_claimed_slot: SLOTS_PER_EPOCH,
             },
             expected: TestExpected {
@@ -267,21 +263,20 @@ fn test_calculate_rent_and_balance() {
 
     let rent_config = test_rent_config();
     let rent_exemption_lamports = get_rent_exemption_lamports(TEST_BYTES);
-    let base_rent = rent_config.base_rent as u64;
-    let lamports_per_byte_per_epoch = rent_config.lamports_per_byte_per_epoch as u64;
-    let compression_cost = rent_config.compression_cost as u64;
 
     for test_case in test_cases {
-        let (is_compressible, deficit) = calculate_rent_and_balance(
-            TEST_BYTES,
-            test_case.input.current_slot,
-            test_case.input.current_lamports,
-            test_case.input.last_claimed_slot,
-            rent_exemption_lamports,
-            base_rent,
-            lamports_per_byte_per_epoch,
-            compression_cost,
-        );
+        let state = AccountRentState {
+            num_bytes: TEST_BYTES,
+            current_slot: test_case.input.current_slot,
+            current_lamports: test_case.input.current_lamports,
+            last_claimed_slot: test_case.input.last_claimed_slot,
+        };
+
+        let deficit_option = state.is_compressible(&rent_config, rent_exemption_lamports);
+        let (is_compressible, deficit) = match deficit_option {
+            Some(d) => (true, d),
+            None => (false, 0),
+        };
 
         assert_eq!(
             deficit, test_case.expected.deficit,
@@ -301,34 +296,25 @@ fn test_claimable_lamports() {
     // Test claiming rent for completed epochs only
     let rent_config = test_rent_config();
     let rent_exemption_lamports = get_rent_exemption_lamports(TEST_BYTES);
-    let base_rent = rent_config.base_rent as u64;
-    let lamports_per_byte_per_epoch = rent_config.lamports_per_byte_per_epoch as u64;
-    let compression_cost = rent_config.compression_cost as u64;
 
     // Scenario 1: No completed epochs (same epoch)
-    let claimable = claimable_lamports(
-        TEST_BYTES,
-        100, // Slot in epoch 0
-        rent_exemption_lamports + RENT_PER_EPOCH + FULL_COMPRESSION_COSTS,
-        0, // Last claimed in epoch 0
-        rent_exemption_lamports,
-        base_rent,
-        lamports_per_byte_per_epoch,
-        compression_cost,
-    );
+    let state = AccountRentState {
+        num_bytes: TEST_BYTES,
+        current_slot: 100, // Slot in epoch 0
+        current_lamports: rent_exemption_lamports + RENT_PER_EPOCH + FULL_COMPRESSION_COSTS,
+        last_claimed_slot: 0, // Last claimed in epoch 0
+    };
+    let claimable = state.calculate_claimable_rent(&rent_config, rent_exemption_lamports);
     assert_eq!(claimable, Some(0), "Should not claim in same epoch");
 
     // Scenario 2: One completed epoch
-    let claimable = claimable_lamports(
-        TEST_BYTES,
-        SLOTS_PER_EPOCH + 100, // Slot in epoch 1
-        rent_exemption_lamports + RENT_PER_EPOCH * 2 + FULL_COMPRESSION_COSTS,
-        0, // Last claimed in epoch 0
-        rent_exemption_lamports,
-        base_rent,
-        lamports_per_byte_per_epoch,
-        compression_cost,
-    );
+    let state = AccountRentState {
+        num_bytes: TEST_BYTES,
+        current_slot: SLOTS_PER_EPOCH + 100, // Slot in epoch 1
+        current_lamports: rent_exemption_lamports + RENT_PER_EPOCH * 2 + FULL_COMPRESSION_COSTS,
+        last_claimed_slot: 0, // Last claimed in epoch 0
+    };
+    let claimable = state.calculate_claimable_rent(&rent_config, rent_exemption_lamports);
     assert_eq!(
         claimable,
         Some(RENT_PER_EPOCH),
@@ -336,16 +322,13 @@ fn test_claimable_lamports() {
     );
 
     // Scenario 3: Two epochs passed, one claimable
-    let claimable = claimable_lamports(
-        TEST_BYTES,
-        SLOTS_PER_EPOCH * 2 + 100, // Slot in epoch 2
-        rent_exemption_lamports + (RENT_PER_EPOCH * 3) + FULL_COMPRESSION_COSTS,
-        0, // Last claimed in epoch 0
-        rent_exemption_lamports,
-        base_rent,
-        lamports_per_byte_per_epoch,
-        compression_cost,
-    );
+    let state = AccountRentState {
+        num_bytes: TEST_BYTES,
+        current_slot: SLOTS_PER_EPOCH * 2 + 100, // Slot in epoch 2
+        current_lamports: rent_exemption_lamports + (RENT_PER_EPOCH * 3) + FULL_COMPRESSION_COSTS,
+        last_claimed_slot: 0, // Last claimed in epoch 0
+    };
+    let claimable = state.calculate_claimable_rent(&rent_config, rent_exemption_lamports);
     assert_eq!(
         claimable,
         Some(2 * RENT_PER_EPOCH),
@@ -353,16 +336,13 @@ fn test_claimable_lamports() {
     );
 
     // Scenario 4: Multiple completed epochs
-    let claimable = claimable_lamports(
-        TEST_BYTES,
-        SLOTS_PER_EPOCH * 4 + 100, // Slot in epoch 5
-        rent_exemption_lamports + (RENT_PER_EPOCH * 5) + FULL_COMPRESSION_COSTS,
-        0, // Last claimed in epoch 0
-        rent_exemption_lamports,
-        base_rent,
-        lamports_per_byte_per_epoch,
-        compression_cost,
-    );
+    let state = AccountRentState {
+        num_bytes: TEST_BYTES,
+        current_slot: SLOTS_PER_EPOCH * 4 + 100, // Slot in epoch 5
+        current_lamports: rent_exemption_lamports + (RENT_PER_EPOCH * 5) + FULL_COMPRESSION_COSTS,
+        last_claimed_slot: 0, // Last claimed in epoch 0
+    };
+    let claimable = state.calculate_claimable_rent(&rent_config, rent_exemption_lamports);
     assert_eq!(
         claimable,
         Some(RENT_PER_EPOCH * 4),
@@ -370,15 +350,12 @@ fn test_claimable_lamports() {
     );
 
     // Scenario 5: Account is compressible (insufficient rent)
-    let claimable = claimable_lamports(
-        TEST_BYTES,
-        SLOTS_PER_EPOCH * 5 + 100, // Slot in epoch 5
-        rent_exemption_lamports + RENT_PER_EPOCH + FULL_COMPRESSION_COSTS, // Only 1 epoch of rent available
-        0, // Last claimed in epoch 0
-        rent_exemption_lamports,
-        base_rent,
-        lamports_per_byte_per_epoch,
-        compression_cost,
-    );
+    let state = AccountRentState {
+        num_bytes: TEST_BYTES,
+        current_slot: SLOTS_PER_EPOCH * 5 + 100, // Slot in epoch 5
+        current_lamports: rent_exemption_lamports + RENT_PER_EPOCH + FULL_COMPRESSION_COSTS, // Only 1 epoch of rent available
+        last_claimed_slot: 0, // Last claimed in epoch 0
+    };
+    let claimable = state.calculate_claimable_rent(&rent_config, rent_exemption_lamports);
     assert_eq!(claimable, None, "Should only claim available rent");
 }

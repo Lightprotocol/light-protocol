@@ -15,8 +15,9 @@ use light_ctoken_types::{
     instructions::{mint_action::Recipient, transfer2::MultiInputTokenDataWithContext},
     state::TokenDataVersion,
 };
-use light_program_test::{utils::assert::assert_rpc_error, Rpc};
-use light_program_test::{LightProgramTest, ProgramTestConfig};
+use light_program_test::{
+    utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
+};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::{airdrop_lamports, RpcError};
 use light_token_client::actions::{create_mint, mint_to_compressed, transfer2::approve};
@@ -30,8 +31,6 @@ use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 struct TransferTestContext {
     pub rpc: LightProgramTest,
     pub payer: Keypair,
-    pub mint: Pubkey,
-    pub mint_authority: Keypair,
     pub owner: Keypair,
     pub recipient: Keypair,
     pub transfer2_inputs: Transfer2Inputs,
@@ -249,8 +248,6 @@ async fn test_invalid_owner_signed() -> Result<(), RpcError> {
     let TransferTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_authority: _,
         owner: _,
         recipient: invalid_owner,
         transfer2_inputs,
@@ -284,9 +281,7 @@ async fn test_owner_not_signer() -> Result<(), RpcError> {
     let TransferTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_authority: _,
-        owner,
+        owner: _,
         recipient: _,
         transfer2_inputs,
         system_accounts_offset,
@@ -317,8 +312,6 @@ async fn test_unbalanced_transfer_too_little_inputs() -> Result<(), RpcError> {
     let TransferTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_authority: _,
         owner,
         recipient: _,
         mut transfer2_inputs,
@@ -347,8 +340,6 @@ async fn test_unbalanced_transfer_too_many_inputs() -> Result<(), RpcError> {
     let TransferTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_authority: _,
         owner,
         recipient: _,
         mut transfer2_inputs,
@@ -377,8 +368,6 @@ async fn test_unbalanced_transfer_too_little_outputs() -> Result<(), RpcError> {
     let TransferTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_authority: _,
         owner,
         recipient: _,
         mut transfer2_inputs,
@@ -407,8 +396,6 @@ async fn test_unbalanced_transfer_too_many_outputs() -> Result<(), RpcError> {
     let TransferTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_authority: _,
         owner,
         recipient: _,
         mut transfer2_inputs,
@@ -439,8 +426,6 @@ async fn test_invalid_mint() -> Result<(), RpcError> {
     let TransferTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_authority: _,
         owner,
         recipient: _,
         mut transfer2_inputs,
@@ -523,8 +508,6 @@ async fn test_input_out_of_bounds() -> Result<(), RpcError> {
     let TransferTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_authority: _,
         owner,
         recipient: _,
         mut transfer2_inputs,
@@ -600,8 +583,6 @@ async fn test_output_out_of_bounds() -> Result<(), RpcError> {
     let TransferTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_authority: _,
         owner,
         recipient: _,
         mut transfer2_inputs,
@@ -789,8 +770,7 @@ async fn setup_transfer_test_with_delegate(
     let context = TransferTestContext {
         rpc,
         payer,
-        mint,
-        mint_authority,
+
         owner,
         recipient,
         transfer2_inputs,
@@ -812,8 +792,6 @@ async fn test_has_delegate_flag_mismatch() -> Result<(), RpcError> {
             TransferTestContext {
                 mut rpc,
                 payer,
-                mint: _,
-                mint_authority: _,
                 owner,
                 recipient: _,
                 mut transfer2_inputs,
@@ -848,8 +826,6 @@ async fn test_has_delegate_flag_mismatch() -> Result<(), RpcError> {
             TransferTestContext {
                 mut rpc,
                 payer,
-                mint: _,
-                mint_authority: _,
                 owner,
                 recipient: _,
                 mut transfer2_inputs,
@@ -885,8 +861,6 @@ async fn test_has_delegate_flag_mismatch() -> Result<(), RpcError> {
             TransferTestContext {
                 mut rpc,
                 payer,
-                mint: _,
-                mint_authority: _,
                 owner,
                 recipient: _,
                 mut transfer2_inputs,
@@ -933,8 +907,6 @@ async fn test_has_delegate_flag_mismatch() -> Result<(), RpcError> {
             TransferTestContext {
                 mut rpc,
                 payer,
-                mint: _,
-                mint_authority: _,
                 owner,
                 recipient: _,
                 mut transfer2_inputs,
@@ -970,9 +942,7 @@ async fn test_has_delegate_flag_mismatch() -> Result<(), RpcError> {
             TransferTestContext {
                 mut rpc,
                 payer,
-                mint: _,
-                mint_authority: _,
-                owner,
+                owner: _,
                 recipient: _,
                 mut transfer2_inputs,
                 system_accounts_offset,

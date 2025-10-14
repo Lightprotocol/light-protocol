@@ -9,8 +9,8 @@ use crate::{
     config::CompressibleConfig,
     error::CompressibleError,
     rent::{
-        calculate_rent_and_balance, calculate_rent_inner, claimable_lamports, get_last_paid_epoch,
-        get_rent_exemption_lamports, RentConfig, SLOTS_PER_EPOCH,
+        get_last_paid_epoch, get_rent_exemption_lamports, AccountRentState, RentConfig,
+        SLOTS_PER_EPOCH,
     },
     AnchorDeserialize, AnchorSerialize,
 };
@@ -67,23 +67,15 @@ macro_rules! impl_is_compressible {
                 bytes: u64,
                 current_slot: u64,
                 current_lamports: u64,
-            ) -> Result<(bool, u64), CompressibleError> {
+            ) -> Result<Option<u64>, CompressibleError> {
                 let rent_exemption_lamports = get_rent_exemption_lamports(bytes)?;
-                let base_rent: u64 = self.rent_config.base_rent.into();
-                let lamports_per_byte_per_epoch: u64 =
-                    self.rent_config.lamports_per_byte_per_epoch.into();
-                let compression_cost: u64 = self.rent_config.compression_cost.into();
-
-                Ok(calculate_rent_and_balance(
-                    bytes,
+                Ok(crate::rent::AccountRentState {
+                    num_bytes: bytes,
                     current_slot,
                     current_lamports,
-                    self.last_claimed_slot,
-                    rent_exemption_lamports,
-                    base_rent,
-                    lamports_per_byte_per_epoch,
-                    compression_cost,
-                ))
+                    last_claimed_slot: self.last_claimed_slot.into(),
+                }
+                .is_compressible(&self.rent_config, rent_exemption_lamports))
             }
 
             /// Converts the `compress_to_pubkey` field into a boolean.
@@ -104,23 +96,23 @@ macro_rules! impl_is_compressible {
             ) -> Result<u64, CompressibleError> {
                 // TODO: unify with calculate_rent_and_balance
                 let rent_exemption_lamports = get_rent_exemption_lamports(bytes)?;
-                let base_rent: u64 = self.rent_config.base_rent.into();
-                let lamports_per_byte_per_epoch: u64 =
-                    self.rent_config.lamports_per_byte_per_epoch.into();
-                let compression_cost: u64 = self.rent_config.compression_cost.into();
 
-                // Calculate rent status using the internal function to avoid duplication
-                let (required_epochs, rent_per_epoch, epochs_paid, unutilized_lamports) =
-                    calculate_rent_inner::<true>(
-                        bytes,
-                        current_slot,
-                        current_lamports,
-                        self.last_claimed_slot,
-                        rent_exemption_lamports,
-                        base_rent,
-                        lamports_per_byte_per_epoch,
-                        compression_cost,
-                    );
+                // Calculate rent status using AccountRentState
+                let state = crate::rent::AccountRentState {
+                    num_bytes: bytes,
+                    current_slot,
+                    current_lamports,
+                    last_claimed_slot: self.last_claimed_slot.into(),
+                };
+
+                let details = state
+                    .calculate_rent_details::<true>(&self.rent_config, rent_exemption_lamports);
+
+                let required_epochs = details.required_epochs;
+                let rent_per_epoch = details.rent_per_epoch;
+                let epochs_paid = details.epochs_funded;
+                let unutilized_lamports = details.unutilized_lamports;
+                let compression_cost: u64 = self.rent_config.compression_cost.into();
 
                 let is_compressible = epochs_paid < required_epochs;
 
@@ -157,23 +149,16 @@ macro_rules! impl_get_last_paid_epoch {
             /// Returns the epoch number through which rent has been prepaid.
             pub fn get_last_paid_epoch(
                 &self,
-                bytes: u64,
+                num_bytes: u64,
                 current_lamports: u64,
                 rent_exemption_lamports: u64,
             ) -> Result<u64, CompressibleError> {
-                let base_rent: u64 = self.rent_config.base_rent.into();
-                let lamports_per_byte_per_epoch: u64 =
-                    self.rent_config.lamports_per_byte_per_epoch.into();
-                let compression_cost: u64 = self.rent_config.compression_cost.into();
-
                 Ok(get_last_paid_epoch(
-                    bytes,
+                    num_bytes,
                     current_lamports,
                     self.last_claimed_slot,
+                    &self.rent_config,
                     rent_exemption_lamports,
-                    base_rent,
-                    lamports_per_byte_per_epoch,
-                    compression_cost,
                 ))
             }
         }
@@ -198,38 +183,22 @@ impl ZCompressionInfoMut<'_> {
     /// Returns the amount of lamports claimed, or None if account should be compressed.
     pub fn claim(
         &mut self,
-        bytes: u64,
+        num_bytes: u64,
         current_slot: u64,
         current_lamports: u64,
         rent_exemption_lamports: u64,
     ) -> Result<Option<u64>, CompressibleError> {
-        let base_rent: u64 = self.rent_config.base_rent.into();
-        let lamports_per_byte_per_epoch: u64 = self.rent_config.lamports_per_byte_per_epoch.into();
-        let compression_cost: u64 = self.rent_config.compression_cost.into();
-        // Calculate claimable amount
-        let claimed = claimable_lamports(
-            bytes,
+        let state = AccountRentState {
+            num_bytes,
             current_slot,
             current_lamports,
-            self.last_claimed_slot,
-            rent_exemption_lamports,
-            base_rent,
-            lamports_per_byte_per_epoch,
-            compression_cost,
-        );
+            last_claimed_slot: self.last_claimed_slot.into(),
+        };
+        let claimed = state.calculate_claimable_rent(&self.rent_config, rent_exemption_lamports);
 
         if let Some(claimed_amount) = claimed {
             if claimed_amount > 0 {
-                let (completed_epochs, _, _, _) = calculate_rent_inner::<false>(
-                    bytes,
-                    current_slot,
-                    current_lamports,
-                    self.last_claimed_slot,
-                    rent_exemption_lamports,
-                    base_rent,
-                    lamports_per_byte_per_epoch,
-                    compression_cost,
-                );
+                let completed_epochs = state.get_completed_epochs();
 
                 self.last_claimed_slot += U64::from(completed_epochs * SLOTS_PER_EPOCH);
                 Ok(Some(claimed_amount))

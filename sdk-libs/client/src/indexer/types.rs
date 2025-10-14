@@ -527,8 +527,10 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
             .hash()
             .map_err(|_| IndexerError::InvalidResponseData)?;
         // Breaks light-program-test
-        let tree_info = QUEUE_TREE_MAPPING
-            .get(&Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes()).to_string());
+        let tree_info = QUEUE_TREE_MAPPING.get(
+            &Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes())
+                .to_string(),
+        );
         let cpi_context = if let Some(tree_info) = tree_info {
             tree_info.cpi_context
         } else {

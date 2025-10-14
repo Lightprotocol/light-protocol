@@ -13,7 +13,9 @@ use light_program_test::{indexer::TestIndexerExtensions, LightProgramTest, Progr
 use light_test_utils::{
     airdrop_lamports,
     assert_transfer2::assert_transfer2,
-    spl::{create_additional_token_pools, create_mint_helper, create_token_account, mint_spl_tokens},
+    spl::{
+        create_additional_token_pools, create_mint_helper, create_token_account, mint_spl_tokens,
+    },
 };
 use light_token_client::{
     actions::{create_mint, mint_to_compressed},
@@ -921,7 +923,10 @@ impl TestContext {
                 }
                 MetaTransfer2InstructionType::CompressAndClose(compress_and_close) => {
                     // CompressAndClose needs a CToken ATA with balance
-                    let key = (compress_and_close.signer_index, compress_and_close.mint_index);
+                    let key = (
+                        compress_and_close.signer_index,
+                        compress_and_close.mint_index,
+                    );
                     // Use default setup amount as the balance for the CToken ATA
                     *signer_ctoken_amounts.entry(key).or_insert(0) += config.default_setup_amount;
                     // Track whether this account needs compressible extensions
@@ -965,7 +970,8 @@ impl TestContext {
                     if !meta_transfer.input_compressed_accounts.is_empty() {
                         let signer_pubkey = if meta_transfer.is_delegate_transfer {
                             // For delegate transfers, the actual signer is the delegate
-                            let delegate_index = meta_transfer.delegate_index
+                            let delegate_index = meta_transfer
+                                .delegate_index
                                 .expect("Delegate index required for delegate transfers");
                             self.keypairs[delegate_index].pubkey()
                         } else {
@@ -1318,7 +1324,8 @@ impl TestContext {
         // Print SPL token account balances
         println!("\nSPL Token Account Balances:");
         for ((signer_index, mint_index), token_account_keypair) in &self.spl_token_accounts {
-            let account_data = self.rpc
+            let account_data = self
+                .rpc
                 .get_account(token_account_keypair.pubkey())
                 .await
                 .unwrap()
@@ -1330,7 +1337,10 @@ impl TestContext {
 
             println!(
                 "  Signer {} Mint {}: {} (account: {})",
-                signer_index, mint_index, spl_account.amount, token_account_keypair.pubkey()
+                signer_index,
+                mint_index,
+                spl_account.amount,
+                token_account_keypair.pubkey()
             );
         }
 

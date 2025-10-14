@@ -2,7 +2,7 @@ use anchor_lang::prelude::ProgramError;
 use arrayvec::ArrayVec;
 use borsh::BorshDeserialize;
 use light_account_checks::AccountIterator;
-use light_compressible::{config::CompressibleConfig, rent::get_rent_with_compression_cost};
+use light_compressible::config::CompressibleConfig;
 use light_ctoken_types::instructions::{
     create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
     extensions::compressible::CompressibleExtensionInstructionData,
@@ -164,15 +164,12 @@ fn process_compressible_config<'info>(
     let custom_rent_payer =
         *rent_payer.key() != compressible_config_account.rent_sponsor.to_bytes();
 
-    let rent = get_rent_with_compression_cost(
-        compressible_config_account.rent_config.base_rent as u64,
-        compressible_config_account
-            .rent_config
-            .lamports_per_byte_per_epoch as u64,
-        token_account_size as u64,
-        compressible_config_ix_data.rent_payment,
-        compressible_config_account.rent_config.compression_cost as u64,
-    );
+    let rent = compressible_config_account
+        .rent_config
+        .get_rent_with_compression_cost(
+            token_account_size as u64,
+            compressible_config_ix_data.rent_payment,
+        );
 
     // Build ATA seeds
     let ata_bump_seed = [ata_bump];

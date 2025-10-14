@@ -274,6 +274,7 @@ async fn test_create_compressed_mint() {
             assert_transfer2_decompress(
                 &mut rpc,
                 light_token_client::instructions::transfer2::DecompressInput {
+                    pool_index: None,
                     compressed_token_account: vec![compressed_token_account.clone()],
                     decompress_amount,
                     solana_token_account: ctoken_ata_pubkey,

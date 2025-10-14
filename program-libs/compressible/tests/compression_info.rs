@@ -2,8 +2,7 @@
 use borsh::BorshSerialize;
 use light_compressible::{
     compression_info::CompressionInfo,
-    rent::RentConfig,
-    rent::{COMPRESSION_COST, COMPRESSION_INCENTIVE, SLOTS_PER_EPOCH},
+    rent::{RentConfig, COMPRESSION_COST, COMPRESSION_INCENTIVE, SLOTS_PER_EPOCH},
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 

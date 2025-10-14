@@ -1,7 +1,7 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
 use light_account_checks::{checks::check_signer, AccountInfoTrait};
-use light_compressible::rent::{calculate_close_lamports, get_rent_exemption_lamports};
+use light_compressible::rent::{get_rent_exemption_lamports, AccountRentState};
 use light_ctoken_types::state::{CToken, ZCompressedTokenMut, ZExtensionStructMut};
 use light_program_profiler::profile;
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
@@ -107,7 +107,7 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
                         // For rent authority, check timing constraints
                         #[cfg(target_os = "solana")]
                         {
-                            let (is_compressible, _) = compressible_ext
+                            let is_compressible = compressible_ext
                                 .is_compressible(
                                     accounts.token_account.data_len() as u64,
                                     current_slot,
@@ -115,7 +115,7 @@ fn validate_token_account<const COMPRESS_AND_CLOSE: bool>(
                                 )
                                 .map_err(|_| ProgramError::InvalidAccountData)?;
 
-                            if !is_compressible {
+                            if is_compressible.is_none() {
                                 msg!("account not compressible");
                                 return Err(ProgramError::InvalidAccountData);
                             } else {
@@ -177,22 +177,16 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                         get_rent_exemption_lamports(accounts.token_account.data_len() as u64)
                             .map_err(|_| ProgramError::InvalidAccountData)?;
 
-                    let base_rent: u64 = compressible_ext.rent_config.base_rent.into();
-                    let lamports_per_byte_per_epoch: u64 = compressible_ext
-                        .rent_config
-                        .lamports_per_byte_per_epoch
-                        .into();
-
-                    calculate_close_lamports(
-                        accounts.token_account.data_len() as u64,
+                    let state = AccountRentState {
+                        num_bytes: accounts.token_account.data_len() as u64,
                         current_slot,
-                        token_account_lamports,
-                        compressible_ext.last_claimed_slot,
-                        base_lamports,
-                        base_rent,
-                        lamports_per_byte_per_epoch,
-                        compression_cost,
-                    )
+                        current_lamports: token_account_lamports,
+                        last_claimed_slot: compressible_ext.last_claimed_slot.into(),
+                    };
+
+                    let distribution = state
+                        .calculate_close_distribution(&compressible_ext.rent_config, base_lamports);
+                    (distribution.to_rent_sponsor, distribution.to_user)
                 };
 
                 let rent_sponsor = accounts

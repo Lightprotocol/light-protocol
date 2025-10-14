@@ -33,19 +33,19 @@
 
 use light_compressed_token_sdk::{
     account2::CTokenAccount2,
-    instructions::transfer2::{
-        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
-        Transfer2Inputs,
-    },
     instructions::{
         create_associated_token_account::create_compressible_associated_token_account,
-        derive_ctoken_ata, find_spl_mint_address, CreateCompressibleAssociatedTokenAccountInputs,
+        derive_ctoken_ata, find_spl_mint_address,
+        transfer2::{
+            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
+            Transfer2Config, Transfer2Inputs,
+        },
+        CreateCompressibleAssociatedTokenAccountInputs,
     },
     ValidityProof,
 };
 use light_ctoken_types::{instructions::mint_action::Recipient, state::TokenDataVersion};
-use light_program_test::Rpc;
-use light_program_test::{LightProgramTest, ProgramTestConfig};
+use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::RpcError;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};

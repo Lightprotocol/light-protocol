@@ -1,7 +1,7 @@
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::rpc::Rpc;
 use light_compressed_token_sdk::instructions::create_associated_token_account::derive_ctoken_ata;
-use light_compressible::rent::{get_rent_with_compression_cost, RentConfig};
+use light_compressible::rent::RentConfig;
 use light_ctoken_types::{
     state::{ctoken::CToken, extensions::CompressionInfo, AccountState},
     BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
@@ -53,12 +53,9 @@ pub async fn assert_create_token_account<R: Rpc>(
                 .await
                 .expect("Failed to get rent exemption");
 
-            let rent_with_compression = get_rent_with_compression_cost(
-                RentConfig::default().base_rent as u64,
-                RentConfig::default().lamports_per_byte_per_epoch as u64,
+            let rent_with_compression = RentConfig::default().get_rent_with_compression_cost(
                 COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
                 compressible_info.num_prepaid_epochs,
-                RentConfig::default().compression_cost as u64,
             );
             let expected_lamports = rent_exemption + rent_with_compression;
 

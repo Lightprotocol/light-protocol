@@ -1,5 +1,5 @@
 use light_client::rpc::Rpc;
-use light_compressible::rent::calculate_close_lamports;
+use light_compressible::rent::AccountRentState;
 use light_ctoken_types::state::{ctoken::CToken, ZExtensionStruct};
 use light_program_test::LightProgramTest;
 use light_zero_copy::traits::ZeroCopyAt;
@@ -158,28 +158,25 @@ async fn assert_compressible_extension(
 
     // Calculate expected lamport distribution using the same function as the program
     let account_size = account_data_before_close.len() as u64;
-    // Extract rent config values
-    let base_rent: u64 = compressible_extension.rent_config.base_rent.into();
-    let lamports_per_byte_per_epoch: u64 = compressible_extension
-        .rent_config
-        .lamports_per_byte_per_epoch
-        .into();
-    let compression_cost: u64 = compressible_extension.rent_config.compression_cost.into();
     let base_lamports = rpc
         .get_minimum_balance_for_rent_exemption(account_size as usize)
         .await
         .unwrap();
 
-    let (mut lamports_to_rent_sponsor, mut lamports_to_destination) = calculate_close_lamports(
-        account_size,
+    // Create AccountRentState and use the method to calculate distribution
+    let state = AccountRentState {
+        num_bytes: account_size,
         current_slot,
-        account_lamports_before_close,
-        u64::from(compressible_extension.last_claimed_slot),
-        base_lamports,
-        base_rent,
-        lamports_per_byte_per_epoch,
-        compression_cost,
-    );
+        current_lamports: account_lamports_before_close,
+        last_claimed_slot: u64::from(compressible_extension.last_claimed_slot),
+    };
+
+    let distribution =
+        state.calculate_close_distribution(&compressible_extension.rent_config, base_lamports);
+    let (mut lamports_to_rent_sponsor, mut lamports_to_destination) =
+        (distribution.to_rent_sponsor, distribution.to_user);
+
+    let compression_cost: u64 = compressible_extension.rent_config.compression_cost.into();
 
     // Get the rent recipient from the extension
     let rent_sponsor = Pubkey::from(compressible_extension.rent_sponsor);

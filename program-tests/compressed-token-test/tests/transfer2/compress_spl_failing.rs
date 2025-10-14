@@ -27,10 +27,12 @@
 use anchor_spl::token_2022::spl_token_2022;
 use light_compressed_token_sdk::{
     account2::CTokenAccount2,
-    instructions::create_associated_token_account::derive_ctoken_ata,
-    instructions::transfer2::{
-        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
-        Transfer2Inputs,
+    instructions::{
+        create_associated_token_account::derive_ctoken_ata,
+        transfer2::{
+            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
+            Transfer2Config, Transfer2Inputs,
+        },
     },
     token_pool::find_token_pool_pda_with_index,
     ValidityProof,
