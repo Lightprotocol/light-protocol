@@ -21,7 +21,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-const Version = "1.0.4"
+const Version = "2.0.0"
 
 func main() {
 	runCli()
