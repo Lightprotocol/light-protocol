@@ -21,6 +21,8 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
+const Version = "1.0.4"
+
 func main() {
 	runCli()
 }
@@ -1054,6 +1056,14 @@ func runCli() {
 					}
 					logging.Logger().Info().Int("bytesWritten", written).Msg("Lean circuit written to file")
 
+					return nil
+				},
+			},
+			{
+				Name:  "version",
+				Usage: "Print the prover version",
+				Action: func(context *cli.Context) error {
+					fmt.Println(Version)
 					return nil
 				},
 			},

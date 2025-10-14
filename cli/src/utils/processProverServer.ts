@@ -1,5 +1,6 @@
 import path from "path";
 import fs from "fs";
+import { execSync } from "child_process";
 import {
   killProcess,
   killProcessByPort,
@@ -7,7 +8,10 @@ import {
   waitForServers,
 } from "./process";
 import { LIGHT_PROVER_PROCESS_NAME, BASE_PATH } from "./constants";
-import { downloadProverBinary } from "./downloadProverBinary";
+import {
+  downloadProverBinary,
+  getProverVersion as getExpectedProverVersion,
+} from "./downloadProverBinary";
 
 const KEYS_DIR = "proving-keys/";
 
@@ -17,17 +21,53 @@ export async function killProver() {
 }
 
 /**
- * Ensures the prover binary exists, downloading it if necessary
+ * Gets the version of the installed prover binary
+ * Returns null if the binary doesn't exist or version command fails
+ */
+function getInstalledProverVersion(): string | null {
+  const binaryPath = getProverPathByArch();
+
+  if (!fs.existsSync(binaryPath)) {
+    return null;
+  }
+
+  try {
+    const version = execSync(`"${binaryPath}" version`, {
+      encoding: "utf-8",
+      timeout: 5000,
+    }).trim();
+    return version;
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * Ensures the prover binary exists with the correct version, downloading it if necessary
  */
 async function ensureProverBinary(): Promise<void> {
   const binaryPath = getProverPathByArch();
   const binaryName = getProverNameByArch();
+  const expectedVersion = getExpectedProverVersion();
 
-  if (fs.existsSync(binaryPath)) {
+  const installedVersion = getInstalledProverVersion();
+
+  if (installedVersion === expectedVersion) {
     return;
   }
 
-  console.log("Prover binary not found. Downloading...");
+  if (installedVersion) {
+    console.log(
+      `Prover binary version mismatch. Expected: ${expectedVersion}, Found: ${installedVersion}`,
+    );
+    console.log("Downloading correct version...");
+  } else if (fs.existsSync(binaryPath)) {
+    console.log(
+      "Prover binary found but version could not be determined. Downloading latest version...",
+    );
+  } else {
+    console.log("Prover binary not found. Downloading...");
+  }
 
   try {
     await downloadProverBinary(binaryPath, binaryName);
