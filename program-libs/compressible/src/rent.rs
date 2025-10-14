@@ -7,9 +7,9 @@ use crate::{error::CompressibleError, AnchorDeserialize, AnchorSerialize};
 pub const COMPRESSION_COST: u16 = 10_000;
 pub const COMPRESSION_INCENTIVE: u16 = 1000;
 
-pub const MIN_RENT: u16 = 88;
+pub const MIN_RENT: u16 = 128;
 pub const RENT_PER_BYTE: u8 = 1;
-pub const SLOTS_PER_EPOCH: u64 = 36_000; // 4h
+pub const SLOTS_PER_EPOCH: u64 = 6300; // 1.75h
 use aligned_sized::aligned_sized;
 
 /// Rent function parameters,
@@ -175,6 +175,42 @@ pub fn get_last_paid_epoch(
     }
 }
 
+/// Determines if an account is compressible based on its rent payment status.
+/// An account is compressible if it lacks sufficient rent through the current epoch + 1.
+/// This ensures the account can survive the current epoch and has buffer for the next.
+///
+/// # Returns
+/// `true` if the account should be compressed (insufficient rent), `false` otherwise
+#[inline(always)]
+#[allow(clippy::too_many_arguments)]
+pub fn is_compressible(
+    num_bytes: u64,
+    current_slot: u64,
+    current_lamports: u64,
+    last_claimed_slot: impl ZeroCopyNumTrait,
+    rent_exemption_lamports: u64,
+    base_rent: u64,
+    lamports_per_byte_per_epoch: u64,
+    compression_cost: u64,
+) -> bool {
+    let available_balance = current_lamports
+        .checked_sub(rent_exemption_lamports + compression_cost)
+        .unwrap_or(0);
+
+    let current_epoch = current_slot / SLOTS_PER_EPOCH;
+    let last_claimed_epoch: u64 = last_claimed_slot.into() / SLOTS_PER_EPOCH;
+
+    // Account needs rent for all epochs from last_claimed through current + 1
+    // This means: past unclaimed epochs + current epoch + next epoch
+    let required_epochs = (current_epoch + 1).saturating_sub(last_claimed_epoch);
+
+    let rent_per_epoch = rent_curve_per_epoch(base_rent, lamports_per_byte_per_epoch, num_bytes);
+    let epochs_funded = available_balance / rent_per_epoch;
+
+    // Account is compressible if it doesn't have enough epochs funded
+    epochs_funded < required_epochs
+}
+
 #[inline(always)]
 #[allow(clippy::too_many_arguments)]
 pub fn calculate_rent_and_balance(
@@ -187,25 +223,32 @@ pub fn calculate_rent_and_balance(
     lamports_per_byte_per_epoch: u64,
     compression_cost: u64,
 ) -> (bool, u64) {
-    let (required_epochs, rent_per_epoch, epochs_paid, unutilized_lamports) =
-        calculate_rent_with_current_epoch(
-            num_bytes,
-            current_slot,
-            current_lamports,
-            last_claimed_slot,
-            rent_exemption_lamports,
-            base_rent,
-            lamports_per_byte_per_epoch,
-            compression_cost,
-        );
+    let compressible = is_compressible(
+        num_bytes,
+        current_slot,
+        current_lamports,
+        last_claimed_slot,
+        rent_exemption_lamports,
+        base_rent,
+        lamports_per_byte_per_epoch,
+        compression_cost,
+    );
 
-    let is_compressible = epochs_paid < required_epochs;
-    if is_compressible {
-        let epochs_payable = required_epochs.saturating_sub(epochs_paid);
-        let payable = epochs_payable * rent_per_epoch + compression_cost;
-        // How many lamports do we need to fund rent for the current epoch.
-        let net_payable = payable.saturating_sub(unutilized_lamports);
-        (true, net_payable)
+    if compressible {
+        let available_balance = current_lamports
+            .checked_sub(rent_exemption_lamports + compression_cost)
+            .unwrap_or(0);
+
+        let current_epoch = current_slot / SLOTS_PER_EPOCH;
+        let last_claimed_epoch: u64 = last_claimed_slot.into() / SLOTS_PER_EPOCH;
+        let required_epochs = (current_epoch + 1).saturating_sub(last_claimed_epoch);
+
+        let rent_per_epoch =
+            rent_curve_per_epoch(base_rent, lamports_per_byte_per_epoch, num_bytes);
+        let total_required_rent = rent_per_epoch * required_epochs + compression_cost;
+
+        let deficit = total_required_rent.saturating_sub(available_balance);
+        (true, deficit)
     } else {
         (false, 0)
     }
@@ -315,7 +358,7 @@ pub fn claimable_lamports(
     compression_cost: u64,
 ) -> Option<u64> {
     // First check if account is compressible
-    let (is_compressible, _) = calculate_rent_and_balance(
+    let compressible = is_compressible(
         num_bytes,
         current_slot,
         current_lamports,
@@ -326,22 +369,17 @@ pub fn claimable_lamports(
         compression_cost,
     );
 
-    if is_compressible {
+    if compressible {
         // Account should be compressed, not claimed
         return None;
     }
 
-    // Use calculate_rent_inner with INCLUDE_CURRENT=false to get only completed epochs
-    let (completed_epochs, rent_per_epoch, _, _) = calculate_rent_inner::<false>(
-        num_bytes,
-        current_slot,
-        current_lamports,
-        last_claimed_slot,
-        rent_exemption_lamports,
-        base_rent,
-        lamports_per_byte_per_epoch,
-        compression_cost,
-    );
+    // Calculate completed epochs (not including current epoch)
+    let current_epoch = current_slot / SLOTS_PER_EPOCH;
+    let last_claimed_epoch: u64 = last_claimed_slot.into() / SLOTS_PER_EPOCH;
+    let completed_epochs = current_epoch.saturating_sub(last_claimed_epoch);
+
+    let rent_per_epoch = rent_curve_per_epoch(base_rent, lamports_per_byte_per_epoch, num_bytes);
 
     // Calculate how much rent we can claim for completed epochs
     Some(completed_epochs * rent_per_epoch)

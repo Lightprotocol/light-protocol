@@ -206,7 +206,6 @@ impl ZCompressionInfoMut<'_> {
         let base_rent: u64 = self.rent_config.base_rent.into();
         let lamports_per_byte_per_epoch: u64 = self.rent_config.lamports_per_byte_per_epoch.into();
         let compression_cost: u64 = self.rent_config.compression_cost.into();
-
         // Calculate claimable amount
         let claimed = claimable_lamports(
             bytes,

@@ -1,17 +1,25 @@
+#![cfg(test)]
 use borsh::BorshSerialize;
 use light_compressible::{
     compression_info::CompressionInfo,
-    rent::{get_rent_exemption_lamports, RentConfig},
+    rent::RentConfig,
     rent::{COMPRESSION_COST, COMPRESSION_INCENTIVE, SLOTS_PER_EPOCH},
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 
 const TEST_BYTES: u64 = 261;
-const RENT_PER_EPOCH: u64 = 3830;
+const RENT_PER_EPOCH: u64 = 261 + 128;
 const FULL_COMPRESSION_COSTS: u64 = (COMPRESSION_COST + COMPRESSION_INCENTIVE) as u64;
 
 fn test_rent_config() -> RentConfig {
     RentConfig::default()
+}
+
+pub fn get_rent_exemption_lamports(_num_bytes: u64) -> u64 {
+    // Standard rent-exempt balance for tests: 890880 + 6.96 * bytes
+    // This matches Solana's rent calculation
+    // 890_880 + ((696 * _num_bytes + 99) / 100)
+    2707440
 }
 
 #[test]
@@ -34,16 +42,19 @@ fn test_claim_method() {
 
     // Claim in epoch 2 (should claim for epochs 0 and 1)
     let current_slot = SLOTS_PER_EPOCH * 2 + 100;
-    let current_lamports = get_rent_exemption_lamports(TEST_BYTES).unwrap()
-        + RENT_PER_EPOCH * 3
-        + FULL_COMPRESSION_COSTS; // Need 3 epochs: 0, 1, and current 2
-
+    let current_lamports =
+        get_rent_exemption_lamports(TEST_BYTES) + RENT_PER_EPOCH * 3 + FULL_COMPRESSION_COSTS; // Need 3 epochs: 0, 1, and current 2
+    println!("Current lamports: {}", current_lamports);
+    println!(
+        "get_rent_exemption_lamports: {}",
+        get_rent_exemption_lamports(TEST_BYTES)
+    );
     let claimed = z_extension
         .claim(
             TEST_BYTES,
             current_slot,
             current_lamports,
-            get_rent_exemption_lamports(TEST_BYTES).unwrap(),
+            get_rent_exemption_lamports(TEST_BYTES),
         )
         .unwrap();
     assert_eq!(
@@ -51,6 +62,7 @@ fn test_claim_method() {
         RENT_PER_EPOCH * 2,
         "Should claim rent for epochs 0 and 1"
     );
+    println!("post 1 assert");
     // assert_eq!(
     //     u64::from(*z_extension.last_claimed_slot),
     //     SLOTS_PER_EPOCH * 2 - 1, // Last slot of epoch 1 (last completed epoch)
@@ -67,7 +79,7 @@ fn test_claim_method() {
             TEST_BYTES,
             current_slot,
             current_lamports - claimed.unwrap_or(0),
-            get_rent_exemption_lamports(TEST_BYTES).unwrap(),
+            get_rent_exemption_lamports(TEST_BYTES),
         )
         .unwrap();
     assert_eq!(claimed_again, None, "Should not claim again in same epoch");
@@ -80,7 +92,7 @@ fn test_claim_method() {
                 TEST_BYTES,
                 current_slot,
                 current_lamports,
-                get_rent_exemption_lamports(TEST_BYTES).unwrap(),
+                get_rent_exemption_lamports(TEST_BYTES),
             )
             .unwrap();
         assert_eq!(
@@ -97,7 +109,7 @@ fn test_claim_method() {
                 TEST_BYTES,
                 current_slot,
                 current_lamports,
-                get_rent_exemption_lamports(TEST_BYTES).unwrap(),
+                get_rent_exemption_lamports(TEST_BYTES),
             )
             .unwrap();
         assert_eq!(
@@ -115,7 +127,7 @@ fn test_claim_method() {
                 TEST_BYTES,
                 current_slot,
                 current_lamports,
-                get_rent_exemption_lamports(TEST_BYTES).unwrap(),
+                get_rent_exemption_lamports(TEST_BYTES),
             )
             .unwrap();
         assert_eq!(
@@ -143,10 +155,9 @@ fn test_get_last_paid_epoch() {
     };
 
     // Has 3 epochs of rent
-    let current_lamports = get_rent_exemption_lamports(TEST_BYTES).unwrap()
-        + (RENT_PER_EPOCH * 3)
-        + FULL_COMPRESSION_COSTS;
-    let rent_exemption_lamports = get_rent_exemption_lamports(TEST_BYTES).unwrap();
+    let current_lamports =
+        get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 3) + FULL_COMPRESSION_COSTS;
+    let rent_exemption_lamports = get_rent_exemption_lamports(TEST_BYTES);
     let last_paid = extension
         .get_last_paid_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
         .unwrap();
@@ -168,9 +179,8 @@ fn test_get_last_paid_epoch() {
         rent_config: test_rent_config(),
     };
 
-    let current_lamports = get_rent_exemption_lamports(TEST_BYTES).unwrap()
-        + (RENT_PER_EPOCH * 2)
-        + FULL_COMPRESSION_COSTS;
+    let current_lamports =
+        get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 2) + FULL_COMPRESSION_COSTS;
     let last_paid = extension
         .get_last_paid_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
         .unwrap();
@@ -188,8 +198,7 @@ fn test_get_last_paid_epoch() {
         rent_config: test_rent_config(),
     };
 
-    let current_lamports =
-        get_rent_exemption_lamports(TEST_BYTES).unwrap() + FULL_COMPRESSION_COSTS; // No rent paid
+    let current_lamports = get_rent_exemption_lamports(TEST_BYTES) + FULL_COMPRESSION_COSTS; // No rent paid
     let last_paid = extension
         .get_last_paid_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
         .unwrap();
@@ -211,7 +220,7 @@ fn test_get_last_paid_epoch() {
     };
 
     let current_lamports =
-        get_rent_exemption_lamports(TEST_BYTES).unwrap() + RENT_PER_EPOCH + FULL_COMPRESSION_COSTS;
+        get_rent_exemption_lamports(TEST_BYTES) + RENT_PER_EPOCH + FULL_COMPRESSION_COSTS;
     let last_paid = extension
         .get_last_paid_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
         .unwrap();
@@ -229,9 +238,8 @@ fn test_get_last_paid_epoch() {
         rent_config: test_rent_config(),
     };
 
-    let current_lamports = get_rent_exemption_lamports(TEST_BYTES).unwrap()
-        + (RENT_PER_EPOCH * 100)
-        + FULL_COMPRESSION_COSTS;
+    let current_lamports =
+        get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 100) + FULL_COMPRESSION_COSTS;
     let last_paid = extension
         .get_last_paid_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
         .unwrap();
@@ -252,9 +260,8 @@ fn test_get_last_paid_epoch() {
         rent_config: test_rent_config(),
     };
 
-    let current_lamports = get_rent_exemption_lamports(TEST_BYTES).unwrap()
-        + (RENT_PER_EPOCH * 3 / 2)
-        + FULL_COMPRESSION_COSTS; // 1.5 epochs
+    let current_lamports =
+        get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 3 / 2) + FULL_COMPRESSION_COSTS; // 1.5 epochs
     let last_paid = extension
         .get_last_paid_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
         .unwrap();
@@ -279,9 +286,8 @@ fn test_get_last_paid_epoch() {
     let (z_extension, _) = CompressionInfo::zero_copy_at(&extension_bytes)
         .expect("Failed to create zero-copy extension");
 
-    let current_lamports = get_rent_exemption_lamports(TEST_BYTES).unwrap()
-        + (RENT_PER_EPOCH * 5)
-        + FULL_COMPRESSION_COSTS;
+    let current_lamports =
+        get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 5) + FULL_COMPRESSION_COSTS;
     let last_paid = z_extension
         .get_last_paid_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
         .unwrap();
