@@ -1042,68 +1042,7 @@ async fn test_has_delegate_flag_mismatch() -> Result<(), RpcError> {
 // 11.3. Output: has_delegate=true but delegate=0
 // 11.4. Output: has_delegate=false but delegate!=0
 //
-// ============================================================================
-// COMPRESS TESTS (Solana account → compressed)
-// ============================================================================
-//
-// Sum Check Failures:
-// 1. amount more than output (should fail with output sum check)
-// 2. amount less than output (should fail with input sum check)
-//
-// CToken Compression Authority Validation:
-// 3. ctoken compression
-//  3.1 invalid authority has signed
-//  3.2 authority is valid but not signer
-//  3.3 insufficient balance in ctoken account → CompressInsufficientFunds (18019)
-//  3.4 mint mismatch (token account mint != compression mint)
-//
-// SPL Token Compression Pool Validation:
-// 4. spl token compression
-//  4.1 invalid pool account (invalid derivation seed, valid pool index, valid bump)
-//  4.2 invalid pool account (valid derivation seed, valid pool index, invalid bump)
-//  4.3 invalid pool account (valid derivation seed, invalid pool index, valid bump)
-//  4.4 pool account out of bounds
-//  4.5 pool index 6 (higher than max 5)
-//
-// Output Out of Bounds:
-// 5.1. authority out of bounds
-// 5.2. mint out of bounds
-// 5.3. recipient out of bounds
-//
-// has_delegate Flag Mismatch:
-// 6.1. Output: has_delegate=true but delegate=0
-// 6.2. Output: has_delegate=false but delegate!=0
-//
-// ============================================================================
-// DECOMPRESS TESTS (compressed → Solana account)
-// ============================================================================
-//
-// Sum Check Failures:
-// 1. amount more than output (should fail with output sum check)
-// 2. amount less than output (should fail with input sum check)
-//
-// Authority Field Validation:
-// 3. authority != 0 (MUST be 0 for decompress mode) → InvalidInstructionData
-//   NOTE: Decompress doesn't use authority field, it must always be 0
-//
-// Input Out of Bounds:
-// 4.1. mint out of bounds
-// 4.2. recipient out of bounds
-//
-// SPL Token Decompression Pool Validation:
-// 5. spl token decompression
-//  5.1 invalid pool account (invalid derivation seed, valid pool index, valid bump)
-//  5.2 invalid pool account (valid derivation seed, valid pool index, invalid bump)
-//  5.3 invalid pool account (valid derivation seed, invalid pool index, valid bump)
-//  5.4 pool account out of bounds
-//  5.5 pool index 6 (higher than max 5)
-//
-// has_delegate Flag Mismatch:
-// 6.1. Input: has_delegate=true but delegate=0
-// 6.2. Input: has_delegate=false but delegate!=0
-// 6.3. Output: has_delegate=true but delegate=0
-// 6.4. Output: has_delegate=false but delegate!=0
-//
+
 // ============================================================================
 // COMPRESS AND CLOSE TESTS (compress full balance + close account)
 // ============================================================================
@@ -1207,7 +1146,7 @@ async fn test_has_delegate_flag_mismatch() -> Result<(), RpcError> {
 //  - add option to delegate the entire balance
 //
 // Test setup for Compress ctoken:
-// 1. create and mint to ctoken compressed account
+// 1. create and mint to one ctoken compressed account
 //
 // Test setup for Compress spl token:
-// 1. create spl token mint and mint to spl token account
+// 1. create spl token mint and mint to one spl token account
