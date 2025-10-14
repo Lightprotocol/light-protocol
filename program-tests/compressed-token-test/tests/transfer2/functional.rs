@@ -166,6 +166,13 @@ async fn test_transfer2_functional() {
         test45_decompress_to_spl(),
         test46_compress_spl_with_compressed_inputs(),
         test47_mixed_spl_ctoken_operations(),
+        test48_transfer_compress_spl(),
+        test49_transfer_decompress_spl(),
+        test50_transfer_compress_ctoken(),
+        test51_transfer_decompress_ctoken(),
+        test52_transfer_multiple_compressions(),
+        test53_transfer_multiple_decompressions(),
+        test54_transfer_compress_decompress_balanced(),
         test55_compress_and_close_as_owner(),
         test55_compress_and_close_as_owner_compressible(),
         test56_compress_and_close_with_destination(),
@@ -1657,6 +1664,318 @@ fn test47_mixed_spl_ctoken_operations() -> TestCase {
                 recipient_index: 3, // Different recipient
                 mint_index: 0,
                 to_spl: false, // Decompress to CToken ATA
+                pool_index: None,
+            }),
+        ],
+    }
+}
+
+// ============================================================================
+// Mixed Compression + Transfer Tests (48-54)
+// ============================================================================
+
+// Test 48: Transfer + compress SPL in same transaction
+fn test48_transfer_compress_spl() -> TestCase {
+    TestCase {
+        name: "Transfer + compress SPL in same transaction".to_string(),
+        actions: vec![
+            // First: Regular compressed-to-compressed transfer (uses compressed mint 0)
+            MetaTransfer2InstructionType::Transfer(MetaTransferInput {
+                input_compressed_accounts: vec![500], // One account with 500 tokens
+                amount: 300,
+                is_delegate_transfer: false,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                delegate_index: None,
+                recipient_index: 1,  // Transfer to keypair[1]
+                change_amount: None, // Keep 200 as change
+                mint_index: 0,       // Compressed mint
+            }),
+            // Second: Compress from SPL token account (uses SPL mint 1)
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0, // No compressed inputs
+                amount: 1000,                     // Amount to compress from SPL
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 2,    // Different signer (keypair[2])
+                recipient_index: 2, // Compress to same owner
+                mint_index: 1,      // SPL mint (different from transfer)
+                use_spl: true,      // Use SPL token account
+                pool_index: None,
+            }),
+        ],
+    }
+}
+
+// Test 49: Transfer + decompress to SPL in same transaction
+fn test49_transfer_decompress_spl() -> TestCase {
+    TestCase {
+        name: "Transfer + decompress to SPL in same transaction".to_string(),
+        actions: vec![
+            // First: Regular compressed-to-compressed transfer (uses compressed mint 0)
+            MetaTransfer2InstructionType::Transfer(MetaTransferInput {
+                input_compressed_accounts: vec![500], // One account with 500 tokens
+                amount: 300,
+                is_delegate_transfer: false,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                delegate_index: None,
+                recipient_index: 1,  // Transfer to keypair[1]
+                change_amount: None, // Keep 200 as change
+                mint_index: 0,       // Compressed mint
+            }),
+            // Second: Decompress to SPL token account (uses SPL mint 1)
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1, // One compressed account as input
+                decompress_amount: 600,
+                amount: 600,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 2,    // Different signer (keypair[2])
+                recipient_index: 3, // Decompress to different recipient (keypair[3])
+                mint_index: 1,      // SPL mint (different from transfer)
+                to_spl: true,       // Decompress to SPL token account
+                pool_index: None,
+            }),
+        ],
+    }
+}
+
+// Test 50: Transfer + compress CToken in same transaction
+fn test50_transfer_compress_ctoken() -> TestCase {
+    TestCase {
+        name: "Transfer + compress CToken in same transaction".to_string(),
+        actions: vec![
+            // First: Regular compressed-to-compressed transfer (uses compressed mint 0)
+            MetaTransfer2InstructionType::Transfer(MetaTransferInput {
+                input_compressed_accounts: vec![500],
+                amount: 300,
+                is_delegate_transfer: false,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                delegate_index: None,
+                recipient_index: 1,
+                change_amount: None,
+                mint_index: 0, // Compressed mint
+            }),
+            // Second: Compress from CToken ATA (uses compressed mint 1)
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 1000,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 2,
+                recipient_index: 2,
+                mint_index: 1,  // Different compressed mint
+                use_spl: false, // Use CToken ATA
+                pool_index: None,
+            }),
+        ],
+    }
+}
+
+// Test 51: Transfer + decompress to CToken in same transaction
+fn test51_transfer_decompress_ctoken() -> TestCase {
+    TestCase {
+        name: "Transfer + decompress to CToken in same transaction".to_string(),
+        actions: vec![
+            // First: Regular compressed-to-compressed transfer (uses compressed mint 0)
+            MetaTransfer2InstructionType::Transfer(MetaTransferInput {
+                input_compressed_accounts: vec![500],
+                amount: 300,
+                is_delegate_transfer: false,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                delegate_index: None,
+                recipient_index: 1,
+                change_amount: None,
+                mint_index: 0, // Compressed mint
+            }),
+            // Second: Decompress to CToken ATA (uses compressed mint 1)
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 600,
+                amount: 600,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 2,
+                recipient_index: 3,
+                mint_index: 1, // Different compressed mint
+                to_spl: false, // Decompress to CToken ATA
+                pool_index: None,
+            }),
+        ],
+    }
+}
+
+// Test 52: Transfer + multiple compressions
+fn test52_transfer_multiple_compressions() -> TestCase {
+    TestCase {
+        name: "Transfer + multiple compressions in same transaction".to_string(),
+        actions: vec![
+            // First: Regular compressed-to-compressed transfer (uses compressed mint 0)
+            MetaTransfer2InstructionType::Transfer(MetaTransferInput {
+                input_compressed_accounts: vec![500],
+                amount: 300,
+                is_delegate_transfer: false,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                delegate_index: None,
+                recipient_index: 1,
+                change_amount: None,
+                mint_index: 0, // Compressed mint
+            }),
+            // Second: Compress from SPL (mint 1)
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 800,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 2,
+                recipient_index: 2,
+                mint_index: 1, // SPL mint
+                use_spl: true,
+                pool_index: None,
+            }),
+            // Third: Compress from CToken (mint 2)
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 600,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 3,
+                recipient_index: 3,
+                mint_index: 2, // Compressed mint
+                use_spl: false,
+                pool_index: None,
+            }),
+            // Fourth: Another compress from SPL (mint 1, different signer)
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 400,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 4,
+                recipient_index: 4,
+                mint_index: 1, // SPL mint (same as second action)
+                use_spl: true,
+                pool_index: None,
+            }),
+        ],
+    }
+}
+
+// Test 53: Transfer + multiple decompressions
+fn test53_transfer_multiple_decompressions() -> TestCase {
+    TestCase {
+        name: "Transfer + multiple decompressions in same transaction".to_string(),
+        actions: vec![
+            // First: Regular compressed-to-compressed transfer (uses compressed mint 0)
+            MetaTransfer2InstructionType::Transfer(MetaTransferInput {
+                input_compressed_accounts: vec![500],
+                amount: 300,
+                is_delegate_transfer: false,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                delegate_index: None,
+                recipient_index: 1,
+                change_amount: None,
+                mint_index: 0, // Compressed mint
+            }),
+            // Second: Decompress to SPL (mint 1)
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 400,
+                amount: 400,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 2,
+                recipient_index: 3,
+                mint_index: 1, // SPL mint
+                to_spl: true,
+                pool_index: None,
+            }),
+            // Third: Decompress to CToken (mint 2)
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 500,
+                amount: 500,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 4,
+                recipient_index: 5,
+                mint_index: 2, // Compressed mint
+                to_spl: false,
+                pool_index: None,
+            }),
+            // Fourth: Another decompress to SPL (mint 1, different signer)
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 300,
+                amount: 300,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 6,
+                recipient_index: 7,
+                mint_index: 1, // SPL mint (same as second action)
+                to_spl: true,
+                pool_index: None,
+            }),
+        ],
+    }
+}
+
+// Test 54: Transfer + compress + decompress (complex balanced operations)
+fn test54_transfer_compress_decompress_balanced() -> TestCase {
+    TestCase {
+        name: "Transfer + compress + decompress (all must balance)".to_string(),
+        actions: vec![
+            // First: Regular compressed-to-compressed transfer (mint 0)
+            MetaTransfer2InstructionType::Transfer(MetaTransferInput {
+                input_compressed_accounts: vec![500],
+                amount: 300,
+                is_delegate_transfer: false,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 0,
+                delegate_index: None,
+                recipient_index: 1,
+                change_amount: None,
+                mint_index: 0, // Compressed mint
+            }),
+            // Second: Compress from SPL (mint 1)
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 800,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 2,
+                recipient_index: 2,
+                mint_index: 1, // SPL mint
+                use_spl: true,
+                pool_index: None,
+            }),
+            // Third: Decompress to SPL (mint 1, different signer)
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 400,
+                amount: 400,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 3,
+                recipient_index: 4,
+                mint_index: 1, // SPL mint (same as compress)
+                to_spl: true,
+                pool_index: None,
+            }),
+            // Fourth: Compress from CToken (mint 2)
+            MetaTransfer2InstructionType::Compress(MetaCompressInput {
+                num_input_compressed_accounts: 0,
+                amount: 600,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 5,
+                recipient_index: 5,
+                mint_index: 2, // Compressed mint
+                use_spl: false,
+                pool_index: None,
+            }),
+            // Fifth: Decompress to CToken (mint 2, different signer)
+            MetaTransfer2InstructionType::Decompress(MetaDecompressInput {
+                num_input_compressed_accounts: 1,
+                decompress_amount: 500,
+                amount: 500,
+                token_data_version: TokenDataVersion::ShaFlat,
+                signer_index: 6,
+                recipient_index: 7,
+                mint_index: 2, // Compressed mint (same as compress)
+                to_spl: false,
                 pool_index: None,
             }),
         ],

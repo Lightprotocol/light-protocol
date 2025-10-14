@@ -574,66 +574,18 @@ impl TestContext {
         for action in &test_case.actions {
             match action {
                 MetaTransfer2InstructionType::Decompress(decompress) => {
-                    // Check if this is an SPL mint (mint_index 0)
-                    let is_spl_mint = decompress.mint_index == 0;
+                    // Check if this mint is an SPL mint (needs SPL token account)
+                    let is_spl_mint = mint_needs_spl[decompress.mint_index];
 
-                    if is_spl_mint && decompress.to_spl {
-                        // This test needs SPL-origin compressed tokens for SPL decompression
+                    // If it's an SPL mint, we need to compress SPL tokens to create compressed accounts
+                    // This works for both SPL decompression (to_spl: true) and CToken decompression (to_spl: false)
+                    if is_spl_mint {
                         let key = (decompress.signer_index, decompress.mint_index);
                         if let Some(token_account_keypair) = spl_token_accounts.get(&key) {
+                            let target = if decompress.to_spl { "SPL" } else { "CToken" };
                             println!(
-                                "Compressing SPL tokens for signer {} mint {} to create compressed accounts for SPL decompression",
-                                decompress.signer_index, decompress.mint_index
-                            );
-
-                            // Compress the SPL tokens using Transfer2 with Compress action
-                            let mint = mints[decompress.mint_index];
-                            let signer = &keypairs[decompress.signer_index];
-
-                            // Get output queue
-                            let output_queue = rpc
-                                .get_random_state_tree_info()
-                                .unwrap()
-                                .get_output_pubkey()
-                                .unwrap();
-
-                            // Create compress input
-                            let compress_input = CompressInput {
-                                compressed_token_account: None, // No compressed inputs when compressing from SPL
-                                solana_token_account: token_account_keypair.pubkey(),
-                                to: signer.pubkey(),
-                                mint,
-                                amount: decompress.amount
-                                    * decompress.num_input_compressed_accounts as u64,
-                                authority: signer.pubkey(),
-                                output_queue,
-                                pool_index: None,
-                            };
-
-                            // Create and execute the compress instruction
-                            let ix = create_generic_transfer2_instruction(
-                                &mut rpc,
-                                vec![Transfer2InstructionType::Compress(compress_input)],
-                                payer.pubkey(),
-                            )
-                            .await
-                            .unwrap();
-
-                            rpc.create_and_send_transaction(
-                                &[ix],
-                                &payer.pubkey(),
-                                &[&payer, signer],
-                            )
-                            .await
-                            .unwrap();
-                        }
-                    } else if is_spl_mint && !decompress.to_spl {
-                        // This test needs SPL-origin compressed tokens for CToken decompression
-                        let key = (decompress.signer_index, decompress.mint_index);
-                        if let Some(token_account_keypair) = spl_token_accounts.get(&key) {
-                            println!(
-                                "Compressing SPL tokens for signer {} mint {} to create compressed accounts for CToken decompression",
-                                decompress.signer_index, decompress.mint_index
+                                "Compressing SPL tokens for signer {} mint {} to create compressed accounts for {} decompression",
+                                decompress.signer_index, decompress.mint_index, target
                             );
 
                             // Calculate amounts needed and mint additional SPL tokens if necessary
@@ -715,6 +667,7 @@ impl TestContext {
                             .unwrap();
                         }
                     }
+                    // Note: For compressed mints, CToken decompression uses regular compressed tokens from normal minting
                 }
                 MetaTransfer2InstructionType::Compress(compress)
                     if compress.use_spl && compress.num_input_compressed_accounts > 0 =>
