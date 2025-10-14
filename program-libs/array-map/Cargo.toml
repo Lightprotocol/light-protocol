@@ -1,0 +1,11 @@
+[package]
+name = "light-array-map"
+version = "0.1.0"
+description = "Generic array-backed map with O(n) lookup for small collections"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+
+[dependencies]
+tinyvec = { workspace = true }

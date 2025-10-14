@@ -3376,6 +3376,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-array-map"
+version = "0.1.0"
+dependencies = [
+ "tinyvec",
+]
+
+[[package]]
 name = "light-batched-merkle-tree"
 version = "0.5.0"
 dependencies = [
