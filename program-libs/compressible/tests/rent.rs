@@ -14,7 +14,7 @@ pub fn get_rent_exemption_lamports(_num_bytes: u64) -> u64 {
     // Standard rent-exempt balance for tests: 890880 + 6.96 * bytes
     // This matches Solana's rent calculation
     // 890_880 + ((696 * _num_bytes + 99) / 100)
-    2707440
+    2700480
 }
 #[derive(Debug)]
 struct TestInput {

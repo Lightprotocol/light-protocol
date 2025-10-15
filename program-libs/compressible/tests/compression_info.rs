@@ -15,7 +15,7 @@ fn test_rent_config() -> RentConfig {
 }
 
 pub fn get_rent_exemption_lamports(_num_bytes: u64) -> u64 {
-    2707440
+    2700480
 }
 
 #[test]

@@ -198,21 +198,24 @@ pub async fn setup_account_test_with_created_account(
         create_and_assert_token_account(&mut context, compressible_data, "setup_account").await;
     } else {
         // Create non-compressible token account (165 bytes, no extension)
-        create_non_compressible_token_account(&mut context).await;
+        create_non_compressible_token_account(&mut context, None).await;
     }
 
     Ok(context)
 }
 
 /// Create a non-compressible token account (165 bytes, no compressible extension)
-async fn create_non_compressible_token_account(context: &mut AccountTestContext) {
+pub async fn create_non_compressible_token_account(
+    context: &mut AccountTestContext,
+    token_keypair: Option<&Keypair>,
+) {
     use anchor_lang::prelude::borsh::BorshSerialize;
     use anchor_lang::prelude::AccountMeta;
     use light_ctoken_types::instructions::create_ctoken_account::CreateTokenAccountInstructionData;
     use solana_sdk::instruction::Instruction;
-
+    let token_keypair = token_keypair.unwrap_or(&context.token_account_keypair);
     let payer_pubkey = context.payer.pubkey();
-    let token_account_pubkey = context.token_account_keypair.pubkey();
+    let token_account_pubkey = token_keypair.pubkey();
 
     // Create account via system program (165 bytes for non-compressible)
     let rent = context
@@ -234,7 +237,7 @@ async fn create_non_compressible_token_account(context: &mut AccountTestContext)
         .create_and_send_transaction(
             &[create_account_ix],
             &payer_pubkey,
-            &[&context.payer, &context.token_account_keypair],
+            &[&context.payer, &token_keypair],
         )
         .await
         .unwrap();
@@ -258,11 +261,7 @@ async fn create_non_compressible_token_account(context: &mut AccountTestContext)
 
     context
         .rpc
-        .create_and_send_transaction(
-            &[init_ix],
-            &payer_pubkey,
-            &[&context.payer, &context.token_account_keypair],
-        )
+        .create_and_send_transaction(&[init_ix], &payer_pubkey, &[&context.payer, &token_keypair])
         .await
         .unwrap();
 

@@ -18,6 +18,7 @@
 
 **Instruction data:**
 - First byte: instruction discriminator (3)
+- Second byte: 0 (padding)
 - Remaining bytes: SPL TokenInstruction::Transfer serialized
   - `amount`: u64 - Number of tokens to transfer
 
