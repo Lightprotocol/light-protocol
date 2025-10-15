@@ -311,7 +311,7 @@ async fn test_create_compressed_mint() {
             pool_index: None,
         })],
         payer.pubkey(),
-        false,
+        true,
     )
     .await
     .unwrap();
@@ -357,7 +357,7 @@ async fn test_create_compressed_mint() {
             pool_index: None,
         })],
         payer.pubkey(),
-        false,
+        true,
     )
     .await
     .unwrap();
@@ -395,7 +395,7 @@ async fn test_create_compressed_mint() {
             pool_index: None,
         })],
         payer.pubkey(),
-        false,
+        true,
     )
     .await
     .unwrap();
@@ -488,7 +488,7 @@ async fn test_create_compressed_mint() {
             &mut rpc,
             instruction_actions.clone(),
             payer.pubkey(),
-            false,
+            true,
         )
         .await
         .unwrap();
@@ -879,7 +879,7 @@ async fn test_ctoken_transfer() {
             pool_index: None,
         })],
         payer.pubkey(),
-        false,
+        true,
     )
     .await
     .unwrap();

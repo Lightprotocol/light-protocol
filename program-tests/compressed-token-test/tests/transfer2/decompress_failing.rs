@@ -49,7 +49,9 @@ use light_ctoken_types::{
     instructions::{mint_action::Recipient, transfer2::MultiInputTokenDataWithContext},
     state::TokenDataVersion,
 };
-use light_program_test::{LightProgramTest, ProgramTestConfig, Rpc};
+use light_program_test::{
+    utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig, Rpc,
+};
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::RpcError;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
@@ -406,15 +408,7 @@ async fn test_decompression_mint_out_of_bounds() -> Result<(), RpcError> {
         .await;
 
     // Should fail with "insufficient account keys for instruction"
-    assert!(
-        result
-            .as_ref()
-            .unwrap_err()
-            .to_string()
-            .contains("insufficient account keys for instruction"),
-        "Expected 'insufficient account keys for instruction' error, got: {}",
-        result.unwrap_err().to_string()
-    );
+    assert_rpc_error(result, 0, 20014).unwrap();
 
     Ok(())
 }
