@@ -22,3 +22,6 @@ mod compress_and_close;
 
 #[path = "ctoken/close.rs"]
 mod close;
+
+#[path = "ctoken/create_ata.rs"]
+mod create_ata;

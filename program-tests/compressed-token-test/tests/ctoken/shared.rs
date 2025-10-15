@@ -12,7 +12,9 @@ pub use light_program_test::{
 };
 pub use light_test_utils::{
     assert_close_token_account::assert_close_token_account,
-    assert_create_token_account::{assert_create_token_account, CompressibleData},
+    assert_create_token_account::{
+        assert_create_associated_token_account, assert_create_token_account, CompressibleData,
+    },
     assert_transfer2::assert_transfer2_compress,
     Rpc, RpcError,
 };
@@ -388,6 +390,127 @@ pub async fn close_and_assert_token_account_fails(
     let result = context
         .rpc
         .create_and_send_transaction(&[close_ix], &payer_pubkey, &[&context.payer, authority])
+        .await;
+
+    // Assert that the transaction failed with the expected error code
+    light_program_test::utils::assert::assert_rpc_error(result, 0, expected_error_code).unwrap();
+}
+
+/// Create associated token account and assert success
+/// Returns the ATA pubkey
+pub async fn create_and_assert_ata(
+    context: &mut AccountTestContext,
+    compressible_data: Option<CompressibleData>,
+    idempotent: bool,
+    name: &str,
+) -> Pubkey {
+    println!("ATA creation initiated for: {}", name);
+
+    let payer_pubkey = context.payer.pubkey();
+    let owner_pubkey = context.owner_keypair.pubkey();
+
+    // Derive ATA address
+    let (ata_pubkey, _bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
+
+    // Build instruction based on whether it's compressible
+    let create_ata_ix = if let Some(compressible) = compressible_data.as_ref() {
+        let create_fn = if idempotent {
+            light_compressed_token_sdk::instructions::create_compressible_associated_token_account_idempotent
+        } else {
+            light_compressed_token_sdk::instructions::create_compressible_associated_token_account
+        };
+
+        create_fn(
+            light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
+                payer: payer_pubkey,
+                owner: owner_pubkey,
+                mint: context.mint_pubkey,
+                compressible_config: context.compressible_config,
+                rent_sponsor: compressible.rent_sponsor,
+                pre_pay_num_epochs: compressible.num_prepaid_epochs,
+                lamports_per_write: compressible.lamports_per_write,
+                token_account_version: compressible.account_version,
+            },
+        )
+        .unwrap()
+    } else {
+        let create_fn = if idempotent {
+            light_compressed_token_sdk::instructions::create_associated_token_account_idempotent
+        } else {
+            light_compressed_token_sdk::instructions::create_associated_token_account
+        };
+
+        create_fn(payer_pubkey, owner_pubkey, context.mint_pubkey).unwrap()
+    };
+
+    context
+        .rpc
+        .create_and_send_transaction(&[create_ata_ix], &payer_pubkey, &[&context.payer])
+        .await
+        .unwrap();
+
+    // Assert ATA was created correctly with address derivation check
+    assert_create_associated_token_account(
+        &mut context.rpc,
+        owner_pubkey,
+        context.mint_pubkey,
+        compressible_data,
+    )
+    .await;
+
+    ata_pubkey
+}
+
+/// Create associated token account expecting failure with specific error code
+pub async fn create_and_assert_ata_fails(
+    context: &mut AccountTestContext,
+    compressible_data: Option<CompressibleData>,
+    idempotent: bool,
+    name: &str,
+    expected_error_code: u32,
+) {
+    println!(
+        "ATA creation (expecting failure) initiated for: {}",
+        name
+    );
+
+    let payer_pubkey = context.payer.pubkey();
+    let owner_pubkey = context.owner_keypair.pubkey();
+
+    // Build instruction based on whether it's compressible
+    let create_ata_ix = if let Some(compressible) = compressible_data.as_ref() {
+        let create_fn = if idempotent {
+            light_compressed_token_sdk::instructions::create_compressible_associated_token_account_idempotent
+        } else {
+            light_compressed_token_sdk::instructions::create_compressible_associated_token_account
+        };
+
+        create_fn(
+            light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
+                payer: payer_pubkey,
+                owner: owner_pubkey,
+                mint: context.mint_pubkey,
+                compressible_config: context.compressible_config,
+                rent_sponsor: compressible.rent_sponsor,
+                pre_pay_num_epochs: compressible.num_prepaid_epochs,
+                lamports_per_write: compressible.lamports_per_write,
+                token_account_version: compressible.account_version,
+            },
+        )
+        .unwrap()
+    } else {
+        let create_fn = if idempotent {
+            light_compressed_token_sdk::instructions::create_associated_token_account_idempotent
+        } else {
+            light_compressed_token_sdk::instructions::create_associated_token_account
+        };
+
+        create_fn(payer_pubkey, owner_pubkey, context.mint_pubkey).unwrap()
+    };
+
+    let result = context
+        .rpc
+        .create_and_send_transaction(&[create_ata_ix], &payer_pubkey, &[&context.payer])
         .await;
 
     // Assert that the transaction failed with the expected error code
