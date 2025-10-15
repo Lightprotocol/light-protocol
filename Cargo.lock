@@ -1409,6 +1409,7 @@ dependencies = [
  "light-test-utils",
  "light-token-client",
  "light-verifier",
+ "light-zero-copy",
  "rand 0.8.5",
  "serial_test",
  "solana-sdk",

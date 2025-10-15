@@ -3,7 +3,7 @@ use light_compressible::rent::AccountRentState;
 use light_ctoken_types::state::{ctoken::CToken, ZExtensionStruct};
 use light_program_test::LightProgramTest;
 use light_zero_copy::traits::ZeroCopyAt;
-use solana_sdk::pubkey::Pubkey;
+use solana_sdk::{pubkey::Pubkey, signer::Signer};
 
 pub async fn assert_close_token_account(
     rpc: &mut LightProgramTest,
@@ -140,6 +140,13 @@ async fn assert_compressible_extension(
         .expect("Failed to get authority account")
         .map(|acc| acc.lamports)
         .unwrap_or(0);
+
+    // Transaction fee: 5000 lamports per signature * 2 signers = 10,000 lamports
+    let tx_fee = 10_000;
+
+    // Get the transaction payer (who pays the tx fee)
+    let payer_pubkey = rpc.get_payer().pubkey();
+
     // Verify compressible extension fields are valid
     let current_slot = rpc.get_slot().await.expect("Failed to get current slot");
     assert!(
@@ -254,12 +261,24 @@ async fn assert_compressible_extension(
             .expect("Rent recipient account should exist")
             .lamports;
 
-        assert_eq!(
-            final_rent_sponsor_lamports,
-            initial_rent_sponsor_lamports + lamports_to_rent_sponsor,
-            "Rent recipient should receive {} lamports",
-            lamports_to_rent_sponsor
-        );
+        // When rent_sponsor == payer (tx fee payer), they pay tx_fee, so adjust expectation
+        if rent_sponsor == payer_pubkey {
+            assert_eq!(
+                final_rent_sponsor_lamports,
+                initial_rent_sponsor_lamports + lamports_to_rent_sponsor - tx_fee,
+                "Rent recipient should receive {} lamports - {} lamports (tx fee) = {} lamports when they are also the transaction payer",
+                lamports_to_rent_sponsor,
+                tx_fee,
+                lamports_to_rent_sponsor - tx_fee
+            );
+        } else {
+            assert_eq!(
+                final_rent_sponsor_lamports,
+                initial_rent_sponsor_lamports + lamports_to_rent_sponsor,
+                "Rent recipient should receive {} lamports",
+                lamports_to_rent_sponsor
+            );
+        }
     }
 
     // Authority shouldn't receive anything in either case

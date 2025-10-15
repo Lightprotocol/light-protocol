@@ -49,3 +49,4 @@ light-compressible = { workspace = true }
 light-compressed-token-sdk = { workspace = true }
 spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
+light-zero-copy = { workspace = true , features = ["std", "derive", "mut"]}

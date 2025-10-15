@@ -1,13 +1,5 @@
-use light_test_utils::spl::create_mint_helper;
-//
-// 2. test_create_token_account_version_v1
-//    - Create compressible account with TokenDataVersion::V1 (Poseidon hash)
-//    - Validates: Account created successfully, version field in compressible extension is V1
-//
-// 3. test_create_token_account_version_v2
-//    - Create compressible account with TokenDataVersion::V2 (Poseidon BE)
-//    - Validates: Account created successfully, version field in compressible extension is V2
 use super::shared::*;
+use light_test_utils::spl::create_mint_helper;
 
 /// Test compress_and_close with rent authority:
 /// 1. Create compressible token account with rent authority
