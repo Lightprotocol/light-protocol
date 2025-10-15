@@ -46,7 +46,8 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
-          skip-components: "redis,disk-cleanup"
+          skip-components: "redis,disk-cleanup,go"
+          cache-key: "js"
 
       - name: Build stateless.js with V2
         run: |

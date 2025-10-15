@@ -29,7 +29,8 @@ jobs:
       - name: Setup and build
         uses: ./.github/actions/setup-and-build
         with:
-          skip-components: "proving-keys,redis,disk-cleanup"
+          skip-components: "proving-keys,redis,disk-cleanup,go"
+          cache-key: "lint"
 
       - name: Run linters
         run: |

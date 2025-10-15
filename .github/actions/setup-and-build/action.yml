@@ -6,6 +6,10 @@ inputs:
     description: 'Comma-separated list of components to skip (e.g., "redis,go"). If not specified, all components are installed.'
     required: false
     default: ""
+  cache-key:
+    description: 'Cache key to differentiate caches for different workflow types (e.g., "lint", "js", "rust")'
+    required: false
+    default: "shared"
 
 runs:
   using: "composite"
@@ -45,12 +49,11 @@ runs:
       with:
         toolchain: ${{ steps.versions.outputs.rust }}
         components: rustfmt, clippy
-        shared-key: shared
-        cache-workspaces: |
-          . -> target
-          cli -> cli/target
+        cache-key: ${{ inputs.cache-key }}
+        cache-workspaces: .
 
     - name: Setup Go
+      if: "!contains(inputs.skip-components, 'go')"
       uses: actions/setup-go@v5
       with:
         go-version: ${{ steps.versions.outputs.go }}
