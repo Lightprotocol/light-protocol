@@ -15,6 +15,8 @@ pub struct CompressibleData {
     pub rent_sponsor: Pubkey,
     pub num_prepaid_epochs: u64,
     pub lamports_per_write: Option<u32>,
+    pub compress_to_pubkey: bool,
+    pub account_version: light_ctoken_types::state::TokenDataVersion,
 }
 
 /// Assert that a token account was created correctly.
@@ -93,8 +95,8 @@ pub async fn assert_create_token_account<R: Rpc>(
                                 .compression_authority
                                 .to_bytes(),
                             rent_sponsor: compressible_info.rent_sponsor.to_bytes(),
-                            compress_to_pubkey: 0,
-                            account_version: 3, // Default to ShaFlat version
+                            compress_to_pubkey: compressible_info.compress_to_pubkey as u8,
+                            account_version: compressible_info.account_version as u8,
                         },
                     ),
                 ]),
