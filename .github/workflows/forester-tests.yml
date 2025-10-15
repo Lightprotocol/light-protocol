@@ -66,7 +66,6 @@ jobs:
         uses: ./.github/actions/setup-and-build
         with:
           skip-components: "redis"
-          cache-suffix: "rust"
 
       - name: Check available disk space
         shell: bash

@@ -6,10 +6,6 @@ inputs:
     description: 'Comma-separated list of components to skip (e.g., "redis,go"). If not specified, all components are installed.'
     required: false
     default: ""
-  cache-suffix:
-    description: 'Optional suffix for cache keys to enable separate caches per workflow (e.g., "system-programs", "sdk-tests", "rust")'
-    required: false
-    default: ""
 
 runs:
   using: "composite"
@@ -49,6 +45,7 @@ runs:
       with:
         toolchain: ${{ steps.versions.outputs.rust }}
         components: rustfmt, clippy
+        shared-key: shared
         cache-workspaces: |
           . -> target
           cli -> cli/target

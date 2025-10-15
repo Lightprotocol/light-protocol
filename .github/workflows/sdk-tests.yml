@@ -73,7 +73,6 @@ jobs:
         uses: ./.github/actions/setup-and-build
         with:
           skip-components: "redis,disk-cleanup"
-          cache-suffix: "sdk-tests"
 
       - name: Build CLI
         run: |

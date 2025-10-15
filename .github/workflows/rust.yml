@@ -94,7 +94,6 @@ jobs:
         uses: ./.github/actions/setup-and-build
         with:
           skip-components: "redis,disk-cleanup"
-          cache-suffix: "rust"
 
       - name: Build CLI
         run: |
