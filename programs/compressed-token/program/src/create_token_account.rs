@@ -156,6 +156,12 @@ pub fn process_create_token_account(
             .as_ref()
             .ok_or(ProgramError::InvalidInstructionData)?;
 
+        // Validate that rent_payment is not exactly 1 epoch (footgun prevention)
+        if compressible_config.rent_payment == 1 {
+            msg!("Prefunding for exactly 1 epoch is not allowed. If the account is created near an epoch boundary, it could become immediately compressible. Use 0 or 2+ epochs.");
+            return Err(anchor_compressed_token::ErrorCode::OneEpochPrefundingNotAllowed.into());
+        }
+
         if let Some(compress_to_pubkey) = compressible_config.compress_to_account_pubkey.as_ref() {
             // Compress to pubkey specifies compression to account pubkey instead of the owner.
             // This is useful for pda token accounts that rely on pubkey derivation but have a program wide

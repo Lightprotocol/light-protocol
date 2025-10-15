@@ -36,6 +36,10 @@
   1. instruction data is defined in path: program-libs/ctoken-types/src/instructions/create_ctoken_account.rs
   2. Instruction data with compressible extension
   program-libs/ctoken-types/src/instructions/extensions/compressible.rs
+    - `rent_payment`: Number of epochs to prepay for rent (u64)
+      - `rent_payment = 1` is explicitly forbidden to prevent epoch boundary timing edge case
+      - Allowed values: 0 (no prefunding) or 2+ epochs (safe buffer)
+      - Rationale: Accounts created with exactly 1 epoch near epoch boundaries could become immediately compressible
     - `write_top_up`: Additional lamports allocated for future write operations on the compressed account
 
   **Accounts:**
@@ -68,6 +72,10 @@
   2. Parse and check accounts
     - Validate CompressibleConfig is active (not inactive or deprecated)
   3. if with compressible account
+    3.0. Validate rent_payment is not exactly 1 epoch
+        - Check: `compressible_config.rent_payment != 1`
+        - Error: `ErrorCode::OneEpochPrefundingNotAllowed` if validation fails
+        - Purpose: Prevent accounts from becoming immediately compressible due to epoch boundary timing
     3.1. if with compress to pubkey
         Compress to pubkey specifies compression to account pubkey instead of the owner.
         This is useful for pda token accounts that rely on pubkey derivation but have a program wide
@@ -101,6 +109,7 @@
   - `CompressibleError::InvalidState` (error code: 19002) - CompressibleConfig is not in active state
   - `ErrorCode::InsufficientAccountSize` (error code: 6077) - token_account data length < 165 bytes (non-compressible) or < COMPRESSIBLE_TOKEN_ACCOUNT_SIZE (compressible)
   - `ErrorCode::InvalidCompressAuthority` (error code: 6052) - compressible_config is Some but compressible_config_account is None during extension initialization
+  - `ErrorCode::OneEpochPrefundingNotAllowed` (error code: 6116) - rent_payment is exactly 1 epoch, which is forbidden due to epoch boundary timing edge case
 
 
 ## 2. create associated ctoken account
@@ -150,6 +159,9 @@
   3. Verify account is system-owned (uninitialized)
     - Validate CompressibleConfig is active (not inactive or deprecated) if compressible
   4. If compressible:
+    - Validate rent_payment is not exactly 1 epoch (same as create ctoken account step 3.0)
+      - Check: `compressible_config.rent_payment != 1`
+      - Error: `ErrorCode::OneEpochPrefundingNotAllowed` if validation fails
     - Reject if compress_to_account_pubkey is Some (not allowed for ATAs)
     - Calculate rent (prepaid epochs rent + compression incentive, no rent exemption)
     - Check if custom fee payer (fee_payer_pda != config.rent_sponsor)
@@ -165,3 +177,4 @@
   - `ProgramError::InvalidInstructionData` (error code: 3) - compress_to_account_pubkey is Some (forbidden for ATAs)
   - `AccountError::InvalidSigner` (error code: 12015) - fee_payer is not a signer
   - `AccountError::AccountNotMutable` (error code: 12008) - fee_payer or associated_token_account is not mutable
+  - `ErrorCode::OneEpochPrefundingNotAllowed` (error code: 6116) - rent_payment is exactly 1 epoch (see create ctoken account errors)

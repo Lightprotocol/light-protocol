@@ -99,7 +99,7 @@ async fn setup_decompression_test(
             owner: owner.pubkey(),
             mint,
             rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-            pre_pay_num_epochs: 1,
+            pre_pay_num_epochs: 2,
             lamports_per_write: Some(1000),
             compressible_config: rpc
                 .test_accounts

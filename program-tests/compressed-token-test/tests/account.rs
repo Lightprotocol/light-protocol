@@ -400,7 +400,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_owner() -> 
         .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
         .await?;
 
-    let num_prepaid_epochs = 1;
+    let num_prepaid_epochs = 2;
     let lamports_per_write = Some(100);
 
     // Initialize compressible token account
@@ -571,7 +571,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
         .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
         .await?;
 
-    let num_prepaid_epochs = 1;
+    let num_prepaid_epochs = 2;
     let lamports_per_write = Some(100);
 
     // Initialize compressible token account
@@ -824,7 +824,7 @@ async fn test_compress_and_close_with_compression_authority() -> Result<(), RpcE
                 owner_pubkey: context.owner_keypair.pubkey(),
                 compressible_config: context.compressible_config,
                 rent_sponsor: context.rent_sponsor,
-                pre_pay_num_epochs: 1,
+                pre_pay_num_epochs: 2,
                 lamports_per_write: Some(150),
                 payer: payer_pubkey,
                 compress_to_account_pubkey: None,
@@ -842,7 +842,7 @@ async fn test_compress_and_close_with_compression_authority() -> Result<(), RpcE
         )
         .await?;
 
-    // Top up rent for one more epoch
+    // Top up rent for one more epoch (total: 2 prepaid + 1 topped up = 3 epochs)
     context
         .rpc
         .airdrop_lamports(
@@ -852,9 +852,9 @@ async fn test_compress_and_close_with_compression_authority() -> Result<(), RpcE
         .await
         .unwrap();
 
-    // Advance to epoch 1 to make the account compressible
-    // Account was created with 0 epochs of rent prepaid, so it's instantly compressible
-    // But we still need to advance time to trigger the rent authority logic
+    // Advance to epoch 1 (account not yet compressible - still has 2 epochs remaining)
+    // Account was created with 2 epochs prepaid + 1 topped up = 3 epochs total
+    // At epoch 1, only 1 epoch has passed, so 2 epochs of funding remain
     context.rpc.warp_to_slot(SLOTS_PER_EPOCH + 1).unwrap();
     let forster_keypair = context.rpc.test_accounts.protocol.forester.insecure_clone();
     // This doesnt work anymore we need to invoke the registry program now
@@ -877,10 +877,10 @@ async fn test_compress_and_close_with_compression_authority() -> Result<(), RpcE
         "{}",
         result.unwrap_err().to_string()
     );
-    // Advance to epoch 1 to make the account compressible
-    // Account was created with 0 epochs of rent prepaid, so it's instantly compressible
-    // But we still need to advance time to trigger the rent authority logic
-    context.rpc.warp_to_slot((SLOTS_PER_EPOCH * 2) + 1).unwrap();
+    // Advance to epoch 3 to make the account compressible
+    // Account was created with 2 epochs prepaid + 1 topped up = 3 epochs total
+    // At epoch 3, all 3 epochs have passed, so the account is now compressible
+    context.rpc.warp_to_slot((SLOTS_PER_EPOCH * 3) + 1).unwrap();
 
     // Create a fresh destination pubkey to receive the compression incentive
     let destination = solana_sdk::signature::Keypair::new();

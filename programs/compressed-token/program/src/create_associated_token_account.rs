@@ -149,6 +149,12 @@ fn process_compressible_config<'info>(
     owner_bytes: &[u8; 32],
     mint_bytes: &[u8; 32],
 ) -> Result<(&'info CompressibleConfig, Option<Pubkey>), ProgramError> {
+    // Validate that rent_payment is not exactly 1 epoch (footgun prevention)
+    if compressible_config_ix_data.rent_payment == 1 {
+        msg!("Prefunding for exactly 1 epoch is not allowed. If the account is created near an epoch boundary, it could become immediately compressible. Use 0 or 2+ epochs.");
+        return Err(anchor_compressed_token::ErrorCode::OneEpochPrefundingNotAllowed.into());
+    }
+
     if compressible_config_ix_data
         .compress_to_account_pubkey
         .is_some()
