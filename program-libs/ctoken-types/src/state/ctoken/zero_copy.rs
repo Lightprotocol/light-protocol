@@ -411,6 +411,7 @@ impl DerefMut for ZCompressedTokenMut<'_> {
 impl<'a> ZeroCopyAt<'a> for CToken {
     type ZeroCopyAt = ZCToken<'a>;
 
+    #[profile]
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
         let (__meta, bytes) = <CTokenMeta as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
         let (extensions, bytes) = if !bytes.is_empty() {

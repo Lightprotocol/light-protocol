@@ -11,7 +11,7 @@ use spl_pod::solana_msg::msg;
 #[profile]
 fn sum_inputs(
     inputs: &[ZMultiInputTokenDataWithContext],
-    mint_sums: &mut ArrayVec<(u8, u64), 5>,
+    mint_sums: &mut ArrayVec<(u8, u64), 5>, // TODO: use array map
 ) -> Result<(), ErrorCode> {
     for input in inputs.iter() {
         // Find or create mint entry
@@ -96,6 +96,7 @@ pub fn sum_check_multi_mint(
     compressions: Option<&[ZCompression]>,
 ) -> Result<(), ErrorCode> {
     // ArrayVec with 5 entries: (mint_index, sum)
+    // TODO: use pubkey as key instead of index.
     let mut mint_sums: ArrayVec<(u8, u64), 5> = ArrayVec::new();
 
     // Process inputs - increase sums

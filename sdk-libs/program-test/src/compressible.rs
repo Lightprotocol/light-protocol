@@ -97,19 +97,19 @@ pub async fn claim_and_compress(
                         )
                         .await
                         .unwrap();
-                    let last_paid_epoch = e
-                        .get_last_paid_epoch(
+                    let last_funded_epoch = e
+                        .get_last_funded_epoch(
                             account.1.data.len() as u64,
                             account.1.lamports,
                             base_lamports,
                         )
                         .unwrap();
-                    let last_paid_slot = last_paid_epoch * SLOTS_PER_EPOCH;
+                    let last_funded_slot = (last_funded_epoch as u64) * SLOTS_PER_EPOCH;
                     stored_compressible_accounts.insert(
                         account.0,
                         StoredCompressibleAccount {
                             pubkey: account.0,
-                            last_paid_slot,
+                            last_paid_slot: last_funded_slot,
                             account: des_account.clone(),
                         },
                     );

@@ -14,7 +14,7 @@ Rent calculation functions determine when compressible ctoken accounts can be co
 ```rust
 pub const COMPRESSION_COST: u16 = 10_000;       // Base compression operation cost (5000 lamports compression fee + 5000 lamports forester tx fee)
 pub const COMPRESSION_INCENTIVE: u16 = 1000;    // Incentive for compression for the forester node
-pub const MIN_RENT: u16 = 1220;                 // Minimum rent per epoch
+pub const BASE_RENT: u16 = 1220;                 // Minimum rent per epoch
 pub const RENT_PER_BYTE: u8 = 10;               // Rent per byte per epoch
 pub const SLOTS_PER_EPOCH: u64 = 432_000;       // Solana slots per epoch
 ```
@@ -188,9 +188,9 @@ Internal calculation function for rent analysis.
 
 ---
 
-#### `get_last_paid_epoch`
+#### `get_last_funded_epoch`
 ```rust
-pub fn get_last_paid_epoch(
+pub fn get_last_funded_epoch(
     num_bytes: u64,
     current_lamports: u64,
     last_claimed_slot: impl ZeroCopyNumTrait,

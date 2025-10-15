@@ -130,7 +130,7 @@ let config = CompressibleConfig::try_deserialize(&mut &account_data[..])?;
 ```rust
 // CToken V1 defaults
 RentConfig {
-    base_rent: 1220,                    // MIN_RENT constant
+    base_rent: 1220,                    // BASE_RENT constant
     compression_cost: 11000, // COMPRESSION_COST + COMPRESSION_INCENTIVE
     lamports_per_byte_per_epoch: 10,                  // RENT_PER_BYTE constant
 }

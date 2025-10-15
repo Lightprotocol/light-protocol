@@ -23,6 +23,7 @@ profile-program = [
     "light-program-profiler/profile-program",
     "light-compressed-account/profile-program",
     "light-ctoken-types/profile-program",
+    "light-compressible/profile-program",
 ]
 profile-heap = [
     "light-program-profiler/profile-heap",
@@ -63,6 +64,7 @@ light-sdk-pinocchio = { workspace = true }
 light-ctoken-types = { workspace = true, features = ["anchor"] }
 pinocchio-pubkey = { workspace = true }
 pinocchio-system = { workspace = true }
+pinocchio-token-program = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

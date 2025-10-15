@@ -61,7 +61,7 @@ pub fn process_transfer2(
         process_with_system_program_cpi(accounts, &inputs, &validated_accounts, transfer_config)
     }
 }
-
+// TODO: add mint uniqueness check.
 /// Validate instruction data consistency (lamports, TLV, and CPI context checks)
 #[profile]
 #[inline(always)]
@@ -175,7 +175,7 @@ fn process_with_system_program_cpi(
         inputs,
         &validated_accounts.packed_accounts,
     )?;
-    msg!("here9");
+
     // Process output compressed accounts.
     set_output_compressed_accounts(
         &mut cpi_instruction_struct,

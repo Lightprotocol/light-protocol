@@ -111,8 +111,8 @@ pub fn process_instruction(
     }
     match discriminator {
         InstructionType::CTokenTransfer => {
-            msg!("CTokenTransfer");
-            process_ctoken_transfer(accounts, instruction_data)?;
+            // msg!("CTokenTransfer");
+            process_ctoken_transfer(accounts, &instruction_data[2..])?;
         }
         InstructionType::CreateAssociatedTokenAccount => {
             msg!("CreateAssociatedTokenAccount");

@@ -1,3 +1,5 @@
+#![allow(clippy::result_large_err)]
+
 // ============================================================================
 // TRANSFER2 FAILING TESTS - COMPREHENSIVE COVERAGE
 // ============================================================================
@@ -21,7 +23,6 @@ use light_program_test::{
 use light_sdk::instruction::PackedAccounts;
 use light_test_utils::{airdrop_lamports, RpcError};
 use light_token_client::actions::{create_mint, mint_to_compressed, transfer2::approve};
-use serial_test::serial;
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 // ============================================================================
 // Test Setup
@@ -130,8 +131,6 @@ async fn setup_transfer_test(
     Ok(TransferTestContext {
         rpc,
         payer,
-        mint,
-        mint_authority,
         owner,
         recipient,
         transfer2_inputs,
@@ -429,10 +428,9 @@ async fn test_invalid_mint() -> Result<(), RpcError> {
         owner,
         recipient: _,
         mut transfer2_inputs,
-        system_accounts_offset,
+        system_accounts_offset: _,
     } = setup_transfer_test(1000, TokenDataVersion::ShaFlat).await?;
 
-    let mint_packed_index = transfer2_inputs.token_accounts[0].inputs[0].mint;
     let recipient_packed_index = transfer2_inputs.token_accounts[1].output.owner;
 
     // Change mint index in both input and outputs to keep sum check balanced
@@ -473,8 +471,6 @@ async fn test_invalid_version() -> Result<(), RpcError> {
         let TransferTestContext {
             mut rpc,
             payer,
-            mint: _,
-            mint_authority: _,
             owner,
             recipient: _,
             mut transfer2_inputs,
@@ -510,7 +506,7 @@ async fn test_input_out_of_bounds() -> Result<(), RpcError> {
         payer,
         owner,
         recipient: _,
-        mut transfer2_inputs,
+        transfer2_inputs,
         system_accounts_offset: _,
     } = setup_transfer_test(1000, TokenDataVersion::ShaFlat).await?;
 
@@ -585,7 +581,7 @@ async fn test_output_out_of_bounds() -> Result<(), RpcError> {
         payer,
         owner,
         recipient: _,
-        mut transfer2_inputs,
+        transfer2_inputs,
         system_accounts_offset: _,
     } = setup_transfer_test(1000, TokenDataVersion::ShaFlat).await?;
 
@@ -797,7 +793,7 @@ async fn test_has_delegate_flag_mismatch() -> Result<(), RpcError> {
                 mut transfer2_inputs,
                 system_accounts_offset: _,
             },
-            delegate,
+            _,
         ) = setup_transfer_test_with_delegate(1000, TokenDataVersion::ShaFlat).await?;
         println!("transfer2_inputs {:?}", transfer2_inputs);
 
@@ -831,10 +827,8 @@ async fn test_has_delegate_flag_mismatch() -> Result<(), RpcError> {
                 mut transfer2_inputs,
                 system_accounts_offset: _,
             },
-            delegate,
+            _,
         ) = setup_transfer_test_with_delegate(1000, TokenDataVersion::ShaFlat).await?;
-
-        let delegate_index = transfer2_inputs.token_accounts[0].inputs[0].delegate;
 
         // Set has_delegate=false but keep delegate index non-zero (mismatch with actual account)
         transfer2_inputs.token_accounts[0].inputs[0].has_delegate = false;
@@ -861,12 +855,12 @@ async fn test_has_delegate_flag_mismatch() -> Result<(), RpcError> {
             TransferTestContext {
                 mut rpc,
                 payer,
-                owner,
+                owner: _,
                 recipient: _,
                 mut transfer2_inputs,
                 system_accounts_offset,
             },
-            delegate,
+            _,
         ) = setup_transfer_test_with_delegate(1000, TokenDataVersion::ShaFlat).await?;
 
         // Create an invalid delegate (not the actual delegate from approve())
@@ -907,12 +901,12 @@ async fn test_has_delegate_flag_mismatch() -> Result<(), RpcError> {
             TransferTestContext {
                 mut rpc,
                 payer,
-                owner,
+                owner: _,
                 recipient: _,
-                mut transfer2_inputs,
+                transfer2_inputs,
                 system_accounts_offset,
             },
-            delegate,
+            _,
         ) = setup_transfer_test_with_delegate(1000, TokenDataVersion::ShaFlat).await?;
 
         let owner_packed_index = transfer2_inputs.token_accounts[0].inputs[0].owner;
@@ -944,7 +938,7 @@ async fn test_has_delegate_flag_mismatch() -> Result<(), RpcError> {
                 payer,
                 owner: _,
                 recipient: _,
-                mut transfer2_inputs,
+                transfer2_inputs,
                 system_accounts_offset,
             },
             delegate,

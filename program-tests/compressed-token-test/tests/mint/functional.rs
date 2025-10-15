@@ -308,6 +308,7 @@ async fn test_create_compressed_mint() {
             amount: compress_amount,
             authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
+            pool_index: None,
         })],
         payer.pubkey(),
     )
@@ -334,6 +335,7 @@ async fn test_create_compressed_mint() {
             amount: compress_amount,
             authority: new_recipient_keypair.pubkey(),
             output_queue,
+            pool_index: None,
         },
     )
     .await;
@@ -351,6 +353,7 @@ async fn test_create_compressed_mint() {
             amount: transfer_compress_amount,
             authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
+            pool_index: None,
         })],
         payer.pubkey(),
     )
@@ -387,6 +390,7 @@ async fn test_create_compressed_mint() {
             amount: multi_compress_amount,
             authority: new_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
+            pool_index: None,
         })],
         payer.pubkey(),
     )
@@ -462,6 +466,7 @@ async fn test_create_compressed_mint() {
                 decompress_amount,
                 solana_token_account: decompress_dest_ata,
                 amount: decompress_amount,
+                pool_index: None,
             }),
             // 3. Compress SPL tokens to compressed tokens
             Transfer2InstructionType::Compress(CompressInput {
@@ -472,6 +477,7 @@ async fn test_create_compressed_mint() {
                 amount: compress_amount_multi,
                 authority: new_recipient_keypair.pubkey(), // Authority for compression
                 output_queue: multi_output_queue,
+                pool_index: None,
             }),
         ];
         // Create the combined multi-transfer instruction
@@ -682,7 +688,7 @@ async fn test_ctoken_transfer() {
             owner: recipient_keypair.pubkey(),
             mint: spl_mint_pda,
             rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-            pre_pay_num_epochs: 1,
+            pre_pay_num_epochs: 10,
             lamports_per_write: Some(1000),
             compressible_config: rpc
                 .test_accounts
@@ -695,7 +701,9 @@ async fn test_ctoken_transfer() {
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-
+    // rpc.airdrop_lamports(&recipient_ata, 10_000_000_090)
+    //     .await
+    //     .unwrap();
     // === STEP 1: CREATE COMPRESSED MINT AND MINT TO DECOMPRESSED ACCOUNT ===
     let decompressed_recipients = vec![Recipient {
         recipient: recipient_keypair.pubkey().to_bytes().into(),
@@ -780,6 +788,33 @@ async fn test_ctoken_transfer() {
         recipient_account_before.amount
     );
     rpc.context.warp_to_slot(2);
+    let payer_balance = rpc
+        .get_account(payer.pubkey())
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+    println!("payer_balance balance before transfer: {}", payer_balance);
+    let recipient_ata_balance = rpc
+        .get_account(recipient_ata)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+    println!(
+        "recipient_ata_balance balance before transfer: {}",
+        recipient_ata_balance
+    );
+    let second_recipient_ata_balance = rpc
+        .get_account(recipient_ata)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+    println!(
+        "second_recipient_ata_balance balance before transfer: {}",
+        second_recipient_ata_balance
+    );
     // Execute the decompressed transfer
     let transfer_result = ctoken_transfer(
         &mut rpc,
@@ -837,6 +872,7 @@ async fn test_ctoken_transfer() {
             amount: compress_amount,
             authority: second_recipient_keypair.pubkey(), // Authority for compression
             output_queue,
+            pool_index: None,
         })],
         payer.pubkey(),
     )
@@ -875,6 +911,7 @@ async fn test_ctoken_transfer() {
     assert_transfer2_compress(
         &mut rpc,
         light_token_client::instructions::transfer2::CompressInput {
+            pool_index: None,
             compressed_token_account: None,
             solana_token_account: second_recipient_ata,
             to: compress_recipient.pubkey(),

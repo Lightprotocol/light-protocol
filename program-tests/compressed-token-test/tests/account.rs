@@ -183,15 +183,16 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
 /// 5. SUCCESS: Verify lamports transferred to rent recipient using existing assertion helper
 #[tokio::test]
 #[serial]
-async fn test_compressible_account_with_compression_authority_lifecycle() -> Result<(), RpcError> {
-    let mut context = setup_account_test().await?;
+async fn test_compressible_account_with_compression_authority_lifecycle() {
+    let mut context = setup_account_test().await.unwrap();
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
     let payer_balance_before = context
         .rpc
         .get_account(payer_pubkey)
-        .await?
+        .await
+        .unwrap()
         .expect("Payer should exist")
         .lamports;
 
@@ -199,9 +200,10 @@ async fn test_compressible_account_with_compression_authority_lifecycle() -> Res
     let rent_exemption = context
         .rpc
         .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
-        .await?;
+        .await
+        .unwrap();
 
-    let num_prepaid_epochs = 1;
+    let num_prepaid_epochs = 2;
     let lamports_per_write = Some(100);
 
     // Initialize compressible token account
@@ -225,12 +227,14 @@ async fn test_compressible_account_with_compression_authority_lifecycle() -> Res
                 "Failed to create compressible token account instruction: {}",
                 e
             ))
-        })?;
+        })
+        .unwrap();
     // Verify pool PDA balance decreased by only the rent-exempt amount (not the additional rent)
     let pool_balance_before = context
         .rpc
         .get_account(context.rent_sponsor)
-        .await?
+        .await
+        .unwrap()
         .expect("Pool PDA should exist")
         .lamports;
 
@@ -242,7 +246,8 @@ async fn test_compressible_account_with_compression_authority_lifecycle() -> Res
             &payer_pubkey,
             &[&context.payer, &context.token_account_keypair],
         )
-        .await?;
+        .await
+        .unwrap();
 
     assert_create_token_account(
         &mut context.rpc,
@@ -262,7 +267,8 @@ async fn test_compressible_account_with_compression_authority_lifecycle() -> Res
     let pool_balance_after = context
         .rpc
         .get_account(context.rent_sponsor)
-        .await?
+        .await
+        .unwrap()
         .expect("Pool PDA should exist")
         .lamports;
 
@@ -277,7 +283,8 @@ async fn test_compressible_account_with_compression_authority_lifecycle() -> Res
     let payer_balance_after = context
         .rpc
         .get_account(payer_pubkey)
-        .await?
+        .await
+        .unwrap()
         .expect("Payer should exist")
         .lamports;
 
@@ -285,7 +292,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() -> Res
     let tx_fee = 10_000; // Standard transaction fee
     assert_eq!(
         payer_balance_before - payer_balance_after,
-        11_348 + tx_fee,
+        11_776 + tx_fee,
         "Payer should have paid exactly 14,830 lamports for additional rent (1 epoch) plus {} tx fee",
         tx_fee
     );
@@ -299,9 +306,11 @@ async fn test_compressible_account_with_compression_authority_lifecycle() -> Res
         let output_queue = context
             .rpc
             .get_random_state_tree_info()
-            .map_err(|e| RpcError::AssertRpcError(format!("Failed to get output queue: {}", e)))?
+            .map_err(|e| RpcError::AssertRpcError(format!("Failed to get output queue: {}", e)))
+            .unwrap()
             .get_output_pubkey()
-            .map_err(|e| RpcError::AssertRpcError(format!("Failed to get output pubkey: {}", e)))?;
+            .map_err(|e| RpcError::AssertRpcError(format!("Failed to get output pubkey: {}", e)))
+            .unwrap();
         println!("compressing");
         compress(
             &mut context.rpc,
@@ -311,7 +320,8 @@ async fn test_compressible_account_with_compression_authority_lifecycle() -> Res
             &context.owner_keypair,
             &context.payer,
         )
-        .await?;
+        .await
+        .unwrap();
 
         // Create compress input for assertion
         let compress_input = CompressInput {
@@ -351,7 +361,8 @@ async fn test_compressible_account_with_compression_authority_lifecycle() -> Res
             &payer_pubkey,
             &[&context.owner_keypair, &context.payer],
         )
-        .await?;
+        .await
+        .unwrap();
 
     // Verify account closure using existing assertion helper
     assert_close_token_account(
@@ -361,8 +372,6 @@ async fn test_compressible_account_with_compression_authority_lifecycle() -> Res
         destination.pubkey(), // destination
     )
     .await;
-
-    Ok(())
 }
 
 /// Test:

@@ -6,7 +6,7 @@ use crate::{AnchorDeserialize, AnchorSerialize};
 pub const COMPRESSION_COST: u16 = 10_000;
 pub const COMPRESSION_INCENTIVE: u16 = 1000;
 
-pub const MIN_RENT: u16 = 128;
+pub const BASE_RENT: u16 = 128;
 pub const RENT_PER_BYTE: u8 = 1;
 pub const SLOTS_PER_EPOCH: u64 = 6300; // 1.75h
 
@@ -43,7 +43,7 @@ pub trait RentConfigTrait {
     /// Calculate total rent including compression cost
     #[inline(always)]
     fn get_rent_with_compression_cost(&self, num_bytes: u64, epochs: u64) -> u64 {
-        self.rent_curve_per_epoch(num_bytes) * epochs + self.compression_cost()
+        self.get_rent(num_bytes, epochs) + self.compression_cost()
     }
 }
 
@@ -77,7 +77,7 @@ pub struct RentConfig {
 impl Default for RentConfig {
     fn default() -> Self {
         Self {
-            base_rent: MIN_RENT,
+            base_rent: BASE_RENT,
             compression_cost: COMPRESSION_COST + COMPRESSION_INCENTIVE,
             lamports_per_byte_per_epoch: RENT_PER_BYTE,
             max_funded_epochs: 2, // once the account is funded for max_funded_epochs top up per write is not executed

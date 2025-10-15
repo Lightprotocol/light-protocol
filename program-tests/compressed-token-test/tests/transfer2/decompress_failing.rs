@@ -1,3 +1,7 @@
+#![allow(clippy::result_large_err)]
+#![allow(clippy::to_string_in_format_args)]
+#![allow(clippy::unwrap_or_default)]
+
 // ============================================================================
 // DECOMPRESS TESTS (compressed → Solana account)
 // ============================================================================
@@ -58,11 +62,7 @@ use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 struct DecompressionTestContext {
     pub rpc: LightProgramTest,
     pub payer: Keypair,
-    pub mint: Pubkey,
-    pub mint_seed: Keypair,
-    pub mint_authority: Keypair,
     pub owner: Keypair,
-    pub ctoken_ata: Pubkey,
     pub decompression_inputs: Transfer2Inputs,
     pub system_accounts_offset: usize,
 }
@@ -159,8 +159,6 @@ async fn setup_decompression_test(
     let decompression_inputs = create_decompression_inputs(
         compressed_token_account,
         ctoken_ata,
-        mint,
-        owner.pubkey(),
         compressed_amount,
         payer.pubkey(),
     )
@@ -185,11 +183,7 @@ async fn setup_decompression_test(
     Ok(DecompressionTestContext {
         rpc,
         payer,
-        mint,
-        mint_seed,
-        mint_authority,
         owner,
-        ctoken_ata,
         decompression_inputs,
         system_accounts_offset,
     })
@@ -203,8 +197,6 @@ async fn setup_decompression_test(
 async fn create_decompression_inputs(
     compressed_token_account: &CompressedTokenAccount,
     ctoken_ata: Pubkey,
-    mint: Pubkey,
-    owner: Pubkey,
     decompress_amount: u64,
     fee_payer: Pubkey,
 ) -> Result<Transfer2Inputs, RpcError> {
@@ -288,11 +280,7 @@ async fn test_ctoken_decompression_functional() -> Result<(), RpcError> {
     let DecompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
         owner,
-        ctoken_ata: _,
         decompression_inputs,
         system_accounts_offset: _,
     } = setup_decompression_test(1000).await?;
@@ -323,11 +311,7 @@ async fn test_decompression_amount_more_than_output() -> Result<(), RpcError> {
     let DecompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
         owner,
-        ctoken_ata: _,
         mut decompression_inputs,
         system_accounts_offset: _,
     } = setup_decompression_test(1000).await?;
@@ -362,11 +346,7 @@ async fn test_decompression_amount_less_than_output() -> Result<(), RpcError> {
     let DecompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
         owner,
-        ctoken_ata: _,
         mut decompression_inputs,
         system_accounts_offset: _,
     } = setup_decompression_test(1000).await?;
@@ -400,11 +380,7 @@ async fn test_decompression_mint_out_of_bounds() -> Result<(), RpcError> {
     let DecompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
         owner,
-        ctoken_ata: _,
         mut decompression_inputs,
         system_accounts_offset: _,
     } = setup_decompression_test(1000).await?;
@@ -449,11 +425,7 @@ async fn test_decompression_recipient_out_of_bounds() -> Result<(), RpcError> {
     let DecompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
         owner,
-        ctoken_ata: _,
         mut decompression_inputs,
         system_accounts_offset: _,
     } = setup_decompression_test(1000).await?;
@@ -494,11 +466,7 @@ async fn test_decompression_has_delegate_true_but_delegate_zero() -> Result<(), 
     let DecompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
         owner,
-        ctoken_ata: _,
         mut decompression_inputs,
         system_accounts_offset: _,
     } = setup_decompression_test(1000).await?;
@@ -529,11 +497,7 @@ async fn test_decompression_has_delegate_false_but_delegate_nonzero() -> Result<
     let DecompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
         owner: _,
-        ctoken_ata: _,
         mut decompression_inputs,
         system_accounts_offset,
     } = setup_decompression_test(1000).await?;

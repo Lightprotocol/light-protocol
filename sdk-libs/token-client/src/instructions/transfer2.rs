@@ -147,7 +147,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     payer: Pubkey,
 ) -> Result<Instruction, TokenSdkError> {
     println!("here");
-
+    let mut should_filter_zero_outputs = true;
     // // Get a single shared output queue for ALL compress/compress-and-close operations
     // // This prevents reordering issues caused by the sort_by_key at the end
     // let shared_output_queue = rpc
@@ -215,6 +215,9 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     for action in actions {
         match action {
             Transfer2InstructionType::Compress(input) => {
+                if input.amount == 0 {
+                    should_filter_zero_outputs = false;
+                }
                 let mut token_account =
                     if let Some(ref input_token_account) = input.compressed_token_account {
                         let token_data = input_token_account
@@ -590,11 +593,15 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     // // Sort token accounts by merkle_tree index to ensure OutputMerkleTreeIndicesNotInOrder error doesn't occur
     // // The system program requires output merkle tree indices to be in ascending order
     // token_accounts.sort_by_key(|account| account.output.merkle_tree);
-
+    let transfer_config = if should_filter_zero_outputs {
+        Transfer2Config::default().filter_zero_amount_outputs()
+    } else {
+        Transfer2Config::default()
+    };
     let packed_accounts = packed_tree_accounts.to_account_metas().0;
     let inputs = Transfer2Inputs {
         validity_proof: rpc_proof_result.proof,
-        transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
+        transfer_config,
         meta_config: Transfer2AccountsMetaConfig {
             fee_payer: Some(payer),
             packed_accounts: Some(packed_accounts),

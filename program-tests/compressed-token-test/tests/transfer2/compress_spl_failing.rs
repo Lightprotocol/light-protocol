@@ -1,3 +1,7 @@
+#![allow(clippy::result_large_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::to_string_in_format_args)]
+
 // ============================================================================
 // COMPRESS SPL TESTS (SPL token account → compressed)
 // ============================================================================
@@ -59,8 +63,6 @@ struct SplCompressionTestContext {
     pub mint: Pubkey,
     pub sender: Keypair,
     pub spl_token_account: Keypair,
-    pub recipient: Keypair,
-    pub ctoken_ata: Pubkey,
     pub compression_inputs: Transfer2Inputs,
     pub system_accounts_offset: usize,
 }
@@ -151,8 +153,6 @@ async fn setup_spl_compression_test(
         mint,
         sender,
         spl_token_account: spl_token_account_keypair,
-        recipient,
-        ctoken_ata,
         compression_inputs,
         system_accounts_offset,
     })
@@ -237,8 +237,6 @@ async fn test_spl_compression_functional() -> Result<(), RpcError> {
         mint: _,
         sender,
         spl_token_account,
-        recipient: _,
-        ctoken_ata: _,
         compression_inputs,
         system_accounts_offset: _,
     } = setup_spl_compression_test(1000).await?;
@@ -343,7 +341,7 @@ async fn test_spl_compression_invalid_authority_signed() -> Result<(), RpcError>
     let SplCompressionTestContext {
         mut rpc,
         payer,
-        sender,
+        sender: _,
         compression_inputs,
         system_accounts_offset,
         ..
@@ -377,7 +375,7 @@ async fn test_spl_compression_authority_not_signer() -> Result<(), RpcError> {
     let SplCompressionTestContext {
         mut rpc,
         payer,
-        sender,
+        sender: _,
         compression_inputs,
         system_accounts_offset,
         ..
@@ -451,20 +449,19 @@ async fn test_spl_compression_invalid_pool_bump() -> Result<(), RpcError> {
         sender,
         mint,
         mut compression_inputs,
-        system_accounts_offset,
         ..
     } = setup_spl_compression_test(1000).await?;
 
     // Derive pool with correct seed but wrong bump
     let pool_index = 0u8;
-    let (correct_pool_pda, correct_bump) = find_token_pool_pda_with_index(&mint, pool_index);
+    let (_, correct_bump) = find_token_pool_pda_with_index(&mint, pool_index);
 
     // Modify the bump in the compression data to an incorrect value
     if let Some(compression) = &mut compression_inputs.token_accounts[0].compression {
         compression.bump = correct_bump.wrapping_add(1); // Wrong bump
     }
 
-    let mut ix = create_transfer2_instruction(compression_inputs)
+    let ix = create_transfer2_instruction(compression_inputs)
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to create instruction: {:?}", e)))?;
 
     let result = rpc

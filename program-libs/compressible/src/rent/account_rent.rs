@@ -24,6 +24,7 @@ impl AccountRentState {
     ///
     /// # Returns
     /// The lamports available for rent payments, or 0 if insufficient balance
+    #[inline(always)]
     pub fn get_available_rent_balance(
         &self,
         rent_exemption_lamports: u64,
@@ -34,32 +35,28 @@ impl AccountRentState {
             .saturating_sub(compression_cost)
     }
 
-    /// Calculate the number of completed epochs between last claimed slot and current slot.
-    /// This represents epochs for which rent can potentially be claimed.
-    ///
-    /// # Returns
-    /// The number of complete epochs that have passed since rent was last claimed
+    /// The number of complete epochs that have passed since rent was last claimed.
+    #[inline(always)]
     pub fn get_completed_epochs(&self) -> u64 {
-        let last_claimed_epoch = slot_to_epoch(self.last_claimed_slot);
-        let current_epoch = slot_to_epoch(self.current_slot);
-        current_epoch.saturating_sub(last_claimed_epoch)
+        self.get_required_epochs::<false>()
     }
 
     /// Calculate how many epochs of rent are required.
     ///
     /// # Type Parameters
-    /// - `INCLUDE_NEXT_EPOCH`: If true, includes the next epoch (for compressibility checks)
+    /// - `INCLUDE_ONGOING_EPOCH`: If true, includes the next epoch (for compressibility checks)
     ///
     /// # Returns
     /// The number of epochs requiring rent payment
-    pub fn get_required_epochs<const INCLUDE_NEXT_EPOCH: bool>(&self) -> u64 {
-        let current_epoch = slot_to_epoch(self.current_slot);
+    #[inline(always)]
+    pub fn get_required_epochs<const INCLUDE_ONGOING_EPOCH: bool>(&self) -> u64 {
+        let last_completed_epoch = slot_to_epoch(self.current_slot);
         let last_claimed_epoch = slot_to_epoch(self.last_claimed_slot);
 
-        let target_epoch = if INCLUDE_NEXT_EPOCH {
-            current_epoch + 1
+        let target_epoch = if INCLUDE_ONGOING_EPOCH {
+            last_completed_epoch + 1
         } else {
-            current_epoch
+            last_completed_epoch
         };
 
         target_epoch.saturating_sub(last_claimed_epoch)
@@ -71,6 +68,7 @@ impl AccountRentState {
     /// # Returns
     /// - `Some(deficit)`: The account is compressible, returns the deficit amount including compression costs
     /// - `None`: The account is not compressible
+    #[inline(always)]
     pub fn is_compressible(
         &self,
         config: &impl RentConfigTrait,
@@ -78,18 +76,14 @@ impl AccountRentState {
     ) -> Option<u64> {
         let available_balance =
             self.get_available_rent_balance(rent_exemption_lamports, config.compression_cost());
-
         let required_epochs = self.get_required_epochs::<true>(); // include next epoch for compressibility check
-
         let rent_per_epoch = config.rent_curve_per_epoch(self.num_bytes);
+        let lamports_due = rent_per_epoch * required_epochs;
 
-        let total_required = rent_per_epoch * required_epochs;
-        let is_compressible = available_balance < total_required;
-
-        if is_compressible {
+        if available_balance < lamports_due {
             // Include compression cost in deficit so forester can execute
             let deficit =
-                total_required.saturating_sub(available_balance) + config.compression_cost();
+                (lamports_due + config.compression_cost()).saturating_sub(available_balance);
             Some(deficit)
         } else {
             None
@@ -133,60 +127,34 @@ impl AccountRentState {
         config: &impl RentConfigTrait,
         rent_exemption_lamports: u64,
     ) -> CloseDistribution {
-        let details = self.calculate_rent_details::<true>(config, rent_exemption_lamports);
+        let unutilized_lamports = self.get_unused_lamports(config, rent_exemption_lamports);
+
         CloseDistribution {
-            to_rent_sponsor: self.current_lamports - details.unutilized_lamports,
-            to_user: details.unutilized_lamports,
+            to_rent_sponsor: self.current_lamports - unutilized_lamports,
+            to_user: unutilized_lamports,
         }
     }
-
-    /// Get detailed rent calculation for an account.
+    /// Calculate unused lamports after accounting for rent and compression costs.
     ///
     /// # Parameters
     /// - `config`: Rent configuration
     /// - `rent_exemption_lamports`: Solana's required minimum balance
     ///
-    /// # Type Parameters
-    /// - `INCLUDE_CURRENT_EPOCH`: Whether to include the current epoch in required epochs
-    ///
     /// # Returns
-    /// Detailed rent calculation including required epochs, funding status, and unutilized lamports
-    pub fn calculate_rent_details<const INCLUDE_CURRENT_EPOCH: bool>(
+    /// The amount of unused lamports
+    pub fn get_unused_lamports(
         &self,
         config: &impl RentConfigTrait,
         rent_exemption_lamports: u64,
-    ) -> RentCalculation {
+    ) -> u64 {
         let available_balance =
             self.get_available_rent_balance(rent_exemption_lamports, config.compression_cost());
-
-        let required_epochs = self.get_required_epochs::<INCLUDE_CURRENT_EPOCH>();
-
+        let required_epochs = self.get_required_epochs::<true>();
         let rent_per_epoch = config.rent_curve_per_epoch(self.num_bytes);
+        let lamports_due = rent_per_epoch * required_epochs;
 
-        let epochs_funded = available_balance / rent_per_epoch;
-        let unutilized_lamports =
-            available_balance.saturating_sub(rent_per_epoch * required_epochs);
-
-        RentCalculation {
-            required_epochs,
-            rent_per_epoch,
-            epochs_funded,
-            unutilized_lamports,
-        }
+        available_balance.saturating_sub(lamports_due)
     }
-}
-
-/// Result of rent calculation
-#[derive(Debug, Clone, Copy)]
-pub struct RentCalculation {
-    /// Number of epochs requiring rent payment
-    pub required_epochs: u64,
-    /// Rent cost per epoch
-    pub rent_per_epoch: u64,
-    /// Number of epochs the account can fund
-    pub epochs_funded: u64,
-    /// Lamports not utilized for complete epochs
-    pub unutilized_lamports: u64,
 }
 
 /// Distribution of lamports when closing an account
@@ -198,31 +166,15 @@ pub struct CloseDistribution {
     pub to_user: u64,
 }
 
-// ============================================================================
-// Core Helper Functions
-// ============================================================================
-
-/// Convert a slot number to its epoch in Light Protocol's rent system.
-///
-/// Light Protocol uses 6,300 slots per epoch (~1.75 hours) for rent calculations,
-/// which is different from Solana's standard epoch length of 432,000 slots.
+/// First epoch is 0.
 #[inline(always)]
 pub fn slot_to_epoch(slot: u64) -> u64 {
     slot / SLOTS_PER_EPOCH
 }
 
-/// Calculate the last epoch that has been paid for.
-/// Returns the epoch number through which rent has been prepaid.
-///
-/// # Returns
-/// The last epoch number that is covered by rent payments.
-/// This is calculated as: last_claimed_epoch + epochs_paid - 1
-///
-/// # Example
-/// If an account was created in epoch 0 and paid for 3 epochs of rent,
-/// the last paid epoch would be 2 (epochs 0, 1, and 2 are covered).
+/// Forester helper function to index when an account will become compressible.
 #[inline(always)]
-pub fn get_last_paid_epoch(
+pub fn get_last_funded_epoch(
     num_bytes: u64,
     current_lamports: u64,
     last_claimed_slot: impl ZeroCopyNumTrait,
@@ -237,16 +189,18 @@ pub fn get_last_paid_epoch(
         last_claimed_slot: last_claimed_slot.into(),
     };
 
-    let epochs_paid = state
-        .calculate_rent_details::<false>(config, rent_exemption_lamports)
-        .epochs_funded;
+    let available_balance =
+        state.get_available_rent_balance(rent_exemption_lamports, config.compression_cost());
+    let rent_per_epoch = config.rent_curve_per_epoch(state.num_bytes);
+    let epochs_funded = available_balance / rent_per_epoch;
 
     let last_claimed_epoch: u64 = slot_to_epoch(state.last_claimed_slot);
 
     // The last paid epoch is the last claimed epoch plus epochs paid minus 1
-    // If no epochs are paid, the account is immediately compressible
-    if epochs_paid > 0 {
-        last_claimed_epoch + epochs_paid - 1
+    // If no epochs are paid, the account is immediately compressible.
+    // Epochs start at 0.
+    if epochs_funded > 0 {
+        last_claimed_epoch + epochs_funded - 1
     } else {
         // No rent paid, last paid epoch is before last claimed
         last_claimed_epoch.saturating_sub(1)

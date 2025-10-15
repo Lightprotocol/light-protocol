@@ -201,12 +201,12 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                         .checked_sub(compression_cost)
                         .ok_or(ProgramError::InsufficientFunds)?;
 
-                    // User funds also go to rent_sponsor
+                    // Unused funds also go to rent_sponsor.
                     lamports_to_rent_sponsor += lamports_to_destination;
                     lamports_to_destination = compression_cost; // This will go to fee_payer (forester)
                 }
 
-                // Transfer lamports to rent recipient
+                // Transfer lamports to rent sponsor.
                 if lamports_to_rent_sponsor > 0 {
                     transfer_lamports(
                         lamports_to_rent_sponsor,
@@ -216,7 +216,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
                     .map_err(convert_program_error)?;
                 }
 
-                // Transfer lamports to destination (user funds)
+                // Transfer lamports to destination (user or forester).
                 if lamports_to_destination > 0 {
                     transfer_lamports(
                         lamports_to_destination,
@@ -248,6 +248,6 @@ fn finalize_account_closure(accounts: &CloseTokenAccountAccounts<'_>) -> Result<
     }
     match accounts.token_account.resize(0) {
         Ok(()) => Ok(()),
-        Err(e) => Err(ProgramError::Custom(u64::from(e) as u32)),
+        Err(e) => Err(ProgramError::Custom(u64::from(e) as u32 + 6000)),
     }
 }

@@ -218,6 +218,7 @@ groth16-solana = { version = "0.2.0" }
 bytemuck = { version = "1.19.0" }
 arrayvec = "0.7"
 tinyvec = "1.10.0"
+pinocchio-token-program = { path = "../token/p-token", version = "0.1.0" }
 
 # Math and crypto
 num-bigint = "0.4.6"
@@ -241,9 +242,9 @@ rand = "0.8.5"
 
 [patch.crates-io]
 # Profiling logs and state is handled here
-solana-program-runtime = { git = "https://github.com/Lightprotocol/agave", rev = "be34dc76559e14921a2c8610f2fa2402bf0684bb" }
+solana-program-runtime = { git = "https://github.com/Lightprotocol/agave", rev = "3a9e4e0a4411df4d9961aaa7c9f190d3fa15bc21" }
 # Profiling syscalls are defined here
-solana-bpf-loader-program = { git = "https://github.com/Lightprotocol/agave", rev = "be34dc76559e14921a2c8610f2fa2402bf0684bb" }
+solana-bpf-loader-program = { git = "https://github.com/Lightprotocol/agave", rev = "3a9e4e0a4411df4d9961aaa7c9f190d3fa15bc21" }
 # Patch solana-program-memory to use older version where is_nonoverlapping is public
 solana-program-memory = { git = "https://github.com/anza-xyz/solana-sdk", rev = "1c1d667f161666f12f5a43ebef8eda9470a8c6ee" }
 litesvm = { git = "https://github.com/Lightprotocol/litesvm", rev = "a04cb80b6847eb720c840a5e5d9a6f74ce630cc6" }

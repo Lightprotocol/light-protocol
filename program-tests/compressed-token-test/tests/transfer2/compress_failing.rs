@@ -1,3 +1,7 @@
+#![allow(clippy::result_large_err)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::to_string_in_format_args)]
+
 // ============================================================================
 // COMPRESS TESTS (Solana account → compressed)
 // ============================================================================
@@ -57,11 +61,8 @@ use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 struct CompressionTestContext {
     pub rpc: LightProgramTest,
     pub payer: Keypair,
-    pub mint: Pubkey,
-    pub mint_seed: Keypair,
-    pub mint_authority: Keypair,
+
     pub owner: Keypair,
-    pub ctoken_ata: Pubkey,
     pub compression_inputs: Transfer2Inputs,
     pub system_accounts_offset: usize, // Offset to add to packed account indices to get instruction account indices
 }
@@ -174,11 +175,8 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
     Ok(CompressionTestContext {
         rpc,
         payer,
-        mint,
-        mint_seed,
-        mint_authority,
+
         owner,
-        ctoken_ata,
         compression_inputs,
         system_accounts_offset,
     })
@@ -250,11 +248,7 @@ async fn test_ctoken_compression_functional() -> Result<(), RpcError> {
     let CompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
         owner,
-        ctoken_ata: _,
         compression_inputs,
         system_accounts_offset: _,
     } = setup_compression_test(1000).await?;
@@ -285,11 +279,8 @@ async fn test_compression_amount_less_than_output() -> Result<(), RpcError> {
     let CompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
+
         owner,
-        ctoken_ata: _,
         mut compression_inputs,
         system_accounts_offset: _,
     } = setup_compression_test(1000).await?;
@@ -320,11 +311,8 @@ async fn test_compression_amount_more_than_output() -> Result<(), RpcError> {
     let CompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
+
         owner,
-        ctoken_ata: _,
         mut compression_inputs,
         system_accounts_offset: _,
     } = setup_compression_test(1000).await?;
@@ -354,11 +342,8 @@ async fn test_compression_invalid_authority_signed() -> Result<(), RpcError> {
     let CompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
+
         owner: _,
-        ctoken_ata: _,
         compression_inputs,
         system_accounts_offset,
     } = setup_compression_test(1000).await?;
@@ -408,11 +393,7 @@ async fn test_compression_authority_not_signer() -> Result<(), RpcError> {
     let CompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
-        owner,
-        ctoken_ata: _,
+        owner: _,
         compression_inputs,
         system_accounts_offset,
     } = setup_compression_test(1000).await?;
@@ -449,11 +430,7 @@ async fn test_compression_invalid_mint() -> Result<(), RpcError> {
     let CompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
         owner,
-        ctoken_ata: _,
         mut compression_inputs,
         system_accounts_offset: _,
     } = setup_compression_test(1000).await?;
@@ -500,11 +477,7 @@ async fn test_compression_authority_out_of_bounds() -> Result<(), RpcError> {
     let CompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
         owner,
-        ctoken_ata: _,
         mut compression_inputs,
         system_accounts_offset: _,
     } = setup_compression_test(1000).await?;
@@ -545,11 +518,7 @@ async fn test_compression_mint_out_of_bounds() -> Result<(), RpcError> {
     let CompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
         owner,
-        ctoken_ata: _,
         mut compression_inputs,
         system_accounts_offset: _,
     } = setup_compression_test(1000).await?;
@@ -586,11 +555,7 @@ async fn test_compression_recipient_out_of_bounds() -> Result<(), RpcError> {
     let CompressionTestContext {
         mut rpc,
         payer,
-        mint: _,
-        mint_seed: _,
-        mint_authority: _,
         owner,
-        ctoken_ata: _,
         mut compression_inputs,
         system_accounts_offset: _,
     } = setup_compression_test(1000).await?;

@@ -4,6 +4,7 @@ use pinocchio_system::instructions::Transfer as SystemTransfer;
 use spl_pod::solana_msg::msg;
 
 /// A transfer instruction containing the recipient account and amount
+#[derive(Debug)]
 pub struct Transfer<'a> {
     pub account: &'a AccountInfo,
     pub amount: u64,
@@ -64,10 +65,6 @@ pub fn multi_transfer_lamports(
     payer: &AccountInfo,
     transfers: &[Transfer],
 ) -> Result<(), ProgramError> {
-    if transfers.is_empty() {
-        return Ok(());
-    }
-
     // Calculate total amount needed
     let total_amount: u64 = transfers
         .iter()

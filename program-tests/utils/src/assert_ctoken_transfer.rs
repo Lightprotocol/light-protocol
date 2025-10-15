@@ -11,6 +11,7 @@ pub async fn assert_compressible_for_account(
     name: &str,
     account_pubkey: Pubkey,
 ) {
+    println!("account_pubkey {:?}", account_pubkey);
     // Get pre-transaction state from cache
     let pre_account = rpc
         .get_pre_transaction_account(&account_pubkey)
@@ -98,8 +99,18 @@ pub async fn assert_compressible_for_account(
                     "{} config_account_version should not change",
                     name
                 );
+                let current_slot = rpc.get_slot().await.unwrap();
+                let top_up = compressible_before
+                    .calculate_top_up_lamports(
+                        261,
+                        current_slot,
+                        lamports_after,
+                        compressible_before.lamports_per_write.into(),
+                        2707440,
+                    )
+                    .unwrap();
                 // Check if lamports_per_write is non-zero
-                if compressible_before.lamports_per_write != 0 {
+                if top_up != 0 {
                     assert_eq!(
                         lamports_before + u64::from(compressible_before.lamports_per_write),
                         lamports_after
@@ -166,7 +177,16 @@ pub async fn assert_ctoken_transfer(
             spl_token_2022::state::Account::unpack(&sender_account_data.data[..165]).unwrap();
         let recipient_account_after =
             spl_token_2022::state::Account::unpack(&recipient_account_data.data[..165]).unwrap();
-        assert_eq!(sender_account_after, sender_token_before);
-        assert_eq!(recipient_account_after, recipient_token_before);
+
+        assert_eq!(
+            recipient_account_after, recipient_token_before,
+            "transfer_amount {}",
+            transfer_amount
+        );
+        assert_eq!(
+            sender_account_after, sender_token_before,
+            "transfer_amount {}",
+            transfer_amount
+        );
     }
 }

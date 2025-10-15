@@ -15,9 +15,6 @@ fn test_rent_config() -> RentConfig {
 }
 
 pub fn get_rent_exemption_lamports(_num_bytes: u64) -> u64 {
-    // Standard rent-exempt balance for tests: 890880 + 6.96 * bytes
-    // This matches Solana's rent calculation
-    // 890_880 + ((696 * _num_bytes + 99) / 100)
     2707440
 }
 
@@ -139,52 +136,82 @@ fn test_claim_method() {
 
 #[test]
 fn test_get_last_paid_epoch() {
-    // Test the get_last_paid_epoch function with various scenarios
+    // Test the get_last_funded_epoch function with various scenarios
+    let rent_exemption_lamports = get_rent_exemption_lamports(TEST_BYTES);
 
     // Test case 1: Account created in epoch 0 with 3 epochs of rent
-    let extension = CompressionInfo {
-        account_version: 3,
-        config_account_version: 1,
-        compression_authority: [0u8; 32],
-        rent_sponsor: [0u8; 32],
-        last_claimed_slot: 0, // Created in epoch 0
-        lamports_per_write: 0,
-        compress_to_pubkey: 0,
-        rent_config: test_rent_config(),
-    };
+    {
+        let extension = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
+            compression_authority: [0u8; 32],
+            rent_sponsor: [0u8; 32],
+            last_claimed_slot: 0, // Created in epoch 0
+            lamports_per_write: 0,
+            compress_to_pubkey: 0,
+            rent_config: test_rent_config(),
+        };
 
-    // Has 3 epochs of rent
-    let current_lamports =
-        get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 3) + FULL_COMPRESSION_COSTS;
-    let rent_exemption_lamports = get_rent_exemption_lamports(TEST_BYTES);
-    let last_paid = extension
-        .get_last_paid_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
-        .unwrap();
+        // Has 3 epochs of rent
+        let current_lamports =
+            get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 3) + FULL_COMPRESSION_COSTS;
+        let last_funded_epoch = extension
+            .get_last_funded_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
+            .unwrap();
 
-    assert_eq!(
-        last_paid, 2,
-        "Should be paid through epoch 2 (epochs 0, 1, 2)"
-    );
+        assert_eq!(
+            last_funded_epoch, 2,
+            "Should be paid through epoch 2 (epochs 0, 1, 2)"
+        );
+    }
+    // Test case 1: Account created in epoch 0 with 3 epochs of rent
+    {
+        let extension = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
+            compression_authority: [0u8; 32],
+            rent_sponsor: [0u8; 32],
+            last_claimed_slot: SLOTS_PER_EPOCH - 1, // Created in epoch 0
+            lamports_per_write: 0,
+            compress_to_pubkey: 0,
+            rent_config: test_rent_config(),
+        };
 
+        // Has 3 epochs of rent
+        let current_lamports =
+            get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 3) + FULL_COMPRESSION_COSTS;
+        let last_funded_epoch = extension
+            .get_last_funded_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
+            .unwrap();
+
+        assert_eq!(
+            last_funded_epoch, 2,
+            "Should be paid through epoch 2 (epochs 0, 1, 2)"
+        );
+    }
     // Test case 2: Account created in epoch 1 with 2 epochs of rent
-    let extension = CompressionInfo {
-        account_version: 3,
-        config_account_version: 1,
-        compression_authority: [0u8; 32],
-        rent_sponsor: [0u8; 32],
-        last_claimed_slot: SLOTS_PER_EPOCH, // Created in epoch 1
-        lamports_per_write: 0,
-        compress_to_pubkey: 0,
-        rent_config: test_rent_config(),
-    };
+    {
+        let extension = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
+            compression_authority: [0u8; 32],
+            rent_sponsor: [0u8; 32],
+            last_claimed_slot: SLOTS_PER_EPOCH, // Created in epoch 1
+            lamports_per_write: 0,
+            compress_to_pubkey: 0,
+            rent_config: test_rent_config(),
+        };
 
-    let current_lamports =
-        get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 2) + FULL_COMPRESSION_COSTS;
-    let last_paid = extension
-        .get_last_paid_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
-        .unwrap();
-    assert_eq!(last_paid, 2, "Should be paid through epoch 2 (epochs 1, 2)");
-
+        let current_lamports =
+            get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 2) + FULL_COMPRESSION_COSTS;
+        let last_funded_epoch = extension
+            .get_last_funded_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
+            .unwrap();
+        assert_eq!(
+            last_funded_epoch, 2,
+            "Should be paid through epoch 2 (epochs 1, 2)"
+        );
+    }
     // Test case 3: Account with no rent paid (immediately compressible)
     let extension = CompressionInfo {
         account_version: 3,
@@ -198,97 +225,108 @@ fn test_get_last_paid_epoch() {
     };
 
     let current_lamports = get_rent_exemption_lamports(TEST_BYTES) + FULL_COMPRESSION_COSTS; // No rent paid
-    let last_paid = extension
-        .get_last_paid_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
+    let last_funded_epoch = extension
+        .get_last_funded_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
         .unwrap();
     assert_eq!(
-        last_paid, 1,
+        last_funded_epoch, 1,
         "With no rent, last paid epoch should be epoch 1 (before creation)"
     );
 
     // Test case 4: Account with 1 epoch of rent
-    let extension = CompressionInfo {
-        account_version: 3,
-        config_account_version: 1,
-        compression_authority: [0u8; 32],
-        rent_sponsor: [0u8; 32],
-        last_claimed_slot: 0,
-        lamports_per_write: 0,
-        compress_to_pubkey: 0,
-        rent_config: test_rent_config(),
-    };
+    {
+        let extension = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
+            compression_authority: [0u8; 32],
+            rent_sponsor: [0u8; 32],
+            last_claimed_slot: 0,
+            lamports_per_write: 0,
+            compress_to_pubkey: 0,
+            rent_config: test_rent_config(),
+        };
 
-    let current_lamports =
-        get_rent_exemption_lamports(TEST_BYTES) + RENT_PER_EPOCH + FULL_COMPRESSION_COSTS;
-    let last_paid = extension
-        .get_last_paid_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
-        .unwrap();
-    assert_eq!(last_paid, 0, "Should be paid through epoch 0 only");
-
+        let current_lamports =
+            get_rent_exemption_lamports(TEST_BYTES) + RENT_PER_EPOCH + FULL_COMPRESSION_COSTS;
+        let last_funded_epoch = extension
+            .get_last_funded_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
+            .unwrap();
+        assert_eq!(last_funded_epoch, 0, "Should be paid through epoch 0 only");
+    }
     // Test case 5: Account with massive prepayment (100 epochs)
-    let extension = CompressionInfo {
-        account_version: 3,
-        config_account_version: 1,
-        compression_authority: [0u8; 32],
-        rent_sponsor: [0u8; 32],
-        last_claimed_slot: SLOTS_PER_EPOCH * 5, // Created in epoch 5
-        lamports_per_write: 0,
-        compress_to_pubkey: 0,
-        rent_config: test_rent_config(),
-    };
+    {
+        let extension = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
+            compression_authority: [0u8; 32],
+            rent_sponsor: [0u8; 32],
+            last_claimed_slot: SLOTS_PER_EPOCH * 5, // Created in epoch 5
+            lamports_per_write: 0,
+            compress_to_pubkey: 0,
+            rent_config: test_rent_config(),
+        };
 
-    let current_lamports =
-        get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 100) + FULL_COMPRESSION_COSTS;
-    let last_paid = extension
-        .get_last_paid_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
-        .unwrap();
-    assert_eq!(
-        last_paid, 104,
-        "Should be paid through epoch 104 (5 + 100 - 1)"
-    );
-
+        let current_lamports = get_rent_exemption_lamports(TEST_BYTES)
+            + (RENT_PER_EPOCH * 100)
+            + FULL_COMPRESSION_COSTS;
+        let last_funded_epoch = extension
+            .get_last_funded_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
+            .unwrap();
+        assert_eq!(
+            last_funded_epoch, 104,
+            "Should be paid through epoch 104 (5 + 100 - 1)"
+        );
+    }
     // Test case 6: Account with partial epoch payment (1.5 epochs)
-    let extension = CompressionInfo {
-        account_version: 3,
-        config_account_version: 1,
-        compression_authority: [0u8; 32],
-        rent_sponsor: [0u8; 32],
-        last_claimed_slot: 0,
-        lamports_per_write: 0,
-        compress_to_pubkey: 0,
-        rent_config: test_rent_config(),
-    };
+    {
+        let extension = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
+            compression_authority: [0u8; 32],
+            rent_sponsor: [0u8; 32],
+            last_claimed_slot: 0,
+            lamports_per_write: 0,
+            compress_to_pubkey: 0,
+            rent_config: test_rent_config(),
+        };
 
-    let current_lamports =
-        get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 3 / 2) + FULL_COMPRESSION_COSTS; // 1.5 epochs
-    let last_paid = extension
-        .get_last_paid_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
-        .unwrap();
-    assert_eq!(
-        last_paid, 0,
-        "Partial epochs round down, so only epoch 0 is paid"
-    );
+        let current_lamports = get_rent_exemption_lamports(TEST_BYTES)
+            + (RENT_PER_EPOCH * 3 / 2)
+            + FULL_COMPRESSION_COSTS; // 1.5 epochs
+        let last_funded_epoch = extension
+            .get_last_funded_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
+            .unwrap();
+        assert_eq!(
+            last_funded_epoch, 0,
+            "Partial epochs round down, so only epoch 0 is paid"
+        );
+    }
 
     // Test case 7: Zero-copy config_account_version test
-    let extension_data = CompressionInfo {
-        account_version: 3,
-        config_account_version: 1,
-        compression_authority: [1; 32],
-        rent_sponsor: [2; 32],
-        last_claimed_slot: SLOTS_PER_EPOCH * 3, // Epoch 3
-        lamports_per_write: 100,
-        compress_to_pubkey: 0,
-        rent_config: test_rent_config(),
-    };
+    {
+        let extension_data = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
+            compression_authority: [1; 32],
+            rent_sponsor: [2; 32],
+            last_claimed_slot: SLOTS_PER_EPOCH * 3, // Epoch 3
+            lamports_per_write: 100,
+            compress_to_pubkey: 0,
+            rent_config: test_rent_config(),
+        };
 
-    let extension_bytes = extension_data.try_to_vec().unwrap();
-    let (z_extension, _) = CompressionInfo::zero_copy_at(&extension_bytes)
-        .expect("Failed to create zero-copy extension");
+        let extension_bytes = extension_data.try_to_vec().unwrap();
+        let (z_extension, _) = CompressionInfo::zero_copy_at(&extension_bytes)
+            .expect("Failed to create zero-copy extension");
 
-    let current_lamports =
-        get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 5) + FULL_COMPRESSION_COSTS;
-    let last_paid = z_extension
-        .get_last_paid_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
-        .unwrap();
-    assert_eq!(last_paid, 7, "Should be paid through epoch 7 (3 + 5 - 1)");
+        let current_lamports =
+            get_rent_exemption_lamports(TEST_BYTES) + (RENT_PER_EPOCH * 5) + FULL_COMPRESSION_COSTS;
+        let last_funded_epoch = z_extension
+            .get_last_funded_epoch(TEST_BYTES, current_lamports, rent_exemption_lamports)
+            .unwrap();
+        assert_eq!(
+            last_funded_epoch, 7,
+            "Should be paid through epoch 7 (3 + 5 - 1)"
+        );
+    }
 }

@@ -6,15 +6,11 @@ use light_ctoken_types::{
 use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::account_info::AccountInfo;
-use spl_token::instruction::TokenInstruction;
+use pinocchio_token_program::processor::transfer::process_transfer;
 
-use crate::{
-    convert_account_infos::convert_account_infos,
-    shared::{
-        convert_program_error,
-        transfer_lamports::{multi_transfer_lamports, Transfer},
-    },
-    MAX_ACCOUNTS,
+use crate::shared::{
+    convert_program_error,
+    transfer_lamports::{multi_transfer_lamports, Transfer},
 };
 
 /// Process ctoken transfer instruction
@@ -30,34 +26,11 @@ pub fn process_ctoken_transfer<'a>(
         );
         return Err(ProgramError::NotEnoughAccountKeys);
     }
-    let instruction = TokenInstruction::unpack(&instruction_data[1..])?;
-    match instruction {
-        TokenInstruction::Transfer { amount } => {
-            let account_infos = unsafe { convert_account_infos::<MAX_ACCOUNTS>(accounts)? };
-            process_light_token_transfer(&crate::ID, &account_infos, amount)?;
-        }
-        _ => return Err(ProgramError::InvalidInstructionData),
-    };
-    calculate_and_execute_top_up_transfers(accounts)?;
-    Ok(())
-}
 
-// Note:
-//  We need to use light_token_22 fork for token_22 contains
-//  a hardcoded program id check for account ownership.
-#[profile]
-fn process_light_token_transfer(
-    program_id: &anchor_lang::prelude::Pubkey,
-    account_infos: &[anchor_lang::prelude::AccountInfo],
-    amount: u64,
-) -> Result<(), ProgramError> {
-    light_token_22::processor::Processor::process_transfer(
-        program_id,
-        account_infos,
-        amount,
-        None,
-        None,
-    )
+    process_transfer(accounts, instruction_data)
+        .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+
+    calculate_and_execute_top_up_transfers(accounts)
 }
 
 /// Calculate and execute top-up transfers for compressible accounts
@@ -104,6 +77,7 @@ fn calculate_and_execute_top_up_transfers(
                                 current_slot,
                                 transfer.account.lamports(),
                                 compressible_extension.lamports_per_write.into(),
+                                2707440,
                             )
                             .map_err(|_| CTokenError::InvalidAccountData)?;
                     }
@@ -119,8 +93,11 @@ fn calculate_and_execute_top_up_transfers(
         return Ok(());
     }
 
-    let payer = accounts.get(2).ok_or(ProgramError::NotEnoughAccountKeys)?;
-    multi_transfer_lamports(payer, &transfers).map_err(convert_program_error)?;
-
+    if transfers[0].amount == 0 && transfers[1].amount == 0 {
+        return Ok(());
+    } else {
+        let payer = accounts.get(2).ok_or(ProgramError::NotEnoughAccountKeys)?;
+        multi_transfer_lamports(payer, &transfers).map_err(convert_program_error)?;
+    }
     Ok(())
 }
