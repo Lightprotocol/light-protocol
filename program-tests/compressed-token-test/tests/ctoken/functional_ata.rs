@@ -82,6 +82,7 @@ async fn test_associated_token_account_operations() {
             lamports_per_write,
             compress_to_pubkey: false,
             account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            payer: payer_pubkey,
         }),
     )
     .await;

@@ -77,3 +77,95 @@ pub async fn setup_destination_account(
 
     Ok((destination_keypair, initial_lamports))
 }
+
+pub async fn create_and_assert_token_account(
+    context: &mut AccountTestContext,
+    compressible_data: CompressibleData,
+    name: &str,
+) {
+    println!("Account creation initiated for: {}", name);
+
+    let payer_pubkey = context.payer.pubkey();
+    let token_account_pubkey = context.token_account_keypair.pubkey();
+
+    let create_token_account_ix =
+        light_compressed_token_sdk::instructions::create_compressible_token_account(
+            light_compressed_token_sdk::instructions::CreateCompressibleTokenAccount {
+                account_pubkey: token_account_pubkey,
+                mint_pubkey: context.mint_pubkey,
+                owner_pubkey: context.owner_keypair.pubkey(),
+                compressible_config: context.compressible_config,
+                rent_sponsor: compressible_data.rent_sponsor,
+                pre_pay_num_epochs: compressible_data.num_prepaid_epochs,
+                lamports_per_write: compressible_data.lamports_per_write,
+                payer: payer_pubkey,
+                compress_to_account_pubkey: None,
+                token_account_version: compressible_data.account_version,
+            },
+        )
+        .unwrap();
+
+    context
+        .rpc
+        .create_and_send_transaction(
+            &[create_token_account_ix],
+            &payer_pubkey,
+            &[&context.payer, &context.token_account_keypair],
+        )
+        .await
+        .unwrap();
+
+    assert_create_token_account(
+        &mut context.rpc,
+        token_account_pubkey,
+        context.mint_pubkey,
+        context.owner_keypair.pubkey(),
+        Some(compressible_data),
+    )
+    .await;
+}
+
+/// Create token account expecting failure with specific error code
+pub async fn create_and_assert_token_account_fails(
+    context: &mut AccountTestContext,
+    compressible_data: CompressibleData,
+    name: &str,
+    expected_error_code: u32,
+) {
+    println!(
+        "Account creation (expecting failure) initiated for: {}",
+        name
+    );
+
+    let payer_pubkey = context.payer.pubkey();
+    let token_account_pubkey = context.token_account_keypair.pubkey();
+
+    let create_token_account_ix =
+        light_compressed_token_sdk::instructions::create_compressible_token_account(
+            light_compressed_token_sdk::instructions::CreateCompressibleTokenAccount {
+                account_pubkey: token_account_pubkey,
+                mint_pubkey: context.mint_pubkey,
+                owner_pubkey: context.owner_keypair.pubkey(),
+                compressible_config: context.compressible_config,
+                rent_sponsor: compressible_data.rent_sponsor,
+                pre_pay_num_epochs: compressible_data.num_prepaid_epochs,
+                lamports_per_write: compressible_data.lamports_per_write,
+                payer: payer_pubkey,
+                compress_to_account_pubkey: None,
+                token_account_version: compressible_data.account_version,
+            },
+        )
+        .unwrap();
+
+    let result = context
+        .rpc
+        .create_and_send_transaction(
+            &[create_token_account_ix],
+            &payer_pubkey,
+            &[&context.payer, &context.token_account_keypair],
+        )
+        .await;
+
+    // Assert that the transaction failed with the expected error code
+    light_program_test::utils::assert::assert_rpc_error(result, 0, expected_error_code).unwrap();
+}

@@ -52,6 +52,11 @@ pub fn initialize_ctoken_account(
 
     let (base_token_bytes, extension_bytes) = token_account_data.split_at_mut(165);
 
+    if base_token_bytes[108] != 0 {
+        msg!("Token account already initialized");
+        return Err(ErrorCode::AlreadyInitialized.into());
+    }
+
     // Copy mint (32 bytes at offset 0)
     base_token_bytes[0..32].copy_from_slice(mint_pubkey);
 

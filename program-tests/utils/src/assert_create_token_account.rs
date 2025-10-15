@@ -6,6 +6,7 @@ use light_ctoken_types::{
     state::{ctoken::CToken, extensions::CompressionInfo, AccountState},
     BASE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
+use light_program_test::LightProgramTest;
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 
@@ -17,13 +18,14 @@ pub struct CompressibleData {
     pub lamports_per_write: Option<u32>,
     pub compress_to_pubkey: bool,
     pub account_version: light_ctoken_types::state::TokenDataVersion,
+    pub payer: Pubkey,
 }
 
 /// Assert that a token account was created correctly.
 /// If compressible_data is provided, validates compressible token account with extensions.
 /// If compressible_data is None, validates basic SPL token account.
-pub async fn assert_create_token_account<R: Rpc>(
-    rpc: &mut R,
+pub async fn assert_create_token_account(
+    rpc: &mut LightProgramTest,
     token_account_pubkey: Pubkey,
     mint_pubkey: Pubkey,
     owner_pubkey: Pubkey,
@@ -103,6 +105,70 @@ pub async fn assert_create_token_account<R: Rpc>(
             };
 
             assert_eq!(actual_token_account, expected_token_account);
+
+            // Assert payer and rent sponsor balance changes
+            let payer_balance_before = rpc
+                .get_pre_transaction_account(&compressible_info.payer)
+                .expect("Payer should exist in pre-transaction context")
+                .lamports;
+
+            let payer_balance_after = rpc
+                .get_account(compressible_info.payer)
+                .await
+                .expect("Failed to get payer account")
+                .expect("Payer should exist")
+                .lamports;
+
+            let rent_sponsor_balance_before = rpc
+                .get_pre_transaction_account(&compressible_info.rent_sponsor)
+                .expect("Rent sponsor should exist in pre-transaction context")
+                .lamports;
+
+            let rent_sponsor_balance_after = rpc
+                .get_account(compressible_info.rent_sponsor)
+                .await
+                .expect("Failed to get rent sponsor account")
+                .expect("Rent sponsor should exist")
+                .lamports;
+
+            // Transaction fee: 5000 lamports per signature * 2 signers (token_account_keypair + payer) = 10,000 lamports
+            let tx_fee = 10_000;
+
+            // Check if payer is the rent sponsor (custom fee payer case)
+            if compressible_info.payer == compressible_info.rent_sponsor {
+                // Case 2: Custom fee payer - payer pays everything (rent_exemption + rent_with_compression + tx_fee)
+                assert_eq!(
+                    payer_balance_before - payer_balance_after,
+                    rent_exemption + rent_with_compression + tx_fee,
+                    "Custom fee payer should have paid {} lamports (rent exemption) + {} lamports (rent with compression cost) + {} lamports (tx fee) = {} total, but paid {}",
+                    rent_exemption,
+                    rent_with_compression,
+                    tx_fee,
+                    rent_exemption + rent_with_compression + tx_fee,
+                    payer_balance_before - payer_balance_after
+                );
+            } else {
+                // Case 1: With rent sponsor - split payment
+                // Payer pays: rent_with_compression + tx_fee
+                assert_eq!(
+                    payer_balance_before - payer_balance_after,
+                    rent_with_compression + tx_fee,
+                    "Payer should have paid {} lamports (rent with compression cost) + {} lamports (tx fee) = {} total, but paid {}",
+                    rent_with_compression,
+                    tx_fee,
+                    rent_with_compression + tx_fee,
+                    payer_balance_before - payer_balance_after
+                );
+
+                // Rent sponsor pays: rent_exemption only
+                assert_eq!(
+                    rent_sponsor_balance_before - rent_sponsor_balance_after,
+                    rent_exemption,
+                    "Rent sponsor should have paid {} lamports (rent exemption only), but paid {}",
+                    rent_exemption,
+                    rent_sponsor_balance_before - rent_sponsor_balance_after
+                );
+            }
         }
         None => {
             // Validate basic SPL token account
@@ -146,8 +212,8 @@ pub async fn assert_create_token_account<R: Rpc>(
 /// Automatically derives the ATA address from owner and mint.
 /// If compressible_data is provided, validates compressible ATA with extensions.
 /// If compressible_data is None, validates basic SPL ATA.
-pub async fn assert_create_associated_token_account<R: Rpc>(
-    rpc: &mut R,
+pub async fn assert_create_associated_token_account(
+    rpc: &mut LightProgramTest,
     owner_pubkey: Pubkey,
     mint_pubkey: Pubkey,
     compressible_data: Option<CompressibleData>,

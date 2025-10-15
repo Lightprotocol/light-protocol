@@ -199,6 +199,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
             lamports_per_write,
             compress_to_pubkey: false,
             account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            payer: payer_pubkey,
         }),
     )
     .await;
