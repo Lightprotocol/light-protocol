@@ -2,6 +2,7 @@ use std::panic::Location;
 
 use anchor_compressed_token::TokenData;
 use anchor_lang::solana_program::program_error::ProgramError;
+use light_account_checks::AccountError;
 use light_compressed_account::instruction_data::with_readonly::ZInAccountMut;
 use light_ctoken_types::{
     hash_cache::HashCache,
@@ -62,7 +63,7 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
         .get(input_token_data.owner as usize)
         .ok_or_else(|| {
             print_on_error_pubkey(input_token_data.owner, "owner", Location::caller());
-            ProgramError::NotEnoughAccountKeys
+            ProgramError::Custom(AccountError::NotEnoughAccountKeys.into())
         })?;
 
     // Verify signer authorization using shared function
@@ -76,7 +77,7 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
                         "delegate",
                         Location::caller(),
                     );
-                    ProgramError::NotEnoughAccountKeys
+                    ProgramError::Custom(AccountError::NotEnoughAccountKeys.into())
                 })?,
         )
     } else {
@@ -89,7 +90,7 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
         .get(input_token_data.mint as usize)
         .ok_or_else(|| {
             print_on_error_pubkey(input_token_data.mint, "mint", Location::caller());
-            ProgramError::NotEnoughAccountKeys
+            ProgramError::Custom(AccountError::NotEnoughAccountKeys.into())
         })?;
 
     let data_hash = {
