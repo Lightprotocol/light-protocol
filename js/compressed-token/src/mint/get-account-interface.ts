@@ -2,7 +2,7 @@ import { AccountInfo, Commitment, PublicKey } from '@solana/web3.js';
 import {
     TOKEN_PROGRAM_ID,
     TOKEN_2022_PROGRAM_ID,
-    unpackAccount as splUnpackAccount,
+    unpackAccount as unpackAccountSPL,
     TokenAccountNotFoundError,
     TokenInvalidAccountOwnerError,
 } from '@solana/spl-token';
@@ -112,6 +112,69 @@ function convertTokenDataToAccount(
     };
 }
 
+/** normalize compressed account to account info */
+export function toAccountInfo(
+    compressedAccount: CompressedAccountWithMerkleContext,
+): AccountInfo<Buffer> {
+    // we must define Buffer type explicitly.
+    const dataDiscriminatorBuffer: Buffer = Buffer.from(
+        compressedAccount.data!.discriminator,
+    );
+    const dataBuffer: Buffer = Buffer.from(compressedAccount.data!.data);
+    const data: Buffer = Buffer.concat([dataDiscriminatorBuffer, dataBuffer]);
+
+    return {
+        executable: false,
+        owner: compressedAccount.owner,
+        lamports: compressedAccount.lamports.toNumber(),
+        data,
+        rentEpoch: undefined,
+    };
+}
+
+export function parseCTokenOnchain(
+    address: PublicKey,
+    accountInfo: AccountInfo<Buffer>,
+): {
+    accountInfo: AccountInfo<Buffer>;
+    merkleContext: undefined;
+    parsed: Account;
+    isCompressed: false;
+} {
+    const parsed = parseTokenData(accountInfo.data);
+    if (!parsed) throw new Error('Invalid token data');
+    return {
+        accountInfo,
+        merkleContext: undefined,
+        parsed: convertTokenDataToAccount(address, parsed),
+        isCompressed: false,
+    };
+}
+
+export function parseCTokenCompressed(
+    address: PublicKey,
+    compressedAccount: CompressedAccountWithMerkleContext,
+): {
+    accountInfo: AccountInfo<Buffer>;
+    merkleContext: MerkleContext;
+    parsed: Account;
+    isCompressed: true;
+} {
+    const parsed = parseTokenData(compressedAccount.data!.data);
+    if (!parsed) throw new Error('Invalid token data');
+    return {
+        accountInfo: toAccountInfo(compressedAccount),
+        merkleContext: {
+            treeInfo: compressedAccount.treeInfo,
+            hash: compressedAccount.hash,
+            leafIndex: compressedAccount.leafIndex,
+            proveByIndex: compressedAccount.proveByIndex,
+        },
+        parsed: convertTokenDataToAccount(address, parsed),
+        isCompressed: true,
+    };
+}
+
 /**
  * Retrieve information about a token account (SPL or compressed)
  *
@@ -146,7 +209,7 @@ export async function getAccountInterface(
                 if (!info || !info.owner.equals(TOKEN_PROGRAM_ID)) {
                     throw new Error('Not a TOKEN_PROGRAM_ID account');
                 }
-                const account = splUnpackAccount(
+                const account = unpackAccountSPL(
                     address,
                     info,
                     TOKEN_PROGRAM_ID,
@@ -163,7 +226,7 @@ export async function getAccountInterface(
                 if (!info || !info.owner.equals(TOKEN_2022_PROGRAM_ID)) {
                     throw new Error('Not a TOKEN_2022_PROGRAM_ID account');
                 }
-                const account = splUnpackAccount(
+                const account = unpackAccountSPL(
                     address,
                     info,
                     TOKEN_2022_PROGRAM_ID,
@@ -180,14 +243,7 @@ export async function getAccountInterface(
                 if (!info || !info.owner.equals(CTOKEN_PROGRAM_ID)) {
                     throw new Error('Not a CTOKEN onchain account');
                 }
-                const parsed = parseTokenData(info.data);
-                if (!parsed) throw new Error('Invalid token data');
-                return {
-                    accountInfo: info,
-                    merkleContext: undefined,
-                    parsed: convertTokenDataToAccount(address, parsed),
-                    isCompressed: false,
-                };
+                return parseCTokenOnchain(address, info);
             }),
             // 4. CTOKEN_PROGRAM_ID compressed
             rpc.getCompressedTokenAccountsByOwner(address).then(result => {
@@ -201,31 +257,7 @@ export async function getAccountInterface(
                 if (!compressedAccount.owner.equals(CTOKEN_PROGRAM_ID)) {
                     throw new Error('Invalid owner for compressed token');
                 }
-                const parsed = parseTokenData(compressedAccount.data.data);
-                if (!parsed) throw new Error('Invalid token data');
-
-                const accountInfo: AccountInfo<Buffer> = {
-                    executable: false,
-                    owner: compressedAccount.owner,
-                    lamports: compressedAccount.lamports.toNumber(),
-                    data: Buffer.concat([
-                        Buffer.from(compressedAccount.data.discriminator),
-                        compressedAccount.data.data,
-                    ]),
-                    rentEpoch: undefined,
-                };
-
-                return {
-                    accountInfo,
-                    merkleContext: {
-                        treeInfo: compressedAccount.treeInfo,
-                        hash: compressedAccount.hash,
-                        leafIndex: compressedAccount.leafIndex,
-                        proveByIndex: compressedAccount.proveByIndex,
-                    },
-                    parsed: convertTokenDataToAccount(address, parsed),
-                    isCompressed: true,
-                };
+                return parseCTokenCompressed(address, compressedAccount);
             }),
         ]);
 
@@ -272,21 +304,11 @@ export async function getAccountInterface(
                 );
             }
 
-            const parsed = parseTokenData(onchainAccount.data);
-            if (!parsed) {
-                throw new Error('Invalid token data');
-            }
-
             if (compressedAccount) {
                 throw Error('Expected no compressed token account');
             }
 
-            return {
-                accountInfo: onchainAccount,
-                merkleContext: undefined,
-                parsed: convertTokenDataToAccount(address, parsed),
-                isCompressed: false,
-            };
+            return parseCTokenOnchain(address, onchainAccount);
         }
 
         if (
@@ -294,39 +316,13 @@ export async function getAccountInterface(
             compressedAccount.data &&
             compressedAccount.data.data.length > 0
         ) {
-            const accountInfo: AccountInfo<Buffer> = {
-                executable: false,
-                owner: compressedAccount.owner,
-                lamports: compressedAccount.lamports.toNumber(),
-                data: Buffer.concat([
-                    Buffer.from(compressedAccount.data!.discriminator),
-                    compressedAccount.data!.data,
-                ]),
-                rentEpoch: undefined,
-            };
-
             if (!compressedAccount.owner.equals(programId)) {
                 throw new Error(
                     `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
                 );
             }
 
-            const parsed = parseTokenData(compressedAccount.data!.data);
-            if (!parsed) {
-                throw new Error('Invalid token data');
-            }
-
-            return {
-                accountInfo,
-                merkleContext: {
-                    treeInfo: compressedAccount.treeInfo,
-                    hash: compressedAccount.hash,
-                    leafIndex: compressedAccount.leafIndex,
-                    proveByIndex: compressedAccount.proveByIndex,
-                },
-                parsed: convertTokenDataToAccount(address, parsed),
-                isCompressed: true,
-            };
+            return parseCTokenCompressed(address, compressedAccount);
         }
 
         throw new TokenAccountNotFoundError();
@@ -341,7 +337,7 @@ export async function getAccountInterface(
             throw new TokenAccountNotFoundError();
         }
 
-        const account = splUnpackAccount(address, info, programId);
+        const account = unpackAccountSPL(address, info, programId);
 
         return {
             accountInfo: info,

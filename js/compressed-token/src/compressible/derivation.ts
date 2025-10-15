@@ -4,6 +4,7 @@ import {
     TreeInfo,
 } from '@lightprotocol/stateless.js';
 import { PublicKey } from '@solana/web3.js';
+import { Buffer } from 'buffer';
 
 /**
  * Returns the compressed mint address as a Array (32 bytes).
@@ -23,7 +24,7 @@ export function deriveCompressedMintAddress(
 }
 
 /// b"compressed_mint"
-export const COMPRESSED_MINT_SEED = Buffer.from([
+export const COMPRESSED_MINT_SEED: Buffer = Buffer.from([
     99, 111, 109, 112, 114, 101, 115, 115, 101, 100, 95, 109, 105, 110, 116,
 ]);
 
@@ -59,4 +60,3 @@ export function getAssociatedCTokenAddress(owner: PublicKey, mint: PublicKey) {
         CTOKEN_PROGRAM_ID,
     )[0];
 }
-

@@ -12,6 +12,7 @@ import {
     createAssociatedTokenAccountIdempotentInstruction as createSplAssociatedTokenAccountIdempotentInstruction,
 } from '@solana/spl-token';
 import { struct, u8, publicKey, option, vec } from '@coral-xyz/borsh';
+import { getAtaProgramId } from '../../utils';
 
 const CREATE_ASSOCIATED_TOKEN_ACCOUNT_DISCRIMINATOR = Buffer.from([103]);
 const CREATE_ASSOCIATED_TOKEN_ACCOUNT_IDEMPOTENT_DISCRIMINATOR = Buffer.from([
@@ -187,16 +188,7 @@ export function createAssociatedTokenAccountInterfaceInstruction(
     rentPayerPda?: PublicKey,
 ): TransactionInstruction {
     const effectiveAssociatedTokenProgramId =
-        associatedTokenProgramId ??
-        (programId.equals(CTOKEN_PROGRAM_ID)
-            ? CTOKEN_PROGRAM_ID
-            : ASSOCIATED_TOKEN_PROGRAM_ID);
-
-    console.log(
-        'createAssociatedTokenAccountInterfaceInstruction',
-        programId,
-        associatedTokenProgramId,
-    );
+        associatedTokenProgramId ?? getAtaProgramId(programId);
 
     if (programId.equals(CTOKEN_PROGRAM_ID)) {
         return createAssociatedCTokenAccountInstruction(
@@ -231,10 +223,7 @@ export function createAssociatedTokenAccountInterfaceIdempotentInstruction(
     rentPayerPda?: PublicKey,
 ): TransactionInstruction {
     const effectiveAssociatedTokenProgramId =
-        associatedTokenProgramId ??
-        (programId.equals(CTOKEN_PROGRAM_ID)
-            ? CTOKEN_PROGRAM_ID
-            : ASSOCIATED_TOKEN_PROGRAM_ID);
+        associatedTokenProgramId ?? getAtaProgramId(programId);
 
     if (programId.equals(CTOKEN_PROGRAM_ID)) {
         return createAssociatedCTokenAccountIdempotentInstruction(

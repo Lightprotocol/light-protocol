@@ -35,6 +35,7 @@ export {
     deriveCompressionConfigAddress,
     getProgramDataAccount,
     checkProgramUpdateAuthority,
+    deriveTokenProgramConfig,
 } from './utils';
 
 export { serializeInitializeCompressionConfigData } from './layout';

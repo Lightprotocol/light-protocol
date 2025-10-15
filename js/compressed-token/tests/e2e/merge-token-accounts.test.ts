@@ -35,6 +35,7 @@ describe('mergeTokenAccounts', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 2,
                 mintKeypair,
             )

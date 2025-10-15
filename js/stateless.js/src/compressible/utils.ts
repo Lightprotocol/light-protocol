@@ -1,4 +1,5 @@
 import { Connection, PublicKey, AccountInfo } from '@solana/web3.js';
+import { bn } from '..';
 
 /**
  * Derive the compression config PDA address
@@ -62,4 +63,31 @@ export function checkProgramUpdateAuthority(
             `Provided authority ${providedAuthority.toBase58()} does not match program's upgrade authority ${upgradeAuthority.toBase58()}`,
         );
     }
+}
+
+export function deriveTokenProgramConfig(
+    version?: number,
+): [PublicKey, number] {
+    const versionValue = version ?? 1;
+    const registryProgramId = new PublicKey(
+        'Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX',
+    );
+
+    const [compressibleConfig, configBump] = PublicKey.findProgramAddressSync(
+        [
+            Buffer.from('compressible_config'),
+            bn(versionValue).toArrayLike(Buffer, 'le', 2),
+        ],
+        registryProgramId,
+    );
+
+    const expected = new PublicKey(
+        'ACXg8a7VaqecBWrSbdu73W4Pg9gsqXJ3EXAqkHyhvVXg',
+    );
+    if (!compressibleConfig.equals(expected)) {
+        console.log('compressibleConfig:', compressibleConfig);
+        console.log('expected:', expected);
+        throw new Error('compressibleConfig is not correct');
+    }
+    return [compressibleConfig, configBump];
 }

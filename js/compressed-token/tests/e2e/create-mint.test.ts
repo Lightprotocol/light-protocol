@@ -66,6 +66,7 @@ describe('createMintSPL', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -88,6 +89,7 @@ describe('createMintSPL', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             ),
@@ -100,6 +102,7 @@ describe('createMintSPL', () => {
                 rpc,
                 payer,
                 payer.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
             )
         ).mint;

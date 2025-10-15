@@ -24,8 +24,11 @@ import {
     extractTokenMetadata,
 } from './serde';
 
+
+
 export interface MintInterface {
     mint: Mint;
+    programId: PublicKey; // Token program that owns this mint (TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID, or CTOKEN_PROGRAM_ID)
     merkleContext?: MerkleContext;
     mintContext?: MintContext;
     tokenMetadata?: TokenMetadata; // Parsed metadata (first-class)
@@ -124,18 +127,35 @@ export async function getMintInterface(
             compressedMintData.extensions,
         );
 
-        return {
+        const result: MintInterface = {
             mint,
+            programId,
             merkleContext,
             mintContext: compressedMintData.mintContext,
             tokenMetadata: tokenMetadata || undefined,
             extensions: compressedMintData.extensions || undefined,
         };
+
+        // Validate: CTOKEN_PROGRAM_ID requires merkleContext and mintContext
+        if (programId.equals(CTOKEN_PROGRAM_ID)) {
+            if (!result.merkleContext) {
+                throw new Error(
+                    `Invalid compressed mint: merkleContext is required for CTOKEN_PROGRAM_ID`,
+                );
+            }
+            if (!result.mintContext) {
+                throw new Error(
+                    `Invalid compressed mint: mintContext is required for CTOKEN_PROGRAM_ID`,
+                );
+            }
+        }
+
+        return result;
     }
 
     // Otherwise, fetch SPL mint (TOKEN_PROGRAM_ID or TOKEN_2022_PROGRAM_ID)
     const mint = await getSplMint(rpc, address, commitment, programId);
-    return { mint };
+    return { mint, programId };
 }
 
 /**
@@ -179,18 +199,30 @@ export function unpackMintInterface(
             compressedMintData.extensions,
         );
 
-        return {
+        const result = {
             mint,
+            programId,
             mintContext: compressedMintData.mintContext,
             tokenMetadata: tokenMetadata || undefined,
             extensions: compressedMintData.extensions || undefined,
         };
+
+        // Validate: CTOKEN_PROGRAM_ID requires mintContext
+        if (programId.equals(CTOKEN_PROGRAM_ID)) {
+            if (!result.mintContext) {
+                throw new Error(
+                    `Invalid compressed mint: mintContext is required for CTOKEN_PROGRAM_ID`,
+                );
+            }
+        }
+
+        return result;
     }
 
     // Otherwise, unpack as SPL mint
     const info = data as AccountInfo<Buffer>;
     const mint = unpackSplMint(address, info, programId);
-    return { mint };
+    return { mint, programId };
 }
 
 /**

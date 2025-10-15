@@ -23,8 +23,8 @@ import {
     createMintSPL,
     createTokenProgramLookupTable,
     decompress,
-    mintTo,
 } from '../../src/actions';
+import { mintTo } from '../../src';
 import {
     createAssociatedTokenAccount,
     TOKEN_2022_PROGRAM_ID,
@@ -120,6 +120,7 @@ describe('compress', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -316,6 +317,7 @@ describe('compress', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
                 undefined,

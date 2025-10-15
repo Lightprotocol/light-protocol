@@ -1,106 +1,92 @@
 import { PublicKey, TransactionInstruction } from '@solana/web3.js';
-import {
-    MerkleContext,
-    ValidityProofWithContext,
-} from '@lightprotocol/stateless.js';
-import { createMintToInstruction } from './mint-to';
-import { createMintToCompressedInstruction } from './mint-to-compressed';
+import { ValidityProofWithContext } from '@lightprotocol/stateless.js';
+import { createMintToInstruction as createSplMintToInstruction } from '@solana/spl-token';
+import { createMintToInstruction as createCtokenMintToInstruction } from './mint-to';
+import { MintInterface } from '../helpers';
 
 /**
- * Create mint-to instruction for compressed mints
- * For SPL mints, use CompressedTokenProgram.mintTo() instead
+ * Create mint-to instruction that works with SPL, Token-2022, and compressed token mints.
+ * This instruction ONLY mints to decompressed/onchain token accounts.
  *
- * @param mint - Compressed mint address
- * @param authority - Mint authority
- * @param payer - Transaction fee payer
- * @param recipient - Recipient address(es) - account address or owner pubkey
- * @param amount - Amount(s) to mint
- * @param validityProof - Validity proof for the mint
- * @param merkleContext - Merkle context of the mint
- * @param mintData - Current mint data
- * @param outputQueue - Output queue for the minted accounts
- * @param tokensOutQueue - Tokens output queue
- * @param tokenAccountVersion - Token account version (default: 3)
+ * @param mintInterface - Mint interface containing mint data, programId, and optional merkleContext
+ * @param destination - Destination token account address (onchain token account)
+ * @param authority - Mint authority pubkey
+ * @param payer - Fee payer pubkey
+ * @param amount - Amount to mint
+ * @param validityProof - Optional: Validity proof (required if mintInterface has merkleContext)
+ * @param multiSigners - Optional: Multi-signature signers (default: [])
  *
  * @returns Transaction instruction
  */
 export function createMintToInterfaceInstruction(
-    mint: PublicKey,
+    mintInterface: MintInterface,
+    destination: PublicKey,
     authority: PublicKey,
     payer: PublicKey,
-    recipient: PublicKey | PublicKey[],
-    amount: number | bigint | Array<number | bigint>,
-    validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: {
-        supply: bigint;
-        decimals: number;
-        mintAuthority: PublicKey | null;
-        freezeAuthority: PublicKey | null;
-        splMint: PublicKey;
-        splMintInitialized: boolean;
-        version: number;
-        metadata?: {
-            updateAuthority: PublicKey | null;
-            name: string;
-            symbol: string;
-            uri: string;
-        };
-    },
-    outputQueue: PublicKey,
-    tokensOutQueue: PublicKey,
-    tokenAccountVersion: number = 3,
+    amount: number | bigint,
+    validityProof?: ValidityProofWithContext,
+    multiSigners: PublicKey[] = [],
 ): TransactionInstruction {
-    // Check if recipient is an array or single value
-    if (Array.isArray(recipient)) {
-        // Multiple recipients - use mintToCompressed
-        if (!Array.isArray(amount)) {
-            throw new Error(
-                'Amount must be an array when recipient is an array',
-            );
-        }
-        if (recipient.length !== amount.length) {
-            throw new Error(
-                'Recipient and amount arrays must have the same length',
-            );
-        }
+    const mint = mintInterface.mint.address;
+    const programId = mintInterface.programId;
 
-        const recipients = recipient.map((r, i) => ({
-            recipient: r,
-            amount: amount[i],
-        }));
-
-        return createMintToCompressedInstruction(
+    // For SPL and Token-2022 mints (no merkleContext)
+    if (!mintInterface.merkleContext) {
+        return createSplMintToInstruction(
             mint,
+            destination,
             authority,
-            payer,
-            validityProof,
-            merkleContext,
-            mintData,
-            outputQueue,
-            tokensOutQueue,
-            recipients,
-            tokenAccountVersion,
-        );
-    } else {
-        // Single recipient - use mintTo
-        if (Array.isArray(amount)) {
-            throw new Error(
-                'Amount must be a single value when recipient is a single address',
-            );
-        }
-
-        return createMintToInstruction(
-            mint,
-            authority,
-            payer,
-            validityProof,
-            merkleContext,
-            mintData,
-            outputQueue,
-            tokensOutQueue,
-            recipient,
-            amount,
+            BigInt(amount.toString()),
+            multiSigners,
+            programId,
         );
     }
+
+    // For compressed mints (has merkleContext) - mint to decompressed CToken account
+    if (!validityProof) {
+        throw new Error(
+            'Validity proof required for compressed mint operations',
+        );
+    }
+
+    if (!mintInterface.mintContext) {
+        throw new Error('mintContext required for compressed mint operations');
+    }
+
+    // ensure we rollover if needed.
+    const outputQueue =
+        mintInterface.merkleContext.treeInfo.nextTreeInfo?.queue ??
+        mintInterface.merkleContext.treeInfo.queue;
+
+    const mintData = {
+        supply: mintInterface.mint.supply,
+        decimals: mintInterface.mint.decimals,
+        mintAuthority: mintInterface.mint.mintAuthority,
+        freezeAuthority: mintInterface.mint.freezeAuthority,
+        splMint: mintInterface.mintContext.splMint,
+        splMintInitialized: mintInterface.mintContext.splMintInitialized,
+        version: mintInterface.mintContext.version,
+        metadata: mintInterface.tokenMetadata
+            ? {
+                  updateAuthority:
+                      mintInterface.tokenMetadata.updateAuthority || null,
+                  name: mintInterface.tokenMetadata.name,
+                  symbol: mintInterface.tokenMetadata.symbol,
+                  uri: mintInterface.tokenMetadata.uri,
+              }
+            : undefined,
+    };
+
+    return createCtokenMintToInstruction(
+        mint,
+        authority,
+        payer,
+        validityProof,
+        mintInterface.merkleContext,
+        mintData,
+        outputQueue,
+        outputQueue,
+        destination,
+        amount,
+    );
 }

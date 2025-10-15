@@ -16,7 +16,17 @@ const rolls = (fmt, env) => ({
         entryFileNames: `[name].${fmt === 'cjs' ? 'cjs' : 'js'}`,
         sourcemap: true,
     },
-    external: ['@solana/web3.js', 'bn.js'],
+    external: [
+        '@solana/web3.js',
+        'bn.js',
+        '@coral-xyz/borsh',
+        '@noble/hashes',
+        '@noble/hashes/sha3',
+        'buffer',
+        'buffer-layout',
+        'superstruct',
+        'bs58',
+    ],
     plugins: [
         replace({
             preventAssignment: true,
@@ -68,7 +78,23 @@ const rolls = (fmt, env) => ({
 const typesConfig = {
     input: 'src/index.ts',
     output: [{ file: 'dist/types/index.d.ts', format: 'es' }],
-    plugins: [dts()],
+    external: [
+        '@solana/web3.js',
+        'bn.js',
+        'buffer',
+        '@coral-xyz/borsh',
+        '@noble/hashes',
+        '@noble/hashes/sha3',
+        'buffer-layout',
+        'superstruct',
+        'bs58',
+    ],
+    plugins: [
+        dts({
+            respectExternal: true,
+            tsconfig: './tsconfig.json',
+        }),
+    ],
 };
 
 export default [rolls('cjs', 'browser'), rolls('cjs', 'node'), typesConfig];

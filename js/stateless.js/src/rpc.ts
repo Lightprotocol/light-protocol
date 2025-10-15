@@ -71,6 +71,7 @@ import {
     AddressTreeInfo,
     CompressedAccount,
     MerkleContext,
+    CompressedAccountData,
 } from './state';
 import { array, create, nullable } from 'superstruct';
 import {
@@ -102,7 +103,7 @@ import {
 import { TreeInfo } from './state/types';
 import { deriveAddressV2, validateNumbersForProof } from './utils';
 
-/** @internal */
+/** @internal parse account data */
 export function parseAccountData({
     discriminator,
     data,
@@ -111,12 +112,15 @@ export function parseAccountData({
     discriminator: BN;
     data: string;
     dataHash: BN;
-}) {
-    const discriminatorBytes = Buffer.from(discriminator.toArray('le', 8));
+}): CompressedAccountData {
+    const discriminatorBytes: Buffer = Buffer.from(
+        discriminator.toArray('le', 8),
+    );
+    const dataBytes: Buffer = Buffer.from(data, 'base64');
 
     return {
         discriminator: Array.from(discriminatorBytes),
-        data: Buffer.from(data, 'base64'),
+        data: dataBytes,
         dataHash: dataHash.toArray('be', 32),
     };
 }
@@ -2004,13 +2008,11 @@ export class Rpc extends Connection implements CompressionApiInterface {
      * Get account info from either compressed or onchain storage.
      * @param address         The account address to fetch.
      * @param programId       The owner program ID.
-     * @param addressTreeInfo The address tree info used to store the account.
+     * @param addressTreeInfo The address tree info that was used at init.
      *
      * @returns               Account info with compression info, or null if
-     *                        account doesn't exist. if merkleContext is
-     *                        undefined and isCompressed is false, the account
-     *                        is not compressible. MerkleContext is always some
-     *                        if the account is compressible. isCompressed
+     *                        account doesn't exist. MerkleContext is always
+     *                        some if the account is compressible. isCompressed
      *                        indicates the current state of the account.
      */
     async getAccountInfoInterface(
@@ -2044,8 +2046,9 @@ export class Rpc extends Connection implements CompressionApiInterface {
             if (compressedAccount) {
                 return {
                     accountInfo: onchainAccount,
+                    // it's compressible and currently decompressed.
                     merkleContext: {
-                        treeInfo: addressTreeInfo,
+                        treeInfo: compressedAccount.treeInfo,
                         hash: compressedAccount.hash,
                         leafIndex: compressedAccount.leafIndex,
                         proveByIndex: compressedAccount.proveByIndex,
@@ -2053,6 +2056,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
                     isCompressed: false,
                 };
             }
+            // it's not compressible.
             return {
                 accountInfo: onchainAccount,
                 merkleContext: undefined,
@@ -2078,7 +2082,7 @@ export class Rpc extends Connection implements CompressionApiInterface {
             return {
                 accountInfo,
                 merkleContext: {
-                    treeInfo: addressTreeInfo,
+                    treeInfo: compressedAccount.treeInfo,
                     hash: compressedAccount.hash,
                     leafIndex: compressedAccount.leafIndex,
                     proveByIndex: compressedAccount.proveByIndex,

@@ -4,7 +4,7 @@ import { FIELD_SIZE } from '../constants';
 import { keccak_256 } from '@noble/hashes/sha3';
 import { Keypair, PublicKey } from '@solana/web3.js';
 import BN from 'bn.js';
-import camelcaseKeys from 'camelcase-keys';
+import { camelcaseKeys } from './camelcase';
 import {
     InstructionDataInvoke,
     PackedCompressedAccountWithMerkleContext,

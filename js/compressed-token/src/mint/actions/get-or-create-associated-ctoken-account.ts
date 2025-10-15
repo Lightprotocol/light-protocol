@@ -22,6 +22,7 @@ import {
     createAssociatedTokenAccountInterfaceInstruction,
 } from '../instructions/create-associated-ctoken';
 import { getAccountInterface } from '../get-account-interface';
+import { getAtaProgramId } from '../../utils';
 
 /**
  * Retrieve the associated token account, or create it if it doesn't exist
@@ -47,15 +48,8 @@ export async function getOrCreateAssociatedTokenAccountInterface(
     commitment?: Commitment,
     confirmOptions?: ConfirmOptions,
     programId = TOKEN_PROGRAM_ID,
-    associatedTokenProgramId = programId.equals(CTOKEN_PROGRAM_ID)
-        ? CTOKEN_PROGRAM_ID
-        : ASSOCIATED_TOKEN_PROGRAM_ID,
+    associatedTokenProgramId = getAtaProgramId(programId),
 ): Promise<Account> {
-    console.log('programid', programId.toBase58());
-    console.log(
-        'associatedTokenProgramId',
-        associatedTokenProgramId.toBase58(),
-    );
     const associatedToken = getAssociatedTokenAddressSync(
         mint,
         owner,
@@ -75,7 +69,6 @@ export async function getOrCreateAssociatedTokenAccountInterface(
             commitment,
             programId,
         );
-        console.log('accountInterface 01', accountInterface);
         account = accountInterface.parsed;
     } catch (error: unknown) {
         // TokenAccountNotFoundError can be possible if the associated address has already received some lamports,
@@ -110,7 +103,6 @@ export async function getOrCreateAssociatedTokenAccountInterface(
                 // instruction error if the associated account exists already.
             }
 
-            console.log('Now this should always succeed');
             // Now this should always succeed
             const accountInterface = await getAccountInterface(
                 rpc,
@@ -118,7 +110,6 @@ export async function getOrCreateAssociatedTokenAccountInterface(
                 commitment,
                 programId,
             );
-            console.log('accountInterface 02', accountInterface);
             account = accountInterface.parsed;
         } else {
             throw error;

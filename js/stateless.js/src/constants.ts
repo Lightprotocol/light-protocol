@@ -51,23 +51,23 @@ export const HIGHEST_ADDRESS_PLUS_ONE = new BN(
 
 export const COMPUTE_BUDGET_PATTERN = [2, 64, 66, 15, 0];
 
-export const INVOKE_DISCRIMINATOR = Buffer.from([
+export const INVOKE_DISCRIMINATOR: Buffer = Buffer.from([
     26, 16, 169, 7, 21, 202, 242, 25,
 ]);
 
-export const INVOKE_CPI_DISCRIMINATOR = Buffer.from([
+export const INVOKE_CPI_DISCRIMINATOR: Buffer = Buffer.from([
     49, 212, 191, 129, 39, 194, 43, 196,
 ]);
 
-export const INVOKE_CPI_WITH_READ_ONLY_DISCRIMINATOR = Buffer.from([
+export const INVOKE_CPI_WITH_READ_ONLY_DISCRIMINATOR: Buffer = Buffer.from([
     86, 47, 163, 166, 21, 223, 92, 8,
 ]);
 
-export const INVOKE_CPI_WITH_ACCOUNT_INFO_DISCRIMINATOR = Buffer.from([
+export const INVOKE_CPI_WITH_ACCOUNT_INFO_DISCRIMINATOR: Buffer = Buffer.from([
     228, 34, 128, 84, 47, 139, 86, 240,
 ]);
 
-export const INSERT_INTO_QUEUES_DISCRIMINATOR = Buffer.from([
+export const INSERT_INTO_QUEUES_DISCRIMINATOR: Buffer = Buffer.from([
     180, 143, 159, 153, 35, 46, 248, 163,
 ]);
 

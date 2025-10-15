@@ -24,14 +24,13 @@ import {
  * @param rpc               RPC connection to use
  * @param payer             Fee payer
  * @param mintAuthority     Account that will control minting
+ * @param freezeAuthority   Account that will control freeze and thaw. Defaults to null.
  * @param decimals          Location of the decimal place
  * @param keypair           Optional: Mint keypair. Defaults to a random
  *                          keypair.
  * @param confirmOptions    Options for confirming the transaction
  * @param tokenProgramId    Optional: Program ID for the token. Defaults to
  *                          TOKEN_PROGRAM_ID.
- * @param freezeAuthority   Optional: Account that will control freeze and thaw.
- *                          Defaults to none.
  *
  * @return Object with mint address and transaction signature
  */
@@ -39,11 +38,11 @@ export async function createMintSPL(
     rpc: Rpc,
     payer: Signer,
     mintAuthority: PublicKey | Signer,
+    freezeAuthority: PublicKey | null,
     decimals: number,
     keypair = Keypair.generate(),
     confirmOptions?: ConfirmOptions,
     tokenProgramId?: PublicKey | boolean,
-    freezeAuthority?: PublicKey | Signer,
 ): Promise<{ mint: PublicKey; transactionSignature: TransactionSignature }> {
     const rentExemptBalance =
         await rpc.getMinimumBalanceForRentExemption(MINT_SIZE);
@@ -64,10 +63,7 @@ export async function createMintSPL(
             'secretKey' in mintAuthority
                 ? mintAuthority.publicKey
                 : mintAuthority,
-        freezeAuthority:
-            freezeAuthority && 'secretKey' in freezeAuthority
-                ? freezeAuthority.publicKey
-                : (freezeAuthority ?? null),
+        freezeAuthority,
         rentExemptBalance,
         tokenProgramId: resolvedTokenProgramId,
     });
@@ -76,7 +72,7 @@ export async function createMintSPL(
 
     const additionalSigners = dedupeSigner(
         payer,
-        [mintAuthority, freezeAuthority].filter(
+        [mintAuthority].filter(
             (signer): signer is Signer =>
                 signer != undefined && 'secretKey' in signer,
         ),
