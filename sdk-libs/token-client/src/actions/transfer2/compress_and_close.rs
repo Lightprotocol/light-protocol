@@ -45,6 +45,7 @@ pub async fn compress_and_close<R: Rpc + Indexer>(
             },
         )],
         payer.pubkey(),
+        false,
     )
     .await
     .map_err(|e| RpcError::CustomError(e.to_string()))?;

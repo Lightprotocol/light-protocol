@@ -656,6 +656,7 @@ impl TestContext {
                                 &mut rpc,
                                 vec![Transfer2InstructionType::Compress(compress_input)],
                                 payer.pubkey(),
+                                false,
                             )
                             .await
                             .unwrap();
@@ -711,6 +712,7 @@ impl TestContext {
                             &mut rpc,
                             vec![Transfer2InstructionType::Compress(compress_input)],
                             payer.pubkey(),
+                            false,
                         )
                         .await
                         .unwrap();
@@ -796,6 +798,7 @@ impl TestContext {
                     &mut rpc,
                     vec![Transfer2InstructionType::Approve(approve_input)],
                     payer.pubkey(),
+                    false,
                 )
                 .await?;
 
@@ -1352,8 +1355,13 @@ impl TestContext {
         let payer_pubkey = self.payer.pubkey();
 
         // Create the transfer2 instruction
-        let ix = create_generic_transfer2_instruction(&mut self.rpc, actions.clone(), payer_pubkey)
-            .await?;
+        let ix = create_generic_transfer2_instruction(
+            &mut self.rpc,
+            actions.clone(),
+            payer_pubkey,
+            false,
+        )
+        .await?;
 
         // Create and send transaction
         let (recent_blockhash, _) = self.rpc.get_latest_blockhash().await?;

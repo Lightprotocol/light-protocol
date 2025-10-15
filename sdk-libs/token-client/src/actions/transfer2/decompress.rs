@@ -41,6 +41,7 @@ pub async fn decompress<R: Rpc + Indexer>(
             pool_index: None,
         })],
         payer.pubkey(),
+        false,
     )
     .await
     .map_err(|e| RpcError::CustomError(e.to_string()))?;

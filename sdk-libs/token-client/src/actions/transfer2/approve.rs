@@ -39,6 +39,7 @@ pub async fn approve<R: Rpc + Indexer>(
             delegate_amount,
         })],
         payer.pubkey(),
+        false,
     )
     .await
     .map_err(|e| RpcError::CustomError(e.to_string()))?;

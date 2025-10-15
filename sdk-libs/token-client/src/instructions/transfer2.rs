@@ -81,6 +81,7 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
             pool_index: None,
         })],
         payer,
+        false,
     )
     .await
 }
@@ -145,9 +146,9 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     rpc: &mut R,
     actions: Vec<Transfer2InstructionType>,
     payer: Pubkey,
+    should_filter_zero_outputs: bool,
 ) -> Result<Instruction, TokenSdkError> {
     println!("here");
-    let mut should_filter_zero_outputs = true;
     // // Get a single shared output queue for ALL compress/compress-and-close operations
     // // This prevents reordering issues caused by the sort_by_key at the end
     // let shared_output_queue = rpc
@@ -215,9 +216,6 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     for action in actions {
         match action {
             Transfer2InstructionType::Compress(input) => {
-                if input.amount == 0 {
-                    should_filter_zero_outputs = false;
-                }
                 let mut token_account =
                     if let Some(ref input_token_account) = input.compressed_token_account {
                         let token_data = input_token_account

@@ -42,6 +42,7 @@ pub async fn transfer<R: Rpc + Indexer>(
             change_amount: None,
         })],
         payer.pubkey(),
+        false,
     )
     .await
     .map_err(|e| RpcError::CustomError(e.to_string()))?;
