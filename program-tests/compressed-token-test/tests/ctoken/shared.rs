@@ -516,3 +516,210 @@ pub async fn create_and_assert_ata_fails(
     // Assert that the transaction failed with the expected error code
     light_program_test::utils::assert::assert_rpc_error(result, 0, expected_error_code).unwrap();
 }
+
+// ============================================================================
+// Compress and Close Helper Functions
+// ============================================================================
+
+/// Setup context with account ready to compress and close
+///
+/// # Parameters
+/// - `num_prepaid_epochs`: Number of epochs to prepay for rent (0 = immediately compressible)
+/// - `with_balance`: Token balance to set on the account (0 = no balance)
+/// - `warp_epochs`: Optional number of epochs to advance time (makes account compressible for rent authority)
+/// - `use_custom_payer`: If true, uses context.payer as rent_sponsor (for custom payer tests)
+///
+/// # Returns
+/// AccountTestContext with created token account ready for compress_and_close
+pub async fn setup_compress_and_close_test(
+    num_prepaid_epochs: u64,
+    with_balance: u64,
+    warp_epochs: Option<u64>,
+    use_custom_payer: bool,
+) -> Result<AccountTestContext, RpcError> {
+    use anchor_spl::token_2022::spl_token_2022;
+    use solana_sdk::program_pack::Pack;
+
+    let mut context = setup_account_test_with_created_account(
+        Some((num_prepaid_epochs, use_custom_payer))
+    ).await?;
+
+    let token_account_pubkey = context.token_account_keypair.pubkey();
+
+    // Set balance if needed
+    if with_balance > 0 {
+        let mut token_account = context
+            .rpc
+            .get_account(token_account_pubkey)
+            .await?
+            .ok_or_else(|| RpcError::AssertRpcError("Token account not found".to_string()))?;
+
+        // Deserialize and modify the token account (only use first 165 bytes for SPL compatibility)
+        let mut spl_token_account = spl_token_2022::state::Account::unpack_unchecked(&token_account.data[..165])
+            .map_err(|e| RpcError::AssertRpcError(format!("Failed to unpack token account: {:?}", e)))?;
+
+        spl_token_account.amount = with_balance;
+
+        spl_token_2022::state::Account::pack(spl_token_account, &mut token_account.data[..165])
+            .map_err(|e| RpcError::AssertRpcError(format!("Failed to pack token account: {:?}", e)))?;
+
+        // Set the modified account
+        context.rpc.set_account(token_account_pubkey, token_account);
+    }
+
+    // Warp time if needed (to make account compressible for rent authority)
+    if let Some(epochs) = warp_epochs {
+        context.rpc.warp_to_slot((SLOTS_PER_EPOCH * epochs) + 1).unwrap();
+    }
+
+    Ok(context)
+}
+
+/// Compress and close account as owner and assert success
+///
+/// # Parameters
+/// - `context`: Test context with RPC and account info
+/// - `destination`: Optional destination for user funds (defaults to owner)
+/// - `name`: Test name for debugging
+pub async fn compress_and_close_owner_and_assert(
+    context: &mut AccountTestContext,
+    destination: Option<Pubkey>,
+    name: &str,
+) {
+    use light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
+    use light_test_utils::assert_transfer2::assert_transfer2_compress_and_close;
+    use light_token_client::instructions::transfer2::{
+        create_generic_transfer2_instruction, CompressAndCloseInput, Transfer2InstructionType,
+    };
+
+    println!("Compress and close (owner) initiated for: {}", name);
+
+    let payer_pubkey = context.payer.pubkey();
+    let token_account_pubkey = context.token_account_keypair.pubkey();
+    let owner_pubkey = context.owner_keypair.pubkey();
+
+    // Check if account is compressible by checking size
+    let account_info = context
+        .rpc
+        .get_account(token_account_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+    let is_compressible = account_info.data.len() == COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
+
+    // Get output queue for compression
+    let output_queue = context
+        .rpc
+        .get_random_state_tree_info()
+        .unwrap()
+        .get_output_pubkey()
+        .unwrap();
+
+    // Create compress_and_close instruction as owner
+    let compress_and_close_ix = create_generic_transfer2_instruction(
+        &mut context.rpc,
+        vec![Transfer2InstructionType::CompressAndClose(
+            CompressAndCloseInput {
+                solana_ctoken_account: token_account_pubkey,
+                authority: owner_pubkey,
+                output_queue,
+                destination,
+                is_compressible,
+            },
+        )],
+        payer_pubkey,
+        false,
+    )
+    .await
+    .unwrap();
+
+    // Execute transaction
+    context
+        .rpc
+        .create_and_send_transaction(
+            &[compress_and_close_ix],
+            &payer_pubkey,
+            &[&context.payer, &context.owner_keypair],
+        )
+        .await
+        .unwrap();
+
+    // Assert compress and close succeeded
+    assert_transfer2_compress_and_close(
+        &mut context.rpc,
+        CompressAndCloseInput {
+            solana_ctoken_account: token_account_pubkey,
+            authority: owner_pubkey,
+            output_queue,
+            destination,
+            is_compressible,
+        },
+    )
+    .await;
+}
+
+/// Compress and close account as owner expecting failure
+///
+/// # Parameters
+/// - `context`: Test context with RPC and account info
+/// - `destination`: Optional destination for user funds
+/// - `name`: Test name for debugging
+/// - `expected_error_code`: Expected error code
+pub async fn compress_and_close_owner_and_assert_fails(
+    context: &mut AccountTestContext,
+    destination: Option<Pubkey>,
+    name: &str,
+    expected_error_code: u32,
+) {
+    use light_token_client::instructions::transfer2::{
+        create_generic_transfer2_instruction, CompressAndCloseInput, Transfer2InstructionType,
+    };
+
+    println!(
+        "Compress and close (owner, expecting failure) initiated for: {}",
+        name
+    );
+
+    let payer_pubkey = context.payer.pubkey();
+    let token_account_pubkey = context.token_account_keypair.pubkey();
+    let owner_pubkey = context.owner_keypair.pubkey();
+
+    // Get output queue for compression
+    let output_queue = context
+        .rpc
+        .get_random_state_tree_info()
+        .unwrap()
+        .get_output_pubkey()
+        .unwrap();
+
+    // Create compress_and_close instruction as owner
+    let compress_and_close_ix = create_generic_transfer2_instruction(
+        &mut context.rpc,
+        vec![Transfer2InstructionType::CompressAndClose(
+            CompressAndCloseInput {
+                solana_ctoken_account: token_account_pubkey,
+                authority: owner_pubkey,
+                output_queue,
+                destination,
+                is_compressible: true,
+            },
+        )],
+        payer_pubkey,
+        false,
+    )
+    .await
+    .unwrap();
+
+    // Execute transaction expecting failure
+    let result = context
+        .rpc
+        .create_and_send_transaction(
+            &[compress_and_close_ix],
+            &payer_pubkey,
+            &[&context.payer, &context.owner_keypair],
+        )
+        .await;
+
+    // Assert that the transaction failed with the expected error code
+    light_program_test::utils::assert::assert_rpc_error(result, 0, expected_error_code).unwrap();
+}

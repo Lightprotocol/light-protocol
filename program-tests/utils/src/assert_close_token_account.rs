@@ -86,11 +86,22 @@ pub async fn assert_close_token_account(
             account_lamports_before_close
         );
 
-        // Authority shouldn't receive anything
-        assert_eq!(
-            final_authority_lamports, initial_authority_lamports,
-            "Authority should not receive any lamports for non-compressible account closure"
-        );
+        // For non-compressible accounts, authority balance check depends on if they're also the destination
+        if authority_pubkey == destination {
+            // Authority is the destination, they receive the lamports
+            assert_eq!(
+                final_authority_lamports,
+                initial_authority_lamports + account_lamports_before_close,
+                "Authority (as destination) should receive all {} lamports for non-compressible account closure",
+                account_lamports_before_close
+            );
+        } else {
+            // Authority is not the destination, shouldn't receive anything
+            assert_eq!(
+                final_authority_lamports, initial_authority_lamports,
+                "Authority (not destination) should not receive any lamports for non-compressible account closure"
+            );
+        }
     };
 }
 
@@ -281,10 +292,36 @@ async fn assert_compressible_extension(
         }
     }
 
-    // Authority shouldn't receive anything in either case
-    assert_eq!(
-        final_authority_lamports, initial_authority_lamports,
-        "Authority should not receive any lamports (rent authority signer: {})",
-        is_compression_authority_signer
-    );
+    // Authority balance check:
+    // - If authority == destination, they receive lamports_to_destination
+    // - Otherwise, authority should receive nothing
+    if authority_pubkey == destination_pubkey {
+        // Authority is also the destination, so they receive the destination lamports
+        let expected_authority_lamports = if authority_pubkey == payer_pubkey {
+            // If authority is also the payer, subtract tx fee
+            initial_authority_lamports + lamports_to_destination - tx_fee
+        } else {
+            initial_authority_lamports + lamports_to_destination
+        };
+
+        assert_eq!(
+            final_authority_lamports, expected_authority_lamports,
+            "Authority (as destination) should receive {} lamports (rent authority signer: {})",
+            lamports_to_destination, is_compression_authority_signer
+        );
+    } else {
+        // Authority is not the destination, shouldn't receive anything
+        let expected_authority_lamports = if authority_pubkey == payer_pubkey {
+            // If authority is the payer, subtract tx fee
+            initial_authority_lamports - tx_fee
+        } else {
+            initial_authority_lamports
+        };
+
+        assert_eq!(
+            final_authority_lamports, expected_authority_lamports,
+            "Authority (not destination) should not receive any lamports (rent authority signer: {})",
+            is_compression_authority_signer
+        );
+    }
 }
