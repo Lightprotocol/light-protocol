@@ -11,7 +11,7 @@ pub struct ProgramPackedAccounts<'info, A: AccountInfoTrait> {
 impl<A: AccountInfoTrait> ProgramPackedAccounts<'_, A> {
     /// Get account by index with bounds checking
     #[track_caller]
-    #[inline(always)]
+    #[inline(never)]
     pub fn get(&self, index: usize, name: &str) -> Result<&A, AccountError> {
         let location = Location::caller();
         if index >= self.accounts.len() {
@@ -27,7 +27,7 @@ impl<A: AccountInfoTrait> ProgramPackedAccounts<'_, A> {
     // TODO: add get_checked_account from  PackedAccounts.
     /// Get account by u8 index with bounds checking
     #[track_caller]
-    #[inline(always)]
+    #[inline(never)]
     pub fn get_u8(&self, index: u8, name: &str) -> Result<&A, AccountError> {
         self.get(index as usize, name)
     }

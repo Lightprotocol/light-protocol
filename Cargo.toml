@@ -6,6 +6,8 @@ members = [
     "program-libs/aligned-sized",
     "program-libs/batched-merkle-tree",
     "program-libs/bloom-filter",
+    "program-libs/compressible",
+    "program-libs/ctoken-types",
     "program-libs/hasher",
     "program-libs/verifier",
     "program-libs/merkle-tree-metadata",
@@ -17,10 +19,12 @@ members = [
     "program-libs/zero-copy-derive",
     "programs/account-compression",
     "programs/system",
-    "programs/compressed-token",
+    "programs/compressed-token/program",
     "programs/registry",
     "anchor-programs/system",
     "sdk-libs/client",
+    "sdk-libs/compressed-token-sdk",
+    "sdk-libs/token-client",
     "sdk-libs/macros",
     "sdk-libs/sdk",
     "sdk-libs/sdk-pinocchio",
@@ -46,6 +50,7 @@ members = [
     "sdk-tests/sdk-pinocchio-v2-test",
     "sdk-tests/sdk-native-test",
     "sdk-tests/sdk-v1-native-test",
+    "sdk-tests/sdk-token-test",
     "forester-utils",
     "forester",
     "sparse-merkle-tree",
@@ -105,13 +110,14 @@ solana-instruction = "2.3"
 solana-rpc-client = "2.3"
 solana-compute-budget = { version = "2.3" }
 
-solana-system-interface = { version = "2" }
+solana-system-interface = { version = "1" }
 solana-security-txt = "1.1.1"
 spl-token = "7.0.0"
 spl-token-2022 = { version = "7.0.0", features = ["no-entrypoint"] }
 spl-pod = "0.5.1"
 pinocchio = { version = "0.9" }
 pinocchio-pubkey = { version = "0.3.0" }
+pinocchio-system = { version = "0.3.0" }
 bs58 = "^0.5.1"
 litesvm = "0.7"
 # Anchor
@@ -170,6 +176,8 @@ light-sdk-pinocchio = { path = "sdk-libs/sdk-pinocchio", version = "0.13.0" }
 light-sdk-macros = { path = "sdk-libs/macros", version = "0.15.0" }
 light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.15.0" }
 light-compressed-account = { path = "program-libs/compressed-account", version = "0.5.0" }
+light-compressible = { path = "program-libs/compressible", version = "0.1.0" }
+light-ctoken-types = { path = "program-libs/ctoken-types", version = "0.1.0" }
 light-account-checks = { path = "program-libs/account-checks", version = "0.4.0" }
 light-verifier = { path = "program-libs/verifier", version = "4.0.0" }
 light-zero-copy = { path = "program-libs/zero-copy", version = "0.4.0" }
@@ -179,10 +187,12 @@ forester-utils = { path = "forester-utils", version = "2.0.0" }
 account-compression = { path = "programs/account-compression", version = "2.0.0", features = [
     "cpi",
 ] }
-light-compressed-token = { path = "programs/compressed-token", version = "2.0.0", features = [
+light-compressed-token = { path = "programs/compressed-token/program", version = "2.0.0", features = [
     "cpi",
 ] }
 light-compressed-token-types = { path = "sdk-libs/compressed-token-types", version = "0.1.0" }
+light-compressed-token-sdk = { path = "sdk-libs/compressed-token-sdk", version = "0.1.0" }
+light-token-client = { path = "sdk-libs/token-client", version = "0.1.0" }
 light-system-program-anchor = { path = "anchor-programs/system", version = "2.0.0", features = [
     "cpi",
 ] }
@@ -208,6 +218,7 @@ groth16-solana = { version = "0.2.0" }
 bytemuck = { version = "1.19.0" }
 arrayvec = "0.7"
 tinyvec = "1.10.0"
+pinocchio-token-program = { git= "https://github.com/Lightprotocol/token",rev="14bc35d02a994138973f7118a61cd22f08465a98" }
 
 # Math and crypto
 num-bigint = "0.4.6"
@@ -231,8 +242,9 @@ rand = "0.8.5"
 
 [patch.crates-io]
 # Profiling logs and state is handled here
-solana-program-runtime = { git = "https://github.com/Lightprotocol/agave", rev = "be34dc76559e14921a2c8610f2fa2402bf0684bb" }
+solana-program-runtime = { git = "https://github.com/Lightprotocol/agave", rev = "3a9e4e0a4411df4d9961aaa7c9f190d3fa15bc21" }
 # Profiling syscalls are defined here
-solana-bpf-loader-program = { git = "https://github.com/Lightprotocol/agave", rev = "be34dc76559e14921a2c8610f2fa2402bf0684bb" }
+solana-bpf-loader-program = { git = "https://github.com/Lightprotocol/agave", rev = "3a9e4e0a4411df4d9961aaa7c9f190d3fa15bc21" }
 # Patch solana-program-memory to use older version where is_nonoverlapping is public
 solana-program-memory = { git = "https://github.com/anza-xyz/solana-sdk", rev = "1c1d667f161666f12f5a43ebef8eda9470a8c6ee" }
+litesvm = { git = "https://github.com/Lightprotocol/litesvm", rev = "a04cb80b6847eb720c840a5e5d9a6f74ce630cc6" }

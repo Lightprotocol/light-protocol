@@ -2,6 +2,7 @@
 pub mod address_tree;
 #[cfg(feature = "devenv")]
 pub mod address_tree_v2;
+pub mod compressible_config;
 #[cfg(feature = "devenv")]
 pub mod initialize;
 #[cfg(feature = "devenv")]

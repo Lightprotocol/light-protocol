@@ -61,3 +61,32 @@ impl Hasher for Sha256 {
         ZERO_INDEXED_LEAF
     }
 }
+
+/// SHA256 hasher that sets byte 0 to zero after hashing.
+/// Used for big-endian compatibility with BN254 field size.
+#[derive(Clone, Copy)]
+pub struct Sha256BE;
+
+impl Hasher for Sha256BE {
+    const ID: u8 = 3;
+
+    fn hash(val: &[u8]) -> Result<Hash, HasherError> {
+        let mut result = Sha256::hash(val)?;
+        result[0] = 0;
+        Ok(result)
+    }
+
+    fn hashv(vals: &[&[u8]]) -> Result<Hash, HasherError> {
+        let mut result = Sha256::hashv(vals)?;
+        result[0] = 0;
+        Ok(result)
+    }
+
+    fn zero_bytes() -> ZeroBytes {
+        ZERO_BYTES
+    }
+
+    fn zero_indexed_leaf() -> [u8; 32] {
+        ZERO_INDEXED_LEAF
+    }
+}

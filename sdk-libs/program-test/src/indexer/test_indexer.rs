@@ -1659,18 +1659,14 @@ impl TestIndexer {
             match compressed_account.compressed_account.data.as_ref() {
                 Some(data) => {
                     // Check for both V1 and V2 token account discriminators
-                    const TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR: [u8; 8] =
-                        [2, 0, 0, 0, 0, 0, 0, 0];
-                    let is_v1_token = data.discriminator == TOKEN_COMPRESSED_ACCOUNT_DISCRIMINATOR;
+                    let is_v1_token = data.discriminator == [2, 0, 0, 0, 0, 0, 0, 0]; // V1 discriminator
                     let is_v2_token = data.discriminator == [0, 0, 0, 0, 0, 0, 0, 3]; // V2 discriminator
-
-                    use solana_sdk::pubkey;
-                    const LIGHT_COMPRESSED_TOKEN_ID: solana_sdk::pubkey::Pubkey =
-                        pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
+                    let is_v3_token = data.discriminator == [0, 0, 0, 0, 0, 0, 0, 4]; // ShaFlat discriminator
 
                     if compressed_account.compressed_account.owner
-                        == LIGHT_COMPRESSED_TOKEN_ID.to_bytes()
-                        && (is_v1_token || is_v2_token)
+                        == solana_pubkey::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m")
+                            .to_bytes()
+                        && (is_v1_token || is_v2_token || is_v3_token)
                     {
                         if let Ok(token_data) = TokenData::deserialize(&mut data.data.as_slice()) {
                             let token_account = TokenDataWithMerkleContext {

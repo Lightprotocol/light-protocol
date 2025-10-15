@@ -1,7 +1,5 @@
 #![cfg(feature = "test-sbf")]
 
-use std::println;
-
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
 use light_batched_merkle_tree::{errors::BatchedMerkleTreeError, queue::BatchedQueueAccount};
@@ -34,7 +32,7 @@ use light_system_program::{
 use light_test_utils::{
     airdrop_lamports,
     assert_compressed_tx::assert_created_compressed_accounts,
-    assert_custom_error_or_program_error, setup_forester_and_advance_to_epoch,
+    assert_custom_error_or_program_error,
     system_program::{
         compress_sol_test, create_addresses_test, create_invoke_instruction,
         create_invoke_instruction_data_and_remaining_accounts, decompress_sol_test,
@@ -1635,7 +1633,7 @@ async fn test_with_compression() {
 }
 
 #[ignore = "this is a helper function to regenerate accounts"]
-#[serial]
+// #[serial]
 #[tokio::test]
 async fn regenerate_accounts() {
     let output_dir = "../../cli/accounts/";
@@ -1666,11 +1664,12 @@ async fn regenerate_accounts() {
         .await
         .unwrap();
 
-    // Setup forester and get epoch information
-    let forester_epoch = setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
-        .await
-        .unwrap();
-
+    // // // Setup forester and get epoch information
+    // let forester_epoch = setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
+    //     .await
+    //     .unwrap();
+    // let forester_epoch_pda = get_forester_epoch_pda(&env.protocol.forester.pubkey(), 0).0;
+    // let epoch_pda = get_epoch_pda_address(0);
     // List of public keys to fetch and export - dynamically built from test accounts
     let mut pubkeys = vec![
         (
@@ -1690,8 +1689,8 @@ async fn regenerate_accounts() {
             "registered_forester_pda",
             env.protocol.registered_forester_pda,
         ),
-        ("forester_epoch_pda", forester_epoch.forester_epoch_pda),
-        ("epoch_pda", forester_epoch.epoch_pda),
+        // ("forester_epoch_pda", forester_epoch_pda),
+        // ("epoch_pda", epoch_pda),
     ];
 
     // Add all v1 state trees
@@ -1728,6 +1727,7 @@ async fn regenerate_accounts() {
     rust_file.push_str(&code.to_string());
     for (name, pubkey) in pubkeys {
         println!("pubkey {:?}", pubkey);
+        println!("name {:?}", name);
         // Fetch account data. Adjust this part to match how you retrieve and structure your account data.
         let account = rpc.get_account(pubkey).await.unwrap();
         println!(
@@ -1846,10 +1846,10 @@ async fn batch_invoke_test() {
     let config = ProgramTestConfig::default_test_forester(false);
 
     let mut rpc = LightProgramTest::new(config).await.unwrap();
-    let protocol_config = rpc.config.protocol_config;
-    setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
-        .await
-        .unwrap();
+    // let protocol_config = rpc.config.protocol_config;
+    // setup_forester_and_advance_to_epoch(&mut rpc, &protocol_config)
+    //     .await
+    //     .unwrap();
 
     let env = rpc.test_accounts.clone();
     let payer = rpc.get_payer().insecure_clone();

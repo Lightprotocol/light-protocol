@@ -1,4 +1,4 @@
-#![cfg(feature = "test-sbf")]
+// #![cfg(feature = "test-sbf")]
 
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
@@ -736,6 +736,7 @@ async fn only_test_create_pda() {
     let mut rpc = LightProgramTest::new({
         let mut config = ProgramTestConfig::default_with_batched_trees(false);
         config.additional_programs = Some(vec![("system_cpi_test", ID)]);
+        config.log_light_protocol_events = true;
         config
     })
     .await
