@@ -104,7 +104,7 @@ pub async fn claim_and_compress(
                             base_lamports,
                         )
                         .unwrap();
-                    let last_funded_slot = (last_funded_epoch) * SLOTS_PER_EPOCH;
+                    let last_funded_slot = last_funded_epoch * SLOTS_PER_EPOCH;
                     stored_compressible_accounts.insert(
                         account.0,
                         StoredCompressibleAccount {

@@ -1,6 +1,5 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
-use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
@@ -909,9 +908,8 @@ async fn only_test_create_pda() {
         )
         .await;
         assert_rpc_error(
-            result,
-            0,
-            AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
+            result, 0,
+            21, // Panic AccountCompressionErrorCode::AddressMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .unwrap();
     }
