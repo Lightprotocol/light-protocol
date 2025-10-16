@@ -121,8 +121,8 @@ pinocchio-system = { version = "0.3.0" }
 bs58 = "^0.5.1"
 litesvm = "0.7"
 # Anchor
-anchor-lang = { version = "=0.31.1" }
-anchor-spl = "=0.31.1"
+anchor-lang = { version = "0.32.0" }
+anchor-spl = "0.32.0"
 
 # Anchor compatibility
 borsh = "0.10.0"
@@ -247,3 +247,8 @@ solana-bpf-loader-program = { git = "https://github.com/Lightprotocol/agave", re
 # Patch solana-program-memory to use older version where is_nonoverlapping is public
 solana-program-memory = { git = "https://github.com/anza-xyz/solana-sdk", rev = "1c1d667f161666f12f5a43ebef8eda9470a8c6ee" }
 litesvm = { git = "https://github.com/Lightprotocol/litesvm", rev = "a04cb80b6847eb720c840a5e5d9a6f74ce630cc6" }
+# Fix anchor-syn 0.32.1 local_file() error with proc_macro2
+# Using latest master with the fix merged
+anchor-lang = { git = "https://github.com/solana-foundation/anchor", branch = "master" }
+anchor-syn = { git = "https://github.com/solana-foundation/anchor", branch = "master" }
+anchor-spl = { git = "https://github.com/solana-foundation/anchor", branch = "master" }

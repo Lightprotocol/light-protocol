@@ -1,4 +1,4 @@
-use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units};
+use anchor_lang::prelude::*;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_compressed_token_sdk::{
     account::CTokenAccount,
@@ -42,12 +42,10 @@ pub fn process_create_compressed_account<'a, 'info>(
     my_compressed_account.owner = *cpi_accounts.fee_payer().key;
 
     msg!("invoke");
-    sol_log_compute_units();
     LightSystemProgramCpi::new_cpi(crate::LIGHT_CPI_SIGNER, proof)
         .with_light_account(my_compressed_account)?
         .with_new_addresses(&[new_address_params])
         .invoke(cpi_accounts)?;
-    sol_log_compute_units();
 
     Ok(())
 }
@@ -105,10 +103,8 @@ pub fn deposit_tokens<'a, 'info>(
     // msg!("instruction {:?}", instruction);
     // We can use the property that account infos don't have to be in order if you use
     // solana program invoke.
-    sol_log_compute_units();
 
     msg!("create_account_infos");
-    sol_log_compute_units();
     // TODO: initialize from CpiAccounts, use with_compressed_pda() offchain.
     // let account_infos: TransferAccountInfos<'_, 'info, MAX_ACCOUNT_INFOS> = TransferAccountInfos {
     //     fee_payer: cpi_accounts.fee_payer(),
@@ -126,13 +122,9 @@ pub fn deposit_tokens<'a, 'info>(
         &remaining_accounts[..len],
     ]
     .concat();
-    sol_log_compute_units();
 
-    sol_log_compute_units();
     msg!("invoke");
-    sol_log_compute_units();
     anchor_lang::solana_program::program::invoke(&instruction, account_infos.as_slice())?;
-    sol_log_compute_units();
 
     Ok(())
 }

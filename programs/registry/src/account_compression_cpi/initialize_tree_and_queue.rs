@@ -52,7 +52,10 @@ pub fn process_initialize_state_merkle_tree(
         registered_program_pda: Some(ctx.accounts.registered_program_pda.clone()),
     };
     let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.account_compression_program.to_account_info(),
+        *ctx.accounts
+            .account_compression_program
+            .to_account_info()
+            .key,
         accounts,
         signer_seeds,
     );
@@ -87,7 +90,10 @@ pub fn process_initialize_address_merkle_tree(
         registered_program_pda: Some(ctx.accounts.registered_program_pda.clone()),
     };
     let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.account_compression_program.to_account_info(),
+        *ctx.accounts
+            .account_compression_program
+            .to_account_info()
+            .key,
         accounts,
         signer_seeds,
     );
@@ -117,7 +123,7 @@ pub fn process_initialize_cpi_context<'info>(
         cpi_context_account,
         associated_merkle_tree,
     };
-    let cpi_ctx = CpiContext::new_with_signer(light_system_program, accounts, signer_seeds);
+    let cpi_ctx = CpiContext::new_with_signer(*light_system_program.key, accounts, signer_seeds);
 
     light_system_program::cpi::init_cpi_context_account(cpi_ctx)
 }

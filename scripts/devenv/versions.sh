@@ -10,7 +10,7 @@ export PNPM_VERSION=$(grep 'packageManager' "${REPO_ROOT}/package.json" | sed 's
 # Versions to bump manually (edit below)
 export NODE_VERSION="22.16.0"
 export SOLANA_VERSION="2.2.15"
-export ANCHOR_VERSION="0.31.1"
+export ANCHOR_VERSION="0.32.1"
 export JQ_VERSION="1.8.0"
 export PHOTON_VERSION="0.51.0"
 export PHOTON_COMMIT="ad49094e59195c664a683b7c7814e26563640d57"

@@ -99,7 +99,10 @@ pub mod system_cpi_test {
         let bump = &[bump];
         let seeds = [&[CPI_AUTHORITY_PDA_SEED, bump][..]];
         let mut cpi_context = CpiContext::new_with_signer(
-            ctx.accounts.account_compression_program.to_account_info(),
+            *ctx.accounts
+                .account_compression_program
+                .to_account_info()
+                .key,
             accounts,
             &seeds,
         );
@@ -158,7 +161,10 @@ pub mod system_cpi_test {
             registered_program_pda: Some(ctx.accounts.registered_program_pda.clone()),
         };
         let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.account_compression_program.to_account_info(),
+            *ctx.accounts
+                .account_compression_program
+                .to_account_info()
+                .key,
             accounts,
             signer_seeds,
         );
@@ -194,7 +200,10 @@ pub mod system_cpi_test {
                 registered_program_pda: Some(ctx.accounts.registered_program_pda.clone()),
             };
         let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.account_compression_program.to_account_info(),
+            *ctx.accounts
+                .account_compression_program
+                .to_account_info()
+                .key,
             accounts,
             signer_seeds,
         );

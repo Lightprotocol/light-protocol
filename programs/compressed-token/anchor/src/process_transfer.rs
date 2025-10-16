@@ -467,7 +467,7 @@ pub fn cpi_execute_compressed_transaction_transfer<
             cpi_context_account,
         };
         let mut cpi_ctx = CpiContext::new_with_signer(
-            _system_program_account_info,
+            *_system_program_account_info.key,
             cpi_accounts,
             signer_seeds_ref,
         );

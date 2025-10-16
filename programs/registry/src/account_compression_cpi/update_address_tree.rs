@@ -52,7 +52,10 @@ pub fn process_update_address_merkle_tree(
         merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
     };
     let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.account_compression_program.to_account_info(),
+        *ctx.accounts
+            .account_compression_program
+            .to_account_info()
+            .key,
         accounts,
         signer_seeds,
     );

@@ -125,7 +125,10 @@ pub mod light_registry {
         };
 
         let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.account_compression_program.to_account_info(),
+            *ctx.accounts
+                .account_compression_program
+                .to_account_info()
+                .key,
             accounts,
             signer_seeds,
         );
@@ -146,7 +149,10 @@ pub mod light_registry {
         };
 
         let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.account_compression_program.to_account_info(),
+            *ctx.accounts
+                .account_compression_program
+                .to_account_info()
+                .key,
             accounts,
             signer_seeds,
         );

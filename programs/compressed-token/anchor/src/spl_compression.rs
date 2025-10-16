@@ -234,7 +234,7 @@ pub fn spl_token_transfer_cpi_with_signer<'info>(
         to,
         authority,
     };
-    let cpi_ctx = CpiContext::new_with_signer(token_program, accounts, signer_seeds_ref);
+    let cpi_ctx = CpiContext::new_with_signer(*token_program.key, accounts, signer_seeds_ref);
     anchor_spl::token_interface::transfer(cpi_ctx, amount)
 }
 

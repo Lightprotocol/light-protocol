@@ -84,7 +84,10 @@ pub fn process_rollover_address_merkle_tree_and_queue(
         old_queue: ctx.accounts.old_queue.to_account_info(),
     };
     let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.account_compression_program.to_account_info(),
+        *ctx.accounts
+            .account_compression_program
+            .to_account_info()
+            .key,
         accounts,
         signer_seeds,
     );
@@ -110,7 +113,10 @@ pub fn process_rollover_state_merkle_tree_and_queue(
         old_nullifier_queue: ctx.accounts.old_queue.to_account_info(),
     };
     let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.account_compression_program.to_account_info(),
+        *ctx.accounts
+            .account_compression_program
+            .to_account_info()
+            .key,
         accounts,
         signer_seeds,
     );
