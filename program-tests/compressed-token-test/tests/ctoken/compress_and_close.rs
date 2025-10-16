@@ -840,8 +840,8 @@ async fn test_compress_and_close_output_validation_errors() {
         .await;
 
         // Assert that the transaction failed with account frozen error
-        // Error: AccountFrozen (76 = 0x4c)
-        light_program_test::utils::assert::assert_rpc_error(result, 0, 76).unwrap();
+        // Error: InvalidAccountState (18036)
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 18036).unwrap();
     }
 }
 

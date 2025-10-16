@@ -4,7 +4,6 @@ use light_account_checks::{checks::check_signer, AccountInfoTrait};
 use light_compressible::rent::{get_rent_exemption_lamports, AccountRentState};
 use light_ctoken_types::state::{CToken, ZCompressedTokenMut, ZExtensionStructMut};
 use light_program_profiler::profile;
-use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 use pinocchio::account_info::AccountInfo;
 #[cfg(target_os = "solana")]
 use pinocchio::sysvars::Sysvar;
@@ -26,7 +25,7 @@ pub fn process_close_token_account(
         // Try to parse as CToken using zero-copy deserialization
         let token_account_data =
             &mut AccountInfoTrait::try_borrow_mut_data(accounts.token_account)?;
-        let (ctoken, _) = CToken::zero_copy_at_mut(token_account_data)?;
+        let (ctoken, _) = CToken::zero_copy_at_mut_checked(token_account_data)?;
         validate_token_account_close_instruction(&accounts, &ctoken)?;
     }
     close_token_account(&accounts)?;
@@ -156,7 +155,7 @@ pub fn distribute_lamports(accounts: &CloseTokenAccountAccounts<'_>) -> Result<(
     // Check for compressible extension and handle lamport distribution
 
     let token_account_data = AccountInfoTrait::try_borrow_data(accounts.token_account)?;
-    let (ctoken, _) = CToken::zero_copy_at(&token_account_data)?;
+    let (ctoken, _) = CToken::zero_copy_at_checked(&token_account_data)?;
 
     if let Some(extensions) = ctoken.extensions.as_ref() {
         for extension in extensions {

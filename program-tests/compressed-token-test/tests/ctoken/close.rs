@@ -264,7 +264,7 @@ async fn test_close_token_account_fails() {
             &owner_keypair,
             Some(rent_sponsor),
             "uninitialized_account",
-            10, // ProgramError::UninitializedAccount
+            18036, // CTokenError::InvalidAccountState
         )
         .await;
     }
@@ -317,7 +317,7 @@ async fn test_close_token_account_fails() {
             &owner_keypair,
             Some(rent_sponsor),
             "frozen_account",
-            76, // ErrorCode::AccountFrozen
+            18036, // CTokenError::InvalidAccountState
         )
         .await;
     }

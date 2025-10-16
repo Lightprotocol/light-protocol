@@ -4,7 +4,6 @@ use light_ctoken_types::{
     CTokenError,
 };
 use light_program_profiler::profile;
-use light_zero_copy::traits::ZeroCopyAt;
 use pinocchio::account_info::AccountInfo;
 use pinocchio_token_program::processor::transfer::process_transfer;
 
@@ -60,7 +59,7 @@ fn calculate_and_execute_top_up_transfers(
                 .account
                 .try_borrow_data()
                 .map_err(convert_program_error)?;
-            let (token, _) = CToken::zero_copy_at(&account_data)?;
+            let (token, _) = CToken::zero_copy_at_checked(&account_data)?;
             if let Some(extensions) = token.extensions.as_ref() {
                 for extension in extensions.iter() {
                     if let ZExtensionStruct::Compressible(compressible_extension) = extension {
