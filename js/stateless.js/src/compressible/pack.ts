@@ -15,6 +15,7 @@ import {
 } from '../utils';
 import { ValidityProofWithContext } from '../rpc-interface';
 import { packTreeInfos, ValidityProofWithContextV2 } from '../programs';
+import { Buffer } from 'buffer';
 
 // Type to transform PublicKey fields to numbers recursively
 export type PackedType<T> = T extends PublicKey
@@ -92,8 +93,8 @@ export async function packDecompressAccountsIdempotent(
             outputStateTreeIndex: number;
         };
         data: any;
-        seedIndices: number[];
-        authorityIndices: number[];
+        seedIndices: Buffer;
+        authorityIndices: Buffer;
     }[];
     systemAccountsOffset: number;
     proofOption: { 0: ValidityProof | null };
@@ -138,8 +139,7 @@ export async function packDecompressAccountsIdempotent(
         remainingAccounts,
     );
 
-    // Extract and deduplicate seed accounts from all compressed accounts
-    const seedAccountMap = new Map<string, number>();
+    // Build a flat seed list in encounter order (no dedup)
     const seedAccounts: PublicKey[] = [];
 
     function extractPubkeysFromSeeds(
@@ -147,8 +147,12 @@ export async function packDecompressAccountsIdempotent(
     ): PublicKey[] {
         if (!seeds || seeds.length === 0) return [];
         const pubkeys: PublicKey[] = [];
-        // Skip the last element (bump) and extract only 32-byte pubkeys
-        for (let i = 0; i < seeds.length - 1; i++) {
+        // Skip the last element only if it looks like a bump (length === 1)
+        const end =
+            seeds.length > 0 && seeds[seeds.length - 1].length === 1
+                ? seeds.length - 1
+                : seeds.length;
+        for (let i = 0; i < end; i++) {
             const seed = seeds[i];
             if (seed.length === 32) {
                 try {
@@ -161,15 +165,10 @@ export async function packDecompressAccountsIdempotent(
         return pubkeys;
     }
 
-    function getOrInsertSeedAccount(pubkey: PublicKey): number {
-        const key = pubkey.toBase58();
-        if (!seedAccountMap.has(key)) {
-            const index = seedAccounts.length;
-            seedAccountMap.set(key, index);
-            seedAccounts.push(pubkey);
-            return index;
-        }
-        return seedAccountMap.get(key)!;
+    function pushSeedAndGetIndex(pubkey: PublicKey): number {
+        const idx = seedAccounts.length;
+        seedAccounts.push(pubkey);
+        return idx;
     }
 
     // Build seed_indices and authority_indices for each account
@@ -180,9 +179,9 @@ export async function packDecompressAccountsIdempotent(
         const seedPubkeys = extractPubkeysFromSeeds(account.seeds);
         const authPubkeys = extractPubkeysFromSeeds(account.authoritySeeds);
 
-        seedIndicesList.push(seedPubkeys.map(pk => getOrInsertSeedAccount(pk)));
+        seedIndicesList.push(seedPubkeys.map(pk => pushSeedAndGetIndex(pk)));
         authorityIndicesList.push(
-            authPubkeys.map(pk => getOrInsertSeedAccount(pk)),
+            authPubkeys.map(pk => pushSeedAndGetIndex(pk)),
         );
     }
 
@@ -192,8 +191,8 @@ export async function packDecompressAccountsIdempotent(
             outputStateTreeIndex: number;
         };
         data: any;
-        seedIndices: number[];
-        authorityIndices: number[];
+        seedIndices: Buffer;
+        authorityIndices: Buffer;
     }[] = compressedAccounts.map(({ data }, index) => {
         const packedData = packWithAccounts(data, remainingAccounts);
         if (!packedTreeInfos.stateTrees) {
@@ -213,8 +212,8 @@ export async function packDecompressAccountsIdempotent(
                 compressedAccounts[index].key[0].toUpperCase() +
                 compressedAccounts[index].key.slice(1)]: [packedData],
             },
-            seedIndices: seedIndicesList[index],
-            authorityIndices: authorityIndicesList[index],
+            seedIndices: Buffer.from(seedIndicesList[index]),
+            authorityIndices: Buffer.from(authorityIndicesList[index]),
         };
     });
     const { remainingAccounts: remainingAccountMetas, systemStart } =
@@ -234,7 +233,7 @@ export async function packDecompressAccountsIdempotent(
         });
     }
 
-    // Add deduplicated seed accounts
+    // Add all seed accounts (no dedup)
     for (const seedAccount of seedAccounts) {
         remainingAccountMetas.push({
             pubkey: seedAccount,

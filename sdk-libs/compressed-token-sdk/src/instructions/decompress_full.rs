@@ -100,7 +100,6 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
     }
     // Process each set of indices
     let mut token_accounts = Vec::with_capacity(indices.len());
-    spl_pod::solana_msg::msg!("allocated token_accounts vec");
 
     for idx in indices.iter() {
         // Create CTokenAccount2 with the source data
@@ -114,7 +113,7 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
         token_account.decompress(idx.source.amount, idx.destination_index)?;
         token_accounts.push(token_account);
     }
-    spl_pod::solana_msg::msg!("pushed token_accounts ");
+
 
     // Convert packed_accounts to AccountMetas
     //
@@ -123,17 +122,15 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
     // Build signer flags in O(n) instead of scanning on every meta push
     let mut signer_flags = vec![false; packed_accounts.len()];
 
-    spl_pod::solana_msg::msg!("allocated signer_flags vec");
     for idx in indices.iter() {
         let owner_idx = idx.source.owner as usize;
         if owner_idx < signer_flags.len() {
             signer_flags[owner_idx] = true;
         }
     }
-    spl_pod::solana_msg::msg!("pushed signer_flags");
+
 
     let mut packed_account_metas = Vec::with_capacity(packed_accounts.len());
-    spl_pod::solana_msg::msg!("allocated packed_account_metas vec");
 
     for (i, info) in packed_accounts.iter().enumerate() {
         packed_account_metas.push(AccountMeta {
@@ -142,7 +139,6 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
             is_writable: info.is_writable,
         });
     }
-    spl_pod::solana_msg::msg!("pushed packed_account_metas");
 
     let (meta_config, transfer_config) = if let Some(cpi_context) = cpi_context_pubkey {
         let cpi_context_config = CompressedCpiContext {
@@ -150,7 +146,6 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
             first_set_context: false,
         };
 
-        spl_pod::solana_msg::msg!("allocated meta_config");
         (
             Transfer2AccountsMetaConfig {
                 fee_payer: Some(fee_payer),
@@ -172,7 +167,6 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
         )
     };
 
-    spl_pod::solana_msg::msg!("allocated meta_config and transfer_config");
 
     // Create the transfer2 instruction with all decompress operations
     // Optimization: when a CPI context is provided, the proof is already stored in the
@@ -184,7 +178,7 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
         validity_proof
     };
 
-    spl_pod::solana_msg::msg!("allocated effective_proof");
+
 
     let inputs = Transfer2Inputs {
         meta_config,
@@ -193,7 +187,6 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
         validity_proof: effective_proof,
         ..Default::default()
     };
-    spl_pod::solana_msg::msg!("allocated inputs");
 
     create_transfer2_instruction(inputs)
 }

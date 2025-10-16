@@ -657,6 +657,7 @@ pub fn add_compressible_instructions(
                     let mut token_decompress_indices = Box::new(Vec::with_capacity(ctoken_accounts.len()));
                     let mut token_signers_seed_groups = Box::new(Vec::with_capacity(ctoken_accounts.len()));
                     let packed_accounts = cpi_accounts.post_system_accounts().unwrap();
+                    let mut max_used_index: u8 = 0;
 
                     use crate::ctoken_seed_system::CTokenSeedProvider;
                     let authority = cpi_accounts.authority().unwrap();
@@ -696,6 +697,17 @@ pub fn add_compressible_instructions(
                                 None,
                             ).map_err(|e| anchor_lang::error::Error::from(anchor_lang::prelude::ProgramError::from(e)))?;
                         }
+                        // Track highest used packed account index to trim passed packed_accounts (do before move)
+                        if owner_index > max_used_index { max_used_index = owner_index; }
+                        if mint_index > max_used_index { max_used_index = mint_index; }
+                        if token_data.token_data.has_delegate && token_data.token_data.delegate > max_used_index {
+                            max_used_index = token_data.token_data.delegate;
+                        }
+                        let tree_idx = meta.tree_info.merkle_tree_pubkey_index as u8;
+                        let queue_idx = meta.tree_info.queue_pubkey_index as u8;
+                        if tree_idx > max_used_index { max_used_index = tree_idx; }
+                        if queue_idx > max_used_index { max_used_index = queue_idx; }
+
                         let decompress_index = light_compressed_token_sdk::instructions::DecompressFullIndices::from((
                             token_data.token_data,
                             meta,
@@ -705,12 +717,16 @@ pub fn add_compressible_instructions(
                         token_signers_seed_groups.push(ctoken_signer_seeds);
                     }
 
+                    // Only pass the prefix of packed_accounts actually referenced by indices
+                    let prefix_len = core::cmp::min(packed_accounts.len(), (max_used_index as usize).saturating_add(1));
+                    let packed_accounts_prefix = &packed_accounts[..prefix_len];
+
                     let ctoken_ix = light_compressed_token_sdk::instructions::decompress_full_ctoken_accounts_with_indices(
                         fee_payer.key(),
                         proof,
                         if has_pdas { Some(cpi_context.key()) } else { None },
                         &token_decompress_indices,
-                        packed_accounts,
+                        packed_accounts_prefix,
                     ).map_err(|e| anchor_lang::error::Error::from(anchor_lang::prelude::ProgramError::from(e)))?;
 
                     {
@@ -814,6 +830,7 @@ pub fn add_compressible_instructions(
                             Vec<u8>,
                             Vec<u8>,
                         )>,
+                        u8,
                     )> {
                         let cpi_accounts = if has_tokens && has_pdas {
                             light_sdk_types::CpiAccountsSmall::new_with_config(
@@ -829,8 +846,39 @@ pub fn add_compressible_instructions(
                             )
                         };
 
-                        let solana_accounts = &ctx.remaining_accounts[ctx.remaining_accounts.len() - compressed_accounts.len()..];
+                        // Legacy layout: remaining = [...system...] + [solana PDA targets] + [seed accounts]
+                        // Seed accounts are appended last and are deduplicated across all compressed accounts.
+                        // Count seeds by taking max index across seed_indices and authority_indices (+1).
+                        let max_index_opt: Option<u8> = compressed_accounts
+                            .iter()
+                            .fold(None::<u8>, |acc, ca| {
+                                let s = ca.seed_indices.iter().copied().max();
+                                let a = ca.authority_indices.iter().copied().max();
+                                let m = match (s, a) {
+                                    (Some(x), Some(y)) => Some(x.max(y)),
+                                    (Some(x), None) => Some(x),
+                                    (None, Some(y)) => Some(y),
+                                    (None, None) => None,
+                                };
+                                match (acc, m) {
+                                    (Some(ax), Some(mx)) => Some(ax.max(mx)),
+                                    (Some(ax), None) => Some(ax),
+                                    (None, Some(mx)) => Some(mx),
+                                    (None, None) => None,
+                                }
+                            });
+                        let seed_accounts_count: usize = max_index_opt.map(|m| m as usize + 1).unwrap_or(0);
+                        let total = ctx.remaining_accounts.len();
+                        let pda_count = compressed_accounts.len();
+                        let solana_start = total
+                            .checked_sub(seed_accounts_count)
+                            .and_then(|v| v.checked_sub(pda_count))
+                            .ok_or(anchor_lang::error::Error::from(anchor_lang::prelude::ProgramError::NotEnoughAccountKeys))?;
+                        let solana_end = solana_start + pda_count;
+                        let solana_accounts = &ctx.remaining_accounts[solana_start..solana_end];
 
+                        // Seed accounts begin immediately after the PDA window
+                        let computed_seed_accounts_offset: u8 = solana_end as u8;
                         let (compressed_pda_infos, compressed_token_accounts) = collect_pda_and_token(
                             &ctx.accounts,
                             &cpi_accounts,
@@ -838,13 +886,13 @@ pub fn add_compressible_instructions(
                             compressed_accounts,
                             solana_accounts,
                             &ctx.remaining_accounts,
-                            seed_accounts_offset,
+                            computed_seed_accounts_offset,
                         ).map_err(|e| anchor_lang::error::Error::from(e))?;
 
-                        Ok((cpi_accounts, compressed_pda_infos, compressed_token_accounts))
+                        Ok((cpi_accounts, compressed_pda_infos, compressed_token_accounts, computed_seed_accounts_offset))
                     }
 
-                    let (cpi_accounts, compressed_pda_infos, compressed_token_accounts) = build_cpi_and_collect(
+                    let (cpi_accounts, compressed_pda_infos, compressed_token_accounts, computed_seed_accounts_offset) = build_cpi_and_collect(
                         &ctx,
                         address_space,
                         compressed_accounts,
@@ -870,7 +918,7 @@ pub fn add_compressible_instructions(
                             proof,
                             cpi_accounts,
                             false,
-                            seed_accounts_offset,
+                            computed_seed_accounts_offset,
                         ).map_err(|e| anchor_lang::error::Error::from(e))?;
                     } else if has_pdas && has_tokens {
                         process_pdas(compressed_pda_infos, proof, cpi_accounts.clone(), true)
@@ -881,7 +929,7 @@ pub fn add_compressible_instructions(
                             proof,
                             cpi_accounts,
                             true,
-                            seed_accounts_offset,
+                            computed_seed_accounts_offset,
                         ).map_err(|e| anchor_lang::error::Error::from(e))?;
                     }
                     Ok(())
