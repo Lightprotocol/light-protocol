@@ -11,7 +11,7 @@ use solana_signer::Signer;
 pub struct CreateCompressibleTokenAccountInputs<'a> {
     pub owner: Pubkey,
     pub mint: Pubkey,
-    pub num_prepaid_epochs: u64,
+    pub num_prepaid_epochs: u8,
     pub payer: &'a Keypair,
     pub token_account_keypair: Option<&'a Keypair>,
     pub lamports_per_write: Option<u32>,

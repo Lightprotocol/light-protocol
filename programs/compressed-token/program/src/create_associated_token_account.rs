@@ -174,7 +174,7 @@ fn process_compressible_config<'info>(
         .rent_config
         .get_rent_with_compression_cost(
             token_account_size as u64,
-            compressible_config_ix_data.rent_payment,
+            compressible_config_ix_data.rent_payment as u64,
         );
 
     // Build ATA seeds

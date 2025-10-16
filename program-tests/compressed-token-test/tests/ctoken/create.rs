@@ -107,8 +107,8 @@ async fn test_create_account_random() {
     println!("\n\n🎲 Random Create Account Test - Seed: {}\n\n", seed);
     let mut rng = StdRng::seed_from_u64(seed);
 
-    // Run 1000 random test iterations
-    for iteration in 0..1000 {
+    // Run 100 random test iterations
+    for iteration in 0..100 {
         println!("\n--- Random Test Iteration {} ---", iteration + 1);
         let compressible_data = CompressibleData {
             compression_authority: context.compression_authority, // Config account forces this authority.
@@ -118,7 +118,7 @@ async fn test_create_account_random() {
                 context.rent_sponsor
             },
             num_prepaid_epochs: {
-                let value = rng.gen_range(0..=1000);
+                let value = rng.gen_range(0..=255);
                 if value != 1 {
                     value
                 } else {

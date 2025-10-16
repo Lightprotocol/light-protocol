@@ -29,7 +29,7 @@ pub struct CreateCompressibleAssociatedTokenAccountInputs {
     /// The recipient of lamports when the account is closed by rent authority (fee_payer_pda)
     pub rent_sponsor: Pubkey,
     /// Number of epochs of rent to prepay
-    pub pre_pay_num_epochs: u64,
+    pub pre_pay_num_epochs: u8,
     /// Initial lamports to top up for rent payments (optional)
     pub lamports_per_write: Option<u32>,
     /// Version of the compressed token account when ctoken account is
@@ -155,7 +155,7 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
     mint: Pubkey,
     ata_pubkey: Pubkey,
     bump: u8,
-    compressible_config: Option<(u64, Option<u32>, Pubkey, Pubkey, TokenDataVersion)>, // (pre_pay_num_epochs, lamports_per_write, rent_sponsor, compressible_config_account, token_account_version)
+    compressible_config: Option<(u8, Option<u32>, Pubkey, Pubkey, TokenDataVersion)>, // (pre_pay_num_epochs, lamports_per_write, rent_sponsor, compressible_config_account, token_account_version)
 ) -> Result<Instruction> {
     // Select discriminator based on idempotent mode
     let discriminator = if IDEMPOTENT {

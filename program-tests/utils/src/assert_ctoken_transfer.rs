@@ -102,7 +102,7 @@ pub async fn assert_compressible_for_account(
                 let current_slot = rpc.get_slot().await.unwrap();
                 let top_up = compressible_before
                     .calculate_top_up_lamports(
-                        261,
+                        260,
                         current_slot,
                         lamports_before,
                         compressible_before.lamports_per_write.into(),

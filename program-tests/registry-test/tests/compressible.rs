@@ -93,7 +93,7 @@ async fn test_claim_rent_for_completed_epochs() -> Result<(), RpcError> {
     let compressible_owner_pubkey = compressible_owner_keypair.pubkey();
 
     // Create compressible token account with 2 epochs of rent prepaid
-    let prepaid_epochs = 2u64;
+    let prepaid_epochs = 2;
     let lamports_per_write = Some(100);
 
     // Use the new action to create the compressible token account
@@ -161,7 +161,7 @@ async fn test_claim_multiple_accounts_different_epochs() {
             CreateCompressibleTokenAccountInputs {
                 owner: owner_pubkey,
                 mint,
-                num_prepaid_epochs: i as u64,
+                num_prepaid_epochs: i as u8,
                 payer: &payer,
                 token_account_keypair: None,
                 lamports_per_write: Some(100),

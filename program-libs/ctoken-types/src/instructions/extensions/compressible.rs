@@ -17,7 +17,7 @@ pub struct CompressibleExtensionInstructionData {
     pub token_account_version: u8,
     /// Rent payment in epochs.
     /// Paid once at initialization.
-    pub rent_payment: u64,
+    pub rent_payment: u8,
     pub has_top_up: u8,
     pub write_top_up: u32,
     pub compress_to_account_pubkey: Option<CompressToPubkey>,

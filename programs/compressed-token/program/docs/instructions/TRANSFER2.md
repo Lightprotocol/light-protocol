@@ -303,6 +303,7 @@ When compression processing occurs (in both Path A and Path B):
 - `ErrorCode::SumCheckFailed` (error code: 6005) - Input/output token amounts don't match
 - `ErrorCode::InputsOutOfOrder` (error code: 6054) - Sum inputs mint indices not in ascending order
 - `ErrorCode::TooManyMints` (error code: 6055) - Sum check, too many mints (max 5)
+- `ErrorCode::DuplicateMint` (error code: 6056) - Duplicate mint index detected in inputs, outputs, or compressions (same mint referenced by multiple indices or same index used multiple times)
 - `ErrorCode::ComputeOutputSumFailed` (error code: 6002) - Output mint not in inputs or compressions
 - `ErrorCode::TooManyCompressionTransfers` (error code: 6106) - Too many compression transfers. Maximum 40 transfers allowed per instruction
 - `ErrorCode::NoInputsProvided` (error code: 6025) - No compressions provided in early exit path (no compressed accounts)

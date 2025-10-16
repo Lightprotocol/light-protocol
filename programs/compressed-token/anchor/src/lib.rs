@@ -414,6 +414,8 @@ pub enum ErrorCode {
     TooManyMintToRecipients,
     #[msg("Prefunding for exactly 1 epoch is not allowed due to epoch boundary timing risk. Use 0 or 2+ epochs.")]
     OneEpochPrefundingNotAllowed,
+    #[msg("Duplicate mint index detected in inputs, outputs, or compressions")]
+    DuplicateMint,
 }
 
 impl From<ErrorCode> for ProgramError {

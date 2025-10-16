@@ -6,8 +6,8 @@ use light_compressible::{
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 
-const TEST_BYTES: u64 = 261;
-const RENT_PER_EPOCH: u64 = 261 + 128;
+const TEST_BYTES: u64 = 260;
+const RENT_PER_EPOCH: u64 = 260 + 128;
 const FULL_COMPRESSION_COSTS: u64 = (COMPRESSION_COST + COMPRESSION_INCENTIVE) as u64;
 
 fn test_rent_config() -> RentConfig {

@@ -14,7 +14,7 @@ use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
 pub struct CompressibleData {
     pub compression_authority: Pubkey,
     pub rent_sponsor: Pubkey,
-    pub num_prepaid_epochs: u64,
+    pub num_prepaid_epochs: u8,
     pub lamports_per_write: Option<u32>,
     pub compress_to_pubkey: bool,
     pub account_version: light_ctoken_types::state::TokenDataVersion,
@@ -62,7 +62,7 @@ pub async fn assert_create_token_account_internal(
 
             let rent_with_compression = RentConfig::default().get_rent_with_compression_cost(
                 COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-                compressible_info.num_prepaid_epochs,
+                compressible_info.num_prepaid_epochs as u64,
             );
             let expected_lamports = rent_exemption + rent_with_compression;
 

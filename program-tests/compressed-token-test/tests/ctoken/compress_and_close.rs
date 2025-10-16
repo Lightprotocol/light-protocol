@@ -501,7 +501,7 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
         .expect("Payer should exist")
         .lamports;
     let rent = RentConfig::default()
-        .get_rent_with_compression_cost(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs);
+        .get_rent_with_compression_cost(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs as u64);
     let tx_fee = 10_000; // Standard transaction fee
     assert_eq!(
         pool_balance_before - payer_balance_after,
@@ -526,8 +526,8 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
             .unwrap()
             .expect("Payer should exist")
             .lamports;
-        let rent =
-            RentConfig::default().get_rent(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs);
+        let rent = RentConfig::default()
+            .get_rent(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, num_prepaid_epochs as u64);
         assert_eq!(
             payer_balance_after,
             payer_balance_before + rent_exemption + rent,

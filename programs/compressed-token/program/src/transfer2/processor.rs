@@ -1,6 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
-use arrayvec::ArrayVec;
+use light_array_map::ArrayMap;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 use light_ctoken_types::{
     hash_cache::HashCache,
@@ -21,7 +21,7 @@ use crate::{
         compression::{close_for_compress_and_close, process_token_compression},
         config::Transfer2Config,
         cpi::allocate_cpi_bytes,
-        sum_check::{sum_check_multi_mint, sum_compressions},
+        sum_check::{sum_check_multi_mint, sum_compressions, validate_mint_uniqueness},
         token_inputs::set_input_compressed_accounts,
         token_outputs::set_output_compressed_accounts,
     },
@@ -61,7 +61,7 @@ pub fn process_transfer2(
         process_with_system_program_cpi(accounts, &inputs, &validated_accounts, transfer_config)
     }
 }
-// TODO: add mint uniqueness check.
+
 /// Validate instruction data consistency (lamports, TLV, and CPI context checks)
 #[profile]
 #[inline(always)]
@@ -126,8 +126,12 @@ fn process_no_system_program_cpi(
         .as_ref()
         .ok_or(ErrorCode::NoInputsProvided)?;
 
-    let mut mint_sums: ArrayVec<(u8, u64), 5> = ArrayVec::new();
-    sum_compressions(compressions, &mut mint_sums)?;
+    let mut mint_map: ArrayMap<u8, u64, 5> = ArrayMap::new();
+    sum_compressions(compressions, &mut mint_map)?;
+
+    // Validate mint uniqueness
+    validate_mint_uniqueness(&mint_map, &validated_accounts.packed_accounts)
+        .map_err(|e| ProgramError::Custom(e as u32 + 6000))?;
 
     process_token_compression(
         fee_payer,
@@ -183,12 +187,18 @@ fn process_with_system_program_cpi(
         inputs,
         &validated_accounts.packed_accounts,
     )?;
-    sum_check_multi_mint(
+
+    // Perform sum check and get mint map
+    let mint_map = sum_check_multi_mint(
         &inputs.in_token_data,
         &inputs.out_token_data,
         inputs.compressions.as_deref(),
     )
     .map_err(|e| ProgramError::Custom(e as u32 + 6000))?;
+
+    // Validate mint uniqueness
+    validate_mint_uniqueness(&mint_map, &validated_accounts.packed_accounts)
+        .map_err(|e| ProgramError::Custom(e as u32 + 6000))?;
 
     if let Some(system_accounts) = validated_accounts.system.as_ref() {
         // Process token compressions/decompressions/close_and_compress

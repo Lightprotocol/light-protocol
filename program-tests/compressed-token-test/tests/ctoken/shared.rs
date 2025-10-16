@@ -176,7 +176,7 @@ pub async fn create_and_assert_token_account_fails(
 /// If num_prepaid_epochs is None, creates a non-compressible account
 /// If use_payer_as_rent_sponsor is true, uses context.payer.pubkey() as rent_sponsor
 pub async fn setup_account_test_with_created_account(
-    num_prepaid_epochs: Option<(u64, bool)>,
+    num_prepaid_epochs: Option<(u8, bool)>,
 ) -> Result<AccountTestContext, RpcError> {
     let mut context = setup_account_test().await?;
 
@@ -528,7 +528,7 @@ pub async fn create_and_assert_ata_fails(
 /// # Returns
 /// AccountTestContext with created token account ready for compress_and_close
 pub async fn setup_compress_and_close_test(
-    num_prepaid_epochs: u64,
+    num_prepaid_epochs: u8,
     with_balance: u64,
     warp_epochs: Option<u64>,
     use_custom_payer: bool,

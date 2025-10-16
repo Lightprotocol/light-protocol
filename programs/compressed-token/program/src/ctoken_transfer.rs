@@ -30,7 +30,6 @@ pub fn process_ctoken_transfer<'a>(
 
     process_transfer(accounts, instruction_data)
         .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-    msg!("CToken transfer: transfer processed");
     calculate_and_execute_top_up_transfers(accounts)
 }
 

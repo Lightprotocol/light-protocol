@@ -183,7 +183,7 @@ pub fn process_create_token_account(
             .rent_config
             .get_rent_with_compression_cost(
                 COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-                compressible_config.rent_payment,
+                compressible_config.rent_payment as u64,
             );
         let account_size = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
 

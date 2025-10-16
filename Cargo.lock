@@ -3506,6 +3506,7 @@ dependencies = [
  "borsh 0.10.4",
  "lazy_static",
  "light-account-checks",
+ "light-array-map",
  "light-compressed-account",
  "light-compressible",
  "light-ctoken-types",

@@ -211,7 +211,7 @@ Determines the last epoch covered by rent payments.
 ### Check if account is compressible
 ```rust
 let (is_compressible, deficit) = calculate_rent_and_balance(
-    261,        // account size
+    260,        // account size
     1000000,    // current slot
     5000000,    // current lamports
     0,          // last claimed slot
@@ -225,7 +225,7 @@ let (is_compressible, deficit) = calculate_rent_and_balance(
 ### Calculate claimable rent
 ```rust
 let claimable = claimable_lamports(
-    261, 1000000, 5000000, 0, 2000000, 1220, 10, 11000
+    260, 1000000, 5000000, 0, 2000000, 1220, 10, 11000
 );
 // Returns Some(amount) if claimable, None if compressible
 ```
@@ -233,6 +233,6 @@ let claimable = claimable_lamports(
 ### Split lamports on close
 ```rust
 let (to_rent_sponsor, to_user) = calculate_close_lamports(
-    261, 1000000, 5000000, 0, 2000000, 1220, 10, 11000
+    260, 1000000, 5000000, 0, 2000000, 1220, 10, 11000
 );
 ```

@@ -10,7 +10,7 @@ use super::shared::*;
 /// Setup context with two token accounts and mint tokens to the source
 /// Returns (context, source_account, destination_account, mint_amount, source_keypair, dest_keypair)
 async fn setup_transfer_test(
-    num_prepaid_epochs: Option<u64>,
+    num_prepaid_epochs: Option<u8>,
     mint_amount: u64,
 ) -> Result<(AccountTestContext, Pubkey, Pubkey, u64, Keypair, Keypair), RpcError> {
     let mut context = setup_account_test().await?;
