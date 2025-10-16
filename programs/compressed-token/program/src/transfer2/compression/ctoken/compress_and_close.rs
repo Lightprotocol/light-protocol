@@ -73,6 +73,13 @@ fn validate_compressed_token_account(
     compress_to_pubkey: bool,
     token_account_pubkey: &Pubkey,
 ) -> Result<(), ProgramError> {
+    // Source token account must not have a delegate
+    // Compressed tokens don't support delegation, so we reject accounts with delegates
+    if ctoken.delegate.is_some() {
+        msg!("Source token account has delegate, cannot compress and close");
+        return Err(ErrorCode::CompressAndCloseDelegateNotAllowed.into());
+    }
+
     // Owners should match if not compressing to pubkey
     if compress_to_pubkey {
         // Owner should match token account pubkey if compressing to pubkey

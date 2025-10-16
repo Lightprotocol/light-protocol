@@ -311,7 +311,7 @@ async fn test_create_compressible_token_account_failing() {
         context
             .rpc
             .create_and_send_transaction(
-                &[init_ix.clone()],
+                std::slice::from_ref(&init_ix),
                 &payer_pubkey,
                 &[&context.payer, &context.token_account_keypair],
             )

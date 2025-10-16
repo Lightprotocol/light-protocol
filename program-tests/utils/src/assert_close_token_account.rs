@@ -244,12 +244,24 @@ async fn assert_compressible_extension(
             .expect("Rent recipient account should exist")
             .lamports;
 
-        assert_eq!(
-            final_rent_sponsor_lamports,
-            initial_rent_sponsor_lamports + lamports_to_rent_sponsor,
-            "Rent recipient should receive {} lamports",
-            lamports_to_rent_sponsor
-        );
+        // When rent authority closes, check if rent_sponsor is also the payer
+        if rent_sponsor == payer_pubkey {
+            assert_eq!(
+                final_rent_sponsor_lamports,
+                initial_rent_sponsor_lamports + lamports_to_rent_sponsor - tx_fee,
+                "Rent recipient should receive {} lamports - {} lamports (tx fee) = {} lamports when they are also the transaction payer (rent authority closes)",
+                lamports_to_rent_sponsor,
+                tx_fee,
+                lamports_to_rent_sponsor - tx_fee
+            );
+        } else {
+            assert_eq!(
+                final_rent_sponsor_lamports,
+                initial_rent_sponsor_lamports + lamports_to_rent_sponsor,
+                "Rent recipient should receive {} lamports (rent authority closes)",
+                lamports_to_rent_sponsor
+            );
+        }
     } else {
         // When owner closes, normal distribution
         assert_eq!(

@@ -386,11 +386,44 @@ pub async fn assert_transfer2_with_delegate(
                 let pre_token_account = SplTokenAccount::unpack(&pre_account_data.data[..165])
                     .expect("Failed to unpack SPL token account");
 
-                // Get the compressed token accounts by owner
+                // Check if compress_to_pubkey is set in the compressible extension
+                use light_ctoken_types::state::{ctoken::CToken, ZExtensionStruct};
+                use light_zero_copy::traits::ZeroCopyAt;
+
+                let compress_to_pubkey = if pre_account_data.data.len() > 165 {
+                    // Has extensions, check for compressible extension
+                    let (ctoken, _) = CToken::zero_copy_at(&pre_account_data.data)
+                        .expect("Failed to deserialize ctoken account");
+
+                    if let Some(extensions) = ctoken.extensions.as_ref() {
+                        extensions
+                            .iter()
+                            .find_map(|ext| match ext {
+                                ZExtensionStruct::Compressible(comp) => {
+                                    Some(comp.compress_to_pubkey == 1)
+                                }
+                                _ => None,
+                            })
+                            .unwrap_or(false)
+                    } else {
+                        false
+                    }
+                } else {
+                    false
+                };
+
+                // Determine the expected owner in the compressed output
+                let expected_owner = if compress_to_pubkey {
+                    compress_and_close_input.solana_ctoken_account // Account pubkey becomes owner
+                } else {
+                    pre_token_account.owner // Original owner preserved
+                };
+
+                // Get the compressed token accounts by the expected owner
                 let owner_accounts = rpc
                     .indexer()
                     .unwrap()
-                    .get_compressed_token_accounts_by_owner(&pre_token_account.owner, None, None)
+                    .get_compressed_token_accounts_by_owner(&expected_owner, None, None)
                     .await
                     .unwrap()
                     .value
@@ -429,8 +462,15 @@ pub async fn assert_transfer2_with_delegate(
                     "CompressAndClose compressed amount should match original balance"
                 );
                 assert_eq!(
-                    compressed_account.token.owner, pre_token_account.owner,
-                    "CompressAndClose owner should match original owner"
+                    compressed_account.token.owner,
+                    expected_owner,
+                    "CompressAndClose owner should be {} (compress_to_pubkey={})",
+                    if compress_to_pubkey {
+                        "account pubkey"
+                    } else {
+                        "original owner"
+                    },
+                    compress_to_pubkey
                 );
                 assert_eq!(
                     compressed_account.token.mint, expected_mint,

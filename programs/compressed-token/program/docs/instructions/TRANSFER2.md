@@ -272,6 +272,7 @@ When compression processing occurs (in both Path A and Path B):
        - Amount: Must exactly match the full token account balance being compressed
        - Owner: If compress_to_pubkey flag is false, owner must match original token account owner
        - Owner: If compress_to_pubkey flag is true, owner must be the token account's pubkey (allows closing accounts owned by PDAs)
+       - **Note:** compress_to_pubkey validation ONLY applies when rent authority closes. When owner closes, no output validation occurs (owner has full control, sum check ensures balance preservation)
        - Delegate: Must be None (has_delegate=false and delegate=0) - delegates cannot be carried over
        - Version: Must be ShaFlat (version=3) for security
        - Version: Must match the version specified in the token account's compressible extension

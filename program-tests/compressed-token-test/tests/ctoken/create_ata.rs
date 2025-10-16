@@ -711,9 +711,10 @@ async fn test_ata_multiple_owners_same_mint() {
 
 #[tokio::test]
 async fn test_create_ata_random() {
-    use rand::rngs::ThreadRng;
-    use rand::RngCore;
-    use rand::{rngs::StdRng, Rng, SeedableRng};
+    use rand::{
+        rngs::{StdRng, ThreadRng},
+        Rng, RngCore, SeedableRng,
+    };
     // Setup randomness
     let mut thread_rng = ThreadRng::default();
     let seed = thread_rng.next_u64();

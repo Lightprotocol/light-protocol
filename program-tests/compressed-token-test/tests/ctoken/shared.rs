@@ -211,8 +211,7 @@ pub async fn create_non_compressible_token_account(
     context: &mut AccountTestContext,
     token_keypair: Option<&Keypair>,
 ) {
-    use anchor_lang::prelude::borsh::BorshSerialize;
-    use anchor_lang::prelude::AccountMeta;
+    use anchor_lang::prelude::{borsh::BorshSerialize, AccountMeta};
     use light_ctoken_types::instructions::create_ctoken_account::CreateTokenAccountInstructionData;
     use solana_sdk::instruction::Instruction;
     let token_keypair = token_keypair.unwrap_or(&context.token_account_keypair);
@@ -239,7 +238,7 @@ pub async fn create_non_compressible_token_account(
         .create_and_send_transaction(
             &[create_account_ix],
             &payer_pubkey,
-            &[&context.payer, &token_keypair],
+            &[&context.payer, token_keypair],
         )
         .await
         .unwrap();
@@ -263,7 +262,7 @@ pub async fn create_non_compressible_token_account(
 
     context
         .rpc
-        .create_and_send_transaction(&[init_ix], &payer_pubkey, &[&context.payer, &token_keypair])
+        .create_and_send_transaction(&[init_ix], &payer_pubkey, &[&context.payer, token_keypair])
         .await
         .unwrap();
 
@@ -469,10 +468,7 @@ pub async fn create_and_assert_ata_fails(
     name: &str,
     expected_error_code: u32,
 ) {
-    println!(
-        "ATA creation (expecting failure) initiated for: {}",
-        name
-    );
+    println!("ATA creation (expecting failure) initiated for: {}", name);
 
     let payer_pubkey = context.payer.pubkey();
     let owner_pubkey = context.owner_keypair.pubkey();
@@ -540,9 +536,9 @@ pub async fn setup_compress_and_close_test(
     use anchor_spl::token_2022::spl_token_2022;
     use solana_sdk::program_pack::Pack;
 
-    let mut context = setup_account_test_with_created_account(
-        Some((num_prepaid_epochs, use_custom_payer))
-    ).await?;
+    let mut context =
+        setup_account_test_with_created_account(Some((num_prepaid_epochs, use_custom_payer)))
+            .await?;
 
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
@@ -555,13 +551,17 @@ pub async fn setup_compress_and_close_test(
             .ok_or_else(|| RpcError::AssertRpcError("Token account not found".to_string()))?;
 
         // Deserialize and modify the token account (only use first 165 bytes for SPL compatibility)
-        let mut spl_token_account = spl_token_2022::state::Account::unpack_unchecked(&token_account.data[..165])
-            .map_err(|e| RpcError::AssertRpcError(format!("Failed to unpack token account: {:?}", e)))?;
+        let mut spl_token_account =
+            spl_token_2022::state::Account::unpack_unchecked(&token_account.data[..165]).map_err(
+                |e| RpcError::AssertRpcError(format!("Failed to unpack token account: {:?}", e)),
+            )?;
 
         spl_token_account.amount = with_balance;
 
         spl_token_2022::state::Account::pack(spl_token_account, &mut token_account.data[..165])
-            .map_err(|e| RpcError::AssertRpcError(format!("Failed to pack token account: {:?}", e)))?;
+            .map_err(|e| {
+                RpcError::AssertRpcError(format!("Failed to pack token account: {:?}", e))
+            })?;
 
         // Set the modified account
         context.rpc.set_account(token_account_pubkey, token_account);
@@ -569,7 +569,10 @@ pub async fn setup_compress_and_close_test(
 
     // Warp time if needed (to make account compressible for rent authority)
     if let Some(epochs) = warp_epochs {
-        context.rpc.warp_to_slot((SLOTS_PER_EPOCH * epochs) + 1).unwrap();
+        context
+            .rpc
+            .warp_to_slot((SLOTS_PER_EPOCH * epochs) + 1)
+            .unwrap();
     }
 
     Ok(context)
@@ -658,15 +661,17 @@ pub async fn compress_and_close_owner_and_assert(
     .await;
 }
 
-/// Compress and close account as owner expecting failure
+/// Compress and close account expecting failure with custom authority
 ///
 /// # Parameters
 /// - `context`: Test context with RPC and account info
+/// - `authority`: Authority keypair to use for the operation (can be owner, wrong authority, etc.)
 /// - `destination`: Optional destination for user funds
 /// - `name`: Test name for debugging
 /// - `expected_error_code`: Expected error code
-pub async fn compress_and_close_owner_and_assert_fails(
+pub async fn compress_and_close_and_assert_fails(
     context: &mut AccountTestContext,
+    authority: &Keypair,
     destination: Option<Pubkey>,
     name: &str,
     expected_error_code: u32,
@@ -676,13 +681,12 @@ pub async fn compress_and_close_owner_and_assert_fails(
     };
 
     println!(
-        "Compress and close (owner, expecting failure) initiated for: {}",
+        "Compress and close (expecting failure) initiated for: {}",
         name
     );
 
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
-    let owner_pubkey = context.owner_keypair.pubkey();
 
     // Get output queue for compression
     let output_queue = context
@@ -692,13 +696,13 @@ pub async fn compress_and_close_owner_and_assert_fails(
         .get_output_pubkey()
         .unwrap();
 
-    // Create compress_and_close instruction as owner
+    // Create compress_and_close instruction with specified authority
     let compress_and_close_ix = create_generic_transfer2_instruction(
         &mut context.rpc,
         vec![Transfer2InstructionType::CompressAndClose(
             CompressAndCloseInput {
                 solana_ctoken_account: token_account_pubkey,
-                authority: owner_pubkey,
+                authority: authority.pubkey(),
                 output_queue,
                 destination,
                 is_compressible: true,
@@ -710,13 +714,186 @@ pub async fn compress_and_close_owner_and_assert_fails(
     .await
     .unwrap();
 
+    // Execute transaction expecting failure with the authority as signer
+    let result = context
+        .rpc
+        .create_and_send_transaction(
+            &[compress_and_close_ix],
+            &payer_pubkey,
+            &[&context.payer, authority],
+        )
+        .await;
+
+    // Assert that the transaction failed with the expected error code
+    light_program_test::utils::assert::assert_rpc_error(result, 0, expected_error_code).unwrap();
+}
+
+/// Enum specifying which validation should fail in compress_and_close
+#[derive(Debug, Clone, Copy)]
+pub enum CompressAndCloseValidationError {
+    /// Owner mismatch when compress_to_pubkey=false
+    OwnerMismatch(Pubkey),
+    /// Owner != account pubkey when compress_to_pubkey=true
+    OwnerNotAccountPubkey(Pubkey),
+}
+
+/// Compress and close account with intentionally invalid output validation data
+///
+/// This helper manually builds a registry compress_and_close instruction with custom (potentially wrong) values
+/// to test the output validation logic in compress_and_close.
+///
+/// # Parameters
+/// - `context`: Test context with RPC and account info
+/// - `validation_error`: Specifies which validation should fail and the incorrect value
+/// - `destination`: Optional destination for user funds
+/// - `expected_error_code`: Expected error code
+pub async fn compress_and_close_forester_with_invalid_output(
+    context: &mut AccountTestContext,
+    validation_error: CompressAndCloseValidationError,
+    destination: Option<Pubkey>,
+    expected_error_code: u32,
+) {
+    use std::str::FromStr;
+
+    use anchor_lang::{InstructionData, ToAccountMetas};
+    use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseIndices;
+    use light_compressible::config::CompressibleConfig;
+    use light_ctoken_types::state::{CToken, ZExtensionStruct};
+    use light_registry::{
+        accounts::CompressAndCloseContext as CompressAndCloseAccounts,
+        instruction::CompressAndClose, utils::get_forester_epoch_pda_from_authority,
+    };
+    use light_sdk::instruction::PackedAccounts;
+    use light_zero_copy::traits::ZeroCopyAt;
+    use solana_sdk::instruction::Instruction;
+
+    println!(
+        "Compress and close (forester, invalid output: {:?}) initiated",
+        validation_error
+    );
+
+    let payer_pubkey = context.payer.pubkey();
+    let token_account_pubkey = context.token_account_keypair.pubkey();
+
+    // Get forester keypair and setup registry accounts
+    let forester_keypair = context.rpc.test_accounts.protocol.forester.insecure_clone();
+    let registry_program_id =
+        Pubkey::from_str("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").unwrap();
+    let compressed_token_program_id =
+        Pubkey::from_str("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m").unwrap();
+    let current_epoch = 0;
+    let (registered_forester_pda, _) =
+        get_forester_epoch_pda_from_authority(&forester_keypair.pubkey(), current_epoch);
+    let config = CompressibleConfig::ctoken_v1(Pubkey::default(), Pubkey::default());
+    let compressible_config = CompressibleConfig::derive_v1_config_pda(&registry_program_id).0;
+    let compression_authority = config.compression_authority;
+
+    // Read token account to get current state
+    let token_account_info = context
+        .rpc
+        .get_account(token_account_pubkey)
+        .await
+        .unwrap()
+        .unwrap();
+
+    let (ctoken, _) = CToken::zero_copy_at(&token_account_info.data).unwrap();
+    let mint_pubkey = Pubkey::from(ctoken.mint.to_bytes());
+
+    // Extract compressible extension data
+    let extensions = ctoken.extensions.as_ref().unwrap();
+    let compressible_ext = extensions
+        .iter()
+        .find_map(|ext| match ext {
+            ZExtensionStruct::Compressible(comp) => Some(comp),
+            _ => None,
+        })
+        .unwrap();
+
+    let rent_sponsor = Pubkey::from(compressible_ext.rent_sponsor);
+
+    // Get output queue for compression
+    let output_queue = context
+        .rpc
+        .get_random_state_tree_info()
+        .unwrap()
+        .get_output_pubkey()
+        .unwrap();
+
+    // Build PackedAccounts
+    let mut packed_accounts = PackedAccounts::default();
+
+    let output_tree_index = packed_accounts.insert_or_get(output_queue);
+    let source_index = packed_accounts.insert_or_get(token_account_pubkey);
+    let mint_index = packed_accounts.insert_or_get(mint_pubkey);
+
+    // Determine owner based on validation_error
+    let compressed_token_owner = match validation_error {
+        CompressAndCloseValidationError::OwnerMismatch(wrong_owner) => wrong_owner,
+        CompressAndCloseValidationError::OwnerNotAccountPubkey(wrong_owner) => wrong_owner,
+    };
+
+    let owner_index = packed_accounts.insert_or_get(compressed_token_owner);
+    let rent_sponsor_index = packed_accounts.insert_or_get(rent_sponsor);
+    let authority_index = packed_accounts.insert_or_get_config(compression_authority, false, true);
+    let destination_pubkey = destination.unwrap_or(payer_pubkey);
+    let destination_index = packed_accounts.insert_or_get_config(destination_pubkey, false, true);
+
+    let indices = CompressAndCloseIndices {
+        source_index,
+        mint_index,
+        owner_index,
+        authority_index,
+        rent_sponsor_index,
+        destination_index,
+        output_tree_index,
+    };
+
+    // Add system accounts
+    use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
+    let config = CTokenCompressAndCloseAccounts {
+        compressed_token_program: compressed_token_program_id,
+        cpi_authority_pda: Pubkey::find_program_address(
+            &[b"cpi_authority"],
+            &compressed_token_program_id,
+        )
+        .0,
+        cpi_context: None,
+        self_program: None,
+    };
+    packed_accounts.add_custom_system_accounts(config).unwrap();
+
+    let (remaining_account_metas, _, _) = packed_accounts.to_account_metas();
+
+    // Build registry accounts
+    let compress_and_close_accounts = CompressAndCloseAccounts {
+        authority: forester_keypair.pubkey(),
+        registered_forester_pda,
+        compression_authority,
+        compressible_config,
+        compressed_token_program: compressed_token_program_id,
+    };
+
+    let mut accounts = compress_and_close_accounts.to_account_metas(Some(true));
+    accounts.extend(remaining_account_metas);
+
+    let instruction = CompressAndClose {
+        indices: vec![indices],
+    };
+    let instruction_data = instruction.data();
+
+    let compress_and_close_ix = Instruction {
+        program_id: registry_program_id,
+        accounts,
+        data: instruction_data,
+    };
+
     // Execute transaction expecting failure
     let result = context
         .rpc
         .create_and_send_transaction(
             &[compress_and_close_ix],
             &payer_pubkey,
-            &[&context.payer, &context.owner_keypair],
+            &[&context.payer, &forester_keypair],
         )
         .await;
 

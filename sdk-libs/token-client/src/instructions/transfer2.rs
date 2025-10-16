@@ -522,24 +522,30 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 let balance = compressed_token.amount;
                 let owner = compressed_token.owner;
 
-                // Extract rent_sponsor and compression_authority from compressible extension
+                // Extract rent_sponsor, compression_authority, and compress_to_pubkey from compressible extension
                 // For non-compressible accounts, use the owner as the rent_sponsor
-                let (rent_sponsor, _compression_authority) = if input.is_compressible {
+                let (rent_sponsor, _compression_authority, compress_to_pubkey) = if input
+                    .is_compressible
+                {
                     if let Some(extensions) = compressed_token.extensions.as_ref() {
                         let mut found_rent_sponsor = None;
                         let mut found_compression_authority = None;
+                        let mut found_compress_to_pubkey = false;
                         for extension in extensions {
                             if let ZExtensionStruct::Compressible(compressible_ext) = extension {
                                 found_rent_sponsor = Some(compressible_ext.rent_sponsor);
                                 found_compression_authority =
                                     Some(compressible_ext.compression_authority);
+                                found_compress_to_pubkey = compressible_ext.compress_to_pubkey == 1;
                                 break;
                             }
                         }
                         println!("rent sponsor {:?}", found_rent_sponsor);
+                        println!("compress_to_pubkey {:?}", found_compress_to_pubkey);
                         (
                             found_rent_sponsor.ok_or(TokenSdkError::InvalidAccountData)?,
                             found_compression_authority,
+                            found_compress_to_pubkey,
                         )
                     } else {
                         println!("no extensions but is_compressible is true");
@@ -548,11 +554,20 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 } else {
                     // Non-compressible account: use owner as rent_sponsor
                     println!("non-compressible account, using owner as rent sponsor");
-                    (owner.to_bytes(), None)
+                    (owner.to_bytes(), None, false)
                 };
 
-                let owner_index =
-                    packed_tree_accounts.insert_or_get(Pubkey::from(owner.to_bytes()));
+                // Add source account first (it's being closed, so needs to be writable)
+                let source_index = packed_tree_accounts.insert_or_get(input.solana_ctoken_account);
+
+                // Determine the owner index for the compressed output
+                // If compress_to_pubkey is true, reuse source_index; otherwise add original owner
+                let owner_index = if compress_to_pubkey {
+                    source_index // Reuse the source account index as owner
+                } else {
+                    packed_tree_accounts.insert_or_get(Pubkey::from(owner.to_bytes()))
+                };
+
                 let mint_index =
                     packed_tree_accounts.insert_or_get_read_only(Pubkey::from(mint.to_bytes()));
                 let rent_sponsor_index =
@@ -561,10 +576,13 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 // Create token account with the full balance
                 let mut token_account =
                     CTokenAccount2::new_empty(owner_index, mint_index, shared_output_queue);
-
-                let source_index = packed_tree_accounts.insert_or_get(input.solana_ctoken_account);
-                let authority_index =
-                    packed_tree_accounts.insert_or_get_config(input.authority, true, false);
+                // Authority needs to be writable if it's also the destination (receives lamports from close)
+                let authority_needs_writable = input.destination.is_none();
+                let authority_index = packed_tree_accounts.insert_or_get_config(
+                    input.authority,
+                    true,
+                    authority_needs_writable,
+                );
 
                 // Use compress_and_close method with the actual balance
                 // The compressed_account_index should match the position in token_accounts
