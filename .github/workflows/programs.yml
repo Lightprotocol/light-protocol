@@ -80,7 +80,7 @@ jobs:
         uses: ./.github/actions/setup-and-build
         with:
           skip-components: "redis,disk-cleanup"
-          cache-suffix: "system-programs"
+          cache-key: "rust"
 
       - name: Build CLI
         run: |

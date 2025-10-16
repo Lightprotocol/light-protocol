@@ -106,7 +106,7 @@ pub async fn assert_compressible_for_account(
                         current_slot,
                         lamports_before,
                         compressible_before.lamports_per_write.into(),
-                        2700480,
+                        light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
                     .unwrap();
                 // Check if top-up was applied
