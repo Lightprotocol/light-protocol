@@ -77,7 +77,13 @@ export function packWithAccounts<TInput, TOutput = PackedType<TInput>>(
 export async function packDecompressAccountsIdempotent(
     programId: PublicKey,
     validityProofWithContext: ValidityProofWithContext,
-    compressedAccounts: { key: string; treeInfo: TreeInfo; data: any }[],
+    compressedAccounts: {
+        key: string;
+        treeInfo: TreeInfo;
+        data: any;
+        seeds?: Uint8Array[];
+        authoritySeeds?: Uint8Array[];
+    }[],
     decompressedAccountAddresses: PublicKey[],
 ): Promise<{
     compressedAccounts: {
@@ -86,6 +92,8 @@ export async function packDecompressAccountsIdempotent(
             outputStateTreeIndex: number;
         };
         data: any;
+        seedIndices: number[];
+        authorityIndices: number[];
     }[];
     systemAccountsOffset: number;
     proofOption: { 0: ValidityProof | null };
@@ -130,12 +138,62 @@ export async function packDecompressAccountsIdempotent(
         remainingAccounts,
     );
 
+    // Extract and deduplicate seed accounts from all compressed accounts
+    const seedAccountMap = new Map<string, number>();
+    const seedAccounts: PublicKey[] = [];
+
+    function extractPubkeysFromSeeds(
+        seeds: Uint8Array[] | undefined,
+    ): PublicKey[] {
+        if (!seeds || seeds.length === 0) return [];
+        const pubkeys: PublicKey[] = [];
+        // Skip the last element (bump) and extract only 32-byte pubkeys
+        for (let i = 0; i < seeds.length - 1; i++) {
+            const seed = seeds[i];
+            if (seed.length === 32) {
+                try {
+                    pubkeys.push(new PublicKey(seed));
+                } catch {
+                    // Not a valid pubkey (literal/constant), skip
+                }
+            }
+        }
+        return pubkeys;
+    }
+
+    function getOrInsertSeedAccount(pubkey: PublicKey): number {
+        const key = pubkey.toBase58();
+        if (!seedAccountMap.has(key)) {
+            const index = seedAccounts.length;
+            seedAccountMap.set(key, index);
+            seedAccounts.push(pubkey);
+            return index;
+        }
+        return seedAccountMap.get(key)!;
+    }
+
+    // Build seed_indices and authority_indices for each account
+    const seedIndicesList: number[][] = [];
+    const authorityIndicesList: number[][] = [];
+
+    for (const account of compressedAccounts) {
+        const seedPubkeys = extractPubkeysFromSeeds(account.seeds);
+        const authPubkeys = extractPubkeysFromSeeds(account.authoritySeeds);
+
+        seedIndicesList.push(seedPubkeys.map(pk => getOrInsertSeedAccount(pk)));
+        authorityIndicesList.push(
+            authPubkeys.map(pk => getOrInsertSeedAccount(pk)),
+        );
+    }
+
     const compressedAccountData: {
         meta: {
             treeInfo: PackedStateTreeInfo;
             outputStateTreeIndex: number;
         };
         data: any;
+        seedIndices: number[];
+        authorityIndices: number[];
     }[] = compressedAccounts.map(({ data }, index) => {
         const packedData = packWithAccounts(data, remainingAccounts);
         if (!packedTreeInfos.stateTrees) {
@@ -143,6 +201,7 @@ export async function packDecompressAccountsIdempotent(
                 'No state trees found in passed ValidityproofWithContext instance',
             );
         }
+
         return {
             meta: {
                 treeInfo: packedTreeInfos.stateTrees.packedTreeInfos[index],
@@ -154,6 +213,8 @@ export async function packDecompressAccountsIdempotent(
                 compressedAccounts[index].key[0].toUpperCase() +
                 compressedAccounts[index].key.slice(1)]: [packedData],
             },
+            seedIndices: seedIndicesList[index],
+            authorityIndices: authorityIndicesList[index],
         };
     });
     const { remainingAccounts: remainingAccountMetas, systemStart } =
@@ -163,6 +224,8 @@ export async function packDecompressAccountsIdempotent(
             'Compressed accounts and decompressed account addresses must have the same length',
         );
     }
+
+    // Add solana target accounts
     for (const account of decompressedAccountAddresses) {
         remainingAccountMetas.push({
             pubkey: account,
@@ -170,6 +233,16 @@ export async function packDecompressAccountsIdempotent(
             isWritable: true,
         });
     }
+
+    // Add deduplicated seed accounts
+    for (const seedAccount of seedAccounts) {
+        remainingAccountMetas.push({
+            pubkey: seedAccount,
+            isSigner: false,
+            isWritable: false,
+        });
+    }
+
     return {
         compressedAccounts: compressedAccountData,
         systemAccountsOffset: systemStart,

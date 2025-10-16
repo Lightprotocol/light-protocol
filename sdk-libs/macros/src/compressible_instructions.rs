@@ -412,10 +412,10 @@ pub fn add_compressible_instructions(
     // Generate error codes automatically based on instruction variant
     let error_codes = generate_error_codes(instruction_variant)?;
 
-    // Extract required accounts from seed expressions
-    let required_accounts = extract_required_accounts_from_seeds(&pda_seeds, &token_seeds)?;
+    // No longer need to extract required accounts - using positional indices instead!
+    let required_accounts = Vec::new();
 
-    // Generate the DecompressAccountsIdempotent accounts struct with required accounts
+    // Generate the DecompressAccountsIdempotent accounts struct (without seed-ref accounts)
     let decompress_accounts =
         generate_decompress_accounts_struct(&required_accounts, instruction_variant)?;
 
@@ -448,6 +448,9 @@ pub fn add_compressible_instructions(
                 cpi_accounts: &light_sdk::cpi::CpiAccountsSmall<'b, 'info>,
                 address_space: anchor_lang::prelude::Pubkey,
                 solana_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
+                remaining_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
+                seed_indices: &[u8],
+                seed_accounts_offset: u8,
                 i: usize,
                 packed: &#packed_name,
                 meta: &light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
@@ -483,7 +486,7 @@ pub fn add_compressible_instructions(
                         &accounts.rent_payer,
                         cpi_accounts,
                         seed_refs.as_slice(),
-                    )?
+                    ).map_err(anchor_lang::prelude::ProgramError::from)?
                 };
 
                 compressed_pda_infos.extend(compressed_infos);
@@ -506,35 +509,38 @@ pub fn add_compressible_instructions(
         let func_name = format_ident!("handle_packed_{}", name);
         quote! {
             CompressedAccountVariant::#packed_name(packed) => {
-                #func_name(accounts, &cpi_accounts, address_space, solana_accounts, i, &packed, &meta, post_system_accounts, &mut compressed_pda_infos)?;
+                #func_name(accounts, &cpi_accounts, address_space, solana_accounts, remaining_accounts, &seed_indices, seed_accounts_offset, i, &packed, &meta, post_system_accounts, &mut compressed_pda_infos)?;
             }
         }
     }).collect();
 
     // Generate trait-based system for TRULY generic CToken variant handling
     let ctoken_trait_system: syn::ItemMod = syn::parse_quote! {
-        /// Trait-based system for generic CToken variant seed handling
-        /// Users implement this trait for their CTokenAccountVariant enum
+        /// Trait-based system for generic CToken variant seed handling with positional indices
         pub mod ctoken_seed_system {
             use super::*;
 
-            pub struct CTokenSeedContext<'a, 'info> {
-                pub accounts: &'a DecompressAccountsIdempotent<'info>,
-                pub remaining_accounts: &'a [anchor_lang::prelude::AccountInfo<'info>],
-            }
-
             pub trait CTokenSeedProvider {
-                /// Get seeds for the token account PDA (used for decompression - the owner of the compressed token)
-                fn get_seeds<'a, 'info>(
+                /// Get seeds for the token account PDA using positional indices
+                /// 
+                /// # Arguments
+                /// * `remaining_accounts` - All remaining accounts passed to the instruction
+                /// * `seed_indices` - Indices pointing to seed accounts (relative to seed_accounts_offset)
+                /// * `seed_accounts_offset` - Offset where seed accounts section begins in remaining_accounts
+                fn get_seeds<'info>(
                     &self,
-                    ctx: &CTokenSeedContext<'a, 'info>,
-                ) -> (Vec<Vec<u8>>, Pubkey);
+                    remaining_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
+                    seed_indices: &[u8],
+                    seed_accounts_offset: u8,
+                ) -> (Vec<Vec<u8>>, anchor_lang::prelude::Pubkey);
 
-                /// Get authority seeds for signing during compression (if authority is specified)
-                fn get_authority_seeds<'a, 'info>(
+                /// Get authority seeds for signing during compression using positional indices
+                fn get_authority_seeds<'info>(
                     &self,
-                    ctx: &CTokenSeedContext<'a, 'info>,
-                ) -> (Vec<Vec<u8>>, Pubkey);
+                    remaining_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
+                    authority_indices: &[u8],
+                    seed_accounts_offset: u8,
+                ) -> (Vec<Vec<u8>>, anchor_lang::prelude::Pubkey);
             }
         }
     };
@@ -545,7 +551,7 @@ pub fn add_compressible_instructions(
         let call_unpacked_arms = call_unpacked_arms.clone();
         let call_packed_arms = call_packed_arms.clone();
         syn::parse_quote! {
-        mod __macro_helpers {
+        pub(super) mod __macro_helpers {
             use super::*;
             #(#helper_packed_fns)*
                 #[inline(never)]
@@ -555,11 +561,15 @@ pub fn add_compressible_instructions(
                     address_space: anchor_lang::prelude::Pubkey,
                     compressed_accounts: Vec<CompressedAccountData>,
                     solana_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
+                    remaining_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
+                    seed_accounts_offset: u8,
                 ) -> Result<(
                     Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
                     Vec<(
                         light_sdk::token::PackedCTokenData<CTokenAccountVariant>,
                         light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                        Vec<u8>,  // seed_indices
+                        Vec<u8>,  // authority_indices
                     )>,
                 )> {
                     let post_system_accounts = cpi_accounts.post_system_accounts().unwrap();
@@ -568,10 +578,14 @@ pub fn add_compressible_instructions(
                     let mut compressed_token_accounts: Vec<(
                         light_sdk::token::PackedCTokenData<CTokenAccountVariant>,
                         light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                        Vec<u8>,  // seed_indices
+                        Vec<u8>,  // authority_indices
                     )> = Vec::with_capacity(estimated_capacity);
 
                     for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
                         let meta = compressed_data.meta;
+                        let seed_indices = compressed_data.seed_indices;
+                        let authority_indices = compressed_data.authority_indices;
                         match compressed_data.data {
                             #(#call_unpacked_arms)*
                             #(#call_packed_arms)*
@@ -580,7 +594,7 @@ pub fn add_compressible_instructions(
                                 // but on-chain expects it. Set to 3 (TokenDataVersion::ShaFlat) which is
                                 // the default for compressed token accounts.
                                 data.token_data.version = 3;
-                                compressed_token_accounts.push((data, meta));
+                                compressed_token_accounts.push((data, meta, seed_indices, authority_indices));
                             }
                             CompressedAccountVariant::CTokenData(_) => {
                                 unreachable!();
@@ -590,232 +604,294 @@ pub fn add_compressible_instructions(
 
                     Ok((compressed_pda_infos, compressed_token_accounts))
                 }
-            }
-        }
-    };
 
-    // Generate the decompress instruction based on variant
-    let decompress_instruction: ItemFn = match instruction_variant {
-        InstructionVariant::PdaOnly => unreachable!(),
-        InstructionVariant::TokenOnly => unreachable!(),
-        InstructionVariant::Mixed => syn::parse_quote! {
-        /// Auto-generated decompress_accounts_idempotent instruction
-        #[inline(never)]
-        pub fn decompress_accounts_idempotent<'info>(
-            ctx: Context<'_, '_, 'info, 'info, DecompressAccountsIdempotent<'info>>,
-            proof: light_sdk::instruction::ValidityProof,
-            compressed_accounts: Vec<CompressedAccountData>,
-            system_accounts_offset: u8,
-        ) -> Result<()> {
-
-            let compression_config = light_sdk::compressible::CompressibleConfig::load_checked(
-                &ctx.accounts.config,
-                &crate::ID,
-            )?;
-            let address_space = compression_config.address_space[0];
-
-            #[inline(never)]
-            fn check_account_types(compressed_accounts: &[CompressedAccountData]) -> (bool, bool) {
-                let (mut has_tokens, mut has_pdas) = (false, false);
-                for c in compressed_accounts {
-                    match c.data {
-                        CompressedAccountVariant::PackedCTokenData(_) => {
-                            has_tokens = true;
-                        }
-                        _ => has_pdas = true,
-                    }
-                    if has_tokens && has_pdas {
-                        break;
+                #[inline(never)]
+                fn process_pdas<'b, 'info>(
+                    compressed_pda_infos: Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
+                    proof: light_sdk::instruction::ValidityProof,
+                    cpi_accounts: light_sdk::cpi::CpiAccountsSmall<'b, 'info>,
+                    has_tokens: bool,
+                ) -> Result<()> {
+                    if has_tokens {
+                        let fee_payer = cpi_accounts.fee_payer();
+                        let authority = cpi_accounts.authority().unwrap();
+                        let cpi_context = cpi_accounts.cpi_context().unwrap();
+                        let system_cpi_accounts = light_sdk_types::cpi_context_write::CpiContextWriteAccounts {
+                            fee_payer,
+                            authority,
+                            cpi_context,
+                            cpi_signer: LIGHT_CPI_SIGNER,
+                        };
+                        let cpi_inputs = light_sdk::cpi::CpiInputs::new_first_cpi(compressed_pda_infos, Vec::new());
+                        cpi_inputs.invoke_light_system_program_cpi_context(system_cpi_accounts)
+                            .map_err(|e| anchor_lang::error::Error::from(e))
+                    } else {
+                        let cpi_inputs = light_sdk::cpi::CpiInputs::new(proof, compressed_pda_infos);
+                        cpi_inputs.invoke_light_system_program_small(cpi_accounts)
+                            .map_err(|e| anchor_lang::error::Error::from(e))
                     }
                 }
-                (has_tokens, has_pdas)
-            }
 
-            #[inline(never)]
-            fn process_tokens<'a, 'b, 'info>(
-                accounts: &DecompressAccountsIdempotent<'info>,
-                remaining_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
-                fee_payer: &anchor_lang::prelude::AccountInfo<'info>,
-                ctoken_program: &anchor_lang::prelude::UncheckedAccount<'info>,
-                ctoken_rent_sponsor: &anchor_lang::prelude::AccountInfo<'info>,
-                ctoken_cpi_authority: &anchor_lang::prelude::UncheckedAccount<'info>,
-                ctoken_config: &anchor_lang::prelude::AccountInfo<'info>,
-                config: &anchor_lang::prelude::AccountInfo<'info>,
-                ctoken_accounts: Vec<(
-                    light_sdk::token::PackedCTokenData<CTokenAccountVariant>,
-                    light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
-                )>,
-                proof: light_sdk::instruction::ValidityProof,
-                cpi_accounts: light_sdk::cpi::CpiAccountsSmall<'b, 'info>,
-                has_pdas: bool,
-            ) -> Result<()> {
-                let mut token_decompress_indices = Box::new(Vec::with_capacity(ctoken_accounts.len()));
-                let mut token_signers_seed_groups = Box::new(Vec::with_capacity(ctoken_accounts.len()));
-                let packed_accounts = cpi_accounts.post_system_accounts().unwrap();
+                #[inline(never)]
+                fn process_tokens<'b, 'info>(
+                    ctx: &Context<'_, '_, 'info, 'info, DecompressAccountsIdempotent<'info>>,
+                    ctoken_accounts: Vec<(
+                        light_sdk::token::PackedCTokenData<CTokenAccountVariant>,
+                        light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                        Vec<u8>,
+                        Vec<u8>,
+                    )>,
+                    proof: light_sdk::instruction::ValidityProof,
+                    cpi_accounts: light_sdk::cpi::CpiAccountsSmall<'b, 'info>,
+                    has_pdas: bool,
+                    seed_accounts_offset: u8,
+                ) -> Result<()> {
+                    let accounts = &ctx.accounts;
+                    let remaining_accounts = &ctx.remaining_accounts;
+                    let fee_payer = ctx.accounts.fee_payer.as_ref();
+                    let ctoken_program = &ctx.accounts.ctoken_program;
+                    let ctoken_rent_sponsor = &ctx.accounts.ctoken_rent_sponsor;
+                    let ctoken_cpi_authority = &ctx.accounts.ctoken_cpi_authority;
+                    let ctoken_config = &ctx.accounts.ctoken_config;
+                    let config = &ctx.accounts.config;
+                    let mut token_decompress_indices = Box::new(Vec::with_capacity(ctoken_accounts.len()));
+                    let mut token_signers_seed_groups = Box::new(Vec::with_capacity(ctoken_accounts.len()));
+                    let packed_accounts = cpi_accounts.post_system_accounts().unwrap();
 
-                use crate::ctoken_seed_system::{CTokenSeedContext, CTokenSeedProvider};
-                let seed_context = CTokenSeedContext { accounts, remaining_accounts };
-                let authority = cpi_accounts.authority().unwrap();
-                let cpi_context = cpi_accounts.cpi_context().unwrap();
+                    use crate::ctoken_seed_system::CTokenSeedProvider;
+                    let authority = cpi_accounts.authority().unwrap();
+                    let cpi_context = cpi_accounts.cpi_context().unwrap();
 
-                for (token_data, meta) in ctoken_accounts.into_iter() {
-                    let owner_index: u8 = token_data.token_data.owner;
-                    let mint_index: u8 = token_data.token_data.mint;
+                    for (token_data, meta, seed_indices, authority_indices) in ctoken_accounts.into_iter() {
+                        let owner_index: u8 = token_data.token_data.owner;
+                        let mint_index: u8 = token_data.token_data.mint;
 
-                    let mint_info = packed_accounts[mint_index as usize].to_account_info();
-                    let owner_info = packed_accounts[owner_index as usize].to_account_info();
+                        let mint_info = packed_accounts[mint_index as usize].to_account_info();
+                        let owner_info = packed_accounts[owner_index as usize].to_account_info();
 
-                    let (ctoken_signer_seeds, derived_token_account_address) = token_data.variant.get_seeds(&seed_context);
-                    let (ctoken_authority_seeds, ctoken_authority_pda) = token_data.variant.get_authority_seeds(&seed_context);
+                        let (ctoken_signer_seeds, derived_token_account_address) = token_data.variant.get_seeds(remaining_accounts, &seed_indices, seed_accounts_offset);
+                        let (ctoken_authority_seeds, ctoken_authority_pda) = token_data.variant.get_authority_seeds(remaining_accounts, &authority_indices, seed_accounts_offset);
 
+                        if derived_token_account_address != *owner_info.key {
+                            msg!("Derived token account address (PDA) does not match provided owner account");
+                            msg!("derived_token_account_address: {:?}", derived_token_account_address);
+                            msg!("owner_info.key: {:?}", owner_info.key);
+                            return err!(CompressibleInstructionError::CTokenDecompressionNotImplemented);
+                        }
 
-                    if derived_token_account_address != *owner_info.key {
-                        msg!("Derived token account address (PDA) does not match provided owner account");
-                        msg!("derived_token_account_address: {:?}", derived_token_account_address);
-                        msg!("owner_info.key: {:?}", owner_info.key);
-                        return err!(CompressibleInstructionError::CTokenDecompressionNotImplemented);
+                        {
+                            let seed_refs: Vec<&[u8]> = ctoken_signer_seeds.iter().map(|s| s.as_slice()).collect();
+                            let seeds_slice: &[&[u8]] = &seed_refs;
+
+                            light_compressed_token_sdk::instructions::create_token_account::create_ctoken_account_signed(
+                                crate::ID,
+                                fee_payer.clone().to_account_info(),
+                                owner_info.clone(),
+                                mint_info.clone(),
+                                ctoken_authority_pda,
+                                seeds_slice,
+                                ctoken_rent_sponsor.clone().to_account_info(),
+                                ctoken_config.to_account_info(),
+                                Some(1),
+                                None,
+                            ).map_err(|e| anchor_lang::error::Error::from(anchor_lang::prelude::ProgramError::from(e)))?;
+                        }
+                        let decompress_index = light_compressed_token_sdk::instructions::DecompressFullIndices::from((
+                            token_data.token_data,
+                            meta,
+                            owner_index,
+                        ));
+                        token_decompress_indices.push(decompress_index);
+                        token_signers_seed_groups.push(ctoken_signer_seeds);
                     }
+
+                    let ctoken_ix = light_compressed_token_sdk::instructions::decompress_full_ctoken_accounts_with_indices(
+                        fee_payer.key(),
+                        proof,
+                        if has_pdas { Some(cpi_context.key()) } else { None },
+                        &token_decompress_indices,
+                        packed_accounts,
+                    ).map_err(|e| anchor_lang::error::Error::from(anchor_lang::prelude::ProgramError::from(e)))?;
 
                     {
-                        let seed_refs: Vec<&[u8]> = ctoken_signer_seeds.iter().map(|s| s.as_slice()).collect();
-                        let seeds_slice: &[&[u8]] = &seed_refs;
+                        let signer_seed_refs: Vec<Vec<&[u8]>> = token_signers_seed_groups
+                            .iter()
+                            .map(|group| group.iter().map(|s| s.as_slice()).collect())
+                            .collect();
+                        let signer_seed_slices: Vec<&[&[u8]]> =
+                            signer_seed_refs.iter().map(|g| g.as_slice()).collect();
 
-                        light_compressed_token_sdk::instructions::create_token_account::create_ctoken_account_signed(
-                            crate::ID,
-                            fee_payer.clone().to_account_info(),
-                            owner_info.clone(),
-                            mint_info.clone(),
-                            ctoken_authority_pda,
-                            seeds_slice,
-                            ctoken_rent_sponsor.clone().to_account_info(),
-                            ctoken_config.to_account_info(),
-                            Some(1), // pre_pay_num_epochs TODO: make this configurable
-                            None,    // write_top_up_lamports
-                        )?;
+                        let cpi_slice = cpi_accounts.account_infos_slice();
+                        let mut account_infos = Vec::with_capacity(5 + cpi_slice.len().saturating_sub(1));
+                        account_infos.push(fee_payer.to_account_info());
+                        account_infos.push(ctoken_cpi_authority.to_account_info());
+                        account_infos.push(ctoken_program.to_account_info());
+                        account_infos.push(ctoken_rent_sponsor.to_account_info());
+                        account_infos.push(config.to_account_info());
+                        if cpi_slice.len() > 1 {
+                            account_infos.extend_from_slice(&cpi_slice[1..]);
+                        }
+                        anchor_lang::solana_program::program::invoke_signed(
+                            &ctoken_ix,
+                            account_infos.as_slice(),
+                            signer_seed_slices.as_slice(),
+                        ).map_err(|e| anchor_lang::error::Error::from(e))?;
                     }
-                    let decompress_index = light_compressed_token_sdk::instructions::DecompressFullIndices::from((
-                        token_data.token_data,
-                        meta,
-                        owner_index,
-                    ));
-                    token_decompress_indices.push(decompress_index);
-                    token_signers_seed_groups.push(ctoken_signer_seeds);
+                    Ok(())
                 }
 
-                let ctoken_ix = light_compressed_token_sdk::instructions::decompress_full_ctoken_accounts_with_indices(
-                    fee_payer.key(),
-                    proof,
-                    if has_pdas { Some(cpi_context.key()) } else { None },
-                    &token_decompress_indices,
-                    packed_accounts,
-                )
-                .map_err(anchor_lang::prelude::ProgramError::from)?;
-
-                {
-                    let signer_seed_refs: Vec<Vec<&[u8]>> = token_signers_seed_groups
-                        .iter()
-                        .map(|group| group.iter().map(|s| s.as_slice()).collect())
-                        .collect();
-                    let signer_seed_slices: Vec<&[&[u8]]> =
-                        signer_seed_refs.iter().map(|g| g.as_slice()).collect();
-
-                    let cpi_slice = cpi_accounts.account_infos_slice();
-                    let mut account_infos = Vec::with_capacity(5 + cpi_slice.len().saturating_sub(1));
-                    account_infos.push(fee_payer.to_account_info());
-                    account_infos.push(ctoken_cpi_authority.to_account_info());
-                    account_infos.push(ctoken_program.to_account_info());
-                    account_infos.push(ctoken_rent_sponsor.to_account_info());
-                    account_infos.push(config.to_account_info());
-                    if cpi_slice.len() > 1 {
-                        account_infos.extend_from_slice(&cpi_slice[1..]);
+                #[inline(never)]
+                pub fn decompress_accounts_idempotent<'info>(
+                    ctx: Context<'_, '_, 'info, 'info, DecompressAccountsIdempotent<'info>>,
+                    proof: light_sdk::instruction::ValidityProof,
+                    compressed_accounts: Vec<CompressedAccountData>,
+                    system_accounts_offset: u8,
+                ) -> Result<()> {
+                    let compressed_accounts = Box::new(compressed_accounts);
+                    let seed_accounts_offset = system_accounts_offset + compressed_accounts.len() as u8;
+                    #[inline(never)]
+                    fn check_account_types(compressed_accounts: &[CompressedAccountData]) -> (bool, bool) {
+                        let (mut has_tokens, mut has_pdas) = (false, false);
+                        for c in compressed_accounts {
+                            match c.data {
+                                CompressedAccountVariant::PackedCTokenData(_) => has_tokens = true,
+                                _ => has_pdas = true,
+                            }
+                            if has_tokens && has_pdas {
+                                break;
+                            }
+                        }
+                        (has_tokens, has_pdas)
                     }
-                    anchor_lang::solana_program::program::invoke_signed(
-                        &ctoken_ix,
-                        account_infos.as_slice(),
-                        signer_seed_slices.as_slice(),
+
+                    let (has_tokens, has_pdas) = check_account_types(&*compressed_accounts);
+                    if !has_tokens && !has_pdas {
+                        return Ok(());
+                    }
+
+                    decompress_and_invoke(
+                        ctx,
+                        proof,
+                        *compressed_accounts,
+                        system_accounts_offset,
+                        seed_accounts_offset,
+                        has_tokens,
+                        has_pdas,
+                    )
+                }
+
+                #[inline(never)]
+                pub(super) fn decompress_and_invoke<'info>(
+                    ctx: Context<'_, '_, 'info, 'info, DecompressAccountsIdempotent<'info>>,
+                    proof: light_sdk::instruction::ValidityProof,
+                    compressed_accounts: Vec<CompressedAccountData>,
+                    system_accounts_offset: u8,
+                    seed_accounts_offset: u8,
+                    has_tokens: bool,
+                    has_pdas: bool,
+                ) -> Result<()> {
+                    let compression_config = light_sdk::compressible::CompressibleConfig::load_checked(
+                        &ctx.accounts.config,
+                        &crate::ID,
+                    ).map_err(|e| anchor_lang::error::Error::from(e))?;
+                    let address_space = compression_config.address_space[0];
+
+                    #[inline(never)]
+                    pub(super) fn build_cpi_and_collect<'b, 'info>(
+                        ctx: &'b Context<'_, '_, 'info, 'info, DecompressAccountsIdempotent<'info>>,
+                        address_space: anchor_lang::prelude::Pubkey,
+                        compressed_accounts: Vec<CompressedAccountData>,
+                        system_accounts_offset: u8,
+                        seed_accounts_offset: u8,
+                        has_tokens: bool,
+                        has_pdas: bool,
+                    ) -> Result<(
+                        light_sdk::cpi::CpiAccountsSmall<'b, 'info>,
+                        Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
+                        Vec<(
+                            light_sdk::token::PackedCTokenData<CTokenAccountVariant>,
+                            light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                            Vec<u8>,
+                            Vec<u8>,
+                        )>,
+                    )> {
+                        let cpi_accounts = if has_tokens && has_pdas {
+                            light_sdk_types::CpiAccountsSmall::new_with_config(
+                                ctx.accounts.fee_payer.as_ref(),
+                                &ctx.remaining_accounts[system_accounts_offset as usize..],
+                                light_sdk_types::CpiAccountsConfig::new_with_cpi_context(LIGHT_CPI_SIGNER),
+                            )
+                        } else {
+                            light_sdk_types::CpiAccountsSmall::new(
+                                ctx.accounts.fee_payer.as_ref(),
+                                &ctx.remaining_accounts[system_accounts_offset as usize..],
+                                LIGHT_CPI_SIGNER,
+                            )
+                        };
+
+                        let solana_accounts = &ctx.remaining_accounts[ctx.remaining_accounts.len() - compressed_accounts.len()..];
+
+                        let (compressed_pda_infos, compressed_token_accounts) = collect_pda_and_token(
+                            &ctx.accounts,
+                            &cpi_accounts,
+                            address_space,
+                            compressed_accounts,
+                            solana_accounts,
+                            &ctx.remaining_accounts,
+                            seed_accounts_offset,
+                        ).map_err(|e| anchor_lang::error::Error::from(e))?;
+
+                        Ok((cpi_accounts, compressed_pda_infos, compressed_token_accounts))
+                    }
+
+                    let (cpi_accounts, compressed_pda_infos, compressed_token_accounts) = build_cpi_and_collect(
+                        &ctx,
+                        address_space,
+                        compressed_accounts,
+                        system_accounts_offset,
+                        seed_accounts_offset,
+                        has_tokens,
+                        has_pdas,
                     )?;
+
+                    let has_pdas = !compressed_pda_infos.is_empty();
+                    let has_tokens = !compressed_token_accounts.is_empty();
+                    if !has_pdas && !has_tokens {
+                        return Ok(());
+                    }
+
+                    if has_pdas && !has_tokens {
+                        process_pdas(compressed_pda_infos, proof, cpi_accounts, false)
+                            .map_err(|e| anchor_lang::error::Error::from(e))?;
+                    } else if !has_pdas && has_tokens {
+                        process_tokens(
+                            &ctx,
+                            compressed_token_accounts,
+                            proof,
+                            cpi_accounts,
+                            false,
+                            seed_accounts_offset,
+                        ).map_err(|e| anchor_lang::error::Error::from(e))?;
+                    } else if has_pdas && has_tokens {
+                        process_pdas(compressed_pda_infos, proof, cpi_accounts.clone(), true)
+                            .map_err(|e| anchor_lang::error::Error::from(e))?;
+                        process_tokens(
+                            &ctx,
+                            compressed_token_accounts,
+                            proof,
+                            cpi_accounts,
+                            true,
+                            seed_accounts_offset,
+                        ).map_err(|e| anchor_lang::error::Error::from(e))?;
+                    }
+                    Ok(())
                 }
-                Ok(())
             }
-
-            let (has_tokens, has_pdas) = check_account_types(&compressed_accounts);
-            if !has_tokens && !has_pdas {
-                return Ok(());
-            }
-
-
-            let cpi_accounts = if has_tokens && has_pdas {
-                light_sdk_types::CpiAccountsSmall::new_with_config(
-                    ctx.accounts.fee_payer.as_ref(),
-                    &ctx.remaining_accounts[system_accounts_offset as usize..],
-                    light_sdk_types::CpiAccountsConfig::new_with_cpi_context(LIGHT_CPI_SIGNER),
-                )
-            } else {
-                light_sdk_types::CpiAccountsSmall::new(
-                    ctx.accounts.fee_payer.as_ref(),
-                    &ctx.remaining_accounts[system_accounts_offset as usize..],
-                    LIGHT_CPI_SIGNER,
-                )
-            };
-
-            let solana_accounts = &ctx.remaining_accounts[ctx.remaining_accounts.len() - compressed_accounts.len()..];
-
-            let (mut compressed_pda_infos, compressed_token_accounts) = __macro_helpers::collect_pda_and_token(
-                &ctx.accounts,
-                &cpi_accounts,
-                address_space,
-                compressed_accounts,
-                solana_accounts,
-            )?;
-
-            let has_pdas = !compressed_pda_infos.is_empty();
-            let has_tokens = !compressed_token_accounts.is_empty();
-            if !has_pdas && !has_tokens {
-                return Ok(());
-            }
-            let fee_payer = ctx.accounts.fee_payer.as_ref();
-            let authority = cpi_accounts.authority().unwrap();
-            let cpi_context = cpi_accounts.cpi_context().unwrap();
-
-            if has_pdas && has_tokens {
-                let system_cpi_accounts = light_sdk_types::cpi_context_write::CpiContextWriteAccounts {
-                    fee_payer,
-                    authority,
-                    cpi_context,
-                    cpi_signer: LIGHT_CPI_SIGNER,
-                };
-
-                let cpi_inputs = light_sdk::cpi::CpiInputs::new_first_cpi(
-                    compressed_pda_infos,
-                    Vec::new(),
-                );
-
-                cpi_inputs.invoke_light_system_program_cpi_context(system_cpi_accounts)?;
-            } else if has_pdas {
-                let cpi_inputs = light_sdk::cpi::CpiInputs::new(proof, compressed_pda_infos);
-                cpi_inputs.invoke_light_system_program_small(cpi_accounts.clone())?;
-            }
-
-            if has_tokens {
-                process_tokens(
-                    &ctx.accounts,
-                    &ctx.remaining_accounts,
-                    &fee_payer,
-                    &ctx.accounts.ctoken_program,
-                    &ctx.accounts.ctoken_rent_sponsor,
-                    &ctx.accounts.ctoken_cpi_authority,
-                    &ctx.accounts.ctoken_config,
-                    &ctx.accounts.config,
-                    compressed_token_accounts,
-                    proof,
-                    cpi_accounts,
-                    has_pdas
-                )?;
-            }
-            Ok(())
         }
-        },
     };
+
+    // decompress_accounts_idempotent is pub in __macro_helpers module
+    // No separate wrapper to avoid 48 bytes of stack overhead
 
     // Generate the CompressAccountsIdempotent accounts struct based on variant
     let compress_accounts: syn::ItemStruct = match instruction_variant {
@@ -1129,7 +1205,26 @@ pub fn add_compressible_instructions(
     content.1.push(Item::Struct(decompress_accounts));
     content.1.push(Item::Mod(helpers_module));
     content.1.push(Item::Mod(ctoken_trait_system));
-    content.1.push(Item::Fn(decompress_instruction));
+    // Re-add a thin public wrapper for decompress_accounts_idempotent to ensure it appears as an instruction
+    let decompress_wrapper: syn::ItemFn = syn::parse_quote! {
+        /// Auto-generated decompress_accounts_idempotent instruction
+        #[inline(never)]
+        pub fn decompress_accounts_idempotent<'info>(
+            ctx: Context<'_, '_, 'info, 'info, DecompressAccountsIdempotent<'info>>,
+            proof: light_sdk::instruction::ValidityProof,
+            compressed_accounts: Vec<CompressedAccountData>,
+            system_accounts_offset: u8,
+        ) -> Result<()> {
+            // Delegate to full helper which computes flags and offset to preserve logic
+            __macro_helpers::decompress_accounts_idempotent(
+                ctx,
+                proof,
+                compressed_accounts,
+                system_accounts_offset,
+            )
+        }
+    };
+    content.1.push(Item::Fn(decompress_wrapper));
     content.1.push(Item::Struct(compress_accounts));
     content.1.push(Item::Fn(compress_instruction));
     content.1.push(Item::Struct(init_config_accounts));
@@ -1207,6 +1302,7 @@ fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Result
 }
 
 /// Generate CTokenSeedProvider implementation from token seed specifications
+/// Now uses positional indices into remaining_accounts instead of named account references
 #[inline(never)]
 fn generate_ctoken_seed_provider_implementation(
     token_seeds: &[TokenSeedSpec],
@@ -1217,11 +1313,11 @@ fn generate_ctoken_seed_provider_implementation(
     for spec in token_seeds {
         let variant_name = &spec.variant;
 
-        // Generate bindings for token account seeds (always use the main seeds, not authority)
-        let mut token_bindings = Vec::new();
+        // Track which seeds need indices (account references) vs inline (literals/constants)
         let mut token_seed_refs = Vec::new();
+        let mut account_ref_count = 0usize;
 
-        for (i, seed) in spec.seeds.iter().enumerate() {
+        for seed in spec.seeds.iter() {
             match seed {
                 SeedElement::Literal(lit) => {
                     let value = lit.value();
@@ -1234,80 +1330,55 @@ fn generate_ctoken_seed_provider_implementation(
                             // Check if it's all uppercase (likely a const)
                             let ident_str = ident.to_string();
                             if ident_str.chars().all(|c| c.is_uppercase() || c == '_') {
-                                // This looks like a const - use it as a seed
+                                // This looks like a const - inline it directly
                                 token_seed_refs.push(quote! { #ident.as_bytes() });
                                 continue;
                             }
                         }
                     }
 
-                    // For CToken seeds, we need to handle account references
-                    // specially ctx.accounts.mint -> ctx.accounts.mint.key().as_ref()
-                    let mut handled = false;
-
-                    match expr {
+                    // Check if this is an account reference (ctx.accounts.X or ctx.X)
+                    let is_account_ref = match expr {
                         syn::Expr::Field(field_expr) => {
-                            // Check if this is ctx.accounts.field_name
-                            if let syn::Member::Named(field_name) = &field_expr.member {
-                                if let syn::Expr::Field(nested_field) = &*field_expr.base {
-                                    if let syn::Member::Named(base_name) = &nested_field.member {
-                                        if base_name == "accounts" {
-                                            if let syn::Expr::Path(path) = &*nested_field.base {
-                                                if let Some(segment) = path.path.segments.first() {
-                                                    if segment.ident == "ctx" {
-                                                        // This is ctx.accounts.field_name
-                                                        let binding_name = syn::Ident::new(
-                                                            &format!("seed_{}", i),
-                                                            expr.span(),
-                                                        );
-                                                        token_bindings.push(quote! {
-                                                            let #binding_name = ctx.accounts.#field_name.key();
-                                                        });
-                                                        token_seed_refs.push(
-                                                            quote! { #binding_name.as_ref() },
-                                                        );
-                                                        handled = true;
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                } else if let syn::Expr::Path(path) = &*field_expr.base {
-                                    if let Some(segment) = path.path.segments.first() {
-                                        if segment.ident == "ctx" {
-                                            // This is ctx.field_name - all fields accessed via ctx.accounts
-                                            let binding_name = syn::Ident::new(
-                                                &format!("seed_{}", i),
-                                                expr.span(),
-                                            );
-                                            token_bindings.push(quote! {
-                                                let #binding_name = ctx.accounts.#field_name.key();
-                                            });
-                                            token_seed_refs.push(quote! { #binding_name.as_ref() });
-                                            handled = true;
-                                        }
-                                    }
-                                }
-                            }
+                            if let syn::Expr::Field(nested_field) = &*field_expr.base {
+                                if let syn::Member::Named(base_name) = &nested_field.member {
+                                    if base_name == "accounts" {
+                                        if let syn::Expr::Path(path) = &*nested_field.base {
+                                            if let Some(segment) = path.path.segments.first() {
+                                                segment.ident == "ctx"
+                                            } else { false }
+                                        } else { false }
+                                    } else { false }
+                                } else { false }
+                            } else if let syn::Expr::Path(path) = &*field_expr.base {
+                                if let Some(segment) = path.path.segments.first() {
+                                    segment.ident == "ctx"
+                                } else { false }
+                            } else { false }
                         }
-                        _ => {}
-                    }
+                        _ => false,
+                    };
 
-                    if !handled {
-                        // Not a ctx.accounts reference, use as-is
+                    if is_account_ref {
+                        // This is an account reference - use positional index
+                        let idx = syn::Index::from(account_ref_count);
+                        token_seed_refs.push(quote! {
+                            remaining_accounts[(seed_accounts_offset + seed_indices[#idx]) as usize].key.as_ref()
+                        });
+                        account_ref_count += 1;
+                    } else {
+                        // Not an account reference - inline directly (e.g., data.field)
                         token_seed_refs.push(quote! { (#expr).as_ref() });
                     }
                 }
             }
         }
 
-        // Always generate get_seeds to return TOKEN ACCOUNT seeds (for decompression)
+        // Generate get_seeds match arm using positional indices
         let get_seeds_arm = quote! {
             CTokenAccountVariant::#variant_name => {
-                #(#token_bindings)*
                 let seeds: &[&[u8]] = &[#(#token_seed_refs),*];
                 let (token_account_pda, bump) = anchor_lang::prelude::Pubkey::find_program_address(seeds, &crate::ID);
-                // Pre-allocate on heap with known capacity to minimize stack usage
                 let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
                 seeds_vec.extend(seeds.iter().map(|s| s.to_vec()));
                 seeds_vec.push(vec![bump]);
@@ -1318,83 +1389,56 @@ fn generate_ctoken_seed_provider_implementation(
 
         // Generate get_authority_seeds if authority is specified (for compression signing)
         if let Some(authority_seeds) = &spec.authority {
-            let mut auth_bindings: Vec<proc_macro2::TokenStream> = Vec::new();
             let mut auth_seed_refs = Vec::new();
+            let mut auth_account_ref_count = 0usize;
 
-            for (i, authority_seed) in authority_seeds.iter().enumerate() {
+            for authority_seed in authority_seeds.iter() {
                 match authority_seed {
                     SeedElement::Literal(lit) => {
                         let value = lit.value();
                         auth_seed_refs.push(quote! { #value.as_bytes() });
                     }
                     SeedElement::Expression(expr) => {
-                        let mut handled = false;
-                        match expr {
-                            // Handle ctx.accounts.field -> use .key().as_ref()
-                            syn::Expr::Field(field_expr) => {
-                                if let syn::Member::Named(field_name) = &field_expr.member {
-                                    if let syn::Expr::Field(nested_field) = &*field_expr.base {
-                                        if let syn::Member::Named(base_name) = &nested_field.member
-                                        {
-                                            if base_name == "accounts" {
-                                                if let syn::Expr::Path(path) = &*nested_field.base {
-                                                    if let Some(segment) =
-                                                        path.path.segments.first()
-                                                    {
-                                                        if segment.ident == "ctx" {
-                                                            let binding_name = syn::Ident::new(
-                                                                &format!("authority_seed_{}", i),
-                                                                expr.span(),
-                                                            );
-                                                            auth_bindings.push(quote! {
-                                                                let #binding_name = ctx.accounts.#field_name.key();
-                                                            });
-                                                            auth_seed_refs.push(
-                                                                quote! { #binding_name.as_ref() },
-                                                            );
-                                                            handled = true;
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    } else if let syn::Expr::Path(path) = &*field_expr.base {
-                                        if let Some(segment) = path.path.segments.first() {
-                                            if segment.ident == "ctx" {
-                                                let binding_name = syn::Ident::new(
-                                                    &format!("authority_seed_{}", i),
-                                                    expr.span(),
-                                                );
-                                                auth_bindings.push(quote! {
-                                                    let #binding_name = ctx.accounts.#field_name.key();
-                                                });
-                                                auth_seed_refs
-                                                    .push(quote! { #binding_name.as_ref() });
-                                                handled = true;
-                                            }
-                                        }
-                                    }
+                        // Check if uppercase const
+                        if let syn::Expr::Path(path_expr) = expr {
+                            if let Some(ident) = path_expr.path.get_ident() {
+                                let ident_str = ident.to_string();
+                                if ident_str.chars().all(|c| c.is_uppercase() || c == '_') {
+                                    auth_seed_refs.push(quote! { #ident.as_bytes() });
+                                    continue;
                                 }
                             }
-                            // Handle method calls like ctx.accounts.mint.key() -> as_ref()
-                            syn::Expr::MethodCall(_mc) => {
-                                auth_seed_refs.push(quote! { (#expr).as_ref() });
-                                handled = true;
-                            }
-                            // Handle uppercase consts
-                            syn::Expr::Path(path_expr) => {
-                                if let Some(ident) = path_expr.path.get_ident() {
-                                    let ident_str = ident.to_string();
-                                    if ident_str.chars().all(|c| c.is_uppercase() || c == '_') {
-                                        auth_seed_refs.push(quote! { #ident.as_bytes() });
-                                        handled = true;
-                                    }
-                                }
-                            }
-                            _ => {}
                         }
 
-                        if !handled {
+                        // Check if account reference
+                        let is_account_ref = match expr {
+                            syn::Expr::Field(field_expr) => {
+                                if let syn::Expr::Field(nested_field) = &*field_expr.base {
+                                    if let syn::Member::Named(base_name) = &nested_field.member {
+                                        if base_name == "accounts" {
+                                            if let syn::Expr::Path(path) = &*nested_field.base {
+                                                if let Some(segment) = path.path.segments.first() {
+                                                    segment.ident == "ctx"
+                                                } else { false }
+                                            } else { false }
+                                        } else { false }
+                                    } else { false }
+                                } else if let syn::Expr::Path(path) = &*field_expr.base {
+                                    if let Some(segment) = path.path.segments.first() {
+                                        segment.ident == "ctx"
+                                    } else { false }
+                                } else { false }
+                            }
+                            _ => false,
+                        };
+
+                        if is_account_ref {
+                            let idx = syn::Index::from(auth_account_ref_count);
+                            auth_seed_refs.push(quote! {
+                                remaining_accounts[(seed_accounts_offset + authority_indices[#idx]) as usize].key.as_ref()
+                            });
+                            auth_account_ref_count += 1;
+                        } else {
                             auth_seed_refs.push(quote! { (#expr).as_ref() });
                         }
                     }
@@ -1403,7 +1447,6 @@ fn generate_ctoken_seed_provider_implementation(
 
             let authority_arm = quote! {
                 CTokenAccountVariant::#variant_name => {
-                    #(#auth_bindings)*
                     let seeds: &[&[u8]] = &[#(#auth_seed_refs),*];
                     let (authority_pda, bump) = anchor_lang::prelude::Pubkey::find_program_address(seeds, &crate::ID);
                     let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
@@ -1425,12 +1468,13 @@ fn generate_ctoken_seed_provider_implementation(
     }
 
     Ok(quote! {
-        /// Auto-generated CTokenSeedProvider implementation
+        /// Auto-generated CTokenSeedProvider implementation using positional indices
         impl ctoken_seed_system::CTokenSeedProvider for CTokenAccountVariant {
-            /// Get seeds for the token account PDA (used for decompression - the owner of the compressed token)
-            fn get_seeds<'a, 'info>(
+            fn get_seeds<'info>(
                 &self,
-                ctx: &ctoken_seed_system::CTokenSeedContext<'a, 'info>,
+                remaining_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
+                seed_indices: &[u8],
+                seed_accounts_offset: u8,
             ) -> (Vec<Vec<u8>>, anchor_lang::prelude::Pubkey) {
                 match self {
                     #(#get_seeds_match_arms)*
@@ -1440,10 +1484,11 @@ fn generate_ctoken_seed_provider_implementation(
                 }
             }
 
-            /// Get authority seeds for signing during compression (if authority is specified)
-            fn get_authority_seeds<'a, 'info>(
+            fn get_authority_seeds<'info>(
                 &self,
-                ctx: &ctoken_seed_system::CTokenSeedContext<'a, 'info>,
+                remaining_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
+                authority_indices: &[u8],
+                seed_accounts_offset: u8,
             ) -> (Vec<Vec<u8>>, anchor_lang::prelude::Pubkey) {
                 match self {
                     #(#get_authority_seeds_match_arms)*
@@ -1456,24 +1501,25 @@ fn generate_ctoken_seed_provider_implementation(
     })
 }
 
-/// Generate PDA seed derivation from specification
+/// Generate PDA seed derivation from specification using positional indices
 #[inline(never)]
 fn generate_pda_seed_derivation(
     spec: &TokenSeedSpec,
     _instruction_data: &[InstructionDataSpec],
-    accounts_ident: &Ident,
+    _accounts_ident: &Ident,
 ) -> Result<TokenStream> {
-    // First, generate bindings for any expressions that need them
     let mut bindings = Vec::new();
     let mut seed_refs = Vec::new();
+    let mut account_ref_count = 0usize;
 
-    for (i, seed) in spec.seeds.iter().enumerate() {
+    for seed in spec.seeds.iter() {
         match seed {
             SeedElement::Literal(lit) => {
                 let value = lit.value();
                 seed_refs.push(quote! { #value.as_bytes() });
             }
             SeedElement::Expression(expr) => {
+                // Check if this is a const
                 if let syn::Expr::Path(path_expr) = expr {
                     if let Some(ident) = path_expr.path.get_ident() {
                         let ident_str = ident.to_string();
@@ -1484,76 +1530,55 @@ fn generate_pda_seed_derivation(
                     }
                 }
 
-                let mut handled = false;
-
-                match expr {
-                    syn::Expr::MethodCall(mc) if mc.method == "to_le_bytes" => {
-                        let binding_name =
-                            syn::Ident::new(&format!("seed_binding_{}", i), expr.span());
+                // Check if this is data.field.to_le_bytes() or similar
+                if let syn::Expr::MethodCall(mc) = expr {
+                    if mc.method == "to_le_bytes" {
+                        // This is data.field.to_le_bytes() - inline directly from unpacked data
                         bindings.push(quote! {
-                            let #binding_name = #expr;
+                            let seed_binding = #expr;
                         });
-                        seed_refs.push(quote! { #binding_name.as_ref() });
-                        handled = true;
+                        seed_refs.push(quote! { seed_binding.as_ref() });
+                        continue;
                     }
-                    syn::Expr::Field(field_expr) => {
-                        // Check if this is ctx.accounts.field_name
-                        if let syn::Member::Named(field_name) = &field_expr.member {
-                            if let syn::Expr::Field(nested_field) = &*field_expr.base {
-                                if let syn::Member::Named(base_name) = &nested_field.member {
-                                    if base_name == "accounts" {
-                                        if let syn::Expr::Path(path) = &*nested_field.base {
-                                            if let Some(segment) = path.path.segments.first() {
-                                                if segment.ident == "ctx" {
-                                                    // This is ctx.accounts.field_name - create binding for the key
-                                                    let binding_name = syn::Ident::new(
-                                                        &format!("seed_binding_{}", i),
-                                                        expr.span(),
-                                                    );
-                                                    bindings.push(quote! {
-                                                        let #binding_name = #accounts_ident.#field_name.key();
-                                                    });
-                                                    seed_refs
-                                                        .push(quote! { #binding_name.as_ref() });
-                                                    handled = true;
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            } else if let syn::Expr::Path(path) = &*field_expr.base {
-                                if let Some(segment) = path.path.segments.first() {
-                                    if segment.ident == "ctx" {
-                                        // This is ctx.field_name - create binding
-                                        let binding_name = syn::Ident::new(
-                                            &format!("seed_binding_{}", i),
-                                            expr.span(),
-                                        );
-                                        bindings.push(quote! {
-                                            let #binding_name = #accounts_ident.#field_name.key();
-                                        });
-                                        seed_refs.push(quote! { #binding_name.as_ref() });
-                                        handled = true;
-                                    } else if segment.ident == "data" {
-                                        seed_refs.push(quote! { (#expr).as_ref() });
-                                        handled = true;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    _ => {}
                 }
 
-                if !handled {
-                    // Other expressions - use as-is
+                // Check if this is an account reference
+                let is_account_ref = match expr {
+                    syn::Expr::Field(field_expr) => {
+                        if let syn::Expr::Field(nested_field) = &*field_expr.base {
+                            if let syn::Member::Named(base_name) = &nested_field.member {
+                                if base_name == "accounts" {
+                                    if let syn::Expr::Path(path) = &*nested_field.base {
+                                        if let Some(segment) = path.path.segments.first() {
+                                            segment.ident == "ctx"
+                                        } else { false }
+                                    } else { false }
+                                } else { false }
+                            } else { false }
+                        } else if let syn::Expr::Path(path) = &*field_expr.base {
+                            if let Some(segment) = path.path.segments.first() {
+                                segment.ident == "ctx"
+                            } else { false }
+                        } else { false }
+                    }
+                    _ => false,
+                };
+
+                if is_account_ref {
+                    // Use positional index
+                    let idx = syn::Index::from(account_ref_count);
+                    seed_refs.push(quote! {
+                        remaining_accounts[(seed_accounts_offset + seed_indices[#idx]) as usize].key.as_ref()
+                    });
+                    account_ref_count += 1;
+                } else {
+                    // Inline directly (e.g., data.field)
                     seed_refs.push(quote! { (#expr).as_ref() });
                 }
             }
         }
     }
 
-    // Generate indices for accessing seeds array
     let indices: Vec<usize> = (0..seed_refs.len()).collect();
 
     Ok(quote! {
