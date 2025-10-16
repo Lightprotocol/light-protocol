@@ -433,6 +433,47 @@ impl<'a> ZeroCopyAt<'a> for CToken {
     }
 }
 
+impl CToken {
+    /// Zero-copy deserialization with initialization check.
+    /// Returns an error if the account is not initialized (byte 108 must be 1).
+    #[profile]
+    pub fn zero_copy_at_checked(
+        bytes: &[u8],
+    ) -> Result<(ZCToken<'_>, &[u8]), crate::error::CTokenError> {
+        // Check minimum size for state field at byte 108
+        if bytes.len() < 109 {
+            return Err(crate::error::CTokenError::InvalidAccountData);
+        }
+
+        // Verify account is initialized (state byte at offset 108 must be 1)
+        if bytes[108] != 1 {
+            return Err(crate::error::CTokenError::InvalidAccountState);
+        }
+
+        // Proceed with normal deserialization
+        Ok(CToken::zero_copy_at(bytes)?)
+    }
+
+    /// Mutable zero-copy deserialization with initialization check.
+    /// Returns an error if the account is not initialized (byte 108 must be 1).
+    #[profile]
+    pub fn zero_copy_at_mut_checked(
+        bytes: &mut [u8],
+    ) -> Result<(ZCompressedTokenMut<'_>, &mut [u8]), crate::error::CTokenError> {
+        // Check minimum size for state field at byte 108
+        if bytes.len() < 109 {
+            return Err(crate::error::CTokenError::InvalidAccountData);
+        }
+
+        // Verify account is initialized (state byte at offset 108 must be 1)
+        if bytes[108] != 1 {
+            return Err(crate::error::CTokenError::InvalidAccountState);
+        }
+
+        Ok(CToken::zero_copy_at_mut(bytes)?)
+    }
+}
+
 impl<'a> ZeroCopyAtMut<'a> for CToken {
     type ZeroCopyAtMut = ZCompressedTokenMut<'a>;
 

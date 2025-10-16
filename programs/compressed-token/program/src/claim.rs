@@ -1,10 +1,9 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
-use light_account_checks::{AccountInfoTrait, AccountIterator};
+use light_account_checks::{checks::check_owner, AccountInfoTrait, AccountIterator};
 use light_compressible::{compression_info::ClaimAndUpdate, config::CompressibleConfig};
 use light_ctoken_types::state::{CToken, ZExtensionStructMut};
 use light_program_profiler::profile;
-use light_zero_copy::traits::ZeroCopyAtMut;
 use pinocchio::{account_info::AccountInfo, sysvars::Sysvar};
 use spl_pod::solana_msg::msg;
 
@@ -96,13 +95,16 @@ fn validate_and_claim(
     token_account: &AccountInfo,
     current_slot: u64,
 ) -> Result<Option<u64>, ProgramError> {
+    // Verify the token account is owned by the compressed token program
+    check_owner(&crate::LIGHT_CPI_SIGNER.program_id, token_account)?;
+
     // Get current lamports balance
     let current_lamports = AccountInfoTrait::lamports(token_account);
     // Claim rent for completed epochs
     let bytes = token_account.data_len() as u64;
     // Parse and process the token account
     let mut token_account_data = AccountInfoTrait::try_borrow_mut_data(token_account)?;
-    let (mut compressed_token, _) = CToken::zero_copy_at_mut(&mut token_account_data)?;
+    let (mut compressed_token, _) = CToken::zero_copy_at_mut_checked(&mut token_account_data)?;
 
     // Find compressible extension
     if let Some(extensions) = compressed_token.extensions.as_mut() {
