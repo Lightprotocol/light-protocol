@@ -318,8 +318,9 @@ async fn test_random_mint_action() {
         actions.shuffle(&mut rng);
 
         // Fix action ordering: remove any UpdateMetadataField actions that come after RemoveMetadataKey for the same key
-        use light_compressed_token_sdk::instructions::mint_action::MintActionType;
         use std::collections::HashSet;
+
+        use light_compressed_token_sdk::instructions::mint_action::MintActionType;
 
         let mut removed_keys: HashSet<Vec<u8>> = HashSet::new();
         let mut i = 0;

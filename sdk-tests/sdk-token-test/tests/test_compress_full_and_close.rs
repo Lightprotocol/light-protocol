@@ -257,8 +257,8 @@ async fn test_compress_full_and_close() {
             COMPRESSED_TOKEN_PROGRAM_ID,
         )))
         .unwrap();
-    let output_tree_index =
-        remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
+
+    remaining_accounts.insert_or_get(rpc.get_random_state_tree_info().unwrap().queue);
     // Pack accounts using insert_or_get (following four_multi_transfer pattern)
     let recipient_index = remaining_accounts.insert_or_get(final_recipient_pubkey);
     let mint_index = remaining_accounts.insert_or_get(mint_pda);
@@ -271,7 +271,6 @@ async fn test_compress_full_and_close() {
         remaining_accounts.to_account_metas();
 
     let instruction_data = instruction::CompressFullAndClose {
-        output_tree_index,
         recipient_index,
         mint_index,
         source_index,

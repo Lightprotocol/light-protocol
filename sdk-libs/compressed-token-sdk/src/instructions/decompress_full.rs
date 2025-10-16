@@ -62,10 +62,7 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
     for idx in indices.iter() {
         // Create CTokenAccount2 with the source data
         // For decompress_full, we don't have an output tree since everything goes to the destination
-        let mut token_account = CTokenAccount2::new(
-            vec![idx.source],
-            0, // No output tree for full decompress
-        )?;
+        let mut token_account = CTokenAccount2::new(vec![idx.source])?;
 
         // Set up decompress_full - decompress entire balance to destination ctoken account
         token_account.decompress_ctoken(idx.source.amount, idx.destination_index)?;

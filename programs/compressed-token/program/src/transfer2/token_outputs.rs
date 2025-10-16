@@ -60,7 +60,7 @@ pub fn set_output_compressed_accounts(
             output_data.amount,
             output_lamports,
             mint_account.key().into(),
-            output_data.merkle_tree,
+            inputs.output_queue,
             output_data.version,
         )?;
     }

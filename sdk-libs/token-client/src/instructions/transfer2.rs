@@ -246,12 +246,11 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                             })
                             .collect::<Result<Vec<_>, _>>()?;
                         inputs_offset += token_data.len();
-                        CTokenAccount2::new(token_data, shared_output_queue)?
+                        CTokenAccount2::new(token_data)?
                     } else {
                         CTokenAccount2::new_empty(
                             packed_tree_accounts.insert_or_get(input.to),
                             packed_tree_accounts.insert_or_get(input.mint),
-                            shared_output_queue,
                         )
                     };
 
@@ -322,7 +321,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     })
                     .collect::<Vec<_>>();
                 inputs_offset += token_data.len();
-                let mut token_account = CTokenAccount2::new(token_data, shared_output_queue)?;
+                let mut token_account = CTokenAccount2::new(token_data)?;
                 // Add recipient SPL token account
                 let recipient_index =
                     packed_tree_accounts.insert_or_get(input.solana_token_account);
@@ -415,7 +414,6 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                             delegate: 0,
                             mint: mint_index,
                             version: TokenDataVersion::V2 as u8, // Default to V2
-                            merkle_tree: shared_output_queue,
                         },
                         compression: None,
                         delegate_is_set: false,
@@ -432,13 +430,13 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         input.is_delegate_transfer, has_delegates
                     );
                     let mut token_account = if input.is_delegate_transfer && has_delegates {
-                        CTokenAccount2::new_delegated(token_data, shared_output_queue)
+                        CTokenAccount2::new_delegated(token_data)
                     } else {
-                        CTokenAccount2::new(token_data, shared_output_queue)
+                        CTokenAccount2::new(token_data)
                     }?;
                     let recipient_index = packed_tree_accounts.insert_or_get(input.to);
                     let recipient_token_account =
-                        token_account.transfer(recipient_index, input.amount, None)?;
+                        token_account.transfer(recipient_index, input.amount)?;
                     if let Some(amount) = input.change_amount {
                         token_account.output.amount = amount;
                     }
@@ -483,10 +481,10 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     })
                     .collect::<Vec<_>>();
                 inputs_offset += token_data.len();
-                let mut token_account = CTokenAccount2::new(token_data, shared_output_queue)?;
+                let mut token_account = CTokenAccount2::new(token_data)?;
                 let delegate_index = packed_tree_accounts.insert_or_get(input.delegate);
                 let delegated_token_account =
-                    token_account.approve(delegate_index, input.delegate_amount, None)?;
+                    token_account.approve(delegate_index, input.delegate_amount)?;
                 // all lamports stay with the owner
                 out_lamports.push(
                     input
@@ -574,8 +572,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                     packed_tree_accounts.insert_or_get(Pubkey::from(rent_sponsor));
 
                 // Create token account with the full balance
-                let mut token_account =
-                    CTokenAccount2::new_empty(owner_index, mint_index, shared_output_queue);
+                let mut token_account = CTokenAccount2::new_empty(owner_index, mint_index);
                 // Authority needs to be writable if it's also the destination (receives lamports from close)
                 let authority_needs_writable = input.destination.is_none();
                 let authority_index = packed_tree_accounts.insert_or_get_config(
@@ -634,6 +631,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
             Some(out_lamports)
         },
         token_accounts,
+        output_queue: shared_output_queue,
     };
     println!("pre create_transfer2_instruction {:?}", inputs);
     create_transfer2_instruction(inputs)

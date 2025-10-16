@@ -204,18 +204,13 @@ fn create_transfer2_inputs(
     }];
 
     // Create CTokenAccount2 from input
-    let mut sender_account = CTokenAccount2::new(input_token_data, output_merkle_tree_index)
-        .map_err(|e| {
-            RpcError::AssertRpcError(format!("Failed to create CTokenAccount2: {:?}", e))
-        })?;
+    let mut sender_account = CTokenAccount2::new(input_token_data).map_err(|e| {
+        RpcError::AssertRpcError(format!("Failed to create CTokenAccount2: {:?}", e))
+    })?;
 
     // Transfer to recipient (creates recipient output account)
     let recipient_account = sender_account
-        .transfer(
-            recipient_index,
-            transfer_amount,
-            Some(output_merkle_tree_index),
-        )
+        .transfer(recipient_index, transfer_amount)
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to transfer: {:?}", e)))?;
 
     // Get account metas from PackedAccounts
@@ -230,6 +225,7 @@ fn create_transfer2_inputs(
         meta_config: Transfer2AccountsMetaConfig::new(fee_payer, account_metas),
         in_lamports: None,
         out_lamports: None,
+        output_queue: output_merkle_tree_index,
     })
 }
 

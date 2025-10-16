@@ -15,7 +15,7 @@ use light_ctoken_types::instructions::transfer2::{
 use light_zero_copy::traits::ZeroCopyAt;
 
 type Result<T> = std::result::Result<T, ErrorCode>;
-// TODO: check test coverage
+
 #[test]
 fn test_multi_sum_check() {
     // SUCCEED: no relay fee, compression

@@ -29,10 +29,7 @@ pub struct CTokenAccount2 {
 
 impl CTokenAccount2 {
     #[profile]
-    pub fn new(
-        token_data: Vec<MultiInputTokenDataWithContext>,
-        output_merkle_tree_index: u8,
-    ) -> Result<Self, TokenSdkError> {
+    pub fn new(token_data: Vec<MultiInputTokenDataWithContext>) -> Result<Self, TokenSdkError> {
         // all mint indices must be the same
         // all owners must be the same
         let amount = token_data.iter().map(|data| data.amount).sum();
@@ -48,7 +45,6 @@ impl CTokenAccount2 {
         let output = MultiTokenTransferOutputData {
             owner: owner_index,
             amount,
-            merkle_tree: output_merkle_tree_index,
             delegate: 0, // Default delegate index
             mint: mint_index,
             version, // Use version from input accounts
@@ -69,7 +65,6 @@ impl CTokenAccount2 {
     #[profile]
     pub fn new_delegated(
         token_data: Vec<MultiInputTokenDataWithContext>,
-        output_merkle_tree_index: u8,
     ) -> Result<Self, TokenSdkError> {
         // all mint indices must be the same
         // all owners must be the same
@@ -86,7 +81,6 @@ impl CTokenAccount2 {
         let output = MultiTokenTransferOutputData {
             owner: owner_index,
             amount,
-            merkle_tree: output_merkle_tree_index,
             delegate: token_data[0].delegate, // Default delegate index
             mint: mint_index,
             version, // Use version from input accounts
@@ -102,13 +96,12 @@ impl CTokenAccount2 {
     }
 
     #[profile]
-    pub fn new_empty(owner_index: u8, mint_index: u8, output_merkle_tree_index: u8) -> Self {
+    pub fn new_empty(owner_index: u8, mint_index: u8) -> Self {
         Self {
             inputs: vec![],
             output: MultiTokenTransferOutputData {
                 owner: owner_index,
                 amount: 0,
-                merkle_tree: output_merkle_tree_index,
                 delegate: 0, // Default delegate index
                 mint: mint_index,
                 version: 3, // V2 for batched Merkle trees
@@ -123,18 +116,12 @@ impl CTokenAccount2 {
     // TODO: consider this might be confusing because it must not be used in combination with fn transfer()
     //     could mark the struct as transferred and throw in fn transfer
     #[profile]
-    pub fn transfer(
-        &mut self,
-        recipient_index: u8,
-        amount: u64,
-        output_merkle_tree_index: Option<u8>,
-    ) -> Result<Self, TokenSdkError> {
+    pub fn transfer(&mut self, recipient_index: u8, amount: u64) -> Result<Self, TokenSdkError> {
         if amount > self.output.amount {
             return Err(TokenSdkError::InsufficientBalance);
         }
         // TODO: skip outputs with zero amount when creating the instruction data.
         self.output.amount -= amount;
-        let merkle_tree_index = output_merkle_tree_index.unwrap_or(self.output.merkle_tree);
 
         self.method_used = true;
         Ok(Self {
@@ -143,7 +130,6 @@ impl CTokenAccount2 {
             output: MultiTokenTransferOutputData {
                 owner: recipient_index,
                 amount,
-                merkle_tree: merkle_tree_index,
                 delegate: 0,
                 mint: self.output.mint,
                 version: self.output.version,
@@ -159,19 +145,13 @@ impl CTokenAccount2 {
     /// and returns a new CTokenAccount that represents the delegated portion.
     /// The original account balance is reduced by the delegated amount.
     #[profile]
-    pub fn approve(
-        &mut self,
-        delegate_index: u8,
-        amount: u64,
-        output_merkle_tree_index: Option<u8>,
-    ) -> Result<Self, TokenSdkError> {
+    pub fn approve(&mut self, delegate_index: u8, amount: u64) -> Result<Self, TokenSdkError> {
         if amount > self.output.amount {
             return Err(TokenSdkError::InsufficientBalance);
         }
 
         // Deduct the delegated amount from current account
         self.output.amount -= amount;
-        let merkle_tree_index = output_merkle_tree_index.unwrap_or(self.output.merkle_tree);
 
         self.method_used = true;
 
@@ -183,7 +163,6 @@ impl CTokenAccount2 {
             output: MultiTokenTransferOutputData {
                 owner: self.output.owner, // Owner remains the same
                 amount,
-                merkle_tree: merkle_tree_index,
                 delegate: delegate_index,
                 mint: self.output.mint,
                 version: self.output.version,
@@ -497,6 +476,7 @@ pub fn create_spl_to_ctoken_transfer_instruction(
         in_lamports: None,
         out_lamports: None,
         token_accounts: vec![wrap_spl_to_ctoken_account, ctoken_account],
+        output_queue: 0, // Decompressed accounts only, no output queue needed
     };
 
     // Create the actual transfer2 instruction
@@ -573,6 +553,7 @@ pub fn create_ctoken_to_spl_transfer_instruction(
         in_lamports: None,
         out_lamports: None,
         token_accounts: vec![compress_to_pool, decompress_to_spl],
+        output_queue: 0, // Decompressed accounts only, no output queue needed
     };
 
     // Create the actual transfer2 instruction

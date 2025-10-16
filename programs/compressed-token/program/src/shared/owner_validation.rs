@@ -9,7 +9,7 @@ use pinocchio::account_info::AccountInfo;
 /// Returns the delegate account info if delegate is used, None otherwise
 #[profile]
 pub fn verify_owner_or_delegate_signer<'a>(
-    owner_account: &'a AccountInfo, //TODO: use track caller and error print fn
+    owner_account: &'a AccountInfo,
     delegate_account: Option<&'a AccountInfo>,
 ) -> Result<Option<&'a AccountInfo>, ProgramError> {
     if let Some(delegate_account) = delegate_account {

@@ -81,7 +81,7 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     let mut packed_accounts = PackedAccounts::default();
 
     // Add output queue first
-    let output_tree_index = packed_accounts.insert_or_get(output_queue);
+    packed_accounts.insert_or_get(output_queue);
 
     // Parse the ctoken account to get required pubkeys
     use light_ctoken_types::state::{CToken, ZExtensionStruct};
@@ -180,7 +180,6 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
             authority_index,
             rent_sponsor_index,
             destination_index, // Compression incentive goes to destination (forester)
-            output_tree_index,
         };
 
         indices_vec.push(indices);

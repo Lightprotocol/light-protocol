@@ -215,8 +215,7 @@ fn create_compression_inputs(
 
     // Create CTokenAccount2 for compression (0 inputs, 1 output)
     // Use new_empty since we have no compressed input accounts
-    let mut compression_account =
-        CTokenAccount2::new_empty(recipient_index, mint_index, output_merkle_tree_index);
+    let mut compression_account = CTokenAccount2::new_empty(recipient_index, mint_index);
 
     // Compress tokens from CToken ATA
     compression_account
@@ -235,6 +234,7 @@ fn create_compression_inputs(
         meta_config: Transfer2AccountsMetaConfig::new(fee_payer, account_metas),
         in_lamports: None,
         out_lamports: None,
+        output_queue: output_merkle_tree_index,
     })
 }
 

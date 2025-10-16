@@ -178,7 +178,6 @@ pub fn process_four_transfer2<'info>(
         let mut token_account_compress = CTokenAccount2::new_empty(
             four_invokes_params.compress_1.recipient,
             four_invokes_params.compress_1.mint,
-            output_tree_index,
         );
         token_account_compress
             .compress_ctoken(
@@ -188,29 +187,23 @@ pub fn process_four_transfer2<'info>(
             )
             .map_err(ProgramError::from)?;
 
-        let mut token_account_transfer_2 = CTokenAccount2::new(
-            four_invokes_params.transfer_2.token_metas,
-            output_tree_index,
-        )
-        .map_err(ProgramError::from)?;
+        let mut token_account_transfer_2 =
+            CTokenAccount2::new(four_invokes_params.transfer_2.token_metas)
+                .map_err(ProgramError::from)?;
         let transfer_recipient2 = token_account_transfer_2
             .transfer(
                 four_invokes_params.transfer_2.recipient,
                 four_invokes_params.transfer_2.transfer_amount,
-                None,
             )
             .map_err(ProgramError::from)?;
 
-        let mut token_account_transfer_3 = CTokenAccount2::new(
-            four_invokes_params.transfer_3.token_metas,
-            output_tree_index,
-        )
-        .map_err(ProgramError::from)?;
+        let mut token_account_transfer_3 =
+            CTokenAccount2::new(four_invokes_params.transfer_3.token_metas)
+                .map_err(ProgramError::from)?;
         let transfer_recipient3 = token_account_transfer_3
             .transfer(
                 four_invokes_params.transfer_3.recipient,
                 four_invokes_params.transfer_3.transfer_amount,
-                None,
             )
             .map_err(ProgramError::from)?;
 
@@ -248,6 +241,7 @@ pub fn process_four_transfer2<'info>(
                 transfer_recipient2,
                 transfer_recipient3,
             ],
+            output_queue: output_tree_index,
         };
         let instruction = create_transfer2_instruction(inputs).map_err(ProgramError::from)?;
 

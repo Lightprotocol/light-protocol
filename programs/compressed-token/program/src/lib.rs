@@ -47,7 +47,6 @@ pub enum InstructionType {
     CloseTokenAccount = 9,
     /// Create CToken, equivalent to SPL Token InitializeAccount3
     CreateTokenAccount = 18,
-    // TODO: start at 100
     CreateAssociatedTokenAccount = 103,
     /// Batch instruction for ctoken transfers:
     ///     1. transfer compressed tokens

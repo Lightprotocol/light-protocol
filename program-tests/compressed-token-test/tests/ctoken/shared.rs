@@ -822,7 +822,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
     // Build PackedAccounts
     let mut packed_accounts = PackedAccounts::default();
 
-    let output_tree_index = packed_accounts.insert_or_get(output_queue);
+    packed_accounts.insert_or_get(output_queue);
     let source_index = packed_accounts.insert_or_get(token_account_pubkey);
     let mint_index = packed_accounts.insert_or_get(mint_pubkey);
 
@@ -845,7 +845,6 @@ pub async fn compress_and_close_forester_with_invalid_output(
         authority_index,
         rent_sponsor_index,
         destination_index,
-        output_tree_index,
     };
 
     // Add system accounts

@@ -126,6 +126,9 @@ pub enum CTokenError {
 
     #[error("Duplicate metadata key found in additional metadata")]
     DuplicateMetadataKey,
+
+    #[error("Too many PDA seeds. Maximum {0} seeds allowed")]
+    TooManySeeds(usize),
 }
 
 impl From<CTokenError> for u32 {
@@ -171,6 +174,7 @@ impl From<CTokenError> for u32 {
             CTokenError::TooManyInputAccounts => 18038,
             CTokenError::TooManyAdditionalMetadata => 18039,
             CTokenError::DuplicateMetadataKey => 18040,
+            CTokenError::TooManySeeds(_) => 18041,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),
