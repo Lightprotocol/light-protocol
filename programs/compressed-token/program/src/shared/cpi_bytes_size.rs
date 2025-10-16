@@ -1,5 +1,4 @@
 use anchor_lang::Discriminator;
-use arrayvec::ArrayVec;
 use light_compressed_account::{
     compressed_account::{CompressedAccountConfig, CompressedAccountDataConfig},
     instruction_data::{
@@ -14,6 +13,7 @@ use light_ctoken_types::state::CompressedMint;
 use light_program_profiler::profile;
 use light_zero_copy::ZeroCopyNew;
 use pinocchio::program_error::ProgramError;
+use tinyvec::ArrayVec;
 
 pub const MAX_INPUT_ACCOUNTS: usize = 8;
 const MAX_OUTPUT_ACCOUNTS: usize = 35;
@@ -37,8 +37,8 @@ pub fn compressed_token_data_len(has_delegate: bool) -> u32 {
 
 #[derive(Debug, Clone)]
 pub struct CpiConfigInput {
-    pub input_accounts: ArrayVec<bool, MAX_INPUT_ACCOUNTS>, // true = has address (mint), false = no address (token)
-    pub output_accounts: ArrayVec<(bool, u32), MAX_OUTPUT_ACCOUNTS>, // (has_address, data_len)
+    pub input_accounts: ArrayVec<[bool; MAX_INPUT_ACCOUNTS]>, // true = has address (mint), false = no address (token)
+    pub output_accounts: ArrayVec<[(bool, u32); MAX_OUTPUT_ACCOUNTS]>, // (has_address, data_len)
     pub has_proof: bool,
     pub new_address_params: usize, // Number of new addresses to create
 }

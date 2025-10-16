@@ -1,5 +1,4 @@
 use anchor_lang::{prelude::ProgramError, pubkey};
-use arrayvec::ArrayVec;
 use borsh::BorshDeserialize;
 use light_account_checks::{
     checks::{check_discriminator, check_owner},
@@ -205,13 +204,13 @@ pub fn process_create_token_account(
             // Rent recipient is fee payer for account creation -> pays rent exemption
             let version_bytes = config_account.version.to_le_bytes();
             let bump_seed = [config_account.rent_sponsor_bump];
-            let mut seeds: ArrayVec<Seed, 3> = ArrayVec::new();
-            seeds.push(Seed::from(b"rent_sponsor".as_ref()));
-            seeds.push(Seed::from(version_bytes.as_ref()));
-            seeds.push(Seed::from(bump_seed.as_ref()));
+            let seeds = [
+                Seed::from(b"rent_sponsor".as_ref()),
+                Seed::from(version_bytes.as_ref()),
+                Seed::from(bump_seed.as_ref()),
+            ];
 
-            let mut seeds_inputs: ArrayVec<&[Seed], 1> = ArrayVec::new();
-            seeds_inputs.push(seeds.as_slice());
+            let seeds_inputs = [seeds.as_slice()];
 
             // PDA creates account with only rent-exempt balance
             create_pda_account(

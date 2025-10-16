@@ -3530,6 +3530,7 @@ dependencies = [
  "spl-token 7.0.0",
  "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "spl-token-2022 7.0.0 (git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf)",
+ "tinyvec",
  "zerocopy",
 ]
 
@@ -3628,10 +3629,10 @@ version = "0.1.0"
 dependencies = [
  "aligned-sized",
  "anchor-lang",
- "arrayvec",
  "borsh 0.10.4",
  "bytemuck",
  "light-account-checks",
+ "light-array-map",
  "light-compressed-account",
  "light-compressible",
  "light-hasher",
@@ -3652,6 +3653,7 @@ dependencies = [
  "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "spl-token-metadata-interface 0.6.0",
  "thiserror 2.0.17",
+ "tinyvec",
  "zerocopy",
 ]
 

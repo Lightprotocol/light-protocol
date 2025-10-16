@@ -1,9 +1,9 @@
 use std::mem::MaybeUninit;
 
-use arrayvec::ArrayVec;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use pinocchio::pubkey::Pubkey;
 use solana_pubkey::MAX_SEEDS;
+use tinyvec::ArrayVec;
 
 use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
 
@@ -35,7 +35,7 @@ pub struct CompressToPubkey {
 
 impl CompressToPubkey {
     pub fn check_seeds(&self, pubkey: &Pubkey) -> Result<(), CTokenError> {
-        let mut references = ArrayVec::<&[u8], { MAX_SEEDS }>::new();
+        let mut references = ArrayVec::<[&[u8]; MAX_SEEDS]>::new();
         for seed in self.seeds.iter() {
             references.push(seed.as_slice());
         }

@@ -122,8 +122,8 @@ fn build_metadata_config(
     actions: &[ZAction],
     extension_index: usize,
 ) -> Vec<AdditionalMetadataConfig> {
-    let mut configs: arrayvec::ArrayVec<AdditionalMetadataConfig, 20> = arrayvec::ArrayVec::new();
-    let mut processed_keys: arrayvec::ArrayVec<&[u8], 20> = arrayvec::ArrayVec::new();
+    let mut configs = arrayvec::ArrayVec::<AdditionalMetadataConfig, 20>::new();
+    let mut processed_keys = tinyvec::ArrayVec::<[&[u8]; 20]>::new();
 
     let should_add_key = |key: &[u8]| -> bool {
         // Key exists if it's in original metadata OR added via UpdateMetadataField

@@ -59,6 +59,7 @@ light-sdk-types = { workspace = true }
 light-compressible = { workspace = true }
 solana-pubkey = { workspace = true }
 arrayvec = { workspace = true }
+tinyvec = { workspace = true }
 pinocchio = { workspace = true, features = ["std"] }
 light-sdk-pinocchio = { workspace = true }
 light-ctoken-types = { workspace = true, features = ["anchor"] }

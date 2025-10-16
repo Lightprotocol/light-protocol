@@ -44,11 +44,11 @@ fn test_exact_allocation_assertion() {
     println!("Expected mint size: {} bytes", expected_mint_size);
 
     // Step 2: Calculate CPI allocation
-    let mut outputs = arrayvec::ArrayVec::new();
+    let mut outputs = tinyvec::ArrayVec::<[(bool, u32); 35]>::new();
     outputs.push((true, expected_mint_size as u32)); // Mint account has address and uses calculated size
 
     let config_input = CpiConfigInput {
-        input_accounts: arrayvec::ArrayVec::new(),
+        input_accounts: tinyvec::ArrayVec::<[bool; 8]>::new(),
         output_accounts: outputs,
         has_proof: false,
         new_address_params: 1,
@@ -299,11 +299,11 @@ fn test_allocation_with_various_metadata_sizes() {
 
         let expected_mint_size = CompressedMint::byte_len(&mint_config).unwrap();
 
-        let mut outputs = arrayvec::ArrayVec::new();
+        let mut outputs = tinyvec::ArrayVec::<[(bool, u32); 35]>::new();
         outputs.push((true, expected_mint_size as u32)); // Mint account has address and uses calculated size
 
         let config_input = CpiConfigInput {
-            input_accounts: arrayvec::ArrayVec::new(),
+            input_accounts: tinyvec::ArrayVec::<[bool; 8]>::new(),
             output_accounts: outputs,
             has_proof: false,
             new_address_params: 1,

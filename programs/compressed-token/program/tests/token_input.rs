@@ -1,6 +1,5 @@
 use anchor_compressed_token::TokenData as AnchorTokenData;
 use anchor_lang::prelude::*;
-use arrayvec::ArrayVec;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
 use light_compressed_account::instruction_data::with_readonly::{
@@ -91,11 +90,11 @@ fn test_rnd_create_input_compressed_account() {
             // Allocate CPI bytes structure like in other tests
             let config_input = CpiConfigInput {
                 input_accounts: {
-                    let mut arr = ArrayVec::new();
+                    let mut arr = tinyvec::ArrayVec::<[bool; 8]>::new();
                     arr.push(false); // Basic input account
                     arr
                 },
-                output_accounts: ArrayVec::new(),
+                output_accounts: tinyvec::ArrayVec::<[(bool, u32); 35]>::new(),
                 has_proof: false,
                 new_address_params: 0,
             };

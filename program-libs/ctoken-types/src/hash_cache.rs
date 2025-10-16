@@ -1,13 +1,12 @@
-use arrayvec::ArrayVec;
+use light_array_map::ArrayMap;
 use light_compressed_account::hash_to_bn254_field_size_be;
-use pinocchio::pubkey::Pubkey;
+use pinocchio::pubkey::{pubkey_eq, Pubkey};
 
 use crate::error::CTokenError;
-// TODO: use array map.
 /// Context for caching hashed values to avoid recomputation
 pub struct HashCache {
     /// Cache for mint hashes: (mint_pubkey, hashed_mint)
-    pub hashed_mints: ArrayVec<(Pubkey, [u8; 32]), 5>,
+    pub hashed_mints: ArrayMap<Pubkey, [u8; 32], 5>,
     /// Cache for pubkey hashes: (pubkey, hashed_pubkey)
     pub hashed_pubkeys: Vec<(Pubkey, [u8; 32])>,
 }
@@ -16,24 +15,21 @@ impl HashCache {
     /// Create a new empty context
     pub fn new() -> Self {
         Self {
-            hashed_mints: ArrayVec::new(),
+            hashed_mints: ArrayMap::new(),
             hashed_pubkeys: Vec::new(),
         }
     }
 
     /// Get or compute hash for a mint pubkey
     pub fn get_or_hash_mint(&mut self, mint: &Pubkey) -> Result<[u8; 32], CTokenError> {
-        let hashed_mint = self.hashed_mints.iter().find(|a| &a.0 == mint).map(|a| a.1);
-        match hashed_mint {
-            Some(hashed_mint) => Ok(hashed_mint),
-            None => {
-                let hashed_mint = hash_to_bn254_field_size_be(mint);
-                self.hashed_mints
-                    .try_push((*mint, hashed_mint))
-                    .map_err(|_| CTokenError::InvalidAccountData)?;
-                Ok(hashed_mint)
-            }
+        if let Some(hash) = self.hashed_mints.get_by_key(mint) {
+            return Ok(*hash);
         }
+
+        let hashed_mint = hash_to_bn254_field_size_be(mint);
+        self.hashed_mints
+            .insert(*mint, hashed_mint, CTokenError::InvalidAccountData)?;
+        Ok(hashed_mint)
     }
 
     /// Get or compute hash for a pubkey (owner, delegate, etc.)
@@ -41,7 +37,7 @@ impl HashCache {
         let hashed_pubkey = self
             .hashed_pubkeys
             .iter()
-            .find(|a| &a.0 == pubkey)
+            .find(|a| pubkey_eq(&a.0, pubkey))
             .map(|a| a.1);
         match hashed_pubkey {
             Some(hashed_pubkey) => hashed_pubkey,

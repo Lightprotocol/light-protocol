@@ -1,8 +1,8 @@
-use arrayvec::ArrayVec;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
 use light_ctoken_types::instructions::transfer2::ZCompressedTokenInstructionDataTransfer2;
 use light_program_profiler::profile;
 use pinocchio::program_error::ProgramError;
+use tinyvec::ArrayVec;
 
 use crate::shared::cpi_bytes_size::{
     self, allocate_invoke_with_read_only_cpi_bytes, compressed_token_data_len, cpi_bytes_config,
@@ -16,7 +16,7 @@ pub fn allocate_cpi_bytes(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
 ) -> Result<(Vec<u8>, InstructionDataInvokeCpiWithReadOnlyConfig), ProgramError> {
     // Build CPI configuration based on delegate flags
-    let mut input_delegate_flags: ArrayVec<bool, { cpi_bytes_size::MAX_INPUT_ACCOUNTS }> =
+    let mut input_delegate_flags: ArrayVec<[bool; cpi_bytes_size::MAX_INPUT_ACCOUNTS]> =
         ArrayVec::new();
     for input_data in inputs.in_token_data.iter() {
         input_delegate_flags.push(input_data.has_delegate());

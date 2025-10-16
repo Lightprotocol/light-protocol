@@ -1,5 +1,4 @@
 use anchor_compressed_token::TokenData as AnchorTokenData;
-use arrayvec::ArrayVec;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::{
     compressed_account::{CompressedAccount, CompressedAccountData},
@@ -69,13 +68,13 @@ fn test_rnd_create_output_compressed_accounts() {
         };
 
         // Create output config
-        let mut outputs = ArrayVec::new();
+        let mut outputs = tinyvec::ArrayVec::<[(bool, u32); 35]>::new();
         for &has_delegate in &delegate_flags {
             outputs.push((false, compressed_token_data_len(has_delegate))); // Token accounts don't have addresses
         }
 
         let config_input = CpiConfigInput {
-            input_accounts: ArrayVec::new(),
+            input_accounts: tinyvec::ArrayVec::<[bool; 8]>::new(),
             output_accounts: outputs,
             has_proof: false,
             new_address_params: 0,
