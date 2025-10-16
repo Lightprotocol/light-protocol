@@ -334,7 +334,7 @@ async fn test_create_ata_failing() {
             }),
         };
 
-        let mut data = vec![103]; // CreateAssociatedTokenAccount discriminator
+        let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
         let ix = Instruction {
@@ -400,7 +400,7 @@ async fn test_create_ata_failing() {
             }),
         };
 
-        let mut data = vec![103]; // CreateAssociatedTokenAccount discriminator
+        let mut data = vec![100]; // CreateAssociatedTokenAccount discriminator
         instruction_data.serialize(&mut data).unwrap();
 
         let ix = Instruction {

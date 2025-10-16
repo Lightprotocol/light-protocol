@@ -44,8 +44,8 @@ pub fn process_withdraw_funding_pool(
     ctx: &Context<WithdrawFundingPool>,
     amount: u64,
 ) -> Result<()> {
-    // Build instruction data: [discriminator(108), pool_pda_bump, amount]
-    let mut instruction_data = vec![108u8]; // WithdrawFundingPool instruction discriminator
+    // Build instruction data: [discriminator(105), pool_pda_bump, amount]
+    let mut instruction_data = vec![105u8]; // WithdrawFundingPool instruction discriminator
 
     instruction_data.extend_from_slice(&amount.to_le_bytes());
 

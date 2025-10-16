@@ -114,7 +114,7 @@
 
 ## 2. create associated ctoken account
 
-  **discriminator:** 103 (non-idempotent), 101 (idempotent)
+  **discriminator:** 100 (non-idempotent), 102 (idempotent)
   **enum:** `CTokenInstruction::CreateAssociatedTokenAccount` (non-idempotent), `CTokenInstruction::CreateAssociatedTokenAccountIdempotent` (idempotent)
   **path:** programs/compressed-token/program/src/create_associated_token_account.rs
 

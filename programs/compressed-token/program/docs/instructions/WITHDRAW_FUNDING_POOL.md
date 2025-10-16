@@ -1,6 +1,6 @@
 ## Withdraw Funding Pool
 
-**discriminator:** 108
+**discriminator:** 105
 **enum:** `InstructionType::WithdrawFundingPool`
 **path:** programs/compressed-token/program/src/withdraw_funding_pool.rs
 

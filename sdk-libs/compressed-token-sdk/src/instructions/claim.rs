@@ -33,7 +33,7 @@ pub fn claim(
     compression_authority: Pubkey,
     token_accounts: &[Pubkey],
 ) -> Instruction {
-    let mut instruction_data = vec![107u8]; // Claim instruction discriminator
+    let mut instruction_data = vec![104u8]; // Claim instruction discriminator
     instruction_data.push(pool_pda_bump);
 
     let mut accounts = vec![

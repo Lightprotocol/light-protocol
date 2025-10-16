@@ -13,7 +13,7 @@
 | Use CPI context | → [Write mode](#cpi-context-write-path) (line 192) or [Execute mode](#cpi-context-support-for-cross-program-invocations) (line 27) |
 | Debug errors | → [Error reference](#errors) (line 275) |
 
-**discriminator:** 104
+**discriminator:** 101
 **enum:** `CTokenInstruction::Transfer2`
 **path:** programs/compressed-token/program/src/transfer2/
 

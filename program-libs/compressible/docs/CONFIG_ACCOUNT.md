@@ -70,12 +70,12 @@ let v1_pda = CompressibleConfig::ctoken_v1_config_pda();
 
 **Light Registry Program:**
 - `update_compressible_config` - Updates config state and parameters
-- `withdraw_funding_pool` (discriminator: 108) - Withdraws from rent_sponsor pool
+- `withdraw_funding_pool` (discriminator: 105) - Withdraws from rent_sponsor pool
 
 **Compressed Token Program (uses config):**
 - `CreateTokenAccount` (discriminator: 18) - Creates ctoken with compressible extension
-- `CreateAssociatedTokenAccount` (discriminator: 103) - Creates ATA with compressible
-- `Claim` (discriminator: 107) - Claims rent using config parameters
+- `CreateAssociatedTokenAccount` (discriminator: 100) - Creates ATA with compressible
+- `Claim` (discriminator: 104) - Claims rent using config parameters
 - `CompressAndClose` (via Transfer2) - Uses compression_authority from config
 
 **Registry Program (via wrapper):**

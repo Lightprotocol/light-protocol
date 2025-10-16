@@ -1,6 +1,6 @@
 ## MintAction
 
-**discriminator:** 106
+**discriminator:** 103
 **enum:** `CTokenInstruction::MintAction`
 **path:** programs/compressed-token/program/src/mint_action/
 
