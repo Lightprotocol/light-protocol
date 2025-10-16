@@ -107,8 +107,8 @@ fn build_transfer_instruction(
     use anchor_lang::prelude::AccountMeta;
     use solana_sdk::instruction::Instruction;
 
-    // Build instruction data: discriminator (3, 0) + SPL Transfer data
-    let mut data = vec![3, 0]; // CTokenTransfer discriminator (first byte: 3, second byte: 0)
+    // Build instruction data: discriminator (3) + SPL Transfer data
+    let mut data = vec![3]; // CTokenTransfer discriminator (first byte: 3)
     data.extend_from_slice(&amount.to_le_bytes()); // Amount as u64 little-endian
 
     // Build instruction

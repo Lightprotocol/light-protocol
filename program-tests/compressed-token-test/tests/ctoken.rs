@@ -25,3 +25,6 @@ mod close;
 
 #[path = "ctoken/create_ata.rs"]
 mod create_ata;
+
+#[path = "ctoken/spl_instruction_compat.rs"]
+mod spl_instruction_compat;

@@ -58,7 +58,13 @@ impl<'info> CreateCTokenAccounts<'info> {
         let mut iter = AccountIterator::new(account_infos);
 
         // Required accounts
-        let token_account = iter.next_signer_mut("token_account")?;
+        // For compressible accounts: token_account must be signer (account created via CPI)
+        // For non-compressible accounts: token_account doesn't need to be signer (SPL compatibility - initialize_account3)
+        let token_account = if inputs.compressible_config.is_some() {
+            iter.next_signer_mut("token_account")?
+        } else {
+            iter.next_mut("token_account")?
+        };
         let mint = iter.next_non_mut("mint")?;
 
         // Parse optional compressible accounts
