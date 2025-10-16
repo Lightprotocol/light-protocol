@@ -18,6 +18,7 @@ anchor-spl = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }
 num-traits = { workspace = true }
 solana-sdk = { workspace = true }
+solana-program = { workspace = true }
 thiserror = { workspace = true }
 account-compression = { workspace = true, features = ["cpi"] }
 light-compressed-token = { workspace = true, features = ["cpi"] }

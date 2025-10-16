@@ -46,7 +46,10 @@ pub fn process_nullify(
         nullifier_queue: ctx.accounts.nullifier_queue.to_account_info(),
     };
     let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.account_compression_program.to_account_info(),
+        *ctx.accounts
+            .account_compression_program
+            .to_account_info()
+            .key,
         accounts,
         signer_seeds,
     );

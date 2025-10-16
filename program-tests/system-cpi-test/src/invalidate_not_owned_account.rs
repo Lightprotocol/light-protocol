@@ -174,7 +174,7 @@ pub fn process_invalidate_not_owned_compressed_account<'info>(
     let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
 
     let mut cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.light_system_program.to_account_info(),
+        *ctx.accounts.light_system_program.to_account_info().key,
         cpi_accounts,
         &signer_seeds,
     );
@@ -361,7 +361,7 @@ pub fn cpi_compressed_token_transfer<'info>(
     };
 
     let mut cpi_ctx = CpiContext::new(
-        ctx.accounts.compressed_token_program.to_account_info(),
+        *ctx.accounts.compressed_token_program.to_account_info().key,
         cpi_accounts,
     );
 
@@ -442,7 +442,7 @@ pub fn cpi_compressed_token_approve_revoke<'info>(
     };
 
     let mut cpi_ctx = CpiContext::new(
-        ctx.accounts.compressed_token_program.to_account_info(),
+        *ctx.accounts.compressed_token_program.to_account_info().key,
         cpi_accounts,
     );
 
@@ -509,7 +509,7 @@ pub fn cpi_compressed_token_burn<'info>(
     };
 
     let mut cpi_ctx = CpiContext::new(
-        ctx.accounts.compressed_token_program.to_account_info(),
+        *ctx.accounts.compressed_token_program.to_account_info().key,
         cpi_accounts,
     );
 
@@ -583,7 +583,7 @@ pub fn cpi_compressed_token_freeze_or_thaw<'info>(
     };
 
     let mut cpi_ctx = CpiContext::new(
-        ctx.accounts.compressed_token_program.to_account_info(),
+        *ctx.accounts.compressed_token_program.to_account_info().key,
         cpi_accounts,
     );
 
@@ -654,7 +654,7 @@ fn write_into_cpi_account<'info>(
     let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
 
     let mut cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.light_system_program.to_account_info(),
+        *ctx.accounts.light_system_program.to_account_info().key,
         cpi_accounts,
         &signer_seeds,
     );

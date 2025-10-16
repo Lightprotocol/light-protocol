@@ -139,7 +139,6 @@ pub fn process_invoke_cpi<'info>(
     inputs: Vec<u8>,
     bump: u8,
 ) -> Result<()> {
-    anchor_lang::solana_program::log::sol_log_compute_units();
     let cpi_accounts = light_system_program::cpi::accounts::InvokeCpiInstruction {
         fee_payer: ctx.accounts.signer.to_account_info(),
         authority: ctx.accounts.cpi_signer.to_account_info(),
@@ -174,8 +173,6 @@ pub fn process_invoke_cpi<'info>(
         accounts: account_metas,
         data: inputs,
     };
-
-    anchor_lang::solana_program::log::sol_log_compute_units();
 
     // Invoke the instruction with signer seeds
     anchor_lang::solana_program::program::invoke_signed(

@@ -43,7 +43,10 @@ pub fn process_migrate_state(
         output_queue: ctx.accounts.output_queue.to_account_info(),
     };
     let cpi_ctx = CpiContext::new_with_signer(
-        ctx.accounts.account_compression_program.to_account_info(),
+        *ctx.accounts
+            .account_compression_program
+            .to_account_info()
+            .key,
         accounts,
         signer_seeds,
     );

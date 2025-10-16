@@ -1,8 +1,9 @@
-use anchor_spl::token_2022::spl_token_2022::{self, solana_program::program_pack::Pack};
+use anchor_spl::token_2022::spl_token_2022;
 use light_client::rpc::Rpc;
 use light_ctoken_types::state::CToken;
 use light_program_test::LightProgramTest;
 use light_zero_copy::traits::ZeroCopyAt;
+use solana_program::program_pack::Pack;
 use solana_sdk::pubkey::Pubkey;
 
 /// Assert compressible extension properties for an account, using cached pre-transaction state

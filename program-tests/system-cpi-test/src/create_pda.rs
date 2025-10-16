@@ -220,7 +220,7 @@ fn cpi_compressed_pda_transfer_as_non_program<'info>(
         cpi_context_account: None,
     };
     let mut cpi_ctx = CpiContext::new(
-        ctx.accounts.light_system_program.to_account_info(),
+        *ctx.accounts.light_system_program.to_account_info().key,
         cpi_accounts,
     );
 
@@ -429,7 +429,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
 
         let mut cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.light_system_program.to_account_info(),
+            *ctx.accounts.light_system_program.to_account_info().key,
             cpi_accounts,
             &signer_seeds,
         );
@@ -458,7 +458,7 @@ fn cpi_compressed_pda_transfer_as_program<'info>(
         let signer_seeds: [&[&[u8]]; 1] = [&seeds[..]];
 
         let mut cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.light_system_program.to_account_info(),
+            *ctx.accounts.light_system_program.to_account_info().key,
             cpi_accounts,
             &signer_seeds,
         );

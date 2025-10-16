@@ -335,7 +335,10 @@ pub fn mint_spl_to_pool_pda(
         authority: ctx.accounts.authority.to_account_info(),
     };
 
-    let cpi_ctx = CpiContext::new(ctx.accounts.token_program.to_account_info(), cpi_accounts);
+    let cpi_ctx = CpiContext::new(
+        *ctx.accounts.token_program.to_account_info().key,
+        cpi_accounts,
+    );
     anchor_spl::token_interface::mint_to(cpi_ctx, mint_amount)?;
 
     let post_token_balance = TokenAccount::try_deserialize(

@@ -101,7 +101,7 @@ pub fn spl_burn_cpi<'info>(
     };
     let signer_seeds = get_cpi_signer_seeds();
     let signer_seeds_ref = &[&signer_seeds[..]];
-    let cpi_ctx = CpiContext::new_with_signer(token_program, cpi_accounts, signer_seeds_ref);
+    let cpi_ctx = CpiContext::new_with_signer(*token_program.key, cpi_accounts, signer_seeds_ref);
     anchor_spl::token_interface::burn(cpi_ctx, burn_amount)?;
     let post_token_balance =
         TokenAccount::try_deserialize(&mut &token_pool_pda.data.borrow()[..])?.amount;

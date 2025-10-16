@@ -1,5 +1,6 @@
 use aligned_sized::aligned_sized;
 use anchor_lang::{prelude::*, solana_program::pubkey::Pubkey};
+use solana_program::hash::Hasher;
 
 use crate::{
     constants::FORESTER_EPOCH_SEED,
@@ -67,7 +68,7 @@ impl ForesterEpochPda {
         epoch: u64,
     ) -> Result<u64> {
         // Domain separation using the pubkey and current_light_slot.
-        let mut hasher = anchor_lang::solana_program::hash::Hasher::default();
+        let mut hasher = Hasher::default();
         hasher.hashv(&[
             pubkey.to_bytes().as_slice(),
             &epoch.to_be_bytes(),
