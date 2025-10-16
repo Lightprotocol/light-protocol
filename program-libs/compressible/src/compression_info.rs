@@ -117,12 +117,6 @@ macro_rules! impl_is_compressible {
                     );
                     let rent_per_epoch = self.rent_config.rent_curve_per_epoch(num_bytes);
                     let epochs_funded_ahead = available_balance / rent_per_epoch;
-
-                    solana_msg::msg!(
-                        "Top-up check: available_balance {}, epochs_funded_ahead {}",
-                        available_balance,
-                        epochs_funded_ahead
-                    );
                     // Skip top-up if already funded for max_funded_epochs or more
                     if epochs_funded_ahead >= self.rent_config.max_funded_epochs as u64 {
                         Ok(0)

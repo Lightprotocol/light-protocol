@@ -5959,7 +5959,7 @@ async fn batch_compress_with_batched_tree() {
         let result = rpc
             .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer])
             .await;
-        assert_rpc_error(result, 0, 0).unwrap();
+        assert_rpc_error(result, 0, 21).unwrap();
     }
 }
 
