@@ -115,7 +115,7 @@ async fn test_close_token_account_fails() {
             &owner_keypair,
             Some(rent_sponsor),
             "destination_same_as_token_account",
-            4, // ProgramError::InvalidAccountData
+            3, // ProgramError::InvalidAccountData
         )
         .await;
     }
@@ -157,7 +157,7 @@ async fn test_close_token_account_fails() {
             &owner_keypair,
             Some(wrong_rent_sponsor), // Wrong rent_sponsor
             "wrong_rent_sponsor",
-            4, // ProgramError::InvalidAccountData
+            3, // ProgramError::InvalidAccountData
         )
         .await;
     }
