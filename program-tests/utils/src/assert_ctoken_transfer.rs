@@ -102,18 +102,27 @@ pub async fn assert_compressible_for_account(
                 let current_slot = rpc.get_slot().await.unwrap();
                 let top_up = compressible_before
                     .calculate_top_up_lamports(
-                        261,
+                        260,
                         current_slot,
-                        lamports_after,
+                        lamports_before,
                         compressible_before.lamports_per_write.into(),
-                        2707440,
+                        light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
                     .unwrap();
-                // Check if lamports_per_write is non-zero
+                // Check if top-up was applied
                 if top_up != 0 {
                     assert_eq!(
-                        lamports_before + u64::from(compressible_before.lamports_per_write),
-                        lamports_after
+                        lamports_before + top_up,
+                        lamports_after,
+                        "{} account should be topped up by {} lamports",
+                        name,
+                        top_up
+                    );
+                } else {
+                    assert_eq!(
+                        lamports_before, lamports_after,
+                        "{} account should not be topped up",
+                        name
                     );
                 }
                 println!("{:?} compressible_before", compressible_before);

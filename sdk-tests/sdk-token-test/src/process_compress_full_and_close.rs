@@ -16,7 +16,6 @@ use crate::Generic;
 pub fn process_compress_full_and_close<'info>(
     ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
     // All offsets are static and could be hardcoded
-    output_tree_index: u8,
     recipient_index: u8,
     mint_index: u8,
     source_index: u8,
@@ -41,8 +40,7 @@ pub fn process_compress_full_and_close<'info>(
         .get_tree_account_info(close_recipient_index as usize)
         .unwrap();
     // Create CTokenAccount2 for compression (following four_transfer2 pattern)
-    let mut token_account_compress =
-        CTokenAccount2::new_empty(recipient_index, mint_index, output_tree_index);
+    let mut token_account_compress = CTokenAccount2::new_empty(recipient_index, mint_index);
 
     // Use compress_full method
     token_account_compress
@@ -74,6 +72,7 @@ pub fn process_compress_full_and_close<'info>(
     let inputs = Transfer2Inputs {
         meta_config: Transfer2AccountsMetaConfig::new(*ctx.accounts.signer.key, packed_accounts),
         token_accounts: vec![token_account_compress],
+        output_queue: 0,
         ..Default::default()
     };
 

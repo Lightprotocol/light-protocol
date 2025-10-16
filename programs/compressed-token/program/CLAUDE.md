@@ -58,21 +58,21 @@ Every instruction description must include the sections:
 
 ### Rent Management
 3. **Claim** - [`docs/instructions/CLAIM.md`](docs/instructions/CLAIM.md)
-   - Claims rent from expired compressible accounts (discriminator: 107, enum: `CTokenInstruction::Claim`)
+   - Claims rent from expired compressible accounts (discriminator: 104, enum: `CTokenInstruction::Claim`)
    - **Config validation:** Not inactive (active or deprecated OK)
 
 4. **Withdraw Funding Pool** - [`docs/instructions/WITHDRAW_FUNDING_POOL.md`](docs/instructions/WITHDRAW_FUNDING_POOL.md)
-   - Withdraws funds from rent recipient pool (discriminator: 108, enum: `CTokenInstruction::WithdrawFundingPool`)
+   - Withdraws funds from rent recipient pool (discriminator: 105, enum: `CTokenInstruction::WithdrawFundingPool`)
    - **Config validation:** Not inactive (active or deprecated OK)
 
 ### Token Operations
 5. **Transfer2** - [`docs/instructions/TRANSFER2.md`](docs/instructions/TRANSFER2.md)
-   - Batch transfer instruction for compressed/decompressed operations (discriminator: 104, enum: `CTokenInstruction::Transfer2`)
+   - Batch transfer instruction for compressed/decompressed operations (discriminator: 101, enum: `CTokenInstruction::Transfer2`)
    - Supports Compress, Decompress, CompressAndClose operations
    - Multi-mint support with sum checks
 
 6. **MintAction** - [`docs/instructions/MINT_ACTION.md`](docs/instructions/MINT_ACTION.md)
-   - Batch instruction for compressed mint management and mint operations (discriminator: 106, enum: `CTokenInstruction::MintAction`)
+   - Batch instruction for compressed mint management and mint operations (discriminator: 103, enum: `CTokenInstruction::MintAction`)
    - Supports 9 action types: CreateCompressedMint, MintTo, UpdateMintAuthority, UpdateFreezeAuthority, CreateSplMint, MintToCToken, UpdateMetadataField, UpdateMetadataAuthority, RemoveMetadataKey
    - Handles both compressed and decompressed token minting
 

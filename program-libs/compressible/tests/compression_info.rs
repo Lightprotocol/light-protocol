@@ -6,8 +6,8 @@ use light_compressible::{
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut};
 
-const TEST_BYTES: u64 = 261;
-const RENT_PER_EPOCH: u64 = 261 + 128;
+const TEST_BYTES: u64 = 260;
+const RENT_PER_EPOCH: u64 = 260 + 128;
 const FULL_COMPRESSION_COSTS: u64 = (COMPRESSION_COST + COMPRESSION_INCENTIVE) as u64;
 
 fn test_rent_config() -> RentConfig {
@@ -15,7 +15,7 @@ fn test_rent_config() -> RentConfig {
 }
 
 pub fn get_rent_exemption_lamports(_num_bytes: u64) -> u64 {
-    2707440
+    2700480
 }
 
 #[test]
@@ -327,6 +327,238 @@ fn test_get_last_paid_epoch() {
         assert_eq!(
             last_funded_epoch, 7,
             "Should be paid through epoch 7 (3 + 5 - 1)"
+        );
+    }
+}
+
+#[test]
+fn test_calculate_top_up_lamports() {
+    let rent_exemption_lamports = get_rent_exemption_lamports(TEST_BYTES);
+    let lamports_per_write = 5000u32;
+
+    #[derive(Debug)]
+    struct TestCase {
+        name: &'static str,
+        current_slot: u64,
+        current_lamports: u64,
+        last_claimed_slot: u64,
+        lamports_per_write: u32,
+        expected_top_up: u64,
+        description: &'static str,
+    }
+
+    let test_cases = vec![
+        // ============================================================
+        // PATH 1: COMPRESSIBLE CASES (lamports_per_write + rent_deficit)
+        // ============================================================
+        TestCase {
+            name: "instant compressibility - account created with only rent exemption + compression cost",
+            current_slot: 0,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS,
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: lamports_per_write as u64 + RENT_PER_EPOCH + FULL_COMPRESSION_COSTS,
+            description: "Epoch 0: available_balance=0, required_epochs<true>=1, deficit includes 1 epoch + compression_cost",
+        },
+        TestCase {
+            name: "partial epoch rent in epoch 0",
+            current_slot: 100,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH / 2),
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: lamports_per_write as u64 + (RENT_PER_EPOCH / 2) + FULL_COMPRESSION_COSTS,
+            description: "Epoch 0: available_balance=194 (0.5 epochs), required=388 (1 epoch), compressible with deficit of 0.5 epoch",
+        },
+        TestCase {
+            name: "epoch boundary crossing - becomes compressible",
+            current_slot: SLOTS_PER_EPOCH + 1,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + RENT_PER_EPOCH,
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: lamports_per_write as u64 + RENT_PER_EPOCH + FULL_COMPRESSION_COSTS,
+            description: "Epoch 1: available_balance=388 (1 epoch), required_epochs<true>=2 (epochs 1+2), deficit=1 epoch + compression_cost",
+        },
+        TestCase {
+            name: "many epochs behind (10 epochs)",
+            current_slot: SLOTS_PER_EPOCH * 10,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + RENT_PER_EPOCH,
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: lamports_per_write as u64 + (RENT_PER_EPOCH * 10) + FULL_COMPRESSION_COSTS,
+            description: "Epoch 10: available_balance=388 (1 epoch), required_epochs<true>=11 (epochs 0-10 + next), deficit=10 epochs + compression_cost",
+        },
+        TestCase {
+            name: "extreme epoch gap - 10,000 epochs behind",
+            current_slot: SLOTS_PER_EPOCH * 10_000,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS,
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: lamports_per_write as u64 + (RENT_PER_EPOCH * 10_001) + FULL_COMPRESSION_COSTS,
+            description: "Epoch 10,000: available_balance=0, required_epochs<true>=10,001, deficit includes all 10,001 epochs",
+        },
+        TestCase {
+            name: "one lamport short of required rent",
+            current_slot: SLOTS_PER_EPOCH,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 2) - 1,
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: lamports_per_write as u64 + 1 + FULL_COMPRESSION_COSTS,
+            description: "Epoch 1: available_balance=775 (1.997 epochs), required=776 (2 epochs), compressible with 1 lamport deficit",
+        },
+        TestCase {
+            name: "exact boundary - not compressible by exact match",
+            current_slot: SLOTS_PER_EPOCH,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 2),
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: 0,
+            description: "Epoch 1: available_balance=776 == required=776 (2 epochs), not compressible, epochs_funded_ahead=2",
+        },
+        // ============================================================
+        // PATH 2: NOT COMPRESSIBLE, NEEDS TOP-UP (lamports_per_write)
+        // ============================================================
+        TestCase {
+            name: "exactly 1 epoch funded (max is 2)",
+            current_slot: 0,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + RENT_PER_EPOCH,
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: lamports_per_write as u64,
+            description: "Epoch 0: not compressible, epochs_funded_ahead=1 < max_funded_epochs=2, needs write top-up only",
+        },
+        TestCase {
+            name: "1.5 epochs funded (rounds down to 1)",
+            current_slot: 0,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 3 / 2),
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: lamports_per_write as u64,
+            description: "Epoch 0: not compressible, epochs_funded_ahead=582/388=1 (rounds down) < max_funded_epochs=2",
+        },
+        TestCase {
+            name: "fractional epoch - 1.99 epochs rounds down",
+            current_slot: 0,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 2) - 1,
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: lamports_per_write as u64,
+            description: "Epoch 0: not compressible, epochs_funded_ahead=775/388=1 (rounds down) < max_funded_epochs=2",
+        },
+        TestCase {
+            name: "epoch boundary with 1 epoch funded",
+            current_slot: SLOTS_PER_EPOCH - 1,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + RENT_PER_EPOCH,
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: lamports_per_write as u64,
+            description: "Last slot of epoch 0: not compressible, epochs_funded_ahead=1 < max_funded_epochs=2",
+        },
+        TestCase {
+            name: "account created in later epoch with 1 epoch rent",
+            current_slot: SLOTS_PER_EPOCH * 5,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + RENT_PER_EPOCH,
+            last_claimed_slot: SLOTS_PER_EPOCH * 5,
+            lamports_per_write,
+            expected_top_up: lamports_per_write as u64,
+            description: "Epoch 5: created same epoch, not compressible, epochs_funded_ahead=1 < max_funded_epochs=2",
+        },
+        // ============================================================
+        // PATH 3: WELL-FUNDED (0 lamports)
+        // ============================================================
+        TestCase {
+            name: "exactly max_funded_epochs (2)",
+            current_slot: 0,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 2),
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: 0,
+            description: "Epoch 0: not compressible, epochs_funded_ahead=2 >= max_funded_epochs=2, no top-up needed",
+        },
+        TestCase {
+            name: "3 epochs when max is 2",
+            current_slot: 0,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 3),
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: 0,
+            description: "Epoch 0: not compressible, epochs_funded_ahead=3 > max_funded_epochs=2",
+        },
+        TestCase {
+            name: "2 epochs at epoch 1 boundary",
+            current_slot: SLOTS_PER_EPOCH,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 2),
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: 0,
+            description: "Epoch 1: not compressible (has 776 for required 776), epochs_funded_ahead=2 >= max_funded_epochs=2",
+        },
+        // ============================================================
+        // EDGE CASES
+        // ============================================================
+        TestCase {
+            name: "zero lamports_per_write - compressible case",
+            current_slot: 0,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS,
+            last_claimed_slot: 0,
+            lamports_per_write: 0,
+            expected_top_up: RENT_PER_EPOCH + FULL_COMPRESSION_COSTS,
+            description: "Zero write fee + compressible state: top_up = 0 + deficit (rent + compression_cost)",
+        },
+        TestCase {
+            name: "zero lamports_per_write - well-funded case",
+            current_slot: 0,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 2),
+            last_claimed_slot: 0,
+            lamports_per_write: 0,
+            expected_top_up: 0,
+            description: "Zero write fee + well-funded: epochs_funded_ahead=2 >= max_funded_epochs=2, top_up=0",
+        },
+        TestCase {
+            name: "large lamports_per_write",
+            current_slot: 0,
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + RENT_PER_EPOCH,
+            last_claimed_slot: 0,
+            lamports_per_write: 1_000_000,
+            expected_top_up: 1_000_000,
+            description: "Large write fee (1M): not compressible, epochs_funded_ahead=1 < max_funded_epochs=2",
+        },
+        TestCase {
+            name: "underflow protection - zero available balance",
+            current_slot: 0,
+            current_lamports: rent_exemption_lamports, // NOTE: Invalid state - missing compression_cost, but tests saturating_sub behavior
+            last_claimed_slot: 0,
+            lamports_per_write,
+            expected_top_up: lamports_per_write as u64 + RENT_PER_EPOCH + FULL_COMPRESSION_COSTS,
+            description: "Invalid state: current_lamports < rent_exemption+compression_cost, saturating_sub → available_balance=0",
+        },
+    ];
+
+    for test_case in test_cases {
+        let extension = CompressionInfo {
+            account_version: 3,
+            config_account_version: 1,
+            compression_authority: [0u8; 32],
+            rent_sponsor: [0u8; 32],
+            last_claimed_slot: test_case.last_claimed_slot,
+            lamports_per_write: test_case.lamports_per_write,
+            compress_to_pubkey: 0,
+            rent_config: test_rent_config(),
+        };
+
+        let top_up = extension
+            .calculate_top_up_lamports(
+                TEST_BYTES,
+                test_case.current_slot,
+                test_case.current_lamports,
+                test_case.lamports_per_write,
+                rent_exemption_lamports,
+            )
+            .unwrap();
+
+        assert_eq!(
+            top_up, test_case.expected_top_up,
+            "\nTest '{}' failed:\n  Description: {}\n  Expected: {}\n  Got: {}\n  Test case: {:?}",
+            test_case.name, test_case.description, test_case.expected_top_up, top_up, test_case
         );
     }
 }

@@ -99,7 +99,7 @@ async fn setup_decompression_test(
             owner: owner.pubkey(),
             mint,
             rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-            pre_pay_num_epochs: 1,
+            pre_pay_num_epochs: 2,
             lamports_per_write: Some(1000),
             compressible_config: rpc
                 .test_accounts
@@ -250,7 +250,7 @@ async fn create_decompression_inputs(
     };
 
     // Create CTokenAccount2 with the multi-input token data
-    let mut token_account = CTokenAccount2::new(vec![token_data], queue_index).map_err(|e| {
+    let mut token_account = CTokenAccount2::new(vec![token_data]).map_err(|e| {
         RpcError::AssertRpcError(format!("Failed to create CTokenAccount2: {:?}", e))
     })?;
 
@@ -269,6 +269,7 @@ async fn create_decompression_inputs(
         meta_config: Transfer2AccountsMetaConfig::new(fee_payer, account_metas),
         in_lamports: None,
         out_lamports: None,
+        output_queue: queue_index,
     })
 }
 

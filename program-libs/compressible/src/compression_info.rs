@@ -110,16 +110,13 @@ macro_rules! impl_is_compressible {
                 if let Some(rent_deficit) = is_compressible {
                     Ok(lamports_per_write as u64 + rent_deficit)
                 } else {
-                    let unused_lamports =
-                        state.get_unused_lamports(&self.rent_config, rent_exemption_lamports);
-                    // Account is not compressible, check if we should still top up
-                    let epochs_funded_ahead =
-                        unused_lamports / self.rent_config.rent_curve_per_epoch(num_bytes);
-                    solana_msg::msg!(
-                        "Top-up check: unused_lamports {}, epochs_funded_ahead {}",
-                        unused_lamports,
-                        epochs_funded_ahead
+                    // Calculate epochs funded ahead using available balance
+                    let available_balance = state.get_available_rent_balance(
+                        rent_exemption_lamports,
+                        self.rent_config.compression_cost(),
                     );
+                    let rent_per_epoch = self.rent_config.rent_curve_per_epoch(num_bytes);
+                    let epochs_funded_ahead = available_balance / rent_per_epoch;
                     // Skip top-up if already funded for max_funded_epochs or more
                     if epochs_funded_ahead >= self.rent_config.max_funded_epochs as u64 {
                         Ok(0)

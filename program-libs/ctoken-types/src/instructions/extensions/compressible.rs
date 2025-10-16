@@ -1,9 +1,9 @@
 use std::mem::MaybeUninit;
 
-use arrayvec::ArrayVec;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use pinocchio::pubkey::Pubkey;
 use solana_pubkey::MAX_SEEDS;
+use tinyvec::ArrayVec;
 
 use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
 
@@ -17,7 +17,7 @@ pub struct CompressibleExtensionInstructionData {
     pub token_account_version: u8,
     /// Rent payment in epochs.
     /// Paid once at initialization.
-    pub rent_payment: u64,
+    pub rent_payment: u8,
     pub has_top_up: u8,
     pub write_top_up: u32,
     pub compress_to_account_pubkey: Option<CompressToPubkey>,
@@ -35,7 +35,10 @@ pub struct CompressToPubkey {
 
 impl CompressToPubkey {
     pub fn check_seeds(&self, pubkey: &Pubkey) -> Result<(), CTokenError> {
-        let mut references = ArrayVec::<&[u8], { MAX_SEEDS }>::new();
+        if self.seeds.len() > MAX_SEEDS {
+            return Err(CTokenError::TooManySeeds(MAX_SEEDS));
+        }
+        let mut references = ArrayVec::<[&[u8]; MAX_SEEDS]>::new();
         for seed in self.seeds.iter() {
             references.push(seed.as_slice());
         }
@@ -59,7 +62,7 @@ pub fn derive_address(
 ) -> Result<Pubkey, CTokenError> {
     const PDA_MARKER: &[u8; 21] = b"ProgramDerivedAddress";
     if seeds.len() > MAX_SEEDS {
-        return Err(CTokenError::InvalidAccountData);
+        return Err(CTokenError::TooManySeeds(MAX_SEEDS));
     }
     const UNINIT: MaybeUninit<&[u8]> = MaybeUninit::<&[u8]>::uninit();
     let mut data = [UNINIT; MAX_SEEDS + 2];

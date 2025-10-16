@@ -16,6 +16,7 @@ pub struct CompressedTokenInstructionDataTransfer2 {
     pub lamports_change_account_merkle_tree_index: u8,
     /// Placeholder currently unimplemented.
     pub lamports_change_account_owner_index: u8,
+    pub output_queue: u8,
     pub cpi_context: Option<CompressedCpiContext>,
     pub compressions: Option<Vec<Compression>>,
     pub proof: Option<CompressedProof>,
@@ -74,5 +75,4 @@ pub struct MultiTokenTransferOutputData {
     pub delegate: u8,
     pub mint: u8,
     pub version: u8,
-    pub merkle_tree: u8, // TODO: remove and replace with one unique tree index per instruction
 }

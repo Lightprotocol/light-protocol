@@ -1,5 +1,4 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use arrayvec::ArrayVec;
 use light_program_profiler::profile;
 use pinocchio::{
     instruction::{AccountMeta, Seed},
@@ -45,13 +44,13 @@ pub fn create_token_pool_account_manual(
 
     // Create account using shared function
     let bump_seed = [token_pool_bump];
-    let mut seeds: ArrayVec<Seed, 3> = ArrayVec::new();
-    seeds.push(Seed::from(POOL_SEED));
-    seeds.push(Seed::from(mint_key.as_ref()));
-    seeds.push(Seed::from(bump_seed.as_ref()));
+    let seeds = [
+        Seed::from(POOL_SEED),
+        Seed::from(mint_key.as_ref()),
+        Seed::from(bump_seed.as_ref()),
+    ];
 
-    let mut seeds_inputs: ArrayVec<&[Seed], 1> = ArrayVec::new();
-    seeds_inputs.push(seeds.as_slice());
+    let seeds_inputs = [seeds.as_slice()];
 
     create_pda_account(
         executing_accounts.system.fee_payer,

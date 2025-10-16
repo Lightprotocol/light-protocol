@@ -68,7 +68,6 @@ pub fn create_ctoken_transfer_instruction(
         data: {
             let mut data = vec![3u8]; // CTokenTransfer discriminator
                                       // Add SPL Token Transfer instruction data exactly like SPL does
-            data.push(3u8); // SPL Transfer discriminator
             data.extend_from_slice(&amount.to_le_bytes()); // Amount as u64 little-endian
             data
         },

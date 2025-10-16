@@ -34,7 +34,6 @@ pub struct CompressAndCloseIndices {
     pub authority_index: u8,
     pub rent_sponsor_index: u8,
     pub destination_index: u8,
-    pub output_tree_index: u8,
 }
 
 /// Use in the client not in solana program.
@@ -42,12 +41,9 @@ pub struct CompressAndCloseIndices {
 pub fn pack_for_compress_and_close(
     ctoken_account_pubkey: Pubkey,
     ctoken_account_data: &[u8],
-    output_queue: Pubkey,
     packed_accounts: &mut PackedAccounts,
     signer_is_compression_authority: bool, // if yes rent authority must be signer
 ) -> Result<CompressAndCloseIndices, TokenSdkError> {
-    // Add output queue first so it's at index 0
-    let output_tree_index = packed_accounts.insert_or_get(output_queue);
     let (ctoken_account, _) = CToken::zero_copy_at(ctoken_account_data)?;
     let source_index = packed_accounts.insert_or_get(ctoken_account_pubkey);
     let mint_index = packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
@@ -106,7 +102,6 @@ pub fn pack_for_compress_and_close(
         authority_index,
         rent_sponsor_index,
         destination_index,
-        output_tree_index,
     })
 }
 
@@ -160,7 +155,6 @@ fn find_account_indices(
         authority_index,
         rent_sponsor_index,
         destination_index,
-        output_tree_index: 0,
     })
 }
 
@@ -211,8 +205,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         let amount = light_ctoken_types::state::CToken::amount_from_slice(&account_data)?;
 
         // Create CTokenAccount2 for CompressAndClose operation
-        let mut token_account =
-            CTokenAccount2::new_empty(idx.owner_index, idx.mint_index, idx.output_tree_index);
+        let mut token_account = CTokenAccount2::new_empty(idx.owner_index, idx.mint_index);
 
         // Set up compress_and_close with actual indices
         token_account.compress_and_close(
@@ -262,6 +255,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         meta_config,
         token_accounts,
         transfer_config,
+        output_queue: 0, // Output queue is at index 0 in packed_accounts
         ..Default::default()
     };
 

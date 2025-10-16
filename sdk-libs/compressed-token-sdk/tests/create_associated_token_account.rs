@@ -2,8 +2,8 @@ use light_compressed_token_sdk::instructions::create_associated_token_account::*
 use solana_pubkey::Pubkey;
 
 /// Discriminators for create ATA instructions
-const CREATE_ATA_DISCRIMINATOR: u8 = 103;
-const CREATE_ATA_IDEMPOTENT_DISCRIMINATOR: u8 = 105;
+const CREATE_ATA_DISCRIMINATOR: u8 = 100;
+const CREATE_ATA_IDEMPOTENT_DISCRIMINATOR: u8 = 102;
 
 #[test]
 fn test_discriminator_selection() {
@@ -37,7 +37,7 @@ fn test_compressible_discriminator_selection() {
         owner: Pubkey::new_unique(),
         mint: Pubkey::new_unique(),
         rent_sponsor: Pubkey::new_unique(),
-        pre_pay_num_epochs: 1,
+        pre_pay_num_epochs: 2,
         lamports_per_write: Some(100),
         compressible_config: Pubkey::new_unique(),
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,

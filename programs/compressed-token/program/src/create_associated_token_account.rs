@@ -1,5 +1,4 @@
 use anchor_lang::prelude::ProgramError;
-use arrayvec::ArrayVec;
 use borsh::BorshDeserialize;
 use light_account_checks::AccountIterator;
 use light_compressible::config::CompressibleConfig;
@@ -107,14 +106,14 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     } else {
         // Create the PDA account (with rent-exempt balance only)
         let bump_seed = [instruction_inputs.bump];
-        let mut seeds: ArrayVec<Seed, 4> = ArrayVec::new();
-        seeds.push(Seed::from(owner_bytes.as_ref()));
-        seeds.push(Seed::from(crate::LIGHT_CPI_SIGNER.program_id.as_ref()));
-        seeds.push(Seed::from(mint_bytes.as_ref()));
-        seeds.push(Seed::from(bump_seed.as_ref()));
+        let seeds = [
+            Seed::from(owner_bytes.as_ref()),
+            Seed::from(crate::LIGHT_CPI_SIGNER.program_id.as_ref()),
+            Seed::from(mint_bytes.as_ref()),
+            Seed::from(bump_seed.as_ref()),
+        ];
 
-        let mut seeds_inputs: ArrayVec<&[Seed], 1> = ArrayVec::new();
-        seeds_inputs.push(seeds.as_slice());
+        let seeds_inputs = [seeds.as_slice()];
 
         create_pda_account(
             fee_payer,
@@ -149,6 +148,12 @@ fn process_compressible_config<'info>(
     owner_bytes: &[u8; 32],
     mint_bytes: &[u8; 32],
 ) -> Result<(&'info CompressibleConfig, Option<Pubkey>), ProgramError> {
+    // Validate that rent_payment is not exactly 1 epoch (footgun prevention)
+    if compressible_config_ix_data.rent_payment == 1 {
+        msg!("Prefunding for exactly 1 epoch is not allowed. If the account is created near an epoch boundary, it could become immediately compressible. Use 0 or 2+ epochs.");
+        return Err(anchor_compressed_token::ErrorCode::OneEpochPrefundingNotAllowed.into());
+    }
+
     if compressible_config_ix_data
         .compress_to_account_pubkey
         .is_some()
@@ -168,41 +173,39 @@ fn process_compressible_config<'info>(
         .rent_config
         .get_rent_with_compression_cost(
             token_account_size as u64,
-            compressible_config_ix_data.rent_payment,
+            compressible_config_ix_data.rent_payment as u64,
         );
 
     // Build ATA seeds
     let ata_bump_seed = [ata_bump];
-    let mut ata_seeds: ArrayVec<Seed, 4> = ArrayVec::new();
-    ata_seeds.push(Seed::from(owner_bytes.as_ref()));
-    ata_seeds.push(Seed::from(crate::LIGHT_CPI_SIGNER.program_id.as_ref()));
-    ata_seeds.push(Seed::from(mint_bytes.as_ref()));
-    ata_seeds.push(Seed::from(ata_bump_seed.as_ref()));
+    let ata_seeds = [
+        Seed::from(owner_bytes.as_ref()),
+        Seed::from(crate::LIGHT_CPI_SIGNER.program_id.as_ref()),
+        Seed::from(mint_bytes.as_ref()),
+        Seed::from(ata_bump_seed.as_ref()),
+    ];
 
     // Build rent sponsor seeds if needed (must be outside conditional for lifetime)
     let rent_sponsor_bump;
     let version_bytes;
-    let mut rent_sponsor_seeds: ArrayVec<Seed, 3> = ArrayVec::new();
+    let rent_sponsor_seeds;
 
     // Create the PDA account (with rent-exempt balance only)
     // rent_payer will be the rent_sponsor PDA for compressible accounts
-    let seeds_inputs: ArrayVec<&[Seed], 2> = if custom_rent_payer {
+    let seeds_inputs: [&[Seed]; 2] = if custom_rent_payer {
         // Only ATA seeds when custom rent payer
-        let mut seeds_inputs = ArrayVec::new();
-        seeds_inputs.push(ata_seeds.as_slice());
-        seeds_inputs
+        [ata_seeds.as_slice(), &[]]
     } else {
         // Both rent sponsor PDA seeds and ATA seeds
         rent_sponsor_bump = [compressible_config_account.rent_sponsor_bump];
         version_bytes = compressible_config_account.version.to_le_bytes();
-        rent_sponsor_seeds.push(Seed::from(b"rent_sponsor".as_ref()));
-        rent_sponsor_seeds.push(Seed::from(version_bytes.as_ref()));
-        rent_sponsor_seeds.push(Seed::from(rent_sponsor_bump.as_ref()));
+        rent_sponsor_seeds = [
+            Seed::from(b"rent_sponsor".as_ref()),
+            Seed::from(version_bytes.as_ref()),
+            Seed::from(rent_sponsor_bump.as_ref()),
+        ];
 
-        let mut seeds_inputs = ArrayVec::new();
-        seeds_inputs.push(rent_sponsor_seeds.as_slice());
-        seeds_inputs.push(ata_seeds.as_slice());
-        seeds_inputs
+        [rent_sponsor_seeds.as_slice(), ata_seeds.as_slice()]
     };
 
     let additional_lamports = if custom_rent_payer { Some(rent) } else { None };

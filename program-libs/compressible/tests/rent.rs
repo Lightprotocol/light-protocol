@@ -2,8 +2,8 @@ use light_compressible::rent::{
     AccountRentState, RentConfig, COMPRESSION_COST, COMPRESSION_INCENTIVE, SLOTS_PER_EPOCH,
 };
 
-const TEST_BYTES: u64 = 261;
-const RENT_PER_EPOCH: u64 = 261 + 128;
+const TEST_BYTES: u64 = 260;
+const RENT_PER_EPOCH: u64 = 260 + 128;
 const FULL_COMPRESSION_COSTS: u64 = (COMPRESSION_COST + COMPRESSION_INCENTIVE) as u64;
 
 fn test_rent_config() -> RentConfig {
@@ -14,7 +14,7 @@ pub fn get_rent_exemption_lamports(_num_bytes: u64) -> u64 {
     // Standard rent-exempt balance for tests: 890880 + 6.96 * bytes
     // This matches Solana's rent calculation
     // 890_880 + ((696 * _num_bytes + 99) / 100)
-    2707440
+    2700480
 }
 #[derive(Debug)]
 struct TestInput {
@@ -146,7 +146,7 @@ fn test_calculate_rent_and_balance() {
             },
             expected: TestExpected {
                 is_compressible: true, // Has 1.5 epochs (rounds down to 1), needs 2
-                deficit: (RENT_PER_EPOCH / 2 + 1) + FULL_COMPRESSION_COSTS, // Account for rounding
+                deficit: (RENT_PER_EPOCH / 2) + FULL_COMPRESSION_COSTS,
             },
         },
         TestCase {

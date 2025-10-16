@@ -23,7 +23,7 @@ use crate::{
     AnchorDeserialize, AnchorSerialize,
 };
 
-pub const MINT_ACTION_DISCRIMINATOR: u8 = 106;
+pub const MINT_ACTION_DISCRIMINATOR: u8 = 103;
 
 /// Input parameters for creating a new mint
 #[derive(Debug, Clone)]

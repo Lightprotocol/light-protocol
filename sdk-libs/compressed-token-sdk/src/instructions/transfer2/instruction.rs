@@ -63,6 +63,7 @@ pub struct Transfer2Inputs {
     // pub packed_pubkeys: Vec<Pubkey>, // Owners, Delegates, Mints
     pub in_lamports: Option<Vec<u64>>,
     pub out_lamports: Option<Vec<u64>>,
+    pub output_queue: u8,
 }
 
 /// Create the instruction for compressed token multi-transfer operations
@@ -75,6 +76,7 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
         meta_config,
         in_lamports,
         out_lamports,
+        output_queue,
     } = inputs;
     let mut input_token_data_with_context = Vec::new();
     let mut output_compressed_accounts = Vec::new();
@@ -102,6 +104,7 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
         with_lamports_change_account_merkle_tree_index: false, // TODO: support in future
         lamports_change_account_merkle_tree_index: 0,
         lamports_change_account_owner_index: 0,
+        output_queue,
         proof: validity_proof.into(),
         in_token_data: input_token_data_with_context,
         out_token_data: output_compressed_accounts,

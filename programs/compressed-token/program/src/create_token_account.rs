@@ -1,5 +1,4 @@
 use anchor_lang::{prelude::ProgramError, pubkey};
-use arrayvec::ArrayVec;
 use borsh::BorshDeserialize;
 use light_account_checks::{
     checks::{check_discriminator, check_owner},
@@ -58,7 +57,13 @@ impl<'info> CreateCTokenAccounts<'info> {
         let mut iter = AccountIterator::new(account_infos);
 
         // Required accounts
-        let token_account = iter.next_signer_mut("token_account")?;
+        // For compressible accounts: token_account must be signer (account created via CPI)
+        // For non-compressible accounts: token_account doesn't need to be signer (SPL compatibility - initialize_account3)
+        let token_account = if inputs.compressible_config.is_some() {
+            iter.next_signer_mut("token_account")?
+        } else {
+            iter.next_mut("token_account")?
+        };
         let mint = iter.next_non_mut("mint")?;
 
         // Parse optional compressible accounts
@@ -156,6 +161,12 @@ pub fn process_create_token_account(
             .as_ref()
             .ok_or(ProgramError::InvalidInstructionData)?;
 
+        // Validate that rent_payment is not exactly 1 epoch (footgun prevention)
+        if compressible_config.rent_payment == 1 {
+            msg!("Prefunding for exactly 1 epoch is not allowed. If the account is created near an epoch boundary, it could become immediately compressible. Use 0 or 2+ epochs.");
+            return Err(anchor_compressed_token::ErrorCode::OneEpochPrefundingNotAllowed.into());
+        }
+
         if let Some(compress_to_pubkey) = compressible_config.compress_to_account_pubkey.as_ref() {
             // Compress to pubkey specifies compression to account pubkey instead of the owner.
             // This is useful for pda token accounts that rely on pubkey derivation but have a program wide
@@ -171,7 +182,7 @@ pub fn process_create_token_account(
             .rent_config
             .get_rent_with_compression_cost(
                 COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-                compressible_config.rent_payment,
+                compressible_config.rent_payment as u64,
             );
         let account_size = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
 
@@ -193,13 +204,13 @@ pub fn process_create_token_account(
             // Rent recipient is fee payer for account creation -> pays rent exemption
             let version_bytes = config_account.version.to_le_bytes();
             let bump_seed = [config_account.rent_sponsor_bump];
-            let mut seeds: ArrayVec<Seed, 3> = ArrayVec::new();
-            seeds.push(Seed::from(b"rent_sponsor".as_ref()));
-            seeds.push(Seed::from(version_bytes.as_ref()));
-            seeds.push(Seed::from(bump_seed.as_ref()));
+            let seeds = [
+                Seed::from(b"rent_sponsor".as_ref()),
+                Seed::from(version_bytes.as_ref()),
+                Seed::from(bump_seed.as_ref()),
+            ];
 
-            let mut seeds_inputs: ArrayVec<&[Seed], 1> = ArrayVec::new();
-            seeds_inputs.push(seeds.as_slice());
+            let seeds_inputs = [seeds.as_slice()];
 
             // PDA creates account with only rent-exempt balance
             create_pda_account(

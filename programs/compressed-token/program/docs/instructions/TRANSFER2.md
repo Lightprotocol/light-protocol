@@ -13,7 +13,7 @@
 | Use CPI context | → [Write mode](#cpi-context-write-path) (line 192) or [Execute mode](#cpi-context-support-for-cross-program-invocations) (line 27) |
 | Debug errors | → [Error reference](#errors) (line 275) |
 
-**discriminator:** 104
+**discriminator:** 101
 **enum:** `CTokenInstruction::Transfer2`
 **path:** programs/compressed-token/program/src/transfer2/
 
@@ -272,6 +272,7 @@ When compression processing occurs (in both Path A and Path B):
        - Amount: Must exactly match the full token account balance being compressed
        - Owner: If compress_to_pubkey flag is false, owner must match original token account owner
        - Owner: If compress_to_pubkey flag is true, owner must be the token account's pubkey (allows closing accounts owned by PDAs)
+       - **Note:** compress_to_pubkey validation ONLY applies when rent authority closes. When owner closes, no output validation occurs (owner has full control, sum check ensures balance preservation)
        - Delegate: Must be None (has_delegate=false and delegate=0) - delegates cannot be carried over
        - Version: Must be ShaFlat (version=3) for security
        - Version: Must match the version specified in the token account's compressible extension
@@ -302,6 +303,7 @@ When compression processing occurs (in both Path A and Path B):
 - `ErrorCode::SumCheckFailed` (error code: 6005) - Input/output token amounts don't match
 - `ErrorCode::InputsOutOfOrder` (error code: 6054) - Sum inputs mint indices not in ascending order
 - `ErrorCode::TooManyMints` (error code: 6055) - Sum check, too many mints (max 5)
+- `ErrorCode::DuplicateMint` (error code: 6056) - Duplicate mint index detected in inputs, outputs, or compressions (same mint referenced by multiple indices or same index used multiple times)
 - `ErrorCode::ComputeOutputSumFailed` (error code: 6002) - Output mint not in inputs or compressions
 - `ErrorCode::TooManyCompressionTransfers` (error code: 6106) - Too many compression transfers. Maximum 40 transfers allowed per instruction
 - `ErrorCode::NoInputsProvided` (error code: 6025) - No compressions provided in early exit path (no compressed accounts)

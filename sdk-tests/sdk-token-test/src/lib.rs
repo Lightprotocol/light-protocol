@@ -105,7 +105,6 @@ pub mod sdk_token_test {
 
     pub fn compress_full_and_close<'info>(
         ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
-        output_tree_index: u8,
         recipient_index: u8,
         mint_index: u8,
         source_index: u8,
@@ -115,7 +114,6 @@ pub mod sdk_token_test {
     ) -> Result<()> {
         process_compress_full_and_close(
             ctx,
-            output_tree_index,
             recipient_index,
             mint_index,
             source_index,

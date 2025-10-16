@@ -177,12 +177,12 @@ async fn test_compress_and_close_cpi_indices_owner() {
         .await
         .unwrap()
         .unwrap();
-
+    // Add output queue first so it's at index 0
+    remaining_accounts.insert_or_get(output_tree_info.queue);
     // Use pack_for_compress_and_close to pack all required accounts
     let indices = pack_for_compress_and_close(
         token_account_pubkey,
         ctoken_solana_account.data.as_slice(),
-        output_tree_info.queue,
         &mut remaining_accounts,
         false,
     )
@@ -244,6 +244,7 @@ async fn test_compress_and_close_cpi_high_level() {
 
     // Get output tree for compression
     let output_tree_info = rpc.get_random_state_tree_info().unwrap();
+    remaining_accounts.insert_or_get(output_tree_info.queue);
     // DON'T pack the output tree - it's passed separately as output_queue account
     let ctoken_solana_account = rpc
         .get_account(token_account_pubkey)
@@ -254,7 +255,6 @@ async fn test_compress_and_close_cpi_high_level() {
     pack_for_compress_and_close(
         token_account_pubkey,
         ctoken_solana_account.data.as_slice(),
-        output_tree_info.queue,
         &mut remaining_accounts,
         ctx.with_compressible_extension, // false - using owner as authority
     )
@@ -353,6 +353,7 @@ async fn test_compress_and_close_cpi_multiple() {
 
     // Get output tree for compression
     let output_tree_info = rpc.get_random_state_tree_info().unwrap();
+    remaining_accounts.insert_or_get(output_tree_info.queue);
 
     // Collect indices for all 4 accounts
     let mut indices_vec = Vec::with_capacity(ctx.token_account_pubkeys.len());
@@ -367,7 +368,6 @@ async fn test_compress_and_close_cpi_multiple() {
         let indices = pack_for_compress_and_close(
             *token_account_pubkey,
             ctoken_solana_account.data.as_slice(),
-            output_tree_info.queue,
             &mut remaining_accounts,
             ctx.with_compressible_extension,
         )
@@ -517,6 +517,7 @@ async fn test_compress_and_close_cpi_with_context() {
     let compressed_mint =
         CompressedMint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
             .unwrap();
+    remaining_accounts.insert_or_get(compressed_mint_account.tree_info.queue);
 
     // Create CompressedMintWithContext for minting to populate CPI context
     let compressed_mint_with_context = CompressedMintWithContext {
@@ -565,7 +566,6 @@ async fn test_compress_and_close_cpi_with_context() {
     let indices = pack_for_compress_and_close(
         token_account_pubkey,
         ctoken_solana_account.data.as_slice(),
-        compressed_mint_account.tree_info.queue,
         &mut remaining_accounts,
         ctx.with_compressible_extension, // false - using owner as authority
     )

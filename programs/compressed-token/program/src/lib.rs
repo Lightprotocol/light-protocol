@@ -47,15 +47,14 @@ pub enum InstructionType {
     CloseTokenAccount = 9,
     /// Create CToken, equivalent to SPL Token InitializeAccount3
     CreateTokenAccount = 18,
-    // TODO: start at 100
-    CreateAssociatedTokenAccount = 103,
+    CreateAssociatedTokenAccount = 100,
     /// Batch instruction for ctoken transfers:
     ///     1. transfer compressed tokens
     ///     2. compress ctokens/spl tokens
     ///     3. decompress ctokens/spl tokens
     ///     4. compress and close ctokens/spl tokens
-    Transfer2 = 104,
-    CreateAssociatedTokenAccountIdempotent = 105,
+    Transfer2 = 101,
+    CreateAssociatedTokenAccountIdempotent = 102,
     /// Batch instruction for operation on one compressed Mint account:
     ///     1. CreateMint
     ///     2. MintTo
@@ -66,11 +65,11 @@ pub enum InstructionType {
     ///     7. UpdateMetadataField
     ///     8. UpdateMetadataAuthority
     ///     9. RemoveMetadataKey
-    MintAction = 106,
+    MintAction = 103,
     /// Claim rent for past completed epochs from compressible token account
-    Claim = 107,
+    Claim = 104,
     /// Withdraw funds from pool PDA
-    WithdrawFundingPool = 108,
+    WithdrawFundingPool = 105,
     Other,
 }
 
@@ -81,12 +80,12 @@ impl From<u8> for InstructionType {
             3 => InstructionType::CTokenTransfer,
             9 => InstructionType::CloseTokenAccount,
             18 => InstructionType::CreateTokenAccount,
-            103 => InstructionType::CreateAssociatedTokenAccount,
-            104 => InstructionType::Transfer2,
-            105 => InstructionType::CreateAssociatedTokenAccountIdempotent,
-            106 => InstructionType::MintAction,
-            107 => InstructionType::Claim,
-            108 => InstructionType::WithdrawFundingPool,
+            100 => InstructionType::CreateAssociatedTokenAccount,
+            101 => InstructionType::Transfer2,
+            102 => InstructionType::CreateAssociatedTokenAccountIdempotent,
+            103 => InstructionType::MintAction,
+            104 => InstructionType::Claim,
+            105 => InstructionType::WithdrawFundingPool,
             _ => InstructionType::Other, // anchor instructions
         }
     }
@@ -112,7 +111,7 @@ pub fn process_instruction(
     match discriminator {
         InstructionType::CTokenTransfer => {
             // msg!("CTokenTransfer");
-            process_ctoken_transfer(accounts, &instruction_data[2..])?;
+            process_ctoken_transfer(accounts, &instruction_data[1..])?;
         }
         InstructionType::CreateAssociatedTokenAccount => {
             msg!("CreateAssociatedTokenAccount");

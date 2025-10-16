@@ -95,7 +95,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
             owner: owner.pubkey(),
             mint,
             rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-            pre_pay_num_epochs: 1,
+            pre_pay_num_epochs: 2,
             lamports_per_write: Some(1000),
             compressible_config: rpc
                 .test_accounts
@@ -215,8 +215,7 @@ fn create_compression_inputs(
 
     // Create CTokenAccount2 for compression (0 inputs, 1 output)
     // Use new_empty since we have no compressed input accounts
-    let mut compression_account =
-        CTokenAccount2::new_empty(recipient_index, mint_index, output_merkle_tree_index);
+    let mut compression_account = CTokenAccount2::new_empty(recipient_index, mint_index);
 
     // Compress tokens from CToken ATA
     compression_account
@@ -235,6 +234,7 @@ fn create_compression_inputs(
         meta_config: Transfer2AccountsMetaConfig::new(fee_payer, account_metas),
         in_lamports: None,
         out_lamports: None,
+        output_queue: output_merkle_tree_index,
     })
 }
 

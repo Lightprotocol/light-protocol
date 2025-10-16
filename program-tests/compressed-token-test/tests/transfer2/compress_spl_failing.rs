@@ -179,10 +179,10 @@ fn create_spl_compression_inputs(
     // For compressions with no compressed inputs, we need the output queue
     let shared_output_queue = packed_tree_accounts.insert_or_get(output_queue);
 
-    // Create empty token account with recipient/mint/output_queue
+    // Create empty token account with recipient/mint
     let to_index = packed_tree_accounts.insert_or_get(ctoken_ata);
     let mint_index = packed_tree_accounts.insert_or_get(mint);
-    let mut token_account = CTokenAccount2::new_empty(to_index, mint_index, shared_output_queue);
+    let mut token_account = CTokenAccount2::new_empty(to_index, mint_index);
 
     // Add source SPL account and authority
     let source_index = packed_tree_accounts.insert_or_get(spl_token_account);
@@ -221,6 +221,7 @@ fn create_spl_compression_inputs(
         },
         in_lamports: None,
         out_lamports: None,
+        output_queue: shared_output_queue,
     })
 }
 

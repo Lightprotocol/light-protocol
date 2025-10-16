@@ -21,7 +21,7 @@ pub fn withdraw_funding_pool(
     amount: u64,
 ) -> Instruction {
     // Build instruction data: [discriminator: u8][bump: u8][amount: u64]
-    let mut instruction_data = vec![108u8]; // WithdrawFundingPool instruction discriminator
+    let mut instruction_data = vec![105u8]; // WithdrawFundingPool instruction discriminator
     instruction_data.push(pool_pda_bump);
     instruction_data.extend_from_slice(&amount.to_le_bytes());
 

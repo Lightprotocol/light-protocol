@@ -26,7 +26,7 @@ pub struct CreateCompressibleTokenAccount {
     /// The rent recipient PDA (fee_payer_pda in processor)
     pub rent_sponsor: Pubkey,
     /// Number of epochs of rent to prepay
-    pub pre_pay_num_epochs: u64,
+    pub pre_pay_num_epochs: u8,
     /// Initial lamports to top up for rent payments (optional)
     pub lamports_per_write: Option<u32>,
     pub compress_to_account_pubkey: Option<CompressToPubkey>,

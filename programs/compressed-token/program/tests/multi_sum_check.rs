@@ -2,14 +2,20 @@ use std::collections::HashMap;
 
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::AnchorSerialize;
-use light_compressed_token::transfer2::sum_check::sum_check_multi_mint;
+use light_account_checks::{
+    account_info::test_account_info::pinocchio::get_account_info,
+    packed_accounts::ProgramPackedAccounts,
+};
+use light_compressed_token::transfer2::sum_check::{
+    sum_check_multi_mint, validate_mint_uniqueness,
+};
 use light_ctoken_types::instructions::transfer2::{
     Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
 };
 use light_zero_copy::traits::ZeroCopyAt;
 
 type Result<T> = std::result::Result<T, ErrorCode>;
-// TODO: check test coverage
+
 #[test]
 fn test_multi_sum_check() {
     // SUCCEED: no relay fee, compression
@@ -101,8 +107,8 @@ fn multi_sum_check_test(
         None
     };
 
-    // Call our sum check function
-    sum_check_multi_mint(&inputs_zc, &outputs_zc, compressions_zc.as_deref())
+    // Call our sum check function - now returns mint_map
+    sum_check_multi_mint(&inputs_zc, &outputs_zc, compressions_zc.as_deref()).map(|_| ())
 }
 
 #[test]
@@ -369,6 +375,117 @@ fn test_multi_mint_scenario(
         None
     };
 
-    // Call sum check
-    sum_check_multi_mint(&inputs_zc, &outputs_zc, compressions_zc.as_deref())
+    // Call sum check - now returns mint_map
+    sum_check_multi_mint(&inputs_zc, &outputs_zc, compressions_zc.as_deref()).map(|_| ())
+}
+
+#[test]
+fn test_duplicate_mint_indices() {
+    // Test case 1: Same mint index used in two inputs
+    // This tests that the ArrayMap correctly tracks and allows same mint index (which is valid)
+    let inputs = vec![
+        (0, 100), // mint index 0
+        (0, 50),  // same mint index 0 - should be allowed and summed
+    ];
+    let outputs = vec![(0, 150)]; // Should balance
+    let compressions = vec![];
+
+    // This should SUCCEED because same mint index is allowed
+    test_multi_mint_scenario(&inputs, &outputs, &compressions).unwrap();
+
+    // Test case 2: Mint index 0 in inputs and compressions
+    let inputs = vec![(0, 100)];
+    let outputs = vec![(0, 150)];
+    let compressions = vec![(0, 50, CompressionMode::Compress)]; // same mint index 0
+
+    // Should SUCCEED - same mint can appear in inputs and compressions
+    test_multi_mint_scenario(&inputs, &outputs, &compressions).unwrap();
+
+    // Test case 3: Multiple compressions with same mint
+    let inputs = vec![(0, 100)];
+    let outputs = vec![(0, 200)];
+    let compressions = vec![
+        (0, 50, CompressionMode::Compress),
+        (0, 50, CompressionMode::Compress),
+    ];
+
+    // Should SUCCEED - same mint in multiple compressions
+    test_multi_mint_scenario(&inputs, &outputs, &compressions).unwrap();
+
+    // Test case 4: Ensure different mints still work
+    let inputs = vec![(0, 100), (1, 200)];
+    let outputs = vec![(0, 100), (1, 200)];
+    let compressions = vec![];
+
+    test_multi_mint_scenario(&inputs, &outputs, &compressions).unwrap();
+}
+
+#[test]
+fn test_duplicate_mint_pubkey_detection() {
+    // Test that the same mint pubkey cannot be referenced by different indices
+    // Setup: Create inputs/outputs with two different mint indices (0 and 1)
+    // but both pointing to the same mint pubkey
+
+    let inputs = [(0, 100), (1, 100)]; // Two different indices
+    let outputs = [(0, 100), (1, 100)]; // Amounts balance correctly
+    let _compressions: Vec<(u8, u64, CompressionMode)> = vec![];
+
+    // First, verify that sum_check passes (it only checks amounts)
+    let input_structs: Vec<_> = inputs
+        .iter()
+        .map(|&(mint, amount)| MultiInputTokenDataWithContext {
+            amount,
+            mint,
+            ..Default::default()
+        })
+        .collect();
+
+    let output_structs: Vec<_> = outputs
+        .iter()
+        .map(|&(mint, amount)| MultiTokenTransferOutputData {
+            amount,
+            mint,
+            ..Default::default()
+        })
+        .collect();
+
+    let input_bytes = input_structs.try_to_vec().unwrap();
+    let output_bytes = output_structs.try_to_vec().unwrap();
+
+    let (inputs_zc, _) = Vec::<MultiInputTokenDataWithContext>::zero_copy_at(&input_bytes).unwrap();
+    let (outputs_zc, _) = Vec::<MultiTokenTransferOutputData>::zero_copy_at(&output_bytes).unwrap();
+
+    // Sum check should pass (amounts are correct)
+    let mint_map = sum_check_multi_mint(&inputs_zc, &outputs_zc, None).unwrap();
+
+    // Create test accounts where indices 0 and 1 point to the SAME mint pubkey
+    let same_mint_pubkey = [1u8; 32]; // Same pubkey for both
+    let owner = [0u8; 32];
+
+    let mint_account_0 =
+        get_account_info(same_mint_pubkey, owner, false, false, false, vec![0u8; 82]);
+    let mint_account_1 = get_account_info(
+        same_mint_pubkey, // Same pubkey!
+        owner,
+        false,
+        false,
+        false,
+        vec![0u8; 82],
+    );
+
+    let accounts = vec![mint_account_0, mint_account_1];
+    let packed_accounts = ProgramPackedAccounts {
+        accounts: &accounts,
+    };
+
+    // Now validate_mint_uniqueness should detect the duplicate and fail
+    let result = validate_mint_uniqueness(&mint_map, &packed_accounts);
+
+    match result {
+        Err(ErrorCode::DuplicateMint) => {
+            // Expected: duplicate mint detected
+        }
+        Err(e) => panic!("Expected DuplicateMint error, got: {:?}", e),
+        Ok(_) => panic!("Expected DuplicateMint error, but validation passed!"),
+    }
 }

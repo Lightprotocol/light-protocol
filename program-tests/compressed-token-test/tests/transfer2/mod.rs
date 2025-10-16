@@ -4,4 +4,5 @@ pub mod decompress_failing;
 pub mod functional;
 pub mod random;
 pub mod shared;
+pub mod spl_ctoken;
 pub mod transfer_failing;

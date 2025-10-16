@@ -1,6 +1,5 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::program_error::ProgramError;
-use arrayvec::ArrayVec;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnlyConfig;
 use light_ctoken_types::{
     instructions::mint_action::{ZAction, ZMintActionCompressedInstructionData},
@@ -8,6 +7,7 @@ use light_ctoken_types::{
 };
 use light_program_profiler::profile;
 use spl_pod::solana_msg::msg;
+use tinyvec::ArrayVec;
 
 use crate::shared::{
     convert_program_error,

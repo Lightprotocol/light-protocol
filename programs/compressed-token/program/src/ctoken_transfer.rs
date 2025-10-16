@@ -15,6 +15,7 @@ use crate::shared::{
 
 /// Process ctoken transfer instruction
 #[profile]
+#[inline(always)]
 pub fn process_ctoken_transfer<'a>(
     accounts: &'a [AccountInfo],
     instruction_data: &[u8],
@@ -29,7 +30,6 @@ pub fn process_ctoken_transfer<'a>(
 
     process_transfer(accounts, instruction_data)
         .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-
     calculate_and_execute_top_up_transfers(accounts)
 }
 
@@ -77,7 +77,7 @@ fn calculate_and_execute_top_up_transfers(
                                 current_slot,
                                 transfer.account.lamports(),
                                 compressible_extension.lamports_per_write.into(),
-                                2707440,
+                                light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                             )
                             .map_err(|_| CTokenError::InvalidAccountData)?;
                     }

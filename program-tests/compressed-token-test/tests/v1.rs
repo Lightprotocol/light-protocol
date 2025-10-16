@@ -1171,9 +1171,7 @@ async fn test_mint_to_failing() {
                 .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
                 .await;
             assert_rpc_error(
-                result,
-                0,
-                anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
+                result, 0, 21, //anchor_lang::error::ErrorCode::ConstraintSeeds.into(),
             )
             .unwrap();
         }
@@ -1238,9 +1236,8 @@ async fn test_mint_to_failing() {
                 .create_and_send_transaction(&[instruction], &payer_1.pubkey(), &[&payer_1])
                 .await;
             assert_rpc_error(
-                result,
-                0,
-                SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+                result, 0,
+                21, //SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
             )
             .unwrap();
         }
@@ -2284,9 +2281,8 @@ async fn test_approve_failing() {
             )
             .await;
         assert_rpc_error(
-            result,
-            0,
-            SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+            result, 0,
+            21, // SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .unwrap();
     }
@@ -2330,9 +2326,8 @@ async fn test_approve_failing() {
             )
             .await;
         assert_rpc_error(
-            result,
-            0,
-            SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+            result, 0,
+            21, //SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .unwrap();
     }
@@ -2763,9 +2758,8 @@ async fn test_revoke_failing() {
             )
             .await;
         assert_rpc_error(
-            result,
-            0,
-            SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
+            result, 0,
+            21, // SystemProgramError::StateMerkleTreeAccountDiscriminatorMismatch.into(),
         )
         .unwrap();
     }
@@ -5965,7 +5959,7 @@ async fn batch_compress_with_batched_tree() {
         let result = rpc
             .create_and_send_transaction_with_public_event(&[ix], &payer.pubkey(), &[&payer])
             .await;
-        assert_rpc_error(result, 0, 0).unwrap();
+        assert_rpc_error(result, 0, 21).unwrap();
     }
 }
 

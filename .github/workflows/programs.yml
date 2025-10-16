@@ -1,0 +1,120 @@
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "programs/**"
+      - "program-tests/**"
+      - "program-libs/**"
+      - "prover/client/**"
+      - ".github/workflows/light-system-programs-tests.yml"
+  pull_request:
+    branches:
+      - "*"
+    paths:
+      - "programs/**"
+      - "program-tests/**"
+      - "program-libs/**"
+      - "prover/client/**"
+      - ".github/workflows/light-system-programs-tests.yml"
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+name: programs
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  system-programs:
+    name: programs
+    if: github.event.pull_request.draft == false
+    runs-on: warp-ubuntu-latest-x64-4x
+    timeout-minutes: 90
+
+    services:
+      redis:
+        image: redis:8.0.1
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      REDIS_URL: redis://localhost:6379
+
+    strategy:
+      matrix:
+        include:
+          - program: account-compression-and-registry
+            sub-tests: '["cargo-test-sbf -p account-compression-test", "cargo-test-sbf -p registry-test"]'
+          - program: light-system-program-address
+            sub-tests: '["cargo-test-sbf -p system-test -- test_with_address", "cargo-test-sbf -p e2e-test", "cargo-test-sbf -p compressed-token-test --test ctoken"]'
+          - program: light-system-program-compression
+            sub-tests: '["cargo-test-sbf -p system-test -- test_with_compression", "cargo-test-sbf -p system-test --test test_re_init_cpi_account"]'
+          - program: compressed-token-and-e2e
+            sub-tests: '["cargo-test-sbf -p compressed-token-test --test v1", "cargo-test-sbf -p compressed-token-test --test mint"]'
+          - program: compressed-token-batched-tree
+            sub-tests: '["cargo-test-sbf -p compressed-token-test -- test_transfer_with_photon_and_batched_tree"]'
+          - program: system-cpi-test
+            sub-tests:
+              '["cargo-test-sbf -p system-cpi-test", "cargo test -p light-system-program-pinocchio",
+              "cargo-test-sbf -p system-cpi-v2-test -- --skip functional_ --skip event::parse", "cargo-test-sbf -p system-cpi-v2-test -- event::parse",
+              "cargo-test-sbf -p compressed-token-test --test transfer2"
+              ]'
+          - program: system-cpi-test-v2-functional-read-only
+            sub-tests: '["cargo-test-sbf -p system-cpi-v2-test -- functional_read_only"]'
+          - program: system-cpi-test-v2-functional-account-infos
+            sub-tests: '["cargo-test-sbf -p system-cpi-v2-test -- functional_account_infos"]'
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Setup and build
+        uses: ./.github/actions/setup-and-build
+        with:
+          skip-components: "redis,disk-cleanup"
+          cache-key: "rust"
+
+      - name: Build CLI
+        run: |
+          npx nx build @lightprotocol/zk-compression-cli
+
+      - name: ${{ matrix.program }}
+        run: |
+
+          IFS=',' read -r -a sub_tests <<< "${{ join(fromJSON(matrix['sub-tests']), ', ') }}"
+          for subtest in "${sub_tests[@]}"
+          do
+            echo "$subtest"
+
+            # Retry logic for flaky batched-tree test
+            if [[ "$subtest" == *"test_transfer_with_photon_and_batched_tree"* ]]; then
+              echo "Running flaky test with retry logic (max 3 attempts)..."
+              attempt=1
+              max_attempts=3
+              until RUSTFLAGS="-D warnings" eval "$subtest"; do
+                attempt=$((attempt + 1))
+                if [ $attempt -gt $max_attempts ]; then
+                  echo "Test failed after $max_attempts attempts"
+                  exit 1
+                fi
+                echo "Attempt $attempt/$max_attempts failed, retrying..."
+                sleep 5
+              done
+              echo "Test passed on attempt $attempt"
+            else
+              RUSTFLAGS="-D warnings" eval "$subtest"
+              if [ "$subtest" == "cargo-test-sbf -p e2e-test" ]; then
+                pnpm --filter @lightprotocol/programs run build-compressed-token-small
+                RUSTFLAGS="-D warnings" eval "$subtest -- --test test_10_all"
+              fi
+            fi
+          done

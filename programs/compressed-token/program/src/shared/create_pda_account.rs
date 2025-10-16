@@ -1,5 +1,4 @@
 use anchor_lang::solana_program::program_error::ProgramError;
-use arrayvec::ArrayVec;
 use light_program_profiler::profile;
 use pinocchio::{
     account_info::AccountInfo,
@@ -39,7 +38,7 @@ pub fn create_pda_account<const N: usize>(
     fee_payer: &AccountInfo,
     new_account: &AccountInfo,
     account_size: usize,
-    seeds_inputs: ArrayVec<&[Seed], N>,
+    seeds_inputs: [&[Seed]; N],
     additional_lamports: Option<u64>,
 ) -> Result<(), ProgramError> {
     // Ensure we have at least one config
@@ -58,22 +57,11 @@ pub fn create_pda_account<const N: usize>(
         owner: &LIGHT_CPI_SIGNER.program_id,
     };
 
-    // let mut bump_bytes: ArrayVec<[u8; 1], N> = ArrayVec::new();
-    // let mut seed_vecs: ArrayVec<ArrayVec<Seed, 8>, N> = ArrayVec::new();
-
-    // for config in configs.iter() {
-    //     bump_bytes.push([config.bump]);
-    //     let mut seeds = ArrayVec::new();
-    //     for &seed in config.seeds {
-    //         seeds.push(Seed::from(seed));
-    //     }
-    //     seed_vecs.push(seeds);
-    // }
-
-    // Add bump bytes to seed vecs and build signers
-    let mut signers: ArrayVec<Signer, N> = ArrayVec::new();
-    for seeds in seeds_inputs.into_iter() {
-        signers.push(Signer::from(seeds));
+    let mut signers = arrayvec::ArrayVec::<Signer, N>::new();
+    for seeds in seeds_inputs.iter() {
+        if !seeds.is_empty() {
+            signers.push(Signer::from(*seeds));
+        }
     }
 
     create_account

@@ -18,11 +18,11 @@ fn test_extension_allocation_only() {
     };
     let expected_mint_size_no_ext = CompressedMint::byte_len(&mint_config_no_ext).unwrap();
 
-    let mut outputs_no_ext = arrayvec::ArrayVec::new();
+    let mut outputs_no_ext = tinyvec::ArrayVec::<[(bool, u32); 35]>::new();
     outputs_no_ext.push((true, expected_mint_size_no_ext as u32)); // Mint account has address
 
     let config_input_no_ext = CpiConfigInput {
-        input_accounts: arrayvec::ArrayVec::new(),
+        input_accounts: tinyvec::ArrayVec::<[bool; 8]>::new(),
         output_accounts: outputs_no_ext,
         has_proof: false,
         new_address_params: 1,
@@ -51,11 +51,11 @@ fn test_extension_allocation_only() {
     };
     let expected_mint_size_with_ext = CompressedMint::byte_len(&mint_config_with_ext).unwrap();
 
-    let mut outputs_with_ext = arrayvec::ArrayVec::new();
+    let mut outputs_with_ext = tinyvec::ArrayVec::<[(bool, u32); 35]>::new();
     outputs_with_ext.push((true, expected_mint_size_with_ext as u32)); // Mint account has address
 
     let config_input_with_ext = CpiConfigInput {
-        input_accounts: arrayvec::ArrayVec::new(),
+        input_accounts: tinyvec::ArrayVec::<[bool; 8]>::new(),
         output_accounts: outputs_with_ext,
         has_proof: false,
         new_address_params: 1,
@@ -164,11 +164,11 @@ fn test_progressive_extension_sizes() {
         let expected_mint_size = CompressedMint::byte_len(&mint_config).unwrap();
         println!("Expected mint size: {}", expected_mint_size);
 
-        let mut outputs = arrayvec::ArrayVec::new();
+        let mut outputs = tinyvec::ArrayVec::<[(bool, u32); 35]>::new();
         outputs.push((true, expected_mint_size as u32)); // Mint account has address
 
         let config_input = CpiConfigInput {
-            input_accounts: arrayvec::ArrayVec::new(),
+            input_accounts: tinyvec::ArrayVec::<[bool; 8]>::new(),
             output_accounts: outputs,
             has_proof: false,
             new_address_params: 1,

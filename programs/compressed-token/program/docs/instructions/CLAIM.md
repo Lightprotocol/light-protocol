@@ -1,6 +1,6 @@
 ## Claim
 
-**discriminator:** 107
+**discriminator:** 104
 **enum:** `InstructionType::Claim`
 **path:** programs/compressed-token/program/src/claim/
 

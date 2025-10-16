@@ -78,7 +78,8 @@ impl AccountRentState {
             self.get_available_rent_balance(rent_exemption_lamports, config.compression_cost());
         let required_epochs = self.get_required_epochs::<true>(); // include next epoch for compressibility check
         let rent_per_epoch = config.rent_curve_per_epoch(self.num_bytes);
-        let lamports_due = rent_per_epoch * required_epochs;
+        // Use saturating_mul to prevent overflow - cheaper than checked_mul (no branching)
+        let lamports_due = rent_per_epoch.saturating_mul(required_epochs);
 
         if available_balance < lamports_due {
             // Include compression cost in deficit so forester can execute
@@ -111,7 +112,8 @@ impl AccountRentState {
             return None; // Should compress, not claim
         }
         let rent_per_epoch = config.rent_curve_per_epoch(self.num_bytes);
-        Some(self.get_completed_epochs() * rent_per_epoch)
+        // Use saturating_mul to prevent overflow - cheaper than checked_mul (no branching)
+        Some(self.get_completed_epochs().saturating_mul(rent_per_epoch))
     }
 
     /// Calculate how lamports are distributed when closing an account.
@@ -151,7 +153,8 @@ impl AccountRentState {
             self.get_available_rent_balance(rent_exemption_lamports, config.compression_cost());
         let required_epochs = self.get_required_epochs::<true>();
         let rent_per_epoch = config.rent_curve_per_epoch(self.num_bytes);
-        let lamports_due = rent_per_epoch * required_epochs;
+        // Use saturating_mul to prevent overflow - cheaper than checked_mul (no branching)
+        let lamports_due = rent_per_epoch.saturating_mul(required_epochs);
 
         available_balance.saturating_sub(lamports_due)
     }
