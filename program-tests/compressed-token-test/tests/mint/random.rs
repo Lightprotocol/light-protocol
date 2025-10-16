@@ -317,35 +317,35 @@ async fn test_random_mint_action() {
         use rand::seq::SliceRandom;
         actions.shuffle(&mut rng);
 
-        // Fix action ordering: move UpdateMetadataField before RemoveMetadataKey for the same key
+        // Fix action ordering: remove any UpdateMetadataField actions that come after RemoveMetadataKey for the same key
         use light_compressed_token_sdk::instructions::mint_action::MintActionType;
+        use std::collections::HashSet;
+
+        let mut removed_keys: HashSet<Vec<u8>> = HashSet::new();
         let mut i = 0;
+
         while i < actions.len() {
-            if let MintActionType::RemoveMetadataKey {
-                key: remove_key, ..
-            } = &actions[i]
-            {
-                // Find any UpdateMetadataField with the same key that comes after this removal
-                let mut j = i + 1;
-                while j < actions.len() {
-                    if let MintActionType::UpdateMetadataField {
-                        key: update_key,
-                        field_type: 3,
-                        ..
-                    } = &actions[j]
-                    {
-                        if update_key == remove_key {
-                            // Move this update before the removal
-                            let update_action = actions.remove(j);
-                            actions.insert(i, update_action);
-                            i += 1; // Skip the moved action
-                            break;
-                        }
+            match &actions[i] {
+                MintActionType::RemoveMetadataKey { key, .. } => {
+                    // Track that this key has been removed
+                    removed_keys.insert(key.clone());
+                    i += 1;
+                }
+                MintActionType::UpdateMetadataField {
+                    key, field_type: 3, ..
+                } => {
+                    // If trying to update a key that was already removed, remove this action
+                    if removed_keys.contains(key) {
+                        actions.remove(i);
+                        // Don't increment i, check the same position again
+                    } else {
+                        i += 1;
                     }
-                    j += 1;
+                }
+                _ => {
+                    i += 1;
                 }
             }
-            i += 1;
         }
 
         // Get pre-state compressed mint
