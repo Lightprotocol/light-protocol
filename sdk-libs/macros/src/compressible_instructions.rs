@@ -412,12 +412,12 @@ pub fn add_compressible_instructions(
     // Generate error codes automatically based on instruction variant
     let error_codes = generate_error_codes(instruction_variant)?;
 
-    // Extract required accounts from seed expressions
-    let required_accounts = extract_required_accounts_from_seeds(&pda_seeds, &token_seeds)?;
+    // Extract required accounts from seed expressions and track dependencies
+    let (required_accounts, account_dependencies) = extract_required_accounts_from_seeds(&pda_seeds, &token_seeds)?;
 
     // Generate the DecompressAccountsIdempotent accounts struct with required accounts
     let decompress_accounts =
-        generate_decompress_accounts_struct(&required_accounts, instruction_variant)?;
+        generate_decompress_accounts_struct(&required_accounts, &account_dependencies, instruction_variant)?;
 
     // Generate helper functions for packed variants
     let helper_packed_fns: Result<Vec<_>> = account_types.iter().map(|name| {
@@ -528,13 +528,13 @@ pub fn add_compressible_instructions(
                 fn get_seeds<'a, 'info>(
                     &self,
                     ctx: &CTokenSeedContext<'a, 'info>,
-                ) -> (Vec<Vec<u8>>, Pubkey);
+                ) -> Result<(Vec<Vec<u8>>, Pubkey)>;
 
                 /// Get authority seeds for signing during compression (if authority is specified)
                 fn get_authority_seeds<'a, 'info>(
                     &self,
                     ctx: &CTokenSeedContext<'a, 'info>,
-                ) -> (Vec<Vec<u8>>, Pubkey);
+                ) -> Result<(Vec<Vec<u8>>, Pubkey)>;
             }
         }
     };
@@ -665,8 +665,8 @@ pub fn add_compressible_instructions(
                     let mint_info = packed_accounts[mint_index as usize].to_account_info();
                     let owner_info = packed_accounts[owner_index as usize].to_account_info();
 
-                    let (ctoken_signer_seeds, derived_token_account_address) = token_data.variant.get_seeds(&seed_context);
-                    let (ctoken_authority_seeds, ctoken_authority_pda) = token_data.variant.get_authority_seeds(&seed_context);
+                    let (ctoken_signer_seeds, derived_token_account_address) = token_data.variant.get_seeds(&seed_context)?;
+                    let (ctoken_authority_seeds, ctoken_authority_pda) = token_data.variant.get_authority_seeds(&seed_context)?;
 
 
                     if derived_token_account_address != *owner_info.key {
@@ -1255,13 +1255,15 @@ fn generate_ctoken_seed_provider_implementation(
                                             if let syn::Expr::Path(path) = &*nested_field.base {
                                                 if let Some(segment) = path.path.segments.first() {
                                                     if segment.ident == "ctx" {
-                                                        // This is ctx.accounts.field_name
+                                                        // This is ctx.accounts.field_name - handle optional
                                                         let binding_name = syn::Ident::new(
                                                             &format!("seed_{}", i),
                                                             expr.span(),
                                                         );
                                                         token_bindings.push(quote! {
-                                                            let #binding_name = ctx.accounts.#field_name.key();
+                                                            let #binding_name = ctx.accounts.#field_name.as_ref()
+                                                                .ok_or(CompressibleInstructionError::MissingSeedAccount)?
+                                                                .key();
                                                         });
                                                         token_seed_refs.push(
                                                             quote! { #binding_name.as_ref() },
@@ -1281,7 +1283,9 @@ fn generate_ctoken_seed_provider_implementation(
                                                 expr.span(),
                                             );
                                             token_bindings.push(quote! {
-                                                let #binding_name = ctx.accounts.#field_name.key();
+                                                let #binding_name = ctx.accounts.#field_name.as_ref()
+                                                    .ok_or(CompressibleInstructionError::MissingSeedAccount)?
+                                                    .key();
                                             });
                                             token_seed_refs.push(quote! { #binding_name.as_ref() });
                                             handled = true;
@@ -1311,7 +1315,7 @@ fn generate_ctoken_seed_provider_implementation(
                 let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
                 seeds_vec.extend(seeds.iter().map(|s| s.to_vec()));
                 seeds_vec.push(vec![bump]);
-                (seeds_vec, token_account_pda)
+                Ok((seeds_vec, token_account_pda))
             }
         };
         get_seeds_match_arms.push(get_seeds_arm);
@@ -1347,7 +1351,9 @@ fn generate_ctoken_seed_provider_implementation(
                                                                 expr.span(),
                                                             );
                                                             auth_bindings.push(quote! {
-                                                                let #binding_name = ctx.accounts.#field_name.key();
+                                                                let #binding_name = ctx.accounts.#field_name.as_ref()
+                                                                    .ok_or(CompressibleInstructionError::MissingSeedAccount)?
+                                                                    .key();
                                                             });
                                                             auth_seed_refs.push(
                                                                 quote! { #binding_name.as_ref() },
@@ -1366,7 +1372,9 @@ fn generate_ctoken_seed_provider_implementation(
                                                     expr.span(),
                                                 );
                                                 auth_bindings.push(quote! {
-                                                    let #binding_name = ctx.accounts.#field_name.key();
+                                                    let #binding_name = ctx.accounts.#field_name.as_ref()
+                                                        .ok_or(CompressibleInstructionError::MissingSeedAccount)?
+                                                        .key();
                                                 });
                                                 auth_seed_refs
                                                     .push(quote! { #binding_name.as_ref() });
@@ -1409,7 +1417,7 @@ fn generate_ctoken_seed_provider_implementation(
                     let mut seeds_vec = Vec::with_capacity(seeds.len() + 1);
                     seeds_vec.extend(seeds.iter().map(|s| s.to_vec()));
                     seeds_vec.push(vec![bump]);
-                    (seeds_vec, authority_pda)
+                    Ok((seeds_vec, authority_pda))
                 }
             };
             get_authority_seeds_match_arms.push(authority_arm);
@@ -1417,7 +1425,7 @@ fn generate_ctoken_seed_provider_implementation(
             // No authority specified - should not happen due to validation above
             let authority_arm = quote! {
                 CTokenAccountVariant::#variant_name => {
-                    unreachable!("Authority seeds not specified for token variant")
+                    Err(CompressibleInstructionError::MissingSeedAccount.into())
                 }
             };
             get_authority_seeds_match_arms.push(authority_arm);
@@ -1431,11 +1439,11 @@ fn generate_ctoken_seed_provider_implementation(
             fn get_seeds<'a, 'info>(
                 &self,
                 ctx: &ctoken_seed_system::CTokenSeedContext<'a, 'info>,
-            ) -> (Vec<Vec<u8>>, anchor_lang::prelude::Pubkey) {
+            ) -> Result<(Vec<Vec<u8>>, anchor_lang::prelude::Pubkey)> {
                 match self {
                     #(#get_seeds_match_arms)*
                     _ => {
-                        unreachable!("CToken variant not configured with seeds")
+                        Err(CompressibleInstructionError::MissingSeedAccount.into())
                     }
                 }
             }
@@ -1444,11 +1452,11 @@ fn generate_ctoken_seed_provider_implementation(
             fn get_authority_seeds<'a, 'info>(
                 &self,
                 ctx: &ctoken_seed_system::CTokenSeedContext<'a, 'info>,
-            ) -> (Vec<Vec<u8>>, anchor_lang::prelude::Pubkey) {
+            ) -> Result<(Vec<Vec<u8>>, anchor_lang::prelude::Pubkey)> {
                 match self {
                     #(#get_authority_seeds_match_arms)*
                     _ => {
-                        unreachable!("CToken variant not configured with authority seeds")
+                        Err(CompressibleInstructionError::MissingSeedAccount.into())
                     }
                 }
             }
@@ -1506,12 +1514,15 @@ fn generate_pda_seed_derivation(
                                             if let Some(segment) = path.path.segments.first() {
                                                 if segment.ident == "ctx" {
                                                     // This is ctx.accounts.field_name - create binding for the key
+                                                    // Handle optional accounts by checking for Some and unwrapping
                                                     let binding_name = syn::Ident::new(
                                                         &format!("seed_binding_{}", i),
                                                         expr.span(),
                                                     );
                                                     bindings.push(quote! {
-                                                        let #binding_name = #accounts_ident.#field_name.key();
+                                                        let #binding_name = #accounts_ident.#field_name.as_ref()
+                                                            .ok_or(CompressibleInstructionError::MissingSeedAccount)?
+                                                            .key();
                                                     });
                                                     seed_refs
                                                         .push(quote! { #binding_name.as_ref() });
@@ -1530,7 +1541,9 @@ fn generate_pda_seed_derivation(
                                             expr.span(),
                                         );
                                         bindings.push(quote! {
-                                            let #binding_name = #accounts_ident.#field_name.key();
+                                            let #binding_name = #accounts_ident.#field_name.as_ref()
+                                                .ok_or(CompressibleInstructionError::MissingSeedAccount)?
+                                                .key();
                                         });
                                         seed_refs.push(quote! { #binding_name.as_ref() });
                                         handled = true;
@@ -1885,22 +1898,31 @@ fn is_pubkey_type(ty: &syn::Type) -> bool {
     }
 }
 
-/// Extract required account names from seed expressions
+/// Dependency information for compressible accounts
+struct AccountDependency {
+    account_name: String,
+    required_seeds: Vec<String>,
+}
+
+/// Extract required account names from seed expressions and track dependencies
 ///
 /// IMPORTANT: Preserve deterministic, insertion order based on the order of
 /// appearance in the macro arguments (first PDA seeds, then token seeds) and
 /// the left-to-right order within each seed tuple. This guarantees stable IDL
 /// and Anchor account struct field ordering and prevents name/position
 /// mismatches between client and on-chain.
+///
+/// Returns: (all_required_accounts, account_dependencies)
 #[inline(never)]
 fn extract_required_accounts_from_seeds(
     pda_seeds: &Option<Vec<TokenSeedSpec>>,
     token_seeds: &Option<Vec<TokenSeedSpec>>,
-) -> Result<Vec<String>> {
+) -> Result<(Vec<String>, Vec<AccountDependency>)> {
     // Use a Vec to preserve insertion order and perform manual dedup.
     // The number of accounts is small, so O(n^2) dedup is fine and avoids
     // bringing in external crates for ordered sets.
     let mut required_accounts: Vec<String> = Vec::new();
+    let mut dependencies: Vec<AccountDependency> = Vec::new();
 
     // Helper to push if not present yet, preserving order.
     #[inline(always)]
@@ -1915,30 +1937,57 @@ fn extract_required_accounts_from_seeds(
     fn extract_accounts_from_seed_spec(
         spec: &TokenSeedSpec,
         ordered_accounts: &mut Vec<String>,
-    ) -> Result<()> {
+    ) -> Result<Vec<String>> {
+        let mut spec_accounts = Vec::new();
         for seed in &spec.seeds {
             if let SeedElement::Expression(expr) = seed {
-                extract_account_from_expr(expr, ordered_accounts);
+                let mut local_accounts = Vec::new();
+                extract_account_from_expr(expr, &mut local_accounts);
+                for acc in local_accounts {
+                    push_unique(ordered_accounts, acc.clone());
+                    push_unique(&mut spec_accounts, acc);
+                }
             }
         }
-        Ok(())
+        // Also check authority seeds for token accounts
+        if let Some(authority_seeds) = &spec.authority {
+            for seed in authority_seeds {
+                if let SeedElement::Expression(expr) = seed {
+                    let mut local_accounts = Vec::new();
+                    extract_account_from_expr(expr, &mut local_accounts);
+                    for acc in local_accounts {
+                        push_unique(ordered_accounts, acc.clone());
+                        push_unique(&mut spec_accounts, acc);
+                    }
+                }
+            }
+        }
+        Ok(spec_accounts)
     }
 
     // Walk PDA seeds in declared order
     if let Some(pda_seed_specs) = pda_seeds {
         for spec in pda_seed_specs {
-            extract_accounts_from_seed_spec(spec, &mut required_accounts)?;
+            let required_seeds = extract_accounts_from_seed_spec(spec, &mut required_accounts)?;
+            dependencies.push(AccountDependency {
+                account_name: spec.variant.to_string(),
+                required_seeds,
+            });
         }
     }
 
     // Then token seeds in declared order
     if let Some(token_seed_specs) = token_seeds {
         for spec in token_seed_specs {
-            extract_accounts_from_seed_spec(spec, &mut required_accounts)?;
+            let required_seeds = extract_accounts_from_seed_spec(spec, &mut required_accounts)?;
+            dependencies.push(AccountDependency {
+                account_name: spec.variant.to_string(),
+                required_seeds,
+            });
         }
     }
 
-    Ok(required_accounts)
+    Ok((required_accounts, dependencies))
 }
 
 /// Extract account names from a seed expression, preserving insertion order.
@@ -2013,6 +2062,7 @@ fn extract_account_from_expr(expr: &syn::Expr, ordered_accounts: &mut Vec<String
 #[inline(never)]
 fn generate_decompress_accounts_struct(
     required_accounts: &[String],
+    account_dependencies: &[AccountDependency],
     variant: InstructionVariant,
 ) -> Result<syn::ItemStruct> {
     let mut account_fields = vec![
@@ -2104,7 +2154,8 @@ fn generate_decompress_accounts_struct(
         }
     }
 
-    // Add required accounts as unchecked accounts (skip standard fields)
+    // Add required accounts as OPTIONAL unchecked accounts (skip standard fields)
+    // Seed accounts are optional - only needed if their dependent compressible account is being decompressed
     let standard_fields = [
         "fee_payer",
         "rent_payer",
@@ -2112,14 +2163,16 @@ fn generate_decompress_accounts_struct(
         "config",
         "ctoken_program",
         "ctoken_cpi_authority",
+        "ctoken_config",
     ];
 
     for account_name in required_accounts {
         if !standard_fields.contains(&account_name.as_str()) {
             let account_ident = syn::Ident::new(account_name, proc_macro2::Span::call_site());
             account_fields.push(quote! {
-                /// CHECK: Required for seed derivation - validated by program logic
-                pub #account_ident: UncheckedAccount<'info>
+                /// CHECK: Optional seed account - required only if decompressing dependent accounts.
+                /// Validated by runtime checks when needed.
+                pub #account_ident: Option<UncheckedAccount<'info>>
             });
         }
     }
@@ -2220,6 +2273,8 @@ fn generate_error_codes(variant: InstructionVariant) -> Result<TokenStream> {
     let base_errors = quote! {
         #[msg("Rent recipient does not match config")]
         InvalidRentRecipient,
+        #[msg("Required seed account is missing for decompression - check that all seed accounts for compressed accounts are provided")]
+        MissingSeedAccount,
     };
 
     let variant_specific_errors = match variant {
