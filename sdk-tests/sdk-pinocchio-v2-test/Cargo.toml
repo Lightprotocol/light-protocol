@@ -22,7 +22,7 @@ default = []
 [dependencies]
 light-sdk-pinocchio = { workspace = true, features = ["v2"] }
 light-sdk-types = { workspace = true, features = ["v2"] }
-light-hasher = { workspace = true, features = ["poseidon"] }
+light-hasher = { workspace = true, features = ["poseidon", "sha256"] }
 pinocchio = { workspace = true }
 light-macros = { workspace = true }
 borsh = { workspace = true }

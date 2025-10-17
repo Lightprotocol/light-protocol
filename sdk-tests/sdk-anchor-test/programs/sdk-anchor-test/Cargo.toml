@@ -22,7 +22,7 @@ idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
 
 [dependencies]
 # Needs to be imported for LightHasher
-light-hasher = { workspace = true, features = ["solana", "poseidon"] }
+light-hasher = { workspace = true, features = ["solana", "poseidon", "sha256", "std"] }
 anchor-lang = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor", "v2", "poseidon"] }
 light-sdk-types = { workspace = true }

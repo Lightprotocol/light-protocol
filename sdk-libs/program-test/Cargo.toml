@@ -17,7 +17,7 @@ light-indexed-array = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-merkle-tree-metadata = { workspace = true, features = ["anchor"] }
 light-concurrent-merkle-tree = { workspace = true, optional = true }
-light-hasher = { workspace = true, features = ["poseidon"] }
+light-hasher = { workspace = true, features = ["poseidon", "sha256", "keccak", "std"] }
 light-ctoken-types = { workspace = true }
 light-compressible = { workspace = true }
 light-compressed-token-sdk = { workspace = true }

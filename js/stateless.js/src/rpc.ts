@@ -1590,7 +1590,6 @@ export class Rpc extends Connection implements CompressionApiInterface {
         const timeout = isLocalTest(this.rpcEndpoint) ? 10000 : 20000;
         const interval = isLocalTest(this.rpcEndpoint) ? 100 : 200;
         const startTime = Date.now();
-        // eslint-disable-next-line no-constant-condition
         while (true) {
             const indexerSlot = await this.getIndexerSlot();
 

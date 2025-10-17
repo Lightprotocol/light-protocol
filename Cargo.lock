@@ -3691,7 +3691,6 @@ version = "4.0.0"
 dependencies = [
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
- "arrayvec",
  "borsh 0.10.4",
  "light-poseidon 0.3.0",
  "num-bigint 0.4.6",
@@ -3699,10 +3698,10 @@ dependencies = [
  "rand 0.8.5",
  "sha2 0.10.9",
  "sha3",
- "solana-nostd-keccak",
  "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "thiserror 2.0.17",
+ "tinyvec",
  "zerocopy",
 ]
 

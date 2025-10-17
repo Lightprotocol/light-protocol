@@ -16,7 +16,7 @@ quote = { workspace = true }
 syn = { workspace = true }
 solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
 
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, features = ["sha256"] }
 
 [dev-dependencies]
 light-compressed-account = { workspace = true, features = ["std"] }

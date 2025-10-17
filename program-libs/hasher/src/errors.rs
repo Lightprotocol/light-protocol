@@ -29,6 +29,10 @@ pub enum HasherError {
     OptionHashToFieldSizeZero,
     #[error("Poseidon feature is not enabled. Without feature poseidon only syscalls are accessible in target os solana")]
     PoseidonFeatureNotEnabled,
+    #[error("SHA256 feature is not enabled. Enable the sha256 feature to use SHA256 hashing in non-Solana targets")]
+    Sha256FeatureNotEnabled,
+    #[error("Keccak feature is not enabled. Enable the keccak feature to use Keccak hashing in non-Solana targets")]
+    KeccakFeatureNotEnabled,
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand. `num_derive::ToPrimitive`
@@ -47,6 +51,8 @@ impl From<HasherError> for u32 {
             HasherError::BorshError => 7008,
             HasherError::OptionHashToFieldSizeZero => 7009,
             HasherError::PoseidonFeatureNotEnabled => 7010,
+            HasherError::Sha256FeatureNotEnabled => 7011,
+            HasherError::KeccakFeatureNotEnabled => 7012,
         }
     }
 }
