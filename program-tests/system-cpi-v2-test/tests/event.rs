@@ -15,10 +15,6 @@ use light_compressed_account::{
         CompressedAccount, CompressedAccountData, CompressedAccountWithMerkleContext,
         MerkleContext, PackedCompressedAccountWithMerkleContext,
     },
-    indexer_event::event::{
-        BatchNullifyContext, BatchPublicTransactionEvent, MerkleTreeSequenceNumber,
-        MerkleTreeSequenceNumberV1, NewAddress, PublicTransactionEvent,
-    },
     instruction_data::{
         compressed_proof::CompressedProof,
         data::{OutputCompressedAccountWithContext, OutputCompressedAccountWithPackedContext},
@@ -29,6 +25,10 @@ use light_compressed_account::{
     TreeType,
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
+use light_event::event::{
+    BatchNullifyContext, BatchPublicTransactionEvent, MerkleTreeSequenceNumber,
+    MerkleTreeSequenceNumberV1, NewAddress, PublicTransactionEvent,
+};
 use light_program_test::{
     accounts::test_accounts::TestAccounts, LightProgramTest, ProgramTestConfig,
 };

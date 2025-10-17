@@ -7,7 +7,7 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_account::{
-    address::{derive_address, pack_new_address_params},
+    address::derive_address,
     instruction_data::{compressed_proof::CompressedProof, data::NewAddressParams},
 };
 use light_program_test::{accounts::test_accounts::TestAccounts, indexer::TestIndexerExtensions};
@@ -35,8 +35,10 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
         (*input_params.output_compressed_account_merkle_tree_pubkey).into(),
         0,
     );
-    let new_address_params =
-        pack_new_address_params(&[input_params.new_address_params], &mut remaining_accounts);
+    let new_address_params = crate::compressed_account_pack::pack_new_address_params(
+        &[input_params.new_address_params],
+        &mut remaining_accounts,
+    );
 
     let instruction_data = create_address_test_program::instruction::CreateCompressedPda {
         data: input_params.data,

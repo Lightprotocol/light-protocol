@@ -17,7 +17,7 @@ anchor-lang = { workspace = true, optional = true }
 # Light Protocol dependencies
 light-account-checks = { workspace = true }
 light-hasher = { workspace = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
 light-macros = { workspace = true }
 light-zero-copy = { workspace = true }
 solana-msg = { workspace = true }

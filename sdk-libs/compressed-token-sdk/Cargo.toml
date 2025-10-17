@@ -21,7 +21,7 @@ profile-heap = [
 [dependencies]
 # Light Protocol dependencies
 light-compressed-token-types = { workspace = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
 light-ctoken-types = { workspace = true }
 light-sdk = { workspace = true, features = ["v2"] }
 light-macros = { workspace = true }

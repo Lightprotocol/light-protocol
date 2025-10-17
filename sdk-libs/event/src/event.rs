@@ -1,6 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-
-use crate::{
+use light_compressed_account::{
     instruction_data::{
         data::OutputCompressedAccountWithPackedContext,
         insert_into_queues::MerkleTreeSequenceNumber as InstructionDataSequenceNumber,

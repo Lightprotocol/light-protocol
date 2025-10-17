@@ -20,6 +20,6 @@ light-sdk-types = { workspace = true }
 light-zero-copy = { workspace = true }
 borsh = { workspace = true }
 thiserror = { workspace = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
 solana-pubkey = { workspace = true }
 solana-msg = { workspace = true }

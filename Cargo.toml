@@ -24,6 +24,7 @@ members = [
     "anchor-programs/system",
     "sdk-libs/client",
     "sdk-libs/compressed-token-sdk",
+    "sdk-libs/event",
     "sdk-libs/token-client",
     "sdk-libs/macros",
     "sdk-libs/sdk",
@@ -166,6 +167,7 @@ light-indexed-merkle-tree = { version = "3.0.0", path = "program-libs/indexed-me
 light-concurrent-merkle-tree = { version = "3.0.0", path = "program-libs/concurrent-merkle-tree" }
 light-sparse-merkle-tree = { version = "0.2.0", path = "sparse-merkle-tree" }
 light-client = { path = "sdk-libs/client", version = "0.15.0" }
+light-event = { path = "sdk-libs/event", version = "0.1.0" }
 light-hasher = { path = "program-libs/hasher", version = "4.0.0" }
 light-macros = { path = "program-libs/macros", version = "2.1.0" }
 light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "3.0.1" }

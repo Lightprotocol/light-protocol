@@ -56,3 +56,10 @@ pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
     function.block.stmts.insert(len - 1, cleanup_code);
     TokenStream::from(quote! { #function })
 }
+
+/// No-op derive macro that does nothing.
+/// Used as a placeholder for serialization derives when not needed.
+#[proc_macro_derive(Noop)]
+pub fn derive_noop(_input: TokenStream) -> TokenStream {
+    TokenStream::new()
+}

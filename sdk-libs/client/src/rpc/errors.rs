@@ -69,8 +69,8 @@ pub enum RpcError {
     LightSdkError(#[from] LightSdkError),
 }
 
-impl From<light_compressed_account::indexer_event::error::ParseIndexerEventError> for RpcError {
-    fn from(e: light_compressed_account::indexer_event::error::ParseIndexerEventError) -> Self {
+impl From<light_event::error::ParseIndexerEventError> for RpcError {
+    fn from(e: light_event::error::ParseIndexerEventError) -> Self {
         RpcError::CustomError(format!("ParseIndexerEventError: {}", e))
     }
 }

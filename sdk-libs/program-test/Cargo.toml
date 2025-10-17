@@ -23,7 +23,7 @@ light-compressible = { workspace = true }
 light-compressed-token-sdk = { workspace = true }
 light-compressed-account = { workspace = true, features = ["anchor", "poseidon"] }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"], optional = true }
-
+light-event = { workspace = true }
 # unreleased
 light-client = { workspace = true, features = ["program-test"] }
 light-prover-client = { workspace = true }

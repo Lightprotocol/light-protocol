@@ -6,12 +6,10 @@ use std::{
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use bs58;
-use light_compressed_account::{
-    indexer_event::{
-        event::{BatchPublicTransactionEvent, PublicTransactionEvent},
-        parse::event_from_light_transaction,
-    },
-    TreeType,
+use light_compressed_account::TreeType;
+use light_event::{
+    event::{BatchPublicTransactionEvent, PublicTransactionEvent},
+    parse::event_from_light_transaction,
 };
 use solana_account::Account;
 use solana_clock::Slot;

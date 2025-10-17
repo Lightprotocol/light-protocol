@@ -8,11 +8,19 @@ use crate::{
     compressed_account::PackedCompressedAccountWithMerkleContext,
     discriminators::DISCRIMINATOR_INVOKE_CPI,
     instruction_data::{compressed_proof::CompressedProof, traits::LightInstructionData},
-    AnchorDeserialize, AnchorSerialize, CompressedAccountError, InstructionDiscriminator,
+    InstructionDiscriminator, Vec,
 };
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize, ZeroCopyMut)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone, ZeroCopyMut)]
 pub struct InstructionDataInvokeCpi {
     pub proof: Option<CompressedProof>,
     pub new_address_params: Vec<NewAddressParamsPacked>,
@@ -25,18 +33,7 @@ pub struct InstructionDataInvokeCpi {
     pub cpi_context: Option<CompressedCpiContext>,
 }
 
-impl LightInstructionData for InstructionDataInvokeCpi {
-    fn data(&self) -> Result<Vec<u8>, CompressedAccountError> {
-        let inputs = self
-            .try_to_vec()
-            .map_err(|_| CompressedAccountError::InvalidArgument)?;
-        let mut data = Vec::with_capacity(12 + inputs.len());
-        data.extend_from_slice(self.discriminator());
-        data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
-        data.extend_from_slice(inputs.as_slice());
-        Ok(data)
-    }
-}
+impl LightInstructionData for InstructionDataInvokeCpi {}
 
 impl InstructionDataInvokeCpi {
     pub fn new(proof: Option<CompressedProof>) -> Self {

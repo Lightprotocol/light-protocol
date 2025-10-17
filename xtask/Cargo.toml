@@ -15,7 +15,7 @@ light-concurrent-merkle-tree = { workspace = true }
 light-hash-set = { workspace = true }
 light-hasher = { workspace = true, features = ["poseidon"] }
 light-indexed-merkle-tree = { workspace = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
 light-merkle-tree-metadata = { workspace = true }
 num-bigint = { workspace = true }
 rand = { workspace = true }

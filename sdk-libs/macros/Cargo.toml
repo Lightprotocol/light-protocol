@@ -19,7 +19,7 @@ solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
 light-hasher = { workspace = true }
 
 [dev-dependencies]
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
 light-sdk-types = { workspace = true }
 prettyplease = "0.2.29"
 solana-pubkey = { workspace = true, features = ["borsh"] }

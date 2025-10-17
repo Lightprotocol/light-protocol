@@ -1,4 +1,4 @@
-use std::ops::{Deref, DerefMut};
+use core::ops::{Deref, DerefMut};
 
 use light_zero_copy::{errors::ZeroCopyError, slice::ZeroCopySliceBorsh, traits::ZeroCopyAt};
 use zerocopy::{
@@ -28,10 +28,18 @@ use crate::{
         with_readonly::InAccount,
     },
     pubkey::Pubkey,
-    AnchorDeserialize, AnchorSerialize, CompressedAccountError, InstructionDiscriminator,
+    CompressedAccountError, InstructionDiscriminator, Vec,
 };
 
-#[derive(Debug, Default, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct InAccountInfo {
     pub discriminator: [u8; 8],
     /// Data hash
@@ -85,7 +93,15 @@ pub struct ZInAccountInfo {
     pub lamports: U64,
 }
 
-#[derive(Debug, Default, PartialEq, Clone, AnchorSerialize, AnchorDeserialize)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, Default, PartialEq, Clone)]
 pub struct OutAccountInfo {
     pub discriminator: [u8; 8],
     /// Data hash
@@ -310,7 +326,15 @@ impl DerefMut for ZOutAccountInfoMut<'_> {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Default, AnchorSerialize, AnchorDeserialize)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Clone, Default)]
 pub struct CompressedAccountInfo {
     /// Address.
     pub address: Option<[u8; 32]>,
@@ -351,7 +375,15 @@ impl<'a> CompressedAccountInfo {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct InstructionDataInvokeCpiWithAccountInfo {
     /// 0 V1 instruction accounts.
     /// 1 Optimized V2 instruction accounts.

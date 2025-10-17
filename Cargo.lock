@@ -3436,6 +3436,7 @@ dependencies = [
  "lazy_static",
  "light-compressed-account",
  "light-concurrent-merkle-tree",
+ "light-event",
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-merkle-tree-metadata",
@@ -3492,6 +3493,7 @@ dependencies = [
  "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "thiserror 2.0.17",
+ "tinyvec",
  "zerocopy",
 ]
 
@@ -3655,6 +3657,18 @@ dependencies = [
  "thiserror 2.0.17",
  "tinyvec",
  "zerocopy",
+]
+
+[[package]]
+name = "light-event"
+version = "0.1.0"
+dependencies = [
+ "borsh 0.10.4",
+ "light-compressed-account",
+ "light-hasher",
+ "light-zero-copy",
+ "rand 0.8.5",
+ "thiserror 2.0.17",
 ]
 
 [[package]]
@@ -3829,6 +3843,7 @@ dependencies = [
  "light-compressible",
  "light-concurrent-merkle-tree",
  "light-ctoken-types",
+ "light-event",
  "light-hasher",
  "light-indexed-array",
  "light-indexed-merkle-tree",
@@ -4053,6 +4068,7 @@ dependencies = [
  "light-compressible",
  "light-concurrent-merkle-tree",
  "light-ctoken-types",
+ "light-event",
  "light-hasher",
  "light-indexed-array",
  "light-indexed-merkle-tree",
@@ -9912,6 +9928,7 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressed-token",
+ "light-event",
  "light-hasher",
  "light-merkle-tree-metadata",
  "light-program-test",

@@ -18,7 +18,7 @@ solana-pubkey = { workspace = true }
 solana-account-info = { workspace = true }
 solana-program-error = { workspace = true, optional = true }
 light-zero-copy = { workspace = true, features = ["derive", "mut"] }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
 light-hasher = { workspace = true }
 light-array-map = { workspace = true }
 tinyvec = { workspace = true }

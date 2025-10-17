@@ -1,6 +1,14 @@
 #![allow(unexpected_cfgs)]
+#![cfg_attr(not(feature = "std"), no_std)]
 
-use std::fmt::Display;
+#[cfg(not(feature = "std"))]
+extern crate alloc;
+
+#[cfg(not(feature = "std"))]
+pub use alloc::{vec, vec::Vec};
+use core::fmt::Display;
+#[cfg(feature = "std")]
+pub use std::{vec, vec::Vec};
 
 use light_hasher::HasherError;
 use thiserror::Error;
@@ -10,18 +18,10 @@ pub mod compressed_account;
 pub mod constants;
 pub mod discriminators;
 pub use light_hasher::hash_chain;
-#[cfg(feature = "poseidon")]
-pub mod indexer_event;
 pub mod instruction_data;
 pub mod nullifier;
 pub mod pubkey;
 pub mod tx_hash;
-
-// Re-export Pubkey type
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 pub use instruction_data::traits::{InstructionDiscriminator, LightInstructionData};
 pub use light_hasher::{
     bigint::bigint_to_be_bytes_array,
@@ -127,7 +127,15 @@ pub const INPUT_STATE_QUEUE_TYPE_V2: u64 = 3;
 pub const ADDRESS_QUEUE_TYPE_V2: u64 = 4;
 pub const OUTPUT_STATE_QUEUE_TYPE_V2: u64 = 5;
 
-#[derive(AnchorDeserialize, AnchorSerialize, Debug, PartialEq, Clone, Copy)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 #[repr(u64)]
 pub enum QueueType {
     NullifierV1 = NULLIFIER_QUEUE_TYPE_V1,
@@ -155,10 +163,16 @@ pub const ADDRESS_MERKLE_TREE_TYPE_V1: u64 = 2;
 pub const STATE_MERKLE_TREE_TYPE_V2: u64 = 3;
 pub const ADDRESS_MERKLE_TREE_TYPE_V2: u64 = 4;
 
-#[repr(u64)]
-#[derive(
-    Debug, Ord, PartialEq, PartialOrd, Eq, Clone, Copy, AnchorSerialize, AnchorDeserialize,
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
 )]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, Ord, PartialEq, PartialOrd, Eq, Clone, Copy)]
+#[repr(u64)]
 pub enum TreeType {
     StateV1 = STATE_MERKLE_TREE_TYPE_V1,
     AddressV1 = ADDRESS_MERKLE_TREE_TYPE_V1,
@@ -167,7 +181,7 @@ pub enum TreeType {
 }
 
 impl Display for TreeType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         match self {
             TreeType::StateV1 => write!(f, "StateV1"),
             TreeType::AddressV1 => write!(f, "AddressV1"),

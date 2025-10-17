@@ -7,8 +7,15 @@ use light_zero_copy::{
 };
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 
-use crate::{AnchorDeserialize, AnchorSerialize};
 #[cfg(feature = "bytemuck-des")]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
 #[derive(
     Pod,
     Zeroable,
@@ -22,8 +29,6 @@ use crate::{AnchorDeserialize, AnchorSerialize};
     FromBytes,
     IntoBytes,
     KnownLayout,
-    AnchorDeserialize,
-    AnchorSerialize,
     Default,
     Unaligned,
 )]
@@ -31,6 +36,14 @@ use crate::{AnchorDeserialize, AnchorSerialize};
 pub struct Pubkey(pub(crate) [u8; 32]);
 
 #[cfg(not(feature = "bytemuck-des"))]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
 #[derive(
     Debug,
     Copy,
@@ -42,8 +55,6 @@ pub struct Pubkey(pub(crate) [u8; 32]);
     FromBytes,
     IntoBytes,
     KnownLayout,
-    AnchorDeserialize,
-    AnchorSerialize,
     Default,
     Unaligned,
 )]

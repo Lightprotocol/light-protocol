@@ -1,4 +1,4 @@
-use std::{mem::size_of, ops::Deref};
+use core::{mem::size_of, ops::Deref};
 
 use light_zero_copy::{errors::ZeroCopyError, slice::ZeroCopySliceBorsh, traits::ZeroCopyAt};
 use zerocopy::{
@@ -20,7 +20,7 @@ use crate::{
         data::OutputCompressedAccountWithPackedContext,
     },
     pubkey::Pubkey,
-    CompressedAccountError,
+    CompressedAccountError, Vec,
 };
 
 #[repr(C)]
@@ -753,7 +753,7 @@ impl From<&ZInstructionDataInvokeCpi<'_>> for InstructionDataInvokeCpi {
     fn from(data: &ZInstructionDataInvokeCpi<'_>) -> Self {
         Self {
             proof: None,
-            new_address_params: vec![],
+            new_address_params: crate::vec![],
             input_compressed_accounts_with_merkle_context: data
                 .input_compressed_accounts_with_merkle_context
                 .iter()
