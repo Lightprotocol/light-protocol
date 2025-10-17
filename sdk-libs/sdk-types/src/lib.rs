@@ -1,3 +1,8 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
 pub mod address;
 pub mod constants;
 pub mod cpi_accounts;

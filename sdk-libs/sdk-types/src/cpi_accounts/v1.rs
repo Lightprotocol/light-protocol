@@ -1,3 +1,5 @@
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use light_account_checks::AccountInfoTrait;
 
 use crate::{
@@ -88,6 +90,7 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
             let cpi_context = res.cpi_context()?;
             let discriminator_bytes = &cpi_context.try_borrow_data()?[..8];
             if discriminator_bytes != CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR.as_slice() {
+                #[cfg(feature = "std")]
                 solana_msg::msg!("Invalid CPI context account: {:?}", cpi_context.pubkey());
                 return Err(LightSdkTypesError::InvalidCpiContextAccount);
             }

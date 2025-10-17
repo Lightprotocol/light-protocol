@@ -3970,10 +3970,7 @@ dependencies = [
  "light-macros",
  "light-sdk-macros",
  "light-sdk-types",
- "light-zero-copy",
  "pinocchio",
- "solana-msg 2.2.1",
- "solana-pubkey 2.4.0",
  "thiserror 2.0.17",
 ]
 
@@ -3987,7 +3984,6 @@ dependencies = [
  "light-compressed-account",
  "light-hasher",
  "light-macros",
- "light-zero-copy",
  "solana-msg 2.2.1",
  "solana-pubkey 2.4.0",
  "thiserror 2.0.17",

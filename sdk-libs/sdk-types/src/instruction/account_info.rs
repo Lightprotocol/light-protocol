@@ -1,3 +1,5 @@
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use light_compressed_account::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,

@@ -1,3 +1,5 @@
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use light_account_checks::AccountInfoTrait;
 
 #[cfg(feature = "cpi-context")]
@@ -38,7 +40,7 @@ impl<'a, T: AccountInfoTrait + Clone> TryFrom<&CpiAccounts<'a, T>>
 {
     type Error = LightSdkTypesError;
 
-    fn try_from(value: &CpiAccounts<'a, T>) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: &CpiAccounts<'a, T>) -> core::result::Result<Self, Self::Error> {
         Ok(Self {
             fee_payer: value.fee_payer,
             authority: value.authority()?,

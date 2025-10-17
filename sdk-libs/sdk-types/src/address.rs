@@ -15,6 +15,8 @@ impl From<AddressSeed> for [u8; 32] {
 
 pub type CompressedAddress = [u8; 32];
 pub mod v1 {
+    #[cfg(feature = "alloc")]
+    use alloc::vec::Vec;
     use light_hasher::{hash_to_field_size::hashv_to_bn254_field_size_be, Hasher, Keccak};
 
     use super::AddressSeed;
