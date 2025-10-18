@@ -48,7 +48,8 @@ pub mod v1 {
     }
 
     fn hashv_to_bn254_field_size_be_legacy(bytes: &[&[u8]]) -> [u8; 32] {
-        let mut hashed_value: [u8; 32] = Keccak::hashv(bytes).unwrap();
+        let mut hashed_value: [u8; 32] = Keccak::hashv(bytes)
+            .expect("Keccak::hashv should be infallible when keccak feature is enabled");
         // Truncates to 31 bytes so that value is less than bn254 Fr modulo
         // field size.
         hashed_value[0] = 0;

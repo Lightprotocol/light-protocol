@@ -50,4 +50,5 @@ light-zero-copy = { workspace = true }
 [dev-dependencies]
 num-bigint = { workspace = true }
 light-compressed-account = { workspace = true, features = ["new-unique"] }
+light-hasher = { workspace = true, features = ["keccak"] }
 anchor-lang = { workspace = true }

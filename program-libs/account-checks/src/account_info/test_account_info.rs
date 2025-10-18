@@ -2,6 +2,9 @@
 
 #[cfg(feature = "pinocchio")]
 pub mod pinocchio {
+    extern crate std;
+    use std::vec::Vec;
+
     use pinocchio::{account_info::AccountInfo, instruction::Account, pubkey::Pubkey};
     use rand::{prelude::Rng, thread_rng};
 

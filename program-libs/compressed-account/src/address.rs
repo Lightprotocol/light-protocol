@@ -7,8 +7,7 @@ pub fn derive_address_legacy(
     seed: &[u8; 32],
 ) -> Result<[u8; 32], CompressedAccountError> {
     let slices = [merkle_tree_pubkey.as_ref(), seed.as_ref()];
-    let hash = hashv_to_bn254_field_size_be_const_array::<3>(&slices)
-        .expect("hashv_to_bn254_field_size_be_const_array::<3> should be infallible for Keccak");
+    let hash = hashv_to_bn254_field_size_be_const_array::<3>(&slices)?;
     Ok(hash)
 }
 
@@ -22,5 +21,6 @@ pub fn derive_address(
         merkle_tree_pubkey.as_slice(),
         program_id_bytes.as_slice(),
     ];
-    hashv_to_bn254_field_size_be_const_array::<4>(&slices).unwrap()
+    hashv_to_bn254_field_size_be_const_array::<4>(&slices)
+        .expect("hashv_to_bn254_field_size_be_const_array::<4> should be infallible for Keccak")
 }

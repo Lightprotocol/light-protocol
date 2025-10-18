@@ -6,11 +6,13 @@ use std::vec::Vec;
 #[cfg(feature = "alloc")]
 use light_compressed_account::compressed_account::PackedCompressedAccountWithMerkleContext;
 use light_compressed_account::{
-    compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
-    instruction_data::{
-        data::OutputCompressedAccountWithPackedContext,
-        with_account_info::{CompressedAccountInfo, InAccountInfo},
-    },
+    compressed_account::PackedMerkleContext,
+    instruction_data::with_account_info::{CompressedAccountInfo, InAccountInfo},
+};
+#[cfg(feature = "alloc")]
+use light_compressed_account::{
+    compressed_account::{CompressedAccount, CompressedAccountData},
+    instruction_data::data::OutputCompressedAccountWithPackedContext,
     Pubkey,
 };
 
