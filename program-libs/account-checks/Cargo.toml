@@ -16,7 +16,7 @@ solana = [
     "solana-pubkey",
 ]
 pinocchio = ["dep:pinocchio"]
-test-only = ["dep:rand"]
+test-only = ["dep:rand", "std"]
 
 [dependencies]
 solana-sysvar = { workspace = true, optional = true, features = ["bincode"] }

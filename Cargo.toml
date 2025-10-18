@@ -122,11 +122,11 @@ pinocchio-system = { version = "0.3.0" }
 bs58 = "^0.5.1"
 litesvm = "0.7"
 # Anchor
-anchor-lang = { version = "=0.31.1" }
-anchor-spl = "=0.31.1"
+anchor-lang = { version = "0.31.1" }
+anchor-spl = "0.31.1"
 
 # Anchor compatibility
-borsh = "0.10.0"
+borsh = { version = "0.10.4", default-features = false }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -182,7 +182,7 @@ light-compressible = { path = "program-libs/compressible", version = "0.1.0" }
 light-ctoken-types = { path = "program-libs/ctoken-types", version = "0.1.0" }
 light-account-checks = { path = "program-libs/account-checks", version = "0.4.0", default-features = false }
 light-verifier = { path = "program-libs/verifier", version = "4.0.0" }
-light-zero-copy = { path = "program-libs/zero-copy", version = "0.4.0" }
+light-zero-copy = { path = "program-libs/zero-copy", version = "0.4.0", default-features = false }
 light-zero-copy-derive = { path = "program-libs/zero-copy-derive", version = "0.4.0" }
 photon-api = { path = "sdk-libs/photon-api", version = "0.52.0" }
 forester-utils = { path = "forester-utils", version = "2.0.0" }

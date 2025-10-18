@@ -1,10 +1,9 @@
 use core::fmt::Debug;
 
-#[cfg(feature = "std")]
-#[cfg(feature = "anchor")]
+#[cfg(all(feature = "std", feature = "anchor"))]
 use anchor_lang::AnchorSerialize;
 #[allow(unused_imports)]
-#[cfg(not(feature = "anchor"))]
+#[cfg(not(all(feature = "std", feature = "anchor")))]
 use borsh::BorshSerialize as AnchorSerialize;
 use light_program_profiler::profile;
 use tinyvec::ArrayVec;
