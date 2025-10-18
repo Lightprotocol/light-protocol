@@ -36,7 +36,7 @@ pub enum BatchedMerkleTreeError {
     #[cfg(feature = "pinocchio")]
     #[error("Program error {0}")]
     ProgramError(u64),
-    #[cfg(not(feature = "pinocchio"))]
+    #[cfg(all(feature = "solana", not(feature = "pinocchio")))]
     #[error("Program error {0}")]
     ProgramError(#[from] solana_program_error::ProgramError),
     #[error("Verifier error {0}")]
@@ -76,6 +76,7 @@ impl From<BatchedMerkleTreeError> for u32 {
             BatchedMerkleTreeError::BloomFilter(e) => e.into(),
             BatchedMerkleTreeError::VerifierErrorError(e) => e.into(),
             BatchedMerkleTreeError::CompressedAccountError(e) => e.into(),
+            #[cfg(any(feature = "pinocchio", feature = "solana"))]
             #[allow(clippy::useless_conversion)]
             BatchedMerkleTreeError::ProgramError(e) => u32::try_from(u64::from(e)).unwrap(),
             BatchedMerkleTreeError::AccountError(e) => e.into(),

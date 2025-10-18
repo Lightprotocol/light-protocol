@@ -1,4 +1,4 @@
-use std::{mem::size_of, ops::Deref};
+use core::{mem::size_of, ops::Deref};
 
 use light_zero_copy::{errors::ZeroCopyError, slice::ZeroCopySliceBorsh, traits::ZeroCopyAt};
 use zerocopy::{
@@ -20,7 +20,7 @@ use crate::{
         data::OutputCompressedAccountWithPackedContext,
     },
     pubkey::Pubkey,
-    CompressedAccountError,
+    CompressedAccountError, Vec,
 };
 
 #[repr(C)]
@@ -225,7 +225,11 @@ impl<'a> ZeroCopyAt<'a> for ZCompressedAccountData<'a> {
     ) -> Result<(ZCompressedAccountData<'a>, &'a [u8]), ZeroCopyError> {
         let (discriminator, bytes) = Ref::<&'a [u8], [u8; 8]>::from_prefix(bytes)?;
         let (len, bytes) = Ref::<&'a [u8], U32>::from_prefix(bytes)?;
-        let (data, bytes) = bytes.split_at(u64::from(*len) as usize);
+        let data_len = u64::from(*len) as usize;
+        if bytes.len() < data_len {
+            return Err(ZeroCopyError::InvalidConversion);
+        }
+        let (data, bytes) = bytes.split_at(data_len);
         let (data_hash, bytes) = Ref::<&'a [u8], [u8; 32]>::from_prefix(bytes)?;
 
         Ok((
@@ -753,7 +757,7 @@ impl From<&ZInstructionDataInvokeCpi<'_>> for InstructionDataInvokeCpi {
     fn from(data: &ZInstructionDataInvokeCpi<'_>) -> Self {
         Self {
             proof: None,
-            new_address_params: vec![],
+            new_address_params: crate::vec![],
             input_compressed_accounts_with_merkle_context: data
                 .input_compressed_accounts_with_merkle_context
                 .iter()

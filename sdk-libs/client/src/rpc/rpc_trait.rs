@@ -2,9 +2,7 @@ use std::fmt::Debug;
 
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
-use light_compressed_account::indexer_event::event::{
-    BatchPublicTransactionEvent, PublicTransactionEvent,
-};
+use light_event::event::{BatchPublicTransactionEvent, PublicTransactionEvent};
 use solana_account::Account;
 use solana_clock::Slot;
 use solana_commitment_config::CommitmentConfig;

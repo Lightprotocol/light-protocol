@@ -2952,7 +2952,6 @@ pub mod local_sdk {
             CompressedAccountWithMerkleContext, MerkleContext,
             PackedCompressedAccountWithMerkleContext, ReadOnlyCompressedAccount,
         },
-        indexer_event::event::BatchPublicTransactionEvent,
         instruction_data::{
             compressed_proof::CompressedProof,
             cpi_context::CompressedCpiContext,
@@ -2962,6 +2961,7 @@ pub mod local_sdk {
         },
     };
     use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
+    use light_event::event::BatchPublicTransactionEvent;
     use light_program_test::indexer::TestIndexerExtensions;
     use light_sdk::{
         address::{NewAddressParamsAssigned, ReadOnlyAddress},

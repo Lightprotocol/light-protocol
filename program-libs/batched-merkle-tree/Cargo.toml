@@ -50,7 +50,7 @@ light-merkle-tree-metadata = { workspace = true }
 borsh = { workspace = true }
 zerocopy = { workspace = true }
 pinocchio = { workspace = true, optional = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
 light-macros = { workspace = true }
 
 [dev-dependencies]

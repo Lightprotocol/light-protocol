@@ -1,5 +1,6 @@
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use core::mem::size_of;
-use std::vec::Vec;
 
 use zerocopy::{
     little_endian::{I16, I32, I64, U16, U32, U64},
@@ -113,6 +114,7 @@ impl<'a, T: KnownLayout + Immutable + FromBytes, const N: usize> ZeroCopyAt<'a> 
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<'a, T: ZeroCopyAt<'a>> ZeroCopyAt<'a> for Vec<T> {
     type ZeroCopyAt = Vec<T::ZeroCopyAt>;
     #[inline]

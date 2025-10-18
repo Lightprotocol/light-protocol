@@ -8,7 +8,6 @@ use account_compression::{
 };
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_compressed_account::{
-    address::{pack_new_address_params, pack_read_only_accounts, pack_read_only_address_params},
     compressed_account::{
         CompressedAccountWithMerkleContext, PackedCompressedAccountWithMerkleContext,
         ReadOnlyCompressedAccount,
@@ -22,7 +21,13 @@ use light_compressed_token::{
     get_token_pool_pda, process_transfer::transfer_sdk::to_account_metas,
 };
 use light_system_program::utils::get_registered_program_pda;
-use light_test_utils::e2e_test_env::to_account_metas_light;
+use light_test_utils::{
+    compressed_account_pack::{
+        pack_compressed_account, pack_new_address_params, pack_read_only_accounts,
+        pack_read_only_address_params,
+    },
+    e2e_test_env::to_account_metas_light,
+};
 use solana_sdk::{instruction::Instruction, pubkey::Pubkey};
 
 use crate::CreatePdaMode;
@@ -76,7 +81,8 @@ pub fn create_pda_instruction(input_params: CreateCompressedPdaInstructionInputs
                 .iter()
                 .enumerate()
                 .map(|(i, x)| {
-                    x.pack(
+                    pack_compressed_account(
+                        x,
                         input_params.state_roots.as_ref().unwrap()[i],
                         &mut remaining_accounts,
                     )

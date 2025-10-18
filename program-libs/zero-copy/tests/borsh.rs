@@ -285,13 +285,13 @@ pub struct ArrayStruct {
 }
 
 #[test]
-fn test_array_struct() -> Result<(), Box<dyn std::error::Error>> {
+fn test_array_struct() {
     let array_struct = ArrayStruct {
         a: [1u8; 32],
         b: [2u8; 64],
         c: [3u8; 32],
     };
-    let bytes = array_struct.try_to_vec()?;
+    let bytes = array_struct.try_to_vec().unwrap();
 
     let (zero_copy, remaining) = ArrayStruct::zero_copy_at(&bytes).unwrap();
     assert_eq!(zero_copy.a, [1u8; 32]);
@@ -299,7 +299,6 @@ fn test_array_struct() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(zero_copy.c, [3u8; 32]);
     assert_eq!(zero_copy, array_struct);
     assert_eq!(remaining, &[]);
-    Ok(())
 }
 
 #[repr(C)]

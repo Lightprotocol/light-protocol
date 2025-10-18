@@ -1,16 +1,19 @@
 use light_zero_copy::ZeroCopyMut;
 
-use crate::{
-    instruction_data::{
-        zero_copy::ZCompressedCpiContext, zero_copy_set::CompressedCpiContextTrait,
-    },
-    AnchorDeserialize, AnchorSerialize,
+use crate::instruction_data::{
+    zero_copy::ZCompressedCpiContext, zero_copy_set::CompressedCpiContextTrait,
 };
 
 #[repr(C)]
-#[derive(
-    AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy, PartialEq, Eq, Default, ZeroCopyMut,
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
 )]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, ZeroCopyMut)]
 pub struct CompressedCpiContext {
     /// Is set by the program that is invoking the CPI to signal that is should
     /// set the cpi context.

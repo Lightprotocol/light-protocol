@@ -2,6 +2,9 @@
 
 #[cfg(feature = "pinocchio")]
 pub mod pinocchio {
+    extern crate std;
+    use std::vec::Vec;
+
     use pinocchio::{account_info::AccountInfo, instruction::Account, pubkey::Pubkey};
     use rand::{prelude::Rng, thread_rng};
 
@@ -58,10 +61,10 @@ pub mod pinocchio {
         account_info_raw[0..8].copy_from_slice(&(account_ptr as u64).to_le_bytes());
 
         // Need to leak the memory so it doesn't get dropped while the AccountInfo is still using it
-        std::mem::forget(raw_data);
-        std::mem::forget(account_info_raw);
+        core::mem::forget(raw_data);
+        core::mem::forget(account_info_raw);
 
-        unsafe { std::mem::transmute::<*mut Account, AccountInfo>(account_ptr) }
+        unsafe { core::mem::transmute::<*mut Account, AccountInfo>(account_ptr) }
     }
 
     #[test]
@@ -103,9 +106,10 @@ pub mod pinocchio {
     }
 }
 
-#[cfg(feature = "solana")]
+#[cfg(all(feature = "solana", feature = "std"))]
 pub mod solana_program {
-    use std::{cell::RefCell, rc::Rc};
+    extern crate std;
+    use std::{cell::RefCell, rc::Rc, vec, vec::Vec};
 
     use solana_account_info::AccountInfo;
     use solana_pubkey::Pubkey;

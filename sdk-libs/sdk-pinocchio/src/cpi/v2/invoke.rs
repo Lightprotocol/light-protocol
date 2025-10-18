@@ -11,10 +11,7 @@ pub use light_compressed_account::instruction_data::{
 };
 use light_sdk_types::CpiSigner;
 
-use crate::{
-    account::LightAccount, cpi::LightCpiInstruction, error::LightSdkError, BorshDeserialize,
-    BorshSerialize, LightDiscriminator,
-};
+use crate::cpi::LightCpiInstruction;
 
 impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
     fn new_cpi(cpi_signer: CpiSigner, proof: ValidityProof) -> Self {
@@ -27,16 +24,22 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
         }
     }
 
-    fn with_light_account<A>(mut self, account: LightAccount<'_, A>) -> Result<Self, LightSdkError>
+    #[cfg(feature = "light-account")]
+    fn with_light_account<A>(
+        mut self,
+        account: crate::LightAccount<'_, A>,
+    ) -> Result<Self, pinocchio::program_error::ProgramError>
     where
-        A: BorshSerialize
-            + BorshDeserialize
-            + LightDiscriminator
+        A: crate::BorshSerialize
+            + crate::BorshDeserialize
+            + crate::LightDiscriminator
             + light_hasher::DataHasher
             + Default,
     {
         // Convert LightAccount to instruction data format
-        let account_info = account.to_account_info()?;
+        let account_info = account
+            .to_account_info()
+            .map_err(|e| pinocchio::program_error::ProgramError::Custom(u64::from(e) as u32))?;
 
         // Handle input accounts
         if let Some(input) = account_info.input.as_ref() {
@@ -92,16 +95,24 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
         }
     }
 
-    fn with_light_account<A>(mut self, account: LightAccount<'_, A>) -> Result<Self, LightSdkError>
+    #[cfg(feature = "light-account")]
+    fn with_light_account<A>(
+        mut self,
+        account: crate::LightAccount<'_, A>,
+    ) -> Result<Self, pinocchio::program_error::ProgramError>
     where
-        A: BorshSerialize
-            + BorshDeserialize
-            + LightDiscriminator
+        A: crate::BorshSerialize
+            + borsh::BorshDeserialize
+            + crate::LightDiscriminator
             + light_hasher::DataHasher
             + Default,
     {
         // Convert LightAccount to instruction data format
-        let account_info = account.to_account_info()?;
+
+        use pinocchio::program_error::ProgramError;
+        let account_info = account
+            .to_account_info()
+            .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
         self.account_infos.push(account_info);
         Ok(self)
     }

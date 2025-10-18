@@ -1,3 +1,8 @@
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+extern crate alloc;
+
 pub mod address;
 pub mod constants;
 pub mod cpi_accounts;
@@ -12,11 +17,4 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 pub use constants::*;
-
-/// Configuration struct containing program ID, CPI signer, and bump for Light Protocol
-#[derive(Debug, Clone, Copy, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
-pub struct CpiSigner {
-    pub program_id: [u8; 32],
-    pub cpi_signer: [u8; 32],
-    pub bump: u8,
-}
+pub use light_compressed_account::CpiSigner;

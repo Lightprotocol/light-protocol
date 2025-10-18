@@ -1,0 +1,17 @@
+[package]
+name = "light-event"
+version = "0.1.0"
+description = "Event types and utilities for Light Protocol"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+
+[dependencies]
+borsh = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
+light-hasher = { workspace = true, features = ["poseidon"] }
+light-zero-copy = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+rand = { workspace = true }

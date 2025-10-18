@@ -20,9 +20,9 @@ test-sbf = []
 default = []
 
 [dependencies]
-light-sdk-pinocchio = { workspace = true }
+light-sdk-pinocchio = { workspace = true, features = ["light-account"] }
 light-sdk-types = { workspace = true }
-light-hasher = { workspace = true, features = ["poseidon"] }
+light-hasher = { workspace = true, features = ["poseidon", "sha256"] }
 pinocchio = { workspace = true }
 light-macros = { workspace = true }
 borsh = { workspace = true }

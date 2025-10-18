@@ -1,10 +1,8 @@
 use anchor_lang::AnchorSerialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_compressed_account::{
-    compressed_account::CompressedAccountWithMerkleContext,
-    indexer_event::event::PublicTransactionEvent,
-};
+use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_compressed_token::process_transfer::{get_cpi_authority_pda, TokenTransferOutputData};
+use light_event::event::PublicTransactionEvent;
 use light_program_test::indexer::TestIndexerExtensions;
 use light_sdk::token::TokenDataWithMerkleContext;
 use solana_sdk::{program_pack::Pack, pubkey::Pubkey};

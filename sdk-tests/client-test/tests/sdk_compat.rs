@@ -1,7 +1,6 @@
 use light_hasher::HasherError;
 use light_sdk::error::LightSdkError as SolanaLightSdkError;
 use light_sdk_pinocchio::error::LightSdkError as PinocchioLightSdkError;
-use light_zero_copy::errors::ZeroCopyError;
 
 fn generate_all_solana_errors() -> Vec<SolanaLightSdkError> {
     vec![
@@ -36,7 +35,6 @@ fn generate_all_solana_errors() -> Vec<SolanaLightSdkError> {
         SolanaLightSdkError::MetaCloseInputIsNone,
         SolanaLightSdkError::CpiAccountsIndexOutOfBounds(1),
         SolanaLightSdkError::Hasher(HasherError::IntegerOverflow),
-        SolanaLightSdkError::ZeroCopy(ZeroCopyError::Full),
     ]
 }
 
@@ -73,7 +71,6 @@ fn generate_all_pinocchio_errors() -> Vec<PinocchioLightSdkError> {
         PinocchioLightSdkError::MetaCloseInputIsNone,
         PinocchioLightSdkError::CpiAccountsIndexOutOfBounds(1),
         PinocchioLightSdkError::Hasher(HasherError::IntegerOverflow),
-        PinocchioLightSdkError::ZeroCopy(ZeroCopyError::Full),
     ]
 }
 

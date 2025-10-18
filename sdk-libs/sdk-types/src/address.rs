@@ -15,7 +15,9 @@ impl From<AddressSeed> for [u8; 32] {
 
 pub type CompressedAddress = [u8; 32];
 pub mod v1 {
-    use light_hasher::{hash_to_field_size::hashv_to_bn254_field_size_be, Hasher, Keccak};
+    use light_hasher::{
+        hash_to_field_size::hashv_to_bn254_field_size_be_const_array, Hasher, Keccak,
+    };
 
     use super::AddressSeed;
 
@@ -33,18 +35,21 @@ pub mod v1 {
     /// );
     /// ```
     pub fn derive_address_seed(seeds: &[&[u8]], program_id: &[u8; 32]) -> AddressSeed {
-        let mut inputs = Vec::with_capacity(seeds.len() + 1);
+        let mut inputs: [&[u8]; 16] = [&[]; 16];
 
-        inputs.push(program_id.as_slice());
+        inputs[0] = program_id.as_slice();
 
-        inputs.extend(seeds);
+        for (i, seed) in seeds.iter().enumerate() {
+            inputs[i + 1] = seed;
+        }
 
         let seed = hashv_to_bn254_field_size_be_legacy(inputs.as_slice());
         AddressSeed(seed)
     }
 
     fn hashv_to_bn254_field_size_be_legacy(bytes: &[&[u8]]) -> [u8; 32] {
-        let mut hashed_value: [u8; 32] = Keccak::hashv(bytes).unwrap();
+        let mut hashed_value: [u8; 32] = Keccak::hashv(bytes)
+            .expect("Keccak::hashv should be infallible when keccak feature is enabled");
         // Truncates to 31 bytes so that value is less than bn254 Fr modulo
         // field size.
         hashed_value[0] = 0;
@@ -58,7 +63,7 @@ pub mod v1 {
         address_tree_pubkey: &[u8; 32],
     ) -> [u8; 32] {
         let input = [address_tree_pubkey.as_slice(), address_seed.0.as_slice()];
-        hashv_to_bn254_field_size_be(input.as_slice())
+        hashv_to_bn254_field_size_be_const_array::<3>(input.as_slice()).unwrap()
     }
 
     /// Derives an address from provided seeds. Returns that address and a singular
@@ -92,7 +97,7 @@ pub mod v1 {
 }
 
 pub mod v2 {
-    use light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be;
+    use light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array;
 
     use super::AddressSeed;
 
@@ -109,7 +114,8 @@ pub mod v2 {
     /// );
     /// ```
     pub fn derive_address_seed(seeds: &[&[u8]]) -> AddressSeed {
-        AddressSeed(hashv_to_bn254_field_size_be(seeds))
+        // Max 16 seeds + 1 for bump
+        AddressSeed(hashv_to_bn254_field_size_be_const_array::<17>(seeds).unwrap())
     }
 
     /// Derives an address for a compressed account, based on the provided singular

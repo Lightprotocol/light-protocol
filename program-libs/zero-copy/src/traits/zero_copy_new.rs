@@ -1,5 +1,6 @@
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use core::mem::size_of;
-use std::vec::Vec;
 
 use crate::{errors::ZeroCopyError, traits::ZeroCopyAtMut};
 
@@ -234,6 +235,7 @@ impl<'a> ZeroCopyNew<'a> for zerocopy::little_endian::U64 {
 }
 
 // Implementation for Vec<T>
+#[cfg(feature = "alloc")]
 impl<'a, T: ZeroCopyNew<'a>> ZeroCopyNew<'a> for Vec<T> {
     type ZeroCopyConfig = Vec<T::ZeroCopyConfig>; // Vector of configs for each item
     type Output = Vec<T::Output>;

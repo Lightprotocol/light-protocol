@@ -9,13 +9,14 @@ edition = "2021"
 [features]
 default = ["solana"]
 solana = []
-pinocchio = []
+pinocchio = []  # No-op feature for backward compatibility
 
 [dependencies]
 bs58 = "0.5"
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
 syn = { workspace = true }
+solana-pubkey = { workspace = true, features = ["sha2", "curve25519"] }
 
 [lib]
 proc-macro = true

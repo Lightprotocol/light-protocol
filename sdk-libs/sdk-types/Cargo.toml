@@ -7,6 +7,10 @@ repository = "https://github.com/lightprotocol/light-protocol"
 description = "Core types for Light Protocol SDK"
 
 [features]
+default = ["std"]
+std = ["alloc", "light-compressed-account/std", "solana-msg"]
+alloc = ["light-compressed-account/alloc"]
+keccak = ["light-hasher/keccak"]
 anchor = ["anchor-lang", "light-compressed-account/anchor"]
 v2 = []
 cpi-context = []
@@ -19,8 +23,7 @@ light-account-checks = { workspace = true }
 light-hasher = { workspace = true }
 light-compressed-account = { workspace = true }
 light-macros = { workspace = true }
-light-zero-copy = { workspace = true }
-solana-msg = { workspace = true }
+solana-msg = { workspace = true, optional = true }
 
 # External dependencies
 borsh = { workspace = true }

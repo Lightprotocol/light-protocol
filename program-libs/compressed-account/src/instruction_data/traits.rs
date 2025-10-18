@@ -1,6 +1,12 @@
-use std::fmt::Debug;
+use core::fmt::Debug;
 
+#[cfg(all(feature = "std", feature = "anchor"))]
+use anchor_lang::AnchorSerialize;
+#[allow(unused_imports)]
+#[cfg(not(all(feature = "std", feature = "anchor")))]
+use borsh::BorshSerialize as AnchorSerialize;
 use light_program_profiler::profile;
+use tinyvec::ArrayVec;
 use zerocopy::Ref;
 
 use super::{
@@ -8,24 +14,32 @@ use super::{
     cpi_context::CompressedCpiContext,
     zero_copy::{ZPackedMerkleContext, ZPackedReadOnlyAddress, ZPackedReadOnlyCompressedAccount},
 };
-use crate::{
-    compressed_account::CompressedAccountData, pubkey::Pubkey, AnchorSerialize,
-    CompressedAccountError,
-};
+use crate::{compressed_account::CompressedAccountData, pubkey::Pubkey, CompressedAccountError};
 
 pub trait InstructionDiscriminator {
     fn discriminator(&self) -> &'static [u8];
 }
 
 pub trait LightInstructionData: InstructionDiscriminator + AnchorSerialize {
+    #[cfg(feature = "alloc")]
     #[profile]
-    fn data(&self) -> Result<Vec<u8>, CompressedAccountError> {
-        let inputs = self
-            .try_to_vec()
+    fn data(&self) -> Result<crate::Vec<u8>, CompressedAccountError> {
+        let inputs = AnchorSerialize::try_to_vec(self)
             .map_err(|_| CompressedAccountError::InvalidArgument)?;
-        let mut data = Vec::with_capacity(8 + inputs.len());
+        let mut data = crate::Vec::with_capacity(8 + inputs.len());
         data.extend_from_slice(self.discriminator());
         data.extend_from_slice(inputs.as_slice());
+        Ok(data)
+    }
+
+    #[profile]
+    fn data_array<const N: usize>(&self) -> Result<ArrayVec<[u8; N]>, CompressedAccountError> {
+        let mut data = ArrayVec::new();
+        // Add discriminator
+        data.extend_from_slice(self.discriminator());
+        self.serialize(&mut data.as_mut_slice())
+            .map_err(|_e| CompressedAccountError::InputTooLarge(data.len().saturating_sub(N)))?;
+
         Ok(data)
     }
 }

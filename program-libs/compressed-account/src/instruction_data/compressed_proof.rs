@@ -1,17 +1,21 @@
 use light_zero_copy::{errors::ZeroCopyError, traits::ZeroCopyAt, ZeroCopyMut};
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, Unaligned};
 
-use crate::{AnchorDeserialize, AnchorSerialize};
-
 #[repr(C)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
 #[derive(
     Debug,
     Clone,
     Copy,
     PartialEq,
     Eq,
-    AnchorDeserialize,
-    AnchorSerialize,
     KnownLayout,
     Immutable,
     FromBytes,
@@ -42,7 +46,15 @@ impl<'a> ZeroCopyAt<'a> for CompressedProof {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, AnchorDeserialize, AnchorSerialize)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub struct ValidityProof(pub Option<CompressedProof>);
 
 impl ValidityProof {

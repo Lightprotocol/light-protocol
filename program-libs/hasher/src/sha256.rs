@@ -25,16 +25,20 @@ impl Hasher for Sha256 {
         Self::hashv(&[val])
     }
 
-    fn hashv(vals: &[&[u8]]) -> Result<Hash, HasherError> {
-        #[cfg(not(target_os = "solana"))]
+    fn hashv(_vals: &[&[u8]]) -> Result<Hash, HasherError> {
+        #[cfg(all(not(target_os = "solana"), feature = "sha256"))]
         {
             use sha2::{Digest, Sha256};
 
             let mut hasher = Sha256::default();
-            for val in vals {
+            for val in _vals {
                 hasher.update(val);
             }
             Ok(hasher.finalize().into())
+        }
+        #[cfg(all(not(target_os = "solana"), not(feature = "sha256")))]
+        {
+            Err(HasherError::Sha256FeatureNotEnabled)
         }
         // Call via a system call to perform the calculation
         #[cfg(target_os = "solana")]
@@ -44,8 +48,8 @@ impl Hasher for Sha256 {
             let mut hash_result = [0; HASH_BYTES];
             unsafe {
                 crate::syscalls::sol_sha256(
-                    vals as *const _ as *const u8,
-                    vals.len() as u64,
+                    _vals as *const _ as *const u8,
+                    _vals.len() as u64,
                     &mut hash_result as *mut _ as *mut u8,
                 );
             }

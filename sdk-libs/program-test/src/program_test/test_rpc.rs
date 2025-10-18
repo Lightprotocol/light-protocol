@@ -6,10 +6,8 @@ use solana_sdk::{clock::Slot, pubkey::Pubkey};
 use {
     borsh::BorshDeserialize,
     light_client::fee::{assert_transaction_params, TransactionParams},
-    light_compressed_account::indexer_event::event::{
-        BatchPublicTransactionEvent, PublicTransactionEvent,
-    },
     light_compressible::rent::SLOTS_PER_EPOCH,
+    light_event::event::{BatchPublicTransactionEvent, PublicTransactionEvent},
     solana_sdk::{
         clock::Clock,
         instruction::Instruction,

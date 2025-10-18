@@ -24,7 +24,7 @@ light-sdk-pinocchio = { workspace = true }
 light-sdk-types = { workspace = true }
 light-zero-copy = { workspace = true }
 light-hasher = { workspace = true, features = ["poseidon"] }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
 light-compressed-token = { workspace = true }
 light-indexed-array = { workspace = true }
 light-merkle-tree-reference = { workspace = true }

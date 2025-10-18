@@ -1,11 +1,6 @@
-#[cfg(feature = "anchor")]
-use anchor_lang::{AnchorDeserialize, AnchorSerialize};
-#[cfg(not(feature = "anchor"))]
-use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+use light_compressed_account::CpiSigner;
 
-use crate::CpiSigner;
-
-#[derive(Debug, Copy, Clone, PartialEq, AnchorSerialize, AnchorDeserialize)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct CpiAccountsConfig {
     pub cpi_context: bool,
     pub sol_compression_recipient: bool,

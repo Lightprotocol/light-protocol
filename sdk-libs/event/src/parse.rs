@@ -1,14 +1,5 @@
 use borsh::BorshDeserialize;
-use light_zero_copy::traits::ZeroCopyAt;
-
-use super::{
-    error::ParseIndexerEventError,
-    event::{
-        BatchNullifyContext, BatchPublicTransactionEvent, MerkleTreeSequenceNumber,
-        MerkleTreeSequenceNumberV1, NewAddress, PublicTransactionEvent,
-    },
-};
-use crate::{
+use light_compressed_account::{
     compressed_account::{
         CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
     },
@@ -25,6 +16,15 @@ use crate::{
     },
     nullifier::create_nullifier,
     Pubkey,
+};
+use light_zero_copy::traits::ZeroCopyAt;
+
+use super::{
+    error::ParseIndexerEventError,
+    event::{
+        BatchNullifyContext, BatchPublicTransactionEvent, MerkleTreeSequenceNumber,
+        MerkleTreeSequenceNumberV1, NewAddress, PublicTransactionEvent,
+    },
 };
 
 #[derive(Debug, Clone, PartialEq)]
@@ -311,7 +311,7 @@ fn deserialize_instruction<'a>(
                 return Err(ParseIndexerEventError::DeserializeSystemInstructionError);
             }
             let accounts = accounts.split_at(11).1;
-            let data = crate::instruction_data::invoke_cpi::InstructionDataInvokeCpi::deserialize(
+            let data = light_compressed_account::instruction_data::invoke_cpi::InstructionDataInvokeCpi::deserialize(
                 &mut &instruction[4..],
             )?;
             Ok(ExecutingSystemInstruction {

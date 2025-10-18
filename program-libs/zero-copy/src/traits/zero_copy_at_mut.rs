@@ -1,5 +1,6 @@
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use core::mem::size_of;
-use std::vec::Vec;
 
 use zerocopy::{
     little_endian::{I16, I32, I64, U16, U32, U64},
@@ -89,6 +90,7 @@ impl<'a, T: KnownLayout + Immutable + FromBytes> ZeroCopyAtMut<'a> for Ref<&'a m
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<'a, T: ZeroCopyAtMut<'a>> ZeroCopyAtMut<'a> for Vec<T> {
     type ZeroCopyAtMut = Vec<T::ZeroCopyAtMut>;
     #[inline]
@@ -182,6 +184,7 @@ impl ZeroCopyStructInnerMut for U16 {
     type ZeroCopyInnerMut = U16;
 }
 
+#[cfg(feature = "alloc")]
 impl<T: ZeroCopyStructInnerMut + Copy> ZeroCopyStructInnerMut for Vec<T> {
     type ZeroCopyInnerMut = Vec<T::ZeroCopyInnerMut>;
 }

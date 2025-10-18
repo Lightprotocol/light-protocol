@@ -26,12 +26,13 @@ light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-registry = { workspace = true, features = ["cpi"] }
 spl-token = { workspace = true, features = ["no-entrypoint"] }
 light-prover-client = { workspace = true, features = ["devenv"] }
-light-hasher = { workspace = true, features = ["poseidon"] }
+light-hasher = { workspace = true, features = ["poseidon", "sha256", "keccak", "std"] }
 light-merkle-tree-reference = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
 light-indexed-array = { workspace = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
+light-event = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 forester-utils = { workspace = true, features = ["devenv"] }
 light-sdk = { workspace = true, features = ["anchor"] }

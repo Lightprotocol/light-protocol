@@ -33,6 +33,7 @@ pub mod assert_rollover;
 pub mod assert_token_tx;
 pub mod assert_transfer2;
 pub mod batched_address_tree;
+pub mod compressed_account_pack;
 pub mod conversions;
 pub mod create_address_test_program_sdk;
 pub mod e2e_test_env;

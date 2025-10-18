@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use light_sdk_macros::derive_light_cpi_signer;
+use light_macros::derive_light_cpi_signer;
 use light_sdk_types::CpiSigner;
 use solana_pubkey::Pubkey;
 

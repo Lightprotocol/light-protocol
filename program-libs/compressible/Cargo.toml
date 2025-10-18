@@ -6,7 +6,7 @@ edition = "2021"
 [features]
 default = ["pinocchio", "solana"]
 solana = ["dep:solana-program-error", "light-compressed-account/solana", "solana-sysvar"]
-anchor = ["anchor-lang", "light-compressed-account/anchor"]
+anchor = ["anchor-lang", "light-compressed-account/anchor", "light-compressed-account/std"]
 pinocchio = ["light-compressed-account/pinocchio"]
 profile-program = []
 profile-heap = ["dep:light-heap"]
