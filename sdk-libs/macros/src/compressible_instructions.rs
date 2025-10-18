@@ -2131,20 +2131,23 @@ fn generate_decompress_accounts_struct(
             ]);
         }
         InstructionVariant::Mixed => {
-            // Mixed: required token program accounts (always needed for simplicity)
+            // Mixed: required token program accounts with address constraints for constants
+            // Use hardcoded well-known Pubkeys for ctoken program and cpi authority
             account_fields.extend(vec![
                 quote! {
-                    /// Compressed token program (always required in mixed variant)
-                    /// CHECK: Program ID validated to be cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m
+                    /// Compressed token program (auto-resolved constant)
+                    /// CHECK: Enforced to be cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m
+                    #[account(address = anchor_lang::solana_program::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"))]
                     pub ctoken_program: UncheckedAccount<'info>
                 },
                 quote! {
-                    /// CPI authority PDA of the compressed token program (always required in mixed variant)
-                    /// CHECK: PDA derivation validated with seeds ["cpi_authority"] and bump 254
+                    /// CPI authority PDA of the compressed token program (auto-resolved constant)
+                    /// CHECK: Enforced to be GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy
+                    #[account(address = anchor_lang::solana_program::pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy"))]
                     pub ctoken_cpi_authority: UncheckedAccount<'info>
                 },
                 quote! {
-                    /// CHECK: CToken CompressibleConfig account
+                    /// CHECK: CToken CompressibleConfig account (default but can be overridden)
                     pub ctoken_config: UncheckedAccount<'info>
                 },
             ]);
