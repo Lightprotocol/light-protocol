@@ -23,9 +23,10 @@ pub mod nullifier;
 pub mod pubkey;
 pub mod tx_hash;
 pub use instruction_data::traits::{InstructionDiscriminator, LightInstructionData};
-pub use light_hasher::{
-    bigint::bigint_to_be_bytes_array,
-    hash_to_field_size::{hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be},
+pub use light_hasher::bigint::bigint_to_be_bytes_array;
+#[cfg(feature = "alloc")]
+pub use light_hasher::hash_to_field_size::{
+    hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be,
 };
 pub use pubkey::Pubkey;
 
@@ -192,7 +193,7 @@ impl Display for TreeType {
 }
 
 #[allow(clippy::derivable_impls)]
-impl std::default::Default for TreeType {
+impl core::default::Default for TreeType {
     fn default() -> Self {
         TreeType::StateV2
     }
@@ -209,4 +210,12 @@ impl From<u64> for TreeType {
             _ => panic!("Invalid TreeType"),
         }
     }
+}
+
+/// Configuration struct containing program ID, CPI signer, and bump for Light Protocol
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct CpiSigner {
+    pub program_id: [u8; 32],
+    pub cpi_signer: [u8; 32],
+    pub bump: u8,
 }

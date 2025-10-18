@@ -1,6 +1,8 @@
-use light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array;
+use light_hasher::hash_to_field_size::{
+    hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be_const_array,
+};
 
-use crate::{hash_to_bn254_field_size_be, CompressedAccountError, Pubkey};
+use crate::{CompressedAccountError, Pubkey};
 
 pub fn derive_address_legacy(
     merkle_tree_pubkey: &Pubkey,

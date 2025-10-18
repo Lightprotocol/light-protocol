@@ -3747,6 +3747,7 @@ dependencies = [
  "bs58",
  "proc-macro2",
  "quote",
+ "solana-pubkey 2.4.0",
  "syn 2.0.106",
 ]
 
@@ -3968,6 +3969,7 @@ dependencies = [
  "light-compressed-account",
  "light-hasher",
  "light-macros",
+ "light-sdk",
  "light-sdk-macros",
  "light-sdk-types",
  "pinocchio",
@@ -5735,6 +5737,7 @@ dependencies = [
  "light-sdk-types",
  "light-test-utils",
  "serial_test",
+ "solana-pubkey 2.4.0",
  "solana-sdk",
  "tokio",
 ]

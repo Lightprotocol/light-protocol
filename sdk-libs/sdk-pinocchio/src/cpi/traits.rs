@@ -1,3 +1,10 @@
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+extern crate alloc;
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+use alloc::vec::Vec;
+#[cfg(feature = "std")]
+use std::vec::Vec;
+
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 pub use light_compressed_account::LightInstructionData;
 use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
@@ -8,7 +15,7 @@ use pinocchio::{
     pubkey::Pubkey,
 };
 
-use crate::{error::LightSdkError, BorshDeserialize, BorshSerialize, LightDiscriminator};
+use crate::error::LightSdkError;
 
 /// Trait for types that can provide account information for CPI calls
 pub trait CpiAccountsTrait {
@@ -31,14 +38,15 @@ pub trait CpiAccountsTrait {
 pub trait LightCpiInstruction: Sized {
     fn new_cpi(cpi_signer: light_sdk_types::CpiSigner, proof: ValidityProof) -> Self;
 
+    #[cfg(feature = "light-account")]
     fn with_light_account<A>(
         self,
-        account: crate::account::LightAccount<'_, A>,
-    ) -> Result<Self, LightSdkError>
+        account: crate::LightAccount<'_, A>,
+    ) -> Result<Self, ProgramError>
     where
-        A: BorshSerialize
-            + BorshDeserialize
-            + LightDiscriminator
+        A: borsh::BorshSerialize
+            + borsh::BorshDeserialize
+            + crate::LightDiscriminator
             + light_hasher::DataHasher
             + Default;
 

@@ -1,13 +1,16 @@
-#[cfg(feature = "alloc")]
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::vec::Vec;
+#[cfg(feature = "std")]
+use std::vec::Vec;
+
 use light_account_checks::AccountInfoTrait;
+use light_compressed_account::CpiSigner;
 
 #[cfg(feature = "cpi-context")]
 use crate::cpi_context_write::CpiContextWriteAccounts;
 use crate::{
     cpi_accounts::{CpiAccountsConfig, TreeAccounts},
     error::{LightSdkTypesError, Result},
-    CpiSigner,
 };
 
 #[repr(usize)]

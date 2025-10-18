@@ -10,3 +10,6 @@ cargo clippy --workspace --all-features --all-targets -- -D warnings
 # Check no_std compatibility for light-zero-copy crate
 echo "Checking no_std compatibility for light-zero-copy..."
 cargo check -p light-zero-copy --no-default-features
+cargo check -p light-compressed-account --no-default-features
+cargo check -p light-sdk-types --no-default-features
+cargo check -p light-sdk-pinocchio --no-default-features

@@ -168,7 +168,7 @@ light-concurrent-merkle-tree = { version = "3.0.0", path = "program-libs/concurr
 light-sparse-merkle-tree = { version = "0.2.0", path = "sparse-merkle-tree" }
 light-client = { path = "sdk-libs/client", version = "0.15.0" }
 light-event = { path = "sdk-libs/event", version = "0.1.0" }
-light-hasher = { path = "program-libs/hasher", version = "4.0.0" }
+light-hasher = { path = "program-libs/hasher", version = "4.0.0", default-features = false }
 light-macros = { path = "program-libs/macros", version = "2.1.0" }
 light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "3.0.1" }
 light-heap = { path = "program-libs/heap", version = "2.0.0" }
@@ -176,11 +176,11 @@ light-prover-client = { path = "prover/client", version = "3.0.0" }
 light-sdk = { path = "sdk-libs/sdk", version = "0.15.0" }
 light-sdk-pinocchio = { path = "sdk-libs/sdk-pinocchio", version = "0.13.0" }
 light-sdk-macros = { path = "sdk-libs/macros", version = "0.15.0" }
-light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.15.0" }
-light-compressed-account = { path = "program-libs/compressed-account", version = "0.5.0" }
+light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.15.0", default-features = false }
+light-compressed-account = { path = "program-libs/compressed-account", version = "0.5.0", default-features = false }
 light-compressible = { path = "program-libs/compressible", version = "0.1.0" }
 light-ctoken-types = { path = "program-libs/ctoken-types", version = "0.1.0" }
-light-account-checks = { path = "program-libs/account-checks", version = "0.4.0" }
+light-account-checks = { path = "program-libs/account-checks", version = "0.4.0", default-features = false }
 light-verifier = { path = "program-libs/verifier", version = "4.0.0" }
 light-zero-copy = { path = "program-libs/zero-copy", version = "0.4.0" }
 light-zero-copy-derive = { path = "program-libs/zero-copy-derive", version = "0.4.0" }

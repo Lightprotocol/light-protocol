@@ -33,7 +33,20 @@ pub struct InstructionDataInvokeCpi {
     pub cpi_context: Option<CompressedCpiContext>,
 }
 
-impl LightInstructionData for InstructionDataInvokeCpi {}
+impl LightInstructionData for InstructionDataInvokeCpi {
+    #[cfg(feature = "alloc")]
+    fn data(&self) -> Result<Vec<u8>, crate::CompressedAccountError> {
+        use borsh::BorshSerialize;
+        let inputs = self
+            .try_to_vec()
+            .map_err(|_| crate::CompressedAccountError::InvalidArgument)?;
+        let mut data = Vec::with_capacity(12 + inputs.len());
+        data.extend_from_slice(self.discriminator());
+        data.extend_from_slice(&(inputs.len() as u32).to_le_bytes());
+        data.extend_from_slice(inputs.as_slice());
+        Ok(data)
+    }
+}
 
 impl InstructionDataInvokeCpi {
     pub fn new(proof: Option<CompressedProof>) -> Self {

@@ -7,8 +7,9 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-default = []
-std = ["borsh/std", "dep:solana-msg"]
+default = ["alloc"]
+alloc = ["light-hasher/alloc"]
+std = ["alloc", "borsh/std", "dep:solana-msg"]
 solana = ["dep:solana-pubkey", "dep:solana-program-error"]
 anchor = ["anchor-lang"]
 pinocchio = ["dep:pinocchio"]

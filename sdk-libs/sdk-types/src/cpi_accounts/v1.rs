@@ -1,11 +1,15 @@
-#[cfg(feature = "alloc")]
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::vec::Vec;
+#[cfg(feature = "std")]
+use std::vec::Vec;
+
 use light_account_checks::AccountInfoTrait;
+use light_compressed_account::CpiSigner;
 
 use crate::{
     cpi_accounts::{CpiAccountsConfig, TreeAccounts},
     error::{LightSdkTypesError, Result},
-    CpiSigner, CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR, LIGHT_SYSTEM_PROGRAM_ID, SOL_POOL_PDA,
+    CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR, LIGHT_SYSTEM_PROGRAM_ID, SOL_POOL_PDA,
 };
 
 #[repr(usize)]
@@ -233,6 +237,7 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
             .ok_or(LightSdkTypesError::CpiAccountsIndexOutOfBounds(system_len))
     }
 
+    #[cfg(feature = "alloc")]
     pub fn tree_pubkeys(&self) -> Result<Vec<T::Pubkey>> {
         Ok(self
             .tree_accounts()?
@@ -251,6 +256,7 @@ impl<'a, T: AccountInfoTrait + Clone> CpiAccounts<'a, T> {
     }
 
     /// Create a vector of account info references
+    #[cfg(feature = "alloc")]
     pub fn to_account_infos(&self) -> Vec<T> {
         // Skip system light program
         let refs = &self.account_infos()[1..];

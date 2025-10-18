@@ -28,6 +28,31 @@ use light_sdk::{
         v2::lowlevel::to_account_metas,
     },
 };
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug, PartialEq)]
+pub struct CpiAccountsConfigLocal {
+    pub cpi_context: bool,
+    pub sol_compression_recipient: bool,
+    pub sol_pool_pda: bool,
+}
+impl From<CpiAccountsConfigLocal> for CpiAccountsConfig {
+    fn from(config: CpiAccountsConfigLocal) -> Self {
+        CpiAccountsConfig {
+            cpi_context: config.cpi_context,
+            sol_compression_recipient: config.sol_compression_recipient,
+            sol_pool_pda: config.sol_pool_pda,
+            cpi_signer: LIGHT_CPI_SIGNER,
+        }
+    }
+}
+impl From<CpiAccountsConfig> for CpiAccountsConfigLocal {
+    fn from(config: CpiAccountsConfig) -> Self {
+        CpiAccountsConfigLocal {
+            cpi_context: config.cpi_context,
+            sol_compression_recipient: config.sol_compression_recipient,
+            sol_pool_pda: config.sol_pool_pda,
+        }
+    }
+}
 
 declare_id!("FNt7byTHev1k5x2cXZLBr8TdWiC3zoP5vcnZR4P682Uy");
 
@@ -63,7 +88,7 @@ pub mod system_cpi_test {
     /// Test wrapper, for with read-only and with account info instructions.
     pub fn invoke_with_read_only<'info>(
         ctx: Context<'_, '_, '_, 'info, InvokeCpiReadOnly<'info>>,
-        config: CpiAccountsConfig,
+        config: CpiAccountsConfigLocal,
         v2_ix: bool,
         inputs: Vec<u8>,
         write_cpi_context: bool,
@@ -72,7 +97,7 @@ pub mod system_cpi_test {
 
         let (account_infos, account_metas) = if v2_ix {
             let cpi_accounts =
-                CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config);
+                CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config.into());
             let account_infos = cpi_accounts.to_account_infos();
 
             let account_metas = if !write_cpi_context {
@@ -101,7 +126,7 @@ pub mod system_cpi_test {
         } else {
             use light_sdk::cpi::v1::CpiAccounts;
             let cpi_accounts =
-                CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config);
+                CpiAccounts::new_with_config(&fee_payer, ctx.remaining_accounts, config.into());
 
             let account_infos = cpi_accounts.to_account_infos();
 
@@ -242,7 +267,7 @@ pub fn create_invoke_read_only_account_info_instruction(
     let ix_data = crate::instruction::InvokeWithReadOnly {
         v2_ix,
         inputs,
-        config,
+        config: config.into(),
         write_cpi_context,
     }
     .data();

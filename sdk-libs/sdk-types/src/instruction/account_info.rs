@@ -1,10 +1,12 @@
-#[cfg(feature = "alloc")]
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::vec::Vec;
+#[cfg(feature = "std")]
+use std::vec::Vec;
+
+#[cfg(feature = "alloc")]
+use light_compressed_account::compressed_account::PackedCompressedAccountWithMerkleContext;
 use light_compressed_account::{
-    compressed_account::{
-        CompressedAccount, CompressedAccountData, PackedCompressedAccountWithMerkleContext,
-        PackedMerkleContext,
-    },
+    compressed_account::{CompressedAccount, CompressedAccountData, PackedMerkleContext},
     instruction_data::{
         data::OutputCompressedAccountWithPackedContext,
         with_account_info::{CompressedAccountInfo, InAccountInfo},
@@ -71,6 +73,7 @@ pub trait CompressedAccountInfoTrait {
         input_data_hash: [u8; 32],
         discriminator: [u8; 8],
     ) -> Result<(), LightSdkTypesError>;
+    #[cfg(feature = "alloc")]
     fn input_compressed_account(
         &self,
         owner: Pubkey,
@@ -172,6 +175,7 @@ impl CompressedAccountInfoTrait for CompressedAccountInfo {
         Ok(())
     }
 
+    #[cfg(feature = "alloc")]
     fn input_compressed_account(
         &self,
         owner: Pubkey,

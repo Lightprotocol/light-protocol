@@ -7,19 +7,20 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-default = []
+default = ["alloc"]
+alloc = ["light-compressed-account/alloc"]
+std = ["alloc"]
 v2 = ["light-sdk-types/v2"]
+light-account = ["light-sdk"]
 
 [dependencies]
 pinocchio = { workspace = true }
-light-hasher = { workspace = true, features = ["poseidon"] }
-light-account-checks = { workspace = true, features = ["pinocchio"] }
+light-hasher = { workspace = true, default-features = false }
+light-account-checks = { workspace = true, default-features  = false, features = ["pinocchio"] }
 light-macros = { workspace = true }
 light-sdk-macros = { workspace = true }
-light-sdk-types = { workspace = true }
-light-zero-copy = { workspace = true }
+light-sdk-types = { workspace = true, default-features = false }
 borsh = { workspace = true }
 thiserror = { workspace = true }
-light-compressed-account = { workspace = true, features = ["std"] }
-solana-pubkey = { workspace = true }
-solana-msg = { workspace = true }
+light-compressed-account = { workspace = true }
+light-sdk = { workspace = true, optional = true }

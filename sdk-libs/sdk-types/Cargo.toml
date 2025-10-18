@@ -8,8 +8,8 @@ description = "Core types for Light Protocol SDK"
 
 [features]
 default = ["std"]
-std = ["alloc"]
-alloc = []
+std = ["alloc", "light-compressed-account/std", "solana-msg"]
+alloc = ["light-compressed-account/alloc"]
 keccak = ["light-hasher/keccak"]
 anchor = ["anchor-lang", "light-compressed-account/anchor"]
 v2 = []
@@ -21,9 +21,9 @@ anchor-lang = { workspace = true, optional = true }
 # Light Protocol dependencies
 light-account-checks = { workspace = true }
 light-hasher = { workspace = true }
-light-compressed-account = { workspace = true, features = ["std"] }
+light-compressed-account = { workspace = true }
 light-macros = { workspace = true }
-solana-msg = { workspace = true }
+solana-msg = { workspace = true, optional = true }
 
 # External dependencies
 borsh = { workspace = true }

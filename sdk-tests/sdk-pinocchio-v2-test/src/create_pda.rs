@@ -1,6 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk_pinocchio::{
-    account::LightAccount,
     cpi::{
         v1::CpiAccountsConfig,
         v2::{CpiAccounts, LightSystemProgramCpi},
@@ -8,7 +7,7 @@ use light_sdk_pinocchio::{
     },
     error::LightSdkError,
     instruction::PackedAddressTreeInfo,
-    LightDiscriminator, LightHasher, ValidityProof,
+    LightAccount, LightDiscriminator, LightHasher, ValidityProof,
 };
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 
@@ -48,8 +47,9 @@ pub fn create_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(
     let new_address_params =
         address_tree_info.into_new_address_params_assigned_packed(address_seed, Some(0));
 
+    let program_id = crate::LIGHT_CPI_SIGNER.program_id.into();
     let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
-        &crate::ID,
+        &program_id,
         Some(address),
         instruction_data.output_merkle_tree_index,
     );

@@ -4,6 +4,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{parse_macro_input, parse_quote, ItemFn};
 
+mod cpi_signer;
 mod pubkey;
 
 /// Converts a base58 encoded public key into a byte array.
@@ -62,4 +63,47 @@ pub fn heap_neutral(_: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Noop)]
 pub fn derive_noop(_input: TokenStream) -> TokenStream {
     TokenStream::new()
+}
+
+/// Derives a Light Protocol CPI signer PDA at runtime
+///
+/// This macro computes the CPI signer PDA using the "cpi_authority" seed
+/// for the given program ID. Uses `solana_pubkey` with `solana` feature,
+/// otherwise uses `pinocchio` (default).
+///
+/// ## Usage
+///
+/// ```rust
+/// # use light_macros::derive_light_cpi_signer_pda;
+/// // In a Solana program
+/// let (cpi_signer, bump) = derive_light_cpi_signer_pda!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+/// ```
+///
+/// Returns a tuple `([u8; 32], u8)` containing the PDA address and bump seed.
+#[proc_macro]
+pub fn derive_light_cpi_signer_pda(input: TokenStream) -> TokenStream {
+    cpi_signer::derive_light_cpi_signer_pda(input)
+}
+
+/// Derives a complete Light Protocol CPI configuration at runtime
+///
+/// This macro computes the program ID, CPI signer PDA, and bump seed
+/// for the given program ID. Uses `solana_pubkey` with `solana` feature,
+/// otherwise uses `pinocchio` (default).
+///
+/// ## Usage
+///
+/// ```rust
+/// # use light_macros::derive_light_cpi_signer;
+/// // In a Solana program
+/// let (program_id, cpi_signer, bump) = derive_light_cpi_signer!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+/// ```
+///
+/// Returns a tuple `([u8; 32], [u8; 32], u8)` containing:
+/// - Program ID bytes
+/// - CPI signer PDA address
+/// - Bump seed
+#[proc_macro]
+pub fn derive_light_cpi_signer(input: TokenStream) -> TokenStream {
+    cpi_signer::derive_light_cpi_signer(input)
 }

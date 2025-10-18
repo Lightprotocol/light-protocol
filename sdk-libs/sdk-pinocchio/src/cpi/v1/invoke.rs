@@ -1,13 +1,12 @@
 use light_compressed_account::instruction_data::{
     compressed_proof::ValidityProof, invoke_cpi::InstructionDataInvokeCpi,
 };
+#[cfg(feature = "light-account")]
 use light_sdk_types::instruction::account_info::CompressedAccountInfoTrait;
 
 use crate::{
-    account::LightAccount,
     cpi::traits::{LightCpiInstruction, LightInstructionData},
-    error::LightSdkError,
-    BorshDeserialize, BorshSerialize, CpiSigner, LightDiscriminator,
+    BorshSerialize, CpiSigner,
 };
 
 /// V1 wrapper struct for InstructionDataInvokeCpi with CpiSigner
@@ -67,23 +66,30 @@ impl LightCpiInstruction for LightSystemProgramCpi {
         }
     }
 
-    fn with_light_account<A>(mut self, account: LightAccount<'_, A>) -> Result<Self, LightSdkError>
+    #[cfg(feature = "light-account")]
+    fn with_light_account<A>(
+        mut self,
+        account: crate::LightAccount<'_, A>,
+    ) -> Result<Self, pinocchio::program_error::ProgramError>
     where
-        A: BorshSerialize
-            + BorshDeserialize
-            + LightDiscriminator
+        A: crate::BorshSerialize
+            + crate::BorshDeserialize
+            + crate::LightDiscriminator
             + light_hasher::DataHasher
             + Default,
     {
         use light_compressed_account::compressed_account::PackedCompressedAccountWithMerkleContext;
-
+        use pinocchio::program_error::ProgramError;
         // Convert LightAccount to account info
-        let account_info = account.to_account_info()?;
+        let account_info = account
+            .to_account_info()
+            .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
 
         // Handle input accounts - convert to PackedCompressedAccountWithMerkleContext
         if let Some(input_account) = account_info
             .input_compressed_account(self.cpi_signer.program_id.into())
-            .map_err(LightSdkError::from)?
+            .map_err(crate::error::LightSdkError::from)
+            .map_err(|e| ProgramError::Custom(u32::from(e)))?
         {
             let packed_input = PackedCompressedAccountWithMerkleContext {
                 compressed_account: input_account.compressed_account,
@@ -99,7 +105,8 @@ impl LightCpiInstruction for LightSystemProgramCpi {
         // Handle output accounts
         if let Some(output_account) = account_info
             .output_compressed_account(self.cpi_signer.program_id.into())
-            .map_err(LightSdkError::from)?
+            .map_err(crate::error::LightSdkError::from)
+            .map_err(|e| ProgramError::Custom(u32::from(e)))?
         {
             self.instruction_data
                 .output_compressed_accounts
@@ -132,7 +139,11 @@ impl light_compressed_account::InstructionDiscriminator for LightSystemProgramCp
 }
 
 impl LightInstructionData for LightSystemProgramCpi {
-    fn data(&self) -> Result<Vec<u8>, light_compressed_account::CompressedAccountError> {
+    #[cfg(feature = "alloc")]
+    fn data(
+        &self,
+    ) -> Result<light_compressed_account::Vec<u8>, light_compressed_account::CompressedAccountError>
+    {
         self.instruction_data.data()
     }
 }

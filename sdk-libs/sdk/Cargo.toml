@@ -40,10 +40,10 @@ borsh = { workspace = true, optional = true }
 thiserror = { workspace = true }
 
 light-sdk-macros = { workspace = true }
-light-sdk-types = { workspace = true }
+light-sdk-types = { workspace = true, features = ["std"] }
 light-macros = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std"] }
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, features = ["std"] }
 light-account-checks = { workspace = true, features = ["solana"] }
 light-zero-copy = { workspace = true }
 

@@ -2,8 +2,7 @@ use light_hasher::{Hasher, Poseidon};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
 use crate::{
-    hash_to_bn254_field_size_be, instruction_data::zero_copy::ZCompressedAccount,
-    CompressedAccountError, Pubkey, TreeType, Vec,
+    instruction_data::zero_copy::ZCompressedAccount, CompressedAccountError, Pubkey, TreeType, Vec,
 };
 
 #[repr(C)]
@@ -255,12 +254,9 @@ pub fn hash_with_hashed_values(
     leaf_index: &u32,
     is_batched: bool,
 ) -> Result<[u8; 32], CompressedAccountError> {
-    // TODO: replace with array
-    let capacity = 3
-        + core::cmp::min(*lamports, 1) as usize
-        + address.is_some() as usize
-        + data.is_some() as usize * 2;
-    let mut vec: Vec<&[u8]> = Vec::with_capacity(capacity);
+    // Use ArrayVec with max capacity of 7 elements:
+    // owner_hashed + leaf_index + merkle_tree_hashed + lamports + address + discriminator + data_hash
+    let mut vec: tinyvec::ArrayVec<[&[u8]; 7]> = tinyvec::ArrayVec::new();
     vec.push(owner_hashed.as_slice());
 
     // leaf index and merkle tree pubkey are used to make every compressed account hash unique
@@ -331,6 +327,7 @@ impl CompressedAccount {
         leaf_index: &u32,
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError> {
+        use light_hasher::hash_to_field_size::hash_to_bn254_field_size_be;
         let hashed_mt = hash_to_bn254_field_size_be(merkle_tree_pubkey.as_ref());
 
         self.hash_with_hashed_values(
@@ -370,6 +367,7 @@ impl ZCompressedAccount<'_> {
         leaf_index: &u32,
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError> {
+        use light_hasher::hash_to_field_size::hash_to_bn254_field_size_be;
         self.hash_with_hashed_values(
             &hash_to_bn254_field_size_be(&self.owner.to_bytes()),
             &hash_to_bn254_field_size_be(merkle_tree_pubkey.as_slice()),
