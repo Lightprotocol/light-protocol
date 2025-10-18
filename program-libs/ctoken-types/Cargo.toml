@@ -45,8 +45,12 @@ light-compressed-account = { workspace = true, features = ["new-unique"] }
 light-account-checks = { workspace = true, features = [
     "test-only",
     "pinocchio",
+    "std",
+    "solana",
 ] }
 spl-token-metadata-interface = "0.6.0"
+light-ctoken-types = { workspace = true, features = ["poseidon"] }
+light-hasher = { workspace = true, features = ["keccak"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

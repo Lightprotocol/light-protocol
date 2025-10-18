@@ -46,3 +46,4 @@ borsh = { workspace = true }
 ark-ff = { workspace = true }
 ark-bn254 = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }
+light-compressed-account = { workspace = true, features = ["new-unique", "std"] }

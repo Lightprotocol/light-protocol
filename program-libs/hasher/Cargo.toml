@@ -48,3 +48,4 @@ rand = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }
 light-poseidon = { workspace = true }
 solana-pubkey = { workspace = true }
+light-hasher = { workspace = true, features = ["poseidon", "std", "keccak"] }

@@ -35,6 +35,7 @@ rand = { workspace = true, optional = true }
 pinocchio = { workspace = true }
 borsh = { workspace = true }
 solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
+light-account-checks = { workspace = true, features = ["solana", "pinocchio", "test-only", "std"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

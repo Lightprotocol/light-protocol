@@ -26,3 +26,4 @@ zerocopy = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
 trybuild = "1.0"
 light-zero-copy-derive = { workspace = true }
+light-zero-copy = { workspace = true, features = ["std", "derive", "mut"] }

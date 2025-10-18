@@ -3355,6 +3355,7 @@ name = "light-account-checks"
 version = "0.4.0"
 dependencies = [
  "borsh 0.10.4",
+ "light-account-checks",
  "pinocchio",
  "rand 0.8.5",
  "solana-account-info",
@@ -3480,6 +3481,7 @@ dependencies = [
  "ark-ff 0.5.0",
  "borsh 0.10.4",
  "bytemuck",
+ "light-compressed-account",
  "light-hasher",
  "light-heap",
  "light-macros",
@@ -3637,6 +3639,7 @@ dependencies = [
  "light-array-map",
  "light-compressed-account",
  "light-compressible",
+ "light-ctoken-types",
  "light-hasher",
  "light-heap",
  "light-macros",
@@ -3692,6 +3695,7 @@ dependencies = [
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
  "borsh 0.10.4",
+ "light-hasher",
  "light-poseidon 0.3.0",
  "num-bigint 0.4.6",
  "pinocchio",
@@ -4130,6 +4134,7 @@ name = "light-zero-copy"
 version = "0.4.0"
 dependencies = [
  "borsh 0.10.4",
+ "light-zero-copy",
  "light-zero-copy-derive",
  "pinocchio",
  "rand 0.8.5",
