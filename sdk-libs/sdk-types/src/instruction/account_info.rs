@@ -78,6 +78,7 @@ pub trait CompressedAccountInfoTrait {
         &self,
         owner: Pubkey,
     ) -> Result<Option<PackedCompressedAccountWithMerkleContext>, LightSdkTypesError>;
+    #[cfg(feature = "alloc")]
     fn output_compressed_account(
         &self,
         owner: Pubkey,
@@ -203,6 +204,7 @@ impl CompressedAccountInfoTrait for CompressedAccountInfo {
         }
     }
 
+    #[cfg(feature = "alloc")]
     fn output_compressed_account(
         &self,
         owner: Pubkey,

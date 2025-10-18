@@ -1,6 +1,4 @@
-use light_hasher::hash_to_field_size::{
-    hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be_const_array,
-};
+use light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be_const_array;
 
 use crate::{CompressedAccountError, Pubkey};
 
@@ -8,11 +6,9 @@ pub fn derive_address_legacy(
     merkle_tree_pubkey: &Pubkey,
     seed: &[u8; 32],
 ) -> Result<[u8; 32], CompressedAccountError> {
-    let hash = hash_to_bn254_field_size_be(
-        [merkle_tree_pubkey.as_ref(), seed.as_ref()]
-            .concat()
-            .as_slice(),
-    );
+    let slices = [merkle_tree_pubkey.as_ref(), seed.as_ref()];
+    let hash = hashv_to_bn254_field_size_be_const_array::<3>(&slices)
+        .expect("hashv_to_bn254_field_size_be_const_array::<3> should be infallible for Keccak");
     Ok(hash)
 }
 

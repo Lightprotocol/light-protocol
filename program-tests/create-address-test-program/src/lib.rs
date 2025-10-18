@@ -103,6 +103,10 @@ pub mod system_cpi_test {
             let account_metas = if !write_cpi_context {
                 to_account_metas(&cpi_accounts).map_err(|_| ErrorCode::AccountNotEnoughKeys)?
             } else {
+                require!(
+                    ctx.remaining_accounts.len() >= 3,
+                    ErrorCode::AccountNotEnoughKeys
+                );
                 let mut account_metas = vec![];
                 account_metas.push(AccountMeta {
                     pubkey: *cpi_accounts.fee_payer().key,
@@ -283,8 +287,11 @@ pub fn to_account_metas_small(
     cpi_accounts: CpiAccounts<'_, '_>,
 ) -> light_sdk::error::Result<Vec<AccountMeta>> {
     // TODO: do a version with a const array instead of vector.
-    let mut account_metas =
-        Vec::with_capacity(1 + cpi_accounts.account_infos().len() - PROGRAM_ACCOUNTS_LEN);
+    let extra = cpi_accounts
+        .account_infos()
+        .len()
+        .saturating_sub(PROGRAM_ACCOUNTS_LEN);
+    let mut account_metas = Vec::with_capacity(1 + extra);
 
     account_metas.push(AccountMeta {
         pubkey: *cpi_accounts.fee_payer().key,

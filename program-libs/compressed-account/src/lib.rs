@@ -38,9 +38,9 @@ pub enum CompressedAccountError {
     InvalidChunkSize,
     #[error("Invalid seeds")]
     InvalidSeeds,
-    #[error("Invalid rollover thresold")]
+    #[error("Invalid rollover threshold")]
     InvalidRolloverThreshold,
-    #[error("Invalid input lenght")]
+    #[error("Invalid input length")]
     InvalidInputLength,
     #[error("Hasher error {0}")]
     HasherError(#[from] HasherError),

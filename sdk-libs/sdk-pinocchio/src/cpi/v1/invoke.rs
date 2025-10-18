@@ -127,7 +127,10 @@ impl LightCpiInstruction for LightSystemProgramCpi {
 
 // Manual BorshSerialize implementation that only serializes instruction_data
 impl BorshSerialize for LightSystemProgramCpi {
-    fn serialize<W: std::io::Write>(&self, writer: &mut W) -> std::io::Result<()> {
+    fn serialize<W: borsh::maybestd::io::Write>(
+        &self,
+        writer: &mut W,
+    ) -> borsh::maybestd::io::Result<()> {
         self.instruction_data.serialize(writer)
     }
 }

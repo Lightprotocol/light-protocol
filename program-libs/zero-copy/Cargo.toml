@@ -8,9 +8,10 @@ edition = "2021"
 
 [features]
 default = []
+alloc = []
+std = ["alloc"]
 solana = ["solana-program-error"]
 pinocchio = ["dep:pinocchio"]
-std = []
 derive = ["light-zero-copy-derive"]
 mut = ["light-zero-copy-derive/mut"]
 

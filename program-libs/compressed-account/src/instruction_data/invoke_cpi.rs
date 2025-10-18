@@ -34,7 +34,7 @@ pub struct InstructionDataInvokeCpi {
 }
 
 impl LightInstructionData for InstructionDataInvokeCpi {
-    #[cfg(feature = "alloc")]
+    #[cfg(all(feature = "alloc", not(feature = "anchor")))]
     fn data(&self) -> Result<Vec<u8>, crate::CompressedAccountError> {
         use borsh::BorshSerialize;
         let inputs = self

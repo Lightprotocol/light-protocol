@@ -225,7 +225,11 @@ impl<'a> ZeroCopyAt<'a> for ZCompressedAccountData<'a> {
     ) -> Result<(ZCompressedAccountData<'a>, &'a [u8]), ZeroCopyError> {
         let (discriminator, bytes) = Ref::<&'a [u8], [u8; 8]>::from_prefix(bytes)?;
         let (len, bytes) = Ref::<&'a [u8], U32>::from_prefix(bytes)?;
-        let (data, bytes) = bytes.split_at(u64::from(*len) as usize);
+        let data_len = u64::from(*len) as usize;
+        if bytes.len() < data_len {
+            return Err(ZeroCopyError::InvalidConversion);
+        }
+        let (data, bytes) = bytes.split_at(data_len);
         let (data_hash, bytes) = Ref::<&'a [u8], [u8; 32]>::from_prefix(bytes)?;
 
         Ok((

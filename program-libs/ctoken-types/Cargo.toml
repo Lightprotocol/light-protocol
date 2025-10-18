@@ -50,7 +50,7 @@ light-account-checks = { workspace = true, features = [
 ] }
 spl-token-metadata-interface = "0.6.0"
 light-ctoken-types = { workspace = true, features = ["poseidon"] }
-light-hasher = { workspace = true, features = ["keccak"] }
+light-hasher = { workspace = true, features = ["keccak", "sha256"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

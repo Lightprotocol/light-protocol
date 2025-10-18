@@ -300,7 +300,7 @@ impl LightClient {
         }
         let parsed_event =
             event_from_light_transaction(program_ids.as_slice(), vec.as_slice(), vec_accounts)
-                .unwrap();
+                .map_err(|e| RpcError::CustomError(format!("Failed to parse event: {e:?}")))?;
         let event = parsed_event.map(|e| (e, signature, slot));
         Ok(event)
     }
