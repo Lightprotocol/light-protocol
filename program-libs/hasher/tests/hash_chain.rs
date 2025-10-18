@@ -1,4 +1,3 @@
-#![cfg(feature = "poseidon")]
 use light_hasher::{
     hash_chain::{create_hash_chain_from_slice, create_two_inputs_hash_chain},
     Hasher, HasherError, Poseidon,

@@ -1,15 +1,11 @@
-#![cfg(feature = "std")]
-
-#[cfg(feature = "poseidon")]
 use ark_ff::PrimeField;
 use borsh::{BorshDeserialize, BorshSerialize};
-#[cfg(feature = "solana")]
-use light_hasher::hash_to_field_size::hashv_to_bn254_field_size_be;
-#[cfg(all(not(target_os = "solana"), feature = "poseidon"))]
-use light_hasher::hash_to_field_size::is_smaller_than_bn254_field_size_be;
 use light_hasher::{
     bigint::bigint_to_be_bytes_array,
-    hash_to_field_size::{hash_to_bn254_field_size_be, HashToFieldSize},
+    hash_to_field_size::{
+        hash_to_bn254_field_size_be, hashv_to_bn254_field_size_be,
+        is_smaller_than_bn254_field_size_be, HashToFieldSize,
+    },
 };
 use num_bigint::{BigUint, ToBigUint};
 
@@ -43,7 +39,6 @@ fn hash_to_field_size_borsh() {
     assert_eq!(hash, manual_hash);
 }
 
-#[cfg(feature = "solana")]
 #[test]
 fn test_hash_to_bn254_field_size_be() {
     use solana_pubkey::Pubkey;
@@ -64,7 +59,6 @@ fn test_hash_to_bn254_field_size_be() {
     );
 }
 
-#[cfg(feature = "solana")]
 #[test]
 fn test_hashv_to_bn254_field_size_be() {
     use solana_pubkey::Pubkey;

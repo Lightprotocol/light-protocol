@@ -34,9 +34,13 @@ pub struct InstructionDataInvokeCpi {
 }
 
 impl LightInstructionData for InstructionDataInvokeCpi {
-    #[cfg(all(feature = "alloc", not(feature = "anchor")))]
+    #[cfg(feature = "alloc")]
     fn data(&self) -> Result<Vec<u8>, crate::CompressedAccountError> {
+        #[cfg(feature = "anchor")]
+        use anchor_lang::AnchorSerialize as BorshSerialize;
+        #[cfg(not(feature = "anchor"))]
         use borsh::BorshSerialize;
+
         let inputs = self
             .try_to_vec()
             .map_err(|_| crate::CompressedAccountError::InvalidArgument)?;

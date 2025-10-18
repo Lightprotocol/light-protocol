@@ -1,4 +1,3 @@
-#![cfg(feature = "poseidon")]
 use std::vec::Vec;
 
 use light_hasher::{DataHasher, Hasher, HasherError, Poseidon};

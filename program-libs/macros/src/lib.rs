@@ -95,14 +95,15 @@ pub fn derive_light_cpi_signer_pda(input: TokenStream) -> TokenStream {
 ///
 /// ```rust
 /// # use light_macros::derive_light_cpi_signer;
+/// # struct CpiSigner { program_id: [u8; 32], cpi_signer: [u8; 32], bump: u8 }
 /// // In a Solana program
-/// let (program_id, cpi_signer, bump) = derive_light_cpi_signer!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
+/// const LIGHT_CPI_SIGNER: CpiSigner = derive_light_cpi_signer!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
 /// ```
 ///
-/// Returns a tuple `([u8; 32], [u8; 32], u8)` containing:
-/// - Program ID bytes
-/// - CPI signer PDA address
-/// - Bump seed
+/// Returns a `CpiSigner` struct (must be in scope) containing:
+/// - `program_id`: Program ID bytes
+/// - `cpi_signer`: CPI signer PDA address
+/// - `bump`: Bump seed
 #[proc_macro]
 pub fn derive_light_cpi_signer(input: TokenStream) -> TokenStream {
     cpi_signer::derive_light_cpi_signer(input)
