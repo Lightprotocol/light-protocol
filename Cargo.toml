@@ -45,6 +45,7 @@ members = [
     "program-tests/utils",
     "program-tests/merkle-tree",
     "program-tests/zero-copy-derive-test",
+    "program-tests/pinocchio-nostd-test",
     "sdk-tests/client-test",
     "sdk-tests/sdk-anchor-test/programs/sdk-anchor-test",
     "sdk-tests/sdk-pinocchio-v1-test",

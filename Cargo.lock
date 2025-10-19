@@ -4811,6 +4811,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd11022408f312e6179ece321c1f7dc0d1b2aa7765fddd39b2a7378d65a899e8"
 
 [[package]]
+name = "pinocchio-nostd-test"
+version = "0.1.0"
+dependencies = [
+ "borsh 0.10.4",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-pinocchio",
+ "light-sdk-types",
+ "pinocchio",
+ "solana-sdk",
+ "tokio",
+]
+
+[[package]]
 name = "pinocchio-pubkey"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

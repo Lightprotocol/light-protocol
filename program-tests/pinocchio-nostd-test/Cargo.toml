@@ -1,0 +1,43 @@
+[package]
+name = "pinocchio-nostd-test"
+version = "0.1.0"
+description = "Test program using pinocchio and light-sdk-pinocchio in no_std mode"
+repository = "https://github.com/Lightprotocol/light-protocol"
+license = "Apache-2.0"
+edition = "2021"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "pinocchio_nostd_test"
+
+[features]
+no-entrypoint = []
+test-sbf = []
+default = []
+
+[dependencies]
+# Pinocchio is no_std by default
+pinocchio = { workspace = true }
+# Light SDK dependencies - none have std in their default features
+light-sdk-pinocchio = { workspace = true, features = ["v2"] }
+light-sdk-types = { workspace = true, features = ["v2"] }
+# Don't include poseidon to avoid light-poseidon -> thiserror v1.0 with std
+light-hasher = { workspace = true }
+light-macros = { workspace = true, features = ["pinocchio"] }
+borsh = { workspace = true }
+
+[dev-dependencies]
+light-program-test = { workspace = true, features = ["devenv"] }
+tokio = { workspace = true }
+solana-sdk = { workspace = true }
+light-hasher = { workspace = true, features = ["solana", "poseidon"] }
+light-compressed-account = { workspace = true, features = ["solana"] }
+light-sdk = { workspace = true, features = ["v2"] }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = [
+    'cfg(target_os, values("solana"))',
+    'cfg(feature, values("frozen-abi", "no-entrypoint"))',
+]
