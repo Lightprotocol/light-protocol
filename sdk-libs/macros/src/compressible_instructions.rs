@@ -669,9 +669,11 @@ pub fn add_compressible_instructions(
                     let mint_info = packed_accounts[mint_index as usize].to_account_info();
                     let owner_info = packed_accounts[owner_index as usize].to_account_info();
 
+                    // Idempotency: if the token account already exists/initialized, skip creating it.
+                    let already_exists = !owner_info.data_is_empty();
+
                     let (ctoken_signer_seeds, derived_token_account_address) = token_data.variant.get_seeds(&seed_context)?;
                     let (ctoken_authority_seeds, ctoken_authority_pda) = token_data.variant.get_authority_seeds(&seed_context)?;
-
 
                     if derived_token_account_address != *owner_info.key {
                         msg!("Derived token account address (PDA) does not match provided owner account");
@@ -680,7 +682,7 @@ pub fn add_compressible_instructions(
                         return err!(CompressibleInstructionError::CTokenDecompressionNotImplemented);
                     }
 
-                    {
+                    if !already_exists {
                         let seed_refs: Vec<&[u8]> = ctoken_signer_seeds.iter().map(|s| s.as_slice()).collect();
                         let seeds_slice: &[&[u8]] = &seed_refs;
 
@@ -696,14 +698,23 @@ pub fn add_compressible_instructions(
                             Some(1), // pre_pay_num_epochs TODO: make this configurable
                             None,    // write_top_up_lamports
                         )?;
+
+                        let decompress_index = light_compressed_token_sdk::instructions::DecompressFullIndices::from((
+                            token_data.token_data,
+                            meta,
+                            owner_index,
+                        ));
+                        token_decompress_indices.push(decompress_index);
+                        token_signers_seed_groups.push(ctoken_signer_seeds);
+                    } else {
+                        msg!("CToken account already initialized, skipping creation and decompress");
+                        continue;
                     }
-                    let decompress_index = light_compressed_token_sdk::instructions::DecompressFullIndices::from((
-                        token_data.token_data,
-                        meta,
-                        owner_index,
-                    ));
-                    token_decompress_indices.push(decompress_index);
-                    token_signers_seed_groups.push(ctoken_signer_seeds);
+                }
+
+                // If there are no token accounts to process, return early to avoid unnecessary CPI.
+                if token_decompress_indices.is_empty() {
+                    return Ok(());
                 }
 
                 let ctoken_ix = light_compressed_token_sdk::instructions::decompress_full_ctoken_accounts_with_indices(
