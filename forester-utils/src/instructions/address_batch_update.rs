@@ -2,10 +2,7 @@ use std::{pin::Pin, sync::Arc, time::Duration};
 
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_stream::stream;
-use futures::{
-    stream::{FuturesOrdered, Stream},
-    StreamExt,
-};
+use futures::stream::Stream;
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, merkle_tree::InstructionDataAddressAppendInputs,
 };
@@ -23,8 +20,8 @@ use tracing::{debug, error, info, warn};
 
 use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
 
-const MAX_PHOTON_ELEMENTS_PER_CALL: usize = 500;
-const MAX_PROOFS_PER_TX: usize = 3;
+const MAX_PHOTON_ELEMENTS_PER_CALL: usize = 1000;
+const MAX_PROOFS_PER_TX: usize = 4;
 
 pub struct AddressUpdateConfig<R: Rpc> {
     pub rpc_pool: Arc<SolanaRpcPool<R>>,
@@ -54,13 +51,14 @@ async fn stream_instruction_data<'a, R: Rpc>(
         let max_zkp_batches_per_call = calculate_max_zkp_batches_per_call(zkp_batch_size);
         let total_chunks = leaves_hash_chains.len().div_ceil(max_zkp_batches_per_call);
 
+        let mut next_queue_index: Option<u64> = None;
+
         for chunk_idx in 0..total_chunks {
             let chunk_start = chunk_idx * max_zkp_batches_per_call;
             let chunk_end = std::cmp::min(chunk_start + max_zkp_batches_per_call, leaves_hash_chains.len());
             let chunk_hash_chains = &leaves_hash_chains[chunk_start..chunk_end];
 
             let elements_for_chunk = chunk_hash_chains.len() * zkp_batch_size as usize;
-            let processed_items_offset = chunk_start * zkp_batch_size as usize;
 
             {
                 if chunk_idx > 0 {
@@ -76,11 +74,15 @@ async fn stream_instruction_data<'a, R: Rpc>(
             let indexer_update_info = {
                 let mut connection = rpc_pool.get_connection().await?;
                 let indexer = connection.indexer_mut()?;
+                debug!(
+                    "Requesting {} addresses from Photon for chunk {} with start_queue_index={:?}",
+                    elements_for_chunk, chunk_idx, next_queue_index
+                );
                 match indexer
                 .get_address_queue_with_proofs(
                     &merkle_tree_pubkey,
                     elements_for_chunk as u16,
-                    Some(processed_items_offset as u64),
+                    next_queue_index,
                     None,
                 )
                 .await {
@@ -91,6 +93,26 @@ async fn stream_instruction_data<'a, R: Rpc>(
                     }
                 }
             };
+
+            // Log Photon response details
+            debug!(
+                "Photon response for chunk {}: received {} addresses, batch_start_index={}, first_queue_index={:?}, last_queue_index={:?}",
+                chunk_idx,
+                indexer_update_info.value.addresses.len(),
+                indexer_update_info.value.batch_start_index,
+                indexer_update_info.value.addresses.first().map(|a| a.queue_index),
+                indexer_update_info.value.addresses.last().map(|a| a.queue_index)
+            );
+
+            // Update next_queue_index for the next chunk based on the last address returned
+            if let Some(last_address) = indexer_update_info.value.addresses.last() {
+                next_queue_index = Some(last_address.queue_index + 1);
+                debug!(
+                    "Setting next_queue_index={} for chunk {}",
+                    next_queue_index.unwrap(),
+                    chunk_idx + 1
+                );
+            }
 
             if chunk_idx == 0 {
                 if let Some(first_proof) = indexer_update_info.value.non_inclusion_proofs.first() {
@@ -121,56 +143,23 @@ async fn stream_instruction_data<'a, R: Rpc>(
             };
             current_root = new_current_root;
 
-            info!("Generating {} ZK proofs with hybrid approach for chunk {}", all_inputs.len(), chunk_idx + 1);
+            info!("Generating {} zk proofs for batch_address chunk {} (parallel)", all_inputs.len(), chunk_idx + 1);
 
-            let mut futures_ordered = FuturesOrdered::new();
-            let mut proof_buffer = Vec::new();
-            let mut pending_count = 0;
-
-            for (i, inputs) in all_inputs.into_iter().enumerate() {
+            // Generate ALL proofs in parallel using join_all
+            let proof_futures: Vec<_> = all_inputs.into_iter().enumerate().map(|(i, inputs)| {
                 let client = Arc::clone(&proof_client);
-                futures_ordered.push_back(async move {
+                async move {
                     let result = client.generate_batch_address_append_proof(inputs).await;
                     (i, result)
-                });
-                pending_count += 1;
-
-                if pending_count >= MAX_PROOFS_PER_TX {
-                    for _ in 0..MAX_PROOFS_PER_TX.min(pending_count) {
-                        if let Some((idx, result)) = futures_ordered.next().await {
-                            match result {
-                                Ok((compressed_proof, new_root)) => {
-                                    let instruction_data = InstructionDataAddressAppendInputs {
-                                        new_root,
-                                        compressed_proof: CompressedProof {
-                                            a: compressed_proof.a,
-                                            b: compressed_proof.b,
-                                            c: compressed_proof.c,
-                                        },
-                                    };
-                                    proof_buffer.push(instruction_data);
-                                },
-                                Err(e) => {
-                                    error!("Address proof failed to generate at index {}: {:?}", idx, e);
-                                    yield Err(ForesterUtilsError::Prover(format!(
-                                        "Address proof generation failed at batch {} in chunk {}: {}",
-                                        idx, chunk_idx, e
-                                    )));
-                                    return;
-                                }
-                            }
-                            pending_count -= 1;
-                        }
-                    }
-
-                    if !proof_buffer.is_empty() {
-                        yield Ok(proof_buffer.clone());
-                        proof_buffer.clear();
-                    }
                 }
-            }
+            }).collect();
 
-            while let Some((idx, result)) = futures_ordered.next().await {
+            // Wait for all proofs to complete in parallel
+            let proof_results = futures::future::join_all(proof_futures).await;
+
+            // Process results and batch them into groups of MAX_PROOFS_PER_TX
+            let mut proof_buffer = Vec::new();
+            for (idx, result) in proof_results {
                 match result {
                     Ok((compressed_proof, new_root)) => {
                         let instruction_data = InstructionDataAddressAppendInputs {
@@ -183,6 +172,7 @@ async fn stream_instruction_data<'a, R: Rpc>(
                         };
                         proof_buffer.push(instruction_data);
 
+                        // Yield when we have MAX_PROOFS_PER_TX proofs ready
                         if proof_buffer.len() >= MAX_PROOFS_PER_TX {
                             yield Ok(proof_buffer.clone());
                             proof_buffer.clear();
@@ -199,6 +189,7 @@ async fn stream_instruction_data<'a, R: Rpc>(
                 }
             }
 
+            // Yield any remaining proofs
             if !proof_buffer.is_empty() {
                 yield Ok(proof_buffer);
             }
@@ -249,11 +240,42 @@ fn get_all_circuit_inputs_for_chunk(
     for (batch_idx, leaves_hash_chain) in chunk_hash_chains.iter().enumerate() {
         let start_idx = batch_idx * batch_size as usize;
         let end_idx = start_idx + batch_size as usize;
+
+        let addresses_len = indexer_update_info.value.addresses.len();
+        if start_idx >= addresses_len {
+            return Err(ForesterUtilsError::Indexer(format!(
+                "Insufficient addresses: batch {} requires start_idx {} but only {} addresses available",
+                batch_idx, start_idx, addresses_len
+            )));
+        }
+        let safe_end_idx = std::cmp::min(end_idx, addresses_len);
+        if safe_end_idx - start_idx != batch_size as usize {
+            return Err(ForesterUtilsError::Indexer(format!(
+                "Insufficient addresses: batch {} requires {} addresses (indices {}..{}) but only {} available",
+                batch_idx, batch_size, start_idx, end_idx, safe_end_idx - start_idx
+            )));
+        }
+
         let batch_addresses: Vec<[u8; 32]> = indexer_update_info.value.addresses
-            [start_idx..end_idx]
+            [start_idx..safe_end_idx]
             .iter()
             .map(|x| x.address)
             .collect();
+
+        let proofs_len = indexer_update_info.value.non_inclusion_proofs.len();
+        if start_idx >= proofs_len {
+            return Err(ForesterUtilsError::Indexer(format!(
+                "Insufficient non-inclusion proofs: batch {} requires start_idx {} but only {} proofs available",
+                batch_idx, start_idx, proofs_len
+            )));
+        }
+        let safe_proofs_end_idx = std::cmp::min(end_idx, proofs_len);
+        if safe_proofs_end_idx - start_idx != batch_size as usize {
+            return Err(ForesterUtilsError::Indexer(format!(
+                "Insufficient non-inclusion proofs: batch {} requires {} proofs (indices {}..{}) but only {} available",
+                batch_idx, batch_size, start_idx, end_idx, safe_proofs_end_idx - start_idx
+            )));
+        }
 
         let mut low_element_values = Vec::new();
         let mut low_element_next_values = Vec::new();
@@ -261,7 +283,8 @@ fn get_all_circuit_inputs_for_chunk(
         let mut low_element_next_indices = Vec::new();
         let mut low_element_proofs = Vec::new();
 
-        for proof in &indexer_update_info.value.non_inclusion_proofs[start_idx..end_idx] {
+        for proof in &indexer_update_info.value.non_inclusion_proofs[start_idx..safe_proofs_end_idx]
+        {
             low_element_values.push(proof.low_address_value);
             low_element_indices.push(proof.low_address_index as usize);
             low_element_next_indices.push(proof.low_address_next_index as usize);
@@ -269,7 +292,8 @@ fn get_all_circuit_inputs_for_chunk(
             low_element_proofs.push(proof.low_address_proof.to_vec());
         }
 
-        if create_hash_chain_from_slice(&batch_addresses)? != *leaves_hash_chain {
+        let computed_hash_chain = create_hash_chain_from_slice(&batch_addresses)?;
+        if computed_hash_chain != *leaves_hash_chain {
             return Err(ForesterUtilsError::Prover(
                 "Addresses hash chain does not match".into(),
             ));
@@ -323,6 +347,7 @@ pub async fn get_address_update_instruction_stream<'a, R: Rpc>(
     let (current_root, leaves_hash_chains, start_index, zkp_batch_size) = (
         merkle_tree_data.current_root,
         merkle_tree_data.leaves_hash_chains,
+        // merkle_tree_data.batch_start_index,
         merkle_tree_data.next_index,
         merkle_tree_data.zkp_batch_size,
     );

@@ -19,6 +19,7 @@ pub mod telemetry;
 pub mod tree_data_sync;
 pub mod tree_finder;
 pub mod utils;
+pub mod work_coordinator;
 
 use std::{sync::Arc, time::Duration};
 
@@ -62,7 +63,7 @@ pub async fn run_queue_info(
     .unwrap();
     let trees: Vec<_> = trees
         .iter()
-        .filter(|t| t.tree_type == queue_type)
+        .filter(|t| t.tree_type == queue_type && !t.is_rolledover)
         .sorted_by_key(|t| t.merkle_tree.to_string())
         .cloned()
         .collect();

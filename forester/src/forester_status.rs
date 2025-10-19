@@ -196,6 +196,11 @@ pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
     run_queue_info(config.clone(), &trees, TreeType::AddressV2).await?;
 
     for tree in &trees {
+        // Skip rolled-over trees
+        if tree.is_rolledover {
+            continue;
+        }
+
         let tree_type = format!("{}", tree.tree_type);
         let tree_info = get_tree_fullness(&mut rpc, tree.merkle_tree, tree.tree_type).await?;
         let fullness_percentage = tree_info.fullness * 100.0;
@@ -248,12 +253,16 @@ pub async fn fetch_forester_status(args: &StatusArgs) -> crate::Result<()> {
 
     let protocol_config = protocol_config_pdas[0].clone();
 
+    // Filter out rolled-over trees
+    let active_trees: Vec<TreeAccounts> =
+        trees.iter().filter(|t| !t.is_rolledover).cloned().collect();
+
     if !active_epoch_foresters.is_empty() && current_epoch_pda_entry.is_some() {
         print_current_forester_assignments(
             slot,
             current_active_epoch,
             active_epoch_foresters,
-            &trees,
+            &active_trees,
             current_epoch_pda_entry,
             &protocol_config,
         );

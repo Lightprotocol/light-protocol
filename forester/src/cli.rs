@@ -68,6 +68,9 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_PHOTON_API_KEY")]
     pub photon_api_key: Option<String>,
 
+    #[arg(long, env = "FORESTER_PHOTON_GRPC_URL")]
+    pub photon_grpc_url: Option<String>,
+
     #[arg(long, env = "FORESTER_INDEXER_BATCH_SIZE", default_value = "50")]
     pub indexer_batch_size: usize,
 
