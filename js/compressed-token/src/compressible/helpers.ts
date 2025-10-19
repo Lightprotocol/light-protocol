@@ -15,8 +15,6 @@ export interface AccountInput {
     };
     accountType: string;
     tokenVariant?: string;
-    // seeds: Uint8Array[]; // Seeds for PDA derivation (from get_X_seeds functions)
-    // authoritySeeds: Uint8Array[]; // Authority seeds for CTokens (from get_X_authority_seeds)
 }
 
 export interface DecompressInstructionParams {
@@ -90,16 +88,12 @@ export async function buildDecompressParams(
                     tokenData: acc.info.parsed,
                 },
                 treeInfo: acc.info.merkleContext!.treeInfo,
-                // seeds: acc.seeds,
-                // authoritySeeds: acc.authoritySeeds,
             };
         } else {
             return {
                 key: acc.accountType,
                 data: acc.info.parsed,
                 treeInfo: acc.info.merkleContext!.treeInfo,
-                // seeds: acc.seeds,
-                // authoritySeeds: acc.authoritySeeds,
             };
         }
     });

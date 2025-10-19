@@ -413,11 +413,15 @@ pub fn add_compressible_instructions(
     let error_codes = generate_error_codes(instruction_variant)?;
 
     // Extract required accounts from seed expressions and track dependencies
-    let (required_accounts, account_dependencies) = extract_required_accounts_from_seeds(&pda_seeds, &token_seeds)?;
+    let (required_accounts, account_dependencies) =
+        extract_required_accounts_from_seeds(&pda_seeds, &token_seeds)?;
 
     // Generate the DecompressAccountsIdempotent accounts struct with required accounts
-    let decompress_accounts =
-        generate_decompress_accounts_struct(&required_accounts, &account_dependencies, instruction_variant)?;
+    let decompress_accounts = generate_decompress_accounts_struct(
+        &required_accounts,
+        &account_dependencies,
+        instruction_variant,
+    )?;
 
     // Generate helper functions for packed variants
     let helper_packed_fns: Result<Vec<_>> = account_types.iter().map(|name| {
@@ -2267,6 +2271,53 @@ fn validate_compressed_account_sizes(account_types: &[Ident]) -> Result<TokenStr
     }).collect();
 
     Ok(quote! { #(#size_checks)* })
+}
+
+/// Helper to extract account name from seed expression (used internally)
+/// Handles: ctx.accounts.field_name, ctx.field_name, field_name
+fn extract_seed_account_name(expr: &syn::Expr) -> Option<String> {
+    match expr {
+        syn::Expr::Field(field_expr) => {
+            if let syn::Member::Named(field_name) = &field_expr.member {
+                // Check if this is ctx.accounts.field_name or ctx.field_name
+                if let syn::Expr::Field(nested_field) = &*field_expr.base {
+                    if let syn::Member::Named(base_name) = &nested_field.member {
+                        if base_name == "accounts" {
+                            return Some(field_name.to_string());
+                        }
+                    }
+                } else if let syn::Expr::Path(path) = &*field_expr.base {
+                    if let Some(segment) = path.path.segments.first() {
+                        if segment.ident == "ctx" {
+                            return Some(field_name.to_string());
+                        }
+                    }
+                }
+            }
+            None
+        }
+        syn::Expr::Path(path_expr) => {
+            // Handle direct identifiers (not ctx references)
+            if let Some(ident) = path_expr.path.get_ident() {
+                let name = ident.to_string();
+                // Skip ctx, data, and uppercase constants
+                if name != "ctx"
+                    && name != "data"
+                    && !name
+                        .chars()
+                        .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
+                {
+                    return Some(name);
+                }
+            }
+            None
+        }
+        syn::Expr::MethodCall(method_call) => {
+            // Recursively extract from method call receiver (e.g., ctx.accounts.mint.key())
+            extract_seed_account_name(&*method_call.receiver)
+        }
+        _ => None,
+    }
 }
 
 /// Generate error codes automatically based on instruction variant

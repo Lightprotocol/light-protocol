@@ -82,8 +82,6 @@ export async function packDecompressAccountsIdempotent(
         key: string;
         treeInfo: TreeInfo;
         data: any;
-        seeds?: Uint8Array[];
-        authoritySeeds?: Uint8Array[];
     }[],
     decompressedAccountAddresses: PublicKey[],
 ): Promise<{
@@ -93,8 +91,6 @@ export async function packDecompressAccountsIdempotent(
             outputStateTreeIndex: number;
         };
         data: any;
-        seedIndices: Buffer;
-        authorityIndices: Buffer;
     }[];
     systemAccountsOffset: number;
     proofOption: { 0: ValidityProof | null };
@@ -139,60 +135,12 @@ export async function packDecompressAccountsIdempotent(
         remainingAccounts,
     );
 
-    // Build a flat seed list in encounter order (no dedup)
-    const seedAccounts: PublicKey[] = [];
-
-    function extractPubkeysFromSeeds(
-        seeds: Uint8Array[] | undefined,
-    ): PublicKey[] {
-        if (!seeds || seeds.length === 0) return [];
-        const pubkeys: PublicKey[] = [];
-        // Skip the last element only if it looks like a bump (length === 1)
-        const end =
-            seeds.length > 0 && seeds[seeds.length - 1].length === 1
-                ? seeds.length - 1
-                : seeds.length;
-        for (let i = 0; i < end; i++) {
-            const seed = seeds[i];
-            if (seed.length === 32) {
-                try {
-                    pubkeys.push(new PublicKey(seed));
-                } catch {
-                    // Not a valid pubkey (literal/constant), skip
-                }
-            }
-        }
-        return pubkeys;
-    }
-
-    function pushSeedAndGetIndex(pubkey: PublicKey): number {
-        const idx = seedAccounts.length;
-        seedAccounts.push(pubkey);
-        return idx;
-    }
-
-    // Build seed_indices and authority_indices for each account
-    const seedIndicesList: number[][] = [];
-    const authorityIndicesList: number[][] = [];
-
-    for (const account of compressedAccounts) {
-        const seedPubkeys = extractPubkeysFromSeeds(account.seeds);
-        const authPubkeys = extractPubkeysFromSeeds(account.authoritySeeds);
-
-        seedIndicesList.push(seedPubkeys.map(pk => pushSeedAndGetIndex(pk)));
-        authorityIndicesList.push(
-            authPubkeys.map(pk => pushSeedAndGetIndex(pk)),
-        );
-    }
-
     const compressedAccountData: {
         meta: {
             treeInfo: PackedStateTreeInfo;
             outputStateTreeIndex: number;
         };
         data: any;
-        seedIndices: Buffer;
-        authorityIndices: Buffer;
     }[] = compressedAccounts.map(({ data }, index) => {
         const packedData = packWithAccounts(data, remainingAccounts);
         if (!packedTreeInfos.stateTrees) {
@@ -212,8 +160,6 @@ export async function packDecompressAccountsIdempotent(
                 compressedAccounts[index].key[0].toUpperCase() +
                 compressedAccounts[index].key.slice(1)]: [packedData],
             },
-            seedIndices: Buffer.from(seedIndicesList[index]),
-            authorityIndices: Buffer.from(authorityIndicesList[index]),
         };
     });
     const { remainingAccounts: remainingAccountMetas, systemStart } =
@@ -230,15 +176,6 @@ export async function packDecompressAccountsIdempotent(
             pubkey: account,
             isSigner: false,
             isWritable: true,
-        });
-    }
-
-    // Add all seed accounts (no dedup)
-    for (const seedAccount of seedAccounts) {
-        remainingAccountMetas.push({
-            pubkey: seedAccount,
-            isSigner: false,
-            isWritable: false,
         });
     }
 

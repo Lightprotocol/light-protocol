@@ -196,7 +196,7 @@ fn generate_unified_structures(struct_names: &[&Ident]) -> Vec<Item> {
         pub struct CompressedAccountData {
             pub meta: light_sdk_types::instruction::account_meta::CompressedAccountMeta,
             pub data: CompressedAccountVariant,
-            pub seeds: Vec<Vec<u8>>, // Seeds for PDA derivation (without bump)
+            // pub seeds: Vec<Vec<u8>>, // Seeds for PDA derivation (without bump)
         }
     };
     items.push(compressed_account_data);

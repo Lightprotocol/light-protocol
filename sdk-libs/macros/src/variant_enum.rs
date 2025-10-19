@@ -244,10 +244,10 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
         pub struct CompressedAccountData {
             pub meta: light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
             pub data: CompressedAccountVariant,
-            /// Indices into remaining_accounts for seed account references (starting from seed_accounts_offset)
-            pub seed_indices: Vec<u8>,
-            /// Indices into remaining_accounts for authority seed references (for CTokens only)
-            pub authority_indices: Vec<u8>,
+            // /// Indices into remaining_accounts for seed account references (starting from seed_accounts_offset)
+            // pub seed_indices: Vec<u8>,
+            // /// Indices into remaining_accounts for authority seed references (for CTokens only)
+            // pub authority_indices: Vec<u8>,
         }
     };
 
