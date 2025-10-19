@@ -463,7 +463,7 @@ pub fn add_compressible_instructions(
                 let (seeds_vec, derived_pda) = #seed_call;
 
                 if derived_pda != *solana_accounts[i].key {
-                    msg!(
+                   anchor_lang::solana_program::log::msg!(
                         "Derived PDA does not match account at index {}: expected {:?}, got {:?}, seeds: {:?}",
                         i,
                         solana_accounts[i].key,
@@ -575,6 +575,8 @@ pub fn add_compressible_instructions(
                     )> = Vec::with_capacity(estimated_capacity);
 
                     for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
+                       anchor_lang::solana_program::log::msg!("CU before unpack idx={}", i);
+                        anchor_lang::solana_program::log::sol_log_compute_units();
                         let meta = compressed_data.meta;
                         match compressed_data.data {
                             #(#call_unpacked_arms)*
@@ -590,6 +592,8 @@ pub fn add_compressible_instructions(
                                 unreachable!();
                             }
                         }
+                       anchor_lang::solana_program::log::msg!("CU after unpack idx={}", i);
+                        anchor_lang::solana_program::log::sol_log_compute_units();
                     }
 
                     Ok((compressed_pda_infos, compressed_token_accounts))
@@ -617,6 +621,9 @@ pub fn add_compressible_instructions(
                 &crate::ID,
             )?;
             let address_space = compression_config.address_space[0];
+
+           anchor_lang::solana_program::log::msg!("CU after load_checked");
+            anchor_lang::solana_program::log::sol_log_compute_units();
 
             #[inline(never)]
             fn check_account_types(compressed_accounts: &[CompressedAccountData]) -> (bool, bool) {
@@ -676,9 +683,9 @@ pub fn add_compressible_instructions(
                     let (ctoken_authority_seeds, ctoken_authority_pda) = token_data.variant.get_authority_seeds(&seed_context)?;
 
                     if derived_token_account_address != *owner_info.key {
-                        msg!("Derived token account address (PDA) does not match provided owner account");
-                        msg!("derived_token_account_address: {:?}", derived_token_account_address);
-                        msg!("owner_info.key: {:?}", owner_info.key);
+                       anchor_lang::solana_program::log::msg!("Derived token account address (PDA) does not match provided owner account");
+                       anchor_lang::solana_program::log::msg!("derived_token_account_address: {:?}", derived_token_account_address);
+                       anchor_lang::solana_program::log::msg!("owner_info.key: {:?}", owner_info.key);
                         return err!(CompressibleInstructionError::CTokenDecompressionNotImplemented);
                     }
 
@@ -707,7 +714,7 @@ pub fn add_compressible_instructions(
                         token_decompress_indices.push(decompress_index);
                         token_signers_seed_groups.push(ctoken_signer_seeds);
                     } else {
-                        msg!("CToken account already initialized, skipping creation and decompress");
+                       anchor_lang::solana_program::log::msg!("CToken account already initialized, skipping creation and decompress");
                         continue;
                     }
                 }
@@ -758,6 +765,9 @@ pub fn add_compressible_instructions(
                 return Ok(());
             }
 
+           anchor_lang::solana_program::log::msg!("CU after check_account_types: has_tokens={}, has_pdas={}", has_tokens, has_pdas);
+            anchor_lang::solana_program::log::sol_log_compute_units();
+
 
             let cpi_accounts = if has_tokens && has_pdas {
                 light_sdk_types::CpiAccountsSmall::new_with_config(
@@ -773,6 +783,9 @@ pub fn add_compressible_instructions(
                 )
             };
 
+           anchor_lang::solana_program::log::msg!("CU after alloc CpiAccountsSmall");
+            anchor_lang::solana_program::log::sol_log_compute_units();
+
             let solana_accounts = &ctx.remaining_accounts[ctx.remaining_accounts.len() - compressed_accounts.len()..];
 
             let (mut compressed_pda_infos, compressed_token_accounts) = __macro_helpers::collect_pda_and_token(
@@ -782,6 +795,13 @@ pub fn add_compressible_instructions(
                 compressed_accounts,
                 solana_accounts,
             )?;
+
+           anchor_lang::solana_program::log::msg!(
+                "CU after collect_pda_and_ctoken: pdas={}, tokens={}",
+                compressed_pda_infos.len(),
+                compressed_token_accounts.len()
+            );
+            anchor_lang::solana_program::log::sol_log_compute_units();
 
             let has_pdas = !compressed_pda_infos.is_empty();
             let has_tokens = !compressed_token_accounts.is_empty();
@@ -812,6 +832,8 @@ pub fn add_compressible_instructions(
             }
 
             if has_tokens {
+                anchor_lang::solana_program::log::msg!("CU before process_tokens");
+                anchor_lang::solana_program::log::sol_log_compute_units();
                 process_tokens(
                     &ctx.accounts,
                     &ctx.remaining_accounts,
@@ -826,6 +848,8 @@ pub fn add_compressible_instructions(
                     cpi_accounts,
                     has_pdas
                 )?;
+               anchor_lang::solana_program::log::msg!("CU after process_tokens");
+                anchor_lang::solana_program::log::sol_log_compute_units();
             }
             Ok(())
         }
