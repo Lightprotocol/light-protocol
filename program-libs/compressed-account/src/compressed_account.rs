@@ -379,7 +379,8 @@ impl ZCompressedAccount<'_> {
 
 #[cfg(all(not(feature = "pinocchio"), test, feature = "poseidon"))]
 mod tests {
-    use light_hasher::Poseidon;
+    use borsh::BorshSerialize;
+    use light_hasher::{hash_to_field_size::hash_to_bn254_field_size_be, Poseidon};
     use light_zero_copy::traits::ZeroCopyAt;
     use num_bigint::BigUint;
     use rand::Rng;

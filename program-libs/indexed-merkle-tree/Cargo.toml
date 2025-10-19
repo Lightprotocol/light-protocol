@@ -34,5 +34,6 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 light-hash-set = { workspace = true }
+light-hasher = { workspace = true, features = ["keccak", "sha256", "poseidon"] }
 rand = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }

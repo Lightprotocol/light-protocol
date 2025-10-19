@@ -58,6 +58,7 @@ rand = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-account-checks = { workspace = true, features = ["test-only"] }
 light-compressed-account = { workspace = true, features = ["new-unique"] }
+light-hasher = { workspace = true, features = ["keccak"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

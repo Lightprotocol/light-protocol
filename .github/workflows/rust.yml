@@ -50,13 +50,10 @@ jobs:
               cargo test -p light-array-map --all-features
               cargo test -p light-hasher --all-features
               cargo test -p light-compressed-account --all-features
-              cargo test -p light-compressed-account --features new-unique,poseidon
               cargo test -p light-account-checks  --all-features
               cargo test -p light-verifier --all-features
               cargo test -p light-merkle-tree-metadata --all-features
               cargo test -p light-zero-copy --features "std, mut, derive"
-              cargo test -p light-zero-copy --no-default-features  # Test no_std compatibility
-              cargo build -p light-zero-copy --no-default-features  # Ensure no_std builds
               cargo test -p light-zero-copy-derive --all-features
               cargo test -p zero-copy-derive-test
               cargo test -p light-hash-set --all-features

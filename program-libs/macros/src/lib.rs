@@ -65,7 +65,7 @@ pub fn derive_noop(_input: TokenStream) -> TokenStream {
     TokenStream::new()
 }
 
-/// Derives a Light Protocol CPI signer PDA at runtime
+/// Derives a Light Protocol CPI signer PDA at compile time
 ///
 /// This macro computes the CPI signer PDA using the "cpi_authority" seed
 /// for the given program ID. Uses `solana_pubkey` with `solana` feature,
