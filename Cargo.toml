@@ -164,7 +164,7 @@ light-macros = { path = "program-libs/macros", version = "2.1.0" }
 light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "3.0.1" }
 light-heap = { path = "program-libs/heap", version = "2.0.0" }
 light-prover-client = { path = "prover/client", version = "3.0.0" }
-light-sdk = { path = "sdk-libs/sdk", version = "0.15.0" }
+light-sdk = { path = "sdk-libs/sdk", version = "0.15.1" }
 light-sdk-pinocchio = { path = "sdk-libs/sdk-pinocchio", version = "0.13.0" }
 light-sdk-macros = { path = "sdk-libs/macros", version = "0.15.0" }
 light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.15.0" }
@@ -191,7 +191,7 @@ light-registry = { path = "programs/registry", version = "2.0.0", features = [
 create-address-test-program = { path = "program-tests/create-address-test-program", version = "1.0.0", features = [
     "cpi",
 ] }
-light-program-test = { path = "sdk-libs/program-test", version = "0.15.0" }
+light-program-test = { path = "sdk-libs/program-test", version = "0.15.1" }
 light-batched-merkle-tree = { path = "program-libs/batched-merkle-tree", version = "0.5.0" }
 light-merkle-tree-metadata = { path = "program-libs/merkle-tree-metadata", version = "0.5.0" }
 aligned-sized = { path = "program-libs/aligned-sized", version = "1.1.0" }

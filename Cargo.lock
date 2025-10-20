@@ -3694,7 +3694,7 @@ dependencies = [
 
 [[package]]
 name = "light-program-test"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "account-compression",
  "anchor-lang",
@@ -3781,7 +3781,7 @@ dependencies = [
 
 [[package]]
 name = "light-sdk"
-version = "0.15.0"
+version = "0.15.1"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
