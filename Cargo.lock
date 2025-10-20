@@ -3927,7 +3927,6 @@ dependencies = [
 name = "light-sdk"
 version = "0.15.0"
 dependencies = [
- "account-compression",
  "anchor-lang",
  "borsh 0.10.4",
  "light-account-checks",

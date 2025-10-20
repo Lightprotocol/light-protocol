@@ -49,7 +49,9 @@ mod system_accounts;
 mod tree_info;
 
 /// Zero-knowledge proof to prove the validity of existing compressed accounts and new addresses.
-pub use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
+pub use light_compressed_account::instruction_data::compressed_proof::{
+    CompressedProof, ValidityProof,
+};
 pub use light_sdk_types::instruction::*;
 pub use pack_accounts::*;
 pub use system_accounts::*;

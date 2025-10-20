@@ -10,7 +10,6 @@ cargo clippy \
         --workspace \
         --no-deps \
         --all-features \
-        --exclude name-service \
         --exclude photon-api \
         --exclude name-service \
         -- -A clippy::result_large_err \
