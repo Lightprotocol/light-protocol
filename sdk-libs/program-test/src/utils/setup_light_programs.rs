@@ -69,7 +69,7 @@ pub fn setup_light_programs(
         .inspect_err(|_| {
             println!("Program light_compressed_token bin not found in {}", path);
         })?;
-    let path = format!("{}spl_noop.so", light_bin_path);
+    let path = format!("{}/spl_noop.so", light_bin_path);
     program_test
         .add_program_from_file(NOOP_PROGRAM_ID, path.clone())
         .inspect_err(|_| {
