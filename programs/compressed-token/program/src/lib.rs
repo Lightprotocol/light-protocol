@@ -9,6 +9,7 @@ pub mod claim;
 pub mod close_token_account;
 pub mod convert_account_infos;
 pub mod create_associated_token_account;
+pub mod create_associated_token_account2;
 pub mod create_token_account;
 pub mod ctoken_transfer;
 pub mod extensions;
@@ -23,6 +24,9 @@ use claim::process_claim;
 use close_token_account::processor::process_close_token_account;
 use create_associated_token_account::{
     process_create_associated_token_account, process_create_associated_token_account_idempotent,
+};
+use create_associated_token_account2::{
+    process_create_associated_token_account2, process_create_associated_token_account2_idempotent,
 };
 use create_token_account::process_create_token_account;
 use ctoken_transfer::process_ctoken_transfer;
@@ -70,6 +74,10 @@ pub enum InstructionType {
     Claim = 104,
     /// Withdraw funds from pool PDA
     WithdrawFundingPool = 105,
+    /// Create associated token account with owner and mint as accounts (non-idempotent)
+    CreateAssociatedTokenAccount2 = 106,
+    /// Create associated token account with owner and mint as accounts (idempotent)
+    CreateAssociatedTokenAccount2Idempotent = 107,
     Other,
 }
 
@@ -86,6 +94,8 @@ impl From<u8> for InstructionType {
             103 => InstructionType::MintAction,
             104 => InstructionType::Claim,
             105 => InstructionType::WithdrawFundingPool,
+            106 => InstructionType::CreateAssociatedTokenAccount2,
+            107 => InstructionType::CreateAssociatedTokenAccount2Idempotent,
             _ => InstructionType::Other, // anchor instructions
         }
     }
@@ -144,6 +154,14 @@ pub fn process_instruction(
         InstructionType::WithdrawFundingPool => {
             msg!("WithdrawFundingPool");
             process_withdraw_funding_pool(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::CreateAssociatedTokenAccount2 => {
+            msg!("CreateAssociatedTokenAccount2");
+            process_create_associated_token_account2(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::CreateAssociatedTokenAccount2Idempotent => {
+            msg!("CreateAssociatedTokenAccount2Idempotent");
+            process_create_associated_token_account2_idempotent(accounts, &instruction_data[1..])?;
         }
         // anchor instructions have no discriminator conflicts with InstructionType
         // TODO: add test for discriminator conflict
