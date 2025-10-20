@@ -1,3 +1,15 @@
+#![allow(unexpected_cfgs)]
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+extern crate alloc;
+
+#[cfg(feature = "alloc")]
+#[cfg(not(feature = "std"))]
+pub use alloc::{string::String, vec, vec::Vec};
+#[cfg(feature = "std")]
+pub use std::{string::String, vec, vec::Vec};
+
 pub mod bigint;
 mod data_hasher;
 pub mod errors;

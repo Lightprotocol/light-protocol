@@ -50,7 +50,7 @@ light-merkle-tree-metadata = { workspace = true }
 borsh = { workspace = true }
 zerocopy = { workspace = true }
 pinocchio = { workspace = true, optional = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
 light-macros = { workspace = true }
 
 [dev-dependencies]
@@ -58,6 +58,7 @@ rand = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-account-checks = { workspace = true, features = ["test-only"] }
 light-compressed-account = { workspace = true, features = ["new-unique"] }
+light-hasher = { workspace = true, features = ["keccak"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

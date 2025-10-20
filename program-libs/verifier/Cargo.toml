@@ -19,7 +19,7 @@ pinocchio = ["dep:pinocchio", "light-compressed-account/pinocchio"]
 [dependencies]
 groth16-solana = { workspace = true }
 thiserror = { workspace = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
 
 # Optional import for ProgramError conversion
 solana-program-error = { workspace = true, optional = true }

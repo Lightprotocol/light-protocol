@@ -1,7 +1,6 @@
 use light_account_checks::error::AccountError;
 use light_hasher::HasherError;
 pub use light_sdk_types::error::LightSdkTypesError;
-use light_zero_copy::errors::ZeroCopyError;
 use pinocchio::program_error::ProgramError;
 use thiserror::Error;
 
@@ -79,8 +78,6 @@ pub enum LightSdkError {
     ModeMismatch,
     #[error(transparent)]
     Hasher(#[from] HasherError),
-    #[error(transparent)]
-    ZeroCopy(#[from] ZeroCopyError),
     #[error("Compressed account error: {0:?}")]
     CompressedAccount(light_compressed_account::CompressedAccountError),
     #[error("Program error: {0:?}")]
@@ -176,7 +173,6 @@ impl From<LightSdkError> for u32 {
             LightSdkError::InvalidCpiAccountsOffset => 16034,
             LightSdkError::ModeMismatch => 16035,
             LightSdkError::Hasher(e) => e.into(),
-            LightSdkError::ZeroCopy(e) => e.into(),
             LightSdkError::CompressedAccount(_) => 16036,
             LightSdkError::ProgramError(e) => u64::from(e) as u32,
             LightSdkError::AccountError(e) => e.into(),

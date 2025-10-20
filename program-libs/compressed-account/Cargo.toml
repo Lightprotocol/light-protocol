@@ -7,9 +7,11 @@ license = "Apache-2.0"
 edition = "2021"
 
 [features]
-default = []
+default = ["alloc"]
+alloc = ["light-hasher/alloc"]
+std = ["alloc", "borsh/std", "dep:solana-msg", "light-zero-copy/std"]
 solana = ["dep:solana-pubkey", "dep:solana-program-error"]
-anchor = ["anchor-lang"]
+anchor = ["anchor-lang", "std"]
 pinocchio = ["dep:pinocchio"]
 bytemuck-des = ["bytemuck"]
 new-unique = ["dep:solana-pubkey"]
@@ -22,18 +24,19 @@ thiserror = { workspace = true }
 zerocopy = { workspace = true, features = ["derive"] }
 light-hasher = { workspace = true }
 light-poseidon = { workspace = true, optional = true }
-light-zero-copy = { workspace = true, features = ["std", "mut", "derive"] }
+light-zero-copy = { workspace = true, default-features = false, features = ["alloc", "mut", "derive"] }
 light-macros = { workspace = true }
 pinocchio = { workspace = true, optional = true }
 solana-program-error = { workspace = true, optional = true }
-solana-msg = { workspace = true }
+solana-msg = { workspace = true, optional = true }
 # Feature-gated dependencies
 anchor-lang = { workspace = true, optional = true }
 bytemuck = { workspace = true, optional = true, features = ["derive"] }
-borsh = { workspace = true }
+borsh = { workspace = true, default-features = false }
 solana-pubkey = { workspace = true, optional = true }
 light-program-profiler = { workspace = true }
 light-heap = { workspace = true, optional = true }
+tinyvec = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
@@ -43,3 +46,4 @@ borsh = { workspace = true }
 ark-ff = { workspace = true }
 ark-bn254 = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }
+light-compressed-account = { workspace = true, features = ["new-unique", "std"] }

@@ -13,5 +13,6 @@ num-traits = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
+light-hasher = { workspace = true, features = ["keccak", "sha256", "poseidon"] }
 rand = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }

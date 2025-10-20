@@ -106,15 +106,15 @@ impl From<pinocchio::program_error::ProgramError> for AccountError {
 }
 
 #[cfg(feature = "solana")]
-impl From<std::cell::BorrowError> for AccountError {
-    fn from(_: std::cell::BorrowError) -> Self {
+impl From<core::cell::BorrowError> for AccountError {
+    fn from(_: core::cell::BorrowError) -> Self {
         AccountError::BorrowAccountDataFailed
     }
 }
 
 #[cfg(feature = "solana")]
-impl From<std::cell::BorrowMutError> for AccountError {
-    fn from(_: std::cell::BorrowMutError) -> Self {
+impl From<core::cell::BorrowMutError> for AccountError {
+    fn from(_: core::cell::BorrowMutError) -> Self {
         AccountError::BorrowAccountDataFailed
     }
 }

@@ -1,14 +1,23 @@
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+extern crate alloc;
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+use alloc::vec::Vec;
+#[cfg(feature = "std")]
+use std::vec::Vec;
+
 use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 pub use light_compressed_account::LightInstructionData;
 use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
+#[cfg(any(feature = "std", feature = "alloc"))]
+use pinocchio::pubkey::Pubkey;
 use pinocchio::{
     cpi::slice_invoke_signed,
     instruction::{AccountMeta, Instruction, Seed, Signer},
     program_error::ProgramError,
-    pubkey::Pubkey,
 };
 
-use crate::{error::LightSdkError, BorshDeserialize, BorshSerialize, LightDiscriminator};
+#[cfg(any(feature = "std", feature = "alloc"))]
+use crate::error::LightSdkError;
 
 /// Trait for types that can provide account information for CPI calls
 pub trait CpiAccountsTrait {
@@ -31,14 +40,15 @@ pub trait CpiAccountsTrait {
 pub trait LightCpiInstruction: Sized {
     fn new_cpi(cpi_signer: light_sdk_types::CpiSigner, proof: ValidityProof) -> Self;
 
+    #[cfg(feature = "light-account")]
     fn with_light_account<A>(
         self,
-        account: crate::account::LightAccount<'_, A>,
-    ) -> Result<Self, LightSdkError>
+        account: crate::LightAccount<'_, A>,
+    ) -> Result<Self, ProgramError>
     where
-        A: BorshSerialize
-            + BorshDeserialize
-            + LightDiscriminator
+        A: borsh::BorshSerialize
+            + borsh::BorshDeserialize
+            + crate::LightDiscriminator
             + light_hasher::DataHasher
             + Default;
 
@@ -47,7 +57,13 @@ pub trait LightCpiInstruction: Sized {
 }
 
 pub trait InvokeLightSystemProgram {
+    #[cfg(any(feature = "std", feature = "alloc"))]
     fn invoke(self, accounts: impl CpiAccountsTrait) -> Result<(), ProgramError>;
+
+    fn invoke_array<const N: usize>(
+        self,
+        accounts: impl CpiAccountsTrait,
+    ) -> Result<(), ProgramError>;
 }
 
 // Blanket implementation for types that implement both LightInstructionData and LightCpiInstruction
@@ -55,6 +71,7 @@ impl<T> InvokeLightSystemProgram for T
 where
     T: LightInstructionData + LightCpiInstruction,
 {
+    #[cfg(any(feature = "std", feature = "alloc"))]
     fn invoke(self, accounts: impl CpiAccountsTrait) -> Result<(), ProgramError> {
         // Validate mode consistency
         if accounts.get_mode() != self.get_mode() {
@@ -76,6 +93,37 @@ where
             program_id: &Pubkey::from(LIGHT_SYSTEM_PROGRAM_ID),
             accounts: &account_metas,
             data: &data,
+        };
+
+        invoke_light_system_program(&account_infos, instruction, self.get_bump())
+    }
+
+    fn invoke_array<const N: usize>(
+        self,
+        accounts: impl CpiAccountsTrait,
+    ) -> Result<(), ProgramError> {
+        use light_compressed_account::CompressedAccountError;
+        // Validate mode consistency
+        if accounts.get_mode() != self.get_mode() {
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        // Serialize instruction data with discriminator using data_array
+        let data = self.data_array::<N>().map_err(|e| match e {
+            CompressedAccountError::InputTooLarge(_) => ProgramError::InvalidInstructionData,
+            _ => ProgramError::InvalidArgument,
+        })?;
+
+        // Get account infos and metas
+        let account_infos = accounts
+            .to_account_infos_for_invoke()
+            .map_err(ProgramError::from)?;
+        let account_metas = accounts.to_account_metas().map_err(ProgramError::from)?;
+
+        let instruction = Instruction {
+            program_id: &LIGHT_SYSTEM_PROGRAM_ID,
+            accounts: &account_metas,
+            data: data.as_slice(),
         };
 
         invoke_light_system_program(&account_infos, instruction, self.get_bump())

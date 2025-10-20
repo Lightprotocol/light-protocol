@@ -1,8 +1,7 @@
 use borsh::maybestd::io::Error as BorshError;
+use light_compressed_account::CompressedAccountError;
 use light_zero_copy::errors::ZeroCopyError;
 use thiserror::Error;
-
-use crate::CompressedAccountError;
 
 #[derive(Debug, Error)]
 pub enum ParseIndexerEventError {

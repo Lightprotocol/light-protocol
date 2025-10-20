@@ -1,15 +1,16 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_sdk_pinocchio::{
-    account::LightAccount,
     cpi::{
         v1::{CpiAccounts, CpiAccountsConfig},
         InvokeLightSystemProgram, LightCpiInstruction,
     },
     error::LightSdkError,
     instruction::account_meta::CompressedAccountMeta,
-    ValidityProof,
+    LightAccount, ValidityProof,
 };
-use pinocchio::{account_info::AccountInfo, log::sol_log_compute_units};
+use pinocchio::{
+    account_info::AccountInfo, log::sol_log_compute_units, program_error::ProgramError,
+};
 
 use crate::create_pda::MyCompressedAccount;
 
@@ -24,13 +25,15 @@ pub fn update_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(
         .map_err(|_| LightSdkError::Borsh)?;
     sol_log_compute_units();
 
+    let program_id = crate::LIGHT_CPI_SIGNER.program_id.into();
     let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_mut(
-        &crate::ID,
+        &program_id,
         &instruction_data.my_compressed_account.meta,
         MyCompressedAccount {
             data: instruction_data.my_compressed_account.data,
         },
-    )?;
+    )
+    .map_err(|e| LightSdkError::ProgramError(ProgramError::Custom(u64::from(e) as u32)))?;
     sol_log_compute_units();
 
     my_compressed_account.data = instruction_data.new_data;

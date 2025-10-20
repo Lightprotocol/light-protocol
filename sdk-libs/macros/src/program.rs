@@ -12,7 +12,7 @@ use syn::{
 
 // A single instruction parameter provided as an argument to the Anchor program
 // function. It consists of the name an the type, e.g.: `name: String`.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 struct InstructionParam {
     name: Ident,
     ty: Type,

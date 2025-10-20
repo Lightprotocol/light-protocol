@@ -1,4 +1,5 @@
-use std::panic::Location;
+#[cfg(feature = "std")]
+use core::panic::Location;
 
 use crate::{AccountError, AccountInfoTrait};
 
@@ -12,13 +13,16 @@ impl<A: AccountInfoTrait> ProgramPackedAccounts<'_, A> {
     /// Get account by index with bounds checking
     #[track_caller]
     #[inline(never)]
-    pub fn get(&self, index: usize, name: &str) -> Result<&A, AccountError> {
-        let location = Location::caller();
+    pub fn get(&self, index: usize, _name: &str) -> Result<&A, AccountError> {
         if index >= self.accounts.len() {
-            solana_msg::msg!(
-                "ERROR: Not enough accounts. Requested '{}' at index {} but only {} accounts available. {}:{}:{}",
-                name, index, self.accounts.len(), location.file(), location.line(), location.column()
-            );
+            #[cfg(feature = "std")]
+            {
+                let location = Location::caller();
+                solana_msg::msg!(
+                    "ERROR: Not enough accounts. Requested '{}' at index {} but only {} accounts available. {}:{}:{}",
+                    _name, index, self.accounts.len(), location.file(), location.line(), location.column()
+                );
+            }
             return Err(AccountError::NotEnoughAccountKeys);
         }
         Ok(&self.accounts[index])

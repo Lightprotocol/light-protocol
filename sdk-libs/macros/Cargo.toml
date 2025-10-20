@@ -16,17 +16,17 @@ quote = { workspace = true }
 syn = { workspace = true }
 solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
 
-light-hasher = { workspace = true }
+light-hasher = { workspace = true, features = ["sha256"] }
 
 [dev-dependencies]
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
 light-sdk-types = { workspace = true }
 prettyplease = "0.2.29"
 solana-pubkey = { workspace = true, features = ["borsh"] }
 borsh = { workspace = true }
 light-macros = { workspace = true }
 light-account-checks = { workspace = true }
-light-hasher = { workspace = true , features = ["poseidon"]}
+light-hasher = { workspace = true , features = ["poseidon", "keccak"]}
 light-poseidon = { workspace = true }
 
 [lib]

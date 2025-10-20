@@ -1,11 +1,16 @@
+#[cfg(all(not(feature = "std"), feature = "alloc"))]
+use alloc::vec::Vec;
+#[cfg(feature = "std")]
+use std::vec::Vec;
+
 use light_account_checks::AccountInfoTrait;
+use light_compressed_account::CpiSigner;
 
 #[cfg(feature = "cpi-context")]
 use crate::cpi_context_write::CpiContextWriteAccounts;
 use crate::{
     cpi_accounts::{CpiAccountsConfig, TreeAccounts},
     error::{LightSdkTypesError, Result},
-    CpiSigner,
 };
 
 #[repr(usize)]
@@ -38,7 +43,7 @@ impl<'a, T: AccountInfoTrait + Clone> TryFrom<&CpiAccounts<'a, T>>
 {
     type Error = LightSdkTypesError;
 
-    fn try_from(value: &CpiAccounts<'a, T>) -> std::result::Result<Self, Self::Error> {
+    fn try_from(value: &CpiAccounts<'a, T>) -> core::result::Result<Self, Self::Error> {
         Ok(Self {
             fee_payer: value.fee_payer,
             authority: value.authority()?,

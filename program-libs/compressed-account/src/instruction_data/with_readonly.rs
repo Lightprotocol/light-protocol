@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use core::ops::Deref;
 
 use light_zero_copy::{
     errors::ZeroCopyError, slice::ZeroCopySliceBorsh, traits::ZeroCopyAt, ZeroCopyMut,
@@ -31,11 +31,19 @@ use crate::{
     discriminators::DISCRIMINATOR_INVOKE_CPI_WITH_READ_ONLY,
     instruction_data::traits::LightInstructionData,
     pubkey::Pubkey,
-    AnchorDeserialize, AnchorSerialize, CompressedAccountError, InstructionDiscriminator,
+    CompressedAccountError, InstructionDiscriminator, Vec,
 };
 
 #[repr(C)]
-#[derive(Debug, Default, PartialEq, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, Default, PartialEq, Clone, ZeroCopyMut)]
 pub struct InAccount {
     pub discriminator: [u8; 8],
     /// Data hash
@@ -219,7 +227,15 @@ impl<'a> Deref for ZInAccount<'a> {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone, ZeroCopyMut)]
 pub struct InstructionDataInvokeCpiWithReadOnly {
     /// 0 With program ids
     /// 1 without program ids
@@ -594,80 +610,6 @@ impl PartialEq<InstructionDataInvokeCpiWithReadOnly> for ZInstructionDataInvokeC
     }
 }
 
-// TODO: add randomized tests.
-#[test]
-fn test_read_only_zero_copy() {
-    let borsh_struct = InstructionDataInvokeCpiWithReadOnly {
-        mode: 0,
-        bump: 0,
-        invoking_program_id: Pubkey::default(),
-        compress_or_decompress_lamports: 0,
-        is_compress: false,
-        with_cpi_context: false,
-        with_transaction_hash: true,
-        cpi_context: CompressedCpiContext {
-            set_context: false,
-            first_set_context: false,
-            cpi_context_account_index: 0,
-        },
-        proof: None,
-        new_address_params: vec![NewAddressParamsAssignedPacked {
-            seed: [1; 32],
-            address_merkle_tree_account_index: 1,
-            address_queue_account_index: 2,
-            address_merkle_tree_root_index: 3,
-            assigned_to_account: true,
-            assigned_account_index: 2,
-        }],
-        input_compressed_accounts: vec![InAccount {
-            discriminator: [1, 2, 3, 4, 5, 6, 7, 8],
-            data_hash: [10; 32],
-            merkle_context: PackedMerkleContext {
-                merkle_tree_pubkey_index: 1,
-                queue_pubkey_index: 2,
-                leaf_index: 3,
-                prove_by_index: false,
-            },
-            root_index: 3,
-            lamports: 1000,
-            address: Some([30; 32]),
-        }],
-        output_compressed_accounts: vec![OutputCompressedAccountWithPackedContext {
-            compressed_account: CompressedAccount {
-                owner: Pubkey::default(),
-                lamports: 2000,
-                address: Some([40; 32]),
-                data: Some(CompressedAccountData {
-                    discriminator: [3, 4, 5, 6, 7, 8, 9, 10],
-                    data: vec![],
-                    data_hash: [50; 32],
-                }),
-            },
-            merkle_tree_index: 3,
-        }],
-        read_only_addresses: vec![PackedReadOnlyAddress {
-            address: [70; 32],
-            address_merkle_tree_account_index: 4,
-            address_merkle_tree_root_index: 5,
-        }],
-        read_only_accounts: vec![PackedReadOnlyCompressedAccount {
-            account_hash: [80; 32],
-            merkle_context: PackedMerkleContext {
-                merkle_tree_pubkey_index: 5,
-                queue_pubkey_index: 6,
-                leaf_index: 7,
-                prove_by_index: false,
-            },
-            root_index: 8,
-        }],
-    };
-    let bytes = borsh_struct.try_to_vec().unwrap();
-
-    let (zero_copy, _) = InstructionDataInvokeCpiWithReadOnly::zero_copy_at(&bytes).unwrap();
-
-    assert_eq!(zero_copy, borsh_struct);
-}
-
 #[cfg(all(not(feature = "pinocchio"), feature = "new-unique"))]
 #[cfg(test)]
 mod test {
@@ -679,6 +621,79 @@ mod test {
 
     use super::*;
     use crate::CompressedAccountError;
+    // TODO: add randomized tests.
+    #[test]
+    fn test_read_only_zero_copy() {
+        let borsh_struct = InstructionDataInvokeCpiWithReadOnly {
+            mode: 0,
+            bump: 0,
+            invoking_program_id: Pubkey::default(),
+            compress_or_decompress_lamports: 0,
+            is_compress: false,
+            with_cpi_context: false,
+            with_transaction_hash: true,
+            cpi_context: CompressedCpiContext {
+                set_context: false,
+                first_set_context: false,
+                cpi_context_account_index: 0,
+            },
+            proof: None,
+            new_address_params: vec![NewAddressParamsAssignedPacked {
+                seed: [1; 32],
+                address_merkle_tree_account_index: 1,
+                address_queue_account_index: 2,
+                address_merkle_tree_root_index: 3,
+                assigned_to_account: true,
+                assigned_account_index: 2,
+            }],
+            input_compressed_accounts: vec![InAccount {
+                discriminator: [1, 2, 3, 4, 5, 6, 7, 8],
+                data_hash: [10; 32],
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 1,
+                    queue_pubkey_index: 2,
+                    leaf_index: 3,
+                    prove_by_index: false,
+                },
+                root_index: 3,
+                lamports: 1000,
+                address: Some([30; 32]),
+            }],
+            output_compressed_accounts: vec![OutputCompressedAccountWithPackedContext {
+                compressed_account: CompressedAccount {
+                    owner: Pubkey::default(),
+                    lamports: 2000,
+                    address: Some([40; 32]),
+                    data: Some(CompressedAccountData {
+                        discriminator: [3, 4, 5, 6, 7, 8, 9, 10],
+                        data: vec![],
+                        data_hash: [50; 32],
+                    }),
+                },
+                merkle_tree_index: 3,
+            }],
+            read_only_addresses: vec![PackedReadOnlyAddress {
+                address: [70; 32],
+                address_merkle_tree_account_index: 4,
+                address_merkle_tree_root_index: 5,
+            }],
+            read_only_accounts: vec![PackedReadOnlyCompressedAccount {
+                account_hash: [80; 32],
+                merkle_context: PackedMerkleContext {
+                    merkle_tree_pubkey_index: 5,
+                    queue_pubkey_index: 6,
+                    leaf_index: 7,
+                    prove_by_index: false,
+                },
+                root_index: 8,
+            }],
+        };
+        let bytes = borsh_struct.try_to_vec().unwrap();
+
+        let (zero_copy, _) = InstructionDataInvokeCpiWithReadOnly::zero_copy_at(&bytes).unwrap();
+
+        assert_eq!(zero_copy, borsh_struct);
+    }
 
     /// Compare the original struct with its zero-copy counterpart
     fn compare_invoke_cpi_with_readonly(

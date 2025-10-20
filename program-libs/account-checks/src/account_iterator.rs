@@ -1,4 +1,4 @@
-use std::panic::Location;
+use core::panic::Location;
 
 use crate::{
     checks::{check_mut, check_non_mut, check_signer},
@@ -46,13 +46,16 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
     /// * `Err(AccountError::NotEnoughAccountKeys)` - If no more accounts are available
     #[track_caller]
     #[inline(always)]
-    pub fn next_account(&mut self, account_name: &str) -> Result<&'info T, AccountError> {
+    pub fn next_account(&mut self, _account_name: &str) -> Result<&'info T, AccountError> {
         if self.position >= self.accounts.len() {
-            let location = Location::caller();
-            solana_msg::msg!(
-                "ERROR: Not enough accounts. Requested '{}' at index {} but only {} accounts available. {}:{}:{}",
-                account_name, self.position, self.accounts.len(), location.file(), location.line(), location.column()
-            );
+            #[cfg(feature = "std")]
+            {
+                let location = Location::caller();
+                solana_msg::msg!(
+                    "ERROR: Not enough accounts. Requested '{}' at index {} but only {} accounts available. {}:{}:{}",
+                    _account_name, self.position, self.accounts.len(), location.file(), location.line(), location.column()
+                );
+            }
             return Err(AccountError::NotEnoughAccountKeys);
         }
 
@@ -165,12 +168,15 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
     #[track_caller]
     pub fn remaining(&self) -> Result<&'info [T], AccountError> {
         if self.position >= self.accounts.len() {
-            let location = Location::caller();
-            let account_name = "remaining accounts";
-            solana_msg::msg!(
-                "ERROR: Not enough accounts. Requested '{}' at index {} but only {} accounts available. {}:{}:{}",
-                account_name, self.position, self.accounts.len(), location.file(), location.line(), location.column()
-            );
+            #[cfg(feature = "std")]
+            {
+                let location = Location::caller();
+                let account_name = "remaining accounts";
+                solana_msg::msg!(
+                    "ERROR: Not enough accounts. Requested '{}' at index {} but only {} accounts available. {}:{}:{}",
+                    account_name, self.position, self.accounts.len(), location.file(), location.line(), location.column()
+                );
+            }
             return Err(AccountError::NotEnoughAccountKeys);
         }
         Ok(&self.accounts[self.position..])
@@ -212,6 +218,7 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
 
     #[cold]
     fn print_on_error(&self, error: &AccountError, account_name: &str, location: &Location) {
+        #[cfg(feature = "std")]
         solana_msg::msg!(
             "ERROR: {}. for account '{}' at index {}  {}:{}:{}",
             error,
@@ -221,6 +228,8 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
             location.line(),
             location.column()
         );
+        #[cfg(not(feature = "std"))]
+        let _ = (error, account_name, location);
     }
     #[cold]
     fn print_on_error_pubkey(
@@ -231,7 +240,7 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
         account_name: &str,
         location: &Location,
     ) {
-        #[cfg(feature = "solana")]
+        #[cfg(all(feature = "std", feature = "solana"))]
         solana_msg::msg!(
             "ERROR: {}. for account '{}' address: {:?}, expected: {:?}, at index {}  {}:{}:{}",
             error,
@@ -243,7 +252,7 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
             location.line(),
             location.column()
         );
-        #[cfg(not(feature = "solana"))]
+        #[cfg(all(feature = "std", not(feature = "solana")))]
         solana_msg::msg!(
             "ERROR: {}. for account '{}' address: {:?}, expected: {:?}, at index {}  {}:{}:{}",
             error,
@@ -255,5 +264,7 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
             location.line(),
             location.column()
         );
+        #[cfg(not(feature = "std"))]
+        let _ = (error, pubkey1, pubkey2, account_name, location);
     }
 }

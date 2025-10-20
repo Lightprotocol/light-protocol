@@ -81,6 +81,7 @@ pub fn check_discriminator<T: Discriminator>(bytes: &[u8]) -> Result<(), Account
     }
 
     if T::LIGHT_DISCRIMINATOR != bytes[0..DISCRIMINATOR_LEN] {
+        #[cfg(feature = "std")]
         solana_msg::msg!(
             "expected discriminator {:?} != {:?} actual",
             T::LIGHT_DISCRIMINATOR,
@@ -111,6 +112,7 @@ pub fn check_account_balance_is_rent_exempt<A: AccountInfoTrait>(
     }
     #[cfg(not(target_os = "solana"))]
     {
+        #[cfg(feature = "std")]
         println!("Rent exemption check skipped since not target_os solana.");
         Ok(lamports)
     }

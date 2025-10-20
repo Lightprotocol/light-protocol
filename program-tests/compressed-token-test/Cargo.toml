@@ -25,7 +25,7 @@ anchor-lang = { workspace = true }
 light-compressed-token = { workspace = true }
 light-system-program-anchor = { workspace = true }
 account-compression = { workspace = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
 light-batched-merkle-tree = { workspace = true }
 light-registry = { workspace = true }
 solana-sdk = { workspace = true }

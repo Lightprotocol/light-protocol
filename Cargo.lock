@@ -3355,6 +3355,7 @@ name = "light-account-checks"
 version = "0.4.0"
 dependencies = [
  "borsh 0.10.4",
+ "light-account-checks",
  "pinocchio",
  "rand 0.8.5",
  "solana-account-info",
@@ -3436,6 +3437,7 @@ dependencies = [
  "lazy_static",
  "light-compressed-account",
  "light-concurrent-merkle-tree",
+ "light-event",
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-merkle-tree-metadata",
@@ -3479,6 +3481,7 @@ dependencies = [
  "ark-ff 0.5.0",
  "borsh 0.10.4",
  "bytemuck",
+ "light-compressed-account",
  "light-hasher",
  "light-heap",
  "light-macros",
@@ -3492,6 +3495,7 @@ dependencies = [
  "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "thiserror 2.0.17",
+ "tinyvec",
  "zerocopy",
 ]
 
@@ -3635,6 +3639,7 @@ dependencies = [
  "light-array-map",
  "light-compressed-account",
  "light-compressible",
+ "light-ctoken-types",
  "light-hasher",
  "light-heap",
  "light-macros",
@@ -3658,6 +3663,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-event"
+version = "0.1.0"
+dependencies = [
+ "borsh 0.10.4",
+ "light-compressed-account",
+ "light-hasher",
+ "light-zero-copy",
+ "rand 0.8.5",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "light-hash-set"
 version = "3.0.0"
 dependencies = [
@@ -3677,18 +3694,18 @@ version = "4.0.0"
 dependencies = [
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
- "arrayvec",
  "borsh 0.10.4",
+ "light-hasher",
  "light-poseidon 0.3.0",
  "num-bigint 0.4.6",
  "pinocchio",
  "rand 0.8.5",
  "sha2 0.10.9",
  "sha3",
- "solana-nostd-keccak",
  "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "thiserror 2.0.17",
+ "tinyvec",
  "zerocopy",
 ]
 
@@ -3734,6 +3751,7 @@ dependencies = [
  "bs58",
  "proc-macro2",
  "quote",
+ "solana-pubkey 2.4.0",
  "syn 2.0.106",
 ]
 
@@ -3829,6 +3847,7 @@ dependencies = [
  "light-compressible",
  "light-concurrent-merkle-tree",
  "light-ctoken-types",
+ "light-event",
  "light-hasher",
  "light-indexed-array",
  "light-indexed-merkle-tree",
@@ -3954,12 +3973,10 @@ dependencies = [
  "light-compressed-account",
  "light-hasher",
  "light-macros",
+ "light-sdk",
  "light-sdk-macros",
  "light-sdk-types",
- "light-zero-copy",
  "pinocchio",
- "solana-msg 2.2.1",
- "solana-pubkey 2.4.0",
  "thiserror 2.0.17",
 ]
 
@@ -3973,7 +3990,6 @@ dependencies = [
  "light-compressed-account",
  "light-hasher",
  "light-macros",
- "light-zero-copy",
  "solana-msg 2.2.1",
  "solana-pubkey 2.4.0",
  "thiserror 2.0.17",
@@ -4053,6 +4069,7 @@ dependencies = [
  "light-compressible",
  "light-concurrent-merkle-tree",
  "light-ctoken-types",
+ "light-event",
  "light-hasher",
  "light-indexed-array",
  "light-indexed-merkle-tree",
@@ -4117,6 +4134,7 @@ name = "light-zero-copy"
 version = "0.4.0"
 dependencies = [
  "borsh 0.10.4",
+ "light-zero-copy",
  "light-zero-copy-derive",
  "pinocchio",
  "rand 0.8.5",
@@ -4791,6 +4809,23 @@ name = "pinocchio-log"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cd11022408f312e6179ece321c1f7dc0d1b2aa7765fddd39b2a7378d65a899e8"
+
+[[package]]
+name = "pinocchio-nostd-test"
+version = "0.1.0"
+dependencies = [
+ "borsh 0.10.4",
+ "light-compressed-account",
+ "light-hasher",
+ "light-macros",
+ "light-program-test",
+ "light-sdk",
+ "light-sdk-pinocchio",
+ "light-sdk-types",
+ "pinocchio",
+ "solana-sdk",
+ "tokio",
+]
 
 [[package]]
 name = "pinocchio-pubkey"
@@ -5724,6 +5759,7 @@ dependencies = [
  "light-sdk-types",
  "light-test-utils",
  "serial_test",
+ "solana-pubkey 2.4.0",
  "solana-sdk",
  "tokio",
 ]
@@ -9912,6 +9948,7 @@ dependencies = [
  "light-client",
  "light-compressed-account",
  "light-compressed-token",
+ "light-event",
  "light-hasher",
  "light-merkle-tree-metadata",
  "light-program-test",

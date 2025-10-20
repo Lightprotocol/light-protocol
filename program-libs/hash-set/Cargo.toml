@@ -19,4 +19,5 @@ light-hasher = { workspace = true }
 [dev-dependencies]
 ark-bn254 = { workspace = true }
 ark-ff = { workspace = true }
+light-hasher = { workspace = true, features = ["keccak", "sha256", "poseidon"] }
 rand = { workspace = true }

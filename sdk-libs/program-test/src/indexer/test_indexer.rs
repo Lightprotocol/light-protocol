@@ -36,11 +36,11 @@ use light_client::{
 use light_compressed_account::{
     compressed_account::{CompressedAccountWithMerkleContext, MerkleContext},
     hash_chain::create_hash_chain_from_slice,
-    indexer_event::event::PublicTransactionEvent,
     instruction_data::compressed_proof::CompressedProof,
     tx_hash::create_tx_hash,
     TreeType,
 };
+use light_event::event::PublicTransactionEvent;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_merkle_tree_metadata::QueueType;
 use light_merkle_tree_reference::MerkleTree;

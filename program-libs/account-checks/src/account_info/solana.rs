@@ -5,11 +5,11 @@ use crate::error::AccountError;
 impl AccountInfoTrait for solana_account_info::AccountInfo<'_> {
     type Pubkey = solana_pubkey::Pubkey;
     type DataRef<'b>
-        = std::cell::Ref<'b, [u8]>
+        = core::cell::Ref<'b, [u8]>
     where
         Self: 'b;
     type DataRefMut<'b>
-        = std::cell::RefMut<'b, [u8]>
+        = core::cell::RefMut<'b, [u8]>
     where
         Self: 'b;
 
@@ -48,14 +48,14 @@ impl AccountInfoTrait for solana_account_info::AccountInfo<'_> {
     fn try_borrow_data(&self) -> Result<Self::DataRef<'_>, AccountError> {
         self.data
             .try_borrow()
-            .map(|r| std::cell::Ref::map(r, |data| &**data))
+            .map(|r| core::cell::Ref::map(r, |data| &**data))
             .map_err(Into::into)
     }
 
     fn try_borrow_mut_data(&self) -> Result<Self::DataRefMut<'_>, AccountError> {
         self.data
             .try_borrow_mut()
-            .map(|r| std::cell::RefMut::map(r, |data| &mut **data))
+            .map(|r| core::cell::RefMut::map(r, |data| &mut **data))
             .map_err(Into::into)
     }
 

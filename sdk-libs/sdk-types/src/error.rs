@@ -2,7 +2,7 @@ use light_account_checks::error::AccountError;
 use light_hasher::HasherError;
 use thiserror::Error;
 
-pub type Result<T> = std::result::Result<T, LightSdkTypesError>;
+pub type Result<T> = core::result::Result<T, LightSdkTypesError>;
 
 #[derive(Debug, Error, PartialEq)]
 pub enum LightSdkTypesError {

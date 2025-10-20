@@ -1,19 +1,20 @@
-use std::collections::HashMap;
-
 use light_hasher::{Hasher, Poseidon};
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 
 use crate::{
-    address::pack_account,
-    hash_to_bn254_field_size_be,
-    instruction_data::{
-        data::OutputCompressedAccountWithPackedContext, zero_copy::ZCompressedAccount,
-    },
-    AnchorDeserialize, AnchorSerialize, CompressedAccountError, Pubkey, TreeType,
+    instruction_data::zero_copy::ZCompressedAccount, CompressedAccountError, Pubkey, TreeType, Vec,
 };
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone, ZeroCopyMut)]
 pub struct PackedCompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
     pub merkle_context: PackedMerkleContext,
@@ -22,7 +23,15 @@ pub struct PackedCompressedAccountWithMerkleContext {
     pub read_only: bool,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct InCompressedAccountWithMerkleContext {
     pub compressed_account: InCompressedAccount,
     pub merkle_context: MerkleContext,
@@ -41,7 +50,15 @@ impl From<CompressedAccount> for InCompressedAccount {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct PackedInCompressedAccountWithMerkleContext {
     pub compressed_account: InCompressedAccount,
     pub merkle_context: PackedMerkleContext,
@@ -68,7 +85,15 @@ impl From<CompressedAccountWithMerkleContext> for InCompressedAccountWithMerkleC
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct CompressedAccountWithMerkleContext {
     pub compressed_account: CompressedAccount,
     pub merkle_context: MerkleContext,
@@ -103,32 +128,17 @@ impl CompressedAccountWithMerkleContext {
             root_index: root_index.unwrap_or_default(),
         })
     }
-
-    pub fn pack(
-        &self,
-        root_index: Option<u16>,
-        remaining_accounts: &mut HashMap<Pubkey, usize>,
-    ) -> Result<PackedCompressedAccountWithMerkleContext, CompressedAccountError> {
-        Ok(PackedCompressedAccountWithMerkleContext {
-            compressed_account: self.compressed_account.clone(),
-            merkle_context: PackedMerkleContext {
-                merkle_tree_pubkey_index: pack_account(
-                    &self.merkle_context.merkle_tree_pubkey,
-                    remaining_accounts,
-                ),
-                queue_pubkey_index: pack_account(
-                    &self.merkle_context.queue_pubkey,
-                    remaining_accounts,
-                ),
-                leaf_index: self.merkle_context.leaf_index,
-                prove_by_index: root_index.is_none(),
-            },
-            root_index: root_index.unwrap_or_default(),
-            read_only: false,
-        })
-    }
 }
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct ReadOnlyCompressedAccount {
     pub account_hash: [u8; 32],
     pub merkle_context: MerkleContext,
@@ -136,14 +146,30 @@ pub struct ReadOnlyCompressedAccount {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone, ZeroCopyMut)]
 pub struct PackedReadOnlyCompressedAccount {
     pub account_hash: [u8; 32],
     pub merkle_context: PackedMerkleContext,
     pub root_index: u16,
 }
 
-#[derive(Debug, Clone, Copy, AnchorSerialize, AnchorDeserialize, PartialEq, Default)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Default)]
 pub struct MerkleContext {
     pub merkle_tree_pubkey: Pubkey,
     pub queue_pubkey: Pubkey,
@@ -153,17 +179,15 @@ pub struct MerkleContext {
 }
 
 #[repr(C)]
-#[derive(
-    Debug,
-    Clone,
-    Copy,
-    AnchorSerialize,
-    AnchorDeserialize,
-    PartialEq,
-    Default,
-    ZeroCopy,
-    ZeroCopyMut,
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
 )]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, Clone, Copy, PartialEq, Default, ZeroCopy, ZeroCopyMut)]
 pub struct PackedMerkleContext {
     pub merkle_tree_pubkey_index: u8,
     pub queue_pubkey_index: u8,
@@ -171,68 +195,16 @@ pub struct PackedMerkleContext {
     pub prove_by_index: bool,
 }
 
-pub fn pack_compressed_accounts(
-    compressed_accounts: &[CompressedAccountWithMerkleContext],
-    root_indices: &[Option<u16>],
-    remaining_accounts: &mut HashMap<Pubkey, usize>,
-) -> Vec<PackedCompressedAccountWithMerkleContext> {
-    compressed_accounts
-        .iter()
-        .zip(root_indices.iter())
-        .map(|(x, root_index)| {
-            let mut merkle_context = x.merkle_context;
-            let root_index = if let Some(root) = root_index {
-                *root
-            } else {
-                merkle_context.prove_by_index = true;
-                0
-            };
-
-            PackedCompressedAccountWithMerkleContext {
-                compressed_account: x.compressed_account.clone(),
-                merkle_context: pack_merkle_context(&[merkle_context], remaining_accounts)[0],
-                root_index,
-                read_only: false,
-            }
-        })
-        .collect::<Vec<_>>()
-}
-
-pub fn pack_output_compressed_accounts(
-    compressed_accounts: &[CompressedAccount],
-    merkle_trees: &[Pubkey],
-    remaining_accounts: &mut HashMap<Pubkey, usize>,
-) -> Vec<OutputCompressedAccountWithPackedContext> {
-    compressed_accounts
-        .iter()
-        .zip(merkle_trees.iter())
-        .map(|(x, tree)| OutputCompressedAccountWithPackedContext {
-            compressed_account: x.clone(),
-            merkle_tree_index: pack_account(tree, remaining_accounts),
-        })
-        .collect::<Vec<_>>()
-}
-
-pub fn pack_merkle_context(
-    merkle_context: &[MerkleContext],
-    remaining_accounts: &mut HashMap<Pubkey, usize>,
-) -> Vec<PackedMerkleContext> {
-    merkle_context
-        .iter()
-        .map(|merkle_context| PackedMerkleContext {
-            leaf_index: merkle_context.leaf_index,
-            merkle_tree_pubkey_index: pack_account(
-                &merkle_context.merkle_tree_pubkey,
-                remaining_accounts,
-            ),
-            queue_pubkey_index: pack_account(&merkle_context.queue_pubkey, remaining_accounts),
-            prove_by_index: merkle_context.prove_by_index,
-        })
-        .collect::<Vec<_>>()
-}
-
 #[repr(C)]
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone, ZeroCopyMut)]
 pub struct CompressedAccount {
     pub owner: Pubkey,
     pub lamports: u64,
@@ -240,7 +212,15 @@ pub struct CompressedAccount {
     pub data: Option<CompressedAccountData>,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct InCompressedAccount {
     pub owner: Pubkey,
     pub lamports: u64,
@@ -250,7 +230,15 @@ pub struct InCompressedAccount {
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Default, Clone, AnchorSerialize, AnchorDeserialize, ZeroCopyMut)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone, ZeroCopyMut)]
 pub struct CompressedAccountData {
     pub discriminator: [u8; 8],
     pub data: Vec<u8>,
@@ -266,12 +254,9 @@ pub fn hash_with_hashed_values(
     leaf_index: &u32,
     is_batched: bool,
 ) -> Result<[u8; 32], CompressedAccountError> {
-    // TODO: replace with array
-    let capacity = 3
-        + std::cmp::min(*lamports, 1) as usize
-        + address.is_some() as usize
-        + data.is_some() as usize * 2;
-    let mut vec: Vec<&[u8]> = Vec::with_capacity(capacity);
+    // Use ArrayVec with max capacity of 7 elements:
+    // owner_hashed + leaf_index + merkle_tree_hashed + lamports + address + discriminator + data_hash
+    let mut vec: tinyvec::ArrayVec<[&[u8]; 7]> = tinyvec::ArrayVec::new();
     vec.push(owner_hashed.as_slice());
 
     // leaf index and merkle tree pubkey are used to make every compressed account hash unique
@@ -342,6 +327,7 @@ impl CompressedAccount {
         leaf_index: &u32,
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError> {
+        use light_hasher::hash_to_field_size::hash_to_bn254_field_size_be;
         let hashed_mt = hash_to_bn254_field_size_be(merkle_tree_pubkey.as_ref());
 
         self.hash_with_hashed_values(
@@ -381,6 +367,7 @@ impl ZCompressedAccount<'_> {
         leaf_index: &u32,
         is_batched: bool,
     ) -> Result<[u8; 32], CompressedAccountError> {
+        use light_hasher::hash_to_field_size::hash_to_bn254_field_size_be;
         self.hash_with_hashed_values(
             &hash_to_bn254_field_size_be(&self.owner.to_bytes()),
             &hash_to_bn254_field_size_be(merkle_tree_pubkey.as_slice()),
@@ -392,7 +379,8 @@ impl ZCompressedAccount<'_> {
 
 #[cfg(all(not(feature = "pinocchio"), test, feature = "poseidon"))]
 mod tests {
-    use light_hasher::Poseidon;
+    use borsh::BorshSerialize;
+    use light_hasher::{hash_to_field_size::hash_to_bn254_field_size_be, Poseidon};
     use light_zero_copy::traits::ZeroCopyAt;
     use num_bigint::BigUint;
     use rand::Rng;

@@ -1,15 +1,21 @@
-use std::collections::HashMap;
-
 use light_zero_copy::ZeroCopyMut;
 
 use crate::{
     compressed_account::{CompressedAccount, PackedCompressedAccountWithMerkleContext},
     discriminators::DISCRIMINATOR_INVOKE,
     instruction_data::{compressed_proof::CompressedProof, traits::LightInstructionData},
-    AnchorDeserialize, AnchorSerialize, InstructionDiscriminator, Pubkey,
+    InstructionDiscriminator, Pubkey, Vec,
 };
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct InstructionDataInvoke {
     pub proof: Option<CompressedProof>,
     pub input_compressed_accounts_with_merkle_context:
@@ -80,23 +86,45 @@ impl InstructionDiscriminator for InstructionDataInvoke {
 
 impl LightInstructionData for InstructionDataInvoke {}
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct OutputCompressedAccountWithContext {
     pub compressed_account: CompressedAccount,
     pub merkle_tree: Pubkey,
 }
 
 #[repr(C)]
-#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize, ZeroCopyMut)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone, ZeroCopyMut)]
 pub struct OutputCompressedAccountWithPackedContext {
     pub compressed_account: CompressedAccount,
     pub merkle_tree_index: u8,
 }
 
 #[repr(C)]
-#[derive(
-    Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, ZeroCopyMut,
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
 )]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone, Copy, ZeroCopyMut)]
 pub struct NewAddressParamsPacked {
     pub seed: [u8; 32],
     pub address_queue_account_index: u8,
@@ -105,9 +133,15 @@ pub struct NewAddressParamsPacked {
 }
 
 #[repr(C)]
-#[derive(
-    Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, ZeroCopyMut,
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
 )]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone, Copy, ZeroCopyMut)]
 pub struct NewAddressParamsAssignedPacked {
     pub seed: [u8; 32],
     pub address_queue_account_index: u8,
@@ -138,7 +172,15 @@ impl NewAddressParamsAssignedPacked {
     }
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct NewAddressParams {
     pub seed: [u8; 32],
     pub address_queue_pubkey: Pubkey,
@@ -146,7 +188,15 @@ pub struct NewAddressParams {
     pub address_merkle_tree_root_index: u16,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct NewAddressParamsAssigned {
     pub seed: [u8; 32],
     pub address_queue_pubkey: Pubkey,
@@ -156,40 +206,32 @@ pub struct NewAddressParamsAssigned {
 }
 
 #[repr(C)]
-#[derive(
-    Debug, PartialEq, Default, Clone, Copy, AnchorDeserialize, AnchorSerialize, ZeroCopyMut,
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
 )]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone, Copy, ZeroCopyMut)]
 pub struct PackedReadOnlyAddress {
     pub address: [u8; 32],
     pub address_merkle_tree_root_index: u16,
     pub address_merkle_tree_account_index: u8,
 }
 
-#[derive(Debug, PartialEq, Default, Clone, AnchorDeserialize, AnchorSerialize)]
+#[cfg_attr(
+    all(feature = "std", feature = "anchor"),
+    derive(anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)
+)]
+#[cfg_attr(
+    not(feature = "anchor"),
+    derive(borsh::BorshDeserialize, borsh::BorshSerialize)
+)]
+#[derive(Debug, PartialEq, Default, Clone)]
 pub struct ReadOnlyAddress {
     pub address: [u8; 32],
     pub address_merkle_tree_pubkey: Pubkey,
     pub address_merkle_tree_root_index: u16,
-}
-// TODO: move
-pub fn pack_pubkey(pubkey: &Pubkey, hash_set: &mut HashMap<Pubkey, u8>) -> u8 {
-    match hash_set.get(pubkey) {
-        Some(index) => *index,
-        None => {
-            let index = hash_set.len() as u8;
-            hash_set.insert(*pubkey, index);
-            index
-        }
-    }
-}
-
-pub fn pack_pubkey_usize(pubkey: &Pubkey, hash_set: &mut HashMap<Pubkey, usize>) -> u8 {
-    match hash_set.get(pubkey) {
-        Some(index) => (*index) as u8,
-        None => {
-            let index = hash_set.len();
-            hash_set.insert(*pubkey, index);
-            index as u8
-        }
-    }
 }

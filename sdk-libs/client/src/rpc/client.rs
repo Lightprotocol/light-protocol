@@ -6,12 +6,10 @@ use std::{
 use async_trait::async_trait;
 use borsh::BorshDeserialize;
 use bs58;
-use light_compressed_account::{
-    indexer_event::{
-        event::{BatchPublicTransactionEvent, PublicTransactionEvent},
-        parse::event_from_light_transaction,
-    },
-    TreeType,
+use light_compressed_account::TreeType;
+use light_event::{
+    event::{BatchPublicTransactionEvent, PublicTransactionEvent},
+    parse::event_from_light_transaction,
 };
 use solana_account::Account;
 use solana_clock::Slot;
@@ -302,7 +300,7 @@ impl LightClient {
         }
         let parsed_event =
             event_from_light_transaction(program_ids.as_slice(), vec.as_slice(), vec_accounts)
-                .unwrap();
+                .map_err(|e| RpcError::CustomError(format!("Failed to parse event: {e:?}")))?;
         let event = parsed_event.map(|e| (e, signature, slot));
         Ok(event)
     }

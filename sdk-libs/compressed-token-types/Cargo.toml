@@ -16,6 +16,6 @@ light-macros = { workspace = true }
 anchor-lang = { workspace = true, optional = true }
 light-sdk-types = { workspace = true }
 light-account-checks = { workspace = true }
-light-compressed-account = { workspace = true }
+light-compressed-account = { workspace = true, features = ["std"] }
 thiserror = { workspace = true }
 solana-msg = { workspace = true }

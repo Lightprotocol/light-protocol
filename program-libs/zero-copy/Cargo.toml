@@ -8,9 +8,10 @@ edition = "2021"
 
 [features]
 default = []
+alloc = []
+std = ["alloc"]
 solana = ["solana-program-error"]
 pinocchio = ["dep:pinocchio"]
-std = []
 derive = ["light-zero-copy-derive"]
 mut = ["light-zero-copy-derive/mut"]
 
@@ -26,3 +27,4 @@ zerocopy = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
 trybuild = "1.0"
 light-zero-copy-derive = { workspace = true }
+light-zero-copy = { workspace = true, features = ["std", "derive", "mut"] }

@@ -1,5 +1,6 @@
+#[cfg(feature = "alloc")]
+use alloc::vec::Vec;
 use core::ops::{Deref, DerefMut};
-use std::vec::Vec;
 
 use zerocopy::Ref;
 
@@ -8,15 +9,18 @@ use crate::{
     traits::{ZeroCopyAt, ZeroCopyAtMut},
 };
 
+#[cfg(feature = "alloc")]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct VecU8<T>(Vec<T>);
 
+#[cfg(feature = "alloc")]
 impl<T> VecU8<T> {
     pub fn new() -> Self {
         Self(Vec::new())
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<T> Deref for VecU8<T> {
     type Target = Vec<T>;
     fn deref(&self) -> &Self::Target {
@@ -24,12 +28,14 @@ impl<T> Deref for VecU8<T> {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl DerefMut for VecU8<u8> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<'a, T: ZeroCopyAt<'a>> ZeroCopyAt<'a> for VecU8<T> {
     type ZeroCopyAt = Vec<T::ZeroCopyAt>;
 
@@ -47,6 +53,7 @@ impl<'a, T: ZeroCopyAt<'a>> ZeroCopyAt<'a> for VecU8<T> {
     }
 }
 
+#[cfg(feature = "alloc")]
 impl<'a, T: ZeroCopyAtMut<'a>> ZeroCopyAtMut<'a> for VecU8<T> {
     type ZeroCopyAtMut = Vec<T::ZeroCopyAtMut>;
 

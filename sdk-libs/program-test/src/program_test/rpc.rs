@@ -7,13 +7,11 @@ use light_client::{
     indexer::{Indexer, TreeInfo},
     rpc::{LightClientConfig, Rpc, RpcError},
 };
-use light_compressed_account::{
-    indexer_event::{
-        error::ParseIndexerEventError,
-        event::{BatchPublicTransactionEvent, PublicTransactionEvent},
-        parse::event_from_light_transaction,
-    },
-    TreeType,
+use light_compressed_account::TreeType;
+use light_event::{
+    error::ParseIndexerEventError,
+    event::{BatchPublicTransactionEvent, PublicTransactionEvent},
+    parse::event_from_light_transaction,
 };
 use solana_rpc_client_api::config::RpcSendTransactionConfig;
 use solana_sdk::{
