@@ -140,7 +140,7 @@ impl Indexer for TestIndexer {
                 if let Some(leaf_index) = tree.merkle_tree.get_leaf_index(hash) {
                     let proof = tree
                         .merkle_tree
-                        .get_proof_of_leaf(leaf_index, false)
+                        .get_proof_of_leaf(leaf_index, true)
                         .unwrap();
                     proofs.push(MerkleProof {
                         hash: *hash,

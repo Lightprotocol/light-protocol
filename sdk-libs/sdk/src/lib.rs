@@ -152,6 +152,9 @@ pub mod token;
 pub mod transfer;
 pub mod utils;
 
+#[cfg(feature = "merkle-tree")]
+pub mod merkle_tree;
+
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
