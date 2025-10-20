@@ -22,6 +22,7 @@ v2 = ["light-sdk-types/v2"]
 cpi-context = ["light-sdk-types/cpi-context"]
 devnet = []
 poseidon = ["light-hasher/poseidon", "light-compressed-account/poseidon"]
+merkle-tree = ["light-concurrent-merkle-tree/solana"]
 
 
 [dependencies]
@@ -45,6 +46,7 @@ light-compressed-account = { workspace = true, features = ["std"] }
 light-hasher = { workspace = true, features = ["std"] }
 light-account-checks = { workspace = true, features = ["solana"] }
 light-zero-copy = { workspace = true }
+light-concurrent-merkle-tree = { workspace = true, optional = true }
 
 [dev-dependencies]
 num-bigint = { workspace = true }
