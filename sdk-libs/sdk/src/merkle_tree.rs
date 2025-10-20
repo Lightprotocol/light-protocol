@@ -43,7 +43,7 @@ pub mod v1 {
         }
         let required_size = STATE_MERKLE_TREE_ACCOUNT_METADATA_LEN;
         if account_data.len() < required_size {
-            msg!("StateMerkleTreeAccount data too short for discriminator");
+            msg!("StateMerkleTreeAccount data too short for metadata");
             return Err(ProgramError::InvalidAccountData);
         }
 
