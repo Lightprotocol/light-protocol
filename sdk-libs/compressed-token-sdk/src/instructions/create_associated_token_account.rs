@@ -329,9 +329,7 @@ fn create_associated_token_account2_with_bump_and_mode<const IDEMPOTENT: bool>(
     ata_pubkey: Pubkey,
     bump: u8,
 ) -> Result<Instruction> {
-    create_ata2_instruction_unified::<IDEMPOTENT, false>(
-        payer, owner, mint, ata_pubkey, bump, None,
-    )
+    create_ata2_instruction_unified::<IDEMPOTENT, false>(payer, owner, mint, ata_pubkey, bump, None)
 }
 
 /// Unified function to create ATA2 instructions with compile-time configuration
