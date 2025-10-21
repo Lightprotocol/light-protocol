@@ -8,6 +8,15 @@ jobs:
   create_release:
     runs-on: ubuntu-latest
     steps:
+      - name: Free Disk Space (Ubuntu)
+        if: "!contains(inputs.skip-components, 'disk-cleanup')"
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          swap-storage: false
+          large-packages: false
+          docker-images: false
+
       - name: Checkout sources
         uses: actions/checkout@v4
 
