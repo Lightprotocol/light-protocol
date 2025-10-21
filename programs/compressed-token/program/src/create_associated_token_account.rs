@@ -45,31 +45,43 @@ pub fn process_create_associated_token_account_idempotent(
 /// - accounts with non existing mints can never have a balance
 #[inline(always)]
 #[profile]
-fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
+pub(crate) fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     account_infos: &[AccountInfo],
     mut instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     let instruction_inputs =
         CreateAssociatedTokenAccountInstructionData::deserialize(&mut instruction_data)
             .map_err(ProgramError::from)?;
+
+    process_create_associated_token_account_inner::<IDEMPOTENT>(
+        account_infos,
+        &instruction_inputs.owner.to_bytes(),
+        &instruction_inputs.mint.to_bytes(),
+        instruction_inputs.bump,
+        instruction_inputs.compressible_config,
+    )
+}
+
+/// Core logic for creating associated token account with owner and mint as pubkeys
+#[inline(always)]
+#[profile]
+pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bool>(
+    account_infos: &[AccountInfo],
+    owner_bytes: &[u8; 32],
+    mint_bytes: &[u8; 32],
+    bump: u8,
+    compressible_config: Option<CompressibleExtensionInstructionData>,
+) -> Result<(), ProgramError> {
     let mut iter = AccountIterator::new(account_infos);
 
     let fee_payer = iter.next_signer_mut("fee_payer")?;
     let associated_token_account = iter.next_mut("associated_token_account")?;
     let _system_program = iter.next_non_mut("system_program")?;
 
-    let owner_bytes = instruction_inputs.owner.to_bytes();
-    let mint_bytes = instruction_inputs.mint.to_bytes();
-
     // If idempotent mode, check if account already exists
     if IDEMPOTENT {
         // Verify the PDA derivation is correct
-        validate_ata_derivation(
-            associated_token_account,
-            &owner_bytes,
-            &mint_bytes,
-            instruction_inputs.bump,
-        )?;
+        validate_ata_derivation(associated_token_account, owner_bytes, mint_bytes, bump)?;
         // If account is already owned by our program, it exists - return success
         if associated_token_account.is_owned_by(&crate::LIGHT_CPI_SIGNER.program_id) {
             return Ok(());
@@ -81,55 +93,52 @@ fn process_create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
         return Err(ProgramError::IllegalOwner);
     }
 
-    let token_account_size = if instruction_inputs.compressible_config.is_some() {
+    let token_account_size = if compressible_config.is_some() {
         light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
     } else {
         light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize
     };
 
-    let (compressible_config_account, custom_rent_payer) = if let Some(
-        compressible_config_ix_data,
-    ) =
-        instruction_inputs.compressible_config.as_ref()
-    {
-        let (compressible_config_account, custom_rent_payer) = process_compressible_config(
-            compressible_config_ix_data,
-            &mut iter,
-            token_account_size,
-            fee_payer,
-            associated_token_account,
-            instruction_inputs.bump,
-            &owner_bytes,
-            &mint_bytes,
-        )?;
-        (Some(compressible_config_account), custom_rent_payer)
-    } else {
-        // Create the PDA account (with rent-exempt balance only)
-        let bump_seed = [instruction_inputs.bump];
-        let seeds = [
-            Seed::from(owner_bytes.as_ref()),
-            Seed::from(crate::LIGHT_CPI_SIGNER.program_id.as_ref()),
-            Seed::from(mint_bytes.as_ref()),
-            Seed::from(bump_seed.as_ref()),
-        ];
+    let (compressible_config_account, custom_rent_payer) =
+        if let Some(compressible_config_ix_data) = compressible_config.as_ref() {
+            let (compressible_config_account, custom_rent_payer) = process_compressible_config(
+                compressible_config_ix_data,
+                &mut iter,
+                token_account_size,
+                fee_payer,
+                associated_token_account,
+                bump,
+                owner_bytes,
+                mint_bytes,
+            )?;
+            (Some(compressible_config_account), custom_rent_payer)
+        } else {
+            // Create the PDA account (with rent-exempt balance only)
+            let bump_seed = [bump];
+            let seeds = [
+                Seed::from(owner_bytes.as_ref()),
+                Seed::from(crate::LIGHT_CPI_SIGNER.program_id.as_ref()),
+                Seed::from(mint_bytes.as_ref()),
+                Seed::from(bump_seed.as_ref()),
+            ];
 
-        let seeds_inputs = [seeds.as_slice()];
+            let seeds_inputs = [seeds.as_slice()];
 
-        create_pda_account(
-            fee_payer,
-            associated_token_account,
-            token_account_size,
-            seeds_inputs,
-            None,
-        )?;
-        (None, None)
-    };
+            create_pda_account(
+                fee_payer,
+                associated_token_account,
+                token_account_size,
+                seeds_inputs,
+                None,
+            )?;
+            (None, None)
+        };
 
     initialize_ctoken_account(
         associated_token_account,
-        &mint_bytes,
-        &owner_bytes,
-        instruction_inputs.compressible_config,
+        mint_bytes,
+        owner_bytes,
+        compressible_config,
         compressible_config_account,
         custom_rent_payer,
     )?;
