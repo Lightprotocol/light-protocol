@@ -8,14 +8,6 @@ jobs:
   create_release:
     runs-on: ubuntu-latest
     steps:
-      - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          swap-storage: false
-          large-packages: false
-          docker-images: false
-
       - name: Checkout sources
         uses: actions/checkout@v4
 
@@ -57,6 +49,14 @@ jobs:
       contents: read
       packages: write
     steps:
+      - name: Free Disk Space (Ubuntu)
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: false
+          swap-storage: false
+          large-packages: false
+          docker-images: false
+
       - name: Checkout sources
         uses: actions/checkout@v4
 
