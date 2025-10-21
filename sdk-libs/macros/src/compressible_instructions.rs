@@ -51,6 +51,7 @@ struct TokenSeedSpec {
     variant: Ident,
     _eq: Token![=],
     is_token: Option<bool>, // Optional explicit token flag
+    is_ata: bool,           // Flag for user-owned ATA (no seeds/authority needed)
     seeds: Punctuated<SeedElement, Token![,]>,
     authority: Option<Vec<SeedElement>>, // Optional authority seeds for CToken accounts
 }
@@ -64,21 +65,49 @@ impl Parse for TokenSeedSpec {
         syn::parenthesized!(content in input);
 
         // Check if first element is an explicit token flag
-        let (is_token, seeds, authority) = if content.peek(Ident) {
+        let (is_token, is_ata, seeds, authority) = if content.peek(Ident) {
             let first_ident: Ident = content.parse()?;
 
             match first_ident.to_string().as_str() {
-                "is_token" | "true" => {
+                "is_token" => {
+                    // Explicit token flag - check for is_ata
+                    let _comma: Token![,] = content.parse()?;
+                    
+                    // Check if next is is_ata
+                    if content.peek(Ident) {
+                        let fork = content.fork();
+                        if let Ok(second_ident) = fork.parse::<Ident>() {
+                            if second_ident == "is_ata" {
+                                // Consume is_ata
+                                let _: Ident = content.parse()?;
+                                // ATAs have no seeds or authority
+                                return Ok(TokenSeedSpec {
+                                    variant,
+                                    _eq,
+                                    is_token: Some(true),
+                                    is_ata: true,
+                                    seeds: Punctuated::new(),
+                                    authority: None,
+                                });
+                            }
+                        }
+                    }
+                    
+                    // Regular token (not ATA) - parse seeds and authority
+                    let (seeds, authority) = parse_seeds_with_authority(&content)?;
+                    (Some(true), false, seeds, authority)
+                }
+                "true" => {
                     // Explicit token flag
                     let _comma: Token![,] = content.parse()?;
                     let (seeds, authority) = parse_seeds_with_authority(&content)?;
-                    (Some(true), seeds, authority)
+                    (Some(true), false, seeds, authority)
                 }
                 "is_pda" | "false" => {
                     // Explicit PDA flag
                     let _comma: Token![,] = content.parse()?;
                     let (seeds, authority) = parse_seeds_with_authority(&content)?;
-                    (Some(false), seeds, authority)
+                    (Some(false), false, seeds, authority)
                 }
                 _ => {
                     // Not a flag, treat as first seed element
@@ -93,22 +122,23 @@ impl Parse for TokenSeedSpec {
                         let _comma: Token![,] = content.parse()?;
                         let (rest, authority) = parse_seeds_with_authority(&content)?;
                         seeds.extend(rest);
-                        (None, seeds, authority)
+                        (None, false, seeds, authority)
                     } else {
-                        (None, seeds, None)
+                        (None, false, seeds, None)
                     }
                 }
             }
         } else {
             // No identifier first, parse all as seeds
             let (seeds, authority) = parse_seeds_with_authority(&content)?;
-            (None, seeds, authority)
+            (None, false, seeds, authority)
         };
 
         Ok(TokenSeedSpec {
             variant,
             _eq,
             is_token,
+            is_ata,
             seeds,
             authority,
         })
@@ -371,12 +401,30 @@ pub fn add_compressible_instructions(
     };
 
     // Validate that token variants have authority specified for compression signing
+    // (except for ATAs which are user-owned and don't need authority)
     if let Some(ref token_seed_specs) = token_seeds {
         for spec in token_seed_specs {
-            if spec.authority.is_none() {
+            if spec.is_ata {
+                // ATAs must not have seeds or authority
+                if !spec.seeds.is_empty() {
+                    return Err(macro_error!(
+                        &spec.variant,
+                        "ATA variant '{}' must not have seeds - ATAs are derived from owner+mint only",
+                        spec.variant
+                    ));
+                }
+                if spec.authority.is_some() {
+                    return Err(macro_error!(
+                        &spec.variant,
+                        "ATA variant '{}' must not have authority - ATAs are owned by user wallets",
+                        spec.variant
+                    ));
+                }
+            } else if spec.authority.is_none() {
+                // Non-ATA tokens must have authority for PDA signing
                 return Err(macro_error!(
                     &spec.variant,
-                    "Token account '{}' must specify authority = <seed_expr> for compression signing",
+                    "Program-owned token account '{}' must specify authority = <seed_expr> for compression signing. For user-owned ATAs, use is_ata flag instead.",
                     spec.variant
                 ));
             }
@@ -660,14 +708,17 @@ pub fn add_compressible_instructions(
                 cpi_accounts: light_sdk::cpi::CpiAccountsSmall<'b, 'info>,
                 has_pdas: bool,
             ) -> Result<()> {
-                let mut token_decompress_indices = Box::new(Vec::with_capacity(ctoken_accounts.len()));
-                let mut token_signers_seed_groups = Box::new(Vec::with_capacity(ctoken_accounts.len()));
                 let packed_accounts = cpi_accounts.post_system_accounts().unwrap();
 
                 use crate::ctoken_seed_system::{CTokenSeedContext, CTokenSeedProvider};
                 let seed_context = CTokenSeedContext { accounts, remaining_accounts };
                 let authority = cpi_accounts.authority().unwrap();
                 let cpi_context = cpi_accounts.cpi_context().unwrap();
+
+                // Split into PDA ctokens (need signer seeds) and ATA ctokens (no seeds)
+                let mut pda_decompress_indices = Box::new(Vec::new());
+                let mut pda_signer_seed_groups = Box::new(Vec::new());
+                let mut ata_decompress_indices = Box::new(Vec::new());
 
                 for (token_data, meta) in ctoken_accounts.into_iter() {
                     let owner_index: u8 = token_data.token_data.owner;
@@ -676,65 +727,112 @@ pub fn add_compressible_instructions(
                     let mint_info = packed_accounts[mint_index as usize].to_account_info();
                     let owner_info = packed_accounts[owner_index as usize].to_account_info();
 
-                    // Idempotency: if the token account already exists/initialized, skip creating it.
-                    let already_exists = !owner_info.data_is_empty();
+                    // Check if this is an ATA variant
+                    let is_ata_variant = matches!(token_data.variant, CTokenAccountVariant::ATA);
 
-                    let (ctoken_signer_seeds, derived_token_account_address) = token_data.variant.get_seeds(&seed_context)?;
-                    let (ctoken_authority_seeds, ctoken_authority_pda) = token_data.variant.get_authority_seeds(&seed_context)?;
+                    if is_ata_variant {
+                        // ATA path: owner_info is the user's WALLET, derive ATA from wallet+mint
+                        // ctoken ATA derivation: PDA[wallet, ctoken_program, mint]
+                        let (ata_address, ata_bump) = light_compressed_token_sdk::instructions::create_associated_token_account::derive_ctoken_ata(
+                            owner_info.key,
+                            mint_info.key,
+                        );
 
-                    if derived_token_account_address != *owner_info.key {
-                       anchor_lang::solana_program::log::msg!("Derived token account address (PDA) does not match provided owner account");
-                       anchor_lang::solana_program::log::msg!("derived_token_account_address: {:?}", derived_token_account_address);
-                       anchor_lang::solana_program::log::msg!("owner_info.key: {:?}", owner_info.key);
-                        return err!(CompressibleInstructionError::CTokenDecompressionNotImplemented);
-                    }
+                        // Find the ATA account in packed_accounts
+                        let ata_info_opt = packed_accounts.iter().find(|acc| acc.key == &ata_address);
 
-                    if !already_exists {
-                        let seed_refs: Vec<&[u8]> = ctoken_signer_seeds.iter().map(|s| s.as_slice()).collect();
-                        let seeds_slice: &[&[u8]] = &seed_refs;
+                        // Get or validate ATA account in packed_accounts
+                        let ata_account_info = if let Some(ata_info) = ata_info_opt {
+                            ata_info.to_account_info()
+                        } else {
+                            // ATA not in packed_accounts - this is an error
+                            // Client must include the derived ATA in packed_accounts
+                           anchor_lang::solana_program::log::msg!("ATA not found in packed_accounts: {:?}", ata_address);
+                            return err!(CompressibleInstructionError::MissingSeedAccount);
+                        };
 
-                        light_compressed_token_sdk::instructions::create_token_account::create_ctoken_account_signed(
-                            crate::ID,
+                        // Create ATA idempotently (fast no-op if already exists)
+                        light_compressed_token_sdk::instructions::create_associated_token_account::create_associated_ctoken_account_idempotent(
                             fee_payer.clone().to_account_info(),
-                            owner_info.clone(),
-                            mint_info.clone(),
-                            ctoken_authority_pda,
-                            seeds_slice,
-                            ctoken_rent_sponsor.clone().to_account_info(),
+                            ata_account_info,
+                            cpi_accounts.system_program().unwrap().to_account_info(),
                             ctoken_config.to_account_info(),
-                            Some(1), // pre_pay_num_epochs TODO: make this configurable
+                            ctoken_rent_sponsor.clone().to_account_info(),
+                            *owner_info.key,  // wallet owner
+                            *mint_info.key,
+                            ata_bump,
+                            Some(1), // pre_pay_num_epochs
                             None,    // write_top_up_lamports
                         )?;
 
+                        // Find ATA index in packed_accounts for decompress
+                        let ata_index = packed_accounts.iter().position(|acc| acc.key == &ata_address)
+                            .ok_or(CompressibleInstructionError::MissingSeedAccount)? as u8;
+
+                        // Always add to decompress indices - decompression transfers the tokens!
                         let decompress_index = light_compressed_token_sdk::instructions::DecompressFullIndices::from((
                             token_data.token_data,
                             meta,
-                            owner_index,
+                            ata_index,  // Destination is the ATA
                         ));
-                        token_decompress_indices.push(decompress_index);
-                        token_signers_seed_groups.push(ctoken_signer_seeds);
+                        ata_decompress_indices.push(decompress_index);
                     } else {
-                       anchor_lang::solana_program::log::msg!("CToken account already initialized, skipping creation and decompress");
-                        continue;
+                        // Program-owned PDA ctoken path (existing logic)
+                        let already_exists = !owner_info.data_is_empty();
+
+                        let (ctoken_signer_seeds, derived_token_account_address) = token_data.variant.get_seeds(&seed_context)?;
+                        let (ctoken_authority_seeds, ctoken_authority_pda) = token_data.variant.get_authority_seeds(&seed_context)?;
+
+                        if derived_token_account_address != *owner_info.key {
+                           anchor_lang::solana_program::log::msg!("Derived token account address (PDA) does not match provided owner account");
+                           anchor_lang::solana_program::log::msg!("derived_token_account_address: {:?}", derived_token_account_address);
+                           anchor_lang::solana_program::log::msg!("owner_info.key: {:?}", owner_info.key);
+                            return err!(CompressibleInstructionError::CTokenDecompressionNotImplemented);
+                        }
+
+                        if !already_exists {
+                            let seed_refs: Vec<&[u8]> = ctoken_signer_seeds.iter().map(|s| s.as_slice()).collect();
+                            let seeds_slice: &[&[u8]] = &seed_refs;
+
+                            light_compressed_token_sdk::instructions::create_token_account::create_ctoken_account_signed(
+                                crate::ID,
+                                fee_payer.clone().to_account_info(),
+                                owner_info.clone(),
+                                mint_info.clone(),
+                                ctoken_authority_pda,
+                                seeds_slice,
+                                ctoken_rent_sponsor.clone().to_account_info(),
+                                ctoken_config.to_account_info(),
+                                Some(1), // pre_pay_num_epochs TODO: make this configurable
+                                None,    // write_top_up_lamports
+                            )?;
+
+                            let decompress_index = light_compressed_token_sdk::instructions::DecompressFullIndices::from((
+                                token_data.token_data,
+                                meta,
+                                owner_index,
+                            ));
+                            pda_decompress_indices.push(decompress_index);
+                            pda_signer_seed_groups.push(ctoken_signer_seeds);
+                        } else {
+                           anchor_lang::solana_program::log::msg!("CToken account already initialized, skipping creation and decompress");
+                            continue;
+                        }
                     }
                 }
 
-                // If there are no token accounts to process, return early to avoid unnecessary CPI.
-                if token_decompress_indices.is_empty() {
-                    return Ok(());
-                }
+                // Process PDA ctokens (with signer seeds)
+                if !pda_decompress_indices.is_empty() {
+                    let ctoken_ix = light_compressed_token_sdk::instructions::decompress_full_ctoken_accounts_with_indices(
+                        fee_payer.key(),
+                        proof,
+                        if has_pdas { Some(cpi_context.key()) } else { None },
+                        &pda_decompress_indices,
+                        packed_accounts,
+                    )
+                    .map_err(anchor_lang::prelude::ProgramError::from)?;
 
-                let ctoken_ix = light_compressed_token_sdk::instructions::decompress_full_ctoken_accounts_with_indices(
-                    fee_payer.key(),
-                    proof,
-                    if has_pdas { Some(cpi_context.key()) } else { None },
-                    &token_decompress_indices,
-                    packed_accounts,
-                )
-                .map_err(anchor_lang::prelude::ProgramError::from)?;
-
-                {
-                    let signer_seed_refs: Vec<Vec<&[u8]>> = token_signers_seed_groups
+                    let signer_seed_refs: Vec<Vec<&[u8]>> = pda_signer_seed_groups
                         .iter()
                         .map(|group| group.iter().map(|s| s.as_slice()).collect())
                         .collect();
@@ -757,6 +855,35 @@ pub fn add_compressible_instructions(
                         signer_seed_slices.as_slice(),
                     )?;
                 }
+
+                // Process ATA ctokens (no signer seeds!)
+                if !ata_decompress_indices.is_empty() {
+                    let ctoken_ix = light_compressed_token_sdk::instructions::decompress_full_ctoken_accounts_with_indices(
+                        fee_payer.key(),
+                        proof,
+                        if has_pdas { Some(cpi_context.key()) } else { None },
+                        &ata_decompress_indices,
+                        packed_accounts,
+                    )
+                    .map_err(anchor_lang::prelude::ProgramError::from)?;
+
+                    let cpi_slice = cpi_accounts.account_infos_slice();
+                    let mut account_infos = Vec::with_capacity(5 + cpi_slice.len().saturating_sub(1));
+                    account_infos.push(fee_payer.to_account_info());
+                    account_infos.push(ctoken_cpi_authority.to_account_info());
+                    account_infos.push(ctoken_program.to_account_info());
+                    account_infos.push(ctoken_rent_sponsor.to_account_info());
+                    account_infos.push(config.to_account_info());
+                    if cpi_slice.len() > 1 {
+                        account_infos.extend_from_slice(&cpi_slice[1..]);
+                    }
+                    // Regular invoke - no signer seeds for ATAs!
+                    anchor_lang::solana_program::program::invoke(
+                        &ctoken_ix,
+                        account_infos.as_slice(),
+                    )?;
+                }
+
                 Ok(())
             }
 
@@ -1256,6 +1383,24 @@ fn generate_ctoken_seed_provider_implementation(
     for spec in token_seeds {
         let variant_name = &spec.variant;
 
+        // Skip ATA variants - they don't use seed-based derivation
+        if spec.is_ata {
+            let get_seeds_arm = quote! {
+                CTokenAccountVariant::#variant_name => {
+                    Err(CompressibleInstructionError::AtaDoesNotUseSeedDerivation.into())
+                }
+            };
+            get_seeds_match_arms.push(get_seeds_arm);
+            
+            let authority_arm = quote! {
+                CTokenAccountVariant::#variant_name => {
+                    Err(CompressibleInstructionError::AtaDoesNotUseSeedDerivation.into())
+                }
+            };
+            get_authority_seeds_match_arms.push(authority_arm);
+            continue;
+        }
+
         // Generate bindings for token account seeds (always use the main seeds, not authority)
         let mut token_bindings = Vec::new();
         let mut token_seed_refs = Vec::new();
@@ -1666,6 +1811,12 @@ fn generate_client_seed_functions(
     if let Some(token_seed_specs) = token_seeds {
         for spec in token_seed_specs {
             let variant_name = &spec.variant;
+            
+            // Skip ATA variants - they use SPL ATA derivation, not seed-based
+            if spec.is_ata {
+                continue;
+            }
+            
             let function_name =
                 format_ident!("get_{}_seeds", variant_name.to_string().to_lowercase());
 
@@ -1702,6 +1853,7 @@ fn generate_client_seed_functions(
                     variant: spec.variant.clone(),
                     _eq: spec._eq.clone(),
                     is_token: spec.is_token,
+                    is_ata: spec.is_ata,
                     seeds: Punctuated::new(),
                     authority: None,
                 };
@@ -2364,6 +2516,8 @@ fn generate_error_codes(variant: InstructionVariant) -> Result<TokenStream> {
         InvalidRentRecipient,
         #[msg("Required seed account is missing for decompression - check that all seed accounts for compressed accounts are provided")]
         MissingSeedAccount,
+        #[msg("ATA variants use SPL ATA derivation, not seed-based PDA derivation")]
+        AtaDoesNotUseSeedDerivation,
     };
 
     let variant_specific_errors = match variant {

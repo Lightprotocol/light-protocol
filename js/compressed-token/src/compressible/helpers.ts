@@ -3,8 +3,96 @@ import {
     MerkleContext,
     ValidityProof,
     packDecompressAccountsIdempotent,
+    CTOKEN_PROGRAM_ID,
+    BN,
 } from '@lightprotocol/stateless.js';
-import { PublicKey, AccountInfo, AccountMeta } from '@solana/web3.js';
+import {
+    PublicKey,
+    AccountInfo,
+    AccountMeta,
+    Commitment,
+} from '@solana/web3.js';
+import {
+    TOKEN_PROGRAM_ID,
+    TOKEN_2022_PROGRAM_ID,
+    getAssociatedTokenAddressSync,
+    TokenAccountNotFoundError,
+} from '@solana/spl-token';
+import { getAssociatedCTokenAddressAndBump } from './derivation';
+import { Account, toAccountInfo } from '../mint/get-account-interface';
+import { Buffer } from 'buffer';
+import { getAtaProgramId } from '../utils';
+
+function parseTokenData(data: Buffer): {
+    mint: PublicKey;
+    owner: PublicKey;
+    amount: BN;
+    delegate: PublicKey | null;
+    state: number;
+    tlv: Buffer | null;
+} | null {
+    if (!data || data.length === 0) return null;
+
+    try {
+        let offset = 0;
+        const mint = new PublicKey(data.slice(offset, offset + 32));
+        offset += 32;
+        const owner = new PublicKey(data.slice(offset, offset + 32));
+        offset += 32;
+        const amount = new BN(data.slice(offset, offset + 8), 'le');
+        offset += 8;
+        const delegateOption = data[offset];
+        offset += 1;
+        const delegate = delegateOption
+            ? new PublicKey(data.slice(offset, offset + 32))
+            : null;
+        offset += 32;
+        const state = data[offset];
+        offset += 1;
+        const tlvOption = data[offset];
+        offset += 1;
+        const tlv = tlvOption ? data.slice(offset) : null;
+
+        return {
+            mint,
+            owner,
+            amount,
+            delegate,
+            state,
+            tlv,
+        };
+    } catch (error) {
+        console.error('Token data parsing error:', error);
+        return null;
+    }
+}
+
+function convertTokenDataToAccount(
+    address: PublicKey,
+    tokenData: {
+        mint: PublicKey;
+        owner: PublicKey;
+        amount: BN;
+        delegate: PublicKey | null;
+        state: number;
+        tlv: Buffer | null;
+    },
+): Account {
+    return {
+        address,
+        mint: tokenData.mint,
+        owner: tokenData.owner,
+        amount: BigInt(tokenData.amount.toString()),
+        delegate: tokenData.delegate,
+        delegatedAmount: BigInt(0),
+        isInitialized: tokenData.state !== 0,
+        isFrozen: tokenData.state === 2,
+        isNative: false,
+        rentExemptReserve: null,
+        closeAuthority: null,
+        tlvData: tokenData.tlv ? Buffer.from(tokenData.tlv) : Buffer.alloc(0),
+    };
+}
 
 export interface AccountInput {
     address: PublicKey;
