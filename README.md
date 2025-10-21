@@ -203,3 +203,17 @@ pnpm test
 
 For more support from the community and core developers, open a GitHub issue or join the Light Protocol
 Discord: [https://discord.gg/x4nyjT8fK5](https://discord.gg/x4nyjT8fK5)
+
+---
+
+## 🧩 Ecosystem Integrations
+
+**Projects building with or integrating zkCompression via Light Protocol:**
+
+- **Shady** — Solana privacy toolkit leveraging ZK-based access and stealth primitives.  
+  Provides **Stealth Address**, **ZK Gate (view key)**, and **Private Swap** (Raydium aggregator + ZK access layer).  
+  🌐 Website: [https://www.shady.to](https://www.shady.to)  
+  📘 Docs: [https://shadylabs.gitbook.io/shadylabs-docs/](https://shadylabs.gitbook.io/shadylabs-docs/)  
+  💬 Twitter: [https://x.com/Shady_Labs](https://x.com/Shady_Labs)  
+  💻 GitHub: [https://github.com/shadylabdev/shady](https://github.com/shadylabdev/shady)
+
