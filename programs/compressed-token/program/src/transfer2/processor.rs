@@ -21,7 +21,7 @@ use crate::{
         compression::{close_for_compress_and_close, process_token_compression},
         config::Transfer2Config,
         cpi::allocate_cpi_bytes,
-        sum_check::{sum_check_multi_mint, sum_compressions, validate_mint_uniqueness},
+        sum_check::{sum_check_multi_mint, validate_mint_uniqueness},
         token_inputs::set_input_compressed_accounts,
         token_outputs::set_output_compressed_accounts,
     },
@@ -126,8 +126,9 @@ fn process_no_system_program_cpi(
         .as_ref()
         .ok_or(ErrorCode::NoInputsProvided)?;
 
-    let mut mint_map: ArrayMap<u8, u64, 5> = ArrayMap::new();
-    sum_compressions(compressions, &mut mint_map)?;
+    let mint_map: ArrayMap<u8, u64, 5> =
+        sum_check_multi_mint(&[], &[], Some(compressions.as_slice()))
+            .map_err(|e| ProgramError::Custom(e as u32 + 6000))?;
 
     // Validate mint uniqueness
     validate_mint_uniqueness(&mint_map, &validated_accounts.packed_accounts)
