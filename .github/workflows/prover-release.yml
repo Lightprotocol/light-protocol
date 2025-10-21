@@ -52,6 +52,21 @@ jobs:
       - name: Checkout sources
         uses: actions/checkout@v4
 
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: "./prover/server/go.mod"
+
+      - name: Build prover binary
+        run: |
+          cd prover/server
+          go build -o light-prover .
+
+      - name: Download proving keys
+        run: |
+          cd prover/server
+          ./light-prover download --run-mode rpc
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
