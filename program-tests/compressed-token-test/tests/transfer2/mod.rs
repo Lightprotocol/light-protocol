@@ -2,6 +2,7 @@ pub mod compress_failing;
 pub mod compress_spl_failing;
 pub mod decompress_failing;
 pub mod functional;
+pub mod no_system_program_cpi_failing;
 pub mod random;
 pub mod shared;
 pub mod spl_ctoken;
