@@ -9,7 +9,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Free Disk Space (Ubuntu)
-        if: "!contains(inputs.skip-components, 'disk-cleanup')"
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: false
