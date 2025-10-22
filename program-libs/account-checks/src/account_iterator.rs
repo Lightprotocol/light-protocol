@@ -166,7 +166,7 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
     /// Get all remaining accounts in the iterator.
     #[inline(always)]
     #[track_caller]
-    pub fn remaining(&self) -> Result<&'info [T], AccountError> {
+    pub fn remaining(self) -> Result<&'info [T], AccountError> {
         if self.position >= self.accounts.len() {
             #[cfg(feature = "std")]
             {
@@ -182,10 +182,12 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
         Ok(&self.accounts[self.position..])
     }
 
-    /// Get all remaining accounts in the iterator.
+    /// Get all remaining accounts in the iterator without validation.
+    ///
+    /// Returns an empty slice if position is at or past the end.
     #[inline(always)]
     #[track_caller]
-    pub fn remaining_unchecked(&self) -> Result<&'info [T], AccountError> {
+    pub fn remaining_unchecked(self) -> Result<&'info [T], AccountError> {
         if self.position >= self.accounts.len() {
             Ok(&[])
         } else {
