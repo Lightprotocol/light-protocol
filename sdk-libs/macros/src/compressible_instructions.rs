@@ -1648,6 +1648,85 @@ fn generate_ctoken_seed_provider_implementation(
     })
 }
 
+/// Rewrite ctx.accounts.X to accounts.X.as_ref().unwrap() for use in generated decompress handlers
+/// This allows seed expressions to work in the decompress context just like in Anchor
+/// Accounts in DecompressAccountsIdempotent are Option<UncheckedAccount>, so we unwrap them
+#[inline(never)]
+fn rewrite_ctx_accounts_to_accounts(expr: &syn::Expr, accounts_ident: &Ident) -> syn::Expr {
+    match expr {
+        syn::Expr::Field(field_expr) => {
+            // Check if this is ctx.accounts.field_name
+            if let syn::Member::Named(field_name) = &field_expr.member {
+                if let syn::Expr::Field(nested) = &*field_expr.base {
+                    if let syn::Member::Named(base) = &nested.member {
+                        if base == "accounts" {
+                            if let syn::Expr::Path(path) = &*nested.base {
+                                if let Some(segment) = path.path.segments.first() {
+                                    if segment.ident == "ctx" {
+                                        // Rewrite ctx.accounts.field_name to accounts_ident.field_name.as_ref().unwrap()
+                                        // Since optional accounts need unwrapping
+                                        return syn::parse_quote! { 
+                                            #accounts_ident.#field_name.as_ref().ok_or(CompressibleInstructionError::MissingSeedAccount)?
+                                        };
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            // Recursively rewrite the base expression
+            let rewritten_base = rewrite_ctx_accounts_to_accounts(&field_expr.base, accounts_ident);
+            syn::Expr::Field(syn::ExprField {
+                attrs: field_expr.attrs.clone(),
+                base: Box::new(rewritten_base),
+                dot_token: field_expr.dot_token,
+                member: field_expr.member.clone(),
+            })
+        }
+        syn::Expr::Call(call_expr) => {
+            // Recursively rewrite function and all arguments
+            let rewritten_func = rewrite_ctx_accounts_to_accounts(&call_expr.func, accounts_ident);
+            let rewritten_args: syn::punctuated::Punctuated<syn::Expr, syn::Token![,]> = call_expr
+                .args
+                .iter()
+                .map(|arg| rewrite_ctx_accounts_to_accounts(arg, accounts_ident))
+                .collect();
+            syn::Expr::Call(syn::ExprCall {
+                attrs: call_expr.attrs.clone(),
+                func: Box::new(rewritten_func),
+                paren_token: call_expr.paren_token,
+                args: rewritten_args,
+            })
+        }
+        syn::Expr::Reference(ref_expr) => {
+            // Recursively rewrite the referenced expression
+            let rewritten_expr = rewrite_ctx_accounts_to_accounts(&ref_expr.expr, accounts_ident);
+            syn::Expr::Reference(syn::ExprReference {
+                attrs: ref_expr.attrs.clone(),
+                and_token: ref_expr.and_token,
+                mutability: ref_expr.mutability,
+                expr: Box::new(rewritten_expr),
+            })
+        }
+        syn::Expr::MethodCall(method_call) => {
+            // Recursively rewrite the receiver
+            let rewritten_receiver = rewrite_ctx_accounts_to_accounts(&method_call.receiver, accounts_ident);
+            syn::Expr::MethodCall(syn::ExprMethodCall {
+                attrs: method_call.attrs.clone(),
+                receiver: Box::new(rewritten_receiver),
+                dot_token: method_call.dot_token,
+                method: method_call.method.clone(),
+                turbofish: method_call.turbofish.clone(),
+                paren_token: method_call.paren_token,
+                args: method_call.args.clone(),
+            })
+        }
+        // For all other expressions, return as-is
+        _ => expr.clone(),
+    }
+}
+
 /// Generate PDA seed derivation from specification
 #[inline(never)]
 fn generate_pda_seed_derivation(
@@ -1743,8 +1822,13 @@ fn generate_pda_seed_derivation(
                 }
 
                 if !handled {
-                    // Other expressions - use as-is
-                    seed_refs.push(quote! { (#expr).as_ref() });
+                    // Complex expressions (function calls, etc.) - rewrite and bind
+                    let rewritten = rewrite_ctx_accounts_to_accounts(expr, accounts_ident);
+                    let binding_name = syn::Ident::new(&format!("seed_binding_{}", i), expr.span());
+                    bindings.push(quote! {
+                        let #binding_name = #rewritten;
+                    });
+                    seed_refs.push(quote! { #binding_name.as_ref() });
                 }
             }
         }
@@ -2062,6 +2146,29 @@ fn analyze_seed_spec_for_client(
                             expressions.push(quote! { (#expr).as_ref() });
                         }
                     }
+                    syn::Expr::Call(call_expr) => {
+                        // Handle function calls like max_key(&base_mint.key(), &quote_mint.key())
+                        // For client functions, we need to extract all account parameters from arguments
+                        // and then execute the function client-side with those parameters
+                        
+                        // Recursively extract parameters from arguments
+                        for arg in &call_expr.args {
+                            let (arg_params, _) = analyze_seed_spec_for_client_expr(arg, instruction_data)?;
+                            parameters.extend(arg_params);
+                        }
+                        
+                        // Use the entire call expression as-is (client has access to helper functions)
+                        expressions.push(quote! { (#expr).as_ref() });
+                    }
+                    syn::Expr::Reference(ref_expr) => {
+                        // Handle &expression by recursing
+                        let (ref_params, ref_exprs) = analyze_seed_spec_for_client_expr(&ref_expr.expr, instruction_data)?;
+                        parameters.extend(ref_params);
+                        // Wrap in reference
+                        if let Some(first_expr) = ref_exprs.first() {
+                            expressions.push(quote! { (#first_expr).as_ref() });
+                        }
+                    }
                     _ => {
                         // For other expressions, try to use as-is
                         expressions.push(quote! { (#expr).as_ref() });
@@ -2071,6 +2178,69 @@ fn analyze_seed_spec_for_client(
         }
     }
 
+    Ok((parameters, expressions))
+}
+
+/// Helper to analyze a single expression for client functions
+/// Returns (parameters, expressions) extracted from this expression
+#[inline(never)]
+fn analyze_seed_spec_for_client_expr(
+    expr: &syn::Expr,
+    instruction_data: &[InstructionDataSpec],
+) -> Result<(Vec<TokenStream>, Vec<TokenStream>)> {
+    let mut parameters = Vec::new();
+    let mut expressions = Vec::new();
+    
+    match expr {
+        syn::Expr::Field(field_expr) => {
+            if let syn::Member::Named(field_name) = &field_expr.member {
+                if let syn::Expr::Field(nested_field) = &*field_expr.base {
+                    if let syn::Member::Named(base_name) = &nested_field.member {
+                        if base_name == "accounts" {
+                            // ctx.accounts.field_name
+                            parameters.push(quote! { #field_name: &anchor_lang::prelude::Pubkey });
+                            expressions.push(quote! { #field_name });
+                        }
+                    }
+                } else if let syn::Expr::Path(path) = &*field_expr.base {
+                    if let Some(segment) = path.path.segments.first() {
+                        if segment.ident == "ctx" {
+                            // ctx.field_name
+                            parameters.push(quote! { #field_name: &anchor_lang::prelude::Pubkey });
+                            expressions.push(quote! { #field_name });
+                        }
+                    }
+                }
+            }
+        }
+        syn::Expr::MethodCall(method_call) => {
+            // Recurse on receiver
+            let (recv_params, _) = analyze_seed_spec_for_client_expr(&method_call.receiver, instruction_data)?;
+            parameters.extend(recv_params);
+        }
+        syn::Expr::Call(call_expr) => {
+            // Recurse on all arguments
+            for arg in &call_expr.args {
+                let (arg_params, _) = analyze_seed_spec_for_client_expr(arg, instruction_data)?;
+                parameters.extend(arg_params);
+            }
+        }
+        syn::Expr::Reference(ref_expr) => {
+            // Recurse on referenced expression
+            let (ref_params, _) = analyze_seed_spec_for_client_expr(&ref_expr.expr, instruction_data)?;
+            parameters.extend(ref_params);
+        }
+        syn::Expr::Path(path_expr) => {
+            if let Some(ident) = path_expr.path.get_ident() {
+                let name = ident.to_string();
+                if !(name == "ctx" || name == "data" || name.chars().all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())) {
+                    parameters.push(quote! { #ident: &anchor_lang::prelude::Pubkey });
+                }
+            }
+        }
+        _ => {}
+    }
+    
     Ok((parameters, expressions))
 }
 
@@ -2242,6 +2412,17 @@ fn extract_account_from_expr(expr: &syn::Expr, ordered_accounts: &mut Vec<String
                     push_unique(ordered_accounts, name);
                 }
             }
+        }
+        syn::Expr::Call(call_expr) => {
+            // Recursively extract accounts from all function arguments
+            // This handles max_key(&base_mint.key(), &quote_mint.key())
+            for arg in &call_expr.args {
+                extract_account_from_expr(arg, ordered_accounts);
+            }
+        }
+        syn::Expr::Reference(ref_expr) => {
+            // Unwrap references and continue extracting
+            extract_account_from_expr(&*ref_expr.expr, ordered_accounts);
         }
         _ => {
             // Ignore other expression types
