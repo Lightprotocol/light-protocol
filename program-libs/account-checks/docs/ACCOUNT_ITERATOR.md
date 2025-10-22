@@ -122,17 +122,21 @@ fn next_option_mut(
 
 ### `remaining`
 ```rust
-fn remaining(&self) -> Result<&'info [T], AccountError>
+fn remaining(self) -> Result<&'info [T], AccountError>
 ```
 - Returns all unprocessed accounts
+- **Consumes the iterator** - cannot use iterator after calling this method
 - **Error:** `NotEnoughAccountKeys` (20014) if iterator exhausted
+- Use case: Getting all remaining accounts for dynamic processing
 
 ### `remaining_unchecked`
 ```rust
-fn remaining_unchecked(&self) -> Result<&'info [T], AccountError>
+fn remaining_unchecked(self) -> Result<&'info [T], AccountError>
 ```
 - Returns remaining accounts or empty slice if exhausted
-- Never errors
+- **Consumes the iterator** - cannot use iterator after calling this method
+- Never errors - returns empty slice if no accounts remaining
+- Use case: Optional remaining accounts where empty is acceptable
 
 ## Status Methods
 

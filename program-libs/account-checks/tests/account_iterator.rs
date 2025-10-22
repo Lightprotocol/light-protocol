@@ -627,51 +627,51 @@ fn test_boundary_position() {
     assert_eq!(iter.position(), 2);
     let remaining = iter.remaining().unwrap();
     assert_eq!(remaining.len(), 1);
-
-    // Consume last
-    iter.next_account("last").unwrap();
-    assert!(iter.iterator_is_empty());
 }
 
 #[test]
-fn test_multiple_remaining_calls() {
+fn test_remaining_consumes_iterator() {
     let accounts = create_pinocchio_accounts(4, false, false);
     let mut iter = AccountIterator::new(&accounts);
 
     iter.next_account("first").unwrap();
 
-    // Call remaining multiple times
-    let remaining1 = iter.remaining().unwrap();
-    let remaining2 = iter.remaining().unwrap();
-    let remaining3 = iter.remaining().unwrap();
+    // remaining() consumes the iterator
+    let remaining = iter.remaining().unwrap();
 
-    assert_eq!(remaining1.len(), 3);
-    assert_eq!(remaining2.len(), 3);
-    assert_eq!(remaining3.len(), 3);
-    assert_eq!(iter.position(), 1); // Position unchanged
+    assert_eq!(remaining.len(), 3);
+    // Iterator is consumed, cannot use it anymore
 }
 
 #[test]
 fn test_remaining_unchecked_vs_remaining() {
+    // Test remaining() with accounts available
+    let accounts = create_pinocchio_accounts(2, false, false);
+    let iter = AccountIterator::new(&accounts);
+    let remaining1 = iter.remaining().unwrap();
+    assert_eq!(remaining1.len(), 2);
+
+    // Test remaining_unchecked() with accounts available
+    let accounts = create_pinocchio_accounts(2, false, false);
+    let iter = AccountIterator::new(&accounts);
+    let remaining2 = iter.remaining_unchecked().unwrap();
+    assert_eq!(remaining2.len(), 2);
+
+    // Test remaining() when all consumed - should error
     let accounts = create_pinocchio_accounts(2, false, false);
     let mut iter = AccountIterator::new(&accounts);
-
-    // Both should work when accounts available
-    let remaining1 = iter.remaining().unwrap();
-    let remaining2 = iter.remaining_unchecked().unwrap();
-    assert_eq!(remaining1.len(), remaining2.len());
-
-    // Consume all
     iter.next_account("first").unwrap();
     iter.next_account("second").unwrap();
-
-    // remaining() should error
     assert_eq!(
         get_error(iter.remaining()),
         AccountError::NotEnoughAccountKeys
     );
 
-    // remaining_unchecked() should return empty
+    // Test remaining_unchecked() when all consumed - should return empty
+    let accounts = create_pinocchio_accounts(2, false, false);
+    let mut iter = AccountIterator::new(&accounts);
+    iter.next_account("first").unwrap();
+    iter.next_account("second").unwrap();
     let unchecked = iter.remaining_unchecked().unwrap();
     assert_eq!(unchecked.len(), 0);
 }
