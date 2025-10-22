@@ -183,8 +183,6 @@ pub fn copy_cpi_context_outputs(
             }
             bytes = inner_bytes;
         }
-        // Debug assert TODO: remove pre mainnet deployment
-        assert_eq!(bytes.len(), 4);
     }
     Ok(())
 }
