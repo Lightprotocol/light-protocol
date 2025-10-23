@@ -1,5 +1,5 @@
 // From https://github.com/coral-xyz/anchor/blob/master/ts/packages/anchor/types/buffer-layout/index.d.ts
-declare module 'buffer-layout' {
+declare module '@solana/buffer-layout' {
     // TODO: remove `any`.
     export class Layout<T = any> {
         span: number;
@@ -85,4 +85,9 @@ declare module 'buffer-layout' {
     ): Layout<Buffer>;
     export function cstr(property?: string): Layout<string>;
     export function utf8(maxSpan: number, property?: string): Layout<string>;
+}
+
+// Also declare the old package name for backward compatibility
+declare module 'buffer-layout' {
+    export * from '@solana/buffer-layout';
 }

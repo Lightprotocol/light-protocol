@@ -36,6 +36,7 @@ export async function transfer(
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     let accumulatedLamports = bn(0);
+
     const compressedAccounts: CompressedAccountWithMerkleContext[] = [];
     let cursor: string | undefined;
     const batchSize = 1000; // Maximum allowed by the API

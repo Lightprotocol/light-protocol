@@ -37,7 +37,7 @@ pub fn generate_ctoken_seed_provider_implementation(
             let get_seeds_arm = quote! {
                 CTokenAccountVariant::#variant_name => {
                     Err(anchor_lang::prelude::ProgramError::Custom(
-                        CompressibleInstructionError::AtaDoesNotUseSeedDerivation.into()
+                        CompressibleInstructionError::ATADoesNotUseSeedDerivation.into()
                     ).into())
                 }
             };
@@ -46,7 +46,7 @@ pub fn generate_ctoken_seed_provider_implementation(
             let authority_arm = quote! {
                 CTokenAccountVariant::#variant_name => {
                     Err(anchor_lang::prelude::ProgramError::Custom(
-                        CompressibleInstructionError::AtaDoesNotUseSeedDerivation.into()
+                        CompressibleInstructionError::ATADoesNotUseSeedDerivation.into()
                     ).into())
                 }
             };

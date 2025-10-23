@@ -142,194 +142,204 @@ describe('rpc-interop', () => {
         executedTxs++;
     });
 
-    it('getValidityProof [noforester] (new-addresses) should match', async () => {
-        const newAddressSeeds = [new Uint8Array(randomBytes(32))];
-        const newAddressSeed = deriveAddressSeed(
-            newAddressSeeds,
-            LightSystemProgram.programId,
-        );
-
-        const newAddress = bn(deriveAddress(newAddressSeed).toBuffer());
-
-        /// consistent proof metadata for same address
-        const validityProof = await rpc.getValidityProof([], [newAddress]);
-        const validityProofTest = await testRpc.getValidityProof(
-            [],
-            [newAddress],
-        );
-
-        validityProof.leafIndices.forEach((leafIndex, index) => {
-            assert.equal(leafIndex, validityProofTest.leafIndices[index]);
-        });
-        validityProof.leaves.forEach((leaf, index) => {
-            assert.isTrue(leaf.eq(validityProofTest.leaves[index]));
-        });
-        validityProof.roots.forEach((elem, index) => {
-            assert.isTrue(elem.eq(validityProofTest.roots[index]));
-        });
-        validityProof.rootIndices.forEach((elem, index) => {
-            assert.equal(elem, validityProofTest.rootIndices[index]);
-        });
-        validityProof.treeInfos.forEach((elem, index) => {
-            assert.isTrue(
-                elem.tree.equals(validityProofTest.treeInfos[index].tree),
+    // Skip in V2: createAccount is only supported via CPI in V2
+    it.skipIf(featureFlags.isV2())(
+        'getValidityProof [noforester] (new-addresses) should match',
+        async () => {
+            const newAddressSeeds = [new Uint8Array(randomBytes(32))];
+            const newAddressSeed = deriveAddressSeed(
+                newAddressSeeds,
+                LightSystemProgram.programId,
             );
-        });
-        validityProof.treeInfos.forEach((elem, index) => {
-            assert.isTrue(
-                elem.queue.equals(validityProofTest.treeInfos[index].queue),
+
+            const newAddress = bn(deriveAddress(newAddressSeed).toBuffer());
+
+            /// consistent proof metadata for same address
+            const validityProof = await rpc.getValidityProof([], [newAddress]);
+            const validityProofTest = await testRpc.getValidityProof(
+                [],
+                [newAddress],
             );
-        });
 
-        /// Need a new unique address because the previous one has been created.
-        const newAddressSeedsTest = [new Uint8Array(randomBytes(32))];
-        /// Creates a compressed account with address using a (non-inclusion)
-        /// 'validityProof' from Photon
-        await createAccount(
-            rpc,
-            payer,
-            newAddressSeedsTest,
-            LightSystemProgram.programId,
-            undefined,
-            stateTreeInfo,
-        );
-        executedTxs++;
+            validityProof.leafIndices.forEach((leafIndex, index) => {
+                assert.equal(leafIndex, validityProofTest.leafIndices[index]);
+            });
+            validityProof.leaves.forEach((leaf, index) => {
+                assert.isTrue(leaf.eq(validityProofTest.leaves[index]));
+            });
+            validityProof.roots.forEach((elem, index) => {
+                assert.isTrue(elem.eq(validityProofTest.roots[index]));
+            });
+            validityProof.rootIndices.forEach((elem, index) => {
+                assert.equal(elem, validityProofTest.rootIndices[index]);
+            });
+            validityProof.treeInfos.forEach((elem, index) => {
+                assert.isTrue(
+                    elem.tree.equals(validityProofTest.treeInfos[index].tree),
+                );
+            });
+            validityProof.treeInfos.forEach((elem, index) => {
+                assert.isTrue(
+                    elem.queue.equals(validityProofTest.treeInfos[index].queue),
+                );
+            });
 
-        /// Creates a compressed account with address using a (non-inclusion)
-        /// 'validityProof' directly from a prover.
-        await createAccount(
-            testRpc,
-            payer,
-            newAddressSeeds,
-            LightSystemProgram.programId,
-            undefined,
-            stateTreeInfo,
-        );
-        executedTxs++;
-    });
-
-    it('getValidityProof [noforester] (combined) should match', async () => {
-        const senderAccountsTest = await testRpc.getCompressedAccountsByOwner(
-            payer.publicKey,
-        );
-        // wait for photon to be in sync
-        await sleep(3000);
-        const senderAccounts = await rpc.getCompressedAccountsByOwner(
-            payer.publicKey,
-        );
-        const hashTest = bn(senderAccountsTest.items[0].hash);
-        const hash = bn(senderAccounts.items[0].hash);
-
-        // accounts are the same
-        assert.isTrue(hash.eq(hashTest));
-
-        const newAddressSeeds = [new Uint8Array(randomBytes(32))];
-        const newAddressSeed = deriveAddressSeed(
-            newAddressSeeds,
-            LightSystemProgram.programId,
-        );
-        const newAddress = bn(deriveAddress(newAddressSeed).toBytes());
-
-        const validityProof = await rpc.getValidityProof([hash], [newAddress]);
-        const validityProofTest = await testRpc.getValidityProof(
-            [hashTest],
-            [newAddress],
-        );
-
-        // compressedAccountProofs should match
-        const compressedAccountProof = (
-            await rpc.getMultipleCompressedAccountProofs([hash])
-        )[0];
-        const compressedAccountProofTest = (
-            await testRpc.getMultipleCompressedAccountProofs([hashTest])
-        )[0];
-
-        compressedAccountProof.merkleProof.forEach((proof, index) => {
-            assert.isTrue(
-                proof.eq(compressedAccountProofTest.merkleProof[index]),
+            /// Need a new unique address because the previous one has been created.
+            const newAddressSeedsTest = [new Uint8Array(randomBytes(32))];
+            /// Creates a compressed account with address using a (non-inclusion)
+            /// 'validityProof' from Photon
+            await createAccount(
+                rpc,
+                payer,
+                newAddressSeedsTest,
+                LightSystemProgram.programId,
+                undefined,
+                stateTreeInfo,
             );
-        });
+            executedTxs++;
 
-        // newAddressProofs should match
-        const newAddressProof = (
-            await rpc.getMultipleNewAddressProofs([newAddress])
-        )[0];
-        const newAddressProofTest = (
-            await testRpc.getMultipleNewAddressProofs([newAddress])
-        )[0];
-
-        assert.isTrue(
-            newAddressProof.indexHashedIndexedElementLeaf.eq(
-                newAddressProofTest.indexHashedIndexedElementLeaf,
-            ),
-        );
-        assert.isTrue(
-            newAddressProof.leafHigherRangeValue.eq(
-                newAddressProofTest.leafHigherRangeValue,
-            ),
-        );
-        assert.isTrue(
-            newAddressProof.nextIndex.eq(newAddressProofTest.nextIndex),
-        );
-        assert.isTrue(
-            newAddressProof.leafLowerRangeValue.eq(
-                newAddressProofTest.leafLowerRangeValue,
-            ),
-        );
-        assert.isTrue(
-            newAddressProof.treeInfo.tree.equals(
-                newAddressProofTest.treeInfo.tree,
-            ),
-        );
-        assert.isTrue(
-            newAddressProof.treeInfo.queue.equals(
-                newAddressProofTest.treeInfo.queue,
-            ),
-        );
-        assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));
-        assert.isTrue(newAddressProof.value.eq(newAddressProofTest.value));
-
-        // validity proof metadata should match
-        validityProof.leafIndices.forEach((leafIndex, index) => {
-            assert.equal(leafIndex, validityProofTest.leafIndices[index]);
-        });
-        validityProof.leaves.forEach((leaf, index) => {
-            assert.isTrue(leaf.eq(validityProofTest.leaves[index]));
-        });
-        validityProof.roots.forEach((elem, index) => {
-            assert.isTrue(elem.eq(validityProofTest.roots[index]));
-        });
-        validityProof.rootIndices.forEach((elem, index) => {
-            assert.equal(elem, validityProofTest.rootIndices[index]);
-        });
-        validityProof.treeInfos.forEach((elem, index) => {
-            assert.isTrue(
-                elem.tree.equals(validityProofTest.treeInfos[index].tree),
+            /// Creates a compressed account with address using a (non-inclusion)
+            /// 'validityProof' directly from a prover.
+            await createAccount(
+                testRpc,
+                payer,
+                newAddressSeeds,
+                LightSystemProgram.programId,
+                undefined,
+                stateTreeInfo,
             );
-        });
-        validityProof.treeInfos.forEach((elem, index) => {
-            assert.isTrue(
-                elem.queue.equals(validityProofTest.treeInfos[index].queue),
-                'Mismatch in nullifierQueues expected: ' +
-                    elem +
-                    ' got: ' +
-                    validityProofTest.treeInfos[index].queue,
-            );
-        });
+            executedTxs++;
+        },
+    );
 
-        /// Creates a compressed account with address and lamports using a
-        /// (combined) 'validityProof' from Photon
-        await createAccountWithLamports(
-            rpc,
-            payer,
-            [new Uint8Array(randomBytes(32))],
-            0,
-            LightSystemProgram.programId,
-            undefined,
-            stateTreeInfo,
-        );
-        executedTxs++;
-    });
+    // Skip in V2: createAccountWithLamports is only supported via CPI in V2
+    it.skipIf(featureFlags.isV2())(
+        'getValidityProof [noforester] (combined) should match',
+        async () => {
+            const senderAccountsTest =
+                await testRpc.getCompressedAccountsByOwner(payer.publicKey);
+            // wait for photon to be in sync
+            await sleep(3000);
+            const senderAccounts = await rpc.getCompressedAccountsByOwner(
+                payer.publicKey,
+            );
+            const hashTest = bn(senderAccountsTest.items[0].hash);
+            const hash = bn(senderAccounts.items[0].hash);
+
+            // accounts are the same
+            assert.isTrue(hash.eq(hashTest));
+
+            const newAddressSeeds = [new Uint8Array(randomBytes(32))];
+            const newAddressSeed = deriveAddressSeed(
+                newAddressSeeds,
+                LightSystemProgram.programId,
+            );
+            const newAddress = bn(deriveAddress(newAddressSeed).toBytes());
+
+            const validityProof = await rpc.getValidityProof(
+                [hash],
+                [newAddress],
+            );
+            const validityProofTest = await testRpc.getValidityProof(
+                [hashTest],
+                [newAddress],
+            );
+
+            // compressedAccountProofs should match
+            const compressedAccountProof = (
+                await rpc.getMultipleCompressedAccountProofs([hash])
+            )[0];
+            const compressedAccountProofTest = (
+                await testRpc.getMultipleCompressedAccountProofs([hashTest])
+            )[0];
+
+            compressedAccountProof.merkleProof.forEach((proof, index) => {
+                assert.isTrue(
+                    proof.eq(compressedAccountProofTest.merkleProof[index]),
+                );
+            });
+
+            // newAddressProofs should match
+            const newAddressProof = (
+                await rpc.getMultipleNewAddressProofs([newAddress])
+            )[0];
+            const newAddressProofTest = (
+                await testRpc.getMultipleNewAddressProofs([newAddress])
+            )[0];
+
+            assert.isTrue(
+                newAddressProof.indexHashedIndexedElementLeaf.eq(
+                    newAddressProofTest.indexHashedIndexedElementLeaf,
+                ),
+            );
+            assert.isTrue(
+                newAddressProof.leafHigherRangeValue.eq(
+                    newAddressProofTest.leafHigherRangeValue,
+                ),
+            );
+            assert.isTrue(
+                newAddressProof.nextIndex.eq(newAddressProofTest.nextIndex),
+            );
+            assert.isTrue(
+                newAddressProof.leafLowerRangeValue.eq(
+                    newAddressProofTest.leafLowerRangeValue,
+                ),
+            );
+            assert.isTrue(
+                newAddressProof.treeInfo.tree.equals(
+                    newAddressProofTest.treeInfo.tree,
+                ),
+            );
+            assert.isTrue(
+                newAddressProof.treeInfo.queue.equals(
+                    newAddressProofTest.treeInfo.queue,
+                ),
+            );
+            assert.isTrue(newAddressProof.root.eq(newAddressProofTest.root));
+            assert.isTrue(newAddressProof.value.eq(newAddressProofTest.value));
+
+            // validity proof metadata should match
+            validityProof.leafIndices.forEach((leafIndex, index) => {
+                assert.equal(leafIndex, validityProofTest.leafIndices[index]);
+            });
+            validityProof.leaves.forEach((leaf, index) => {
+                assert.isTrue(leaf.eq(validityProofTest.leaves[index]));
+            });
+            validityProof.roots.forEach((elem, index) => {
+                assert.isTrue(elem.eq(validityProofTest.roots[index]));
+            });
+            validityProof.rootIndices.forEach((elem, index) => {
+                assert.equal(elem, validityProofTest.rootIndices[index]);
+            });
+            validityProof.treeInfos.forEach((elem, index) => {
+                assert.isTrue(
+                    elem.tree.equals(validityProofTest.treeInfos[index].tree),
+                );
+            });
+            validityProof.treeInfos.forEach((elem, index) => {
+                assert.isTrue(
+                    elem.queue.equals(validityProofTest.treeInfos[index].queue),
+                    'Mismatch in nullifierQueues expected: ' +
+                        elem +
+                        ' got: ' +
+                        validityProofTest.treeInfos[index].queue,
+                );
+            });
+
+            /// Creates a compressed account with address and lamports using a
+            /// (combined) 'validityProof' from Photon
+            await createAccountWithLamports(
+                rpc,
+                payer,
+                [new Uint8Array(randomBytes(32))],
+                0,
+                LightSystemProgram.programId,
+                undefined,
+                stateTreeInfo,
+            );
+            executedTxs++;
+        },
+    );
 
     /// This assumes support for getMultipleNewAddressProofs in Photon.
     it('getMultipleNewAddressProofs [noforester] should match', async () => {
@@ -497,6 +507,13 @@ describe('rpc-interop', () => {
             senderAccountsTest.items.length,
         );
 
+        senderAccounts.items.sort((a, b) =>
+            a.lamports.sub(b.lamports).toNumber(),
+        );
+        senderAccountsTest.items.sort((a, b) =>
+            a.lamports.sub(b.lamports).toNumber(),
+        );
+
         senderAccounts.items.forEach((account, index) => {
             assert.equal(
                 account.owner.toBase58(),
@@ -592,32 +609,26 @@ describe('rpc-interop', () => {
         });
     });
 
-    it('[test-rpc missing] getCompressionSignaturesForAccount should match', async () => {
-        const senderAccounts = await rpc.getCompressedAccountsByOwner(
-            payer.publicKey,
-        );
-        const signaturesUnspent = await rpc.getCompressionSignaturesForAccount(
-            bn(senderAccounts.items[0].hash),
-        );
+    // Skip in V2: test depends on createAccount tests running before it (executedTxs count)
+    it.skipIf(featureFlags.isV2())(
+        '[test-rpc missing] getCompressionSignaturesForAccount should match',
+        async () => {
+            const senderAccounts = await rpc.getCompressedAccountsByOwner(
+                payer.publicKey,
+            );
 
-        /// most recent therefore unspent account
-        assert.equal(signaturesUnspent.length, 1);
+            await transfer(rpc, payer, 1, payer, bob.publicKey);
 
-        /// Note: assumes largest-first selection mechanism
-        const largestAccount = senderAccounts.items.reduce((acc, account) =>
-            account.lamports.gt(acc.lamports) ? account : acc,
-        );
+            executedTxs++;
+            const signaturesSpent =
+                await rpc.getCompressionSignaturesForAccount(
+                    bn(senderAccounts.items[0].hash),
+                );
 
-        await transfer(rpc, payer, 1, payer, bob.publicKey);
-        executedTxs++;
-
-        const signaturesSpent = await rpc.getCompressionSignaturesForAccount(
-            bn(largestAccount.hash),
-        );
-
-        /// 1 spent account, so always 2 signatures.
-        assert.equal(signaturesSpent.length, 2);
-    });
+            /// 1 spent account, so always 2 signatures.
+            assert.equal(signaturesSpent.length, 2);
+        },
+    );
 
     it('[test-rpc missing] getSignaturesForOwner should match', async () => {
         const signatures = await rpc.getCompressionSignaturesForOwner(
@@ -660,101 +671,126 @@ describe('rpc-interop', () => {
         assert.notEqual(signatures2[0].signature, signatures3[0].signature);
     });
 
-    it('[test-rpc missing] getCompressedTransaction should match', async () => {
-        const signatures = await rpc.getCompressionSignaturesForOwner(
-            payer.publicKey,
-        );
+    // Skip in V2: depends on getCompressionSignaturesForAccount having run a transfer
+    it.skipIf(featureFlags.isV2())(
+        '[test-rpc missing] getCompressedTransaction should match',
+        async () => {
+            const signatures = await rpc.getCompressionSignaturesForOwner(
+                payer.publicKey,
+            );
 
-        const compressedTx = await rpc.getTransactionWithCompressionInfo(
-            signatures.items[0].signature,
-        );
+            const compressedTx = await rpc.getTransactionWithCompressionInfo(
+                signatures.items[0].signature,
+            );
 
-        /// is transfer
-        assert.equal(compressedTx?.compressionInfo.closedAccounts.length, 1);
-        assert.equal(compressedTx?.compressionInfo.openedAccounts.length, 2);
-    });
+            /// is transfer
+            assert.equal(
+                compressedTx?.compressionInfo.closedAccounts.length,
+                1,
+            );
+            assert.equal(
+                compressedTx?.compressionInfo.openedAccounts.length,
+                2,
+            );
+        },
+    );
 
-    it('[test-rpc missing] getCompressionSignaturesForAddress should work', async () => {
-        const seeds = [new Uint8Array(randomBytes(32))];
-        const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
-        const addressTreeInfo = getDefaultAddressTreeInfo();
-        const address = deriveAddress(seed, addressTreeInfo.tree);
+    // Skip in V2: createAccount is only supported via CPI in V2
+    it.skipIf(featureFlags.isV2())(
+        '[test-rpc missing] getCompressionSignaturesForAddress should work',
+        async () => {
+            const seeds = [new Uint8Array(randomBytes(32))];
+            const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
+            const addressTreeInfo = getDefaultAddressTreeInfo();
+            const address = deriveAddress(seed, addressTreeInfo.tree);
 
-        await createAccount(
-            rpc,
-            payer,
-            seeds,
-            LightSystemProgram.programId,
-            addressTreeInfo,
-            stateTreeInfo,
-        );
+            await createAccount(
+                rpc,
+                payer,
+                seeds,
+                LightSystemProgram.programId,
+                addressTreeInfo,
+                stateTreeInfo,
+            );
 
-        const accounts = await rpc.getCompressedAccountsByOwner(
-            payer.publicKey,
-        );
+            const accounts = await rpc.getCompressedAccountsByOwner(
+                payer.publicKey,
+            );
 
-        const allAccountsTestRpc = await testRpc.getCompressedAccountsByOwner(
-            payer.publicKey,
-        );
-        const allAccountsRpc = await rpc.getCompressedAccountsByOwner(
-            payer.publicKey,
-        );
+            const allAccountsTestRpc =
+                await testRpc.getCompressedAccountsByOwner(payer.publicKey);
+            const allAccountsRpc = await rpc.getCompressedAccountsByOwner(
+                payer.publicKey,
+            );
 
-        const latestAccount = accounts.items[0];
+            const latestAccount = accounts.items[0];
 
-        // assert the address was indexed
-        assert.isTrue(new PublicKey(latestAccount.address!).equals(address));
+            // assert the address was indexed
+            assert.isTrue(
+                new PublicKey(latestAccount.address!).equals(address),
+            );
 
-        const signaturesUnspent = await rpc.getCompressionSignaturesForAddress(
-            new PublicKey(latestAccount.address!),
-        );
+            const signaturesUnspent =
+                await rpc.getCompressionSignaturesForAddress(
+                    new PublicKey(latestAccount.address!),
+                );
 
-        /// most recent therefore unspent account
-        assert.equal(signaturesUnspent.items.length, 1);
-    });
+            /// most recent therefore unspent account
+            assert.equal(signaturesUnspent.items.length, 1);
+        },
+    );
 
-    it('[test-rpc missing] getCompressedAccount with address param should work ', async () => {
-        const seeds = [new Uint8Array(randomBytes(32))];
-        const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
+    // Skip in V2: createAccount is only supported via CPI in V2
+    it.skipIf(featureFlags.isV2())(
+        '[test-rpc missing] getCompressedAccount with address param should work ',
+        async () => {
+            const seeds = [new Uint8Array(randomBytes(32))];
+            const seed = deriveAddressSeed(seeds, LightSystemProgram.programId);
 
-        const addressTreeInfo = getDefaultAddressTreeInfo();
-        const address = deriveAddress(seed, addressTreeInfo.tree);
+            const addressTreeInfo = getDefaultAddressTreeInfo();
+            const address = deriveAddress(seed, addressTreeInfo.tree);
 
-        await createAccount(
-            rpc,
-            payer,
-            seeds,
-            LightSystemProgram.programId,
-            addressTreeInfo,
-            stateTreeInfo,
-        );
+            await createAccount(
+                rpc,
+                payer,
+                seeds,
+                LightSystemProgram.programId,
+                addressTreeInfo,
+                stateTreeInfo,
+            );
 
-        // fetch the owners latest account
-        const accounts = await rpc.getCompressedAccountsByOwner(
-            payer.publicKey,
-        );
+            // fetch the owners latest account
+            const accounts = await rpc.getCompressedAccountsByOwner(
+                payer.publicKey,
+            );
 
-        const latestAccount = accounts.items[0];
+            const latestAccount = accounts.items[0];
 
-        assert.isTrue(new PublicKey(latestAccount.address!).equals(address));
+            assert.isTrue(
+                new PublicKey(latestAccount.address!).equals(address),
+            );
 
-        const compressedAccountByHash = await rpc.getCompressedAccount(
-            undefined,
-            bn(latestAccount.hash),
-        );
-        const compressedAccountByAddress = await rpc.getCompressedAccount(
-            bn(latestAccount.address!),
-            undefined,
-        );
+            const compressedAccountByHash = await rpc.getCompressedAccount(
+                undefined,
+                bn(latestAccount.hash),
+            );
+            const compressedAccountByAddress = await rpc.getCompressedAccount(
+                bn(latestAccount.address!),
+                undefined,
+            );
 
-        await expect(
-            testRpc.getCompressedAccount(bn(latestAccount.address!), undefined),
-        ).rejects.toThrow();
+            await expect(
+                testRpc.getCompressedAccount(
+                    bn(latestAccount.address!),
+                    undefined,
+                ),
+            ).rejects.toThrow();
 
-        assert.isTrue(
-            bn(compressedAccountByHash!.address!).eq(
-                bn(compressedAccountByAddress!.address!),
-            ),
-        );
-    });
+            assert.isTrue(
+                bn(compressedAccountByHash!.address!).eq(
+                    bn(compressedAccountByAddress!.address!),
+                ),
+            );
+        },
+    );
 });
