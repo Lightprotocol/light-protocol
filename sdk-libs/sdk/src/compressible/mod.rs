@@ -7,13 +7,19 @@ pub mod compress_account;
 #[cfg(feature = "v2")]
 pub mod compress_account_on_init;
 #[cfg(feature = "v2")]
+pub mod compress_runtime;
+#[cfg(feature = "v2")]
 pub mod decompress_idempotent;
+#[cfg(feature = "v2")]
+pub mod decompress_runtime;
 #[cfg(feature = "v2")]
 pub use close::close;
 #[cfg(feature = "v2")]
 pub use compress_account::prepare_account_for_compression;
 #[cfg(feature = "v2")]
 pub use compress_account_on_init::prepare_compressed_account_on_init;
+#[cfg(feature = "v2")]
+pub use compress_runtime::CompressContext;
 pub use compression_info::{
     CompressAs, CompressedInitSpace, CompressionInfo, HasCompressionInfo, Pack, Space, Unpack,
 };
@@ -25,4 +31,9 @@ pub use config::{
 #[cfg(feature = "v2")]
 pub use decompress_idempotent::{
     into_compressed_meta_with_address, prepare_account_for_decompression_idempotent,
+};
+#[cfg(feature = "v2")]
+pub use decompress_runtime::{
+    check_account_types, handle_packed_pda_variant, process_decompress_accounts_idempotent,
+    CTokenSeedProvider, DecompressContext, HasTokenVariant, PdaSeedProvider,
 };

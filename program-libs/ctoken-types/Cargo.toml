@@ -7,8 +7,8 @@ edition = { workspace = true }
 anchor = ["light-compressed-account/anchor", "dep:anchor-lang", "light-compressible/anchor"]
 solana = ["dep:solana-program-error", "dep:solana-sysvar", "solana-msg"]
 default = []
-profile-program = []
-profile-heap = ["dep:light-heap"]
+profile-program = ["light-program-profiler/profile-program"]
+profile-heap = ["dep:light-heap", "light-program-profiler/profile-heap"]
 poseidon = ["light-hasher/poseidon"]
 
 [dependencies]
