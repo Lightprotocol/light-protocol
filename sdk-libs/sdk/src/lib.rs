@@ -152,6 +152,7 @@ pub mod token;
 pub mod transfer;
 pub mod utils;
 
+pub mod compressible;
 #[cfg(feature = "merkle-tree")]
 pub mod merkle_tree;
 
@@ -159,6 +160,12 @@ pub mod merkle_tree;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+pub use compressible::{
+    process_initialize_compression_config_account_info,
+    process_initialize_compression_config_checked, process_update_compression_config, CompressAs,
+    CompressedInitSpace, CompressibleConfig, CompressionInfo, HasCompressionInfo, Pack, Space,
+    Unpack, COMPRESSIBLE_CONFIG_SEED, MAX_ADDRESS_TREES_PER_SPACE,
+};
 pub use light_account_checks::{self, discriminator::Discriminator as LightDiscriminator};
 pub use light_hasher;
 #[cfg(feature = "poseidon")]

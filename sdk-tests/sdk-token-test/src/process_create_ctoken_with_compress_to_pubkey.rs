@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke_signed};
 use light_compressed_token_sdk::instructions::create_token_account::{
-    create_compressible_token_account, CreateCompressibleTokenAccount,
+    create_compressible_token_account_instruction, CreateCompressibleTokenAccount,
 };
 use light_ctoken_types::instructions::extensions::compressible::CompressToPubkey;
 
@@ -38,8 +38,8 @@ pub fn process_create_ctoken_with_compress_to_pubkey<'info>(
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
     };
 
-    let instruction =
-        create_compressible_token_account(create_account_inputs).map_err(ProgramError::from)?;
+    let instruction = create_compressible_token_account_instruction(create_account_inputs)
+        .map_err(ProgramError::from)?;
 
     let seeds = [seeds[0], seeds[1], &[bump]];
 

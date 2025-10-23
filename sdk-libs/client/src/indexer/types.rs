@@ -13,7 +13,6 @@ use light_sdk::{
 };
 use num_bigint::BigUint;
 use solana_pubkey::Pubkey;
-use tracing::warn;
 
 use super::{
     base58::{decode_base58_option_to_pubkey, decode_base58_to_fixed_array},
@@ -529,16 +528,30 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
             .hash()
             .map_err(|_| IndexerError::InvalidResponseData)?;
         // Breaks light-program-test
-        let tree_info = QUEUE_TREE_MAPPING.get(
-            &Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes())
-                .to_string(),
-        );
-        let cpi_context = if let Some(tree_info) = tree_info {
-            tree_info.cpi_context
-        } else {
-            warn!("Cpi context not found in queue tree mapping");
-            None
-        };
+        // let tree_info = QUEUE_TREE_MAPPING.get(
+        //     &Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes())
+        //         .to_string(),
+        // );
+
+        let tree_pubkey =
+            Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes());
+        let tree_info = QUEUE_TREE_MAPPING
+            .get(&tree_pubkey.to_string())
+            .ok_or_else(|| {
+                println!(
+                    "ERROR: No tree_info found for tree pubkey: {:?}",
+                    tree_pubkey.to_string()
+                );
+                IndexerError::InvalidResponseData
+            })?;
+
+        if tree_info.cpi_context.is_none() {
+            panic!(
+                "Cpi context not found in queue tree mapping for tree pubkey: {:?}",
+                tree_pubkey.to_string()
+            );
+        }
+
         Ok(CompressedAccount {
             address: account.compressed_account.address,
             data: account.compressed_account.data,
@@ -546,10 +559,10 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
             lamports: account.compressed_account.lamports,
             leaf_index: account.merkle_context.leaf_index,
             tree_info: TreeInfo {
-                tree: Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes()),
+                tree: tree_pubkey,
                 queue: Pubkey::new_from_array(account.merkle_context.queue_pubkey.to_bytes()),
                 tree_type: account.merkle_context.tree_type,
-                cpi_context,
+                cpi_context: tree_info.cpi_context,
                 next_tree_info: None,
             },
             owner: Pubkey::new_from_array(account.compressed_account.owner.to_bytes()),
@@ -620,6 +633,18 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
                 .map(|ctx| NextTreeInfo::try_from(ctx.as_ref()))
                 .transpose()?,
         };
+        // TODO: check if the above handles it fine.
+        // let tree_pubkey =
+        //     Pubkey::new_from_array(decode_base58_to_fixed_array(&account.merkle_context.tree)?);
+        // let tree_info = QUEUE_TREE_MAPPING
+        //     .get(&tree_pubkey.to_string())
+        //     .ok_or_else(|| {
+        //         println!(
+        //             "ERROR: No tree_info found for tree pubkey: {}",
+        //             account.merkle_context.tree
+        //         );
+        //         IndexerError::InvalidResponseData
+        //     })?;
 
         Ok(CompressedAccount {
             owner,

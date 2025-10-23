@@ -218,3 +218,14 @@ pub fn find_spl_mint_address(mint_seed: &Pubkey) -> (Pubkey, u8) {
         &Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
     )
 }
+
+/// DEPRECATED: Use derive_compressed_mint_address instead
+/// Derives the compressed mint address from the mint seed and address tree
+pub fn derive_ctoken_mint_address(mint_seed: &Pubkey, address_tree_pubkey: &Pubkey) -> [u8; 32] {
+    derive_compressed_mint_address(mint_seed, address_tree_pubkey)
+}
+
+/// Alias for find_spl_mint_address
+pub fn find_mint_address(signer: &Pubkey) -> (Pubkey, u8) {
+    find_spl_mint_address(signer)
+}

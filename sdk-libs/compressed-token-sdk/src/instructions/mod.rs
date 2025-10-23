@@ -13,6 +13,8 @@ pub mod mint_action;
 pub mod mint_to_compressed;
 pub mod transfer;
 pub mod transfer2;
+pub mod transfer_ctoken;
+pub mod transfer_interface;
 pub mod update_compressed_mint;
 pub mod withdraw_funding_pool;
 
@@ -34,7 +36,8 @@ pub use create_associated_token_account::*;
 pub use create_compressed_mint::*;
 pub use create_spl_mint::*;
 pub use create_token_account::{
-    create_compressible_token_account, create_token_account, CreateCompressibleTokenAccount,
+    create_compressible_token_account_instruction, create_ctoken_account_signed,
+    create_token_account, CreateCompressibleTokenAccount,
 };
 pub use ctoken_accounts::*;
 pub use decompress_full::{decompress_full_ctoken_accounts_with_indices, DecompressFullIndices};
@@ -48,6 +51,12 @@ pub use mint_action::{
 pub use mint_to_compressed::{
     create_mint_to_compressed_instruction, get_mint_to_compressed_instruction_account_metas,
     DecompressedMintConfig, MintToCompressedInputs, MintToCompressedMetaConfig,
+};
+pub use transfer_ctoken::{transfer_ctoken, transfer_ctoken_signed};
+// TODO: export the others too.
+pub use transfer_interface::{
+    create_transfer_ctoken_to_spl_instruction, create_transfer_spl_to_ctoken_instruction,
+    transfer_interface, transfer_interface_signed,
 };
 pub use update_compressed_mint::{
     update_compressed_mint, update_compressed_mint_cpi, UpdateCompressedMintInputs,

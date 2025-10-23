@@ -8,8 +8,8 @@ default = ["pinocchio", "solana"]
 solana = ["dep:solana-program-error", "light-compressed-account/solana", "solana-sysvar", "solana-msg"]
 anchor = ["anchor-lang", "light-compressed-account/anchor", "light-compressed-account/std"]
 pinocchio = ["light-compressed-account/pinocchio"]
-profile-program = []
-profile-heap = ["dep:light-heap"]
+profile-program = ["dep:light-program-profiler"]
+profile-heap = ["dep:light-heap", "dep:light-program-profiler"]
 
 [dependencies]
 thiserror = { workspace = true }
@@ -26,7 +26,7 @@ bytemuck = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
 solana-pubkey = { workspace = true, features = ["std", "sha2", "curve25519", "borsh", "bytemuck"] }
 pinocchio-pubkey = { workspace = true }
-light-program-profiler = { workspace = true }
+light-program-profiler = { workspace = true, optional = true }
 light-heap = { workspace = true, optional = true }
 light-account-checks = { workspace= true }
 light-compressed-account = { workspace= true }

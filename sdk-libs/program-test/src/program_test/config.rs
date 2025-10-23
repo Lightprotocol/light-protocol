@@ -20,6 +20,9 @@ pub struct ProgramTestConfig {
     #[cfg(feature = "devenv")]
     pub protocol_config: ProtocolConfig,
     pub with_prover: bool,
+    /// Automatically register additional programs for PDA auto-compression in tests
+    #[cfg(feature = "devenv")]
+    pub auto_register_custom_programs_for_pda_compression: bool,
     #[cfg(feature = "devenv")]
     pub skip_register_programs: bool,
     #[cfg(feature = "devenv")]
@@ -131,6 +134,8 @@ impl Default for ProgramTestConfig {
                 ..Default::default()
             },
             with_prover: true,
+            #[cfg(feature = "devenv")]
+            auto_register_custom_programs_for_pda_compression: true,
             #[cfg(feature = "devenv")]
             skip_second_v1_tree: false,
             #[cfg(feature = "devenv")]

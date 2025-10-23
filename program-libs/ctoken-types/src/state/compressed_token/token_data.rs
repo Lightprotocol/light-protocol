@@ -1,4 +1,5 @@
 use light_compressed_account::Pubkey;
+#[cfg(any(feature = "profile-program", feature = "profile-heap"))]
 use light_program_profiler::profile;
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopy, ZeroCopyMut};
 
@@ -55,7 +56,7 @@ impl TokenData {
 impl ZTokenDataMut<'_> {
     /// Set all fields of the TokenData struct at once
     #[inline]
-    #[profile]
+    #[cfg_attr(any(feature = "profile-program", feature = "profile-heap"), profile)]
     pub fn set(
         &mut self,
         mint: Pubkey,

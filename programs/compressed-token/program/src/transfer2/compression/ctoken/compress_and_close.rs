@@ -13,7 +13,8 @@ use spl_pod::solana_msg::msg;
 use super::inputs::CompressAndCloseInputs;
 use crate::{
     close_token_account::{
-        accounts::CloseTokenAccountAccounts, processor::validate_token_account_for_close_transfer2,
+        accounts::CloseTokenAccountAccounts,
+        processor::{close_token_account, validate_token_account_for_close_transfer2},
     },
     transfer2::accounts::Transfer2Accounts,
 };
@@ -168,7 +169,7 @@ fn validate_compressed_token_account(
 /// Close ctoken accounts after compress and close operations
 pub fn close_for_compress_and_close(
     compressions: &[ZCompression<'_>],
-    _validated_accounts: &Transfer2Accounts,
+    validated_accounts: &Transfer2Accounts,
 ) -> Result<(), ProgramError> {
     // Track used compressed account indices for CompressAndClose to prevent duplicate outputs
     let mut used_compressed_account_indices = [0u8; 32]; // 256 bits
@@ -178,48 +179,44 @@ pub fn close_for_compress_and_close(
         .iter()
         .filter(|c| c.mode == ZCompressionMode::CompressAndClose)
     {
-        // Check for duplicate compressed account indices in CompressAndClose operations
-        let compressed_idx = compression.get_compressed_token_account_index()?;
-        if let Some(mut bit) = used_bits.get_mut(compressed_idx as usize) {
-            if *bit {
-                msg!(
-                    "Duplicate compressed account index {} in CompressAndClose operations",
-                    compressed_idx
-                );
-                return Err(ErrorCode::CompressAndCloseDuplicateOutput.into());
-            }
-            *bit = true;
-        } else {
-            msg!("Compressed account index {} out of bounds", compressed_idx);
-            return Err(ProgramError::InvalidInstructionData);
-        }
+        let token_account_info = validated_accounts.packed_accounts.get_u8(
+            compression.source_or_recipient,
+            "CompressAndClose: source_or_recipient",
+        )?;
+        let destination = validated_accounts.packed_accounts.get_u8(
+            compression.get_destination_index()?,
+            "CompressAndClose: destination",
+        )?;
+        let rent_sponsor = validated_accounts.packed_accounts.get_u8(
+            compression.get_rent_sponsor_index()?,
+            "CompressAndClose: rent_sponsor",
+        )?;
 
-        #[cfg(target_os = "solana")]
-        {
-            let validated_accounts = _validated_accounts;
-            let token_account_info = validated_accounts.packed_accounts.get_u8(
-                compression.source_or_recipient,
-                "CompressAndClose: source_or_recipient",
-            )?;
-            let destination = validated_accounts.packed_accounts.get_u8(
-                compression.get_destination_index()?,
-                "CompressAndClose: destination",
-            )?;
-            let rent_sponsor = validated_accounts.packed_accounts.get_u8(
-                compression.get_rent_sponsor_index()?,
-                "CompressAndClose: rent_sponsor",
-            )?;
-            let authority = validated_accounts
-                .packed_accounts
-                .get_u8(compression.authority, "CompressAndClose: authority")?;
-            use crate::close_token_account::processor::close_token_account;
-            close_token_account(&CloseTokenAccountAccounts {
-                token_account: token_account_info,
-                destination,
-                authority,
-                rent_sponsor: Some(rent_sponsor),
-            })?;
-        }
+        let authority = validated_accounts
+            .packed_accounts
+            .get_u8(compression.authority, "CompressAndClose: authority")?;
+        msg!(
+            "Closing ctoken account: {}",
+            solana_pubkey::Pubkey::new_from_array(*token_account_info.key())
+        );
+        msg!(
+            "  destination: {}",
+            solana_pubkey::Pubkey::new_from_array(*destination.key())
+        );
+        msg!(
+            "  authority: {}",
+            solana_pubkey::Pubkey::new_from_array(*authority.key())
+        );
+        msg!(
+            "  rent_sponsor: {}",
+            solana_pubkey::Pubkey::new_from_array(*rent_sponsor.key())
+        );
+        close_token_account(&CloseTokenAccountAccounts {
+            token_account: token_account_info,
+            destination,
+            authority,
+            rent_sponsor: Some(rent_sponsor),
+        })?;
     }
     Ok(())
 }
