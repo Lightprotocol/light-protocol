@@ -35,6 +35,7 @@ use crate::{
 pub fn prepare_compressed_account_on_init<'info, A>(
     account_info: &AccountInfo<'info>,
     account_data: &mut A,
+    compression_config: &crate::compressible::CompressibleConfig,
     address: [u8; 32],
     new_address_param: NewAddressParamsAssignedPacked,
     output_state_tree_index: u8,
@@ -65,15 +66,20 @@ where
         msg!("Address tree {} not in allowed address space", tree);
         return Err(LightSdkError::ConstraintViolation.into());
     }
-    *account_data.compression_info_mut_opt() =
-        Some(super::compression_info::CompressionInfo::new_decompressed()?);
+    // Initialize CompressionInfo from config
+    // Note: Rent sponsor is not stored per-account; compression always sends rent to config's rent_sponsor
+    use solana_sysvar::{clock::Clock, Sysvar};
+    let current_slot = Clock::get()?.slot;
+    *account_data.compression_info_mut_opt() = Some(
+        super::compression_info::CompressionInfo::new_from_config(compression_config, current_slot),
+    );
 
     if with_data {
         account_data.compression_info_mut().set_compressed();
     } else {
         account_data
             .compression_info_mut()
-            .bump_last_written_slot()?;
+            .bump_last_claimed_slot()?;
     }
     {
         let mut data = account_info

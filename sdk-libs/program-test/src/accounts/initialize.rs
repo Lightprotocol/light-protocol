@@ -17,7 +17,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
 };
 
-#[cfg(feature = "v2")]
+#[cfg(feature = "devenv")]
 use super::{
     address_tree_v2::create_batch_address_merkle_tree,
     state_tree_v2::create_batched_state_merkle_tree,
@@ -165,7 +165,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
         // )
         // .await?;
     }
-    #[cfg(feature = "v2")]
+    #[cfg(feature = "devenv")]
     if let Some(v2_state_tree_config) = _v2_state_tree_config {
         create_batched_state_merkle_tree(
             &keypairs.governance_authority,
@@ -178,7 +178,7 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
         )
         .await?;
     }
-    #[cfg(feature = "v2")]
+    #[cfg(feature = "devenv")]
     if let Some(params) = _v2_address_tree_config {
         create_batch_address_merkle_tree(
             context,

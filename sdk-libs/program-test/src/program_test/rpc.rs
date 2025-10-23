@@ -245,7 +245,7 @@ impl Rpc for LightProgramTest {
 
     /// Fetch the latest state tree addresses from the cluster.
     async fn get_latest_active_state_trees(&mut self) -> Result<Vec<TreeInfo>, RpcError> {
-        #[cfg(not(feature = "v2"))]
+        #[cfg(not(feature = "devenv"))]
         return Ok(self
             .test_accounts
             .v1_state_trees
@@ -253,7 +253,7 @@ impl Rpc for LightProgramTest {
             .copied()
             .map(|tree| tree.into())
             .collect());
-        #[cfg(feature = "v2")]
+        #[cfg(feature = "devenv")]
         return Ok(self
             .test_accounts
             .v2_state_trees
@@ -264,7 +264,7 @@ impl Rpc for LightProgramTest {
 
     /// Fetch the latest state tree addresses from the cluster.
     fn get_state_tree_infos(&self) -> Vec<TreeInfo> {
-        #[cfg(not(feature = "v2"))]
+        #[cfg(not(feature = "devenv"))]
         return self
             .test_accounts
             .v1_state_trees
@@ -272,7 +272,7 @@ impl Rpc for LightProgramTest {
             .copied()
             .map(|tree| tree.into())
             .collect();
-        #[cfg(feature = "v2")]
+        #[cfg(feature = "devenv")]
         return self
             .test_accounts
             .v2_state_trees
@@ -286,7 +286,7 @@ impl Rpc for LightProgramTest {
     fn get_random_state_tree_info(&self) -> Result<TreeInfo, RpcError> {
         use rand::Rng;
         let mut rng = rand::thread_rng();
-        #[cfg(not(feature = "v2"))]
+        #[cfg(not(feature = "devenv"))]
         {
             if self.test_accounts.v1_state_trees.is_empty() {
                 return Err(RpcError::NoStateTreesAvailable);
@@ -295,7 +295,7 @@ impl Rpc for LightProgramTest {
                 [rng.gen_range(0..self.test_accounts.v1_state_trees.len())]
             .into())
         }
-        #[cfg(feature = "v2")]
+        #[cfg(feature = "devenv")]
         {
             if self.test_accounts.v2_state_trees.is_empty() {
                 return Err(RpcError::NoStateTreesAvailable);

@@ -18,9 +18,19 @@ use solana_account::Account;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
+/// Helper function to get the output queue from tree info.
+/// Prefers next_tree_info.queue if available, otherwise uses current queue.
+#[inline]
+fn get_output_queue(tree_info: &TreeInfo) -> Pubkey {
+    tree_info
+        .next_tree_info
+        .as_ref()
+        .map(|next| next.queue)
+        .unwrap_or(tree_info.queue)
+}
+
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct InitializeCompressionConfigData {
-    pub compression_delay: u32,
     pub rent_sponsor: Pubkey,
     pub address_space: Vec<Pubkey>,
     pub config_bump: u8,
@@ -28,7 +38,6 @@ pub struct InitializeCompressionConfigData {
 
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct UpdateCompressionConfigData {
-    pub new_compression_delay: Option<u32>,
     pub new_rent_sponsor: Option<Pubkey>,
     pub new_address_space: Option<Vec<Pubkey>>,
     pub new_update_authority: Option<Pubkey>,
@@ -46,7 +55,6 @@ pub struct DecompressMultipleAccountsIdempotentData<T> {
 pub struct CompressAccountsIdempotentData {
     pub proof: ValidityProof,
     pub compressed_accounts: Vec<CompressedAccountMetaNoLamportsNoAddress>,
-    pub signer_seeds: Vec<Vec<Vec<u8>>>,
     pub system_accounts_offset: u8,
 }
 
@@ -63,12 +71,10 @@ pub mod compressible_instruction {
     /// SHA256("global:decompress_accounts_idempotent")[..8]
     pub const DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR: [u8; 8] =
         [114, 67, 61, 123, 234, 31, 1, 112];
-    /// SHA256("global:compress_token_account_ctoken_signer")[..8]
-    pub const COMPRESS_TOKEN_ACCOUNT_CTOKEN_SIGNER_DISCRIMINATOR: [u8; 8] =
-        [243, 154, 172, 243, 44, 214, 139, 73];
     /// SHA256("global:compress_accounts_idempotent")[..8]
     pub const COMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR: [u8; 8] =
-        [89, 130, 165, 88, 12, 207, 178, 185];
+        // [89, 130, 165, 88, 12, 207, 178, 185];
+        [70, 236, 171, 120, 164, 93, 113, 181];
 
     /// Creates an initialize_compression_config instruction
     #[allow(clippy::too_many_arguments)]
@@ -77,7 +83,6 @@ pub mod compressible_instruction {
         discriminator: &[u8],
         payer: &Pubkey,
         authority: &Pubkey,
-        compression_delay: u32,
         rent_sponsor: Pubkey,
         address_space: Vec<Pubkey>,
         config_bump: Option<u8>,
@@ -101,7 +106,6 @@ pub mod compressible_instruction {
         ];
 
         let instruction_data = InitializeCompressionConfigData {
-            compression_delay,
             rent_sponsor,
             address_space,
             config_bump,
@@ -112,7 +116,7 @@ pub mod compressible_instruction {
             .try_to_vec()
             .expect("Failed to serialize instruction data");
 
-        let mut data = Vec::new();
+        let mut data = Vec::with_capacity(discriminator.len() + serialized_data.len());
         data.extend_from_slice(discriminator);
         data.extend_from_slice(&serialized_data);
 
@@ -128,7 +132,6 @@ pub mod compressible_instruction {
         program_id: &Pubkey,
         discriminator: &[u8],
         authority: &Pubkey,
-        new_compression_delay: Option<u32>,
         new_rent_sponsor: Option<Pubkey>,
         new_address_space: Option<Vec<Pubkey>>,
         new_update_authority: Option<Pubkey>,
@@ -141,7 +144,6 @@ pub mod compressible_instruction {
         ];
 
         let instruction_data = UpdateCompressionConfigData {
-            new_compression_delay,
             new_rent_sponsor,
             new_address_space,
             new_update_authority,
@@ -171,11 +173,14 @@ pub mod compressible_instruction {
         compressed_accounts: &[(CompressedAccount, T)],
         program_account_metas: &[AccountMeta],
         validity_proof_with_context: ValidityProofWithContext,
-        output_state_tree_info: TreeInfo,
     ) -> Result<Instruction, Box<dyn std::error::Error>>
     where
         T: Pack + Clone + std::fmt::Debug,
     {
+        if compressed_accounts.is_empty() {
+            return Err("compressed_accounts cannot be empty".into());
+        }
+
         let mut remaining_accounts = PackedAccounts::default();
 
         let mut has_tokens = false;
@@ -212,8 +217,8 @@ pub mod compressible_instruction {
         }
 
         // pack output queue
-        let output_state_tree_index =
-            remaining_accounts.insert_or_get(output_state_tree_info.queue);
+        let output_queue = get_output_queue(&compressed_accounts[0].0.tree_info);
+        let output_state_tree_index = remaining_accounts.insert_or_get(output_queue);
 
         // pack tree infos
         let packed_tree_infos =
@@ -222,37 +227,37 @@ pub mod compressible_instruction {
         let mut accounts = program_account_metas.to_vec();
 
         // pack account data
-        let typed_compressed_accounts: Vec<CompressedAccountData<T::Packed>> = compressed_accounts
-            .iter()
-            .map(|(compressed_account, data)| {
-                let queue_index =
-                    remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
-                // create compressed_account_meta
-                let compressed_meta = CompressedAccountMetaNoLamportsNoAddress {
-                    tree_info: packed_tree_infos
-                        .state_trees
-                        .as_ref()
-                        .unwrap()
-                        .packed_tree_infos
-                        .iter()
-                        .find(|pti| {
-                            pti.queue_pubkey_index == queue_index
-                                && pti.leaf_index == compressed_account.leaf_index
-                        })
-                        .copied()
-                        .ok_or(
-                            "Matching PackedStateTreeInfo (queue_pubkey_index + leaf_index) not found",
-                        )?,
-                    output_state_tree_index,
-                };
+        let packed_tree_infos_slice = &packed_tree_infos
+            .state_trees
+            .as_ref()
+            .unwrap()
+            .packed_tree_infos;
 
-                let packed_data = data.pack(&mut remaining_accounts);
-                Ok(CompressedAccountData {
-                    meta: compressed_meta,
-                    data: packed_data,
+        let mut typed_compressed_accounts = Vec::with_capacity(compressed_accounts.len());
+
+        for (compressed_account, data) in compressed_accounts {
+            let queue_index = remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
+
+            let tree_info = packed_tree_infos_slice
+                .iter()
+                .find(|pti| {
+                    pti.queue_pubkey_index == queue_index
+                        && pti.leaf_index == compressed_account.leaf_index
                 })
-            })
-            .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
+                .copied()
+                .ok_or(
+                    "Matching PackedStateTreeInfo (queue_pubkey_index + leaf_index) not found",
+                )?;
+
+            let packed_data = data.pack(&mut remaining_accounts);
+            typed_compressed_accounts.push(CompressedAccountData {
+                meta: CompressedAccountMetaNoLamportsNoAddress {
+                    tree_info,
+                    output_state_tree_index,
+                },
+                data: packed_data,
+            });
+        }
 
         let (system_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();
         accounts.extend(system_accounts);
@@ -268,7 +273,7 @@ pub mod compressible_instruction {
         };
 
         let serialized_data = instruction_data.try_to_vec()?;
-        let mut data = Vec::new();
+        let mut data = Vec::with_capacity(discriminator.len() + serialized_data.len());
         data.extend_from_slice(discriminator);
         data.extend_from_slice(&serialized_data);
 
@@ -279,7 +284,7 @@ pub mod compressible_instruction {
         })
     }
 
-    /// Builds compress_accounts_idempotent instruction for PDAs and token accounts
+    /// Builds compress_accounts_idempotent instruction for PDAs only
     #[allow(clippy::too_many_arguments)]
     pub fn compress_accounts_idempotent(
         program_id: &Pubkey,
@@ -287,50 +292,14 @@ pub mod compressible_instruction {
         account_pubkeys: &[Pubkey],
         accounts_to_compress: &[Account],
         program_account_metas: &[AccountMeta],
-        signer_seeds: Vec<Vec<Vec<u8>>>,
         validity_proof_with_context: ValidityProofWithContext,
-        output_state_tree_info: TreeInfo,
     ) -> Result<Instruction, Box<dyn std::error::Error>> {
         if account_pubkeys.len() != accounts_to_compress.len() {
             return Err("Accounts pubkeys length must match accounts length".into());
         }
-        println!(
-            "compress_accounts_idempotent - account_pubkeys: {:?}",
-            account_pubkeys
-        );
-        // Sanity checks.
-        if !signer_seeds.is_empty() && signer_seeds.len() != accounts_to_compress.len() {
-            return Err("Signer seeds length must match accounts length or be empty".into());
-        }
-        for (i, account) in account_pubkeys.iter().enumerate() {
-            if !signer_seeds.is_empty() {
-                let seeds = &signer_seeds[i];
-                if !seeds.is_empty() {
-                    let derived = Pubkey::create_program_address(
-                        &seeds.iter().map(|v| v.as_slice()).collect::<Vec<&[u8]>>(),
-                        program_id,
-                    );
-                    match derived {
-                        Ok(derived_pubkey) => {
-                            if derived_pubkey != *account {
-                                return Err(format!(
-                                    "Derived PDA does not match account_to_compress at index {}: expected {}, got {:?}",
-                                    i,
-                                    account,
-                                    derived_pubkey
-                                ).into());
-                            }
-                        }
-                        Err(e) => {
-                            return Err(format!(
-                                "Failed to derive PDA for account_to_compress at index {}: {}",
-                                i, e
-                            )
-                            .into());
-                        }
-                    }
-                }
-            }
+
+        if validity_proof_with_context.accounts.is_empty() {
+            return Err("validity_proof_with_context.accounts cannot be empty".into());
         }
 
         let mut remaining_accounts = PackedAccounts::default();
@@ -338,8 +307,9 @@ pub mod compressible_instruction {
         let system_config = SystemAccountMetaConfig::new(*program_id);
         remaining_accounts.add_system_accounts_v2(system_config)?;
 
-        let output_state_tree_index =
-            remaining_accounts.insert_or_get(output_state_tree_info.queue);
+        // pack output queue - use first tree info from validity proof
+        let output_queue = get_output_queue(&validity_proof_with_context.accounts[0].tree_info);
+        let output_state_tree_index = remaining_accounts.insert_or_get(output_queue);
 
         let packed_tree_infos =
             validity_proof_with_context.pack_tree_infos(&mut remaining_accounts);
@@ -373,12 +343,11 @@ pub mod compressible_instruction {
         let instruction_data = CompressAccountsIdempotentData {
             proof: validity_proof_with_context.proof,
             compressed_accounts: compressed_account_metas_no_lamports_no_address,
-            signer_seeds,
             system_accounts_offset: system_accounts_offset as u8,
         };
 
         let serialized_data = instruction_data.try_to_vec()?;
-        let mut data = Vec::new();
+        let mut data = Vec::with_capacity(discriminator.len() + serialized_data.len());
         data.extend_from_slice(discriminator);
         data.extend_from_slice(&serialized_data);
 
@@ -389,5 +358,3 @@ pub mod compressible_instruction {
         })
     }
 }
-
-pub use compressible_instruction as CompressibleInstruction;

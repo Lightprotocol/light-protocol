@@ -340,7 +340,9 @@ pub fn compress_and_close_ctoken_accounts<'info>(
         };
 
         // Determine rent recipient from extension or use default
-        let actual_rent_sponsor = if rent_sponsor_pubkey.is_none() {
+        let actual_rent_sponsor = if let Some(sponsor) = rent_sponsor_pubkey {
+            sponsor
+        } else {
             // Check if there's a rent recipient in the compressible extension
             if let Some(extensions) = &compressed_token.extensions {
                 for extension in extensions {
@@ -364,8 +366,6 @@ pub fn compress_and_close_ctoken_accounts<'info>(
                 }
             }
             rent_sponsor_pubkey.ok_or(TokenSdkError::InvalidAccountData)?
-        } else {
-            rent_sponsor_pubkey.unwrap()
         };
 
         let destination_pubkey = if with_compression_authority {
@@ -408,6 +408,7 @@ pub fn compress_and_close_ctoken_accounts<'info>(
 /// subset of `remaining_accounts`.
 #[allow(clippy::too_many_arguments)]
 #[profile]
+#[allow(clippy::extra_unused_lifetimes)]
 pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     token_accounts_to_compress: &[AccountInfoToCompress<'info>],
     fee_payer: AccountInfo<'info>,

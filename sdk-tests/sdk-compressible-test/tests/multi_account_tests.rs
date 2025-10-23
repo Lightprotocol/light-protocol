@@ -9,7 +9,7 @@ use light_compressed_token_sdk::{
     pack::compat::CTokenDataWithVariant,
 };
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
-use light_compressible_client::CompressibleInstruction;
+use light_compressible_client::compressible_instruction;
 use light_ctoken_types::{
     instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     state::CompressedMintMetadata,
@@ -61,10 +61,9 @@ async fn test_create_and_decompress_two_accounts() {
         &payer,
         &program_id,
         &payer,
-        100,
         RENT_SPONSOR,
         vec![crate::helpers::ADDRESS_SPACE[0]],
-        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
+        &compressible_instruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
     )
     .await;
@@ -560,13 +559,11 @@ pub async fn decompress_multiple_pdas_with_ctoken(
         .unwrap()
         .value;
 
-    let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
-
     let ctoken_config = ctoken::config_pda();
     let instruction =
-        light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
+        light_compressible_client::compressible_instruction::decompress_accounts_idempotent(
             program_id,
-            &CompressibleInstruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
+            &compressible_instruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
             &[
                 *user_record_pda,
                 *game_session_pda,
@@ -638,16 +635,15 @@ pub async fn decompress_multiple_pdas_with_ctoken(
             &sdk_compressible_test::accounts::DecompressAccountsIdempotent {
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
-                rent_payer: payer.pubkey(),
-                ctoken_rent_sponsor: ctoken::rent_sponsor_pda(),
-                ctoken_config,
-                ctoken_program: ctoken::id(),
-                ctoken_cpi_authority: ctoken::cpi_authority(),
+                rent_sponsor: payer.pubkey(),
+                ctoken_rent_sponsor: Some(ctoken::rent_sponsor_pda()),
+                ctoken_config: Some(ctoken_config),
+                ctoken_program: Some(ctoken::id()),
+                ctoken_cpi_authority: Some(ctoken::cpi_authority()),
                 some_mint: ctoken_account.token.mint,
             }
             .to_account_metas(None),
             rpc_result,
-            output_state_tree_info,
         )
         .unwrap();
 
@@ -697,7 +693,7 @@ pub async fn decompress_multiple_pdas_with_ctoken(
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         expected_slot
     );
 
@@ -730,7 +726,7 @@ pub async fn decompress_multiple_pdas_with_ctoken(
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         expected_slot
     );
 
@@ -835,12 +831,10 @@ pub async fn decompress_multiple_pdas(
         .unwrap()
         .value;
 
-    let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
-
     let instruction =
-        light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
+        light_compressible_client::compressible_instruction::decompress_accounts_idempotent(
             program_id,
-            &CompressibleInstruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
+            &compressible_instruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
             &[*user_record_pda, *game_session_pda],
             &[
                 (
@@ -855,16 +849,15 @@ pub async fn decompress_multiple_pdas(
             &sdk_compressible_test::accounts::DecompressAccountsIdempotent {
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
-                rent_payer: payer.pubkey(),
-                ctoken_rent_sponsor: ctoken::rent_sponsor_pda(),
-                ctoken_config: ctoken::config_pda(),
-                ctoken_program: ctoken::id(),
-                ctoken_cpi_authority: ctoken::cpi_authority(),
+                rent_sponsor: payer.pubkey(),
+                ctoken_rent_sponsor: None,
+                ctoken_config: None,
+                ctoken_program: None,
+                ctoken_cpi_authority: None,
                 some_mint: payer.pubkey(),
             }
             .to_account_metas(None),
             rpc_result,
-            output_state_tree_info,
         )
         .unwrap();
 
@@ -914,7 +907,7 @@ pub async fn decompress_multiple_pdas(
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         expected_slot
     );
 
@@ -947,7 +940,7 @@ pub async fn decompress_multiple_pdas(
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         expected_slot
     );
 
@@ -998,9 +991,9 @@ pub async fn compress_token_account_after_decompress(
         "Token account should have data before compression"
     );
 
-    let (user_record_seeds, user_record_pubkey) =
+    let (_user_record_seeds, user_record_pubkey) =
         sdk_compressible_test::get_userrecord_seeds(&user.pubkey());
-    let (game_session_seeds, game_session_pubkey) =
+    let (_game_session_seeds, game_session_pubkey) =
         sdk_compressible_test::get_gamesession_seeds(session_id);
     let (_, token_account_address) = get_ctoken_signer_seeds(&user.pubkey(), &mint);
 
@@ -1099,9 +1092,8 @@ pub async fn compress_token_account_after_decompress(
         .unwrap()
         .value;
 
-    let random_tree_info = rpc.get_random_state_tree_info().unwrap();
     let instruction =
-        light_compressible_client::CompressibleInstruction::compress_accounts_idempotent(
+        light_compressible_client::compressible_instruction::compress_accounts_idempotent(
             program_id,
             sdk_compressible_test::instruction::CompressAccountsIdempotent::DISCRIMINATOR,
             &[user_record_pubkey, game_session_pubkey],
@@ -1112,9 +1104,7 @@ pub async fn compress_token_account_after_decompress(
                 rent_sponsor: RENT_SPONSOR,
             }
             .to_account_metas(None),
-            vec![user_record_seeds, game_session_seeds],
             proof_with_context,
-            random_tree_info,
         )
         .unwrap();
 
@@ -1331,10 +1321,9 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
         &payer,
         &program_id,
         &payer,
-        100,
         RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
-        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
+        &compressible_instruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
     )
     .await;

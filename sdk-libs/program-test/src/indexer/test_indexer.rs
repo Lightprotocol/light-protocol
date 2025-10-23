@@ -17,7 +17,7 @@ use async_trait::async_trait;
 use borsh::BorshDeserialize;
 #[cfg(feature = "devenv")]
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
-#[cfg(feature = "v2")]
+#[cfg(feature = "devenv")]
 use light_client::indexer::MerkleProofWithContext;
 #[cfg(feature = "devenv")]
 use light_client::rpc::{Rpc, RpcError};
@@ -452,7 +452,7 @@ impl Indexer for TestIndexer {
         new_addresses_with_trees: Vec<AddressWithTree>,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ValidityProofWithContext>, IndexerError> {
-        #[cfg(feature = "v2")]
+        #[cfg(feature = "devenv")]
         {
             // V2 implementation with queue handling
             let mut state_merkle_tree_pubkeys = Vec::new();
@@ -598,7 +598,7 @@ impl Indexer for TestIndexer {
             })
         }
 
-        #[cfg(not(feature = "v2"))]
+        #[cfg(not(feature = "devenv"))]
         {
             // V1 implementation - direct call to V1 logic
             let result = self
@@ -622,9 +622,9 @@ impl Indexer for TestIndexer {
         _input_queue_limit: Option<u16>,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<QueueElementsResult>, IndexerError> {
-        #[cfg(not(feature = "v2"))]
+        #[cfg(not(feature = "devenv"))]
         unimplemented!("get_queue_elements");
-        #[cfg(feature = "v2")]
+        #[cfg(feature = "devenv")]
         {
             let merkle_tree_pubkey = _merkle_tree_pubkey;
             let output_queue_start_index = _output_queue_start_index.unwrap_or(0);
@@ -870,9 +870,9 @@ impl Indexer for TestIndexer {
         _merkle_tree_pubkey: [u8; 32],
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Items<[u8; 32]>>, IndexerError> {
-        #[cfg(not(feature = "v2"))]
+        #[cfg(not(feature = "devenv"))]
         unimplemented!("get_subtrees");
-        #[cfg(feature = "v2")]
+        #[cfg(feature = "devenv")]
         {
             let merkle_tree_pubkey = Pubkey::new_from_array(_merkle_tree_pubkey);
             let address_tree_bundle = self
@@ -918,9 +918,9 @@ impl Indexer for TestIndexer {
         _start_offset: Option<u64>,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError> {
-        #[cfg(not(feature = "v2"))]
+        #[cfg(not(feature = "devenv"))]
         unimplemented!("get_address_queue_with_proofs");
-        #[cfg(feature = "v2")]
+        #[cfg(feature = "devenv")]
         {
             use light_client::indexer::AddressQueueIndex;
             let merkle_tree_pubkey = _merkle_tree_pubkey;

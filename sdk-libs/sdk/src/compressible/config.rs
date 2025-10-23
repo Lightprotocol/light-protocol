@@ -1,5 +1,6 @@
 use std::collections::HashSet;
 
+use light_compressible::rent::RentConfig;
 use solana_account_info::AccountInfo;
 use solana_cpi::invoke_signed;
 use solana_loader_v3_interface::state::UpgradeableLoaderState;
@@ -21,12 +22,16 @@ const BPF_LOADER_UPGRADEABLE_ID: Pubkey =
 pub struct CompressibleConfig {
     /// Config version for future upgrades
     pub version: u8,
-    /// Number of slots to wait before compression is allowed
-    pub compression_delay: u32,
+    /// Lamports to top up on each write (heuristic)
+    pub write_top_up: u32,
     /// Authority that can update the config
     pub update_authority: Pubkey,
     /// Account that receives rent from compressed PDAs
     pub rent_sponsor: Pubkey,
+    /// Authority that can compress/close PDAs (distinct from rent_sponsor)
+    pub compression_authority: Pubkey,
+    /// Rent function parameters for compressibility and distribution
+    pub rent_config: RentConfig,
     /// Config bump seed (0)
     pub config_bump: u8,
     /// PDA bump seed
@@ -36,17 +41,39 @@ pub struct CompressibleConfig {
 }
 
 impl CompressibleConfig {
-    pub const LEN: usize = 1 + 4 + 32 + 32 + 1 + 4 + (32 * MAX_ADDRESS_TREES_PER_SPACE) + 1; // 107 bytes max
+    pub const LEN: usize = 1
+        + 4
+        + 32
+        + 32
+        + 32
+        + core::mem::size_of::<RentConfig>()
+        + 1
+        + 1
+        + 4
+        + (32 * MAX_ADDRESS_TREES_PER_SPACE);
 
     /// Calculate the exact size needed for a CompressibleConfig with the given
     /// number of address spaces
     pub fn size_for_address_space(num_address_trees: usize) -> usize {
-        1 + 4 + 32 + 32 + 1 + 4 + (32 * num_address_trees) + 1
+        1 + 4
+            + 32
+            + 32
+            + 32
+            + core::mem::size_of::<RentConfig>()
+            + 1
+            + 1
+            + 4
+            + (32 * num_address_trees)
     }
 
     /// Derives the config PDA address with config bump
     pub fn derive_pda(program_id: &Pubkey, config_bump: u8) -> (Pubkey, u8) {
-        Pubkey::find_program_address(&[COMPRESSIBLE_CONFIG_SEED, &[config_bump]], program_id)
+        // Convert u8 to u16 to match program-libs derivation (uses u16 with to_le_bytes)
+        let config_bump_u16 = config_bump as u16;
+        Pubkey::find_program_address(
+            &[COMPRESSIBLE_CONFIG_SEED, &config_bump_u16.to_le_bytes()],
+            program_id,
+        )
     }
 
     /// Derives the default config PDA address (config_bump = 0)
@@ -131,8 +158,10 @@ impl CompressibleConfig {
 /// * `config_account` - The config PDA account to initialize
 /// * `update_authority` - Authority that can update the config after creation
 /// * `rent_sponsor` - Account that receives rent from compressed PDAs
+/// * `compression_authority` - Authority that can compress/close PDAs
+/// * `rent_config` - Rent function parameters
+/// * `write_top_up` - Lamports to top up on each write
 /// * `address_space` - Address space for compressed accounts (currently 1 address_tree allowed)
-/// * `compression_delay` - Number of slots to wait before compression
 /// * `config_bump` - Config bump seed (must be 0 for now)
 /// * `payer` - Account paying for the PDA creation
 /// * `system_program` - System program
@@ -151,8 +180,10 @@ pub fn process_initialize_compression_config_account_info<'info>(
     config_account: &AccountInfo<'info>,
     update_authority: &AccountInfo<'info>,
     rent_sponsor: &Pubkey,
+    compression_authority: &Pubkey,
+    rent_config: RentConfig,
+    write_top_up: u32,
     address_space: Vec<Pubkey>,
-    compression_delay: u32,
     config_bump: u8,
     payer: &AccountInfo<'info>,
     system_program: &AccountInfo<'info>,
@@ -199,7 +230,13 @@ pub fn process_initialize_compression_config_account_info<'info>(
     let account_size = CompressibleConfig::size_for_address_space(address_space.len());
     let rent_lamports = rent.minimum_balance(account_size);
 
-    let seeds = &[COMPRESSIBLE_CONFIG_SEED, &[config_bump], &[bump]];
+    // Use u16 to_le_bytes to match derive_pda (2 bytes instead of 1)
+    let config_bump_bytes = (config_bump as u16).to_le_bytes();
+    let seeds = &[
+        COMPRESSIBLE_CONFIG_SEED,
+        config_bump_bytes.as_ref(),
+        &[bump],
+    ];
     let create_account_ix = system_instruction::create_account(
         payer.key,
         config_account.key,
@@ -221,9 +258,11 @@ pub fn process_initialize_compression_config_account_info<'info>(
 
     let config = CompressibleConfig {
         version: 1,
-        compression_delay,
+        write_top_up,
         update_authority: *update_authority.key,
         rent_sponsor: *rent_sponsor,
+        compression_authority: *compression_authority,
+        rent_config,
         config_bump,
         address_space,
         bump,
@@ -246,20 +285,25 @@ pub fn process_initialize_compression_config_account_info<'info>(
 /// * `authority` - Current update authority (must match config)
 /// * `new_update_authority` - Optional new update authority
 /// * `new_rent_sponsor` - Optional new rent recipient
+/// * `new_compression_authority` - Optional new compression authority
+/// * `new_rent_config` - Optional new rent function parameters
+/// * `new_write_top_up` - Optional new write top-up amount
 /// * `new_address_space` - Optional new address space (currently 1 address_tree allowed)
-/// * `new_compression_delay` - Optional new compression delay
 /// * `owner_program_id` - The program that owns the config
 ///
 /// # Returns
 /// * `Ok(())` if config was updated successfully
 /// * `Err(ProgramError)` if there was an error
+#[allow(clippy::too_many_arguments)]
 pub fn process_update_compression_config<'info>(
     config_account: &AccountInfo<'info>,
     authority: &AccountInfo<'info>,
     new_update_authority: Option<&Pubkey>,
     new_rent_sponsor: Option<&Pubkey>,
+    new_compression_authority: Option<&Pubkey>,
+    new_rent_config: Option<RentConfig>,
+    new_write_top_up: Option<u32>,
     new_address_space: Option<Vec<Pubkey>>,
-    new_compression_delay: Option<u32>,
     owner_program_id: &Pubkey,
 ) -> Result<(), crate::ProgramError> {
     // CHECK: PDA derivation
@@ -282,6 +326,15 @@ pub fn process_update_compression_config<'info>(
     if let Some(new_recipient) = new_rent_sponsor {
         config.rent_sponsor = *new_recipient;
     }
+    if let Some(new_auth) = new_compression_authority {
+        config.compression_authority = *new_auth;
+    }
+    if let Some(new_rcfg) = new_rent_config {
+        config.rent_config = new_rcfg;
+    }
+    if let Some(new_top_up) = new_write_top_up {
+        config.write_top_up = new_top_up;
+    }
     if let Some(new_address_space) = new_address_space {
         // CHECK: address space length
         if new_address_space.len() != MAX_ADDRESS_TREES_PER_SPACE {
@@ -297,9 +350,6 @@ pub fn process_update_compression_config<'info>(
         validate_address_space_only_adds(&config.address_space, &new_address_space)?;
 
         config.address_space = new_address_space;
-    }
-    if let Some(new_delay) = new_compression_delay {
-        config.compression_delay = new_delay;
     }
 
     let mut data = config_account.try_borrow_mut_data().map_err(|e| {
@@ -396,9 +446,11 @@ pub fn check_program_upgrade_authority(
 /// * `update_authority` - Must be the program's upgrade authority
 /// * `program_data_account` - The program's data account for validation
 /// * `rent_sponsor` - Account that receives rent from compressed PDAs
+/// * `compression_authority` - Authority that can compress/close PDAs
+/// * `rent_config` - Rent function parameters
+/// * `write_top_up` - Lamports to top up on each write
 /// * `address_space` - Address spaces for compressed accounts (exactly 1
 ///   allowed)
-/// * `compression_delay` - Number of slots to wait before compression
 /// * `config_bump` - Config bump seed (must be 0 for now)
 /// * `payer` - Account paying for the PDA creation
 /// * `system_program` - System program
@@ -413,8 +465,10 @@ pub fn process_initialize_compression_config_checked<'info>(
     update_authority: &AccountInfo<'info>,
     program_data_account: &AccountInfo<'info>,
     rent_sponsor: &Pubkey,
+    compression_authority: &Pubkey,
+    rent_config: RentConfig,
+    write_top_up: u32,
     address_space: Vec<Pubkey>,
-    compression_delay: u32,
     config_bump: u8,
     payer: &AccountInfo<'info>,
     system_program: &AccountInfo<'info>,
@@ -436,8 +490,10 @@ pub fn process_initialize_compression_config_checked<'info>(
         config_account,
         update_authority,
         rent_sponsor,
+        compression_authority,
+        rent_config,
+        write_top_up,
         address_space,
-        compression_delay,
         config_bump,
         payer,
         system_program,

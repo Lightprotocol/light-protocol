@@ -16,7 +16,6 @@ pub fn compress_accounts_idempotent<'info>(
     ctx: Context<'_, '_, 'info, 'info, CompressAccountsIdempotent<'info>>,
     proof: ValidityProof,
     compressed_accounts: Vec<CompressedAccountMetaNoLamportsNoAddress>,
-    signer_seeds: Vec<Vec<Vec<u8>>>,
     system_accounts_offset: u8,
 ) -> Result<()> {
     let compression_config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
@@ -38,11 +37,12 @@ pub fn compress_accounts_idempotent<'info>(
         LIGHT_CPI_SIGNER,
     );
 
-    let pda_accounts_start = ctx.remaining_accounts.len() - signer_seeds.len();
-    let solana_accounts = &ctx.remaining_accounts[pda_accounts_start..];
+    let system_accounts_end = cpi_accounts.system_accounts_end_offset();
+    let solana_accounts = &cpi_accounts.to_account_infos()[system_accounts_end..];
 
     let mut compressed_pda_infos = Vec::new();
     let mut pda_indices_to_close: Vec<usize> = Vec::new();
+    let mut compressed_account_idx = 0;
 
     for (i, account_info) in solana_accounts.iter().enumerate() {
         if account_info.data_is_empty() {
@@ -52,7 +52,8 @@ pub fn compress_accounts_idempotent<'info>(
         if account_info.owner == &crate::ID {
             let data = account_info.try_borrow_data()?;
             let discriminator = &data[0..8];
-            let meta = compressed_accounts[i];
+            let meta = compressed_accounts[compressed_account_idx];
+            compressed_account_idx += 1;
 
             // TODO: consider CHECKING seeds.
             match discriminator {
@@ -68,7 +69,6 @@ pub fn compress_accounts_idempotent<'info>(
                         &mut account_data,
                         &meta,
                         &cpi_accounts,
-                        &compression_config.compression_delay,
                         &compression_config.address_space,
                     )?;
 
@@ -87,7 +87,6 @@ pub fn compress_accounts_idempotent<'info>(
                         &mut account_data,
                         &meta,
                         &cpi_accounts,
-                        &compression_config.compression_delay,
                         &compression_config.address_space,
                     )?;
 
@@ -107,7 +106,6 @@ pub fn compress_accounts_idempotent<'info>(
                         &mut account_data,
                         &meta,
                         &cpi_accounts,
-                        &compression_config.compression_delay,
                         &compression_config.address_space,
                     )?;
 

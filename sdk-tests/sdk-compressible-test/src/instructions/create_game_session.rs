@@ -57,6 +57,7 @@ pub fn create_game_session<'info>(
     let compressed_info = prepare_compressed_account_on_init::<GameSession>(
         &game_session_info,
         game_session_data_mut,
+        &config,
         compressed_address,
         new_address_params,
         output_state_tree_index,
