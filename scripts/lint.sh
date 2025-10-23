@@ -36,6 +36,9 @@ NO_DEFAULT_CRATES=(
     "light-compressed-token-sdk"
     "light-compressed-token-types"
     "light-sdk"
+    "sdk-compressible-test"
+    "csdk-anchor-derived-test"
+    "csdk-anchor-full-derived-test"
 )
 
 for crate in "${NO_DEFAULT_CRATES[@]}"; do

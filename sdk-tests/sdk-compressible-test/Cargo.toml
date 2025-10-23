@@ -22,6 +22,7 @@ light-sdk = { workspace = true, features = ["anchor", "idl-build", "v2", "anchor
 light-sdk-types = { workspace = true, features = ["v2", "cpi-context"] }
 light-hasher = { workspace = true, features = ["solana"] }
 solana-program = { workspace = true }
+solana-system-interface = { workspace = true }
 light-macros = { workspace = true, features = ["solana"] }
 borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
@@ -34,7 +35,7 @@ light-compressible = { workspace = true, features = ["anchor"] }
 
 [dev-dependencies]
 light-token-client = { workspace = true }
-light-program-test = { workspace = true, features = ["v2", "devenv"] }
+light-program-test = { workspace = true, features = ["devenv"] }
 light-client = { workspace = true, features = ["v2"] }
 light-compressible-client = { workspace = true, features = ["anchor"] }
 light-test-utils = { workspace = true}

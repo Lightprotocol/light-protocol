@@ -88,4 +88,5 @@ pub enum CompressibleInstructionError {
     PdaDecompressionNotImplemented,
     TokenCompressionNotImplemented,
     PdaCompressionNotImplemented,
+    MissingSeedAccount,
 }
