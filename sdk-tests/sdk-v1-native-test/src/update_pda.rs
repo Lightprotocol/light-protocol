@@ -23,7 +23,7 @@ pub fn update_pda<const BATCHED: bool>(
     let instruction_data = UpdatePdaInstructionData::deserialize(&mut instruction_data)
         .map_err(|_| LightSdkError::Borsh)?;
 
-    let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_mut(
+    let mut my_compressed_account = LightAccount::<MyCompressedAccount>::new_mut(
         &crate::ID,
         &instruction_data.my_compressed_account.meta,
         MyCompressedAccount {

@@ -35,7 +35,7 @@ pub fn process_read_sha256_light_system_cpi<'info>(
         .tree_pubkeys()
         .map_err(|_| error!(ReadOnlyError::InvalidAccount))?;
 
-    let read_only_account = LightAccount::<'_, MyCompressedAccount>::new_read_only(
+    let read_only_account = LightAccount::<MyCompressedAccount>::new_read_only(
         &crate::ID,
         &account_meta,
         my_compressed_account,
@@ -69,7 +69,7 @@ pub fn process_read_poseidon_light_system_cpi<'info>(
         .map_err(|_| error!(ReadOnlyError::InvalidAccount))?;
 
     let read_only_account =
-        light_sdk::account::poseidon::LightAccount::<'_, MyCompressedAccount>::new_read_only(
+        light_sdk::account::poseidon::LightAccount::<MyCompressedAccount>::new_read_only(
             &crate::ID,
             &account_meta,
             my_compressed_account,
@@ -102,7 +102,7 @@ pub fn process_read_sha256_lowlevel<'info>(
         .tree_pubkeys()
         .map_err(|_| error!(ReadOnlyError::InvalidAccount))?;
 
-    let read_only_account = LightAccount::<'_, MyCompressedAccount>::new_read_only(
+    let read_only_account = LightAccount::<MyCompressedAccount>::new_read_only(
         &crate::ID,
         &account_meta,
         my_compressed_account,
@@ -136,7 +136,7 @@ pub fn process_read_poseidon_lowlevel<'info>(
         .map_err(|_| error!(ReadOnlyError::InvalidAccount))?;
 
     let read_only_account =
-        light_sdk::account::poseidon::LightAccount::<'_, MyCompressedAccount>::new_read_only(
+        light_sdk::account::poseidon::LightAccount::<MyCompressedAccount>::new_read_only(
             &crate::ID,
             &account_meta,
             my_compressed_account,

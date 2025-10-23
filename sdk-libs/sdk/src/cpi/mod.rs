@@ -21,7 +21,7 @@
 //! );
 //! let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
 //!
-//! let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
+//! let mut my_compressed_account = LightAccount::<MyCompressedAccount>::new_init(
 //!     &crate::ID,
 //!     Some(address),
 //!     output_tree_index,

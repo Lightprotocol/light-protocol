@@ -173,3 +173,40 @@ use solana_cpi::invoke_signed;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
+
+pub trait PubkeyTrait {
+    fn to_solana_pubkey(&self) -> Pubkey;
+    fn to_array(&self) -> [u8; 32];
+}
+
+impl PubkeyTrait for [u8; 32] {
+    fn to_solana_pubkey(&self) -> Pubkey {
+        Pubkey::from(*self)
+    }
+
+    fn to_array(&self) -> [u8; 32] {
+        *self
+    }
+}
+
+#[cfg(not(feature = "anchor"))]
+impl PubkeyTrait for Pubkey {
+    fn to_solana_pubkey(&self) -> Pubkey {
+        *self
+    }
+
+    fn to_array(&self) -> [u8; 32] {
+        self.to_bytes()
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl PubkeyTrait for anchor_lang::prelude::Pubkey {
+    fn to_solana_pubkey(&self) -> Pubkey {
+        Pubkey::from(self.to_bytes())
+    }
+
+    fn to_array(&self) -> [u8; 32] {
+        self.to_bytes()
+    }
+}

@@ -34,9 +34,8 @@ pub fn create_pda(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<(
 
     let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
 
-    let program_id = crate::LIGHT_CPI_SIGNER.program_id.into();
-    let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
-        &program_id,
+    let mut my_compressed_account = LightAccount::<MyCompressedAccount>::new_init(
+        &crate::LIGHT_CPI_SIGNER.program_id,
         Some(address),
         instruction_data.output_merkle_tree_index,
     );

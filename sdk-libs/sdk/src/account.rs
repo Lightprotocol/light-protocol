@@ -148,7 +148,7 @@ pub mod sha {
     use super::*;
     /// Light Account variant that uses SHA256 hashing with flat borsh serialization.
     /// This is the recommended account type for most use cases.
-    pub type LightAccount<'a, A> = super::LightAccountInner<'a, Sha256, A, true>;
+    pub type LightAccount<A> = super::LightAccountInner<Sha256, A, true>;
 }
 
 /// Poseidon hashed Light Account.
@@ -175,7 +175,7 @@ pub mod poseidon {
     /// - Poseidon hashes inputs must be less than bn254 field size (254 bits).
     ///   hash_to_field_size methods in light hasher can be used to hash data longer than 253 bits.
     ///   -> use the `#[hash]` attribute for fields with data types greater than 31 bytes eg Pubkeys.
-    pub type LightAccount<'a, A> = super::LightAccountInner<'a, Poseidon, A, false>;
+    pub type LightAccount<A> = super::LightAccountInner<Poseidon, A, false>;
 }
 
 #[doc(hidden)]
@@ -200,12 +200,11 @@ pub mod __internal {
     #[doc(hidden)]
     #[derive(Debug, PartialEq)]
     pub struct LightAccountInner<
-        'a,
         H: Hasher,
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
         const HASH_FLAT: bool,
     > {
-        owner: &'a Pubkey,
+        owner: Pubkey,
         pub account: A,
         account_info: CompressedAccountInfo,
         should_remove_data: bool,
@@ -215,11 +214,10 @@ pub mod __internal {
     }
 
     impl<
-            'a,
             H: Hasher,
             A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
             const HASH_FLAT: bool,
-        > core::ops::Deref for LightAccountInner<'a, H, A, HASH_FLAT>
+        > core::ops::Deref for LightAccountInner<H, A, HASH_FLAT>
     {
         type Target = A;
 
@@ -229,11 +227,10 @@ pub mod __internal {
     }
 
     impl<
-            'a,
             H: Hasher,
             A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
             const HASH_FLAT: bool,
-        > core::ops::DerefMut for LightAccountInner<'a, H, A, HASH_FLAT>
+        > core::ops::DerefMut for LightAccountInner<H, A, HASH_FLAT>
     {
         fn deref_mut(&mut self) -> &mut Self::Target {
             assert!(
@@ -245,14 +242,13 @@ pub mod __internal {
     }
 
     impl<
-            'a,
             H: Hasher,
             A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
             const HASH_FLAT: bool,
-        > LightAccountInner<'a, H, A, HASH_FLAT>
+        > LightAccountInner<H, A, HASH_FLAT>
     {
         pub fn new_init(
-            owner: &'a Pubkey,
+            owner: &impl crate::PubkeyTrait,
             address: Option<[u8; 32]>,
             output_state_tree_index: u8,
         ) -> Self {
@@ -262,7 +258,7 @@ pub mod __internal {
                 ..Default::default()
             };
             Self {
-                owner,
+                owner: owner.to_solana_pubkey(),
                 account: A::default(),
                 account_info: CompressedAccountInfo {
                     address,
@@ -304,7 +300,7 @@ pub mod __internal {
         }
 
         pub fn owner(&self) -> &Pubkey {
-            self.owner
+            &self.owner
         }
 
         pub fn in_account_info(&self) -> &Option<InAccountInfo> {
@@ -318,13 +314,12 @@ pub mod __internal {
 
     // Specialized implementation for HASH_FLAT = false (structured hashing with DataHasher)
     impl<
-            'a,
             H: Hasher,
             A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,
-        > LightAccountInner<'a, H, A, false>
+        > LightAccountInner<H, A, false>
     {
         pub fn new_mut(
-            owner: &'a Pubkey,
+            owner: &impl crate::PubkeyTrait,
             input_account_meta: &impl CompressedAccountMetaTrait,
             input_account: A,
         ) -> Result<Self, LightSdkError> {
@@ -358,7 +353,7 @@ pub mod __internal {
             };
 
             Ok(Self {
-                owner,
+                owner: owner.to_solana_pubkey(),
                 account: input_account,
                 account_info: CompressedAccountInfo {
                     address: input_account_meta.get_address(),
@@ -372,7 +367,7 @@ pub mod __internal {
         }
 
         pub fn new_empty(
-            owner: &'a Pubkey,
+            owner: &impl crate::PubkeyTrait,
             input_account_meta: &impl CompressedAccountMetaTrait,
         ) -> Result<Self, LightSdkError> {
             let input_account_info = {
@@ -404,7 +399,7 @@ pub mod __internal {
             };
 
             Ok(Self {
-                owner,
+                owner: owner.to_solana_pubkey(),
                 account: A::default(),
                 account_info: CompressedAccountInfo {
                     address: input_account_meta.get_address(),
@@ -418,7 +413,7 @@ pub mod __internal {
         }
 
         pub fn new_close(
-            owner: &'a Pubkey,
+            owner: &impl crate::PubkeyTrait,
             input_account_meta: &impl CompressedAccountMetaTrait,
             input_account: A,
         ) -> Result<Self, LightSdkError> {
@@ -434,7 +429,7 @@ pub mod __internal {
         /// For accounts that are not closed permanently the accounts address
         /// continues to exist in an account with discriminator and without data.
         pub fn new_burn(
-            owner: &'a Pubkey,
+            owner: &impl crate::PubkeyTrait,
             input_account_meta: &CompressedAccountMetaBurn,
             input_account: A,
         ) -> Result<Self, LightSdkError> {
@@ -457,7 +452,7 @@ pub mod __internal {
             };
 
             Ok(Self {
-                owner,
+                owner: owner.to_solana_pubkey(),
                 account: input_account,
                 account_info: CompressedAccountInfo {
                     address: input_account_meta.get_address(),
@@ -485,7 +480,7 @@ pub mod __internal {
         /// Poseidon for `LightAccount`. The same hasher is used for both the data hash and account hash.
         #[cfg(feature = "v2")]
         pub fn new_read_only(
-            owner: &'a Pubkey,
+            owner: &impl crate::PubkeyTrait,
             input_account_meta: &CompressedAccountMetaReadOnly,
             input_account: A,
             packed_account_pubkeys: &[Pubkey],
@@ -518,7 +513,7 @@ pub mod __internal {
 
                 let compressed_account = CompressedAccount {
                     address: Some(input_account_meta.address),
-                    owner: owner.to_bytes().into(),
+                    owner: owner.to_array().into(),
                     data: Some(CompressedAccountData {
                         data: vec![],               // not used for hash computation
                         data_hash: input_data_hash, // Reuse already computed hash
@@ -542,7 +537,7 @@ pub mod __internal {
             };
 
             Ok(Self {
-                owner,
+                owner: owner.to_solana_pubkey(),
                 account: input_account,
                 account_info: CompressedAccountInfo {
                     address: Some(input_account_meta.address),
@@ -621,7 +616,7 @@ pub mod __internal {
             let owner = if let Some(owner) = owner {
                 owner.to_bytes().into()
             } else {
-                (*self.owner).to_bytes().into()
+                self.owner.to_bytes().into()
             };
 
             if let Some(mut output) = self.account_info.output.clone() {
@@ -661,11 +656,11 @@ pub mod __internal {
     }
 
     // Specialized implementation for HASH_FLAT = true (flat serialization without DataHasher)
-    impl<'a, H: Hasher, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default>
-        LightAccountInner<'a, H, A, true>
+    impl<H: Hasher, A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default>
+        LightAccountInner<H, A, true>
     {
         pub fn new_mut(
-            owner: &'a Pubkey,
+            owner: &impl crate::PubkeyTrait,
             input_account_meta: &impl CompressedAccountMetaTrait,
             input_account: A,
         ) -> Result<Self, ProgramError> {
@@ -706,7 +701,7 @@ pub mod __internal {
             };
 
             Ok(Self {
-                owner,
+                owner: owner.to_solana_pubkey(),
                 account: input_account,
                 account_info: CompressedAccountInfo {
                     address: input_account_meta.get_address(),
@@ -760,7 +755,7 @@ pub mod __internal {
         // }
 
         pub fn new_empty(
-            owner: &'a Pubkey,
+            owner: &impl crate::PubkeyTrait,
             input_account_meta: &impl CompressedAccountMetaTrait,
         ) -> Result<Self, ProgramError> {
             let input_account_info = {
@@ -793,7 +788,7 @@ pub mod __internal {
             };
 
             Ok(Self {
-                owner,
+                owner: owner.to_solana_pubkey(),
                 account: A::default(),
                 account_info: CompressedAccountInfo {
                     address: input_account_meta.get_address(),
@@ -812,7 +807,7 @@ pub mod __internal {
         /// Closed accounts preserve the accounts address
         /// in a compressed account without discriminator and data.
         pub fn new_close(
-            owner: &'a Pubkey,
+            owner: &impl crate::PubkeyTrait,
             input_account_meta: &impl CompressedAccountMetaTrait,
             input_account: A,
         ) -> Result<Self, ProgramError> {
@@ -824,7 +819,7 @@ pub mod __internal {
         /// Burns the compressed account.
         /// The address of an account that is burned cannot be created again.
         pub fn new_burn(
-            owner: &'a Pubkey,
+            owner: &impl crate::PubkeyTrait,
             input_account_meta: &CompressedAccountMetaBurn,
             input_account: A,
         ) -> Result<Self, ProgramError> {
@@ -853,7 +848,7 @@ pub mod __internal {
             };
 
             Ok(Self {
-                owner,
+                owner: owner.to_solana_pubkey(),
                 account: input_account,
                 account_info: CompressedAccountInfo {
                     address: input_account_meta.get_address(),
@@ -880,7 +875,7 @@ pub mod __internal {
         /// Uses SHA256 flat hashing with borsh serialization (HASH_FLAT = true).
         #[cfg(feature = "v2")]
         pub fn new_read_only(
-            owner: &'a Pubkey,
+            owner: &impl crate::PubkeyTrait,
             input_account_meta: &CompressedAccountMetaReadOnly,
             input_account: A,
             packed_account_pubkeys: &[Pubkey],
@@ -918,7 +913,7 @@ pub mod __internal {
 
                 let compressed_account = CompressedAccount {
                     address: Some(input_account_meta.address),
-                    owner: owner.to_bytes().into(),
+                    owner: owner.to_array().into(),
                     data: Some(CompressedAccountData {
                         data: vec![],               // not used for hash computation
                         data_hash: input_data_hash, // Reuse already computed hash
@@ -942,7 +937,7 @@ pub mod __internal {
             };
 
             Ok(Self {
-                owner,
+                owner: owner.to_solana_pubkey(),
                 account: input_account,
                 account_info: CompressedAccountInfo {
                     address: Some(input_account_meta.address),
@@ -1021,7 +1016,7 @@ pub mod __internal {
             let owner = if let Some(owner) = owner {
                 owner.to_bytes().into()
             } else {
-                (*self.owner).to_bytes().into()
+                self.owner.to_bytes().into()
             };
 
             if let Some(mut output) = self.account_info.output.clone() {

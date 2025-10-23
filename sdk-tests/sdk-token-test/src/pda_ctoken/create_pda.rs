@@ -18,7 +18,7 @@ pub fn process_create_escrow_pda_with_cpi_context<'a, 'info>(
     cpi_accounts: &CpiAccounts<'a, 'info>,
 ) -> Result<()> {
     let mut my_compressed_account =
-        LightAccount::<'_, CompressedEscrowPda>::new_init(&crate::ID, Some(address), 0);
+        LightAccount::<CompressedEscrowPda>::new_init(&crate::ID, Some(address), 0);
 
     my_compressed_account.amount = amount;
     my_compressed_account.owner = *cpi_accounts.fee_payer().key;
