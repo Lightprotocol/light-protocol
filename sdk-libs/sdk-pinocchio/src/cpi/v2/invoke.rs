@@ -27,7 +27,7 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithReadOnly {
     #[cfg(feature = "light-account")]
     fn with_light_account<A>(
         mut self,
-        account: crate::LightAccount<'_, A>,
+        account: crate::LightAccount<A>,
     ) -> Result<Self, pinocchio::program_error::ProgramError>
     where
         A: crate::BorshSerialize
@@ -98,7 +98,7 @@ impl LightCpiInstruction for InstructionDataInvokeCpiWithAccountInfo {
     #[cfg(feature = "light-account")]
     fn with_light_account<A>(
         mut self,
-        account: crate::LightAccount<'_, A>,
+        account: crate::LightAccount<A>,
     ) -> Result<Self, pinocchio::program_error::ProgramError>
     where
         A: crate::BorshSerialize

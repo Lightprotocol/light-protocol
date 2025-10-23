@@ -764,9 +764,27 @@ impl Rpc for LightClient {
 
     /// Gets a random active state tree.
     /// State trees are cached and have to be fetched or set.
+    /// Returns v1 state trees by default, v2 state trees when v2 feature is enabled.
     fn get_random_state_tree_info(&self) -> Result<TreeInfo, RpcError> {
         let mut rng = rand::thread_rng();
-        select_state_tree_info(&mut rng, &self.state_merkle_trees)
+
+        #[cfg(feature = "v2")]
+        let filtered_trees: Vec<TreeInfo> = self
+            .state_merkle_trees
+            .iter()
+            .filter(|tree| tree.tree_type == TreeType::StateV2)
+            .copied()
+            .collect();
+
+        #[cfg(not(feature = "v2"))]
+        let filtered_trees: Vec<TreeInfo> = self
+            .state_merkle_trees
+            .iter()
+            .filter(|tree| tree.tree_type == TreeType::StateV1)
+            .copied()
+            .collect();
+
+        select_state_tree_info(&mut rng, &filtered_trees)
     }
 
     /// Gets a random v1 state tree.

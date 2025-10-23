@@ -32,11 +32,8 @@ pub fn process_create_compressed_account<'a, 'info>(
     address: [u8; 32],
     new_address_params: light_sdk::address::NewAddressParamsAssignedPacked,
 ) -> Result<()> {
-    let mut my_compressed_account = LightAccount::<'_, CompressedEscrowPda>::new_init(
-        &crate::ID,
-        Some(address),
-        output_tree_index,
-    );
+    let mut my_compressed_account =
+        LightAccount::<CompressedEscrowPda>::new_init(&crate::ID, Some(address), output_tree_index);
 
     my_compressed_account.amount = amount;
     my_compressed_account.owner = *cpi_accounts.fee_payer().key;

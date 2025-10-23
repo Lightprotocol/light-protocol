@@ -218,7 +218,7 @@ impl LightCpiInstruction for LightSystemProgramCpi {
         }
     }
 
-    fn with_light_account<A>(mut self, account: LightAccount<'_, A>) -> Result<Self, ProgramError>
+    fn with_light_account<A>(mut self, account: LightAccount<A>) -> Result<Self, ProgramError>
     where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default,
     {
@@ -261,7 +261,7 @@ impl LightCpiInstruction for LightSystemProgramCpi {
     #[cfg(feature = "poseidon")]
     fn with_light_account_poseidon<A>(
         mut self,
-        account: LightAccountPoseidon<'_, A>,
+        account: LightAccountPoseidon<A>,
     ) -> Result<Self, ProgramError>
     where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default,

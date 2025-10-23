@@ -34,7 +34,7 @@ pub fn process_update_escrow_pda<'a, 'info>(
     proof: ValidityProof,
     deposit_amount: u64,
 ) -> Result<()> {
-    let mut my_compressed_account = LightAccount::<'_, CompressedEscrowPda>::new_mut(
+    let mut my_compressed_account = LightAccount::<CompressedEscrowPda>::new_mut(
         &crate::ID,
         &pda_params.account_meta,
         CompressedEscrowPda {
