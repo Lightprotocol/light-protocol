@@ -25,7 +25,7 @@ export const PHOTON_VERSION = "0.51.2";
 export const USE_PHOTON_FROM_GIT = true; // If true, will show git install command instead of crates.io.
 export const PHOTON_GIT_REPO = "https://github.com/lightprotocol/photon.git";
 export const PHOTON_GIT_COMMIT = "711c47b20330c6bb78feb0a2c15e8292fcd0a7b0"; // If empty, will use main branch.
-
+//df1087d55a8ff237ff69495a48542461a972f4fe
 export const LIGHT_PROTOCOL_PROGRAMS_DIR_ENV = "LIGHT_PROTOCOL_PROGRAMS_DIR";
 export const BASE_PATH = "../../bin/";
 

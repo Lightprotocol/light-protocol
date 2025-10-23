@@ -15,11 +15,13 @@ import {
     buildAndSignTx,
     deriveAddress,
     deriveAddressSeed,
+    deriveAddressSeedV2,
+    deriveAddressV2,
     selectStateTreeInfo,
     sendAndConfirmTx,
 } from '../utils';
-import { getDefaultAddressTreeInfo } from '../constants';
-import { AddressTreeInfo, bn, TreeInfo } from '../state';
+import { featureFlags, getDefaultAddressTreeInfo } from '../constants';
+import { AddressTreeInfo, bn, TreeInfo, TreeType } from '../state';
 import BN from 'bn.js';
 
 /**
@@ -47,7 +49,18 @@ export async function createAccount(
     confirmOptions?: ConfirmOptions,
 ): Promise<TransactionSignature> {
     const { blockhash } = await rpc.getLatestBlockhash();
-    const { tree, queue } = addressTreeInfo ?? getDefaultAddressTreeInfo();
+    const resolvedAddressTreeInfo =
+        addressTreeInfo ?? getDefaultAddressTreeInfo();
+    const { tree, queue } = resolvedAddressTreeInfo;
+
+    // V1 only.
+    const isV2Tree = resolvedAddressTreeInfo.treeType === TreeType.AddressV2;
+    const isV2 = featureFlags.isV2();
+    if (isV2 || isV2Tree) {
+        throw new Error(
+            'You are using V2. create-account/create-address is only supported via CPI.',
+        );
+    }
 
     const seed = deriveAddressSeed(seeds, programId);
     const address = deriveAddress(seed, tree);
@@ -133,7 +146,18 @@ export async function createAccountWithLamports(
 
     const { blockhash } = await rpc.getLatestBlockhash();
 
-    const { tree } = addressTreeInfo ?? getDefaultAddressTreeInfo();
+    const resolvedAddressTreeInfo =
+        addressTreeInfo ?? getDefaultAddressTreeInfo();
+    const { tree } = resolvedAddressTreeInfo;
+
+    // V1 only.
+    const isV2Tree = resolvedAddressTreeInfo.treeType === TreeType.AddressV2;
+    const isV2 = featureFlags.isV2();
+    if (isV2 || isV2Tree) {
+        throw new Error(
+            'You are using V2. create-account/create-address is only supported via CPI.',
+        );
+    }
 
     const seed = deriveAddressSeed(seeds, programId);
     const address = deriveAddress(seed, tree);

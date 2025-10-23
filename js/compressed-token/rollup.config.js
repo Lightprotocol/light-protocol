@@ -18,9 +18,9 @@ const rolls = (fmt, env) => ({
         sourcemap: true,
     },
     external: [
+        '@coral-xyz/borsh',
         '@solana/web3.js',
         '@solana/spl-token',
-        '@coral-xyz/borsh',
         '@lightprotocol/stateless.js',
     ],
     plugins: [
@@ -85,7 +85,18 @@ const rolls = (fmt, env) => ({
 const typesConfig = {
     input: 'src/index.ts',
     output: [{ file: 'dist/types/index.d.ts', format: 'es' }],
-    plugins: [dts()],
+    external: [
+        '@coral-xyz/borsh',
+        '@solana/web3.js',
+        '@solana/spl-token',
+        '@lightprotocol/stateless.js',
+    ],
+    plugins: [
+        dts({
+            respectExternal: true,
+            tsconfig: './tsconfig.json',
+        }),
+    ],
 };
 
 export default [

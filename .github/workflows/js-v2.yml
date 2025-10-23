@@ -79,12 +79,29 @@ jobs:
           done
           echo "Tests passed on attempt $attempt"
 
-      - name: Run compressed-token tests with V2
+      - name: Run compressed-token legacy tests with V2
         run: |
-          echo "Running compressed-token tests with retry logic (max 2 attempts)..."
+          echo "Running compressed-token legacy tests with retry logic (max 2 attempts)..."
           attempt=1
           max_attempts=2
           until npx nx test @lightprotocol/compressed-token; do
+            attempt=$((attempt + 1))
+            if [ $attempt -gt $max_attempts ]; then
+              echo "Tests failed after $max_attempts attempts"
+              exit 1
+            fi
+            echo "Attempt $attempt/$max_attempts failed, retrying..."
+            sleep 5
+          done
+          echo "Tests passed on attempt $attempt"
+
+      - name: Run compressed-token ctoken tests with V2
+        run: |
+          echo "Running compressed-token ctoken tests with retry logic (max 2 attempts)..."
+          attempt=1
+          max_attempts=2
+          cd js/compressed-token
+          until LIGHT_PROTOCOL_VERSION=V2 pnpm test:e2e:ctoken:all; do
             attempt=$((attempt + 1))
             if [ $attempt -gt $max_attempts ]; then
               echo "Tests failed after $max_attempts attempts"
