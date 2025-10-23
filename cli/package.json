@@ -1,6 +1,6 @@
 {
   "name": "@lightprotocol/zk-compression-cli",
-  "version": "0.27.0",
+  "version": "0.27.1-alpha.2",
   "description": "ZK Compression: Secure Scaling on Solana",
   "maintainers": [
     {

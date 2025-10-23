@@ -167,7 +167,7 @@ pub use light_macros::{derive_light_cpi_signer, derive_light_cpi_signer_pda};
 pub use light_sdk_macros::{
     light_system_accounts, LightDiscriminator, LightHasher, LightHasherSha, LightTraits,
 };
-pub use light_sdk_types::constants;
+pub use light_sdk_types::{constants, CpiSigner};
 use solana_account_info::AccountInfo;
 use solana_cpi::invoke_signed;
 use solana_instruction::{AccountMeta, Instruction};

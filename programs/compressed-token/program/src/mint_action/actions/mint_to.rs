@@ -6,7 +6,7 @@ use light_ctoken_types::{
     state::CompressedMint,
 };
 use light_program_profiler::profile;
-use light_sdk_pinocchio::ZOutputCompressedAccountWithPackedContextMut;
+use light_sdk_pinocchio::instruction::ZOutputCompressedAccountWithPackedContextMut;
 
 use crate::{
     mint_action::{
