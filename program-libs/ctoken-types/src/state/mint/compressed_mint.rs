@@ -1,6 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_compressed_account::Pubkey;
 use light_hasher::{sha256::Sha256BE, Hasher};
+#[cfg(any(feature = "profile-program", feature = "profile-heap"))]
 use light_program_profiler::profile;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 #[cfg(feature = "solana")]
@@ -70,7 +71,7 @@ impl CompressedMint {
 impl ZCompressedMintMut<'_> {
     /// Set all fields of the CompressedMint struct at once
     #[inline]
-    #[profile]
+    #[cfg_attr(any(feature = "profile-program", feature = "profile-heap"), profile)]
     pub fn set(
         &mut self,
         ix_data: &<CompressedMintInstructionData as light_zero_copy::traits::ZeroCopyAt<'_>>::ZeroCopyAt,

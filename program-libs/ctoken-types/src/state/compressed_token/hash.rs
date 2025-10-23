@@ -1,6 +1,7 @@
 use borsh::BorshSerialize;
 use light_compressed_account::hash_to_bn254_field_size_be;
 use light_hasher::{errors::HasherError, sha256::Sha256BE, Hasher, Poseidon};
+#[cfg(any(feature = "profile-program", feature = "profile-heap"))]
 use light_program_profiler::profile;
 
 use super::TokenData;
@@ -81,7 +82,7 @@ impl TokenData {
 impl TokenData {
     /// TokenDataVersion 3
     /// CompressedAccount Discriminator [0,0,0,0,0,0,0,4]
-    #[profile]
+    #[cfg_attr(any(feature = "profile-program", feature = "profile-heap"), profile)]
     #[inline(always)]
     pub fn hash_sha_flat(&self) -> Result<[u8; 32], HasherError> {
         let bytes = self.try_to_vec().map_err(|_| HasherError::BorshError)?;

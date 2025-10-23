@@ -202,6 +202,7 @@ fn process_with_system_program_cpi(
         .map_err(|e| ProgramError::Custom(e as u32 + 6000))?;
 
     if let Some(system_accounts) = validated_accounts.system.as_ref() {
+        msg!("processing token compression with system program");
         // Process token compressions/decompressions/close_and_compress
         process_token_compression(
             system_accounts.fee_payer,
@@ -225,11 +226,13 @@ fn process_with_system_program_cpi(
             false,
         )?;
 
+        msg!("closing ctoken accounts");
         // Close ctoken accounts at the end of the instruction.
         if let Some(compressions) = inputs.compressions.as_ref() {
             close_for_compress_and_close(compressions.as_slice(), validated_accounts)?;
         }
     } else if let Some(system_accounts) = validated_accounts.write_to_cpi_context_system.as_ref() {
+        msg!("processing token compression with system program and write to cpi context");
         // CPI context write mode expects exactly 4 accounts:
         // 0 - light-system-program - skip
         // 1 - fee_payer

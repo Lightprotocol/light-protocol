@@ -27,8 +27,12 @@ pub fn process_ctoken_transfer<'a>(
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
+    msg!("processing transfer");
+    msg!("accounts: {:?}", accounts);
+
     process_transfer(accounts, instruction_data)
         .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
+    msg!("transfer processed");
     calculate_and_execute_top_up_transfers(accounts)
 }
 
@@ -41,6 +45,9 @@ fn calculate_and_execute_top_up_transfers(
     // Initialize transfers array with account references, amounts will be updated
     let account0 = accounts.first().ok_or(ProgramError::NotEnoughAccountKeys)?;
     let account1 = accounts.get(1).ok_or(ProgramError::NotEnoughAccountKeys)?;
+    msg!("accounts: {:?}", accounts);
+    msg!("account0: {:?}", account0.key());
+    msg!("account1: {:?}", account1.key());
     let mut transfers = [
         Transfer {
             account: account0,

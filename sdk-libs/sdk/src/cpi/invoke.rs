@@ -1,5 +1,6 @@
 pub use light_compressed_account::LightInstructionData;
 use light_sdk_types::constants::{CPI_AUTHORITY_PDA_SEED, LIGHT_SYSTEM_PROGRAM_ID};
+use solana_msg::msg;
 
 #[cfg(feature = "cpi-context")]
 use crate::AccountMeta;
@@ -74,6 +75,7 @@ where
         let account_infos = accounts.to_account_infos();
         let account_metas = accounts.to_account_metas()?;
 
+        msg!("invoking LightSystemProgramCpi, {:?}", account_metas);
         let instruction = Instruction {
             program_id: LIGHT_SYSTEM_PROGRAM_ID.into(),
             accounts: account_metas,
