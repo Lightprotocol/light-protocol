@@ -18,6 +18,8 @@ new-unique = ["dep:solana-pubkey"]
 profile-program = []
 profile-heap = ["dep:light-heap"]
 poseidon = ["dep:light-poseidon", "light-hasher/poseidon"]
+keccak = ["light-hasher/keccak"]
+sha256 = ["light-hasher/sha256"]
 
 [dependencies]
 thiserror = { workspace = true }
