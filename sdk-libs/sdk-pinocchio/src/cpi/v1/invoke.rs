@@ -3,10 +3,11 @@ use light_compressed_account::instruction_data::{
 };
 #[cfg(feature = "light-account")]
 use light_sdk_types::instruction::account_info::CompressedAccountInfoTrait;
+use light_sdk_types::CpiSigner;
 
 use crate::{
-    cpi::traits::{LightCpiInstruction, LightInstructionData},
-    BorshSerialize, CpiSigner,
+    cpi::{LightCpiInstruction, LightInstructionData},
+    BorshSerialize,
 };
 
 /// V1 wrapper struct for InstructionDataInvokeCpi with CpiSigner

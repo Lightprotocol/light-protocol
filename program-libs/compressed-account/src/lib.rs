@@ -76,6 +76,8 @@ pub enum CompressedAccountError {
     InstructionDataExpectedProof,
     #[error("Expected proof for compressed account got None.")]
     ZeroCopyExpectedProof,
+    #[error("Invalid proof size: expected 128 bytes, got {0}")]
+    InvalidProofSize(usize),
 }
 
 // NOTE(vadorovsky): Unfortunately, we need to do it by hand.
@@ -103,6 +105,7 @@ impl From<CompressedAccountError> for u32 {
             CompressedAccountError::ZeroCopyExpectedProof => 12022,
             CompressedAccountError::ExpectedDataHash => 12023,
             CompressedAccountError::InvalidCpiContext => 12024,
+            CompressedAccountError::InvalidProofSize(_) => 12025,
             CompressedAccountError::HasherError(e) => u32::from(e),
         }
     }

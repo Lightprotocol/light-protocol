@@ -189,7 +189,7 @@ pub async fn update_pda(
                 .try_into()
                 .unwrap(),
         },
-        proof: light_sdk_pinocchio::ValidityProof(None),
+        proof: light_sdk_pinocchio::instruction::ValidityProof(None),
         new_data: new_account_data,
         system_accounts_offset: system_accounts_offset as u8,
     };

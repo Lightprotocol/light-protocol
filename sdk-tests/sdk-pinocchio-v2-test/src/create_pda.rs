@@ -6,8 +6,8 @@ use light_sdk_pinocchio::{
         InvokeLightSystemProgram, LightCpiInstruction,
     },
     error::LightSdkError,
-    instruction::PackedAddressTreeInfo,
-    LightAccount, LightDiscriminator, LightHasher, ValidityProof,
+    instruction::{PackedAddressTreeInfo, ValidityProof},
+    LightAccount, LightDiscriminator, LightHasher,
 };
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 

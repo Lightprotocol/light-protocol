@@ -5,8 +5,8 @@ use light_sdk_pinocchio::{
         InvokeLightSystemProgram, LightCpiInstruction,
     },
     error::LightSdkError,
-    instruction::account_meta::CompressedAccountMeta,
-    LightAccount, ValidityProof,
+    instruction::{account_meta::CompressedAccountMeta, ValidityProof},
+    LightAccount,
 };
 use pinocchio::{
     account_info::AccountInfo, log::sol_log_compute_units, program_error::ProgramError,

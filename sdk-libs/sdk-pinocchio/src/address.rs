@@ -1,30 +1,6 @@
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
-
-// Define data structures needed
-#[derive(Clone, Debug, Default)]
-pub struct NewAddressParams {
-    pub seed: [u8; 32],
-    pub address_queue_pubkey: [u8; 32],
-    pub address_merkle_tree_pubkey: [u8; 32],
-    pub address_merkle_tree_root_index: u16,
-}
-
-pub fn unpack_new_address_params(
-    address_params: &crate::NewAddressParamsPacked,
-    remaining_accounts: &[AccountInfo],
-) -> NewAddressParams {
-    let address_merkle_tree_pubkey =
-        remaining_accounts[address_params.address_merkle_tree_account_index as usize].key();
-    let address_queue_pubkey =
-        remaining_accounts[address_params.address_queue_account_index as usize].key();
-
-    NewAddressParams {
-        seed: address_params.seed,
-        address_queue_pubkey: *address_queue_pubkey,
-        address_merkle_tree_pubkey: *address_merkle_tree_pubkey,
-        address_merkle_tree_root_index: address_params.address_merkle_tree_root_index,
-    }
-}
+pub use light_compressed_account::instruction_data::data::NewAddressParamsPacked;
+pub use light_sdk_types::address::AddressSeed;
+use pinocchio::pubkey::Pubkey;
 
 pub mod v1 {
     use light_sdk_types::address::AddressSeed;
