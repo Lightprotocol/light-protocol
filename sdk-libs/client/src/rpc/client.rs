@@ -769,6 +769,19 @@ impl Rpc for LightClient {
         select_state_tree_info(&mut rng, &self.state_merkle_trees)
     }
 
+    /// Gets a random v1 state tree.
+    /// State trees are cached and have to be fetched or set.
+    fn get_random_state_tree_info_v1(&self) -> Result<TreeInfo, RpcError> {
+        let mut rng = rand::thread_rng();
+        let v1_trees: Vec<TreeInfo> = self
+            .state_merkle_trees
+            .iter()
+            .filter(|tree| tree.tree_type == TreeType::StateV1)
+            .copied()
+            .collect();
+        select_state_tree_info(&mut rng, &v1_trees)
+    }
+
     fn get_address_tree_v1(&self) -> TreeInfo {
         TreeInfo {
             tree: pubkey!("amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2"),
