@@ -2222,6 +2222,28 @@ impl TestIndexer {
                                 addresses,
                             )
                             .await?;
+
+                        // Validate that we're not mixing v1 and v2 tree versions
+                        match (inclusion_payload.is_some(), non_inclusion_payload.is_some()) {
+                            (true, true) | (false, false) => {
+                                // Both v2 or both v1 - OK, proceed
+                            }
+                            (false, true) => {
+                                // v1 state trees (height 26) with v2 address trees (height 40)
+                                return Err(IndexerError::MixedTreeVersions {
+                                    state_version: "v1 (state tree height 26)".to_string(),
+                                    address_version: "v2 (address tree height 40)".to_string(),
+                                });
+                            }
+                            (true, false) => {
+                                // v2 state trees with v1 address trees (height 26)
+                                return Err(IndexerError::MixedTreeVersions {
+                                    state_version: "v2 (state tree)".to_string(),
+                                    address_version: "v1 (address tree height 26)".to_string(),
+                                });
+                            }
+                        }
+
                         let json_payload = if let Some(non_inclusion_payload) =
                             non_inclusion_payload
                         {
