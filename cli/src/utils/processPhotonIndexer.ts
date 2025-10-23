@@ -41,6 +41,7 @@ export async function startIndexer(
   indexerPort: number,
   checkPhotonVersion: boolean = true,
   photonDatabaseUrl?: string,
+  grpcUrl?: string,
 ) {
   await killIndexer();
   const resolvedOrNull = which.sync("photon", { nothrow: true });
@@ -60,6 +61,9 @@ export async function startIndexer(
     ];
     if (photonDatabaseUrl) {
       args.push("--db-url", photonDatabaseUrl);
+    }
+    if (grpcUrl) {
+      args.push("--grpc-url", grpcUrl);
     }
     spawnBinary(INDEXER_PROCESS_NAME, args);
     await waitForServers([{ port: indexerPort, path: "/getIndexerHealth" }]);

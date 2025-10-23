@@ -702,7 +702,7 @@ export class CompressedTokenProgram {
     }
 
     /**
-     * Construct createMint instruction for compressed tokens.
+     * Construct createMintSPL instruction for SPL tokens.
      *
      * @param feePayer              Fee payer.
      * @param mint                  SPL Mint address.
@@ -719,7 +719,7 @@ export class CompressedTokenProgram {
      * Note that `createTokenPoolInstruction` must be executed after
      * `initializeMintInstruction`.
      */
-    static async createMint({
+    static async createMintSPL({
         feePayer,
         mint,
         authority,
@@ -763,7 +763,7 @@ export class CompressedTokenProgram {
 
     /**
      * Enable compression for an existing SPL mint, creating an omnibus account.
-     * For new mints, use `CompressedTokenProgram.createMint`.
+     * For new mints, use `CompressedTokenProgram.createMintSPL`.
      *
      * @param feePayer              Fee payer.
      * @param mint                  SPL Mint address.

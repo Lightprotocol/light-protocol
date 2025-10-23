@@ -6,7 +6,7 @@ import {
   getKeypairFromFile,
   rpc,
 } from "../../utils/utils";
-import { createMint } from "@lightprotocol/compressed-token";
+import { createMintSPL } from "@lightprotocol/compressed-token";
 import { Keypair, PublicKey } from "@solana/web3.js";
 
 const DEFAULT_DECIMAL_COUNT = 9;
@@ -45,10 +45,11 @@ class CreateMintCommand extends Command {
       const mintDecimals = this.getMintDecimals(flags);
       const mintKeypair = await this.getMintKeypair(flags);
       const mintAuthority = await this.getMintAuthority(flags, payer.publicKey);
-      const { mint, transactionSignature } = await createMint(
+      const { mint, transactionSignature } = await createMintSPL(
         rpc(),
         payer,
         mintAuthority,
+        null,
         mintDecimals,
         mintKeypair,
       );

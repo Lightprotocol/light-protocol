@@ -12,7 +12,7 @@ import {
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import {
-    createMint,
+    createMintSPL,
     mintTo,
     approve,
     decompressDelegated,
@@ -116,10 +116,11 @@ describe('decompressDelegated', () => {
         const mintKeypair = Keypair.generate();
 
         mint = (
-            await createMint(
+            await createMintSPL(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )

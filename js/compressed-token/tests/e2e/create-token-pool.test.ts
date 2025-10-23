@@ -8,7 +8,11 @@ import {
     TOKEN_PROGRAM_ID,
     createInitializeMint2Instruction,
 } from '@solana/spl-token';
-import { addTokenPools, createMint, createTokenPool } from '../../src/actions';
+import {
+    addTokenPools,
+    createMintSPL,
+    createTokenPool,
+} from '../../src/actions';
 import {
     Rpc,
     buildAndSignTx,
@@ -122,10 +126,11 @@ describe('createTokenPool', () => {
 
         /// Mint already exists externally
         await expect(
-            createMint(
+            createMintSPL(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             ),
@@ -165,10 +170,11 @@ describe('createTokenPool', () => {
 
         /// Mint already exists externally
         await expect(
-            createMint(
+            createMintSPL(
                 rpc,
                 payer,
                 token22MintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 token22MintKeypair,
                 undefined,
