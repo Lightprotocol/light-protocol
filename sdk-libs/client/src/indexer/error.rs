@@ -54,6 +54,11 @@ pub enum IndexerError {
     IndexerNotSyncedToSlot,
     #[error("Address Merkle trees cannot be packed as output Merkle trees.")]
     InvalidPackTreeType,
+    #[error("Cannot mix v1 and v2 trees in the same validity proof. State tree version: {state_version}, Address tree version: {address_version}")]
+    MixedTreeVersions {
+        state_version: String,
+        address_version: String,
+    },
 }
 
 impl IndexerError {
@@ -143,6 +148,13 @@ impl Clone for IndexerError {
             IndexerError::NotInitialized => IndexerError::NotInitialized,
             IndexerError::IndexerNotSyncedToSlot => IndexerError::IndexerNotSyncedToSlot,
             IndexerError::InvalidPackTreeType => IndexerError::InvalidPackTreeType,
+            IndexerError::MixedTreeVersions {
+                state_version,
+                address_version,
+            } => IndexerError::MixedTreeVersions {
+                state_version: state_version.clone(),
+                address_version: address_version.clone(),
+            },
         }
     }
 }
