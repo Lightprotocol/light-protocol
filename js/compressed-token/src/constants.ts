@@ -1,4 +1,18 @@
 import { Buffer } from 'buffer';
+
+/**
+ * Token data version enum - mirrors Rust TokenDataVersion
+ * Used for compressed token account hashing strategy
+ */
+export enum TokenDataVersion {
+    /** V1: Poseidon hash with little-endian amount, discriminator [2,0,0,0,0,0,0,0] */
+    V1 = 1,
+    /** V2: Poseidon hash with big-endian amount, discriminator [0,0,0,0,0,0,0,3] */
+    V2 = 2,
+    /** ShaFlat: SHA256 hash of borsh-serialized data, discriminator [0,0,0,0,0,0,0,4] */
+    ShaFlat = 3,
+}
+
 export const POOL_SEED = Buffer.from('pool');
 
 export const CPI_AUTHORITY_SEED = Buffer.from('cpi_authority');
@@ -30,3 +44,5 @@ export const REVOKE_DISCRIMINATOR = Buffer.from([
 export const ADD_TOKEN_POOL_DISCRIMINATOR = Buffer.from([
     114, 143, 210, 73, 96, 115, 1, 228,
 ]);
+
+export const DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR = Buffer.from([107]);

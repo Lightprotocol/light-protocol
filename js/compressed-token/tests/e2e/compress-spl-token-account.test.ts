@@ -52,6 +52,7 @@ describe('compressSplTokenAccount', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -329,6 +330,7 @@ describe('compressSplTokenAccount', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
                 undefined,

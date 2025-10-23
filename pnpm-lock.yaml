@@ -192,6 +192,12 @@ importers:
       '@lightprotocol/stateless.js':
         specifier: workspace:*
         version: link:../stateless.js
+      '@solana/buffer-layout':
+        specifier: ^4.0.1
+        version: 4.0.1
+      '@solana/buffer-layout-utils':
+        specifier: ^0.2.0
+        version: 0.2.0(bufferutil@4.0.8)(typescript@5.9.2)(utf-8-validate@5.0.10)
       bn.js:
         specifier: ^5.2.1
         version: 5.2.1

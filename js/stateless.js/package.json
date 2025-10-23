@@ -86,9 +86,10 @@
     },
     "scripts": {
         "test": "pnpm test:unit:all && pnpm test:e2e:all",
+        "test-ci": "vitest run tests/unit && pnpm test:e2e:all",
+        "test:v1": "pnpm build:v1 && LIGHT_PROTOCOL_VERSION=V1 vitest run tests/unit && LIGHT_PROTOCOL_VERSION=V1 pnpm test:e2e:all",
+        "test:v2": "pnpm build:v2 && LIGHT_PROTOCOL_VERSION=V2 vitest run tests/unit && LIGHT_PROTOCOL_VERSION=V2 pnpm test:e2e:all",
         "test-all": "vitest run",
-        "test:v1": "LIGHT_PROTOCOL_VERSION=V1 pnpm test",
-        "test:v2": "LIGHT_PROTOCOL_VERSION=V2 pnpm test",
         "test:unit:all": "vitest run tests/unit --reporter=verbose",
         "test:unit:all:v1": "LIGHT_PROTOCOL_VERSION=V1 vitest run tests/unit --reporter=verbose",
         "test:unit:all:v2": "LIGHT_PROTOCOL_VERSION=V2 vitest run tests/unit --reporter=verbose",
@@ -114,7 +115,6 @@
         "build:v1": "LIGHT_PROTOCOL_VERSION=V1 pnpm build:bundle",
         "build:v2": "LIGHT_PROTOCOL_VERSION=V2 pnpm build:bundle",
         "build-ci": "if [ \"$LIGHT_PROTOCOL_VERSION\" = \"V2\" ]; then LIGHT_PROTOCOL_VERSION=V2 pnpm build:bundle; else LIGHT_PROTOCOL_VERSION=V1 pnpm build:bundle; fi",
-        "test-ci": "pnpm test",
         "format": "prettier --write .",
         "lint": "eslint ."
     },

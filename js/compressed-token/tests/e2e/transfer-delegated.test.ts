@@ -190,6 +190,7 @@ describe('transferDelegated', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -251,6 +252,7 @@ describe('transferDelegated', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 newMintKeypair,
             )
@@ -325,6 +327,7 @@ describe('transferDelegated', () => {
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 newMintKeypair,
             )

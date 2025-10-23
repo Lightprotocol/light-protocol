@@ -38,6 +38,7 @@ export async function createTestMint(mintKeypair: Keypair) {
     rpc,
     await getPayer(),
     (await getPayer()).publicKey,
+    null,
     9,
     mintKeypair,
   );

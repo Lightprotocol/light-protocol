@@ -1,4 +1,11 @@
-import { PublicKey, MemcmpFilter, DataSlice } from '@solana/web3.js';
+import {
+    PublicKey,
+    MemcmpFilter,
+    DataSlice,
+    Commitment,
+    GetAccountInfoConfig,
+    AccountInfo,
+} from '@solana/web3.js';
 import {
     type as pick,
     number,
@@ -27,6 +34,7 @@ import {
     TreeInfo,
     AddressTreeInfo,
     CompressedProof,
+    MerkleContext,
 } from './state';
 import BN from 'bn.js';
 
@@ -115,6 +123,16 @@ export interface AddressWithTree {
 export interface AddressWithTreeInfo {
     address: BN254;
     treeInfo: AddressTreeInfo;
+}
+
+export interface AddressWithTreeInfoV2 {
+    address: Uint8Array;
+    treeInfo: TreeInfo;
+}
+
+export enum DerivationMode {
+    compressible = 'compressible',
+    standard = 'standard',
 }
 
 export interface CompressedTransaction {
@@ -864,6 +882,17 @@ export interface CompressionApiInterface {
     getIndexerHealth(): Promise<string>;
 
     getIndexerSlot(): Promise<number>;
+
+    getAccountInfoInterface(
+        address: PublicKey,
+        programId: PublicKey,
+        commitmentOrConfig?: Commitment | GetAccountInfoConfig,
+        addressSpace?: TreeInfo,
+    ): Promise<{
+        accountInfo: AccountInfo<Buffer>;
+        isCold: boolean;
+        loadContext?: MerkleContext;
+    } | null>;
 }
 
 // Public types for consumers

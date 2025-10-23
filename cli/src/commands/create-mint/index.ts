@@ -49,6 +49,7 @@ class CreateMintCommand extends Command {
         rpc(),
         payer,
         mintAuthority,
+        null,
         mintDecimals,
         mintKeypair,
       );

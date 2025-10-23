@@ -218,12 +218,30 @@ export const localTestActiveStateTreeInfos = (): TreeInfo[] => {
     );
 };
 
+export const getDefaultAddressSpace = () => {
+    return getBatchAddressTreeInfo();
+};
+
 export const getDefaultAddressTreeInfo = () => {
+    if (featureFlags.isV2()) {
+        return getBatchAddressTreeInfo();
+    } else {
+        return {
+            tree: new PublicKey(addressTree),
+            queue: new PublicKey(addressQueue),
+            cpiContext: undefined,
+            treeType: TreeType.AddressV1,
+            nextTreeInfo: null,
+        };
+    }
+};
+
+export const getBatchAddressTreeInfo = () => {
     return {
-        tree: new PublicKey(addressTree),
-        queue: new PublicKey(addressQueue),
-        cpiContext: null,
-        treeType: TreeType.AddressV1,
+        tree: new PublicKey(batchAddressTree),
+        queue: new PublicKey(batchAddressTree),
+        cpiContext: undefined,
+        treeType: TreeType.AddressV2,
         nextTreeInfo: null,
     };
 };
@@ -256,6 +274,8 @@ export const defaultTestStateTreeAccounts2 = () => {
 export const COMPRESSED_TOKEN_PROGRAM_ID = new PublicKey(
     'cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m',
 );
+
+export const CTOKEN_PROGRAM_ID = COMPRESSED_TOKEN_PROGRAM_ID;
 export const stateTreeLookupTableMainnet =
     '7i86eQs3GSqHjN47WdWLTCGMW6gde1q96G2EVnUyK2st';
 export const nullifiedStateTreeLookupTableMainnet =

@@ -21,10 +21,10 @@ install_photon() {
     mkdir -p "${PREFIX}/cargo/bin"
     touch "$INSTALL_LOG"
 
-    # Portable sed -i (macOS vs Linux)
-    sed_inplace() {
-        if [[ "$OSTYPE" == "darwin"* ]]; then
-            sed -i '' "$@"
+        if [ "$photon_installed" = false ] || [ "$photon_correct_version" = false ]; then
+            echo "Installing Photon indexer (version $expected_version)..."
+            RUSTFLAGS="-A dead-code" cargo install --git https://github.com/lightprotocol/photon.git --rev ${PHOTON_COMMIT} --locked --force
+            log "photon"
         else
             sed -i "$@"
         fi
