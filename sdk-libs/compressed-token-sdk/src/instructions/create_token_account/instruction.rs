@@ -5,7 +5,9 @@ use light_ctoken_types::{
         extensions::compressible::{CompressToPubkey, CompressibleExtensionInstructionData},
     },
     state::TokenDataVersion,
+    CTokenError,
 };
+use solana_account_info::AccountInfo;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
@@ -35,7 +37,7 @@ pub struct CreateCompressibleTokenAccount {
     pub token_account_version: TokenDataVersion,
 }
 
-pub fn create_compressible_token_account(
+pub fn create_compressible_token_account_instruction(
     inputs: CreateCompressibleTokenAccount,
 ) -> Result<Instruction> {
     // Create the CompressibleExtensionInstructionData
@@ -113,4 +115,57 @@ pub fn create_token_account(
         ],
         data,
     })
+}
+
+/// Create a c-token account with signer seeds.
+#[allow(clippy::too_many_arguments)]
+pub fn create_ctoken_account_signed<'info>(
+    program_id: Pubkey,
+    payer: AccountInfo<'info>,
+    token_account: AccountInfo<'info>,
+    mint_account: AccountInfo<'info>,
+    authority: Pubkey,
+    signer_seeds: &[&[u8]],
+    ctoken_rent_sponsor: AccountInfo<'info>,
+    ctoken_config_account: AccountInfo<'info>,
+    pre_pay_num_epochs: Option<u8>,
+    lamports_per_write: Option<u32>,
+) -> std::result::Result<(), solana_program_error::ProgramError> {
+    let bump = signer_seeds[signer_seeds.len() - 1][0];
+    let seeds: Vec<Vec<u8>> = signer_seeds[..signer_seeds.len() - 1]
+        .iter()
+        .map(|seed| seed.to_vec())
+        .collect();
+
+    let params = CreateCompressibleTokenAccount {
+        payer: *payer.key,
+        account_pubkey: *token_account.key,
+        mint_pubkey: *mint_account.key,
+        owner_pubkey: authority,
+        compressible_config: *ctoken_config_account.key,
+        rent_sponsor: *ctoken_rent_sponsor.key,
+        pre_pay_num_epochs: pre_pay_num_epochs.unwrap_or(0),
+        lamports_per_write,
+        compress_to_account_pubkey: Some(CompressToPubkey {
+            bump,
+            program_id: program_id.to_bytes(),
+            seeds,
+        }),
+        token_account_version: TokenDataVersion::ShaFlat,
+    };
+    let ix = create_compressible_token_account_instruction(params)
+        .map_err(|_| TokenSdkError::CTokenError(CTokenError::InvalidInstructionData))?;
+
+    // TODO: check whether we need to pass c-token program / system program
+    solana_cpi::invoke_signed(
+        &ix,
+        &[
+            payer,
+            token_account,
+            mint_account,
+            ctoken_rent_sponsor,
+            ctoken_config_account,
+        ],
+        &[signer_seeds],
+    )
 }

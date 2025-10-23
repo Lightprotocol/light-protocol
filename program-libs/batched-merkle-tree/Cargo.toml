@@ -17,10 +17,12 @@ solana = [
     "solana-msg",
     "light-zero-copy/solana",
     "light-hasher/solana",
+    "light-hasher/keccak",
     "light-account-checks/solana",
     "light-bloom-filter/solana",
     "light-macros/solana",
     "light-compressed-account/solana",
+    "light-compressed-account/keccak",
     "light-merkle-tree-metadata/solana",
 ]
 pinocchio = [
@@ -31,6 +33,7 @@ pinocchio = [
     "light-bloom-filter/pinocchio",
     "light-macros/pinocchio",
     "light-compressed-account/pinocchio",
+    "light-compressed-account/keccak",
     "light-merkle-tree-metadata/pinocchio",
 ]
 
@@ -43,7 +46,7 @@ solana-sysvar = { workspace = true, optional = true }
 solana-msg = { workspace = true, optional = true }
 solana-account-info = { workspace = true, optional = true }
 light-zero-copy = { workspace = true, features = ["std"] }
-light-hasher = { workspace = true, features = ["poseidon"] }
+light-hasher = { workspace = true, features = ["poseidon", "keccak"] }
 light-bloom-filter = { workspace = true }
 light-verifier = { workspace = true }
 thiserror = { workspace = true }
@@ -51,14 +54,14 @@ light-merkle-tree-metadata = { workspace = true }
 borsh = { workspace = true }
 zerocopy = { workspace = true }
 pinocchio = { workspace = true, optional = true }
-light-compressed-account = { workspace = true, features = ["std"] }
+light-compressed-account = { workspace = true, features = ["std", "keccak"] }
 light-macros = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-account-checks = { workspace = true, features = ["test-only"] }
-light-compressed-account = { workspace = true, features = ["new-unique"] }
+light-compressed-account = { workspace = true, features = ["new-unique", "keccak"] }
 light-hasher = { workspace = true, features = ["keccak"] }
 
 [lints.rust.unexpected_cfgs]

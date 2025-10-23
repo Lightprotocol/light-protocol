@@ -3,7 +3,8 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::{
-    account2::create_ctoken_to_spl_transfer_instruction, token_pool::find_token_pool_pda_with_index,
+    instructions::create_transfer_ctoken_to_spl_instruction,
+    token_pool::find_token_pool_pda_with_index, SPL_TOKEN_PROGRAM_ID,
 };
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -11,7 +12,7 @@ use solana_signature::Signature;
 use solana_signer::Signer;
 
 /// Transfer tokens from a compressed token account to an SPL token account
-pub async fn ctoken_to_spl_transfer<R: Rpc + Indexer>(
+pub async fn transfer_ctoken_to_spl<R: Rpc + Indexer>(
     rpc: &mut R,
     source_ctoken_account: Pubkey,
     destination_spl_token_account: Pubkey,
@@ -24,7 +25,7 @@ pub async fn ctoken_to_spl_transfer<R: Rpc + Indexer>(
     let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
 
     // Create the transfer instruction
-    let transfer_ix = create_ctoken_to_spl_transfer_instruction(
+    let transfer_ix = create_transfer_ctoken_to_spl_instruction(
         source_ctoken_account,
         destination_spl_token_account,
         amount,
@@ -33,6 +34,7 @@ pub async fn ctoken_to_spl_transfer<R: Rpc + Indexer>(
         payer.pubkey(),
         token_pool_pda,
         token_pool_pda_bump,
+        Pubkey::new_from_array(SPL_TOKEN_PROGRAM_ID), // TODO: make dynamic
     )
     .map_err(|e| RpcError::AssertRpcError(format!("Failed to create instruction: {:?}", e)))?;
 

@@ -1,6 +1,7 @@
 use light_client::rpc::{Rpc, RpcError};
 use light_compressed_token_sdk::instructions::{
-    create_compressible_token_account as create_instruction, CreateCompressibleTokenAccount,
+    create_compressible_token_account_instruction as create_instruction,
+    CreateCompressibleTokenAccount,
 };
 use light_ctoken_types::state::TokenDataVersion;
 use solana_keypair::Keypair;

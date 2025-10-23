@@ -5,8 +5,7 @@ use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
-/// Transfer SPL tokens between decompressed compressed token accounts (accounts with compressible extensions).
-/// This performs a regular SPL token transfer on accounts that were decompressed from compressed tokens.
+/// Transfer from one c-token account to another.
 ///
 /// # Arguments
 /// * `rpc` - RPC client
@@ -18,7 +17,7 @@ use solana_signer::Signer;
 ///
 /// # Returns
 /// `Result<Signature, RpcError>` - The transaction signature
-pub async fn ctoken_transfer<R: Rpc>(
+pub async fn transfer_ctoken<R: Rpc>(
     rpc: &mut R,
     source: Pubkey,
     destination: Pubkey,
@@ -27,7 +26,7 @@ pub async fn ctoken_transfer<R: Rpc>(
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
     let transfer_instruction =
-        create_ctoken_transfer_instruction(source, destination, amount, authority.pubkey())?;
+        create_transfer_ctoken_instruction(source, destination, amount, authority.pubkey())?;
 
     let mut signers = vec![payer];
     if authority.pubkey() != payer.pubkey() {
@@ -38,9 +37,8 @@ pub async fn ctoken_transfer<R: Rpc>(
         .await
 }
 
-/// Create a decompressed token transfer instruction.
-/// This creates an instruction that uses discriminator 3 (CTokenTransfer) to perform
-/// SPL token transfers on decompressed compressed token accounts.
+// TODO: consume the variant from compressed-token-sdk instead
+/// Create a ctoken transfer instruction.
 ///
 /// # Arguments
 /// * `source` - Source token account
@@ -51,7 +49,7 @@ pub async fn ctoken_transfer<R: Rpc>(
 /// # Returns
 /// `Result<Instruction, RpcError>`
 #[allow(clippy::result_large_err)]
-pub fn create_ctoken_transfer_instruction(
+pub fn create_transfer_ctoken_instruction(
     source: Pubkey,
     destination: Pubkey,
     amount: u64,
@@ -62,12 +60,13 @@ pub fn create_ctoken_transfer_instruction(
         accounts: vec![
             AccountMeta::new(source, false),      // Source token account
             AccountMeta::new(destination, false), // Destination token account
-            AccountMeta::new(authority, true), // Owner/Authority (signer, writable for lamport transfers)
-            AccountMeta::new_readonly(Pubkey::default(), false), // System program for CPI transfers
+            AccountMeta::new(authority, true),
+            AccountMeta::new_readonly(Pubkey::default(), false),
         ],
         data: {
-            let mut data = vec![3u8]; // CTokenTransfer discriminator
-                                      // Add SPL Token Transfer instruction data exactly like SPL does
+            // CTokenTransfer discriminator
+            let mut data = vec![3u8];
+            // Add SPL Token Transfer instruction data exactly like SPL does
             data.extend_from_slice(&amount.to_le_bytes()); // Amount as u64 little-endian
             data
         },
