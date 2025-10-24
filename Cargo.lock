@@ -3473,7 +3473,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressed-account"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "anchor-lang",
  "ark-bn254 0.5.0",
