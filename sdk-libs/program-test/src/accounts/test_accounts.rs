@@ -13,6 +13,7 @@ use solana_sdk::{pubkey, pubkey::Pubkey, signature::Keypair};
 #[cfg(feature = "devenv")]
 use super::initialize::*;
 use super::test_keypairs::*;
+#[cfg(feature = "devenv")]
 use crate::compressible::FundingPoolConfig;
 
 pub const NOOP_PROGRAM_ID: Pubkey = pubkey!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
@@ -50,6 +51,7 @@ impl From<StateMerkleTreeAccountsV2> for TreeInfo {
 #[derive(Debug)]
 pub struct TestAccounts {
     pub protocol: ProtocolAccounts,
+    #[cfg(feature = "devenv")]
     pub funding_pool_config: FundingPoolConfig,
     pub v1_state_trees: Vec<StateMerkleTreeAccounts>,
     pub v1_address_trees: Vec<AddressMerkleTreeAccounts>,
@@ -119,6 +121,7 @@ impl TestAccounts {
                     cpi_context: pubkey!("cpi5ZTjdgYpZ1Xr7B1cMLLUE81oTtJbNNAyKary2nV6"),
                 },
             ],
+            #[cfg(feature = "devenv")]
             funding_pool_config: FundingPoolConfig::get_v1(),
         }
     }
@@ -238,6 +241,7 @@ impl TestAccounts {
                 },
             ],
             v2_address_trees: vec![pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx")],
+            #[cfg(feature = "devenv")]
             funding_pool_config: FundingPoolConfig::get_v1(),
         }
     }
@@ -262,6 +266,7 @@ impl Clone for TestAccounts {
             v1_address_trees: self.v1_address_trees.clone(),
             v2_state_trees: self.v2_state_trees.clone(),
             v2_address_trees: self.v2_address_trees.clone(),
+            #[cfg(feature = "devenv")]
             funding_pool_config: self.funding_pool_config,
         }
     }

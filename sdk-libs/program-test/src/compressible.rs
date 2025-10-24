@@ -1,6 +1,7 @@
 #[cfg(feature = "devenv")]
 use std::collections::HashMap;
 
+#[cfg(feature = "devenv")]
 use anchor_lang::pubkey;
 #[cfg(feature = "devenv")]
 use borsh::BorshDeserialize;
@@ -8,12 +9,14 @@ use borsh::BorshDeserialize;
 use light_client::rpc::{Rpc, RpcError};
 #[cfg(feature = "devenv")]
 use light_compressible::rent::SLOTS_PER_EPOCH;
+#[cfg(feature = "devenv")]
 use light_compressible::{config::CompressibleConfig, rent::RentConfig};
 #[cfg(feature = "devenv")]
 use light_ctoken_types::{
     state::{CToken, ExtensionStruct},
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
+#[cfg(feature = "devenv")]
 use solana_pubkey::Pubkey;
 
 #[cfg(feature = "devenv")]
@@ -30,6 +33,7 @@ pub struct StoredCompressibleAccount {
     pub account: CToken,
 }
 
+#[cfg(feature = "devenv")]
 #[derive(Debug, PartialEq, Copy, Clone)]
 pub struct FundingPoolConfig {
     pub compressible_config_pda: Pubkey,
@@ -40,6 +44,7 @@ pub struct FundingPoolConfig {
     pub rent_sponsor_pda_bump: u8,
 }
 
+#[cfg(feature = "devenv")]
 impl FundingPoolConfig {
     pub fn new(version: u16) -> Self {
         let config = CompressibleConfig::new_ctoken(
