@@ -1,6 +1,6 @@
 [package]
 name = "light-account-checks"
-version = "0.4.0"
+version = "0.5.0"
 description = "Checks for solana accounts."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -35,7 +35,6 @@ rand = { workspace = true, optional = true }
 pinocchio = { workspace = true }
 borsh = { workspace = true }
 solana-pubkey = { workspace = true, features = ["curve25519", "sha2"] }
-light-account-checks = { workspace = true, features = ["solana", "pinocchio", "test-only", "std"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

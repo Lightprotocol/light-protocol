@@ -1,6 +1,6 @@
 [package]
 name = "light-compressed-account"
-version = "0.5.0"
+version = "0.6.0"
 description = "Compressed account struct and common utility functions used in Light Protocol."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -46,4 +46,3 @@ borsh = { workspace = true }
 ark-ff = { workspace = true }
 ark-bn254 = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }
-light-compressed-account = { workspace = true, features = ["new-unique", "std"] }

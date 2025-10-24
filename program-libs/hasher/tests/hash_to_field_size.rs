@@ -1,3 +1,5 @@
+#![cfg(feature = "poseidon")]
+
 use ark_ff::PrimeField;
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_hasher::{
