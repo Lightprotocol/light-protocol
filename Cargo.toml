@@ -163,14 +163,14 @@ ark-std = "0.5"
 
 
 # Light Protocol
-light-hash-set = { version = "3.0.0", path = "program-libs/hash-set" }
-light-indexed-merkle-tree = { version = "3.0.0", path = "program-libs/indexed-merkle-tree" }
-light-concurrent-merkle-tree = { version = "3.0.0", path = "program-libs/concurrent-merkle-tree" }
+light-hash-set = { version = "4.0.0", path = "program-libs/hash-set" }
+light-indexed-merkle-tree = { version = "4.0.0", path = "program-libs/indexed-merkle-tree" }
+light-concurrent-merkle-tree = { version = "4.0.0", path = "program-libs/concurrent-merkle-tree" }
 light-sparse-merkle-tree = { version = "0.2.0", path = "sparse-merkle-tree" }
 light-client = { path = "sdk-libs/client", version = "0.15.0" }
 light-event = { path = "sdk-libs/event", version = "0.1.0" }
-light-hasher = { path = "program-libs/hasher", version = "4.0.0", default-features = false }
-light-macros = { path = "program-libs/macros", version = "2.1.0" }
+light-hasher = { path = "program-libs/hasher", version = "5.0.0", default-features = false }
+light-macros = { path = "program-libs/macros", version = "2.2.0" }
 light-merkle-tree-reference = { path = "program-tests/merkle-tree", version = "3.0.1" }
 light-heap = { path = "program-libs/heap", version = "2.0.0" }
 light-prover-client = { path = "prover/client", version = "3.0.0" }
@@ -178,13 +178,13 @@ light-sdk = { path = "sdk-libs/sdk", version = "0.15.0" }
 light-sdk-pinocchio = { path = "sdk-libs/sdk-pinocchio", version = "0.13.0" }
 light-sdk-macros = { path = "sdk-libs/macros", version = "0.15.0" }
 light-sdk-types = { path = "sdk-libs/sdk-types", version = "0.15.0", default-features = false }
-light-compressed-account = { path = "program-libs/compressed-account", version = "0.5.0", default-features = false }
+light-compressed-account = { path = "program-libs/compressed-account", version = "0.6.0", default-features = false }
 light-compressible = { path = "program-libs/compressible", version = "0.1.0" }
 light-ctoken-types = { path = "program-libs/ctoken-types", version = "0.1.0" }
-light-account-checks = { path = "program-libs/account-checks", version = "0.4.0", default-features = false }
-light-verifier = { path = "program-libs/verifier", version = "4.0.0" }
-light-zero-copy = { path = "program-libs/zero-copy", version = "0.4.0", default-features = false }
-light-zero-copy-derive = { path = "program-libs/zero-copy-derive", version = "0.4.0" }
+light-account-checks = { path = "program-libs/account-checks", version = "0.5.0", default-features = false }
+light-verifier = { path = "program-libs/verifier", version = "5.0.0" }
+light-zero-copy = { path = "program-libs/zero-copy", version = "0.5.0", default-features = false }
+light-zero-copy-derive = { path = "program-libs/zero-copy-derive", version = "0.5.0" }
 photon-api = { path = "sdk-libs/photon-api", version = "0.52.0" }
 forester-utils = { path = "forester-utils", version = "2.0.0" }
 account-compression = { path = "programs/account-compression", version = "2.0.0", features = [
@@ -206,14 +206,14 @@ create-address-test-program = { path = "program-tests/create-address-test-progra
     "cpi",
 ] }
 light-program-test = { path = "sdk-libs/program-test", version = "0.15.0" }
-light-batched-merkle-tree = { path = "program-libs/batched-merkle-tree", version = "0.5.0" }
-light-merkle-tree-metadata = { path = "program-libs/merkle-tree-metadata", version = "0.5.0" }
+light-batched-merkle-tree = { path = "program-libs/batched-merkle-tree", version = "0.6.0" }
+light-merkle-tree-metadata = { path = "program-libs/merkle-tree-metadata", version = "0.6.0" }
 aligned-sized = { path = "program-libs/aligned-sized", version = "1.1.0" }
-light-bloom-filter = { path = "program-libs/bloom-filter", version = "0.4.0" }
+light-bloom-filter = { path = "program-libs/bloom-filter", version = "0.5.0" }
 light-bounded-vec = { version = "2.0.0" }
 light-poseidon = { version = "0.3.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
-light-indexed-array = { path = "program-libs/indexed-array", version = "0.2.0" }
+light-indexed-array = { path = "program-libs/indexed-array", version = "0.3.0" }
 light-array-map = { path = "program-libs/array-map", version = "0.1.0" }
 light-program-profiler = { version = "0.1.0" }
 create-address-program-test = { path = "program-tests/create-address-test-program", version = "1.0.0" }

@@ -1,6 +1,6 @@
 [package]
 name = "light-hasher"
-version = "4.0.0"
+version = "5.0.0"
 description = "Trait for generic usage of hash functions on Solana"
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -48,4 +48,3 @@ rand = { workspace = true }
 num-bigint = { workspace = true, features = ["rand"] }
 light-poseidon = { workspace = true }
 solana-pubkey = { workspace = true }
-light-hasher = { workspace = true, features = ["poseidon", "std", "keccak"] }

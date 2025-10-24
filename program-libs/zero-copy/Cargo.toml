@@ -1,6 +1,6 @@
 [package]
 name = "light-zero-copy"
-version = "0.4.0"
+version = "0.5.0"
 description = "Zero copy vector and utils for Solana programs."
 repository = "https://github.com/Lightprotocol/light-protocol"
 license = "Apache-2.0"
@@ -27,4 +27,3 @@ zerocopy = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
 trybuild = "1.0"
 light-zero-copy-derive = { workspace = true }
-light-zero-copy = { workspace = true, features = ["std", "derive", "mut"] }
