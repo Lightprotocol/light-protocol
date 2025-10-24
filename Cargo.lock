@@ -3726,7 +3726,7 @@ dependencies = [
 
 [[package]]
 name = "light-indexed-merkle-tree"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "light-bounded-vec",
  "light-concurrent-merkle-tree",
@@ -4752,7 +4752,7 @@ dependencies = [
 
 [[package]]
 name = "photon-api"
-version = "0.16.0"
+version = "0.52.0"
 dependencies = [
  "reqwest 0.12.24",
  "serde",
