@@ -107,7 +107,7 @@
 //!         let new_address_params = address_tree_info
 //!             .into_new_address_params_packed(address_seed);
 //!
-//!         let mut my_compressed_account = LightAccount::<'_, CounterAccount>::new_init(
+//!         let mut my_compressed_account = LightAccount::<CounterAccount>::new_init(
 //!             &crate::ID,
 //!             Some(address),
 //!             output_tree_index,
@@ -173,3 +173,40 @@ use solana_cpi::invoke_signed;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
+
+pub trait PubkeyTrait {
+    fn to_solana_pubkey(&self) -> Pubkey;
+    fn to_array(&self) -> [u8; 32];
+}
+
+impl PubkeyTrait for [u8; 32] {
+    fn to_solana_pubkey(&self) -> Pubkey {
+        Pubkey::from(*self)
+    }
+
+    fn to_array(&self) -> [u8; 32] {
+        *self
+    }
+}
+
+#[cfg(not(feature = "anchor"))]
+impl PubkeyTrait for Pubkey {
+    fn to_solana_pubkey(&self) -> Pubkey {
+        *self
+    }
+
+    fn to_array(&self) -> [u8; 32] {
+        self.to_bytes()
+    }
+}
+
+#[cfg(feature = "anchor")]
+impl PubkeyTrait for anchor_lang::prelude::Pubkey {
+    fn to_solana_pubkey(&self) -> Pubkey {
+        Pubkey::from(self.to_bytes())
+    }
+
+    fn to_array(&self) -> [u8; 32] {
+        self.to_bytes()
+    }
+}

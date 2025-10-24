@@ -24,9 +24,8 @@ pub fn update_pda<const BATCHED: bool>(
     let instruction_data = UpdatePdaInstructionData::deserialize(&mut instruction_data)
         .map_err(|_| ProgramError::BorshIoError)?;
 
-    let program_id = LIGHT_CPI_SIGNER.program_id.into();
-    let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_mut(
-        &program_id,
+    let mut my_compressed_account = LightAccount::<MyCompressedAccount>::new_mut(
+        &LIGHT_CPI_SIGNER.program_id,
         &instruction_data.my_compressed_account.meta,
         MyCompressedAccount {
             data: instruction_data.my_compressed_account.data,

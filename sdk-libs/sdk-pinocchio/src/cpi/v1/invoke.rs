@@ -70,7 +70,7 @@ impl LightCpiInstruction for LightSystemProgramCpi {
     #[cfg(feature = "light-account")]
     fn with_light_account<A>(
         mut self,
-        account: crate::LightAccount<'_, A>,
+        account: crate::LightAccount<A>,
     ) -> Result<Self, pinocchio::program_error::ProgramError>
     where
         A: crate::BorshSerialize

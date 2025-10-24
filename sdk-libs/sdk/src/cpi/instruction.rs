@@ -26,7 +26,7 @@ pub trait LightCpiInstruction: Sized {
     /// # Type Parameters
     /// * `A` - The compressed account data type
     #[must_use = "with_light_account returns a new value"]
-    fn with_light_account<A>(self, account: LightAccount<'_, A>) -> Result<Self, ProgramError>
+    fn with_light_account<A>(self, account: LightAccount<A>) -> Result<Self, ProgramError>
     where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + Default;
 
@@ -44,7 +44,7 @@ pub trait LightCpiInstruction: Sized {
     #[must_use = "with_light_account_poseidon returns a new value"]
     fn with_light_account_poseidon<A>(
         self,
-        account: crate::account::poseidon::LightAccount<'_, A>,
+        account: crate::account::poseidon::LightAccount<A>,
     ) -> Result<Self, ProgramError>
     where
         A: AnchorSerialize + AnchorDeserialize + LightDiscriminator + DataHasher + Default;

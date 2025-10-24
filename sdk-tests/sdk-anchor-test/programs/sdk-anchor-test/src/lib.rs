@@ -54,7 +54,7 @@ pub mod sdk_anchor_test {
         let new_address_params =
             address_tree_info.into_new_address_params_assigned_packed(address_seed, Some(0));
 
-        let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
+        let mut my_compressed_account = LightAccount::<MyCompressedAccount>::new_init(
             &crate::ID,
             Some(address),
             output_tree_index,
@@ -79,7 +79,7 @@ pub mod sdk_anchor_test {
         account_meta: CompressedAccountMeta,
         nested_data: NestedData,
     ) -> Result<()> {
-        let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_mut(
+        let mut my_compressed_account = LightAccount::<MyCompressedAccount>::new_mut(
             &crate::ID,
             &account_meta,
             my_compressed_account,
@@ -106,7 +106,7 @@ pub mod sdk_anchor_test {
         my_compressed_account: MyCompressedAccount,
         account_meta: CompressedAccountMeta,
     ) -> Result<()> {
-        let my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_close(
+        let my_compressed_account = LightAccount::<MyCompressedAccount>::new_close(
             &crate::ID,
             &account_meta,
             my_compressed_account,
@@ -132,7 +132,7 @@ pub mod sdk_anchor_test {
         account_meta: CompressedAccountMeta,
     ) -> Result<()> {
         let my_compressed_account =
-            LightAccount::<'_, MyCompressedAccount>::new_empty(&crate::ID, &account_meta)?;
+            LightAccount::<MyCompressedAccount>::new_empty(&crate::ID, &account_meta)?;
 
         let light_cpi_accounts = CpiAccounts::new(
             ctx.accounts.signer.as_ref(),
@@ -153,7 +153,7 @@ pub mod sdk_anchor_test {
         proof: ValidityProof,
         account_meta: CompressedAccountMetaBurn,
     ) -> Result<()> {
-        let my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_burn(
+        let my_compressed_account = LightAccount::<MyCompressedAccount>::new_burn(
             &crate::ID,
             &account_meta,
             MyCompressedAccount::default(),
@@ -205,7 +205,6 @@ pub mod sdk_anchor_test {
             address_tree_info.into_new_address_params_assigned_packed(address_seed, Some(0));
 
         let mut my_compressed_account = light_sdk::account::poseidon::LightAccount::<
-            '_,
             MyCompressedAccount,
         >::new_init(
             &crate::ID, Some(address), output_tree_index
@@ -252,7 +251,7 @@ pub mod sdk_anchor_test {
         let new_address_params =
             address_tree_info.into_new_address_params_assigned_packed(address_seed, Some(0));
 
-        let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
+        let mut my_compressed_account = LightAccount::<MyCompressedAccount>::new_init(
             &crate::ID,
             Some(address),
             output_tree_index,
@@ -277,7 +276,7 @@ pub mod sdk_anchor_test {
         account_meta: CompressedAccountMeta,
         nested_data: NestedData,
     ) -> Result<()> {
-        let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_mut(
+        let mut my_compressed_account = LightAccount::<MyCompressedAccount>::new_mut(
             &crate::ID,
             &account_meta,
             my_compressed_account,
@@ -303,7 +302,7 @@ pub mod sdk_anchor_test {
         my_compressed_account: MyCompressedAccount,
         account_meta: CompressedAccountMeta,
     ) -> Result<()> {
-        let my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_close(
+        let my_compressed_account = LightAccount::<MyCompressedAccount>::new_close(
             &crate::ID,
             &account_meta,
             my_compressed_account,

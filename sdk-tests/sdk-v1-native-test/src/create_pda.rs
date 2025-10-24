@@ -42,7 +42,7 @@ pub fn create_pda<const BATCHED: bool>(
     );
     let new_address_params = address_tree_info.into_new_address_params_packed(address_seed);
     msg!("pre account");
-    let mut my_compressed_account = LightAccount::<'_, MyCompressedAccount>::new_init(
+    let mut my_compressed_account = LightAccount::<MyCompressedAccount>::new_init(
         &crate::ID,
         Some(address),
         instruction_data.output_merkle_tree_index,
