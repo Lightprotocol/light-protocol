@@ -44,7 +44,7 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                     .get_legacy_merkle_context(
                         new_address_params.address_merkle_tree_account_index(),
                     )
-                    .unwrap()
+                    .ok_or(SystemProgramError::MissingLegacyMerkleContext)?
                     .network_fee;
                 if network_fee != 0 {
                     network_fee += 5000;
@@ -56,7 +56,7 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                         .map_err(ProgramError::from)?,
                     context
                         .get_legacy_merkle_context(new_address_params.address_queue_index())
-                        .unwrap()
+                        .ok_or(SystemProgramError::MissingLegacyMerkleContext)?
                         .rollover_fee,
                 )
             }

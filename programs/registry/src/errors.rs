@@ -31,4 +31,5 @@ pub enum RegistryError {
     #[msg("Insufficient funds in pool")]
     InsufficientFunds,
     ProgramOwnerDefined,
+    ProgramOwnerUndefined,
 }

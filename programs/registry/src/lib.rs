@@ -292,21 +292,21 @@ pub mod light_registry {
         queue_config: AddressQueueConfig,
     ) -> Result<()> {
         // Address V1 trees are deprecated.
-        // Creation of forested address V1 trees is disabled.
-        // New address V1 trees must be program owned.
-        // New address V1 trees must not have fees.
+        // Light foresters (fee-based) are disabled for address V1 trees.
+        // New address V1 trees must be program owned with a designated forester.
+        // New address V1 trees must not have network fees.
         if program_owner.is_none() {
             msg!("Program owner must be defined.");
-            return err!(RegistryError::ForesterUndefined);
+            return err!(RegistryError::ProgramOwnerUndefined);
         }
         if merkle_tree_config.network_fee.is_some() {
             msg!("Network fee must be None.");
             return err!(RegistryError::InvalidNetworkFee);
         }
-        // Only trees with a network fee will be serviced by light foresters.
+        // A designated program-owned forester is required for address V1 trees.
+        // Light foresters (fee-based) will not service address V1 trees.
         if forester.is_none() {
-            msg!("Forester pubkey required for trees without a network fee.");
-            msg!("Trees without a network fee will not be serviced by light foresters.");
+            msg!("Forester pubkey required for program-owned trees.");
             return err!(RegistryError::ForesterUndefined);
         }
         // Unused parameter

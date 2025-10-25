@@ -100,7 +100,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                         };
                     let merkle_context = context
                         .get_legacy_merkle_context(current_index as u8)
-                        .unwrap();
+                        .ok_or(SystemProgramError::MissingLegacyMerkleContext)?;
                     hashed_merkle_tree = merkle_context.hashed_pubkey;
                     rollover_fee = merkle_context.rollover_fee;
                     mt_next_index = tree.next_index() as u32;

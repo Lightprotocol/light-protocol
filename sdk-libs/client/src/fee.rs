@@ -12,7 +12,6 @@ pub struct FeeConfig {
     // pub address_tree_configs: Vec<AddressMerkleTreeConfig>,
     pub network_fee: u64,
     pub address_network_fee: u64,
-    pub batch_address_network_fee: u64,
     pub solana_network_fee: i64,
 }
 
@@ -27,7 +26,6 @@ impl Default for FeeConfig {
             // address_tree_configs: vec![AddressMerkleTreeConfig::default()],
             network_fee: 5000,
             address_network_fee: 10000,
-            batch_address_network_fee: 10_000,
             solana_network_fee: 5000,
         }
     }
@@ -41,7 +39,6 @@ impl FeeConfig {
             address_queue_rollover: 392, // not batched
             network_fee: 5000,
             address_network_fee: 10000,
-            batch_address_network_fee: 10_000,
             solana_network_fee: 5000,
         }
     }

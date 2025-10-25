@@ -76,8 +76,9 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                 }
                 AcpAccount::StateTree(_) => {
                     is_batched = false;
-                    let legacy_context =
-                        context.get_legacy_merkle_context(current_mt_index).unwrap();
+                    let legacy_context = context
+                        .get_legacy_merkle_context(current_mt_index)
+                        .ok_or(SystemProgramError::MissingLegacyMerkleContext)?;
                     let network_fee = legacy_context.network_fee;
                     let hashed_pubkey = legacy_context.hashed_pubkey;
                     context.set_network_fee_v1(network_fee, current_mt_index)?;
