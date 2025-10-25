@@ -10,6 +10,7 @@ mod export_photon_test_data;
 mod fee;
 mod hash_set;
 mod new_deployment;
+mod print_state_tree;
 mod type_sizes;
 mod utils;
 mod zero_bytes;
@@ -57,6 +58,10 @@ enum Command {
     InitNewDeployment(new_deployment::Options),
     /// cargo xtask create-update-protocol-config --slot-length <u64>
     CreateUpdateProtocolConfigIx(create_update_protocol_config_ix::Options),
+    /// Print batched state tree metadata
+    /// Example:
+    /// cargo xtask print-state-tree --pubkey <PUBKEY> --network mainnet
+    PrintStateTree(print_state_tree::Options),
 }
 
 #[tokio::main]
@@ -89,5 +94,6 @@ async fn main() -> Result<(), anyhow::Error> {
         Command::CreateUpdateProtocolConfigIx(opts) => {
             create_update_protocol_config_ix::create_update_protocol_config_ix(opts).await
         }
+        Command::PrintStateTree(opts) => print_state_tree::print_state_tree(opts).await,
     }
 }
