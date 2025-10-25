@@ -39,7 +39,18 @@ pub fn process_initialize_batched_state_merkle_tree<'info>(
     validate_batched_tree_params(params);
     #[cfg(not(feature = "test"))]
     {
+        // TODO: test that only security group 24rt4RgeyjUCWGS2eF7L7gyNMuz6JWdqYpAvb1KRoHxs can create batched state trees
+        use crate::errors::AccountCompressionErrorCode;
         if params != InitStateTreeAccountsInstructionData::default() {
+            return err!(AccountCompressionErrorCode::UnsupportedParameters);
+        }
+        if let Some(registered_program_pda) = ctx.accounts.registered_program_pda.as_ref() {
+            if registered_program_pda.group_authority_pda
+                != pubkey!("24rt4RgeyjUCWGS2eF7L7gyNMuz6JWdqYpAvb1KRoHxs")
+            {
+                return err!(AccountCompressionErrorCode::UnsupportedParameters);
+            }
+        } else {
             return err!(AccountCompressionErrorCode::UnsupportedParameters);
         }
     }

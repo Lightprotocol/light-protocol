@@ -46,6 +46,17 @@ pub fn process_initialize_batched_address_merkle_tree<'info>(
         if params != InitAddressTreeAccountsInstructionData::default() {
             return err!(AccountCompressionErrorCode::UnsupportedParameters);
         }
+        // TODO: test that only security group 24rt4RgeyjUCWGS2eF7L7gyNMuz6JWdqYpAvb1KRoHxs can create batched state trees
+        use crate::errors::AccountCompressionErrorCode;
+        if let Some(registered_program_pda) = ctx.accounts.registered_program_pda.as_ref() {
+            if registered_program_pda.group_authority_pda
+                != pubkey!("24rt4RgeyjUCWGS2eF7L7gyNMuz6JWdqYpAvb1KRoHxs")
+            {
+                return err!(AccountCompressionErrorCode::UnsupportedParameters);
+            }
+        } else {
+            return err!(AccountCompressionErrorCode::UnsupportedParameters);
+        }
     }
 
     // Check signer.
