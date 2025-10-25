@@ -44,7 +44,7 @@ impl Default for InitAddressTreeAccountsInstructionData {
             height: 40,
             root_history_capacity: DEFAULT_BATCH_ROOT_HISTORY_LEN,
             bloom_filter_capacity: DEFAULT_BATCH_SIZE * 8,
-            network_fee: Some(5000),
+            network_fee: Some(10000),
             rollover_threshold: Some(95),
             close_threshold: None,
         }
