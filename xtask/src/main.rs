@@ -11,6 +11,7 @@ mod fee;
 mod hash_set;
 mod new_deployment;
 mod print_state_tree;
+mod reinit_cpi_accounts;
 mod type_sizes;
 mod utils;
 mod zero_bytes;
@@ -62,6 +63,9 @@ enum Command {
     /// Example:
     /// cargo xtask print-state-tree --pubkey <PUBKEY> --network mainnet
     PrintStateTree(print_state_tree::Options),
+    /// Reinitialize legacy CPI context accounts to new format
+    /// Example: cargo xtask reinit-cpi-accounts --network devnet
+    ReinitCpiAccounts(reinit_cpi_accounts::Options),
 }
 
 #[tokio::main]
@@ -95,5 +99,6 @@ async fn main() -> Result<(), anyhow::Error> {
             create_update_protocol_config_ix::create_update_protocol_config_ix(opts).await
         }
         Command::PrintStateTree(opts) => print_state_tree::print_state_tree(opts).await,
+        Command::ReinitCpiAccounts(opts) => reinit_cpi_accounts::reinit_cpi_accounts(opts).await,
     }
 }
