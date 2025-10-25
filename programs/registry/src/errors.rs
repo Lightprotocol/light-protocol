@@ -30,4 +30,5 @@ pub enum RegistryError {
     ForesterDefined,
     #[msg("Insufficient funds in pool")]
     InsufficientFunds,
+    ProgramOwnerDefined,
 }

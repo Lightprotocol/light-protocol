@@ -291,6 +291,11 @@ pub mod light_registry {
         merkle_tree_config: AddressMerkleTreeConfig,
         queue_config: AddressQueueConfig,
     ) -> Result<()> {
+        // Program owned trees are disabled
+        if program_owner.is_some() {
+            msg!("Program owner must not be defined.");
+            return err!(RegistryError::ProgramOwnerDefined);
+        }
         // The network fee must be either zero or the same as the protocol config.
         // Only trees with a network fee will be serviced by light foresters.
         if let Some(network_fee) = merkle_tree_config.network_fee {
@@ -329,6 +334,11 @@ pub mod light_registry {
         merkle_tree_config: StateMerkleTreeConfig,
         queue_config: NullifierQueueConfig,
     ) -> Result<()> {
+        // Program owned trees are disabled
+        if program_owner.is_some() {
+            msg!("Program owner must not be defined.");
+            return err!(RegistryError::ProgramOwnerDefined);
+        }
         // The network fee must be either zero or the same as the protocol config.
         // Only trees with a network fee will be serviced by light foresters.
         if let Some(network_fee) = merkle_tree_config.network_fee {
@@ -492,6 +502,11 @@ pub mod light_registry {
         params: Vec<u8>,
     ) -> Result<()> {
         let params = InitStateTreeAccountsInstructionData::try_from_slice(&params)?;
+        // Program owned trees are disabled
+        if params.program_owner.is_some() {
+            msg!("Program owner must not be defined.");
+            return err!(RegistryError::ProgramOwnerDefined);
+        }
         if let Some(network_fee) = params.network_fee {
             if network_fee != ctx.accounts.protocol_config_pda.config.network_fee {
                 return err!(RegistryError::InvalidNetworkFee);
@@ -570,6 +585,11 @@ pub mod light_registry {
         params: Vec<u8>,
     ) -> Result<()> {
         let params = InitAddressTreeAccountsInstructionData::try_from_slice(&params)?;
+        // Program owned trees are disabled
+        if params.program_owner.is_some() {
+            msg!("Program owner must not be defined.");
+            return err!(RegistryError::ProgramOwnerDefined);
+        }
         if let Some(network_fee) = params.network_fee {
             if network_fee != ctx.accounts.protocol_config_pda.config.network_fee {
                 return err!(RegistryError::InvalidNetworkFee);
