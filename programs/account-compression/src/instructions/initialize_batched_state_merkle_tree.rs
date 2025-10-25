@@ -1,7 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::program_error::ProgramError};
 use light_batched_merkle_tree::initialize_state_tree::{
-    init_batched_state_merkle_tree_from_account_info, validate_batched_tree_params,
-    InitStateTreeAccountsInstructionData,
+    init_batched_state_merkle_tree_from_account_info, InitStateTreeAccountsInstructionData,
 };
 
 use super::RegisteredProgram;
@@ -36,10 +35,9 @@ pub fn process_initialize_batched_state_merkle_tree<'info>(
     params: InitStateTreeAccountsInstructionData,
 ) -> Result<()> {
     #[cfg(feature = "test")]
-    validate_batched_tree_params(params);
+    light_batched_merkle_tree::initialize_state_tree::validate_batched_tree_params(params);
     #[cfg(not(feature = "test"))]
     {
-        // TODO: test that only security group 24rt4RgeyjUCWGS2eF7L7gyNMuz6JWdqYpAvb1KRoHxs can create batched state trees
         use crate::errors::AccountCompressionErrorCode;
         if params != InitStateTreeAccountsInstructionData::default() {
             return err!(AccountCompressionErrorCode::UnsupportedParameters);

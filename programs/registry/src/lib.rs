@@ -291,22 +291,20 @@ pub mod light_registry {
         merkle_tree_config: AddressMerkleTreeConfig,
         queue_config: AddressQueueConfig,
     ) -> Result<()> {
-        // Program owned trees are disabled
-        if program_owner.is_some() {
-            msg!("Program owner must not be defined.");
-            return err!(RegistryError::ProgramOwnerDefined);
+        // Address V1 trees are deprecated.
+        // Disable creation of forested address V1 trees.
+        // All address V1 trees must be program owned.
+        // All address V1 trees must not have fees.
+        if program_owner.is_none() {
+            msg!("Program owner must be defined.");
+            return err!(RegistryError::ForesterUndefined);
         }
-        // The network fee must be either zero or the same as the protocol config.
+        if merkle_tree_config.network_fee.is_some() {
+            msg!("Network fee must be None.");
+            return err!(RegistryError::InvalidNetworkFee);
+        }
         // Only trees with a network fee will be serviced by light foresters.
-        if let Some(network_fee) = merkle_tree_config.network_fee {
-            if network_fee != ctx.accounts.protocol_config_pda.config.network_fee {
-                return err!(RegistryError::InvalidNetworkFee);
-            }
-            if forester.is_some() {
-                msg!("Forester pubkey must not be defined for trees serviced by light foresters.");
-                return err!(RegistryError::ForesterDefined);
-            }
-        } else if forester.is_none() {
+        if forester.is_none() {
             msg!("Forester pubkey required for trees without a network fee.");
             msg!("Trees without a network fee will not be serviced by light foresters.");
             return err!(RegistryError::ForesterUndefined);
@@ -591,7 +589,12 @@ pub mod light_registry {
             return err!(RegistryError::ProgramOwnerDefined);
         }
         if let Some(network_fee) = params.network_fee {
-            if network_fee != ctx.accounts.protocol_config_pda.config.network_fee {
+            if network_fee != ctx.accounts.protocol_config_pda.config.address_network_fee {
+                msg!(
+                    "ctx.accounts.protocol_config_pda.config.address_network_fee {:?}",
+                    ctx.accounts.protocol_config_pda.config.address_network_fee
+                );
+                msg!("network_fee {:?}", network_fee);
                 return err!(RegistryError::InvalidNetworkFee);
             }
             if params.forester.is_some() {

@@ -2938,7 +2938,7 @@ async fn test_duplicate_account_in_inputs_and_read_only() {
 }
 
 pub mod local_sdk {
-    use std::collections::HashMap;
+    use std::{collections::HashMap, println};
 
     use anchor_lang::{prelude::AccountMeta, AnchorSerialize};
     use solana_sdk::pubkey::Pubkey;

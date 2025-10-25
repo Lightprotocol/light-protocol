@@ -59,7 +59,7 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                 .ok_or(SystemProgramError::InputMerkleTreeIndexOutOfBounds)?
             {
                 AcpAccount::BatchedStateTree(tree) => {
-                    context.set_network_fee(
+                    context.set_network_fee_v2(
                         tree.metadata.rollover_metadata.network_fee,
                         current_mt_index,
                     );
@@ -76,10 +76,12 @@ pub fn create_inputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                 }
                 AcpAccount::StateTree(_) => {
                     is_batched = false;
-                    context
-                        .get_legacy_merkle_context(current_mt_index)
-                        .unwrap()
-                        .hashed_pubkey
+                    let legacy_context =
+                        context.get_legacy_merkle_context(current_mt_index).unwrap();
+                    let network_fee = legacy_context.network_fee;
+                    let hashed_pubkey = legacy_context.hashed_pubkey;
+                    context.set_network_fee_v1(network_fee, current_mt_index)?;
+                    hashed_pubkey
                 }
                 _ => {
                     msg!(format!("create_inputs_cpi_data {} ", current_mt_index).as_str());

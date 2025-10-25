@@ -1314,7 +1314,7 @@ where
                     canopy_depth: 10,
                     address_changelog_size: self.rng.gen_range(1..5000),
                     rollover_threshold,
-                    network_fee: Some(5000),
+                    network_fee: Some(10000),
                     close_threshold: None,
                     // TODO: double check that close threshold cannot be set
                 },
@@ -1543,9 +1543,15 @@ where
         };
         let recipients = vec![*to];
         let transaction_params = if self.keypair_action_config.fee_assert {
+            let (inputs, is_v2) = if bundle.tree_type == TreeType::StateV2 {
+                (0u8, true)
+            } else {
+                (input_compressed_accounts.len() as u8, false)
+            };
             Some(TransactionParams {
                 num_new_addresses: 0,
-                num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                v1_input_compressed_accounts: inputs,
+                v2_input_compressed_accounts: is_v2,
                 num_output_compressed_accounts: 1u8,
                 compress: 0,
                 fee_config: FeeConfig {
@@ -1596,7 +1602,8 @@ where
             let transaction_parameters = if self.keypair_action_config.fee_assert {
                 Some(TransactionParams {
                     num_new_addresses: 0,
-                    num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                    v1_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                    v2_input_compressed_accounts: false,
                     num_output_compressed_accounts: num_output_merkle_trees as u8,
                     compress: 0,
                     fee_config: FeeConfig::default(),
@@ -1637,7 +1644,8 @@ where
             let transaction_paramets = if self.keypair_action_config.fee_assert {
                 Some(TransactionParams {
                     num_new_addresses: 0,
-                    num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                    v1_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                    v2_input_compressed_accounts: false,
                     num_output_compressed_accounts: 1u8,
                     compress: 0,
                     fee_config: FeeConfig::default(),
@@ -1694,9 +1702,15 @@ where
         };
 
         let transaction_parameters = if self.keypair_action_config.fee_assert {
+            let (inputs, is_v2) = if bundle.tree_type == TreeType::StateV2 {
+                (0u8, true)
+            } else {
+                (input_compressed_accounts.len() as u8, false)
+            };
             Some(TransactionParams {
                 num_new_addresses: 0,
-                num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                v1_input_compressed_accounts: inputs,
+                v2_input_compressed_accounts: is_v2,
                 num_output_compressed_accounts: 1u8,
                 compress: amount as i64,
                 fee_config: FeeConfig {
@@ -1739,7 +1753,8 @@ where
         let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0,
-                num_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                v1_input_compressed_accounts: input_compressed_accounts.len() as u8,
+                v2_input_compressed_accounts: false,
                 num_output_compressed_accounts: 1u8,
                 compress: amount as i64,
                 fee_config: FeeConfig::default(),
@@ -1827,7 +1842,8 @@ where
         let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: num_addresses as u8,
-                num_input_compressed_accounts: 0u8,
+                v1_input_compressed_accounts: 0u8,
+                v2_input_compressed_accounts: false,
                 num_output_compressed_accounts: num_addresses as u8,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -1906,7 +1922,8 @@ where
         let transaction_paramets = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
-                num_input_compressed_accounts: token_accounts.len() as u8,
+                v1_input_compressed_accounts: token_accounts.len() as u8,
+                v2_input_compressed_accounts: false,
                 num_output_compressed_accounts: output_merkle_tree_pubkeys.len() as u8,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -1965,7 +1982,8 @@ where
         let transaction_paramets = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
-                num_input_compressed_accounts: token_accounts.len() as u8,
+                v1_input_compressed_accounts: token_accounts.len() as u8,
+                v2_input_compressed_accounts: false,
                 num_output_compressed_accounts,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -2018,7 +2036,8 @@ where
         let transaction_paramets = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
-                num_input_compressed_accounts: token_accounts.len() as u8,
+                v1_input_compressed_accounts: token_accounts.len() as u8,
+                v2_input_compressed_accounts: false,
                 num_output_compressed_accounts,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -2067,7 +2086,8 @@ where
         let transaction_paramets = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
-                num_input_compressed_accounts: token_accounts.len() as u8,
+                v1_input_compressed_accounts: token_accounts.len() as u8,
+                v2_input_compressed_accounts: false,
                 num_output_compressed_accounts,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -2117,7 +2137,8 @@ where
         let transaction_parameters = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
-                num_input_compressed_accounts: token_accounts.len() as u8,
+                v1_input_compressed_accounts: token_accounts.len() as u8,
+                v2_input_compressed_accounts: false,
                 num_output_compressed_accounts: token_accounts.len() as u8,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -2155,7 +2176,8 @@ where
         let transaction_paramets = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
-                num_input_compressed_accounts: token_accounts.len() as u8,
+                v1_input_compressed_accounts: token_accounts.len() as u8,
+                v2_input_compressed_accounts: false,
                 num_output_compressed_accounts: token_accounts.len() as u8,
                 compress: 0,
                 fee_config: FeeConfig::default(),
@@ -2214,7 +2236,8 @@ where
             let transaction_paramets = if self.keypair_action_config.fee_assert {
                 Some(TransactionParams {
                     num_new_addresses: 0u8,
-                    num_input_compressed_accounts: 0u8,
+                    v1_input_compressed_accounts: 0u8,
+                    v2_input_compressed_accounts: false,
                     num_output_compressed_accounts: 1u8,
                     compress: 0, // sol amount this is a spl compress test
                     fee_config: FeeConfig::default(),
@@ -2292,7 +2315,8 @@ where
         let transaction_paramets = if self.keypair_action_config.fee_assert {
             Some(TransactionParams {
                 num_new_addresses: 0u8,
-                num_input_compressed_accounts: token_accounts.len() as u8,
+                v1_input_compressed_accounts: token_accounts.len() as u8,
+                v2_input_compressed_accounts: false,
                 num_output_compressed_accounts: 1u8,
                 compress: 0,
                 fee_config: FeeConfig::default(),

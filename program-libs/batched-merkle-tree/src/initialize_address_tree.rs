@@ -202,7 +202,7 @@ pub mod test_utils {
                 height: 40,
                 root_history_capacity: DEFAULT_BATCH_ROOT_HISTORY_LEN,
                 bloom_filter_capacity: 20_000 * 8,
-                network_fee: Some(5000),
+                network_fee: Some(10000),
                 rollover_threshold: Some(95),
                 close_threshold: None,
             }
@@ -219,7 +219,7 @@ pub mod test_utils {
                 height: 40,
                 root_history_capacity: DEFAULT_BATCH_ROOT_HISTORY_LEN,
                 bloom_filter_capacity: 20_000 * 8,
-                network_fee: Some(5000),
+                network_fee: Some(10000),
                 rollover_threshold: Some(95),
                 close_threshold: None,
             }
@@ -235,7 +235,7 @@ pub mod test_utils {
                 height: 40,
                 root_history_capacity: DEFAULT_BATCH_ROOT_HISTORY_LEN,
                 bloom_filter_capacity: ADDRESS_BLOOM_FILTER_CAPACITY,
-                network_fee: Some(5000),
+                network_fee: Some(10000),
                 rollover_threshold: Some(95),
                 close_threshold: None,
             }

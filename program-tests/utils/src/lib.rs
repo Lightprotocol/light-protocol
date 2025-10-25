@@ -101,6 +101,10 @@ pub async fn create_address_merkle_tree_and_queue_account_with_assert<R: Rpc>(
     )
     .await;
 
+    #[allow(clippy::question_mark)]
+    if result.is_err() {
+        return result;
+    }
     // To initialize the indexed tree we do 4 operations:
     // 1. insert 0 append 0 and update 0
     // 2. insert 1 append BN254_FIELD_SIZE -1 and update 0

@@ -72,7 +72,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                 .ok_or(SystemProgramError::OutputMerkleTreeIndexOutOfBounds)?
             {
                 AcpAccount::OutputQueue(output_queue) => {
-                    context.set_network_fee(
+                    context.set_network_fee_v2(
                         output_queue.metadata.rollover_metadata.network_fee,
                         current_index as u8,
                     );

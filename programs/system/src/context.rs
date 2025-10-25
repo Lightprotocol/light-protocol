@@ -9,7 +9,10 @@ use light_compressed_account::{
     },
 };
 use light_program_profiler::profile;
-use pinocchio::{account_info::AccountInfo, instruction::AccountMeta, pubkey::Pubkey};
+use pinocchio::{
+    account_info::AccountInfo, instruction::AccountMeta, program_error::ProgramError,
+    pubkey::Pubkey,
+};
 use solana_msg::msg;
 
 use crate::{
@@ -28,7 +31,6 @@ pub struct SystemContext<'info> {
     pub addresses: Vec<Option<[u8; 32]>>,
     // Index of account and fee to be paid.
     pub rollover_fee_payments: Vec<(u8, u64)>,
-    pub address_fee_is_set: bool,
     pub network_fee_is_set: bool,
     pub legacy_merkle_context: Vec<(u8, MerkleTreeContext)>,
     pub invoking_program_id: Option<Pubkey>,
@@ -38,6 +40,7 @@ pub struct SystemContext<'info> {
 pub struct MerkleTreeContext {
     pub rollover_fee: u64,
     pub hashed_pubkey: [u8; 32],
+    pub network_fee: u64,
 }
 
 impl SystemContext<'_> {
@@ -53,19 +56,40 @@ impl SystemContext<'_> {
     }
 
     #[profile]
-    pub fn set_address_fee(&mut self, fee: u64, index: u8) {
-        if !self.address_fee_is_set {
-            self.address_fee_is_set = true;
+    pub fn set_address_fee(&mut self, fee: u64, index: u8) -> Result<()> {
+        let payment = self.rollover_fee_payments.iter_mut().find(|a| a.0 == index);
+        match payment {
+            Some(payment) => {
+                payment.1 = payment
+                    .1
+                    .checked_add(fee)
+                    .ok_or(ProgramError::ArithmeticOverflow)?;
+            }
+            None => self.rollover_fee_payments.push((index, fee)),
+        };
+        Ok(())
+    }
+    #[profile]
+    pub fn set_network_fee_v2(&mut self, fee: u64, index: u8) {
+        if !self.network_fee_is_set {
+            self.network_fee_is_set = true;
             self.rollover_fee_payments.push((index, fee));
         }
     }
 
     #[profile]
-    pub fn set_network_fee(&mut self, fee: u64, index: u8) {
-        if !self.network_fee_is_set {
-            self.network_fee_is_set = true;
-            self.rollover_fee_payments.push((index, fee));
-        }
+    pub fn set_network_fee_v1(&mut self, fee: u64, index: u8) -> Result<()> {
+        let payment = self.rollover_fee_payments.iter_mut().find(|a| a.0 == index);
+        match payment {
+            Some(payment) => {
+                payment.1 = payment
+                    .1
+                    .checked_add(fee)
+                    .ok_or(ProgramError::ArithmeticOverflow)?;
+            }
+            None => self.rollover_fee_payments.push((index, fee)),
+        };
+        Ok(())
     }
 
     pub fn get_or_hash_pubkey(&mut self, pubkey: Pubkey) -> [u8; 32] {
@@ -139,14 +163,18 @@ impl<'info> SystemContext<'info> {
     }
 
     /// Network fee distribution:
-    /// - if any account is created or modified -> transfer network fee (5000 lamports)
-    ///   (Previously we didn't charge for appends now we have to since values go into a queue.)
-    /// - if an address is created -> transfer an additional network fee (5000 lamports)
+    /// - V1 state trees: charge per input (5000 lamports × num_inputs)
+    /// - V2 batched state trees: charge once per tree if inputs > 0 (5000 lamports)
+    /// - Address creation: charge per address (10000 lamports × num_addresses)
     ///
-    /// Examples:
-    /// 1. create account with address    network fee 10,000 lamports
-    /// 2. token transfer                 network fee 5,000 lamports
-    /// 3. mint token                     network fee 5,000 lamports
+    /// Examples (V1 state trees):
+    /// 1. create account with 1 address, 0 inputs:     network fee 10,000 lamports
+    /// 2. token transfer (1 input, 1 output):          network fee 5,000 lamports
+    /// 3. transfer with 2 V1 inputs, 1 address:        network fee 20,000 lamports (2×5k + 1×10k)
+    ///
+    /// Examples (V2 batched state trees):
+    /// 1. token transfer (1 input, 1 output):          network fee 5,000 lamports (once per tree)
+    /// 2. transfer with 2 V2 inputs, 1 address:        network fee 15,000 lamports (5k + 1×10k)
     ///    Transfers rollover and network fees.
     pub fn transfer_fees(&self, accounts: &[AccountInfo], fee_payer: &AccountInfo) -> Result<()> {
         for (i, fee) in self.rollover_fee_payments.iter() {
