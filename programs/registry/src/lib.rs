@@ -500,10 +500,8 @@ pub mod light_registry {
                 msg!("Forester pubkey must not be defined for trees serviced by light foresters.");
                 return err!(RegistryError::ForesterDefined);
             }
-        } else if params.forester.is_none() {
-            msg!("Forester pubkey required for trees without a network fee.");
-            msg!("Trees without a network fee will not be serviced by light foresters.");
-            return err!(RegistryError::ForesterUndefined);
+        } else {
+            return err!(RegistryError::InvalidNetworkFee);
         }
         check_cpi_context(
             ctx.accounts.cpi_context_account.to_account_info(),
@@ -580,10 +578,8 @@ pub mod light_registry {
                 msg!("Forester pubkey must not be defined for trees serviced by light foresters.");
                 return err!(RegistryError::ForesterDefined);
             }
-        } else if params.forester.is_none() {
-            msg!("Forester pubkey required for trees without a network fee.");
-            msg!("Trees without a network fee will not be serviced by light foresters.");
-            return err!(RegistryError::ForesterUndefined);
+        } else {
+            return err!(RegistryError::InvalidNetworkFee);
         }
         process_initialize_batched_address_merkle_tree(&ctx, bump, params.try_to_vec()?)
     }
