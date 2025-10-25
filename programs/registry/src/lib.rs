@@ -292,9 +292,9 @@ pub mod light_registry {
         queue_config: AddressQueueConfig,
     ) -> Result<()> {
         // Address V1 trees are deprecated.
-        // Disable creation of forested address V1 trees.
-        // All address V1 trees must be program owned.
-        // All address V1 trees must not have fees.
+        // Creation of forested address V1 trees is disabled.
+        // New address V1 trees must be program owned.
+        // New address V1 trees must not have fees.
         if program_owner.is_none() {
             msg!("Program owner must be defined.");
             return err!(RegistryError::ForesterUndefined);
