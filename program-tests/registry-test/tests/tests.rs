@@ -545,7 +545,7 @@ async fn test_initialize_protocol_config() {
             0,
         )
         .await;
-        assert_rpc_error(result, 3, RegistryError::ForesterUndefined.into()).unwrap();
+        assert_rpc_error(result, 3, RegistryError::ProgramOwnerUndefined.into()).unwrap();
     }
     // FAIL: initialize a Merkle tree with network fee != 0
     {
