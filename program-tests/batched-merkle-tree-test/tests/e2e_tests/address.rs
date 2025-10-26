@@ -1,49 +1,21 @@
 #![allow(unused_assignments)]
-use std::cmp::min;
 
 use crate::e2e_tests::shared::*;
 use light_batched_merkle_tree::{
     batch::BatchState,
-    constants::{
-        ACCOUNT_COMPRESSION_PROGRAM_ID, DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
-        DEFAULT_BATCH_STATE_TREE_HEIGHT, NUM_BATCHES,
-    },
+    constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, NUM_BATCHES},
     errors::BatchedMerkleTreeError,
     initialize_address_tree::{
         get_address_merkle_tree_account_size_from_params, init_batched_address_merkle_tree_account,
         InitAddressTreeAccountsInstructionData,
     },
-    initialize_state_tree::{
-        init_batched_state_merkle_tree_accounts,
-        test_utils::get_state_merkle_tree_account_size_from_params,
-        InitStateTreeAccountsInstructionData,
-    },
-    merkle_tree::{
-        assert_batch_adress_event, assert_batch_append_event_event, assert_nullify_event,
-        test_utils::get_merkle_tree_account_size_default, BatchedMerkleTreeAccount,
-        InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
-    },
-    merkle_tree_metadata::BatchedMerkleTreeMetadata,
-    queue::{
-        test_utils::{
-            get_output_queue_account_size_default, get_output_queue_account_size_from_params,
-        },
-        BatchedQueueAccount, BatchedQueueMetadata,
-    },
+    merkle_tree::BatchedMerkleTreeAccount,
 };
-use light_bloom_filter::{BloomFilter, BloomFilterError};
-use light_compressed_account::{
-    hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
-    pubkey::Pubkey,
-};
-use light_hasher::{Hasher, Poseidon};
-use light_merkle_tree_reference::MerkleTree;
+use light_bloom_filter::BloomFilterError;
+use light_compressed_account::pubkey::Pubkey;
 use light_prover_client::prover::spawn_prover;
-use light_test_utils::mock_batched_forester::{
-    MockBatchedAddressForester, MockBatchedForester, MockTxEvent,
-};
-use light_zero_copy::vec::ZeroCopyVecU64;
-use rand::{rngs::StdRng, Rng};
+use light_test_utils::mock_batched_forester::MockBatchedAddressForester;
+use rand::rngs::StdRng;
 use serial_test::serial;
 
 #[serial]
