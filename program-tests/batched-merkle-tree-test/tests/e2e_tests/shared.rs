@@ -15,9 +15,7 @@ use light_compressed_account::{
     instruction_data::compressed_proof::CompressedProof, pubkey::Pubkey,
 };
 use light_hasher::{Hasher, Poseidon};
-use light_test_utils::mock_batched_forester::{
-    MockBatchedAddressForester, MockBatchedForester,
-};
+use light_test_utils::mock_batched_forester::{MockBatchedAddressForester, MockBatchedForester};
 use light_zero_copy::vec::ZeroCopyVecU64;
 use rand::{rngs::StdRng, Rng};
 
@@ -251,7 +249,7 @@ pub fn assert_merkle_tree_update(
                 let mut oldest_root_index = old_account.root_history.first_index();
 
                 let num_remaining_roots = sequence_number - old_account.sequence_number;
-                for _ in 1..num_remaining_roots {
+                for _ in 0..num_remaining_roots {
                     println!("zeroing out root index: {}", oldest_root_index);
                     old_account.root_history[oldest_root_index] = [0u8; 32];
                     oldest_root_index += 1;
@@ -300,15 +298,28 @@ pub fn assert_address_merkle_tree_update(
         let previous_full_batch_index = if old_full_batch_index == 0 { 1 } else { 0 };
 
         let old_full_batch_index = old_account.queue_batches.pending_batch_index;
-
         let old_full_batch = old_account
             .queue_batches
             .batches
             .get_mut(old_full_batch_index as usize)
             .unwrap();
+        let current_seq = account.sequence_number;
+        let root_history_len = account.root_history_capacity as u64;
+        let state_seq = account.queue_batches.batches[previous_full_batch_index].sequence_number;
+        let no_insert_since_last_batch_root =
+            state_seq.saturating_sub(root_history_len) == current_seq;
+        println!(
+            "previous_batch_is_inserted{}",
+            old_full_batch.get_state() != BatchState::Inserted
+        );
+        println!(
+            "no_insert_since_last_batch_root {}",
+            no_insert_since_last_batch_root
+        );
         let zeroed_batch = old_full_batch.get_num_inserted_elements()
             >= old_full_batch.batch_size / 2
-            && old_full_batch.get_state() != BatchState::Inserted;
+            && old_full_batch.get_state() != BatchState::Inserted
+            && !no_insert_since_last_batch_root;
         println!("zeroed_batch: {:?}", zeroed_batch);
         let state = account.queue_batches.batches[previous_full_batch_index].get_state();
         let previous_batch = old_account
@@ -330,7 +341,7 @@ pub fn assert_address_merkle_tree_update(
                 let mut oldest_root_index = old_account.root_history.first_index();
 
                 let num_remaining_roots = sequence_number - old_account.sequence_number;
-                for _ in 1..num_remaining_roots {
+                for _ in 0..num_remaining_roots {
                     println!("zeroing out root index: {}", oldest_root_index);
                     old_account.root_history[oldest_root_index] = [0u8; 32];
                     oldest_root_index += 1;
@@ -344,8 +355,8 @@ pub fn assert_address_merkle_tree_update(
     old_account.next_index += old_account.queue_batches.zkp_batch_size;
     old_account.root_history.push(root);
     assert_eq!(account.get_metadata(), old_account.get_metadata());
-    assert_eq!(account, old_account);
     assert_eq!(*account.root_history.last().unwrap(), root);
+    assert_eq!(account, old_account);
 }
 
 pub fn get_rnd_bytes(rng: &mut StdRng) -> [u8; 32] {

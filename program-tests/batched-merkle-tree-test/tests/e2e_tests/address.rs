@@ -23,7 +23,7 @@ use serial_test::serial;
 async fn test_fill_address_tree_completely() {
     spawn_prover().await;
     let mut current_slot = 1;
-    let roothistory_capacity = vec![17, 80]; //
+    let roothistory_capacity = vec![17, 80];
     for root_history_capacity in roothistory_capacity {
         let mut mock_indexer =
             MockBatchedAddressForester::<{ DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::default();
@@ -177,14 +177,16 @@ async fn test_fill_address_tree_completely() {
             let merkle_tree_account =
                 BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey)
                     .unwrap();
+
             let batch = merkle_tree_account.queue_batches.batches.first().unwrap();
+            // assert other batch is not zeroed
             let batch_one = merkle_tree_account.queue_batches.batches.get(1).unwrap();
             assert!(!batch_one.bloom_filter_is_zeroed());
 
             // after 5 updates the first batch is completely inserted
             // As soon as we switch to inserting the second batch we zero out the first batch since
             // the second batch is completely full.
-            if i >= 4 {
+            if i >= 5 {
                 assert!(batch.bloom_filter_is_zeroed());
             } else {
                 assert!(!batch.bloom_filter_is_zeroed());
