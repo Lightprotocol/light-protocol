@@ -140,6 +140,8 @@ pub enum SystemProgramError {
     PackedAccountIndexOutOfBounds,
     #[error("Unimplemented.")]
     Unimplemented,
+    #[error("Missing legacy Merkle tree context")]
+    MissingLegacyMerkleContext,
     #[error("Batched Merkle tree error {0}")]
     BatchedMerkleTreeError(#[from] BatchedMerkleTreeError),
     #[error("Concurrent Merkle tree error {0}")]
@@ -223,6 +225,7 @@ impl From<SystemProgramError> for u32 {
             SystemProgramError::Unimplemented => 6063,
             SystemProgramError::CpiContextDeactivated => 6064,
             SystemProgramError::InputMerkleTreeIndexOutOfBounds => 6065,
+            SystemProgramError::MissingLegacyMerkleContext => 6066,
             SystemProgramError::BatchedMerkleTreeError(e) => e.into(),
             SystemProgramError::IndexedMerkleTreeError(e) => e.into(),
             SystemProgramError::ConcurrentMerkleTreeError(e) => e.into(),

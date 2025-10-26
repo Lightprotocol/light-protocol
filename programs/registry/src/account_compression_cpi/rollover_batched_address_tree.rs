@@ -49,6 +49,6 @@ pub fn process_rollover_batched_address_merkle_tree(
 
     account_compression::cpi::rollover_batched_address_merkle_tree(
         cpi_ctx,
-        if_equals_zero_u64(ctx.accounts.protocol_config_pda.config.network_fee),
+        if_equals_zero_u64(ctx.accounts.protocol_config_pda.config.address_network_fee),
     )
 }

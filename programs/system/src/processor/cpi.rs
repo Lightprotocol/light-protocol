@@ -70,7 +70,6 @@ pub fn create_cpi_data_and_context<'info, A: InvokeAccounts<'info> + SignerAccou
             hashed_pubkeys: Vec::with_capacity(hashed_pubkeys_capacity),
             addresses: Vec::with_capacity((num_nullifiers + num_new_addresses) as usize),
             rollover_fee_payments: Vec::new(),
-            address_fee_is_set: false,
             network_fee_is_set: false,
             legacy_merkle_context: Vec::new(),
             invoking_program_id,

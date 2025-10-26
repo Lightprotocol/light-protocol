@@ -1,5 +1,3 @@
-#![cfg(feature = "test-sbf")]
-
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 use light_account_checks::error::AccountError;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
@@ -986,7 +984,7 @@ async fn only_test_create_pda() {
             &program_owned_merkle_tree_keypair,
             &program_owned_queue_keypair,
             &program_owned_cpi_context_keypair,
-            Some(light_compressed_token::ID),
+            None, // Program owned trees are deprecated
             None,
             TreeType::StateV1,
         )
@@ -1469,7 +1467,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
             &program_owned_state_merkle_tree_keypair,
             &program_owned_state_queue_keypair,
             &program_owned_cpi_context_keypair,
-            Some(light_compressed_token::ID),
+            None,
             None,
             TreeType::StateV1,
         )
@@ -1484,20 +1482,20 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
         cpi_context: program_owned_cpi_context_keypair.pubkey(),
         tree_type: TreeType::StateV1,
     }];
-
-    perform_create_pda_failing(
-        &mut rpc,
-        &mut test_indexer,
-        &env_with_program_owned_state_merkle_tree,
-        &payer,
-        [3u8; 32],
-        &[4u8; 31],
-        &ID,
-        CreatePdaMode::ProgramIsSigner,
-        SystemProgramError::InvalidMerkleTreeOwner.into(),
-    )
-    .await
-    .unwrap();
+    // Program owned state trees are deprecated.
+    // perform_create_pda_failing(
+    //     &mut rpc,
+    //     &mut test_indexer,
+    //     &env_with_program_owned_state_merkle_tree,
+    //     &payer,
+    //     [3u8; 32],
+    //     &[4u8; 31],
+    //     &ID,
+    //     CreatePdaMode::ProgramIsSigner,
+    //     SystemProgramError::InvalidMerkleTreeOwner.into(),
+    // )
+    // .await
+    // .unwrap();
 
     // Functional test ----------------------------------------------
     let program_owned_state_merkle_tree_keypair = Keypair::new();
@@ -1510,7 +1508,7 @@ async fn test_create_pda_in_program_owned_merkle_trees() {
             &program_owned_state_merkle_tree_keypair,
             &program_owned_state_queue_keypair,
             &program_owned_cpi_context_keypair,
-            Some(ID),
+            None,
             None,
             TreeType::StateV1,
         )

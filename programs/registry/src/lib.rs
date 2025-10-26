@@ -291,19 +291,22 @@ pub mod light_registry {
         merkle_tree_config: AddressMerkleTreeConfig,
         queue_config: AddressQueueConfig,
     ) -> Result<()> {
-        // The network fee must be either zero or the same as the protocol config.
-        // Only trees with a network fee will be serviced by light foresters.
-        if let Some(network_fee) = merkle_tree_config.network_fee {
-            if network_fee != ctx.accounts.protocol_config_pda.config.network_fee {
-                return err!(RegistryError::InvalidNetworkFee);
-            }
-            if forester.is_some() {
-                msg!("Forester pubkey must not be defined for trees serviced by light foresters.");
-                return err!(RegistryError::ForesterDefined);
-            }
-        } else if forester.is_none() {
-            msg!("Forester pubkey required for trees without a network fee.");
-            msg!("Trees without a network fee will not be serviced by light foresters.");
+        // Address V1 trees are deprecated.
+        // Light foresters (fee-based) are disabled for address V1 trees.
+        // New address V1 trees must be program owned with a designated forester.
+        // New address V1 trees must not have network fees.
+        if program_owner.is_none() {
+            msg!("Program owner must be defined.");
+            return err!(RegistryError::ProgramOwnerUndefined);
+        }
+        if merkle_tree_config.network_fee.is_some() {
+            msg!("Network fee must be None.");
+            return err!(RegistryError::InvalidNetworkFee);
+        }
+        // A designated program-owned forester is required for address V1 trees.
+        // Light foresters (fee-based) will not service address V1 trees.
+        if forester.is_none() {
+            msg!("Forester pubkey required for program-owned trees.");
             return err!(RegistryError::ForesterUndefined);
         }
         // Unused parameter
@@ -329,6 +332,11 @@ pub mod light_registry {
         merkle_tree_config: StateMerkleTreeConfig,
         queue_config: NullifierQueueConfig,
     ) -> Result<()> {
+        // Program owned trees are disabled
+        if program_owner.is_some() {
+            msg!("Program owner must not be defined.");
+            return err!(RegistryError::ProgramOwnerDefined);
+        }
         // The network fee must be either zero or the same as the protocol config.
         // Only trees with a network fee will be serviced by light foresters.
         if let Some(network_fee) = merkle_tree_config.network_fee {
@@ -492,6 +500,11 @@ pub mod light_registry {
         params: Vec<u8>,
     ) -> Result<()> {
         let params = InitStateTreeAccountsInstructionData::try_from_slice(&params)?;
+        // Program owned trees are disabled
+        if params.program_owner.is_some() {
+            msg!("Program owner must not be defined.");
+            return err!(RegistryError::ProgramOwnerDefined);
+        }
         if let Some(network_fee) = params.network_fee {
             if network_fee != ctx.accounts.protocol_config_pda.config.network_fee {
                 return err!(RegistryError::InvalidNetworkFee);
@@ -500,10 +513,8 @@ pub mod light_registry {
                 msg!("Forester pubkey must not be defined for trees serviced by light foresters.");
                 return err!(RegistryError::ForesterDefined);
             }
-        } else if params.forester.is_none() {
-            msg!("Forester pubkey required for trees without a network fee.");
-            msg!("Trees without a network fee will not be serviced by light foresters.");
-            return err!(RegistryError::ForesterUndefined);
+        } else {
+            return err!(RegistryError::InvalidNetworkFee);
         }
         check_cpi_context(
             ctx.accounts.cpi_context_account.to_account_info(),
@@ -572,18 +583,26 @@ pub mod light_registry {
         params: Vec<u8>,
     ) -> Result<()> {
         let params = InitAddressTreeAccountsInstructionData::try_from_slice(&params)?;
+        // Program owned trees are disabled
+        if params.program_owner.is_some() {
+            msg!("Program owner must not be defined.");
+            return err!(RegistryError::ProgramOwnerDefined);
+        }
         if let Some(network_fee) = params.network_fee {
-            if network_fee != ctx.accounts.protocol_config_pda.config.network_fee {
+            if network_fee != ctx.accounts.protocol_config_pda.config.address_network_fee {
+                msg!(
+                    "ctx.accounts.protocol_config_pda.config.address_network_fee {:?}",
+                    ctx.accounts.protocol_config_pda.config.address_network_fee
+                );
+                msg!("network_fee {:?}", network_fee);
                 return err!(RegistryError::InvalidNetworkFee);
             }
             if params.forester.is_some() {
                 msg!("Forester pubkey must not be defined for trees serviced by light foresters.");
                 return err!(RegistryError::ForesterDefined);
             }
-        } else if params.forester.is_none() {
-            msg!("Forester pubkey required for trees without a network fee.");
-            msg!("Trees without a network fee will not be serviced by light foresters.");
-            return err!(RegistryError::ForesterUndefined);
+        } else {
+            return err!(RegistryError::InvalidNetworkFee);
         }
         process_initialize_batched_address_merkle_tree(&ctx, bump, params.try_to_vec()?)
     }

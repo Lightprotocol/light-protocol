@@ -47,6 +47,7 @@ use system_cpi_test::sdk::{
     create_initialize_merkle_tree_instruction,
 };
 
+#[ignore = "program owned state trees are deprecated"]
 #[serial]
 #[tokio::test]
 async fn test_program_owned_merkle_tree() {
@@ -106,7 +107,8 @@ async fn test_program_owned_merkle_tree() {
         &[&payer],
         Some(TransactionParams {
             num_new_addresses: 0,
-            num_input_compressed_accounts: 0,
+            v1_input_compressed_accounts: 0u8,
+            v2_input_compressed_accounts: false,
             num_output_compressed_accounts: 1,
             compress: 0,
             fee_config: FeeConfig::default(),

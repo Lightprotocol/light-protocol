@@ -40,12 +40,20 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                     "V1 address tree",
                 )?;
 
+                let network_fee = context
+                    .get_legacy_merkle_context(
+                        new_address_params.address_merkle_tree_account_index(),
+                    )
+                    .ok_or(SystemProgramError::MissingLegacyMerkleContext)?
+                    .network_fee;
+                context.set_address_fee(network_fee, new_address_params.address_queue_index())?;
+
                 (
                     derive_address_legacy(pubkey, &new_address_params.seed())
                         .map_err(ProgramError::from)?,
                     context
                         .get_legacy_merkle_context(new_address_params.address_queue_index())
-                        .unwrap()
+                        .ok_or(SystemProgramError::MissingLegacyMerkleContext)?
                         .rollover_fee,
                 )
             }
@@ -67,7 +75,7 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                 context.set_address_fee(
                     tree.metadata.rollover_metadata.network_fee,
                     new_address_params.address_merkle_tree_account_index(),
-                );
+                )?;
 
                 cpi_ix_data.insert_address_sequence_number(
                     &mut seq_index,

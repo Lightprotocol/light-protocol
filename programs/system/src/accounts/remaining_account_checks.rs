@@ -125,12 +125,12 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                 let merkle_tree = bytemuck::from_bytes::<StateMerkleTreeAccount>(
                     &data[8..StateMerkleTreeAccount::LEN],
                 );
-                context.set_network_fee(merkle_tree.metadata.rollover_metadata.network_fee, index);
                 context.set_legacy_merkle_context(
                     index,
                     MerkleTreeContext {
                         rollover_fee: merkle_tree.metadata.rollover_metadata.rollover_fee,
                         hashed_pubkey: hash_to_bn254_field_size_be(account_info.key().as_slice()),
+                        network_fee: merkle_tree.metadata.rollover_metadata.network_fee,
                     },
                 );
 
@@ -164,8 +164,14 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                 let merkle_tree = bytemuck::from_bytes::<AddressMerkleTreeAccount>(
                     &data[8..AddressMerkleTreeAccount::LEN],
                 );
-
-                context.set_address_fee(merkle_tree.metadata.rollover_metadata.network_fee, index);
+                context.set_legacy_merkle_context(
+                    index,
+                    MerkleTreeContext {
+                        rollover_fee: merkle_tree.metadata.rollover_metadata.rollover_fee,
+                        hashed_pubkey: [0u8; 32], // not used for address trees
+                        network_fee: merkle_tree.metadata.rollover_metadata.network_fee,
+                    },
+                );
                 merkle_tree.metadata.access_metadata.program_owner
             };
             let mut merkle_tree = account_info
@@ -197,6 +203,7 @@ pub(crate) fn try_from_account_info<'a, 'info: 'a>(
                     MerkleTreeContext {
                         rollover_fee: queue.metadata.rollover_metadata.rollover_fee,
                         hashed_pubkey: [0u8; 32], // not used for address trees
+                        network_fee: queue.metadata.rollover_metadata.network_fee,
                     },
                 );
 
