@@ -4,7 +4,8 @@ import {
     STATE_MERKLE_TREE_NETWORK_FEE,
     ADDRESS_QUEUE_ROLLOVER_FEE,
     STATE_MERKLE_TREE_ROLLOVER_FEE,
-    ADDRESS_TREE_NETWORK_FEE,
+    ADDRESS_TREE_NETWORK_FEE_V1,
+    ADDRESS_TREE_NETWORK_FEE_V2,
     featureFlags,
 } from '../../src/constants';
 import { newAccountWithLamports } from '../../src/test-helpers/test-utils';
@@ -55,9 +56,14 @@ function txFees(
 
         /// Network fee charged per address created
         const networkAddressFee = tx.addr
-            ? ADDRESS_TREE_NETWORK_FEE.mul(bn(tx.addr))
+            ? ADDRESS_TREE_NETWORK_FEE_V1.mul(bn(tx.addr))
             : bn(0);
-
+        // TODO: adapt once we use v2 address trees in tests.
+        // tx.addr
+        //   ? featureFlags.isV2()
+        //       ? ADDRESS_TREE_NETWORK_FEE_V2.mul(bn(tx.addr))
+        //       : ADDRESS_TREE_NETWORK_FEE_V1.mul(bn(tx.addr))
+        //   : bn(0);
         totalFee = totalFee.add(
             solanaBaseFee
                 .add(stateOutFee)

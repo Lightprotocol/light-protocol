@@ -40,15 +40,12 @@ pub fn derive_new_addresses<'info, 'a, 'b: 'a, const ADDRESS_ASSIGNMENT: bool>(
                     "V1 address tree",
                 )?;
 
-                let mut network_fee = context
+                let network_fee = context
                     .get_legacy_merkle_context(
                         new_address_params.address_merkle_tree_account_index(),
                     )
                     .ok_or(SystemProgramError::MissingLegacyMerkleContext)?
                     .network_fee;
-                if network_fee != 0 {
-                    network_fee += 5000;
-                }
                 context.set_address_fee(network_fee, new_address_params.address_queue_index())?;
 
                 (

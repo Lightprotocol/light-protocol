@@ -25,7 +25,7 @@ impl Default for FeeConfig {
             // state_tree_configs: vec![StateMerkleTreeConfig::default()],
             // address_tree_configs: vec![AddressMerkleTreeConfig::default()],
             network_fee: 5000,
-            address_network_fee: 10000,
+            address_network_fee: 5000,
             solana_network_fee: 5000,
         }
     }

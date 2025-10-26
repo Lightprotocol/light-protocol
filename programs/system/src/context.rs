@@ -57,6 +57,16 @@ impl SystemContext<'_> {
 
     #[profile]
     pub fn set_address_fee(&mut self, fee: u64, index: u8) -> Result<()> {
+        self.set_additive_fee(fee, index)
+    }
+
+    #[profile]
+    pub fn set_network_fee_v1(&mut self, fee: u64, index: u8) -> Result<()> {
+        self.set_additive_fee(fee, index)
+    }
+
+    #[inline(always)]
+    fn set_additive_fee(&mut self, fee: u64, index: u8) -> Result<()> {
         let payment = self.rollover_fee_payments.iter_mut().find(|a| a.0 == index);
         match payment {
             Some(payment) => {
@@ -69,27 +79,13 @@ impl SystemContext<'_> {
         };
         Ok(())
     }
+
     #[profile]
     pub fn set_network_fee_v2(&mut self, fee: u64, index: u8) {
         if !self.network_fee_is_set {
             self.network_fee_is_set = true;
             self.rollover_fee_payments.push((index, fee));
         }
-    }
-
-    #[profile]
-    pub fn set_network_fee_v1(&mut self, fee: u64, index: u8) -> Result<()> {
-        let payment = self.rollover_fee_payments.iter_mut().find(|a| a.0 == index);
-        match payment {
-            Some(payment) => {
-                payment.1 = payment
-                    .1
-                    .checked_add(fee)
-                    .ok_or(ProgramError::ArithmeticOverflow)?;
-            }
-            None => self.rollover_fee_payments.push((index, fee)),
-        };
-        Ok(())
     }
 
     pub fn get_or_hash_pubkey(&mut self, pubkey: Pubkey) -> [u8; 32] {

@@ -356,6 +356,11 @@ export const ADDRESS_QUEUE_ROLLOVER_FEE = featureFlags.isV2()
 export const STATE_MERKLE_TREE_NETWORK_FEE = new BN(5000);
 
 /**
- * Is charged if the transaction creates at least one address.
+ * Is charged per address the transaction creates.
  */
-export const ADDRESS_TREE_NETWORK_FEE = new BN(10000);
+export const ADDRESS_TREE_NETWORK_FEE_V1 = new BN(5000);
+
+/**
+ * Is charged per address the transaction creates.
+ */
+export const ADDRESS_TREE_NETWORK_FEE_V2 = new BN(10000);
