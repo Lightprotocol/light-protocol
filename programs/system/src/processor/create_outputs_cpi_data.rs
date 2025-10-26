@@ -72,7 +72,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                 .ok_or(SystemProgramError::OutputMerkleTreeIndexOutOfBounds)?
             {
                 AcpAccount::OutputQueue(output_queue) => {
-                    context.set_network_fee(
+                    context.set_network_fee_v2(
                         output_queue.metadata.rollover_metadata.network_fee,
                         current_index as u8,
                     );
@@ -100,7 +100,7 @@ pub fn create_outputs_cpi_data<'a, 'info, T: InstructionData<'a>>(
                         };
                     let merkle_context = context
                         .get_legacy_merkle_context(current_index as u8)
-                        .unwrap();
+                        .ok_or(SystemProgramError::MissingLegacyMerkleContext)?;
                     hashed_merkle_tree = merkle_context.hashed_pubkey;
                     rollover_fee = merkle_context.rollover_fee;
                     mt_next_index = tree.next_index() as u32;

@@ -60,12 +60,15 @@ describe('test-rpc', () => {
         assert.equal(compressedTestAccount.data?.data, null);
 
         postCompressBalance = await rpc.getBalance(payer.publicKey);
+        let expectedFee = featureFlags.isV2()
+            ? STATE_MERKLE_TREE_NETWORK_FEE.toNumber()
+            : 0;
         assert.equal(
             postCompressBalance,
             preCompressBalance -
                 compressLamportsAmount -
                 5000 -
-                5000 -
+                expectedFee -
                 STATE_MERKLE_TREE_ROLLOVER_FEE.toNumber(),
         );
     });

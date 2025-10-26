@@ -1,5 +1,3 @@
-#![cfg(feature = "test-sbf")]
-
 use account_compression::{errors::AccountCompressionErrorCode, ID};
 use anchor_lang::{
     error::ErrorCode, prelude::AccountMeta, AnchorSerialize, InstructionData, ToAccountMetas,
@@ -65,6 +63,122 @@ pub enum TestMode {
     InvalidOutputQueue,
     Functional,
     InvalidRegisteredProgram,
+}
+
+#[ignore = "only execute with program compiled non test"]
+#[tokio::test]
+async fn test_batch_state_merkle_tree_failing() {
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        ..Default::default()
+    };
+    let mut context = LightProgramTest::new(config).await.unwrap();
+
+    let merkle_tree_keypair = Keypair::new();
+    let merkle_tree_pubkey = merkle_tree_keypair.pubkey();
+    let nullifier_queue_keypair = Keypair::new();
+    let output_queue_pubkey = nullifier_queue_keypair.pubkey();
+
+    let payer_pubkey = context.get_payer().pubkey();
+    let payer = context.get_payer().insecure_clone();
+    let params = InitStateTreeAccountsInstructionData::test_default();
+    let queue_account_size = get_output_queue_account_size(
+        params.output_queue_batch_size,
+        params.output_queue_zkp_batch_size,
+    );
+    let mt_account_size = get_merkle_tree_account_size(
+        params.input_queue_batch_size,
+        params.bloom_filter_capacity,
+        params.input_queue_zkp_batch_size,
+        params.root_history_capacity,
+        params.height,
+    );
+    let queue_rent = context
+        .get_minimum_balance_for_rent_exemption(queue_account_size)
+        .await
+        .unwrap();
+    let mt_rent = context
+        .get_minimum_balance_for_rent_exemption(mt_account_size)
+        .await
+        .unwrap();
+
+    // 1. Functional initialize a batched Merkle tree and output queue
+    {
+        let create_queue_account_ix = create_account_instruction(
+            &payer_pubkey,
+            queue_account_size,
+            queue_rent,
+            &ID,
+            Some(&nullifier_queue_keypair),
+        );
+
+        let create_mt_account_ix = create_account_instruction(
+            &payer_pubkey,
+            mt_account_size,
+            mt_rent,
+            &ID,
+            Some(&merkle_tree_keypair),
+        );
+
+        let instruction = account_compression::instruction::InitializeBatchedStateMerkleTree {
+            bytes: params.try_to_vec().unwrap(),
+        };
+        let accounts = account_compression::accounts::InitializeBatchedStateMerkleTreeAndQueue {
+            authority: context.get_payer().pubkey(),
+            merkle_tree: merkle_tree_pubkey,
+            queue: output_queue_pubkey,
+            registered_program_pda: None,
+        };
+
+        let instruction = Instruction {
+            program_id: ID,
+            accounts: accounts.to_account_metas(Some(true)),
+            data: instruction.data(),
+        };
+        let result = context
+            .create_and_send_transaction(
+                &[create_queue_account_ix, create_mt_account_ix, instruction],
+                &payer_pubkey,
+                &[&payer, &nullifier_queue_keypair, &merkle_tree_keypair],
+            )
+            .await;
+        println!("result {:?}", result);
+        // Incorrect security group
+        assert_rpc_error(
+            result,
+            2,
+            AccountCompressionErrorCode::UnsupportedParameters.into(),
+        )
+        .unwrap();
+    }
+}
+
+#[ignore = "only execute with program compiled non test"]
+#[tokio::test]
+async fn test_init_batch_address_merkle_trees_failing() {
+    let config = ProgramTestConfig {
+        skip_protocol_init: true,
+        with_prover: false,
+        skip_startup_logs: false,
+        no_logs: false,
+        ..Default::default()
+    };
+    let mut context = LightProgramTest::new(config).await.unwrap();
+    context.config.no_logs = false;
+    let params = InitAddressTreeAccountsInstructionData::test_default();
+
+    let merkle_tree_keypair = Keypair::new();
+
+    let result =
+        perform_init_batch_address_merkle_tree(&mut context, &params, &merkle_tree_keypair).await;
+    println!("result {:?}", result);
+    // Incorrect security group
+    assert_rpc_error(
+        result,
+        1,
+        AccountCompressionErrorCode::UnsupportedParameters.into(),
+    )
+    .unwrap();
 }
 
 /// 1.  init accounts       - Functional: initialize a batched Merkle tree and output queue

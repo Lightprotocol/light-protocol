@@ -1,7 +1,7 @@
 use std::fmt::{self, Debug, Formatter};
 
 #[cfg(feature = "devenv")]
-use account_compression::{AddressMerkleTreeAccount, QueueAccount};
+use account_compression::QueueAccount;
 use light_client::{
     indexer::{AddressMerkleTreeAccounts, StateMerkleTreeAccounts},
     rpc::{merkle_tree::MerkleTreeExt, RpcError},
@@ -109,29 +109,45 @@ impl LightProgramTest {
                 let test_accounts = context.test_accounts.clone();
                 context.add_indexer(&test_accounts, batch_size).await?;
 
-                // ensure that address tree pubkey is amt1Ayt45jfbdw5YSo7iz6WZxUmnZsQTYXy82hVwyC2
+                // Load V1 address tree accounts from JSON files
                 {
+                    use crate::utils::load_accounts::load_account_from_dir;
+
+                    if context.test_accounts.v1_address_trees.len() != 1 {
+                        return Err(RpcError::CustomError(format!(
+                            "Expected exactly 1 V1 address tree, found {}. V1 address trees are deprecated and only one is supported.",
+                            context.test_accounts.v1_address_trees.len()
+                        )));
+                    }
+
                     let address_mt = context.test_accounts.v1_address_trees[0].merkle_tree;
                     let address_queue_pubkey = context.test_accounts.v1_address_trees[0].queue;
-                    let mut account = context
-                        .context
-                        .get_account(&keypairs.address_merkle_tree.pubkey())
-                        .unwrap();
-                    let merkle_tree_account = bytemuck::from_bytes_mut::<AddressMerkleTreeAccount>(
-                        &mut account.data_as_mut_slice()[8..AddressMerkleTreeAccount::LEN],
-                    );
-                    merkle_tree_account.metadata.associated_queue = address_queue_pubkey.into();
-                    context.set_account(address_mt, account);
 
-                    let mut account = context
+                    let tree_account =
+                        load_account_from_dir(&address_mt, Some("address_merkle_tree"))?;
+                    context
                         .context
-                        .get_account(&keypairs.address_merkle_tree_queue.pubkey())
-                        .unwrap();
-                    let queue_account = bytemuck::from_bytes_mut::<QueueAccount>(
-                        &mut account.data_as_mut_slice()[8..QueueAccount::LEN],
-                    );
-                    queue_account.metadata.associated_merkle_tree = address_mt.into();
-                    context.set_account(address_queue_pubkey, account);
+                        .set_account(address_mt, tree_account)
+                        .map_err(|e| {
+                            RpcError::CustomError(format!(
+                                "Failed to set V1 address tree account: {}",
+                                e
+                            ))
+                        })?;
+
+                    let queue_account = load_account_from_dir(
+                        &address_queue_pubkey,
+                        Some("address_merkle_tree_queue"),
+                    )?;
+                    context
+                        .context
+                        .set_account(address_queue_pubkey, queue_account)
+                        .map_err(|e| {
+                            RpcError::CustomError(format!(
+                                "Failed to set V1 address queue account: {}",
+                                e
+                            ))
+                        })?;
                 }
             }
             // Copy v1 state merkle tree accounts to devnet pubkeys

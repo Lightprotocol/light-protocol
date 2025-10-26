@@ -26,7 +26,6 @@ use super::{
 use crate::accounts::register_program::register_program_with_registry_program;
 use crate::{
     accounts::{
-        address_tree::create_address_merkle_tree_and_queue_account,
         state_tree::create_state_merkle_tree_and_queue_account,
         test_accounts::{ProtocolAccounts, StateMerkleTreeAccountsV2, TestAccounts},
         test_keypairs::*,
@@ -50,8 +49,6 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
         skip_second_v1_tree,
         v1_state_tree_config,
         v1_nullifier_queue_config,
-        v1_address_tree_config,
-        v1_address_queue_config,
         ..
     } = config;
     let _v2_address_tree_config = v2_address_tree_config;
@@ -151,19 +148,22 @@ pub async fn initialize_accounts<R: Rpc + TestRpc>(
             .await?;
         }
 
-        create_address_merkle_tree_and_queue_account(
-            &keypairs.governance_authority,
-            true,
-            context,
-            &keypairs.address_merkle_tree,
-            &keypairs.address_merkle_tree_queue,
-            None,
-            None,
-            v1_address_tree_config,
-            v1_address_queue_config,
-            0,
-        )
-        .await?;
+        // V1 address trees are now loaded from JSON files instead of created fresh
+        // to avoid registry validation issues with deprecated V1 address trees.
+        // See light_program_test.rs for the JSON loading logic.
+        // create_address_merkle_tree_and_queue_account(
+        //     &keypairs.governance_authority,
+        //     true,
+        //     context,
+        //     &keypairs.address_merkle_tree,
+        //     &keypairs.address_merkle_tree_queue,
+        //     None,
+        //     None,
+        //     v1_address_tree_config,
+        //     v1_address_queue_config,
+        //     0,
+        // )
+        // .await?;
     }
     #[cfg(feature = "v2")]
     if let Some(v2_state_tree_config) = _v2_state_tree_config {

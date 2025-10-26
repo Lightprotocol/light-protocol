@@ -18,10 +18,11 @@ no-log-ix-name = []
 cpi = ["no-entrypoint"]
 custom-heap = ["light-heap"]
 mem-profiling = []
-default = ["test"]
+default = []
 test-sbf = []
 bench-sbf = ["custom-heap"]
 test = []
+migrate-state = []
 
 
 [dependencies]

@@ -138,3 +138,58 @@ pub fn load_all_accounts_from_dir() -> Result<HashMap<Pubkey, Account>, RpcError
 
     Ok(accounts)
 }
+
+/// Load a specific account by pubkey from the accounts directory
+/// Optionally provide a prefix for the filename (e.g. "address_merkle_tree")
+pub fn load_account_from_dir(pubkey: &Pubkey, prefix: Option<&str>) -> Result<Account, RpcError> {
+    let accounts_dir = find_accounts_dir().ok_or_else(|| {
+        RpcError::CustomError(
+            "Failed to find accounts directory. Make sure light CLI is installed.".to_string(),
+        )
+    })?;
+
+    let filename = if let Some(prefix) = prefix {
+        format!("{}_{}.json", prefix, pubkey)
+    } else {
+        format!("{}.json", pubkey)
+    };
+    let path = accounts_dir.join(&filename);
+
+    let contents = fs::read_to_string(&path).map_err(|e| {
+        RpcError::CustomError(format!("Failed to read account file {:?}: {}", path, e))
+    })?;
+
+    let account_data: AccountData = serde_json::from_str(&contents).map_err(|e| {
+        RpcError::CustomError(format!(
+            "Failed to parse account JSON from {:?}: {}",
+            path, e
+        ))
+    })?;
+
+    let owner = account_data
+        .account
+        .owner
+        .parse::<Pubkey>()
+        .map_err(|e| RpcError::CustomError(format!("Invalid owner pubkey: {}", e)))?;
+
+    // Decode base64 data
+    let data = if account_data.account.data.1 == "base64" {
+        use base64::{engine::general_purpose, Engine as _};
+        general_purpose::STANDARD
+            .decode(&account_data.account.data.0)
+            .map_err(|e| RpcError::CustomError(format!("Failed to decode base64 data: {}", e)))?
+    } else {
+        return Err(RpcError::CustomError(format!(
+            "Unsupported encoding: {}",
+            account_data.account.data.1
+        )));
+    };
+
+    Ok(Account {
+        lamports: account_data.account.lamports,
+        data,
+        owner,
+        executable: account_data.account.executable,
+        rent_epoch: account_data.account.rent_epoch,
+    })
+}

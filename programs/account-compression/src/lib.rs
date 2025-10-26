@@ -289,9 +289,16 @@ pub mod account_compression {
     /// Migrate state from a v1 state Merkle tree
     /// to a v2 state Merkle tree.
     pub fn migrate_state<'a, 'b, 'c: 'info, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, MigrateState<'info>>,
-        input: MigrateLeafParams,
+        _ctx: Context<'a, 'b, 'c, 'info, MigrateState<'info>>,
+        _input: MigrateLeafParams,
     ) -> Result<()> {
-        process_migrate_state(&ctx, input)
+        #[cfg(feature = "migrate-state")]
+        {
+            process_migrate_state(&_ctx, _input)
+        }
+        #[cfg(not(feature = "migrate-state"))]
+        {
+            unimplemented!("migrate_state is disabled")
+        }
     }
 }

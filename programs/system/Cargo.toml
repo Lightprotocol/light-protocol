@@ -22,11 +22,9 @@ mem-profiling = []
 # 3. Recompile program WITHOUT reinit feature
 # 4. Redeploy program to remove migration code
 reinit = []
-default = ["debug", "readonly", "reinit"]
+default = ["reinit"]
 test-sbf = []
-debug = []
 readonly = []
-deactivate-cpi-context = []
 profile-program = ["light-program-profiler/profile-program"]
 profile-heap = ["light-program-profiler/profile-heap", "dep:light-heap"]
 custom-heap = []

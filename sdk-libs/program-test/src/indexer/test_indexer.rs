@@ -1387,6 +1387,17 @@ impl TestIndexer {
         queue_keypair: &Keypair,
         owning_program_id: Option<Pubkey>,
     ) -> Result<AddressMerkleTreeAccounts, RpcError> {
+        use crate::accounts::test_keypairs::FORESTER_TEST_KEYPAIR;
+
+        let config = if owning_program_id.is_some() {
+            // We only allow program owned address trees with custom fees.
+            AddressMerkleTreeConfig {
+                network_fee: None,
+                ..AddressMerkleTreeConfig::default()
+            }
+        } else {
+            AddressMerkleTreeConfig::default()
+        };
         create_address_merkle_tree_and_queue_account(
             &self.payer,
             true,
@@ -1394,8 +1405,12 @@ impl TestIndexer {
             merkle_tree_keypair,
             queue_keypair,
             owning_program_id,
-            None,
-            &AddressMerkleTreeConfig::default(),
+            Some(
+                Keypair::try_from(FORESTER_TEST_KEYPAIR.as_slice())
+                    .unwrap()
+                    .pubkey(),
+            ), // std forester, we now need to set it.
+            &config,
             &AddressQueueConfig::default(),
             0,
         )

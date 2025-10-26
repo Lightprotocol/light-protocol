@@ -1,8 +1,7 @@
 use anchor_lang::prelude::*;
 use light_batched_merkle_tree::{
     initialize_address_tree::{
-        init_batched_address_merkle_tree_from_account_info, validate_batched_address_tree_params,
-        InitAddressTreeAccountsInstructionData,
+        init_batched_address_merkle_tree_from_account_info, InitAddressTreeAccountsInstructionData,
     },
     merkle_tree::BatchedMerkleTreeAccount,
 };
@@ -40,10 +39,22 @@ pub fn process_initialize_batched_address_merkle_tree<'info>(
     params: InitAddressTreeAccountsInstructionData,
 ) -> Result<()> {
     #[cfg(feature = "test")]
-    validate_batched_address_tree_params(params);
+    light_batched_merkle_tree::initialize_address_tree::validate_batched_address_tree_params(
+        params,
+    );
     #[cfg(not(feature = "test"))]
     {
+        use crate::errors::AccountCompressionErrorCode;
         if params != InitAddressTreeAccountsInstructionData::default() {
+            return err!(AccountCompressionErrorCode::UnsupportedParameters);
+        }
+        if let Some(registered_program_pda) = ctx.accounts.registered_program_pda.as_ref() {
+            if registered_program_pda.group_authority_pda
+                != pubkey!("24rt4RgeyjUCWGS2eF7L7gyNMuz6JWdqYpAvb1KRoHxs")
+            {
+                return err!(AccountCompressionErrorCode::UnsupportedParameters);
+            }
+        } else {
             return err!(AccountCompressionErrorCode::UnsupportedParameters);
         }
     }

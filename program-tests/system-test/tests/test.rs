@@ -923,7 +923,8 @@ async fn invoke_test() {
         &payer_pubkey,
         &[&payer],
         Some(TransactionParams {
-            num_input_compressed_accounts: 0,
+            v1_input_compressed_accounts: 0u8,
+            v2_input_compressed_accounts: false,
             num_output_compressed_accounts: 1,
             num_new_addresses: 0,
             compress: 0,
@@ -1063,7 +1064,8 @@ async fn invoke_test() {
         &payer_pubkey,
         &[&payer],
         Some(TransactionParams {
-            num_input_compressed_accounts: 1,
+            v1_input_compressed_accounts: 1,
+            v2_input_compressed_accounts: false,
             num_output_compressed_accounts: 1,
             num_new_addresses: 0,
             compress: 0,
@@ -1706,11 +1708,12 @@ async fn regenerate_accounts() {
         pubkeys.push(("cpi_context", tree.cpi_context));
     }
 
-    // Add all v1 address trees
-    for tree in &env.v1_address_trees {
-        pubkeys.push(("address_merkle_tree", tree.merkle_tree));
-        pubkeys.push(("address_merkle_tree_queue", tree.queue));
-    }
+    // V1 address trees are deprecated - do not regenerate
+    // They are loaded from existing JSON files in devenv mode
+    // for tree in &env.v1_address_trees {
+    //     pubkeys.push(("address_merkle_tree", tree.merkle_tree));
+    //     pubkeys.push(("address_merkle_tree_queue", tree.queue));
+    // }
 
     // Add all v2 state trees
     for tree in &env.v2_state_trees {
@@ -2010,7 +2013,8 @@ async fn batch_invoke_test() {
             &payer_pubkey,
             &[&payer],
             Some(TransactionParams {
-                num_input_compressed_accounts: 1,
+                v1_input_compressed_accounts: 1,
+                v2_input_compressed_accounts: true,
                 num_output_compressed_accounts: 1,
                 num_new_addresses: 0,
                 compress: 0,
@@ -2629,7 +2633,8 @@ pub async fn create_output_accounts(
         &payer.pubkey(),
         &[payer],
         Some(TransactionParams {
-            num_input_compressed_accounts: 0,
+            v1_input_compressed_accounts: 0u8,
+            v2_input_compressed_accounts: is_batched,
             num_output_compressed_accounts: num_accounts as u8,
             num_new_addresses: 0,
             compress: 0,

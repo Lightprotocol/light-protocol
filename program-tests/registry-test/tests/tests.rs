@@ -1,5 +1,3 @@
-#![cfg(feature = "test-sbf")]
-
 use std::collections::HashSet;
 
 use account_compression::{
@@ -33,7 +31,6 @@ use light_program_test::{
             deregister_program_with_registry_program, register_program_with_registry_program,
         },
         state_tree::create_state_merkle_tree_and_queue_account,
-        state_tree_v2::create_batched_state_merkle_tree,
         test_accounts::{TestAccounts, NOOP_PROGRAM_ID},
         test_keypairs::{GROUP_PDA_SEED_TEST_KEYPAIR, OLD_REGISTRY_ID_TEST_KEYPAIR},
     },
@@ -108,7 +105,7 @@ fn test_protocol_config_active_phase_continuity() {
         cpi_context_size: 20488,
         finalize_counter_limit: 100,
         place_holder: Pubkey::default(),
-        place_holder_a: 0,
+        address_network_fee: 10000,
         place_holder_b: 0,
         place_holder_c: 0,
         place_holder_d: 0,
@@ -127,7 +124,7 @@ fn test_protocol_config_active_phase_continuity() {
         cpi_context_size: 20488,
         finalize_counter_limit: 100,
         place_holder: Pubkey::default(),
-        place_holder_a: 0,
+        address_network_fee: 10000,
         place_holder_b: 0,
         place_holder_c: 0,
         place_holder_d: 0,
@@ -490,6 +487,54 @@ async fn test_initialize_protocol_config() {
             &mut rpc,
             &merkle_tree_keypair,
             &queue_keypair,
+            Some(Pubkey::new_unique()),
+            Some(Pubkey::new_unique()),
+            &AddressMerkleTreeConfig {
+                network_fee: None,
+                ..Default::default()
+            },
+            &AddressQueueConfig {
+                network_fee: None,
+                ..Default::default()
+            },
+            0,
+        )
+        .await
+        .unwrap();
+    }
+    // Deprecated should fail
+    // initialize a Merkle tree without a forester
+    {
+        let merkle_tree_keypair = Keypair::new();
+        let queue_keypair = Keypair::new();
+        let result = create_address_merkle_tree_and_queue_account_with_assert(
+            &payer,
+            true,
+            &mut rpc,
+            &merkle_tree_keypair,
+            &queue_keypair,
+            Some(Pubkey::new_unique()),
+            None,
+            &AddressMerkleTreeConfig {
+                network_fee: None,
+                ..Default::default()
+            },
+            &AddressQueueConfig::default(),
+            0,
+        )
+        .await;
+        assert_rpc_error(result, 3, RegistryError::ForesterUndefined.into()).unwrap();
+    }
+    // initialize a Merkle tree without a Program owner
+    {
+        let merkle_tree_keypair = Keypair::new();
+        let queue_keypair = Keypair::new();
+        let result = create_address_merkle_tree_and_queue_account_with_assert(
+            &payer,
+            true,
+            &mut rpc,
+            &merkle_tree_keypair,
+            &queue_keypair,
             None,
             Some(Pubkey::new_unique()),
             &AddressMerkleTreeConfig {
@@ -499,32 +544,10 @@ async fn test_initialize_protocol_config() {
             &AddressQueueConfig::default(),
             0,
         )
-        .await
-        .unwrap();
+        .await;
+        assert_rpc_error(result, 3, RegistryError::ProgramOwnerUndefined.into()).unwrap();
     }
-    // initialize a Merkle tree with network fee = 5000 (default)
-    {
-        let merkle_tree_keypair = Keypair::new();
-        let queue_keypair = Keypair::new();
-        create_address_merkle_tree_and_queue_account_with_assert(
-            &payer,
-            true,
-            &mut rpc,
-            &merkle_tree_keypair,
-            &queue_keypair,
-            None,
-            None,
-            &AddressMerkleTreeConfig {
-                network_fee: Some(5000),
-                ..Default::default()
-            },
-            &AddressQueueConfig::default(),
-            0,
-        )
-        .await
-        .unwrap();
-    }
-    // FAIL: initialize a Merkle tree with network fee != 0 || 5000
+    // FAIL: initialize a Merkle tree with network fee != 0
     {
         let merkle_tree_keypair = Keypair::new();
         let queue_keypair = Keypair::new();
@@ -534,10 +557,10 @@ async fn test_initialize_protocol_config() {
             &mut rpc,
             &merkle_tree_keypair,
             &queue_keypair,
-            None,
-            None,
+            Some(Pubkey::new_unique()),
+            Some(Pubkey::new_unique()),
             &AddressMerkleTreeConfig {
-                network_fee: Some(5001),
+                network_fee: Some(10000),
                 ..Default::default()
             },
             &AddressQueueConfig::default(),
@@ -1645,7 +1668,7 @@ async fn test_migrate_state() {
     // 6. Failing - invoke account compression program migrate state without registered program PDA
     {
         let instruction = account_compression::instruction::MigrateState {
-            input: instruction_params.inputs,
+            _input: instruction_params.inputs,
         };
         let accounts = account_compression::accounts::MigrateState {
             authority: payer.pubkey(),
@@ -1776,94 +1799,20 @@ async fn test_rollover_batch_state_tree() {
         params.rollover_threshold = Some(0);
         params.forester = Some(custom_forester.pubkey().into());
         params.network_fee = None;
-        let is_light_forester = false;
 
         let mut tree_params = InitAddressTreeAccountsInstructionData::test_default();
         tree_params.rollover_threshold = Some(0);
         let mut config = ProgramTestConfig::default_with_batched_trees(false);
         config.v2_state_tree_config = Some(params);
         config.v2_address_tree_config = Some(tree_params);
-        let mut rpc = LightProgramTest::new(config).await.unwrap();
-        let test_accounts = rpc.test_accounts().clone();
-        airdrop_lamports(&mut rpc, &custom_forester.pubkey(), 10_000_000_000)
-            .await
-            .unwrap();
-        let payer = rpc.get_payer().insecure_clone();
-        let mut test_indexer: TestIndexer = TestIndexer::init_from_acounts(
-            &test_accounts.protocol.forester.insecure_clone(),
-            &test_accounts,
-            50,
-        )
-        .await;
-        light_test_utils::system_program::compress_sol_test(
-            &mut rpc,
-            &mut test_indexer,
-            &payer,
-            &[],
-            false,
-            1_000_000,
-            &test_accounts.v2_state_trees[0].output_queue,
-            None,
-        )
-        .await
-        .unwrap();
-        let new_merkle_tree_keypair = Keypair::new();
-        let new_nullifier_queue_keypair = Keypair::new();
-        let new_cpi_context = Keypair::new();
+        let result = LightProgramTest::new(config).await;
 
-        // 3. functional without network fee and forester
-
-        perform_rollover_batch_state_merkle_tree(
-            &mut rpc,
-            &custom_forester,
-            custom_forester.pubkey(),
-            test_accounts.v2_state_trees[0].merkle_tree,
-            test_accounts.v2_state_trees[0].output_queue,
-            &new_merkle_tree_keypair,
-            &new_nullifier_queue_keypair,
-            &new_cpi_context,
-            0,
-            is_light_forester,
+        assert_rpc_error(
+            result,
+            3,
+            light_registry::errors::RegistryError::InvalidNetworkFee.into(),
         )
-        .await
         .unwrap();
-        let new_cpi_ctx_account = rpc
-            .get_account(new_cpi_context.pubkey())
-            .await
-            .unwrap()
-            .unwrap();
-        assert_perform_state_mt_roll_over(
-            &mut rpc,
-            test_accounts.protocol.group_pda,
-            test_accounts.v2_state_trees[0].merkle_tree,
-            new_merkle_tree_keypair.pubkey(),
-            test_accounts.v2_state_trees[0].output_queue,
-            new_nullifier_queue_keypair.pubkey(),
-            params,
-            new_cpi_ctx_account.lamports,
-        )
-        .await;
-        // 4. failing with custom forester and non-zero network fee
-        {
-            let mut params = InitStateTreeAccountsInstructionData::test_default();
-            params.rollover_threshold = Some(0);
-            params.forester = Some(custom_forester.pubkey().into());
-            params.network_fee = Some(1);
-            let new_merkle_tree_keypair = Keypair::new();
-            let new_nullifier_queue_keypair = Keypair::new();
-            let new_cpi_context = Keypair::new();
-            let result = create_batched_state_merkle_tree(
-                &test_accounts.protocol.governance_authority,
-                true,
-                &mut rpc,
-                &new_merkle_tree_keypair,
-                &new_nullifier_queue_keypair,
-                &new_cpi_context,
-                params,
-            )
-            .await;
-            assert_rpc_error(result, 3, RegistryError::InvalidNetworkFee.into()).unwrap();
-        }
     }
 }
 
@@ -2128,5 +2077,57 @@ async fn test_rollover_batch_address_tree() {
         0,
     )
     .await
+    .unwrap();
+}
+
+#[ignore = "requires account compression program without test features"]
+#[tokio::test]
+async fn test_v2_tree_mainnet_init() {
+    let mut config = ProgramTestConfig::default_test_forester(true);
+    config.v2_state_tree_config = Some(InitStateTreeAccountsInstructionData::default());
+    config.v2_address_tree_config = Some(InitAddressTreeAccountsInstructionData::default());
+    config.additional_programs = Some(vec![(
+        "create_address_test_program",
+        CREATE_ADDRESS_TEST_PROGRAM_ID,
+    )]);
+    LightProgramTest::new(config).await.unwrap();
+}
+
+#[ignore = "requires account compression program without test features"]
+#[tokio::test]
+async fn test_v2_state_tree_mainnet_init_fail() {
+    let mut config = ProgramTestConfig::default_test_forester(true);
+    config.v2_state_tree_config = Some(InitStateTreeAccountsInstructionData::test_default());
+    config.v1_state_tree_config = StateMerkleTreeConfig::default();
+    config.v2_address_tree_config = Some(InitAddressTreeAccountsInstructionData::default());
+    config.additional_programs = Some(vec![(
+        "create_address_test_program",
+        CREATE_ADDRESS_TEST_PROGRAM_ID,
+    )]);
+    let result = LightProgramTest::new(config).await;
+    assert_rpc_error(
+        result,
+        3,
+        AccountCompressionErrorCode::UnsupportedParameters.into(),
+    )
+    .unwrap();
+}
+
+#[ignore = "requires account compression program without test features"]
+#[tokio::test]
+async fn test_v2_address_tree_mainnet_init_fail() {
+    let mut config = ProgramTestConfig::default_test_forester(true);
+    config.v2_state_tree_config = Some(InitStateTreeAccountsInstructionData::default());
+    config.v2_address_tree_config = Some(InitAddressTreeAccountsInstructionData::test_default());
+    config.additional_programs = Some(vec![(
+        "create_address_test_program",
+        CREATE_ADDRESS_TEST_PROGRAM_ID,
+    )]);
+    let result = LightProgramTest::new(config).await;
+    assert_rpc_error(
+        result,
+        1,
+        AccountCompressionErrorCode::UnsupportedParameters.into(),
+    )
     .unwrap();
 }

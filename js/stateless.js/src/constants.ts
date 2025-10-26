@@ -358,4 +358,4 @@ export const STATE_MERKLE_TREE_NETWORK_FEE = new BN(5000);
 /**
  * Is charged if the transaction creates at least one address.
  */
-export const ADDRESS_TREE_NETWORK_FEE = new BN(5000);
+export const ADDRESS_TREE_NETWORK_FEE = new BN(10000);
