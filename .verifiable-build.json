@@ -1,0 +1,22 @@
+{
+  "solana_version": "2.3.0",
+  "mount_path": "/Users/ananas/dev/light-protocol",
+  "programs": [
+    {
+      "name": "account_compression",
+      "path": "programs/account-compression"
+    },
+    {
+      "name": "light_compressed_token",
+      "path": "programs/compressed-token/program"
+    },
+    {
+      "name": "light_system_program_pinocchio",
+      "path": "programs/system"
+    },
+    {
+      "name": "light_registry",
+      "path": "programs/registry"
+    }
+  ]
+}

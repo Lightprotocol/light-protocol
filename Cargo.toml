@@ -57,6 +57,10 @@ members = [
     "forester",
     "sparse-merkle-tree",
 ]
+exclude = [
+    "js/*/node_modules/@lightprotocol/.ignored_programs",
+    "cli/node_modules/@lightprotocol/.ignored_programs",
+]
 
 resolver = "2"
 
