@@ -1,5 +1,7 @@
 #![allow(unused_assignments)]
 
+use std::collections::HashSet;
+
 use light_batched_merkle_tree::{
     batch::BatchState,
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
@@ -305,6 +307,15 @@ pub fn assert_address_merkle_tree_update(
             old_account.queue_batches.pending_batch_index += 1;
             old_account.queue_batches.pending_batch_index %= 2;
         }
+
+        // Increment sequence number and push root here to match real implementation
+        // (verify_update increments and pushes before zero_out_previous_batch_bloom_filter)
+        old_account.sequence_number += 1;
+        old_account.root_history.push(root);
+
+        // Calculate expected_first_zero_index after push to match real implementation
+        let expected_first_zero_index = old_account.root_history.first_index();
+
         let old_full_batch_index = old_account.queue_batches.pending_batch_index;
 
         let previous_full_batch_index = if old_full_batch_index == 0 { 1 } else { 0 };
@@ -328,18 +339,20 @@ pub fn assert_address_merkle_tree_update(
             "no_insert_since_last_batch_root {}",
             no_insert_since_last_batch_root
         );
-        let zeroed_batch = old_full_batch.get_num_inserted_elements()
+        let zeroed_batch_this_tx = old_full_batch.get_num_inserted_elements()
             >= old_full_batch.batch_size / 2
             && old_full_batch.get_state() != BatchState::Inserted
-            && !no_insert_since_last_batch_root;
-        println!("zeroed_batch: {:?}", zeroed_batch);
+            && !no_insert_since_last_batch_root
+            && !old_full_batch.bloom_filter_is_zeroed();
+        println!("zeroed_batch_this_tx: {:?}", zeroed_batch_this_tx);
         let state = account.queue_batches.batches[previous_full_batch_index].get_state();
         let previous_batch = old_account
             .queue_batches
             .batches
             .get_mut(previous_full_batch_index)
             .unwrap();
-        if zeroed_batch && state == BatchState::Inserted {
+
+        if zeroed_batch_this_tx && state == BatchState::Inserted {
             previous_batch.set_bloom_filter_to_zeroed();
             let sequence_number = previous_batch.sequence_number;
             let overlapping_roots_exits = sequence_number > old_account.sequence_number;
@@ -397,6 +410,7 @@ pub fn assert_address_merkle_tree_update(
                     .iter()
                     .find(|(idx, _)| *idx == current_batch_index)
                 {
+                    // Assert 1: All non-zero roots belong to current batch
                     for root in account.root_history.iter() {
                         if *root != [0u8; 32] {
                             assert!(
@@ -407,14 +421,169 @@ pub fn assert_address_merkle_tree_update(
                             );
                         }
                     }
+
+                    // Assert 2: All current batch roots are present in root_history
+                    for root in current_batch_roots {
+                        assert!(
+                            account.root_history.iter().any(|r| r == root),
+                            "Current batch root {:?} is missing from root_history",
+                            root
+                        );
+                    }
+
+                    // Assert 3: Count matches
+                    let non_zero_count = account
+                        .root_history
+                        .iter()
+                        .filter(|r| **r != [0u8; 32])
+                        .count();
+                    assert_eq!(
+                        non_zero_count,
+                        current_batch_roots.len(),
+                        "Expected {} non-zero roots (current batch size), found {}",
+                        current_batch_roots.len(),
+                        non_zero_count
+                    );
+
+                    // Assert 4: No duplicates
+                    let non_zero_roots: Vec<_> = account
+                        .root_history
+                        .iter()
+                        .filter(|r| **r != [0u8; 32])
+                        .cloned()
+                        .collect();
+                    let unique_roots: HashSet<_> = non_zero_roots.iter().collect();
+                    assert_eq!(
+                        non_zero_roots.len(),
+                        unique_roots.len(),
+                        "Duplicate roots found in root_history"
+                    );
+
+                    // Assert 5: Roots are contiguous from the end
+                    let last_idx = account.root_history.last_index();
+                    let capacity = account.root_history.capacity();
+                    let mut contiguous_count = 0;
+                    let mut idx = last_idx;
+
+                    for _ in 0..capacity {
+                        if account.root_history[idx] != [0u8; 32] {
+                            contiguous_count += 1;
+                            assert!(
+                                current_batch_roots.contains(&account.root_history[idx]),
+                                "Root at index {} is not from current batch",
+                                idx
+                            );
+                        } else {
+                            break;
+                        }
+                        idx = if idx == 0 { capacity - 1 } else { idx - 1 };
+                    }
+
+                    assert_eq!(
+                        contiguous_count,
+                        current_batch_roots.len(),
+                        "Expected {} contiguous roots from last_index, found {}",
+                        current_batch_roots.len(),
+                        contiguous_count
+                    );
+                }
+
+                // Assert 6: Verify zeroed batch metadata
+                let zeroed_batch = &account.queue_batches.batches[previous_full_batch_index];
+                assert!(
+                    zeroed_batch.bloom_filter_is_zeroed(),
+                    "Zeroed batch should have bloom_filter_is_zeroed set to true"
+                );
+                assert_eq!(
+                    zeroed_batch.get_state(),
+                    BatchState::Inserted,
+                    "Zeroed batch should be in Inserted state"
+                );
+
+                // Assert 7: Verify bloom filter bytes are all zero
+                let zeroed_bloom_filter = &account.bloom_filter_stores[previous_full_batch_index];
+                assert!(
+                    zeroed_bloom_filter.iter().all(|&b| b == 0),
+                    "All bloom filter bytes should be zero after zeroing"
+                );
+
+                // Assert 8: Verify root at batch.root_index is zeroed
+                let zeroed_root_index = zeroed_batch.root_index as usize;
+                assert_eq!(
+                    account.root_history[zeroed_root_index], [0u8; 32],
+                    "Root at batch.root_index {} should be zeroed",
+                    zeroed_root_index
+                );
+
+                // Assert 9: Verify first safe root (root_index + 1) must not be zero and belongs to current batch
+                let first_safe_index =
+                    (zeroed_root_index + 1) % account.root_history_capacity as usize;
+                let first_safe_root = account.root_history[first_safe_index];
+                assert_ne!(
+                    first_safe_root, [0u8; 32],
+                    "First safe root at index {} should NOT be zeroed",
+                    first_safe_index
+                );
+                let (_idx, current_batch_roots) = batch_roots
+                    .iter()
+                    .find(|(idx, _)| *idx == current_batch_index)
+                    .expect("Current batch should exist in batch_roots");
+                assert!(
+                    current_batch_roots.contains(&first_safe_root),
+                    "First safe root at index {} should belong to current batch, found {:?}",
+                    first_safe_index,
+                    first_safe_root
+                );
+
+                // Assert 10: Verify sequence number relationship
+                assert!(
+                    sequence_number > old_account.sequence_number,
+                    "Batch sequence_number {} should be > account sequence_number {}",
+                    sequence_number,
+                    old_account.sequence_number
+                );
+                assert_eq!(
+                    num_remaining_roots,
+                    sequence_number - old_account.sequence_number,
+                    "num_remaining_roots calculation mismatch"
+                );
+
+                // Assert 11: Verify we zeroed the exact expected range
+                println!(
+                    "Assert 11: expected_first_zero_index = {}, num_remaining_roots = {}",
+                    expected_first_zero_index, num_remaining_roots
+                );
+                let mut actual_zeroed_indices = Vec::new();
+                for i in 0..account.root_history_capacity as usize {
+                    if account.root_history[i] == [0u8; 32] {
+                        actual_zeroed_indices.push(i);
+                    }
+                }
+                println!(
+                    "Assert 11: actual zeroed indices in account.root_history: {:?}",
+                    actual_zeroed_indices
+                );
+
+                for i in 0..num_remaining_roots {
+                    let idx = (expected_first_zero_index + i as usize)
+                        % account.root_history_capacity as usize;
+                    println!(
+                        "Assert 11: checking index {} (i={}), value: {:?}",
+                        idx,
+                        i,
+                        &account.root_history[idx][0..4]
+                    );
+                    assert_eq!(
+                        account.root_history[idx], [0u8; 32],
+                        "Root at index {} should be zeroed (part of zeroing range)",
+                        idx
+                    );
                 }
             }
         }
     }
 
-    old_account.sequence_number += 1;
     old_account.next_index += old_account.queue_batches.zkp_batch_size;
-    old_account.root_history.push(root);
     println!(
         "post roots (old_account simulation) {:?}",
         old_account
