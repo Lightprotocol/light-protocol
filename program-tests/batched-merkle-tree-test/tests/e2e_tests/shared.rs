@@ -23,6 +23,7 @@ pub async fn perform_address_update(
     mt_account_data: &mut [u8],
     mock_indexer: &mut MockBatchedAddressForester<40>,
     mt_pubkey: Pubkey,
+    batch_roots: &mut Vec<(u32, Vec<[u8; 32]>)>,
 ) {
     println!("pre address update -----------------------------");
     let mut cloned_mt_account_data = (*mt_account_data).to_vec();
@@ -97,7 +98,17 @@ pub async fn perform_address_update(
     let account =
         BatchedMerkleTreeAccount::address_from_bytes(mt_account_data, &mt_pubkey).unwrap();
 
-    assert_address_merkle_tree_update(old_account, account, new_root);
+    let batch_index_for_this_root = _pre_next_full_batch as u32;
+    if let Some((_idx, roots)) = batch_roots
+        .iter_mut()
+        .find(|(idx, _)| *idx == batch_index_for_this_root)
+    {
+        roots.push(new_root);
+    } else {
+        batch_roots.push((batch_index_for_this_root, vec![new_root]));
+    }
+
+    assert_address_merkle_tree_update(old_account, account, new_root, batch_roots);
 }
 
 pub fn assert_merkle_tree_update(
@@ -270,12 +281,13 @@ pub fn assert_address_merkle_tree_update(
     mut old_account: BatchedMerkleTreeAccount,
     account: BatchedMerkleTreeAccount,
     root: [u8; 32],
+    batch_roots: &Vec<(u32, Vec<[u8; 32]>)>,
 ) {
     {
         // Input queue update
         let old_full_batch_index = old_account.queue_batches.pending_batch_index;
         let history_capacity = old_account.root_history.capacity();
-
+        let pre_roots = old_account.root_history.to_vec();
         let old_full_batch = old_account
             .queue_batches
             .batches
@@ -347,6 +359,55 @@ pub fn assert_address_merkle_tree_update(
                     oldest_root_index += 1;
                     oldest_root_index %= old_account.root_history.len();
                 }
+                println!(
+                    "pre roots {:?}",
+                    pre_roots
+                        .iter()
+                        .filter(|r| **r != [0u8; 32])
+                        .cloned()
+                        .collect::<Vec<[u8; 32]>>()
+                );
+
+                println!(
+                    "post roots (actual account) {:?}",
+                    account
+                        .root_history
+                        .iter()
+                        .filter(|r| **r != [0u8; 32])
+                        .cloned()
+                        .collect::<Vec<[u8; 32]>>()
+                );
+                // No roots of the zeroed batch exist in the root history
+                if let Some((_idx, zeroed_batch_roots)) = batch_roots
+                    .iter()
+                    .find(|(idx, _)| *idx == previous_full_batch_index as u32)
+                {
+                    for root in zeroed_batch_roots {
+                        println!("checking root {:?}", root);
+                        assert!(
+                            !account.root_history.iter().any(|r| r == root),
+                            "Zeroed batch root {:?} still exists in root_history",
+                            root
+                        );
+                    }
+                }
+                // All non-zero roots in the root history belong to the current batch
+                let current_batch_index = old_full_batch_index as u32;
+                if let Some((_idx, current_batch_roots)) = batch_roots
+                    .iter()
+                    .find(|(idx, _)| *idx == current_batch_index)
+                {
+                    for root in account.root_history.iter() {
+                        if *root != [0u8; 32] {
+                            assert!(
+                                current_batch_roots.contains(root),
+                                "Non-zero root {:?} in root_history does not belong to current batch {}",
+                                root,
+                                current_batch_index
+                            );
+                        }
+                    }
+                }
             }
         }
     }
@@ -354,6 +415,15 @@ pub fn assert_address_merkle_tree_update(
     old_account.sequence_number += 1;
     old_account.next_index += old_account.queue_batches.zkp_batch_size;
     old_account.root_history.push(root);
+    println!(
+        "post roots (old_account simulation) {:?}",
+        old_account
+            .root_history
+            .iter()
+            .filter(|r| **r != [0u8; 32])
+            .cloned()
+            .collect::<Vec<[u8; 32]>>()
+    );
     assert_eq!(account.get_metadata(), old_account.get_metadata());
     assert_eq!(*account.root_history.last().unwrap(), root);
     assert_eq!(account, old_account);

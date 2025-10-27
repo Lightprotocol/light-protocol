@@ -168,9 +168,22 @@ async fn test_fill_address_tree_completely() {
         // Root of the final batch of first input queue batch
         let mut first_input_batch_update_root_value = [0u8; 32];
         let num_updates = 10;
+        let mut batch_roots: Vec<(u32, Vec<[u8; 32]>)> = {
+            let merkle_tree_account =
+                BatchedMerkleTreeAccount::address_from_bytes(&mut mt_account_data, &mt_pubkey)
+                    .unwrap();
+            let initial_root = *merkle_tree_account.root_history.last().unwrap();
+            vec![(0, vec![initial_root])]
+        };
         for i in 0..num_updates {
             println!("address update ----------------------------- {}", i);
-            perform_address_update(&mut mt_account_data, &mut mock_indexer, mt_pubkey).await;
+            perform_address_update(
+                &mut mt_account_data,
+                &mut mock_indexer,
+                mt_pubkey,
+                &mut batch_roots,
+            )
+            .await;
             if i == 4 {
                 first_input_batch_update_root_value = mock_indexer.merkle_tree.root();
             }
