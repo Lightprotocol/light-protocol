@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	DefaultBaseURL       = "https://storage.googleapis.com/light-protocol-proving-keys/proving-keys-06-10-25"
+	DefaultBaseURL       = "https://storage.googleapis.com/light-protocol-proving-keys/light-protocol-keys"
 	DefaultMaxRetries    = 10
 	DefaultRetryDelay    = 5 * time.Second
 	DefaultMaxRetryDelay = 5 * time.Minute
