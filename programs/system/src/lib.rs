@@ -86,6 +86,12 @@ pub fn process_instruction(
         }
         #[cfg(feature = "reinit")]
         InstructionDiscriminator::ReInitCpiContextAccount => reinit_cpi_context_account(accounts),
+        #[cfg(not(feature = "reinit"))]
+        InstructionDiscriminator::ReInitCpiContextAccount => {
+            use crate::errors::SystemProgramError;
+
+            Err(SystemProgramError::CpiContextDeactivated.into())
+        }
     }?;
     Ok(())
 }

@@ -22,7 +22,7 @@ mem-profiling = []
 # 3. Recompile program WITHOUT reinit feature
 # 4. Redeploy program to remove migration code
 reinit = []
-default = ["reinit"]
+default = []
 test-sbf = []
 readonly = []
 profile-program = ["light-program-profiler/profile-program"]

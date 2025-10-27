@@ -46,43 +46,44 @@ use crate::{
 ///    other state transition is executed with the combined instruction_data.
 #[profile]
 pub fn process_cpi_context<'a, 'info, T: InstructionData<'a>>(
-    mut instruction_data: WrappedInstructionData<'a, T>,
+    instruction_data: WrappedInstructionData<'a, T>,
     cpi_context_account_info: Option<&'info AccountInfo>,
-    fee_payer: Pubkey,
-    remaining_accounts: &[AccountInfo],
+    _fee_payer: Pubkey,
+    _remaining_accounts: &[AccountInfo],
 ) -> Result<Option<(usize, WrappedInstructionData<'a, T>)>> {
     let cpi_context = &instruction_data.cpi_context();
     if cpi_context_account_info.is_some() && cpi_context.is_none() {
         msg!("cpi context account is some but cpi context is none");
         return Err(SystemProgramError::CpiContextMissing.into());
     }
-    if let Some(cpi_context) = cpi_context {
-        let cpi_context_account_info = match cpi_context_account_info {
-            Some(cpi_context_account_info) => cpi_context_account_info,
-            None => return Err(SystemProgramError::CpiContextAccountUndefined.into()),
-        };
+    if cpi_context.is_some() {
+        return Err(SystemProgramError::CpiContextDeactivated.into());
+        // let cpi_context_account_info = match cpi_context_account_info {
+        //     Some(cpi_context_account_info) => cpi_context_account_info,
+        //     None => return Err(SystemProgramError::CpiContextAccountUndefined.into()),
+        // };
 
-        if cpi_context.set_context || cpi_context.first_set_context {
-            set_cpi_context(fee_payer, cpi_context_account_info, instruction_data)?;
-            return Ok(None);
-        } else {
-            let cpi_context_account = deserialize_cpi_context_account(cpi_context_account_info)?;
-            validate_cpi_context_associated_with_merkle_tree(
-                &instruction_data,
-                &cpi_context_account,
-                remaining_accounts,
-            )?;
-            if cpi_context_account.is_empty() {
-                return Err(SystemProgramError::CpiContextEmpty.into());
-            }
-            if (*cpi_context_account.fee_payer).to_bytes() != fee_payer {
-                msg!(format!(" {:?} != {:?}", fee_payer, cpi_context_account.fee_payer).as_str());
-                return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
-            }
+        // if cpi_context.set_context || cpi_context.first_set_context {
+        //     set_cpi_context(fee_payer, cpi_context_account_info, instruction_data)?;
+        //     return Ok(None);
+        // } else {
+        //     let cpi_context_account = deserialize_cpi_context_account(cpi_context_account_info)?;
+        //     validate_cpi_context_associated_with_merkle_tree(
+        //         &instruction_data,
+        //         &cpi_context_account,
+        //         remaining_accounts,
+        //     )?;
+        //     if cpi_context_account.is_empty() {
+        //         return Err(SystemProgramError::CpiContextEmpty.into());
+        //     }
+        //     if (*cpi_context_account.fee_payer).to_bytes() != fee_payer {
+        //         msg!(format!(" {:?} != {:?}", fee_payer, cpi_context_account.fee_payer).as_str());
+        //         return Err(SystemProgramError::CpiContextFeePayerMismatch.into());
+        //     }
 
-            instruction_data.set_cpi_context(cpi_context_account)?;
-            return Ok(Some((1, instruction_data)));
-        }
+        //     instruction_data.set_cpi_context(cpi_context_account)?;
+        //     return Ok(Some((1, instruction_data)));
+        // }
     }
     Ok(Some((0, instruction_data)))
 }
@@ -186,7 +187,7 @@ pub fn copy_cpi_context_outputs(
     }
     Ok(())
 }
-
+#[allow(dead_code)]
 #[profile]
 fn validate_cpi_context_associated_with_merkle_tree<'a, 'info, T: InstructionData<'a>>(
     instruction_data: &WrappedInstructionData<'a, T>,
