@@ -13,7 +13,7 @@ pub mod mint_action;
 pub mod mint_to_compressed;
 pub mod transfer;
 pub mod transfer2;
-pub mod transfer_decompressed;
+pub mod transfer_ctoken;
 pub mod transfer_interface;
 pub mod update_compressed_mint;
 pub mod withdraw_funding_pool;
@@ -57,7 +57,7 @@ pub use update_compressed_mint::{
 };
 pub use withdraw_funding_pool::withdraw_funding_pool;
 
-pub use transfer_decompressed::{transfer_ctoken, transfer_ctoken_signed};
+pub use transfer_ctoken::{transfer_ctoken, transfer_ctoken_signed};
 // TODO: export the others too.
 pub use transfer_interface::{transfer_interface, transfer_interface_signed};
 

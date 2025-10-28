@@ -4,7 +4,7 @@ use solana_program_error::ProgramError;
 
 use crate::{error::TokenSdkError, utils::is_ctoken_account};
 
-use super::transfer_decompressed::{transfer_ctoken, transfer_ctoken_signed};
+use super::transfer_ctoken::{transfer_ctoken, transfer_ctoken_signed};
 
 #[allow(clippy::too_many_arguments)]
 #[profile]
