@@ -53,6 +53,7 @@ members = [
     "sdk-tests/sdk-native-test",
     "sdk-tests/sdk-v1-native-test",
     "sdk-tests/sdk-token-test",
+    "sdk-tests/csdk-anchor-test",
     "forester-utils",
     "forester",
     "sparse-merkle-tree",

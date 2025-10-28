@@ -141,10 +141,11 @@ pub mod v2 {
         program_id: &Pubkey,
     ) -> [u8; 32] {
         derive_address(
-            &account_address.to_bytes(),
-            &address_tree_pubkey.to_bytes(),
-            &program_id.to_bytes(),
+            &[account_address.to_bytes().as_ref()],
+            address_tree_pubkey,
+            program_id,
         )
+        .0
     }
 
     /// Derives an address from provided seeds. Returns that address and a singular
