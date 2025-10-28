@@ -23,6 +23,10 @@ impl<'a> InstructionData<'a> for ZCpiContextAccount2<'a> {
         self.new_addresses.as_slice()
     }
 
+    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
+        vec![None; self.new_addresses.len()]
+    }
+
     fn input_accounts(&self) -> &[impl InputAccount<'a>] {
         self.in_accounts.as_slice()
     }
