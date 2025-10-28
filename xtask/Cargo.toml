@@ -9,6 +9,7 @@ account-compression = { workspace = true }
 anyhow = "1.0"
 ark-bn254 = { workspace = true }
 ark-ff = { workspace = true }
+base64 = "0.22"
 clap = { version = "4", features = ["derive"] }
 groth16-solana = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }

@@ -8,6 +8,7 @@ mod create_update_protocol_config_ix;
 mod create_vkeyrs_from_gnark_key;
 mod export_photon_test_data;
 mod fee;
+mod fetch_accounts;
 mod hash_set;
 mod new_deployment;
 mod print_state_tree;
@@ -66,6 +67,12 @@ enum Command {
     /// Reinitialize legacy CPI context accounts to new format
     /// Example: cargo xtask reinit-cpi-accounts --network devnet
     ReinitCpiAccounts(reinit_cpi_accounts::Options),
+    /// Fetch Solana accounts and save as JSON
+    /// Examples:
+    ///   cargo xtask fetch-accounts rpc --pubkeys 11111111111111111111111111111111 --network mainnet
+    ///   cargo xtask fetch-accounts rpc --lut --pubkeys <lut_pubkey> --network mainnet
+    ///   cargo xtask fetch-accounts rpc --lut --pubkeys <lut_pubkey> --add-pubkeys <pk1>,<pk2> --network mainnet
+    FetchAccounts(fetch_accounts::Options),
 }
 
 #[tokio::main]
@@ -100,5 +107,6 @@ async fn main() -> Result<(), anyhow::Error> {
         }
         Command::PrintStateTree(opts) => print_state_tree::print_state_tree(opts).await,
         Command::ReinitCpiAccounts(opts) => reinit_cpi_accounts::reinit_cpi_accounts(opts).await,
+        Command::FetchAccounts(opts) => fetch_accounts::fetch_accounts(opts).await,
     }
 }
