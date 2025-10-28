@@ -182,17 +182,17 @@ fn fetch_and_process_lut(
     Ok(())
 }
 
-fn decode_and_modify_lut(
-    data: &[u8],
-    add_pubkeys: &Option<String>,
-) -> anyhow::Result<Vec<u8>> {
+fn decode_and_modify_lut(data: &[u8], add_pubkeys: &Option<String>) -> anyhow::Result<Vec<u8>> {
     if data.len() < 56 {
         anyhow::bail!("LUT data too small");
     }
 
     let discriminator = u32::from_le_bytes([data[0], data[1], data[2], data[3]]);
     if discriminator != 1 {
-        anyhow::bail!("Not a lookup table account (discriminator: {})", discriminator);
+        anyhow::bail!(
+            "Not a lookup table account (discriminator: {})",
+            discriminator
+        );
     }
 
     let mut modified_data = data.to_vec();
@@ -206,10 +206,17 @@ fn decode_and_modify_lut(
     let mut num_addresses = (data.len().saturating_sub(addresses_start)) / 32;
 
     println!("  Number of addresses: {}", num_addresses);
-    println!("  Modified last_extended_slot: {} -> 0", current_last_extended_slot);
+    println!(
+        "  Modified last_extended_slot: {} -> 0",
+        current_last_extended_slot
+    );
 
     if let Some(pubkeys_str) = add_pubkeys {
-        for pubkey_str in pubkeys_str.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()) {
+        for pubkey_str in pubkeys_str
+            .split(',')
+            .map(|s| s.trim())
+            .filter(|s| !s.is_empty())
+        {
             let add_pubkey = Pubkey::from_str(pubkey_str)?;
 
             let mut exists = false;
@@ -255,4 +262,3 @@ fn write_account_json(account: &Account, pubkey: &Pubkey, filename: &str) -> any
     file.write_all(json_obj.to_string().as_bytes())?;
     Ok(())
 }
-
