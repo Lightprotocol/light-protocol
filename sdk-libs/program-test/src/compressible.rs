@@ -20,7 +20,7 @@ use light_ctoken_types::{
 use solana_pubkey::Pubkey;
 
 #[cfg(feature = "devenv")]
-use crate::LightProgramTest;
+use crate::{litesvm_extensions::LiteSvmExtensions, LightProgramTest};
 
 #[cfg(feature = "devenv")]
 pub type CompressibleAccountStore = HashMap<Pubkey, StoredCompressibleAccount>;
