@@ -1,0 +1,27 @@
+[package]
+name = "light-compressible-client"
+version = "0.13.1"
+edition = "2021"
+license = "Apache-2.0"
+repository = "https://github.com/lightprotocol/light-protocol"
+description = "Client instruction builders for Light Protocol compressible accounts"
+
+[features]
+anchor = ["anchor-lang", "light-sdk/anchor"]
+
+[dependencies]
+# Solana dependencies
+solana-instruction = { workspace = true }
+solana-pubkey = { workspace = true }
+solana-account = { workspace = true }
+
+# Light Protocol dependencies  
+light-client = { workspace = true, features = ["v2"] }
+light-sdk = { workspace = true, features = ["v2"] }
+
+# Conditional dependencies
+anchor-lang = { workspace = true, features = ["idl-build"], optional = true }
+borsh = { workspace = true }
+
+# External dependencies
+thiserror = { workspace = true } 

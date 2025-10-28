@@ -422,6 +422,7 @@ pub fn create_spl_to_ctoken_transfer_instruction(
     payer: Pubkey,
     token_pool_pda: Pubkey,
     token_pool_pda_bump: u8,
+    spl_token_program: Pubkey,
 ) -> Result<Instruction, TokenSdkError> {
     let packed_accounts = vec![
         // Mint (index 0)
@@ -435,10 +436,7 @@ pub fn create_spl_to_ctoken_transfer_instruction(
         // Token pool PDA (index 4) - writable
         AccountMeta::new(token_pool_pda, false),
         // SPL Token program (index 5) - needed for CPI
-        AccountMeta::new_readonly(
-            Pubkey::from(light_compressed_token_types::constants::SPL_TOKEN_PROGRAM_ID),
-            false,
-        ),
+        AccountMeta::new_readonly(spl_token_program, false),
     ];
 
     let wrap_spl_to_ctoken_account = CTokenAccount2 {
@@ -465,7 +463,7 @@ pub fn create_spl_to_ctoken_transfer_instruction(
         method_used: true,
     };
 
-    // Create Transfer2Inputs following the test pattern
+    // Create Transfer2Inputs following the test
     let inputs = Transfer2Inputs {
         validity_proof: ValidityProof::default(),
         transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
@@ -479,7 +477,6 @@ pub fn create_spl_to_ctoken_transfer_instruction(
         output_queue: 0, // Decompressed accounts only, no output queue needed
     };
 
-    // Create the actual transfer2 instruction
     create_transfer2_instruction(inputs)
 }
 
@@ -494,6 +491,7 @@ pub fn create_ctoken_to_spl_transfer_instruction(
     payer: Pubkey,
     token_pool_pda: Pubkey,
     token_pool_pda_bump: u8,
+    spl_token_program: Pubkey,
 ) -> Result<Instruction, TokenSdkError> {
     let packed_accounts = vec![
         // Mint (index 0)
@@ -507,10 +505,7 @@ pub fn create_ctoken_to_spl_transfer_instruction(
         // Token pool PDA (index 4) - writable
         AccountMeta::new(token_pool_pda, false),
         // SPL Token program (index 5) - needed for CPI
-        AccountMeta::new_readonly(
-            Pubkey::from(light_compressed_token_types::constants::SPL_TOKEN_PROGRAM_ID),
-            false,
-        ),
+        AccountMeta::new_readonly(spl_token_program, false),
     ];
 
     // First operation: compress from ctoken account to pool using compress_spl
@@ -542,7 +537,6 @@ pub fn create_ctoken_to_spl_transfer_instruction(
         method_used: true,
     };
 
-    // Create Transfer2Inputs
     let inputs = Transfer2Inputs {
         validity_proof: ValidityProof::default(),
         transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
@@ -556,6 +550,5 @@ pub fn create_ctoken_to_spl_transfer_instruction(
         output_queue: 0, // Decompressed accounts only, no output queue needed
     };
 
-    // Create the actual transfer2 instruction
     create_transfer2_instruction(inputs)
 }
