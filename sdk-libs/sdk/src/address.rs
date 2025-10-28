@@ -134,6 +134,19 @@ pub mod v2 {
         )
     }
 
+    /// Derive address from PDA using Pubkey types.
+    pub fn derive_compressed_address(
+        account_address: &Pubkey,
+        address_tree_pubkey: &Pubkey,
+        program_id: &Pubkey,
+    ) -> [u8; 32] {
+        derive_address(
+            &account_address.to_bytes(),
+            &address_tree_pubkey.to_bytes(),
+            &program_id.to_bytes(),
+        )
+    }
+
     /// Derives an address from provided seeds. Returns that address and a singular
     /// seed.
     ///
