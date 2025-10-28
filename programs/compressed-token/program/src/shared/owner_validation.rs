@@ -11,7 +11,7 @@ use pinocchio::account_info::AccountInfo;
 pub fn verify_owner_or_delegate_signer<'a>(
     owner_account: &'a AccountInfo,
     delegate_account: Option<&'a AccountInfo>,
-) -> Result<Option<&'a AccountInfo>, ProgramError> {
+) -> Result<(), ProgramError> {
     if let Some(delegate_account) = delegate_account {
         // If delegate is used, delegate or owner must be signer
         match check_signer(delegate_account) {
@@ -35,7 +35,7 @@ pub fn verify_owner_or_delegate_signer<'a>(
                 })?;
             }
         }
-        Ok(Some(delegate_account))
+        Ok(())
     } else {
         // If no delegate, owner must be signer
         check_signer(owner_account).map_err(|e| {
@@ -46,7 +46,7 @@ pub fn verify_owner_or_delegate_signer<'a>(
             anchor_lang::solana_program::msg!("Owner signer check failed: {:?}", e);
             ProgramError::from(e)
         })?;
-        Ok(None)
+        Ok(())
     }
 }
 
