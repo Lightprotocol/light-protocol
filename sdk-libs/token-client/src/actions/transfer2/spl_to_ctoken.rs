@@ -3,7 +3,7 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::{
-    account2::create_spl_to_ctoken_transfer_instruction, token_pool::find_token_pool_pda_with_index,
+    account2::create_transfer_spl_to_ctoken_instruction, token_pool::find_token_pool_pda_with_index,
 };
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -14,7 +14,7 @@ use spl_token_2022::pod::PodAccount;
 
 /// Transfer SPL tokens directly to compressed tokens in a single transaction.
 ///
-/// This function wraps `create_spl_to_ctoken_transfer_instruction` to provide
+/// This function wraps `create_transfer_spl_to_ctoken_instruction` to provide
 /// a convenient action for transferring from SPL token accounts to compressed tokens.
 ///
 /// # Arguments
@@ -50,7 +50,7 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
     let (token_pool_pda, bump) = find_token_pool_pda_with_index(&mint, 0);
 
     // Create the SPL to CToken transfer instruction
-    let ix = create_spl_to_ctoken_transfer_instruction(
+    let ix = create_transfer_spl_to_ctoken_instruction(
         source_spl_token_account,
         to,
         amount,

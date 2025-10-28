@@ -8,7 +8,7 @@ use super::transfer_decompressed::{transfer_ctoken, transfer_ctoken_signed};
 
 #[allow(clippy::too_many_arguments)]
 #[profile]
-pub fn create_spl_to_ctoken_transfer_instruction(
+pub fn create_transfer_spl_to_ctoken_instruction(
     source_spl_token_account: Pubkey,
     to: Pubkey,
     amount: u64,
@@ -77,7 +77,7 @@ pub fn create_spl_to_ctoken_transfer_instruction(
 
 #[allow(clippy::too_many_arguments)]
 #[profile]
-pub fn create_ctoken_to_spl_transfer_instruction(
+pub fn create_transfer_ctoken_to_spl_instruction(
     source_ctoken_account: Pubkey,
     destination_spl_token_account: Pubkey,
     amount: u64,
@@ -165,7 +165,7 @@ pub fn transfer_spl_to_ctoken<'info>(
     compressed_token_program_authority: AccountInfo<'info>,
     amount: u64,
 ) -> Result<(), ProgramError> {
-    let instruction = create_spl_to_ctoken_transfer_instruction(
+    let instruction = create_transfer_spl_to_ctoken_instruction(
         *source_spl_token_account.key,
         *destination_ctoken_account.key,
         amount,
@@ -213,7 +213,7 @@ pub fn transfer_spl_to_ctoken_signed<'info>(
     amount: u64,
     signer_seeds: &[&[&[u8]]],
 ) -> Result<(), ProgramError> {
-    let instruction = create_spl_to_ctoken_transfer_instruction(
+    let instruction = create_transfer_spl_to_ctoken_instruction(
         *source_spl_token_account.key,
         *destination_ctoken_account.key,
         amount,
@@ -259,7 +259,7 @@ pub fn transfer_ctoken_to_spl<'info>(
     compressed_token_program_authority: AccountInfo<'info>,
     amount: u64,
 ) -> Result<(), ProgramError> {
-    let instruction = create_ctoken_to_spl_transfer_instruction(
+    let instruction = create_transfer_ctoken_to_spl_instruction(
         *source_ctoken_account.key,
         *destination_spl_token_account.key,
         amount,
@@ -305,7 +305,7 @@ pub fn transfer_ctoken_to_spl_signed<'info>(
     amount: u64,
     signer_seeds: &[&[&[u8]]],
 ) -> Result<(), ProgramError> {
-    let instruction = create_ctoken_to_spl_transfer_instruction(
+    let instruction = create_transfer_ctoken_to_spl_instruction(
         *source_ctoken_account.key,
         *destination_spl_token_account.key,
         amount,
