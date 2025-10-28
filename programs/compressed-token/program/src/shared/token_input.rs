@@ -84,7 +84,7 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
         None
     };
 
-    let verified_delegate = verify_owner_or_delegate_signer(owner_account, delegate_account)?;
+    verify_owner_or_delegate_signer(owner_account, delegate_account)?;
     let token_version = TokenDataVersion::try_from(input_token_data.version)?;
     let mint_account = &accounts
         .get(input_token_data.mint as usize)
@@ -119,7 +119,7 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
                     token_version.serialize_amount_bytes(input_token_data.amount.into())?;
 
                 let hashed_delegate =
-                    verified_delegate.map(|delegate| hash_cache.get_or_hash_pubkey(delegate.key()));
+                    delegate_account.map(|delegate| hash_cache.get_or_hash_pubkey(delegate.key()));
 
                 if !IS_FROZEN {
                     TokenData::hash_with_hashed_values(
