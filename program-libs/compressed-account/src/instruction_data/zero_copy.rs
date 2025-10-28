@@ -479,6 +479,10 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvoke<'a> {
         self.new_address_params.as_slice()
     }
 
+    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
+        vec![None; self.new_address_params.len()]
+    }
+
     fn input_accounts(&self) -> &[impl InputAccount<'a>] {
         self.input_compressed_accounts_with_merkle_context
             .as_slice()
@@ -615,6 +619,10 @@ impl<'a> InstructionData<'a> for ZInstructionDataInvokeCpi<'a> {
     fn input_accounts(&self) -> &[impl InputAccount<'a>] {
         self.input_compressed_accounts_with_merkle_context
             .as_slice()
+    }
+
+    fn new_address_owner(&self) -> Vec<Option<Pubkey>> {
+        vec![None; self.new_address_params.len()]
     }
 
     fn cpi_context(&self) -> Option<CompressedCpiContext> {
