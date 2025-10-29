@@ -11,6 +11,8 @@ fi
 keys="account_compression light_system_program_pinocchio light_compressed_token light_registry"
 for key in $keys
 do
+    # cli build process deletes target/deploy contents, so fall back to
+    # sbf-solana-solana
     src_deploy="$root_dir/target/deploy/$key.so"
     src_sbf_release="$root_dir/target/sbf-solana-solana/release/$key.so"
 
