@@ -47,7 +47,6 @@ pub trait LightInstructionData: InstructionDiscriminator + AnchorSerialize {
 pub trait InstructionData<'a> {
     fn owner(&self) -> Pubkey;
     fn new_addresses(&self) -> &[impl NewAddress<'a>];
-    fn new_address_owner(&self) -> Vec<Option<Pubkey>>;
     fn input_accounts(&self) -> &[impl InputAccount<'a>];
     fn output_accounts(&self) -> &[impl OutputAccount<'a>];
     fn read_only_accounts(&self) -> Option<&[ZPackedReadOnlyCompressedAccount]>;

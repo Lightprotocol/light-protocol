@@ -19,17 +19,15 @@ pub fn get_token_account_balance(token_account_info: &AccountInfo) -> Result<u64
 
 /// Evaluate if an account is a CToken account
 ///
-/// Returns true if the account is owned by the CToken program, false if it's an
-/// SPL Token or Token-2022 account.
+/// Returns true if owned by CToken program, false if owned by SPL Token or
+/// Token-2022.
 pub fn is_ctoken_account(account_info: &AccountInfo) -> Result<bool, TokenSdkError> {
     let ctoken_program_id = Pubkey::from(CTOKEN_PROGRAM_ID);
 
-    // Owned by CToken program
     if account_info.owner == &ctoken_program_id {
         return Ok(true);
     }
 
-    // Owned by SPL Token or Token-2022
     let token_22 = spl_token_2022::ID;
     let spl_token = Pubkey::from_str_const("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
@@ -37,6 +35,6 @@ pub fn is_ctoken_account(account_info: &AccountInfo) -> Result<bool, TokenSdkErr
         return Ok(false);
     }
 
-    // Must be owned by one of the three.
+    // Must be one of the three.
     Err(TokenSdkError::CannotDetermineAccountType)
 }
