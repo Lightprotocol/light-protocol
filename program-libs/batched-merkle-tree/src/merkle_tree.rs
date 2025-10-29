@@ -1012,6 +1012,7 @@ pub fn get_merkle_tree_account_size(
     mt_account.get_account_size().unwrap()
 }
 
+#[cfg(feature = "test-only")]
 pub fn assert_nullify_event(
     event: MerkleTreeEvent,
     new_root: [u8; 32],
@@ -1040,6 +1041,7 @@ pub fn assert_nullify_event(
     assert_eq!(event, ref_event);
 }
 
+#[cfg(feature = "test-only")]
 pub fn assert_batch_append_event_event(
     event: MerkleTreeEvent,
     new_root: [u8; 32],
@@ -1069,6 +1071,7 @@ pub fn assert_batch_append_event_event(
     assert_eq!(event, ref_event);
 }
 
+#[cfg(feature = "test-only")]
 pub fn assert_batch_adress_event(
     event: MerkleTreeEvent,
     new_root: [u8; 32],
