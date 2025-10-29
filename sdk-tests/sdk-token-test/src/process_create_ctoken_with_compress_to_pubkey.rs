@@ -38,8 +38,8 @@ pub fn process_create_ctoken_with_compress_to_pubkey<'info>(
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
     };
 
-    let instruction =
-        create_compressible_token_account(create_account_inputs).map_err(ProgramError::from)?;
+    let instruction = create_compressible_token_account_instruction(create_account_inputs)
+        .map_err(ProgramError::from)?;
 
     let seeds = [seeds[0], seeds[1], &[bump]];
 
