@@ -136,6 +136,7 @@ pub mod compressible;
 #[cfg(feature = "devenv")]
 pub mod forester;
 pub mod indexer;
+pub mod litesvm_extensions;
 pub mod logging;
 pub mod program_test;
 pub mod utils;
@@ -144,4 +145,5 @@ pub use light_client::{
     indexer::{AddressWithTree, Indexer},
     rpc::{Rpc, RpcError},
 };
+pub use litesvm_extensions::LiteSvmExtensions;
 pub use program_test::{config::ProgramTestConfig, LightProgramTest};

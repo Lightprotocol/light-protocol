@@ -28,6 +28,7 @@ use solana_transaction_status_client_types::TransactionStatus;
 
 use crate::{
     indexer::{TestIndexer, TestIndexerExtensions},
+    litesvm_extensions::LiteSvmExtensions,
     program_test::LightProgramTest,
 };
 
@@ -56,9 +57,9 @@ impl Rpc for LightProgramTest {
 
     async fn get_program_accounts(
         &self,
-        _program_id: &Pubkey,
+        program_id: &Pubkey,
     ) -> Result<Vec<(Pubkey, Account)>, RpcError> {
-        unimplemented!("get_program_accounts")
+        Ok(self.context.get_program_accounts(program_id))
     }
 
     async fn confirm_transaction(&self, _transaction: Signature) -> Result<bool, RpcError> {
