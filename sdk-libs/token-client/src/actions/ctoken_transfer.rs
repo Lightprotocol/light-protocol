@@ -1,3 +1,4 @@
+// TODO: move transfer_ctoken to compressed-token-sdk
 use light_client::rpc::{Rpc, RpcError};
 use solana_instruction::{AccountMeta, Instruction};
 use solana_keypair::Keypair;
@@ -18,7 +19,7 @@ use solana_signer::Signer;
 ///
 /// # Returns
 /// `Result<Signature, RpcError>` - The transaction signature
-pub async fn ctoken_transfer<R: Rpc>(
+pub async fn transfer_ctoken<R: Rpc>(
     rpc: &mut R,
     source: Pubkey,
     destination: Pubkey,
@@ -27,7 +28,7 @@ pub async fn ctoken_transfer<R: Rpc>(
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
     let transfer_instruction =
-        create_ctoken_transfer_instruction(source, destination, amount, authority.pubkey())?;
+        create_transfer_ctoken_instruction(source, destination, amount, authority.pubkey())?;
 
     let mut signers = vec![payer];
     if authority.pubkey() != payer.pubkey() {
@@ -38,9 +39,9 @@ pub async fn ctoken_transfer<R: Rpc>(
         .await
 }
 
-/// Create a decompressed token transfer instruction.
+/// Create a ctoken transfer instruction.
 /// This creates an instruction that uses discriminator 3 (CTokenTransfer) to perform
-/// SPL token transfers on decompressed compressed token accounts.
+/// SPL token transfers on ctoken accounts.
 ///
 /// # Arguments
 /// * `source` - Source token account
@@ -51,7 +52,7 @@ pub async fn ctoken_transfer<R: Rpc>(
 /// # Returns
 /// `Result<Instruction, RpcError>`
 #[allow(clippy::result_large_err)]
-pub fn create_ctoken_transfer_instruction(
+pub fn create_transfer_ctoken_instruction(
     source: Pubkey,
     destination: Pubkey,
     amount: u64,
@@ -63,6 +64,7 @@ pub fn create_ctoken_transfer_instruction(
             AccountMeta::new(source, false),      // Source token account
             AccountMeta::new(destination, false), // Destination token account
             AccountMeta::new(authority, true), // Owner/Authority (signer, writable for lamport transfers)
+            // TODO: try to remove this
             AccountMeta::new_readonly(Pubkey::default(), false), // System program for CPI transfers
         ],
         data: {
