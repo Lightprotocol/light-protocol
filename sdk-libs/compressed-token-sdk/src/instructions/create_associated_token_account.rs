@@ -401,3 +401,89 @@ fn create_ata2_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: b
         data,
     })
 }
+
+/// CPI wrapper to create a compressible c-token associated token account.
+pub fn create_associated_ctoken_account<'info>(
+    payer: AccountInfo<'info>,
+    associated_token_account: AccountInfo<'info>,
+    system_program: AccountInfo<'info>,
+    compressible_config: AccountInfo<'info>,
+    rent_recipient: AccountInfo<'info>,
+    authority: AccountInfo<'info>,
+    mint: Pubkey,
+    bump: u8,
+    pre_pay_num_epochs: Option<u64>,
+    lamports_per_write: Option<u32>,
+) -> std::result::Result<(), solana_program_error::ProgramError> {
+    let inputs = CreateCompressibleAssociatedTokenAccountInputs {
+        payer: *payer.key,
+        owner: *authority.key,
+        mint,
+        compressible_config: *compressible_config.key,
+        rent_sponsor: *rent_recipient.key,
+        pre_pay_num_epochs: pre_pay_num_epochs.unwrap_or(1),
+        lamports_per_write,
+        token_account_version: TokenDataVersion::ShaFlat,
+    };
+
+    let ix = create_compressible_associated_token_account_with_bump(
+        inputs,
+        *associated_token_account.key,
+        bump,
+    )?;
+
+    solana_cpi::invoke(
+        &ix,
+        &[
+            payer,
+            associated_token_account,
+            system_program,
+            compressible_config,
+            rent_recipient,
+            authority,
+        ],
+    )
+}
+
+/// CPI wrapper to create a compressible c-token associated token account
+/// idempotently.
+pub fn create_associated_ctoken_account_idempotent<'info>(
+    payer: AccountInfo<'info>,
+    associated_token_account: AccountInfo<'info>,
+    system_program: AccountInfo<'info>,
+    compressible_config: AccountInfo<'info>,
+    rent_sponsor: AccountInfo<'info>,
+    authority: Pubkey,
+    mint: Pubkey,
+    bump: u8,
+    pre_pay_num_epochs: Option<u64>,
+    lamports_per_write: Option<u32>,
+) -> std::result::Result<(), solana_program_error::ProgramError> {
+    let inputs = CreateCompressibleAssociatedTokenAccountInputs {
+        payer: *payer.key,
+        owner: authority,
+        mint,
+        compressible_config: *compressible_config.key,
+        rent_sponsor: *rent_sponsor.key,
+        pre_pay_num_epochs: pre_pay_num_epochs.unwrap_or(1),
+        lamports_per_write,
+        token_account_version: TokenDataVersion::ShaFlat,
+    };
+
+    let ix = create_compressible_associated_token_account_with_bump_and_mode::<true>(
+        inputs,
+        *associated_token_account.key,
+        bump,
+    )?;
+
+    solana_cpi::invoke(
+        &ix,
+        &[
+            payer,
+            associated_token_account,
+            system_program,
+            compressible_config,
+            rent_sponsor,
+        ],
+    )
+}

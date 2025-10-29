@@ -36,7 +36,8 @@ pub use create_associated_token_account::*;
 pub use create_compressed_mint::*;
 pub use create_spl_mint::*;
 pub use create_token_account::{
-    create_compressible_token_account, create_token_account, CreateCompressibleTokenAccount,
+    create_compressible_token_account_instruction, create_ctoken_account_signed,
+    create_token_account, CreateCompressibleTokenAccount,
 };
 pub use ctoken_accounts::*;
 pub use decompress_full::{decompress_full_ctoken_accounts_with_indices, DecompressFullIndices};

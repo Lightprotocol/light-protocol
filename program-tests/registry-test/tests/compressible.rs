@@ -19,7 +19,7 @@ use light_test_utils::{
     airdrop_lamports, assert_claim::assert_claim, spl::create_mint_helper, Rpc, RpcError,
 };
 use light_token_client::actions::{
-    create_compressible_token_account, CreateCompressibleTokenAccountInputs,
+    create_compressible_token_account_instruction, CreateCompressibleTokenAccountInputs,
 };
 use solana_sdk::{
     instruction::Instruction,
