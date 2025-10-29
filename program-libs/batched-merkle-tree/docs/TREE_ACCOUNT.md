@@ -22,8 +22,10 @@ The main Merkle tree account that stores tree roots, root history, and integrate
 - Hashed pubkey (31 bytes for bn254 field compatibility)
 
 ### 2. Root History (`ZeroCopyCyclicVecU64<[u8; 32]>`)
-- Cyclic buffer storing recent tree roots
+- Type defined in: program-libs/zero-copy/src/cyclic_vec.rs
+- Cyclic buffer storing recent tree roots (when full, oldest root is overwritten with newest root)
 - Default capacity: 200 roots
+- `first()` returns oldest root, `last()` returns newest root
 - Latest root accessed via `root_history.last()`
 - Validity proofs pick root by index from root history
   since proofs need a static root value to verify against.

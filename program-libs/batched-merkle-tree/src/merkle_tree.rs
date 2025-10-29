@@ -747,7 +747,11 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     ///     - now all roots containing values nullified in the final B0 root update are zeroed
     ///     - B0 is safe to clear
     ///
-    fn zero_out_roots(&mut self, sequence_number: u64, first_safe_root_index: u32) {
+    fn zero_out_roots(
+        &mut self,
+        sequence_number: u64,
+        first_safe_root_index: u32,
+    ) -> Result<(), BatchedMerkleTreeError> {
         // 1. Check whether overlapping roots exist.
         let overlapping_roots_exits = sequence_number > self.sequence_number;
         if overlapping_roots_exits {
@@ -758,9 +762,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             //    the update of the previous batch therfore allow anyone to prove
             //    inclusion of values nullified in the previous batch.
             let num_remaining_roots = sequence_number - self.sequence_number;
-            if num_remaining_roots == self.root_history.len() as u64 {
-                // TODO: replace panic with error
-                panic!("We must not zero out the complete root history");
+            if num_remaining_roots >= self.root_history.len() as u64 {
+                return Err(BatchedMerkleTreeError::CannotZeroCompleteRootHistory);
             }
             // 2.2. Zero out roots oldest to first safe root index.
             //      Skip one iteration we don't need to zero out
@@ -776,6 +779,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                 "Zeroing out roots failed."
             );
         }
+        Ok(())
     }
 
     /// Zero out bloom filter of previous batch if 50% of the
@@ -868,7 +872,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // which allows to prove inclusion of a value
             // that was inserted into the bloom filter just zeroed out.
             {
-                self.zero_out_roots(seq, first_safe_root_index);
+                self.zero_out_roots(seq, first_safe_root_index)?;
             }
         }
 
