@@ -74,7 +74,7 @@ impl<'info> MintActionAccounts<'info> {
         let mut iter = AccountIterator::new(accounts);
         let light_system_program = iter.next_account("light_system_program")?;
 
-        let mint_signer = iter.next_option("mint_signer", config.with_mint_signer)?;
+        let mint_signer = iter.next_option_signer("mint_signer", config.with_mint_signer)?;
         // Static non-CPI accounts first
         // Authority is always required to sign
         let authority = iter.next_signer("authority")?;

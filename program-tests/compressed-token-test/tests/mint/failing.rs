@@ -12,7 +12,9 @@ use light_test_utils::{
 };
 use light_token_client::actions::create_mint;
 use serial_test::serial;
-use solana_sdk::{signature::Keypair, signer::Signer};
+use solana_sdk::{
+    instruction::AccountMeta, signature::Keypair, signer::Signer, transaction::Transaction,
+};
 
 /// Functional and Failing tests:
 /// 1. FAIL - MintToCompressed - invalid mint authority
@@ -796,4 +798,63 @@ async fn functional_and_failing_tests() {
         )
         .await;
     }
+}
+
+/// Test that mint_signer must be a signer when creating a compressed mint
+#[tokio::test]
+#[serial]
+async fn test_create_mint_non_signer_mint_signer() {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+
+    let payer = Keypair::new();
+    rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)
+        .await
+        .unwrap();
+
+    let mint_seed = Keypair::new();
+    let mint_authority = Keypair::new();
+
+    // Create the instruction using the helper function
+    let mut instruction =
+        light_token_client::instructions::create_mint::create_compressed_mint_instruction(
+            &mut rpc,
+            &mint_seed,
+            8, // decimals
+            mint_authority.pubkey(),
+            None, // freeze authority
+            payer.pubkey(),
+            None, // metadata
+        )
+        .await
+        .unwrap();
+
+    // Manually override the account metas to make mint_signer a non-signer
+    // Account ordering: [0] light_system_program, [1] mint_signer, [2] authority, ...
+    // Find and modify the mint_signer account meta at index 1
+    // The SDK creates it as AccountMeta::new_readonly(mint_signer, true)
+    // We want to change it to AccountMeta::new_readonly(mint_signer, false)
+    if let Some(mint_signer_meta) = instruction.accounts.get_mut(1) {
+        // Verify it's the mint_seed
+        assert_eq!(mint_signer_meta.pubkey, mint_seed.pubkey());
+        // Change is_signer from true to false to bypass runtime checks
+        *mint_signer_meta = AccountMeta::new_readonly(mint_seed.pubkey(), false);
+    }
+
+    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &[&payer, &mint_authority], // Note: NOT signing with mint_seed
+        blockhash,
+    );
+
+    let result = rpc.process_transaction(transaction).await;
+
+    // Should fail with AccountError::InvalidSigner (error code 20009)
+    assert_rpc_error(
+        result, 0, 20009, // AccountError::InvalidSigner = 20009
+    )
+    .unwrap();
 }

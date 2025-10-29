@@ -120,6 +120,21 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
 
     #[inline(always)]
     #[track_caller]
+    pub fn next_option_signer(
+        &mut self,
+        account_name: &str,
+        is_some: bool,
+    ) -> Result<Option<&'info T>, AccountError> {
+        if is_some {
+            let account_info = self.next_signer(account_name)?;
+            Ok(Some(account_info))
+        } else {
+            Ok(None)
+        }
+    }
+
+    #[inline(always)]
+    #[track_caller]
     pub fn next_signer_mut(&mut self, account_name: &str) -> Result<&'info T, AccountError> {
         let account_info = self.next_signer(account_name)?;
         check_mut(account_info)
