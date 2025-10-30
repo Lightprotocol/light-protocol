@@ -636,8 +636,8 @@ impl<R: Rpc> EpochManager<R> {
             fetch_active_tree: false,
         })
         .await
-        .map_err(|e| ForesterError::Rpc(e))?;
-        let slot = rpc.get_slot().await.map_err(|e| ForesterError::Rpc(e))?;
+        .map_err(ForesterError::Rpc)?;
+        let slot = rpc.get_slot().await.map_err(ForesterError::Rpc)?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
         // Check if it's already too late to register
