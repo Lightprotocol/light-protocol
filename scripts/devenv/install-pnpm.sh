@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/shared.sh"
 
 install_pnpm() {
-    if [ ! -f "${PREFIX}/bin/pnpm" ]; then
+    if ! is_installed "pnpm" || [ ! -f "${PREFIX}/bin/pnpm" ]; then
         echo "Installing pnpm..."
         local version=$(get_version "pnpm")
         local suffix=$(get_suffix "pnpm")

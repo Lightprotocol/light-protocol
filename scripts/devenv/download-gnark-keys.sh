@@ -22,7 +22,7 @@ download_gnark_keys() {
             ;;
     esac
 
-    if [ ! -d "${KEYS_DIR}" ] || [ -z "$(ls -A "${KEYS_DIR}" 2>/dev/null)" ]; then
+    if ! is_installed "gnark_keys" || [ ! -d "${KEYS_DIR}" ] || [ -z "$(ls -A "${KEYS_DIR}" 2>/dev/null)" ]; then
         echo "Downloading gnark keys (run-mode: ${RUN_MODE})..."
         cd "${PROVER_DIR}" || {
             echo "Error: Failed to change directory to ${PROVER_DIR}" >&2

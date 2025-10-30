@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/shared.sh"
 
 install_jq() {
-    if [ ! -f "${PREFIX}/bin/jq" ]; then
+    if ! is_installed "jq" || [ ! -f "${PREFIX}/bin/jq" ]; then
         echo "Installing jq..."
         local version=$(get_version "jq")
         local suffix=$(get_suffix "jq")

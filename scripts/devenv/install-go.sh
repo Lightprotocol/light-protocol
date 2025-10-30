@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/shared.sh"
 
 install_go() {
-    if [ ! -d "${PREFIX}/go" ] || [ ! -f "${PREFIX}/go/bin/go" ]; then
+    if ! is_installed "go" || [ ! -d "${PREFIX}/go" ] || [ ! -f "${PREFIX}/go/bin/go" ]; then
         echo "Installing Go..."
         local version=$(get_version "go")
         local suffix=$(get_suffix "go")

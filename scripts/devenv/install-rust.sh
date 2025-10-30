@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/shared.sh"
 
 install_rust() {
-    if [ ! -d "${PREFIX}/rustup" ] || [ ! -d "${PREFIX}/cargo" ] || [ ! -f "${PREFIX}/cargo/bin/cargo" ]; then
+    if ! is_installed "rust" || [ ! -d "${PREFIX}/rustup" ] || [ ! -d "${PREFIX}/cargo" ] || [ ! -f "${PREFIX}/cargo/bin/cargo" ]; then
         echo "Installing Rust..."
         export RUSTUP_HOME="${PREFIX}/rustup"
         export CARGO_HOME="${PREFIX}/cargo"

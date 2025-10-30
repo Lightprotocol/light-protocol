@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/shared.sh"
 
 install_solana() {
-    if [ ! -f "${PREFIX}/bin/solana" ] || [ ! -f "${PREFIX}/bin/solana-keygen" ]; then
+    if ! is_installed "solana" || [ ! -f "${PREFIX}/bin/solana" ] || [ ! -f "${PREFIX}/bin/solana-keygen" ]; then
         echo "Installing Solana..."
         local version=$(get_version "solana")
         local suffix=$(get_suffix "solana")
