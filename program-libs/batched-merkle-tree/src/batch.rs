@@ -259,6 +259,16 @@ impl Batch {
         self.num_full_zkp_batches * self.zkp_batch_size + self.num_inserted
     }
 
+    /// Returns the batch size.
+    pub fn get_batch_size(&self) -> u64 {
+        self.batch_size
+    }
+
+    /// Returns the zkp batch size.
+    pub fn get_zkp_batch_size(&self) -> u64 {
+        self.zkp_batch_size
+    }
+
     /// Returns the number of zkp batches in the batch.
     pub fn get_num_zkp_batches(&self) -> u64 {
         self.batch_size / self.zkp_batch_size

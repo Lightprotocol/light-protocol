@@ -9,6 +9,7 @@ edition = "2021"
 [features]
 default = ["solana"]
 test-only = []
+kani = []
 solana = [
     "solana-program-error",
     "solana-account-info",
