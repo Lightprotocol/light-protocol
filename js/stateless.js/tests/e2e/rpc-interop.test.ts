@@ -608,8 +608,15 @@ describe('rpc-interop', () => {
             account.lamports.gt(acc.lamports) ? account : acc,
         );
 
-        await transfer(rpc, payer, 1, payer, bob.publicKey);
+        const transferSig = await transfer(rpc, payer, 1, payer, bob.publicKey);
         executedTxs++;
+
+        const txInfo = await rpc.getTransaction(transferSig, {
+            maxSupportedTransactionVersion: 0,
+        });
+        if (txInfo?.slot) {
+            await rpc.confirmTransactionIndexed(txInfo.slot);
+        }
 
         const signaturesSpent = await rpc.getCompressionSignaturesForAccount(
             bn(largestAccount.hash),
