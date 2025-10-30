@@ -562,29 +562,25 @@ impl<R: Rpc> EpochManager<R> {
                     .await
                 {
                     Ok(info) => info,
-                    Err(e) => {
-                        // Check if this is a RegistrationPhaseEnded error by downcasting
-                        if let Some(ForesterError::Registration(
-                            RegistrationError::RegistrationPhaseEnded {
-                                epoch: failed_epoch,
-                                current_slot,
-                                registration_end,
-                            },
-                        )) = e.downcast_ref::<ForesterError>()
-                        {
-                            let next_epoch = failed_epoch + 1;
-                            let next_phases = get_epoch_phases(&self.protocol_config, next_epoch);
-                            let slots_to_wait =
-                                next_phases.registration.start.saturating_sub(*current_slot);
+                    Err(ForesterError::Registration(
+                        RegistrationError::RegistrationPhaseEnded {
+                            epoch: failed_epoch,
+                            current_slot,
+                            registration_end,
+                        },
+                    )) => {
+                        let next_epoch = failed_epoch + 1;
+                        let next_phases = get_epoch_phases(&self.protocol_config, next_epoch);
+                        let slots_to_wait =
+                            next_phases.registration.start.saturating_sub(current_slot);
 
-                            info!(
-                                "Too late to register for epoch {} (registration ended at slot {}, current slot: {}). Next available epoch: {}. Registration opens at slot {} ({} slots to wait).",
-                                failed_epoch, registration_end, current_slot, next_epoch, next_phases.registration.start, slots_to_wait
-                            );
-                            return Ok(());
-                        }
-                        return Err(e);
+                        info!(
+                            "Too late to register for epoch {} (registration ended at slot {}, current slot: {}). Next available epoch: {}. Registration opens at slot {} ({} slots to wait).",
+                            failed_epoch, registration_end, current_slot, next_epoch, next_phases.registration.start, slots_to_wait
+                        );
+                        return Ok(());
                     }
+                    Err(e) => return Err(e.into()),
                 }
             }
         };
@@ -631,7 +627,7 @@ impl<R: Rpc> EpochManager<R> {
         epoch: u64,
         max_retries: u32,
         retry_delay: Duration,
-    ) -> Result<ForesterEpochInfo> {
+    ) -> std::result::Result<ForesterEpochInfo, ForesterError> {
         let rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             photon_url: self.config.external_services.indexer_url.clone(),
@@ -639,8 +635,9 @@ impl<R: Rpc> EpochManager<R> {
             commitment_config: Some(solana_sdk::commitment_config::CommitmentConfig::confirmed()),
             fetch_active_tree: false,
         })
-        .await?;
-        let slot = rpc.get_slot().await?;
+        .await
+        .map_err(|e| ForesterError::Rpc(e))?;
+        let slot = rpc.get_slot().await.map_err(|e| ForesterError::Rpc(e))?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
         // Check if it's already too late to register
@@ -683,7 +680,7 @@ impl<R: Rpc> EpochManager<R> {
                                 error!("Failed to send PagerDuty alert: {:?}", alert_err);
                             }
                         }
-                        return Err(e);
+                        return Err(ForesterError::Other(e));
                     }
                 }
             }

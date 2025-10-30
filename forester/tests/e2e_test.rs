@@ -258,6 +258,7 @@ async fn e2e_test() {
                 "../target/deploy/create_address_test_program.so".to_string(),
             )],
             limit_ledger_size: None,
+            grpc_port: Some(50051),
         }))
         .await;
         spawn_prover().await;
