@@ -611,12 +611,8 @@ describe('rpc-interop', () => {
         const transferSig = await transfer(rpc, payer, 1, payer, bob.publicKey);
         executedTxs++;
 
-        const txInfo = await rpc.getTransaction(transferSig, {
-            maxSupportedTransactionVersion: 0,
-        });
-        if (txInfo?.slot) {
-            await rpc.confirmTransactionIndexed(txInfo.slot);
-        }
+        const currentSlot = await rpc.getSlot();
+        await rpc.confirmTransactionIndexed(currentSlot);
 
         const signaturesSpent = await rpc.getCompressionSignaturesForAccount(
             bn(largestAccount.hash),
