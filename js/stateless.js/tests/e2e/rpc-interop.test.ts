@@ -608,7 +608,7 @@ describe('rpc-interop', () => {
             account.lamports.gt(acc.lamports) ? account : acc,
         );
 
-        const transferSig = await transfer(rpc, payer, 1, payer, bob.publicKey);
+        await transfer(rpc, payer, 1, payer, bob.publicKey);
         executedTxs++;
 
         const signaturesSpent = await rpc.getCompressionSignaturesForAccount(
