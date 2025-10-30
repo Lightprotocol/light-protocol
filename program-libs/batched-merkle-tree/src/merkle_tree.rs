@@ -170,6 +170,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// Should only be used in client.
     /// Checks the discriminator and tree type.
     #[cfg(not(target_os = "solana"))]
+    #[cfg_attr(feature = "kani", kani::requires(account_data.len() >= DISCRIMINATOR_LEN))]
+    #[cfg_attr(feature = "kani", kani::ensures(|result| result.is_ok() || result.is_err()))]
     pub fn address_from_bytes(
         account_data: &'a mut [u8],
         pubkey: &Pubkey,
@@ -756,7 +758,6 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let overlapping_roots_exits = sequence_number > self.sequence_number;
         if overlapping_roots_exits {
             let mut oldest_root_index = self.root_history.first_index();
-            println!("oldest root index {}", oldest_root_index);
             // 2.1. Get, num of remaining roots.
             //    Remaining roots have not been updated since
             //    the update of the previous batch therfore allow anyone to prove
@@ -780,6 +781,15 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             );
         }
         Ok(())
+    }
+
+    #[cfg(feature = "kani")]
+    pub fn zero_out_roots_kani(
+        &mut self,
+        sequence_number: u64,
+        first_safe_root_index: u32,
+    ) -> Result<(), BatchedMerkleTreeError> {
+        self.zero_out_roots(sequence_number, first_safe_root_index)
     }
 
     /// Zero out bloom filter of previous batch if 50% of the
