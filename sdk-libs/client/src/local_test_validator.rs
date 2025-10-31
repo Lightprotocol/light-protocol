@@ -9,6 +9,7 @@ pub struct LightValidatorConfig {
     pub wait_time: u64,
     pub sbf_programs: Vec<(String, String)>,
     pub limit_ledger_size: Option<u64>,
+    pub grpc_port: Option<u64>,
 }
 
 impl Default for LightValidatorConfig {
@@ -19,6 +20,7 @@ impl Default for LightValidatorConfig {
             wait_time: 35,
             sbf_programs: vec![],
             limit_ledger_size: None,
+            grpc_port: None,
         }
     }
 }
@@ -44,6 +46,10 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
 
         if !config.enable_prover {
             path.push_str(" --skip-prover");
+        }
+
+        if let Some(grpc_port) = config.grpc_port {
+            path.push_str(&format!(" --grpc-port {}", grpc_port));
         }
 
         println!("Starting validator with command: {}", path);

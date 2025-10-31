@@ -53,6 +53,11 @@ fn process_address_account(account: &Account, pubkey: Pubkey) -> Result<TreeAcco
 }
 
 fn process_batch_state_account(account: &mut Account, pubkey: Pubkey) -> Result<TreeAccounts> {
+    light_account_checks::checks::check_discriminator::<BatchedMerkleTreeAccount>(&account.data)
+        .map_err(|_| AccountDeserializationError::BatchStateMerkleTree {
+            error: "Invalid discriminator".to_string(),
+        })?;
+
     let tree_account =
         BatchedMerkleTreeAccount::state_from_bytes(&mut account.data, &pubkey.into()).map_err(
             |e| AccountDeserializationError::BatchStateMerkleTree {
@@ -67,6 +72,11 @@ fn process_batch_state_account(account: &mut Account, pubkey: Pubkey) -> Result<
 }
 
 fn process_batch_address_account(account: &mut Account, pubkey: Pubkey) -> Result<TreeAccounts> {
+    light_account_checks::checks::check_discriminator::<BatchedMerkleTreeAccount>(&account.data)
+        .map_err(|_| AccountDeserializationError::BatchAddressMerkleTree {
+            error: "Invalid discriminator".to_string(),
+        })?;
+
     let tree_account =
         BatchedMerkleTreeAccount::address_from_bytes(&mut account.data, &pubkey.into()).map_err(
             |e| AccountDeserializationError::BatchAddressMerkleTree {

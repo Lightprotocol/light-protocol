@@ -89,6 +89,7 @@ pub fn forester_config() -> ForesterConfig {
             prover_address_append_url: None,
             prover_api_key: None,
             photon_api_key: None,
+            photon_grpc_url: None,
             pushgateway_url: None,
             pagerduty_routing_key: None,
             rpc_rate_limit: None,

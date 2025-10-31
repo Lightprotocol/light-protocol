@@ -40,6 +40,7 @@ async fn test_e2e_v1() {
         wait_time: 90,
         sbf_programs: vec![],
         limit_ledger_size: None,
+        grpc_port: None,
     }))
     .await;
     let forester_keypair1 = Keypair::new();
@@ -382,6 +383,7 @@ async fn test_epoch_double_registration() {
         wait_time: 90,
         sbf_programs: vec![],
         limit_ledger_size: None,
+        grpc_port: None,
     }))
     .await;
 

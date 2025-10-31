@@ -1655,7 +1655,7 @@ impl Indexer for PhotonIndexer {
                                 value: QueueElementsResult {
                                     elements: proofs,
                                     first_value_queue_index: Some(
-                                        api_result.first_value_queue_index as u64,
+                                        api_result.first_value_queue_index,
                                     ),
                                 },
                             })

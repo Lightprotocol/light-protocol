@@ -52,6 +52,7 @@ async fn test_priority_fee_request() {
         photon_api_key: Some(
             std::env::var("PHOTON_API_KEY").expect("PHOTON_API_KEY must be set in environment"),
         ),
+        photon_grpc_url: None,
         indexer_batch_size: 50,
         indexer_max_concurrent_batches: 10,
         legacy_ixs_per_tx: 1,

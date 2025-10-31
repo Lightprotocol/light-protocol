@@ -75,6 +75,12 @@ class SetupCommand extends Command {
       default: 3001,
       exclusive: ["skip-prover"],
     }),
+    "grpc-port": Flags.integer({
+      description: "Enable Photon indexer gRPC on this port.",
+      required: false,
+      default: 50051,
+      exclusive: ["skip-indexer"],
+    }),
     "limit-ledger-size": Flags.integer({
       description: "Keep this amount of shreds in root slots.",
       required: false,
@@ -194,6 +200,7 @@ class SetupCommand extends Command {
         rpcPort: flags["rpc-port"],
         gossipHost: flags["gossip-host"],
         indexerPort: flags["indexer-port"],
+        grpcPort: flags["grpc-port"],
         proverPort: flags["prover-port"],
         prover: !flags["skip-prover"],
         skipSystemAccounts: flags["skip-system-accounts"],

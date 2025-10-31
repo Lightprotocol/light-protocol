@@ -191,6 +191,24 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
         bigint_to_be_bytes_array::<32>(&next_index.into()).unwrap(),
     ];
 
+    for (idx, ((low_value, new_value), high_value)) in patched_low_element_values
+        .iter()
+        .zip(new_element_values.iter())
+        .zip(patched_low_element_next_values.iter())
+        .enumerate()
+    {
+        let low = BigUint::from_bytes_be(low_value);
+        let new = BigUint::from_bytes_be(new_value);
+        let high = BigUint::from_bytes_be(high_value);
+
+        if !(low < new && new < high) {
+            return Err(ProverClientError::GenericError(format!(
+                "Invalid address ordering at batch position {} (low = {:#x}, new = {:#x}, high = {:#x})",
+                idx, low, new, high
+            )));
+        }
+    }
+
     let public_input_hash = create_hash_chain_from_array(hash_chain_inputs)?;
 
     Ok(BatchAddressAppendInputs {
