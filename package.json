@@ -1,7 +1,7 @@
 {
   "devDependencies": {
     "husky": "^9.1.7",
-    "nx": "^20.8.1",
+    "nx": "^22.0.1",
     "playwright": "^1.55.1",
     "prettier": "^3.6.2",
     "syncpack": "^13.0.4",
