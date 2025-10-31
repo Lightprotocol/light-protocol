@@ -3352,7 +3352,7 @@ dependencies = [
 
 [[package]]
 name = "light-account-checks"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "borsh 0.10.4",
  "pinocchio",
@@ -3374,7 +3374,7 @@ dependencies = [
 
 [[package]]
 name = "light-batched-merkle-tree"
-version = "0.6.0"
+version = "0.6.1"
 dependencies = [
  "aligned-sized",
  "borsh 0.10.4",
@@ -3473,7 +3473,7 @@ dependencies = [
 
 [[package]]
 name = "light-compressed-account"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "anchor-lang",
  "ark-bn254 0.5.0",
@@ -3606,7 +3606,7 @@ dependencies = [
 
 [[package]]
 name = "light-concurrent-merkle-tree"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "ark-bn254 0.5.0",
  "ark-ff 0.5.0",
