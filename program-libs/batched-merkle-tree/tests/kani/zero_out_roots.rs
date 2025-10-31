@@ -19,12 +19,10 @@ fn stub_hash_to_bn254(_input: &[u8]) -> [u8; 32] {
 // NOTE: Memory is leaked (Firecracker pattern) - not deallocated, but that's fine for Kani proofs
 // NOTE: No contract - kani::any_modifies fails with complex structs
 fn create_test_tree() -> BatchedMerkleTreeAccount<'static> {
-    use light_batched_merkle_tree::merkle_tree::get_merkle_tree_account_size;
-
     // Use MINIMAL CONCRETE values for fast Kani verification
     // This eliminates state explosion in zero-copy deserialization
     let batch_size: u64 = 4; // Minimal -> bloom_filter = 8 bytes
-    let zkp_batch_size: u64 = 2;
+    let zkp_batch_size: u64 = 1;
     let root_history_capacity: u32 = 10; // Minimal for testing (was 10)
     let height = 26;
     let num_iters = 1;
