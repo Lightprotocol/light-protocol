@@ -17,7 +17,10 @@ use crate::compressible::compression_info::CompressAs;
 use crate::{
     account::sha::LightAccount,
     compressible::{compress_account_on_init_native::close, compression_info::HasCompressionInfo},
-    cpi::{CpiAccountsSmall, CpiInputs},
+    cpi::{
+        v2::{CpiAccounts, LightSystemProgramCpi},
+        InvokeLightSystemProgram, LightCpiInstruction,
+    },
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
@@ -54,7 +57,7 @@ pub fn compress_account<'info, A>(
     solana_account: &mut Account<'info, A>,
     compressed_account_meta: &CompressedAccountMeta,
     proof: ValidityProof,
-    cpi_accounts: CpiAccountsSmall<'_, 'info>,
+    cpi_accounts: CpiAccounts<'_, 'info>,
     _rent_recipient: &AccountInfo<'info>,
     compression_delay: &u32,
 ) -> Result<(), crate::ProgramError>
@@ -115,9 +118,9 @@ where
         }
     }
 
-    let cpi_inputs = CpiInputs::new(proof, vec![compressed_account.to_account_info()?]);
-
-    cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
+    LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
+        .with_light_account(compressed_account)?
+        .invoke(cpi_accounts)?;
 
     Ok(())
 }
@@ -127,7 +130,7 @@ pub fn prepare_account_for_compression<'info, A>(
     program_id: &Pubkey,
     account: &mut Account<'info, A>,
     compressed_account_meta: &CompressedAccountMetaNoLamportsNoAddress,
-    cpi_accounts: &CpiAccountsSmall<'_, 'info>,
+    cpi_accounts: &CpiAccounts<'_, 'info>,
     compression_delay: &u32,
     address_space: &[Pubkey],
 ) -> Result<CompressedAccountInfo, crate::ProgramError>
@@ -232,7 +235,7 @@ pub fn compress_pda_native<'info, A>(
     pda_account_data: &mut A,
     compressed_account_meta: &CompressedAccountMeta,
     proof: ValidityProof,
-    cpi_accounts: CpiAccountsSmall<'_, 'info>,
+    cpi_accounts: CpiAccounts<'_, 'info>,
     rent_recipient: &AccountInfo<'info>,
     compression_delay: &u32,
 ) -> Result<(), crate::ProgramError>
@@ -282,11 +285,10 @@ where
         }
     }
 
-    // Create CPI inputs
-    let cpi_inputs = CpiInputs::new(proof, vec![compressed_account.to_account_info()?]);
-
     // Invoke light system program to create the compressed account
-    cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
+    LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
+        .with_light_account(compressed_account)?
+        .invoke(cpi_accounts)?;
     // Close PDA account manually
     close(pda_account_info, rent_recipient.clone())?;
     Ok(())

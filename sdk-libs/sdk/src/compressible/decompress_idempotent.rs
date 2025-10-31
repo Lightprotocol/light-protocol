@@ -15,7 +15,7 @@ use solana_sysvar::Sysvar;
 
 use crate::{
     account::sha::LightAccount, compressible::compression_info::HasCompressionInfo,
-    cpi::CpiAccountsSmall, error::LightSdkError, AnchorDeserialize, AnchorSerialize,
+    cpi::v2::CpiAccounts, error::LightSdkError, AnchorDeserialize, AnchorSerialize,
     LightDiscriminator,
 };
 
@@ -80,7 +80,7 @@ pub fn prepare_account_for_decompression_idempotent<'a, 'info, T>(
     compressed_meta: CompressedAccountMeta,
     solana_account: &AccountInfo<'info>,
     rent_payer: &AccountInfo<'info>,
-    cpi_accounts: &CpiAccountsSmall<'a, 'info>,
+    cpi_accounts: &CpiAccounts<'a, 'info>,
     signer_seeds: &[&[u8]],
 ) -> Result<
     Option<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,

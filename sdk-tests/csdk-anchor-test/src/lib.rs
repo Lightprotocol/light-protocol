@@ -12,7 +12,6 @@ use light_sdk::{
         process_initialize_compression_config_checked, process_update_compression_config,
         CompressAs, CompressibleConfig, CompressionInfo, HasCompressionInfo, Pack, Unpack,
     },
-    cpi::CpiInputs,
     derive_light_cpi_signer,
     instruction::{
         account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
@@ -214,7 +213,7 @@ impl ctoken_seed_system::CTokenSeedProvider for CTokenAccountVariant {
         }
     }
 }
-use light_sdk_types::{CpiAccountsConfig, CpiAccountsSmall, CpiSigner, CPI_AUTHORITY_PDA_SEED};
+use light_sdk_types::{CpiAccountsConfig, CpiSigner};
 
 declare_id!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
@@ -340,6 +339,10 @@ pub mod csdk_anchor_test {
     };
     use light_sdk::compressible::compress_account::prepare_account_for_compression;
     use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
+    use light_sdk::cpi::{
+        v2::{CpiAccounts, LightSystemProgramCpi},
+        InvokeLightSystemProgram, LightCpiInstruction,
+    };
 
     use super::*;
 
@@ -409,7 +412,7 @@ pub mod csdk_anchor_test {
             panic!("Rent recipient does not match config");
         }
 
-        let cpi_accounts = CpiAccountsSmall::new(
+        let cpi_accounts = CpiAccounts::new(
             ctx.accounts.fee_payer.as_ref(),
             &ctx.remaining_accounts[system_accounts_offset as usize..],
             LIGHT_CPI_SIGNER,
@@ -524,8 +527,15 @@ pub mod csdk_anchor_test {
         }
 
         if has_pdas {
-            let cpi_inputs = CpiInputs::new(proof, compressed_pda_infos);
-            cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
+            LightSystemProgramCpi::new_cpi(LIGHT_CPI_SIGNER, proof)
+                .with_account_infos(&compressed_pda_infos)
+                .write_to_cpi_context_first()
+                .invoke_write_to_cpi_context_first(light_sdk_types::cpi_context_write::CpiContextWriteAccounts {
+                    fee_payer,
+                    authority: cpi_accounts.authority().unwrap(),
+                    cpi_context: cpi_accounts.cpi_context().unwrap(),
+                    cpi_signer: LIGHT_CPI_SIGNER,
+                })?;
 
             // Close
             for idx in pda_indices_to_close.into_iter() {
@@ -560,7 +570,7 @@ pub mod csdk_anchor_test {
             solana_accounts: &[AccountInfo<'info>],
             i: usize,
             address_space: Pubkey,
-            cpi_accounts: &light_sdk::cpi::CpiAccountsSmall<'b, 'info>,
+            cpi_accounts: &CpiAccounts<'b, 'info>,
             rent_payer: &Signer<'info>,
             out: &mut Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
         ) -> Result<()> {
@@ -597,7 +607,7 @@ pub mod csdk_anchor_test {
             solana_accounts: &[AccountInfo<'info>],
             i: usize,
             address_space: Pubkey,
-            cpi_accounts: &light_sdk::cpi::CpiAccountsSmall<'b, 'info>,
+            cpi_accounts: &CpiAccounts<'b, 'info>,
             rent_payer: &Signer<'info>,
             out: &mut Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
         ) -> Result<()> {
@@ -635,7 +645,7 @@ pub mod csdk_anchor_test {
             solana_accounts: &[AccountInfo<'info>],
             i: usize,
             address_space: Pubkey,
-            cpi_accounts: &light_sdk::cpi::CpiAccountsSmall<'b, 'info>,
+            cpi_accounts: &CpiAccounts<'b, 'info>,
             rent_payer: &Signer<'info>,
             out: &mut Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>,
         ) -> Result<()> {
@@ -698,7 +708,7 @@ pub mod csdk_anchor_test {
                 light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
             )>,
             proof: light_sdk::instruction::ValidityProof,
-            cpi_accounts: &light_sdk::cpi::CpiAccountsSmall<'b, 'info>,
+            cpi_accounts: &CpiAccounts<'b, 'info>,
             post_system_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
             has_pdas: bool,
         ) -> Result<()> {
@@ -818,13 +828,13 @@ pub mod csdk_anchor_test {
         let mut compressed_pda_infos = Vec::with_capacity(pda_count);
 
         let cpi_accounts = if has_tokens && has_pdas {
-            light_sdk_types::CpiAccountsSmall::new_with_config(
+            CpiAccounts::new_with_config(
                 ctx.accounts.fee_payer.as_ref(),
                 &ctx.remaining_accounts[system_accounts_offset as usize..],
                 light_sdk_types::CpiAccountsConfig::new_with_cpi_context(LIGHT_CPI_SIGNER),
             )
         } else {
-            light_sdk_types::CpiAccountsSmall::new(
+            CpiAccounts::new(
                 ctx.accounts.fee_payer.as_ref(),
                 &ctx.remaining_accounts[system_accounts_offset as usize..],
                 LIGHT_CPI_SIGNER,
@@ -833,7 +843,9 @@ pub mod csdk_anchor_test {
 
         let pda_accounts_start = ctx.remaining_accounts.len() - compressed_accounts.len();
         let solana_accounts = &ctx.remaining_accounts[pda_accounts_start..];
-        let post_system_accounts = cpi_accounts.post_system_accounts().unwrap();
+        let post_system_offset = cpi_accounts.system_accounts_end_offset();
+        let all_infos = cpi_accounts.account_infos();
+        let post_system_accounts = &all_infos[post_system_offset..];
         for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
             let unpacked_data = compressed_data.data.unpack(post_system_accounts)?;
             match unpacked_data {
@@ -902,12 +914,14 @@ pub mod csdk_anchor_test {
                 cpi_context,
                 cpi_signer: LIGHT_CPI_SIGNER,
             };
-            let cpi_inputs =
-                light_sdk::cpi::CpiInputs::new_first_cpi(compressed_pda_infos, Vec::new());
-            cpi_inputs.invoke_light_system_program_cpi_context(system_cpi_accounts)?;
+            LightSystemProgramCpi::new_cpi(LIGHT_CPI_SIGNER, proof)
+                .with_account_infos(&compressed_pda_infos)
+                .write_to_cpi_context_first()
+                .invoke_write_to_cpi_context_first(system_cpi_accounts)?;
         } else if has_pdas {
-            let cpi_inputs = light_sdk::cpi::CpiInputs::new(proof, compressed_pda_infos);
-            cpi_inputs.invoke_light_system_program_small(cpi_accounts.clone())?;
+            LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
+                .with_account_infos(&compressed_pda_infos)
+                .invoke(cpi_accounts.clone())?;
         }
 
         // init tokens.
@@ -957,7 +971,7 @@ pub mod csdk_anchor_test {
         // 3. Create CPI accounts
         let user_account_info = ctx.accounts.user.to_account_info();
         let cpi_accounts =
-            CpiAccountsSmall::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
+            CpiAccounts::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
 
         let new_address_params = address_tree_info.into_new_address_params_assigned_packed(
             user_record.key().to_bytes(),
@@ -1010,7 +1024,7 @@ pub mod csdk_anchor_test {
 
         // Create CPI accounts.
         let player_account_info = ctx.accounts.player.to_account_info();
-        let cpi_accounts = CpiAccountsSmall::new(
+        let cpi_accounts = CpiAccounts::new(
             &player_account_info,
             ctx.remaining_accounts,
             LIGHT_CPI_SIGNER,
@@ -1073,7 +1087,7 @@ pub mod csdk_anchor_test {
         game_session.score = 0;
 
         // Create CPI accounts from remaining accounts
-        let cpi_accounts = CpiAccountsSmall::new_with_config(
+        let cpi_accounts = CpiAccounts::new_with_config(
             ctx.accounts.user.as_ref(),
             ctx.remaining_accounts,
             CpiAccountsConfig::new_with_cpi_context(LIGHT_CPI_SIGNER),
@@ -1121,18 +1135,17 @@ pub mod csdk_anchor_test {
         )?;
         all_compressed_infos.extend(game_compressed_infos);
 
-        let cpi_inputs = CpiInputs::new_first_cpi(
-            all_compressed_infos,
-            vec![user_new_address_params, game_new_address_params],
-        );
-
         let cpi_context_accounts = CpiContextWriteAccounts {
             fee_payer: cpi_accounts.fee_payer(),
             authority: cpi_accounts.authority().unwrap(),
             cpi_context: cpi_context_account,
             cpi_signer: LIGHT_CPI_SIGNER,
         };
-        cpi_inputs.invoke_light_system_program_cpi_context(cpi_context_accounts)?;
+        LightSystemProgramCpi::new_cpi(LIGHT_CPI_SIGNER, compression_params.proof.clone())
+            .with_new_addresses(&[user_new_address_params, game_new_address_params])
+            .with_account_infos(&all_compressed_infos)
+            .write_to_cpi_context_first()
+            .invoke_write_to_cpi_context_first(cpi_context_accounts)?;
 
         // these are custom seeds of the caller program that are used to derive the program owned onchain tokenb account PDA.
         // dual use: as owner of the compressed token account.
@@ -1261,7 +1274,7 @@ pub mod csdk_anchor_test {
         // Create CPI accounts
         let user_account_info = ctx.accounts.user.to_account_info();
         let cpi_accounts =
-            CpiAccountsSmall::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
+            CpiAccounts::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
 
         let new_address_params = address_tree_info.into_new_address_params_assigned_packed(
             placeholder_record.key().to_bytes(),

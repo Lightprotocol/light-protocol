@@ -17,7 +17,10 @@ use solana_pubkey::Pubkey;
 use crate::{
     account::sha::LightAccount,
     compressible::HasCompressionInfo,
-    cpi::{CpiAccountsSmall, CpiInputs},
+    cpi::{
+        v2::{CpiAccounts, LightSystemProgramCpi},
+        InvokeLightSystemProgram, LightCpiInstruction,
+    },
     error::{LightSdkError, Result},
     instruction::ValidityProof,
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
@@ -32,7 +35,7 @@ pub fn compress_account_on_init<'info, A>(
     address: &[u8; 32],
     new_address_param: &NewAddressParamsAssignedPacked,
     output_state_tree_index: u8,
-    cpi_accounts: CpiAccountsSmall<'_, 'info>,
+    cpi_accounts: CpiAccounts<'_, 'info>,
     proof: ValidityProof,
 ) -> Result<()>
 where
@@ -55,10 +58,10 @@ where
         &cpi_accounts,
     )?;
 
-    let cpi_inputs =
-        CpiInputs::new_with_assigned_address(proof, compressed_infos, vec![*new_address_param]);
-
-    cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
+    LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
+        .with_new_addresses(&[*new_address_param])
+        .with_account_infos(&compressed_infos)
+        .invoke(cpi_accounts)?;
 
     Ok(())
 }
@@ -84,7 +87,7 @@ pub fn prepare_accounts_for_compression_on_init<'info, A>(
     addresses: &[[u8; 32]],
     new_address_params: &[NewAddressParamsAssignedPacked],
     output_state_tree_indices: &[u8],
-    cpi_accounts: &CpiAccountsSmall<'_, 'info>,
+    cpi_accounts: &CpiAccounts<'_, 'info>,
 ) -> Result<Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>>
 where
     A: DataHasher
@@ -159,7 +162,7 @@ pub fn compress_empty_account_on_init<'info, A>(
     address: &[u8; 32],
     new_address_param: &NewAddressParamsAssignedPacked,
     output_state_tree_index: u8,
-    cpi_accounts: CpiAccountsSmall<'_, 'info>,
+    cpi_accounts: CpiAccounts<'_, 'info>,
     proof: ValidityProof,
 ) -> Result<()>
 where
@@ -181,10 +184,10 @@ where
         &cpi_accounts,
     )?;
 
-    let cpi_inputs =
-        CpiInputs::new_with_assigned_address(proof, compressed_infos, vec![*new_address_param]);
-
-    cpi_inputs.invoke_light_system_program_small(cpi_accounts)?;
+    LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
+        .with_new_addresses(&[*new_address_param])
+        .with_account_infos(&compressed_infos)
+        .invoke(cpi_accounts)?;
 
     Ok(())
 }
@@ -213,7 +216,7 @@ pub fn prepare_empty_compressed_accounts_on_init<'info, A>(
     addresses: &[[u8; 32]],
     new_address_params: &[NewAddressParamsAssignedPacked],
     output_state_tree_indices: &[u8],
-    cpi_accounts: &CpiAccountsSmall<'_, 'info>,
+    cpi_accounts: &CpiAccounts<'_, 'info>,
 ) -> Result<Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>>
 where
     A: DataHasher
