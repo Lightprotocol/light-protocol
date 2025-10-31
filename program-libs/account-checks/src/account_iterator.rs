@@ -48,7 +48,7 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
     #[inline(always)]
     pub fn next_account(&mut self, _account_name: &str) -> Result<&'info T, AccountError> {
         if self.position >= self.accounts.len() {
-            #[cfg(feature = "std")]
+            #[cfg(all(feature = "msg", feature = "std"))]
             {
                 let location = Location::caller();
                 solana_msg::msg!(
@@ -183,7 +183,7 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
     #[track_caller]
     pub fn remaining(self) -> Result<&'info [T], AccountError> {
         if self.position >= self.accounts.len() {
-            #[cfg(feature = "std")]
+            #[cfg(all(feature = "msg", feature = "std"))]
             {
                 let location = Location::caller();
                 let account_name = "remaining accounts";
@@ -235,7 +235,7 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
 
     #[cold]
     fn print_on_error(&self, error: &AccountError, account_name: &str, location: &Location) {
-        #[cfg(feature = "std")]
+        #[cfg(all(feature = "msg", feature = "std"))]
         solana_msg::msg!(
             "ERROR: {}. for account '{}' at index {}  {}:{}:{}",
             error,
@@ -245,7 +245,7 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
             location.line(),
             location.column()
         );
-        #[cfg(not(feature = "std"))]
+        #[cfg(not(all(feature = "msg", feature = "std")))]
         let _ = (error, account_name, location);
     }
     #[cold]
@@ -257,7 +257,7 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
         account_name: &str,
         location: &Location,
     ) {
-        #[cfg(all(feature = "std", feature = "solana"))]
+        #[cfg(all(feature = "msg", feature = "std", feature = "solana"))]
         solana_msg::msg!(
             "ERROR: {}. for account '{}' address: {:?}, expected: {:?}, at index {}  {}:{}:{}",
             error,
@@ -269,7 +269,7 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
             location.line(),
             location.column()
         );
-        #[cfg(all(feature = "std", not(feature = "solana")))]
+        #[cfg(all(feature = "msg", feature = "std", not(feature = "solana")))]
         solana_msg::msg!(
             "ERROR: {}. for account '{}' address: {:?}, expected: {:?}, at index {}  {}:{}:{}",
             error,
@@ -281,7 +281,7 @@ impl<'info, T: AccountInfoTrait> AccountIterator<'info, T> {
             location.line(),
             location.column()
         );
-        #[cfg(not(feature = "std"))]
+        #[cfg(not(all(feature = "msg", feature = "std")))]
         let _ = (error, pubkey1, pubkey2, account_name, location);
     }
 }

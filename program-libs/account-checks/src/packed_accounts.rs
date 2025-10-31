@@ -1,4 +1,4 @@
-#[cfg(feature = "std")]
+#[cfg(all(feature = "msg", feature = "std"))]
 use core::panic::Location;
 
 use crate::{AccountError, AccountInfoTrait};
@@ -15,7 +15,7 @@ impl<A: AccountInfoTrait> ProgramPackedAccounts<'_, A> {
     #[inline(never)]
     pub fn get(&self, index: usize, _name: &str) -> Result<&A, AccountError> {
         if index >= self.accounts.len() {
-            #[cfg(feature = "std")]
+            #[cfg(all(feature = "msg", feature = "std"))]
             {
                 let location = Location::caller();
                 solana_msg::msg!(

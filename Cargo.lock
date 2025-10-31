@@ -3414,9 +3414,9 @@ dependencies = [
 
 [[package]]
 name = "light-bounded-vec"
-version = "2.0.0"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "233a69f003522990dadcf923b436094ffcb55326a2c3cef7f67acdbcb6e5b039"
+checksum = "58cfa375d028164719e3ffef93d2e5c27855cc8a5bb5bf257b868d17c12a3e66"
 dependencies = [
  "bytemuck",
  "memoffset",

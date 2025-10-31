@@ -81,7 +81,7 @@ pub fn check_discriminator<T: Discriminator>(bytes: &[u8]) -> Result<(), Account
     }
 
     if T::LIGHT_DISCRIMINATOR != bytes[0..DISCRIMINATOR_LEN] {
-        #[cfg(feature = "std")]
+        #[cfg(all(feature = "msg", feature = "std"))]
         solana_msg::msg!(
             "expected discriminator {:?} != {:?} actual",
             T::LIGHT_DISCRIMINATOR,

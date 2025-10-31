@@ -3,6 +3,7 @@ use light_compressed_account::Pubkey;
 use light_hasher::{sha256::Sha256BE, Hasher};
 use light_program_profiler::profile;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
+#[cfg(feature = "solana")]
 use solana_msg::msg;
 
 use crate::{
@@ -76,6 +77,7 @@ impl ZCompressedMintMut<'_> {
         spl_mint_initialized: bool,
     ) -> Result<(), CTokenError> {
         if ix_data.metadata.version != 3 {
+            #[cfg(feature = "solana")]
             msg!(
                 "Only shaflat version 3 is supported got {}",
                 ix_data.metadata.version

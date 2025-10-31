@@ -210,7 +210,7 @@ light-batched-merkle-tree = { path = "program-libs/batched-merkle-tree", version
 light-merkle-tree-metadata = { path = "program-libs/merkle-tree-metadata", version = "0.6.0" }
 aligned-sized = { path = "program-libs/aligned-sized", version = "1.1.0" }
 light-bloom-filter = { path = "program-libs/bloom-filter", version = "0.5.0" }
-light-bounded-vec = { version = "2.0.0" }
+light-bounded-vec = { version = "2.0.1" }
 light-poseidon = { version = "0.3.0" }
 light-test-utils = { path = "program-tests/utils", version = "1.2.1" }
 light-indexed-array = { path = "program-libs/indexed-array", version = "0.3.0" }
