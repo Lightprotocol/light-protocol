@@ -5,7 +5,7 @@ edition = { workspace = true }
 
 [features]
 anchor = ["light-compressed-account/anchor", "dep:anchor-lang", "light-compressible/anchor"]
-solana = ["dep:solana-program-error", "dep:solana-sysvar"]
+solana = ["dep:solana-program-error", "dep:solana-sysvar", "solana-msg"]
 default = []
 profile-program = []
 profile-heap = ["dep:light-heap"]
@@ -30,7 +30,7 @@ light-macros = { workspace = true }
 solana-sysvar = { workspace = true, optional = true }
 spl-pod = { workspace = true }
 spl-token-2022 = { workspace = true }
-solana-msg = { workspace = true }
+solana-msg = { workspace = true, optional = true }
 light-program-profiler = { workspace = true }
 light-heap = { workspace = true, optional = true }
 light-compressible = {workspace = true }

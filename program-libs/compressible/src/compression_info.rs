@@ -3,7 +3,6 @@ use bytemuck::{Pod, Zeroable};
 use light_program_profiler::profile;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use pinocchio::pubkey::Pubkey;
-use solana_msg::msg;
 use zerocopy::U64;
 
 use crate::{
@@ -213,11 +212,13 @@ impl ZCompressionInfoMut<'_> {
         }: ClaimAndUpdate,
     ) -> Result<Option<u64>, CompressibleError> {
         if self.compression_authority != *compression_authority {
-            msg!("Rent authority mismatch");
+            #[cfg(feature = "solana")]
+            solana_msg::msg!("Rent authority mismatch");
             return Ok(None);
         }
         if self.rent_sponsor != *rent_sponsor {
-            msg!("Rent sponsor PDA does not match rent recipient");
+            #[cfg(feature = "solana")]
+            solana_msg::msg!("Rent sponsor PDA does not match rent recipient");
             return Ok(None);
         }
 
@@ -226,7 +227,8 @@ impl ZCompressionInfoMut<'_> {
         let config_version = config_account.version;
 
         if account_version != config_version {
-            msg!(
+            #[cfg(feature = "solana")]
+            solana_msg::msg!(
                 "Config version mismatch: account has v{}, config is v{}",
                 account_version,
                 config_version
