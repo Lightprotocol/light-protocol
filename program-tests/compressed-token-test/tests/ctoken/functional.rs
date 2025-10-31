@@ -123,7 +123,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
 
     // Initialize compressible token account
     let create_token_account_ix =
-        light_compressed_token_sdk::instructions::create_compressible_token_account(
+        light_compressed_token_sdk::instructions::create_compressible_token_account_instruction(
             light_compressed_token_sdk::instructions::CreateCompressibleTokenAccount {
                 account_pubkey: token_account_pubkey,
                 mint_pubkey: context.mint_pubkey,

@@ -90,7 +90,7 @@ pub async fn create_and_assert_token_account(
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
     let create_token_account_ix =
-        light_compressed_token_sdk::instructions::create_compressible_token_account(
+        light_compressed_token_sdk::instructions::create_compressible_token_account_instruction(
             light_compressed_token_sdk::instructions::CreateCompressibleTokenAccount {
                 account_pubkey: token_account_pubkey,
                 mint_pubkey: context.mint_pubkey,
@@ -142,7 +142,7 @@ pub async fn create_and_assert_token_account_fails(
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
     let create_token_account_ix =
-        light_compressed_token_sdk::instructions::create_compressible_token_account(
+        light_compressed_token_sdk::instructions::create_compressible_token_account_instruction(
             light_compressed_token_sdk::instructions::CreateCompressibleTokenAccount {
                 account_pubkey: token_account_pubkey,
                 mint_pubkey: context.mint_pubkey,
