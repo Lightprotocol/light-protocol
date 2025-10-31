@@ -922,6 +922,7 @@ name = "batched-merkle-tree-test"
 version = "0.1.0"
 dependencies = [
  "light-account-checks",
+ "light-array-map",
  "light-batched-merkle-tree",
  "light-bloom-filter",
  "light-compressed-account",

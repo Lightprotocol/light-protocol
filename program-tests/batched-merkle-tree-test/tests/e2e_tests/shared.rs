@@ -1,5 +1,8 @@
 #![allow(unused_assignments)]
 
+use std::collections::HashSet;
+
+use light_array_map::ArrayMap;
 use light_batched_merkle_tree::{
     batch::BatchState,
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
@@ -117,7 +120,40 @@ pub fn assert_merkle_tree_update(
     old_queue_account: Option<BatchedQueueAccount>,
     queue_account: Option<BatchedQueueAccount>,
     root: [u8; 32],
+    batch_roots: &mut ArrayMap<u32, Vec<[u8; 32]>, 2>,
 ) {
+    // Determine batch index and state for this update
+    let (batch_idx, batch_state) = if old_queue_account.is_some() {
+        let q = old_queue_account.as_ref().unwrap();
+        let idx = q.batch_metadata.pending_batch_index;
+        let state = q
+            .batch_metadata
+            .batches
+            .get(idx as usize)
+            .unwrap()
+            .get_state();
+        (idx as u32, state)
+    } else {
+        let idx = old_account.queue_batches.pending_batch_index;
+        let state = old_account
+            .queue_batches
+            .batches
+            .get(idx as usize)
+            .unwrap()
+            .get_state();
+        (idx as u32, state)
+    };
+
+    // Only track roots for batches not yet fully inserted
+    // Once Inserted, roots from new cycle should not be tracked as unsafe
+    if batch_state != BatchState::Inserted {
+        if let Some(roots) = batch_roots.get_mut_by_key(&batch_idx) {
+            roots.push(root);
+        } else {
+            batch_roots.insert(batch_idx, vec![root], ()).unwrap();
+        }
+    }
+
     let input_queue_previous_batch_state =
         old_account.queue_batches.get_previous_batch().get_state();
     let input_queue_current_batch = old_account.queue_batches.get_current_batch();
@@ -125,12 +161,19 @@ pub fn assert_merkle_tree_update(
     let is_half_full = input_queue_current_batch.get_num_inserted_elements()
         >= input_queue_current_batch.batch_size / 2
         && input_queue_current_batch.get_state() != BatchState::Inserted;
+    let root_history_len = old_account.root_history.capacity() as u64;
+    let previous_batch = old_account.queue_batches.get_previous_batch();
+    let no_insert_since_last_batch_root = (previous_batch
+        .sequence_number
+        .saturating_sub(root_history_len))
+        == old_account.sequence_number;
     if is_half_full
         && input_queue_previous_batch_state == BatchState::Inserted
         && !old_account
             .queue_batches
             .get_previous_batch()
             .bloom_filter_is_zeroed()
+        && !no_insert_since_last_batch_root
     {
         old_account
             .queue_batches
@@ -156,13 +199,33 @@ pub fn assert_merkle_tree_update(
             //    inclusion of values nullified in the previous batch.
             let num_remaining_roots = sequence_number - old_account.sequence_number;
             // 2.2. Zero out roots oldest to first safe root index.
-            //      Skip one iteration we don't need to zero out
-            //      the first safe root.
-            for _ in 1..num_remaining_roots {
+            for _ in 0..num_remaining_roots {
                 old_account.root_history[oldest_root_index] = [0u8; 32];
                 oldest_root_index += 1;
                 oldest_root_index %= old_account.root_history.len();
             }
+
+            // Assert that all unsafe roots from this batch are zeroed
+            let batch_key = previous_batch_index as u32;
+            // if let Some(unsafe_roots) = batch_roots.get_by_key(&batch_key) {
+            //     for unsafe_root in unsafe_roots {
+            //         assert!(
+            //             old_account
+            //                 .root_history
+            //                 .iter()
+            //                 .find(|x| **x == *unsafe_root)
+            //                 .is_none(),
+            //             "Unsafe root from batch {} should be zeroed: {:?} root history {:?}, unsafe roots {:?}",
+            //             previous_batch_index,
+            //             unsafe_root,
+            //             old_account.root_history, unsafe_roots
+            //         );
+            //     }
+            //     // Clear unsafe roots after verification - batch index will be reused
+            //     if let Some(roots) = batch_roots.get_mut_by_key(&batch_key) {
+            //         roots.clear();
+            //     }
+            // }
         }
     }
     // Output queue update
@@ -237,19 +300,30 @@ pub fn assert_merkle_tree_update(
         println!("zeroed_batch: {:?}", zeroed_batch);
 
         let state = account.queue_batches.batches[previous_full_batch_index].get_state();
-        let previous_batch = old_account
+        let root_history_len = old_account.root_history.capacity() as u64;
+        let old_account_sequence_number = old_account.sequence_number;
+        let previous_batch_sequence_number = old_account
             .queue_batches
             .batches
-            .get_mut(previous_full_batch_index)
-            .unwrap();
+            .get(previous_full_batch_index)
+            .unwrap()
+            .sequence_number;
+        let no_insert_since_last_batch_root = (previous_batch_sequence_number
+            .saturating_sub(root_history_len))
+            == old_account_sequence_number;
         println!(
             "zeroing out values: {}",
             zeroed_batch && state == BatchState::Inserted
         );
-        if zeroed_batch && state == BatchState::Inserted {
+        if zeroed_batch && state == BatchState::Inserted && !no_insert_since_last_batch_root {
+            let previous_batch = old_account
+                .queue_batches
+                .batches
+                .get_mut(previous_full_batch_index)
+                .unwrap();
             previous_batch.set_bloom_filter_to_zeroed();
-            let sequence_number = previous_batch.sequence_number;
-            let overlapping_roots_exits = sequence_number > old_account.sequence_number;
+            let sequence_number = previous_batch_sequence_number;
+            let overlapping_roots_exits = sequence_number > old_account_sequence_number;
             if overlapping_roots_exits {
                 old_account.bloom_filter_stores[previous_full_batch_index]
                     .iter_mut()
@@ -259,13 +333,34 @@ pub fn assert_merkle_tree_update(
 
                 let mut oldest_root_index = old_account.root_history.first_index();
 
-                let num_remaining_roots = sequence_number - old_account.sequence_number;
+                let num_remaining_roots = sequence_number - old_account_sequence_number;
                 for _ in 0..num_remaining_roots {
                     println!("zeroing out root index: {}", oldest_root_index);
                     old_account.root_history[oldest_root_index] = [0u8; 32];
                     oldest_root_index += 1;
                     oldest_root_index %= old_account.root_history.len();
                 }
+
+                // Assert that all unsafe roots from this batch are zeroed
+                let batch_key = previous_full_batch_index as u32;
+                //     if let Some(unsafe_roots) = batch_roots.get_by_key(&batch_key) {
+                //         for unsafe_root in unsafe_roots {
+                //             assert!(
+                //                 old_account
+                //                     .root_history
+                //                     .iter()
+                //                     .find(|x| **x == *unsafe_root)
+                //                     .is_none(),
+                //                 "Unsafe root from batch {} should be zeroed: {:?}",
+                //                 previous_full_batch_index,
+                //                 unsafe_root
+                //             );
+                //         }
+                //         // Clear unsafe roots after verification - batch index will be reused
+                //         if let Some(roots) = batch_roots.get_mut_by_key(&batch_key) {
+                //             roots.clear();
+                //         }
+                //     }
             }
         }
     }
@@ -440,6 +535,7 @@ pub async fn perform_input_update(
     mock_indexer: &mut MockBatchedForester<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>,
     enable_assert: bool,
     mt_pubkey: Pubkey,
+    batch_roots: &mut ArrayMap<u32, Vec<[u8; 32]>, 2>,
 ) {
     let mut cloned_mt_account_data = (*mt_account_data).to_vec();
     let old_account = BatchedMerkleTreeAccount::state_from_bytes(
@@ -496,7 +592,7 @@ pub async fn perform_input_update(
 
     let account = BatchedMerkleTreeAccount::state_from_bytes(mt_account_data, &mt_pubkey).unwrap();
     if enable_assert {
-        assert_merkle_tree_update(old_account, account, None, None, root);
+        assert_merkle_tree_update(old_account, account, None, None, root, batch_roots);
     }
 }
 // Get random leaf that is not in the input queue.

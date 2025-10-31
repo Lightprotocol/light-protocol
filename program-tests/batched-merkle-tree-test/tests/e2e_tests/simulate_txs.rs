@@ -2,6 +2,7 @@
 use std::cmp::min;
 
 use crate::e2e_tests::shared::*;
+use light_array_map::ArrayMap;
 use light_batched_merkle_tree::{
     constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, DEFAULT_BATCH_STATE_TREE_HEIGHT},
     errors::BatchedMerkleTreeError,
@@ -13,9 +14,7 @@ use light_batched_merkle_tree::{
         test_utils::get_merkle_tree_account_size_default, BatchedMerkleTreeAccount,
         InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
     },
-    queue::{
-        test_utils::get_output_queue_account_size_default, BatchedQueueAccount,
-    },
+    queue::{test_utils::get_output_queue_account_size_default, BatchedQueueAccount},
 };
 use light_compressed_account::{
     hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
@@ -159,6 +158,9 @@ async fn test_simulate_transactions() {
     let mut num_input_values = 0;
     let mut num_output_values = 0;
     let mut current_slot = rng.gen();
+
+    // Track roots created during each batch insertion (batch_index -> roots)
+    let mut batch_roots: ArrayMap<u32, Vec<[u8; 32]>, 2> = ArrayMap::new();
 
     for tx in 0..num_tx {
         println!("tx: {}", tx);
@@ -427,7 +429,7 @@ async fn test_simulate_transactions() {
                 BatchedMerkleTreeAccount::state_from_bytes(&mut pre_mt_account_data, &mt_pubkey)
                     .unwrap();
             assert_nullify_event(nullify_event, new_root, &old_account, mt_pubkey);
-            assert_merkle_tree_update(old_account, account, None, None, new_root);
+            assert_merkle_tree_update(old_account, account, None, None, new_root, &mut batch_roots);
             mt_account_data = pre_mt_account_data.clone();
 
             num_input_updates += 1;
@@ -522,6 +524,7 @@ async fn test_simulate_transactions() {
                 Some(old_output_account),
                 Some(output_account),
                 new_root,
+                &mut batch_roots,
             );
 
             output_queue_account_data = pre_output_queue_state;

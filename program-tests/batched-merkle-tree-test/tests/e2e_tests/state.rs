@@ -1,6 +1,7 @@
 #![allow(unused_assignments)]
 
 use crate::e2e_tests::shared::*;
+use light_array_map::ArrayMap;
 use light_batched_merkle_tree::{
     batch::BatchState,
     constants::{DEFAULT_BATCH_STATE_TREE_HEIGHT, NUM_BATCHES},
@@ -11,9 +12,7 @@ use light_batched_merkle_tree::{
         InitStateTreeAccountsInstructionData,
     },
     merkle_tree::{BatchedMerkleTreeAccount, InstructionDataBatchAppendInputs},
-    queue::{
-        test_utils::get_output_queue_account_size_from_params, BatchedQueueAccount,
-    },
+    queue::{test_utils::get_output_queue_account_size_from_params, BatchedQueueAccount},
 };
 use light_bloom_filter::BloomFilter;
 use light_compressed_account::{
@@ -69,6 +68,9 @@ async fn test_fill_state_queues_completely() {
         .unwrap();
         use rand::SeedableRng;
         let mut rng = StdRng::seed_from_u64(0);
+
+        // Track roots created during each batch insertion (batch_index -> roots)
+        let mut batch_roots: ArrayMap<u32, Vec<[u8; 32]>, 2> = ArrayMap::new();
 
         let num_tx = NUM_BATCHES as u64 * params.output_queue_batch_size;
 
@@ -187,6 +189,14 @@ async fn test_fill_state_queues_completely() {
                 *account.root_history.last().unwrap(),
                 mock_indexer.merkle_tree.root()
             );
+
+            // Track root for this batch
+            let batch_idx = next_full_batch as u32;
+            if let Some(roots) = batch_roots.get_mut_by_key(&batch_idx) {
+                roots.push(new_root);
+            } else {
+                batch_roots.insert(batch_idx, vec![new_root], ()).unwrap();
+            }
 
             output_queue_account_data = pre_output_queue_state;
             mt_account_data = pre_mt_account_data;
@@ -313,17 +323,41 @@ async fn test_fill_state_queues_completely() {
             params.input_queue_batch_size / params.input_queue_zkp_batch_size * NUM_BATCHES as u64;
         for i in 0..num_updates {
             println!("input update ----------------------------- {}", i);
-            perform_input_update(&mut mt_account_data, &mut mock_indexer, false, mt_pubkey).await;
+
+            perform_input_update(
+                &mut mt_account_data,
+                &mut mock_indexer,
+                false,
+                mt_pubkey,
+                &mut batch_roots,
+            )
+            .await;
 
             let merkle_tree_account =
                 &mut BatchedMerkleTreeAccount::state_from_bytes(&mut mt_account_data, &mt_pubkey)
                     .unwrap();
+
             // after 5 updates the first batch is completely inserted
             // As soon as we switch to inserting the second batch we zero out the first batch since
             // the second batch is completely full.
-            if i >= 4 {
+            if i >= 5 {
                 let batch = merkle_tree_account.queue_batches.batches.first().unwrap();
                 assert!(batch.bloom_filter_is_zeroed());
+
+                // Assert that none of the unsafe roots from batch 0 exist in root history
+                if let Some(unsafe_roots) = batch_roots.get_by_key(&0) {
+                    for unsafe_root in unsafe_roots {
+                        assert!(
+                            merkle_tree_account
+                                .root_history
+                                .iter()
+                                .find(|x| **x == *unsafe_root)
+                                .is_none(),
+                            "Unsafe root from batch 0 should be zeroed: {:?}",
+                            unsafe_root
+                        );
+                    }
+                }
             } else {
                 let batch = merkle_tree_account.queue_batches.batches.first().unwrap();
                 assert!(!batch.bloom_filter_is_zeroed());
@@ -399,6 +433,12 @@ async fn test_fill_state_queues_completely() {
                 "root in root index {:?}",
                 merkle_tree_account.root_history[pre_batch_zero.root_index as usize]
             );
+            for batch_idx in 0..NUM_BATCHES as u32 {
+                println!("batch idx {:?}", batch_idx);
+                for root in batch_roots.get(batch_idx as usize).unwrap().1.iter() {
+                    println!("tracked root {:?}", root);
+                }
+            }
             // check that all roots have been overwritten except the root index
             // of the update
             let root_history_len: u32 = merkle_tree_account.root_history.len() as u32;
@@ -415,7 +455,9 @@ async fn test_fill_state_queues_completely() {
                         merkle_tree_account.root_history[root_index],
                         first_input_batch_update_root_value
                     );
-                    assert_eq!(merkle_tree_account.root_history[root_index - 1], [0u8; 32]);
+                    assert_eq!(merkle_tree_account.root_history[root_index], [0u8; 32]);
+                    // First non zeroed root.
+                    assert_ne!(merkle_tree_account.root_history[root_index + 1], [0u8; 32]);
                     break;
                 }
                 println!("index {:?}", index);

@@ -201,6 +201,21 @@ async fn test_fill_address_tree_completely() {
             // the second batch is completely full.
             if i >= 5 {
                 assert!(batch.bloom_filter_is_zeroed());
+
+                // Assert that all unsafe roots from batch 0 are zeroed
+                let (_, unsafe_roots) = batch_roots.iter().find(|(idx, _)| *idx == 0).unwrap();
+                assert_eq!(unsafe_roots.len(), 6, "batch_roots {:?}", batch_roots);
+                for unsafe_root in unsafe_roots {
+                    assert!(
+                        merkle_tree_account
+                            .root_history
+                            .iter()
+                            .find(|x| **x == *unsafe_root)
+                            .is_none(),
+                        "Unsafe root from batch 0 should be zeroed: {:?}",
+                        unsafe_root
+                    );
+                }
             } else {
                 assert!(!batch.bloom_filter_is_zeroed());
             }
