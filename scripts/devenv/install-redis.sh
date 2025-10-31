@@ -4,7 +4,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/shared.sh"
 
 install_redis() {
-    if [ ! -f "${PREFIX}/bin/redis-server" ] || [ ! -f "${PREFIX}/bin/redis-cli" ]; then
+    if ! is_installed "redis" || [ ! -f "${PREFIX}/bin/redis-server" ] || [ ! -f "${PREFIX}/bin/redis-cli" ]; then
         echo "Installing Redis..."
         local version=$(get_version "redis")
         local url="http://download.redis.io/releases/redis-${version}.tar.gz"

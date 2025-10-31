@@ -9,7 +9,7 @@ main() {
     mkdir -p "${PREFIX}/bin"
 
     local key_type="light"
-    local reset_log=true
+    local reset_log=false
     local skip_components=""
     local force_reinstall=false
 
