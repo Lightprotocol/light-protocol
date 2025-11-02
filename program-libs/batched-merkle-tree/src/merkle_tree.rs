@@ -834,10 +834,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             .batches
             .get_mut(previous_pending_batch_index)
             .ok_or(BatchedMerkleTreeError::InvalidBatchIndex)?;
-        println!(
-            "previous_pending_batch_index {}",
-            previous_pending_batch_index
-        );
+
         let no_insert_since_last_batch_root = (previous_pending_batch
             .sequence_number
             .saturating_sub(root_history_len))
@@ -845,12 +842,6 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let previous_batch_is_inserted = previous_pending_batch.get_state() == BatchState::Inserted;
         let previous_batch_is_ready =
             previous_batch_is_inserted && !previous_pending_batch.bloom_filter_is_zeroed();
-        println!("current_batch_is_half_full {}", current_batch_is_half_full);
-        println!("previous_batch_is_ready {}", previous_batch_is_ready);
-        println!(
-            "no_insert_since_last_batch_root {}",
-            no_insert_since_last_batch_root
-        );
 
         // Current batch is at least half full, previous batch is inserted, and not zeroed.
         if current_batch_is_half_full && previous_batch_is_ready && !no_insert_since_last_batch_root
@@ -858,17 +849,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // 3.1. Mark bloom filter zeroed.
             previous_pending_batch.set_bloom_filter_to_zeroed();
             let seq = previous_pending_batch.sequence_number;
-            println!(
-                "previous_pending_batch.sequence_number {}",
-                previous_pending_batch.sequence_number
-            );
-            println!("current sequence_number {}", sequence_number);
             // previous_pending_batch.root_index is the index the root
             // of the last update of that batch was inserted at.
             // This is the last unsafe root index.
             // The next index is safe.
-            // TODO: add init check that root history must be greater than 2x batch size.
-            let first_safe_root_index = previous_pending_batch.root_index + 1;
+            let first_safe_root_index =
+                (previous_pending_batch.root_index + 1) % (self.root_history.len() as u32);
 
             // 3.2. Zero out bloom filter.
             {
@@ -1315,11 +1301,7 @@ mod test {
             println!("previous_roots: {:?}", previous_roots);
             assert_ne!(previous_roots, current_roots);
             let root_index = account.queue_batches.batches[0].root_index;
-            // assert_eq!(
-            //     account.root_history[root_index as usize],
-            //     previous_roots[root_index as usize]
-            // );
-            println!("last_batch0_root {:?}", last_batch0_root);
+
             assert_eq!(
                 account.queue_batches.batches[0].get_state(),
                 BatchState::Inserted
@@ -1581,7 +1563,6 @@ mod test {
                     .queue_batches
                     .increment_pending_batch_index_if_inserted(state);
             }
-            //last_batch1_root_update2 = account.root_history.last().unwrap();
             assert_eq!(
                 account.queue_batches.batches[0].get_state(),
                 BatchState::Inserted

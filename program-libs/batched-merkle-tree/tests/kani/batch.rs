@@ -253,7 +253,7 @@ fn verify_start_slot_flag() {
     assert!(batch.start_slot_is_set());
 }
 
-/// Verify start_slot getter/setter duality (Firecracker pattern)
+/// Verify start_slot getter/setter duality
 #[kani::proof]
 fn verify_start_slot_duality() {
     let mut batch = any_batch();
@@ -265,7 +265,7 @@ fn verify_start_slot_duality() {
     assert!(batch.start_slot_is_set());
 }
 
-/// Verify that state transitions cover expected execution paths (Firecracker pattern)
+/// Verify that state transitions cover expected execution paths
 #[kani::proof]
 fn verify_state_transition_coverage() {
     let mut batch = any_batch();
@@ -283,7 +283,7 @@ fn verify_state_transition_coverage() {
     kani::cover!(batch.get_state() == BatchState::Fill);
 }
 
-/// Verify that invalid transitions are properly covered (Firecracker pattern)
+/// Verify that invalid transitions are properly covered
 #[kani::proof]
 fn verify_invalid_transition_coverage() {
     let mut batch = any_batch();

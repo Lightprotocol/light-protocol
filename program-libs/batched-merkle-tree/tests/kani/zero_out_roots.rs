@@ -12,7 +12,7 @@ fn stub_hash_to_bn254(_input: &[u8]) -> [u8; 32] {
 }
 
 // Helper to create a BatchedMerkleTreeAccount with bounded parameters for Kani
-// Uses CONCRETE values for initialization to avoid state explosion (Firecracker pattern)
+// Uses CONCRETE values for initialization to avoid state explosion
 // We only need symbolic inputs for zero_out_roots parameters, not for tree setup!
 //
 // NOTE: We use concrete values instead of kani::any() to eliminate state explosion
@@ -165,7 +165,7 @@ fn verify_zero_out_roots_error_too_many() {
         BatchedMerkleTreeError::CannotZeroCompleteRootHistory
     );
 
-    // Coverage: ensure error path is reachable (Firecracker pattern)
+    // Coverage: ensure error path is reachable
     kani::cover!(true);
 }
 
@@ -270,7 +270,7 @@ fn verify_zero_out_roots_wraparound() {
     kani::cover!(first_safe_root_index < oldest_root_index as u32);
 }
 
-/// Verify that defensive assertion always holds (Firecracker pattern)
+/// Verify that defensive assertion always holds
 /// This tests the internal consistency check: oldest_root_index after zeroing == first_safe_root_index
 #[kani::proof]
 #[kani::stub(
