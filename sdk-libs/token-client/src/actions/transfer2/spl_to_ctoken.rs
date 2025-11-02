@@ -35,6 +35,7 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
     authority: &Keypair,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
+    panic!("spl_to_ctoken_transfer not yet implemented with new API");
     // Get mint from SPL token account
     let token_account_info = rpc
         .get_account(source_spl_token_account)

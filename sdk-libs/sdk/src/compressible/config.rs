@@ -5,8 +5,8 @@ use solana_cpi::invoke_signed;
 use solana_msg::msg;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_pubkey::Pubkey;
-use solana_rent::Rent;
 use solana_system_interface::instruction as system_instruction;
+use solana_sysvar::rent::Rent;
 use solana_sysvar::Sysvar;
 
 use crate::{error::LightSdkError, AnchorDeserialize, AnchorSerialize};

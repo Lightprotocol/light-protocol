@@ -30,6 +30,7 @@ pub async fn create_compressible_token_account<R: Rpc>(
     rpc: &mut R,
     inputs: CreateCompressibleTokenAccountInputs<'_>,
 ) -> Result<Pubkey, RpcError> {
+    panic!("create_compressible_token_account not yet implemented with new API");
     let CreateCompressibleTokenAccountInputs {
         owner,
         mint,

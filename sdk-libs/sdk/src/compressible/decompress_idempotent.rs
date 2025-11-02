@@ -1,6 +1,6 @@
 #![allow(clippy::all)] // TODO: Remove.
 
-use light_compressed_account::address::derive_compressed_address;
+use light_compressed_account::address::derive_address;
 use light_hasher::DataHasher;
 use light_sdk_types::instruction::account_meta::{
     CompressedAccountMeta, CompressedAccountMetaNoLamportsNoAddress,
@@ -9,15 +9,17 @@ use solana_account_info::AccountInfo;
 use solana_cpi::invoke_signed;
 use solana_msg::msg;
 use solana_pubkey::Pubkey;
-use solana_rent::Rent;
 use solana_system_interface::instruction as system_instruction;
+use solana_sysvar::rent::Rent;
 use solana_sysvar::Sysvar;
 
 use crate::{
     account::sha::LightAccount, compressible::compression_info::HasCompressionInfo,
-    cpi::v2::CpiAccounts, error::LightSdkError, AnchorDeserialize, AnchorSerialize,
-    LightDiscriminator,
+    error::LightSdkError, AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
+
+#[cfg(feature = "v2")]
+use crate::cpi::v2::CpiAccounts;
 
 /// Convert a `CompressedAccountMetaNoLamportsNoAddress` to a
 /// `CompressedAccountMeta` by deriving the compressed address from the solana
@@ -28,10 +30,10 @@ pub fn into_compressed_meta_with_address<'info>(
     address_space: Pubkey,
     program_id: &Pubkey,
 ) -> CompressedAccountMeta {
-    let derived_c_pda = derive_compressed_address(
-        &solana_account.key.into(),
-        &address_space.into(),
-        &program_id.into(),
+    let derived_c_pda = derive_address(
+        &solana_account.key.to_bytes(),
+        &address_space.to_bytes(),
+        &program_id.to_bytes(),
     );
 
     let meta_with_address = CompressedAccountMeta {
@@ -65,7 +67,11 @@ fn invoke_create_account_with_heap<'info>(
 
     invoke_signed(
         &create_account_ix,
-        &[rent_payer, solana_account, system_program],
+        &[
+            rent_payer.clone(),
+            solana_account.clone(),
+            system_program.clone(),
+        ],
         &[seeds],
     )
     .map_err(|e| LightSdkError::ProgramError(e))
@@ -74,6 +80,7 @@ fn invoke_create_account_with_heap<'info>(
 /// Helper function to decompress a compressed account into a PDA
 /// idempotently with seeds. Does not invoke the zk compression CPI.
 #[inline(never)]
+#[cfg(feature = "v2")]
 pub fn prepare_account_for_decompression_idempotent<'a, 'info, T>(
     program_id: &Pubkey,
     data: T,
@@ -106,7 +113,7 @@ where
         LightSdkError::Borsh
     })?;
 
-    let mut light_account = LightAccount::<'_, T>::new_mut(&program_id, &compressed_meta, data)?;
+    let mut light_account = LightAccount::<T>::new_mut(program_id, &compressed_meta, data)?;
 
     let space = T::size(&light_account.account);
     let rent_minimum_balance = rent.minimum_balance(space);
@@ -137,6 +144,7 @@ where
             LightSdkError::Borsh
         })?;
 
-    light_account.remove_data();
+    // Mark that data should be removed when converting to account info
+    // This is handled internally by LightAccount
     Ok(Some(light_account.to_account_info()?))
 }

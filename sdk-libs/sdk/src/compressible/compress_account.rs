@@ -17,14 +17,14 @@ use crate::compressible::compression_info::CompressAs;
 use crate::{
     account::sha::LightAccount,
     compressible::{compress_account_on_init_native::close, compression_info::HasCompressionInfo},
-    cpi::{
-        v2::{CpiAccounts, LightSystemProgramCpi},
-        InvokeLightSystemProgram, LightCpiInstruction,
-    },
+    cpi::{InvokeLightSystemProgram, LightCpiInstruction},
     error::LightSdkError,
     instruction::{account_meta::CompressedAccountMeta, ValidityProof},
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
+
+#[cfg(feature = "v2")]
+use crate::cpi::v2::{CpiAccounts, LightSystemProgramCpi};
 
 /// Helper function to compress a PDA and reclaim rent.
 ///
@@ -95,10 +95,8 @@ where
     solana_account.compression_info_mut().set_compressed();
 
     let owner_program_id = cpi_accounts.self_program_id();
-    let mut compressed_account = LightAccount::<'_, A::Output>::new_mut_without_data(
-        &owner_program_id,
-        compressed_account_meta,
-    )?;
+    let mut compressed_account =
+        LightAccount::<A::Output>::new_empty(&owner_program_id, compressed_account_meta)?;
 
     let compressed_data = match solana_account.compress_as() {
         std::borrow::Cow::Borrowed(data) => data.clone(),
@@ -125,7 +123,7 @@ where
     Ok(())
 }
 
-#[cfg(feature = "anchor")]
+#[cfg(all(feature = "anchor", feature = "v2"))]
 pub fn prepare_account_for_compression<'info, A>(
     program_id: &Pubkey,
     account: &mut Account<'info, A>,
@@ -154,12 +152,12 @@ where
         + crate::compressible::compression_info::CompressedInitSpace,
 {
     use anchor_lang::Key;
-    use light_compressed_account::address::derive_compressed_address;
+    use light_compressed_account::address::derive_address;
 
-    let derived_c_pda = derive_compressed_address(
-        &account.key().into(),
-        &address_space[0].into(),
-        &program_id.into(),
+    let derived_c_pda = derive_address(
+        &account.key().to_bytes(),
+        &address_space[0].to_bytes(),
+        &program_id.to_bytes(),
     );
 
     let meta_with_address = CompressedAccountMeta {
@@ -184,7 +182,7 @@ where
 
     let owner_program_id = cpi_accounts.self_program_id();
     let mut compressed_account =
-        LightAccount::<'_, A::Output>::new_mut_without_data(&owner_program_id, &meta_with_address)?;
+        LightAccount::<A::Output>::new_empty(&owner_program_id, &meta_with_address)?;
 
     let compressed_data = match account.compress_as() {
         std::borrow::Cow::Borrowed(data) => data.clone(),
@@ -230,6 +228,7 @@ where
 /// * `rent_recipient` - The account to receive the PDA's rent
 /// * `compression_delay` - The number of slots to wait before compression is
 ///   allowed
+#[cfg(feature = "v2")]
 pub fn compress_pda_native<'info, A>(
     pda_account_info: &mut AccountInfo<'info>,
     pda_account_data: &mut A,
@@ -266,7 +265,7 @@ where
     // Create the compressed account with the PDA data
     let owner_program_id = cpi_accounts.self_program_id();
     let mut compressed_account =
-        LightAccount::<'_, A>::new_mut_without_data(&owner_program_id, compressed_account_meta)?;
+        LightAccount::<A>::new_empty(&owner_program_id, compressed_account_meta)?;
 
     let mut compressed_data = pda_account_data.clone();
     compressed_data.set_compression_info_none();

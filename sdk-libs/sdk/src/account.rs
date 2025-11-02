@@ -302,6 +302,20 @@ pub mod __internal {
         pub fn owner(&self) -> &Pubkey {
             &self.owner
         }
+        /// Get the byte size of the account type.
+
+        pub fn size(&self) -> usize
+        where
+            A: Size,
+        {
+            self.account.size()
+        }
+
+        /// Remove the data from this account by setting it to default.
+        /// This is used when decompressing to ensure the compressed account is properly zeroed.
+        pub fn remove_data(&mut self) {
+            self.should_remove_data = true;
+        }
 
         pub fn in_account_info(&self) -> &Option<InAccountInfo> {
             &self.account_info.input

@@ -5,7 +5,9 @@ use light_ctoken_types::{
         extensions::compressible::{CompressToPubkey, CompressibleExtensionInstructionData},
     },
     state::TokenDataVersion,
+    CTokenError,
 };
+use solana_account_info::AccountInfo;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
@@ -125,7 +127,7 @@ pub fn create_ctoken_account_signed<'info>(
     signer_seeds: &[&[u8]],
     ctoken_rent_sponsor: AccountInfo<'info>,
     ctoken_config_account: AccountInfo<'info>,
-    pre_pay_num_epochs: Option<u64>,
+    pre_pay_num_epochs: Option<u8>,
     lamports_per_write: Option<u32>,
 ) -> std::result::Result<(), solana_program_error::ProgramError> {
     let bump = signer_seeds[signer_seeds.len() - 1][0];
@@ -153,7 +155,7 @@ pub fn create_ctoken_account_signed<'info>(
     let ix = create_compressible_token_account_instruction(params)
         .map_err(|_| TokenSdkError::CTokenError(CTokenError::InvalidInstructionData))?;
 
-    invoke_signed(
+    solana_cpi::invoke_signed(
         &ix,
         &[
             payer,

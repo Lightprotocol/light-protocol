@@ -1,4 +1,4 @@
-pub mod account_fetcher;
+// pub mod account_fetcher; // Temporarily disabled
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
@@ -7,7 +7,7 @@ use light_client::indexer::{CompressedAccount, TreeInfo, ValidityProofWithContex
 pub use light_sdk::compressible::config::CompressibleConfig;
 use light_sdk::{
     compressible::{compression_info::CompressedAccountData, Pack},
-    constants::CTOKEN_PROGRAM_ID,
+    constants::C_TOKEN_PROGRAM_ID,
     instruction::{
         account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
         SystemAccountMetaConfig, ValidityProof,
@@ -226,7 +226,7 @@ impl CompressibleInstruction {
         let mut has_tokens = false;
         let mut has_pdas = false;
         for (compressed_account, _) in compressed_accounts.iter() {
-            if compressed_account.owner == CTOKEN_PROGRAM_ID.into() {
+            if compressed_account.owner == C_TOKEN_PROGRAM_ID.into() {
                 has_tokens = true;
             } else {
                 has_pdas = true;
@@ -250,10 +250,10 @@ impl CompressibleInstruction {
                 *program_id,
                 cpi_context_of_first_input,
             );
-            remaining_accounts.add_system_accounts_small(system_config)?;
+            remaining_accounts.add_system_accounts(system_config)?;
         } else {
             let system_config = SystemAccountMetaConfig::new(*program_id);
-            remaining_accounts.add_system_accounts_small(system_config)?;
+            remaining_accounts.add_system_accounts(system_config)?;
         }
 
         // pack output queue
@@ -372,7 +372,7 @@ impl CompressibleInstruction {
                         &seeds.iter().map(|v| v.as_slice()).collect::<Vec<&[u8]>>(),
                         program_id,
                     );
-                    if accounts_to_compress[i].owner != CTOKEN_PROGRAM_ID.into() {
+                    if accounts_to_compress[i].owner != C_TOKEN_PROGRAM_ID.into() {
                         match derived {
                             Ok(derived_pubkey) => {
                                 if derived_pubkey != *account {
@@ -400,7 +400,7 @@ impl CompressibleInstruction {
         let mut remaining_accounts = PackedAccounts::default();
 
         let system_config = SystemAccountMetaConfig::new(*program_id);
-        remaining_accounts.add_system_accounts_small(system_config)?;
+        remaining_accounts.add_system_accounts(system_config)?;
 
         let output_state_tree_index =
             remaining_accounts.insert_or_get(output_state_tree_info.queue);
@@ -429,7 +429,7 @@ impl CompressibleInstruction {
         let mut accounts = program_account_metas.to_vec();
 
         for account in accounts_to_compress.iter() {
-            if account.owner == CTOKEN_PROGRAM_ID.into() {
+            if account.owner == C_TOKEN_PROGRAM_ID.into() {
                 let mint = Pubkey::new_from_array(account.data[0..32].try_into().unwrap());
                 remaining_accounts.insert_or_get_read_only(mint);
             }

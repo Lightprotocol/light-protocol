@@ -12,15 +12,15 @@ use crate::{
     account::sha::LightAccount,
     address::PackedNewAddressParams,
     compressible::HasCompressionInfo,
-    cpi::{
-        v2::{CpiAccounts, LightSystemProgramCpi},
-        InvokeLightSystemProgram, LightCpiInstruction,
-    },
+    cpi::{InvokeLightSystemProgram, LightCpiInstruction},
     error::{LightSdkError, Result},
     instruction::ValidityProof,
     light_account_checks::AccountInfoTrait,
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
+
+#[cfg(feature = "v2")]
+use crate::cpi::v2::{CpiAccounts, LightSystemProgramCpi};
 
 /// Native Solana variant of compress_account_on_init that works with raw AccountInfo and pre-deserialized data.
 ///
@@ -28,6 +28,7 @@ use crate::{
 /// Calls `prepare_accounts_for_compression_on_init_native` with single-element
 /// slices and invokes the CPI. Close the source PDA account manually.
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v2")]
 pub fn compress_account_on_init_native<'info, A>(
     pda_account_info: &mut AccountInfo<'info>,
     pda_account_data: &mut A,
@@ -104,6 +105,7 @@ where
 /// * `Ok(Vec<CompressedAccountInfo>)` - CompressedAccountInfo for CPI batching
 /// * `Err(LightSdkError)` if there was an error
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v2")]
 pub fn prepare_accounts_for_compression_on_init_native<'info, A>(
     pda_accounts_info: &mut [&mut AccountInfo<'info>],
     pda_accounts_data: &mut [&mut A],
@@ -180,7 +182,7 @@ where
 
         // Create the compressed account with the PDA data
         let owner_program_id = cpi_accounts.self_program_id();
-        let mut compressed_account = LightAccount::<'_, A>::new_init(
+        let mut compressed_account = LightAccount::<A>::new_init(
             &owner_program_id,
             Some(address),
             output_state_tree_index,
@@ -219,6 +221,7 @@ where
 /// * `address_space` - The address space to validate uniqueness against
 /// * `proof` - Validity proof for the address tree operation
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v2")]
 pub fn compress_empty_account_on_init_native<'info, A>(
     pda_account_info: &mut AccountInfo<'info>,
     pda_account_data: &mut A,
@@ -284,6 +287,7 @@ where
 /// * `Ok(Vec<CompressedAccountInfo>)` - CompressedAccountInfo for CPI batching
 /// * `Err(LightSdkError)` if there was an error
 #[allow(clippy::too_many_arguments)]
+#[cfg(feature = "v2")]
 pub fn prepare_empty_compressed_accounts_on_init_native<'info, A>(
     _pda_accounts_info: &mut [&mut AccountInfo<'info>],
     pda_accounts_data: &mut [&mut A],
@@ -351,12 +355,12 @@ where
             .bump_last_written_slot()?;
 
         let owner_program_id = cpi_accounts.self_program_id();
-        let mut light_account = LightAccount::<'_, A>::new_init(
+        let mut light_account = LightAccount::<A>::new_init(
             &owner_program_id,
             Some(address),
             output_state_tree_index,
         );
-        light_account.remove_data();
+        // Data removal is handled internally by LightAccount
 
         compressed_account_infos.push(light_account.to_account_info()?);
     }

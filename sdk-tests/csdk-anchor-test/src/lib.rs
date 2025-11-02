@@ -3,15 +3,23 @@ use anchor_lang::{
     solana_program::{instruction::AccountMeta, program::invoke, pubkey::Pubkey},
 };
 use anchor_spl::token_interface::TokenAccount;
+use light_compressed_token_sdk::instructions::{
+    create_compressed_mint::find_spl_mint_address, create_mint_action_cpi, MintActionInputs,
+};
 use light_ctoken_types::instructions::mint_action::CompressedMintWithContext;
 use light_sdk::{
     account::Size,
     compressible::{
+        compress_account::prepare_account_for_compression,
         compress_account_on_init, compress_empty_account_on_init,
-        compression_info::CompressedInitSpace, prepare_accounts_for_compression_on_init,
-        process_initialize_compression_config_checked, process_update_compression_config,
-        CompressAs, CompressibleConfig, CompressionInfo, HasCompressionInfo, Pack, Unpack,
+        decompress_idempotent::{
+            into_compressed_meta_with_address, prepare_account_for_decompression_idempotent,
+        },
+        prepare_accounts_for_compression_on_init, process_initialize_compression_config_checked,
+        process_update_compression_config, CompressAs, CompressibleConfig, CompressionInfo,
+        HasCompressionInfo, Pack, Unpack,
     },
+    compression_info::CompressedInitSpace,
     derive_light_cpi_signer,
     instruction::{
         account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
@@ -20,7 +28,8 @@ use light_sdk::{
     light_hasher::{DataHasher, Hasher},
     LightDiscriminator, LightHasher,
 };
-use light_sdk_types::CTOKEN_PROGRAM_ID;
+use light_sdk_types::{cpi_accounts::CpiAccountsConfig, CpiSigner, C_TOKEN_PROGRAM_ID};
+
 pub const POOL_VAULT_SEED: &str = "pool_vault";
 pub const USER_RECORD_SEED: &str = "user_record";
 pub const CTOKEN_SIGNER_SEED: &str = "ctoken_signer";
@@ -213,7 +222,6 @@ impl ctoken_seed_system::CTokenSeedProvider for CTokenAccountVariant {
         }
     }
 }
-use light_sdk_types::{CpiAccountsConfig, CpiSigner};
 
 declare_id!("FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah");
 pub const LIGHT_CPI_SIGNER: CpiSigner =
@@ -333,12 +341,7 @@ pub enum CTokenAccountVariant {
 #[program]
 pub mod csdk_anchor_test {
 
-    use light_compressed_token_sdk::instructions::{
-        compress_and_close::compress_and_close_ctoken_accounts_signed, create_mint_action_cpi,
-        create_token_account::create_ctoken_account_signed, find_mint_address, MintActionInputs,
-    };
-    use light_sdk::compressible::compress_account::prepare_account_for_compression;
-    use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
+    use light_compressed_token_sdk::instructions::create_token_account::create_ctoken_account_signed;
     use light_sdk::cpi::{
         v2::{CpiAccounts, LightSystemProgramCpi},
         InvokeLightSystemProgram, LightCpiInstruction,
@@ -430,7 +433,7 @@ pub mod csdk_anchor_test {
                 msg!("No data. Account already compressed or uninitialized. Skipping.");
                 continue;
             }
-            if account_info.owner == &CTOKEN_PROGRAM_ID.into() {
+            if account_info.owner == &C_TOKEN_PROGRAM_ID.into() {
                 if let Ok(token_account) = InterfaceAccount::<TokenAccount>::try_from(account_info)
                 {
                     let account_signer_seeds = signer_seeds[i].clone();
@@ -530,12 +533,14 @@ pub mod csdk_anchor_test {
             LightSystemProgramCpi::new_cpi(LIGHT_CPI_SIGNER, proof)
                 .with_account_infos(&compressed_pda_infos)
                 .write_to_cpi_context_first()
-                .invoke_write_to_cpi_context_first(light_sdk_types::cpi_context_write::CpiContextWriteAccounts {
-                    fee_payer,
-                    authority: cpi_accounts.authority().unwrap(),
-                    cpi_context: cpi_accounts.cpi_context().unwrap(),
-                    cpi_signer: LIGHT_CPI_SIGNER,
-                })?;
+                .invoke_write_to_cpi_context_first(
+                    light_sdk_types::cpi_context_write::CpiContextWriteAccounts {
+                        fee_payer,
+                        authority: cpi_accounts.authority().unwrap(),
+                        cpi_context: cpi_accounts.cpi_context().unwrap(),
+                        cpi_signer: LIGHT_CPI_SIGNER,
+                    },
+                )?;
 
             // Close
             for idx in pda_indices_to_close.into_iter() {
@@ -580,12 +585,10 @@ pub mod csdk_anchor_test {
                 vec![seeds[0].to_vec(), seeds[1].to_vec(), vec![bump]]
             };
             let seed_refs: Vec<&[u8]> = seeds_vec.iter().map(|v| v.as_slice()).collect();
-            let infos = light_sdk::compressible::prepare_account_for_decompression_idempotent::<
-                UserRecord,
-            >(
+            let infos = prepare_account_for_decompression_idempotent::<UserRecord>(
                 &crate::ID,
                 data,
-                light_sdk::compressible::into_compressed_meta_with_address(
+                into_compressed_meta_with_address(
                     meta,
                     &solana_accounts[i],
                     address_space,
@@ -595,7 +598,8 @@ pub mod csdk_anchor_test {
                 rent_payer,
                 cpi_accounts,
                 seed_refs.as_slice(),
-            )?;
+            )
+            .map_err(|e| ProgramError::from(e))?;
             out.extend(infos);
             Ok(())
         }
@@ -618,12 +622,10 @@ pub mod csdk_anchor_test {
                 vec![seeds[0].to_vec(), seeds[1].to_vec(), vec![bump]]
             };
             let seed_refs: Vec<&[u8]> = seeds_vec.iter().map(|v| v.as_slice()).collect();
-            let infos = light_sdk::compressible::prepare_account_for_decompression_idempotent::<
-                GameSession,
-            >(
+            let infos = prepare_account_for_decompression_idempotent::<GameSession>(
                 &crate::ID,
                 data,
-                light_sdk::compressible::into_compressed_meta_with_address(
+                into_compressed_meta_with_address(
                     meta,
                     &solana_accounts[i],
                     address_space,
@@ -633,7 +635,8 @@ pub mod csdk_anchor_test {
                 rent_payer,
                 cpi_accounts,
                 seed_refs.as_slice(),
-            )?;
+            )
+            .map_err(|e| ProgramError::from(e))?;
             out.extend(infos);
             Ok(())
         }
@@ -656,12 +659,10 @@ pub mod csdk_anchor_test {
                 vec![seeds[0].to_vec(), seeds[1].to_vec(), vec![bump]]
             };
             let seed_refs: Vec<&[u8]> = seeds_vec.iter().map(|v| v.as_slice()).collect();
-            let infos = light_sdk::compressible::prepare_account_for_decompression_idempotent::<
-                PlaceholderRecord,
-            >(
+            let infos = prepare_account_for_decompression_idempotent::<PlaceholderRecord>(
                 &crate::ID,
                 data,
-                light_sdk::compressible::into_compressed_meta_with_address(
+                into_compressed_meta_with_address(
                     meta,
                     &solana_accounts[i],
                     address_space,
@@ -671,7 +672,8 @@ pub mod csdk_anchor_test {
                 rent_payer,
                 cpi_accounts,
                 seed_refs.as_slice(),
-            )?;
+            )
+            .map_err(|e| ProgramError::from(e))?;
             out.extend(infos);
             Ok(())
         }
@@ -760,12 +762,29 @@ pub mod csdk_anchor_test {
                         None,    // TODO: make this configurable
                     )?;
                 }
+                // let decompress_index =
+                // light_compressed_token_sdk::instructions::DecompressFullIndices::from((
+                //     token_data.token_data,
+                //     meta,
+                //     owner_index,
+                // ));
+                // Construct MultiInputTokenDataWithContext from token data and meta
+                let source =
+                    light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext {
+                        owner: token_data.token_data.owner,
+                        amount: token_data.token_data.amount,
+                        has_delegate: token_data.token_data.has_delegate,
+                        delegate: token_data.token_data.delegate,
+                        mint: token_data.token_data.mint,
+                        version: token_data.token_data.version,
+                        merkle_context: meta.tree_info.into(),
+                        root_index: meta.tree_info.root_index,
+                    };
                 let decompress_index =
-                    light_compressed_token_sdk::instructions::DecompressFullIndices::from((
-                        token_data.token_data,
-                        meta,
-                        owner_index,
-                    ));
+                    light_compressed_token_sdk::instructions::DecompressFullIndices {
+                        source,
+                        destination_index: owner_index,
+                    };
                 token_decompress_indices.push(decompress_index);
                 token_signers_seed_groups.push(ctoken_signer_seeds);
             }
@@ -831,7 +850,7 @@ pub mod csdk_anchor_test {
             CpiAccounts::new_with_config(
                 ctx.accounts.fee_payer.as_ref(),
                 &ctx.remaining_accounts[system_accounts_offset as usize..],
-                light_sdk_types::CpiAccountsConfig::new_with_cpi_context(LIGHT_CPI_SIGNER),
+                CpiAccountsConfig::new_with_cpi_context(LIGHT_CPI_SIGNER),
             )
         } else {
             CpiAccounts::new(
@@ -973,11 +992,8 @@ pub mod csdk_anchor_test {
         let cpi_accounts =
             CpiAccounts::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
 
-        let new_address_params = address_tree_info.into_new_address_params_assigned_packed(
-            user_record.key().to_bytes(),
-            true,
-            Some(0),
-        );
+        let new_address_params = address_tree_info
+            .into_new_address_params_assigned_packed(user_record.key().to_bytes().into(), Some(0));
 
         compress_account_on_init::<UserRecord>(
             user_record,
@@ -986,7 +1002,8 @@ pub mod csdk_anchor_test {
             output_state_tree_index,
             cpi_accounts,
             proof,
-        )?;
+        )
+        .map_err(|e| ProgramError::from(e))?;
 
         // at the end of the instruction we always clean up all onchain pdas that we compressed
         user_record.close(ctx.accounts.rent_recipient.to_account_info())?;
@@ -1032,11 +1049,8 @@ pub mod csdk_anchor_test {
 
         // Prepare new address params. The cpda takes the address of the
         // compressible pda account as seed.
-        let new_address_params = address_tree_info.into_new_address_params_assigned_packed(
-            game_session.key().to_bytes(),
-            true,
-            Some(0),
-        );
+        let new_address_params = address_tree_info
+            .into_new_address_params_assigned_packed(game_session.key().to_bytes().into(), Some(0));
 
         // Call at the end of your init instruction to compress the pda account
         // safely. This also closes the pda account. The account can then be
@@ -1050,7 +1064,8 @@ pub mod csdk_anchor_test {
             output_state_tree_index,
             cpi_accounts,
             proof,
-        )?;
+        )
+        .map_err(|e| ProgramError::from(e))?;
 
         game_session.close(ctx.accounts.rent_recipient.to_account_info())?;
 
@@ -1098,10 +1113,10 @@ pub mod csdk_anchor_test {
         // Prepare new address params. One per pda account.
         let user_new_address_params = compression_params
             .user_address_tree_info
-            .into_new_address_params_assigned_packed(user_record.key().to_bytes(), true, Some(0));
+            .into_new_address_params_assigned_packed(user_record.key().to_bytes().into(), Some(0));
         let game_new_address_params = compression_params
             .game_address_tree_info
-            .into_new_address_params_assigned_packed(game_session.key().to_bytes(), true, Some(1));
+            .into_new_address_params_assigned_packed(game_session.key().to_bytes().into(), Some(1));
 
         let mut all_compressed_infos = Vec::new();
 
@@ -1117,7 +1132,8 @@ pub mod csdk_anchor_test {
             &[user_new_address_params],
             &[compression_params.user_output_state_tree_index],
             &cpi_accounts,
-        )?;
+        )
+        .map_err(|e| ProgramError::from(e))?;
 
         all_compressed_infos.extend(user_compressed_infos);
 
@@ -1132,7 +1148,8 @@ pub mod csdk_anchor_test {
             &[game_new_address_params],
             &[compression_params.game_output_state_tree_index],
             &cpi_accounts,
-        )?;
+        )
+        .map_err(|e| ProgramError::from(e))?;
         all_compressed_infos.extend(game_compressed_infos);
 
         let cpi_context_accounts = CpiContextWriteAccounts {
@@ -1213,6 +1230,7 @@ pub mod csdk_anchor_test {
                 out_queue_index: 0,
                 token_out_queue_index: 0,
                 assigned_account_index: 2,
+                read_only_address_trees: [0; 4],
             }),
             Some(cpi_context_pubkey),
         )
@@ -1277,8 +1295,7 @@ pub mod csdk_anchor_test {
             CpiAccounts::new(&user_account_info, ctx.remaining_accounts, LIGHT_CPI_SIGNER);
 
         let new_address_params = address_tree_info.into_new_address_params_assigned_packed(
-            placeholder_record.key().to_bytes(),
-            true,
+            placeholder_record.key().to_bytes().into(),
             Some(0),
         );
 
@@ -1291,7 +1308,8 @@ pub mod csdk_anchor_test {
             output_state_tree_index,
             cpi_accounts,
             proof,
-        )?;
+        )
+        .map_err(|e| ProgramError::from(e))?;
 
         // Note we do not actually close this account yet because in this
         // example we only create _empty_ compressed account without fully
@@ -1418,7 +1436,7 @@ pub struct CreateUserRecordAndGameSession<'info> {
     pub mint_authority: Signer<'info>,
 
     /// Compressed token program
-    /// CHECK: Program ID validated using CTOKEN_PROGRAM_ID constant
+    /// CHECK: Program ID validated using C_TOKEN_PROGRAM_ID constant
     pub ctoken_program: UncheckedAccount<'info>,
 
     /// CHECK: CPI authority of the compressed token program

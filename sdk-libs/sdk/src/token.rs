@@ -1,7 +1,12 @@
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
 use light_hasher::{sha256::Sha256BE, HasherError};
+use solana_account_info::AccountInfo;
 
-use crate::{AnchorDeserialize, AnchorSerialize, Pubkey};
+use crate::{
+    compressible::compression_info::{Pack, Unpack},
+    instruction::PackedAccounts,
+    AnchorDeserialize, AnchorSerialize, Pubkey,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize, Default)]
 #[repr(u8)]

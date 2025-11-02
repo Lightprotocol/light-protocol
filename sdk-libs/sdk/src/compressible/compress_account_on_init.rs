@@ -17,14 +17,14 @@ use solana_pubkey::Pubkey;
 use crate::{
     account::sha::LightAccount,
     compressible::HasCompressionInfo,
-    cpi::{
-        v2::{CpiAccounts, LightSystemProgramCpi},
-        InvokeLightSystemProgram, LightCpiInstruction,
-    },
+    cpi::{InvokeLightSystemProgram, LightCpiInstruction},
     error::{LightSdkError, Result},
     instruction::ValidityProof,
     AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
+
+#[cfg(feature = "v2")]
+use crate::cpi::v2::{CpiAccounts, LightSystemProgramCpi};
 
 /// Wrapper to init an Anchor account as compressible and directly compress it.
 /// Close the source PDA account manually at the end of the caller program's
@@ -81,7 +81,7 @@ where
 /// # Returns
 /// * `Ok(Vec<CompressedAccountInfo>)` - CompressedAccountInfo for CPI batching
 /// * `Err(LightSdkError)` if there was an error
-#[cfg(feature = "anchor")]
+#[cfg(all(feature = "anchor", feature = "v2"))]
 pub fn prepare_accounts_for_compression_on_init<'info, A>(
     solana_accounts: &[&Account<'info, A>],
     addresses: &[[u8; 32]],
@@ -134,11 +134,8 @@ where
 
         let owner_program_id = cpi_accounts.self_program_id();
 
-        let mut compressed_account = LightAccount::<'_, A>::new_init(
-            &owner_program_id,
-            Some(address),
-            output_state_tree_index,
-        );
+        let mut compressed_account =
+            LightAccount::<A>::new_init(&owner_program_id, Some(address), output_state_tree_index);
 
         // Clone the PDA data and set compression_info to None.
         let mut compressed_data = (***solana_account).clone();
@@ -210,7 +207,7 @@ where
 /// # Returns
 /// * `Ok(Vec<CompressedAccountInfo>)` - CompressedAccountInfo for CPI batching
 /// * `Err(LightSdkError)` if there was an error
-#[cfg(feature = "anchor")]
+#[cfg(all(feature = "anchor", feature = "v2"))]
 pub fn prepare_empty_compressed_accounts_on_init<'info, A>(
     solana_accounts: &mut [&mut Account<'info, A>],
     addresses: &[[u8; 32]],
@@ -262,11 +259,8 @@ where
         let owner_program_id = cpi_accounts.self_program_id();
 
         // Create an empty compressed account with the specified address
-        let mut compressed_account = LightAccount::<'_, A>::new_init(
-            &owner_program_id,
-            Some(address),
-            output_state_tree_index,
-        );
+        let mut compressed_account =
+            LightAccount::<A>::new_init(&owner_program_id, Some(address), output_state_tree_index);
 
         compressed_account.remove_data();
         compressed_account_infos.push(compressed_account.to_account_info()?);

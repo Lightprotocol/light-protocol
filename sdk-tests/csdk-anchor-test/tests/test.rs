@@ -1,22 +1,21 @@
+use anchor_lang::{
+    AccountDeserialize, AnchorDeserialize, Discriminator, InstructionData, ToAccountMetas,
+};
 use csdk_anchor_test::{
     get_ctoken_signer2_seeds, get_ctoken_signer3_seeds, get_ctoken_signer4_seeds,
     get_ctoken_signer5_seeds, get_ctoken_signer_seeds, CTokenAccountVariant,
     CompressedAccountVariant, GameSession, UserRecord,
 };
-use anchor_lang::{
-    AccountDeserialize, AnchorDeserialize, Discriminator, InstructionData, ToAccountMetas,
-};
 use light_client::indexer::CompressedAccount;
 use light_compressed_account::address::derive_address;
-use light_compressed_token_sdk::{
-    instructions::{derive_ctoken_mint_address, find_spl_mint_address},
-    CPI_AUTHORITY_PDA,
+use light_compressed_token_sdk::instructions::create_compressed_mint::{
+    derive_compressed_mint_address, derive_ctoken_mint_address, find_spl_mint_address,
 };
+use light_compressed_token_types::CPI_AUTHORITY_PDA;
 use light_compressible_client::CompressibleInstruction;
 use light_ctoken_types::{
     instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
     state::CompressedMintMetadata,
-    CTOKEN_PROGRAM_ID,
 };
 use light_macros::pubkey;
 use light_program_test::{
@@ -31,7 +30,8 @@ use light_sdk::{
     instruction::{PackedAccounts, SystemAccountMetaConfig},
     token::CTokenDataWithVariant,
 };
-use light_token_client::ctoken;
+use light_sdk_types::C_TOKEN_PROGRAM_ID;
+// use light_token_client::ctoken;
 use solana_account::Account;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
@@ -47,8 +47,7 @@ pub const CTOKEN_RENT_AUTHORITY: Pubkey = pubkey!("8r3QmazwoLHYppYWysXPgUxYJ3Khn
 #[tokio::test]
 async fn test_create_and_decompress_two_accounts() {
     let program_id = csdk_anchor_test::ID;
-    let mut config =
-        ProgramTestConfig::new_v2(true, Some(vec![("csdk_anchor_test", program_id)]));
+    let mut config = ProgramTestConfig::new_v2(true, Some(vec![("csdk_anchor_test", program_id)]));
     config = config.with_light_protocol_events();
 
     let mut rpc = LightProgramTest::new(config).await.unwrap();
@@ -171,12 +170,14 @@ async fn test_create_and_decompress_two_accounts() {
         .get_compressed_account(compressed_user_record_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
     let game_session_before_decompression: CompressedAccount = rpc
         .get_compressed_account(compressed_game_session_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     decompress_multiple_pdas_with_ctoken(
         &mut rpc,
@@ -319,7 +320,8 @@ async fn test_double_decompression_attack() {
         .get_compressed_account(user_compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
     let c_user_record =
         UserRecord::deserialize(&mut &compressed_user_record.data.unwrap().data[..]).unwrap();
 
@@ -350,7 +352,8 @@ async fn test_double_decompression_attack() {
         .get_compressed_account(user_compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     let rpc_result = rpc
         .get_validity_proof(vec![c_user_pda.hash], vec![], None)
@@ -726,8 +729,7 @@ async fn test_create_empty_compressed_account() {
     // Verify we can read the PDA data
     let placeholder_data = account.data;
     let decompressed_placeholder_record =
-        csdk_anchor_test::PlaceholderRecord::try_deserialize(&mut &placeholder_data[..])
-            .unwrap();
+        csdk_anchor_test::PlaceholderRecord::try_deserialize(&mut &placeholder_data[..]).unwrap();
     assert_eq!(decompressed_placeholder_record.name, "Test Placeholder");
     assert_eq!(
         decompressed_placeholder_record.placeholder_id,
@@ -747,7 +749,8 @@ async fn test_create_empty_compressed_account() {
         .get_compressed_account(compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     assert_eq!(
         compressed_placeholder.address,
@@ -796,7 +799,7 @@ async fn create_record(
 
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts_small(system_config);
+    let _ = remaining_accounts.add_system_accounts(system_config);
 
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
@@ -895,7 +898,7 @@ async fn create_game_session(
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts_small(system_config);
+    let _ = remaining_accounts.add_system_accounts(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
@@ -983,12 +986,13 @@ async fn create_game_session(
         .get_compressed_account(compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     assert_eq!(compressed_game_session.address, Some(compressed_address));
     assert!(compressed_game_session.data.is_some());
 
-    let buf = compressed_game_session.data.unwrap().data;
+    let buf = compressed_game_session.data.as_ref().unwrap().data.clone();
 
     let game_session = GameSession::deserialize(&mut &buf[..]).unwrap();
 
@@ -1033,7 +1037,8 @@ async fn decompress_multiple_pdas_with_ctoken(
         .get_compressed_account(user_compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     let user_account_data = c_user_pda.data.as_ref().unwrap();
     let c_user_record = UserRecord::deserialize(&mut &user_account_data.data[..]).unwrap();
@@ -1048,7 +1053,8 @@ async fn decompress_multiple_pdas_with_ctoken(
         .get_compressed_account(game_compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
     let game_account_data = c_game_pda.data.as_ref().unwrap();
     let c_game_session = GameSession::deserialize(&mut &game_account_data.data[..]).unwrap();
 
@@ -1267,19 +1273,21 @@ async fn decompress_multiple_pdas_with_ctoken(
         !token_account_data.data.is_empty(),
         "Token account should have data"
     );
-    assert_eq!(token_account_data.owner, CTOKEN_PROGRAM_ID.into());
+    assert_eq!(token_account_data.owner, C_TOKEN_PROGRAM_ID.into());
 
     // Ensure all compressed accounts are now empty (closed)
     let compressed_user_record_data = rpc
         .get_compressed_account(c_user_pda.clone().address.clone().unwrap(), None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
     let compressed_game_session_data = rpc
         .get_compressed_account(c_game_pda.clone().address.clone().unwrap(), None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
     rpc.get_compressed_account_by_hash(ctoken_account.clone().account.hash.clone(), None)
         .await
         .expect_err("Compressed token account should not be found");
@@ -1330,7 +1338,8 @@ async fn decompress_multiple_pdas(
         .get_compressed_account(user_compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     let user_account_data = c_user_pda.data.as_ref().unwrap();
 
@@ -1346,7 +1355,8 @@ async fn decompress_multiple_pdas(
         .get_compressed_account(game_compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
     let game_account_data = c_game_pda.data.as_ref().unwrap();
 
     let c_game_session = GameSession::deserialize(&mut &game_account_data.data[..]).unwrap();
@@ -1486,7 +1496,8 @@ async fn decompress_multiple_pdas(
         .get_compressed_account(game_compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     assert!(c_game_pda.data.is_some());
     assert_eq!(c_game_pda.data.unwrap().data.len(), 0);
@@ -1516,7 +1527,7 @@ async fn create_user_record_and_game_session(
         *program_id,
         state_tree_info.cpi_context.unwrap(),
     );
-    let _ = remaining_accounts.add_system_accounts_small(system_config);
+    let _ = remaining_accounts.add_system_accounts(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
@@ -1632,7 +1643,7 @@ async fn create_user_record_and_game_session(
                     decimals,
                     metadata: CompressedMintMetadata {
                         version: 3,
-                        spl_mint: spl_mint.into(),
+                        mint: spl_mint.into(),
                         spl_mint_initialized: false,
                     },
                     mint_authority: Some(mint_authority.into()),
@@ -1700,7 +1711,8 @@ async fn create_user_record_and_game_session(
         .get_compressed_account(user_compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     assert_eq!(
         compressed_user_record.address,
@@ -1720,7 +1732,8 @@ async fn create_user_record_and_game_session(
         .get_compressed_account(game_compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     assert_eq!(
         compressed_game_session.address,
@@ -1838,7 +1851,7 @@ async fn compress_record(
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts_small(system_config);
+    let _ = remaining_accounts.add_system_accounts(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
@@ -1853,7 +1866,8 @@ async fn compress_record(
         .get_compressed_account(address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
     let compressed_address = compressed_account.address.unwrap();
 
     // Get validity proof from RPC
@@ -1923,7 +1937,8 @@ async fn compress_record(
         .get_compressed_account(compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     assert_eq!(compressed_user_record.address, Some(compressed_address));
     assert!(compressed_user_record.data.is_some());
@@ -1959,7 +1974,8 @@ async fn decompress_single_user_record(
         .get_compressed_account(user_compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     let user_account_data = c_user_pda.data.as_ref().unwrap();
     let c_user_record = UserRecord::deserialize(&mut &user_account_data.data[..]).unwrap();
@@ -2056,7 +2072,7 @@ async fn create_placeholder_record(
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts_small(system_config);
+    let _ = remaining_accounts.add_system_accounts(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
@@ -2158,7 +2174,8 @@ async fn compress_placeholder_record(
         .get_compressed_account(placeholder_compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     // Get validity proof from RPC
     let rpc_result = rpc
@@ -2218,7 +2235,8 @@ async fn compress_placeholder_record(
         .get_compressed_account(placeholder_compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     assert!(
         compressed_placeholder_after.data.is_some(),
@@ -2255,7 +2273,8 @@ async fn compress_placeholder_record_for_double_test(
         .get_compressed_account(placeholder_compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     // Get validity proof from RPC
     let rpc_result = rpc
@@ -2322,7 +2341,8 @@ async fn decompress_single_game_session(
         .get_compressed_account(game_compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     let game_account_data = c_game_pda.data.as_ref().unwrap();
     let c_game_session =
@@ -2519,7 +2539,8 @@ async fn test_double_compression_attack() {
         .get_compressed_account(compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     assert_eq!(
         compressed_placeholder_before.address,
@@ -2527,7 +2548,12 @@ async fn test_double_compression_attack() {
         "Empty compressed account should exist"
     );
     assert_eq!(
-        compressed_placeholder_before.data.unwrap().data.len(),
+        compressed_placeholder_before
+            .data
+            .as_ref()
+            .unwrap()
+            .data
+            .len(),
         0,
         "Compressed account should be empty initially"
     );
@@ -2569,7 +2595,8 @@ async fn test_double_compression_attack() {
         .get_compressed_account(compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     let first_data_len = compressed_placeholder_after_first
         .data
@@ -2617,7 +2644,8 @@ async fn test_double_compression_attack() {
         .get_compressed_account(compressed_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     // Verify compressed account data is unchanged
     assert_eq!(
@@ -2773,12 +2801,14 @@ async fn compress_token_account_after_decompress(
         .get_compressed_account(compressed_user_record_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
     let game_session: CompressedAccount = rpc
         .get_compressed_account(compressed_game_session_address, None)
         .await
         .unwrap()
-        .value;
+        .value
+        .unwrap();
 
     let user_record_hash = user_record.hash;
     let game_session_hash = game_session.hash;
@@ -2847,7 +2877,7 @@ async fn compress_token_account_after_decompress(
         result
     );
 
-    println!("ctoken program id bytes {:?}", ctoken::ID.to_bytes());
+    println!("ctoken program id bytes {:?}", ctoken::ID);
     // Verify the token accounts are now closed/empty
     let token_account_after = rpc.get_account(token_account_address).await.unwrap();
     if let Some(account) = token_account_after {

@@ -1,4 +1,4 @@
-use light_sdk_types::CTOKEN_PROGRAM_ID;
+use light_sdk_types::C_TOKEN_PROGRAM_ID;
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
 use solana_instruction::{AccountMeta, Instruction};
@@ -24,7 +24,7 @@ fn create_transfer_ctoken_instruction(
     authority: Pubkey,
 ) -> Instruction {
     Instruction {
-        program_id: Pubkey::from(CTOKEN_PROGRAM_ID),
+        program_id: Pubkey::from(C_TOKEN_PROGRAM_ID),
         accounts: vec![
             AccountMeta::new(source, false),
             AccountMeta::new(destination, false),

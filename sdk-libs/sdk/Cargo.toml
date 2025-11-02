@@ -25,7 +25,7 @@ poseidon = ["light-hasher/poseidon", "light-compressed-account/poseidon"]
 keccak = ["light-hasher/keccak", "light-compressed-account/keccak"]
 sha256 = ["light-hasher/sha256", "light-compressed-account/sha256"]
 merkle-tree = ["light-concurrent-merkle-tree/solana"]
-
+anchor-discriminator = ["light-sdk-macros/anchor-discriminator"]
 
 [dependencies]
 solana-pubkey = { workspace = true, features = ["borsh", "sha2", "curve25519"] }
@@ -34,12 +34,17 @@ solana-msg = { workspace = true }
 solana-cpi = { workspace = true }
 solana-program-error = { workspace = true }
 solana-instruction = { workspace = true }
+solana-clock = { workspace = true }
+solana-sysvar = { workspace = true }
+solana-system-interface = { workspace = true }
+solana-program = { workspace = true }
 
 anchor-lang = { workspace = true, optional = true }
 num-bigint = { workspace = true }
 
 borsh = { workspace = true }
 thiserror = { workspace = true }
+bincode = "1"
 
 light-sdk-macros = { workspace = true }
 light-sdk-types = { workspace = true, features = ["std"] }

@@ -1,8 +1,21 @@
+use light_compressed_account::instruction_data::compressed_proof::borsh_compat::ValidityProof;
+use light_ctoken_types::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
+use light_program_profiler::profile;
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
+use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
+use solana_pubkey::Pubkey;
 
-use crate::{error::TokenSdkError, utils::is_ctoken_account};
+use crate::{
+    account2::CTokenAccount2,
+    error::TokenSdkError,
+    instructions::transfer2::{
+        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
+        Transfer2Inputs,
+    },
+    utils::is_ctoken_account,
+};
 
 use super::transfer_ctoken::{transfer_ctoken, transfer_ctoken_signed};
 
@@ -60,7 +73,7 @@ pub fn create_transfer_spl_to_ctoken_instruction(
 
     // Create Transfer2Inputs following the test
     let inputs = Transfer2Inputs {
-        validity_proof: ValidityProof::default(),
+        validity_proof: ValidityProof::new(None).into(),
         transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
         meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
             payer,
@@ -133,7 +146,7 @@ pub fn create_transfer_ctoken_to_spl_instruction(
     };
 
     let inputs = Transfer2Inputs {
-        validity_proof: ValidityProof::default(),
+        validity_proof: ValidityProof::new(None).into(),
         transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
         meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
             payer,

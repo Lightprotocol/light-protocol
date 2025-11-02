@@ -544,12 +544,13 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
                 IndexerError::InvalidResponseData
             })?;
 
-        let cpi_context = if let Some(tree_info) = tree_info {
-            tree_info.cpi_context
-        } else {
-            warn!("Cpi context not found in queue tree mapping");
-            None
-        };
+        if tree_info.cpi_context.is_none() {
+            panic!(
+                "Cpi context not found in queue tree mapping for tree pubkey: {:?}",
+                tree_pubkey.to_string()
+            );
+        }
+
         Ok(CompressedAccount {
             address: account.compressed_account.address,
             data: account.compressed_account.data,
@@ -560,7 +561,7 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
                 tree: tree_pubkey,
                 queue: Pubkey::new_from_array(account.merkle_context.queue_pubkey.to_bytes()),
                 tree_type: account.merkle_context.tree_type,
-                cpi_context,
+                cpi_context: tree_info.cpi_context,
                 next_tree_info: None,
             },
             owner: Pubkey::new_from_array(account.compressed_account.owner.to_bytes()),

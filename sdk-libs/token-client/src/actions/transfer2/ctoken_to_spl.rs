@@ -20,6 +20,7 @@ pub async fn transfer_ctoken_to_spl<R: Rpc + Indexer>(
     mint: Pubkey,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
+    panic!("transfer_ctoken_to_spl not yet implemented with new API");
     // Derive token pool PDA with bump
     let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
 

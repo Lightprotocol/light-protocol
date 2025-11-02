@@ -7,6 +7,7 @@ use light_ctoken_types::{
     },
     state::TokenDataVersion,
 };
+use solana_account_info::AccountInfo;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
@@ -412,7 +413,7 @@ pub fn create_associated_ctoken_account<'info>(
     authority: AccountInfo<'info>,
     mint: Pubkey,
     bump: u8,
-    pre_pay_num_epochs: Option<u64>,
+    pre_pay_num_epochs: Option<u8>,
     lamports_per_write: Option<u32>,
 ) -> std::result::Result<(), solana_program_error::ProgramError> {
     let inputs = CreateCompressibleAssociatedTokenAccountInputs {
@@ -456,7 +457,7 @@ pub fn create_associated_ctoken_account_idempotent<'info>(
     authority: Pubkey,
     mint: Pubkey,
     bump: u8,
-    pre_pay_num_epochs: Option<u64>,
+    pre_pay_num_epochs: Option<u8>,
     lamports_per_write: Option<u32>,
 ) -> std::result::Result<(), solana_program_error::ProgramError> {
     let inputs = CreateCompressibleAssociatedTokenAccountInputs {
