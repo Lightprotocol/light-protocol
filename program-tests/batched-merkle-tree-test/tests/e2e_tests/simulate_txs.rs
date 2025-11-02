@@ -162,6 +162,16 @@ async fn test_simulate_transactions() {
     // Track roots created during each batch insertion (batch_index -> roots)
     let mut batch_roots: ArrayMap<u32, Vec<[u8; 32]>, 2> = ArrayMap::new();
 
+    // Track the initial root for batch 0
+    // For StateV2 trees, this is the zero bytes root for the tree height
+    {
+        let initial_root =
+            light_hasher::Poseidon::zero_bytes()[DEFAULT_BATCH_STATE_TREE_HEIGHT as usize];
+        use light_hasher::Hasher;
+        batch_roots.insert(0, vec![initial_root], ()).unwrap();
+        println!("Initial root {:?} tracked for batch 0", initial_root);
+    }
+
     for tx in 0..num_tx {
         println!("tx: {}", tx);
         println!("num_input_updates: {}", num_input_updates);

@@ -122,18 +122,13 @@ pub fn assert_merkle_tree_update(
     root: [u8; 32],
     batch_roots: &mut ArrayMap<u32, Vec<[u8; 32]>, 2>,
 ) {
+    old_account.sequence_number += 1;
+    old_account.root_history.push(root);
+    println!("Adding root: {:?}", root);
     // Determine batch index and state for this update
-    let (batch_idx, batch_state) = if old_queue_account.is_some() {
-        let q = old_queue_account.as_ref().unwrap();
-        let idx = q.batch_metadata.pending_batch_index;
-        let state = q
-            .batch_metadata
-            .batches
-            .get(idx as usize)
-            .unwrap()
-            .get_state();
-        (idx as u32, state)
-    } else {
+    // For both input and output updates, use the INPUT queue's batch index
+    // because that's what controls root zeroing
+    let (batch_idx, _) = {
         let idx = old_account.queue_batches.pending_batch_index;
         let state = old_account
             .queue_batches
@@ -143,15 +138,10 @@ pub fn assert_merkle_tree_update(
             .get_state();
         (idx as u32, state)
     };
-
-    // Only track roots for batches not yet fully inserted
-    // Once Inserted, roots from new cycle should not be tracked as unsafe
-    if batch_state != BatchState::Inserted {
-        if let Some(roots) = batch_roots.get_mut_by_key(&batch_idx) {
-            roots.push(root);
-        } else {
-            batch_roots.insert(batch_idx, vec![root], ()).unwrap();
-        }
+    if let Some(roots) = batch_roots.get_mut_by_key(&batch_idx) {
+        roots.push(root)
+    } else {
+        batch_roots.insert(batch_idx, vec![root], ()).unwrap();
     }
 
     let input_queue_previous_batch_state =
@@ -175,6 +165,15 @@ pub fn assert_merkle_tree_update(
             .bloom_filter_is_zeroed()
         && !no_insert_since_last_batch_root
     {
+        println!("Entering zeroing block for batch {}", previous_batch_index);
+        println!(
+            "Previous batch state: {:?}",
+            input_queue_previous_batch_state
+        );
+        println!(
+            "Previous batch: {:?}",
+            old_account.queue_batches.get_previous_batch()
+        );
         old_account
             .queue_batches
             .get_previous_batch_mut()
@@ -190,6 +189,23 @@ pub fn assert_merkle_tree_update(
             .get(previous_batch_index)
             .unwrap();
         let sequence_number = previous_full_batch.sequence_number;
+
+        // Log the last unsafe root
+        let last_unsafe_root_index = previous_full_batch.root_index;
+        let first_safe_root_index = last_unsafe_root_index + 1;
+        println!("DEBUG: Last unsafe root index: {}", last_unsafe_root_index);
+        println!("DEBUG: First safe root index: {}", first_safe_root_index);
+        if let Some(last_unsafe_root) = old_account
+            .root_history
+            .get(last_unsafe_root_index as usize)
+        {
+            println!(
+                "DEBUG: Last unsafe root at index {}: {:?}",
+                last_unsafe_root_index,
+                &last_unsafe_root[0..4]
+            );
+        }
+
         let overlapping_roots_exits = sequence_number > old_account.sequence_number;
         if overlapping_roots_exits {
             let mut oldest_root_index = old_account.root_history.first_index();
@@ -207,25 +223,114 @@ pub fn assert_merkle_tree_update(
 
             // Assert that all unsafe roots from this batch are zeroed
             let batch_key = previous_batch_index as u32;
-            // if let Some(unsafe_roots) = batch_roots.get_by_key(&batch_key) {
-            //     for unsafe_root in unsafe_roots {
-            //         assert!(
-            //             old_account
-            //                 .root_history
-            //                 .iter()
-            //                 .find(|x| **x == *unsafe_root)
-            //                 .is_none(),
-            //             "Unsafe root from batch {} should be zeroed: {:?} root history {:?}, unsafe roots {:?}",
-            //             previous_batch_index,
-            //             unsafe_root,
-            //             old_account.root_history, unsafe_roots
-            //         );
-            //     }
-            //     // Clear unsafe roots after verification - batch index will be reused
-            //     if let Some(roots) = batch_roots.get_mut_by_key(&batch_key) {
-            //         roots.clear();
-            //     }
-            // }
+            if let Some(unsafe_roots) = batch_roots.get_by_key(&batch_key) {
+                for unsafe_root in unsafe_roots {
+                    assert!(
+                        old_account
+                            .root_history
+                            .iter()
+                            .find(|x| **x == *unsafe_root)
+                            .is_none(),
+                        "Unsafe root from batch {} should be zeroed: {:?} root history {:?}, unsafe roots {:?}",
+                        previous_batch_index,
+                        unsafe_root,
+                        old_account.root_history, unsafe_roots
+                    );
+                }
+                // Clear unsafe roots after verification - batch index will be reused
+                if let Some(roots) = batch_roots.get_mut_by_key(&batch_key) {
+                    roots.clear();
+                }
+            }
+
+            // Assert that the correct number of roots remain non-zero
+            // Calculate expected non-zero roots: those created since the last zeroing
+            let non_zero_roots: Vec<[u8; 32]> = old_account
+                .root_history
+                .iter()
+                .filter(|root| **root != [0u8; 32])
+                .copied()
+                .collect();
+
+            // Expected number of non-zero roots = number of updates since last zeroing
+            // This is the sequence difference that wasn't zeroed
+            let expected_non_zero = old_account.root_history.len() - num_remaining_roots as usize;
+
+            assert_eq!(
+                non_zero_roots.len(),
+                expected_non_zero,
+                "Expected {} non-zero roots after zeroing, but found {}. Root history: {:?}",
+                expected_non_zero,
+                non_zero_roots.len(),
+                old_account.root_history
+            );
+
+            // Assert that all remaining non-zero roots are tracked in the current (non-zeroed) batch
+            let current_batch_idx = old_account.queue_batches.pending_batch_index as u32;
+            if let Some(current_batch_roots) = batch_roots.get_by_key(&current_batch_idx) {
+                // Debug: print the entire root history
+                println!("DEBUG: Root history after zeroing:");
+                for (i, root) in old_account.root_history.iter().enumerate() {
+                    if *root != [0u8; 32] {
+                        println!("  Index {}: {:?}", i, root);
+                    }
+                }
+
+                // Debug: print all tracked roots for current batch and their indices
+                println!("DEBUG: Roots tracked for batch {}:", current_batch_idx);
+                for (i, root) in current_batch_roots.iter().enumerate() {
+                    let root_index = old_account.root_history.iter().position(|r| r == root);
+                    println!("  Root {}: {:?} at index {:?}", i, root, root_index);
+                }
+                let next_batch_index = (current_batch_idx + 1) % 2;
+                println!("DEBUG: Roots tracked for next batch {}:", next_batch_index);
+                for (i, root) in batch_roots
+                    .get_by_key(&next_batch_index)
+                    .as_ref()
+                    .unwrap()
+                    .iter()
+                    .enumerate()
+                {
+                    let root_index = old_account.root_history.iter().position(|r| r == root);
+                    println!("  Root {}: {:?} at index {:?}", i, root, root_index);
+                }
+
+                for non_zero_root in &non_zero_roots {
+                    // Skip the initial root (usually all zeros or a known starting value)
+                    // which might not be tracked in any batch
+                    if old_account.sequence_number > 0 {
+                        assert!(
+                            current_batch_roots.contains(non_zero_root),
+                            "Non-zero root {:?} should be tracked in current batch {} but wasn't found. Current batch roots: {:?}",
+                            non_zero_root,
+                            current_batch_idx,
+                            current_batch_roots
+                        );
+                    }
+                }
+
+                // Also verify the count matches
+                println!("DEBUG: current_batch_idx: {}", current_batch_idx);
+                println!(
+                    "DEBUG: current_batch_roots.len(): {}",
+                    current_batch_roots.len()
+                );
+                println!("DEBUG: non_zero_roots.len(): {}", non_zero_roots.len());
+                println!(
+                    "DEBUG: merkle_tree.sequence_number: {}",
+                    old_account.sequence_number
+                );
+                println!("DEBUG: num_remaining_roots: {}", num_remaining_roots);
+                println!("DEBUG: previous_batch.sequence_number: {}", sequence_number);
+                assert_eq!(
+                    current_batch_roots.len(),
+                    non_zero_roots.len(),
+                    "Current batch {} should have {} roots tracked, but has {}",
+                    current_batch_idx,
+                    non_zero_roots.len(),
+                    current_batch_roots.len()
+                );
+            }
         }
     }
     // Output queue update
@@ -316,6 +421,10 @@ pub fn assert_merkle_tree_update(
             zeroed_batch && state == BatchState::Inserted
         );
         if zeroed_batch && state == BatchState::Inserted && !no_insert_since_last_batch_root {
+            println!(
+                "DEBUG: Entering OUTPUT queue zeroing block for batch {}",
+                previous_full_batch_index
+            );
             let previous_batch = old_account
                 .queue_batches
                 .batches
@@ -334,6 +443,8 @@ pub fn assert_merkle_tree_update(
                 let mut oldest_root_index = old_account.root_history.first_index();
 
                 let num_remaining_roots = sequence_number - old_account_sequence_number;
+                println!("num_remaining_roots: {}", num_remaining_roots);
+                println!("sequence_number: {}", account.sequence_number);
                 for _ in 0..num_remaining_roots {
                     println!("zeroing out root index: {}", oldest_root_index);
                     old_account.root_history[oldest_root_index] = [0u8; 32];
@@ -343,30 +454,76 @@ pub fn assert_merkle_tree_update(
 
                 // Assert that all unsafe roots from this batch are zeroed
                 let batch_key = previous_full_batch_index as u32;
-                //     if let Some(unsafe_roots) = batch_roots.get_by_key(&batch_key) {
-                //         for unsafe_root in unsafe_roots {
-                //             assert!(
-                //                 old_account
-                //                     .root_history
-                //                     .iter()
-                //                     .find(|x| **x == *unsafe_root)
-                //                     .is_none(),
-                //                 "Unsafe root from batch {} should be zeroed: {:?}",
-                //                 previous_full_batch_index,
-                //                 unsafe_root
-                //             );
-                //         }
-                //         // Clear unsafe roots after verification - batch index will be reused
-                //         if let Some(roots) = batch_roots.get_mut_by_key(&batch_key) {
-                //             roots.clear();
-                //         }
-                //     }
+                if let Some(unsafe_roots) = batch_roots.get_by_key(&batch_key) {
+                    for unsafe_root in unsafe_roots {
+                        assert!(
+                            old_account
+                                .root_history
+                                .iter()
+                                .find(|x| **x == *unsafe_root)
+                                .is_none(),
+                            "Unsafe root from batch {} should be zeroed: {:?}",
+                            previous_full_batch_index,
+                            unsafe_root
+                        );
+                    }
+                    // Clear unsafe roots after verification - batch index will be reused
+                    if let Some(roots) = batch_roots.get_mut_by_key(&batch_key) {
+                        roots.clear();
+                    }
+                }
+
+                // Assert that the correct number of roots remain non-zero
+                let non_zero_roots: Vec<[u8; 32]> = old_account
+                    .root_history
+                    .iter()
+                    .filter(|root| **root != [0u8; 32])
+                    .copied()
+                    .collect();
+
+                // Expected number of non-zero roots = number of updates since last zeroing
+                let expected_non_zero =
+                    old_account.root_history.len() - num_remaining_roots as usize;
+                println!("num_remaining_roots {}", num_remaining_roots);
+                assert_eq!(
+                    non_zero_roots.len(),
+                    expected_non_zero,
+                    "Expected {} non-zero roots after output queue zeroing, but found {}. Root history: {:?}",
+                    expected_non_zero,
+                    non_zero_roots.len(),
+                    old_account.root_history
+                );
+
+                // Assert that all remaining non-zero roots are tracked in the current (non-zeroed) batch
+                let current_batch_idx = old_account.queue_batches.pending_batch_index as u32;
+                if let Some(current_batch_roots) = batch_roots.get_by_key(&current_batch_idx) {
+                    for non_zero_root in &non_zero_roots {
+                        // Skip the initial root which might not be tracked in any batch
+                        if old_account.sequence_number > 0 {
+                            assert!(
+                                current_batch_roots.contains(non_zero_root),
+                                "Non-zero root {:?} should be tracked in current batch {} but wasn't found. Current batch roots: {:?}",
+                                non_zero_root,
+                                current_batch_idx,
+                                current_batch_roots
+                            );
+                        }
+                    }
+
+                    // Also verify the count matches
+                    assert_eq!(
+                        current_batch_roots.len(),
+                        non_zero_roots.len(),
+                        "Current batch {} should have {} roots tracked, but has {}",
+                        current_batch_idx,
+                        non_zero_roots.len(),
+                        current_batch_roots.len()
+                    );
+                }
             }
         }
     }
 
-    old_account.sequence_number += 1;
-    old_account.root_history.push(root);
     assert_eq!(account.get_metadata(), old_account.get_metadata());
     assert_eq!(account, old_account);
     assert_eq!(*account.root_history.last().unwrap(), root);
