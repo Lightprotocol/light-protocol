@@ -7,7 +7,9 @@ use core::{
 #[cfg(feature = "std")]
 use std::vec::Vec;
 
-use zerocopy::{little_endian::U32, Ref};
+use zerocopy::little_endian::U32;
+#[cfg(not(feature = "kani"))]
+use zerocopy::Ref;
 
 use crate::{add_padding, errors::ZeroCopyError, ZeroCopyTraits};
 
@@ -17,6 +19,7 @@ pub type ZeroCopyCyclicVecU16<'a, T> = ZeroCopyCyclicVec<'a, u16, T>;
 pub type ZeroCopyCyclicVecU8<'a, T> = ZeroCopyCyclicVec<'a, u8, T>;
 pub type ZeroCopyCyclicVecBorsh<'a, T> = ZeroCopyCyclicVec<'a, U32, T>;
 
+#[cfg(not(feature = "kani"))]
 pub struct ZeroCopyCyclicVec<'a, L, T, const PAD: bool = true>
 where
     L: ZeroCopyTraits,
@@ -26,6 +29,18 @@ where
     /// [current_index, length, capacity]
     metadata: Ref<&'a mut [u8], [L; 3]>,
     slice: Ref<&'a mut [u8], [T]>,
+}
+
+#[cfg(feature = "kani")]
+pub struct ZeroCopyCyclicVec<'a, L, T, const PAD: bool = true>
+where
+    L: ZeroCopyTraits,
+    T: ZeroCopyTraits,
+    u64: From<L> + TryInto<L>,
+{
+    /// Simplified struct for kani verification - avoids complex zerocopy Ref type
+    metadata: [L; 3], // Direct array instead of Ref
+    slice: &'a mut [T], // Direct slice instead of Ref
 }
 
 const CURRENT_INDEX_INDEX: usize = 0;
@@ -55,19 +70,51 @@ where
         }
         let (meta_data, bytes) = bytes.split_at_mut(metadata_size);
 
+        #[cfg(not(feature = "kani"))]
         let (mut metadata, _padding) = Ref::<&mut [u8], [L; 3]>::from_prefix(meta_data)?;
 
-        if u64::from(metadata[LENGTH_INDEX]) != 0
-            || u64::from(metadata[CURRENT_INDEX_INDEX]) != 0
-            || u64::from(metadata[CAPACITY_INDEX]) != 0
+        #[cfg(feature = "kani")]
+        let metadata = unsafe {
+            let ptr = meta_data.as_ptr() as *const [L; 3];
+            let mut metadata = core::ptr::read_unaligned(ptr);
+            if u64::from(metadata[LENGTH_INDEX]) != 0
+                || u64::from(metadata[CURRENT_INDEX_INDEX]) != 0
+                || u64::from(metadata[CAPACITY_INDEX]) != 0
+            {
+                return Err(ZeroCopyError::MemoryNotZeroed);
+            }
+            metadata[CAPACITY_INDEX] = capacity;
+            let write_ptr = meta_data.as_mut_ptr() as *mut [L; 3];
+            core::ptr::write_unaligned(write_ptr, metadata);
+            metadata
+        };
+
+        #[cfg(not(feature = "kani"))]
         {
-            return Err(ZeroCopyError::MemoryNotZeroed);
+            if u64::from(metadata[LENGTH_INDEX]) != 0
+                || u64::from(metadata[CURRENT_INDEX_INDEX]) != 0
+                || u64::from(metadata[CAPACITY_INDEX]) != 0
+            {
+                return Err(ZeroCopyError::MemoryNotZeroed);
+            }
+            metadata[CAPACITY_INDEX] = capacity;
         }
-        metadata[CAPACITY_INDEX] = capacity;
         let capacity_usize: usize = u64::from(metadata[CAPACITY_INDEX]) as usize;
 
+        #[cfg(not(feature = "kani"))]
         let (slice, remaining_bytes) =
             Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, capacity_usize)?;
+
+        #[cfg(feature = "kani")]
+        let (slice, remaining_bytes) = {
+            let needed_size = capacity_usize * size_of::<T>();
+            let (slice_bytes, remaining) = bytes.split_at_mut(needed_size);
+            let slice = unsafe {
+                let ptr = slice_bytes.as_mut_ptr() as *mut T;
+                core::slice::from_raw_parts_mut(ptr, capacity_usize)
+            };
+            (slice, remaining)
+        };
         Ok((Self { metadata, slice }, remaining_bytes))
     }
 
@@ -86,7 +133,15 @@ where
         }
 
         let (meta_data, bytes) = bytes.split_at_mut(metadata_size);
+
+        #[cfg(not(feature = "kani"))]
         let (metadata, _padding) = Ref::<&mut [u8], [L; 3]>::from_prefix(meta_data)?;
+
+        #[cfg(feature = "kani")]
+        let metadata = unsafe {
+            let ptr = meta_data.as_ptr() as *const [L; 3];
+            core::ptr::read_unaligned(ptr)
+        };
         let usize_capacity: usize = u64::from(metadata[CAPACITY_INDEX]) as usize;
         let usize_len: usize = u64::from(metadata[LENGTH_INDEX]) as usize;
         let usize_current_index: usize = u64::from(metadata[CURRENT_INDEX_INDEX]) as usize;
@@ -106,8 +161,20 @@ where
                 full_vector_size + metadata_size,
             ));
         }
+        #[cfg(not(feature = "kani"))]
         let (slice, remaining_bytes) =
             Ref::<&mut [u8], [T]>::from_prefix_with_elems(bytes, usize_capacity)?;
+
+        #[cfg(feature = "kani")]
+        let (slice, remaining_bytes) = {
+            let needed_size = usize_capacity * size_of::<T>();
+            let (slice_bytes, remaining) = bytes.split_at_mut(needed_size);
+            let slice = unsafe {
+                let ptr = slice_bytes.as_mut_ptr() as *mut T;
+                core::slice::from_raw_parts_mut(ptr, usize_capacity)
+            };
+            (slice, remaining)
+        };
         Ok((Self { metadata, slice }, remaining_bytes))
     }
 

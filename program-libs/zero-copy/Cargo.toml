@@ -14,6 +14,7 @@ solana = ["solana-program-error"]
 pinocchio = ["dep:pinocchio"]
 derive = ["light-zero-copy-derive"]
 mut = ["light-zero-copy-derive/mut"]
+kani = []
 
 [dependencies]
 solana-program-error = { workspace = true, optional = true }
@@ -27,3 +28,7 @@ zerocopy = { workspace = true, features = ["derive"] }
 borsh = { workspace = true }
 trybuild = "1.0"
 light-zero-copy-derive = { workspace = true }
+
+[lints.rust.unexpected_cfgs]
+level = "allow"
+check-cfg = ['cfg(kani)']
