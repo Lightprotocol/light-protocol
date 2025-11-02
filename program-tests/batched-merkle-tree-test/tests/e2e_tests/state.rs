@@ -1,6 +1,5 @@
 #![allow(unused_assignments)]
 
-use crate::e2e_tests::shared::*;
 use light_array_map::ArrayMap;
 use light_batched_merkle_tree::{
     batch::BatchState,
@@ -23,6 +22,8 @@ use light_prover_client::prover::spawn_prover;
 use light_test_utils::mock_batched_forester::{MockBatchedForester, MockTxEvent};
 use rand::rngs::StdRng;
 use serial_test::serial;
+
+use crate::e2e_tests::shared::*;
 
 #[serial]
 #[tokio::test]
@@ -348,11 +349,10 @@ async fn test_fill_state_queues_completely() {
                 if let Some(unsafe_roots) = batch_roots.get_by_key(&0) {
                     for unsafe_root in unsafe_roots {
                         assert!(
-                            merkle_tree_account
+                            !merkle_tree_account
                                 .root_history
                                 .iter()
-                                .find(|x| **x == *unsafe_root)
-                                .is_none(),
+                                .any(|x| *x == *unsafe_root),
                             "Unsafe root from batch 0 should be zeroed: {:?}",
                             unsafe_root
                         );
@@ -433,12 +433,12 @@ async fn test_fill_state_queues_completely() {
                 "root in root index {:?}",
                 merkle_tree_account.root_history[pre_batch_zero.root_index as usize]
             );
-            for batch_idx in 0..NUM_BATCHES as u32 {
-                println!("batch idx {:?}", batch_idx);
-                for root in batch_roots.get(batch_idx as usize).unwrap().1.iter() {
-                    println!("tracked root {:?}", root);
-                }
-            }
+            // for batch_idx in 0..NUM_BATCHES as u32 {
+            //     println!("batch idx {:?}", batch_idx);
+            //     for root in batch_roots.get(batch_idx as usize).unwrap().1.iter() {
+            //         println!("tracked root {:?}", root);
+            //     }
+            // }
             // check that all roots have been overwritten except the root index
             // of the update
             let root_history_len: u32 = merkle_tree_account.root_history.len() as u32;

@@ -1,11 +1,12 @@
-#![cfg(feature = "kani")]
-
-use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
-use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
+#![cfg(kani)]
+use light_batched_merkle_tree::{
+    errors::BatchedMerkleTreeError, merkle_tree::BatchedMerkleTreeAccount,
+};
 use light_compressed_account::{pubkey::Pubkey, TreeType};
 use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
 
 // Stub for hash_to_bn254_field_size_be - just return a fixed valid value
+#[allow(unused)]
 fn stub_hash_to_bn254(_input: &[u8]) -> [u8; 32] {
     [1u8; 32]
 }

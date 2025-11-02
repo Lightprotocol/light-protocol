@@ -66,4 +66,4 @@ num-traits = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
-check-cfg = ['cfg(target_os, values("solana"))']
+check-cfg = ['cfg(target_os, values("solana"))', 'cfg(kani)']

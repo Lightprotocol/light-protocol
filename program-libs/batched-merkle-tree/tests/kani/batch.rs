@@ -1,7 +1,8 @@
-#![cfg(feature = "kani")]
-
-use light_batched_merkle_tree::batch::{Batch, BatchState};
-use light_batched_merkle_tree::errors::BatchedMerkleTreeError;
+#![cfg(kani)]
+use light_batched_merkle_tree::{
+    batch::{Batch, BatchState},
+    errors::BatchedMerkleTreeError,
+};
 
 // Helper to create batch with arbitrary valid configuration
 fn any_batch() -> Batch {

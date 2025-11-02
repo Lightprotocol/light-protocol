@@ -1,7 +1,6 @@
 #![allow(unused_assignments)]
 use std::cmp::min;
 
-use crate::e2e_tests::shared::*;
 use light_array_map::ArrayMap;
 use light_batched_merkle_tree::{
     constants::{ACCOUNT_COMPRESSION_PROGRAM_ID, DEFAULT_BATCH_STATE_TREE_HEIGHT},
@@ -26,6 +25,8 @@ use light_prover_client::prover::spawn_prover;
 use light_test_utils::mock_batched_forester::{MockBatchedForester, MockTxEvent};
 use rand::{rngs::StdRng, Rng};
 use serial_test::serial;
+
+use crate::e2e_tests::shared::*;
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct MockTransactionInputs {

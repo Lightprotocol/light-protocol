@@ -170,8 +170,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// Should only be used in client.
     /// Checks the discriminator and tree type.
     #[cfg(not(target_os = "solana"))]
-    #[cfg_attr(feature = "kani", kani::requires(account_data.len() >= DISCRIMINATOR_LEN))]
-    #[cfg_attr(feature = "kani", kani::ensures(|result| result.is_ok() || result.is_err()))]
+    #[cfg_attr(kani, kani::requires(account_data.len() >= DISCRIMINATOR_LEN))]
+    #[cfg_attr(kani, kani::ensures(|result| result.is_ok() || result.is_err()))]
     pub fn address_from_bytes(
         account_data: &'a mut [u8],
         pubkey: &Pubkey,
@@ -783,7 +783,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         Ok(())
     }
 
-    #[cfg(feature = "kani")]
+    #[cfg(kani)]
     pub fn zero_out_roots_kani(
         &mut self,
         sequence_number: u64,
@@ -1193,6 +1193,7 @@ mod test {
         let rng = &mut rand::rngs::StdRng::from_seed([0u8; 32]);
         let mut latest_root_0 = [0u8; 32];
         let mut latest_root_1 = [0u8; 32];
+        #[allow(clippy::needless_late_init)]
         let last_batch0_root;
         let last_batch1_root;
         let last_batch0_root_update2;
@@ -1288,7 +1289,7 @@ mod test {
                 let rnd_root = rng.gen();
                 first_batch1_root = rnd_root;
                 account.root_history.push(rnd_root);
-                latest_root_0 = rnd_root;
+                // latest_root_0 = rnd_root; // Not used after this point
                 account.metadata.sequence_number += 1;
                 let root_index = account.get_root_index();
                 println!("root_index: {}", root_index);
@@ -1343,11 +1344,7 @@ mod test {
                 .root_history {:?}",
                 account.root_history
             );
-            assert!(account
-                .root_history
-                .iter()
-                .find(|x| **x == last_batch0_root)
-                .is_none());
+            assert!(!account.root_history.iter().any(|x| *x == last_batch0_root));
         }
         // Make Batch 1 full and insert
         {
@@ -1452,11 +1449,7 @@ mod test {
                 .for_each(|x| *x = 0);
             account_ref.queue_batches.batches[1].set_bloom_filter_to_zeroed();
             assert_eq!(account.get_metadata(), account_ref.get_metadata());
-            assert!(account
-                .root_history
-                .iter()
-                .find(|x| **x == last_batch1_root)
-                .is_none());
+            assert!(!account.root_history.iter().any(|x| *x == last_batch1_root));
             assert_eq!(account, account_ref);
         }
         // 8. Batch 1 is already zeroed -> nothing should happen
@@ -1563,11 +1556,10 @@ mod test {
                     account_ref.root_history[i] = [0u8; 32];
                 }
             }
-            assert!(account
+            assert!(!account
                 .root_history
                 .iter()
-                .find(|x| **x == last_batch0_root_update2)
-                .is_none());
+                .any(|x| *x == last_batch0_root_update2));
             assert_eq!(account, account_ref);
         }
 

@@ -226,11 +226,10 @@ pub fn assert_merkle_tree_update(
             if let Some(unsafe_roots) = batch_roots.get_by_key(&batch_key) {
                 for unsafe_root in unsafe_roots {
                     assert!(
-                        old_account
+                        !old_account
                             .root_history
                             .iter()
-                            .find(|x| **x == *unsafe_root)
-                            .is_none(),
+                            .any(|x| *x == *unsafe_root),
                         "Unsafe root from batch {} should be zeroed: {:?} root history {:?}, unsafe roots {:?}",
                         previous_batch_index,
                         unsafe_root,
@@ -457,11 +456,7 @@ pub fn assert_merkle_tree_update(
                 if let Some(unsafe_roots) = batch_roots.get_by_key(&batch_key) {
                     for unsafe_root in unsafe_roots {
                         assert!(
-                            old_account
-                                .root_history
-                                .iter()
-                                .find(|x| **x == *unsafe_root)
-                                .is_none(),
+                            !old_account.root_history.iter().any(|x| *x == *unsafe_root),
                             "Unsafe root from batch {} should be zeroed: {:?}",
                             previous_full_batch_index,
                             unsafe_root
@@ -533,7 +528,7 @@ pub fn assert_address_merkle_tree_update(
     mut old_account: BatchedMerkleTreeAccount,
     account: BatchedMerkleTreeAccount,
     root: [u8; 32],
-    batch_roots: &Vec<(u32, Vec<[u8; 32]>)>,
+    batch_roots: &[(u32, Vec<[u8; 32]>)],
 ) {
     {
         // Input queue update
