@@ -11,7 +11,9 @@ use light_compressed_account::{
 };
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueMetadata};
 use light_zero_copy::{errors::ZeroCopyError, vec::ZeroCopyVecU64};
-use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref};
+#[cfg(not(feature = "kani"))]
+use zerocopy::Ref;
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 // Import the feature-gated types from lib.rs
 use super::batch::BatchState;
@@ -130,9 +132,19 @@ impl BatchedQueueMetadata {
 /// To read, light the system program uses:
 /// - `prove_inclusion_by_index`
 #[derive(Debug, PartialEq)]
+#[cfg(not(feature = "kani"))]
 pub struct BatchedQueueAccount<'a> {
     pubkey: Pubkey,
     metadata: Ref<&'a mut [u8], BatchedQueueMetadata>,
+    pub value_vecs: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
+    pub hash_chain_stores: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg(feature = "kani")]
+pub struct BatchedQueueAccount<'a> {
+    pubkey: Pubkey,
+    metadata: &'a mut BatchedQueueMetadata,
     pub value_vecs: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
     pub hash_chain_stores: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
 }
@@ -190,9 +202,26 @@ impl<'a> BatchedQueueAccount<'a> {
         pubkey: Pubkey,
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         let (_discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
+
+        #[cfg(not(feature = "kani"))]
         let (metadata, account_data) =
             Ref::<&'a mut [u8], BatchedQueueMetadata>::from_prefix(account_data)
                 .map_err(ZeroCopyError::from)?;
+
+        #[cfg(feature = "kani")]
+        let (metadata, account_data) = {
+            let size = std::mem::size_of::<BatchedQueueMetadata>();
+            if account_data.len() < size {
+                return Err(ZeroCopyError::Size.into());
+            }
+            let (meta_bytes, remaining) = account_data.split_at_mut(size);
+            let metadata = unsafe {
+                let ptr = meta_bytes.as_mut_ptr() as *mut BatchedQueueMetadata;
+                core::ptr::write_unaligned(ptr, core::ptr::read_unaligned(ptr as *const _));
+                &mut *ptr
+            };
+            (metadata, remaining)
+        };
 
         if metadata.metadata.queue_type != QUEUE_TYPE {
             return Err(MerkleTreeMetadataError::InvalidQueueType.into());
@@ -227,9 +256,21 @@ impl<'a> BatchedQueueAccount<'a> {
         let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
         set_discriminator::<Self>(discriminator)?;
 
+        #[cfg(not(feature = "kani"))]
         let (mut account_metadata, account_data) =
             Ref::<&mut [u8], BatchedQueueMetadata>::from_prefix(account_data)
                 .map_err(ZeroCopyError::from)?;
+
+        #[cfg(feature = "kani")]
+        let (account_metadata, account_data) = {
+            let size = std::mem::size_of::<BatchedQueueMetadata>();
+            if account_data.len() < size {
+                return Err(ZeroCopyError::Size.into());
+            }
+            let (meta_bytes, remaining) = account_data.split_at_mut(size);
+            let metadata = unsafe { &mut *(meta_bytes.as_mut_ptr() as *mut BatchedQueueMetadata) };
+            (metadata, remaining)
+        };
 
         account_metadata.init(
             metadata,
@@ -439,13 +480,27 @@ impl Deref for BatchedQueueAccount<'_> {
     type Target = BatchedQueueMetadata;
 
     fn deref(&self) -> &Self::Target {
-        &self.metadata
+        #[cfg(not(feature = "kani"))]
+        {
+            &self.metadata
+        }
+        #[cfg(feature = "kani")]
+        {
+            self.metadata
+        }
     }
 }
 
 impl DerefMut for BatchedQueueAccount<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.metadata
+        #[cfg(not(feature = "kani"))]
+        {
+            &mut self.metadata
+        }
+        #[cfg(feature = "kani")]
+        {
+            self.metadata
+        }
     }
 }
 

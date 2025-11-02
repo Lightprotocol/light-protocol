@@ -85,6 +85,7 @@ impl BatchedMerkleTreeMetadata {
             + self
                 .queue_batches
                 .queue_account_size(QueueType::InputStateV2 as u64)?;
+
         Ok(size)
     }
 

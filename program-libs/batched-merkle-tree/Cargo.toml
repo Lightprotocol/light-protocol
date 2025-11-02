@@ -9,7 +9,7 @@ edition = "2021"
 [features]
 default = ["solana"]
 test-only = []
-kani = []
+kani = ["light-zero-copy/kani"]
 solana = [
     "solana-program-error",
     "solana-account-info",
