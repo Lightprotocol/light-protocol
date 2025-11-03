@@ -60,7 +60,10 @@ pub use withdraw_funding_pool::withdraw_funding_pool;
 
 pub use transfer_ctoken::{transfer_ctoken, transfer_ctoken_signed};
 // TODO: export the others too.
-pub use transfer_interface::{transfer_interface, transfer_interface_signed};
+pub use transfer_interface::{
+    create_transfer_ctoken_to_spl_instruction, create_transfer_spl_to_ctoken_instruction,
+    transfer_interface, transfer_interface_signed,
+};
 
 /// Derive token pool information for a given mint
 pub fn derive_token_pool(mint: &solana_pubkey::Pubkey, index: u8) -> mint_action::TokenPool {

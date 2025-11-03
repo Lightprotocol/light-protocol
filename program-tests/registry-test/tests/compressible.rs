@@ -19,7 +19,7 @@ use light_test_utils::{
     airdrop_lamports, assert_claim::assert_claim, spl::create_mint_helper, Rpc, RpcError,
 };
 use light_token_client::actions::{
-    create_compressible_token_account_instruction, CreateCompressibleTokenAccountInputs,
+    create_compressible_token_account, CreateCompressibleTokenAccountInputs,
 };
 use solana_sdk::{
     instruction::Instruction,
@@ -97,7 +97,7 @@ async fn test_claim_rent_for_completed_epochs() -> Result<(), RpcError> {
     let lamports_per_write = Some(100);
 
     // Use the new action to create the compressible token account
-    let token_account_pubkey = create_compressible_token_account_instruction(
+    let token_account_pubkey = create_compressible_token_account(
         &mut rpc,
         CreateCompressibleTokenAccountInputs {
             owner: compressible_owner_pubkey,
@@ -156,7 +156,7 @@ async fn test_claim_multiple_accounts_different_epochs() {
         let owner_keypair = Keypair::new();
         let owner_pubkey = owner_keypair.pubkey();
         owners.push(owner_keypair);
-        let token_account_pubkey = create_compressible_token_account_instruction(
+        let token_account_pubkey = create_compressible_token_account(
             &mut rpc,
             CreateCompressibleTokenAccountInputs {
                 owner: owner_pubkey,

@@ -2,8 +2,9 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
+use light_compressed_token_sdk::token_pool::find_token_pool_pda_with_index;
 use light_compressed_token_sdk::{
-    account2::create_transfer_spl_to_ctoken_instruction, token_pool::find_token_pool_pda_with_index,
+    instructions::create_transfer_spl_to_ctoken_instruction, SPL_TOKEN_PROGRAM_ID,
 };
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -35,7 +36,6 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
     authority: &Keypair,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
-    panic!("spl_to_ctoken_transfer not yet implemented with new API");
     // Get mint from SPL token account
     let token_account_info = rpc
         .get_account(source_spl_token_account)
@@ -60,6 +60,7 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
         payer.pubkey(),
         token_pool_pda,
         bump,
+        Pubkey::new_from_array(SPL_TOKEN_PROGRAM_ID), // TODO: make dynamic
     )
     .map_err(|e| RpcError::CustomError(e.to_string()))?;
 

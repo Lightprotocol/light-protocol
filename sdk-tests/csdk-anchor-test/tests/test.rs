@@ -19,9 +19,9 @@ use light_ctoken_types::{
 };
 use light_macros::pubkey;
 use light_program_test::{
-    initialize_compression_config,
-    program_test::{LightProgramTest, TestRpc},
-    setup_mock_program_data,
+    program_test::{
+        initialize_compression_config, setup_mock_program_data, LightProgramTest, TestRpc,
+    },
     utils::simulation::simulate_cu,
     AddressWithTree, Indexer, ProgramTestConfig, Rpc, RpcError,
 };
@@ -31,6 +31,7 @@ use light_sdk::{
     token::CTokenDataWithVariant,
 };
 use light_sdk_types::C_TOKEN_PROGRAM_ID;
+use light_token_client::ctoken;
 // use light_token_client::ctoken;
 use solana_account::Account;
 use solana_instruction::Instruction;

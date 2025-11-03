@@ -341,11 +341,15 @@ pub enum CTokenAccountVariant {
 #[program]
 pub mod csdk_anchor_test {
 
-    use light_compressed_token_sdk::instructions::create_token_account::create_ctoken_account_signed;
+    use light_compressed_token_sdk::instructions::{
+        compress_and_close::compress_and_close_ctoken_accounts_signed,
+        create_token_account::create_ctoken_account_signed, find_mint_address,
+    };
     use light_sdk::cpi::{
         v2::{CpiAccounts, LightSystemProgramCpi},
         InvokeLightSystemProgram, LightCpiInstruction,
     };
+    use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
 
     use super::*;
 
@@ -526,7 +530,8 @@ pub mod csdk_anchor_test {
                 cpi_authority,
                 post_system,
                 &remaining_accounts,
-            )?;
+            )
+            .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
         }
 
         if has_pdas {
@@ -535,7 +540,7 @@ pub mod csdk_anchor_test {
                 .write_to_cpi_context_first()
                 .invoke_write_to_cpi_context_first(
                     light_sdk_types::cpi_context_write::CpiContextWriteAccounts {
-                        fee_payer,
+                        fee_payer: cpi_accounts.fee_payer(),
                         authority: cpi_accounts.authority().unwrap(),
                         cpi_context: cpi_accounts.cpi_context().unwrap(),
                         cpi_signer: LIGHT_CPI_SIGNER,

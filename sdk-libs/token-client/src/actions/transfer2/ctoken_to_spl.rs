@@ -3,7 +3,8 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::{
-    account2::create_transfer_ctoken_to_spl_instruction, token_pool::find_token_pool_pda_with_index,
+    instructions::create_transfer_ctoken_to_spl_instruction,
+    token_pool::find_token_pool_pda_with_index, SPL_TOKEN_PROGRAM_ID,
 };
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -20,7 +21,6 @@ pub async fn transfer_ctoken_to_spl<R: Rpc + Indexer>(
     mint: Pubkey,
     payer: &Keypair,
 ) -> Result<Signature, RpcError> {
-    panic!("transfer_ctoken_to_spl not yet implemented with new API");
     // Derive token pool PDA with bump
     let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
 
@@ -34,6 +34,7 @@ pub async fn transfer_ctoken_to_spl<R: Rpc + Indexer>(
         payer.pubkey(),
         token_pool_pda,
         token_pool_pda_bump,
+        Pubkey::new_from_array(SPL_TOKEN_PROGRAM_ID), // TODO: make dynamic
     )
     .map_err(|e| RpcError::AssertRpcError(format!("Failed to create instruction: {:?}", e)))?;
 

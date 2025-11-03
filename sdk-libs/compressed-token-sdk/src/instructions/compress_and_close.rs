@@ -9,6 +9,7 @@ use light_sdk::{
 };
 use light_zero_copy::traits::ZeroCopyAt;
 use solana_account_info::AccountInfo;
+use solana_cpi::invoke_signed;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_msg::msg;
 use solana_pubkey::Pubkey;
@@ -23,6 +24,7 @@ use crate::{
         },
         CTokenDefaultAccounts,
     },
+    AccountInfoToCompress,
 };
 
 /// Struct to hold all the indices needed for CompressAndClose operation
@@ -399,6 +401,66 @@ pub fn compress_and_close_ctoken_accounts<'info>(
         &indices_vec,
         packed_accounts_vec.as_slice(),
     )
+}
+
+/// Compress and close ctoken accounts, and invoke cpi.
+///
+/// Wraps `compress_and_close_ctoken_accounts`, builds the instruction, and
+/// calls `invoke_signed` with provided seeds.
+///
+/// `remaining_accounts` must include required Light system accounts for
+/// `transfer2`, followed by any additional accounts. Post_system accounts are a
+/// subset of `remaining_accounts`.
+#[allow(clippy::too_many_arguments)]
+#[profile]
+pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
+    token_accounts_to_compress: &[AccountInfoToCompress<'info>],
+    fee_payer: AccountInfo<'info>,
+    output_queue: AccountInfo<'info>,
+    compressed_token_rent_recipient: AccountInfo<'info>,
+    compressed_token_cpi_authority: AccountInfo<'info>,
+    cpi_authority: AccountInfo<'info>,
+    post_system: &[AccountInfo<'info>],
+    remaining_accounts: &[AccountInfo<'info>],
+) -> Result<(), TokenSdkError> {
+    let mut packed_accounts = Vec::with_capacity(post_system.len() + 4);
+    packed_accounts.extend_from_slice(post_system);
+    packed_accounts.push(cpi_authority);
+    packed_accounts.push(compressed_token_rent_recipient.clone());
+
+    let ctoken_infos: Vec<&AccountInfo<'info>> = token_accounts_to_compress
+        .iter()
+        .map(|t| t.account_info.as_ref())
+        .collect();
+
+    let instruction = compress_and_close_ctoken_accounts(
+        *fee_payer.key,
+        false,
+        output_queue,
+        &ctoken_infos,
+        &packed_accounts,
+    )
+    .map_err(|_| TokenSdkError::InvalidAccountData)?;
+
+    // infos
+    let total_capacity = packed_accounts.len() + remaining_accounts.len() + 1;
+    let mut account_infos: Vec<AccountInfo<'info>> = Vec::with_capacity(total_capacity);
+    account_infos.extend_from_slice(&packed_accounts);
+    account_infos.push(compressed_token_cpi_authority);
+    account_infos.extend_from_slice(&remaining_accounts);
+
+    let token_seeds_refs: Vec<Vec<&[u8]>> = token_accounts_to_compress
+        .iter()
+        .map(|t| t.signer_seeds.iter().map(|v| v.as_slice()).collect())
+        .collect();
+    let mut all_signer_seeds: Vec<&[&[u8]]> = Vec::with_capacity(token_seeds_refs.len());
+    for seeds in &token_seeds_refs {
+        all_signer_seeds.push(seeds.as_slice());
+    }
+
+    invoke_signed(&instruction, &account_infos, &all_signer_seeds)
+        .map_err(|e| TokenSdkError::CpiError(e.to_string()))?;
+    Ok(())
 }
 
 pub struct CompressAndCloseAccounts {

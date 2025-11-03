@@ -3907,6 +3907,7 @@ dependencies = [
  "light-compressed-token",
  "light-compressed-token-sdk",
  "light-compressible",
+ "light-compressible-client",
  "light-concurrent-merkle-tree",
  "light-ctoken-types",
  "light-event",
