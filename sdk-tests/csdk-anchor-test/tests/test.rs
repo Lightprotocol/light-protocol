@@ -269,6 +269,7 @@ async fn test_create_decompress_compress_single_account() {
 
     rpc.warp_to_slot(101).unwrap();
 
+    println!("compressing record...");
     let result = compress_record(&mut rpc, &payer, &program_id, &user_record_pda, true).await;
     assert!(result.is_err(), "Compression should fail due to slot delay");
     if let Err(err) = result {
@@ -1832,11 +1833,15 @@ async fn compress_record(
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
+    println!("CLIENT: address_tree_pubkey: {:?}", address_tree_pubkey);
+
     let address = derive_address(
         &user_record_pda.to_bytes(),
         &address_tree_pubkey.to_bytes(),
         &program_id.to_bytes(),
     );
+
+    println!("CLIENT: address: {:?}", address);
 
     let compressed_account = rpc
         .get_compressed_account(address, None)
@@ -1845,6 +1850,8 @@ async fn compress_record(
         .value
         .unwrap();
     let compressed_address = compressed_account.address.unwrap();
+
+    println!("CLIENT: compressed account: {:?}", compressed_account);
 
     // Get validity proof from RPC
     let rpc_result = rpc
@@ -1875,10 +1882,10 @@ async fn compress_record(
     )
     .unwrap();
 
-    if !should_fail {
-        let cu = simulate_cu(rpc, payer, &instruction).await;
-        println!("CompressRecord CU consumed: {}", cu);
-    }
+    // if !should_fail {
+    //     let cu = simulate_cu(rpc, payer, &instruction).await;
+    //     println!("CompressRecord CU consumed: {}", cu);
+    // }
 
     // Create and send transaction
     let result = rpc
@@ -1996,6 +2003,20 @@ async fn decompress_single_user_record(
 
     // Verify UserRecord PDA is decompressed
     let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
+
+    println!("DECOMPRESS DONE");
+    println!("CLIENT: user_pda_account: {:?}", user_pda_account);
+
+    // the compressed acocunt should be empty now again after decompress !
+    let compressed_account = rpc
+        .get_compressed_account(user_compressed_address, None)
+        .await
+        .unwrap()
+        .value
+        .unwrap();
+    println!("CLIENT: compressed account: {:?}", compressed_account);
+    assert!(compressed_account.data.unwrap().data.is_empty());
+
     assert!(
         user_pda_account.as_ref().map(|a| a.data.len()).unwrap_or(0) > 0,
         "User PDA account data len must be > 0 after decompression"

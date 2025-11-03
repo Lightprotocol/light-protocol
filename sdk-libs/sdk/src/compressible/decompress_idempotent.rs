@@ -113,7 +113,7 @@ where
         LightSdkError::Borsh
     })?;
 
-    let mut light_account = LightAccount::<T>::new_mut(program_id, &compressed_meta, data)?;
+    let light_account = LightAccount::<T>::new_close(program_id, &compressed_meta, data)?;
 
     let space = T::size(&light_account.account);
     let rent_minimum_balance = rent.minimum_balance(space);
@@ -144,7 +144,5 @@ where
             LightSdkError::Borsh
         })?;
 
-    // Mark that data should be removed when converting to account info
-    // This is handled internally by LightAccount
     Ok(Some(light_account.to_account_info()?))
 }

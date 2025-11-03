@@ -722,7 +722,9 @@ pub mod csdk_anchor_test {
             post_system_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
             has_pdas: bool,
         ) -> Result<()> {
-            let mut token_decompress_indices = Box::new(Vec::with_capacity(ctoken_accounts.len()));
+            let mut token_decompress_indices: Box<
+                Vec<light_compressed_token_sdk::instructions::DecompressFullIndices>,
+            > = Box::new(Vec::with_capacity(ctoken_accounts.len()));
             // Collect per-owner signer seed groups; invoke_signed requires one seed group per PDA signer
             let mut token_signers_seed_groups: Vec<Vec<Vec<u8>>> =
                 Vec::with_capacity(ctoken_accounts.len());
@@ -766,7 +768,7 @@ pub mod csdk_anchor_test {
                         seeds_slice,
                         ctoken_rent_sponsor.clone().to_account_info(),
                         ctoken_config.to_account_info(),
-                        Some(1), // TODO: make this configurable
+                        Some(2), // TODO: make this configurable
                         None,    // TODO: make this configurable
                     )?;
                 }
@@ -796,6 +798,14 @@ pub mod csdk_anchor_test {
                 token_decompress_indices.push(decompress_index);
                 token_signers_seed_groups.push(ctoken_signer_seeds);
             }
+
+            // log each token account to decompress
+            for token_account in token_decompress_indices.clone().into_iter() {
+                msg!(
+                    "token_account: {:?}",
+                    packed_accounts[token_account.destination_index as usize].key()
+                );
+            }
             let ctoken_ix = light_compressed_token_sdk::instructions::decompress_full_ctoken_accounts_with_indices(
                     fee_payer.key(),
                     proof,
@@ -819,6 +829,7 @@ pub mod csdk_anchor_test {
                     .collect();
                 let signer_seed_slices: Vec<&[&[u8]]> =
                     signer_seed_refs.iter().map(|g| g.as_slice()).collect();
+
                 anchor_lang::solana_program::program::invoke_signed(
                     &ctoken_ix,
                     all_account_infos.as_slice(),

@@ -250,10 +250,10 @@ impl CompressibleInstruction {
                 *program_id,
                 cpi_context_of_first_input,
             );
-            remaining_accounts.add_system_accounts(system_config)?;
+            remaining_accounts.add_system_accounts_v2(system_config)?;
         } else {
             let system_config = SystemAccountMetaConfig::new(*program_id);
-            remaining_accounts.add_system_accounts(system_config)?;
+            remaining_accounts.add_system_accounts_v2(system_config)?;
         }
 
         // pack output queue
