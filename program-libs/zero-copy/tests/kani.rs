@@ -2,8 +2,7 @@
 // Kani formal verification tests for ZeroCopyCyclicVec and ZeroCopyVec
 // cargo kani --tests --no-default-features -Z stubbing --features kani
 
-use light_zero_copy::cyclic_vec::ZeroCopyCyclicVecU32;
-use light_zero_copy::vec::ZeroCopyVecU32;
+use light_zero_copy::{cyclic_vec::ZeroCopyCyclicVecU32, vec::ZeroCopyVecU32};
 
 // without kani feature Verification Time: 214.86237s
 // with kani feature Verification Time: 1.6097491s

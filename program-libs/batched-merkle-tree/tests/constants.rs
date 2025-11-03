@@ -1,9 +1,5 @@
-use light_batched_merkle_tree::{
-    constants::ADDRESS_TREE_INIT_ROOT_40, merkle_tree::BatchedMerkleTreeAccount,
-};
-use light_compressed_account::{Pubkey, TreeType};
+use light_batched_merkle_tree::constants::ADDRESS_TREE_INIT_ROOT_40;
 use light_hasher::{Hasher, Poseidon};
-use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
 use light_merkle_tree_reference::indexed::IndexedMerkleTree;
 use num_bigint::BigUint;
 use num_traits::Num;
@@ -47,47 +43,4 @@ fn test_reproduce_address_tree_init_root_40() {
         current_root, ADDRESS_TREE_INIT_ROOT_40,
         "Manually computed root does not match ADDRESS_TREE_INIT_ROOT_40 constant"
     );
-}
-// Helper to create a minimal tree for ghost state testing
-fn create_test_tree() -> BatchedMerkleTreeAccount<'static> {
-    // let batch_size: u64 = 5; //TEST_DEFAULT_BATCH_SIZE;
-    // let zkp_batch_size: u64 = 1; // TEST_DEFAULT_ZKP_BATCH_SIZE;
-    // let root_history_capacity: u32 = 20;
-    // let height = 32;
-    // let num_iters = 1;
-    // let bloom_filter_capacity = 8 * 100;
-
-    // let account_data = vec![0u8; 4096].leak();
-    // let pubkey = Pubkey::new_from_array([1u8; 32]);
-    let batch_size: u64 = 3; //TEST_DEFAULT_BATCH_SIZE;
-    let zkp_batch_size: u64 = 1; // TEST_DEFAULT_ZKP_BATCH_SIZE;
-    let root_history_capacity: u32 = 30;
-    let height = 40; // Address trees require height 40
-    let num_iters = 1;
-    let bloom_filter_capacity = 1;
-
-    let account_data = vec![0u8; 1152].leak();
-    let pubkey = Pubkey::new_from_array([1u8; 32]);
-    let init_result = BatchedMerkleTreeAccount::init(
-        account_data,
-        &pubkey,
-        MerkleTreeMetadata::default(),
-        root_history_capacity,
-        batch_size,
-        zkp_batch_size,
-        height,
-        num_iters,
-        bloom_filter_capacity,
-        TreeType::AddressV2,
-    )
-    .unwrap();
-
-    // kani::assume(init_result.is_ok());
-    let tree_result = BatchedMerkleTreeAccount::address_from_bytes(account_data, &pubkey);
-    // kani::assume(tree_result.is_ok());
-    tree_result.unwrap()
-}
-#[test]
-fn verify_no_unsafe_roots_ever() {
-    create_test_tree();
 }

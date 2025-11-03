@@ -23,9 +23,9 @@ use light_verifier::{
 use light_zero_copy::{
     cyclic_vec::ZeroCopyCyclicVecU64, errors::ZeroCopyError, vec::ZeroCopyVecU64,
 };
-#[cfg(not(feature = "kani"))]
+#[cfg(not(kani))]
 use zerocopy::Ref;
-#[cfg(feature = "kani")]
+#[cfg(kani)]
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use super::batch::Batch;
@@ -78,7 +78,7 @@ pub type InstructionDataBatchAppendInputs = InstructionDataBatchNullifyInputs;
 /// - get_state_root_by_index
 /// - get_address_root_by_index
 #[derive(Debug, PartialEq)]
-#[cfg(not(feature = "kani"))]
+#[cfg(not(kani))]
 pub struct BatchedMerkleTreeAccount<'a> {
     pubkey: Pubkey,
     metadata: Ref<&'a mut [u8], BatchedMerkleTreeMetadata>,
@@ -88,7 +88,7 @@ pub struct BatchedMerkleTreeAccount<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-#[cfg(feature = "kani")]
+#[cfg(kani)]
 pub struct BatchedMerkleTreeAccount<'a> {
     pubkey: Pubkey,
     metadata: &'a mut BatchedMerkleTreeMetadata,
@@ -98,18 +98,18 @@ pub struct BatchedMerkleTreeAccount<'a> {
     /// Ghost state (verification-only): tracks which batch created each root
     /// Parallel to root_history - same capacity, same cyclic indexing
     /// Entry value is batch index (0 or 1) that created the root at that position
-    #[cfg(feature = "kani")]
+    #[cfg(kani)]
     pub ghost_root_batch: GhostRoots,
 }
 
-#[cfg(feature = "kani")]
+#[cfg(kani)]
 #[derive(Debug, PartialEq)]
 pub struct GhostRoots {
     pub batch_0: Vec<GhostRootMeta>,
     pub batch_1: Vec<GhostRootMeta>,
 }
 
-#[cfg(feature = "kani")]
+#[cfg(kani)]
 impl GhostRoots {
     pub fn track_root(&mut self, batch_index: usize, sequence_number: u64, root: [u8; 32]) {
         let meta = GhostRootMeta {
@@ -124,7 +124,7 @@ impl GhostRoots {
     }
 }
 
-#[cfg(feature = "kani")]
+#[cfg(kani)]
 #[repr(C)]
 #[derive(
     BorshSerialize,
@@ -244,12 +244,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // Discriminator is already checked in check_account_info.
         let (_discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
 
-        #[cfg(not(feature = "kani"))]
+        #[cfg(not(kani))]
         let (metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)
                 .map_err(ZeroCopyError::from)?;
 
-        #[cfg(feature = "kani")]
+        #[cfg(kani)]
         let (metadata, account_data) = {
             let size = std::mem::size_of::<BatchedMerkleTreeMetadata>();
             if account_data.len() < size {
@@ -282,7 +282,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // Hash chain stores for input or address queue.
         let (hash_chain_store_0, account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
 
-        #[cfg(not(feature = "kani"))]
+        #[cfg(not(kani))]
         {
             let hash_chain_store_1 = ZeroCopyVecU64::from_bytes(account_data)?;
             Ok(BatchedMerkleTreeAccount {
@@ -294,7 +294,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             })
         }
 
-        #[cfg(feature = "kani")]
+        #[cfg(kani)]
         {
             let (hash_chain_store_1, _account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
             let ghost_root_batch = GhostRoots {
@@ -329,19 +329,21 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
         set_discriminator::<Self>(discriminator)?;
 
-        #[cfg(not(feature = "kani"))]
+        #[cfg(not(kani))]
         let (mut account_metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)
                 .map_err(ZeroCopyError::from)?;
 
-        #[cfg(feature = "kani")]
+        #[cfg(kani)]
         let (account_metadata, account_data) = {
             let size = std::mem::size_of::<BatchedMerkleTreeMetadata>();
+            #[cfg(kani)]
             kani::cover!(account_data.len() >= size, "Size check passed in init");
             if account_data.len() < size {
                 return Err(ZeroCopyError::Size.into());
             }
             let (meta_bytes, remaining) = account_data.split_at_mut(size);
+            #[cfg(kani)]
             kani::cover!(true, "Past split_at_mut in init");
             let metadata =
                 unsafe { &mut *(meta_bytes.as_mut_ptr() as *mut BatchedMerkleTreeMetadata) };
@@ -438,7 +440,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             account_data,
         )?;
 
-        #[cfg(not(feature = "kani"))]
+        #[cfg(not(kani))]
         {
             let hash_chain_store_1 = ZeroCopyVecU64::new(
                 account_metadata.queue_batches.get_num_zkp_batches(),
@@ -453,7 +455,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             })
         }
 
-        #[cfg(feature = "kani")]
+        #[cfg(kani)]
         {
             kani::cover!(true, "Entering ghost state initialization");
             let hash_chain_result = ZeroCopyVecU64::new_at(
@@ -857,7 +859,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         self.root_history.push(new_root);
 
         // 5. Update ghost state: track which batch created this root
-        #[cfg(feature = "kani")]
+        #[cfg(kani)]
         {
             self.ghost_root_batch.track_root(
                 self.queue_batches.pending_batch_index as usize,
@@ -1222,10 +1224,10 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     ///   Initial state: 0 pending -> 1 previous pending even though it was never used
     ///   0 inserted -> 1 pending 0 -> 1 pending 50% - zero out 0 -> 1 inserted
     ///   0 pending -> 1 inserted
-    #[cfg_attr(all(kani, feature = "kani"), kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
+    #[cfg_attr(kani, kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
         result.is_ok().then(|| self.all_roots_are_safe()).unwrap_or(true)
     }))]
-    #[cfg_attr(all(kani, feature = "kani"), kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
+    #[cfg_attr(kani, kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
         result.is_ok().then(|| self.bloom_filters_are_zeroed()).unwrap_or(true)
     }))]
     fn zero_out_previous_batch_bloom_filter(&mut self) -> Result<(), BatchedMerkleTreeError> {
@@ -1352,7 +1354,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     fn increment_queue_next_index(&mut self) {
         self.queue_batches.next_index += 1;
     }
-    #[cfg(feature = "kani")]
+    #[cfg(kani)]
     /// Kani-only: Mock address insertion - handles disjoint borrows internally
     pub fn kani_mock_insert(
         &mut self,
@@ -1369,7 +1371,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     }
 }
 
-#[cfg(feature = "kani")]
+#[cfg(kani)]
 fn kani_mock_insert_helper(
     value: &[u8; 32],
     batches: &mut [Batch; 2],
@@ -1398,11 +1400,11 @@ impl Deref for BatchedMerkleTreeAccount<'_> {
     type Target = BatchedMerkleTreeMetadata;
 
     fn deref(&self) -> &Self::Target {
-        #[cfg(not(feature = "kani"))]
+        #[cfg(not(kani))]
         {
             &self.metadata
         }
-        #[cfg(feature = "kani")]
+        #[cfg(kani)]
         {
             self.metadata
         }
@@ -1411,11 +1413,11 @@ impl Deref for BatchedMerkleTreeAccount<'_> {
 
 impl DerefMut for BatchedMerkleTreeAccount<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        #[cfg(not(feature = "kani"))]
+        #[cfg(not(kani))]
         {
             &mut self.metadata
         }
-        #[cfg(feature = "kani")]
+        #[cfg(kani)]
         {
             self.metadata
         }

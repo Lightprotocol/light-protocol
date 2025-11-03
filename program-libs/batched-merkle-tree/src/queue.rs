@@ -11,7 +11,7 @@ use light_compressed_account::{
 };
 use light_merkle_tree_metadata::{errors::MerkleTreeMetadataError, queue::QueueMetadata};
 use light_zero_copy::{errors::ZeroCopyError, vec::ZeroCopyVecU64};
-#[cfg(not(feature = "kani"))]
+#[cfg(not(kani))]
 use zerocopy::Ref;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
@@ -132,7 +132,7 @@ impl BatchedQueueMetadata {
 /// To read, light the system program uses:
 /// - `prove_inclusion_by_index`
 #[derive(Debug, PartialEq)]
-#[cfg(not(feature = "kani"))]
+#[cfg(not(kani))]
 pub struct BatchedQueueAccount<'a> {
     pubkey: Pubkey,
     metadata: Ref<&'a mut [u8], BatchedQueueMetadata>,
@@ -141,7 +141,7 @@ pub struct BatchedQueueAccount<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-#[cfg(feature = "kani")]
+#[cfg(kani)]
 pub struct BatchedQueueAccount<'a> {
     pubkey: Pubkey,
     metadata: &'a mut BatchedQueueMetadata,
@@ -203,12 +203,12 @@ impl<'a> BatchedQueueAccount<'a> {
     ) -> Result<BatchedQueueAccount<'a>, BatchedMerkleTreeError> {
         let (_discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
 
-        #[cfg(not(feature = "kani"))]
+        #[cfg(not(kani))]
         let (metadata, account_data) =
             Ref::<&'a mut [u8], BatchedQueueMetadata>::from_prefix(account_data)
                 .map_err(ZeroCopyError::from)?;
 
-        #[cfg(feature = "kani")]
+        #[cfg(kani)]
         let (metadata, account_data) = {
             let size = std::mem::size_of::<BatchedQueueMetadata>();
             if account_data.len() < size {
@@ -227,7 +227,7 @@ impl<'a> BatchedQueueAccount<'a> {
             return Err(MerkleTreeMetadataError::InvalidQueueType.into());
         }
 
-        #[cfg(not(feature = "kani"))]
+        #[cfg(not(kani))]
         {
             let (value_vec0, account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
             let (value_vec1, account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
@@ -243,7 +243,7 @@ impl<'a> BatchedQueueAccount<'a> {
             })
         }
 
-        #[cfg(feature = "kani")]
+        #[cfg(kani)]
         {
             // For Kani: from_bytes is not used in verification tests, only init is used
             Ok(BatchedQueueAccount {
@@ -270,12 +270,12 @@ impl<'a> BatchedQueueAccount<'a> {
         let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
         set_discriminator::<Self>(discriminator)?;
 
-        #[cfg(not(feature = "kani"))]
+        #[cfg(not(kani))]
         let (mut account_metadata, account_data) =
             Ref::<&mut [u8], BatchedQueueMetadata>::from_prefix(account_data)
                 .map_err(ZeroCopyError::from)?;
 
-        #[cfg(feature = "kani")]
+        #[cfg(kani)]
         let (account_metadata, account_data) = {
             let size = std::mem::size_of::<BatchedQueueMetadata>();
             if account_data.len() < size {
@@ -316,7 +316,7 @@ impl<'a> BatchedQueueAccount<'a> {
         let value_vec_capacity = account_metadata.batch_metadata.batch_size;
         let hash_chain_capacity = account_metadata.batch_metadata.get_num_zkp_batches();
 
-        #[cfg(not(feature = "kani"))]
+        #[cfg(not(kani))]
         {
             let (value_vecs_0, account_data) =
                 ZeroCopyVecU64::new_at(value_vec_capacity, account_data)?;
@@ -333,7 +333,7 @@ impl<'a> BatchedQueueAccount<'a> {
             })
         }
 
-        #[cfg(feature = "kani")]
+        #[cfg(kani)]
         {
             // For Kani: use regular Vec instead of ZeroCopyVecU64 to avoid complex initialization
             Ok(BatchedQueueAccount {
@@ -516,7 +516,7 @@ impl<'a> BatchedQueueAccount<'a> {
     }
 }
 
-#[cfg(feature = "kani")]
+#[cfg(kani)]
 impl<'a> BatchedQueueAccount<'a> {
     pub fn kani_mock_insert(&mut self, batch_idx: usize) -> Result<(), BatchedMerkleTreeError> {
         self.batch_metadata.batches[batch_idx].kani_mock_output_insert()
@@ -527,11 +527,11 @@ impl Deref for BatchedQueueAccount<'_> {
     type Target = BatchedQueueMetadata;
 
     fn deref(&self) -> &Self::Target {
-        #[cfg(not(feature = "kani"))]
+        #[cfg(not(kani))]
         {
             &self.metadata
         }
-        #[cfg(feature = "kani")]
+        #[cfg(kani)]
         {
             self.metadata
         }
@@ -540,11 +540,11 @@ impl Deref for BatchedQueueAccount<'_> {
 
 impl DerefMut for BatchedQueueAccount<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        #[cfg(not(feature = "kani"))]
+        #[cfg(not(kani))]
         {
             &mut self.metadata
         }
-        #[cfg(feature = "kani")]
+        #[cfg(kani)]
         {
             self.metadata
         }

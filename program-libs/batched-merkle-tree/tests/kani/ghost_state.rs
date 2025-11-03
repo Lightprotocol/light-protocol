@@ -1,12 +1,15 @@
 #![cfg(kani)]
 // Unit tests for ghost state tracking in BatchedMerkleTreeAccount.
 
-use crate::utils::*;
-use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
-use light_batched_merkle_tree::merkle_tree::InstructionDataBatchNullifyInputs;
-use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
-use light_compressed_account::{pubkey::Pubkey, TreeType};
+use light_batched_merkle_tree::merkle_tree::{
+    BatchedMerkleTreeAccount, InstructionDataBatchNullifyInputs,
+};
+use light_compressed_account::{
+    instruction_data::compressed_proof::CompressedProof, pubkey::Pubkey, TreeType,
+};
 use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
+
+use crate::utils::*;
 
 /// Verify ghost state invariant holds after tree initialization
 #[kani::proof]

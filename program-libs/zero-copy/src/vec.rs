@@ -102,7 +102,7 @@ where
             let needed_size = capacity_usize * size_of::<T>();
             let (slice_bytes, remaining) = bytes.split_at_mut(needed_size);
             // Check alignment for T - required for safe slice creation
-            if slice_bytes.as_ptr() as usize % core::mem::align_of::<T>() != 0 {
+            if !(slice_bytes.as_ptr() as usize).is_multiple_of(core::mem::align_of::<T>()) {
                 return Err(ZeroCopyError::UnalignedPointer);
             }
             let slice = unsafe {
@@ -164,7 +164,7 @@ where
             let needed_size = usize_capacity * size_of::<T>();
             let (slice_bytes, remaining) = bytes.split_at_mut(needed_size);
             // Check alignment for T - required for safe slice creation
-            if slice_bytes.as_ptr() as usize % core::mem::align_of::<T>() != 0 {
+            if !(slice_bytes.as_ptr() as usize).is_multiple_of(core::mem::align_of::<T>()) {
                 return Err(ZeroCopyError::UnalignedPointer);
             }
             let slice = unsafe {
@@ -231,7 +231,7 @@ where
             let slice_bytes = unsafe {
                 slice::from_raw_parts_mut(
                     self.slice.as_mut_ptr() as *mut u8,
-                    self.slice.len() * size_of::<T>(),
+                    core::mem::size_of_val(self.slice),
                 )
             };
             slice_bytes.fill(0);

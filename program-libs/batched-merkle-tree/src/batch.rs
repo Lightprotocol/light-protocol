@@ -181,13 +181,13 @@ impl Batch {
 
     /// fill -> full -> inserted -> fill
     /// (from tree insertion perspective is pending if fill or full)
-    #[cfg_attr(all(kani, feature = "kani"), kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
+    #[cfg_attr(kani, kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
         result.is_ok().then(|| self.get_state() == BatchState::Inserted).unwrap_or(true)
     }))]
-    #[cfg_attr(all(kani, feature = "kani"), kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
+    #[cfg_attr(kani, kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
         result.is_ok().then(|| self.num_full_zkp_batches == self.batch_size / self.zkp_batch_size).unwrap_or(true)
     }))]
-    #[cfg_attr(all(kani, feature = "kani"), kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
+    #[cfg_attr(kani, kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
         result.is_ok().then(|| self.num_inserted_zkp_batches == self.batch_size / self.zkp_batch_size).unwrap_or(true)
     }))]
     pub fn advance_state_to_inserted(&mut self) -> Result<(), BatchedMerkleTreeError> {
@@ -235,7 +235,6 @@ impl Batch {
     }
 
     /// Kani-only: Mock address insertion - populates hash chain and updates batch state
-    #[cfg(kani)]
     #[cfg_attr(kani, kani::requires(bloom_filter_store.len() > 0))]
     pub fn kani_mock_address_insert(
         &mut self,
@@ -269,7 +268,7 @@ impl Batch {
     }
 
     /// Mock insert for output queues - only advances batch state
-    #[cfg(feature = "kani")]
+    #[cfg(kani)]
     pub fn kani_mock_output_insert(&mut self) -> Result<(), BatchedMerkleTreeError> {
         // Auto-reset batch if it's in Inserted state
         if self.get_state() == BatchState::Inserted {

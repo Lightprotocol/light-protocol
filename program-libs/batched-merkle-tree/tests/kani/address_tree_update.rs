@@ -1,11 +1,14 @@
 #![cfg(kani)]
-use crate::utils::*;
-use light_batched_merkle_tree::batch::BatchState;
-use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
-use light_batched_merkle_tree::merkle_tree::InstructionDataBatchNullifyInputs;
-use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
-use light_compressed_account::{pubkey::Pubkey, TreeType};
+use light_batched_merkle_tree::{
+    batch::BatchState,
+    merkle_tree::{BatchedMerkleTreeAccount, InstructionDataBatchNullifyInputs},
+};
+use light_compressed_account::{
+    instruction_data::compressed_proof::CompressedProof, pubkey::Pubkey, TreeType,
+};
 use light_merkle_tree_metadata::merkle_tree::MerkleTreeMetadata;
+
+use crate::utils::*;
 
 // Minimal full test:
 // 0. Setup - create a small tree
