@@ -93,6 +93,47 @@ pub fn create_test_tree_small() -> BatchedMerkleTreeAccount<'static> {
     init_result.unwrap()
 }
 
+// Helper to create a minimal state tree for ghost state testing
+pub fn create_test_tree_small_state() -> BatchedMerkleTreeAccount<'static> {
+    let batch_size: u64 = 3;
+    let zkp_batch_size: u64 = 1;
+    let root_history_capacity: u32 = 7;
+    let height = 32; // State trees use height 32
+    let num_iters = 1;
+    let bloom_filter_capacity = 8; // Minimum 8 bits = 1 byte
+
+    // Calculate required size (includes ghost state when kani feature is enabled)
+    let size = light_batched_merkle_tree::merkle_tree::get_merkle_tree_account_size(
+        batch_size,
+        bloom_filter_capacity,
+        zkp_batch_size,
+        root_history_capacity,
+        height,
+    );
+
+    // Allocate using mem::zeroed() which Kani understands as properly zero-initialized
+    let account_data: &'static mut [u8; 2048] = Box::leak(Box::new(unsafe { std::mem::zeroed() }));
+    let account_data: &'static mut [u8] = &mut account_data[..size];
+    let pubkey = Pubkey::new_from_array([1u8; 32]);
+
+    let init_result = BatchedMerkleTreeAccount::init(
+        account_data,
+        &pubkey,
+        MerkleTreeMetadata::default(),
+        root_history_capacity,
+        batch_size,
+        zkp_batch_size,
+        height,
+        num_iters,
+        bloom_filter_capacity,
+        TreeType::StateV2,
+    );
+
+    kani::assume(init_result.is_ok());
+    kani::cover!(init_result.is_ok(), "init_result");
+    init_result.unwrap()
+}
+
 // Setup function: Fill up to two batches to make them ready for ZKP processing
 // This function populates the hash chain stores and batch metadata needed for tree updates
 #[cfg_attr(kani, kani::requires(num_batches > 0 && num_batches <= 2))]
@@ -129,7 +170,6 @@ pub fn setup_zkp_batches(tree: &mut BatchedMerkleTreeAccount, num_zkp_batches: u
         let current_idx = tree.queue_batches.currently_processing_batch_index as usize;
 
         kani::cover!(i == 0, "Entered setup batch loop");
-        kani::cover!(current_idx == 0 && i == 0, "First batch is index 0");
         let result = tree.kani_mock_insert(current_idx, &value);
         kani::assume(result.is_ok());
         // After batch becomes Full, advance to next batch (mirrors queue.rs:590)

@@ -13,3 +13,6 @@ mod ghost_state;
 
 #[path = "kani/utils.rs"]
 pub mod utils;
+
+#[path = "kani/state_tree_update.rs"]
+mod state_tree_update;
