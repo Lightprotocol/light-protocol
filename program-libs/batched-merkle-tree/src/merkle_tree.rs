@@ -515,6 +515,44 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// Note: when proving inclusion by index in
     /// value array we need to insert the value into a bloom_filter once it is
     /// inserted into the tree. Check this with get_num_inserted_zkps
+    #[cfg_attr(kani, kani::ensures(|result: &Result<MerkleTreeEvent, BatchedMerkleTreeError>| {
+        result.as_ref().ok().and_then(|event| {
+            if let MerkleTreeEvent::BatchAppend(batch_event) = event {
+                let old_batch = &old(queue_account.batch_metadata.batches[queue_account.batch_metadata.pending_batch_index as usize]);
+                let old_seq = old(self.sequence_number);
+                let old_next_idx = old(self.next_index);
+                let old_queue_pending = old(queue_account.batch_metadata.pending_batch_index);
+                let max_zkp = queue_account.batch_metadata.batch_size / queue_account.batch_metadata.zkp_batch_size;
+
+                // 1. Batch was ready to insert
+                let ready_check = old_batch.batch_is_ready_to_insert();
+
+                // 2. Sequence number increments by 1
+                let seq_check = self.sequence_number == old_seq + 1;
+
+                // 3. New root added to history
+                let root_check = self.root_history.last().map(|&root| root == instruction_data.new_root).unwrap_or(false);
+
+                // 4. ZKP batch index in event matches old inserted count
+                let zkp_check = batch_event.zkp_batch_index == old_batch.get_num_inserted_zkps();
+
+                // 5. If last ZKP batch, queue batch state is Inserted
+                let was_last = batch_event.zkp_batch_index == max_zkp - 1;
+                let state_check = !was_last || queue_account.batch_metadata.batches[batch_event.batch_index as usize].get_state() == BatchState::Inserted;
+
+                // 6. Tree next_index increments by zkp_batch_size (always for output queue)
+                let next_idx_check = self.next_index == old_next_idx + queue_account.batch_metadata.zkp_batch_size;
+
+                // 7. If batch completed, queue pending_batch_index must switch
+                let batch_became_inserted = batch_event.zkp_batch_index == max_zkp - 1;
+                let batch_switch_check = !batch_became_inserted || queue_account.batch_metadata.pending_batch_index != old_queue_pending;
+
+                Some(ready_check && seq_check && root_check && zkp_check && state_check && next_idx_check && batch_switch_check)
+            } else {
+                None
+            }
+        }).unwrap_or(true)
+    }))]
     pub fn update_tree_from_output_queue_account(
         &mut self,
         queue_account: &mut BatchedQueueAccount,
@@ -529,20 +567,29 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
         // 1. Create public inputs hash.
         let public_input_hash = {
-            let leaves_hash_chain = queue_account.hash_chain_stores[pending_batch_index]
-                [first_ready_zkp_batch_index as usize];
-            let old_root = self
-                .root_history
-                .last()
-                .ok_or(BatchedMerkleTreeError::InvalidIndex)?;
-            let mut start_index_bytes = [0u8; 32];
-            start_index_bytes[24..].copy_from_slice(&self.next_index.to_be_bytes());
-            create_hash_chain_from_array([
-                *old_root,
-                new_root,
-                leaves_hash_chain,
-                start_index_bytes,
-            ])?
+            // For Kani verification, skip hash chain computation to avoid indexing into empty Vecs.
+            // We stub the proof verification instead, so the actual hash value doesn't matter.
+            #[cfg(kani)]
+            {
+                [0u8; 32]
+            }
+            #[cfg(not(kani))]
+            {
+                let leaves_hash_chain = queue_account.hash_chain_stores[pending_batch_index]
+                    [first_ready_zkp_batch_index as usize];
+                let old_root = self
+                    .root_history
+                    .last()
+                    .ok_or(BatchedMerkleTreeError::InvalidIndex)?;
+                let mut start_index_bytes = [0u8; 32];
+                start_index_bytes[24..].copy_from_slice(&self.next_index.to_be_bytes());
+                create_hash_chain_from_array([
+                    *old_root,
+                    new_root,
+                    leaves_hash_chain,
+                    start_index_bytes,
+                ])?
+            }
         };
 
         // 2. Verify update proof and update tree account.

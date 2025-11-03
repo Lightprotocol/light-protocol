@@ -216,3 +216,84 @@ pub fn get_available_zkp_space(tree: &BatchedMerkleTreeAccount) -> usize {
 
     batch_0_space + batch_1_space
 }
+
+// Helper to create a minimal output queue for state tree testing
+pub fn create_test_output_queue(
+    tree_pubkey: &Pubkey,
+) -> light_batched_merkle_tree::queue::BatchedQueueAccount<'static> {
+    use light_batched_merkle_tree::queue::{get_output_queue_account_size, BatchedQueueAccount};
+    use light_compressed_account::QueueType;
+    use light_merkle_tree_metadata::queue::QueueMetadata;
+
+    let batch_size: u64 = 3;
+    let zkp_batch_size: u64 = 1;
+
+    let size = get_output_queue_account_size(batch_size, zkp_batch_size);
+
+    let account_data: &'static mut [u8; 2048] = Box::leak(Box::new(unsafe { std::mem::zeroed() }));
+    let account_data: &'static mut [u8] = &mut account_data[..size];
+
+    let queue_pubkey = Pubkey::new_from_array([2u8; 32]);
+
+    let mut metadata = QueueMetadata::default();
+    metadata.associated_merkle_tree = *tree_pubkey;
+    metadata.queue_type = QueueType::OutputStateV2 as u64;
+
+    let init_result = BatchedQueueAccount::init(
+        account_data,
+        metadata,
+        batch_size,
+        zkp_batch_size,
+        0, // num_iters (usually 0 for output queues)
+        0, // bloom_filter_capacity (MUST be 0 for output queues!)
+        queue_pubkey,
+        16, // tree_capacity for height 32 state tree
+    );
+
+    // kani::assume(init_result.is_ok());
+    kani::cover!(init_result.is_ok(), "Queue init succeeded");
+    init_result.unwrap()
+}
+
+// Setup function: Fill output queue batches to make them ready for tree insertion
+#[cfg_attr(kani, kani::requires(num_batches > 0 && num_batches <= 2))]
+pub fn setup_output_queue_batches(
+    queue: &mut light_batched_merkle_tree::queue::BatchedQueueAccount,
+    num_batches: usize,
+) {
+    let batch_size = queue.batch_metadata.batch_size;
+
+    for _i in 0..num_batches {
+        let current_idx = queue.batch_metadata.currently_processing_batch_index as usize;
+
+        for _j in 0..batch_size {
+            let result = queue.kani_mock_insert(current_idx);
+            kani::assume(result.is_ok());
+        }
+
+        // After batch becomes Full, advance to next batch
+        queue
+            .batch_metadata
+            .increment_currently_processing_batch_index_if_full();
+    }
+}
+
+// Setup function: Fill output queue zkp batches (one zkp batch at a time)
+#[cfg_attr(kani, kani::requires(num_zkp_batches > 0))]
+pub fn setup_output_queue_zkp_batches(
+    queue: &mut light_batched_merkle_tree::queue::BatchedQueueAccount,
+    num_zkp_batches: usize,
+) {
+    for i in 0..num_zkp_batches {
+        let current_idx = queue.batch_metadata.currently_processing_batch_index as usize;
+
+        kani::cover!(i == 0, "Entered setup output queue zkp batch loop");
+        let result = queue.kani_mock_insert(current_idx);
+        kani::assume(result.is_ok());
+
+        // After batch becomes Full, advance to next batch
+        queue
+            .batch_metadata
+            .increment_currently_processing_batch_index_if_full();
+    }
+}

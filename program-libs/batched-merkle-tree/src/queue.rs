@@ -145,8 +145,8 @@ pub struct BatchedQueueAccount<'a> {
 pub struct BatchedQueueAccount<'a> {
     pubkey: Pubkey,
     metadata: &'a mut BatchedQueueMetadata,
-    pub value_vecs: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
-    pub hash_chain_stores: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
+    pub value_vecs: [Vec<[u8; 32]>; 2],
+    pub hash_chain_stores: [Vec<[u8; 32]>; 2],
 }
 
 impl Discriminator for BatchedQueueAccount<'_> {
@@ -227,18 +227,32 @@ impl<'a> BatchedQueueAccount<'a> {
             return Err(MerkleTreeMetadataError::InvalidQueueType.into());
         }
 
-        let (value_vec0, account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
-        let (value_vec1, account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
+        #[cfg(not(feature = "kani"))]
+        {
+            let (value_vec0, account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
+            let (value_vec1, account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
 
-        let (hash_chain_store0, account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
-        let hash_chain_store1 = ZeroCopyVecU64::from_bytes(account_data)?;
+            let (hash_chain_store0, account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
+            let hash_chain_store1 = ZeroCopyVecU64::from_bytes(account_data)?;
 
-        Ok(BatchedQueueAccount {
-            pubkey,
-            metadata,
-            value_vecs: [value_vec0, value_vec1],
-            hash_chain_stores: [hash_chain_store0, hash_chain_store1],
-        })
+            Ok(BatchedQueueAccount {
+                pubkey,
+                metadata,
+                value_vecs: [value_vec0, value_vec1],
+                hash_chain_stores: [hash_chain_store0, hash_chain_store1],
+            })
+        }
+
+        #[cfg(feature = "kani")]
+        {
+            // For Kani: from_bytes is not used in verification tests, only init is used
+            Ok(BatchedQueueAccount {
+                pubkey,
+                metadata,
+                value_vecs: [Vec::new(), Vec::new()],
+                hash_chain_stores: [Vec::new(), Vec::new()],
+            })
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -301,25 +315,41 @@ impl<'a> BatchedQueueAccount<'a> {
 
         let value_vec_capacity = account_metadata.batch_metadata.batch_size;
         let hash_chain_capacity = account_metadata.batch_metadata.get_num_zkp_batches();
-        let (value_vecs_0, account_data) =
-            ZeroCopyVecU64::new_at(value_vec_capacity, account_data)?;
-        let (value_vecs_1, account_data) =
-            ZeroCopyVecU64::new_at(value_vec_capacity, account_data)?;
-        let (hash_chain_0, account_data) =
-            ZeroCopyVecU64::new_at(hash_chain_capacity, account_data)?;
-        let hash_chain_1 = ZeroCopyVecU64::new(hash_chain_capacity, account_data)?;
-        Ok(BatchedQueueAccount {
-            pubkey,
-            metadata: account_metadata,
-            value_vecs: [value_vecs_0, value_vecs_1],
-            hash_chain_stores: [hash_chain_0, hash_chain_1],
-        })
+
+        #[cfg(not(feature = "kani"))]
+        {
+            let (value_vecs_0, account_data) =
+                ZeroCopyVecU64::new_at(value_vec_capacity, account_data)?;
+            let (value_vecs_1, account_data) =
+                ZeroCopyVecU64::new_at(value_vec_capacity, account_data)?;
+            let (hash_chain_0, account_data) =
+                ZeroCopyVecU64::new_at(hash_chain_capacity, account_data)?;
+            let hash_chain_1 = ZeroCopyVecU64::new(hash_chain_capacity, account_data)?;
+            Ok(BatchedQueueAccount {
+                pubkey,
+                metadata: account_metadata,
+                value_vecs: [value_vecs_0, value_vecs_1],
+                hash_chain_stores: [hash_chain_0, hash_chain_1],
+            })
+        }
+
+        #[cfg(feature = "kani")]
+        {
+            // For Kani: use regular Vec instead of ZeroCopyVecU64 to avoid complex initialization
+            Ok(BatchedQueueAccount {
+                pubkey,
+                metadata: account_metadata,
+                value_vecs: [Vec::new(), Vec::new()],
+                hash_chain_stores: [Vec::new(), Vec::new()],
+            })
+        }
     }
 
     /// Insert a value into the current batch
     /// of this output queue account.
     /// 1. insert value into a value vec and hash chain store.
     /// 2. Increment next_index.
+    #[cfg(not(kani))]
     pub fn insert_into_current_batch(
         &mut self,
         hash_chain_value: &[u8; 32],
@@ -341,6 +371,16 @@ impl<'a> BatchedQueueAccount<'a> {
         self.metadata.batch_metadata.next_index += 1;
 
         Ok(())
+    }
+
+    /// Kani stub - not used in verification tests
+    #[cfg(kani)]
+    pub fn insert_into_current_batch(
+        &mut self,
+        _hash_chain_value: &[u8; 32],
+        _current_slot: &u64,
+    ) -> Result<(), BatchedMerkleTreeError> {
+        panic!("insert_into_current_batch should not be called in Kani tests - use kani_mock_insert instead")
     }
 
     /// Proves inclusion of leaf index if it exists in one of the batches.
@@ -473,6 +513,13 @@ impl<'a> BatchedQueueAccount<'a> {
 
     pub fn pubkey(&self) -> &Pubkey {
         &self.pubkey
+    }
+}
+
+#[cfg(feature = "kani")]
+impl<'a> BatchedQueueAccount<'a> {
+    pub fn kani_mock_insert(&mut self, batch_idx: usize) -> Result<(), BatchedMerkleTreeError> {
+        self.batch_metadata.batches[batch_idx].kani_mock_output_insert()
     }
 }
 

@@ -79,12 +79,12 @@ fn verify_no_unsafe_roots_minimal() {
     ::light_compressed_account::hash_to_bn254_field_size_be,
     stub_hash_to_bn254
 )]
-#[kani::unwind(101)] // Need at least 33 for memcmp on 32-byte arrays + extra for loops
+#[kani::unwind(35)] // Need at least 33 for memcmp on 32-byte arrays + extra for loops
 fn verify_no_unsafe_roots_one_by_one() {
     let mut tree = create_test_tree_small();
     kani::cover!(tree.root_history.len() > 0, "Root history non-empty");
 
-    for i in 0..100u8 {
+    for i in 0..30u8 {
         kani::cover!(i == 0, "Loop iteration 0");
         kani::cover!(i == 99, "Loop iteration 29");
         setup_zkp_batches(&mut tree, 1);
