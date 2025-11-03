@@ -195,3 +195,95 @@ fn verify_state_tree_append_one_by_one() {
         kani::cover!(result.is_ok(), "Update succeeded");
     }
 }
+
+// VERIFICATION:- SUCCESSFUL
+// Verification Time: 884.6175s
+#[kani::proof]
+#[kani::stub(
+    ::light_compressed_account::hash_to_bn254_field_size_be,
+    stub_hash_to_bn254
+)]
+#[kani::unwind(35)]
+fn verify_state_tree_mixed_one_by_one() {
+    // 0. Setup - create state tree and associated output queue
+    let mut tree = create_test_tree_small_state();
+    let tree_pubkey = *tree.pubkey();
+    let mut queue = create_test_output_queue(&tree_pubkey);
+
+    kani::cover!(tree.root_history.len() > 0, "Root history non-empty");
+
+    for i in (0..30u8).step_by(2) {
+        kani::cover!(i == 0, "Loop iteration 0");
+        kani::cover!(i == 28, "Loop iteration 28");
+        setup_output_queue_zkp_batches(&mut queue, 1);
+        // Input queue insertion
+        setup_zkp_batches(&mut tree, 1);
+
+        let new_root: [u8; 32] = [i; 32];
+        let result = tree.update_tree_from_output_queue_account(
+            &mut queue,
+            InstructionDataBatchAppendInputs {
+                new_root,
+                compressed_proof: CompressedProof::default(),
+            },
+        );
+        kani::cover!(
+            result.is_ok(),
+            "update_tree_from_output_queue_account succeeded"
+        );
+
+        let new_root: [u8; 32] = [i + 1; 32];
+        let result = tree.update_tree_from_input_queue(InstructionDataBatchNullifyInputs {
+            new_root,
+            compressed_proof: CompressedProof::default(),
+        });
+
+        kani::cover!(result.is_ok(), "update_tree_from_input_queue succeeded");
+    }
+}
+
+#[kani::proof]
+#[kani::stub(
+    ::light_compressed_account::hash_to_bn254_field_size_be,
+    stub_hash_to_bn254
+)]
+#[kani::unwind(35)]
+fn verify_state_tree_mixed_random() {
+    // 0. Setup - create state tree and associated output queue
+    let mut tree = create_test_tree_small_state();
+    let tree_pubkey = *tree.pubkey();
+    let mut queue = create_test_output_queue(&tree_pubkey);
+
+    kani::cover!(tree.root_history.len() > 0, "Root history non-empty");
+
+    for i in 0..10u8 {
+        kani::cover!(i == 0, "Loop iteration 0");
+        kani::cover!(i == 9, "Loop iteration 9");
+
+        let new_root: [u8; 32] = [i; 32];
+        let selector: bool = kani::any();
+        if selector {
+            setup_output_queue_zkp_batches(&mut queue, 1);
+            let result = tree.update_tree_from_output_queue_account(
+                &mut queue,
+                InstructionDataBatchAppendInputs {
+                    new_root,
+                    compressed_proof: CompressedProof::default(),
+                },
+            );
+            kani::cover!(
+                result.is_ok(),
+                "update_tree_from_output_queue_account succeeded"
+            );
+        } else {
+            // Input queue insertion
+            setup_zkp_batches(&mut tree, 1);
+            let result = tree.update_tree_from_input_queue(InstructionDataBatchNullifyInputs {
+                new_root,
+                compressed_proof: CompressedProof::default(),
+            });
+
+            kani::cover!(result.is_ok(), "update_tree_from_input_queue succeeded");
+        }
+    }
+}
