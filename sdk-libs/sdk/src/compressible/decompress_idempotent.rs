@@ -96,7 +96,7 @@ pub fn prepare_account_for_decompression_idempotent<'a, 'info, T>(
 where
     T: Clone
         + crate::account::Size
-        + DataHasher
+        // + DataHasher
         + LightDiscriminator
         + Default
         + AnchorSerialize

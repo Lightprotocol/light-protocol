@@ -509,6 +509,8 @@ pub mod csdk_anchor_test {
         let has_pdas = !compressed_pda_infos.is_empty();
         let has_tokens = !token_accounts_to_compress.is_empty();
 
+        msg!("has_tokens: {}", has_tokens);
+        msg!("has_pdas: {}", has_pdas);
         // 1. compress and close token accounts in one CPI (no proof).
         if has_tokens {
             let ctoken_rent_sponsor = ctx.accounts.ctoken_rent_sponsor.to_account_info();
@@ -537,15 +539,16 @@ pub mod csdk_anchor_test {
         if has_pdas {
             LightSystemProgramCpi::new_cpi(LIGHT_CPI_SIGNER, proof)
                 .with_account_infos(&compressed_pda_infos)
-                .write_to_cpi_context_first()
-                .invoke_write_to_cpi_context_first(
-                    light_sdk_types::cpi_context_write::CpiContextWriteAccounts {
-                        fee_payer: cpi_accounts.fee_payer(),
-                        authority: cpi_accounts.authority().unwrap(),
-                        cpi_context: cpi_accounts.cpi_context().unwrap(),
-                        cpi_signer: LIGHT_CPI_SIGNER,
-                    },
-                )?;
+                // .write_to_cpi_context_first()
+                // .invoke_write_to_cpi_context_first(
+                //     light_sdk_types::cpi_context_write::CpiContextWriteAccounts {
+                //         fee_payer: cpi_accounts.fee_payer(),
+                //         authority: cpi_accounts.authority().unwrap(),
+                //         cpi_context: cpi_accounts.cpi_context().unwrap(),
+                //         cpi_signer: LIGHT_CPI_SIGNER,
+                //     },
+                // )?;
+                .invoke(cpi_accounts)?;
 
             // Close
             for idx in pda_indices_to_close.into_iter() {
@@ -1304,6 +1307,7 @@ pub mod csdk_anchor_test {
             Some(0),
         );
 
+        msg!("compressing empty account on init");
         // Use the new compress_empty_account_on_init function
         // This creates an empty compressed account but does NOT close the PDA
         compress_empty_account_on_init::<PlaceholderRecord>(
@@ -1315,6 +1319,8 @@ pub mod csdk_anchor_test {
             proof,
         )
         .map_err(|e| ProgramError::from(e))?;
+
+        msg!("...compressed empty account on init");
 
         // Note we do not actually close this account yet because in this
         // example we only create _empty_ compressed account without fully
@@ -1710,7 +1716,7 @@ pub struct PackedPlaceholderRecord {
 /// Auto-derived via macro. Unified enum that can hold any account type. Crucial
 /// for dispatching multiple compressed accounts of different types in
 /// decompress_accounts_idempotent.
-/// Implements: Default, DataHasher, LightDiscriminator, HasCompressionInfo.
+
 #[derive(Clone, Debug, AnchorSerialize, AnchorDeserialize)]
 pub enum CompressedAccountVariant {
     UserRecord(UserRecord),
@@ -1729,20 +1735,20 @@ impl Default for CompressedAccountVariant {
     }
 }
 
-impl DataHasher for CompressedAccountVariant {
-    fn hash<H: Hasher>(&self) -> std::result::Result<[u8; 32], light_hasher::HasherError> {
-        match self {
-            Self::UserRecord(data) => data.hash::<H>(),
-            Self::PackedUserRecord(_) => unreachable!(),
-            Self::GameSession(data) => data.hash::<H>(),
-            Self::PlaceholderRecord(data) => data.hash::<H>(),
-            Self::PackedCTokenData(_) => unreachable!(),
-            Self::CTokenData(_) => unreachable!(),
-            Self::PackedGameSession(_) => unreachable!(),
-            Self::PackedPlaceholderRecord(_) => unreachable!(),
-        }
-    }
-}
+// impl DataHasher for CompressedAccountVariant {
+//     fn hash<H: Hasher>(&self) -> std::result::Result<[u8; 32], light_hasher::HasherError> {
+//         match self {
+//             Self::UserRecord(data) => data.hash::<H>(),
+//             Self::PackedUserRecord(_) => unreachable!(),
+//             Self::GameSession(data) => data.hash::<H>(),
+//             Self::PlaceholderRecord(data) => data.hash::<H>(),
+//             Self::PackedCTokenData(_) => unreachable!(),
+//             Self::CTokenData(_) => unreachable!(),
+//             Self::PackedGameSession(_) => unreachable!(),
+//             Self::PackedPlaceholderRecord(_) => unreachable!(),
+//         }
+//     }
+// }
 
 impl LightDiscriminator for CompressedAccountVariant {
     const LIGHT_DISCRIMINATOR: [u8; 8] = [0; 8]; // This won't be used directly
@@ -2089,12 +2095,12 @@ impl Unpack for GameSession {
 
 // PlaceholderRecord - demonstrates empty compressed account creation
 // The PDA remains intact while an empty compressed account is created
-#[derive(Default, Debug, LightHasher, LightDiscriminator, InitSpace)]
+#[derive(Default, Debug, LightDiscriminator, InitSpace)]
 #[account]
 pub struct PlaceholderRecord {
-    #[skip]
+    // #[skip]
     pub compression_info: Option<CompressionInfo>,
-    #[hash]
+    // #[hash]
     pub owner: Pubkey,
     #[max_len(32)]
     pub name: String,

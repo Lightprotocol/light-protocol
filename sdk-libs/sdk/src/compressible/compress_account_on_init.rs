@@ -13,6 +13,7 @@ use light_hasher::DataHasher;
 use solana_account_info::AccountInfo;
 use solana_msg::msg;
 use solana_pubkey::Pubkey;
+use std::str::FromStr;
 
 use crate::{
     account::sha::LightAccount,
@@ -163,8 +164,8 @@ pub fn compress_empty_account_on_init<'info, A>(
     proof: ValidityProof,
 ) -> Result<()>
 where
-    A: DataHasher
-        + LightDiscriminator
+    // A: DataHasher +
+    A: LightDiscriminator
         + AnchorSerialize
         + AnchorDeserialize
         + AccountSerialize
@@ -180,7 +181,12 @@ where
         std::slice::from_ref(&output_state_tree_index),
         &cpi_accounts,
     )?;
+    msg!("...prepared empty compressed accounts on init");
 
+    msg!(
+        "invoking LightSystemProgramCpi, {:?}",
+        cpi_accounts.config()
+    );
     LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
         .with_new_addresses(&[*new_address_param])
         .with_account_infos(&compressed_infos)
@@ -216,8 +222,8 @@ pub fn prepare_empty_compressed_accounts_on_init<'info, A>(
     cpi_accounts: &CpiAccounts<'_, 'info>,
 ) -> Result<Vec<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>>
 where
-    A: DataHasher
-        + LightDiscriminator
+    A: LightDiscriminator
+        // + DataHasher
         + AnchorSerialize
         + AnchorDeserialize
         + AccountSerialize
@@ -258,12 +264,91 @@ where
 
         let owner_program_id = cpi_accounts.self_program_id();
 
+        let out_index = output_state_tree_index.clone() as usize;
         // Create an empty compressed account with the specified address
         let mut compressed_account =
             LightAccount::<A>::new_init(&owner_program_id, Some(address), output_state_tree_index);
 
         compressed_account.remove_data();
-        compressed_account_infos.push(compressed_account.to_account_info()?);
+
+        msg!(
+            "compressed_account before to_account_info: {:?}",
+            compressed_account.owner()
+        );
+        msg!(
+            "compressed_account before to_account_info: {:?}",
+            compressed_account.in_account_info()
+        );
+        msg!(
+            "compressed_account before to_account_info: {:?}",
+            compressed_account.out_account_info()
+        );
+        msg!(
+            "compressed_account before to_account_info: {:?}",
+            compressed_account.discriminator()
+        );
+
+        let tree_account_info = cpi_accounts.get_tree_account_info(out_index)?;
+        msg!("tree_account_info: {:?}", tree_account_info);
+        let compressed_account_info = compressed_account.to_account_info()?;
+        msg!("compressed_account - info: {:?}", compressed_account_info);
+
+        // DEBUG: Compute hash manually to verify which owner is used
+        // {
+        //     use light_compressed_account::compressed_account::hash_with_hashed_values;
+        //     use light_hasher::Hasher;
+
+        //     let owner_correct = owner_program_id;
+        //     let owner_system =
+        //         solana_pubkey::Pubkey::from_str("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7")
+        //             .unwrap();
+
+        //     let hashed_owner_correct =
+        //         light_compressed_account::hash_to_bn254_field_size_be(&owner_correct.to_bytes());
+        //     let hashed_owner_system =
+        //         light_compressed_account::hash_to_bn254_field_size_be(&owner_system.to_bytes());
+        //     let hashed_tree = light_compressed_account::hash_to_bn254_field_size_be(
+        //         tree_account_info.key.as_ref(),
+        //     );
+
+        //     // Assuming leaf index will be 0 for first insertion
+        //     let leaf_index = 0u32;
+
+        //     let hash_with_correct_owner = hash_with_hashed_values(
+        //         &0u64,
+        //         Some(address.as_slice()),
+        //         Some((&[0u8; 8], &[0u8; 32])),
+        //         &hashed_owner_correct,
+        //         &hashed_tree,
+        //         &leaf_index,
+        //         true, // is_batched
+        //     )
+        //     .unwrap();
+
+        //     let hash_with_system_owner = hash_with_hashed_values(
+        //         &0u64,
+        //         Some(address.as_slice()),
+        //         Some((&[0u8; 8], &[0u8; 32])),
+        //         &hashed_owner_system,
+        //         &hashed_tree,
+        //         &leaf_index,
+        //         true, // is_batched
+        //     )
+        //     .unwrap();
+
+        //     msg!(
+        //         "DEBUG: Hash with CORRECT owner ({:?}): {:?}",
+        //         owner_correct,
+        //         hash_with_correct_owner
+        //     );
+        //     msg!(
+        //         "DEBUG: Hash with SYSTEM owner ({:?}): {:?}",
+        //         owner_system,
+        //         hash_with_system_owner
+        //     );
+        // }
+
+        compressed_account_infos.push(compressed_account_info);
     }
 
     Ok(compressed_account_infos)

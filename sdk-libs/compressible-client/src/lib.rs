@@ -400,7 +400,7 @@ impl CompressibleInstruction {
         let mut remaining_accounts = PackedAccounts::default();
 
         let system_config = SystemAccountMetaConfig::new(*program_id);
-        remaining_accounts.add_system_accounts(system_config)?;
+        remaining_accounts.add_system_accounts_v2(system_config)?;
 
         let output_state_tree_index =
             remaining_accounts.insert_or_get(output_state_tree_info.queue);

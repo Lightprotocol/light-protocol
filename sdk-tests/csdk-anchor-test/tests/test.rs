@@ -39,7 +39,7 @@ use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
-pub const ADDRESS_SPACE: [Pubkey; 1] = [pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmqxXqZjVHwHY3rK")];
+pub const ADDRESS_SPACE: [Pubkey; 1] = [pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx")];
 pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 pub const TOKEN_PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
@@ -711,6 +711,8 @@ async fn test_create_empty_compressed_account() {
     )
     .await;
 
+    println!("...create_placeholder_record done");
+
     // Verify the PDA still exists and has data
     let placeholder_pda_account = rpc.get_account(placeholder_record_pda).await.unwrap();
     assert!(
@@ -777,6 +779,8 @@ async fn test_create_empty_compressed_account() {
     // Step 2: Now compress the PDA (this will close the PDA and put data into the compressed account)
     rpc.warp_to_slot(200).unwrap(); // Wait past compression delay
 
+    println!("...compressing placeholder record");
+
     compress_placeholder_record(
         &mut rpc,
         &payer,
@@ -800,7 +804,7 @@ async fn create_record(
 
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts(system_config);
+    let _ = remaining_accounts.add_system_accounts_v2(system_config);
 
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
 
@@ -875,16 +879,9 @@ async fn create_record(
     // should be empty
     let user_record_account = rpc.get_account(*user_record_pda).await.unwrap();
     assert!(
-        user_record_account.is_some(),
-        "Account should exist after compression"
+        user_record_account.is_none(),
+        "Account should not exist after compression"
     );
-
-    let account = user_record_account.unwrap();
-    assert_eq!(account.lamports, 0, "Account lamports should be 0");
-
-    let user_record_data = account.data;
-
-    assert!(user_record_data.is_empty(), "Account data should be empty");
 }
 
 async fn create_game_session(
@@ -899,7 +896,7 @@ async fn create_game_session(
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts(system_config);
+    let _ = remaining_accounts.add_system_accounts_v2(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
@@ -972,16 +969,12 @@ async fn create_game_session(
 
     assert!(result.is_ok(), "Transaction should succeed");
 
-    // Verify the account is empty after compression
+    // Verify the account is closed after compression
     let game_session_account = rpc.get_account(*game_session_pda).await.unwrap();
     assert!(
-        game_session_account.is_some(),
-        "Account should exist after compression"
+        game_session_account.is_none(),
+        "Account should not exist after compression"
     );
-
-    let account = game_session_account.unwrap();
-    assert_eq!(account.lamports, 0, "Account lamports should be 0");
-    assert!(account.data.is_empty(), "Account data should be empty");
 
     let compressed_game_session = rpc
         .get_compressed_account(compressed_address, None)
@@ -1528,7 +1521,7 @@ async fn create_user_record_and_game_session(
         *program_id,
         state_tree_info.cpi_context.unwrap(),
     );
-    let _ = remaining_accounts.add_system_accounts(system_config);
+    let _ = remaining_accounts.add_system_accounts_v2(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
@@ -1676,35 +1669,17 @@ async fn create_user_record_and_game_session(
         "Combined creation transaction should succeed"
     );
 
-    // Verify both accounts are empty after compression
+    // Verify both accounts are closed after compression
     let user_record_account = rpc.get_account(*user_record_pda).await.unwrap();
     assert!(
-        user_record_account.is_some(),
-        "User record account should exist after compression"
-    );
-    let account = user_record_account.unwrap();
-    assert_eq!(
-        account.lamports, 0,
-        "User record account lamports should be 0"
-    );
-    assert!(
-        account.data.is_empty(),
-        "User record account data should be empty"
+        user_record_account.is_none(),
+        "User record account should not exist after compression"
     );
 
     let game_session_account = rpc.get_account(*game_session_pda).await.unwrap();
     assert!(
-        game_session_account.is_some(),
-        "Game session account should exist after compression"
-    );
-    let account = game_session_account.unwrap();
-    assert_eq!(
-        account.lamports, 0,
-        "Game session account lamports should be 0"
-    );
-    assert!(
-        account.data.is_empty(),
-        "Game session account data should be empty"
+        game_session_account.is_none(),
+        "Game session account should not exist after compression"
     );
 
     // Verify compressed accounts exist and have correct data
@@ -1852,7 +1827,7 @@ async fn compress_record(
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts(system_config);
+    let _ = remaining_accounts.add_system_accounts_v2(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
@@ -1920,17 +1895,8 @@ async fn compress_record(
     // Verify the PDA account is now empty (compressed)
     let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
     assert!(
-        user_pda_account.is_some(),
-        "Account should exist after compression"
-    );
-    let account = user_pda_account.unwrap();
-    assert_eq!(
-        account.lamports, 0,
-        "Account lamports should be 0 after compression"
-    );
-    assert!(
-        account.data.is_empty(),
-        "Account data should be empty after compression"
+        user_pda_account.is_none(),
+        "Account should not exist after compression"
     );
 
     // Verify the compressed account exists
@@ -2073,7 +2039,7 @@ async fn create_placeholder_record(
     // Setup remaining accounts for Light Protocol
     let mut remaining_accounts = PackedAccounts::default();
     let system_config = SystemAccountMetaConfig::new(*program_id);
-    let _ = remaining_accounts.add_system_accounts(system_config);
+    let _ = remaining_accounts.add_system_accounts_v2(system_config);
 
     // Get address tree info
     let address_tree_pubkey = rpc.get_address_tree_v2().queue;
@@ -2138,8 +2104,9 @@ async fn create_placeholder_record(
         data: instruction_data.data(),
     };
 
-    let cu = simulate_cu(rpc, payer, &instruction).await;
-    println!("CreatePlaceholderRecord CU consumed: {}", cu);
+    // let cu = simulate_cu(rpc, payer, &instruction).await;
+    // println!("CreatePlaceholderRecord CU consumed: {}", cu);
+    println!("sending CreatePlaceholderRecord instruction");
 
     // Create and send transaction
     let result = rpc
@@ -2178,6 +2145,8 @@ async fn compress_placeholder_record(
         .value
         .unwrap();
 
+    println!("compressed_placeholder: {:?}", compressed_placeholder);
+
     // Get validity proof from RPC
     let rpc_result = rpc
         .get_validity_proof(vec![compressed_placeholder.hash], vec![], None)
@@ -2215,8 +2184,8 @@ async fn compress_placeholder_record(
         )
         .unwrap();
 
-    let cu = simulate_cu(rpc, payer, &instruction).await;
-    println!("CompressPlaceholderRecord CU consumed: {}", cu);
+    // let cu = simulate_cu(rpc, payer, &instruction).await;
+    // println!("CompressPlaceholderRecord CU consumed: {}", cu);
 
     let result = rpc
         .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
@@ -2578,18 +2547,12 @@ async fn test_double_compression_attack() {
         first_compression_result
     );
 
-    // Verify PDA is now empty/closed after first compression
+    // Verify PDA is now closed after first compression
     let placeholder_pda_after_first = rpc.get_account(placeholder_record_pda).await.unwrap();
-    if let Some(account) = placeholder_pda_after_first {
-        assert_eq!(
-            account.lamports, 0,
-            "PDA should have 0 lamports after first compression"
-        );
-        assert!(
-            account.data.is_empty(),
-            "PDA should have no data after first compression"
-        );
-    }
+    assert!(
+        placeholder_pda_after_first.is_none(),
+        "PDA should not exist after first compression"
+    );
 
     // Verify compressed account now has the data
     let compressed_placeholder_after_first = rpc
@@ -2630,16 +2593,10 @@ async fn test_double_compression_attack() {
 
     // Verify state hasn't changed after second compression attempt
     let placeholder_pda_after_second = rpc.get_account(placeholder_record_pda).await.unwrap();
-    if let Some(account) = placeholder_pda_after_second {
-        assert_eq!(
-            account.lamports, 0,
-            "PDA should still have 0 lamports after second compression"
-        );
-        assert!(
-            account.data.is_empty(),
-            "PDA should still have no data after second compression"
-        );
-    }
+    assert!(
+        placeholder_pda_after_second.is_none(),
+        "PDA should still not exist after second compression"
+    );
 
     let compressed_placeholder_after_second = rpc
         .get_compressed_account(compressed_address, None)
@@ -2879,62 +2836,32 @@ async fn compress_token_account_after_decompress(
     );
 
     println!("ctoken program id bytes {:?}", ctoken::ID);
-    // Verify the token accounts are now closed/empty
+    // Verify the token accounts are now closed
     let token_account_after = rpc.get_account(token_account_address).await.unwrap();
-    if let Some(account) = token_account_after {
-        assert_eq!(
-            account.lamports, 0,
-            "Token account should have 0 lamports after compression"
-        );
-        assert!(
-            account.data.is_empty(),
-            "Token account should have no data after compression"
-        );
-    }
+    assert!(
+        token_account_after.is_none(),
+        "Token account should not exist after compression"
+    );
     let token_account_after_2 = rpc.get_account(token_account_address_2).await.unwrap();
-    if let Some(account) = token_account_after_2 {
-        assert_eq!(
-            account.lamports, 0,
-            "Token account 2 should have 0 lamports after compression"
-        );
-        assert!(
-            account.data.is_empty(),
-            "Token account 2 should have no data after compression"
-        );
-    }
+    assert!(
+        token_account_after_2.is_none(),
+        "Token account 2 should not exist after compression"
+    );
     let token_account_after_3 = rpc.get_account(token_account_address_3).await.unwrap();
-    if let Some(account) = token_account_after_3 {
-        assert_eq!(
-            account.lamports, 0,
-            "Token account 3 should have 0 lamports after compression"
-        );
-        assert!(
-            account.data.is_empty(),
-            "Token account 3 should have no data after compression"
-        );
-    }
+    assert!(
+        token_account_after_3.is_none(),
+        "Token account 3 should not exist after compression"
+    );
     let token_account_after_4 = rpc.get_account(token_account_address_4).await.unwrap();
-    if let Some(account) = token_account_after_4 {
-        assert_eq!(
-            account.lamports, 0,
-            "Token account 4 should have 0 lamports after compression"
-        );
-        assert!(
-            account.data.is_empty(),
-            "Token account 4 should have no data after compression"
-        );
-    }
+    assert!(
+        token_account_after_4.is_none(),
+        "Token account 4 should not exist after compression"
+    );
     let token_account_after_5 = rpc.get_account(token_account_address_5).await.unwrap();
-    if let Some(account) = token_account_after_5 {
-        assert_eq!(
-            account.lamports, 0,
-            "Token account 5 should have 0 lamports after compression"
-        );
-        assert!(
-            account.data.is_empty(),
-            "Token account 5 should have no data after compression"
-        );
-    }
+    assert!(
+        token_account_after_5.is_none(),
+        "Token account 5 should not exist after compression"
+    );
 
     // Verify the compressed token account exists
     let ctoken_accounts = rpc

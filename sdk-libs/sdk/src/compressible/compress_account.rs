@@ -133,8 +133,8 @@ pub fn prepare_account_for_compression<'info, A>(
     address_space: &[Pubkey],
 ) -> Result<CompressedAccountInfo, crate::ProgramError>
 where
-    A: DataHasher
-        + LightDiscriminator
+    A: LightDiscriminator
+        //  + DataHasher
         + AnchorSerialize
         + AnchorDeserialize
         + AccountSerialize
@@ -143,8 +143,8 @@ where
         + Clone
         + HasCompressionInfo
         + CompressAs,
-    A::Output: DataHasher
-        + LightDiscriminator
+    A::Output: LightDiscriminator
+        // + DataHasher
         + AnchorSerialize
         + AnchorDeserialize
         + HasCompressionInfo
@@ -183,6 +183,33 @@ where
     let owner_program_id = cpi_accounts.self_program_id();
     let mut compressed_account =
         LightAccount::<A::Output>::new_empty(&owner_program_id, &meta_with_address)?;
+
+    msg!(
+        "compressed_account before compress_as: {:?}",
+        compressed_account.owner()
+    );
+
+    msg!(
+        "compressed_account in_account_info: {:?}",
+        compressed_account.in_account_info()
+    );
+    msg!(
+        "compressed_account discriminator: {:?}",
+        compressed_account.discriminator()
+    );
+    msg!(
+        "compressed_account lamports: {:?}",
+        compressed_account.lamports()
+    );
+
+    msg!(
+        "DEBUG compress_account: derived_c_pda address: {:?}",
+        meta_with_address.address
+    );
+    msg!(
+        "DEBUG compress_account: in_account: {:?}",
+        compressed_account.in_account_info()
+    );
 
     let compressed_data = match account.compress_as() {
         std::borrow::Cow::Borrowed(data) => data.clone(),
