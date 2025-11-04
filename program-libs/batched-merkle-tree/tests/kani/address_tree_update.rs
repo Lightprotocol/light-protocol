@@ -89,7 +89,7 @@ fn verify_no_unsafe_roots_one_by_one() {
 
     for i in 0..30u8 {
         kani::cover!(i == 0, "Loop iteration 0");
-        kani::cover!(i == 99, "Loop iteration 29");
+        kani::cover!(i == 29, "Loop iteration 29");
         setup_zkp_batches(&mut tree, 1);
 
         let new_root: [u8; 32] = [i; 32];
