@@ -5,6 +5,7 @@ use light_ctoken_types::{
 };
 use light_program_profiler::profile;
 use solana_instruction::Instruction;
+use solana_msg::msg;
 use solana_pubkey::Pubkey;
 
 use crate::{
@@ -97,6 +98,11 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
             output_compressed_accounts.push(output);
         }
     }
+
+    msg!(
+        "input_token_data_with_context: {:?}",
+        input_token_data_with_context[0]
+    );
 
     // Create instruction data
     let instruction_data = CompressedTokenInstructionDataTransfer2 {

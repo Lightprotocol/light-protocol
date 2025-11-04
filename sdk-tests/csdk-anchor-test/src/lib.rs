@@ -800,12 +800,12 @@ pub mod csdk_anchor_test {
             }
 
             // log each token account to decompress
-            for token_account in token_decompress_indices.clone().into_iter() {
-                msg!(
-                    "token_account: {:?}",
-                    packed_accounts[token_account.destination_index as usize].key()
-                );
-            }
+            // for token_account in token_decompress_indices.clone().into_iter() {
+            //     msg!(
+            //         "token_account: {:?}",
+            //         packed_accounts[token_account.destination_index as usize].key()
+            //     );
+            // }
             let ctoken_ix = light_compressed_token_sdk::instructions::decompress_full_ctoken_accounts_with_indices(
                     fee_payer.key(),
                     proof,
@@ -1216,7 +1216,7 @@ pub mod csdk_anchor_test {
                         amount: 1000,
                     },
                 ],
-                token_account_version: 2,
+                token_account_version: 3,
             },
         ];
 

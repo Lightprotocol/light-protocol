@@ -1054,6 +1054,30 @@ async fn decompress_multiple_pdas_with_ctoken(
     let c_game_session = GameSession::deserialize(&mut &game_account_data.data[..]).unwrap();
 
     // Get validity proof for all seven compressed accounts (2 PDAs + 5 tokens)
+    println!("DEBUG hashes passed to get_validity_proof:");
+    println!("  c_user_pda.hash: {:?}", c_user_pda.hash);
+    println!("  c_game_pda.hash: {:?}", c_game_pda.hash);
+    println!(
+        "  ctoken_account.hash: {:?}",
+        ctoken_account.clone().account.hash
+    );
+    println!(
+        "  ctoken_account_2.hash: {:?}",
+        ctoken_account_2.clone().account.hash
+    );
+    println!(
+        "  ctoken_account_3.hash: {:?}",
+        ctoken_account_3.clone().account.hash
+    );
+    println!(
+        "  ctoken_account_4.hash: {:?}",
+        ctoken_account_4.clone().account.hash
+    );
+    println!(
+        "  ctoken_account_5.hash: {:?}",
+        ctoken_account_5.clone().account.hash
+    );
+
     let rpc_result = rpc
         .get_validity_proof(
             vec![
@@ -1076,6 +1100,7 @@ async fn decompress_multiple_pdas_with_ctoken(
 
     let ctoken_config = ctoken::derive_ctoken_program_config(None).0;
     println!("AAA ctoken_config: {:?}", ctoken_config);
+    println!("AAA ctoken_account: {:?}", ctoken_account);
     let instruction =
         light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
             program_id,
@@ -1103,7 +1128,19 @@ async fn decompress_multiple_pdas_with_ctoken(
                     CompressedAccountVariant::GameSession(c_game_session),
                 ),
                 (
-                    ctoken_account.clone().account,
+                    {
+                        let acc = ctoken_account.clone().account;
+                        let token = ctoken_account.clone().token;
+                        println!("DEBUG CLIENT ctoken_account - owner: {:?}", token.owner);
+                        println!("DEBUG CLIENT ctoken_account - mint: {:?}", token.mint);
+                        println!("DEBUG CLIENT ctoken_account - amount: {:?}", token.amount);
+                        println!(
+                            "DEBUG CLIENT ctoken_account - delegate: {:?}",
+                            token.delegate
+                        );
+                        println!("DEBUG CLIENT ctoken_account - account.hash: {:?}", acc.hash);
+                        acc
+                    },
                     CompressedAccountVariant::CTokenData(CTokenDataWithVariant::<
                         CTokenAccountVariant,
                     > {
@@ -1283,21 +1320,22 @@ async fn decompress_multiple_pdas_with_ctoken(
         .unwrap()
         .value
         .unwrap();
-    rpc.get_compressed_account_by_hash(ctoken_account.clone().account.hash.clone(), None)
-        .await
-        .expect_err("Compressed token account should not be found");
-    rpc.get_compressed_account_by_hash(ctoken_account_2.clone().account.hash.clone(), None)
-        .await
-        .expect_err("Compressed token account 2 should not be found");
-    rpc.get_compressed_account_by_hash(ctoken_account_3.clone().account.hash.clone(), None)
-        .await
-        .expect_err("Compressed token account 3 should not be found");
-    rpc.get_compressed_account_by_hash(ctoken_account_4.clone().account.hash.clone(), None)
-        .await
-        .expect_err("Compressed token account 4 should not be found");
-    rpc.get_compressed_account_by_hash(ctoken_account_5.clone().account.hash.clone(), None)
-        .await
-        .expect_err("Compressed token account 5 should not be found");
+    for ctoken in [
+        &ctoken_account,
+        &ctoken_account_2,
+        &ctoken_account_3,
+        &ctoken_account_4,
+        &ctoken_account_5,
+    ] {
+        let response = rpc
+            .get_compressed_account_by_hash(ctoken.clone().account.hash.clone(), None)
+            .await
+            .unwrap();
+        assert!(
+            response.value.is_none(),
+            "Compressed token account should have value == None after being closed"
+        );
+    }
 
     assert!(
         compressed_user_record_data.data.unwrap().data.is_empty(),
@@ -1791,6 +1829,49 @@ async fn create_user_record_and_game_session(
     let ctoken_account_3 = ctoken_accounts_3.items[0].clone();
     let ctoken_account_4 = ctoken_accounts_4.items[0].clone();
     let ctoken_account_5 = ctoken_accounts_5.items[0].clone();
+
+    // DEBUG: Print the owner of each ctoken account from indexer
+    println!(
+        "DEBUG ctoken_account owner: {:?}",
+        ctoken_account.token.owner
+    );
+    println!(
+        "DEBUG ctoken_account_2 owner: {:?}",
+        ctoken_account_2.token.owner
+    );
+    println!(
+        "DEBUG ctoken_account_3 owner: {:?}",
+        ctoken_account_3.token.owner
+    );
+    println!(
+        "DEBUG ctoken_account_4 owner: {:?}",
+        ctoken_account_4.token.owner
+    );
+    println!(
+        "DEBUG ctoken_account_5 owner: {:?}",
+        ctoken_account_5.token.owner
+    );
+
+    println!(
+        "DEBUG ctoken_account hash: {:?}",
+        ctoken_account.account.hash
+    );
+    println!(
+        "DEBUG ctoken_account_2 hash: {:?}",
+        ctoken_account_2.account.hash
+    );
+    println!(
+        "DEBUG ctoken_account_3 hash: {:?}",
+        ctoken_account_3.account.hash
+    );
+    println!(
+        "DEBUG ctoken_account_4 hash: {:?}",
+        ctoken_account_4.account.hash
+    );
+    println!(
+        "DEBUG ctoken_account_5 hash: {:?}",
+        ctoken_account_5.account.hash
+    );
 
     (
         ctoken_account,
