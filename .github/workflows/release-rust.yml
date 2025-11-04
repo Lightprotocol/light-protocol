@@ -80,10 +80,26 @@ jobs:
             TAG="${pkg}-v${VERSION}"
 
             echo "Creating GitHub release for $TAG.."
-            if gh release create "$TAG" --generate-notes --title "$TAG"; then
-              echo "✓ Created release for $TAG"
+
+            # Generate crate-specific release notes
+            if RELEASE_NOTES=$(./scripts/release/generate-release-notes.sh "$pkg" "$VERSION" 2>&1); then
+              echo "✓ Generated release notes for $pkg"
+
+              # Create release with custom notes
+              if echo "$RELEASE_NOTES" | gh release create "$TAG" --title "$TAG" --notes-file -; then
+                echo "✓ Created release for $TAG"
+              else
+                echo "Warning: Failed to create release for $TAG"
+              fi
             else
-              echo "Warning: Failed to create release for $TAG"
+              # If script fails (e.g., no previous tag), fall back to auto-generated notes
+              echo "Warning: Could not generate crate-specific notes: $RELEASE_NOTES"
+              echo "Falling back to auto-generated notes"
+              if gh release create "$TAG" --generate-notes --title "$TAG"; then
+                echo "✓ Created release for $TAG"
+              else
+                echo "Warning: Failed to create release for $TAG"
+              fi
             fi
           done
 
