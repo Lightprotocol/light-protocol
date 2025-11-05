@@ -86,8 +86,9 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     use light_ctoken_types::state::{CToken, ZExtensionStruct};
     use light_zero_copy::traits::ZeroCopyAt;
 
-    // Process each token account and build indices
     let mut indices_vec = Vec::with_capacity(solana_ctoken_accounts.len());
+
+    let mut compression_authority_pubkey: Option<Pubkey> = None;
 
     for solana_ctoken_account_pubkey in solana_ctoken_accounts {
         // Get the ctoken account data
@@ -120,28 +121,20 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
         let mint_index =
             packed_accounts.insert_or_get(Pubkey::from(ctoken_account.mint.to_bytes()));
 
-        // Default owner is the ctoken account owner
         let mut compressed_token_owner = Pubkey::from(ctoken_account.owner.to_bytes());
-
-        // For registry flow: compression_authority is a PDA (not a signer in transaction)
-        // Find compression_authority, rent_sponsor, and compress_to_pubkey from extension
-        let mut compression_authority_pubkey = Pubkey::from(ctoken_account.owner.to_bytes());
         let mut rent_sponsor_pubkey = Pubkey::from(ctoken_account.owner.to_bytes());
 
         if let Some(extensions) = &ctoken_account.extensions {
             for extension in extensions {
                 if let ZExtensionStruct::Compressible(e) = extension {
-                    compression_authority_pubkey = Pubkey::from(e.compression_authority);
+                    let current_authority = Pubkey::from(e.compression_authority);
                     rent_sponsor_pubkey = Pubkey::from(e.rent_sponsor);
-                    println!(
-                        "compression_authority_pubkey {:?}",
-                        compression_authority_pubkey
-                    );
 
-                    println!("compress to pubkey {}", e.compress_to_pubkey());
-                    // Check if compress_to_pubkey is set
+                    if compression_authority_pubkey.is_none() {
+                        compression_authority_pubkey = Some(current_authority);
+                    }
+
                     if e.compress_to_pubkey() {
-                        // Use the compress_to_pubkey as the owner for compressed tokens
                         compressed_token_owner = *solana_ctoken_account_pubkey;
                     }
                     break;
@@ -149,45 +142,29 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
             }
         }
 
-        // Pack the owner and rent_sponsor indices
         let owner_index = packed_accounts.insert_or_get(compressed_token_owner);
         let rent_sponsor_index = packed_accounts.insert_or_get(rent_sponsor_pubkey);
-
-        // Add compression_authority as non-signer (registry will sign with PDA)
-        let authority_index = packed_accounts.insert_or_get_config(
-            compression_authority_pubkey,
-            false, // is_signer = false (registry PDA will sign during CPI)
-            true,  // is_writable
-        );
-
-        // Add destination for compression incentive (defaults to payer if not specified)
-        let destination_pubkey = destination.unwrap_or_else(|| payer.pubkey());
-        println!(
-            "compress_and_close_forester destination pubkey: {:?}",
-            destination_pubkey
-        );
-        let destination_index = packed_accounts.insert_or_get_config(
-            destination_pubkey,
-            false, // Already signed at transaction level if it's the payer
-            true,  // is_writable to receive lamports
-        );
 
         let indices = CompressAndCloseIndices {
             source_index,
             mint_index,
             owner_index,
-            authority_index,
             rent_sponsor_index,
-            destination_index, // Compression incentive goes to destination (forester)
         };
 
         indices_vec.push(indices);
     }
 
-    // Add light system program accounts
-    // NOTE: Do NOT set self_program when calling through registry!
-    // The registry will handle the CPI authority, so we don't want the light_system_cpi_authority
-    // to be added to the accounts (it would be at the wrong position for Transfer2CpiAccounts parsing)
+    let destination_pubkey = destination.unwrap_or_else(|| payer.pubkey());
+    let destination_index = packed_accounts.insert_or_get_config(destination_pubkey, false, true);
+
+    let compression_authority_pubkey = compression_authority_pubkey.ok_or_else(|| {
+        RpcError::CustomError("No compression authority found in accounts".to_string())
+    })?;
+
+    let authority_index =
+        packed_accounts.insert_or_get_config(compression_authority_pubkey, false, true);
+
     let config = CTokenCompressAndCloseAccounts {
         compressed_token_program: compressed_token_program_id,
         cpi_authority_pda: Pubkey::find_program_address(
@@ -210,16 +187,16 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
         registered_forester_pda,
         compression_authority,
         compressible_config,
-        compressed_token_program: compressed_token_program_id,
     };
 
     // Get account metas from Anchor accounts
     let mut accounts = compress_and_close_accounts.to_account_metas(Some(true));
 
-    // Add remaining accounts from packed accounts
     accounts.extend(remaining_account_metas);
-    // Create Anchor instruction with proper discriminator
+
     let instruction = CompressAndClose {
+        authority_index,
+        destination_index,
         indices: indices_vec,
     };
     let instruction_data = instruction.data();

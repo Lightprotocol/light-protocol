@@ -1,4 +1,5 @@
-use anchor_lang::{pubkey, AnchorDeserialize, AnchorSerialize};
+use anchor_lang::{prelude::ProgramError, pubkey, AnchorDeserialize, AnchorSerialize, Result};
+use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_ctoken_types::{
     instructions::transfer2::{
         CompressedTokenInstructionDataTransfer2, Compression, CompressionMode,
@@ -28,9 +29,7 @@ pub struct CompressAndCloseIndices {
     pub source_index: u8,
     pub mint_index: u8,
     pub owner_index: u8,
-    pub authority_index: u8,
-    pub rent_sponsor_index: u8,
-    pub destination_index: u8,
+    pub rent_sponsor_index: u8, // Can vary with custom rent sponsors
 }
 
 /// Compress and close compressed token accounts with pre-computed indices
@@ -41,9 +40,10 @@ pub struct CompressAndCloseIndices {
 ///
 /// # Arguments
 /// * `fee_payer` - The fee payer pubkey
-/// * `rent_sponsor_is_signer` - If true, authority must be signer (rent authority mode)
 /// * `cpi_context_pubkey` - Optional CPI context account for optimized multi-program transactions
-/// * `indices` - Slice of pre-computed indices for each account to compress and close
+/// * `authority_index` - Index of compression authority in packed_accounts
+/// * `destination_index` - Index of compression incentive destination in packed_accounts
+/// * `indices` - Slice of per-account indices (source, mint, owner, rent_sponsor)
 /// * `packed_accounts` - Slice of all accounts (AccountInfo) that will be used in the instruction
 ///
 /// # Returns
@@ -51,19 +51,19 @@ pub struct CompressAndCloseIndices {
 #[profile]
 pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
     fee_payer: Pubkey,
-    rent_sponsor_is_signer: bool,
-    cpi_context_pubkey: Option<Pubkey>,
+    authority_index: u8,
+    destination_index: u8,
     indices: &[CompressAndCloseIndices],
-    packed_accounts: &[AccountInfo<'info>],
-) -> Result<Instruction, RegistryError> {
+    packed_accounts: &ProgramPackedAccounts<'info, AccountInfo<'info>>,
+) -> Result<Instruction> {
     if indices.is_empty() {
         msg!("indices empty");
-        return Err(RegistryError::InvalidSigner);
+        return Err(ProgramError::NotEnoughAccountKeys.into());
     }
 
     // Convert packed_accounts to AccountMetas
-    let mut packed_account_metas = Vec::with_capacity(packed_accounts.len());
-    for info in packed_accounts.iter() {
+    let mut packed_account_metas = Vec::with_capacity(packed_accounts.accounts.len());
+    for info in packed_accounts.accounts.iter() {
         packed_account_metas.push(AccountMeta {
             pubkey: *info.key,
             is_signer: info.is_signer,
@@ -79,8 +79,8 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
     for (i, idx) in indices.iter().enumerate() {
         // Get the amount from the source token account
         let source_account = packed_accounts
-            .get(idx.source_index as usize)
-            .ok_or(RegistryError::InvalidSigner)?;
+            .get_u8(idx.source_index, "source_account")
+            .map_err(ProgramError::from)?;
 
         let account_data = source_account
             .try_borrow_data()
@@ -97,30 +97,28 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             amount,
             delegate: 0,
             mint: idx.mint_index,
-            version: 3, // V2 for batched Merkle trees
+            version: 3, // Shaflat
             has_delegate: false,
         });
 
-        // Manually construct Compression struct for CompressAndClose
         let compression = Compression {
             mode: CompressionMode::CompressAndClose,
             amount,
             mint: idx.mint_index,
             source_or_recipient: idx.source_index,
-            authority: idx.authority_index,
+            authority: authority_index,
             pool_account_index: idx.rent_sponsor_index,
-            pool_index: i as u8, // compressed_account_index matches output index (one-to-one)
-            bump: idx.destination_index,
+            pool_index: i as u8,
+            bump: destination_index,
         };
 
-        // Set appropriate signer flags
-        if rent_sponsor_is_signer {
-            packed_account_metas[idx.authority_index as usize].is_signer = true;
-        } else {
-            packed_account_metas[idx.owner_index as usize].is_signer = true;
-        }
         compressions.push(compression);
     }
+
+    packed_account_metas
+        .get_mut(authority_index as usize)
+        .ok_or(ProgramError::NotEnoughAccountKeys)?
+        .is_signer = true;
 
     // Build instruction data inline
     let instruction_data = CompressedTokenInstructionDataTransfer2 {
@@ -137,12 +135,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         in_tlv: None,
         out_tlv: None,
         compressions: Some(compressions),
-        cpi_context: cpi_context_pubkey.map(|_| {
-            light_ctoken_types::instructions::transfer2::CompressedCpiContext {
-                set_context: false,
-                first_set_context: false,
-            }
-        }),
+        cpi_context: None,
     };
 
     // Serialize instruction data
@@ -175,12 +168,6 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
         Pubkey::from([0u8; 32]), // system_program
         false,
     ));
-
-    // CPI context if provided
-    if let Some(cpi_context) = cpi_context_pubkey {
-        account_metas.push(AccountMeta::new(cpi_context, false));
-    }
-
     // Packed accounts (trees, queues, mints, owners, etc.)
     account_metas.extend(packed_account_metas);
 

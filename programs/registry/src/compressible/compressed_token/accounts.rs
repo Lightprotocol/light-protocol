@@ -1,4 +1,6 @@
-use light_account_checks::{AccountError, AccountInfoTrait, AccountIterator};
+use light_account_checks::{
+    packed_accounts::ProgramPackedAccounts, AccountError, AccountInfoTrait, AccountIterator,
+};
 use light_program_profiler::profile;
 
 use super::{
@@ -7,16 +9,13 @@ use super::{
 };
 
 /// Parsed Transfer2 CPI accounts for structured access
-#[derive(Debug)]
 pub struct Transfer2CpiAccounts<'a, A: AccountInfoTrait + Clone> {
     // Programs and authorities (in order)
     pub compressed_token_program: &'a A,
-    /// Needed with cpi context to do the other cpi to the system program.
-    pub invoking_program_cpi_authority: Option<&'a A>,
     pub light_system_program: &'a A,
 
     // Core system accounts
-    pub fee_payer: &'a A,
+    pub fee_payer: A,
     pub compressed_token_cpi_authority: &'a A,
     pub registered_program_pda: &'a A,
     pub account_compression_authority: &'a A,
@@ -24,27 +23,20 @@ pub struct Transfer2CpiAccounts<'a, A: AccountInfoTrait + Clone> {
     pub system_program: &'a A,
     /// Packed accounts (trees, queues, mints, owners, delegates, etc)
     /// Trees and queues must be first.
-    pub packed_accounts: &'a [A],
+    pub packed_accounts: ProgramPackedAccounts<'a, A>,
 }
 
 impl<'a, A: AccountInfoTrait + Clone> Transfer2CpiAccounts<'a, A> {
-    /// Following the order: compressed_token_program, invoking_program_cpi_authority, light_system_program, ...
     /// Checks in this function are for convenience and not security critical.
     #[profile]
     #[inline(always)]
-    pub fn try_from_account_infos_full(
-        fee_payer: &'a A,
-        accounts: &'a [A],
-        light_system_cpi_authority: bool,
-    ) -> Result<Self, AccountError> {
+    pub fn try_from_account_infos(fee_payer: A, accounts: &'a [A]) -> Result<Self, AccountError> {
         let mut iter = AccountIterator::new(accounts);
         let compressed_token_program = iter.next_checked_pubkey(
             "compressed_token_program",
             COMPRESSED_TOKEN_PROGRAM_ID.to_bytes(),
         )?;
 
-        let invoking_program_cpi_authority =
-            iter.next_option("CPI_SIGNER.cpi_authority", light_system_cpi_authority)?;
         let compressed_token_cpi_authority = iter.next_account("compressed_token_cpi_authority")?;
 
         let light_system_program =
@@ -74,7 +66,6 @@ impl<'a, A: AccountInfoTrait + Clone> Transfer2CpiAccounts<'a, A> {
 
         Ok(Self {
             compressed_token_program,
-            invoking_program_cpi_authority,
             light_system_program,
             fee_payer,
             compressed_token_cpi_authority,
@@ -82,28 +73,17 @@ impl<'a, A: AccountInfoTrait + Clone> Transfer2CpiAccounts<'a, A> {
             account_compression_authority,
             account_compression_program,
             system_program,
-            packed_accounts,
+            packed_accounts: ProgramPackedAccounts {
+                accounts: packed_accounts,
+            },
         })
-    }
-
-    #[inline(always)]
-    pub fn try_from_account_infos(
-        fee_payer: &'a A,
-        accounts: &'a [A],
-    ) -> Result<Self, AccountError> {
-        Self::try_from_account_infos_full(fee_payer, accounts, false)
-    }
-
-    /// Get tree accounts (accounts owned by account compression program)
-    pub fn packed_accounts(&self) -> &'a [A] {
-        self.packed_accounts
     }
 
     /// Get accounts for CPI to light system program (excludes the programs themselves)
     #[profile]
     #[inline(always)]
     pub fn to_account_infos(&self) -> Vec<A> {
-        let mut accounts = Vec::with_capacity(10 + self.packed_accounts.len());
+        let mut accounts = Vec::with_capacity(7 + self.packed_accounts.accounts.len());
 
         accounts.extend_from_slice(
             &[
@@ -117,7 +97,7 @@ impl<'a, A: AccountInfoTrait + Clone> Transfer2CpiAccounts<'a, A> {
             ][..],
         );
 
-        self.packed_accounts.iter().for_each(|e| {
+        self.packed_accounts.accounts.iter().for_each(|e| {
             accounts.push(e.clone());
         });
 

@@ -29,14 +29,12 @@ pub struct CompressAndCloseContext<'info> {
         has_one = compression_authority
     )]
     pub compressible_config: Account<'info, CompressibleConfig>,
-
-    /// Compressed token program
-    /// CHECK: Must be the compressed token program ID
-    pub compressed_token_program: AccountInfo<'info>,
 }
 
-pub fn process_compress_and_close<'info>(
-    ctx: &Context<'_, '_, '_, 'info, CompressAndCloseContext<'info>>,
+pub fn process_compress_and_close<'c: 'info, 'info>(
+    ctx: &Context<'_, '_, 'c, 'info, CompressAndCloseContext<'info>>,
+    authority_index: u8,
+    destination_index: u8,
     indices: Vec<CompressAndCloseIndices>,
 ) -> Result<()> {
     // Validate config is not inactive (active or deprecated allowed for compress and close)
@@ -52,20 +50,15 @@ pub fn process_compress_and_close<'info>(
 
     // Use Transfer2CpiAccounts to parse accounts
     let transfer2_accounts =
-        Transfer2CpiAccounts::try_from_account_infos(&fee_payer, ctx.remaining_accounts)
+        Transfer2CpiAccounts::try_from_account_infos(fee_payer, ctx.remaining_accounts)
             .map_err(ProgramError::from)?;
 
-    // Get the packed accounts from the parsed structure
-    let packed_accounts = transfer2_accounts.packed_accounts();
-
-    // Use the compress_and_close function with the provided indices
-    // Use the authority as fee_payer
     let instruction = compress_and_close_ctoken_accounts_with_indices(
         ctx.accounts.authority.key(),
-        true,
-        None, // cpi_context_pubkey
+        authority_index,
+        destination_index,
         &indices,
-        packed_accounts,
+        &transfer2_accounts.packed_accounts,
     )?;
 
     // Prepare signer seeds for compression_authority PDA

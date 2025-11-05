@@ -782,8 +782,10 @@ pub mod light_registry {
     }
 
     /// Compress and close token accounts via transfer2
-    pub fn compress_and_close<'info>(
-        ctx: Context<'_, '_, '_, 'info, CompressAndCloseContext<'info>>,
+    pub fn compress_and_close<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, CompressAndCloseContext<'info>>,
+        authority_index: u8,
+        destination_index: u8,
         indices: Vec<CompressAndCloseIndices>,
     ) -> Result<()> {
         // Check forester and track work
@@ -794,7 +796,7 @@ pub mod light_registry {
             &Pubkey::default(),
             0,
         )?;
-        process_compress_and_close(&ctx, indices)
+        process_compress_and_close(&ctx, authority_index, destination_index, indices)
     }
 }
 

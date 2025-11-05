@@ -842,9 +842,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
         source_index,
         mint_index,
         owner_index,
-        authority_index,
         rent_sponsor_index,
-        destination_index,
     };
 
     // Add system accounts
@@ -869,13 +867,14 @@ pub async fn compress_and_close_forester_with_invalid_output(
         registered_forester_pda,
         compression_authority,
         compressible_config,
-        compressed_token_program: compressed_token_program_id,
     };
 
     let mut accounts = compress_and_close_accounts.to_account_metas(Some(true));
     accounts.extend(remaining_account_metas);
 
     let instruction = CompressAndClose {
+        authority_index,
+        destination_index,
         indices: vec![indices],
     };
     let instruction_data = instruction.data();
