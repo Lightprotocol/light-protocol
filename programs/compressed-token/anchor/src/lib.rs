@@ -422,6 +422,8 @@ pub enum ErrorCode {
     MintActionInvalidCpiContextForCreateMint,
     #[msg("Invalid address tree pubkey in CPI context")]
     MintActionInvalidCpiContextAddressTreePubkey,
+    #[msg("CompressAndClose: Cannot use the same compressed output account for multiple closures")]
+    CompressAndCloseDuplicateOutput,
 }
 
 impl From<ErrorCode> for ProgramError {

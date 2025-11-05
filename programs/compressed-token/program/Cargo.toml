@@ -67,6 +67,7 @@ light-array-map = { workspace = true }
 pinocchio-pubkey = { workspace = true }
 pinocchio-system = { workspace = true }
 pinocchio-token-program = { workspace = true }
+bitvec = { workspace = true }
 
 [dev-dependencies]
 rand = { workspace = true }

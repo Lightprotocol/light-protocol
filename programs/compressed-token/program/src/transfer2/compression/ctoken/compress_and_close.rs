@@ -1,5 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
+use bitvec::prelude::*;
 use light_account_checks::{checks::check_signer, packed_accounts::ProgramPackedAccounts};
 use light_ctoken_types::{
     instructions::transfer2::{ZCompression, ZCompressionMode, ZMultiTokenTransferOutputData},
@@ -170,10 +171,30 @@ pub fn close_for_compress_and_close(
     compressions: &[ZCompression<'_>],
     validated_accounts: &Transfer2Accounts,
 ) -> Result<(), ProgramError> {
+    // Track used compressed account indices for CompressAndClose to prevent duplicate outputs
+    let mut used_compressed_account_indices = [0u8; 32]; // 256 bits
+    let used_bits = used_compressed_account_indices.view_bits_mut::<Msb0>();
+
     for compression in compressions
         .iter()
         .filter(|c| c.mode == ZCompressionMode::CompressAndClose)
     {
+        // Check for duplicate compressed account indices in CompressAndClose operations
+        let compressed_idx = compression.get_compressed_token_account_index()?;
+        if let Some(mut bit) = used_bits.get_mut(compressed_idx as usize) {
+            if *bit {
+                msg!(
+                    "Duplicate compressed account index {} in CompressAndClose operations",
+                    compressed_idx
+                );
+                return Err(ErrorCode::CompressAndCloseDuplicateOutput.into());
+            }
+            *bit = true;
+        } else {
+            msg!("Compressed account index {} out of bounds", compressed_idx);
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
         let token_account_info = validated_accounts.packed_accounts.get_u8(
             compression.source_or_recipient,
             "CompressAndClose: source_or_recipient",

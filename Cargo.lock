@@ -3584,6 +3584,7 @@ dependencies = [
  "anchor-compressed-token",
  "anchor-lang",
  "arrayvec",
+ "bitvec",
  "borsh 0.10.4",
  "lazy_static",
  "light-account-checks",
