@@ -1,5 +1,6 @@
 use aligned_sized::aligned_sized;
 use anchor_lang::prelude::*;
+use light_batched_merkle_tree::constants::DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V2;
 
 use crate::errors::RegistryError;
 
@@ -57,7 +58,7 @@ impl Default for ProtocolConfig {
             active_phase_length: 1000,
             report_work_phase_length: 100,
             network_fee: 5000,
-            cpi_context_size: 20 * 1024 + 8,
+            cpi_context_size: DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V2,
             finalize_counter_limit: 100,
             place_holder: Pubkey::default(),
             address_network_fee: 10000,
@@ -80,7 +81,7 @@ impl ProtocolConfig {
             active_phase_length: 1000,
             report_work_phase_length: 100,
             network_fee: 5000,
-            cpi_context_size: 20 * 1024 + 8,
+            cpi_context_size: DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V2,
             finalize_counter_limit: 100,
             place_holder: Pubkey::default(),
             address_network_fee: 10000,

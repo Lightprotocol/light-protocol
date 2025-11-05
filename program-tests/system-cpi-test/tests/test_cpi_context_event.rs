@@ -1,4 +1,4 @@
-// #![cfg(feature = "test-sbf")]
+#![cfg(feature = "test-sbf")]
 
 use anchor_lang::{InstructionData, ToAccountMetas};
 use light_program_test::{program_test::LightProgramTest, Indexer, ProgramTestConfig, Rpc};
