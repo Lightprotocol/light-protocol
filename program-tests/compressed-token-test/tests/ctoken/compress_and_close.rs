@@ -1,5 +1,7 @@
+use light_client::rpc::Rpc;
 use light_ctoken_types::state::ZExtensionStructMut;
 use light_zero_copy::traits::ZeroCopyAtMut;
+use solana_sdk::signer::Signer;
 
 use super::shared::*;
 
@@ -843,21 +845,4 @@ async fn test_compress_and_close_output_validation_errors() {
         // Error: InvalidAccountState (18036)
         light_program_test::utils::assert::assert_rpc_error(result, 0, 18036).unwrap();
     }
-}
-
-// ============================================================================
-// Failure Tests - Compressibility and Missing Accounts
-// ============================================================================
-
-#[tokio::test]
-#[serial]
-async fn test_compress_and_close_compressibility_and_missing_accounts() {
-    // Note: These tests would require either:
-    // 1. Manual instruction building to omit required accounts
-    // 2. Trying to close before the account is compressible
-    //
-    // These would require manual instruction building or special setup:
-    // - Test 12: Rent authority tries to close before account is compressible
-    // - Test 13: No destination account provided (error 6087 - CompressAndCloseDestinationMissing)
-    // - Test 14: Rent authority closes but no compressed output exists
 }
