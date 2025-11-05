@@ -5,12 +5,11 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_compressed_token_sdk::instructions::compress_and_close::{
-    CompressAndCloseAccounts as CTokenCompressAndCloseAccounts, CompressAndCloseIndices,
-};
+use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseAccounts as CTokenCompressAndCloseAccounts;
 use light_compressible::config::CompressibleConfig;
 use light_registry::{
-    accounts::CompressAndCloseContext as CompressAndCloseAccounts, instruction::CompressAndClose,
+    accounts::CompressAndCloseContext as CompressAndCloseAccounts,
+    compressible::compressed_token::CompressAndCloseIndices, instruction::CompressAndClose,
     utils::get_forester_epoch_pda_from_authority,
 };
 use light_sdk::instruction::PackedAccounts;

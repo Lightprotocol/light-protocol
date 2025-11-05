@@ -10,6 +10,7 @@ pub use light_program_test::{
     forester::compress_and_close_forester, program_test::TestRpc, LightProgramTest,
     ProgramTestConfig,
 };
+use light_registry::compressible::compressed_token::CompressAndCloseIndices;
 pub use light_test_utils::{
     assert_close_token_account::assert_close_token_account,
     assert_create_token_account::{
@@ -756,7 +757,6 @@ pub async fn compress_and_close_forester_with_invalid_output(
     use std::str::FromStr;
 
     use anchor_lang::{InstructionData, ToAccountMetas};
-    use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseIndices;
     use light_compressible::config::CompressibleConfig;
     use light_ctoken_types::state::{CToken, ZExtensionStruct};
     use light_registry::{

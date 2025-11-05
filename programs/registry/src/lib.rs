@@ -45,9 +45,10 @@ use light_compressible::registry_instructions::{
 };
 use protocol_config::state::ProtocolConfig;
 pub use selection::forester::*;
+
+use crate::compressible::compressed_token::CompressAndCloseIndices;
 #[cfg(not(target_os = "solana"))]
 pub mod sdk;
-use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseIndices;
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
