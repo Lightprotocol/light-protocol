@@ -1,0 +1,57 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "ZK Compression TypeScript SDK",
+  "entryPoints": ["js/stateless.js", "js/compressed-token"],
+  "entryPointStrategy": "packages",
+  "out": "api-docs",
+  "exclude": [
+    "**/node_modules/**",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/tests/**",
+    "**/dist/**",
+    "**/playwright.config.ts"
+  ],
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "skipErrorChecking": true,
+  "readme": "README.md",
+  "packageOptions": {
+    "entryPoints": ["src/index.ts"],
+    "tsconfig": "tsconfig.json"
+  },
+  "compilerOptions": {
+    "skipLibCheck": true
+  },
+  "plugin": [],
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  },
+  "categorizeByGroup": true,
+  "sort": ["source-order"],
+  "kindSortOrder": [
+    "Function",
+    "Class",
+    "Interface",
+    "TypeAlias",
+    "Variable",
+    "Enum"
+  ],
+  "searchInComments": true,
+  "visibilityFilters": {
+    "protected": true,
+    "private": false,
+    "inherited": true,
+    "external": false
+  },
+  "hideGenerator": false,
+  "includeVersion": true,
+  "githubPages": true,
+  "basePath": ".",
+  "navigationLinks": {
+    "Documentation": "https://docs.zkcompression.com",
+    "GitHub": "https://github.com/Lightprotocol/light-protocol"
+  }
+}
