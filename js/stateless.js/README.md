@@ -14,6 +14,9 @@
   </a>
   <img src="https://img.shields.io/npm/l/%40lightprotocol%2Fstateless.js" alt="package license" height="18">
   <img src="https://img.shields.io/npm/dw/%40lightprotocol%2Fstateless.js" alt="package weekly downloads" height="18" />
+  <a href="https://deepwiki.com/Lightprotocol/light-protocol/3.1-javascripttypescript-sdks">
+    <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" height="18" />
+  </a>
 </p>
 
 ## Usage
