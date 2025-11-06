@@ -316,10 +316,6 @@ fn test_queue_indices_invalid_address_tree_index() {
                 "Expected MintActionInvalidCpiContextForCreateMint, got {:?}",
                 e
             );
-            println!(
-                "✅ Correctly rejected invalid in_tree_index={} in execute mode",
-                cpi_context.in_tree_index
-            );
             println!("   Error: {:?}", e);
         }
     }
@@ -352,5 +348,4 @@ fn test_queue_indices_invalid_address_tree_index() {
         "Expected Ok with in_tree_index=1, got error: {:?}",
         result.err()
     );
-    println!("✅ Correctly accepted valid in_tree_index=1 in execute mode");
 }
