@@ -68,6 +68,7 @@ pub fn process_mint_action(
         parsed_instruction_data.create_mint.is_some(),
         tokens_out_queue_exists,
         queue_keys_match,
+        accounts_config.write_to_cpi_context,
     )?;
 
     // If create mint

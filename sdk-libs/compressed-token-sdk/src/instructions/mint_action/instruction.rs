@@ -508,7 +508,8 @@ impl MintActionInputsCpiWrite {
             out_queue_index: inputs.output_queue_index,
             token_out_queue_index: 0, // Set when adding MintTo action
             assigned_account_index: inputs.assigned_account_index,
-            ..Default::default()
+            read_only_address_trees: [0; 4],
+            address_tree_pubkey: light_ctoken_types::CMINT_ADDRESS_TREE,
         };
 
         Self {
