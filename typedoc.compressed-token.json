@@ -1,0 +1,53 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "name": "@lightprotocol/compressed-token",
+  "entryPoints": ["js/compressed-token/src/index.ts"],
+  "out": "api-docs/compressed-token",
+  "exclude": [
+    "**/node_modules/**",
+    "**/*.test.ts",
+    "**/*.spec.ts",
+    "**/tests/**",
+    "**/dist/**",
+    "**/playwright.config.ts"
+  ],
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": true,
+  "skipErrorChecking": true,
+  "readme": "js/compressed-token/README.md",
+  "tsconfig": "js/compressed-token/tsconfig.json",
+  "compilerOptions": {
+    "skipLibCheck": true
+  },
+  "plugin": [],
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true
+  },
+  "categorizeByGroup": true,
+  "sort": ["source-order"],
+  "kindSortOrder": [
+    "Function",
+    "Class",
+    "Interface",
+    "TypeAlias",
+    "Variable",
+    "Enum"
+  ],
+  "searchInComments": true,
+  "visibilityFilters": {
+    "protected": true,
+    "private": false,
+    "inherited": true,
+    "external": false
+  },
+  "hideGenerator": false,
+  "includeVersion": true,
+  "githubPages": true,
+  "navigationLinks": {
+    "Other Libraries": "../index.html",
+    "Documentation": "https://www.zkcompression.com",
+    "GitHub": "https://github.com/Lightprotocol/light-protocol"
+  }
+}

@@ -14,6 +14,9 @@
   </a>
   <img src="https://img.shields.io/npm/l/%40lightprotocol%2Fcompressed-token" alt="package license" height="18">
   <img src="https://img.shields.io/npm/dw/%40lightprotocol%2Fcompressed-token" alt="package weekly downloads" height="18" />
+  <a href="https://deepwiki.com/Lightprotocol/light-protocol/3.1-javascripttypescript-sdks">
+    <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" height="18" />
+  </a>
 </p>
 
 ### Installation
@@ -29,7 +32,8 @@ npm install --save \
 ### Documentation and examples
 
 - [Latest Source code](https://github.com/lightprotocol/light-protocol/tree/main/js/compressed-token)
-- [Creating and sending compressed tokens](https://www.zkcompression.com/developers/typescript-client#creating-minting-and-transferring-a-compressed-token)
+- [Compressed Token Guides](https://www.zkcompression.com/compressed-tokens/guides)
+- [Other Libraries](https://lightprotocol.github.io/light-protocol/)
 
 ### Getting help
 

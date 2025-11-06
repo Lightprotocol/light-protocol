@@ -14,6 +14,9 @@
   </a>
   <img src="https://img.shields.io/npm/l/%40lightprotocol%2Fstateless.js" alt="package license" height="18">
   <img src="https://img.shields.io/npm/dw/%40lightprotocol%2Fstateless.js" alt="package weekly downloads" height="18" />
+  <a href="https://deepwiki.com/Lightprotocol/light-protocol/3.1-javascripttypescript-sdks">
+    <img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki" height="18" />
+  </a>
 </p>
 
 ## Usage
@@ -33,8 +36,8 @@ For a more detailed documentation on usage, please check [the respective section
 For example implementations, including web and Node, refer to the respective repositories:
 
 - [Web application example implementation](https://github.com/Lightprotocol/example-web-client)
-
 - [Node server example implementation](https://github.com/Lightprotocol/example-nodejs-client)
+- [Other Libraries](https://lightprotocol.github.io/light-protocol/)
 
 ## Troubleshooting
 
