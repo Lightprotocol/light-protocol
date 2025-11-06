@@ -422,6 +422,9 @@ impl Batch {
             // When the batch is cleared check that sequence number is greater or equal than self.sequence_number
             // if not advance current root index to root index
             self.sequence_number = sequence_number + root_history_length as u64;
+            // Storing the root index of the last root of the batch.
+            // This root at this root index must not exist once the bloom filter is zeroed.
+            // If the root still exists it is possible to prove inclusion of values that should be nullified.
             self.root_index = root_index;
         }
 

@@ -408,7 +408,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             public_input_hash,
             new_root,
         )?;
-
+        // Root index of the inserted root.
         let root_index = self.root_history.last_index() as u32;
 
         // Update metadata and batch.
@@ -528,7 +528,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             public_input_hash,
             new_root,
         )?;
-
+        // Root index of the inserted root.
         let root_index = self.root_history.last_index() as u32;
 
         // Update queue metadata.
@@ -760,16 +760,19 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // 2.2. Zero out roots oldest to first safe root index.
             //      Skip one iteration we don't need to zero out
             //      the first safe root.
+            // first_safe_root_index is in fact the last unsafe root index
+            // this fixes the issue but can zero out all roots -> delete the tree
+            // for _ in 0..num_remaining_roots {
             for _ in 1..num_remaining_roots {
                 self.root_history[oldest_root_index] = [0u8; 32];
                 oldest_root_index += 1;
                 oldest_root_index %= self.root_history.len();
             }
-            // Defensive assert, it should never fail.
-            assert_eq!(
-                oldest_root_index, first_safe_root_index as usize,
-                "Zeroing out roots failed."
-            );
+            // // Defensive assert, it should never fail.
+            // assert_eq!(
+            //     oldest_root_index, first_safe_root_index as usize,
+            //     "Zeroing out roots failed."
+            // );
         }
     }
 
@@ -824,6 +827,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // 3.1. Mark bloom filter zeroed.
             previous_pending_batch.set_bloom_filter_to_zeroed();
             let seq = previous_pending_batch.sequence_number;
+            // mistakely uses the last unsafe root index as the first safe root index.
             let root_index = previous_pending_batch.root_index;
             // 3.2. Zero out bloom filter.
             {
@@ -837,7 +841,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // which allows to prove inclusion of a value
             // that was inserted into the bloom filter just zeroed out.
             {
-                self.zero_out_roots(seq, root_index);
+                self.zero_out_roots(seq, root_index); // used as first safe root index
             }
         }
 
@@ -1224,13 +1228,12 @@ mod test {
             let previous_roots = account.root_history.to_vec();
             account.zero_out_previous_batch_bloom_filter().unwrap();
             let current_roots = account.root_history.to_vec();
-            println!("previous_roots: {:?}", previous_roots);
             assert_ne!(previous_roots, current_roots);
             let root_index = account.queue_batches.batches[0].root_index;
-            assert_eq!(
-                account.root_history[root_index as usize],
-                previous_roots[root_index as usize]
-            );
+            // assert_eq!(
+            //     account.root_history[root_index as usize],
+            //     previous_roots[root_index as usize]
+            // );
             assert_eq!(
                 account.queue_batches.batches[0].get_state(),
                 BatchState::Inserted
@@ -1243,13 +1246,35 @@ mod test {
                 num_zkp_updates
             );
 
-            for i in 0..root_history_len as usize {
-                if i == root_index as usize {
-                    assert_eq!(account.root_history[i], latest_root_0);
-                } else {
-                    assert_eq!(account.root_history[i], [0u8; 32]);
-                }
-            }
+            // for i in 0..root_history_len as usize {
+            //     if i == root_index as usize {
+            //         assert_eq!(account.root_history[i], latest_root_0);
+            //     } else {
+            //         assert_eq!(account.root_history[i], [0u8; 32]);
+            //     }
+            // }
+            println!("");
+            println!("last batch 0 root: {:?}", latest_root_0);
+            println!("");
+            println!(
+                "root history post update: {:?}",
+                account.root_history.to_vec()
+            );
+            // Should not succeed but succeeds.
+            assert!(account
+                .root_history
+                .iter()
+                .find(|e| **e == latest_root_0)
+                .is_some());
+            // Should succeed but does not.
+            assert!(
+                account
+                    .root_history
+                    .iter()
+                    .find(|e| **e == latest_root_0)
+                    .is_none(),
+                "The last root of batch 0 still exists but its bloom filter is zeroed."
+            );
         }
         // Make Batch 1 full and insert
         {
@@ -1424,11 +1449,11 @@ mod test {
             account_ref.queue_batches.batches[0].set_bloom_filter_to_zeroed();
             assert_eq!(account.get_metadata(), account_ref.get_metadata());
             for i in 0..root_history_len as usize {
-                if i == root_index as usize {
-                    continue;
-                } else {
-                    account_ref.root_history[i] = [0u8; 32];
-                }
+                // if i == root_index as usize {
+                //     continue;
+                // } else {
+                account_ref.root_history[i] = [0u8; 32];
+                // }
             }
             assert_eq!(account, account_ref);
         }
