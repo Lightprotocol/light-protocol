@@ -39,6 +39,7 @@ function getPhotonInstallMessage(): string {
 export async function startIndexer(
   rpcUrl: string,
   indexerPort: number,
+  grpcPort: number = 50051,
   checkPhotonVersion: boolean = true,
   photonDatabaseUrl?: string,
 ) {
@@ -55,6 +56,8 @@ export async function startIndexer(
     const args: string[] = [
       "--port",
       indexerPort.toString(),
+      "--grpc-port",
+      grpcPort.toString(),
       "--rpc-url",
       rpcUrl,
     ];

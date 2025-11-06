@@ -212,6 +212,10 @@ export function spawnBinary(command: string, args: string[] = []) {
       stdio: ["ignore", out, err],
       shell: false,
       detached: true,
+      env: {
+        ...process.env,
+        RUST_LOG: process.env.RUST_LOG || "debug",
+      },
     });
 
     spawnedProcess.on("close", async (code) => {

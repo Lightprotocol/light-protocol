@@ -69,6 +69,12 @@ class SetupCommand extends Command {
       default: 8784,
       exclusive: ["skip-indexer"],
     }),
+    "grpc-port": Flags.integer({
+      description: "Enable Photon indexer gRPC on this port.",
+      required: false,
+      default: 50051,
+      exclusive: ["skip-indexer"],
+    }),
     "prover-port": Flags.integer({
       description: "Enable Light Prover server on this port.",
       required: false,
@@ -194,6 +200,7 @@ class SetupCommand extends Command {
         rpcPort: flags["rpc-port"],
         gossipHost: flags["gossip-host"],
         indexerPort: flags["indexer-port"],
+        grpcPort: flags["grpc-port"],
         proverPort: flags["prover-port"],
         prover: !flags["skip-prover"],
         skipSystemAccounts: flags["skip-system-accounts"],
