@@ -33,8 +33,8 @@ For a more detailed documentation on usage, please check [the respective section
 For example implementations, including web and Node, refer to the respective repositories:
 
 - [Web application example implementation](https://github.com/Lightprotocol/example-web-client)
-
 - [Node server example implementation](https://github.com/Lightprotocol/example-nodejs-client)
+- [Other Libraries](https://lightprotocol.github.io/light-protocol/)
 
 ## Troubleshooting
 

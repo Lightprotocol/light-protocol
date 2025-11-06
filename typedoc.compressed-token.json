@@ -46,8 +46,8 @@
   "includeVersion": true,
   "githubPages": true,
   "navigationLinks": {
-    "API Home": "../index.html",
-    "Documentation": "https://docs.zkcompression.com",
+    "Other Libraries": "../index.html",
+    "Documentation": "https://www.zkcompression.com",
     "GitHub": "https://github.com/Lightprotocol/light-protocol"
   }
 }
