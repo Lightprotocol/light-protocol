@@ -51,8 +51,14 @@ jobs:
       - name: Build stateless.js
         run: cd js/stateless.js && pnpm run build
 
-      - name: Generate TypeDoc
-        run: npx typedoc
+      - name: Generate TypeDoc for stateless.js
+        run: npx typedoc --options typedoc.stateless.json
+
+      - name: Generate TypeDoc for compressed-token
+        run: npx typedoc --options typedoc.compressed-token.json
+
+      - name: Create index page
+        run: cp api-docs-index.html api-docs/index.html
 
       - name: Setup Pages
         uses: actions/configure-pages@v4

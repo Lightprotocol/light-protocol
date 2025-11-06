@@ -1,9 +1,8 @@
 {
   "$schema": "https://typedoc.org/schema.json",
-  "name": "ZK Compression TypeScript SDK",
-  "entryPoints": ["js/stateless.js", "js/compressed-token"],
-  "entryPointStrategy": "packages",
-  "out": "api-docs",
+  "name": "@lightprotocol/compressed-token",
+  "entryPoints": ["js/compressed-token/src/index.ts"],
+  "out": "api-docs/compressed-token",
   "exclude": [
     "**/node_modules/**",
     "**/*.test.ts",
@@ -16,11 +15,8 @@
   "excludeProtected": false,
   "excludeInternal": true,
   "skipErrorChecking": true,
-  "readme": "README.md",
-  "packageOptions": {
-    "entryPoints": ["src/index.ts"],
-    "tsconfig": "tsconfig.json"
-  },
+  "readme": "js/compressed-token/README.md",
+  "tsconfig": "js/compressed-token/tsconfig.json",
   "compilerOptions": {
     "skipLibCheck": true
   },
@@ -49,8 +45,8 @@
   "hideGenerator": false,
   "includeVersion": true,
   "githubPages": true,
-  "basePath": ".",
   "navigationLinks": {
+    "API Home": "../index.html",
     "Documentation": "https://docs.zkcompression.com",
     "GitHub": "https://github.com/Lightprotocol/light-protocol"
   }
