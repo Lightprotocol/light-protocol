@@ -47,6 +47,7 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
         }
     }
 
+    #[inline(always)]
     pub fn index(&self) -> usize {
         self.index as usize
     }
@@ -64,12 +65,14 @@ impl<const HEIGHT: usize> ChangelogEntry<HEIGHT> {
     /// index 4, critbit would be:
     ///
     /// 2 ^ 4 = 0b_0010 ^ 0b_0100 = 0b_0110 = 6
+    #[inline(always)]
     fn intersection_index(&self, leaf_index: usize) -> usize {
         let padding = 64 - HEIGHT;
         let common_path_len = ((leaf_index ^ self.index()) << padding).leading_zeros() as usize;
         (HEIGHT - 1) - common_path_len
     }
 
+    #[inline(always)]
     pub fn update_proof(
         &self,
         leaf_index: usize,

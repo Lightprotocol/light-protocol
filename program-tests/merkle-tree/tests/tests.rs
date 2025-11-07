@@ -766,3 +766,18 @@ fn test_get_proof_by_indices_for_existent_or_non_existent_leaves() {
         assert_eq!(p.len(), 4);
     }
 }
+
+#[test]
+fn test_tree_30k_elements() {
+    const HEIGHT: usize = 32;
+
+    let mut mt = MerkleTree::<Poseidon>::new(HEIGHT, 0);
+    let num_proofs = 1u64;
+    let num_patched_proofs = (0..(num_proofs * 500)).sum::<u64>();
+    println!("num patched proofs {}", num_patched_proofs);
+    for i in 0..num_patched_proofs {
+        let mut leaf = [0u8; 32];
+        leaf[24..32].copy_from_slice(&i.to_be_bytes());
+        mt.append(&leaf).unwrap();
+    }
+}
