@@ -2,8 +2,9 @@ name: Deploy TypeDoc to GitHub Pages
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - 'compressed-token-*'
+      - 'stateless.js-*'
 
 permissions:
   contents: read
