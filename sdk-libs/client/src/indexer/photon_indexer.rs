@@ -2,7 +2,6 @@ use std::{fmt::Debug, time::Duration};
 
 use async_trait::async_trait;
 use bs58;
-use light_merkle_tree_metadata::QueueType;
 use photon_api::{
     apis::configuration::{ApiKey, Configuration},
     models::GetCompressedAccountsByOwnerPostRequestParams,
@@ -1581,9 +1580,10 @@ impl Indexer for PhotonIndexer {
     async fn get_queue_elements(
         &mut self,
         _pubkey: [u8; 32],
-        _queue_type: QueueType,
-        _num_elements: u16,
-        _start_queue_index: Option<u64>,
+        _output_queue_start_index: Option<u64>,
+        _output_queue_limit: Option<u16>,
+        _input_queue_start_index: Option<u64>,
+        _input_queue_limit: Option<u16>,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<QueueElementsResult>, IndexerError> {
         #[cfg(not(feature = "v2"))]
@@ -1592,18 +1592,20 @@ impl Indexer for PhotonIndexer {
         {
             use super::MerkleProofWithContext;
             let pubkey = _pubkey;
-            let queue_type = _queue_type;
-            let limit = _num_elements;
-            let start_queue_index = _start_queue_index;
+            let output_queue_start_index = _output_queue_start_index;
+            let output_queue_limit = _output_queue_limit;
+            let input_queue_start_index = _input_queue_start_index;
+            let input_queue_limit = _input_queue_limit;
             let config = _config.unwrap_or_default();
             self.retry(config.retry_config, || async {
                 let request: photon_api::models::GetQueueElementsPostRequest =
                     photon_api::models::GetQueueElementsPostRequest {
                         params: Box::from(photon_api::models::GetQueueElementsPostRequestParams {
                             tree: bs58::encode(pubkey).into_string(),
-                            queue_type: queue_type as u16,
-                            limit,
-                            start_queue_index,
+                            output_queue_start_index,
+                            output_queue_limit,
+                            input_queue_start_index,
+                            input_queue_limit,
                         }),
                         ..Default::default()
                     };
@@ -1619,8 +1621,11 @@ impl Indexer for PhotonIndexer {
                             if api_result.context.slot < config.slot {
                                 return Err(IndexerError::IndexerNotSyncedToSlot);
                             }
-                            let response = api_result.value;
-                            let proofs: Vec<MerkleProofWithContext> = response
+
+                            // Parse output queue elements
+                            let output_queue_elements =
+                                api_result.output_queue_elements.map(|elements| {
+                                    elements
                                 .iter()
                                 .map(|x| {
                                     let proof = x
@@ -1631,9 +1636,12 @@ impl Indexer for PhotonIndexer {
                                     let root = Hash::from_base58(&x.root).unwrap();
                                     let leaf = Hash::from_base58(&x.leaf).unwrap();
                                     let merkle_tree = Hash::from_base58(&x.tree).unwrap();
-                                    let tx_hash =
-                                        x.tx_hash.as_ref().map(|x| Hash::from_base58(x).unwrap());
-                                    let account_hash = Hash::from_base58(&x.account_hash).unwrap();
+                                            let tx_hash = x
+                                                .tx_hash
+                                                .as_ref()
+                                                .map(|x| Hash::from_base58(x).unwrap());
+                                            let account_hash =
+                                                Hash::from_base58(&x.account_hash).unwrap();
 
                                     MerkleProofWithContext {
                                         proof,
@@ -1646,17 +1654,53 @@ impl Indexer for PhotonIndexer {
                                         account_hash,
                                     }
                                 })
+                                        .collect()
+                                });
+
+                            // Parse input queue elements
+                            let input_queue_elements =
+                                api_result.input_queue_elements.map(|elements| {
+                                    elements
+                                        .iter()
+                                        .map(|x| {
+                                            let proof = x
+                                                .proof
+                                                .iter()
+                                                .map(|x| Hash::from_base58(x).unwrap())
                                 .collect();
+                                            let root = Hash::from_base58(&x.root).unwrap();
+                                            let leaf = Hash::from_base58(&x.leaf).unwrap();
+                                            let merkle_tree = Hash::from_base58(&x.tree).unwrap();
+                                            let tx_hash = x
+                                                .tx_hash
+                                                .as_ref()
+                                                .map(|x| Hash::from_base58(x).unwrap());
+                                            let account_hash =
+                                                Hash::from_base58(&x.account_hash).unwrap();
+
+                                            MerkleProofWithContext {
+                                                proof,
+                                                root,
+                                                leaf_index: x.leaf_index,
+                                                leaf,
+                                                merkle_tree,
+                                                root_seq: x.root_seq,
+                                                tx_hash,
+                                                account_hash,
+                                            }
+                                        })
+                                        .collect()
+                                });
 
                             Ok(Response {
                                 context: Context {
                                     slot: api_result.context.slot,
                                 },
                                 value: QueueElementsResult {
-                                    elements: proofs,
-                                    first_value_queue_index: Some(
-                                        api_result.first_value_queue_index,
-                                    ),
+                                    output_queue_elements,
+                                    output_queue_index: api_result.output_queue_index,
+                                    input_queue_elements,
+                                    input_queue_index: api_result.input_queue_index,
                                 },
                             })
                         }

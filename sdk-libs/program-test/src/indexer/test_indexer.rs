@@ -42,7 +42,6 @@ use light_compressed_account::{
 };
 use light_event::event::PublicTransactionEvent;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
-use light_merkle_tree_metadata::QueueType;
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::{
     constants::{PROVE_PATH, SERVER_ADDRESS},
@@ -619,9 +618,10 @@ impl Indexer for TestIndexer {
     async fn get_queue_elements(
         &mut self,
         _merkle_tree_pubkey: [u8; 32],
-        _queue_type: QueueType,
-        _num_elements: u16,
-        _start_offset: Option<u64>,
+        _output_queue_start_index: Option<u64>,
+        _output_queue_limit: Option<u16>,
+        _input_queue_start_index: Option<u64>,
+        _input_queue_limit: Option<u16>,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<QueueElementsResult>, IndexerError> {
         #[cfg(not(feature = "v2"))]
@@ -629,56 +629,83 @@ impl Indexer for TestIndexer {
         #[cfg(feature = "v2")]
         {
             let merkle_tree_pubkey = _merkle_tree_pubkey;
-            let queue_type = _queue_type;
-            let num_elements = _num_elements;
+            let output_queue_start_index = _output_queue_start_index.unwrap_or(0);
+            let output_queue_limit = _output_queue_limit;
+            let input_queue_start_index = _input_queue_start_index.unwrap_or(0);
+            let input_queue_limit = _input_queue_limit;
             let pubkey = Pubkey::new_from_array(merkle_tree_pubkey);
+
+            // Check if this is an address tree
             let address_tree_bundle = self
                 .address_merkle_trees
                 .iter()
                 .find(|x| x.accounts.merkle_tree == pubkey);
             if let Some(address_tree_bundle) = address_tree_bundle {
-                let end_offset = std::cmp::min(
-                    num_elements as usize,
-                    address_tree_bundle.queue_elements.len(),
-                );
-                let queue_elements = address_tree_bundle.queue_elements[0..end_offset].to_vec();
+                // For address trees, return output queue only
+                let output_queue_elements = if let Some(limit) = output_queue_limit {
+                    let start = output_queue_start_index as usize;
+                    let end = std::cmp::min(
+                        start + limit as usize,
+                        address_tree_bundle.queue_elements.len(),
+                    );
+                    let queue_elements = address_tree_bundle.queue_elements[start..end].to_vec();
 
-                let merkle_proofs_with_context = queue_elements
-                    .iter()
-                    .map(|element| MerkleProofWithContext {
-                        proof: Vec::new(),
-                        leaf: [0u8; 32],
-                        leaf_index: 0,
-                        merkle_tree: address_tree_bundle.accounts.merkle_tree.to_bytes(),
-                        root: address_tree_bundle.root(),
-                        tx_hash: None,
-                        root_seq: 0,
-                        account_hash: *element,
-                    })
-                    .collect();
+                    let merkle_proofs_with_context = queue_elements
+                        .iter()
+                        .enumerate()
+                        .map(|(i, element)| MerkleProofWithContext {
+                            proof: Vec::new(),
+                            leaf: [0u8; 32],
+                            leaf_index: 0,
+                            merkle_tree: address_tree_bundle.accounts.merkle_tree.to_bytes(),
+                            root: address_tree_bundle.root(),
+                            tx_hash: None,
+                            root_seq: output_queue_start_index + i as u64,
+                            account_hash: *element,
+                        })
+                        .collect();
+                    Some(merkle_proofs_with_context)
+                } else {
+                    None
+                };
+
+                let output_queue_index = if output_queue_elements.is_some() {
+                    Some(output_queue_start_index)
+                } else {
+                    None
+                };
+
                 return Ok(Response {
                     context: Context {
                         slot: self.get_current_slot(),
                     },
                     value: QueueElementsResult {
-                        elements: merkle_proofs_with_context,
-                        first_value_queue_index: None,
+                        output_queue_elements,
+                        output_queue_index,
+                        input_queue_elements: None,
+                        input_queue_index: None,
                     },
                 });
             }
 
+            // Check if this is a state tree
             let state_tree_bundle = self
                 .state_merkle_trees
                 .iter_mut()
                 .find(|x| x.accounts.merkle_tree == pubkey);
-            if queue_type == QueueType::InputStateV2 {
-                if let Some(state_tree_bundle) = state_tree_bundle {
-                    let end_offset = std::cmp::min(
-                        num_elements as usize,
+
+            if let Some(state_tree_bundle) = state_tree_bundle {
+                // For state trees, return both input and output queues
+
+                // Build input queue elements if requested
+                let input_queue_elements = if let Some(limit) = input_queue_limit {
+                    let start = input_queue_start_index as usize;
+                    let end = std::cmp::min(
+                        start + limit as usize,
                         state_tree_bundle.input_leaf_indices.len(),
                     );
-                    let queue_elements =
-                        state_tree_bundle.input_leaf_indices[0..end_offset].to_vec();
+                    let queue_elements = state_tree_bundle.input_leaf_indices[start..end].to_vec();
+
                     let merkle_proofs = queue_elements
                         .iter()
                         .map(|leaf_info| {
@@ -705,6 +732,7 @@ impl Indexer for TestIndexer {
                             }
                         })
                         .collect::<Vec<_>>();
+
                     let leaves = queue_elements
                         .iter()
                         .map(|leaf_info| {
@@ -714,6 +742,7 @@ impl Indexer for TestIndexer {
                                 .unwrap_or_default()
                         })
                         .collect::<Vec<_>>();
+
                     let merkle_proofs_with_context = merkle_proofs
                         .iter()
                         .zip(queue_elements.iter())
@@ -730,30 +759,26 @@ impl Indexer for TestIndexer {
                         })
                         .collect();
 
-                    return Ok(Response {
-                        context: Context {
-                            slot: self.get_current_slot(),
-                        },
-                        value: QueueElementsResult {
-                            elements: merkle_proofs_with_context,
-                            first_value_queue_index: None,
-                        },
-                    });
-                }
-            }
+                    Some(merkle_proofs_with_context)
+                } else {
+                    None
+                };
 
-            if queue_type == QueueType::OutputStateV2 {
-                if let Some(state_tree_bundle) = state_tree_bundle {
-                    let end_offset = std::cmp::min(
-                        num_elements as usize,
+                // Build output queue elements if requested
+                let output_queue_elements = if let Some(limit) = output_queue_limit {
+                    let start = output_queue_start_index as usize;
+                    let end = std::cmp::min(
+                        start + limit as usize,
                         state_tree_bundle.output_queue_elements.len(),
                     );
                     let queue_elements =
-                        state_tree_bundle.output_queue_elements[0..end_offset].to_vec();
+                        state_tree_bundle.output_queue_elements[start..end].to_vec();
+
                     let indices = queue_elements
                         .iter()
                         .map(|(_, index)| index)
                         .collect::<Vec<_>>();
+
                     let merkle_proofs = indices
                         .iter()
                         .map(|index| {
@@ -780,6 +805,7 @@ impl Indexer for TestIndexer {
                             }
                         })
                         .collect::<Vec<_>>();
+
                     let leaves = indices
                         .iter()
                         .map(|index| {
@@ -789,6 +815,7 @@ impl Indexer for TestIndexer {
                                 .unwrap_or_default()
                         })
                         .collect::<Vec<_>>();
+
                     let merkle_proofs_with_context = merkle_proofs
                         .iter()
                         .zip(queue_elements.iter())
@@ -804,20 +831,41 @@ impl Indexer for TestIndexer {
                             account_hash: *element,
                         })
                         .collect();
-                    return Ok(Response {
-                        context: Context {
-                            slot: self.get_current_slot(),
-                        },
-                        value: QueueElementsResult {
-                            elements: merkle_proofs_with_context,
-                            first_value_queue_index: if queue_elements.is_empty() {
-                                None
-                            } else {
-                                Some(queue_elements[0].1)
-                            },
-                        },
-                    });
-                }
+
+                    Some(merkle_proofs_with_context)
+                } else {
+                    None
+                };
+
+                let output_queue_index = if output_queue_elements.is_some()
+                    && output_queue_start_index
+                        < state_tree_bundle.output_queue_elements.len() as u64
+                {
+                    Some(
+                        state_tree_bundle.output_queue_elements[output_queue_start_index as usize]
+                            .1,
+                    )
+                } else {
+                    None
+                };
+
+                let input_queue_index = if input_queue_elements.is_some() {
+                    Some(input_queue_start_index)
+                } else {
+                    None
+                };
+
+                let slot = self.get_current_slot();
+
+                return Ok(Response {
+                    context: Context { slot },
+                    value: QueueElementsResult {
+                        output_queue_elements,
+                        output_queue_index,
+                        input_queue_elements,
+                        input_queue_index,
+                    },
+                });
             }
 
             Err(IndexerError::InvalidParameters(
@@ -902,8 +950,9 @@ impl Indexer for TestIndexer {
             let address_proof_items = self
                 .get_queue_elements(
                     merkle_tree_pubkey.to_bytes(),
-                    QueueType::AddressV2,
-                    zkp_batch_size,
+                    Some(0),
+                    Some(zkp_batch_size),
+                    None,
                     None,
                     None,
                 )
@@ -911,8 +960,11 @@ impl Indexer for TestIndexer {
                 .map_err(|_| IndexerError::Unknown("Failed to get queue elements".into()))?
                 .value;
 
-            let addresses: Vec<AddressQueueIndex> = address_proof_items
-                .elements
+            let output_elements = address_proof_items
+                .output_queue_elements
+                .ok_or(IndexerError::Unknown("No output queue elements".into()))?;
+
+            let addresses: Vec<AddressQueueIndex> = output_elements
                 .iter()
                 .enumerate()
                 .map(|(i, proof)| AddressQueueIndex {
@@ -923,11 +975,7 @@ impl Indexer for TestIndexer {
             let non_inclusion_proofs = self
                 .get_multiple_new_address_proofs(
                     merkle_tree_pubkey.to_bytes(),
-                    address_proof_items
-                        .elements
-                        .iter()
-                        .map(|x| x.account_hash)
-                        .collect(),
+                    output_elements.iter().map(|x| x.account_hash).collect(),
                     None,
                 )
                 .await

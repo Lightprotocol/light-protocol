@@ -121,7 +121,6 @@ use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
 };
-use light_merkle_tree_metadata::QueueType;
 use light_program_test::{
     accounts::{
         state_tree::create_state_merkle_tree_and_queue_account, test_accounts::TestAccounts,
@@ -746,15 +745,16 @@ where
                                     .indexer
                                     .get_queue_elements(
                                         merkle_tree_pubkey.to_bytes(),
-                                        QueueType::AddressV2,
-                                        batch.batch_size as u16,
+                                        None,
+                                        Some(batch.batch_size as u16),
+                                        None,
                                         None,
                                         None,
                                     )
                                     .await
                                     .unwrap();
                                 let addresses =
-                                    addresses.value.elements.iter().map(|x| x.account_hash).collect::<Vec<_>>();
+                                    addresses.value.output_queue_elements.unwrap_or_default().iter().map(|x| x.account_hash).collect::<Vec<_>>();
                                 // // local_leaves_hash_chain is only used for a test assertion.
                                 // let local_nullifier_hash_chain = create_hash_chain_from_array(&addresses);
                                 // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);

@@ -9,7 +9,6 @@ use light_batched_merkle_tree::{
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use light_hasher::bigint::bigint_to_be_bytes_array;
-use light_merkle_tree_metadata::QueueType;
 use light_prover_client::{
     proof_client::ProofClient,
     proof_types::batch_append::{get_batch_append_inputs, BatchAppendsCircuitInputs},
@@ -120,9 +119,10 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
                 indexer
                     .get_queue_elements(
                         merkle_tree_pubkey.to_bytes(),
-                        QueueType::OutputStateV2,
-                        zkp_batch_size,
                         next_queue_index,
+                        Some(zkp_batch_size),
+                        None,
+                        None,
                         None,
                     )
                     .await
@@ -130,8 +130,8 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
 
             let (batch_elements, batch_first_queue_idx) = match queue_elements_result {
                 Ok(res) => {
-                    let items = res.value.elements;
-                    let first_idx = res.value.first_value_queue_index;
+                    let items = res.value.output_queue_elements.unwrap_or_default();
+                    let first_idx = res.value.output_queue_index;
                     if items.len() != zkp_batch_size as usize {
                         warn!(
                             "Got {} elements but expected {}, stopping",
@@ -238,6 +238,5 @@ pub async fn get_append_instruction_stream<'a, R: Rpc>(
             yield Ok(proofs_buffer);
         }
     };
-
     Ok((Box::pin(stream), zkp_batch_size))
 }

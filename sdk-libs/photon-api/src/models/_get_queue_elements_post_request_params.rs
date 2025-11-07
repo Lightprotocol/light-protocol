@@ -12,28 +12,47 @@ use crate::models;
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
 pub struct GetQueueElementsPostRequestParams {
-    #[serde(rename = "limit")]
-    pub limit: u16,
-    #[serde(rename = "queueType")]
-    pub queue_type: u16,
-    #[serde(
-        rename = "startQueueIndex",
-        default,
-        skip_serializing_if = "Option::is_none"
-    )]
-    pub start_queue_index: Option<u64>,
     /// A 32-byte hash represented as a base58 string.
     #[serde(rename = "tree")]
     pub tree: String,
+
+    #[serde(
+        rename = "outputQueueStartIndex",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub output_queue_start_index: Option<u64>,
+
+    #[serde(
+        rename = "outputQueueLimit",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub output_queue_limit: Option<u16>,
+
+    #[serde(
+        rename = "inputQueueStartIndex",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub input_queue_start_index: Option<u64>,
+
+    #[serde(
+        rename = "inputQueueLimit",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub input_queue_limit: Option<u16>,
 }
 
 impl GetQueueElementsPostRequestParams {
-    pub fn new(limit: u16, queue_type: u16, tree: String) -> GetQueueElementsPostRequestParams {
+    pub fn new(tree: String) -> GetQueueElementsPostRequestParams {
         GetQueueElementsPostRequestParams {
-            limit,
-            queue_type,
-            start_queue_index: None,
             tree,
+            output_queue_start_index: None,
+            output_queue_limit: None,
+            input_queue_start_index: None,
+            input_queue_limit: None,
         }
     }
 }
