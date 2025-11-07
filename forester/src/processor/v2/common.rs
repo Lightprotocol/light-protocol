@@ -54,6 +54,10 @@ pub struct BatchContext<R: Rpc> {
     pub ops_cache: Arc<Mutex<ProcessedHashCache>>,
     pub epoch_phases: EpochPhases,
     pub slot_tracker: Arc<SlotTracker>,
+    /// input queue size from gRPC
+    pub input_queue_hint: Option<u64>,
+    /// output queue size from gRPC
+    pub output_queue_hint: Option<u64>,
 }
 
 #[derive(Debug)]
