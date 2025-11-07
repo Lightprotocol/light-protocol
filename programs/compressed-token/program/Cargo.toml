@@ -77,6 +77,7 @@ light-account-checks = { workspace = true, features = [
     "test-only",
 ] }
 lazy_static = { workspace = true }
+light-compressed-account = { workspace = true, features = ["keccak", "sha256"] }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"

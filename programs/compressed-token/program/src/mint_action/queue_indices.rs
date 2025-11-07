@@ -19,10 +19,15 @@ impl QueueIndices {
         create_mint: bool,
         tokens_out_queue_exists: bool,
         queue_keys_match: bool,
+        write_to_cpi_context: bool,
     ) -> Result<QueueIndices, ErrorCode> {
         if let Some(ctx) = cpi_context {
             // Path when cpi_context is provided
             let (in_tree_index, address_merkle_tree_index) = if create_mint {
+                // if executing with cpi context address tree index must be 1.
+                if !write_to_cpi_context && ctx.in_tree_index != 1 {
+                    return Err(ErrorCode::MintActionInvalidCpiContextForCreateMint);
+                }
                 (0, ctx.in_tree_index) // in_tree_index is 0, address_merkle_tree_index from context
             } else {
                 (ctx.in_tree_index, 0) // in_tree_index from context, address_merkle_tree_index is 0
