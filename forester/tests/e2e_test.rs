@@ -202,6 +202,7 @@ async fn e2e_test() {
             prover_address_append_url: None,
             prover_api_key: get_prover_api_key(),
             photon_api_key: get_photon_api_key(),
+            photon_grpc_url: None,
             pushgateway_url: None,
             pagerduty_routing_key: None,
             rpc_rate_limit: None,
@@ -250,6 +251,7 @@ async fn e2e_test() {
                 "../target/deploy/create_address_test_program.so".to_string(),
             )],
             limit_ledger_size: None,
+            grpc_port: None,
         }))
         .await;
         spawn_prover().await;

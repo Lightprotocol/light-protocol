@@ -1,0 +1,70 @@
+syntax = "proto3";
+
+package photon;
+
+// Queue information service
+service QueueService {
+  // Get current queue information for all or specific trees
+  rpc GetQueueInfo(GetQueueInfoRequest) returns (GetQueueInfoResponse);
+
+  // Subscribe to queue updates
+  rpc SubscribeQueueUpdates(SubscribeQueueUpdatesRequest) returns (stream QueueUpdate);
+}
+
+// Request message for GetQueueInfo
+message GetQueueInfoRequest {
+  // Optional list of tree pubkeys to filter by (base58 encoded)
+  // If empty, returns info for all trees
+  repeated string trees = 1;
+}
+
+// Response message for GetQueueInfo
+message GetQueueInfoResponse {
+  repeated QueueInfo queues = 1;
+  uint64 slot = 2;
+}
+
+// Information about a single queue
+message QueueInfo {
+  // Tree public key (base58 encoded)
+  string tree = 1;
+
+  // Queue public key (base58 encoded)
+  string queue = 2;
+
+  // Queue type: 3 = InputStateV2, 4 = AddressV2, 5 = OutputStateV2
+  uint32 queue_type = 3;
+
+  // Current number of items in the queue
+  uint64 queue_size = 4;
+}
+
+// Request message for SubscribeQueueUpdates
+message SubscribeQueueUpdatesRequest {
+  // Optional list of tree pubkeys to subscribe to (base58 encoded)
+  // If empty, subscribes to all trees
+  repeated string trees = 1;
+
+  // Whether to send initial state before streaming updates
+  bool send_initial_state = 2;
+}
+
+// Streamed queue update message
+message QueueUpdate {
+  // The queue that was updated
+  QueueInfo queue_info = 1;
+
+  // Slot at which the update occurred
+  uint64 slot = 2;
+
+  // Type of update
+  UpdateType update_type = 3;
+}
+
+// Type of queue update
+enum UpdateType {
+  UPDATE_TYPE_UNSPECIFIED = 0;
+  UPDATE_TYPE_INITIAL = 1;    // Initial state sent at subscription
+  UPDATE_TYPE_ITEM_ADDED = 2;  // Item added to queue
+  UPDATE_TYPE_ITEM_REMOVED = 3; // Item removed from queue
+}

@@ -43,6 +43,7 @@ use crate::{
     errors::{
         ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
     },
+    grpc::{QueueUpdateMessage, QueueEventRouter},
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
     pagerduty::send_pagerduty_alert,
     processor::{
@@ -106,6 +107,7 @@ pub struct EpochManager<R: Rpc> {
     new_tree_sender: broadcast::Sender<TreeAccounts>,
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
+    coordinator: Option<Arc<QueueEventRouter>>,
 }
 
 impl<R: Rpc> Clone for EpochManager<R> {
@@ -122,6 +124,7 @@ impl<R: Rpc> Clone for EpochManager<R> {
             new_tree_sender: self.new_tree_sender.clone(),
             tx_cache: self.tx_cache.clone(),
             ops_cache: self.ops_cache.clone(),
+            coordinator: self.coordinator.clone(),
         }
     }
 }
@@ -139,6 +142,41 @@ impl<R: Rpc> EpochManager<R> {
         tx_cache: Arc<Mutex<ProcessedHashCache>>,
         ops_cache: Arc<Mutex<ProcessedHashCache>>,
     ) -> Result<Self> {
+        let coordinator = if let Some(url) = &config.external_services.photon_grpc_url {
+            info!(
+                "Creating persistent WorkCoordinator at startup for gRPC URL: {}",
+                url
+            );
+            match QueueEventRouter::new(url.clone()).await {
+                Ok(coord) => {
+                    let coord_arc = Arc::new(coord);
+
+                    tokio::spawn({
+                        let coord_clone = Arc::clone(&coord_arc);
+                        async move {
+                            info!("Starting persistent WorkCoordinator dispatcher");
+                            if let Err(e) = coord_clone.run_dispatcher().await {
+                                error!("WorkCoordinator dispatcher error: {:?}", e);
+                            }
+                        }
+                    });
+
+                    info!("Persistent WorkCoordinator created successfully");
+                    Some(coord_arc)
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to create WorkCoordinator at startup: {:?}. V2 trees will use polling fallback.",
+                        e
+                    );
+                    None
+                }
+            }
+        } else {
+            info!("photon_grpc_url not configured, V2 trees will use polling mode");
+            None
+        };
+
         Ok(Self {
             config,
             protocol_config,
@@ -151,6 +189,7 @@ impl<R: Rpc> EpochManager<R> {
             new_tree_sender,
             tx_cache,
             ops_cache,
+            coordinator,
         })
     }
 
@@ -895,48 +934,73 @@ impl<R: Rpc> EpochManager<R> {
 
         self.sync_slot().await?;
 
+        let (_, v2_trees): (Vec<_>, Vec<_>) = epoch_info
+            .trees
+            .iter()
+            .filter(|tree| !should_skip_tree(&self.config, &tree.tree_accounts.tree_type))
+            .partition(|tree| {
+                matches!(
+                    tree.tree_accounts.tree_type,
+                    TreeType::StateV1 | TreeType::AddressV1
+                )
+            });
+
+        let coordinator = self.coordinator.clone();
+
+        if let Some(ref coord) = coordinator {
+            if coord.is_healthy() {
+                info!("Using WorkCoordinator for {} V2 trees", v2_trees.len());
+            } else {
+                info!(
+                    "WorkCoordinator exists but not yet healthy. V2 trees will use polling fallback until connection establishes."
+                );
+            }
+        } else if !v2_trees.is_empty() {
+            info!("No WorkCoordinator available. V2 trees will use polling mode.");
+        }
+
         let self_arc = Arc::new(self.clone());
         let epoch_info_arc = Arc::new(epoch_info.clone());
 
         let mut handles: Vec<JoinHandle<Result<()>>> = Vec::new();
 
         for tree in epoch_info.trees.iter() {
-            if self.config.general_config.skip_v1_address_trees
-                && tree.tree_accounts.tree_type == TreeType::AddressV1
-            {
-                info!("skipping address v1");
-                continue;
-            } else if self.config.general_config.skip_v2_address_trees
-                && tree.tree_accounts.tree_type == TreeType::AddressV2
-            {
-                info!("skipping address v2");
-
-                continue;
-            } else if self.config.general_config.skip_v1_state_trees
-                && tree.tree_accounts.tree_type == TreeType::StateV1
-            {
-                info!("skipping state v1");
-                continue;
-            } else if self.config.general_config.skip_v2_state_trees
-                && tree.tree_accounts.tree_type == TreeType::StateV2
-            {
-                info!("skipping state v2");
+            if should_skip_tree(&self.config, &tree.tree_accounts.tree_type) {
                 continue;
             }
 
+            let queue_update_rx = if matches!(
+                tree.tree_accounts.tree_type,
+                TreeType::StateV2 | TreeType::AddressV2
+            ) {
+                if let Some(ref coord) = coordinator {
+                    Some(coord.register_tree(tree.tree_accounts.merkle_tree).await)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
+            let has_channel = queue_update_rx.is_some();
             info!(
-                "Creating thread for tree {}",
-                tree.tree_accounts.merkle_tree
+                "Creating thread for tree {} (type: {:?}, event: {})",
+                tree.tree_accounts.merkle_tree, tree.tree_accounts.tree_type, has_channel
             );
+
             let self_clone = self_arc.clone();
             let epoch_info_clone = epoch_info_arc.clone();
             let tree = tree.clone();
+            let coordinator_clone = coordinator.clone();
+
             let handle = tokio::spawn(async move {
                 self_clone
-                    .process_queue(
+                    .process_queue_v2(
                         &epoch_info_clone.epoch,
                         &epoch_info_clone.forester_epoch_pda,
-                        tree,
+                        tree.clone(),
+                        queue_update_rx,
+                        coordinator_clone.clone(),
                     )
                     .await
             });
@@ -1034,6 +1098,113 @@ impl<R: Rpc> EpochManager<R> {
 
     #[instrument(
         level = "debug",
+        skip(self, epoch_info, epoch_pda, tree_schedule, queue_update_rx, coordinator),
+        fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch,
+        tree = %tree_schedule.tree_accounts.merkle_tree)
+    )]
+    pub async fn process_queue_v2(
+        &self,
+        epoch_info: &Epoch,
+        epoch_pda: &ForesterEpochPda,
+        mut tree_schedule: TreeForesterSchedule,
+        mut queue_update_rx: Option<mpsc::Receiver<QueueUpdateMessage>>,
+        coordinator: Option<Arc<QueueEventRouter>>,
+    ) -> Result<()> {
+        let mut current_slot = self.slot_tracker.estimated_current_slot();
+
+        let total_slots = tree_schedule.slots.len();
+        let eligible_slots = tree_schedule.slots.iter().filter(|s| s.is_some()).count();
+        let tree_type = tree_schedule.tree_accounts.tree_type;
+
+        info!(
+            "process_queue_v2 tree={}: type={:?}, total_slots={}, eligible_slots={}, event={}, current_slot={}, active_phase_end={}",
+            tree_schedule.tree_accounts.merkle_tree,
+            tree_type,
+            total_slots,
+            eligible_slots,
+            queue_update_rx.is_some(),
+            current_slot,
+            epoch_info.phases.active.end
+        );
+
+        let use_events = queue_update_rx.is_some();
+
+        'outer_slot_loop: while current_slot < epoch_info.phases.active.end {
+            let next_slot_to_process = tree_schedule
+                .slots
+                .iter_mut()
+                .enumerate()
+                .find_map(|(idx, opt_slot)| opt_slot.as_ref().map(|s| (idx, s.clone())));
+
+            if let Some((slot_idx, light_slot_details)) = next_slot_to_process {
+                let result = match tree_type {
+                    TreeType::StateV1 | TreeType::AddressV1 => {
+                        self.process_light_slot(
+                            epoch_info,
+                            epoch_pda,
+                            &tree_schedule.tree_accounts,
+                            &light_slot_details,
+                        )
+                        .await
+                    }
+                    TreeType::StateV2 | TreeType::AddressV2 => {
+                        if use_events && queue_update_rx.is_some() {
+                            self.process_light_slot_v2_event(
+                                epoch_info,
+                                epoch_pda,
+                                &tree_schedule.tree_accounts,
+                                &light_slot_details,
+                                queue_update_rx.as_mut().unwrap(),
+                                coordinator.clone(),
+                            )
+                            .await
+                        } else {
+                            self.process_light_slot_v2_fallback(
+                                epoch_info,
+                                epoch_pda,
+                                &tree_schedule.tree_accounts,
+                                &light_slot_details,
+                            )
+                            .await
+                        }
+                    }
+                };
+
+                match result {
+                    Ok(_) => {
+                        trace!(
+                            "Successfully processed light slot {:?}",
+                            light_slot_details.slot
+                        );
+                    }
+                    Err(e) => {
+                        error!(
+                            "Error processing light slot {:?}: {:?}",
+                            light_slot_details.slot, e
+                        );
+                    }
+                }
+                tree_schedule.slots[slot_idx] = None;
+            } else {
+                info!(
+                    "No further eligible slots in schedule for tree {}",
+                    tree_schedule.tree_accounts.merkle_tree
+                );
+                break 'outer_slot_loop;
+            }
+
+            current_slot = self.slot_tracker.estimated_current_slot();
+        }
+
+        info!(
+            "Exiting process_queue_v2 for tree {}",
+            tree_schedule.tree_accounts.merkle_tree
+        );
+        Ok(())
+    }
+
+    #[instrument(
+        level = "debug",
         skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details),
         fields(forester = %self.config.payer_keypair.pubkey(), epoch = epoch_info.epoch,
         tree = %tree_accounts.merkle_tree)
@@ -1045,8 +1216,8 @@ impl<R: Rpc> EpochManager<R> {
         tree_accounts: &TreeAccounts,
         forester_slot_details: &ForesterSlot,
     ) -> Result<()> {
-        trace!(
-            "Found eligible slot: {:?}. Target start: {}, Target end: {}",
+        info!(
+            "Processing slot {} ({}-{})",
             forester_slot_details.slot,
             forester_slot_details.start_solana_slot,
             forester_slot_details.end_solana_slot
@@ -1098,6 +1269,7 @@ impl<R: Rpc> EpochManager<R> {
                     tree_accounts,
                     forester_slot_details,
                     estimated_slot,
+                    None,
                 )
                 .await
             {
@@ -1127,8 +1299,255 @@ impl<R: Rpc> EpochManager<R> {
             push_metrics(&self.config.external_services.pushgateway_url).await?;
             estimated_slot = self.slot_tracker.estimated_current_slot();
 
-            // Add polling interval to reduce RPC pressure and improve response time
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+            let sleep_duration_ms = if items_processed_this_iteration > 0 {
+                10_000
+            } else {
+                45_000
+            };
+
+            tokio::time::sleep(Duration::from_millis(sleep_duration_ms)).await;
+        }
+        Ok(())
+    }
+
+    #[instrument(
+        level = "debug",
+        skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details, queue_update_rx, coordinator),
+        fields(tree = %tree_accounts.merkle_tree)
+    )]
+    async fn process_light_slot_v2_event(
+        &self,
+        epoch_info: &Epoch,
+        epoch_pda: &ForesterEpochPda,
+        tree_accounts: &TreeAccounts,
+        forester_slot_details: &ForesterSlot,
+        queue_update_rx: &mut mpsc::Receiver<QueueUpdateMessage>,
+        coordinator: Option<Arc<QueueEventRouter>>,
+    ) -> Result<()> {
+        info!(
+            "Processing V2 light slot {} ({}-{})",
+            forester_slot_details.slot,
+            forester_slot_details.start_solana_slot,
+            forester_slot_details.end_solana_slot
+        );
+
+        let mut rpc = self.rpc_pool.get_connection().await?;
+        wait_until_slot_reached(
+            &mut *rpc,
+            &self.slot_tracker,
+            forester_slot_details.start_solana_slot,
+        )
+        .await?;
+
+        let tree_pubkey = tree_accounts.merkle_tree;
+        let mut estimated_slot = self.slot_tracker.estimated_current_slot();
+
+        let mut fallback_timer = tokio::time::interval(Duration::from_secs(5));
+        fallback_timer.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+        'inner_processing_loop: loop {
+            if estimated_slot >= forester_slot_details.end_solana_slot {
+                trace!(
+                    "Ending V2 event processing for slot {:?}",
+                    forester_slot_details.slot
+                );
+                break 'inner_processing_loop;
+            }
+
+            let current_light_slot = (estimated_slot - epoch_info.phases.active.start)
+                / epoch_pda.protocol_config.slot_length;
+            if current_light_slot != forester_slot_details.slot {
+                warn!("V2 slot mismatch. Exiting processing.");
+                break 'inner_processing_loop;
+            }
+
+            if !self
+                .check_forester_eligibility(
+                    epoch_pda,
+                    current_light_slot,
+                    &tree_accounts.queue,
+                    epoch_info.epoch,
+                    epoch_info,
+                )
+                .await?
+            {
+                break 'inner_processing_loop;
+            }
+
+            tokio::select! {
+                Some(update) = queue_update_rx.recv() => {
+                    if update.queue_size > 0 {
+                        info!(
+                            "V2 Queue update received for tree {}: {} items (type: {:?})",
+                            tree_pubkey, update.queue_size, update.queue_type
+                        );
+
+                        let processing_start_time = Instant::now();
+                        match self.dispatch_tree_processing(
+                            epoch_info,
+                            epoch_pda,
+                            tree_accounts,
+                            forester_slot_details,
+                            estimated_slot,
+                            Some(&update), // Pass gRPC queue update hint
+                        ).await {
+                            Ok(count) => {
+                                if count > 0 {
+                                    info!("V2 event processed {} items", count);
+                                    self.update_metrics_and_counts(
+                                        epoch_info.epoch,
+                                        count,
+                                        processing_start_time.elapsed(),
+                                    ).await;
+                                }
+                            }
+                            Err(e) => {
+                                error!("V2 event processing failed: {:?}", e);
+                            }
+                        }
+                    } else {
+                        trace!("V2 received empty queue update for tree {}", tree_pubkey);
+                    }
+                }
+
+                _ = fallback_timer.tick() => {
+                    let is_healthy = coordinator
+                        .as_ref()
+                        .map(|c| c.is_healthy())
+                        .unwrap_or(false);
+
+                    if !is_healthy {
+                        warn!("V2 gRPC connection unhealthy, running fallback check for tree {}", tree_pubkey);
+                        let processing_start_time = Instant::now();
+                        match self.dispatch_tree_processing(
+                            epoch_info,
+                            epoch_pda,
+                            tree_accounts,
+                            forester_slot_details,
+                            estimated_slot,
+                            None, // No queue update hint in fallback path
+                        ).await {
+                            Ok(count) if count > 0 => {
+                                info!("V2 fallback found {} items", count);
+                                self.update_metrics_and_counts(
+                                    epoch_info.epoch,
+                                    count,
+                                    processing_start_time.elapsed(),
+                                ).await;
+                            }
+                            Ok(_) => trace!("V2 fallback check: no work"),
+                            Err(e) => error!("V2 fallback check failed: {:?}", e),
+                        }
+                    } else {
+                        trace!("V2 fallback check skipped (gRPC healthy)");
+                    }
+                }
+            }
+
+            push_metrics(&self.config.external_services.pushgateway_url).await?;
+            estimated_slot = self.slot_tracker.estimated_current_slot();
+        }
+
+        Ok(())
+    }
+
+    /// V2 polling fallback (when gRPC unavailable)
+    #[instrument(
+        level = "debug",
+        skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details),
+        fields(tree = %tree_accounts.merkle_tree)
+    )]
+    async fn process_light_slot_v2_fallback(
+        &self,
+        epoch_info: &Epoch,
+        epoch_pda: &ForesterEpochPda,
+        tree_accounts: &TreeAccounts,
+        forester_slot_details: &ForesterSlot,
+    ) -> Result<()> {
+        info!(
+            "Processing V2 light slot {} fallback ({}-{})",
+            forester_slot_details.slot,
+            forester_slot_details.start_solana_slot,
+            forester_slot_details.end_solana_slot
+        );
+
+        let mut rpc = self.rpc_pool.get_connection().await?;
+        wait_until_slot_reached(
+            &mut *rpc,
+            &self.slot_tracker,
+            forester_slot_details.start_solana_slot,
+        )
+        .await?;
+
+        let mut estimated_slot = self.slot_tracker.estimated_current_slot();
+
+        'inner_processing_loop: loop {
+            if estimated_slot >= forester_slot_details.end_solana_slot {
+                break 'inner_processing_loop;
+            }
+
+            let current_light_slot = (estimated_slot - epoch_info.phases.active.start)
+                / epoch_pda.protocol_config.slot_length;
+            if current_light_slot != forester_slot_details.slot {
+                break 'inner_processing_loop;
+            }
+
+            if !self
+                .check_forester_eligibility(
+                    epoch_pda,
+                    current_light_slot,
+                    &tree_accounts.queue,
+                    epoch_info.epoch,
+                    epoch_info,
+                )
+                .await?
+            {
+                break 'inner_processing_loop;
+            }
+
+            let processing_start_time = Instant::now();
+            let items_processed_this_iteration = match self
+                .dispatch_tree_processing(
+                    epoch_info,
+                    epoch_pda,
+                    tree_accounts,
+                    forester_slot_details,
+                    estimated_slot,
+                    None, // No queue update hint for regular processing
+                )
+                .await
+            {
+                Ok(count) => count,
+                Err(e) => {
+                    error!("Failed V2 polling fallback: {:?}", e);
+                    break 'inner_processing_loop;
+                }
+            };
+
+            if items_processed_this_iteration > 0 {
+                info!(
+                    "V2 polling fallback processed {} items",
+                    items_processed_this_iteration
+                );
+            }
+
+            self.update_metrics_and_counts(
+                epoch_info.epoch,
+                items_processed_this_iteration,
+                processing_start_time.elapsed(),
+            )
+            .await;
+
+            push_metrics(&self.config.external_services.pushgateway_url).await?;
+            estimated_slot = self.slot_tracker.estimated_current_slot();
+
+            let sleep_duration_ms = if items_processed_this_iteration > 0 {
+                1_000
+            } else {
+                5_000
+            };
+
+            tokio::time::sleep(Duration::from_millis(sleep_duration_ms)).await;
         }
         Ok(())
     }
@@ -1190,6 +1609,7 @@ impl<R: Rpc> EpochManager<R> {
         tree_accounts: &TreeAccounts,
         forester_slot_details: &ForesterSlot,
         current_solana_slot: u64,
+        queue_update: Option<&QueueUpdateMessage>,
     ) -> Result<usize> {
         match tree_accounts.tree_type {
             TreeType::StateV1 | TreeType::AddressV1 => {
@@ -1203,7 +1623,8 @@ impl<R: Rpc> EpochManager<R> {
                 .await
             }
             TreeType::StateV2 | TreeType::AddressV2 => {
-                self.process_v2(epoch_info, tree_accounts).await
+                self.process_v2(epoch_info, tree_accounts, queue_update)
+                    .await
             }
         }
     }
@@ -1256,6 +1677,13 @@ impl<R: Rpc> EpochManager<R> {
         )
         .await?;
 
+        if num_sent > 0 {
+            debug!(
+                "processed {} items v1 tree {}",
+                num_sent, tree_accounts.merkle_tree
+            );
+        }
+
         match self.rollover_if_needed(tree_accounts).await {
             Ok(_) => Ok(num_sent),
             Err(e) => {
@@ -1265,8 +1693,28 @@ impl<R: Rpc> EpochManager<R> {
         }
     }
 
-    async fn process_v2(&self, epoch_info: &Epoch, tree_accounts: &TreeAccounts) -> Result<usize> {
+    async fn process_v2(
+        &self,
+        epoch_info: &Epoch,
+        tree_accounts: &TreeAccounts,
+        queue_update: Option<&QueueUpdateMessage>,
+    ) -> Result<usize> {
         let default_prover_url = "http://127.0.0.1:3001".to_string();
+
+        let (input_queue_hint, output_queue_hint) = if let Some(update) = queue_update {
+            match update.queue_type {
+                light_compressed_account::QueueType::InputStateV2 => {
+                    (Some(update.queue_size), None)
+                }
+                light_compressed_account::QueueType::OutputStateV2 => {
+                    (None, Some(update.queue_size))
+                }
+                _ => (None, None),
+            }
+        } else {
+            (None, None)
+        };
+
         let batch_context = BatchContext {
             rpc_pool: self.rpc_pool.clone(),
             authority: self.config.payer_keypair.insecure_clone(),
@@ -1298,6 +1746,8 @@ impl<R: Rpc> EpochManager<R> {
             ops_cache: self.ops_cache.clone(),
             epoch_phases: epoch_info.phases.clone(),
             slot_tracker: self.slot_tracker.clone(),
+            input_queue_hint,
+            output_queue_hint,
         };
 
         process_batched_operations(batch_context, tree_accounts.tree_type)
@@ -1528,6 +1978,15 @@ fn calculate_remaining_time_or_default(
     base_remaining_duration
         .checked_sub(buffer_duration)
         .unwrap_or(Duration::ZERO)
+}
+
+fn should_skip_tree(config: &ForesterConfig, tree_type: &TreeType) -> bool {
+    match tree_type {
+        TreeType::AddressV1 => config.general_config.skip_v1_address_trees,
+        TreeType::AddressV2 => config.general_config.skip_v2_address_trees,
+        TreeType::StateV1 => config.general_config.skip_v1_state_trees,
+        TreeType::StateV2 => config.general_config.skip_v2_state_trees,
+    }
 }
 
 #[instrument(

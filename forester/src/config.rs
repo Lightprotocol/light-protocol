@@ -40,6 +40,7 @@ pub struct ExternalServicesConfig {
     pub prover_address_append_url: Option<String>,
     pub prover_api_key: Option<String>,
     pub photon_api_key: Option<String>,
+    pub photon_grpc_url: Option<String>,
     pub pushgateway_url: Option<String>,
     pub pagerduty_routing_key: Option<String>,
     pub rpc_rate_limit: Option<u32>,
@@ -127,7 +128,7 @@ impl GeneralConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct RpcPoolConfig {
     pub max_size: u32,
     pub connection_timeout_secs: u64,
@@ -232,6 +233,7 @@ impl ForesterConfig {
                     .or_else(|| args.prover_url.clone()),
                 prover_api_key: args.prover_api_key.clone(),
                 photon_api_key: args.photon_api_key.clone(),
+                photon_grpc_url: args.photon_grpc_url.clone(),
                 pushgateway_url: args.push_gateway_url.clone(),
                 pagerduty_routing_key: args.pagerduty_routing_key.clone(),
                 rpc_rate_limit: args.rpc_rate_limit,
@@ -310,6 +312,7 @@ impl ForesterConfig {
                 prover_address_append_url: None,
                 prover_api_key: None,
                 photon_api_key: None,
+                photon_grpc_url: None,
                 pushgateway_url: args.push_gateway_url.clone(),
                 pagerduty_routing_key: args.pagerduty_routing_key.clone(),
                 rpc_rate_limit: None,

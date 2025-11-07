@@ -50,6 +50,7 @@ async fn test_batch_sequence() {
         wait_time: 10,
         sbf_programs: vec![],
         limit_ledger_size: None,
+        grpc_port: None,
     }))
     .await;
 

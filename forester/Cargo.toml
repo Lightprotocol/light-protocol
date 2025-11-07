@@ -12,17 +12,20 @@ solana-client = { workspace = true }
 solana-account-decoder = { workspace = true }
 solana-program = { workspace = true }
 account-compression = { workspace = true }
+light-account-checks = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std"] }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-hash-set = { workspace = true, features = ["solana"] }
 light-hasher = { workspace = true, features = ["poseidon"] }
 light-merkle-tree-reference = { workspace = true }
+light-prover-client = { workspace = true }
 light-registry = { workspace = true }
 photon-api = { workspace = true }
 forester-utils = { workspace = true }
 light-client = { workspace = true, features = ["v2"] }
 light-merkle-tree-metadata = { workspace = true }
+light-sparse-merkle-tree = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-program-test = { workspace = true }
 solana-transaction-status = { workspace = true }
@@ -51,6 +54,16 @@ dashmap = "6.1.0"
 scopeguard = "1.2.0"
 itertools = "0.14.0"
 num-bigint = { workspace = true }
+
+tonic = "0.14.2"
+prost = "0.14.1"
+prost-types = "0.14.1"
+tonic-prost = "0.14.2"
+tokio-stream = { version = "0.1", features = ["sync"] }
+once_cell = "1.21.3"
+
+[build-dependencies]
+tonic-prost-build = "0.14.2"
 
 [dev-dependencies]
 serial_test = { workspace = true }
