@@ -14,22 +14,44 @@ use crate::models;
 pub struct GetQueueElementsPost200ResponseResult {
     #[serde(rename = "context")]
     pub context: Box<models::Context>,
-    #[serde(rename = "firstValueQueueIndex")]
-    pub first_value_queue_index: u16,
-    #[serde(rename = "value")]
-    pub value: Vec<models::GetQueueElementsResponseValue>,
+
+    #[serde(
+        rename = "outputQueueElements",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub output_queue_elements: Option<Vec<models::GetQueueElementsResponseValue>>,
+
+    #[serde(
+        rename = "outputQueueIndex",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub output_queue_index: Option<u64>,
+
+    #[serde(
+        rename = "inputQueueElements",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub input_queue_elements: Option<Vec<models::GetQueueElementsResponseValue>>,
+
+    #[serde(
+        rename = "inputQueueIndex",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub input_queue_index: Option<u64>,
 }
 
 impl GetQueueElementsPost200ResponseResult {
-    pub fn new(
-        context: models::Context,
-        first_value_queue_index: u16,
-        value: Vec<models::GetQueueElementsResponseValue>,
-    ) -> GetQueueElementsPost200ResponseResult {
+    pub fn new(context: models::Context) -> GetQueueElementsPost200ResponseResult {
         GetQueueElementsPost200ResponseResult {
             context: Box::new(context),
-            first_value_queue_index,
-            value,
+            output_queue_elements: None,
+            output_queue_index: None,
+            input_queue_elements: None,
+            input_queue_index: None,
         }
     }
 }
