@@ -1664,11 +1664,11 @@ impl Indexer for PhotonIndexer {
                                 .input_queue_elements
                                 .map(|elements| {
                                     elements
-                                        .iter()
+                                .iter()
                                         .map(|x| -> Result<_, IndexerError> {
                                             let proof: Vec<Hash> = x
-                                                .proof
-                                                .iter()
+                                        .proof
+                                        .iter()
                                                 .map(|p| Hash::from_base58(p))
                                                 .collect::<Result<Vec<_>, _>>()?;
                                             let root = Hash::from_base58(&x.root)?;
@@ -1682,15 +1682,15 @@ impl Indexer for PhotonIndexer {
                                             let account_hash = Hash::from_base58(&x.account_hash)?;
 
                                             Ok(MerkleProofWithContext {
-                                                proof,
-                                                root,
-                                                leaf_index: x.leaf_index,
-                                                leaf,
-                                                merkle_tree,
-                                                root_seq: x.root_seq,
-                                                tx_hash,
-                                                account_hash,
-                                            })
+                                        proof,
+                                        root,
+                                        leaf_index: x.leaf_index,
+                                        leaf,
+                                        merkle_tree,
+                                        root_seq: x.root_seq,
+                                        tx_hash,
+                                        account_hash,
+                                })
                                         })
                                         .collect::<Result<Vec<_>, _>>()
                                 })
