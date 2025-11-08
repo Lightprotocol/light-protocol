@@ -1623,62 +1623,28 @@ impl Indexer for PhotonIndexer {
                             }
 
                             // Parse output queue elements
-                            let output_queue_elements =
-                                api_result.output_queue_elements.map(|elements| {
-                                    elements
-                                .iter()
-                                .map(|x| {
-                                    let proof = x
-                                        .proof
-                                        .iter()
-                                        .map(|x| Hash::from_base58(x).unwrap())
-                                        .collect();
-                                    let root = Hash::from_base58(&x.root).unwrap();
-                                    let leaf = Hash::from_base58(&x.leaf).unwrap();
-                                    let merkle_tree = Hash::from_base58(&x.tree).unwrap();
-                                            let tx_hash = x
-                                                .tx_hash
-                                                .as_ref()
-                                                .map(|x| Hash::from_base58(x).unwrap());
-                                            let account_hash =
-                                                Hash::from_base58(&x.account_hash).unwrap();
-
-                                    MerkleProofWithContext {
-                                        proof,
-                                        root,
-                                        leaf_index: x.leaf_index,
-                                        leaf,
-                                        merkle_tree,
-                                        root_seq: x.root_seq,
-                                        tx_hash,
-                                        account_hash,
-                                    }
-                                })
-                                        .collect()
-                                });
-
-                            // Parse input queue elements
-                            let input_queue_elements =
-                                api_result.input_queue_elements.map(|elements| {
+                            let output_queue_elements = api_result
+                                .output_queue_elements
+                                .map(|elements| {
                                     elements
                                         .iter()
-                                        .map(|x| {
-                                            let proof = x
+                                        .map(|x| -> Result<_, IndexerError> {
+                                            let proof: Vec<Hash> = x
                                                 .proof
                                                 .iter()
-                                                .map(|x| Hash::from_base58(x).unwrap())
-                                .collect();
-                                            let root = Hash::from_base58(&x.root).unwrap();
-                                            let leaf = Hash::from_base58(&x.leaf).unwrap();
-                                            let merkle_tree = Hash::from_base58(&x.tree).unwrap();
+                                                .map(|p| Hash::from_base58(p))
+                                                .collect::<Result<Vec<_>, _>>()?;
+                                            let root = Hash::from_base58(&x.root)?;
+                                            let leaf = Hash::from_base58(&x.leaf)?;
+                                            let merkle_tree = Hash::from_base58(&x.tree)?;
                                             let tx_hash = x
                                                 .tx_hash
                                                 .as_ref()
-                                                .map(|x| Hash::from_base58(x).unwrap());
-                                            let account_hash =
-                                                Hash::from_base58(&x.account_hash).unwrap();
+                                                .map(|h| Hash::from_base58(h))
+                                                .transpose()?;
+                                            let account_hash = Hash::from_base58(&x.account_hash)?;
 
-                                            MerkleProofWithContext {
+                                            Ok(MerkleProofWithContext {
                                                 proof,
                                                 root,
                                                 leaf_index: x.leaf_index,
@@ -1687,10 +1653,48 @@ impl Indexer for PhotonIndexer {
                                                 root_seq: x.root_seq,
                                                 tx_hash,
                                                 account_hash,
-                                            }
                                         })
-                                        .collect()
-                                });
+                                        })
+                                        .collect::<Result<Vec<_>, _>>()
+                                })
+                                .transpose()?;
+
+                            // Parse input queue elements
+                            let input_queue_elements = api_result
+                                .input_queue_elements
+                                .map(|elements| {
+                                    elements
+                                        .iter()
+                                        .map(|x| -> Result<_, IndexerError> {
+                                            let proof: Vec<Hash> = x
+                                                .proof
+                                                .iter()
+                                                .map(|p| Hash::from_base58(p))
+                                                .collect::<Result<Vec<_>, _>>()?;
+                                            let root = Hash::from_base58(&x.root)?;
+                                            let leaf = Hash::from_base58(&x.leaf)?;
+                                            let merkle_tree = Hash::from_base58(&x.tree)?;
+                                            let tx_hash = x
+                                                .tx_hash
+                                                .as_ref()
+                                                .map(|h| Hash::from_base58(h))
+                                                .transpose()?;
+                                            let account_hash = Hash::from_base58(&x.account_hash)?;
+
+                                            Ok(MerkleProofWithContext {
+                                                proof,
+                                                root,
+                                                leaf_index: x.leaf_index,
+                                                leaf,
+                                                merkle_tree,
+                                                root_seq: x.root_seq,
+                                                tx_hash,
+                                                account_hash,
+                                        })
+                                        })
+                                        .collect::<Result<Vec<_>, _>>()
+                                })
+                                .transpose()?;
 
                             Ok(Response {
                                 context: Context {

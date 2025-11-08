@@ -652,15 +652,14 @@ impl Indexer for TestIndexer {
 
                     let merkle_proofs_with_context = queue_elements
                         .iter()
-                        .enumerate()
-                        .map(|(i, element)| MerkleProofWithContext {
+                        .map(|element| MerkleProofWithContext {
                             proof: Vec::new(),
                             leaf: [0u8; 32],
                             leaf_index: 0,
                             merkle_tree: address_tree_bundle.accounts.merkle_tree.to_bytes(),
                             root: address_tree_bundle.root(),
                             tx_hash: None,
-                            root_seq: output_queue_start_index + i as u64,
+                            root_seq: output_queue_start_index,
                             account_hash: *element,
                         })
                         .collect();
@@ -837,14 +836,8 @@ impl Indexer for TestIndexer {
                     None
                 };
 
-                let output_queue_index = if output_queue_elements.is_some()
-                    && output_queue_start_index
-                        < state_tree_bundle.output_queue_elements.len() as u64
-                {
-                    Some(
-                        state_tree_bundle.output_queue_elements[output_queue_start_index as usize]
-                            .1,
-                    )
+                let output_queue_index = if output_queue_elements.is_some() {
+                    Some(output_queue_start_index)
                 } else {
                     None
                 };
