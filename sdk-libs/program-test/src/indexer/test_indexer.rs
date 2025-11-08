@@ -646,23 +646,23 @@ impl Indexer for TestIndexer {
                     let start = output_queue_start_index as usize;
                     let end = std::cmp::min(
                         start + limit as usize,
-                    address_tree_bundle.queue_elements.len(),
-                );
+                        address_tree_bundle.queue_elements.len(),
+                    );
                     let queue_elements = address_tree_bundle.queue_elements[start..end].to_vec();
 
-                let merkle_proofs_with_context = queue_elements
-                    .iter()
+                    let merkle_proofs_with_context = queue_elements
+                        .iter()
                         .map(|element| MerkleProofWithContext {
-                        proof: Vec::new(),
-                        leaf: [0u8; 32],
-                        leaf_index: 0,
-                        merkle_tree: address_tree_bundle.accounts.merkle_tree.to_bytes(),
-                        root: address_tree_bundle.root(),
-                        tx_hash: None,
+                            proof: Vec::new(),
+                            leaf: [0u8; 32],
+                            leaf_index: 0,
+                            merkle_tree: address_tree_bundle.accounts.merkle_tree.to_bytes(),
+                            root: address_tree_bundle.root(),
+                            tx_hash: None,
                             root_seq: output_queue_start_index,
-                        account_hash: *element,
-                    })
-                    .collect();
+                            account_hash: *element,
+                        })
+                        .collect();
                     Some(merkle_proofs_with_context)
                 } else {
                     None
@@ -693,7 +693,7 @@ impl Indexer for TestIndexer {
                 .iter_mut()
                 .find(|x| x.accounts.merkle_tree == pubkey);
 
-                if let Some(state_tree_bundle) = state_tree_bundle {
+            if let Some(state_tree_bundle) = state_tree_bundle {
                 // For state trees, return both input and output queues
 
                 // Build input queue elements if requested
@@ -830,16 +830,36 @@ impl Indexer for TestIndexer {
                             account_hash: *element,
                         })
                         .collect();
-                    return Ok(Response {
+
+                    Some(merkle_proofs_with_context)
+                } else {
+                    None
+                };
+
+                let output_queue_index = if output_queue_elements.is_some() {
+                    Some(output_queue_start_index)
+                } else {
+                    None
+                };
+
+                let input_queue_index = if input_queue_elements.is_some() {
+                    Some(input_queue_start_index)
+                } else {
+                    None
+                };
+
+                let slot = self.get_current_slot();
+
+                return Ok(Response {
                     context: Context { slot },
-                        value: QueueElementsResult {
+                    value: QueueElementsResult {
                         output_queue_elements,
                         output_queue_index,
                         input_queue_elements,
                         input_queue_index,
-                        },
-                    });
-                }
+                    },
+                });
+            }
 
             Err(IndexerError::InvalidParameters(
                 "Merkle tree not found".to_string(),
