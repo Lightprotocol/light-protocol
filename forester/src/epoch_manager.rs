@@ -553,23 +553,23 @@ impl<R: Rpc> EpochManager<R> {
                 {
                     Ok(info) => info,
                     Err(ForesterError::Registration(
-                            RegistrationError::RegistrationPhaseEnded {
-                                epoch: failed_epoch,
-                                current_slot,
-                                registration_end,
-                            },
+                        RegistrationError::RegistrationPhaseEnded {
+                            epoch: failed_epoch,
+                            current_slot,
+                            registration_end,
+                        },
                     )) => {
                         let next_epoch = failed_epoch + 1;
                         let next_phases = get_epoch_phases(&self.protocol_config, next_epoch);
                         let slots_to_wait =
                             next_phases.registration.start.saturating_sub(current_slot);
 
-                            info!(
+                        info!(
                             "Too late to register for epoch {} (registration ended at slot {}, current slot: {}). Next available epoch: {}. Registration opens at slot {} ({} slots to wait).",
                             failed_epoch, registration_end, current_slot, next_epoch, next_phases.registration.start, slots_to_wait
                             );
-                            return Ok(());
-                        }
+                        return Ok(());
+                    }
                     Err(e) => return Err(e.into()),
                 }
             }
@@ -970,7 +970,7 @@ impl<R: Rpc> EpochManager<R> {
                     Some(coord.register_tree(tree.tree_accounts.merkle_tree).await)
                 } else {
                     None
-            }
+                }
             } else {
                 None
             };
@@ -1148,12 +1148,12 @@ impl<R: Rpc> EpochManager<R> {
                             .await
                         } else {
                             self.process_light_slot_v2_fallback(
-                        epoch_info,
-                        epoch_pda,
-                        &tree_schedule.tree_accounts,
-                        &light_slot_details,
-                    )
-                    .await
+                                epoch_info,
+                                epoch_pda,
+                                &tree_schedule.tree_accounts,
+                                &light_slot_details,
+                            )
+                            .await
                         }
                     }
                 };
