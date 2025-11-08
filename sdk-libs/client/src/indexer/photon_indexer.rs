@@ -1653,7 +1653,7 @@ impl Indexer for PhotonIndexer {
                                                 root_seq: x.root_seq,
                                                 tx_hash,
                                                 account_hash,
-                                        })
+                                            })
                                         })
                                         .collect::<Result<Vec<_>, _>>()
                                 })
@@ -1690,7 +1690,7 @@ impl Indexer for PhotonIndexer {
                                                 root_seq: x.root_seq,
                                                 tx_hash,
                                                 account_hash,
-                                        })
+                                            })
                                         })
                                         .collect::<Result<Vec<_>, _>>()
                                 })
