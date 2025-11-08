@@ -523,6 +523,7 @@ pub mod csdk_anchor_test {
             let remaining_accounts = cpi_accounts.to_account_infos();
             let post_system = &remaining_accounts[system_offset..];
 
+          
             compress_and_close_ctoken_accounts_signed(
                 &token_accounts_to_compress,
                 fee_payer,
@@ -532,6 +533,7 @@ pub mod csdk_anchor_test {
                 cpi_authority,
                 post_system,
                 &remaining_accounts,
+                false, // with_compression_authority - use owner to compress (owner = token account PDA)
             )
             .map_err(|e| anchor_lang::prelude::ProgramError::from(e))?;
         }

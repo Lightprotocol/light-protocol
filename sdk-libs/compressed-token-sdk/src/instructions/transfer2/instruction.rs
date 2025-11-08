@@ -99,11 +99,6 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
         }
     }
 
-    msg!(
-        "input_token_data_with_context: {:?}",
-        input_token_data_with_context[0]
-    );
-
     // Create instruction data
     let instruction_data = CompressedTokenInstructionDataTransfer2 {
         with_transaction_hash: transfer_config.with_transaction_hash,

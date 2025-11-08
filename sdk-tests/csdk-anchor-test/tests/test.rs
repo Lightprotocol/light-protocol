@@ -2926,6 +2926,10 @@ async fn compress_token_account_after_decompress(
         )
         .unwrap();
 
+    for account in instruction.accounts.iter() {
+        println!("account: {:?}", account);
+    }
+
     // Send the transaction
     let result = rpc
         .create_and_send_transaction(&[instruction], &user.pubkey(), &[user])
@@ -2992,9 +2996,9 @@ async fn compress_token_account_after_decompress(
         .unwrap()
         .value;
 
-    println!("otoken account address / owner{:?}", token_account_address);
+    println!("token account address / owner {:?}", token_account_address);
     println!(
-        "otoken account address / owner bytes{:?}",
+        "token account address / owner bytes {:?}",
         token_account_address.to_bytes()
     );
     println!("ctoken_accounts {:?}", ctoken_accounts);

@@ -95,6 +95,7 @@ pub fn pack_for_compress_and_close(
                     false,
                 ),
                 owner_index, // User funds go to owner
+                             //                 recipient_index, // User funds go to rent sponsor (destination)
             )
         };
     Ok(CompressAndCloseIndices {
@@ -218,6 +219,9 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             i as u8,               // Pass the index in the output array
             idx.destination_index, // destination for user funds
         )?;
+        // Ensure destination (rent sponsor) is writable to receive lamports
+        // TODO: Checked remove
+        packed_account_metas[idx.destination_index as usize].is_writable = true;
         if rent_sponsor_is_signer {
             packed_account_metas[idx.authority_index as usize].is_signer = true;
         } else {
@@ -367,14 +371,8 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             rent_sponsor_pubkey.unwrap()
         };
 
-        // Determine destination based on authority type
-        let destination_pubkey = if with_compression_authority {
-            // When rent authority closes, everything goes to rent recipient
-            actual_rent_sponsor
-        } else {
-            // When owner closes, user funds go to owner
-            owner_pubkey
-        };
+        // Destination for lamports on close is ALWAYS the rent sponsor
+        let destination_pubkey = actual_rent_sponsor;
 
         // Find indices for all required accounts
         let indices = find_account_indices(
@@ -422,6 +420,7 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     cpi_authority: AccountInfo<'info>,
     post_system: &[AccountInfo<'info>],
     remaining_accounts: &[AccountInfo<'info>],
+    with_compression_authority: bool,
 ) -> Result<(), TokenSdkError> {
     let mut packed_accounts = Vec::with_capacity(post_system.len() + 4);
     packed_accounts.extend_from_slice(post_system);
@@ -435,7 +434,7 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
 
     let instruction = compress_and_close_ctoken_accounts(
         *fee_payer.key,
-        false,
+        with_compression_authority,
         output_queue,
         &ctoken_infos,
         &packed_accounts,

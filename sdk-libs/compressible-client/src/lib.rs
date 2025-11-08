@@ -358,6 +358,10 @@ impl CompressibleInstruction {
         if account_pubkeys.len() != accounts_to_compress.len() {
             return Err("Accounts pubkeys length must match accounts length".into());
         }
+        println!(
+            "compress_accounts_idempotent - account_pubkeys: {:?}",
+            account_pubkeys
+        );
         // Sanity checks.
         if !signer_seeds.is_empty() && signer_seeds.len() != accounts_to_compress.len() {
             return Err("Signer seeds length must match accounts length or be empty".into());
@@ -425,13 +429,26 @@ impl CompressibleInstruction {
             );
         }
 
-        // Use program-provided account metas (from Anchor accounts struct)
-        let mut accounts = program_account_metas.to_vec();
-
+        // Add mints as writable AFTER packing tree infos (to preserve account order)
+        // Calling insert_or_get will upgrade from readonly to writable if mint was already added
+        // This ensures mints are writable even if TokenData::pack() adds them as readonly
         for account in accounts_to_compress.iter() {
             if account.owner == C_TOKEN_PROGRAM_ID.into() {
                 let mint = Pubkey::new_from_array(account.data[0..32].try_into().unwrap());
-                remaining_accounts.insert_or_get_read_only(mint);
+                // Force upgrade to writable by calling insert_or_get even if already added
+                remaining_accounts.insert_or_get(mint);
+            }
+        }
+
+        // Use program-provided account metas (from Anchor accounts struct)
+        let mut accounts = program_account_metas.to_vec();
+
+        // Ensure mints are still writable right before converting to account metas
+        // This is a safety check in case something added them as readonly after we set them as writable
+        for account in accounts_to_compress.iter() {
+            if account.owner == C_TOKEN_PROGRAM_ID.into() {
+                let mint = Pubkey::new_from_array(account.data[0..32].try_into().unwrap());
+                remaining_accounts.insert_or_get(mint);
             }
         }
 
