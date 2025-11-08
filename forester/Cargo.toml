@@ -12,6 +12,7 @@ solana-client = { workspace = true }
 solana-account-decoder = { workspace = true }
 solana-program = { workspace = true }
 account-compression = { workspace = true }
+light-account-checks = { workspace = true }
 light-batched-merkle-tree = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std"] }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
@@ -51,6 +52,16 @@ dashmap = "6.1.0"
 scopeguard = "1.2.0"
 itertools = "0.14.0"
 num-bigint = { workspace = true }
+
+# gRPC client for Photon queue subscriptions (match Photon versions)
+tonic = "0.14.2"
+prost = "0.14.1"
+prost-types = "0.14.1"
+tonic-prost = "0.14.2"
+tokio-stream = { version = "0.1", features = ["sync"] }
+
+[build-dependencies]
+tonic-prost-build = "0.14.2"
 
 [dev-dependencies]
 serial_test = { workspace = true }

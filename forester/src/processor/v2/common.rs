@@ -519,6 +519,18 @@ impl<R: Rpc> BatchProcessor<R> {
                 .push(merkle_tree.hash_chain_stores[batch_index as usize][i as usize]);
         }
 
+        debug!(
+            "Extracted {} hash chains from on-chain merkle tree. batch_index={}, num_inserted_zkps={}, current_zkp_batch_index={}",
+            leaves_hash_chains.len(),
+            batch_index,
+            num_inserted_zkps,
+            current_zkp_batch_index
+        );
+        if !leaves_hash_chains.is_empty() {
+            debug!("First hash chain: {:?}", leaves_hash_chains.first());
+            debug!("Last hash chain: {:?}", leaves_hash_chains.last());
+        }
+
         let parsed_data = ParsedMerkleTreeData {
             next_index: merkle_tree.next_index,
             current_root: *merkle_tree.root_history.last().unwrap(),
@@ -527,6 +539,7 @@ impl<R: Rpc> BatchProcessor<R> {
             pending_batch_index: batch_index as u32,
             num_inserted_zkps,
             current_zkp_batch_index,
+            batch_start_index: batch.start_index,
             leaves_hash_chains,
         };
 

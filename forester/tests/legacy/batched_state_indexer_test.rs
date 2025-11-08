@@ -43,6 +43,7 @@ async fn test_state_indexer_batched() {
         wait_time: 90,
         sbf_programs: vec![],
         limit_ledger_size: None,
+        grpc_port: None,
     }))
     .await;
 

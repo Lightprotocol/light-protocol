@@ -351,7 +351,7 @@ async fn execute_transaction_chunk_sending<R: Rpc>(
             }
             TransactionSendResult::Failure(err, sig_opt) => {
                 if let Some(sig) = sig_opt {
-                    warn!(tx.signature = %sig, error = ?err, "Transaction failed to send");
+                    error!(tx.signature = %sig, error = ?err, "Transaction failed to send");
                 } else {
                     error!(error = ?err, "Transaction failed to send, no signature available");
                 }
