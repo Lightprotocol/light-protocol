@@ -47,6 +47,7 @@ async fn test_state_batched() {
         wait_time: 30,
         sbf_programs: vec![],
         limit_ledger_size: None,
+        grpc_port: None,
     }))
     .await;
 

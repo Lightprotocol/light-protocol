@@ -15,13 +15,13 @@ no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 test-sbf = []
-custom-heap = []
-default = ["custom-heap"]
+default = []
 
 [dependencies]
+anchor-lang = { workspace = true }
+light-sdk = { workspace = true, features = ["anchor"] }
 
 [dev-dependencies]
-anchor-lang = { workspace = true }
 light-compressed-token = { workspace = true }
 light-system-program-anchor = { workspace = true }
 account-compression = { workspace = true }

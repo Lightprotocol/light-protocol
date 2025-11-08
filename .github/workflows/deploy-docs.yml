@@ -6,6 +6,7 @@ on:
       - 'compressed-token-*'
       - 'stateless.js-*'
 
+
 permissions:
   contents: read
   pages: write

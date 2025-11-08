@@ -168,6 +168,97 @@ pub async fn fetch_proofs_and_create_instructions<R: Rpc>(
     // Process state proofs and create instructions
     for (item, proof) in state_items.iter().zip(state_proofs.into_iter()) {
         proofs.push(MerkleProofType::StateProof(proof.clone()));
+
+        let _debug = false;
+        if _debug {
+            let onchain_account = rpc
+                .get_account(item.tree_account.merkle_tree)
+                .await?
+                .ok_or_else(|| {
+                    anyhow::anyhow!("Tree account {} not found", item.tree_account.merkle_tree)
+                })?;
+            let onchain_tree = match account_compression::state_merkle_tree_from_bytes_zero_copy(
+                &onchain_account.data,
+            ) {
+                Ok(tree) => tree,
+                Err(e) => {
+                    tracing::error!(
+                        "Failed to deserialize onchain tree {}: {}",
+                        item.tree_account.merkle_tree,
+                        e
+                    );
+                    return Err(anyhow::anyhow!("Failed to deserialize onchain tree: {}", e));
+                }
+            };
+
+            let onchain_root = onchain_tree.root();
+            let onchain_root_index = onchain_tree.root_index();
+            let onchain_changelog_index = onchain_tree.changelog_index();
+
+            tracing::info!(
+                "Creating nullify instruction for tree {}: hash={}, leaf_index={}, root_seq={}, changelog_index={}, indexer_root={}",
+                item.tree_account.merkle_tree,
+                bs58::encode(&item.queue_item_data.hash).into_string(),
+                proof.leaf_index,
+                proof.root_seq,
+                proof.root_seq % STATE_MERKLE_TREE_CHANGELOG,
+                bs58::encode(&proof.root).into_string()
+            );
+
+            tracing::info!(
+                "Onchain tree {} state: current_root={}, root_index={}, changelog_index={}",
+                item.tree_account.merkle_tree,
+                bs58::encode(&onchain_root).into_string(),
+                onchain_root_index,
+                onchain_changelog_index
+            );
+
+            let capacity = onchain_tree.roots.capacity();
+            let first_index = onchain_tree.roots.first_index();
+
+            let root_history: Vec<String> = onchain_tree
+                .roots
+                .iter()
+                .enumerate()
+                .map(|(offset, root)| {
+                    let buffer_index = (first_index + offset) % capacity.max(1);
+                    format!("#{buffer_index}: {}", bs58::encode(root).into_string())
+                })
+                .collect();
+
+            tracing::info!(
+                "Onchain root history (len={}, capacity={}): {:?}",
+                onchain_tree.roots.len(),
+                capacity,
+                root_history,
+            );
+
+            let indexer_root_position =
+                onchain_tree
+                    .roots
+                    .iter()
+                    .enumerate()
+                    .find_map(|(offset, root)| {
+                        (root == &proof.root).then_some((first_index + offset) % capacity.max(1))
+                    });
+
+            tracing::info!(
+                "Indexer root {} present_at_buffer_index={:?}",
+                bs58::encode(&proof.root).into_string(),
+                indexer_root_position,
+            );
+
+            if indexer_root_position.is_none() {
+                return Err(anyhow::anyhow!(
+                    "Indexer root {} not found in onchain root history for tree {}. Current root: {}, root_index: {}",
+                    bs58::encode(&proof.root).into_string(),
+                    item.tree_account.merkle_tree,
+                    bs58::encode(&onchain_root).into_string(),
+                    onchain_root_index
+                ));
+            }
+        }
+
         let instruction = create_nullify_instruction(
             CreateNullifyInstructionInputs {
                 nullifier_queue: item.tree_account.queue,

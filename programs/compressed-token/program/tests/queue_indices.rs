@@ -1,3 +1,4 @@
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::AnchorSerialize;
 use light_compressed_token::mint_action::queue_indices::QueueIndices;
 use light_ctoken_types::instructions::mint_action::CpiContext;
@@ -33,7 +34,7 @@ fn test_queue_indices_comprehensive() {
                 cpi_context: Some(CpiContext {
                     set_context: false,
                     first_set_context: false,
-                    in_tree_index: 5,
+                    in_tree_index: 1, // Must be 1 for execute mode with create_mint (address tree at index 1 in tree_pubkeys)
                     in_queue_index: 6,
                     out_queue_index: 7,
                     token_out_queue_index: 8,
@@ -46,7 +47,7 @@ fn test_queue_indices_comprehensive() {
             },
             expected: QueueIndices {
                 in_tree_index: 0,             // 0 when create_mint=true
-                address_merkle_tree_index: 5, // cpi.in_tree_index when create_mint=true
+                address_merkle_tree_index: 1, // cpi.in_tree_index when create_mint=true (must be 1 in execute mode)
                 in_queue_index: 6,            // cpi.in_queue_index
                 out_token_queue_index: 8,     // cpi.token_out_queue_index
                 output_queue_index: 7,        // cpi.out_queue_index
@@ -252,6 +253,7 @@ fn test_queue_indices_comprehensive() {
                 test_case.input.create_mint,
                 test_case.input.tokens_out_queue_exists,
                 test_case.input.queue_keys_match,
+                cpi_context.first_set_context || cpi_context.set_context,
             )
         } else {
             QueueIndices::new(
@@ -259,6 +261,7 @@ fn test_queue_indices_comprehensive() {
                 test_case.input.create_mint,
                 test_case.input.tokens_out_queue_exists,
                 test_case.input.queue_keys_match,
+                false,
             )
         };
 
@@ -272,4 +275,77 @@ fn test_queue_indices_comprehensive() {
             }
         }
     }
+}
+
+#[test]
+fn test_queue_indices_invalid_address_tree_index() {
+    println!("\n=== Testing Invalid Address Tree Index in Execute Mode ===");
+
+    // Test case: Execute mode (not write_to_cpi_context) with create_mint=true
+    // and in_tree_index != 1 should fail with MintActionInvalidCpiContextForCreateMint
+    let cpi_context = CpiContext {
+        set_context: false,
+        first_set_context: false, // Execute mode
+        in_tree_index: 5,         // Invalid! Must be 1 in execute mode with create_mint
+        in_queue_index: 6,
+        out_queue_index: 7,
+        token_out_queue_index: 8,
+        assigned_account_index: 0,
+        ..Default::default()
+    };
+
+    let serialized = create_zero_copy_cpi_context(&cpi_context);
+    let (zero_copy_context, _) = CpiContext::zero_copy_at(&serialized).unwrap();
+
+    let result = QueueIndices::new(
+        Some(&zero_copy_context),
+        true,  // create_mint=true
+        false, // tokens_out_queue_exists
+        false, // queue_keys_match
+        false, // write_to_cpi_context (execute mode)
+    );
+
+    match result {
+        Ok(_) => {
+            panic!("Expected MintActionInvalidCpiContextForCreateMint error, but got Ok");
+        }
+        Err(e) => {
+            // Compare error codes by their discriminant values
+            assert!(
+                matches!(e, ErrorCode::MintActionInvalidCpiContextForCreateMint),
+                "Expected MintActionInvalidCpiContextForCreateMint, got {:?}",
+                e
+            );
+            println!("   Error: {:?}", e);
+        }
+    }
+
+    // Test that in_tree_index=1 works correctly (positive case)
+    let valid_cpi_context = CpiContext {
+        set_context: false,
+        first_set_context: false,
+        in_tree_index: 1, // Valid!
+        in_queue_index: 6,
+        out_queue_index: 7,
+        token_out_queue_index: 8,
+        assigned_account_index: 0,
+        ..Default::default()
+    };
+
+    let serialized = create_zero_copy_cpi_context(&valid_cpi_context);
+    let (zero_copy_context, _) = CpiContext::zero_copy_at(&serialized).unwrap();
+
+    let result = QueueIndices::new(
+        Some(&zero_copy_context),
+        true,  // create_mint=true
+        false, // tokens_out_queue_exists
+        false, // queue_keys_match
+        false, // write_to_cpi_context (execute mode)
+    );
+
+    assert!(
+        result.is_ok(),
+        "Expected Ok with in_tree_index=1, got error: {:?}",
+        result.err()
+    );
 }

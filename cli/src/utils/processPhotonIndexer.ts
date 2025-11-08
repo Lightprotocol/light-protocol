@@ -41,6 +41,7 @@ export async function startIndexer(
   indexerPort: number,
   checkPhotonVersion: boolean = true,
   photonDatabaseUrl?: string,
+  grpcPort: number = 50051,
 ) {
   await killIndexer();
   const resolvedOrNull = which.sync("photon", { nothrow: true });
@@ -57,6 +58,8 @@ export async function startIndexer(
       indexerPort.toString(),
       "--rpc-url",
       rpcUrl,
+      "--grpc-port",
+      grpcPort.toString(),
     ];
     if (photonDatabaseUrl) {
       args.push("--db-url", photonDatabaseUrl);

@@ -538,6 +538,7 @@ async fn generate_photon_test_data_multiple_events() {
                 "../../target/deploy/create_address_test_program.so".to_string(),
             )],
             limit_ledger_size: None,
+            grpc_port: None,
         })
         .await;
 

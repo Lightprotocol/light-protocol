@@ -41,6 +41,7 @@
 //!         wait_time: 75,
 //!         sbf_programs: vec![],
 //!         limit_ledger_size: None,
+//!         grpc_port: None,
 //!     };
 //!     spawn_validator(config).await;
 //!

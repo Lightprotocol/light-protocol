@@ -416,6 +416,12 @@ pub enum ErrorCode {
     OneEpochPrefundingNotAllowed,
     #[msg("Duplicate mint index detected in inputs, outputs, or compressions")]
     DuplicateMint,
+    #[msg("Invalid compressed mint address derivation")]
+    MintActionInvalidCompressedMintAddress,
+    #[msg("Invalid CPI context for create mint operation")]
+    MintActionInvalidCpiContextForCreateMint,
+    #[msg("Invalid address tree pubkey in CPI context")]
+    MintActionInvalidCpiContextAddressTreePubkey,
 }
 
 impl From<ErrorCode> for ProgramError {

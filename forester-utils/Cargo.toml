@@ -47,3 +47,7 @@ num-traits = { workspace = true }
 bb8 = { workspace = true }
 async-trait = { workspace = true }
 governor = { workspace = true }
+
+[dev-dependencies]
+tokio-postgres = "0.7"
+bs58 = { workspace = true }
