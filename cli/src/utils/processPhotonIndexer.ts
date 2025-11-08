@@ -56,10 +56,10 @@ export async function startIndexer(
     const args: string[] = [
       "--port",
       indexerPort.toString(),
-      "--grpc-port",
-      grpcPort.toString(),
       "--rpc-url",
       rpcUrl,
+      "--grpc-port",
+      grpcPort.toString(),
     ];
     if (photonDatabaseUrl) {
       args.push("--db-url", photonDatabaseUrl);

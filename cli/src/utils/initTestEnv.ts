@@ -133,7 +133,6 @@ export async function initTestEnv({
       grpcPort,
       checkPhotonVersion,
       photonDatabaseUrl,
-      grpcPort,
     );
   }
 
