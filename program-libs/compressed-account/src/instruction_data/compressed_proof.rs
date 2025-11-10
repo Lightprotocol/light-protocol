@@ -40,7 +40,6 @@ impl Default for CompressedProof {
 }
 
 impl CompressedProof {
-    /// Convert the proof to a fixed-size byte array [u8; 128]
     pub fn to_array(&self) -> [u8; 128] {
         let mut result = [0u8; 128];
         result[0..32].copy_from_slice(&self.a);
@@ -123,8 +122,6 @@ impl From<&Option<CompressedProof>> for ValidityProof {
 impl TryFrom<&[u8]> for ValidityProof {
     type Error = crate::CompressedAccountError;
 
-    /// Convert bytes to ValidityProof.
-    /// Empty slice returns None, otherwise attempts to parse as CompressedProof and returns Some.
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         if bytes.is_empty() {
             Ok(Self(None))
@@ -141,11 +138,6 @@ impl Into<Option<CompressedProof>> for ValidityProof {
         self.0
     }
 }
-
-// Borsh compatible validity proof. Use this in your anchor program unless you
-// have zero-copy instruction data. Convert to zero-copy by calling `let proof =
-// compression_params.proof.into();`.
-//
 
 pub mod borsh_compat {
     #[cfg_attr(
@@ -182,6 +174,13 @@ pub mod borsh_compat {
         derive(borsh::BorshDeserialize, borsh::BorshSerialize)
     )]
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+    /// Borsh-compatible ValidityProof. Use this in your anchor program unless
+    /// you have zero-copy instruction data.
+    ///
+    /// Example:
+    /// ```rust
+    /// let proof = ValidityProof::from(compression_params.proof);
+    /// ```
     pub struct ValidityProof(pub Option<CompressedProof>);
 
     impl ValidityProof {
