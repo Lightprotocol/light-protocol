@@ -19,11 +19,13 @@ light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-hash-set = { workspace = true, features = ["solana"] }
 light-hasher = { workspace = true, features = ["poseidon"] }
 light-merkle-tree-reference = { workspace = true }
+light-prover-client = { workspace = true }
 light-registry = { workspace = true }
 photon-api = { workspace = true }
 forester-utils = { workspace = true }
 light-client = { workspace = true, features = ["v2"] }
 light-merkle-tree-metadata = { workspace = true }
+light-sparse-merkle-tree = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-program-test = { workspace = true }
 solana-transaction-status = { workspace = true }
@@ -53,12 +55,12 @@ scopeguard = "1.2.0"
 itertools = "0.14.0"
 num-bigint = { workspace = true }
 
-# gRPC client for Photon queue subscriptions (match Photon versions)
 tonic = "0.14.2"
 prost = "0.14.1"
 prost-types = "0.14.1"
 tonic-prost = "0.14.2"
 tokio-stream = { version = "0.1", features = ["sync"] }
+once_cell = "1.21.3"
 
 [build-dependencies]
 tonic-prost-build = "0.14.2"
