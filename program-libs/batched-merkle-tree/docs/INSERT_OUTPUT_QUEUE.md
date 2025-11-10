@@ -35,7 +35,7 @@ This operation modifies a `BatchedQueueAccount`:
 1. **Get current insertion index:**
    - Read `batch_metadata.next_index` to determine leaf index for this value
    - This index is used for proof-by-index when spending compressed accounts
-   - Is the leaf index of the value up on Merkle tree insertion.
+   - Assigned at insertion time and determines the leaf position in the tree
 
 2. **Insert into current batch:**
    Calls `insert_into_current_queue_batch` helper which:
