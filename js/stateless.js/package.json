@@ -125,6 +125,9 @@
                     "{workspaceRoot}/cli",
                     "{workspaceRoot}/target/idl",
                     "{workspaceRoot}/target/types"
+                ],
+                "outputs": [
+                    "{projectRoot}/dist"
                 ]
             },
             "build-ci": {
@@ -132,7 +135,10 @@
                 "options": {
                     "script": "build-ci"
                 },
-                "dependsOn": []
+                "dependsOn": [],
+                "outputs": [
+                    "{projectRoot}/dist"
+                ]
             },
             "test-ci": {
                 "dependsOn": []

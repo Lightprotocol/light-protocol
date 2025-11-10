@@ -131,6 +131,9 @@
                     "{workspaceRoot}/cli",
                     "{workspaceRoot}/target/idl",
                     "{workspaceRoot}/target/types"
+                ],
+                "outputs": [
+                    "{projectRoot}/dist"
                 ]
             },
             "build-ci": {
@@ -140,6 +143,9 @@
                 },
                 "dependsOn": [
                     "@lightprotocol/stateless.js:build-ci"
+                ],
+                "outputs": [
+                    "{projectRoot}/dist"
                 ]
             },
             "test-ci": {

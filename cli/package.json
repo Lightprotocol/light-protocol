@@ -133,7 +133,9 @@
     "targets": {
       "build": {
         "dependsOn": [
-          "@lightprotocol/programs:build"
+          "@lightprotocol/programs:build",
+          "@lightprotocol/stateless.js:build",
+          "@lightprotocol/compressed-token:build"
         ],
         "inputs": [
           "{workspaceRoot}/js",
