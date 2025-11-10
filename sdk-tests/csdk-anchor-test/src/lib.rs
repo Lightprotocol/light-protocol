@@ -741,12 +741,7 @@ pub mod csdk_anchor_test {
                         None,    // TODO: make this configurable
                     )?;
                 }
-                // let decompress_index =
-                // light_compressed_token_sdk::instructions::DecompressFullIndices::from((
-                //     token_data.token_data,
-                //     meta,
-                //     owner_index,
-                // ));
+
                 // Construct MultiInputTokenDataWithContext from token data and meta
                 let source =
                     light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext {
@@ -768,13 +763,6 @@ pub mod csdk_anchor_test {
                 token_signers_seed_groups.push(ctoken_signer_seeds);
             }
 
-            // log each token account to decompress
-            // for token_account in token_decompress_indices.clone().into_iter() {
-            //     msg!(
-            //         "token_account: {:?}",
-            //         packed_accounts[token_account.destination_index as usize].key()
-            //     );
-            // }
             let ctoken_ix = light_compressed_token_sdk::instructions::decompress_full_ctoken_accounts_with_indices(
                     fee_payer.key(),
                     proof,

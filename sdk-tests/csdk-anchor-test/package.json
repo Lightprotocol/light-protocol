@@ -1,0 +1,11 @@
+{
+  "name": "@lightprotocol/csdk-anchor-test",
+  "version": "0.1.0",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "cargo build-sbf -p csdk-anchor-test --release",
+    "test": "cargo test-sbf -p csdk-anchor-test -- --nocapture"
+  },
+  "nx": {}
+}
+
