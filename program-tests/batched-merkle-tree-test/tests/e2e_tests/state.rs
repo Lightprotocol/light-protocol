@@ -436,8 +436,12 @@ async fn test_fill_state_queues_completely() {
             );
             for batch_idx in 0..NUM_BATCHES as u32 {
                 println!("batch idx {:?}", batch_idx);
-                for root in batch_roots.get(batch_idx as usize).unwrap().1.iter() {
-                    println!("tracked root {:?}", root);
+                if let Some(roots) = batch_roots.get_by_key(&batch_idx) {
+                    for root in roots.iter() {
+                        println!("tracked root {:?}", root);
+                    }
+                } else {
+                    println!("No roots found for batch {}", batch_idx);
                 }
             }
             // check that all roots have been overwritten except the root index
