@@ -181,6 +181,15 @@ impl Batch {
 
     /// fill -> full -> inserted -> fill
     /// (from tree insertion perspective is pending if fill or full)
+    #[cfg_attr(kani, kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
+        result.is_ok().then(|| self.get_state() == BatchState::Inserted).unwrap_or(true)
+    }))]
+    #[cfg_attr(kani, kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
+        result.is_ok().then(|| self.num_full_zkp_batches == self.batch_size / self.zkp_batch_size).unwrap_or(true)
+    }))]
+    #[cfg_attr(kani, kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
+        result.is_ok().then(|| self.num_inserted_zkp_batches == self.batch_size / self.zkp_batch_size).unwrap_or(true)
+    }))]
     pub fn advance_state_to_inserted(&mut self) -> Result<(), BatchedMerkleTreeError> {
         if self.get_state() == BatchState::Full {
             self.state = BatchState::Inserted.into();
@@ -225,6 +234,62 @@ impl Batch {
         self.num_full_zkp_batches > self.num_inserted_zkp_batches
     }
 
+    /// Kani-only: Mock address insertion - populates hash chain and updates batch state
+    #[cfg_attr(kani, kani::requires(bloom_filter_store.len() > 0))]
+    pub fn kani_mock_address_insert(
+        &mut self,
+        value: &[u8; 32],
+        hash_chain_store: &mut ZeroCopyVecU64<[u8; 32]>,
+        bloom_filter_store: &mut [u8],
+    ) -> Result<(), BatchedMerkleTreeError> {
+        // Auto-reset batch if it's in Inserted state (mirrors insert_into_current_queue_batch)
+        if self.get_state() == BatchState::Inserted {
+            hash_chain_store.clear();
+            self.advance_state_to_fill(None)?;
+        } else if self.get_state() != BatchState::Fill {
+            return Err(BatchedMerkleTreeError::BatchNotReady);
+        }
+
+        if self.num_inserted == 0 {
+            hash_chain_store.push(*value)?;
+        } else if let Some(h) = hash_chain_store.last_mut() {
+            *h = *value;
+        }
+        bloom_filter_store[0] = 1; // dummy operation to simulate bloom filter insertion
+        self.num_inserted += 1;
+        if self.num_inserted == self.zkp_batch_size {
+            self.num_full_zkp_batches += 1;
+            self.num_inserted = 0;
+            if self.num_full_zkp_batches == self.get_num_zkp_batches() {
+                self.advance_state_to_full()?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Mock insert for output queues - only advances batch state
+    #[cfg(kani)]
+    pub fn kani_mock_output_insert(&mut self) -> Result<(), BatchedMerkleTreeError> {
+        // Auto-reset batch if it's in Inserted state
+        if self.get_state() == BatchState::Inserted {
+            self.advance_state_to_fill(None)?;
+        } else if self.get_state() != BatchState::Fill {
+            return Err(BatchedMerkleTreeError::BatchNotReady);
+        }
+
+        // Only update batch metadata - no need to store actual values
+        self.num_inserted += 1;
+        if self.num_inserted == self.zkp_batch_size {
+            self.num_full_zkp_batches += 1;
+            self.num_inserted = 0;
+            if self.num_full_zkp_batches == self.get_num_zkp_batches() {
+                self.advance_state_to_full()?;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Returns the number of zkp batch updates
     /// that are ready to be inserted into the tree.
     pub fn get_num_ready_zkp_updates(&self) -> u64 {
@@ -257,6 +322,16 @@ impl Batch {
     /// Returns the number of inserted elements in the batch.
     pub fn get_num_inserted_elements(&self) -> u64 {
         self.num_full_zkp_batches * self.zkp_batch_size + self.num_inserted
+    }
+
+    /// Returns the batch size.
+    pub fn get_batch_size(&self) -> u64 {
+        self.batch_size
+    }
+
+    /// Returns the zkp batch size.
+    pub fn get_zkp_batch_size(&self) -> u64 {
+        self.zkp_batch_size
     }
 
     /// Returns the number of zkp batches in the batch.

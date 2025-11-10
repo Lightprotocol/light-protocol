@@ -9,6 +9,7 @@ edition = "2021"
 [features]
 default = ["solana"]
 test-only = []
+kani = ["light-zero-copy/kani"]
 solana = [
     "solana-program-error",
     "solana-account-info",
@@ -60,7 +61,10 @@ light-merkle-tree-reference = { workspace = true }
 light-account-checks = { workspace = true, features = ["test-only"] }
 light-compressed-account = { workspace = true, features = ["new-unique"] }
 light-hasher = { workspace = true, features = ["keccak"] }
+light-indexed-array = { workspace = true }
+num-bigint = { workspace = true }
+num-traits = { workspace = true }
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
-check-cfg = ['cfg(target_os, values("solana"))']
+check-cfg = ['cfg(target_os, values("solana"))', 'cfg(kani)']

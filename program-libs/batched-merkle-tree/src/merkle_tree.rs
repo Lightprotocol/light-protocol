@@ -23,7 +23,10 @@ use light_verifier::{
 use light_zero_copy::{
     cyclic_vec::ZeroCopyCyclicVecU64, errors::ZeroCopyError, vec::ZeroCopyVecU64,
 };
+#[cfg(not(kani))]
 use zerocopy::Ref;
+#[cfg(kani)]
+use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout};
 
 use super::batch::Batch;
 use crate::{
@@ -75,12 +78,69 @@ pub type InstructionDataBatchAppendInputs = InstructionDataBatchNullifyInputs;
 /// - get_state_root_by_index
 /// - get_address_root_by_index
 #[derive(Debug, PartialEq)]
+#[cfg(not(kani))]
 pub struct BatchedMerkleTreeAccount<'a> {
     pubkey: Pubkey,
     metadata: Ref<&'a mut [u8], BatchedMerkleTreeMetadata>,
     pub root_history: ZeroCopyCyclicVecU64<'a, [u8; 32]>,
     pub bloom_filter_stores: [&'a mut [u8]; 2],
     pub hash_chain_stores: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
+}
+
+#[derive(Debug, PartialEq)]
+#[cfg(kani)]
+pub struct BatchedMerkleTreeAccount<'a> {
+    pubkey: Pubkey,
+    metadata: &'a mut BatchedMerkleTreeMetadata,
+    pub root_history: ZeroCopyCyclicVecU64<'a, [u8; 32]>,
+    pub bloom_filter_stores: [&'a mut [u8]; 2],
+    pub hash_chain_stores: [ZeroCopyVecU64<'a, [u8; 32]>; 2],
+    /// Ghost state (verification-only): tracks which batch created each root
+    /// Parallel to root_history - same capacity, same cyclic indexing
+    /// Entry value is batch index (0 or 1) that created the root at that position
+    #[cfg(kani)]
+    pub ghost_root_batch: GhostRoots,
+}
+
+#[cfg(kani)]
+#[derive(Debug, PartialEq)]
+pub struct GhostRoots {
+    pub batch_0: Vec<GhostRootMeta>,
+    pub batch_1: Vec<GhostRootMeta>,
+}
+
+#[cfg(kani)]
+impl GhostRoots {
+    pub fn track_root(&mut self, batch_index: usize, sequence_number: u64, root: [u8; 32]) {
+        let meta = GhostRootMeta {
+            sequence_number,
+            root,
+        };
+        match batch_index {
+            0 => self.batch_0.push(meta),
+            1 => self.batch_1.push(meta),
+            _ => {}
+        }
+    }
+}
+
+#[cfg(kani)]
+#[repr(C)]
+#[derive(
+    BorshSerialize,
+    BorshDeserialize,
+    Debug,
+    PartialEq,
+    Clone,
+    Copy,
+    FromBytes,
+    IntoBytes,
+    KnownLayout,
+    Immutable,
+)]
+pub struct GhostRootMeta {
+    pub sequence_number: u64,
+    pub root: [u8; 32],
 }
 
 impl Discriminator for BatchedMerkleTreeAccount<'_> {
@@ -183,9 +243,28 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     ) -> Result<BatchedMerkleTreeAccount<'a>, BatchedMerkleTreeError> {
         // Discriminator is already checked in check_account_info.
         let (_discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
+
+        #[cfg(not(kani))]
         let (metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)
                 .map_err(ZeroCopyError::from)?;
+
+        #[cfg(kani)]
+        let (metadata, account_data) = {
+            let size = std::mem::size_of::<BatchedMerkleTreeMetadata>();
+            if account_data.len() < size {
+                return Err(ZeroCopyError::Size.into());
+            }
+            let (meta_bytes, remaining) = account_data.split_at_mut(size);
+            let metadata = unsafe {
+                let ptr = meta_bytes.as_mut_ptr() as *mut BatchedMerkleTreeMetadata;
+                // Read potentially unaligned, write back, then get mutable ref
+                core::ptr::write_unaligned(ptr, core::ptr::read_unaligned(ptr as *const _));
+                &mut *ptr
+            };
+            (metadata, remaining)
+        };
+
         if metadata.tree_type != TREE_TYPE {
             return Err(MerkleTreeMetadataError::InvalidTreeType.into());
         }
@@ -202,14 +281,35 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
         // Hash chain stores for input or address queue.
         let (hash_chain_store_0, account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
-        let hash_chain_store_1 = ZeroCopyVecU64::from_bytes(account_data)?;
-        Ok(BatchedMerkleTreeAccount {
-            pubkey: *pubkey,
-            metadata,
-            root_history,
-            bloom_filter_stores,
-            hash_chain_stores: [hash_chain_store_0, hash_chain_store_1],
-        })
+
+        #[cfg(not(kani))]
+        {
+            let hash_chain_store_1 = ZeroCopyVecU64::from_bytes(account_data)?;
+            Ok(BatchedMerkleTreeAccount {
+                pubkey: *pubkey,
+                metadata,
+                root_history,
+                bloom_filter_stores,
+                hash_chain_stores: [hash_chain_store_0, hash_chain_store_1],
+            })
+        }
+
+        #[cfg(kani)]
+        {
+            let (hash_chain_store_1, _account_data) = ZeroCopyVecU64::from_bytes_at(account_data)?;
+            let ghost_root_batch = GhostRoots {
+                batch_0: Vec::new(),
+                batch_1: Vec::new(),
+            };
+            Ok(BatchedMerkleTreeAccount {
+                pubkey: *pubkey,
+                metadata,
+                root_history,
+                bloom_filter_stores,
+                hash_chain_stores: [hash_chain_store_0, hash_chain_store_1],
+                ghost_root_batch,
+            })
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -229,9 +329,26 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let (discriminator, account_data) = account_data.split_at_mut(DISCRIMINATOR_LEN);
         set_discriminator::<Self>(discriminator)?;
 
+        #[cfg(not(kani))]
         let (mut account_metadata, account_data) =
             Ref::<&'a mut [u8], BatchedMerkleTreeMetadata>::from_prefix(account_data)
                 .map_err(ZeroCopyError::from)?;
+
+        #[cfg(kani)]
+        let (account_metadata, account_data) = {
+            let size = std::mem::size_of::<BatchedMerkleTreeMetadata>();
+            #[cfg(kani)]
+            kani::cover!(account_data.len() >= size, "Size check passed in init");
+            if account_data.len() < size {
+                return Err(ZeroCopyError::Size.into());
+            }
+            let (meta_bytes, remaining) = account_data.split_at_mut(size);
+            #[cfg(kani)]
+            kani::cover!(true, "Past split_at_mut in init");
+            let metadata =
+                unsafe { &mut *(meta_bytes.as_mut_ptr() as *mut BatchedMerkleTreeMetadata) };
+            (metadata, remaining)
+        };
 
         // Precompute Merkle tree pubkey hash for use in system program.
         // The compressed account hash depends on the Merkle tree pubkey and leaf index.
@@ -322,17 +439,46 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             account_metadata.queue_batches.get_num_zkp_batches(),
             account_data,
         )?;
-        let hash_chain_store_1 = ZeroCopyVecU64::new(
-            account_metadata.queue_batches.get_num_zkp_batches(),
-            account_data,
-        )?;
-        Ok(BatchedMerkleTreeAccount {
-            pubkey: *pubkey,
-            metadata: account_metadata,
-            root_history,
-            bloom_filter_stores,
-            hash_chain_stores: [hash_chain_store_0, hash_chain_store_1],
-        })
+
+        #[cfg(not(kani))]
+        {
+            let hash_chain_store_1 = ZeroCopyVecU64::new(
+                account_metadata.queue_batches.get_num_zkp_batches(),
+                account_data,
+            )?;
+            Ok(BatchedMerkleTreeAccount {
+                pubkey: *pubkey,
+                metadata: account_metadata,
+                root_history,
+                bloom_filter_stores,
+                hash_chain_stores: [hash_chain_store_0, hash_chain_store_1],
+            })
+        }
+
+        #[cfg(kani)]
+        {
+            kani::cover!(true, "Entering ghost state initialization");
+            let hash_chain_result = ZeroCopyVecU64::new_at(
+                account_metadata.queue_batches.get_num_zkp_batches(),
+                account_data,
+            );
+            kani::cover!(hash_chain_result.is_ok(), "hash_chain_store_1 created");
+            let (hash_chain_store_1, _account_data) = hash_chain_result?;
+
+            let ghost_root_batch = GhostRoots {
+                batch_0: Vec::new(),
+                batch_1: Vec::new(),
+            };
+            kani::cover!(true, "Ghost state initialization complete");
+            Ok(BatchedMerkleTreeAccount {
+                pubkey: *pubkey,
+                metadata: account_metadata,
+                root_history,
+                bloom_filter_stores,
+                hash_chain_stores: [hash_chain_store_0, hash_chain_store_1],
+                ghost_root_batch,
+            })
+        }
     }
 
     /// Update the tree from the output queue account.
@@ -371,6 +517,44 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// Note: when proving inclusion by index in
     /// value array we need to insert the value into a bloom_filter once it is
     /// inserted into the tree. Check this with get_num_inserted_zkps
+    #[cfg_attr(kani, kani::ensures(|result: &Result<MerkleTreeEvent, BatchedMerkleTreeError>| {
+        result.as_ref().ok().and_then(|event| {
+            if let MerkleTreeEvent::BatchAppend(batch_event) = event {
+                let old_batch = &old(queue_account.batch_metadata.batches[queue_account.batch_metadata.pending_batch_index as usize]);
+                let old_seq = old(self.sequence_number);
+                let old_next_idx = old(self.next_index);
+                let old_queue_pending = old(queue_account.batch_metadata.pending_batch_index);
+                let max_zkp = queue_account.batch_metadata.batch_size / queue_account.batch_metadata.zkp_batch_size;
+
+                // 1. Batch was ready to insert
+                let ready_check = old_batch.batch_is_ready_to_insert();
+
+                // 2. Sequence number increments by 1
+                let seq_check = self.sequence_number == old_seq + 1;
+
+                // 3. New root added to history
+                let root_check = self.root_history.last().map(|&root| root == instruction_data.new_root).unwrap_or(false);
+
+                // 4. ZKP batch index in event matches old inserted count
+                let zkp_check = batch_event.zkp_batch_index == old_batch.get_num_inserted_zkps();
+
+                // 5. If last ZKP batch, queue batch state is Inserted
+                let was_last = batch_event.zkp_batch_index == max_zkp - 1;
+                let state_check = !was_last || queue_account.batch_metadata.batches[batch_event.batch_index as usize].get_state() == BatchState::Inserted;
+
+                // 6. Tree next_index increments by zkp_batch_size (always for output queue)
+                let next_idx_check = self.next_index == old_next_idx + queue_account.batch_metadata.zkp_batch_size;
+
+                // 7. If batch completed, queue pending_batch_index must switch
+                let batch_became_inserted = batch_event.zkp_batch_index == max_zkp - 1;
+                let batch_switch_check = !batch_became_inserted || queue_account.batch_metadata.pending_batch_index != old_queue_pending;
+
+                Some(ready_check && seq_check && root_check && zkp_check && state_check && next_idx_check && batch_switch_check)
+            } else {
+                None
+            }
+        }).unwrap_or(true)
+    }))]
     pub fn update_tree_from_output_queue_account(
         &mut self,
         queue_account: &mut BatchedQueueAccount,
@@ -385,20 +569,29 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
 
         // 1. Create public inputs hash.
         let public_input_hash = {
-            let leaves_hash_chain = queue_account.hash_chain_stores[pending_batch_index]
-                [first_ready_zkp_batch_index as usize];
-            let old_root = self
-                .root_history
-                .last()
-                .ok_or(BatchedMerkleTreeError::InvalidIndex)?;
-            let mut start_index_bytes = [0u8; 32];
-            start_index_bytes[24..].copy_from_slice(&self.next_index.to_be_bytes());
-            create_hash_chain_from_array([
-                *old_root,
-                new_root,
-                leaves_hash_chain,
-                start_index_bytes,
-            ])?
+            // For Kani verification, skip hash chain computation to avoid indexing into empty Vecs.
+            // We stub the proof verification instead, so the actual hash value doesn't matter.
+            #[cfg(kani)]
+            {
+                [0u8; 32]
+            }
+            #[cfg(not(kani))]
+            {
+                let leaves_hash_chain = queue_account.hash_chain_stores[pending_batch_index]
+                    [first_ready_zkp_batch_index as usize];
+                let old_root = self
+                    .root_history
+                    .last()
+                    .ok_or(BatchedMerkleTreeError::InvalidIndex)?;
+                let mut start_index_bytes = [0u8; 32];
+                start_index_bytes[24..].copy_from_slice(&self.next_index.to_be_bytes());
+                create_hash_chain_from_array([
+                    *old_root,
+                    new_root,
+                    leaves_hash_chain,
+                    start_index_bytes,
+                ])?
+            }
         };
 
         // 2. Verify update proof and update tree account.
@@ -486,6 +679,44 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// 5. Increment next full batch index if inserted.
     /// 6. Return the batch nullify event.
     #[inline(always)]
+    #[cfg_attr(kani, kani::ensures(|result: &Result<BatchEvent, BatchedMerkleTreeError>| {
+        result.as_ref().ok().map(|event| {
+            let old_batch = &old(self.queue_batches.batches[self.queue_batches.pending_batch_index as usize]);
+            let old_seq = old(self.sequence_number);
+            let old_next_idx = old(self.next_index);
+            let max_zkp = self.queue_batches.batch_size / self.queue_batches.zkp_batch_size;
+
+            // 0. Batch was ready to insert
+            let ready_check = old_batch.batch_is_ready_to_insert();
+
+            // 1. Sequence number increments by 1
+            let seq_check = self.sequence_number == old_seq + 1;
+
+            // 2. New root added to history
+            let root_check = self.root_history.last().map(|&root| root == instruction_data.new_root).unwrap_or(false);
+
+            // 3. ZKP batch index in event matches old inserted count
+            let zkp_check = event.zkp_batch_index == old_batch.get_num_inserted_zkps();
+
+            // 5. If last ZKP batch, state is Inserted
+            let was_last = event.zkp_batch_index == max_zkp - 1;
+            let state_check = !was_last || self.queue_batches.batches[event.batch_index as usize].get_state() == BatchState::Inserted;
+
+            // 6. next_index behavior based on tree type
+            let next_idx_check = if QUEUE_TYPE == ADDRESS_QUEUE_TYPE_V2 {
+                self.next_index == old_next_idx + self.queue_batches.zkp_batch_size
+            } else {
+                self.next_index == old_next_idx
+            };
+
+            // 7. If batch completed, pending_batch_index must switch
+            let old_pending = old(self.queue_batches.pending_batch_index);
+            let batch_became_inserted = event.zkp_batch_index == max_zkp - 1;
+            let batch_switch_check = !batch_became_inserted || self.queue_batches.pending_batch_index != old_pending;
+
+            ready_check && seq_check && root_check && zkp_check && state_check && next_idx_check && batch_switch_check
+        }).unwrap_or(true)
+    }))]
     fn update_input_queue<const QUEUE_TYPE: u64>(
         &mut self,
         instruction_data: InstructionDataBatchNullifyInputs,
@@ -505,19 +736,29 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                 .last()
                 .ok_or(BatchedMerkleTreeError::InvalidIndex)?;
 
-            if QueueType::from(QUEUE_TYPE) == QueueType::InputStateV2 {
-                create_hash_chain_from_array([*old_root, new_root, leaves_hash_chain])?
-            } else if QueueType::from(QUEUE_TYPE) == QueueType::AddressV2 {
-                let mut next_index_bytes = [0u8; 32];
-                next_index_bytes[24..].copy_from_slice(self.next_index.to_be_bytes().as_slice());
-                create_hash_chain_from_array([
-                    *old_root,
-                    new_root,
-                    leaves_hash_chain,
-                    next_index_bytes,
-                ])?
-            } else {
-                return Err(MerkleTreeMetadataError::InvalidQueueType.into());
+            // For Kani verification, skip hash chain computation to avoid const generic stubbing issues.
+            // We stub the proof verification instead, so the actual hash value doesn't matter.
+            #[cfg(kani)]
+            {
+                [0u8; 32]
+            }
+            #[cfg(not(kani))]
+            {
+                if QueueType::from(QUEUE_TYPE) == QueueType::InputStateV2 {
+                    create_hash_chain_from_array([*old_root, new_root, leaves_hash_chain])?
+                } else if QueueType::from(QUEUE_TYPE) == QueueType::AddressV2 {
+                    let mut next_index_bytes = [0u8; 32];
+                    next_index_bytes[24..]
+                        .copy_from_slice(self.next_index.to_be_bytes().as_slice());
+                    create_hash_chain_from_array([
+                        *old_root,
+                        new_root,
+                        leaves_hash_chain,
+                        next_index_bytes,
+                    ])?
+                } else {
+                    return Err(MerkleTreeMetadataError::InvalidQueueType.into());
+                }
             }
         };
 
@@ -581,6 +822,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     ) -> Result<(u64, u64), BatchedMerkleTreeError> {
         // 1. Verify update proof.
         let (old_next_index, new_next_index) = if QUEUE_TYPE == QueueType::OutputStateV2 as u64 {
+            // For Kani verification, skip proof verification to simplify symbolic execution.
+            #[cfg(not(kani))]
             verify_batch_append_with_proofs(batch_size, public_input_hash, &proof)?;
             let old_next_index = self.next_index;
             // 2. Increment next index.
@@ -588,6 +831,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             (old_next_index, self.next_index)
         } else if QUEUE_TYPE == QueueType::InputStateV2 as u64 {
             let old_next_index = self.nullifier_next_index;
+            // For Kani verification, skip proof verification to simplify symbolic execution.
+            #[cfg(not(kani))]
             verify_batch_update(batch_size, public_input_hash, &proof)?;
             // 2. incrementing nullifier next index.
             // This index is used by the indexer to remove elements from the database nullifier queue.
@@ -596,6 +841,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             (old_next_index, self.nullifier_next_index)
         } else if QUEUE_TYPE == QueueType::AddressV2 as u64 {
             let old_next_index = self.next_index;
+            // For Kani verification, skip proof verification to simplify symbolic execution.
+            #[cfg(not(kani))]
             verify_batch_address_update(batch_size, public_input_hash, &proof)?;
             // 2. Increment next index.
             self.increment_merkle_tree_next_index(batch_size);
@@ -610,6 +857,17 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         // it will overwrite the oldest root
         // once it is full.
         self.root_history.push(new_root);
+
+        // 5. Update ghost state: track which batch created this root
+        #[cfg(kani)]
+        {
+            self.ghost_root_batch.track_root(
+                self.queue_batches.pending_batch_index as usize,
+                self.sequence_number,
+                new_root,
+            );
+        }
+
         Ok((old_next_index, new_next_index))
     }
 
@@ -747,7 +1005,11 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     ///     - now all roots containing values nullified in the final B0 root update are zeroed
     ///     - B0 is safe to clear
     ///
-    fn zero_out_roots(&mut self, sequence_number: u64, first_safe_root_index: u32) {
+    fn zero_out_roots(
+        &mut self,
+        sequence_number: u64,
+        first_safe_root_index: u32,
+    ) -> Result<(), BatchedMerkleTreeError> {
         // 1. Check whether overlapping roots exist.
         let overlapping_roots_exits = sequence_number > self.sequence_number;
         if overlapping_roots_exits {
@@ -757,10 +1019,13 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             //    the update of the previous batch therfore allow anyone to prove
             //    inclusion of values nullified in the previous batch.
             let num_remaining_roots = sequence_number - self.sequence_number;
+            if num_remaining_roots >= self.root_history.len() as u64 {
+                return Err(BatchedMerkleTreeError::CannotZeroCompleteRootHistory);
+            }
             // 2.2. Zero out roots oldest to first safe root index.
             //      Skip one iteration we don't need to zero out
             //      the first safe root.
-            for _ in 1..num_remaining_roots {
+            for _ in 0..num_remaining_roots {
                 self.root_history[oldest_root_index] = [0u8; 32];
                 oldest_root_index += 1;
                 oldest_root_index %= self.root_history.len();
@@ -771,6 +1036,177 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                 "Zeroing out roots failed."
             );
         }
+        Ok(())
+    }
+
+    /// Ghost state invariant:
+    /// If a batch is zeroed,
+    /// root_history must contain only roots from the non-zeroed batch or zeros,
+    /// and at least one non-zero root.
+    #[cfg(kani)]
+    fn all_roots_are_safe(&self) -> bool {
+        let batch_0 = &self.queue_batches.batches[0];
+        let batch_1 = &self.queue_batches.batches[1];
+
+        // If batch 0 is zeroed, root_history must contain ONLY batch_1 roots or zeros
+        if batch_0.bloom_filter_is_zeroed() && self.should_zero_bloom_filter() {
+            let mut has_non_zero = false;
+            for i in 0..self.root_history.len() {
+                let root = self.root_history[i];
+                if root == [0u8; 32] {
+                    continue;
+                }
+                has_non_zero = true;
+                let in_batch_1 = (0..self.ghost_root_batch.batch_1.len())
+                    .any(|j| self.ghost_root_batch.batch_1[j].root == root);
+                kani::cover!(in_batch_1, "Root not found in batch 1 roots");
+                if !in_batch_1 {
+                    return false;
+                }
+            }
+            kani::cover!(has_non_zero, "batch 0 roots has only zeros");
+            if !has_non_zero {
+                return false;
+            }
+        }
+
+        // If batch 1 is zeroed, root_history must contain ONLY batch_0 roots or zeros
+        if batch_1.bloom_filter_is_zeroed() && self.should_zero_bloom_filter() {
+            let mut has_non_zero = false;
+            for i in 0..self.root_history.len() {
+                let root = self.root_history[i];
+                if root == [0u8; 32] {
+                    continue;
+                }
+                has_non_zero = true;
+                let in_batch_0 = (0..self.ghost_root_batch.batch_0.len())
+                    .any(|j| self.ghost_root_batch.batch_0[j].root == root);
+                kani::cover!(in_batch_0, "Root not found in batch 0 roots");
+                if !in_batch_0 {
+                    return false;
+                }
+            }
+            kani::cover!(has_non_zero, "batch 1 roots has only zeros");
+            if !has_non_zero {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    /// Bloom filter zeroing invariant:
+    /// If a batch's bloom_filter_is_zeroed flag is set, all bloom filter bytes must be zero.
+    #[cfg(kani)]
+    fn bloom_filters_are_zeroed(&self) -> bool {
+        if self.should_zero_bloom_filter() {
+            (0..2).all(|i| {
+                !self.queue_batches.batches[i].bloom_filter_is_zeroed()
+                    || self.bloom_filter_stores[i].iter().all(|&b| b == 0)
+            })
+        } else {
+            true
+        }
+    }
+
+    /// Helper: Current batch is at least half full
+    #[cfg(kani)]
+    fn current_batch_is_half_full(&self) -> bool {
+        let curr = self.queue_batches.pending_batch_index as usize;
+        self.queue_batches.batches[curr].get_num_inserted_elements()
+            >= self.queue_batches.batch_size / 2
+    }
+
+    /// Helper: Current batch is not inserted
+    #[cfg(kani)]
+    fn current_batch_not_inserted(&self) -> bool {
+        let curr = self.queue_batches.pending_batch_index as usize;
+        self.queue_batches.batches[curr].get_state() != BatchState::Inserted
+    }
+
+    /// Helper: Previous batch is inserted
+    #[cfg(kani)]
+    fn previous_batch_is_inserted(&self) -> bool {
+        let curr = self.queue_batches.pending_batch_index as usize;
+        let prev = if curr == 0 { 1 } else { 0 };
+        self.queue_batches.batches[prev].get_state() == BatchState::Inserted
+    }
+
+    /// Helper: Previous batch bloom filter is not zeroed
+    #[cfg(kani)]
+    fn previous_batch_bloom_not_zeroed(&self) -> bool {
+        let curr = self.queue_batches.pending_batch_index as usize;
+        let prev = if curr == 0 { 1 } else { 0 };
+        !self.queue_batches.batches[prev].bloom_filter_is_zeroed()
+    }
+
+    /// Helper: At least one update since previous batch insertion
+    #[cfg(kani)]
+    fn has_updates_since_previous_batch(&self) -> bool {
+        let curr = self.queue_batches.pending_batch_index as usize;
+        let prev = if curr == 0 { 1 } else { 0 };
+        let seq_diff = self.queue_batches.batches[prev]
+            .sequence_number
+            .saturating_sub(self.metadata.root_history_capacity as u64);
+        seq_diff != self.sequence_number
+    }
+
+    /// Helper predicate to determine if bloom filter should be zeroed.
+    /// Returns true if ALL of these conditions are met:
+    /// 1. Current batch is at least 50% full
+    /// 2. Current batch is not yet inserted into the tree
+    /// 3. Previous batch has been fully inserted
+    /// 4. Previous batch's bloom filter hasn't been zeroed yet
+    /// 5. At least one tree update occurred since previous batch insertion
+    // Condition 1: Current batch is at least half full
+    #[cfg_attr(kani, kani::ensures(|&result: &bool| !result || self.current_batch_is_half_full()))]
+    // Condition 2: Current batch is not inserted
+    #[cfg_attr(kani, kani::ensures(|&result: &bool| !result || self.current_batch_not_inserted()))]
+    // Condition 3: Previous batch is inserted
+    #[cfg_attr(kani, kani::ensures(|&result: &bool| !result || self.previous_batch_is_inserted()))]
+    // Condition 4: Previous batch's bloom filter is not zeroed
+    #[cfg_attr(kani, kani::ensures(|&result: &bool| !result || self.previous_batch_bloom_not_zeroed()))]
+    // Condition 5: At least one update since previous batch insertion
+    #[cfg_attr(kani, kani::ensures(|&result: &bool| !result || self.has_updates_since_previous_batch()))]
+    // Condition 6 (reverse): If all conditions hold, result must be true
+    #[cfg_attr(kani, kani::ensures(|&result: &bool| {
+        let all_conditions = self.current_batch_is_half_full()
+            && self.current_batch_not_inserted()
+            && self.previous_batch_is_inserted()
+            && self.previous_batch_bloom_not_zeroed()
+            && self.has_updates_since_previous_batch();
+        !all_conditions || result
+    }))]
+    fn should_zero_bloom_filter(&self) -> bool {
+        let current_batch = self.queue_batches.pending_batch_index as usize;
+        let previous_batch_index = if current_batch == 0 { 1 } else { 0 };
+        let batch_size = self.queue_batches.batch_size;
+
+        // Condition 1 & 2: Current batch is at least half full and not inserted
+        let current_batch_is_half_full = {
+            let current_batch_is_not_inserted =
+                self.queue_batches.batches[current_batch].get_state() != BatchState::Inserted;
+            let num_inserted_elements =
+                self.queue_batches.batches[current_batch].get_num_inserted_elements();
+            num_inserted_elements >= batch_size / 2 && current_batch_is_not_inserted
+        };
+
+        // Condition 3 & 4: Previous batch is inserted but not zeroed
+        let previous_batch_is_ready = {
+            let previous_batch = &self.queue_batches.batches[previous_batch_index];
+            previous_batch.get_state() == BatchState::Inserted
+                && !previous_batch.bloom_filter_is_zeroed()
+        };
+
+        // Condition 5: At least one update since previous batch insertion
+        let has_updates = {
+            let seq_diff = self.queue_batches.batches[previous_batch_index]
+                .sequence_number
+                .saturating_sub(self.metadata.root_history_capacity as u64);
+            seq_diff != self.sequence_number
+        };
+
+        current_batch_is_half_full && previous_batch_is_ready && has_updates
     }
 
     /// Zero out bloom filter of previous batch if 50% of the
@@ -796,35 +1232,33 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     ///   Initial state: 0 pending -> 1 previous pending even though it was never used
     ///   0 inserted -> 1 pending 0 -> 1 pending 50% - zero out 0 -> 1 inserted
     ///   0 pending -> 1 inserted
+    #[cfg_attr(kani, kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
+        result.is_ok().then(|| self.all_roots_are_safe()).unwrap_or(true)
+    }))]
+    #[cfg_attr(kani, kani::ensures(|result: &Result<(), BatchedMerkleTreeError>| {
+        result.is_ok().then(|| self.bloom_filters_are_zeroed()).unwrap_or(true)
+    }))]
     fn zero_out_previous_batch_bloom_filter(&mut self) -> Result<(), BatchedMerkleTreeError> {
-        let current_batch = self.queue_batches.pending_batch_index as usize;
-        let batch_size = self.queue_batches.batch_size;
-        let previous_pending_batch_index = if 0 == current_batch { 1 } else { 0 };
-        let current_batch_is_half_full = {
-            let current_batch_is_not_inserted =
-                self.queue_batches.batches[current_batch].get_state() != BatchState::Inserted;
-            let num_inserted_elements =
-                self.queue_batches.batches[current_batch].get_num_inserted_elements();
-            let current_batch_is_half_full = num_inserted_elements >= batch_size / 2;
-            current_batch_is_half_full && current_batch_is_not_inserted
-        };
+        // Check if we should zero the bloom filter using the helper predicate
+        if self.should_zero_bloom_filter() {
+            let current_batch = self.queue_batches.pending_batch_index as usize;
+            let previous_pending_batch_index = if 0 == current_batch { 1 } else { 0 };
 
-        let previous_pending_batch = self
-            .queue_batches
-            .batches
-            .get_mut(previous_pending_batch_index)
-            .ok_or(BatchedMerkleTreeError::InvalidBatchIndex)?;
-
-        let previous_batch_is_inserted = previous_pending_batch.get_state() == BatchState::Inserted;
-        let previous_batch_is_ready =
-            previous_batch_is_inserted && !previous_pending_batch.bloom_filter_is_zeroed();
-
-        // Current batch is at least half full, previous batch is inserted, and not zeroed.
-        if current_batch_is_half_full && previous_batch_is_ready {
+            let previous_pending_batch = self
+                .queue_batches
+                .batches
+                .get_mut(previous_pending_batch_index)
+                .ok_or(BatchedMerkleTreeError::InvalidBatchIndex)?;
             // 3.1. Mark bloom filter zeroed.
             previous_pending_batch.set_bloom_filter_to_zeroed();
             let seq = previous_pending_batch.sequence_number;
-            let root_index = previous_pending_batch.root_index;
+            // previous_pending_batch.root_index is the index the root
+            // of the last update of that batch was inserted at.
+            // This is the last unsafe root index.
+            // The next index is safe.
+            let first_safe_root_index =
+                (previous_pending_batch.root_index + 1) % (self.root_history.len() as u32);
+
             // 3.2. Zero out bloom filter.
             {
                 let bloom_filter = self
@@ -837,7 +1271,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // which allows to prove inclusion of a value
             // that was inserted into the bloom filter just zeroed out.
             {
-                self.zero_out_roots(seq, root_index);
+                self.zero_out_roots(seq, first_safe_root_index)?;
             }
         }
 
@@ -928,6 +1362,36 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     fn increment_queue_next_index(&mut self) {
         self.queue_batches.next_index += 1;
     }
+    #[cfg(kani)]
+    /// Kani-only: Mock address insertion - handles disjoint borrows internally
+    pub fn kani_mock_insert(
+        &mut self,
+        batch_idx: usize,
+        value: &[u8; 32],
+    ) -> Result<(), BatchedMerkleTreeError> {
+        kani_mock_insert_helper(
+            value,
+            &mut self.metadata.queue_batches.batches,
+            &mut self.hash_chain_stores,
+            &mut self.bloom_filter_stores,
+            batch_idx,
+        )
+    }
+}
+
+#[cfg(kani)]
+fn kani_mock_insert_helper(
+    value: &[u8; 32],
+    batches: &mut [Batch; 2],
+    hash_chain_stores: &mut [light_zero_copy::vec::ZeroCopyVecU64<[u8; 32]>; 2],
+    bloom_filter_stores: &mut [&mut [u8]; 2],
+    batch_idx: usize,
+) -> Result<(), BatchedMerkleTreeError> {
+    batches[batch_idx].kani_mock_address_insert(
+        value,
+        &mut hash_chain_stores[batch_idx],
+        &mut bloom_filter_stores[batch_idx],
+    )
 }
 
 #[cfg(feature = "test-only")]
@@ -944,13 +1408,27 @@ impl Deref for BatchedMerkleTreeAccount<'_> {
     type Target = BatchedMerkleTreeMetadata;
 
     fn deref(&self) -> &Self::Target {
-        &self.metadata
+        #[cfg(not(kani))]
+        {
+            &self.metadata
+        }
+        #[cfg(kani)]
+        {
+            self.metadata
+        }
     }
 }
 
 impl DerefMut for BatchedMerkleTreeAccount<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.metadata
+        #[cfg(not(kani))]
+        {
+            &mut self.metadata
+        }
+        #[cfg(kani)]
+        {
+            self.metadata
+        }
     }
 }
 
@@ -981,6 +1459,7 @@ pub fn get_merkle_tree_account_size(
     mt_account.get_account_size().unwrap()
 }
 
+#[cfg(feature = "test-only")]
 pub fn assert_nullify_event(
     event: MerkleTreeEvent,
     new_root: [u8; 32],
@@ -1009,6 +1488,7 @@ pub fn assert_nullify_event(
     assert_eq!(event, ref_event);
 }
 
+#[cfg(feature = "test-only")]
 pub fn assert_batch_append_event_event(
     event: MerkleTreeEvent,
     new_root: [u8; 32],
@@ -1038,6 +1518,7 @@ pub fn assert_batch_append_event_event(
     assert_eq!(event, ref_event);
 }
 
+#[cfg(feature = "test-only")]
 pub fn assert_batch_adress_event(
     event: MerkleTreeEvent,
     new_root: [u8; 32],
@@ -1145,7 +1626,11 @@ mod test {
         let rng = &mut rand::rngs::StdRng::from_seed([0u8; 32]);
         let mut latest_root_0 = [0u8; 32];
         let mut latest_root_1 = [0u8; 32];
-
+        #[allow(clippy::needless_late_init)]
+        let last_batch0_root;
+        let last_batch1_root;
+        let last_batch0_root_update2;
+        let first_batch1_root;
         // 1. No batch is ready
         //   -> nothing should happen.
         {
@@ -1153,6 +1638,7 @@ mod test {
                 insert_rnd_addresses(&mut account_data, batch_size, rng, current_slot, &pubkey)
                     .unwrap();
 
+            println!("initial account.root_history {:?}", account.root_history);
             assert_eq!(
                 account.queue_batches.batches[0].get_state(),
                 BatchState::Full
@@ -1181,7 +1667,9 @@ mod test {
             assert_eq!(account.queue_batches.pending_batch_index, 1);
             let index = account.queue_batches.batches[0].root_index;
             assert_eq!(account.root_history[index as usize], latest_root_0);
+            println!("account.root_history {:?}", account.root_history);
         }
+        last_batch0_root = latest_root_0;
         // 2. Batch 0 is inserted but Batch 1 is not half full
         //    -> nothing should happen.
         {
@@ -1214,6 +1702,39 @@ mod test {
             {
                 insert_rnd_addresses(&mut account_data, 1, rng, current_slot, &pubkey).unwrap();
             }
+            // 4.1 Batch 0 is inserted but Batch 1 is half full but no further roots exist
+            // if we zero out all roots we delete the tree state.
+            //    -> nothing should happen.
+            {
+                let mut account_data = account_data.clone();
+                let account_data_ref = account_data.clone();
+                let mut account =
+                    BatchedMerkleTreeAccount::address_from_bytes(&mut account_data, &pubkey)
+                        .unwrap();
+                account.zero_out_previous_batch_bloom_filter().unwrap();
+                assert_eq!(account_data, account_data_ref);
+            }
+            {
+                let mut account =
+                    BatchedMerkleTreeAccount::address_from_bytes(&mut account_data, &pubkey)
+                        .unwrap();
+                // Insert first root for batch 1.
+                let rnd_root = rng.gen();
+                first_batch1_root = rnd_root;
+                account.root_history.push(rnd_root);
+                // latest_root_0 = rnd_root; // Not used after this point
+                account.metadata.sequence_number += 1;
+                let root_index = account.get_root_index();
+                println!("root_index: {}", root_index);
+                let sequence_number = account.sequence_number;
+
+                let state = account.queue_batches.batches[1]
+                    .mark_as_inserted_in_merkle_tree(sequence_number, root_index, root_history_len)
+                    .unwrap();
+                account
+                    .queue_batches
+                    .increment_pending_batch_index_if_inserted(state);
+            }
             let mut account_data = account_data.clone();
             let mut account =
                 BatchedMerkleTreeAccount::address_from_bytes(&mut account_data, &pubkey).unwrap();
@@ -1227,10 +1748,7 @@ mod test {
             println!("previous_roots: {:?}", previous_roots);
             assert_ne!(previous_roots, current_roots);
             let root_index = account.queue_batches.batches[0].root_index;
-            assert_eq!(
-                account.root_history[root_index as usize],
-                previous_roots[root_index as usize]
-            );
+
             assert_eq!(
                 account.queue_batches.batches[0].get_state(),
                 BatchState::Inserted
@@ -1244,12 +1762,18 @@ mod test {
             );
 
             for i in 0..root_history_len as usize {
-                if i == root_index as usize {
-                    assert_eq!(account.root_history[i], latest_root_0);
+                if i == root_index as usize + 1 {
+                    assert_eq!(account.root_history[i], first_batch1_root);
                 } else {
                     assert_eq!(account.root_history[i], [0u8; 32]);
                 }
             }
+            println!(
+                "account
+                .root_history {:?}",
+                account.root_history
+            );
+            assert!(!account.root_history.iter().any(|x| *x == last_batch0_root));
         }
         // Make Batch 1 full and insert
         {
@@ -1261,7 +1785,7 @@ mod test {
                 BatchState::Full
             );
             // simulate batch insertion
-            for _ in 0..num_zkp_updates {
+            for _ in 1..num_zkp_updates {
                 let rnd_root = rng.gen();
                 account.root_history.push(rnd_root);
                 latest_root_1 = rnd_root;
@@ -1284,6 +1808,7 @@ mod test {
             assert_eq!(account.queue_batches.pending_batch_index, 0);
             let index = account.queue_batches.batches[1].root_index;
             assert_eq!(account.root_history[index as usize], latest_root_1);
+            last_batch1_root = latest_root_1;
         }
         println!("pre 4");
         // 5. Batch 1 is inserted and Batch 0 is empty
@@ -1328,6 +1853,7 @@ mod test {
                 insert_rnd_addresses(&mut account_data, 1, rng, current_slot, &pubkey).unwrap();
             }
             // simulate 10 other batch insertions from an output queue
+            // that overwrite the complete root history
             {
                 let mut account =
                     BatchedMerkleTreeAccount::address_from_bytes(&mut account_data, &pubkey)
@@ -1338,9 +1864,11 @@ mod test {
                     account.metadata.sequence_number += 1;
                 }
             }
+
             let mut account_data_ref = account_data.clone();
             let mut account =
                 BatchedMerkleTreeAccount::address_from_bytes(&mut account_data, &pubkey).unwrap();
+            // Batch 0 is half full and other roots exist. -> should zero out bloom filter but not zero out any roots.
             account.zero_out_previous_batch_bloom_filter().unwrap();
             let mut account_ref =
                 BatchedMerkleTreeAccount::address_from_bytes(&mut account_data_ref, &pubkey)
@@ -1350,6 +1878,7 @@ mod test {
                 .for_each(|x| *x = 0);
             account_ref.queue_batches.batches[1].set_bloom_filter_to_zeroed();
             assert_eq!(account.get_metadata(), account_ref.get_metadata());
+            assert!(!account.root_history.iter().any(|x| *x == last_batch1_root));
             assert_eq!(account, account_ref);
         }
         // 8. Batch 1 is already zeroed -> nothing should happen
@@ -1400,6 +1929,29 @@ mod test {
                         .queue_batches
                         .increment_pending_batch_index_if_inserted(state);
                 }
+                last_batch0_root_update2 = *account.root_history.last().unwrap();
+                println!("last_batch0_root_update2 {:?}", last_batch0_root_update2);
+
+                // Perform batch 1 insertions to create a new root that is not part of batch 1 update.
+                {
+                    let rnd_root = rng.gen();
+                    account.root_history.push(rnd_root);
+                    println!("first batch 1 root {:?}", rnd_root);
+                    account.metadata.sequence_number += 1;
+                    let root_index = account.get_root_index();
+                    let sequence_number = account.sequence_number;
+
+                    let state = account.queue_batches.batches[1]
+                        .mark_as_inserted_in_merkle_tree(
+                            sequence_number,
+                            root_index,
+                            root_history_len,
+                        )
+                        .unwrap();
+                    account
+                        .queue_batches
+                        .increment_pending_batch_index_if_inserted(state);
+                }
             }
             println!("pre 9");
             let mut account_data_ref = account_data.clone();
@@ -1413,7 +1965,10 @@ mod test {
                 account.queue_batches.batches[1].get_state(),
                 BatchState::Full
             );
+            let pre_roots = account.root_history.to_vec();
+            println!("pre roots {:?}", pre_roots);
             account.zero_out_previous_batch_bloom_filter().unwrap();
+            println!("post roots {:?}", account.root_history);
             let mut account_ref =
                 BatchedMerkleTreeAccount::address_from_bytes(&mut account_data_ref, &pubkey)
                     .unwrap();
@@ -1424,12 +1979,16 @@ mod test {
             account_ref.queue_batches.batches[0].set_bloom_filter_to_zeroed();
             assert_eq!(account.get_metadata(), account_ref.get_metadata());
             for i in 0..root_history_len as usize {
-                if i == root_index as usize {
+                if i == root_index as usize + 1 {
                     continue;
                 } else {
                     account_ref.root_history[i] = [0u8; 32];
                 }
             }
+            assert!(!account
+                .root_history
+                .iter()
+                .any(|x| *x == last_batch0_root_update2));
             assert_eq!(account, account_ref);
         }
 
@@ -1437,7 +1996,7 @@ mod test {
         {
             let mut account =
                 BatchedMerkleTreeAccount::address_from_bytes(&mut account_data, &pubkey).unwrap();
-            for _ in 0..num_zkp_updates {
+            for _ in 1..num_zkp_updates {
                 let rnd_root = rng.gen();
                 account.root_history.push(rnd_root);
                 account.metadata.sequence_number += 1;
@@ -1470,7 +2029,6 @@ mod test {
         }
         println!("pre 9.1");
 
-        // Zero out batch 1 with user tx
         {
             // fill batch 0
             {
