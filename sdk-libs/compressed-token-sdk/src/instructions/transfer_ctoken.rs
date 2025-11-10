@@ -5,9 +5,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-/// Create a decompressed token transfer instruction. This creates an
-/// instruction that uses discriminator 3 (DecompressedTransfer) to perform SPL
-/// token transfers on decompressed compressed token accounts.
+/// Create a c-token transfer instruction.
 ///
 /// # Arguments
 /// * `source` - Source token account
@@ -32,7 +30,7 @@ fn create_transfer_ctoken_instruction(
         ],
         data: {
             let mut data = vec![3u8];
-            data.push(3u8); // Transfer discriminator
+            data.push(3u8);
             data.extend_from_slice(&amount.to_le_bytes());
             data
         },

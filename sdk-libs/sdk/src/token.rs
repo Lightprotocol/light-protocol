@@ -63,7 +63,7 @@ impl TokenDataWithMerkleContext {
     }
 }
 
-/// Implementation for TokenData - packs into InputTokenDataCompressible
+/// Standard Pack for c-token accounts.
 impl Pack for TokenData {
     type Packed = InputTokenDataCompressible;
 
@@ -94,7 +94,7 @@ impl Unpack for TokenData {
     }
 }
 
-/// Unpack implementation for InputTokenDataCompressible
+/// Standard Unpack for c-token accounts.
 impl Unpack for InputTokenDataCompressible {
     type Unpacked = TokenData;
 
@@ -128,8 +128,7 @@ impl Unpack for InputTokenDataCompressible {
     }
 }
 
-/// Wrapper for token data with variant information
-/// The variant is user-defined and doesn't get altered during packing
+/// Wrapper for token data with variant information.
 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone)]
 pub struct TokenDataWithVariant<V> {
     pub variant: V,
@@ -147,7 +146,7 @@ pub struct CTokenDataWithVariant<V> {
     pub token_data: TokenData,
 }
 
-/// Pack implementation for CTokenDataWithVariant
+/// Standard Pack for c-token accounts with variant.
 impl<V> Pack for CTokenDataWithVariant<V>
 where
     V: AnchorSerialize + Clone + std::fmt::Debug,
@@ -162,7 +161,7 @@ where
     }
 }
 
-/// Unpack implementation for CTokenDataWithVariant
+/// Standard Unpack for c-token accounts with variant.
 impl<V> Unpack for CTokenDataWithVariant<V>
 where
     V: Clone,
@@ -180,7 +179,7 @@ where
     }
 }
 
-/// Pack implementation for TokenDataWithVariant
+/// Standard Pack for token data with variant.
 impl<V> Pack for TokenDataWithVariant<V>
 where
     V: AnchorSerialize + Clone + std::fmt::Debug,
@@ -195,7 +194,7 @@ where
     }
 }
 
-/// Unpack implementation for PackedCTokenDataWithVariant
+/// Standard Unpack for c-token accounts with variant.
 impl<V> Unpack for PackedCTokenDataWithVariant<V>
 where
     V: Clone,
@@ -213,8 +212,7 @@ where
     }
 }
 
-// custom replacement for MultiInputTokenDataWithContext
-// without root_index and without merkle_context
+/// Standard Pack for c-token accounts with variant.
 #[derive(Clone, Debug, AnchorDeserialize, AnchorSerialize, Default)]
 pub struct InputTokenDataCompressible {
     pub owner: u8,
@@ -228,10 +226,7 @@ pub struct InputTokenDataCompressible {
 // TODO: remove these and fix renaming after we're done with ci.
 #[deprecated(since = "0.2.0", note = "Use `CTokenDataWithVariant` instead")]
 pub type CompressibleTokenDataWithVariant<V> = CTokenDataWithVariant<V>;
-
 #[deprecated(since = "0.2.0", note = "Use `PackedCTokenDataWithVariant` instead")]
 pub type PackedCompressibleTokenDataWithVariant<V> = PackedCTokenDataWithVariant<V>;
-
-// Shorter aliases for convenience
 pub type CTokenData<V> = CTokenDataWithVariant<V>;
 pub type PackedCTokenData<V> = PackedCTokenDataWithVariant<V>;

@@ -61,7 +61,7 @@ pub fn create_transfer_ctoken_instruction(
             AccountMeta::new(source, false),      // Source token account
             AccountMeta::new(destination, false), // Destination token account
             AccountMeta::new(authority, true), // Owner/Authority (signer, writable for lamport transfers)
-            // TODO: try to remove this
+            // TODO: try to remove this so we can reuse this from the compressed-token-sdk
             AccountMeta::new_readonly(Pubkey::default(), false), // System program for CPI transfers
         ],
         data: {

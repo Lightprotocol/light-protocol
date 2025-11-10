@@ -3,7 +3,7 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::instructions::create_compressed_mint::{
-    create_cmint, derive_compressed_mint_address, CreateCompressedMintInputs,
+    create_compressed_mint, derive_compressed_mint_address, CreateCompressedMintInputs,
 };
 use light_ctoken_types::{
     instructions::extensions::{
@@ -86,5 +86,6 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
         version: 3,
     };
 
-    create_cmint(inputs).map_err(|e| RpcError::CustomError(format!("Token SDK error: {:?}", e)))
+    create_compressed_mint(inputs)
+        .map_err(|e| RpcError::CustomError(format!("Token SDK error: {:?}", e)))
 }

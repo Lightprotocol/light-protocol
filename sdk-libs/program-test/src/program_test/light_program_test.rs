@@ -154,7 +154,6 @@ impl LightProgramTest {
                         })?;
                 }
             }
-            // Auto-register additional programs for PDA auto-compression unless opted out
             let (auto_register, additional_programs) = {
                 let auto = context
                     .config

@@ -310,8 +310,6 @@ pub mod __internal {
             self.account.size()
         }
 
-        /// Remove the data from this account by setting it to default.
-        /// This is used when decompressing to ensure the compressed account is properly zeroed.
         pub fn remove_data(&mut self) {
             self.should_remove_data = true;
         }

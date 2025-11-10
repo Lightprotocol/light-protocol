@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::AccountMeta, InstructionData};
 use light_compressed_token_sdk::instructions::{
-    create_cmint, create_mint_to_compressed_instruction, CTokenDefaultAccounts,
+    create_compressed_mint, create_mint_to_compressed_instruction, CTokenDefaultAccounts,
     CreateCompressedMintInputs, MintToCompressedInputs,
 };
 use light_ctoken_types::{
@@ -183,7 +183,7 @@ async fn create_compressed_mint_helper(
         .value;
 
     // Create compressed mint
-    let instruction = create_cmint(CreateCompressedMintInputs {
+    let instruction = create_compressed_mint(CreateCompressedMintInputs {
         version: 3,
         decimals,
         mint_authority,

@@ -190,22 +190,6 @@ pub fn close_for_compress_and_close(
         let authority = validated_accounts
             .packed_accounts
             .get_u8(compression.authority, "CompressAndClose: authority")?;
-        msg!(
-            "Closing ctoken account: {}",
-            solana_pubkey::Pubkey::new_from_array(*token_account_info.key())
-        );
-        msg!(
-            "  destination: {}",
-            solana_pubkey::Pubkey::new_from_array(*destination.key())
-        );
-        msg!(
-            "  authority: {}",
-            solana_pubkey::Pubkey::new_from_array(*authority.key())
-        );
-        msg!(
-            "  rent_sponsor: {}",
-            solana_pubkey::Pubkey::new_from_array(*rent_sponsor.key())
-        );
         close_token_account(&CloseTokenAccountAccounts {
             token_account: token_account_info,
             destination,

@@ -365,19 +365,15 @@ pub fn transfer_interface<'info>(
     compressed_token_pool_pda: Option<&AccountInfo<'info>>,
     compressed_token_pool_pda_bump: Option<u8>,
 ) -> Result<(), ProgramError> {
-    // Determine account types
     let source_is_ctoken =
         is_ctoken_account(source_account).map_err(|_| ProgramError::InvalidAccountData)?;
     let dest_is_ctoken =
         is_ctoken_account(destination_account).map_err(|_| ProgramError::InvalidAccountData)?;
 
     match (source_is_ctoken, dest_is_ctoken) {
-        // ctoken -> ctoken: Direct transfer (bridge accounts not needed)
         (true, true) => transfer_ctoken(source_account, destination_account, authority, amount),
 
-        // ctoken -> spl: Requires bridge accounts
         (true, false) => {
-            // Validate all required accounts are provided
             let (mint_acct, spl_program, pool_pda, bump) = match (
                 mint,
                 spl_token_program,
@@ -406,9 +402,7 @@ pub fn transfer_interface<'info>(
             )
         }
 
-        // spl -> ctoken: Requires bridge accounts
         (false, true) => {
-            // Validate all required accounts are provided
             let (mint_acct, spl_program, pool_pda, bump) = match (
                 mint,
                 spl_token_program,
@@ -444,9 +438,7 @@ pub fn transfer_interface<'info>(
     }
 }
 
-/// Unified transfer interface with signer seeds for CPI
-///
-/// Same as `transfer_interface` but uses invoke_signed for CPI calls
+/// Unified transfer interface with CPI
 #[allow(clippy::too_many_arguments)]
 pub fn transfer_interface_signed<'info>(
     source_account: &AccountInfo<'info>,

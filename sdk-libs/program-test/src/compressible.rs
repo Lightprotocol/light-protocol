@@ -177,7 +177,6 @@ pub async fn auto_compress_program_pdas(
 
     let payer = rpc.get_payer().insecure_clone();
 
-    // Load program's compressible config to get rent_recipient
     let config_pda = CompressibleConfig::derive_pda(&program_id, 0).0;
     let cfg_acc = rpc
         .get_account(config_pda)
@@ -187,27 +186,23 @@ pub async fn auto_compress_program_pdas(
         .map_err(|e| RpcError::CustomError(format!("config deserialize: {e:?}")))?;
     let rent_recipient = cfg.rent_sponsor;
 
-    // Discover program PDAs (simple heuristic: all non-empty, funded program-owned accounts)
     let program_accounts = rpc.context.get_program_accounts(&program_id);
     if program_accounts.is_empty() {
         return Ok(());
     }
 
-    // Address tree info and queue used to derive existing compressed addresses
     let address_tree_info = rpc.get_address_tree_v2();
     let output_state_tree_info = rpc
         .get_random_state_tree_info()
         .map_err(|e| RpcError::CustomError(format!("no state tree: {e:?}")))?;
 
-    // Prepare metas that are standard across programs
     let program_metas = vec![
         AccountMeta::new(payer.pubkey(), true),
         AccountMeta::new_readonly(config_pda, false),
         AccountMeta::new(rent_recipient, false),
     ];
 
-    // Batch to keep instructions reasonably small
-    const BATCH_SIZE: usize = 10;
+    const BATCH_SIZE: usize = 5;
     let mut chunk = Vec::with_capacity(BATCH_SIZE);
     for (pubkey, account) in program_accounts
         .into_iter()
@@ -257,12 +252,10 @@ async fn try_compress_chunk(
     use light_compressible_client::CompressibleInstruction;
     use solana_sdk::signature::Signer;
 
-    // Build account pubkeys and fetch compressed inputs for proof
     let mut pdas = Vec::with_capacity(chunk.len());
     let mut accounts_to_compress = Vec::with_capacity(chunk.len());
     let mut hashes = Vec::with_capacity(chunk.len());
     for (pda, acc) in chunk.iter() {
-        // Derive existing compressed address and read hash; skip if not present
         let addr = derive_address(
             &pda.to_bytes(),
             &address_tree_queue.to_bytes(),
@@ -280,16 +273,13 @@ async fn try_compress_chunk(
         return;
     }
 
-    // Get a single proof for all inputs in this batch
     let proof_with_context = match rpc.get_validity_proof(hashes, vec![], None).await {
         Ok(r) => r.value,
         Err(_) => return,
     };
 
-    // Signer seeds: PDAs require no seeds for compression (program owns them). Provide empty groups.
     let signer_seeds: Vec<Vec<Vec<u8>>> = (0..pdas.len()).map(|_| Vec::new()).collect();
 
-    // Build instruction; let program enforce slot-gating. Ignore failures.
     let ix_res = CompressibleInstruction::compress_accounts_idempotent(
         program_id,
         &CompressibleInstruction::COMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
@@ -302,7 +292,6 @@ async fn try_compress_chunk(
     )
     .map_err(|e| e.to_string());
     if let Ok(ix) = ix_res {
-        // Avoid double-borrow of rpc by cloning payer first
         let payer = rpc.get_payer().insecure_clone();
         let payer_pubkey = payer.pubkey();
         let _ = rpc

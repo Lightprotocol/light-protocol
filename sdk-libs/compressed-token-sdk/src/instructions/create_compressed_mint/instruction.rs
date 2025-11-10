@@ -39,7 +39,7 @@ pub struct CreateCompressedMintInputs {
 }
 
 /// Creates a compressed mint instruction with a pre-computed mint address (wrapper around mint_action)
-pub fn create_cmint_cpi(
+pub fn create_compressed_mint_cpi(
     input: CreateCompressedMintInputs,
     mint_address: [u8; 32],
     cpi_context: Option<CpiContext>,
@@ -122,7 +122,9 @@ pub struct CreateCompressedMintInputsCpiWrite {
     pub extensions: Option<Vec<ExtensionInstructionData>>,
     pub version: u8,
 }
-pub fn create_cmint_cpi_write(input: CreateCompressedMintInputsCpiWrite) -> Result<Instruction> {
+pub fn create_compressed_mint_cpi_write(
+    input: CreateCompressedMintInputsCpiWrite,
+) -> Result<Instruction> {
     if !input.cpi_context.first_set_context && !input.cpi_context.set_context {
         msg!(
             "Invalid CPI context first cpi set or set context must be true {:?}",
@@ -183,10 +185,10 @@ pub fn create_cmint_cpi_write(input: CreateCompressedMintInputsCpiWrite) -> Resu
 }
 
 /// Creates a compressed mint instruction with automatic mint address derivation
-pub fn create_cmint(input: CreateCompressedMintInputs) -> Result<Instruction> {
+pub fn create_compressed_mint(input: CreateCompressedMintInputs) -> Result<Instruction> {
     let mint_address =
         derive_compressed_mint_address(&input.mint_signer, &input.address_tree_pubkey);
-    create_cmint_cpi(input, mint_address, None, None)
+    create_compressed_mint_cpi(input, mint_address, None, None)
 }
 
 /// Derives the compressed mint address from the mint seed and address tree
