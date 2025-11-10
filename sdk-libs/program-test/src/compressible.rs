@@ -185,13 +185,13 @@ pub async fn auto_compress_program_pdas(
     let cfg = CompressibleConfig::deserialize(&mut &cfg_acc.data[..])
         .map_err(|e| RpcError::CustomError(format!("config deserialize: {e:?}")))?;
     let rent_sponsor = cfg.rent_sponsor;
+    let address_tree = cfg.address_space[0];
 
     let program_accounts = rpc.context.get_program_accounts(&program_id);
     if program_accounts.is_empty() {
         return Ok(());
     }
 
-    let address_tree_info = rpc.get_address_tree_v2();
     let output_state_tree_info = rpc
         .get_random_state_tree_info()
         .map_err(|e| RpcError::CustomError(format!("no state tree: {e:?}")))?;
@@ -215,7 +215,7 @@ pub async fn auto_compress_program_pdas(
                 &program_id,
                 &chunk,
                 &program_metas,
-                &address_tree_info.queue,
+                &address_tree,
                 output_state_tree_info,
             )
             .await;
@@ -229,7 +229,7 @@ pub async fn auto_compress_program_pdas(
             &program_id,
             &chunk,
             &program_metas,
-            &address_tree_info.queue,
+            &address_tree,
             output_state_tree_info,
         )
         .await;
@@ -244,7 +244,7 @@ async fn try_compress_chunk(
     program_id: &Pubkey,
     chunk: &[(Pubkey, solana_sdk::account::Account)],
     program_metas: &[solana_instruction::AccountMeta],
-    address_tree_queue: &Pubkey,
+    address_tree: &Pubkey,
     output_state_tree_info: light_client::indexer::TreeInfo,
 ) {
     use light_client::indexer::Indexer;
@@ -258,7 +258,7 @@ async fn try_compress_chunk(
     for (pda, acc) in chunk.iter() {
         let addr = derive_address(
             &pda.to_bytes(),
-            &address_tree_queue.to_bytes(),
+            &address_tree.to_bytes(),
             &program_id.to_bytes(),
         );
         if let Ok(resp) = rpc.get_compressed_account(addr, None).await {
