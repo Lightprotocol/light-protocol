@@ -54,7 +54,7 @@ jobs:
           go build -o light-prover
 
       - name: Upload prover binary
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: light-prover-binary
           retention-days: 1
