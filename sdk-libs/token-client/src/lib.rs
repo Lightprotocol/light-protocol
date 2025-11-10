@@ -44,8 +44,9 @@ pub mod ctoken {
         )
     }
 
-    pub use light_compressed_token_sdk::instructions::create_compressed_mint::find_spl_mint_address;
-    pub use light_compressed_token_sdk::instructions::derive_cmint_from_spl_mint;
+    pub use light_compressed_token_sdk::instructions::{
+        create_compressed_mint::find_spl_mint_address, derive_cmint_from_spl_mint,
+    };
 
     pub fn derive_ctoken_program_config(_version: Option<u64>) -> (Pubkey, u8) {
         let version = 1u16;

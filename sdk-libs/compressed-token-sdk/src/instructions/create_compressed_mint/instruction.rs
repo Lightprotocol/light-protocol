@@ -53,7 +53,10 @@ pub fn create_cmint_cpi(
             decimals: input.decimals,
             metadata: light_ctoken_types::state::CompressedMintMetadata {
                 version: input.version,
-                mint: find_spl_mint_address(&input.mint_signer).0.to_bytes().into(),
+                mint: find_spl_mint_address(&input.mint_signer)
+                    .0
+                    .to_bytes()
+                    .into(),
                 spl_mint_initialized: false,
             },
             mint_authority: Some(input.mint_authority.to_bytes().into()),
@@ -136,7 +139,10 @@ pub fn create_cmint_cpi_write(input: CreateCompressedMintInputsCpiWrite) -> Resu
             decimals: input.decimals,
             metadata: light_ctoken_types::state::CompressedMintMetadata {
                 version: input.version,
-                mint: find_spl_mint_address(&input.mint_signer).0.to_bytes().into(),
+                mint: find_spl_mint_address(&input.mint_signer)
+                    .0
+                    .to_bytes()
+                    .into(),
                 spl_mint_initialized: false,
             },
             mint_authority: Some(input.mint_authority.to_bytes().into()),
@@ -178,12 +184,16 @@ pub fn create_cmint_cpi_write(input: CreateCompressedMintInputsCpiWrite) -> Resu
 
 /// Creates a compressed mint instruction with automatic mint address derivation
 pub fn create_cmint(input: CreateCompressedMintInputs) -> Result<Instruction> {
-    let mint_address = derive_compressed_mint_address(&input.mint_signer, &input.address_tree_pubkey);
+    let mint_address =
+        derive_compressed_mint_address(&input.mint_signer, &input.address_tree_pubkey);
     create_cmint_cpi(input, mint_address, None, None)
 }
 
 /// Derives the compressed mint address from the mint seed and address tree
-pub fn derive_compressed_mint_address(mint_seed: &Pubkey, address_tree_pubkey: &Pubkey) -> [u8; 32] {
+pub fn derive_compressed_mint_address(
+    mint_seed: &Pubkey,
+    address_tree_pubkey: &Pubkey,
+) -> [u8; 32] {
     light_compressed_account::address::derive_address(
         &find_spl_mint_address(mint_seed).0.to_bytes(),
         &address_tree_pubkey.to_bytes(),

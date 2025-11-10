@@ -218,7 +218,8 @@ pub async fn create_comprehensive_mint_action_instruction<R: Rpc + Indexer>(
 ) -> Result<Instruction, RpcError> {
     // Derive addresses
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-    let compressed_mint_address = derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let compressed_mint_address =
+        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
     let (_, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
 
     // Build actions

@@ -43,7 +43,8 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
 
     let output_queue = rpc.get_random_state_tree_info()?.queue;
 
-    let compressed_mint_address = derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
+    let compressed_mint_address =
+        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint bump for the instruction
     let (_, mint_bump) = Pubkey::find_program_address(
