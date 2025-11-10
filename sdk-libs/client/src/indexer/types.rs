@@ -31,8 +31,10 @@ pub type Hash = [u8; 32];
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct QueueElementsResult {
-    pub elements: Vec<MerkleProofWithContext>,
-    pub first_value_queue_index: Option<u64>,
+    pub output_queue_elements: Option<Vec<MerkleProofWithContext>>,
+    pub output_queue_index: Option<u64>,
+    pub input_queue_elements: Option<Vec<MerkleProofWithContext>>,
+    pub input_queue_index: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]

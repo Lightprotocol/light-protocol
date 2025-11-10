@@ -23,7 +23,6 @@ use light_batched_merkle_tree::{
 use light_client::rpc::{Rpc, RpcError};
 use light_compressed_account::{
     hash_chain::create_hash_chain_from_slice, instruction_data::compressed_proof::CompressedProof,
-    QueueType,
 };
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_prover_client::{
@@ -654,8 +653,9 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<R: Rpc
     let addresses = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
-            QueueType::AddressV2,
-            batch.zkp_batch_size as u16,
+            None,
+            Some(batch.zkp_batch_size as u16),
+            None,
             None,
             None,
         )
@@ -663,7 +663,8 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<R: Rpc
         .unwrap();
     let addresses = addresses
         .value
-        .elements
+        .output_queue_elements
+        .unwrap_or_default()
         .iter()
         .map(|x| x.account_hash)
         .collect::<Vec<[u8; 32]>>();

@@ -69,17 +69,17 @@ class SetupCommand extends Command {
       default: 8784,
       exclusive: ["skip-indexer"],
     }),
-    "prover-port": Flags.integer({
-      description: "Enable Light Prover server on this port.",
-      required: false,
-      default: 3001,
-      exclusive: ["skip-prover"],
-    }),
     "grpc-port": Flags.integer({
       description: "Enable Photon indexer gRPC on this port.",
       required: false,
       default: 50051,
       exclusive: ["skip-indexer"],
+    }),
+    "prover-port": Flags.integer({
+      description: "Enable Light Prover server on this port.",
+      required: false,
+      default: 3001,
+      exclusive: ["skip-prover"],
     }),
     "limit-ledger-size": Flags.integer({
       description: "Keep this amount of shreds in root slots.",

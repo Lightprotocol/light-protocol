@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use light_compressed_account::QueueType;
 use solana_pubkey::Pubkey;
 
 use super::LightClient;
@@ -205,9 +204,10 @@ impl Indexer for LightClient {
     async fn get_queue_elements(
         &mut self,
         merkle_tree_pubkey: [u8; 32],
-        queue_type: QueueType,
-        num_elements: u16,
-        start_queue_index: Option<u64>,
+        output_queue_start_index: Option<u64>,
+        output_queue_limit: Option<u16>,
+        input_queue_start_index: Option<u64>,
+        input_queue_limit: Option<u16>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<crate::indexer::QueueElementsResult>, IndexerError> {
         Ok(self
@@ -216,9 +216,10 @@ impl Indexer for LightClient {
             .ok_or(IndexerError::NotInitialized)?
             .get_queue_elements(
                 merkle_tree_pubkey,
-                queue_type,
-                num_elements,
-                start_queue_index,
+                output_queue_start_index,
+                output_queue_limit,
+                input_queue_start_index,
+                input_queue_limit,
                 config,
             )
             .await?)

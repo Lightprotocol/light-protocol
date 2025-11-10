@@ -1260,11 +1260,6 @@ impl<R: Rpc> EpochManager<R> {
             forester_slot_details.start_solana_slot,
         )
         .await?;
-        info!(
-            "Slot {} started, beginning processing",
-            forester_slot_details.slot
-        );
-
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
         'inner_processing_loop: loop {
@@ -1334,9 +1329,9 @@ impl<R: Rpc> EpochManager<R> {
             estimated_slot = self.slot_tracker.estimated_current_slot();
 
             let sleep_duration_ms = if items_processed_this_iteration > 0 {
-                10_000
+                self.config.general_config.sleep_after_processing_ms
             } else {
-                45_000
+                self.config.general_config.sleep_when_idle_ms
             };
 
             tokio::time::sleep(Duration::from_millis(sleep_duration_ms)).await;
@@ -2184,6 +2179,8 @@ mod tests {
                 skip_v2_state_trees: skip_v2_state,
                 skip_v2_address_trees: skip_v2_address,
                 tree_id: None,
+                sleep_after_processing_ms: 50,
+                sleep_when_idle_ms: 100,
             },
             rpc_pool_config: Default::default(),
             registry_pubkey: Pubkey::default(),

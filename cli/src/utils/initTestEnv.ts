@@ -1,4 +1,3 @@
-import { airdropSol } from "@lightprotocol/stateless.js";
 import { getConfig, getPayer, setAnchorProvider, setConfig } from "./utils";
 import {
   BASE_PATH,
@@ -131,9 +130,9 @@ export async function initTestEnv({
     await startIndexer(
       `http://127.0.0.1:${rpcPort}`,
       indexerPort,
+      grpcPort,
       checkPhotonVersion,
       photonDatabaseUrl,
-      grpcPort,
     );
   }
 

@@ -39,9 +39,9 @@ function getPhotonInstallMessage(): string {
 export async function startIndexer(
   rpcUrl: string,
   indexerPort: number,
+  grpcPort: number = 50051,
   checkPhotonVersion: boolean = true,
   photonDatabaseUrl?: string,
-  grpcPort: number = 50051,
 ) {
   await killIndexer();
   const resolvedOrNull = which.sync("photon", { nothrow: true });

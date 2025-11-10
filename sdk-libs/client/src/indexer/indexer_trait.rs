@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use light_merkle_tree_metadata::QueueType;
 use solana_pubkey::Pubkey;
 
 use super::{
@@ -187,16 +186,18 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
     // TODO: in different pr:
     //      replace num_elements & start_queue_index with PaginatedOptions
     //      - return type should be ItemsWithCursor
-    /// Returns queue elements from the queue with the given merkle tree pubkey. For input
-    /// queues account compression program does not store queue elements in the
+    /// Returns queue elements from the queue with the given merkle tree pubkey.
+    /// Can fetch from output queue (append), input queue (nullify), or both atomically.
+    /// For input queues account compression program does not store queue elements in the
     /// account data but only emits these in the public transaction event. The
     /// indexer needs the queue elements to create batch update proofs.
     async fn get_queue_elements(
         &mut self,
         merkle_tree_pubkey: [u8; 32],
-        queue_type: QueueType,
-        num_elements: u16,
-        start_queue_index: Option<u64>,
+        output_queue_start_index: Option<u64>,
+        output_queue_limit: Option<u16>,
+        input_queue_start_index: Option<u64>,
+        input_queue_limit: Option<u16>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<QueueElementsResult>, IndexerError>;
 

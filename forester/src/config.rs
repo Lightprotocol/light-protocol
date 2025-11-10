@@ -83,6 +83,8 @@ pub struct GeneralConfig {
     pub skip_v2_state_trees: bool,
     pub skip_v2_address_trees: bool,
     pub tree_id: Option<Pubkey>,
+    pub sleep_after_processing_ms: u64,
+    pub sleep_when_idle_ms: u64,
 }
 
 impl Default for GeneralConfig {
@@ -96,6 +98,8 @@ impl Default for GeneralConfig {
             skip_v2_state_trees: false,
             skip_v2_address_trees: false,
             tree_id: None,
+            sleep_after_processing_ms: 10_000,
+            sleep_when_idle_ms: 45_000,
         }
     }
 }
@@ -111,6 +115,8 @@ impl GeneralConfig {
             skip_v2_state_trees: true,
             skip_v2_address_trees: false,
             tree_id: None,
+            sleep_after_processing_ms: 50,
+            sleep_when_idle_ms: 100,
         }
     }
 
@@ -124,6 +130,8 @@ impl GeneralConfig {
             skip_v2_state_trees: false,
             skip_v2_address_trees: true,
             tree_id: None,
+            sleep_after_processing_ms: 50,
+            sleep_when_idle_ms: 100,
         }
     }
 }
@@ -276,6 +284,8 @@ impl ForesterConfig {
                     .tree_id
                     .as_ref()
                     .and_then(|id| Pubkey::from_str(id).ok()),
+                sleep_after_processing_ms: 10_000,
+                sleep_when_idle_ms: 45_000,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: args.rpc_pool_size,
@@ -332,6 +342,8 @@ impl ForesterConfig {
                 skip_v1_address_trees: false,
                 skip_v2_address_trees: false,
                 tree_id: None,
+                sleep_after_processing_ms: 10_000,
+                sleep_when_idle_ms: 45_000,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: 10,
