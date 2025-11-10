@@ -11,8 +11,8 @@ Batch updates Merkle tree from input queue with zero-knowledge proof verificatio
 Both operations process one ZKP batch at a time, verifying correctness of: old root + queue values → new root.
 
 **Circuit implementations:**
-- Batch nullify: /Users/ananas/dev/light-protocol/prover/server/prover/v2/batch_update_circuit.go
-- Batch address append: /Users/ananas/dev/light-protocol/prover/server/prover/v2/batch_address_append_circuit.go
+- Batch nullify: `prover/server/prover/v2/batch_update_circuit.go`
+- Batch address append: `prover/server/prover/v2/batch_address_append_circuit.go`
 
 Key characteristics:
 1. Verifies ZKP proving correctness of: old root + queue values → new root
