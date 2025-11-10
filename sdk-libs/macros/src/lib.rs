@@ -7,9 +7,6 @@ use traits::process_light_traits;
 
 mod account;
 mod accounts;
-mod compress_as;
-mod compressible;
-mod compressible_derive;
 mod discriminator;
 mod hasher;
 mod program;
@@ -280,119 +277,6 @@ pub fn light_account(_: TokenStream, input: TokenStream) -> TokenStream {
 pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemMod);
     program::program(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-/// Automatically implements the HasCompressionInfo trait for structs that have a
-/// `compression_info: Option<CompressionInfo>` field.
-///
-/// This derive macro generates the required trait methods for managing compression
-/// information in compressible account structs.
-///
-/// ## Example
-///
-/// ```ignore
-/// use light_sdk::compressible::{CompressionInfo, HasCompressionInfo};
-///
-/// #[derive(HasCompressionInfo)]
-/// pub struct UserRecord {
-///     pub compression_info: Option<CompressionInfo>,
-///     pub owner: Pubkey,
-///     pub name: String,
-///     pub score: u64,
-/// }
-/// ```
-///
-/// ## Requirements
-///
-/// The struct must have exactly one field named `compression_info` of type
-/// `Option<CompressionInfo>`.
-#[proc_macro_derive(HasCompressionInfo)]
-pub fn has_compression_info(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemStruct);
-    compressible::derive_has_compression_info(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-/// Implements CompressAs trait for custom compression behavior.
-///
-/// This derive macro allows you to specify which fields should be reset/overridden
-/// during compression while keeping other fields as-is. Only the specified fields
-/// are modified; all others retain their current values.
-///
-/// ## Example
-///
-/// ```ignore
-/// use light_sdk::compressible::{CompressAs, CompressionInfo};
-///
-/// #[derive(CompressAs)]
-/// #[compress_as(
-///     start_time = 0,
-///     end_time = None,
-///     score = 0
-/// )]
-/// pub struct GameSession {
-///     pub compression_info: Option<CompressionInfo>,
-///     pub session_id: u64,
-///     pub player: Pubkey,
-///     pub game_type: String,
-///     pub start_time: u64,
-///     pub end_time: Option<u64>,
-///     pub score: u64,
-/// }
-/// ```
-///
-/// ## Note
-///
-/// Use the `Compressible` derive for complete functionality - it includes this plus more.
-#[proc_macro_derive(CompressAs, attributes(compress_as))]
-pub fn compress_as_derive(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemStruct);
-    compress_as::derive_compress_as(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-/// Automatically implements all required traits for compressible accounts.
-///
-/// This derive macro generates HasCompressionInfo, Size, and CompressAs trait implementations.
-/// It supports optional compress_as attribute for custom compression behavior.
-///
-/// ## Example - Basic Usage
-///
-/// ```ignore
-/// use light_sdk::compressible::CompressionInfo;
-///
-/// #[derive(Compressible)]
-/// pub struct UserRecord {
-///     pub compression_info: Option<CompressionInfo>,
-///     pub owner: Pubkey,
-///     pub name: String,
-///     pub score: u64,
-/// }
-/// ```
-///
-/// ## Example - Custom Compression
-///
-/// ```ignore
-/// #[derive(Compressible)]
-/// #[compress_as(start_time = 0, end_time = None, score = 0)]
-/// pub struct GameSession {
-///     pub compression_info: Option<CompressionInfo>,
-///     pub session_id: u64,        // KEPT
-///     pub player: Pubkey,         // KEPT  
-///     pub game_type: String,      // KEPT
-///     pub start_time: u64,        // RESET to 0
-///     pub end_time: Option<u64>,  // RESET to None
-///     pub score: u64,             // RESET to 0
-/// }
-/// ```
-#[proc_macro_derive(Compressible, attributes(compress_as))]
-pub fn compressible_derive(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-    compressible_derive::derive_compressible(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
