@@ -3,7 +3,9 @@ use light_account_checks::{
     checks::{check_owner, check_signer},
     discriminator::Discriminator,
 };
-use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
+use light_batched_merkle_tree::{
+    constants::DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V2, merkle_tree::BatchedMerkleTreeAccount,
+};
 use light_compressed_account::constants::{
     ACCOUNT_COMPRESSION_PROGRAM_ID, STATE_MERKLE_TREE_ACCOUNT_DISCRIMINATOR,
 };
@@ -71,12 +73,21 @@ pub fn reinit_cpi_context_account(accounts: &[AccountInfo]) -> Result<()> {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
     let cpi_context_account = &accounts[0];
+
+    // Check owner before realloc
+    check_owner(&crate::ID, cpi_context_account)?;
+
+    // Read associated_merkle_tree BEFORE resizing (in case resize truncates data)
     let associated_merkle_tree = {
         let data = cpi_context_account.try_borrow_data()?;
         CpiContextAccount::deserialize(&mut &data[8..])
             .map_err(|_| ProgramError::BorshIoError)?
             .associated_merkle_tree
     };
+
+    // Realloc account to new size (14020 bytes)
+    cpi_context_account.resize(DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V2 as usize)?;
+
     let params: CpiContextAccountInitParams =
         CpiContextAccountInitParams::new(associated_merkle_tree);
     cpi_context_account_new::<true>(cpi_context_account, params)?;

@@ -2,7 +2,9 @@
 
 use anchor_lang::Discriminator;
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
-use light_batched_merkle_tree::constants::DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE;
+use light_batched_merkle_tree::constants::DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V2;
+const DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V1: u64 = 20 * 1024 + 8;
+
 use light_program_test::{
     program_test::{LightProgramTest, TestRpc},
     ProgramTestConfig,
@@ -68,7 +70,8 @@ async fn test_re_init_cpi_account() {
         );
         assert_eq!(
             pre_account.data.len(),
-            DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE as usize
+            DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V1 as usize,
+            "Legacy account should have V1 size"
         );
 
         // Create reinit instruction
@@ -91,6 +94,11 @@ async fn test_re_init_cpi_account() {
             &post_account.data[0..8],
             &CPI_CONTEXT_ACCOUNT_2_DISCRIMINATOR,
             "Account should have new discriminator after reinit"
+        );
+        assert_eq!(
+            post_account.data.len(),
+            DEFAULT_CPI_CONTEXT_ACCOUNT_SIZE_V2 as usize,
+            "Account should be resized to V2 size after reinit"
         );
 
         // Verify merkle tree is preserved
@@ -122,7 +130,7 @@ async fn test_re_init_cpi_account() {
 
         // Deserialize the account to verify vector capacities
         let deserialized = deserialize_cpi_context_account(&account_info).unwrap();
-
+        assert_eq!(deserialized.remaining_capacity(), 6500);
         // Verify vector capacities match CpiContextAccountInitParams defaults
         assert_eq!(
             deserialized.new_addresses.capacity(),
