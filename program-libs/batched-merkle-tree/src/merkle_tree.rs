@@ -1278,10 +1278,6 @@ mod test {
 
             assert_ne!(previous_roots, current_roots);
             let root_index = account.queue_batches.batches[0].root_index;
-            // assert_eq!(
-            //     account.root_history[root_index as usize],
-            //     previous_roots[root_index as usize]
-            // );
 
             assert_eq!(
                 account.queue_batches.batches[0].get_state(),
@@ -1538,7 +1534,6 @@ mod test {
                     .queue_batches
                     .increment_pending_batch_index_if_inserted(state);
             }
-            //last_batch1_root_update2 = account.root_history.last().unwrap();
             assert_eq!(
                 account.queue_batches.batches[0].get_state(),
                 BatchState::Inserted
