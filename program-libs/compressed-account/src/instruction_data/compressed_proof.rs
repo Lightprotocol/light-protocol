@@ -179,6 +179,7 @@ pub mod borsh_compat {
     ///
     /// Example:
     /// ```rust
+    /// use crate::instruction_data::compressed_proof::borsh_compat::ValidityProof;
     /// let proof = ValidityProof::from(compression_params.proof);
     /// ```
     pub struct ValidityProof(pub Option<CompressedProof>);
