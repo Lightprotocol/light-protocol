@@ -132,6 +132,9 @@
   "nx": {
     "targets": {
       "build": {
+        "dependsOn": [
+          "@lightprotocol/programs:build"
+        ],
         "inputs": [
           "{workspaceRoot}/js",
           "{workspaceRoot}/programs",
