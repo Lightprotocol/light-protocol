@@ -84,6 +84,9 @@ output.txt
 .nx/cache
 .nx/workspace-data
 output1.txt
+output2.txt
+output3.txt
+output4.txt
 .zed
 
 **/.claude/**/*

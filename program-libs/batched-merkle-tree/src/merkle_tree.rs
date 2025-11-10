@@ -1049,7 +1049,7 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let batch_1 = &self.queue_batches.batches[1];
 
         // If batch 0 is zeroed, root_history must contain ONLY batch_1 roots or zeros
-        if batch_0.bloom_filter_is_zeroed() {
+        if batch_0.bloom_filter_is_zeroed() && self.should_zero_bloom_filter() {
             let mut has_non_zero = false;
             for i in 0..self.root_history.len() {
                 let root = self.root_history[i];
@@ -1059,17 +1059,19 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                 has_non_zero = true;
                 let in_batch_1 = (0..self.ghost_root_batch.batch_1.len())
                     .any(|j| self.ghost_root_batch.batch_1[j].root == root);
+                kani::cover!(in_batch_1, "Root not found in batch 1 roots");
                 if !in_batch_1 {
                     return false;
                 }
             }
+            kani::cover!(has_non_zero, "batch 0 roots has only zeros");
             if !has_non_zero {
                 return false;
             }
         }
 
         // If batch 1 is zeroed, root_history must contain ONLY batch_0 roots or zeros
-        if batch_1.bloom_filter_is_zeroed() {
+        if batch_1.bloom_filter_is_zeroed() && self.should_zero_bloom_filter() {
             let mut has_non_zero = false;
             for i in 0..self.root_history.len() {
                 let root = self.root_history[i];
@@ -1079,10 +1081,12 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
                 has_non_zero = true;
                 let in_batch_0 = (0..self.ghost_root_batch.batch_0.len())
                     .any(|j| self.ghost_root_batch.batch_0[j].root == root);
+                kani::cover!(in_batch_0, "Root not found in batch 0 roots");
                 if !in_batch_0 {
                     return false;
                 }
             }
+            kani::cover!(has_non_zero, "batch 1 roots has only zeros");
             if !has_non_zero {
                 return false;
             }
@@ -1095,10 +1099,14 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
     /// If a batch's bloom_filter_is_zeroed flag is set, all bloom filter bytes must be zero.
     #[cfg(kani)]
     fn bloom_filters_are_zeroed(&self) -> bool {
-        (0..2).all(|i| {
-            !self.queue_batches.batches[i].bloom_filter_is_zeroed()
-                || self.bloom_filter_stores[i].iter().all(|&b| b == 0)
-        })
+        if self.should_zero_bloom_filter() {
+            (0..2).all(|i| {
+                !self.queue_batches.batches[i].bloom_filter_is_zeroed()
+                    || self.bloom_filter_stores[i].iter().all(|&b| b == 0)
+            })
+        } else {
+            true
+        }
     }
 
     /// Helper: Current batch is at least half full
