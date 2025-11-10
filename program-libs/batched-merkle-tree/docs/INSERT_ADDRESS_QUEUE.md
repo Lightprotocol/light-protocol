@@ -3,7 +3,7 @@
 **path:** src/merkle_tree.rs
 
 **description:**
-Inserts an address into the address tree's integrated address queue when creating a new address for compressed accounts. The bloom filter prevents address reuse by checking that the address doesn't already exist in any batch's bloom filter. The address is stored in the hash chain and will be inserted into the tree by a batch update. The address queue stores addresses in both hash chains and bloom filters until the bloom filter is zeroed (which occurs after the batch is fully inserted into the tree AND the next batch reaches 50% capacity).
+Inserts an address into the address tree's integrated address queue when creating a new address for compressed accounts. The bloom filter prevents address reuse by checking that the address doesn't already exist in any batch's bloom filter. The address is stored in the hash chain and will be inserted into the tree by a batch update. The address queue stores addresses in both hash chains and bloom filters until the bloom filter is zeroed (which occurs after the batch is fully inserted into the tree AND the next batch reaches 50% capacity AND at least one batch update has occurred since batch completion).
 
 Key characteristics:
 1. Inserts address into both bloom filter and hash chain (same value in both)
