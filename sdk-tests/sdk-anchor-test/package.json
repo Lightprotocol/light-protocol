@@ -10,7 +10,7 @@
     "build": "cd programs/sdk-anchor-test && cargo build-sbf"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.31.1",
+    "@coral-xyz/anchor": "^0.32.1",
     "@lightprotocol/stateless.js": "workspace:*"
   },
   "devDependencies": {
