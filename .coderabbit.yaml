@@ -21,6 +21,7 @@ reviews:
 
   # Custom review instructions for specific paths
   path_instructions:
+    # Batched Merkle Tree - Critical component with recent bug fixes
     - path: "program-libs/batched-merkle-tree/docs/**/*.md"
       instructions: |
         When reviewing batched Merkle tree documentation changes:
@@ -44,6 +45,40 @@ reviews:
         6. Verify that new public APIs have corresponding documentation or flag missing docs
         7. Check that bug fixes don't contradict documented behavior (update docs if needed)
 
+    # Account Checks - Documentation consistency
+    - path: "program-libs/account-checks/docs/**/*.md"
+      instructions: |
+        When reviewing account checks documentation changes:
+        1. Verify that all documented validation functions match the actual implementation in `program-libs/account-checks/src/`
+        2. Cross-reference error types, validation rules, and security checks with source code
+        3. Ensure that documented security patterns and best practices are accurately reflected in the code
+        4. Check that any referenced account structures and validation logic are current
+
+    - path: "program-libs/account-checks/src/**"
+      instructions: |
+        When reviewing account checks implementation changes:
+        1. Check if changes affect documented validation APIs or security patterns
+        2. Identify if corresponding documentation in `program-libs/account-checks/docs/` needs updates
+        3. Flag changes to validation functions, error types, or security checks that may require doc updates
+        4. Verify that new validation logic has corresponding documentation
+
+    # Compressible - Documentation consistency
+    - path: "program-libs/compressible/docs/**/*.md"
+      instructions: |
+        When reviewing compressible documentation changes:
+        1. Verify that all documented compression interfaces match the actual implementation in `program-libs/compressible/src/`
+        2. Cross-reference trait definitions, compression algorithms, and data structures with source code
+        3. Ensure that documented performance characteristics and compression ratios are accurate
+        4. Check that usage examples and API patterns reflect the current implementation
+
+    - path: "program-libs/compressible/src/**"
+      instructions: |
+        When reviewing compressible implementation changes:
+        1. Check if changes affect documented compression APIs or trait definitions
+        2. Identify if corresponding documentation in `program-libs/compressible/docs/` needs updates
+        3. Flag changes to public traits, compression methods, or data structures that may require doc updates
+        4. Verify that performance changes are reflected in documentation
+
     - path: "programs/account-compression/**"
       instructions: |
         When reviewing account compression program changes:
@@ -59,6 +94,28 @@ reviews:
         2. Verify that new dependencies are documented if they affect public APIs
         3. Flag changes to feature flags that might affect documented functionality
 
+    # CLAUDE.md files - AI assistant documentation consistency
+    - path: "**/CLAUDE.md"
+      instructions: |
+        When reviewing CLAUDE.md files:
+        1. Verify that all documented APIs, functions, and structures exist in the corresponding crate
+        2. Check that AI assistant guidance reflects current implementation patterns
+        3. Ensure that documented workflows and examples are up-to-date
+        4. Validate that referenced file paths and module structures are correct
+        5. Cross-reference any code snippets with actual implementation
+
+    # General program-libs documentation
+    - path: "program-libs/**/docs/**/*.md"
+      instructions: |
+        When reviewing program library documentation:
+        1. **Cross-verification**: Always verify documented APIs against actual implementation in the corresponding `src/` directory
+        2. Check that function signatures, struct definitions, and trait implementations match documentation
+        3. Validate that error types, constants, and enums referenced in docs exist and have correct values
+        4. Ensure that usage examples compile and work as described
+        5. Flag any references to deprecated or renamed items
+        6. Verify that performance claims and complexity analysis are accurate
+
+    # General markdown documentation
     - path: "**/*.md"
       instructions: |
         When reviewing general documentation changes:
@@ -66,6 +123,7 @@ reviews:
         2. Check that code examples compile and work as described
         3. Validate that GitHub URLs and file paths are correct and accessible
         4. Ensure consistency with the overall documentation structure
+        5. Check for broken internal links and references
 
   # General review instructions
   review_instructions: |
@@ -89,6 +147,33 @@ reviews:
     - Performance characteristics and complexity claims must be verified
 
 # add linters and other tools, CodeRabbit will run and check these as part of its review process
+  # Pre-merge quality gates
+  pre_merge_checks:
+    title:
+      mode: warning
+      requirements: "Title should follow conventional commit format (feat:, fix:, docs:, etc.)"
+    description:
+      mode: warning
+    docstrings:
+      mode: warning
+      threshold: 70
+    custom_checks:
+      - name: "Documentation Consistency"
+        mode: warning
+        instructions: |
+          For any changes to program-libs crates with docs/ directories:
+          1. Verify that documentation accurately reflects code changes
+          2. Check that all public APIs have corresponding documentation
+          3. Ensure that examples in documentation are functional and up-to-date
+          4. Flag any breaking changes that require documentation updates
+
+  # Finishing touches for code quality
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: true
+
   tools:
     eslint:
       enabled: true
@@ -98,6 +183,12 @@ reviews:
       enabled: true
     clippy:
       enabled: true
+    yamllint:
+      enabled: true
+    markdownlint:
+      enabled: true
+    shellcheck:
+      enabled: true
   auto_review:
     enabled: true
     drafts: false
@@ -106,7 +197,37 @@ reviews:
       - "draft"
       - "temp"
       - "test"
+      - "experimental"
+    ignore_usernames:
+      - "dependabot[bot]"
+      - "dependabot"
+    labels:
+      - "!skip-review"
+      - "!no-review"
+      - "!dependabot"
+    base_branches:
+      - "main"
+      - "release/*"
+
+# Chat configuration for better interaction
+chat:
+  auto_reply: true
+  art: false
+  integrations:
+    linear:
+      usage: auto
+    jira:
+      usage: auto
+
+# Enhanced knowledge base configuration
 knowledge_base:
+  opt_out: false
+  web_search:
+    enabled: true
+  learnings:
+    scope: global
+  issues:
+    scope: global
   # Coding guidelines for Rust and TypeScript projects
   code_guidelines:
     enabled: true
@@ -114,6 +235,8 @@ knowledge_base:
       - "docs/**"
       - "**/README.md"
       - "program-libs/batched-merkle-tree/docs/**"
+      - "program-libs/account-checks/docs/**"
+      - "program-libs/compressible/docs/**"
       - "**/CLAUDE.md"
 
 # Additional configuration for Light Protocol specific patterns
@@ -124,7 +247,12 @@ early_access:
 sensitive_files:
   - "program-libs/batched-merkle-tree/src/**"
   - "program-libs/batched-merkle-tree/docs/**"
+  - "program-libs/account-checks/src/**"
+  - "program-libs/account-checks/docs/**"
+  - "program-libs/compressible/src/**"
+  - "program-libs/compressible/docs/**"
   - "programs/account-compression/**"
   - "programs/compressed-token/**"
   - "**/Cargo.toml"
   - "**/package.json"
+  - "**/.coderabbit.yaml"
