@@ -242,16 +242,4 @@ knowledge_base:
 # Additional configuration for Light Protocol specific patterns
 early_access: true
 
-# File patterns that should trigger comprehensive reviews
-sensitive_files:
-  - "program-libs/batched-merkle-tree/src/**"
-  - "program-libs/batched-merkle-tree/docs/**"
-  - "program-libs/account-checks/src/**"
-  - "program-libs/account-checks/docs/**"
-  - "program-libs/compressible/src/**"
-  - "program-libs/compressible/docs/**"
-  - "programs/account-compression/**"
-  - "programs/compressed-token/**"
-  - "**/Cargo.toml"
-  - "**/package.json"
-  - "**/.coderabbit.yaml"
+
