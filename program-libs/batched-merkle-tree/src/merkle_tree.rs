@@ -841,8 +841,8 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // of the last update of that batch was inserted at.
             // This is the last unsafe root index.
             // The next index is safe.
-            // TODO: add init check that root history must be greater than 2x batch size.
-            let first_safe_root_index = previous_pending_batch.root_index + 1;
+            let first_safe_root_index =
+                (previous_pending_batch.root_index + 1) % self.metadata.root_history_capacity;
 
             // 3.2. Zero out bloom filter.
             {
@@ -1174,7 +1174,6 @@ mod test {
                 insert_rnd_addresses(&mut account_data, batch_size, rng, current_slot, &pubkey)
                     .unwrap();
 
-
             assert_eq!(
                 account.queue_batches.batches[0].get_state(),
                 BatchState::Full
@@ -1203,7 +1202,6 @@ mod test {
             assert_eq!(account.queue_batches.pending_batch_index, 1);
             let index = account.queue_batches.batches[0].root_index;
             assert_eq!(account.root_history[index as usize], latest_root_0);
-
         }
         let last_batch0_root = latest_root_0;
         // 2. Batch 0 is inserted but Batch 1 is not half full
@@ -1305,10 +1303,7 @@ mod test {
                 }
             }
 
-            assert!(!account
-                .root_history
-                .iter()
-                .any(|x| *x == last_batch0_root));
+            assert!(!account.root_history.iter().any(|x| *x == last_batch0_root));
         }
         // Make Batch 1 full and insert
         {
@@ -1413,10 +1408,7 @@ mod test {
                 .for_each(|x| *x = 0);
             account_ref.queue_batches.batches[1].set_bloom_filter_to_zeroed();
             assert_eq!(account.get_metadata(), account_ref.get_metadata());
-            assert!(!account
-                .root_history
-                .iter()
-                .any(|x| *x == last_batch1_root));
+            assert!(!account.root_history.iter().any(|x| *x == last_batch1_root));
             assert_eq!(account, account_ref);
         }
         // 8. Batch 1 is already zeroed -> nothing should happen
@@ -1469,7 +1461,6 @@ mod test {
                 }
                 last_batch0_root_update2 = *account.root_history.last().unwrap();
 
-
                 // Perform batch 1 insertions to create a new root that is not part of batch 1 update.
                 {
                     let rnd_root = rng.gen();
@@ -1503,7 +1494,6 @@ mod test {
                 account.queue_batches.batches[1].get_state(),
                 BatchState::Full
             );
-            let pre_roots = account.root_history.to_vec();
 
             account.zero_out_previous_batch_bloom_filter().unwrap();
 

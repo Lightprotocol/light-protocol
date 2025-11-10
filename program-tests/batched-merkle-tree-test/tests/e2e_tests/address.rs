@@ -208,11 +208,10 @@ async fn test_fill_address_tree_completely() {
                 assert_eq!(unsafe_roots.len(), 6, "batch_roots {:?}", batch_roots);
                 for unsafe_root in unsafe_roots {
                     assert!(
-                        merkle_tree_account
+                        !merkle_tree_account
                             .root_history
                             .iter()
-                            .find(|x| **x == *unsafe_root)
-                            .is_none(),
+                            .any(|x| *x == *unsafe_root),
                         "Unsafe root from batch 0 should be zeroed: {:?}",
                         unsafe_root
                     );
