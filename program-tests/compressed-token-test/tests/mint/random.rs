@@ -1,9 +1,7 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_client::indexer::Indexer;
-use light_compressed_token_sdk::instructions::{
-    derive_compressed_mint_address, find_spl_mint_address,
-};
+use light_compressed_token_sdk::instructions::{derive_compressed_mint_address, find_spl_mint_address};
 use light_ctoken_types::state::{extensions::AdditionalMetadata, CompressedMint};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{

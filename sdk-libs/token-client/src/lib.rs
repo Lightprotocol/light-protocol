@@ -9,7 +9,6 @@ pub const CTOKEN_PROGRAM_ID: Pubkey = pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi
 pub const CTOKEN_CPI_AUTHORITY: Pubkey = pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
 
 pub mod ctoken {
-    use light_compressed_account::address::derive_address;
     use light_compressed_token_sdk::POOL_SEED;
     use solana_pubkey::Pubkey;
 
@@ -45,31 +44,8 @@ pub mod ctoken {
         )
     }
 
-    pub const CTOKEN_MINT_SEED: &[u8] = &[
-        //  b"compressed_mint"
-        99, 111, 109, 112, 114, 101, 115, 115, 101, 100, 95, 109, 105, 110, 116,
-    ];
-
-    /// Derives the cToken program mint PDA from the provided signer pubkey (keypair or PDA).
-    /// The signer must sign when creating the SPL mint PDA on-chain.
-    pub fn find_mint_address(signer: Pubkey) -> (Pubkey, u8) {
-        Pubkey::find_program_address(&[CTOKEN_MINT_SEED, signer.to_bytes().as_ref()], &ID)
-    }
-
-    pub fn derive_compressed_address(mint: Pubkey, address_tree: &Pubkey) -> [u8; 32] {
-        derive_address(&mint.to_bytes(), &address_tree.to_bytes(), &ID.to_bytes())
-    }
-
-    /// Comprehensive helper that derives all addresses from a signer in one call
-    /// Returns: (mint_address, mint_bump, compressed_address)
-    pub fn derive_compressed_address_from_mint_signer(
-        signer: Pubkey,
-        address_tree: &Pubkey,
-    ) -> (Pubkey, u8, [u8; 32]) {
-        let (mint_address, mint_bump) = find_mint_address(signer);
-        let compressed_address = derive_compressed_address(mint_address, address_tree);
-        (mint_address, mint_bump, compressed_address)
-    }
+    pub use light_compressed_token_sdk::instructions::create_compressed_mint::find_spl_mint_address;
+    pub use light_compressed_token_sdk::instructions::derive_cmint_from_spl_mint;
 
     pub fn derive_ctoken_program_config(_version: Option<u64>) -> (Pubkey, u8) {
         let version = 1u16;
@@ -83,9 +59,8 @@ pub mod ctoken {
         (compressible_config_pda, config_bump)
     }
 
+    // TODO: add version.
     pub fn derive_ctoken_rent_sponsor(_version: Option<u64>) -> (Pubkey, u8) {
-        // Derive the rent_recipient PDA
-        // let version = version.unwrap_or(1);
         let version = 1u16;
         Pubkey::find_program_address(
             &[b"rent_sponsor".as_slice(), version.to_le_bytes().as_slice()],
@@ -105,66 +80,4 @@ pub mod ctoken {
         );
         (compression_authority, compression_authority_bump)
     }
-
-    // /// Derives the SPL mint PDA from a signer keypair
-    // ///
-    // /// # Arguments
-    // /// * `signer` - The signer pubkey used as seed
-    // ///
-    // /// # Returns
-    // /// Tuple of (mint_pda, bump_seed)
-    // /// Derives the Compressed Token Program mint PDA from a signer pubkey.
-    // ///
-    // /// This derives the cToken program mint PDA for a given keypair or PDA; that signer must sign.
-    // pub fn find_mint_address(signer: &Pubkey) -> (Pubkey, u8) {
-    //     sdk_find_mint_address(signer)
-    // }
-
-    // /// Derives the compressed address from a mint PDA and address tree
-    // ///
-    // /// # Arguments
-    // /// * `mint` - The mint PDA
-    // /// * `address_tree` - The address tree pubkey
-    // ///
-    // /// # Returns
-    // /// The compressed address as [u8; 32]
-    // pub fn derive_compressed_address(mint: &Pubkey, address_tree: &Pubkey) -> [u8; 32] {
-    //     sdk_derive_address(
-    //         &mint.to_bytes(),
-    //         &address_tree.to_bytes(),
-    //         &super::ctoken::ID.to_bytes(),
-    //     )
-    // }
-
-    // /// Comprehensive helper that derives all addresses from a signer in one call
-    // ///
-    // /// This is the main function you should use for mint derivation.
-    // ///
-    // /// # Arguments
-    // /// * `signer` - The signer keypair pubkey
-    // /// * `address_tree` - The address tree pubkey
-    // ///
-    // /// # Returns
-    // /// Tuple of (mint_address, mint_bump, compressed_address)
-    // ///
-    // /// # Example
-    // /// ```rust
-    // /// use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
-    // /// use light_token_client::utils::derive_compressed_address_from_signer;
-    // ///
-    // /// let signer = Keypair::new();
-    // /// let address_tree = Pubkey::new_unique();
-    // /// let (mint_pda, mint_bump, compressed_address) =
-    // ///     derive_compressed_address_from_signer(&signer.pubkey(), &address_tree);
-    // ///
-    // /// println!("Mint PDA: {}", mint_pda);
-    // /// println!("Mint Bump: {}", mint_bump);
-    // /// println!("Compressed Address: {:?}", compressed_address);
-    // /// ```
-    // pub fn derive_compressed_address_from_mint_signer(
-    //     signer: &Pubkey,
-    //     address_tree: &Pubkey,
-    // ) -> (Pubkey, u8, [u8; 32]) {
-    //     sdk_derive_compressed_address_from_mint_signer(signer, address_tree)
-    // }
 }

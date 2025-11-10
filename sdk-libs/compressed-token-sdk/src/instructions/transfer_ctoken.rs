@@ -31,15 +31,15 @@ fn create_transfer_ctoken_instruction(
             AccountMeta::new_readonly(authority, true),
         ],
         data: {
-            let mut data = vec![3u8]; // DecompressedTransfer discriminator
-            data.push(3u8); // SPL Transfer discriminator
+            let mut data = vec![3u8];
+            data.push(3u8); // Transfer discriminator
             data.extend_from_slice(&amount.to_le_bytes());
             data
         },
     }
 }
 
-/// Transfer decompressed ctokens
+/// Transfer c-tokens
 pub fn transfer_ctoken<'info>(
     from: &AccountInfo<'info>,
     to: &AccountInfo<'info>,
@@ -48,11 +48,10 @@ pub fn transfer_ctoken<'info>(
 ) -> Result<(), ProgramError> {
     let ix = create_transfer_ctoken_instruction(*from.key, *to.key, amount, *authority.key);
 
-    // Return Result directly, as is best practice for CPI helpers in native Solana programs.
     invoke(&ix, &[from.clone(), to.clone(), authority.clone()])
 }
 
-/// Transfer decompressed ctokens with signer seeds
+/// Transfer c-tokens CPI
 pub fn transfer_ctoken_signed<'info>(
     from: &AccountInfo<'info>,
     to: &AccountInfo<'info>,

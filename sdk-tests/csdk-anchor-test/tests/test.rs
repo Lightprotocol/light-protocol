@@ -8,9 +8,8 @@ use csdk_anchor_test::{
 };
 use light_client::indexer::CompressedAccount;
 use light_compressed_account::address::derive_address;
-use light_compressed_token_sdk::instructions::create_compressed_mint::{
-    derive_ctoken_mint_address, find_spl_mint_address,
-};
+use light_compressed_token_sdk::instructions::create_compressed_mint::find_spl_mint_address;
+use light_compressed_token_sdk::instructions::derive_compressed_mint_address;
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
 use light_compressible_client::CompressibleInstruction;
 use light_ctoken_types::{
@@ -1416,8 +1415,7 @@ async fn create_user_record_and_game_session(
     let mint_authority = mint_authority_keypair.pubkey();
     let freeze_authority = mint_authority;
     let mint_signer = Keypair::new();
-    let compressed_mint_address =
-        derive_ctoken_mint_address(&mint_signer.pubkey(), &address_tree_pubkey);
+    let compressed_mint_address = derive_compressed_mint_address(&mint_signer.pubkey(), &address_tree_pubkey);
 
     let (spl_mint, mint_bump) = find_spl_mint_address(&mint_signer.pubkey());
     let accounts = csdk_anchor_test::accounts::CreateUserRecordAndGameSession {

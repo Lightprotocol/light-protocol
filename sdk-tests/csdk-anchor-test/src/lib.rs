@@ -339,7 +339,7 @@ pub enum CTokenAccountVariant {
 pub mod csdk_anchor_test {
 
     use light_compressed_token_sdk::instructions::{
-        create_token_account::create_ctoken_account_signed, find_mint_address,
+        create_token_account::create_ctoken_account_signed, find_spl_mint_address,
     };
     use light_sdk::cpi::{
         v2::{CpiAccounts, LightSystemProgramCpi},
@@ -1167,7 +1167,7 @@ pub mod csdk_anchor_test {
 
         // these are custom seeds of the caller program that are used to derive the program owned onchain tokenb account PDA.
         // dual use: as owner of the compressed token account.
-        let mint = find_mint_address(&ctx.accounts.mint_signer.key()).0;
+        let mint = find_spl_mint_address(&ctx.accounts.mint_signer.key()).0;
         let (_, token_account_address) = get_ctoken_signer_seeds(&ctx.accounts.user.key(), &mint);
 
         let actions = vec![

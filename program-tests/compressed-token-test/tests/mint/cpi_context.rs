@@ -57,8 +57,7 @@ async fn test_setup() -> TestSetup {
     let decimals = 9u8;
 
     // Derive addresses
-    let compressed_mint_address =
-        derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree);
+    let compressed_mint_address = derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree);
     let (spl_mint_pda, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
 
     // 3. Build mint action instruction using SDK

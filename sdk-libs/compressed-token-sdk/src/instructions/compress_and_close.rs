@@ -95,7 +95,6 @@ pub fn pack_for_compress_and_close(
                     false,
                 ),
                 owner_index, // User funds go to owner
-                             //                 recipient_index, // User funds go to rent sponsor (destination)
             )
         };
     Ok(CompressAndCloseIndices {
@@ -219,9 +218,7 @@ pub fn compress_and_close_ctoken_accounts_with_indices<'info>(
             i as u8,               // Pass the index in the output array
             idx.destination_index, // destination for user funds
         )?;
-        // Ensure destination (rent sponsor) is writable to receive lamports
-        // TODO: Checked remove
-        packed_account_metas[idx.destination_index as usize].is_writable = true;
+
         if rent_sponsor_is_signer {
             packed_account_metas[idx.authority_index as usize].is_signer = true;
         } else {
@@ -371,10 +368,12 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             rent_sponsor_pubkey.unwrap()
         };
 
-        // Destination for lamports on close is ALWAYS the rent sponsor
-        let destination_pubkey = actual_rent_sponsor;
+        let destination_pubkey = if with_compression_authority {
+            actual_rent_sponsor
+        } else {
+            owner_pubkey
+        };
 
-        // Find indices for all required accounts
         let indices = find_account_indices(
             find_index,
             ctoken_account_info.key,
@@ -383,7 +382,6 @@ pub fn compress_and_close_ctoken_accounts<'info>(
             &authority,
             &actual_rent_sponsor,
             &destination_pubkey,
-            // &output_queue_pubkey,
         )?;
         indices_vec.push(indices);
     }
@@ -391,7 +389,6 @@ pub fn compress_and_close_ctoken_accounts<'info>(
     packed_accounts_vec.push(output_queue);
     packed_accounts_vec.extend_from_slice(packed_accounts);
 
-    // Delegate to the with_indices version
     compress_and_close_ctoken_accounts_with_indices(
         fee_payer,
         with_compression_authority,

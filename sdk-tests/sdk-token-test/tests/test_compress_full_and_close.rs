@@ -3,7 +3,7 @@ use anchor_lang::{
     InstructionData,
 };
 use light_compressed_token_sdk::instructions::{
-    create_associated_token_account, create_compressed_mint, create_mint_to_compressed_instruction,
+    create_associated_token_account, create_cmint, create_mint_to_compressed_instruction,
     derive_ctoken_ata, CreateCompressedMintInputs, MintToCompressedInputs,
 };
 use light_ctoken_types::{
@@ -72,7 +72,7 @@ async fn test_compress_full_and_close() {
 
     let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
 
-    let instruction = create_compressed_mint(CreateCompressedMintInputs {
+    let instruction = create_cmint(CreateCompressedMintInputs {
         version: 3,
         decimals,
         mint_authority,
