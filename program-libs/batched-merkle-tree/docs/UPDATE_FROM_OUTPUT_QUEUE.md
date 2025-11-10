@@ -5,7 +5,7 @@
 **description:**
 Batch appends values from the output queue to the state Merkle tree with zero-knowledge proof verification. This operation processes one ZKP batch at a time, verifying that the tree update from old root + queue values → new root is correct. The ZKP proves that the batch of values from the output queue has been correctly appended to the tree.
 
-**Circuit implementation:** /Users/ananas/dev/light-protocol/prover/server/prover/v2/batch_append_circuit.go
+**Circuit implementation:** `prover/server/prover/v2/batch_append_circuit.go`
 
 Key characteristics:
 1. Verifies ZKP proving correctness of: old root + queue values → new root
@@ -50,7 +50,7 @@ This operation modifies:
    - Get `pending_batch_index` from queue (batch ready for tree insertion)
    - Get `first_ready_zkp_batch_index` from batch (next ZKP batch to insert)
    - Verify batch has ready ZKP batches: `num_full_zkp_batches > num_inserted_zkp_batches`
-   - Batch can be in `Fill` (still being filled) or `Full` (completely filled) state
+   - Batch can be in `Fill` (being filled) or `Full` state
 
 3. **Create public inputs hash:**
    - Get `leaves_hash_chain` from output queue for this ZKP batch
