@@ -756,7 +756,6 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let overlapping_roots_exits = sequence_number > self.sequence_number;
         if overlapping_roots_exits {
             let mut oldest_root_index = self.root_history.first_index();
-            println!("oldest root index {}", oldest_root_index);
             // 2.1. Get, num of remaining roots.
             //    Remaining roots have not been updated since
             //    the update of the previous batch therfore allow anyone to prove
@@ -824,10 +823,6 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             .batches
             .get_mut(previous_pending_batch_index)
             .ok_or(BatchedMerkleTreeError::InvalidBatchIndex)?;
-        println!(
-            "previous_pending_batch_index {}",
-            previous_pending_batch_index
-        );
         let no_insert_since_last_batch_root = (previous_pending_batch
             .sequence_number
             .saturating_sub(root_history_len))
@@ -835,12 +830,6 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
         let previous_batch_is_inserted = previous_pending_batch.get_state() == BatchState::Inserted;
         let previous_batch_is_ready =
             previous_batch_is_inserted && !previous_pending_batch.bloom_filter_is_zeroed();
-        println!("current_batch_is_half_full {}", current_batch_is_half_full);
-        println!("previous_batch_is_ready {}", previous_batch_is_ready);
-        println!(
-            "no_insert_since_last_batch_root {}",
-            no_insert_since_last_batch_root
-        );
 
         // Current batch is at least half full, previous batch is inserted, and not zeroed.
         if current_batch_is_half_full && previous_batch_is_ready && !no_insert_since_last_batch_root
@@ -848,11 +837,6 @@ impl<'a> BatchedMerkleTreeAccount<'a> {
             // 3.1. Mark bloom filter zeroed.
             previous_pending_batch.set_bloom_filter_to_zeroed();
             let seq = previous_pending_batch.sequence_number;
-            println!(
-                "previous_pending_batch.sequence_number {}",
-                previous_pending_batch.sequence_number
-            );
-            println!("current sequence_number {}", sequence_number);
             // previous_pending_batch.root_index is the index the root
             // of the last update of that batch was inserted at.
             // This is the last unsafe root index.
