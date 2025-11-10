@@ -27,7 +27,7 @@ pub struct CompressibleConfig {
     pub update_authority: Pubkey,
     /// Account that receives rent from compressed PDAs
     pub rent_sponsor: Pubkey,
-    /// Config bump seed (currently always 0)å
+    /// Config bump seed (0)
     pub config_bump: u8,
     /// PDA bump seed
     pub bump: u8,

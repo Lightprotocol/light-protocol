@@ -287,7 +287,7 @@ async fn test_double_decompression_attack() {
         Pubkey::find_program_address(&[b"user_record", payer.pubkey().as_ref()], &program_id);
 
     create_record(&mut rpc, &payer, &program_id, &user_record_pda, None).await;
-    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let user_compressed_address = derive_address(
         &user_record_pda.to_bytes(),
         &address_tree_pubkey.to_bytes(),
@@ -683,7 +683,7 @@ async fn test_create_empty_compressed_account() {
     );
     assert_eq!(decompressed_placeholder_record.owner, payer.pubkey());
 
-    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_address = derive_address(
         &placeholder_record_pda.to_bytes(),
         &address_tree_pubkey.to_bytes(),
@@ -741,7 +741,7 @@ async fn create_record(
     let system_config = SystemAccountMetaConfig::new(*program_id);
     let _ = remaining_accounts.add_system_accounts_v2(system_config);
 
-    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     let accounts = csdk_anchor_test::accounts::CreateRecord {
         user: payer.pubkey(),
@@ -822,7 +822,7 @@ async fn create_game_session(
     let system_config = SystemAccountMetaConfig::new(*program_id);
     let _ = remaining_accounts.add_system_accounts_v2(system_config);
 
-    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     let accounts = csdk_anchor_test::accounts::CreateGameSession {
         player: payer.pubkey(),
@@ -931,7 +931,7 @@ async fn decompress_multiple_pdas_with_ctoken(
     ctoken_account_5: light_client::indexer::CompressedTokenAccount,
     native_token_account_5: Pubkey,
 ) {
-    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     let user_compressed_address = derive_address(
         &user_record_pda.to_bytes(),
@@ -1216,7 +1216,7 @@ async fn decompress_multiple_pdas(
     expected_game_type: &str,
     expected_slot: u64,
 ) {
-    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     let user_compressed_address = derive_address(
         &user_record_pda.to_bytes(),
@@ -1409,7 +1409,7 @@ async fn create_user_record_and_game_session(
     );
     let _ = remaining_accounts.add_system_accounts_v2(system_config);
 
-    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     let decimals = 6u8;
     let mint_authority_keypair = Keypair::new();
@@ -1695,7 +1695,7 @@ async fn compress_record(
     let system_config = SystemAccountMetaConfig::new(*program_id);
     let _ = remaining_accounts.add_system_accounts_v2(system_config);
 
-    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     let address = derive_address(
         &user_record_pda.to_bytes(),
@@ -1782,7 +1782,7 @@ async fn decompress_single_user_record(
     expected_user_name: &str,
     expected_slot: u64,
 ) {
-    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     let user_compressed_address = derive_address(
         &user_record_pda.to_bytes(),
@@ -1897,7 +1897,7 @@ async fn create_placeholder_record(
     let system_config = SystemAccountMetaConfig::new(*program_id);
     let _ = remaining_accounts.add_system_accounts_v2(system_config);
 
-    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     let accounts = csdk_anchor_test::accounts::CreatePlaceholderRecord {
         user: payer.pubkey(),
@@ -1969,7 +1969,7 @@ async fn compress_placeholder_record(
     _placeholder_record_bump: &u8,
     placeholder_id: u64,
 ) {
-    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     let placeholder_compressed_address = derive_address(
         &placeholder_record_pda.to_bytes(),
@@ -2057,7 +2057,7 @@ async fn compress_placeholder_record_for_double_test(
     placeholder_id: u64,
     previous_account: Option<Account>,
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
-    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     let placeholder_compressed_address = derive_address(
         &placeholder_record_pda.to_bytes(),
@@ -2121,7 +2121,7 @@ async fn decompress_single_game_session(
     expected_slot: u64,
     expected_score: u64,
 ) {
-    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
 
     let game_compressed_address = derive_address(
         &game_session_pda.to_bytes(),
@@ -2310,7 +2310,7 @@ async fn test_double_compression_attack() {
         "Placeholder PDA should have data before compression"
     );
 
-    let address_tree_pubkey = rpc.get_address_tree_v2().queue;
+    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_address = derive_address(
         &placeholder_record_pda.to_bytes(),
         &address_tree_pubkey.to_bytes(),

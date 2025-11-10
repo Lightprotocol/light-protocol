@@ -230,7 +230,7 @@ pub fn transfer_spl_to_ctoken_signed<'info>(
         compressed_token_pool_pda_bump,
         *spl_token_program.key,
     )
-    .map_err(|_| TokenSdkError::MethodUsed)?;
+    .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     let account_infos = vec![
         payer,
@@ -243,8 +243,7 @@ pub fn transfer_spl_to_ctoken_signed<'info>(
         spl_token_program,          // Index 5: SPL Token program
     ];
 
-    invoke_signed(&instruction, &account_infos, signer_seeds)
-        .map_err(|_| TokenSdkError::MethodUsed)?;
+    invoke_signed(&instruction, &account_infos, signer_seeds)?;
     Ok(())
 }
 
