@@ -7,8 +7,8 @@ edition = { workspace = true }
 anchor = ["light-compressed-account/anchor", "dep:anchor-lang", "light-compressible/anchor"]
 solana = ["dep:solana-program-error", "dep:solana-sysvar", "solana-msg"]
 default = []
-profile-program = ["dep:light-program-profiler"]
-profile-heap = ["dep:light-heap", "dep:light-program-profiler"]
+profile-program = ["light-program-profiler/profile-program"]
+profile-heap = ["dep:light-heap", "light-program-profiler/profile-heap"]
 poseidon = ["light-hasher/poseidon"]
 
 [dependencies]
@@ -31,7 +31,7 @@ solana-sysvar = { workspace = true, optional = true }
 spl-pod = { workspace = true }
 spl-token-2022 = { workspace = true }
 solana-msg = { workspace = true, optional = true }
-light-program-profiler = { workspace = true, optional = true }
+light-program-profiler = { workspace = true }
 light-heap = { workspace = true, optional = true }
 light-compressible = {workspace = true }
 pinocchio-pubkey = {workspace = true}

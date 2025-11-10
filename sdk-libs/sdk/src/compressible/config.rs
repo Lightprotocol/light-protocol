@@ -26,8 +26,8 @@ pub struct CompressibleConfig {
     /// Authority that can update the config
     pub update_authority: Pubkey,
     /// Account that receives rent from compressed PDAs
-    pub rent_recipient: Pubkey,
-    /// Config bump seed (currently always 0)å
+    pub rent_sponsor: Pubkey,
+    /// Config bump seed (0)
     pub config_bump: u8,
     /// PDA bump seed
     pub bump: u8,
@@ -130,7 +130,7 @@ impl CompressibleConfig {
 /// # Arguments
 /// * `config_account` - The config PDA account to initialize
 /// * `update_authority` - Authority that can update the config after creation
-/// * `rent_recipient` - Account that receives rent from compressed PDAs
+/// * `rent_sponsor` - Account that receives rent from compressed PDAs
 /// * `address_space` - Address space for compressed accounts (currently 1 address_tree allowed)
 /// * `compression_delay` - Number of slots to wait before compression
 /// * `config_bump` - Config bump seed (must be 0 for now)
@@ -150,7 +150,7 @@ impl CompressibleConfig {
 pub fn process_initialize_compression_config_account_info<'info>(
     config_account: &AccountInfo<'info>,
     update_authority: &AccountInfo<'info>,
-    rent_recipient: &Pubkey,
+    rent_sponsor: &Pubkey,
     address_space: Vec<Pubkey>,
     compression_delay: u32,
     config_bump: u8,
@@ -223,7 +223,7 @@ pub fn process_initialize_compression_config_account_info<'info>(
         version: 1,
         compression_delay,
         update_authority: *update_authority.key,
-        rent_recipient: *rent_recipient,
+        rent_sponsor: *rent_sponsor,
         config_bump,
         address_space,
         bump,
@@ -245,7 +245,7 @@ pub fn process_initialize_compression_config_account_info<'info>(
 /// * `config_account` - The config PDA account to update
 /// * `authority` - Current update authority (must match config)
 /// * `new_update_authority` - Optional new update authority
-/// * `new_rent_recipient` - Optional new rent recipient
+/// * `new_rent_sponsor` - Optional new rent recipient
 /// * `new_address_space` - Optional new address space (currently 1 address_tree allowed)
 /// * `new_compression_delay` - Optional new compression delay
 /// * `owner_program_id` - The program that owns the config
@@ -257,7 +257,7 @@ pub fn process_update_compression_config<'info>(
     config_account: &AccountInfo<'info>,
     authority: &AccountInfo<'info>,
     new_update_authority: Option<&Pubkey>,
-    new_rent_recipient: Option<&Pubkey>,
+    new_rent_sponsor: Option<&Pubkey>,
     new_address_space: Option<Vec<Pubkey>>,
     new_compression_delay: Option<u32>,
     owner_program_id: &Pubkey,
@@ -279,8 +279,8 @@ pub fn process_update_compression_config<'info>(
     if let Some(new_authority) = new_update_authority {
         config.update_authority = *new_authority;
     }
-    if let Some(new_recipient) = new_rent_recipient {
-        config.rent_recipient = *new_recipient;
+    if let Some(new_recipient) = new_rent_sponsor {
+        config.rent_sponsor = *new_recipient;
     }
     if let Some(new_address_space) = new_address_space {
         // CHECK: address space length
@@ -314,7 +314,7 @@ pub fn process_update_compression_config<'info>(
     Ok(())
 }
 
-/// Verifies that the signer is the program's upgrade authority
+/// Checks that the signer is the program's upgrade authority
 ///
 /// # Arguments
 /// * `program_id` - The program to check
@@ -389,19 +389,13 @@ pub fn check_program_upgrade_authority(
     Ok(())
 }
 
-/// Creates a new compressible config PDA with program upgrade authority
-/// validation
-///
-/// # Security
-/// This function verifies that the signer is the program's upgrade authority
-/// before creating the config. This ensures only the program deployer can
-/// initialize the configuration.
+/// Creates a new compressible config PDA.
 ///
 /// # Arguments
 /// * `config_account` - The config PDA account to initialize
 /// * `update_authority` - Must be the program's upgrade authority
 /// * `program_data_account` - The program's data account for validation
-/// * `rent_recipient` - Account that receives rent from compressed PDAs
+/// * `rent_sponsor` - Account that receives rent from compressed PDAs
 /// * `address_space` - Address spaces for compressed accounts (exactly 1
 ///   allowed)
 /// * `compression_delay` - Number of slots to wait before compression
@@ -418,7 +412,7 @@ pub fn process_initialize_compression_config_checked<'info>(
     config_account: &AccountInfo<'info>,
     update_authority: &AccountInfo<'info>,
     program_data_account: &AccountInfo<'info>,
-    rent_recipient: &Pubkey,
+    rent_sponsor: &Pubkey,
     address_space: Vec<Pubkey>,
     compression_delay: u32,
     config_bump: u8,
@@ -441,7 +435,7 @@ pub fn process_initialize_compression_config_checked<'info>(
     process_initialize_compression_config_account_info(
         config_account,
         update_authority,
-        rent_recipient,
+        rent_sponsor,
         address_space,
         compression_delay,
         config_bump,

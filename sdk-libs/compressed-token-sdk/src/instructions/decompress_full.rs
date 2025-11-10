@@ -75,9 +75,10 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
         token_accounts.push(token_account);
 
         let owner_idx = idx.source.owner as usize;
-        if owner_idx < signer_flags.len() {
-            signer_flags[owner_idx] = true;
+        if owner_idx >= signer_flags.len() {
+            return Err(TokenSdkError::InvalidAccountData);
         }
+        signer_flags[owner_idx] = true;
     }
 
     let mut packed_account_metas = Vec::with_capacity(packed_accounts.len());

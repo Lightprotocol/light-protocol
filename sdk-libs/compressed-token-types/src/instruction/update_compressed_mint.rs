@@ -1,6 +1,6 @@
 use crate::{AnchorDeserialize, AnchorSerialize};
 
-/// Authority types for compressed mint updates, following SPL Token-2022 pattern
+/// Authority types for compressed mint updates
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 pub enum CompressedMintAuthorityType {

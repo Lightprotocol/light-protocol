@@ -60,20 +60,17 @@ pub fn setup_mock_program_data<T: TestRpc>(
 
 /// Initialize compression config for a program
 ///
-/// This is a high-level helper that handles the complete flow of initializing
-/// a compression configuration for a program, including proper signer management.
-///
 /// # Arguments
 /// * `rpc` - The test RPC client
 /// * `payer` - The transaction fee payer
 /// * `program_id` - The program to initialize config for
 /// * `authority` - The config authority (can be same as payer)
 /// * `compression_delay` - Number of slots to wait before compression
-/// * `rent_recipient` - Where to send rent from compressed accounts
+/// * `rent_sponsor` - Where to send rent from compressed accounts
 /// * `address_space` - List of address trees for this program
 ///
 /// # Returns
-/// Transaction signature on success
+/// `Result<Signature, RpcError>` - The transaction signature
 #[allow(clippy::too_many_arguments)]
 pub async fn initialize_compression_config<T: Rpc>(
     rpc: &mut T,
@@ -81,7 +78,7 @@ pub async fn initialize_compression_config<T: Rpc>(
     program_id: &Pubkey,
     authority: &Keypair,
     compression_delay: u32,
-    rent_recipient: Pubkey,
+    rent_sponsor: Pubkey,
     address_space: Vec<Pubkey>,
     discriminator: &[u8],
     config_bump: Option<u8>,
@@ -92,14 +89,13 @@ pub async fn initialize_compression_config<T: Rpc>(
         ));
     }
 
-    // Use the mid-level instruction builder
     let instruction = CompressibleInstruction::initialize_compression_config(
         program_id,
         discriminator,
         &payer.pubkey(),
         &authority.pubkey(),
         compression_delay,
-        rent_recipient,
+        rent_sponsor,
         address_space,
         config_bump,
     );
@@ -116,21 +112,18 @@ pub async fn initialize_compression_config<T: Rpc>(
 
 /// Update compression config for a program
 ///
-/// This is a high-level helper for updating an existing compression configuration.
-/// All parameters except the required ones are optional - pass None to keep existing values.
-///
 /// # Arguments
 /// * `rpc` - The test RPC client
 /// * `payer` - The transaction fee payer
 /// * `program_id` - The program to update config for
 /// * `authority` - The current config authority
 /// * `new_compression_delay` - New compression delay (optional)
-/// * `new_rent_recipient` - New rent recipient (optional)
+/// * `new_rent_sponsor` - New rent recipient (optional)
 /// * `new_address_space` - New address space list (optional)
 /// * `new_update_authority` - New authority (optional)
 ///
 /// # Returns
-/// Transaction signature on success
+/// `Result<Signature, RpcError>` - The transaction signature
 #[allow(clippy::too_many_arguments)]
 pub async fn update_compression_config<T: Rpc>(
     rpc: &mut T,
@@ -138,18 +131,17 @@ pub async fn update_compression_config<T: Rpc>(
     program_id: &Pubkey,
     authority: &Keypair,
     new_compression_delay: Option<u32>,
-    new_rent_recipient: Option<Pubkey>,
+    new_rent_sponsor: Option<Pubkey>,
     new_address_space: Option<Vec<Pubkey>>,
     new_update_authority: Option<Pubkey>,
     discriminator: &[u8],
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
-    // Use the mid-level instruction builder
     let instruction = CompressibleInstruction::update_compression_config(
         program_id,
         discriminator,
         &authority.pubkey(),
         new_compression_delay,
-        new_rent_recipient,
+        new_rent_sponsor,
         new_address_space,
         new_update_authority,
     );

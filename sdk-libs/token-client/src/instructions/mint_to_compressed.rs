@@ -5,8 +5,8 @@ use light_client::{
 };
 use light_compressed_token_sdk::{
     instructions::{
-        create_mint_to_compressed_instruction, derive_compressed_mint_from_spl_mint,
-        derive_token_pool, DecompressedMintConfig, MintToCompressedInputs,
+        create_mint_to_compressed_instruction, derive_cmint_from_spl_mint, derive_token_pool,
+        DecompressedMintConfig, MintToCompressedInputs,
     },
     token_pool::find_token_pool_pda_with_index,
 };
@@ -28,8 +28,7 @@ pub async fn mint_to_compressed_instruction<R: Rpc + Indexer>(
 ) -> Result<Instruction, RpcError> {
     // Derive compressed mint address from SPL mint PDA
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
-    let compressed_mint_address =
-        derive_compressed_mint_from_spl_mint(&spl_mint_pda, &address_tree_pubkey);
+    let compressed_mint_address = derive_cmint_from_spl_mint(&spl_mint_pda, &address_tree_pubkey);
 
     // Get the compressed mint account
     let compressed_mint_account = rpc

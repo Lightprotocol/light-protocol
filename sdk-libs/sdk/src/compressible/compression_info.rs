@@ -15,7 +15,6 @@ pub trait Pack {
     fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed;
 }
 
-/// Convert indices back to Pubkeys using remaining_accounts.
 pub trait Unpack {
     type Unpacked;
 
@@ -54,11 +53,9 @@ pub trait CompressAs {
         + Default
         + Clone;
 
-    /// Return data to store. compression_info must be None.
     fn compress_as(&self) -> Cow<'_, Self::Output>;
 }
 
-/// Last write slot and compression state.
 #[derive(Debug, Clone, Default, AnchorSerialize, AnchorDeserialize)]
 pub struct CompressionInfo {
     pub last_written_slot: u64,
@@ -103,7 +100,6 @@ impl CompressionInfo {
     }
 }
 
-/// Space calculation without anchor (like anchor_lang::Space but standalone).
 pub trait Space {
     const INIT_SPACE: usize;
 }

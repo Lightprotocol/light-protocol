@@ -176,11 +176,6 @@ pub mod borsh_compat {
     #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
     /// Borsh-compatible ValidityProof. Use this in your anchor program unless
     /// you have zero-copy instruction data.
-    ///
-    /// Example:
-    /// ```rust
-    /// let proof = ValidityProof::from(compression_params.proof);
-    /// ```
     pub struct ValidityProof(pub Option<CompressedProof>);
 
     impl ValidityProof {

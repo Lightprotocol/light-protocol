@@ -5,9 +5,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-/// Create a decompressed token transfer instruction. This creates an
-/// instruction that uses discriminator 3 (DecompressedTransfer) to perform SPL
-/// token transfers on decompressed compressed token accounts.
+/// Create a c-token transfer instruction.
 ///
 /// # Arguments
 /// * `source` - Source token account
@@ -31,15 +29,16 @@ fn create_transfer_ctoken_instruction(
             AccountMeta::new_readonly(authority, true),
         ],
         data: {
-            let mut data = vec![3u8]; // DecompressedTransfer discriminator
-            data.push(3u8); // SPL Transfer discriminator
+            // TODO: check why we have 2 discriminators
+            let mut data = vec![3u8];
+            data.push(3u8);
             data.extend_from_slice(&amount.to_le_bytes());
             data
         },
     }
 }
 
-/// Transfer decompressed ctokens
+/// Transfer c-tokens
 pub fn transfer_ctoken<'info>(
     from: &AccountInfo<'info>,
     to: &AccountInfo<'info>,
@@ -48,11 +47,10 @@ pub fn transfer_ctoken<'info>(
 ) -> Result<(), ProgramError> {
     let ix = create_transfer_ctoken_instruction(*from.key, *to.key, amount, *authority.key);
 
-    // Return Result directly, as is best practice for CPI helpers in native Solana programs.
     invoke(&ix, &[from.clone(), to.clone(), authority.clone()])
 }
 
-/// Transfer decompressed ctokens with signer seeds
+/// Transfer c-tokens CPI
 pub fn transfer_ctoken_signed<'info>(
     from: &AccountInfo<'info>,
     to: &AccountInfo<'info>,

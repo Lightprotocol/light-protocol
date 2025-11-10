@@ -125,10 +125,20 @@
                     "{workspaceRoot}/cli",
                     "{workspaceRoot}/target/idl",
                     "{workspaceRoot}/target/types"
+                ],
+                "outputs": [
+                    "{projectRoot}/dist"
                 ]
             },
             "build-ci": {
-                "dependsOn": []
+                "executor": "nx:run-script",
+                "options": {
+                    "script": "build-ci"
+                },
+                "dependsOn": [],
+                "outputs": [
+                    "{projectRoot}/dist"
+                ]
             },
             "test-ci": {
                 "dependsOn": []

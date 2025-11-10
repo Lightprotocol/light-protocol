@@ -1,6 +1,11 @@
 use std::{
-    process::Command,
-    sync::atomic::{AtomicBool, Ordering},
+    fs::{File, OpenOptions},
+    path::PathBuf,
+    process::{Command, Stdio},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, Mutex,
+    },
     thread::sleep,
     time::Duration,
 };
@@ -31,17 +36,98 @@ pub async fn spawn_prover() {
         if !health_check(10, 1).await && !IS_LOADING.load(Ordering::Relaxed) {
             IS_LOADING.store(true, Ordering::Relaxed);
 
-            let command = Command::new(prover_path)
-                .arg("start-prover")
-                .spawn()
-                .expect("Failed to start prover process");
+            let is_ci = std::env::var("CI").is_ok();
+            let output_buffer: Arc<Mutex<Vec<u8>>> = Arc::new(Mutex::new(Vec::new()));
 
-            let _ = command.wait_with_output();
+            if is_ci {
+                use tokio::{io::AsyncReadExt, process::Command as TokioCommand};
+
+                let mut command = TokioCommand::new(prover_path);
+                command.arg("start-prover").stdin(Stdio::null());
+                command.stdout(Stdio::piped());
+                command.stderr(Stdio::piped());
+
+                let mut child = command.spawn().expect("Failed to start prover process");
+
+                let stdout = child.stdout.take();
+                let stderr = child.stderr.take();
+                let output_buffer_stdout = Arc::clone(&output_buffer);
+                let output_buffer_stderr = Arc::clone(&output_buffer);
+
+                if let Some(mut stdout) = stdout {
+                    tokio::spawn(async move {
+                        let mut buffer = vec![0u8; 1024];
+                        loop {
+                            match stdout.read(&mut buffer).await {
+                                Ok(0) => break,
+                                Ok(n) => {
+                                    let mut buf = output_buffer_stdout.lock().unwrap();
+                                    buf.extend_from_slice(&buffer[..n]);
+                                }
+                                Err(_) => break,
+                            }
+                        }
+                    });
+                }
+
+                if let Some(mut stderr) = stderr {
+                    tokio::spawn(async move {
+                        let mut buffer = vec![0u8; 1024];
+                        loop {
+                            match stderr.read(&mut buffer).await {
+                                Ok(0) => break,
+                                Ok(n) => {
+                                    let mut buf = output_buffer_stderr.lock().unwrap();
+                                    buf.extend_from_slice(&buffer[..n]);
+                                }
+                                Err(_) => break,
+                            }
+                        }
+                    });
+                }
+
+                std::mem::drop(child);
+            } else {
+                let log_dir = PathBuf::from("test-ledger");
+                std::fs::create_dir_all(&log_dir).ok();
+                let log_path = log_dir.join("prover.log");
+                let log_file = OpenOptions::new()
+                    .create(true)
+                    .append(true)
+                    .open(&log_path)
+                    .unwrap_or_else(|_| {
+                        File::create(&log_path).expect("Failed to create prover log file")
+                    });
+                let log_file_stderr = log_file.try_clone().ok();
+
+                let child = Command::new(prover_path)
+                    .arg("start-prover")
+                    .stdin(Stdio::null())
+                    .stdout(Stdio::from(log_file))
+                    .stderr(log_file_stderr.map(Stdio::from).unwrap_or(Stdio::null()))
+                    .spawn()
+                    .expect("Failed to start prover process");
+
+                std::mem::drop(child);
+            }
+
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
 
             let health_result = health_check(120, 1).await;
             if health_result {
                 info!("Prover started successfully");
             } else {
+                if is_ci {
+                    let output = output_buffer.lock().unwrap();
+                    let output_str = String::from_utf8_lossy(&output);
+                    eprintln!("=== Prover output (stdout/stderr) ===");
+                    eprintln!("{}", output_str);
+                    eprintln!("=== End of prover output ===");
+                }
+                println!(
+                    "Failed to start prover, health check failed. {:?}",
+                    health_result
+                );
                 panic!("Failed to start prover, health check failed.");
             }
         }

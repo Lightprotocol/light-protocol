@@ -132,19 +132,28 @@
   "nx": {
     "targets": {
       "build": {
+        "dependsOn": [
+          "@lightprotocol/programs:build",
+          "@lightprotocol/stateless.js:build",
+          "@lightprotocol/compressed-token:build"
+        ],
         "inputs": [
           "{workspaceRoot}/js",
           "{workspaceRoot}/programs",
           "{workspaceRoot}/gnark-prover"
         ],
         "outputs": [
-          "{workspaceRoot}/bin",
-          "{workspaceRoot}/dist",
-          "{workspaceRoot}/lib",
-          "{workspaceRoot}/test_bin"
+          "{projectRoot}/bin",
+          "{projectRoot}/dist",
+          "{projectRoot}/lib",
+          "{projectRoot}/test_bin"
         ]
       },
       "build-ci": {
+        "executor": "nx:run-script",
+        "options": {
+          "script": "build"
+        },
         "dependsOn": [
           "@lightprotocol/stateless.js:build-ci",
           "@lightprotocol/compressed-token:build-ci"

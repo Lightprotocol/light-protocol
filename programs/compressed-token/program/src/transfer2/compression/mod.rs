@@ -37,7 +37,6 @@ pub fn process_token_compression(
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     cpi_authority: &AccountInfo,
 ) -> Result<(), ProgramError> {
-    msg!("processing token compression");
     if let Some(compressions) = inputs.compressions.as_ref() {
         // Array to accumulate transfer amounts by account index (max 40 packed accounts)
         let mut transfer_map = [0u64; 40];
@@ -125,14 +124,6 @@ pub fn process_token_compression(
             .collect::<Result<ArrayVec<Transfer, 40>, ProgramError>>()?;
 
         if !transfers.is_empty() {
-            msg!("Top-up payer: {:?}", fee_payer.key());
-            for transfer in &transfers {
-                msg!(
-                    "Top-up recipient: {} ({} lamports)",
-                    solana_pubkey::Pubkey::new_from_array(*transfer.account.key()),
-                    transfer.amount
-                );
-            }
             multi_transfer_lamports(fee_payer, &transfers).map_err(convert_program_error)?
         }
     }

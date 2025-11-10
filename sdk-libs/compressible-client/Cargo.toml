@@ -10,18 +10,14 @@ description = "Client instruction builders for Light Protocol compressible accou
 anchor = ["anchor-lang", "light-sdk/anchor"]
 
 [dependencies]
-# Solana dependencies
 solana-instruction = { workspace = true }
 solana-pubkey = { workspace = true }
 solana-account = { workspace = true }
 
-# Light Protocol dependencies  
 light-client = { workspace = true, features = ["v2"] }
 light-sdk = { workspace = true, features = ["v2", "cpi-context"] }
 
-# Conditional dependencies
 anchor-lang = { workspace = true, features = ["idl-build"], optional = true }
 borsh = { workspace = true }
 
-# External dependencies
 thiserror = { workspace = true } 

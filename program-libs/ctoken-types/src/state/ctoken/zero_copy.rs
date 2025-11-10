@@ -1,7 +1,6 @@
 use std::ops::{Deref, DerefMut};
 
 use light_compressed_account::Pubkey;
-#[cfg(any(feature = "profile-program", feature = "profile-heap"))]
 use light_program_profiler::profile;
 use light_zero_copy::{
     errors::ZeroCopyError,
@@ -145,7 +144,7 @@ impl<'a> ZeroCopyAt<'a> for CTokenMeta {
 impl<'a> ZeroCopyAtMut<'a> for CTokenMeta {
     type ZeroCopyAtMut = ZCompressedTokenMetaMut<'a>;
 
-    #[cfg_attr(any(feature = "profile-program", feature = "profile-heap"), profile)]
+    #[profile]
     #[inline(always)]
     fn zero_copy_at_mut(
         bytes: &'a mut [u8],
@@ -412,7 +411,7 @@ impl DerefMut for ZCompressedTokenMut<'_> {
 impl<'a> ZeroCopyAt<'a> for CToken {
     type ZeroCopyAt = ZCToken<'a>;
 
-    #[cfg_attr(any(feature = "profile-program", feature = "profile-heap"), profile)]
+    #[profile]
     fn zero_copy_at(bytes: &'a [u8]) -> Result<(Self::ZeroCopyAt, &'a [u8]), ZeroCopyError> {
         let (__meta, bytes) = <CTokenMeta as ZeroCopyAt<'a>>::zero_copy_at(bytes)?;
         let (extensions, bytes) = if !bytes.is_empty() {
@@ -437,7 +436,7 @@ impl<'a> ZeroCopyAt<'a> for CToken {
 impl CToken {
     /// Zero-copy deserialization with initialization check.
     /// Returns an error if the account is not initialized (byte 108 must be 1).
-    #[cfg_attr(any(feature = "profile-program", feature = "profile-heap"), profile)]
+    #[profile]
     pub fn zero_copy_at_checked(
         bytes: &[u8],
     ) -> Result<(ZCToken<'_>, &[u8]), crate::error::CTokenError> {
@@ -457,7 +456,7 @@ impl CToken {
 
     /// Mutable zero-copy deserialization with initialization check.
     /// Returns an error if the account is not initialized (byte 108 must be 1).
-    #[cfg_attr(any(feature = "profile-program", feature = "profile-heap"), profile)]
+    #[profile]
     pub fn zero_copy_at_mut_checked(
         bytes: &mut [u8],
     ) -> Result<(ZCompressedTokenMut<'_>, &mut [u8]), crate::error::CTokenError> {
@@ -478,7 +477,7 @@ impl CToken {
 impl<'a> ZeroCopyAtMut<'a> for CToken {
     type ZeroCopyAtMut = ZCompressedTokenMut<'a>;
 
-    #[cfg_attr(any(feature = "profile-program", feature = "profile-heap"), profile)]
+    #[profile]
     #[inline(always)]
     fn zero_copy_at_mut(
         bytes: &'a mut [u8],

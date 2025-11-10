@@ -60,11 +60,12 @@ where
     let (compressed_address, _) =
         derive_address(&[&address.to_bytes()], &address_tree_info.tree, program_id);
 
-    let onchain_result = rpc.get_account(*address).await;
-    let compressed_result = rpc.get_compressed_account(compressed_address, None).await;
-
-    let onchain_account = onchain_result.ok().flatten();
-    let compressed_account = compressed_result.ok().and_then(|r| r.value);
+    // TODO: concurrency
+    let onchain_account = rpc.get_account(*address).await?;
+    let compressed_account = rpc
+        .get_compressed_account(compressed_address, None)
+        .await?
+        .value;
 
     if let Some(onchain) = onchain_account {
         let merkle_context = compressed_account.as_ref().map(|ca| MerkleContext {
@@ -141,7 +142,6 @@ where
 }
 
 #[cfg(feature = "anchor")]
-/// Get and parse account with anchor discriminator.
 #[allow(clippy::result_large_err)]
 pub async fn get_anchor_account<T, R>(
     address: &Pubkey,

@@ -93,21 +93,6 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
             ProgramError::Custom(AccountError::NotEnoughAccountKeys.into())
         })?;
 
-    anchor_lang::solana_program::msg!("DEBUG token_input - mint_account: {:?}", mint_account.key());
-    anchor_lang::solana_program::msg!(
-        "DEBUG token_input - owner_account: {:?}",
-        owner_account.key()
-    );
-    anchor_lang::solana_program::msg!("DEBUG token_input - amount: {:?}", input_token_data.amount);
-    anchor_lang::solana_program::msg!(
-        "DEBUG token_input - has_delegate: {:?}",
-        input_token_data.has_delegate
-    );
-    anchor_lang::solana_program::msg!(
-        "DEBUG token_input - leaf_index: {:?}",
-        input_token_data.merkle_context.leaf_index
-    );
-
     let data_hash = {
         match token_version {
             TokenDataVersion::ShaFlat => {
@@ -155,15 +140,13 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
         }
     };
 
-    anchor_lang::solana_program::msg!("DEBUG token_input - computed data_hash: {:?}", data_hash);
-
     input_compressed_account.set_z(
         token_version.discriminator(),
         data_hash,
         &input_token_data.merkle_context,
         *input_token_data.root_index,
         lamports,
-        None, // Token accounts don't have addresses
+        None,
     )?;
     Ok(())
 }

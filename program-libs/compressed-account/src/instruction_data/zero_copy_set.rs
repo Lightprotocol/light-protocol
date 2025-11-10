@@ -1,4 +1,3 @@
-#[cfg(any(feature = "profile-program", feature = "profile-heap"))]
 use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAt;
 use zerocopy::little_endian::U16;
@@ -14,7 +13,6 @@ use crate::{
 };
 
 impl ZOutputCompressedAccountWithPackedContextMut<'_> {
-    #[cfg_attr(any(feature = "profile-program", feature = "profile-heap"), profile)]
     #[inline]
     pub fn set(
         &mut self,
@@ -50,7 +48,7 @@ impl ZOutputCompressedAccountWithPackedContextMut<'_> {
 
 impl ZInAccountMut<'_> {
     #[inline]
-    #[cfg_attr(any(feature = "profile-program", feature = "profile-heap"), profile)]
+    #[profile]
     pub fn set_z(
         &mut self,
         discriminator: [u8; 8],
@@ -84,7 +82,7 @@ impl ZInAccountMut<'_> {
     }
 
     #[inline]
-    #[cfg_attr(any(feature = "profile-program", feature = "profile-heap"), profile)]
+    #[profile]
     pub fn set(
         &mut self,
         discriminator: [u8; 8],
@@ -160,7 +158,7 @@ impl ZInstructionDataInvokeCpiWithReadOnlyMut<'_> {
 
 impl ZNewAddressParamsAssignedPackedMut<'_> {
     #[inline]
-    #[cfg_attr(any(feature = "profile-program", feature = "profile-heap"), profile)]
+    #[profile]
     pub fn set(
         &mut self,
         seed: [u8; 32],

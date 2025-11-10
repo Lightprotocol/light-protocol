@@ -442,6 +442,8 @@ importers:
 
   programs: {}
 
+  sdk-tests/csdk-anchor-test: {}
+
   sdk-tests/sdk-anchor-test:
     dependencies:
       '@coral-xyz/anchor':

@@ -51,7 +51,7 @@ jobs:
 
       - name: Build CLI
         run: |
-          npx nx build @lightprotocol/zk-compression-cli
+          npx nx run @lightprotocol/zk-compression-cli:build-ci
 
       - name: Run CLI tests with V1
         run: |

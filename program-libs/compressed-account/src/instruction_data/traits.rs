@@ -5,7 +5,6 @@ use anchor_lang::AnchorSerialize;
 #[allow(unused_imports)]
 #[cfg(not(all(feature = "std", feature = "anchor")))]
 use borsh::BorshSerialize as AnchorSerialize;
-#[cfg(any(feature = "profile-program", feature = "profile-heap"))]
 use light_program_profiler::profile;
 use tinyvec::ArrayVec;
 use zerocopy::Ref;
@@ -23,7 +22,7 @@ pub trait InstructionDiscriminator {
 
 pub trait LightInstructionData: InstructionDiscriminator + AnchorSerialize {
     #[cfg(feature = "alloc")]
-    #[cfg_attr(any(feature = "profile-program", feature = "profile-heap"), profile)]
+    #[profile]
     fn data(&self) -> Result<crate::Vec<u8>, CompressedAccountError> {
         let inputs = AnchorSerialize::try_to_vec(self)
             .map_err(|_| CompressedAccountError::InvalidArgument)?;
@@ -33,7 +32,7 @@ pub trait LightInstructionData: InstructionDiscriminator + AnchorSerialize {
         Ok(data)
     }
 
-    #[cfg_attr(any(feature = "profile-program", feature = "profile-heap"), profile)]
+    #[profile]
     fn data_array<const N: usize>(&self) -> Result<ArrayVec<[u8; N]>, CompressedAccountError> {
         let mut data = ArrayVec::new();
         // Add discriminator
