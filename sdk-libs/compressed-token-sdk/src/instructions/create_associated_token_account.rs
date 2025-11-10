@@ -410,7 +410,7 @@ pub fn create_associated_ctoken_account<'info>(
     associated_token_account: AccountInfo<'info>,
     system_program: AccountInfo<'info>,
     compressible_config: AccountInfo<'info>,
-    rent_recipient: AccountInfo<'info>,
+    rent_sponsor: AccountInfo<'info>,
     authority: AccountInfo<'info>,
     mint: Pubkey,
     bump: u8,
@@ -422,12 +422,13 @@ pub fn create_associated_ctoken_account<'info>(
         owner: *authority.key,
         mint,
         compressible_config: *compressible_config.key,
-        rent_sponsor: *rent_recipient.key,
+        rent_sponsor: *rent_sponsor.key,
         pre_pay_num_epochs: pre_pay_num_epochs.unwrap_or(1),
         lamports_per_write,
         token_account_version: TokenDataVersion::ShaFlat,
     };
 
+    // TODO: switch to wrapper ixn using accounts instead of ixdata.
     let ix = create_compressible_associated_token_account_with_bump(
         inputs,
         *associated_token_account.key,
@@ -441,7 +442,7 @@ pub fn create_associated_ctoken_account<'info>(
             associated_token_account,
             system_program,
             compressible_config,
-            rent_recipient,
+            rent_sponsor,
             authority,
         ],
     )

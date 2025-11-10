@@ -134,6 +134,10 @@
                 ]
             },
             "build-ci": {
+                "executor": "nx:run-script",
+                "options": {
+                    "script": "build-ci"
+                },
                 "dependsOn": [
                     "@lightprotocol/stateless.js:build-ci"
                 ]

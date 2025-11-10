@@ -353,14 +353,14 @@ pub mod csdk_anchor_test {
     pub fn initialize_compression_config(
         ctx: Context<InitializeCompressionConfig>,
         compression_delay: u32,
-        rent_recipient: Pubkey,
+        rent_sponsor: Pubkey,
         address_space: Vec<Pubkey>,
     ) -> Result<()> {
         process_initialize_compression_config_checked(
             &ctx.accounts.config.to_account_info(),
             &ctx.accounts.authority.to_account_info(),
             &ctx.accounts.program_data.to_account_info(),
-            &rent_recipient,
+            &rent_sponsor,
             address_space,
             compression_delay,
             0, // one global config for now, so bump is 0.
@@ -376,7 +376,7 @@ pub mod csdk_anchor_test {
     pub fn update_compression_config(
         ctx: Context<UpdateCompressionConfig>,
         new_compression_delay: Option<u32>,
-        new_rent_recipient: Option<Pubkey>,
+        new_rent_sponsor: Option<Pubkey>,
         new_address_space: Option<Vec<Pubkey>>,
         new_update_authority: Option<Pubkey>,
     ) -> Result<()> {
@@ -384,7 +384,7 @@ pub mod csdk_anchor_test {
             &ctx.accounts.config.to_account_info(),
             &ctx.accounts.authority.to_account_info(),
             new_update_authority.as_ref(),
-            new_rent_recipient.as_ref(),
+            new_rent_sponsor.as_ref(),
             new_address_space,
             new_compression_delay,
             &crate::ID,
@@ -403,14 +403,14 @@ pub mod csdk_anchor_test {
     ) -> Result<()> {
         let compression_config =
             CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
-        if ctx.accounts.rent_recipient.key() != compression_config.rent_recipient {
+        if ctx.accounts.rent_sponsor.key() != compression_config.rent_sponsor {
             msg!(
                 "rent recipient passed: {:?}",
-                ctx.accounts.rent_recipient.key()
+                ctx.accounts.rent_sponsor.key()
             );
             msg!(
                 "rent recipient config: {:?}",
-                compression_config.rent_recipient
+                compression_config.rent_sponsor
             );
             panic!("Rent recipient does not match config");
         }
@@ -521,11 +521,8 @@ pub mod csdk_anchor_test {
             // Close
             for idx in pda_indices_to_close.into_iter() {
                 let mut info = solana_accounts[idx].clone();
-                light_sdk::compressible::close::close(
-                    &mut info,
-                    ctx.accounts.rent_recipient.clone(),
-                )
-                .map_err(anchor_lang::prelude::ProgramError::from)?;
+                light_sdk::compressible::close::close(&mut info, ctx.accounts.rent_sponsor.clone())
+                    .map_err(anchor_lang::prelude::ProgramError::from)?;
             }
         }
         Ok(())
@@ -973,7 +970,7 @@ pub mod csdk_anchor_test {
         user_record.score = 11;
 
         // 2. Verify rent recipient matches config
-        if ctx.accounts.rent_recipient.key() != config.rent_recipient {
+        if ctx.accounts.rent_sponsor.key() != config.rent_sponsor {
             panic!("Rent recipient does not match config");
             // return err!(ErrorCode::InvalidRentRecipient);
         }
@@ -1005,7 +1002,7 @@ pub mod csdk_anchor_test {
             .invoke(cpi_accounts)?;
 
         // Close the PDA
-        user_record.close(ctx.accounts.rent_recipient.to_account_info())?;
+        user_record.close(ctx.accounts.rent_sponsor.to_account_info())?;
 
         Ok(())
     }
@@ -1034,7 +1031,7 @@ pub mod csdk_anchor_test {
         game_session.score = 0;
 
         // Check that rent recipient matches your config.
-        if ctx.accounts.rent_recipient.key() != config.rent_recipient {
+        if ctx.accounts.rent_sponsor.key() != config.rent_sponsor {
             panic!("Rent recipient does not match config");
         }
 
@@ -1069,7 +1066,7 @@ pub mod csdk_anchor_test {
             .with_account_infos(&[compressed_info])
             .invoke(cpi_accounts)?;
 
-        game_session.close(ctx.accounts.rent_recipient.to_account_info())?;
+        game_session.close(ctx.accounts.rent_sponsor.to_account_info())?;
 
         Ok(())
     }
@@ -1087,7 +1084,7 @@ pub mod csdk_anchor_test {
         let config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
 
         // Check that rent recipient matches your config.
-        if ctx.accounts.rent_recipient.key() != config.rent_recipient {
+        if ctx.accounts.rent_sponsor.key() != config.rent_sponsor {
             panic!("Rent recipient does not match config");
         }
 
@@ -1254,8 +1251,8 @@ pub mod csdk_anchor_test {
         invoke(&mint_action_instruction, &account_infos)?;
 
         // at the end of the instruction we always clean up all onchain pdas that we compressed
-        user_record.close(ctx.accounts.rent_recipient.to_account_info())?;
-        game_session.close(ctx.accounts.rent_recipient.to_account_info())?;
+        user_record.close(ctx.accounts.rent_sponsor.to_account_info())?;
+        game_session.close(ctx.accounts.rent_sponsor.to_account_info())?;
 
         Ok(())
     }
@@ -1287,7 +1284,7 @@ pub mod csdk_anchor_test {
             .bump_last_written_slot()?;
 
         // Verify rent recipient matches config
-        if ctx.accounts.rent_recipient.key() != config.rent_recipient {
+        if ctx.accounts.rent_sponsor.key() != config.rent_sponsor {
             panic!("Rent recipient does not match config");
         }
 
@@ -1383,7 +1380,7 @@ pub struct CreateRecord<'info> {
     /// Rent recipient - must match config
     /// CHECK: Rent recipient is validated against the config
     #[account(mut)]
-    pub rent_recipient: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -1408,7 +1405,7 @@ pub struct CreatePlaceholderRecord<'info> {
     /// Rent recipient - must match config
     /// CHECK: Rent recipient is validated against the config
     #[account(mut)]
-    pub rent_recipient: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -1460,7 +1457,7 @@ pub struct CreateUserRecordAndGameSession<'info> {
     /// Rent recipient - must match config
     /// CHECK: Rent recipient is validated against the config
     #[account(mut)]
-    pub rent_recipient: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -1483,7 +1480,7 @@ pub struct CreateGameSession<'info> {
     /// Rent recipient - must match config
     /// CHECK: Rent recipient is validated against the config
     #[account(mut)]
-    pub rent_recipient: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -1531,7 +1528,7 @@ pub struct CompressRecord<'info> {
     /// Rent recipient - must match config
     /// CHECK: Rent recipient is validated against the config
     #[account(mut)]
-    pub rent_recipient: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -1552,7 +1549,7 @@ pub struct CompressGameSession<'info> {
     /// Rent recipient - must match config
     /// CHECK: Rent recipient is validated against the config
     #[account(mut)]
-    pub rent_recipient: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -1570,7 +1567,7 @@ pub struct CompressPlaceholderRecord<'info> {
     /// Rent recipient - must match config
     /// CHECK: Rent recipient is validated against the config
     #[account(mut)]
-    pub rent_recipient: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -1597,7 +1594,7 @@ pub struct CompressTokenAccountCtokenSigner<'info> {
     /// Rent recipient - must match config
     /// CHECK: Rent recipient is validated against the config
     #[account(mut)]
-    pub rent_recipient: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -1610,7 +1607,7 @@ pub struct CompressAccountsIdempotent<'info> {
     /// Rent recipient - must match config
     /// CHECK: Rent recipient is validated against the config
     #[account(mut)]
-    pub rent_recipient: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -1630,7 +1627,7 @@ pub struct CompressMultipleTokenAccounts<'info> {
     /// Rent recipient - must match config
     /// CHECK: Rent recipient is validated against the config
     #[account(mut)]
-    pub rent_recipient: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
 }
 
 // TODO: split into one ix with ctoken and one without.

@@ -189,7 +189,7 @@ pub fn transfer_spl_to_ctoken<'info>(
 
     // let mut account_infos = remaining_accounts.to_vec();
     let account_infos = vec![
-        authority.clone(),
+        payer,
         compressed_token_program_authority,
         mint,                       // Index 0: Mint
         destination_ctoken_account, // Index 1: Destination owner
@@ -233,7 +233,7 @@ pub fn transfer_spl_to_ctoken_signed<'info>(
     .map_err(|_| TokenSdkError::MethodUsed)?;
 
     let account_infos = vec![
-        payer.clone(),
+        payer,
         compressed_token_program_authority,
         mint,                       // Index 0: Mint
         destination_ctoken_account, // Index 1: Destination owner
@@ -277,7 +277,7 @@ pub fn transfer_ctoken_to_spl<'info>(
     .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     let account_infos = vec![
-        authority.clone(),
+        payer,
         compressed_token_program_authority,
         mint,                          // Index 0: Mint
         destination_spl_token_account, // Index 1: Destination owner
@@ -320,7 +320,7 @@ pub fn transfer_ctoken_to_spl_signed<'info>(
     .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     let account_infos = vec![
-        payer.clone(),
+        payer,
         compressed_token_program_authority,
         mint,                          // Index 0: Mint
         destination_spl_token_account, // Index 1: Destination owner

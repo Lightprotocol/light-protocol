@@ -39,7 +39,7 @@ use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
 pub const ADDRESS_SPACE: [Pubkey; 1] = [pubkey!("amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx")];
-pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
+pub const RENT_SPONSOR: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 pub const TOKEN_PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
 pub const CTOKEN_RENT_SPONSOR: Pubkey = pubkey!("r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti");
@@ -63,7 +63,7 @@ async fn test_create_and_decompress_two_accounts() {
         &program_id,
         &payer,
         100,
-        RENT_RECIPIENT,
+        RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
         &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
@@ -218,7 +218,7 @@ async fn test_create_decompress_compress_single_account() {
         &program_id,
         &payer,
         100,
-        RENT_RECIPIENT,
+        RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
         &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
@@ -275,7 +275,7 @@ async fn test_double_decompression_attack() {
         &program_id,
         &payer,
         100,
-        RENT_RECIPIENT,
+        RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
         &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
@@ -400,7 +400,7 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
         &program_id,
         &payer,
         100,
-        RENT_RECIPIENT,
+        RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
         &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
@@ -471,7 +471,7 @@ async fn test_update_record_compression_info() {
         &program_id,
         &payer,
         100,
-        RENT_RECIPIENT,
+        RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
         &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
@@ -565,7 +565,7 @@ async fn test_custom_compression_game_session() {
         &program_id,
         &payer,
         100,
-        RENT_RECIPIENT,
+        RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
         &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
@@ -633,7 +633,7 @@ async fn test_create_empty_compressed_account() {
         &program_id,
         &payer,
         100,
-        RENT_RECIPIENT,
+        RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
         &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
@@ -748,7 +748,7 @@ async fn create_record(
         user_record: *user_record_pda,
         system_program: solana_sdk::system_program::ID,
         config: config_pda,
-        rent_recipient: RENT_RECIPIENT,
+        rent_sponsor: RENT_SPONSOR,
     };
 
     let compressed_address = derive_address(
@@ -829,7 +829,7 @@ async fn create_game_session(
         game_session: *game_session_pda,
         system_program: solana_sdk::system_program::ID,
         config: *config_pda,
-        rent_recipient: RENT_RECIPIENT,
+        rent_sponsor: RENT_SPONSOR,
     };
 
     let compressed_address = derive_address(
@@ -1428,7 +1428,7 @@ async fn create_user_record_and_game_session(
         ctoken_program: light_sdk_types::constants::C_TOKEN_PROGRAM_ID.into(),
         system_program: solana_sdk::system_program::ID,
         config: *config_pda,
-        rent_recipient: RENT_RECIPIENT,
+        rent_sponsor: RENT_SPONSOR,
         mint_authority,
         compress_token_program_cpi_authority: Pubkey::new_from_array(CPI_AUTHORITY_PDA),
     };
@@ -1727,7 +1727,7 @@ async fn compress_record(
         &csdk_anchor_test::accounts::CompressAccountsIdempotent {
             fee_payer: payer.pubkey(),
             config: CompressibleConfig::derive_pda(program_id, 0).0,
-            rent_recipient: RENT_RECIPIENT,
+            rent_sponsor: RENT_SPONSOR,
         }
         .to_account_metas(None),
         vec![csdk_anchor_test::get_userrecord_seeds(&payer.pubkey()).0],
@@ -1904,7 +1904,7 @@ async fn create_placeholder_record(
         placeholder_record: *placeholder_record_pda,
         system_program: solana_sdk::system_program::ID,
         config: *config_pda,
-        rent_recipient: RENT_RECIPIENT,
+        rent_sponsor: RENT_SPONSOR,
     };
 
     let compressed_address = derive_address(
@@ -2008,7 +2008,7 @@ async fn compress_placeholder_record(
             &csdk_anchor_test::accounts::CompressAccountsIdempotent {
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
-                rent_recipient: RENT_RECIPIENT,
+                rent_sponsor: RENT_SPONSOR,
             }
             .to_account_metas(None),
             vec![placeholder_seeds.0],
@@ -2096,7 +2096,7 @@ async fn compress_placeholder_record_for_double_test(
             &csdk_anchor_test::accounts::CompressAccountsIdempotent {
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
-                rent_recipient: RENT_RECIPIENT,
+                rent_sponsor: RENT_SPONSOR,
             }
             .to_account_metas(None),
             vec![placeholder_seeds.0],
@@ -2270,7 +2270,7 @@ async fn test_double_compression_attack() {
         &program_id,
         &payer,
         100,
-        RENT_RECIPIENT,
+        RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
         &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
@@ -2576,7 +2576,7 @@ async fn compress_token_account_after_decompress(
             &csdk_anchor_test::accounts::CompressAccountsIdempotent {
                 fee_payer: user.pubkey(),
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
-                rent_recipient: RENT_RECIPIENT,
+                rent_sponsor: RENT_SPONSOR,
             }
             .to_account_metas(None),
             vec![user_record_seeds, game_session_seeds],

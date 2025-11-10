@@ -29,6 +29,7 @@ fn create_transfer_ctoken_instruction(
             AccountMeta::new_readonly(authority, true),
         ],
         data: {
+            // TODO: check why we have 2 discriminators
             let mut data = vec![3u8];
             data.push(3u8);
             data.extend_from_slice(&amount.to_le_bytes());

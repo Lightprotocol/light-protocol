@@ -412,7 +412,7 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     token_accounts_to_compress: &[AccountInfoToCompress<'info>],
     fee_payer: AccountInfo<'info>,
     output_queue: AccountInfo<'info>,
-    compressed_token_rent_recipient: AccountInfo<'info>,
+    compressed_token_rent_sponsor: AccountInfo<'info>,
     compressed_token_cpi_authority: AccountInfo<'info>,
     cpi_authority: AccountInfo<'info>,
     post_system: &[AccountInfo<'info>],
@@ -422,7 +422,7 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     let mut packed_accounts = Vec::with_capacity(post_system.len() + 4);
     packed_accounts.extend_from_slice(post_system);
     packed_accounts.push(cpi_authority);
-    packed_accounts.push(compressed_token_rent_recipient.clone());
+    packed_accounts.push(compressed_token_rent_sponsor.clone());
 
     let ctoken_infos: Vec<&AccountInfo<'info>> = token_accounts_to_compress
         .iter()
@@ -435,9 +435,7 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
         output_queue,
         &ctoken_infos,
         &packed_accounts,
-    )
-    .map_err(|_| TokenSdkError::InvalidAccountData)?;
-
+    )?;
     // infos
     let total_capacity = packed_accounts.len() + remaining_accounts.len() + 1;
     let mut account_infos: Vec<AccountInfo<'info>> = Vec::with_capacity(total_capacity);

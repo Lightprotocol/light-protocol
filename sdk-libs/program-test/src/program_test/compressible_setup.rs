@@ -66,7 +66,7 @@ pub fn setup_mock_program_data<T: TestRpc>(
 /// * `program_id` - The program to initialize config for
 /// * `authority` - The config authority (can be same as payer)
 /// * `compression_delay` - Number of slots to wait before compression
-/// * `rent_recipient` - Where to send rent from compressed accounts
+/// * `rent_sponsor` - Where to send rent from compressed accounts
 /// * `address_space` - List of address trees for this program
 ///
 /// # Returns
@@ -78,7 +78,7 @@ pub async fn initialize_compression_config<T: Rpc>(
     program_id: &Pubkey,
     authority: &Keypair,
     compression_delay: u32,
-    rent_recipient: Pubkey,
+    rent_sponsor: Pubkey,
     address_space: Vec<Pubkey>,
     discriminator: &[u8],
     config_bump: Option<u8>,
@@ -95,7 +95,7 @@ pub async fn initialize_compression_config<T: Rpc>(
         &payer.pubkey(),
         &authority.pubkey(),
         compression_delay,
-        rent_recipient,
+        rent_sponsor,
         address_space,
         config_bump,
     );
@@ -118,7 +118,7 @@ pub async fn initialize_compression_config<T: Rpc>(
 /// * `program_id` - The program to update config for
 /// * `authority` - The current config authority
 /// * `new_compression_delay` - New compression delay (optional)
-/// * `new_rent_recipient` - New rent recipient (optional)
+/// * `new_rent_sponsor` - New rent recipient (optional)
 /// * `new_address_space` - New address space list (optional)
 /// * `new_update_authority` - New authority (optional)
 ///
@@ -131,7 +131,7 @@ pub async fn update_compression_config<T: Rpc>(
     program_id: &Pubkey,
     authority: &Keypair,
     new_compression_delay: Option<u32>,
-    new_rent_recipient: Option<Pubkey>,
+    new_rent_sponsor: Option<Pubkey>,
     new_address_space: Option<Vec<Pubkey>>,
     new_update_authority: Option<Pubkey>,
     discriminator: &[u8],
@@ -141,7 +141,7 @@ pub async fn update_compression_config<T: Rpc>(
         discriminator,
         &authority.pubkey(),
         new_compression_delay,
-        new_rent_recipient,
+        new_rent_sponsor,
         new_address_space,
         new_update_authority,
     );

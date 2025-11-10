@@ -148,6 +148,10 @@
         ]
       },
       "build-ci": {
+        "executor": "nx:run-script",
+        "options": {
+          "script": "build"
+        },
         "dependsOn": [
           "@lightprotocol/stateless.js:build-ci",
           "@lightprotocol/compressed-token:build-ci"

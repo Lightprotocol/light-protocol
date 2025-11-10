@@ -13,11 +13,12 @@ pub fn close<'info>(
         .try_borrow_mut_lamports()
         .map_err(|_| LightSdkError::ConstraintViolation)? = 0;
 
-    let dest_lamports = sol_destination.lamports();
     **sol_destination
         .try_borrow_mut_lamports()
-        .map_err(|_| LightSdkError::ConstraintViolation)? =
-        dest_lamports.checked_add(lamports_to_transfer).unwrap();
+        .map_err(|_| LightSdkError::ConstraintViolation)? = sol_destination
+        .lamports()
+        .checked_add(lamports_to_transfer)
+        .ok_or(LightSdkError::ConstraintViolation)?;
 
     let system_program_id = solana_pubkey::pubkey!("11111111111111111111111111111111");
 

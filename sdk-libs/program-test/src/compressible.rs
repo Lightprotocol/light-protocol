@@ -184,7 +184,7 @@ pub async fn auto_compress_program_pdas(
         .ok_or_else(|| RpcError::CustomError("compressible config not found".into()))?;
     let cfg = CompressibleConfig::deserialize(&mut &cfg_acc.data[..])
         .map_err(|e| RpcError::CustomError(format!("config deserialize: {e:?}")))?;
-    let rent_recipient = cfg.rent_sponsor;
+    let rent_sponsor = cfg.rent_sponsor;
 
     let program_accounts = rpc.context.get_program_accounts(&program_id);
     if program_accounts.is_empty() {
@@ -199,7 +199,7 @@ pub async fn auto_compress_program_pdas(
     let program_metas = vec![
         AccountMeta::new(payer.pubkey(), true),
         AccountMeta::new_readonly(config_pda, false),
-        AccountMeta::new(rent_recipient, false),
+        AccountMeta::new(rent_sponsor, false),
     ];
 
     const BATCH_SIZE: usize = 5;

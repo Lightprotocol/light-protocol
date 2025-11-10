@@ -21,7 +21,7 @@ use solana_pubkey::Pubkey;
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct InitializeCompressionConfigData {
     pub compression_delay: u32,
-    pub rent_recipient: Pubkey,
+    pub rent_sponsor: Pubkey,
     pub address_space: Vec<Pubkey>,
     pub config_bump: u8,
 }
@@ -29,7 +29,7 @@ pub struct InitializeCompressionConfigData {
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct UpdateCompressionConfigData {
     pub new_compression_delay: Option<u32>,
-    pub new_rent_recipient: Option<Pubkey>,
+    pub new_rent_sponsor: Option<Pubkey>,
     pub new_address_space: Option<Vec<Pubkey>>,
     pub new_update_authority: Option<Pubkey>,
 }
@@ -78,7 +78,7 @@ impl CompressibleInstruction {
         payer: &Pubkey,
         authority: &Pubkey,
         compression_delay: u32,
-        rent_recipient: Pubkey,
+        rent_sponsor: Pubkey,
         address_space: Vec<Pubkey>,
         config_bump: Option<u8>,
     ) -> Instruction {
@@ -102,7 +102,7 @@ impl CompressibleInstruction {
 
         let instruction_data = InitializeCompressionConfigData {
             compression_delay,
-            rent_recipient,
+            rent_sponsor,
             address_space,
             config_bump,
         };
@@ -129,7 +129,7 @@ impl CompressibleInstruction {
         discriminator: &[u8],
         authority: &Pubkey,
         new_compression_delay: Option<u32>,
-        new_rent_recipient: Option<Pubkey>,
+        new_rent_sponsor: Option<Pubkey>,
         new_address_space: Option<Vec<Pubkey>>,
         new_update_authority: Option<Pubkey>,
     ) -> Instruction {
@@ -142,7 +142,7 @@ impl CompressibleInstruction {
 
         let instruction_data = UpdateCompressionConfigData {
             new_compression_delay,
-            new_rent_recipient,
+            new_rent_sponsor,
             new_address_space,
             new_update_authority,
         };

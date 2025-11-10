@@ -56,7 +56,6 @@ pub mod ctoken {
             &[b"compressible_config", &version.to_le_bytes()],
             &registry_program_id,
         );
-        println!("compressible_config: {:?}", compressible_config_pda);
         (compressible_config_pda, config_bump)
     }
 
