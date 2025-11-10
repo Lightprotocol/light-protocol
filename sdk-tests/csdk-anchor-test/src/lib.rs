@@ -1224,6 +1224,7 @@ pub mod csdk_anchor_test {
         let mint_action_instruction = create_mint_action_cpi(
             mint_action_inputs,
             Some(light_ctoken_types::instructions::mint_action::CpiContext {
+                address_tree_pubkey: address_tree_pubkey.to_bytes(),
                 set_context: false,
                 first_set_context: false,
                 in_tree_index: 1, // address tree
