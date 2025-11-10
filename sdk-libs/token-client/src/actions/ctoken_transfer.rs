@@ -6,8 +6,7 @@ use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
-/// Transfer SPL tokens between decompressed compressed token accounts (accounts with compressible extensions).
-/// This performs a regular SPL token transfer on accounts that were decompressed from compressed tokens.
+/// Transfer from one c-token account to another.
 ///
 /// # Arguments
 /// * `rpc` - RPC client
@@ -40,8 +39,6 @@ pub async fn transfer_ctoken<R: Rpc>(
 }
 
 /// Create a ctoken transfer instruction.
-/// This creates an instruction that uses discriminator 3 (CTokenTransfer) to perform
-/// SPL token transfers on ctoken accounts.
 ///
 /// # Arguments
 /// * `source` - Source token account

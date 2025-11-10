@@ -18,8 +18,6 @@ use solana_account::Account;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
-/// Generic instruction data for initialize config
-/// Note: Real programs should use their specific instruction format
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct InitializeCompressionConfigData {
     pub compression_delay: u32,
@@ -28,8 +26,6 @@ pub struct InitializeCompressionConfigData {
     pub config_bump: u8,
 }
 
-/// Generic instruction data for update config
-/// Note: Real programs should use their specific instruction format  
 #[derive(AnchorSerialize, AnchorDeserialize)]
 pub struct UpdateCompressionConfigData {
     pub new_compression_delay: Option<u32>,
@@ -38,9 +34,7 @@ pub struct UpdateCompressionConfigData {
     pub new_update_authority: Option<Pubkey>,
 }
 
-/// Instruction data structure for decompress_accounts_idempotent
-/// This matches the exact format expected by Anchor programs
-/// T is the packed type (result of calling .pack() on the original type)
+/// T is the packed type from calling .pack() on the original type
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct DecompressMultipleAccountsIdempotentData<T> {
     pub proof: ValidityProof,
@@ -48,8 +42,6 @@ pub struct DecompressMultipleAccountsIdempotentData<T> {
     pub system_accounts_offset: u8,
 }
 
-/// Instruction data structure for compress_accounts_idempotent
-/// This matches the exact format expected by Anchor programs
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct CompressAccountsIdempotentData {
     pub proof: ValidityProof,
@@ -58,42 +50,27 @@ pub struct CompressAccountsIdempotentData {
     pub system_accounts_offset: u8,
 }
 
-/// Instruction builders for compressible accounts, following Solana SDK patterns
-/// These are generic builders that work with any program implementing the compressible pattern
+/// Instruction builders for compressible accounts
 pub struct CompressibleInstruction;
 
 impl CompressibleInstruction {
+    /// SHA256("global:initialize_compression_config")[..8]
     pub const INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR: [u8; 8] =
         [133, 228, 12, 169, 56, 76, 222, 61];
+    /// SHA256("global:update_compression_config")[..8]
     pub const UPDATE_COMPRESSION_CONFIG_DISCRIMINATOR: [u8; 8] =
         [135, 215, 243, 81, 163, 146, 33, 70];
-    /// Hardcoded discriminator for the standardized decompress_accounts_idempotent instruction
-    /// This is calculated as SHA256("global:decompress_accounts_idempotent")[..8] (Anchor format)
+    /// SHA256("global:decompress_accounts_idempotent")[..8]
     pub const DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR: [u8; 8] =
         [114, 67, 61, 123, 234, 31, 1, 112];
-    /// Hardcoded discriminator for compress_token_account_ctoken_signer instruction
-    /// This is calculated as SHA256("global:compress_token_account_ctoken_signer")[..8] (Anchor format)
+    /// SHA256("global:compress_token_account_ctoken_signer")[..8]
     pub const COMPRESS_TOKEN_ACCOUNT_CTOKEN_SIGNER_DISCRIMINATOR: [u8; 8] =
         [243, 154, 172, 243, 44, 214, 139, 73];
-    /// Hardcoded discriminator for the standardized compress_accounts_idempotent instruction
-    /// This is calculated as SHA256("global:compress_accounts_idempotent")[..8] (Anchor format)
+    /// SHA256("global:compress_accounts_idempotent")[..8]
     pub const COMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR: [u8; 8] =
         [89, 130, 165, 88, 12, 207, 178, 185];
 
     /// Creates an initialize_compression_config instruction
-    ///
-    /// Following Solana SDK patterns like system_instruction::transfer()
-    /// Returns Instruction directly - errors surface at execution time
-    ///
-    /// # Arguments
-    /// * `program_id` - The program ID
-    /// * `discriminator` - The instruction discriminator bytes (flexible length)
-    /// * `payer` - The payer account
-    /// * `authority` - The authority account
-    /// * `compression_delay` - The compression delay
-    /// * `rent_recipient` - The rent recipient
-    /// * `address_space` - The address space
-    /// * `config_bump` - The config bump
     #[allow(clippy::too_many_arguments)]
     pub fn initialize_compression_config(
         program_id: &Pubkey,
@@ -146,18 +123,7 @@ impl CompressibleInstruction {
         }
     }
 
-    /// Creates an update config instruction
-    ///
-    /// Following Solana SDK patterns - returns Instruction directly
-    ///
-    /// # Arguments
-    /// * `program_id` - The program ID
-    /// * `discriminator` - The instruction discriminator bytes (flexible length)
-    /// * `authority` - The authority account
-    /// * `new_compression_delay` - Optional new compression delay
-    /// * `new_rent_recipient` - Optional new rent recipient
-    /// * `new_address_space` - Optional new address space
-    /// * `new_update_authority` - Optional new update authority
+    /// Updates compression config
     pub fn update_compression_config(
         program_id: &Pubkey,
         discriminator: &[u8],
@@ -196,18 +162,7 @@ impl CompressibleInstruction {
         }
     }
 
-    /// Build a `decompress_accounts_idempotent` instruction for any program's compressed account variant.
-    ///
-    /// # Arguments
-    /// * `program_id` - Target program
-    /// * `discriminator` - The instruction discriminator bytes (flexible length)
-    /// * `decompressed_account_addresses` - addresses of the accounts to decompress into
-    /// * `compressed_accounts` - Compressed accounts with their data (which implements Pack trait)
-    /// * `program_account_metas` - Additional accounts required for seed derivation (e.g., amm_config, token_mints)
-    /// * `validity_proof_with_context` - Validity proof with context
-    /// * `output_state_tree_info` - Output state tree info
-    ///
-    /// Returns `Ok(Instruction)` or error.
+    /// Builds decompress_accounts_idempotent instruction
     #[allow(clippy::too_many_arguments)]
     pub fn decompress_accounts_idempotent<T>(
         program_id: &Pubkey,
@@ -223,7 +178,6 @@ impl CompressibleInstruction {
     {
         let mut remaining_accounts = PackedAccounts::default();
 
-        // check if pdas/tokens
         let mut has_tokens = false;
         let mut has_pdas = false;
         for (compressed_account, _) in compressed_accounts.iter() {
@@ -261,23 +215,19 @@ impl CompressibleInstruction {
         let output_state_tree_index =
             remaining_accounts.insert_or_get(output_state_tree_info.queue);
 
-        // pack all tree infos
+        // pack tree infos
         let packed_tree_infos =
             validity_proof_with_context.pack_tree_infos(&mut remaining_accounts);
 
-        // Add remaining program accounts
-        // accounts.extend(remaining_program_accounts);
         let mut accounts = program_account_metas.to_vec();
 
-        // Pack all account data using the Pack trait. This converts types with
-        // Pubkeys to their packed versions with u8 indices. PDAs must implement
-        // pack trait. Tokens have a standard implementation.
+        // pack account data
         let typed_compressed_accounts: Vec<CompressedAccountData<T::Packed>> = compressed_accounts
             .iter()
             .map(|(compressed_account, data)| {
                 let queue_index =
                     remaining_accounts.insert_or_get(compressed_account.tree_info.queue);
-                // Create compressed_account_meta
+                // create compressed_account_meta
                 let compressed_meta = CompressedAccountMetaNoLamportsNoAddress {
                     tree_info: packed_tree_infos
                         .state_trees
@@ -295,7 +245,7 @@ impl CompressibleInstruction {
                         )?,
                     output_state_tree_index,
                 };
-                // Pack data. Is standardized for TokenData and user-implemented for other types.
+
                 let packed_data = data.pack(&mut remaining_accounts);
                 Ok(CompressedAccountData {
                     meta: compressed_meta,
@@ -304,11 +254,9 @@ impl CompressibleInstruction {
             })
             .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
 
-        // add all packed systemaccounts to anchor metas.
         let (system_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();
         accounts.extend(system_accounts);
 
-        // decompressed account addresses must be the last metas.
         for account in decompressed_account_addresses {
             accounts.push(AccountMeta::new(*account, false));
         }
@@ -319,7 +267,6 @@ impl CompressibleInstruction {
             system_accounts_offset: system_accounts_offset as u8,
         };
 
-        // Serialize instruction data with discriminator
         let serialized_data = instruction_data.try_to_vec()?;
         let mut data = Vec::new();
         data.extend_from_slice(discriminator);
@@ -332,19 +279,7 @@ impl CompressibleInstruction {
         })
     }
 
-    /// Build a `compress_accounts_idempotent` instruction for compressing multiple accounts (PDAs and token accounts).
-    ///
-    /// # Arguments
-    /// * `program_id` - Target program
-    /// * `discriminator` - The instruction discriminator bytes (flexible length)
-    /// * `account_pubkeys` - Accounts to compress (PDAs and token accounts)
-    /// * `accounts_to_compress` - Account data to compress
-    /// * `program_account_metas` - Program-specific accounts (assembled from Anchor accounts struct)
-    /// * `signer_seeds` - Signer seeds for each account (empty vec if no seeds needed)
-    /// * `validity_proof_with_context` - Validity proof with context
-    /// * `output_state_tree_info` - Output state tree info
-    ///
-    /// Returns `Ok(Instruction)` or error.
+    /// Builds compress_accounts_idempotent instruction for PDAs and token accounts
     #[allow(clippy::too_many_arguments)]
     pub fn compress_accounts_idempotent(
         program_id: &Pubkey,
@@ -367,8 +302,6 @@ impl CompressibleInstruction {
         if !signer_seeds.is_empty() && signer_seeds.len() != accounts_to_compress.len() {
             return Err("Signer seeds length must match accounts length or be empty".into());
         }
-
-        // Sanity check for better error messages.
         for (i, account) in account_pubkeys.iter().enumerate() {
             if !signer_seeds.is_empty() {
                 let seeds = &signer_seeds[i];
@@ -428,13 +361,11 @@ impl CompressibleInstruction {
             );
         }
 
-        // Use program-provided account metas (from Anchor accounts struct)
         let mut accounts = program_account_metas.to_vec();
 
         let (system_accounts, system_accounts_offset, _) = remaining_accounts.to_account_metas();
         accounts.extend(system_accounts);
 
-        // Accounts to compress must be at the end.
         for account in account_pubkeys {
             accounts.push(AccountMeta::new(*account, false));
         }
@@ -459,6 +390,4 @@ impl CompressibleInstruction {
     }
 }
 
-/// Generic instruction data for decompress multiple PDAs
-// Re-export for easy access following Solana SDK patterns
 pub use CompressibleInstruction as compressible_instruction;

@@ -60,9 +60,6 @@ pub fn setup_mock_program_data<T: TestRpc>(
 
 /// Initialize compression config for a program
 ///
-/// This is a high-level helper that handles the complete flow of initializing
-/// a compression configuration for a program, including proper signer management.
-///
 /// # Arguments
 /// * `rpc` - The test RPC client
 /// * `payer` - The transaction fee payer
@@ -73,7 +70,7 @@ pub fn setup_mock_program_data<T: TestRpc>(
 /// * `address_space` - List of address trees for this program
 ///
 /// # Returns
-/// Transaction signature on success
+/// `Result<Signature, RpcError>` - The transaction signature
 #[allow(clippy::too_many_arguments)]
 pub async fn initialize_compression_config<T: Rpc>(
     rpc: &mut T,
@@ -92,7 +89,6 @@ pub async fn initialize_compression_config<T: Rpc>(
         ));
     }
 
-    // Use the mid-level instruction builder
     let instruction = CompressibleInstruction::initialize_compression_config(
         program_id,
         discriminator,
@@ -116,9 +112,6 @@ pub async fn initialize_compression_config<T: Rpc>(
 
 /// Update compression config for a program
 ///
-/// This is a high-level helper for updating an existing compression configuration.
-/// All parameters except the required ones are optional - pass None to keep existing values.
-///
 /// # Arguments
 /// * `rpc` - The test RPC client
 /// * `payer` - The transaction fee payer
@@ -130,7 +123,7 @@ pub async fn initialize_compression_config<T: Rpc>(
 /// * `new_update_authority` - New authority (optional)
 ///
 /// # Returns
-/// Transaction signature on success
+/// `Result<Signature, RpcError>` - The transaction signature
 #[allow(clippy::too_many_arguments)]
 pub async fn update_compression_config<T: Rpc>(
     rpc: &mut T,
@@ -143,7 +136,6 @@ pub async fn update_compression_config<T: Rpc>(
     new_update_authority: Option<Pubkey>,
     discriminator: &[u8],
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
-    // Use the mid-level instruction builder
     let instruction = CompressibleInstruction::update_compression_config(
         program_id,
         discriminator,

@@ -141,7 +141,6 @@ where
 }
 
 #[cfg(feature = "anchor")]
-/// Get and parse account with anchor discriminator.
 #[allow(clippy::result_large_err)]
 pub async fn get_anchor_account<T, R>(
     address: &Pubkey,

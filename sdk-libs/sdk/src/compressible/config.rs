@@ -314,7 +314,7 @@ pub fn process_update_compression_config<'info>(
     Ok(())
 }
 
-/// Verifies that the signer is the program's upgrade authority
+/// Checks that the signer is the program's upgrade authority
 ///
 /// # Arguments
 /// * `program_id` - The program to check
@@ -389,13 +389,7 @@ pub fn check_program_upgrade_authority(
     Ok(())
 }
 
-/// Creates a new compressible config PDA with program upgrade authority
-/// validation
-///
-/// # Security
-/// This function verifies that the signer is the program's upgrade authority
-/// before creating the config. This ensures only the program deployer can
-/// initialize the configuration.
+/// Creates a new compressible config PDA.
 ///
 /// # Arguments
 /// * `config_account` - The config PDA account to initialize

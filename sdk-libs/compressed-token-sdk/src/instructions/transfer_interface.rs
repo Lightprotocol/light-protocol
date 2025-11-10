@@ -161,9 +161,6 @@ pub fn create_transfer_ctoken_to_spl_instruction(
 }
 
 /// Transfer SPL tokens to compressed tokens
-///
-/// This function creates the instruction and immediately invokes it.
-/// Similar to SPL Token's transfer wrapper functions.
 #[allow(clippy::too_many_arguments)]
 pub fn transfer_spl_to_ctoken<'info>(
     payer: AccountInfo<'info>,
@@ -207,10 +204,7 @@ pub fn transfer_spl_to_ctoken<'info>(
 }
 
 // TODO: must test this.
-/// Transfer SPL tokens to compressed tokens via CPI signer.
-///
-/// This function creates the instruction and invokes it with the provided
-/// signer seeds.
+/// Transfer SPL tokens to compressed tokens via CPI signer
 #[allow(clippy::too_many_arguments)]
 pub fn transfer_spl_to_ctoken_signed<'info>(
     payer: AccountInfo<'info>,
@@ -256,8 +250,6 @@ pub fn transfer_spl_to_ctoken_signed<'info>(
 
 // TODO: TEST.
 /// Transfer compressed tokens to SPL tokens
-///
-/// This function creates the instruction and invokes it.
 #[allow(clippy::too_many_arguments)]
 pub fn transfer_ctoken_to_spl<'info>(
     payer: AccountInfo<'info>,
@@ -299,10 +291,7 @@ pub fn transfer_ctoken_to_spl<'info>(
     Ok(())
 }
 
-/// Transfer compressed tokens to SPL tokens via CPI signer.
-///
-/// This function creates the instruction and invokes it with the provided
-/// signer seeds.
+/// Transfer compressed tokens to SPL tokens via CPI signer
 #[allow(clippy::too_many_arguments)]
 pub fn transfer_ctoken_to_spl_signed<'info>(
     payer: AccountInfo<'info>,
@@ -345,10 +334,7 @@ pub fn transfer_ctoken_to_spl_signed<'info>(
     Ok(())
 }
 
-/// Unified transfer interface that automatically handles both ctoken<->ctoken and ctoken<->spl transfers
-///
-/// This function inspects the source and destination accounts to determine the transfer type
-/// and validates that the correct optional parameters are provided.
+/// Unified transfer interface for ctoken<->ctoken and ctoken<->spl transfers
 ///
 /// # Arguments
 /// * `source_account` - Source token account (can be ctoken or SPL)
