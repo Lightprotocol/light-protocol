@@ -240,8 +240,7 @@ knowledge_base:
       - "**/CLAUDE.md"
 
 # Additional configuration for Light Protocol specific patterns
-early_access:
-  enabled: true
+early_access: true
 
 # File patterns that should trigger comprehensive reviews
 sensitive_files:
