@@ -143,10 +143,10 @@
           "{workspaceRoot}/gnark-prover"
         ],
         "outputs": [
-          "{workspaceRoot}/bin",
-          "{workspaceRoot}/dist",
-          "{workspaceRoot}/lib",
-          "{workspaceRoot}/test_bin"
+          "{projectRoot}/bin",
+          "{projectRoot}/dist",
+          "{projectRoot}/lib",
+          "{projectRoot}/test_bin"
         ]
       },
       "build-ci": {
