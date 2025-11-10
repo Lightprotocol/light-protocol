@@ -44,11 +44,10 @@ pub struct AccountInfoInterface {
     pub merkle_context: Option<MerkleContext>,
 }
 
-/// Get account info from either compressed or onchain storage.
-/// Matches TypeScript getAccountInfoInterface behavior.
+/// Get account info with unified interface.
 ///
-/// Returns account info with compression state and merkle context.
-/// Fetches both onchain and compressed in parallel for optimal performance.
+/// If the account is cold, returns additional metadata for loading it to hot
+/// state.
 pub async fn get_account_info_interface<R>(
     address: &Pubkey,
     program_id: &Pubkey,
@@ -118,7 +117,6 @@ where
 
 #[cfg(feature = "anchor")]
 #[allow(clippy::result_large_err)]
-/// Deserialize account from AccountInfoInterface using Anchor (includes discriminator).
 pub fn deserialize_account<T>(account: &AccountInfoInterface) -> Result<T, CompressibleAccountError>
 where
     T: anchor_lang::AccountDeserialize,
@@ -129,7 +127,6 @@ where
 
 #[cfg(not(feature = "anchor"))]
 #[allow(clippy::result_large_err)]
-/// Deserialize account from AccountInfoInterface using borsh (skips 8-byte discriminator).
 pub fn deserialize_account<T>(account: &AccountInfoInterface) -> Result<T, CompressibleAccountError>
 where
     T: AnchorDeserialize,
@@ -144,7 +141,7 @@ where
 }
 
 #[cfg(feature = "anchor")]
-/// Fetch and deserialize a compressible account using Anchor.
+/// Get and parse account with anchor discriminator.
 #[allow(clippy::result_large_err)]
 pub async fn get_anchor_account<T, R>(
     address: &Pubkey,
