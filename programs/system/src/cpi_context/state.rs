@@ -75,6 +75,10 @@ impl<'a> ZCpiContextAccount2<'a> {
         self.output_data_len.get()
     }
 
+    pub fn remaining_capacity(&self) -> usize {
+        self.remaining_data.len()
+    }
+
     /// Calculate the byte offsets for output data in the serialized account
     /// Returns (start_offset, end_offset) where:
     /// - start_offset: byte position where total_output_data_len field begins

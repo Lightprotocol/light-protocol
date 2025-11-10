@@ -324,6 +324,64 @@ mod test {
 
     use super::*;
     #[test]
+    fn test_ix_data() {
+        {
+            let leaves_capacity: u8 = 20;
+            let nullifiers_capacity: u8 = 20;
+            let addresses_capacity: u8 = 0;
+            let num_output_trees: u8 = 10;
+            let num_input_trees: u8 = 10;
+            let num_address_trees: u8 = 0;
+            let size = InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
+                leaves_capacity,
+                nullifiers_capacity,
+                addresses_capacity,
+                num_output_trees,
+                num_input_trees,
+                num_address_trees,
+            );
+            println!("size update 20 pdas {}", size);
+            assert_eq!(size, 3165, "size update 20 pdas");
+        }
+        {
+            let leaves_capacity: u8 = 20;
+            let nullifiers_capacity: u8 = 0;
+            let addresses_capacity: u8 = 20;
+            let num_output_trees: u8 = 10;
+            let num_input_trees: u8 = 0;
+            let num_address_trees: u8 = 1;
+            let size = InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
+                leaves_capacity,
+                nullifiers_capacity,
+                addresses_capacity,
+                num_output_trees,
+                num_input_trees,
+                num_address_trees,
+            );
+            println!("size create 20 pdas {}", size);
+            assert_eq!(size, 2345, "size create 20 pdas");
+        }
+        {
+            let leaves_capacity: u8 = 30;
+            let nullifiers_capacity: u8 = 0;
+            let addresses_capacity: u8 = 0;
+            let num_output_trees: u8 = 10;
+            let num_input_trees: u8 = 0;
+            let num_address_trees: u8 = 0;
+            let size = InsertIntoQueuesInstructionDataMut::required_size_for_capacity(
+                leaves_capacity,
+                nullifiers_capacity,
+                addresses_capacity,
+                num_output_trees,
+                num_input_trees,
+                num_address_trees,
+            );
+            println!("size create 30 ctokens {}", size);
+            assert_eq!(size, 1955, "size create 30 ctokens");
+        }
+    }
+
+    #[test]
     fn test_rnd_insert_into_queues_ix_data() {
         use rand::{rngs::StdRng, thread_rng, Rng, SeedableRng};
         let seed = thread_rng().gen();
