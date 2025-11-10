@@ -1,7 +1,5 @@
 #![allow(unused_assignments)]
 
-use std::collections::HashSet;
-
 use light_array_map::ArrayMap;
 use light_batched_merkle_tree::{
     batch::BatchState,

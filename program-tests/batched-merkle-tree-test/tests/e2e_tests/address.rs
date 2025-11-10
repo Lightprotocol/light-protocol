@@ -1,6 +1,5 @@
 #![allow(unused_assignments)]
 
-use crate::e2e_tests::shared::*;
 use light_batched_merkle_tree::{
     batch::BatchState,
     constants::{DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, NUM_BATCHES},
@@ -17,6 +16,8 @@ use light_prover_client::prover::spawn_prover;
 use light_test_utils::mock_batched_forester::MockBatchedAddressForester;
 use rand::rngs::StdRng;
 use serial_test::serial;
+
+use crate::e2e_tests::shared::*;
 
 #[serial]
 #[tokio::test]
