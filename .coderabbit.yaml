@@ -1,0 +1,130 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+tone_instructions: "You are a principal engineer with natural teaching abilities. You detect issues and clearly explain why."
+reviews:
+  profile: assertive
+  high_level_summary: true
+  #paths to ignore, customize for your stack
+  path_filters:
+    - "!node_modules/**"
+    - "!dist/**"
+    - "!target/**"
+    - "!.git/**"
+    - "program-libs/**"
+    - "programs/**"
+    - "sdk-libs/**"
+    - "prover/**"
+    - "forester/**"
+    - "docs/**"
+    - "*.md"
+    - "LICENSE"
+
+  # Custom review instructions for specific paths
+  path_instructions:
+    - path: "program-libs/batched-merkle-tree/docs/**/*.md"
+      instructions: |
+        When reviewing batched Merkle tree documentation changes:
+        1. **Critical**: Verify that all function signatures, struct definitions, and behavior described in the documentation accurately match the actual implementation in `program-libs/batched-merkle-tree/src/`
+        2. Cross-reference any mentioned function names, parameters, return types, and error conditions with the source code
+        3. Check that code examples and usage patterns reflect the current API in the crate
+        4. Validate that any referenced constants, enums, or type definitions exist and have correct values
+        5. Ensure documentation describes the actual behavior, not outdated or planned behavior
+        6. Flag any references to deprecated functions, renamed structs, or changed interfaces
+        7. Verify that error handling and edge cases mentioned in docs match the implementation
+        8. Check that performance characteristics and complexity claims are accurate
+
+    - path: "program-libs/batched-merkle-tree/src/**"
+      instructions: |
+        When reviewing batched Merkle tree implementation changes:
+        1. **Documentation Impact**: Check if changes affect any documented APIs, behaviors, or interfaces
+        2. Identify if corresponding documentation in `program-libs/batched-merkle-tree/docs/` needs updates
+        3. Flag changes to public function signatures, struct fields, or enum variants that may require doc updates
+        4. Note any changes to error conditions, performance characteristics, or usage patterns
+        5. Highlight breaking changes that would make existing documentation incorrect
+        6. Verify that new public APIs have corresponding documentation or flag missing docs
+        7. Check that bug fixes don't contradict documented behavior (update docs if needed)
+
+    - path: "programs/account-compression/**"
+      instructions: |
+        When reviewing account compression program changes:
+        1. Check if changes affect the batched Merkle tree integration
+        2. Verify that any modifications to tree operations are consistent with batched Merkle tree documentation
+        3. Ensure that instruction data structures match documented interfaces
+        4. Flag changes that might affect documented behavior or APIs
+
+    - path: "**/Cargo.toml"
+      instructions: |
+        When reviewing Cargo.toml changes:
+        1. Check for version bumps that might indicate breaking changes requiring documentation updates
+        2. Verify that new dependencies are documented if they affect public APIs
+        3. Flag changes to feature flags that might affect documented functionality
+
+    - path: "**/*.md"
+      instructions: |
+        When reviewing general documentation changes:
+        1. Verify that all source code references exist and are accurate
+        2. Check that code examples compile and work as described
+        3. Validate that GitHub URLs and file paths are correct and accessible
+        4. Ensure consistency with the overall documentation structure
+
+  # General review instructions
+  review_instructions: |
+    **Critical Focus Areas:**
+    
+    **Batched Merkle Tree Documentation Consistency:**
+    - The batched Merkle tree module has undergone recent critical bug fixes and refactoring
+    - Documentation must accurately reflect the current implementation state
+    - Pay special attention to any discrepancies between documented and actual behavior
+    - Flag outdated function names, parameter lists, or behavioral descriptions
+    
+    **Cross-verification Requirements:**
+    - When reviewing code changes in `program-libs/batched-merkle-tree/src/`, always check if corresponding documentation needs updates
+    - When reviewing documentation in `program-libs/batched-merkle-tree/docs/`, verify all claims against the actual source code
+    - Ensure that recent bug fixes and API changes are properly reflected in documentation
+    
+    **Documentation Quality Standards:**
+    - All public APIs must have accurate documentation
+    - Code examples must be functional and up-to-date
+    - Error conditions and edge cases must be documented correctly
+    - Performance characteristics and complexity claims must be verified
+
+# add linters and other tools, CodeRabbit will run and check these as part of its review process
+  tools:
+    eslint:
+      enabled: true
+    ruff:
+      enabled: true
+    gitleaks:
+      enabled: true
+    clippy:
+      enabled: true
+  auto_review:
+    enabled: true
+    drafts: false
+    ignore_title_keywords:
+      - "wip"
+      - "draft"
+      - "temp"
+      - "test"
+knowledge_base:
+  # Coding guidelines for Rust and TypeScript projects
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "docs/**"
+      - "**/README.md"
+      - "program-libs/batched-merkle-tree/docs/**"
+      - "**/CLAUDE.md"
+
+# Additional configuration for Light Protocol specific patterns
+early_access:
+  enabled: true
+
+# File patterns that should trigger comprehensive reviews
+sensitive_files:
+  - "program-libs/batched-merkle-tree/src/**"
+  - "program-libs/batched-merkle-tree/docs/**"
+  - "programs/account-compression/**"
+  - "programs/compressed-token/**"
+  - "**/Cargo.toml"
+  - "**/package.json"
