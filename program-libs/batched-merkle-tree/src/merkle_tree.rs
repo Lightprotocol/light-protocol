@@ -1174,7 +1174,7 @@ mod test {
                 insert_rnd_addresses(&mut account_data, batch_size, rng, current_slot, &pubkey)
                     .unwrap();
 
-            println!("initial account.root_history {:?}", account.root_history);
+
             assert_eq!(
                 account.queue_batches.batches[0].get_state(),
                 BatchState::Full
@@ -1186,7 +1186,7 @@ mod test {
                 latest_root_0 = rnd_root;
                 account.metadata.sequence_number += 1;
                 let root_index = account.get_root_index();
-                println!("root_index: {}", root_index);
+
                 let sequence_number = account.sequence_number;
 
                 let state = account.queue_batches.batches[0]
@@ -1203,7 +1203,7 @@ mod test {
             assert_eq!(account.queue_batches.pending_batch_index, 1);
             let index = account.queue_batches.batches[0].root_index;
             assert_eq!(account.root_history[index as usize], latest_root_0);
-            println!("account.root_history {:?}", account.root_history);
+
         }
         let last_batch0_root = latest_root_0;
         // 2. Batch 0 is inserted but Batch 1 is not half full
@@ -1260,7 +1260,7 @@ mod test {
                 account.root_history.push(rnd_root);
                 account.metadata.sequence_number += 1;
                 let root_index = account.get_root_index();
-                println!("root_index: {}", root_index);
+
                 let sequence_number = account.sequence_number;
 
                 let state = account.queue_batches.batches[1]
@@ -1273,21 +1273,18 @@ mod test {
             let mut account_data = account_data.clone();
             let mut account =
                 BatchedMerkleTreeAccount::address_from_bytes(&mut account_data, &pubkey).unwrap();
-            println!(
-                "currently inserted elements: {:?}",
-                account.queue_batches.batches[1].get_num_inserted_elements()
-            );
+
             let previous_roots = account.root_history.to_vec();
             account.zero_out_previous_batch_bloom_filter().unwrap();
             let current_roots = account.root_history.to_vec();
-            println!("previous_roots: {:?}", previous_roots);
+
             assert_ne!(previous_roots, current_roots);
             let root_index = account.queue_batches.batches[0].root_index;
             // assert_eq!(
             //     account.root_history[root_index as usize],
             //     previous_roots[root_index as usize]
             // );
-            println!("last_batch0_root {:?}", last_batch0_root);
+
             assert_eq!(
                 account.queue_batches.batches[0].get_state(),
                 BatchState::Inserted
@@ -1307,11 +1304,7 @@ mod test {
                     assert_eq!(account.root_history[i], [0u8; 32]);
                 }
             }
-            println!(
-                "account
-                .root_history {:?}",
-                account.root_history
-            );
+
             assert!(!account
                 .root_history
                 .iter()
@@ -1475,13 +1468,13 @@ mod test {
                         .increment_pending_batch_index_if_inserted(state);
                 }
                 last_batch0_root_update2 = *account.root_history.last().unwrap();
-                println!("last_batch0_root_update2 {:?}", last_batch0_root_update2);
+
 
                 // Perform batch 1 insertions to create a new root that is not part of batch 1 update.
                 {
                     let rnd_root = rng.gen();
                     account.root_history.push(rnd_root);
-                    println!("first batch 1 root {:?}", rnd_root);
+
                     account.metadata.sequence_number += 1;
                     let root_index = account.get_root_index();
                     let sequence_number = account.sequence_number;
@@ -1511,9 +1504,9 @@ mod test {
                 BatchState::Full
             );
             let pre_roots = account.root_history.to_vec();
-            println!("pre roots {:?}", pre_roots);
+
             account.zero_out_previous_batch_bloom_filter().unwrap();
-            println!("post roots {:?}", account.root_history);
+
             let mut account_ref =
                 BatchedMerkleTreeAccount::address_from_bytes(&mut account_data_ref, &pubkey)
                     .unwrap();
