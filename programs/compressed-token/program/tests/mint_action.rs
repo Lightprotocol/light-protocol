@@ -161,10 +161,7 @@ fn generate_random_instruction_data(
 ) -> MintActionCompressedInstructionData {
     let create_mint = force_create_mint.unwrap_or_else(|| rng.gen_bool(0.3));
     let create_mint = if create_mint {
-        Some(CreateMint {
-            mint_bump: rng.gen(),
-            ..Default::default()
-        })
+        Some(CreateMint::default())
     } else {
         None
     };

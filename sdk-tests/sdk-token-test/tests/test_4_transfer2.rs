@@ -155,7 +155,7 @@ async fn create_compressed_mint_helper(
     // Find mint PDA
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID);
-    let (mint_pda, mint_bump) = Pubkey::find_program_address(
+    let (mint_pda, _) = Pubkey::find_program_address(
         &[COMPRESSED_MINT_SEED, mint_signer.pubkey().as_ref()],
         &compressed_token_program_id,
     );
@@ -189,7 +189,6 @@ async fn create_compressed_mint_helper(
         mint_authority,
         freeze_authority: None,
         proof: rpc_result.proof.0.unwrap(),
-        mint_bump,
         address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
         mint_signer: mint_signer.pubkey(),
         payer: payer.pubkey(),

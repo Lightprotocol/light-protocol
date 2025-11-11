@@ -152,7 +152,7 @@ pub async fn create_mint<R: Rpc + Indexer>(
         derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint bump for the instruction
-    let (mint, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
+    let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
 
     let pda_address_seed = hash_to_bn254_field_size_be(
         [b"escrow", payer.pubkey().to_bytes().as_ref()]
@@ -249,7 +249,6 @@ pub async fn create_mint<R: Rpc + Indexer>(
     let instruction_data = sdk_token_test::instruction::CtokenPda {
         input: ChainedCtokenInstructionData {
             compressed_mint_with_context,
-            mint_bump,
             token_recipients,
             final_mint_authority: None, // Revoke mint authority (set to None)
             pda_creation,

@@ -67,8 +67,6 @@ pub struct MintActionCompressedInstructionData {
 #[repr(C)]
 #[derive(Debug, Clone, AnchorSerialize, Default, AnchorDeserialize, ZeroCopy)]
 pub struct CreateMint {
-    /// Only used if create mint
-    pub mint_bump: u8,
     /// Placeholder to enable cmints in multiple address trees.
     /// Currently set to 0.
     pub read_only_address_trees: [u8; 4],

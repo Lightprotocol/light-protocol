@@ -59,7 +59,7 @@ async fn test_setup() -> TestSetup {
     // Derive addresses
     let compressed_mint_address =
         derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree);
-    let (spl_mint_pda, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
+    let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());
 
     // 3. Build mint action instruction using SDK
     let compressed_mint_inputs = CompressedMintWithContext {
@@ -84,7 +84,6 @@ async fn test_setup() -> TestSetup {
     let create_mint_inputs = CreateMintCpiWriteInputs {
         compressed_mint_inputs,
         mint_seed: mint_seed.pubkey(),
-        mint_bump,
         authority: mint_authority.pubkey(),
         payer: payer.pubkey(),
         cpi_context_pubkey,
@@ -336,7 +335,7 @@ async fn test_execute_cpi_context_invalid_tree_index() {
     let execute_inputs = MintActionInputs {
         compressed_mint_inputs: mint_action_inputs.compressed_mint_inputs.clone(),
         mint_seed: mint_seed.pubkey(),
-        mint_bump: mint_action_inputs.mint_bump,
+        mint_bump: None,
         create_mint: true,
         authority: mint_action_inputs.authority,
         payer: mint_action_inputs.payer,

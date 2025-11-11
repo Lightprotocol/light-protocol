@@ -8,7 +8,6 @@ use super::{
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct ChainedCtokenInstructionData {
     pub compressed_mint_with_context: CompressedMintWithContext,
-    pub mint_bump: u8,
     pub token_recipients: Vec<MintToRecipient>,
     pub final_mint_authority: Option<Pubkey>,
     pub pda_creation: PdaCreationData,
