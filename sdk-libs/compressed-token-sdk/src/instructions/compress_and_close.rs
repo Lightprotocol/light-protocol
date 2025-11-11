@@ -26,7 +26,7 @@ use crate::{
 };
 
 /// Struct to hold all the indices needed for CompressAndClose operation
-#[derive(Debug, crate::AnchorSerialize, crate::AnchorDeserialize)]
+#[derive(Debug, Copy, Clone, crate::AnchorSerialize, crate::AnchorDeserialize)]
 pub struct CompressAndCloseIndices {
     pub source_index: u8,
     pub mint_index: u8,

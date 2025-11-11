@@ -10,6 +10,7 @@ pub use light_program_test::{
     forester::compress_and_close_forester, program_test::TestRpc, LightProgramTest,
     ProgramTestConfig,
 };
+use light_registry::compressible::compressed_token::CompressAndCloseIndices;
 pub use light_test_utils::{
     assert_close_token_account::assert_close_token_account,
     assert_create_token_account::{
@@ -756,7 +757,6 @@ pub async fn compress_and_close_forester_with_invalid_output(
     use std::str::FromStr;
 
     use anchor_lang::{InstructionData, ToAccountMetas};
-    use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseIndices;
     use light_compressible::config::CompressibleConfig;
     use light_ctoken_types::state::{CToken, ZExtensionStruct};
     use light_registry::{
@@ -842,9 +842,7 @@ pub async fn compress_and_close_forester_with_invalid_output(
         source_index,
         mint_index,
         owner_index,
-        authority_index,
         rent_sponsor_index,
-        destination_index,
     };
 
     // Add system accounts
@@ -869,13 +867,14 @@ pub async fn compress_and_close_forester_with_invalid_output(
         registered_forester_pda,
         compression_authority,
         compressible_config,
-        compressed_token_program: compressed_token_program_id,
     };
 
     let mut accounts = compress_and_close_accounts.to_account_metas(Some(true));
     accounts.extend(remaining_account_metas);
 
     let instruction = CompressAndClose {
+        authority_index,
+        destination_index,
         indices: vec![indices],
     };
     let instruction_data = instruction.data();

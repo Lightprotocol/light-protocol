@@ -45,9 +45,10 @@ use light_compressible::registry_instructions::{
 };
 use protocol_config::state::ProtocolConfig;
 pub use selection::forester::*;
+
+use crate::compressible::compressed_token::CompressAndCloseIndices;
 #[cfg(not(target_os = "solana"))]
 pub mod sdk;
-use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseIndices;
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
@@ -781,8 +782,10 @@ pub mod light_registry {
     }
 
     /// Compress and close token accounts via transfer2
-    pub fn compress_and_close<'info>(
-        ctx: Context<'_, '_, '_, 'info, CompressAndCloseContext<'info>>,
+    pub fn compress_and_close<'c: 'info, 'info>(
+        ctx: Context<'_, '_, 'c, 'info, CompressAndCloseContext<'info>>,
+        authority_index: u8,
+        destination_index: u8,
         indices: Vec<CompressAndCloseIndices>,
     ) -> Result<()> {
         // Check forester and track work
@@ -793,7 +796,7 @@ pub mod light_registry {
             &Pubkey::default(),
             0,
         )?;
-        process_compress_and_close(&ctx, indices)
+        process_compress_and_close(&ctx, authority_index, destination_index, indices)
     }
 }
 

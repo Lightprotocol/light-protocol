@@ -1,5 +1,6 @@
 pub mod claim;
 pub mod compress_and_close;
+pub mod compressed_token;
 pub mod create_config;
 pub mod create_config_counter;
 pub mod update_config;

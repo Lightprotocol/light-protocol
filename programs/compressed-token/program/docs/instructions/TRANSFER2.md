@@ -280,6 +280,7 @@ When compression processing occurs (in both Path A and Path B):
        - Token account balance is set to 0
        - Account is marked for closing after the transaction
      - **Security guarantee:** Unlike Compress which only adds to sum checks, CompressAndClose ensures the exact compressed account exists, preventing token loss or misdirection
+     - **Uniqueness validation:** All CompressAndClose operations in a single instruction must use different compressed output account indices. Duplicate output indices are rejected to prevent fund theft attacks where a rent authority could close multiple accounts but route all funds to a single compressed output
    - Calculate compressible extension top-up if present (returns Option<u64>)
    - **Transfer deduplication optimization:**
      - Collects all transfers into a 40-element array indexed by account
@@ -318,6 +319,7 @@ When compression processing occurs (in both Path A and Path B):
 - `ErrorCode::CompressAndCloseAuthorityMissing` (error code: 6088) - Missing authority for CompressAndClose
 - `ErrorCode::CompressAndCloseAmountMismatch` (error code: 6090) - CompressAndClose amount doesn't match balance
 - `ErrorCode::CompressAndCloseDelegateNotAllowed` (error code: 6092) - Delegates cannot use CompressAndClose
+- `ErrorCode::CompressAndCloseDuplicateOutput` (error code: 6420) - Cannot use the same compressed output account for multiple CompressAndClose operations (security protection against fund theft)
 - `AccountError::InvalidSigner` (error code: 12015) - Required signer account is not signing
 - `AccountError::AccountNotMutable` (error code: 12008) - Required mutable account is not mutable
 - Additional errors from close_token_account for CompressAndClose operations
