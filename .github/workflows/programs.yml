@@ -111,6 +111,10 @@ jobs:
               done
               echo "Test passed on attempt $attempt"
             else
+              # Build account-compression with test feature before running its tests
+              if [ "$subtest" == "cargo-test-sbf -p account-compression-test" ]; then
+                cd programs/account-compression && cargo build-sbf --features 'test, migrate-state' && cd ../..
+              fi
               RUSTFLAGS="-D warnings" eval "$subtest"
               if [ "$subtest" == "cargo-test-sbf -p e2e-test" ]; then
                 pnpm --filter @lightprotocol/programs run build-compressed-token-small

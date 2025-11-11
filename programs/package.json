@@ -8,7 +8,7 @@
     "build-system": "anchor build --program-name light_system_program -- --features idl-build custom-heap",
     "build-compressed-token": "anchor build --program-name light_compressed_token -- --features idl-build custom-heap",
     "test": "RUSTFLAGS=\"-D warnings\" && pnpm test-account-compression &&  pnpm test-compressed-token && pnpm e2e-test && pnpm test-registry && pnpm sdk-test-program && pnpm test-system && pnpm test-system-cpi",
-    "test-account-compression": "cargo-test-sbf -p account-compression-test",
+    "test-account-compression": "cd account-compression && cargo build-sbf --features 'test, migrate-state' && cd .. && cargo-test-sbf -p account-compression-test",
     "test-compressed-token": "cargo test-sbf -p compressed-token-test",
     "e2e-test": "cargo-test-sbf -p e2e-test",
     "test-registry": "cargo-test-sbf -p registry-test",
