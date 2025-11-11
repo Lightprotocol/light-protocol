@@ -13,6 +13,7 @@ use light_sdk::{
 };
 use num_bigint::BigUint;
 use solana_pubkey::Pubkey;
+use tracing::warn;
 
 use super::{
     base58::{decode_base58_option_to_pubkey, decode_base58_to_fixed_array},
@@ -527,14 +528,17 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
         let hash = account
             .hash()
             .map_err(|_| IndexerError::InvalidResponseData)?;
-
-        let tree_pubkey =
-            Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes());
-
-        let cpi_context = QUEUE_TREE_MAPPING
-            .get(&tree_pubkey.to_string())
-            .and_then(|tree_info| tree_info.cpi_context);
-
+        // Breaks light-program-test
+        let tree_info = QUEUE_TREE_MAPPING.get(
+            &Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes())
+                .to_string(),
+        );
+        let cpi_context = if let Some(tree_info) = tree_info {
+            tree_info.cpi_context
+        } else {
+            warn!("Cpi context not found in queue tree mapping");
+            None
+        };
         Ok(CompressedAccount {
             address: account.compressed_account.address,
             data: account.compressed_account.data,
@@ -542,7 +546,7 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
             lamports: account.compressed_account.lamports,
             leaf_index: account.merkle_context.leaf_index,
             tree_info: TreeInfo {
-                tree: tree_pubkey,
+                tree: Pubkey::new_from_array(account.merkle_context.merkle_tree_pubkey.to_bytes()),
                 queue: Pubkey::new_from_array(account.merkle_context.queue_pubkey.to_bytes()),
                 tree_type: account.merkle_context.tree_type,
                 cpi_context,
@@ -551,7 +555,7 @@ impl TryFrom<CompressedAccountWithMerkleContext> for CompressedAccount {
             owner: Pubkey::new_from_array(account.compressed_account.owner.to_bytes()),
             prove_by_index: account.merkle_context.prove_by_index,
             seq: None,
-            slot_created: u64::MAX, // TODO: use actual slot
+            slot_created: u64::MAX,
         })
     }
 }
@@ -616,18 +620,6 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
                 .map(|ctx| NextTreeInfo::try_from(ctx.as_ref()))
                 .transpose()?,
         };
-        // TODO: check if the above handles it fine.
-        // let tree_pubkey =
-        //     Pubkey::new_from_array(decode_base58_to_fixed_array(&account.merkle_context.tree)?);
-        // let tree_info = QUEUE_TREE_MAPPING
-        //     .get(&tree_pubkey.to_string())
-        //     .ok_or_else(|| {
-        //         println!(
-        //             "ERROR: No tree_info found for tree pubkey: {}",
-        //             account.merkle_context.tree
-        //         );
-        //         IndexerError::InvalidResponseData
-        //     })?;
 
         Ok(CompressedAccount {
             owner,
@@ -670,27 +662,16 @@ impl TryFrom<&photon_api::models::Account> for CompressedAccount {
         let lamports = account.lamports;
         let leaf_index = account.leaf_index;
 
-        let tree_pubkey = Pubkey::new_from_array(decode_base58_to_fixed_array(&account.tree)?);
+        let tree_info = QUEUE_TREE_MAPPING
+            .get(&account.tree)
+            .ok_or(IndexerError::InvalidResponseData)?;
 
-        let tree_info = if let Some(static_tree_info) = QUEUE_TREE_MAPPING.get(&account.tree) {
-            TreeInfo {
-                cpi_context: static_tree_info.cpi_context,
-                queue: static_tree_info.queue,
-                tree_type: static_tree_info.tree_type,
-                next_tree_info: None,
-                tree: static_tree_info.tree,
-            }
-        } else {
-            // Unknown tree
-            // TODO: users should provide their own custom QUEUE_TREE_MAPPING if they run their own indexer
-            TreeInfo {
-                cpi_context: None,
-                queue: tree_pubkey,
-                // FIXME: this should be dynamic
-                tree_type: light_compressed_account::TreeType::StateV2,
-                next_tree_info: None,
-                tree: tree_pubkey,
-            }
+        let tree_info = TreeInfo {
+            cpi_context: tree_info.cpi_context,
+            queue: tree_info.queue,
+            tree_type: tree_info.tree_type,
+            next_tree_info: None,
+            tree: tree_info.tree,
         };
 
         Ok(CompressedAccount {

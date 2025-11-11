@@ -1,5 +1,6 @@
 use aligned_sized::aligned_sized;
 use bytemuck::{Pod, Zeroable};
+use light_program_profiler::profile;
 use light_zero_copy::{ZeroCopy, ZeroCopyMut};
 use pinocchio::pubkey::Pubkey;
 use zerocopy::U64;
@@ -61,7 +62,7 @@ macro_rules! impl_is_compressible {
             /// available_balance = current_lamports - last_lamports
             ///     (we can never claim more lamports than rent is due)
             /// remaining_balance = available_balance - rent_due
-
+            #[profile]
             pub fn is_compressible(
                 &self,
                 bytes: u64,
@@ -87,6 +88,7 @@ macro_rules! impl_is_compressible {
             /// Returns 0 if no top-up is needed (account is well-funded).
             /// Returns write_top_up + rent_deficit if account is compressible.
             /// Returns write_top_up if account needs more funding but isn't compressible yet.
+            #[profile]
             pub fn calculate_top_up_lamports(
                 &self,
                 num_bytes: u64,

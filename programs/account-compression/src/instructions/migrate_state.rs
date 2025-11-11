@@ -130,9 +130,10 @@ fn migrate_state(
     };
     #[cfg(target_os = "solana")]
     let slot = Clock::get()?.slot;
+    // Mock slot for unit tests
     #[cfg(not(target_os = "solana"))]
-    let slot = 0u64; // Mock slot for unit tests
-                     // 3. Inserts the leaf in the output queue.
+    let slot = 0u64;
+    // 3. Inserts the leaf in the output queue.
     output_queue
         .insert_into_current_batch(&migrate_leaf_params.leaf, &slot)
         .map_err(ProgramError::from)?;

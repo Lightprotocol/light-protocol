@@ -10,6 +10,8 @@ pub enum ErrorCode {
     RentRecipientMismatch,
     InvalidAccountDiscriminator,
     DerivedTokenAccountMismatch,
+    MissingAuthority,
+    MissingCpiContext,
 }
 
 #[automatically_derived]
@@ -29,6 +31,8 @@ impl ::core::fmt::Debug for ErrorCode {
                 ErrorCode::RentRecipientMismatch => "RentRecipientMismatch",
                 ErrorCode::InvalidAccountDiscriminator => "InvalidAccountDiscriminator",
                 ErrorCode::DerivedTokenAccountMismatch => "DerivedTokenAccountMismatch",
+                ErrorCode::MissingAuthority => "MissingAuthority",
+                ErrorCode::MissingCpiContext => "MissingCpiContext",
             },
         )
     }
@@ -60,6 +64,12 @@ impl std::fmt::Display for ErrorCode {
             )),
             ErrorCode::DerivedTokenAccountMismatch => fmt.write_fmt(format_args!(
                 "Derived token account address must match owner_info.key"
+            )),
+            ErrorCode::MissingAuthority => fmt.write_fmt(format_args!(
+                "Authority account is missing from CPI accounts"
+            )),
+            ErrorCode::MissingCpiContext => fmt.write_fmt(format_args!(
+                "CPI context account is missing from CPI accounts"
             )),
         }
     }

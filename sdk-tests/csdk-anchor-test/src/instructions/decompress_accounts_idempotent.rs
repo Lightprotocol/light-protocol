@@ -176,8 +176,12 @@ pub fn decompress_accounts_idempotent<'info>(
             accounts,
             remaining_accounts,
         };
-        let authority = cpi_accounts.authority().unwrap();
-        let cpi_context = cpi_accounts.cpi_context().unwrap();
+        let authority = cpi_accounts
+            .authority()
+            .map_err(|_| anchor_lang::prelude::ProgramError::from(ErrorCode::MissingAuthority))?;
+        let cpi_context = cpi_accounts
+            .cpi_context()
+            .map_err(|_| anchor_lang::prelude::ProgramError::from(ErrorCode::MissingCpiContext))?;
 
         for (token_data, meta) in ctoken_accounts.into_iter() {
             let owner_index: u8 = token_data.token_data.owner;
@@ -299,7 +303,7 @@ pub fn decompress_accounts_idempotent<'info>(
     )> = Vec::with_capacity(token_count);
     let mut compressed_pda_infos = Vec::with_capacity(pda_count);
 
-    let cpi_accounts = if has_tokens && has_pdas {
+    let cpi_accounts = if has_tokens {
         CpiAccounts::new_with_config(
             ctx.accounts.fee_payer.as_ref(),
             &ctx.remaining_accounts[system_accounts_offset as usize..],
@@ -375,11 +379,15 @@ pub fn decompress_accounts_idempotent<'info>(
         return Ok(());
     }
     let fee_payer = ctx.accounts.fee_payer.as_ref();
-    let authority = cpi_accounts.authority().unwrap();
-    let cpi_context = cpi_accounts.cpi_context().unwrap();
 
     // init PDAs.
     if has_pdas && has_tokens {
+        let authority = cpi_accounts
+            .authority()
+            .map_err(|_| anchor_lang::prelude::ProgramError::from(ErrorCode::MissingAuthority))?;
+        let cpi_context = cpi_accounts
+            .cpi_context()
+            .map_err(|_| anchor_lang::prelude::ProgramError::from(ErrorCode::MissingCpiContext))?;
         let system_cpi_accounts = light_sdk_types::cpi_context_write::CpiContextWriteAccounts {
             fee_payer,
             authority,
