@@ -83,30 +83,31 @@ fn test_instruction_data_consistency() {
 }
 
 #[test]
-fn test_with_bump_functions() {
-    let payer = Pubkey::new_unique();
+fn test_ata_address_derivation() {
     let owner = Pubkey::new_unique();
     let mint = Pubkey::new_unique();
-    let (ata_pubkey, bump) = derive_ctoken_ata(&owner, &mint);
+    let (ata_pubkey, _bump) = derive_ctoken_ata(&owner, &mint);
 
-    // Test with_bump variant (non-idempotent by default)
-    let ix_with_bump =
-        create_associated_token_account_with_bump(payer, owner, mint, ata_pubkey, bump).unwrap();
-    assert_eq!(ix_with_bump.data[0], CREATE_ATA_DISCRIMINATOR);
-
-    // Test with_bump_and_mode variants
-    let ix_with_bump_false = create_associated_token_account_with_bump_and_mode::<false>(
-        payer, owner, mint, ata_pubkey, bump,
-    )
-    .unwrap();
-    assert_eq!(ix_with_bump_false.data[0], CREATE_ATA_DISCRIMINATOR);
-
-    let ix_with_bump_true = create_associated_token_account_with_bump_and_mode::<true>(
-        payer, owner, mint, ata_pubkey, bump,
-    )
-    .unwrap();
+    // Verify that the derived ATA address is consistent
+    let (ata_pubkey2, _bump2) = derive_ctoken_ata(&owner, &mint);
     assert_eq!(
-        ix_with_bump_true.data[0],
-        CREATE_ATA_IDEMPOTENT_DISCRIMINATOR
+        ata_pubkey, ata_pubkey2,
+        "ATA derivation should be deterministic"
+    );
+
+    // Verify that different owners produce different ATAs
+    let owner2 = Pubkey::new_unique();
+    let (ata_pubkey3, _bump3) = derive_ctoken_ata(&owner2, &mint);
+    assert_ne!(
+        ata_pubkey, ata_pubkey3,
+        "Different owners should have different ATAs"
+    );
+
+    // Verify that different mints produce different ATAs
+    let mint2 = Pubkey::new_unique();
+    let (ata_pubkey4, _bump4) = derive_ctoken_ata(&owner, &mint2);
+    assert_ne!(
+        ata_pubkey, ata_pubkey4,
+        "Different mints should have different ATAs"
     );
 }
