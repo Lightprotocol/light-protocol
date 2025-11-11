@@ -13,8 +13,7 @@ use spl_pod::solana_msg::msg;
 use super::inputs::CompressAndCloseInputs;
 use crate::{
     close_token_account::{
-        accounts::CloseTokenAccountAccounts,
-        processor::{close_token_account, validate_token_account_for_close_transfer2},
+        accounts::CloseTokenAccountAccounts, processor::validate_token_account_for_close_transfer2,
     },
     transfer2::accounts::Transfer2Accounts,
 };
