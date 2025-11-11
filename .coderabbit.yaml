@@ -1,0 +1,112 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: en-US
+tone_instructions: "You are a principal engineer with natural teaching abilities. You detect issues and clearly explain why. Read the docs and CLAUDE.md files."
+reviews:
+  profile: assertive
+  high_level_summary: true
+  #paths to ignore, customize for your stack
+  path_filters:
+    - "!node_modules/**"
+    - "!dist/**"
+    - "!target/**"
+    - "!.git/**"
+    - "program-libs/**"
+    - "programs/**"
+    - "sdk-libs/**"
+    - "prover/**"
+    - "forester/**"
+    - "docs/**"
+    - "*.md"
+    - "!LICENSE"
+
+  path_instructions:
+    - path: "**/docs/**/*.md"
+      instructions: |
+        When reviewing batched Merkle tree documentation changes:
+        1. **Critical**: Verify that all function signatures, struct definitions, and behavior described in the documentation accurately match the actual implementation in `**/src/`
+        2. Cross-reference any mentioned function names, parameters, return types, and error conditions with the source code
+        3. Check that code examples and usage patterns reflect the current API in the crate
+        4. Validate that any referenced constants, enums, or type definitions exist and have correct values
+        5. Ensure documentation describes the actual behavior, not outdated or planned behavior
+        6. Flag any references to deprecated functions, renamed structs, or changed interfaces
+        7. Verify that error handling and edge cases mentioned in docs match the implementation
+        8. Check that performance characteristics and complexity claims are accurate
+        9. Do you see any inconsistencies between the documentation and the code in either way?
+        10. Do you see any weird patterns or anything that doesn't make sense in code or docs?
+
+  # add linters and other tools, CodeRabbit will run and check these as part of its review process
+  # Pre-merge quality gates
+  pre_merge_checks:
+    docstrings:
+      mode: warning
+      threshold: 70
+
+  # Finishing touches for code quality
+  finishing_touches:
+    docstrings:
+      enabled: true
+    unit_tests:
+      enabled: true
+
+  tools:
+    eslint:
+      enabled: true
+    ruff:
+      enabled: true
+    gitleaks:
+      enabled: true
+    clippy:
+      enabled: true
+    yamllint:
+      enabled: true
+    markdownlint:
+      enabled: true
+    shellcheck:
+      enabled: true
+  auto_review:
+    enabled: true
+    drafts: false
+    ignore_title_keywords:
+      - "wip"
+      - "draft"
+      - "temp"
+      - "test"
+      - "experimental"
+    ignore_usernames:
+      - "dependabot[bot]"
+      - "dependabot"
+    labels:
+      - "!skip-review"
+      - "!no-review"
+      - "!dependabot"
+    base_branches:
+      - "main"
+      - "release/*"
+
+chat:
+  auto_reply: true
+  art: false
+
+# Enhanced knowledge base configuration
+knowledge_base:
+  opt_out: false
+  web_search:
+    enabled: true
+  learnings:
+    scope: global
+  issues:
+    scope: global
+  # Coding guidelines for Rust and TypeScript projects
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - "*/docs/**"
+      - "*/**/README.md"
+      - "program-libs/batched-merkle-tree/docs/**"
+      - "program-libs/account-checks/docs/**"
+      - "program-libs/compressible/docs/**"
+      - "*/**/CLAUDE.md"
+      - "DOCS.md"
+
+# Additional configuration for Light Protocol specific patterns
+early_access: true
