@@ -39,10 +39,7 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
-use light_compressible::registry_instructions::{
-    CreateCompressibleConfig as CreateCompressibleConfigData,
-    CreateConfigCounter as CreateConfigCounterData,
-};
+use light_compressible::registry_instructions::CreateCompressibleConfig as CreateCompressibleConfigData;
 use protocol_config::state::ProtocolConfig;
 pub use selection::forester::*;
 
@@ -691,10 +688,7 @@ pub mod light_registry {
     }
 
     /// Creates the config counter PDA
-    pub fn create_config_counter(
-        ctx: Context<CreateConfigCounter>,
-        _params: CreateConfigCounterData,
-    ) -> Result<()> {
+    pub fn create_config_counter(ctx: Context<CreateConfigCounter>) -> Result<()> {
         ctx.accounts.config_counter.counter += 1;
         Ok(())
     }

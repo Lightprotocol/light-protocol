@@ -322,7 +322,6 @@ async fn pause_compressible_config<R: Rpc>(
         compressible_config,
         new_update_authority: None,
         new_withdrawal_authority: None,
-        system_program: solana_sdk::system_program::id(),
     };
 
     let instruction = Instruction {
@@ -358,7 +357,6 @@ async fn unpause_compressible_config<R: Rpc>(
         compressible_config,
         new_update_authority: None,
         new_withdrawal_authority: None,
-        system_program: solana_sdk::system_program::id(),
     };
 
     let instruction = Instruction {
@@ -394,7 +392,6 @@ async fn deprecate_compressible_config<R: Rpc>(
         compressible_config,
         new_update_authority: None,
         new_withdrawal_authority: None,
-        system_program: solana_sdk::system_program::id(),
     };
 
     let instruction = Instruction {
@@ -430,7 +427,6 @@ async fn update_compressible_config_authorities<R: Rpc>(
         compressible_config,
         new_update_authority: new_update_authority.map(|k| k.pubkey()),
         new_withdrawal_authority: new_withdrawal_authority.map(|k| k.pubkey()),
-        system_program: solana_sdk::system_program::id(),
     };
 
     let instruction = Instruction {
