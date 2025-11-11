@@ -58,35 +58,12 @@ pub fn create_compressible_associated_token_account_idempotent(
 pub fn create_compressible_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     inputs: CreateCompressibleAssociatedTokenAccountInputs,
 ) -> Result<Instruction> {
-    let (ata_pubkey, bump) = derive_ctoken_ata(&inputs.owner, &inputs.mint);
-    create_compressible_associated_token_account_with_bump_and_mode::<IDEMPOTENT>(
-        inputs, ata_pubkey, bump,
-    )
-}
-
-/// Creates a compressible associated token account instruction with a specified bump (non-idempotent)
-pub fn create_compressible_associated_token_account_with_bump(
-    inputs: CreateCompressibleAssociatedTokenAccountInputs,
-    ata_pubkey: Pubkey,
-    bump: u8,
-) -> Result<Instruction> {
-    create_compressible_associated_token_account_with_bump_and_mode::<false>(
-        inputs, ata_pubkey, bump,
-    )
-}
-
-/// Creates a compressible associated token account instruction with a specified bump and mode
-pub fn create_compressible_associated_token_account_with_bump_and_mode<const IDEMPOTENT: bool>(
-    inputs: CreateCompressibleAssociatedTokenAccountInputs,
-    ata_pubkey: Pubkey,
-    bump: u8,
-) -> Result<Instruction> {
+    let (ata_pubkey, _bump) = derive_ctoken_ata(&inputs.owner, &inputs.mint);
     create_ata_instruction_unified::<IDEMPOTENT, true>(
         inputs.payer,
         inputs.owner,
         inputs.mint,
         ata_pubkey,
-        bump,
         Some((
             inputs.pre_pay_num_epochs,
             inputs.lamports_per_write,
@@ -121,34 +98,8 @@ pub fn create_associated_token_account_with_mode<const IDEMPOTENT: bool>(
     owner: Pubkey,
     mint: Pubkey,
 ) -> Result<Instruction> {
-    let (ata_pubkey, bump) = derive_ctoken_ata(&owner, &mint);
-    create_associated_token_account_with_bump_and_mode::<IDEMPOTENT>(
-        payer, owner, mint, ata_pubkey, bump,
-    )
-}
-
-/// Creates a basic associated token account instruction with a specified bump (non-idempotent)
-pub fn create_associated_token_account_with_bump(
-    payer: Pubkey,
-    owner: Pubkey,
-    mint: Pubkey,
-    ata_pubkey: Pubkey,
-    bump: u8,
-) -> Result<Instruction> {
-    create_associated_token_account_with_bump_and_mode::<false>(
-        payer, owner, mint, ata_pubkey, bump,
-    )
-}
-
-/// Creates a basic associated token account instruction with specified bump and mode
-pub fn create_associated_token_account_with_bump_and_mode<const IDEMPOTENT: bool>(
-    payer: Pubkey,
-    owner: Pubkey,
-    mint: Pubkey,
-    ata_pubkey: Pubkey,
-    bump: u8,
-) -> Result<Instruction> {
-    create_ata_instruction_unified::<IDEMPOTENT, false>(payer, owner, mint, ata_pubkey, bump, None)
+    let (ata_pubkey, _bump) = derive_ctoken_ata(&owner, &mint);
+    create_ata_instruction_unified::<IDEMPOTENT, false>(payer, owner, mint, ata_pubkey, None)
 }
 
 /// Unified function to create ATA instructions with compile-time configuration
@@ -157,7 +108,6 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
     owner: Pubkey,
     mint: Pubkey,
     ata_pubkey: Pubkey,
-    bump: u8,
     compressible_config: Option<(u8, Option<u32>, Pubkey, Pubkey, TokenDataVersion)>, // (pre_pay_num_epochs, lamports_per_write, rent_sponsor, compressible_config_account, token_account_version)
 ) -> Result<Instruction> {
     // Select discriminator based on idempotent mode
@@ -189,7 +139,6 @@ fn create_ata_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: bo
     let instruction_data = CreateAssociatedTokenAccountInstructionData {
         owner: light_compressed_account::Pubkey::from(owner.to_bytes()),
         mint: light_compressed_account::Pubkey::from(mint.to_bytes()),
-        bump,
         compressible_config: compressible_extension,
     };
 
@@ -261,24 +210,12 @@ pub fn create_compressible_associated_token_account2_idempotent(
 fn create_compressible_associated_token_account2_with_mode<const IDEMPOTENT: bool>(
     inputs: CreateCompressibleAssociatedTokenAccountInputs,
 ) -> Result<Instruction> {
-    let (ata_pubkey, bump) = derive_ctoken_ata(&inputs.owner, &inputs.mint);
-    create_compressible_associated_token_account2_with_bump_and_mode::<IDEMPOTENT>(
-        inputs, ata_pubkey, bump,
-    )
-}
-
-/// Creates a compressible associated token account instruction v2 with specified bump and mode
-fn create_compressible_associated_token_account2_with_bump_and_mode<const IDEMPOTENT: bool>(
-    inputs: CreateCompressibleAssociatedTokenAccountInputs,
-    ata_pubkey: Pubkey,
-    bump: u8,
-) -> Result<Instruction> {
+    let (ata_pubkey, _bump) = derive_ctoken_ata(&inputs.owner, &inputs.mint);
     create_ata2_instruction_unified::<IDEMPOTENT, true>(
         inputs.payer,
         inputs.owner,
         inputs.mint,
         ata_pubkey,
-        bump,
         Some((
             inputs.pre_pay_num_epochs,
             inputs.lamports_per_write,
@@ -315,21 +252,8 @@ fn create_associated_token_account2_with_mode<const IDEMPOTENT: bool>(
     owner: Pubkey,
     mint: Pubkey,
 ) -> Result<Instruction> {
-    let (ata_pubkey, bump) = derive_ctoken_ata(&owner, &mint);
-    create_associated_token_account2_with_bump_and_mode::<IDEMPOTENT>(
-        payer, owner, mint, ata_pubkey, bump,
-    )
-}
-
-/// Creates a basic associated token account instruction v2 with specified bump and mode
-fn create_associated_token_account2_with_bump_and_mode<const IDEMPOTENT: bool>(
-    payer: Pubkey,
-    owner: Pubkey,
-    mint: Pubkey,
-    ata_pubkey: Pubkey,
-    bump: u8,
-) -> Result<Instruction> {
-    create_ata2_instruction_unified::<IDEMPOTENT, false>(payer, owner, mint, ata_pubkey, bump, None)
+    let (ata_pubkey, _bump) = derive_ctoken_ata(&owner, &mint);
+    create_ata2_instruction_unified::<IDEMPOTENT, false>(payer, owner, mint, ata_pubkey, None)
 }
 
 /// Unified function to create ATA2 instructions with compile-time configuration
@@ -339,7 +263,6 @@ fn create_ata2_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: b
     owner: Pubkey,
     mint: Pubkey,
     ata_pubkey: Pubkey,
-    bump: u8,
     compressible_config: Option<(u8, Option<u32>, Pubkey, Pubkey, TokenDataVersion)>,
 ) -> Result<Instruction> {
     let discriminator = if IDEMPOTENT {
@@ -367,7 +290,6 @@ fn create_ata2_instruction_unified<const IDEMPOTENT: bool, const COMPRESSIBLE: b
     };
 
     let instruction_data = CreateAssociatedTokenAccount2InstructionData {
-        bump,
         compressible_config: compressible_extension,
     };
 

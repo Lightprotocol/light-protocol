@@ -311,7 +311,7 @@ async fn test_create_ata_failing() {
 
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
-        let (ata_pubkey, bump) =
+        let (ata_pubkey, _bump) =
             derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
         // Manually build instruction data with compress_to_account_pubkey (forbidden)
@@ -324,7 +324,6 @@ async fn test_create_ata_failing() {
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
             owner: context.owner_keypair.pubkey().into(),
             mint: context.mint_pubkey.into(),
-            bump,
             compressible_config: Some(CompressibleExtensionInstructionData {
                 token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat as u8,
                 rent_payment: 2,
@@ -364,9 +363,9 @@ async fn test_create_ata_failing() {
         light_program_test::utils::assert::assert_rpc_error(result, 0, 2).unwrap();
     }
 
-    // Test 5: Invalid PDA derivation (wrong bump)
-    // ATAs must use the correct bump derived from [owner, program_id, mint]
-    // Error: 21 (ProgramFailedToComplete - provided seeds do not result in valid address)
+    // Test 5: Invalid PDA derivation (wrong ATA address)
+    // ATAs must use the correct address derived from [owner, program_id, mint]
+    // Error: InvalidSeeds (14)
     {
         use anchor_lang::prelude::borsh::BorshSerialize;
         use light_ctoken_types::instructions::{
@@ -377,20 +376,15 @@ async fn test_create_ata_failing() {
 
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
-        let (ata_pubkey, correct_bump) =
+        let (_ata_pubkey, _correct_bump) =
             derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
-        // Manually build instruction data with WRONG bump
-        let wrong_bump = if correct_bump == 255 {
-            254
-        } else {
-            correct_bump + 1
-        };
+        // Use a WRONG ATA address (just generate a random one)
+        let wrong_ata_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
 
         let instruction_data = CreateAssociatedTokenAccountInstructionData {
             owner: context.owner_keypair.pubkey().into(),
             mint: context.mint_pubkey.into(),
-            bump: wrong_bump, // Wrong bump!
             compressible_config: Some(CompressibleExtensionInstructionData {
                 token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat as u8,
                 rent_payment: 2,
@@ -407,7 +401,7 @@ async fn test_create_ata_failing() {
             program_id: light_compressed_token::ID,
             accounts: vec![
                 solana_sdk::instruction::AccountMeta::new(payer_pubkey, true),
-                solana_sdk::instruction::AccountMeta::new(ata_pubkey, false),
+                solana_sdk::instruction::AccountMeta::new(wrong_ata_pubkey, false),
                 solana_sdk::instruction::AccountMeta::new_readonly(
                     solana_sdk::pubkey::Pubkey::default(),
                     false,
@@ -426,16 +420,8 @@ async fn test_create_ata_failing() {
             .create_and_send_transaction(&[ix], &payer_pubkey, &[&context.payer])
             .await;
 
-        // Wrong bump can trigger either ProgramFailedToComplete (21) or PrivilegeEscalation (19)
-        // depending on runtime state - accept either
-        let is_valid_error =
-            light_program_test::utils::assert::assert_rpc_error(result.clone(), 0, 21).is_ok()
-                || light_program_test::utils::assert::assert_rpc_error(result, 0, 19).is_ok();
-
-        assert!(
-            is_valid_error,
-            "Expected either ProgramFailedToComplete (21) or PrivilegeEscalation (19)"
-        );
+        // Should fail with InvalidSeeds (14)
+        light_program_test::utils::assert::assert_rpc_error(result, 0, 14).unwrap();
     }
 
     // Test 6: Invalid config account owner

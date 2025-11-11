@@ -56,7 +56,6 @@ fn process_create_associated_token_account2_inner<const IDEMPOTENT: bool>(
         remaining_accounts,
         owner.key(),
         mint.key(),
-        instruction_inputs.bump,
         instruction_inputs.compressible_config,
     )
 }

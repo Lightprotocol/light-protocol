@@ -15,7 +15,6 @@ use crate::{
     shared::{
         convert_program_error, create_pda_account,
         initialize_ctoken_account::initialize_ctoken_account, transfer_lamports_via_cpi,
-        validate_ata_derivation,
     },
 };
 
@@ -57,7 +56,6 @@ pub(crate) fn process_create_associated_token_account_with_mode<const IDEMPOTENT
         account_infos,
         &instruction_inputs.owner.to_bytes(),
         &instruction_inputs.mint.to_bytes(),
-        instruction_inputs.bump,
         instruction_inputs.compressible_config,
     )
 }
@@ -69,7 +67,6 @@ pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bo
     account_infos: &[AccountInfo],
     owner_bytes: &[u8; 32],
     mint_bytes: &[u8; 32],
-    bump: u8,
     compressible_config: Option<CompressibleExtensionInstructionData>,
 ) -> Result<(), ProgramError> {
     let mut iter = AccountIterator::new(account_infos);
@@ -78,10 +75,23 @@ pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bo
     let associated_token_account = iter.next_mut("associated_token_account")?;
     let _system_program = iter.next_non_mut("system_program")?;
 
+    let program_id_solana =
+        solana_pubkey::Pubkey::new_from_array(crate::LIGHT_CPI_SIGNER.program_id);
+    let (expected_address, bump) = solana_pubkey::Pubkey::find_program_address(
+        &[
+            owner_bytes.as_ref(),
+            program_id_solana.as_ref(),
+            mint_bytes.as_ref(),
+        ],
+        &program_id_solana,
+    );
+
+    if associated_token_account.key() != &expected_address.to_bytes() {
+        return Err(ProgramError::InvalidSeeds);
+    }
+
     // If idempotent mode, check if account already exists
     if IDEMPOTENT {
-        // Verify the PDA derivation is correct
-        validate_ata_derivation(associated_token_account, owner_bytes, mint_bytes, bump)?;
         // If account is already owned by our program, it exists - return success
         if associated_token_account.is_owned_by(&crate::LIGHT_CPI_SIGNER.program_id) {
             return Ok(());
@@ -99,6 +109,7 @@ pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bo
         light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize
     };
 
+    let bump_seed = [bump];
     let (compressible_config_account, custom_rent_payer) =
         if let Some(compressible_config_ix_data) = compressible_config.as_ref() {
             let (compressible_config_account, custom_rent_payer) = process_compressible_config(
@@ -107,14 +118,13 @@ pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bo
                 token_account_size,
                 fee_payer,
                 associated_token_account,
-                bump,
+                &bump_seed,
                 owner_bytes,
                 mint_bytes,
             )?;
             (Some(compressible_config_account), custom_rent_payer)
         } else {
             // Create the PDA account (with rent-exempt balance only)
-            let bump_seed = [bump];
             let seeds = [
                 Seed::from(owner_bytes.as_ref()),
                 Seed::from(crate::LIGHT_CPI_SIGNER.program_id.as_ref()),
@@ -153,7 +163,7 @@ fn process_compressible_config<'info>(
     token_account_size: usize,
     fee_payer: &'info AccountInfo,
     associated_token_account: &'info AccountInfo,
-    ata_bump: u8,
+    ata_bump_seed: &[u8; 1],
     owner_bytes: &[u8; 32],
     mint_bytes: &[u8; 32],
 ) -> Result<(&'info CompressibleConfig, Option<Pubkey>), ProgramError> {
@@ -186,7 +196,6 @@ fn process_compressible_config<'info>(
         );
 
     // Build ATA seeds
-    let ata_bump_seed = [ata_bump];
     let ata_seeds = [
         Seed::from(owner_bytes.as_ref()),
         Seed::from(crate::LIGHT_CPI_SIGNER.program_id.as_ref()),
