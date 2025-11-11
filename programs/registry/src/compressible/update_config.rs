@@ -16,5 +16,11 @@ pub struct UpdateCompressibleConfig<'info> {
     )]
     pub compressible_config: Account<'info, CompressibleConfig>,
 
+    /// New update authority (optional). Must be a signer to reduce risk of updating with a wrong authority.
+    pub new_update_authority: Option<Signer<'info>>,
+
+    /// New withdrawal authority (optional). Must be a signer to reduce risk of updating with a wrong authority.
+    pub new_withdrawal_authority: Option<Signer<'info>>,
+
     pub system_program: Program<'info, System>,
 }
