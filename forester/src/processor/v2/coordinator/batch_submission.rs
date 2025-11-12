@@ -1,0 +1,238 @@
+/// Transaction submission logic for batch operations.
+use anyhow::Result;
+use borsh::BorshSerialize;
+use light_batched_merkle_tree::merkle_tree::{
+    InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
+};
+use light_client::rpc::Rpc;
+use light_registry::account_compression_cpi::sdk::{
+    create_batch_append_instruction, create_batch_nullify_instruction,
+};
+use solana_sdk::{instruction::Instruction, signer::Signer};
+use tracing::info;
+
+use crate::processor::v2::common::{send_transaction_batch, BatchContext};
+use forester_utils::utils::wait_for_indexer;
+
+const MAX_INSTRUCTIONS_PER_TX: usize = 4;
+
+/// Submits append batches to the blockchain.
+///
+/// Returns the total number of elements processed (not batches).
+pub async fn submit_append_batches<R: Rpc>(
+    context: &BatchContext<R>,
+    proofs: Vec<InstructionDataBatchAppendInputs>,
+    zkp_batch_size: u16,
+) -> Result<usize> {
+    if proofs.is_empty() {
+        return Ok(0);
+    }
+
+    let total_batches = proofs.len();
+    info!("Submitting {} append batches", total_batches);
+
+    let mut total_batches_submitted = 0;
+
+    for (chunk_idx, batch_chunk) in proofs.chunks(MAX_INSTRUCTIONS_PER_TX).enumerate() {
+        let start_batch_idx = chunk_idx * MAX_INSTRUCTIONS_PER_TX;
+
+        let instructions: Vec<Instruction> = batch_chunk
+            .iter()
+            .map(|batch_data| {
+                create_batch_append_instruction(
+                    context.authority.pubkey(),
+                    context.derivation,
+                    context.merkle_tree,
+                    context.output_queue,
+                    context.epoch,
+                    batch_data.try_to_vec().expect("Failed to serialize proof"),
+                )
+            })
+            .collect();
+
+        info!(
+            "Submitting append transaction {} with {} batches (batches {}-{})",
+            chunk_idx,
+            instructions.len(),
+            start_batch_idx,
+            start_batch_idx + instructions.len() - 1
+        );
+
+        let signature = send_transaction_batch(context, instructions).await?;
+
+        info!(
+            "Append transaction {} submitted: {} ({} batches)",
+            chunk_idx,
+            signature,
+            batch_chunk.len()
+        );
+
+        // Wait for indexer to catch up before proceeding
+        let rpc = context.rpc_pool.get_connection().await?;
+        wait_for_indexer(&*rpc)
+            .await
+            .map_err(|e| anyhow::anyhow!("Indexer failed to catch up after append batch: {}", e))?;
+
+        total_batches_submitted += batch_chunk.len();
+    }
+
+    let total_elements = total_batches_submitted * zkp_batch_size as usize;
+    let num_transactions = (total_batches + MAX_INSTRUCTIONS_PER_TX - 1) / MAX_INSTRUCTIONS_PER_TX;
+
+    info!(
+        "Submitted {} append batches ({} elements) in {} transactions",
+        total_batches, total_elements, num_transactions
+    );
+
+    Ok(total_elements)
+}
+
+/// Submits nullify batches to the blockchain.
+///
+/// Returns the total number of elements processed (not batches).
+pub async fn submit_nullify_batches<R: Rpc>(
+    context: &BatchContext<R>,
+    proofs: Vec<InstructionDataBatchNullifyInputs>,
+    zkp_batch_size: u16,
+) -> Result<usize> {
+    if proofs.is_empty() {
+        return Ok(0);
+    }
+
+    let total_batches = proofs.len();
+    info!("Submitting {} nullify batches", total_batches);
+
+    let mut total_batches_submitted = 0;
+
+    for (chunk_idx, batch_chunk) in proofs.chunks(MAX_INSTRUCTIONS_PER_TX).enumerate() {
+        let start_batch_idx = chunk_idx * MAX_INSTRUCTIONS_PER_TX;
+
+        let instructions: Vec<Instruction> = batch_chunk
+            .iter()
+            .map(|batch_data| {
+                create_batch_nullify_instruction(
+                    context.authority.pubkey(),
+                    context.derivation,
+                    context.merkle_tree,
+                    context.epoch,
+                    batch_data.try_to_vec().expect("Failed to serialize proof"),
+                )
+            })
+            .collect();
+
+        info!(
+            "Submitting nullify transaction {} with {} batches (batches {}-{})",
+            chunk_idx,
+            instructions.len(),
+            start_batch_idx,
+            start_batch_idx + instructions.len() - 1
+        );
+
+        let signature = send_transaction_batch(context, instructions).await?;
+
+        info!(
+            "Nullify transaction {} submitted: {} ({} batches)",
+            chunk_idx,
+            signature,
+            batch_chunk.len()
+        );
+
+        // Wait for indexer to catch up before proceeding
+        let rpc = context.rpc_pool.get_connection().await?;
+        wait_for_indexer(&*rpc).await.map_err(|e| {
+            anyhow::anyhow!("Indexer failed to catch up after nullify batch: {}", e)
+        })?;
+
+        total_batches_submitted += batch_chunk.len();
+    }
+
+    let total_elements = total_batches_submitted * zkp_batch_size as usize;
+    let num_transactions = (total_batches + MAX_INSTRUCTIONS_PER_TX - 1) / MAX_INSTRUCTIONS_PER_TX;
+
+    info!(
+        "Submitted {} nullify batches ({} elements) in {} transactions",
+        total_batches, total_elements, num_transactions
+    );
+
+    Ok(total_elements)
+}
+
+pub async fn submit_interleaved_batches<R: Rpc>(
+    context: &BatchContext<R>,
+    append_proofs: Vec<InstructionDataBatchAppendInputs>,
+    nullify_proofs: Vec<InstructionDataBatchNullifyInputs>,
+    pattern: &[super::types::BatchType],
+) -> Result<usize> {
+    use super::types::BatchType;
+
+    info!(
+        "Submitting {} append + {} nullify batches in interleaved pattern",
+        append_proofs.len(),
+        nullify_proofs.len()
+    );
+
+    let mut current_tx_instructions = Vec::new();
+    let mut append_idx = 0;
+    let mut nullify_idx = 0;
+    let mut total_items = 0;
+
+    for batch_type in pattern.iter() {
+        let instruction = match batch_type {
+            BatchType::Append if append_idx < append_proofs.len() => {
+                let proof = &append_proofs[append_idx];
+                append_idx += 1;
+                create_batch_append_instruction(
+                    context.authority.pubkey(),
+                    context.derivation,
+                    context.merkle_tree,
+                    context.output_queue,
+                    context.epoch,
+                    proof.try_to_vec()?,
+                )
+            }
+            BatchType::Nullify if nullify_idx < nullify_proofs.len() => {
+                let proof = &nullify_proofs[nullify_idx];
+                nullify_idx += 1;
+                create_batch_nullify_instruction(
+                    context.authority.pubkey(),
+                    context.derivation,
+                    context.merkle_tree,
+                    context.epoch,
+                    proof.try_to_vec()?,
+                )
+            }
+            _ => continue,
+        };
+
+        current_tx_instructions.push(instruction);
+
+        // Submit when we reach the limit or finished all batches
+        if current_tx_instructions.len() == MAX_INSTRUCTIONS_PER_TX
+            || (append_idx + nullify_idx) == (append_proofs.len() + nullify_proofs.len())
+        {
+            let signature =
+                send_transaction_batch(context, current_tx_instructions.clone()).await?;
+            info!(
+                "Submitted interleaved TX with {} batches (signature: {})",
+                current_tx_instructions.len(),
+                signature
+            );
+
+            // Wait for indexer to catch up
+            let rpc = context.rpc_pool.get_connection().await?;
+            wait_for_indexer(&*rpc)
+                .await
+                .map_err(|e| anyhow::anyhow!("Indexer failed to catch up: {}", e))?;
+
+            total_items += current_tx_instructions.len();
+            current_tx_instructions.clear();
+        }
+    }
+
+    info!(
+        "Submitted {} total batches in interleaved pattern",
+        total_items
+    );
+
+    Ok(total_items)
+}

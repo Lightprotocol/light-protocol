@@ -48,6 +48,7 @@ tracing-appender = { workspace = true }
 anyhow = { workspace = true }
 
 prometheus = "0.13"
+sysinfo = "0.32"
 lazy_static = "1.4"
 warp = "0.3"
 dashmap = "6.1.0"

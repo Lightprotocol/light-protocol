@@ -11,7 +11,8 @@ use tracing::{error, trace, warn};
 
 use super::{
     types::{
-        CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsResult,
+        AddressQueueDataV2, CompressedAccount, CompressedTokenAccount, InputQueueDataV2,
+        OutputQueueDataV2, OwnerBalance, QueueElementsResult, QueueElementsV2Result,
         SignatureWithMetadata, TokenBalance,
     },
     BatchAddressUpdateIndexerResponse,
@@ -170,6 +171,7 @@ impl PhotonIndexer {
             }),
         }
     }
+
 }
 
 impl Debug for PhotonIndexer {
@@ -1734,13 +1736,103 @@ impl Indexer for PhotonIndexer {
         }
     }
 
+
+    async fn get_queue_elements_v2(
+        &mut self,
+        _pubkey: [u8; 32],
+        _output_queue_start_index: Option<u64>,
+        _output_queue_limit: Option<u16>,
+        _input_queue_start_index: Option<u64>,
+        _input_queue_limit: Option<u16>,
+        _address_queue_start_index: Option<u64>,
+        _address_queue_limit: Option<u16>,
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<QueueElementsV2Result>, IndexerError> {
+        #[cfg(not(feature = "v2"))]
+        unimplemented!("get_queue_elements_v2 requires v2 feature");
+        #[cfg(feature = "v2")]
+        {
+            let pubkey = _pubkey;
+            let output_queue_start_index = _output_queue_start_index;
+            let output_queue_limit = _output_queue_limit;
+            let input_queue_start_index = _input_queue_start_index;
+            let input_queue_limit = _input_queue_limit;
+            let address_queue_start_index = _address_queue_start_index;
+            let address_queue_limit = _address_queue_limit;
+            let config = _config.unwrap_or_default();
+
+            self.retry(config.retry_config, || async {
+                let params = photon_api::models::GetQueueElementsV2PostRequestParams {
+                    tree: bs58::encode(pubkey).into_string(),
+                    output_queue_start_index,
+                    output_queue_limit,
+                    input_queue_start_index,
+                    input_queue_limit,
+                    address_queue_start_index,
+                    address_queue_limit,
+                };
+
+                let request = photon_api::models::GetQueueElementsV2PostRequest {
+                    params: Box::new(params),
+                    ..Default::default()
+                };
+
+                let result = photon_api::apis::default_api::get_queue_elements_v2_post(
+                    &self.configuration,
+                    request,
+                )
+                .await?;
+
+                let api_response = Self::extract_result_with_error_check(
+                    "get_queue_elements_v2",
+                    result.error,
+                    result.result.map(|r| *r),
+                )?;
+
+                if api_response.context.slot < config.slot {
+                    return Err(IndexerError::IndexerNotSyncedToSlot);
+                }
+
+                let output_queue = api_response
+                    .output_queue
+                    .as_ref()
+                    .map(|oq| OutputQueueDataV2::try_from(oq.as_ref()))
+                    .transpose()?;
+
+                let input_queue = api_response
+                    .input_queue
+                    .as_ref()
+                    .map(|iq| InputQueueDataV2::try_from(iq.as_ref()))
+                    .transpose()?;
+
+                let address_queue = api_response
+                    .address_queue
+                    .as_ref()
+                    .map(|aq| AddressQueueDataV2::try_from(aq.as_ref()))
+                    .transpose()?;
+
+                Ok(Response {
+                    context: Context {
+                        slot: api_response.context.slot,
+                    },
+                    value: QueueElementsV2Result {
+                        output_queue,
+                        input_queue,
+                        address_queue,
+                    },
+                })
+            })
+            .await
+        }
+    }
+
     async fn get_subtrees(
         &self,
         _merkle_tree_pubkey: [u8; 32],
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<Items<[u8; 32]>>, IndexerError> {
         #[cfg(not(feature = "v2"))]
-        unimplemented!();
+        unimplemented!("get_subtrees is not implemented for V1");
         #[cfg(feature = "v2")]
         {
             todo!();

@@ -29,7 +29,7 @@ use light_client::{
         CompressedTokenAccount, Context, GetCompressedAccountsByOwnerConfig,
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer, IndexerError,
         IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
-        OwnerBalance, PaginatedOptions, QueueElementsResult, Response, RetryConfig, RootIndex,
+        OwnerBalance, PaginatedOptions, QueueElementsResult, QueueElementsV2Result, Response, RetryConfig, RootIndex,
         SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance, ValidityProofWithContext,
     },
 };
@@ -1058,6 +1058,20 @@ impl Indexer for TestIndexer {
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ItemsWithCursor<SignatureWithMetadata>>, IndexerError> {
         todo!("get_compression_signatures_for_token_owner not implemented")
+    }
+
+    async fn get_queue_elements_v2(
+        &mut self,
+        _merkle_tree_pubkey: [u8; 32],
+        _output_queue_start_index: Option<u64>,
+        _output_queue_limit: Option<u16>,
+        _input_queue_start_index: Option<u64>,
+        _input_queue_limit: Option<u16>,
+        _address_queue_start_index: Option<u64>,
+        _address_queue_limit: Option<u16>,
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<QueueElementsV2Result>, IndexerError> {
+        todo!("get_queue_elements_v2 not implemented for test indexer")
     }
 
     async fn get_indexer_health(&self, _config: Option<RetryConfig>) -> Result<bool, IndexerError> {

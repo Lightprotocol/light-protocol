@@ -2,6 +2,7 @@
 #![allow(clippy::large_enum_variant)]
 #![allow(deprecated)]
 
+pub mod batch_parsing;
 pub mod account_zero_copy;
 pub mod address_merkle_tree_config;
 pub mod error;
@@ -22,6 +23,7 @@ pub struct ParsedMerkleTreeData {
     pub pending_batch_index: u32,
     pub num_inserted_zkps: u64,
     pub current_zkp_batch_index: u64,
+    pub batch_start_index: u64,
     pub leaves_hash_chains: Vec<[u8; 32]>,
 }
 

@@ -109,6 +109,10 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
 
         {
             for change_log_entry in changelog.iter().skip(changelog_index) {
+                if change_log_entry.index() == low_element.index() {
+                    continue;
+                }
+
                 change_log_entry
                     .update_proof(low_element.index(), &mut low_element_proof)
                     .unwrap();
@@ -148,6 +152,10 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             let current_index = next_index + i;
 
             for change_log_entry in changelog.iter() {
+                if change_log_entry.index() == current_index {
+                    continue;
+                }
+
                 change_log_entry
                     .update_proof(current_index, &mut merkle_proof_array)
                     .unwrap();
@@ -190,6 +198,24 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
         leaves_hashchain,
         bigint_to_be_bytes_array::<32>(&next_index.into()).unwrap(),
     ];
+
+    for (idx, ((low_value, new_value), high_value)) in patched_low_element_values
+        .iter()
+        .zip(new_element_values.iter())
+        .zip(patched_low_element_next_values.iter())
+        .enumerate()
+    {
+        let low = BigUint::from_bytes_be(low_value);
+        let new = BigUint::from_bytes_be(new_value);
+        let high = BigUint::from_bytes_be(high_value);
+
+        if !(low < new && new < high) {
+            return Err(ProverClientError::GenericError(format!(
+                "Invalid address ordering at batch position {} (low = {:#x}, new = {:#x}, high = {:#x})",
+                idx, low, new, high
+            )));
+        }
+    }
 
     let public_input_hash = create_hash_chain_from_array(hash_chain_inputs)?;
 

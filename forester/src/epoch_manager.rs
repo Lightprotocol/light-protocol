@@ -7,6 +7,8 @@ use std::{
     time::Duration,
 };
 
+use sysinfo::System;
+
 use anyhow::{anyhow, Context};
 use dashmap::DashMap;
 use forester_utils::{
@@ -561,24 +563,25 @@ impl<R: Rpc> EpochManager<R> {
                     .await
                 {
                     Ok(info) => info,
-                    Err(e) => {
-                        // Check if this is a RegistrationPhaseEnded error by downcasting
-                        if let Some(ForesterError::Registration(
+                    Err(ForesterError::Registration(
                             RegistrationError::RegistrationPhaseEnded {
                                 epoch: failed_epoch,
                                 current_slot,
                                 registration_end,
                             },
-                        )) = e.downcast_ref::<ForesterError>()
-                        {
+                    )) => {
+                        let next_epoch = failed_epoch + 1;
+                        let next_phases = get_epoch_phases(&self.protocol_config, next_epoch);
+                        let slots_to_wait =
+                            next_phases.registration.start.saturating_sub(current_slot);
+
                             info!(
-                                "Registration period ended for epoch {} (current slot: {}, registration ended at: {}). Will retry when next epoch registration opens.",
-                                failed_epoch, current_slot, registration_end
+                            "Too late to register for epoch {} (registration ended at slot {}, current slot: {}). Next available epoch: {}. Registration opens at slot {} ({} slots to wait).",
+                            failed_epoch, registration_end, current_slot, next_epoch, next_phases.registration.start, slots_to_wait
                             );
                             return Ok(());
                         }
-                        return Err(e);
-                    }
+                    Err(e) => return Err(e.into()),
                 }
             }
         };
@@ -625,7 +628,7 @@ impl<R: Rpc> EpochManager<R> {
         epoch: u64,
         max_retries: u32,
         retry_delay: Duration,
-    ) -> Result<ForesterEpochInfo> {
+    ) -> std::result::Result<ForesterEpochInfo, ForesterError> {
         let rpc = LightClient::new(LightClientConfig {
             url: self.config.external_services.rpc_url.to_string(),
             photon_url: self.config.external_services.indexer_url.clone(),
@@ -633,8 +636,9 @@ impl<R: Rpc> EpochManager<R> {
             commitment_config: None,
             fetch_active_tree: false,
         })
-        .await?;
-        let slot = rpc.get_slot().await?;
+        .await
+        .map_err(ForesterError::Rpc)?;
+        let slot = rpc.get_slot().await.map_err(ForesterError::Rpc)?;
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
         // Check if it's already too late to register
@@ -677,7 +681,7 @@ impl<R: Rpc> EpochManager<R> {
                                 error!("Failed to send PagerDuty alert: {:?}", alert_err);
                             }
                         }
-                        return Err(e);
+                        return Err(ForesterError::Other(e));
                     }
                 }
             }
@@ -848,12 +852,13 @@ impl<R: Rpc> EpochManager<R> {
     ) -> Result<ForesterEpochInfo> {
         let mut rpc = self.rpc_pool.get_connection().await?;
         let active_phase_start_slot = epoch_info.epoch.phases.active.start;
+        let active_phase_end_slot = epoch_info.epoch.phases.active.end;
         let current_slot = self.slot_tracker.estimated_current_slot();
 
         if current_slot >= active_phase_start_slot {
             info!(
-                "Active phase has already started. Current slot: {}. Active phase start slot: {}",
-                current_slot, active_phase_start_slot
+                "Active phase has already started. Current slot: {}. Active phase start slot: {}. Slots left: {}.",
+                current_slot, active_phase_start_slot, active_phase_end_slot.saturating_sub(current_slot)
             );
         } else {
             let waiting_slots = active_phase_start_slot - current_slot;
@@ -1047,12 +1052,33 @@ impl<R: Rpc> EpochManager<R> {
         mut tree_schedule: TreeForesterSchedule,
     ) -> Result<()> {
         let mut current_slot = self.slot_tracker.estimated_current_slot();
+
+        let total_slots = tree_schedule.slots.len();
+        let eligible_slots = tree_schedule.slots.iter().filter(|s| s.is_some()).count();
+        info!(
+            "Starting process_queue for tree {}: total_slots={}, eligible_slots={}, current_slot={}, active_phase_end={}",
+            tree_schedule.tree_accounts.merkle_tree,
+            total_slots,
+            eligible_slots,
+            current_slot,
+            epoch_info.phases.active.end
+        );
         'outer_slot_loop: while current_slot < epoch_info.phases.active.end {
             let next_slot_to_process = tree_schedule
                 .slots
                 .iter_mut()
                 .enumerate()
                 .find_map(|(idx, opt_slot)| opt_slot.as_ref().map(|s| (idx, s.clone())));
+
+            info!(
+                "Next slot to process: {:?}",
+                next_slot_to_process.as_ref().map(|(idx, slot)| (
+                    idx,
+                    slot.slot,
+                    slot.start_solana_slot,
+                    slot.end_solana_slot
+                ))
+            );
 
             if let Some((slot_idx, light_slot_details)) = next_slot_to_process {
                 match self
@@ -1130,6 +1156,22 @@ impl<R: Rpc> EpochManager<R> {
         let use_events = queue_update_rx.is_some();
 
         'outer_slot_loop: while current_slot < epoch_info.phases.active.end {
+            // Log memory footprint at each slot iteration
+            let mem_mb = {
+                use sysinfo::Pid;
+                let mut sys = System::new();
+                let pid = Pid::from_u32(std::process::id());
+                sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
+                sys.process(pid).map(|p| p.memory() / 1024 / 1024).unwrap_or(0)
+            };
+            debug!(
+                "[MEMORY] Forester process: {} MB RSS (tree={}, slot={}, type={:?})",
+                mem_mb,
+                tree_schedule.tree_accounts.merkle_tree,
+                current_slot,
+                tree_type
+            );
+
             let next_slot_to_process = tree_schedule
                 .slots
                 .iter_mut()
@@ -1229,6 +1271,10 @@ impl<R: Rpc> EpochManager<R> {
             forester_slot_details.start_solana_slot,
         )
         .await?;
+        info!(
+            "Slot {} started, beginning processing",
+            forester_slot_details.slot
+        );
 
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
@@ -1244,7 +1290,7 @@ impl<R: Rpc> EpochManager<R> {
             let current_light_slot = (estimated_slot - epoch_info.phases.active.start)
                 / epoch_pda.protocol_config.slot_length;
             if current_light_slot != forester_slot_details.slot {
-                warn!("Light slot mismatch. Exiting processing for this slot.");
+                warn!("Slot mismatch. Exiting processing for this slot.");
                 break 'inner_processing_loop;
             }
 

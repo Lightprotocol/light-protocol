@@ -55,7 +55,8 @@ use tokio::{
     sync::{mpsc, oneshot},
     time::{sleep, timeout},
 };
-
+use forester::processor::v2::coordinator::print_cumulative_performance_summary;
+use light_batched_merkle_tree::queue::BatchedQueueAccount;
 use crate::test_utils::{
     get_active_phase_start_slot, get_registration_phase_start_slot, init, wait_for_slot,
 };
@@ -118,6 +119,13 @@ fn get_photon_api_key() -> Option<String> {
     match TestMode::from_env() {
         TestMode::Local => None,
         TestMode::Devnet => Some(get_env_var("PHOTON_API_KEY")),
+    }
+}
+
+fn get_photon_grpc_url() -> Option<String> {
+    match TestMode::from_env() {
+        TestMode::Local => Some("http://localhost:50051".to_string()),
+        TestMode::Devnet => env::var("PHOTON_GRPC_URL").ok(),
     }
 }
 
@@ -202,7 +210,7 @@ async fn e2e_test() {
             prover_address_append_url: None,
             prover_api_key: get_prover_api_key(),
             photon_api_key: get_photon_api_key(),
-            photon_grpc_url: None,
+            photon_grpc_url: get_photon_grpc_url(),
             pushgateway_url: None,
             pagerduty_routing_key: None,
             rpc_rate_limit: None,
@@ -251,7 +259,7 @@ async fn e2e_test() {
                 "../target/deploy/create_address_test_program.so".to_string(),
             )],
             limit_ledger_size: None,
-            grpc_port: None,
+            grpc_port: Some(50051),
         }))
         .await;
         spawn_prover().await;
@@ -406,7 +414,7 @@ async fn e2e_test() {
     )
     .await;
 
-    wait_for_work_report(&mut work_report_receiver, &state_tree_params).await;
+    wait_for_work_report(&mut work_report_receiver, &state_tree_params, &rpc, &env).await;
 
     // Verify root changes based on enabled tests
     if is_v1_state_test_enabled() {
@@ -461,6 +469,8 @@ async fn e2e_test() {
         .send(())
         .expect("Failed to send shutdown signal");
     service_handle.await.unwrap().unwrap();
+
+    print_cumulative_performance_summary("Performance").await;
 }
 
 async fn setup_rpc_connection(forester: &Keypair) -> LightClient {
@@ -676,17 +686,14 @@ async fn setup_forester_pipeline(
     (service_handle, shutdown_sender, work_report_receiver)
 }
 
-async fn wait_for_work_report(
+async fn wait_for_work_report<R: Rpc>(
     work_report_receiver: &mut mpsc::Receiver<WorkReport>,
     tree_params: &InitStateTreeAccountsInstructionData,
+    rpc: &R,
+    env: &TestAccounts,
 ) {
     let batch_size = tree_params.output_queue_zkp_batch_size as usize;
-    // With increased test size, expect more processed items
-    let minimum_processed_items: usize = if is_v2_state_test_enabled() {
-        (tree_params.output_queue_batch_size as usize) * 4 // Expect at least 4 batches worth
-    } else {
-        tree_params.output_queue_batch_size as usize
-    };
+    let minimum_processed_items: usize = tree_params.output_queue_batch_size as usize;
     let mut total_processed_items: usize = 0;
     let timeout_duration = Duration::from_secs(DEFAULT_TIMEOUT_SECONDS);
 
@@ -721,6 +728,16 @@ async fn wait_for_work_report(
     }
 
     println!("Total processed items: {}", total_processed_items);
+
+    let actual_processed_operations = log_queue_states_for_all_trees(rpc, env).await;
+    assert!(
+        actual_processed_operations >= minimum_processed_items as u64,
+        "On-chain processed operations ({}) less than required ({}). Work reports showed: {}",
+        actual_processed_operations,
+        minimum_processed_items,
+        total_processed_items
+    );
+
     assert!(
         total_processed_items >= minimum_processed_items,
         "Processed fewer items ({}) than required ({})",
@@ -845,12 +862,10 @@ async fn execute_test_transactions<R: Rpc>(
                 env,
                 rng,
                 2,
+                address_v2_counter,
             )
             .await;
 
-            if sig_v2_addr.is_ok() {
-                *address_v2_counter += 2;
-            }
             println!("{} v2 address create: {:?}", i, sig_v2_addr);
         }
     }
@@ -1114,13 +1129,24 @@ async fn transfer<const V2: bool, R: Rpc>(
         ),
         instruction,
     ];
-    let sig = rpc
+    let result = rpc
         .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
-        .await
-        .unwrap();
+        .await;
+
+    match result {
+        Ok(sig) => {
     *counter += compressed_accounts.len() as u64;
     *counter -= input_compressed_accounts_data.len() as u64;
+            // Log queue state after successful transfer
+            log_queue_state(rpc, *merkle_tree_pubkey, &format!("After transfer tx (counter={})", *counter)).await;
     sig
+        }
+        Err(e) => {
+            // Log queue state on error
+            log_queue_state(rpc, *merkle_tree_pubkey, "ON ERROR (transfer failed)").await;
+            panic!("transfer error: {:?}", e);
+        }
+    }
 }
 
 async fn compress<R: Rpc>(
@@ -1191,9 +1217,13 @@ async fn compress<R: Rpc>(
     {
         Ok(sig) => {
             *counter += 1;
+            // Log queue state after successful transaction
+            log_queue_state(rpc, *merkle_tree_pubkey, &format!("After compress tx #{}", *counter)).await;
             sig
         }
         Err(e) => {
+            // Log queue state on error
+            log_queue_state(rpc, *merkle_tree_pubkey, "ON ERROR (compress failed)").await;
             panic!("compress error: {:?}", e);
         }
     }
@@ -1300,6 +1330,7 @@ async fn create_v2_addresses<R: Rpc>(
     _env: &TestAccounts,
     rng: &mut StdRng,
     num_addresses: usize,
+    counter: &mut u64,
 ) -> Result<(), light_client::rpc::RpcError> {
     let mut address_seeds = Vec::with_capacity(num_addresses);
     let mut addresses = Vec::with_capacity(num_addresses);
@@ -1384,7 +1415,235 @@ async fn create_v2_addresses<R: Rpc>(
         instruction,
     ];
 
-    rpc.create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
+    match rpc
+        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
         .await
-        .map(|_| ())
+    {
+        Ok(_) => {
+            *counter += num_addresses as u64;
+            // Log address tree state after successful address creation
+            log_queue_state(rpc, *batch_address_merkle_tree, &format!("After address create (counter={})", *counter)).await;
+            Ok(())
+        }
+        Err(e) => {
+            // Log address tree state on error
+            log_queue_state(rpc, *batch_address_merkle_tree, "ON ERROR (address create failed)").await;
+            Err(e)
+        }
+    }
+}
+
+async fn log_queue_states_for_all_trees<R: Rpc>(rpc: &R, env: &TestAccounts) -> u64 {
+    let mut total_pending_appends = 0u64;
+    let mut total_pending_nullifies = 0u64;
+    let mut total_processed_appends = 0u64;
+    let mut total_processed_nullifies = 0u64;
+
+    for (tree_idx, tree_info) in env.v2_state_trees.iter().enumerate() {
+        let tree_pubkey = &tree_info.merkle_tree;
+        let mut tree_account = match rpc.get_account(*tree_pubkey).await {
+            Ok(Some(account)) => account,
+            Ok(None) => {
+                println!("Tree {}: Account not found", tree_idx);
+                continue;
+            }
+            Err(e) => {
+                println!("Tree {}: Failed to fetch: {:?}", tree_idx, e);
+                continue;
+            }
+        };
+
+        let tree_data = match BatchedMerkleTreeAccount::state_from_bytes(
+            tree_account.data.as_mut_slice(),
+            &(*tree_pubkey).into(),
+        ) {
+            Ok(data) => data,
+            Err(e) => {
+                println!("Tree {}: Failed to parse: {:?}", tree_idx, e);
+                continue;
+            }
+        };
+
+        let output_queue_pubkey = tree_data.metadata.associated_queue;
+
+        let mut pending_nullifies = 0u64;
+        let mut processed_nullifies = 0u64;
+        for (_batch_idx, batch) in tree_data.queue_batches.batches.iter().enumerate() {
+            let _state = batch.get_state();
+            let num_inserted = batch.get_num_inserted_zkps();
+            let current_zkp = batch.get_current_zkp_batch_index();
+
+            if num_inserted < current_zkp {
+                pending_nullifies += (current_zkp - num_inserted) as u64 * batch.zkp_batch_size as u64;
+            }
+            processed_nullifies += num_inserted as u64 * batch.zkp_batch_size as u64;
+        }
+
+        let mut pending_appends = 0u64;
+        let mut processed_appends = 0u64;
+
+        if let Ok(Some(mut queue_account)) = rpc.get_account(output_queue_pubkey.into()).await {
+            if let Ok(queue_data) = BatchedQueueAccount::output_from_bytes(queue_account.data.as_mut_slice()) {
+                for batch in queue_data.batch_metadata.batches.iter() {
+                    let num_inserted = batch.get_num_inserted_zkps();
+                    let current_zkp = batch.get_current_zkp_batch_index();
+
+                    if num_inserted < current_zkp {
+                        pending_appends += (current_zkp - num_inserted) as u64 * batch.zkp_batch_size as u64;
+                    }
+                    processed_appends += num_inserted as u64 * batch.zkp_batch_size as u64;
+                }
+            }
+        }
+
+        if pending_appends > 0 || pending_nullifies > 0 || processed_appends > 0 || processed_nullifies > 0 {
+            println!("\nTree {}: {}", tree_idx, tree_pubkey);
+            println!("  Appends:    {} processed, {} pending", processed_appends, pending_appends);
+            println!("  Nullifies:  {} processed, {} pending", processed_nullifies, pending_nullifies);
+        }
+
+        total_pending_appends += pending_appends;
+        total_pending_nullifies += pending_nullifies;
+        total_processed_appends += processed_appends;
+        total_processed_nullifies += processed_nullifies;
+    }
+
+    let mut total_processed_addresses = 0u64;
+    let mut total_pending_addresses = 0u64;
+
+    for (tree_idx, tree_pubkey) in env.v2_address_trees.iter().enumerate() {
+        let mut tree_account = match rpc.get_account(*tree_pubkey).await {
+            Ok(Some(account)) => account,
+            Ok(None) => {
+                println!("Address Tree {}: Account not found", tree_idx);
+                continue;
+            }
+            Err(e) => {
+                println!("Address Tree {}: Failed to fetch: {:?}", tree_idx, e);
+                continue;
+            }
+        };
+
+        let tree_data = match BatchedMerkleTreeAccount::address_from_bytes(
+            tree_account.data.as_mut_slice(),
+            &(*tree_pubkey).into(),
+        ) {
+            Ok(data) => data,
+            Err(e) => {
+                println!("Address Tree {}: Failed to parse: {:?}", tree_idx, e);
+                continue;
+            }
+        };
+
+        let mut pending_addresses = 0u64;
+        let mut processed_addresses = 0u64;
+
+        for (_batch_idx, batch) in tree_data.queue_batches.batches.iter().enumerate() {
+            let num_inserted = batch.get_num_inserted_zkps();
+            let current_zkp = batch.get_current_zkp_batch_index();
+
+            if num_inserted < current_zkp {
+                pending_addresses += (current_zkp - num_inserted) as u64 * batch.zkp_batch_size as u64;
+            }
+            processed_addresses += num_inserted as u64 * batch.zkp_batch_size as u64;
+        }
+
+        if pending_addresses > 0 || processed_addresses > 0 {
+            println!("\nAddress Tree {}: {}", tree_idx, tree_pubkey);
+            println!("  Addresses:  {} processed, {} pending", processed_addresses, pending_addresses);
+        }
+
+        total_processed_addresses += processed_addresses;
+        total_pending_addresses += pending_addresses;
+    }
+
+    println!("  Appends:    {} processed, {} pending", total_processed_appends, total_pending_appends);
+    println!("  Nullifies:  {} processed, {} pending", total_processed_nullifies, total_pending_nullifies);
+    println!("  Addresses:  {} processed, {} pending", total_processed_addresses, total_pending_addresses);
+    println!("  TOTAL: {} operations processed", total_processed_appends + total_processed_nullifies + total_processed_addresses);
+    println!("========================================\n");
+
+    total_processed_appends + total_processed_nullifies + total_processed_addresses
+}
+
+async fn log_queue_state<R: Rpc>(rpc: &R, tree_or_queue_pubkey: Pubkey, label: &str) {
+    println!("\n========================================");
+    println!("QUEUE STATE CHECK: {}", label);
+    println!("========================================");
+
+    use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
+    use light_batched_merkle_tree::queue::BatchedQueueAccount;
+
+    let mut account = match rpc.get_account(tree_or_queue_pubkey).await {
+        Ok(Some(account)) => account,
+        Ok(None) => {
+            println!("  ERROR: Account not found");
+            return;
+        }
+        Err(e) => {
+            println!("  ERROR: Failed to fetch account: {:?}", e);
+            return;
+        }
+    };
+
+    if let Ok(queue_data) = BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice()) {
+        print_queue_info(tree_or_queue_pubkey, &queue_data);
+        return;
+    }
+
+    let tree_data = match BatchedMerkleTreeAccount::state_from_bytes(
+        account.data.as_mut_slice(),
+        &tree_or_queue_pubkey.into(),
+    ) {
+        Ok(data) => data,
+        Err(_) => {
+           return;
+        }
+    };
+
+    let queue_pubkey = tree_data.metadata.associated_queue;
+
+    let mut queue_account = match rpc.get_account(queue_pubkey.into()).await {
+        Ok(Some(account)) => account,
+        Ok(None) => {
+            println!("  ERROR: Queue account not found");
+            return;
+        }
+        Err(e) => {
+            println!("  ERROR: Failed to fetch queue account: {:?}", e);
+            return;
+        }
+    };
+
+    let queue_data = match BatchedQueueAccount::output_from_bytes(queue_account.data.as_mut_slice()) {
+        Ok(data) => data,
+        Err(e) => {
+            println!("  ERROR: Failed to parse queue data: {:?}", e);
+            return;
+        }
+    };
+
+    print_queue_info(queue_pubkey.into(), &queue_data);
+}
+
+fn print_queue_info(queue_pubkey: Pubkey, queue_data: &light_batched_merkle_tree::queue::BatchedQueueMetadata) {
+    println!("  Output Queue: {:?}", queue_pubkey);
+    println!("  Next index: {}", queue_data.batch_metadata.next_index);
+    println!("  Currently processing batch: {}", queue_data.batch_metadata.currently_processing_batch_index);
+    println!("");
+
+    for (batch_idx, batch) in queue_data.batch_metadata.batches.iter().enumerate() {
+        let batch_state = batch.get_state();
+        let num_inserted = batch.get_num_inserted_zkps();
+        let current_index = batch.get_current_zkp_batch_index();
+        let ready_count = current_index.saturating_sub(num_inserted);
+
+        println!("  Batch {}: (start_index={})", batch_idx, batch.start_index);
+        println!("    State: {:?}", batch_state);
+        println!("    num_full_zkp_batches: {}", current_index);
+        println!("    num_inserted_zkp_batches: {}", num_inserted);
+        println!("    READY TO PROCESS: {} zkp batches", ready_count);
+    }
+
+    println!("========================================\n");
 }

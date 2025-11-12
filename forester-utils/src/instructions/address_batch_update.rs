@@ -2,10 +2,8 @@ use std::{pin::Pin, sync::Arc, time::Duration};
 
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_stream::stream;
-use futures::{
-    stream::{FuturesOrdered, Stream},
-    StreamExt,
-};
+use futures::stream::{FuturesOrdered, Stream};
+use futures::StreamExt;
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, merkle_tree::InstructionDataAddressAppendInputs,
 };
@@ -54,13 +52,14 @@ async fn stream_instruction_data<'a, R: Rpc>(
         let max_zkp_batches_per_call = calculate_max_zkp_batches_per_call(zkp_batch_size);
         let total_chunks = leaves_hash_chains.len().div_ceil(max_zkp_batches_per_call);
 
+        let mut next_queue_index: Option<u64> = None;
+
         for chunk_idx in 0..total_chunks {
             let chunk_start = chunk_idx * max_zkp_batches_per_call;
             let chunk_end = std::cmp::min(chunk_start + max_zkp_batches_per_call, leaves_hash_chains.len());
             let chunk_hash_chains = &leaves_hash_chains[chunk_start..chunk_end];
 
             let elements_for_chunk = chunk_hash_chains.len() * zkp_batch_size as usize;
-            let processed_items_offset = chunk_start * zkp_batch_size as usize;
 
             {
                 if chunk_idx > 0 {
@@ -76,11 +75,15 @@ async fn stream_instruction_data<'a, R: Rpc>(
             let indexer_update_info = {
                 let mut connection = rpc_pool.get_connection().await?;
                 let indexer = connection.indexer_mut()?;
+                debug!(
+                    "Requesting {} addresses from Photon for chunk {} with start_queue_index={:?}",
+                    elements_for_chunk, chunk_idx, next_queue_index
+                );
                 match indexer
                 .get_address_queue_with_proofs(
                     &merkle_tree_pubkey,
                     elements_for_chunk as u16,
-                    Some(processed_items_offset as u64),
+                    next_queue_index,
                     None,
                 )
                 .await {
@@ -91,6 +94,24 @@ async fn stream_instruction_data<'a, R: Rpc>(
                     }
                 }
             };
+
+            debug!(
+                "Photon response for chunk {}: received {} addresses, batch_start_index={}, first_queue_index={:?}, last_queue_index={:?}",
+                chunk_idx,
+                indexer_update_info.value.addresses.len(),
+                indexer_update_info.value.batch_start_index,
+                indexer_update_info.value.addresses.first().map(|a| a.queue_index),
+                indexer_update_info.value.addresses.last().map(|a| a.queue_index)
+            );
+
+            if let Some(last_address) = indexer_update_info.value.addresses.last() {
+                next_queue_index = Some(last_address.queue_index + 1);
+                debug!(
+                    "Setting next_queue_index={} for chunk {}",
+                    next_queue_index.unwrap(),
+                    chunk_idx + 1
+                );
+            }
 
             if chunk_idx == 0 {
                 if let Some(first_proof) = indexer_update_info.value.non_inclusion_proofs.first() {
@@ -249,11 +270,42 @@ fn get_all_circuit_inputs_for_chunk(
     for (batch_idx, leaves_hash_chain) in chunk_hash_chains.iter().enumerate() {
         let start_idx = batch_idx * batch_size as usize;
         let end_idx = start_idx + batch_size as usize;
+
+        let addresses_len = indexer_update_info.value.addresses.len();
+        if start_idx >= addresses_len {
+            return Err(ForesterUtilsError::Indexer(format!(
+                "Insufficient addresses: batch {} requires start_idx {} but only {} addresses available",
+                batch_idx, start_idx, addresses_len
+            )));
+        }
+        let safe_end_idx = std::cmp::min(end_idx, addresses_len);
+        if safe_end_idx - start_idx != batch_size as usize {
+            return Err(ForesterUtilsError::Indexer(format!(
+                "Insufficient addresses: batch {} requires {} addresses (indices {}..{}) but only {} available",
+                batch_idx, batch_size, start_idx, end_idx, safe_end_idx - start_idx
+            )));
+        }
+
         let batch_addresses: Vec<[u8; 32]> = indexer_update_info.value.addresses
-            [start_idx..end_idx]
+            [start_idx..safe_end_idx]
             .iter()
             .map(|x| x.address)
             .collect();
+
+        let proofs_len = indexer_update_info.value.non_inclusion_proofs.len();
+        if start_idx >= proofs_len {
+            return Err(ForesterUtilsError::Indexer(format!(
+                "Insufficient non-inclusion proofs: batch {} requires start_idx {} but only {} proofs available",
+                batch_idx, start_idx, proofs_len
+            )));
+        }
+        let safe_proofs_end_idx = std::cmp::min(end_idx, proofs_len);
+        if safe_proofs_end_idx - start_idx != batch_size as usize {
+            return Err(ForesterUtilsError::Indexer(format!(
+                "Insufficient non-inclusion proofs: batch {} requires {} proofs (indices {}..{}) but only {} available",
+                batch_idx, batch_size, start_idx, end_idx, safe_proofs_end_idx - start_idx
+            )));
+        }
 
         let mut low_element_values = Vec::new();
         let mut low_element_next_values = Vec::new();
@@ -269,7 +321,8 @@ fn get_all_circuit_inputs_for_chunk(
             low_element_proofs.push(proof.low_address_proof.to_vec());
         }
 
-        if create_hash_chain_from_slice(&batch_addresses)? != *leaves_hash_chain {
+        let computed_hash_chain = create_hash_chain_from_slice(&batch_addresses)?;
+        if computed_hash_chain != *leaves_hash_chain {
             return Err(ForesterUtilsError::Prover(
                 "Addresses hash chain does not match".into(),
             ));

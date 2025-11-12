@@ -255,6 +255,15 @@ impl ProofClient {
 
     fn should_retry(&self, error: &ProverClientError, retries: u32, elapsed: Duration) -> bool {
         let error_str = error.to_string();
+
+        if error_str.contains("constraint") || error_str.contains("not satisfied") {
+            debug!(
+                "Not retrying (constraint violation): {}",
+                error_str
+            );
+            return false;
+        }
+
         let is_retryable_error = error_str.contains("job_not_found")
             || error_str.contains("connection")
             || error_str.contains("timeout")

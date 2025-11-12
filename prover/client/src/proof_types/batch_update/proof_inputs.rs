@@ -63,8 +63,11 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
     {
         adjusted_path_indices.push(*index);
 
-        // Update the proof with changelogs from previous batches.
-        for entry in previous_changelogs.iter() {
+        for (_, entry) in previous_changelogs.iter().enumerate() {
+            if entry.index() == *index as usize {
+                continue;
+            }
+
             entry
                 .update_proof(*index as usize, &mut merkle_proof)
                 .map_err(|e| {
@@ -77,6 +80,10 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
         // And update with current batch changelogs accumulated so far.
         if i > 0 {
             for entry in changelog.iter() {
+                if entry.index() == *index as usize {
+                    continue;
+                }
+
                 entry
                     .update_proof(*index as usize, &mut merkle_proof)
                     .map_err(|e| {

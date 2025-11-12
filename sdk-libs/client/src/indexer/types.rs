@@ -38,6 +38,182 @@ pub struct QueueElementsResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Default)]
+pub struct QueueElementsV2Result {
+    pub output_queue: Option<OutputQueueDataV2>,
+    pub input_queue: Option<InputQueueDataV2>,
+    pub address_queue: Option<AddressQueueDataV2>,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct OutputQueueDataV2 {
+    pub leaf_indices: Vec<u64>,
+    pub account_hashes: Vec<[u8; 32]>,
+    pub old_leaves: Vec<[u8; 32]>,
+    pub nodes: Vec<u64>,
+    pub node_hashes: Vec<[u8; 32]>,
+    pub initial_root: [u8; 32],
+    pub first_queue_index: u64,
+}
+
+impl TryFrom<&photon_api::models::OutputQueueDataV2> for OutputQueueDataV2 {
+    type Error = IndexerError;
+
+    fn try_from(value: &photon_api::models::OutputQueueDataV2) -> Result<Self, Self::Error> {
+        let account_hashes = value
+            .account_hashes
+            .iter()
+            .map(|s| decode_base58_to_fixed_array(s))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let old_leaves = value
+            .leaves
+            .iter()
+            .map(|s| decode_base58_to_fixed_array(s))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let node_hashes = value
+            .node_hashes
+            .iter()
+            .map(|s| decode_base58_to_fixed_array(s))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let initial_root = decode_base58_to_fixed_array(&value.initial_root)?;
+
+        Ok(OutputQueueDataV2 {
+            leaf_indices: value.leaf_indices.clone(),
+            account_hashes,
+            old_leaves,
+            nodes: value.nodes.clone(),
+            node_hashes,
+            initial_root,
+            first_queue_index: value.first_queue_index,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct InputQueueDataV2 {
+    pub leaf_indices: Vec<u64>,
+    pub account_hashes: Vec<[u8; 32]>,
+    pub current_leaves: Vec<[u8; 32]>,
+    pub tx_hashes: Vec<[u8; 32]>,
+    pub nodes: Vec<u64>,
+    pub node_hashes: Vec<[u8; 32]>,
+    pub initial_root: [u8; 32],
+    pub first_queue_index: u64,
+}
+
+impl TryFrom<&photon_api::models::InputQueueDataV2> for InputQueueDataV2 {
+    type Error = IndexerError;
+
+    fn try_from(value: &photon_api::models::InputQueueDataV2) -> Result<Self, Self::Error> {
+        let account_hashes = value
+            .account_hashes
+            .iter()
+            .map(|s| decode_base58_to_fixed_array(s))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let current_leaves = value
+            .leaves
+            .iter()
+            .map(|s| decode_base58_to_fixed_array(s))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let tx_hashes = value
+            .tx_hashes
+            .iter()
+            .map(|s| decode_base58_to_fixed_array(s))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let node_hashes = value
+            .node_hashes
+            .iter()
+            .map(|s| decode_base58_to_fixed_array(s))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let initial_root = decode_base58_to_fixed_array(&value.initial_root)?;
+
+        Ok(InputQueueDataV2 {
+            leaf_indices: value.leaf_indices.clone(),
+            account_hashes,
+            current_leaves,
+            tx_hashes,
+            nodes: value.nodes.clone(),
+            node_hashes,
+            initial_root,
+            first_queue_index: value.first_queue_index,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct AddressQueueDataV2 {
+    pub addresses: Vec<[u8; 32]>,
+    pub queue_indices: Vec<u64>,
+    pub nodes: Vec<u64>,
+    pub node_hashes: Vec<[u8; 32]>,
+    pub low_element_indices: Vec<u64>,
+    pub low_element_values: Vec<[u8; 32]>,
+    pub low_element_next_indices: Vec<u64>,
+    pub low_element_next_values: Vec<[u8; 32]>,
+    pub initial_root: [u8; 32],
+    pub start_index: u64,
+    pub subtrees: Vec<[u8; 32]>,
+}
+
+impl TryFrom<&photon_api::models::AddressQueueDataV2> for AddressQueueDataV2 {
+    type Error = IndexerError;
+
+    fn try_from(value: &photon_api::models::AddressQueueDataV2) -> Result<Self, Self::Error> {
+        let addresses = value
+            .addresses
+            .iter()
+            .map(|s| decode_base58_to_fixed_array(s))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let node_hashes = value
+            .node_hashes
+            .iter()
+            .map(|s| decode_base58_to_fixed_array(s))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let low_element_values = value
+            .low_element_values
+            .iter()
+            .map(|s| decode_base58_to_fixed_array(s))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let low_element_next_values = value
+            .low_element_next_values
+            .iter()
+            .map(|s| decode_base58_to_fixed_array(s))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        let initial_root = decode_base58_to_fixed_array(&value.initial_root)?;
+
+        let subtrees = value
+            .subtrees
+            .iter()
+            .map(|s| decode_base58_to_fixed_array(s))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(AddressQueueDataV2 {
+            addresses,
+            queue_indices: value.queue_indices.clone(),
+            nodes: value.nodes.clone(),
+            node_hashes,
+            low_element_indices: value.low_element_indices.clone(),
+            low_element_values,
+            low_element_next_indices: value.low_element_next_indices.clone(),
+            low_element_next_values,
+            initial_root,
+            start_index: value.start_index,
+            subtrees,
+        })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
 pub struct MerkleProofWithContext {
     pub proof: Vec<[u8; 32]>,
     pub root: [u8; 32],

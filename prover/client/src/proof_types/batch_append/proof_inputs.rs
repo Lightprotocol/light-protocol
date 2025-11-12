@@ -65,6 +65,10 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
         );
 
         for change_log_entry in previous_changelogs.iter() {
+            if change_log_entry.index() == current_index {
+                continue;
+            }
+
             match change_log_entry.update_proof(current_index, &mut merkle_proof) {
                 Ok(_) => {}
                 Err(e) => {
@@ -79,6 +83,10 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
 
         if i > 0 {
             for change_log_entry in changelog.iter() {
+                if change_log_entry.index() == current_index {
+                    continue;
+                }
+
                 match change_log_entry.update_proof(current_index, &mut merkle_proof) {
                     Ok(_) => {}
                     Err(e) => {

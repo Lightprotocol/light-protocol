@@ -83,33 +83,34 @@ pub async fn wait_until_slot_reached<R: Rpc>(
 ) -> crate::Result<()> {
     trace!("Waiting for slot {}", target_slot);
 
-    loop {
-        let current_estimated_slot = slot_tracker.estimated_current_slot();
+    const MAX_SLEEP_SLOTS: u64 = 50;
 
-        if current_estimated_slot >= target_slot {
-            // Double-check with actual RPC call
-            let actual_slot = rpc.get_slot().await?;
+    loop {
+        let actual_slot = rpc.get_slot().await?;
+        slot_tracker.update(actual_slot);
+
             if actual_slot >= target_slot {
+            trace!("Slot {} reached (actual: {})", target_slot, actual_slot);
                 break;
             }
-        }
 
-        let sleep_duration = if current_estimated_slot < target_slot {
-            let slots_to_wait = target_slot - current_estimated_slot;
-            Duration::from_secs_f64(slots_to_wait as f64 * slot_duration().as_secs_f64())
-        } else {
-            slot_duration()
-        };
+        let slots_remaining = target_slot.saturating_sub(actual_slot);
+
+        let sleep_slots = slots_remaining.min(MAX_SLEEP_SLOTS);
+        let sleep_duration =
+            Duration::from_secs_f64(sleep_slots as f64 * slot_duration().as_secs_f64());
 
         trace!(
-            "Estimated slot: {}, waiting for {} seconds",
-            current_estimated_slot,
+            "Current slot: {}, target slot: {}, sleeping for {} slots ({:.1} seconds)",
+            actual_slot,
+            target_slot,
+            sleep_slots,
             sleep_duration.as_secs_f64()
         );
+
         tokio::task::yield_now().await;
         sleep(sleep_duration).await;
     }
 
-    trace!("Slot {} reached", target_slot);
     Ok(())
 }

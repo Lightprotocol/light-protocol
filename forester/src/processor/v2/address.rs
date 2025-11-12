@@ -40,7 +40,7 @@ where
 }
 
 #[instrument(level = "debug", skip(context, merkle_tree_data), fields(tree = %context.merkle_tree))]
-pub(crate) async fn process_batch<R: Rpc>(
+pub(crate) async fn process_address_tree<R: Rpc>(
     context: &BatchContext<R>,
     merkle_tree_data: ParsedMerkleTreeData,
 ) -> Result<usize> {

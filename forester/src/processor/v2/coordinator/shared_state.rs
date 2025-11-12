@@ -1,0 +1,377 @@
+use std::collections::HashSet;
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::RwLock;
+use tracing::{debug, info};
+
+/// Unique identifier for a processed batch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct ProcessedBatchId {
+    pub batch_index: usize,
+    pub zkp_batch_index: u64,
+    pub is_append: bool,
+}
+
+impl ProcessedBatchId {
+    pub fn append(batch_index: usize, zkp_batch_index: u64) -> Self {
+        Self {
+            batch_index,
+            zkp_batch_index,
+            is_append: true,
+        }
+    }
+
+    pub fn nullify(batch_index: usize, zkp_batch_index: u64) -> Self {
+        Self {
+            batch_index,
+            zkp_batch_index,
+            is_append: false,
+        }
+    }
+
+    pub fn operation_type(&self) -> &'static str {
+        if self.is_append {
+            "append"
+        } else {
+            "nullify"
+        }
+    }
+}
+
+/// Shared tree state with concurrent access protection.
+pub struct SharedTreeState {
+    pub current_root: [u8; 32],
+    pub processed_batches: HashSet<ProcessedBatchId>,
+    pub metrics: CumulativeMetrics,
+}
+
+impl SharedTreeState {
+    pub fn new(initial_root: [u8; 32]) -> Self {
+        info!(
+            "Initializing SharedTreeState with root: {:?}",
+            &initial_root[..8]
+        );
+        Self {
+            current_root: initial_root,
+            processed_batches: HashSet::new(),
+            metrics: CumulativeMetrics::default(),
+        }
+    }
+
+    /// Update the current root hash.
+    pub fn update_root(&mut self, new_root: [u8; 32]) {
+        self.current_root = new_root;
+    }
+
+    /// Mark a batch as processed to prevent duplicate work.
+    pub fn mark_batch_processed(&mut self, batch_id: ProcessedBatchId) {
+        debug!(
+            "Marking batch as processed: batch_idx={}, zkp_batch_idx={}, type={}",
+            batch_id.batch_index,
+            batch_id.zkp_batch_index,
+            batch_id.operation_type()
+        );
+        self.processed_batches.insert(batch_id);
+    }
+
+    pub fn is_batch_processed(&self, batch_id: &ProcessedBatchId) -> bool {
+        self.processed_batches.contains(batch_id)
+    }
+
+    /// Reset state to sync with on-chain data.
+    ///
+    /// This clears processed batches that have been confirmed on-chain
+    /// while keeping batches that are still pending.
+    pub fn reset(
+        &mut self,
+        on_chain_root: [u8; 32],
+        input_queue_batches: &[light_batched_merkle_tree::batch::Batch; 2],
+        output_queue_batches: &[light_batched_merkle_tree::batch::Batch; 2],
+    ) {
+        let processed_count_before = self.processed_batches.len();
+        let root_changed = self.current_root != on_chain_root;
+
+        info!(
+            "Resetting state: clearing {} processed batches, root_changed={}, syncing to root {:?}",
+            processed_count_before,
+            root_changed,
+            &on_chain_root[..8]
+        );
+
+        self.current_root = on_chain_root;
+
+        // Keep only batches that haven't been confirmed on-chain yet
+        self.processed_batches.retain(|batch_id| {
+            let on_chain_inserted = if batch_id.is_append {
+                output_queue_batches
+                    .get(batch_id.batch_index)
+                    .map(|b| b.get_num_inserted_zkps())
+                    .unwrap_or(0)
+            } else {
+                input_queue_batches
+                    .get(batch_id.batch_index)
+                    .map(|b| b.get_num_inserted_zkps())
+                    .unwrap_or(0)
+            };
+
+            let should_keep = batch_id.zkp_batch_index >= on_chain_inserted;
+
+            if !should_keep {
+                debug!(
+                    "Clearing processed batch (confirmed on-chain): batch_idx={}, zkp_batch_idx={}, type={}, on_chain_inserted={}",
+                    batch_id.batch_index,
+                    batch_id.zkp_batch_index,
+                    batch_id.operation_type(),
+                    on_chain_inserted
+                );
+            }
+
+            should_keep
+        });
+
+        let processed_count_after = self.processed_batches.len();
+        let cleared_count = processed_count_before - processed_count_after;
+
+        if cleared_count > 0 {
+            info!(
+                "Cleared {} processed batches that were confirmed on-chain, {} remaining",
+                cleared_count, processed_count_after
+            );
+        } else if processed_count_after > 0 {
+            debug!(
+                "Keeping {} processed batches (not yet confirmed on-chain)",
+                processed_count_after
+            );
+        }
+    }
+
+    pub fn add_iteration_metrics(&mut self, metrics: IterationMetrics) {
+        self.metrics.add_iteration(&metrics);
+    }
+
+    pub fn get_metrics(&self) -> &CumulativeMetrics {
+        &self.metrics
+    }
+
+    pub fn merge_metrics(&mut self, other: CumulativeMetrics) {
+        self.metrics.iterations += other.iterations;
+        self.metrics.total_duration += other.total_duration;
+        self.metrics.phase1_total += other.phase1_total;
+        self.metrics.phase2_total += other.phase2_total;
+        self.metrics.phase3_total += other.phase3_total;
+        self.metrics.total_append_batches += other.total_append_batches;
+        self.metrics.total_nullify_batches += other.total_nullify_batches;
+
+        if let Some(min) = other.min_iteration {
+            self.metrics.min_iteration = Some(
+                self.metrics
+                    .min_iteration
+                    .map(|m| m.min(min))
+                    .unwrap_or(min),
+            );
+        }
+        if let Some(max) = other.max_iteration {
+            self.metrics.max_iteration = Some(
+                self.metrics
+                    .max_iteration
+                    .map(|m| m.max(max))
+                    .unwrap_or(max),
+            );
+        }
+    }
+
+    pub fn print_performance_summary(&self, label: &str) {
+        self.metrics.print_summary(label);
+    }
+}
+
+pub type SharedState = Arc<RwLock<SharedTreeState>>;
+
+pub fn create_shared_state(initial_root: [u8; 32]) -> SharedState {
+    Arc::new(RwLock::new(SharedTreeState::new(initial_root)))
+}
+
+/// Metrics for a single processing iteration.
+#[derive(Debug, Clone, Default)]
+pub struct IterationMetrics {
+    pub phase1_duration: Duration,
+    pub phase2_duration: Duration,
+    pub phase3_duration: Duration,
+    pub total_duration: Duration,
+    pub append_batches: usize,
+    pub nullify_batches: usize,
+}
+
+impl IterationMetrics {
+    pub fn total_batches(&self) -> usize {
+        self.append_batches + self.nullify_batches
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CumulativeMetrics {
+    pub iterations: usize,
+    pub total_duration: Duration,
+    pub phase1_total: Duration,
+    pub phase2_total: Duration,
+    pub phase3_total: Duration,
+    pub total_append_batches: usize,
+    pub total_nullify_batches: usize,
+    pub min_iteration: Option<Duration>,
+    pub max_iteration: Option<Duration>,
+}
+
+impl CumulativeMetrics {
+    pub fn add_iteration(&mut self, metrics: &IterationMetrics) {
+        self.iterations += 1;
+        self.total_duration += metrics.total_duration;
+        self.phase1_total += metrics.phase1_duration;
+        self.phase2_total += metrics.phase2_duration;
+        self.phase3_total += metrics.phase3_duration;
+        self.total_append_batches += metrics.append_batches;
+        self.total_nullify_batches += metrics.nullify_batches;
+
+        self.min_iteration = Some(
+            self.min_iteration
+                .map(|min| min.min(metrics.total_duration))
+                .unwrap_or(metrics.total_duration),
+        );
+
+        self.max_iteration = Some(
+            self.max_iteration
+                .map(|max| max.max(metrics.total_duration))
+                .unwrap_or(metrics.total_duration),
+        );
+    }
+
+    pub fn avg_iteration_duration(&self) -> Duration {
+        if self.iterations > 0 {
+            self.total_duration / self.iterations as u32
+        } else {
+            Duration::ZERO
+        }
+    }
+
+    pub fn avg_speedup(&self) -> f64 {
+        let sequential_estimate = self.phase1_total + self.phase2_total + self.phase3_total;
+        if self.total_duration.as_secs_f64() > 0.0 {
+            sequential_estimate.as_secs_f64() / self.total_duration.as_secs_f64()
+        } else {
+            1.0
+        }
+    }
+
+    pub fn total_batches(&self) -> usize {
+        self.total_append_batches + self.total_nullify_batches
+    }
+
+    pub fn print_summary(&self, label: &str) {
+        println!("\n========================================");
+        if !label.is_empty() {
+            println!("  {}  ", label.to_uppercase());
+            println!("========================================");
+        }
+        println!("Total iterations:        {}", self.iterations);
+        println!("Total duration:          {:?}", self.total_duration);
+        println!(
+            "Avg iteration:           {:?}",
+            self.avg_iteration_duration()
+        );
+
+        if let Some(min) = self.min_iteration {
+            println!("Min iteration:           {:?}", min);
+        }
+        if let Some(max) = self.max_iteration {
+            println!("Max iteration:           {:?}", max);
+        }
+
+        println!();
+        println!("Total batches processed:");
+        println!("  Append:                {}", self.total_append_batches);
+        println!("  Nullify:               {}", self.total_nullify_batches);
+        println!("  Total:                 {}", self.total_batches());
+
+        if self.iterations > 0 {
+            println!();
+            println!("Phase timing breakdown:");
+            println!("  Phase 1 (prep):        {:?}", self.phase1_total);
+            println!("  Phase 2 (proof):       {:?}", self.phase2_total);
+            println!("  Phase 3 (submit):      {:?}", self.phase3_total);
+        }
+
+        println!("========================================\n");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_batch_id_creation() {
+        let append = ProcessedBatchId::append(1, 5);
+        assert!(append.is_append);
+        assert_eq!(append.batch_index, 1);
+        assert_eq!(append.zkp_batch_index, 5);
+
+        let nullify = ProcessedBatchId::nullify(2, 10);
+        assert!(!nullify.is_append);
+        assert_eq!(nullify.batch_index, 2);
+        assert_eq!(nullify.zkp_batch_index, 10);
+    }
+
+    #[test]
+    fn test_shared_state_basic_operations() {
+        let mut state = SharedTreeState::new([42u8; 32]);
+        assert_eq!(state.current_root, [42u8; 32]);
+        assert_eq!(state.processed_batches.len(), 0);
+
+        let batch_id = ProcessedBatchId::append(0, 0);
+        assert!(!state.is_batch_processed(&batch_id));
+
+        state.mark_batch_processed(batch_id);
+        assert!(state.is_batch_processed(&batch_id));
+
+        state.update_root([99u8; 32]);
+        assert_eq!(state.current_root, [99u8; 32]);
+    }
+
+    #[test]
+    fn test_iteration_metrics() {
+        let metrics = IterationMetrics {
+            phase1_duration: Duration::from_millis(100),
+            phase2_duration: Duration::from_millis(200),
+            phase3_duration: Duration::from_millis(100),
+            total_duration: Duration::from_millis(250), // Parallel execution
+            append_batches: 5,
+            nullify_batches: 3,
+        };
+
+        assert!(metrics.is_parallelized());
+        assert!(metrics.estimated_speedup() > 1.0);
+        assert_eq!(metrics.total_batches(), 8);
+    }
+
+    #[test]
+    fn test_cumulative_metrics() {
+        let mut cumulative = CumulativeMetrics::default();
+        assert_eq!(cumulative.iterations, 0);
+
+        let iteration1 = IterationMetrics {
+            phase1_duration: Duration::from_millis(100),
+            phase2_duration: Duration::from_millis(200),
+            phase3_duration: Duration::from_millis(100),
+            total_duration: Duration::from_millis(250),
+            append_batches: 5,
+            nullify_batches: 3,
+        };
+
+        cumulative.add_iteration(&iteration1);
+        assert_eq!(cumulative.iterations, 1);
+        assert_eq!(cumulative.total_append_batches, 5);
+        assert_eq!(cumulative.total_nullify_batches, 3);
+        assert_eq!(cumulative.total_batches(), 8);
+        assert_eq!(cumulative.min_iteration, Some(Duration::from_millis(250)));
+        assert_eq!(cumulative.max_iteration, Some(Duration::from_millis(250)));
+    }
+}
