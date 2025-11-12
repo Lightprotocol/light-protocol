@@ -10,6 +10,7 @@ pub const CTOKEN_CPI_AUTHORITY: Pubkey = pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4
 
 pub mod ctoken {
     use light_compressed_token_sdk::POOL_SEED;
+    use light_compressible::config::CompressibleConfig;
     use solana_pubkey::Pubkey;
 
     use super::{CTOKEN_CPI_AUTHORITY, CTOKEN_PROGRAM_ID};
@@ -48,36 +49,14 @@ pub mod ctoken {
         create_compressed_mint::find_spl_mint_address, derive_cmint_from_spl_mint,
     };
 
-    pub fn derive_ctoken_program_config(_version: Option<u64>) -> (Pubkey, u8) {
-        let version = 1u16;
-        let registry_program_id =
-            solana_pubkey::pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
-        let (compressible_config_pda, config_bump) = Pubkey::find_program_address(
-            &[b"compressible_config", &version.to_le_bytes()],
-            &registry_program_id,
-        );
-        (compressible_config_pda, config_bump)
+    pub fn config_pda() -> Pubkey {
+        CompressibleConfig::ctoken_v1_config_pda()
     }
 
-    // TODO: add version.
-    pub fn derive_ctoken_rent_sponsor(_version: Option<u64>) -> (Pubkey, u8) {
-        let version = 1u16;
-        Pubkey::find_program_address(
-            &[b"rent_sponsor".as_slice(), version.to_le_bytes().as_slice()],
-            &solana_pubkey::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
-        )
+    pub fn rent_sponsor_pda() -> Pubkey {
+        CompressibleConfig::ctoken_v1_rent_sponsor_pda()
     }
-
-    pub fn derive_ctoken_compression_authority(version: Option<u64>) -> (Pubkey, u8) {
-        let registry_program_id =
-            solana_pubkey::pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
-        let (compression_authority, compression_authority_bump) = Pubkey::find_program_address(
-            &[
-                b"compression_authority".as_slice(),
-                version.unwrap_or(1).to_le_bytes().as_slice(),
-            ],
-            &registry_program_id,
-        );
-        (compression_authority, compression_authority_bump)
+    pub fn compression_authority_pda() -> Pubkey {
+        CompressibleConfig::ctoken_v1_compression_authority_pda()
     }
 }

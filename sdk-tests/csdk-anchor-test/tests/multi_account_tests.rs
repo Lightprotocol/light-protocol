@@ -563,7 +563,7 @@ pub async fn decompress_multiple_pdas_with_ctoken(
 
     let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
-    let ctoken_config = ctoken::derive_ctoken_program_config(None).0;
+    let ctoken_config = ctoken::config_pda();
     let instruction =
         light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
             program_id,
@@ -640,7 +640,7 @@ pub async fn decompress_multiple_pdas_with_ctoken(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
                 rent_payer: payer.pubkey(),
-                ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
+                ctoken_rent_sponsor: ctoken::rent_sponsor_pda(),
                 ctoken_config,
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
@@ -857,8 +857,8 @@ pub async fn decompress_multiple_pdas(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
                 rent_payer: payer.pubkey(),
-                ctoken_rent_sponsor: CTOKEN_RENT_SPONSOR,
-                ctoken_config: ctoken::derive_ctoken_program_config(None).0,
+                ctoken_rent_sponsor: ctoken::rent_sponsor_pda(),
+                ctoken_config: ctoken::config_pda(),
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
                 some_mint: payer.pubkey(),

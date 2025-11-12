@@ -54,6 +54,7 @@ light-hasher = { workspace = true, features = ["std"] }
 light-account-checks = { workspace = true, features = ["solana"] }
 light-zero-copy = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true, optional = true }
+light-ctoken-types = { workspace = true }
 
 [dev-dependencies]
 num-bigint = { workspace = true }

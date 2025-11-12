@@ -15,7 +15,8 @@ pub enum AccountState {
     Initialized,
     Frozen,
 }
-// TODO: extract token data from program into into a separate crate, import it and remove this file.
+// TODO: extract token data from program into into a separate crate, import it
+// and remove this file. Do this in a separate PR.
 #[derive(Debug, PartialEq, Eq, AnchorDeserialize, AnchorSerialize, Clone, Default)]
 pub struct TokenData {
     /// The mint associated with this account
@@ -212,21 +213,10 @@ where
     }
 }
 
-/// Standard Pack for c-token accounts with variant.
-#[derive(Clone, Debug, AnchorDeserialize, AnchorSerialize, Default)]
-pub struct InputTokenDataCompressible {
-    pub owner: u8,
-    pub amount: u64,
-    pub has_delegate: bool, // Optional delegate is set
-    pub delegate: u8,
-    pub mint: u8,
-    pub version: u8,
-}
-
-// TODO: remove these and fix renaming after we're done with ci.
-#[deprecated(since = "0.2.0", note = "Use `CTokenDataWithVariant` instead")]
+// TODO: remove these aliases and fix renaming in a separate PR.
+pub type InputTokenDataCompressible =
+    light_ctoken_types::instructions::transfer2::MultiTokenTransferOutputData;
 pub type CompressibleTokenDataWithVariant<V> = CTokenDataWithVariant<V>;
-#[deprecated(since = "0.2.0", note = "Use `PackedCTokenDataWithVariant` instead")]
 pub type PackedCompressibleTokenDataWithVariant<V> = PackedCTokenDataWithVariant<V>;
 pub type CTokenData<V> = CTokenDataWithVariant<V>;
 pub type PackedCTokenData<V> = PackedCTokenDataWithVariant<V>;
