@@ -49,9 +49,19 @@ jobs:
           skip-components: "redis,disk-cleanup,go"
           cache-key: "js"
 
+      - name: Build stateless.js with V1
+        run: |
+          cd js/stateless.js
+          pnpm build:v1
+
+      - name: Build compressed-token with V1
+        run: |
+          cd js/compressed-token
+          pnpm build:v1
+
       - name: Build CLI
         run: |
-          npx nx run @lightprotocol/zk-compression-cli:build-ci
+          npx nx build @lightprotocol/zk-compression-cli
 
       - name: Run CLI tests with V1
         run: |

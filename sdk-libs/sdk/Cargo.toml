@@ -37,7 +37,7 @@ solana-instruction = { workspace = true }
 solana-clock = { workspace = true }
 solana-sysvar = { workspace = true }
 solana-system-interface = { workspace = true }
-solana-program = { workspace = true }
+solana-loader-v3-interface = { workspace = true, features = ["serde"] }
 
 anchor-lang = { workspace = true, optional = true }
 num-bigint = { workspace = true }

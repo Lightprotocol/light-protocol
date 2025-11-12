@@ -78,7 +78,8 @@ async fn test_create_decompress_compress_single_account() {
         );
     }
     rpc.warp_to_slot(200).unwrap();
-    let _result = compress_record(&mut rpc, &payer, &program_id, &user_record_pda, false).await;
+    let result = compress_record(&mut rpc, &payer, &program_id, &user_record_pda, false).await;
+    assert!(result.is_ok(), "Compression should succeed");
 }
 
 #[tokio::test]

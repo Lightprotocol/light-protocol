@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "license": "Apache-2.0",
   "scripts": {
-    "build": "cargo build-sbf",
-    "test": "cargo test-sbf -- --nocapture"
+    "build": "cd sdk-tests/csdk-anchor-test && cargo build-sbf",
+    "test": "cargo test-sbf -p csdk-anchor-test -- --nocapture"
   },
   "nx": {}
 }

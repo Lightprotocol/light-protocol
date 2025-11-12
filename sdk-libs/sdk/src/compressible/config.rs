@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use solana_account_info::AccountInfo;
 use solana_cpi::invoke_signed;
+use solana_loader_v3_interface::state::UpgradeableLoaderState;
 use solana_msg::msg;
-use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_pubkey::Pubkey;
 use solana_system_interface::instruction as system_instruction;
 use solana_sysvar::{rent::Rent, Sysvar};

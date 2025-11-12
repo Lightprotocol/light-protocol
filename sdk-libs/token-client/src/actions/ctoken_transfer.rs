@@ -1,4 +1,3 @@
-// TODO: move transfer_ctoken to compressed-token-sdk
 use light_client::rpc::{Rpc, RpcError};
 use solana_instruction::{AccountMeta, Instruction};
 use solana_keypair::Keypair;
@@ -38,6 +37,7 @@ pub async fn transfer_ctoken<R: Rpc>(
         .await
 }
 
+// TODO: consume the variant from compressed-token-sdk instead
 /// Create a ctoken transfer instruction.
 ///
 /// # Arguments
@@ -60,13 +60,13 @@ pub fn create_transfer_ctoken_instruction(
         accounts: vec![
             AccountMeta::new(source, false),      // Source token account
             AccountMeta::new(destination, false), // Destination token account
-            AccountMeta::new(authority, true), // Owner/Authority (signer, writable for lamport transfers)
-            // TODO: try to remove this so we can reuse this from the compressed-token-sdk
-            AccountMeta::new_readonly(Pubkey::default(), false), // System program for CPI transfers
+            AccountMeta::new(authority, true),
+            AccountMeta::new_readonly(Pubkey::default(), false),
         ],
         data: {
-            let mut data = vec![3u8]; // CTokenTransfer discriminator
-                                      // Add SPL Token Transfer instruction data exactly like SPL does
+            // CTokenTransfer discriminator
+            let mut data = vec![3u8];
+            // Add SPL Token Transfer instruction data exactly like SPL does
             data.extend_from_slice(&amount.to_le_bytes()); // Amount as u64 little-endian
             data
         },

@@ -104,6 +104,7 @@ solana-transaction-error = { version = "2.2" }
 solana-hash = { version = "2.3" }
 solana-clock = { version = "2.2" }
 solana-signature = { version = "2.3" }
+solana-loader-v3-interface = { version = "5.0" }
 solana-commitment-config = { version = "2.2" }
 solana-account = { version = "2.2" }
 solana-epoch-info = { version = "2.2" }
