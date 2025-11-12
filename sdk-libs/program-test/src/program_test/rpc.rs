@@ -70,6 +70,16 @@ impl Rpc for LightProgramTest {
         Ok(self.context.get_account(&address))
     }
 
+    async fn get_multiple_accounts(
+        &self,
+        addresses: &[Pubkey],
+    ) -> Result<Vec<Option<Account>>, RpcError> {
+        Ok(addresses
+            .iter()
+            .map(|address| self.context.get_account(address))
+            .collect())
+    }
+
     async fn get_minimum_balance_for_rent_exemption(
         &self,
         data_len: usize,

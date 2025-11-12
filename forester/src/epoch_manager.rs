@@ -1009,55 +1009,53 @@ impl<R: Rpc> EpochManager<R> {
         // Spawn compression task if enabled
         if let Some(tracker) = self.compressible_tracker.clone() {
             if let Some(comp_config) = &self.config.compressible_config {
-                if comp_config.enabled {
-                    let epoch_info_clone = epoch_info_arc.clone();
-                    let rpc_pool = self.rpc_pool.clone();
-                    let payer_keypair = self.config.payer_keypair.insecure_clone();
-                    let slot_tracker = self.slot_tracker.clone();
-                    let sleep_after = self.config.general_config.sleep_after_processing_ms;
-                    let sleep_idle = self.config.general_config.sleep_when_idle_ms;
-                    let batch_size = comp_config.batch_size;
+                let epoch_info_clone = epoch_info_arc.clone();
+                let rpc_pool = self.rpc_pool.clone();
+                let payer_keypair = self.config.payer_keypair.insecure_clone();
+                let slot_tracker = self.slot_tracker.clone();
+                let sleep_after = self.config.general_config.sleep_after_processing_ms;
+                let sleep_idle = self.config.general_config.sleep_when_idle_ms;
+                let batch_size = comp_config.batch_size;
 
-                    info!(
-                        "Spawning compression task for epoch {}",
-                        epoch_info_clone.epoch.epoch
+                info!(
+                    "Spawning compression task for epoch {}",
+                    epoch_info_clone.epoch.epoch
+                );
+
+                let compression_handle = tokio::spawn(async move {
+                    let mut compressor = Compressor::new(
+                        rpc_pool,
+                        tracker,
+                        payer_keypair,
+                        slot_tracker.clone(),
+                        batch_size,
                     );
 
-                    let compression_handle = tokio::spawn(async move {
-                        let mut compressor = Compressor::new(
-                            rpc_pool,
-                            tracker,
-                            payer_keypair,
-                            slot_tracker.clone(),
-                            batch_size,
-                        );
-
-                        match compressor
-                            .run_for_epoch(
-                                epoch_info_clone.epoch.epoch,
-                                epoch_info_clone.epoch.phases.active.end,
-                                epoch_info_clone.epoch.phases.clone(),
-                                sleep_after,
-                                sleep_idle,
-                            )
-                            .await
-                        {
-                            Ok(()) => {
-                                info!(
-                                    "Compression task completed for epoch {}",
-                                    epoch_info_clone.epoch.epoch
-                                );
-                                Ok(())
-                            }
-                            Err(e) => {
-                                error!("Compression task error: {:?}", e);
-                                Err(e)
-                            }
+                    match compressor
+                        .run_for_epoch(
+                            epoch_info_clone.epoch.epoch,
+                            epoch_info_clone.epoch.phases.active.end,
+                            epoch_info_clone.epoch.phases.clone(),
+                            sleep_after,
+                            sleep_idle,
+                        )
+                        .await
+                    {
+                        Ok(()) => {
+                            info!(
+                                "Compression task completed for epoch {}",
+                                epoch_info_clone.epoch.epoch
+                            );
+                            Ok(())
                         }
-                    });
+                        Err(e) => {
+                            error!("Compression task error: {:?}", e);
+                            Err(e)
+                        }
+                    }
+                });
 
-                    handles.push(compression_handle);
-                }
+                handles.push(compression_handle);
             }
         }
 
@@ -2234,6 +2232,7 @@ mod tests {
             derivation_pubkey: Pubkey::default(),
             address_tree_data: vec![],
             state_tree_data: vec![],
+            compressible_config: None,
         }
     }
 

@@ -217,27 +217,20 @@ pub async fn run_pipeline<R: Rpc>(
 
     // Start compressible subscriber if enabled and get tracker
     let compressible_tracker = if let Some(compressible_config) = &config.compressible_config {
-        if compressible_config.enabled {
-            let tracker = Arc::new(compressible::CompressibleAccountTracker::new());
-            let tracker_clone = tracker.clone();
-            let ws_url = compressible_config.ws_url.clone();
+        let tracker = Arc::new(compressible::CompressibleAccountTracker::new());
+        let tracker_clone = tracker.clone();
+        let ws_url = compressible_config.ws_url.clone();
 
-            // Spawn subscriber
-            tokio::spawn(async move {
-                let mut subscriber = compressible::AccountSubscriber::new(
-                    ws_url,
-                    tracker_clone,
-                    shutdown_compressible,
-                );
-                if let Err(e) = subscriber.run().await {
-                    tracing::error!("Compressible subscriber error: {:?}", e);
-                }
-            });
+        // Spawn subscriber
+        tokio::spawn(async move {
+            let mut subscriber =
+                compressible::AccountSubscriber::new(ws_url, tracker_clone, shutdown_compressible);
+            if let Err(e) = subscriber.run().await {
+                tracing::error!("Compressible subscriber error: {:?}", e);
+            }
+        });
 
-            Some(tracker)
-        } else {
-            None
-        }
+        Some(tracker)
     } else {
         None
     };

@@ -306,20 +306,11 @@ impl ForesterConfig {
             derivation_pubkey: derivation,
             address_tree_data: vec![],
             state_tree_data: vec![],
-            compressible_config: if args.enable_compressible_mode {
-                let ws_url = args
-                    .compressible_ws_url
-                    .clone()
-                    .or_else(|| args.ws_rpc_url.clone())
-                    .ok_or(ConfigError::MissingField {
-                        field: "compressible_ws_url or ws_rpc_url",
-                    })?;
-                Some(crate::compressible::config::CompressibleConfig::new(
-                    true, ws_url,
-                ))
-            } else {
-                None
-            },
+            compressible_config: args
+                .compressible_ws_url
+                .clone()
+                .or_else(|| args.ws_rpc_url.clone())
+                .map(crate::compressible::config::CompressibleConfig::new),
         })
     }
 

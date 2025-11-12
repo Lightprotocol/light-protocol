@@ -223,16 +223,8 @@ pub struct StartArgs {
 
     #[arg(
         long,
-        env = "FORESTER_ENABLE_COMPRESSIBLE_MODE",
-        default_value = "false",
-        help = "Enable compressible mode to monitor and compress compressible CToken accounts"
-    )]
-    pub enable_compressible_mode: bool,
-
-    #[arg(
-        long,
         env = "FORESTER_COMPRESSIBLE_WS_URL",
-        help = "WebSocket URL for compressible account subscriptions (defaults to ws_rpc_url if not specified)"
+        help = "WebSocket URL for compressible account subscriptions (enables compressible mode; defaults to ws_rpc_url if not specified)"
     )]
     pub compressible_ws_url: Option<String>,
 }

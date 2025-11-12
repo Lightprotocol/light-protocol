@@ -119,12 +119,6 @@ impl<R: Rpc> Compressor<R> {
                             batch_num + 1,
                             sig
                         );
-
-                        // Remove successfully compressed accounts from tracker
-                        for account in batch {
-                            debug!("Removing compressed account {}", account.pubkey);
-                            self.tracker.remove(&account.pubkey);
-                        }
                         total_compressed += batch.len();
                     }
                     Err(e) => {
@@ -205,7 +199,7 @@ impl<R: Rpc> Compressor<R> {
 
     pub async fn compress_batch(
         &self,
-        accounts: &[CompressibleAccountState],
+        account_states: &[CompressibleAccountState],
         current_epoch: u64,
     ) -> Result<Signature> {
         let registry_program_id = Pubkey::from_str(REGISTRY_PROGRAM_ID_STR)?;
@@ -257,7 +251,7 @@ impl<R: Rpc> Compressor<R> {
 
         let mut indices_vec = Vec::new();
 
-        for account_state in accounts {
+        for account_state in account_states {
             let source_index = packed_accounts.insert_or_get(account_state.pubkey);
 
             // Convert mint from light_compressed_account::Pubkey to solana_sdk::Pubkey
@@ -350,6 +344,9 @@ impl<R: Rpc> Compressor<R> {
             accounts.len()
         );
 
+        // Collect pubkeys for sync before creating instruction
+        let pubkeys: Vec<_> = account_states.iter().map(|state| state.pubkey).collect();
+
         let ix = Instruction {
             program_id: registry_program_id,
             accounts,
@@ -365,6 +362,11 @@ impl<R: Rpc> Compressor<R> {
             )
             .await
             .map_err(|e| anyhow::anyhow!("Failed to send transaction: {}", e))?;
+
+        // Sync accounts to verify they're closed
+        if let Err(e) = self.tracker.sync_accounts(&*rpc, &pubkeys).await {
+            error!("Failed to sync accounts after compression: {:?}", e);
+        }
 
         Ok(signature)
     }

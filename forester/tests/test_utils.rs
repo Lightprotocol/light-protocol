@@ -125,6 +125,7 @@ pub fn forester_config() -> ForesterConfig {
         derivation_pubkey: test_accounts.protocol.forester.pubkey(),
         address_tree_data: vec![],
         state_tree_data: vec![],
+        compressible_config: None,
     }
 }
 

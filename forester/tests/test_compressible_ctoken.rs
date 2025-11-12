@@ -49,7 +49,7 @@ async fn register_forester<R: Rpc>(
 
     // Get governance authority
     let governance_authority =
-        Keypair::try_from(&light_program_test::accounts::test_keypairs::PAYER_KEYPAIR.as_ref()[..])
+        Keypair::try_from(light_program_test::accounts::test_keypairs::PAYER_KEYPAIR.as_ref())
             .expect("Failed to load governance authority");
     let governance_pubkey = governance_authority.pubkey();
 
@@ -170,7 +170,7 @@ async fn register_forester<R: Rpc>(
     })
 }
 
-/// Test that AccountSubscriber tracks compressible accounts and updates when they're compressed
+/// Test that compressible token accounts are tracked and compressed automatically
 ///
 /// 1. Start AccountSubscriber with CompressibleAccountTracker
 /// 2. Create two compressible token accounts: one with 2 epochs rent, one with 0 epochs rent
@@ -180,7 +180,7 @@ async fn register_forester<R: Rpc>(
 /// 6. Assert tracker is updated and now has only 1 account (the one with 2 epochs rent)
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 #[serial]
-async fn test_account_subscriber_receives_updates() {
+async fn test_compressible_ctoken_compression() {
     // Start validator and RPC client
     spawn_validator(LightValidatorConfig {
         enable_indexer: true,

@@ -43,7 +43,7 @@ impl CompressibleAccountTracker {
             .filter(|entry| {
                 let state = entry.value();
                 // Check if account has compressible extension
-                state.account.extensions.as_ref().map_or(false, |exts| {
+                state.account.extensions.as_ref().is_some_and(|exts| {
                     exts.iter()
                         .any(|ext| matches!(ext, ExtensionStruct::Compressible(_)))
                 })
@@ -70,7 +70,7 @@ impl CompressibleAccountTracker {
                     // Get the last funded epoch using the extension's method
                     let last_funded_epoch = compressible_ext
                         .get_last_funded_epoch(
-                            COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as u64,
+                            COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
                             state.lamports,
                             COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                         )
@@ -124,6 +124,37 @@ impl CompressibleAccountTracker {
         // Store in DashMap
         self.insert(state);
 
+        Ok(())
+    }
+
+    /// Query accounts and update tracker: remove non-existent accounts, update lamports for existing ones
+    pub async fn sync_accounts<R: light_client::rpc::Rpc>(
+        &self,
+        rpc: &R,
+        pubkeys: &[Pubkey],
+    ) -> Result<()> {
+        // Query all accounts at once using get_multiple_accounts
+        let accounts = rpc.get_multiple_accounts(pubkeys).await?;
+
+        for (pubkey, account_opt) in pubkeys.iter().zip(accounts.iter()) {
+            match account_opt {
+                Some(account) => {
+                    // Account exists - update lamports
+                    if let Some(mut state) = self.accounts.get_mut(pubkey) {
+                        state.lamports = account.lamports;
+                        debug!(
+                            "Updated lamports for account {}: {}",
+                            pubkey, account.lamports
+                        );
+                    }
+                }
+                None => {
+                    // Account doesn't exist - remove from tracker
+                    self.remove(pubkey);
+                    debug!("Removed non-existent account {}", pubkey);
+                }
+            }
+        }
         Ok(())
     }
 }
