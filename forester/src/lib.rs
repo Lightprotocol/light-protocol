@@ -1,6 +1,7 @@
 pub type Result<T> = anyhow::Result<T>;
 
 pub mod cli;
+pub mod compressible;
 pub mod config;
 pub mod epoch_manager;
 pub mod errors;
@@ -212,6 +213,23 @@ pub async fn run_pipeline<R: Rpc>(
     let ops_cache = Arc::new(Mutex::new(ProcessedHashCache::new(
         config.transaction_config.ops_cache_ttl_seconds,
     )));
+
+    // Spawn compressible service if enabled
+    if let Some(compressible_config) = &config.compressible_config {
+        if compressible_config.enabled {
+            let service = compressible::CompressibleService::new(
+                compressible_config.clone(),
+                arc_pool.clone(),
+                config.payer_keypair.insecure_clone(),
+            );
+
+            tokio::spawn(async move {
+                if let Err(e) = service.run().await {
+                    tracing::error!("Compressible service error: {:?}", e);
+                }
+            });
+        }
+    }
 
     debug!("Starting Forester pipeline");
     run_service(
