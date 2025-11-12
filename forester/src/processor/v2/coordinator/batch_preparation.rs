@@ -12,7 +12,6 @@ use tracing::{error, trace};
 
 use super::{
     error::CoordinatorError,
-    tree_state::encode_node_index,
     types::{AppendQueueData, NullifyQueueData, PreparationState},
 };
 
@@ -20,9 +19,8 @@ use super::{
 ///
 /// This function:
 /// 1. Extracts batch-specific data (leaves, proofs, etc.)
-/// 2. Computes circuit inputs using accumulated changelogs
-/// 3. Updates the tree state with new changelogs
-/// 4. Tracks leaf modifications for later nullify batches
+/// 2. Generates circuit inputs (proofs are already current - no adjustment needed)
+/// 3. Updates the tree state immediately after each leaf
 pub fn prepare_append_batch(
     append_data: &AppendQueueData,
     state: &mut PreparationState,
@@ -37,7 +35,7 @@ pub fn prepare_append_batch(
     let adjusted_start_index = batch_leaf_indices[0] as u32;
     let batch_elements = &append_data.queue_elements[start_idx..end_idx];
 
-    // Gather leaves and proofs
+    // Gather leaves and proofs from current tree state
     let leaves: Vec<[u8; 32]> = batch_elements
         .iter()
         .map(|elem| elem.account_hash)
@@ -50,13 +48,11 @@ pub fn prepare_append_batch(
 
     let old_leaves: Vec<[u8; 32]> = batch_leaf_indices
         .iter()
-        .map(|&idx| {
-            let node_idx = encode_node_index(0, idx);
-            *state.tree_state.nodes.get(&node_idx).unwrap_or(&[0u8; 32])
-        })
+        .map(|&idx| state.tree_state.get_leaf(idx).unwrap_or([0u8; 32]))
         .collect();
 
-    // Generate circuit inputs with accumulated changelogs
+    // Generate circuit inputs with NO changelogs (proofs are already current!)
+    let empty_changelogs = Vec::new();
     let (circuit_inputs, batch_changelogs) =
         get_batch_append_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
             state.current_root,
@@ -66,7 +62,7 @@ pub fn prepare_append_batch(
             old_leaves,
             merkle_proofs,
             append_data.zkp_batch_size as u32,
-            &state.accumulated_changelogs,
+            &empty_changelogs, // Empty! Tree is already up-to-date
         )?;
 
     // Update state with new root
@@ -74,23 +70,21 @@ pub fn prepare_append_batch(
         &circuit_inputs.new_root.to_biguint().unwrap(),
     )?;
 
-    state
-        .accumulated_changelogs
-        .extend(batch_changelogs.iter().cloned());
     state.current_root = new_root;
 
-    // Update leaf nodes for potential cross-batch dependencies
+    // Update tree immediately for each leaf
     for (i, changelog) in batch_changelogs.iter().enumerate() {
         let new_leaf = leaves[i];
         let tree_index = changelog.index();
-        let node_idx = encode_node_index(0, tree_index as u64);
-        state.tree_state.nodes.insert(node_idx, new_leaf);
+        state
+            .tree_state
+            .update_leaf(tree_index as u64, new_leaf)?;
     }
 
     state.append_batch_index += 1;
 
     trace!(
-        "Prepared append batch {}: new_root={:?}, {} changelogs",
+        "Prepared append batch {}: new_root={:?}, {} leaves updated",
         batch_idx,
         &new_root[..8],
         batch_changelogs.len()
@@ -103,10 +97,9 @@ pub fn prepare_append_batch(
 ///
 /// This function:
 /// 1. Extracts batch-specific data (leaves, tx hashes, indices)
-/// 2. Uses modified leaves from earlier append batches if available
+/// 2. Gets current leaf values from tree (already includes any prior updates)
 /// 3. Computes nullifiers and validates hash chain
-/// 4. Generates circuit inputs with accumulated changelogs
-/// 5. Updates the tree state with new changelogs
+/// 4. Generates circuit inputs and updates tree immediately
 pub fn prepare_nullify_batch(
     nullify_data: &NullifyQueueData,
     state: &mut PreparationState,
@@ -131,13 +124,10 @@ pub fn prepare_nullify_batch(
         tx_hashes.push(element.tx_hash.unwrap_or([0u8; 32]));
         path_indices.push(leaf_idx as u32);
 
-        // Get leaf value (may have been modified by earlier append batch in same iteration)
-        let node_idx = encode_node_index(0, leaf_idx);
+        // Get current leaf value from tree (includes any prior updates from appends)
         let old_leaf = state
             .tree_state
-            .nodes
-            .get(&node_idx)
-            .copied()
+            .get_leaf(leaf_idx)
             .unwrap_or([0u8; 32]);
         old_leaves.push(old_leaf);
     }
@@ -156,7 +146,8 @@ pub fn prepare_nullify_batch(
         leaves_hash_chain,
     )?;
 
-    // Generate circuit inputs with accumulated changelogs
+    // Generate circuit inputs with NO changelogs (tree is already current!)
+    let empty_changelogs = Vec::new();
     let (circuit_inputs, batch_changelog) =
         get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
             state.current_root,
@@ -167,7 +158,7 @@ pub fn prepare_nullify_batch(
             merkle_proofs,
             path_indices,
             nullify_data.zkp_batch_size as u32,
-            &state.accumulated_changelogs,
+            &empty_changelogs, // Empty! Tree is already up-to-date
         )?;
 
     // Update state with new root
@@ -175,14 +166,21 @@ pub fn prepare_nullify_batch(
         &circuit_inputs.new_root.to_biguint().unwrap(),
     )?;
 
-    state
-        .accumulated_changelogs
-        .extend(batch_changelog.iter().cloned());
     state.current_root = new_root;
+
+    // Update tree immediately for each leaf
+    for (i, changelog) in batch_changelog.iter().enumerate() {
+        let new_leaf = leaves[i];
+        let tree_index = changelog.index();
+        state
+            .tree_state
+            .update_leaf(tree_index as u64, new_leaf)?;
+    }
+
     state.nullify_batch_index += 1;
 
     trace!(
-        "Prepared nullify batch {}: new_root={:?}, {} changelogs",
+        "Prepared nullify batch {}: new_root={:?}, {} leaves updated",
         batch_idx,
         &new_root[..8],
         batch_changelog.len()

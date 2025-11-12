@@ -79,9 +79,11 @@ impl NullifyQueueData {
 }
 
 /// State accumulated during batch preparation phase.
+///
+/// Note: We no longer accumulate changelogs - the tree is updated immediately
+/// after each operation, eliminating the need for proof adjustments.
 pub struct PreparationState {
     pub tree_state: super::tree_state::TreeState,
-    pub accumulated_changelogs: Vec<light_sparse_merkle_tree::changelog::ChangelogEntry<32>>,
     pub current_root: [u8; 32],
     pub append_batch_index: usize,
     pub nullify_batch_index: usize,
@@ -94,16 +96,10 @@ impl PreparationState {
         let initial_root = tree_state.current_root();
         Self {
             tree_state,
-            accumulated_changelogs: Vec::new(),
             current_root: initial_root,
             append_batch_index: 0,
             nullify_batch_index: 0,
             append_leaf_indices,
         }
-    }
-
-    /// Get the number of changelogs accumulated.
-    pub fn changelog_count(&self) -> usize {
-        self.accumulated_changelogs.len()
     }
 }
