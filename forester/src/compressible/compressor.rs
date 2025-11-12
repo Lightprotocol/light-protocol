@@ -1,7 +1,10 @@
 use std::{str::FromStr, sync::Arc, time::Duration};
 
 use anchor_lang::{InstructionData, ToAccountMetas};
-use forester_utils::{forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool};
+use forester_utils::{
+    forester_epoch::{Epoch, EpochPhases},
+    rpc_pool::SolanaRpcPool,
+};
 use light_client::rpc::Rpc;
 use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseAccounts as CTokenAccounts;
 use light_compressible::config::CompressibleConfig;
@@ -24,6 +27,18 @@ use super::{state::CompressibleAccountTracker, types::CompressibleAccountState};
 use crate::{slot_tracker::SlotTracker, Result};
 
 const REGISTRY_PROGRAM_ID_STR: &str = "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX";
+
+/// Input parameters for spawning a compression task
+pub struct SpawnCompressionTaskInput<R: Rpc> {
+    pub tracker: Arc<CompressibleAccountTracker>,
+    pub config: super::config::CompressibleConfig,
+    pub epoch_info: Epoch,
+    pub rpc_pool: Arc<SolanaRpcPool<R>>,
+    pub payer_keypair: Keypair,
+    pub slot_tracker: Arc<SlotTracker>,
+    pub sleep_after_processing_ms: u64,
+    pub sleep_when_idle_ms: u64,
+}
 
 /// Compression executor that builds and sends compress_and_close transactions via registry program
 pub struct Compressor<R: Rpc> {
@@ -51,15 +66,59 @@ impl<R: Rpc> Compressor<R> {
         }
     }
 
+    /// Spawns a compression task for the given epoch
+    ///
+    /// Returns a JoinHandle that completes when the compression task finishes
+    pub fn spawn_task(
+        input: SpawnCompressionTaskInput<R>,
+    ) -> tokio::task::JoinHandle<crate::Result<()>> {
+        let batch_size = input.config.batch_size;
+
+        info!(
+            "Spawning compression task for epoch {}",
+            input.epoch_info.epoch
+        );
+
+        tokio::spawn(async move {
+            let mut compressor = Self::new(
+                input.rpc_pool,
+                input.tracker,
+                input.payer_keypair,
+                input.slot_tracker.clone(),
+                batch_size,
+            );
+
+            match compressor
+                .run_for_epoch(
+                    &input.epoch,
+                    input.sleep_after_processing_ms,
+                    input.sleep_when_idle_ms,
+                )
+                .await
+            {
+                Ok(()) => {
+                    info!("Compression task completed for epoch {}", input.epoch.epoch);
+                    Ok(())
+                }
+                Err(e) => {
+                    error!("Compression task error: {:?}", e);
+                    Err(e)
+                }
+            }
+        })
+    }
+
     /// Run compression for a specific epoch during the active phase
     pub async fn run_for_epoch(
         &mut self,
-        current_epoch: u64,
-        active_phase_end_slot: u64,
-        epoch_phases: EpochPhases,
+        epoch: &Epoch,
         sleep_after_processing_ms: u64,
         sleep_when_idle_ms: u64,
     ) -> Result<()> {
+        let current_epoch = epoch.epoch;
+        let active_phase_end_slot = epoch.phases.active.end;
+        let epoch_phases = &epoch.phases;
+
         info!(
             "Starting compression for epoch {} (active phase ends at slot {})",
             current_epoch, active_phase_end_slot
@@ -80,7 +139,7 @@ impl<R: Rpc> Compressor<R> {
 
             // Check forester eligibility
             if !self
-                .check_compression_eligibility(current_epoch, current_slot, &epoch_phases)
+                .check_compression_eligibility(current_epoch, current_slot, epoch_phases)
                 .await?
             {
                 warn!(
@@ -163,11 +222,10 @@ impl<R: Rpc> Compressor<R> {
             .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
             .await?;
 
-        if forester_epoch_pda.is_none() {
-            return Ok(false);
-        }
-
-        let pda = forester_epoch_pda.unwrap();
+        let pda = match forester_epoch_pda {
+            Some(pda) => pda,
+            None => return Ok(false),
+        };
 
         // Get total epoch weight
         let total_epoch_weight = match pda.total_epoch_weight {
@@ -231,7 +289,6 @@ impl<R: Rpc> Compressor<R> {
 
         // Get output tree from RPC
         let mut rpc = self.rpc_pool.get_connection().await?;
-        // TODO: use a tree from config.
         rpc.get_latest_active_state_trees()
             .await
             .map_err(|e| anyhow::anyhow!("Failed to get state tree info: {}", e))?;
@@ -249,7 +306,7 @@ impl<R: Rpc> Compressor<R> {
         let mut packed_accounts = PackedAccounts::default();
         packed_accounts.insert_or_get(output_queue);
 
-        let mut indices_vec = Vec::new();
+        let mut indices_vec = Vec::with_capacity(account_states.len());
 
         for account_state in account_states {
             let source_index = packed_accounts.insert_or_get(account_state.pubkey);

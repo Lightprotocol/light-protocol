@@ -1009,51 +1009,21 @@ impl<R: Rpc> EpochManager<R> {
         // Spawn compression task if enabled
         if let Some(tracker) = self.compressible_tracker.clone() {
             if let Some(comp_config) = &self.config.compressible_config {
-                let epoch_info_clone = epoch_info_arc.clone();
-                let rpc_pool = self.rpc_pool.clone();
-                let payer_keypair = self.config.payer_keypair.insecure_clone();
-                let slot_tracker = self.slot_tracker.clone();
-                let sleep_after = self.config.general_config.sleep_after_processing_ms;
-                let sleep_idle = self.config.general_config.sleep_when_idle_ms;
-                let batch_size = comp_config.batch_size;
-
-                info!(
-                    "Spawning compression task for epoch {}",
-                    epoch_info_clone.epoch.epoch
-                );
-
-                let compression_handle = tokio::spawn(async move {
-                    let mut compressor = Compressor::new(
-                        rpc_pool,
+                let compression_handle = Compressor::spawn_task(
+                    crate::compressible::compressor::SpawnCompressionTaskInput {
                         tracker,
-                        payer_keypair,
-                        slot_tracker.clone(),
-                        batch_size,
-                    );
-
-                    match compressor
-                        .run_for_epoch(
-                            epoch_info_clone.epoch.epoch,
-                            epoch_info_clone.epoch.phases.active.end,
-                            epoch_info_clone.epoch.phases.clone(),
-                            sleep_after,
-                            sleep_idle,
-                        )
-                        .await
-                    {
-                        Ok(()) => {
-                            info!(
-                                "Compression task completed for epoch {}",
-                                epoch_info_clone.epoch.epoch
-                            );
-                            Ok(())
-                        }
-                        Err(e) => {
-                            error!("Compression task error: {:?}", e);
-                            Err(e)
-                        }
-                    }
-                });
+                        config: comp_config.clone(),
+                        epoch_info: epoch_info_arc.epoch.clone(),
+                        rpc_pool: self.rpc_pool.clone(),
+                        payer_keypair: self.config.payer_keypair.insecure_clone(),
+                        slot_tracker: self.slot_tracker.clone(),
+                        sleep_after_processing_ms: self
+                            .config
+                            .general_config
+                            .sleep_after_processing_ms,
+                        sleep_when_idle_ms: self.config.general_config.sleep_when_idle_ms,
+                    },
+                );
 
                 handles.push(compression_handle);
             }

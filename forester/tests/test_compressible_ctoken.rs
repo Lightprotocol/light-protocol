@@ -34,9 +34,7 @@ use tokio::{sync::oneshot, time::sleep};
 struct ForesterContext {
     forester_keypair: Keypair,
     rpc_pool: Arc<SolanaRpcPool<LightClient>>,
-    epoch: u64,
-    active_phase_end_slot: u64,
-    epoch_phases: forester_utils::forester_epoch::EpochPhases,
+    epoch: forester_utils::forester_epoch::Epoch,
 }
 
 /// Register a forester for epoch 0 and wait for registration phase to complete
@@ -148,10 +146,7 @@ async fn register_forester<R: Rpc>(
 
     println!("Finalized forester registration");
 
-    // Get updated slot and create RPC pool
-    let current_slot = rpc.get_slot().await?;
-    let active_phase_end_slot = current_slot + 10000; // Far future so compression can run
-
+    // Create RPC pool
     let rpc_pool = Arc::new(
         SolanaRpcPoolBuilder::<LightClient>::new()
             .url("http://localhost:8899".to_string())
@@ -161,12 +156,23 @@ async fn register_forester<R: Rpc>(
             .expect("Failed to create RPC pool"),
     );
 
+    // Construct Epoch struct
+    use forester_utils::forester_epoch::Epoch;
+    use light_registry::protocol_config::state::EpochState;
+
+    let epoch_struct = Epoch {
+        epoch,
+        epoch_pda: solana_sdk::pubkey::Pubkey::default(),
+        forester_epoch_pda: solana_sdk::pubkey::Pubkey::default(),
+        phases,
+        state: EpochState::Active,
+        merkle_trees: vec![],
+    };
+
     Ok(ForesterContext {
         forester_keypair,
         rpc_pool,
-        epoch,
-        active_phase_end_slot,
-        epoch_phases: phases,
+        epoch: epoch_struct,
     })
 }
 
@@ -282,9 +288,7 @@ async fn test_compressible_ctoken_compression() {
     assert_eq!(ready_accounts.len(), 1, "Should have 1 account ready");
     assert_eq!(ready_accounts[0].pubkey, token_account_pubkey_2);
     let slot_tracker = Arc::new(SlotTracker::new(current_slot, Duration::from_secs(10)));
-    let epoch = ctx.epoch;
-    let active_phase_end_slot = ctx.active_phase_end_slot;
-    let epoch_phases = ctx.epoch_phases;
+
     let mut compressor = Compressor::new(
         ctx.rpc_pool.clone(),
         tracker.clone(),
@@ -292,11 +296,9 @@ async fn test_compressible_ctoken_compression() {
         slot_tracker.clone(),
         10,
     );
-    let compressor_handle = tokio::spawn(async move {
-        compressor
-            .run_for_epoch(epoch, active_phase_end_slot, epoch_phases, 50, 100)
-            .await
-    });
+    let epoch = ctx.epoch;
+    let compressor_handle =
+        tokio::spawn(async move { compressor.run_for_epoch(&epoch, 50, 100).await });
     sleep(Duration::from_millis(2000)).await;
     // Wait for account to be closed
     let start = tokio::time::Instant::now();

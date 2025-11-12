@@ -226,7 +226,7 @@ pub struct StartArgs {
         env = "FORESTER_COMPRESSIBLE_WS_URL",
         help = "WebSocket URL for compressible account subscriptions (enables compressible mode; defaults to ws_rpc_url if not specified)"
     )]
-    pub compressible_ws_url: Option<String>,
+    pub compressible_ws_url: Option<String>, // TODO: check whether we already have a ws url and can make this a bool
 }
 
 #[derive(Parser, Clone, Debug)]
