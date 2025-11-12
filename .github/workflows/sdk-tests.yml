@@ -50,7 +50,7 @@ jobs:
           - program: native
             sub-tests: '["cargo-test-sbf -p sdk-native-test", "cargo-test-sbf -p sdk-v1-native-test", "cargo test-sbf -p client-test"]'
           - program: anchor & pinocchio
-            sub-tests: '["cd sdk-tests/csdk-anchor-test && cargo build-sbf && cargo test-sbf", "cd ../../sdk-tests/sdk-anchor-test && cargo build-sbf && cargo test-sbf", "cargo-test-sbf -p sdk-pinocchio-v1-test", "cargo-test-sbf -p sdk-pinocchio-v2-test", "cargo-test-sbf -p pinocchio-nostd-test"]'
+            sub-tests: '["cd sdk-tests/csdk-anchor-test && cargo build-sbf && cargo test-sbf", "cd sdk-tests/sdk-anchor-test && cargo build-sbf && cargo test-sbf", "cargo-test-sbf -p sdk-pinocchio-v1-test", "cargo-test-sbf -p sdk-pinocchio-v2-test", "cargo-test-sbf -p pinocchio-nostd-test"]'
           - program: token test
             sub-tests: '["cargo-test-sbf -p sdk-token-test"]'
           - program: sdk-libs
