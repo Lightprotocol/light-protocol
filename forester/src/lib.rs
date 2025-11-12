@@ -15,7 +15,7 @@ pub mod processor;
 pub mod pubsub_client;
 pub mod queue_helpers;
 pub mod rollover;
-mod slot_tracker;
+pub mod slot_tracker;
 pub mod smart_transaction;
 pub mod telemetry;
 pub mod tree_data_sync;
@@ -215,22 +215,32 @@ pub async fn run_pipeline<R: Rpc>(
         config.transaction_config.ops_cache_ttl_seconds,
     )));
 
-    // Spawn compressible service if enabled
-    if let Some(compressible_config) = &config.compressible_config {
+    // Start compressible subscriber if enabled and get tracker
+    let compressible_tracker = if let Some(compressible_config) = &config.compressible_config {
         if compressible_config.enabled {
-            let service = compressible::CompressibleService::new(
-                compressible_config.clone(),
-                arc_pool.clone(),
-                config.payer_keypair.insecure_clone(),
-            );
+            let tracker = Arc::new(compressible::CompressibleAccountTracker::new());
+            let tracker_clone = tracker.clone();
+            let ws_url = compressible_config.ws_url.clone();
 
+            // Spawn subscriber
             tokio::spawn(async move {
-                if let Err(e) = service.run(shutdown_compressible).await {
-                    tracing::error!("Compressible service error: {:?}", e);
+                let mut subscriber = compressible::AccountSubscriber::new(
+                    ws_url,
+                    tracker_clone,
+                    shutdown_compressible,
+                );
+                if let Err(e) = subscriber.run().await {
+                    tracing::error!("Compressible subscriber error: {:?}", e);
                 }
             });
+
+            Some(tracker)
+        } else {
+            None
         }
-    }
+    } else {
+        None
+    };
 
     debug!("Starting Forester pipeline");
     run_service(
@@ -242,6 +252,7 @@ pub async fn run_pipeline<R: Rpc>(
         arc_slot_tracker,
         tx_cache,
         ops_cache,
+        compressible_tracker,
     )
     .await?;
     Ok(())

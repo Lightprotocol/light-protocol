@@ -1,37 +1,37 @@
-use std::str::FromStr;
-use std::sync::Arc;
-use std::time::Duration;
+use std::{str::FromStr, sync::Arc, time::Duration};
 
 use anchor_lang::{InstructionData, ToAccountMetas};
+use forester_utils::{forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool};
 use light_client::rpc::Rpc;
 use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseAccounts as CTokenAccounts;
 use light_compressible::config::CompressibleConfig;
 use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
 use light_registry::{
     accounts::CompressAndCloseContext, compressible::compressed_token::CompressAndCloseIndices,
-    instruction::CompressAndClose, utils::get_forester_epoch_pda_from_authority,
+    instruction::CompressAndClose, protocol_config::state::EpochState,
+    utils::get_forester_epoch_pda_from_authority, ForesterEpochPda,
 };
 use light_sdk::instruction::PackedAccounts;
 use solana_sdk::{
-    instruction::Instruction, pubkey::Pubkey, signature::Keypair, signature::Signature,
+    instruction::Instruction,
+    pubkey::Pubkey,
+    signature::{Keypair, Signature},
     signer::Signer,
 };
-use tracing::{debug, error, info};
-
-use forester_utils::rpc_pool::SolanaRpcPool;
+use tracing::{debug, error, info, warn};
 
 use super::{state::CompressibleAccountTracker, types::CompressibleAccountState};
-use crate::Result;
+use crate::{slot_tracker::SlotTracker, Result};
 
 const REGISTRY_PROGRAM_ID_STR: &str = "Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX";
-const BATCH_SIZE: usize = 10;
-const COMPRESSION_LOOP_INTERVAL_SECS: u64 = 10;
 
 /// Compression executor that builds and sends compress_and_close transactions via registry program
 pub struct Compressor<R: Rpc> {
     rpc_pool: Arc<SolanaRpcPool<R>>,
     tracker: Arc<CompressibleAccountTracker>,
     payer_keypair: Keypair,
+    slot_tracker: Arc<SlotTracker>,
+    batch_size: usize,
 }
 
 impl<R: Rpc> Compressor<R> {
@@ -39,45 +39,79 @@ impl<R: Rpc> Compressor<R> {
         rpc_pool: Arc<SolanaRpcPool<R>>,
         tracker: Arc<CompressibleAccountTracker>,
         payer_keypair: Keypair,
+        slot_tracker: Arc<SlotTracker>,
+        batch_size: usize,
     ) -> Self {
         Self {
             rpc_pool,
             tracker,
             payer_keypair,
+            slot_tracker,
+            batch_size,
         }
     }
 
-    pub async fn run(&mut self) -> Result<()> {
-        info!("Starting compression executor");
+    /// Run compression for a specific epoch during the active phase
+    pub async fn run_for_epoch(
+        &mut self,
+        current_epoch: u64,
+        active_phase_end_slot: u64,
+        epoch_phases: EpochPhases,
+        sleep_after_processing_ms: u64,
+        sleep_when_idle_ms: u64,
+    ) -> Result<()> {
+        info!(
+            "Starting compression for epoch {} (active phase ends at slot {})",
+            current_epoch, active_phase_end_slot
+        );
 
-        loop {
-            // Wait between compression attempts
-            tokio::time::sleep(Duration::from_secs(COMPRESSION_LOOP_INTERVAL_SECS)).await;
+        while self.slot_tracker.estimated_current_slot() < active_phase_end_slot {
+            let current_slot = self.slot_tracker.estimated_current_slot();
 
-            // Get all compressible accounts
-            // TODO: Get actual current slot instead of hardcoded value
-            let current_slot = 0;
-            let accounts = self.tracker.get_compressible_accounts(current_slot);
+            // Check if still in active phase
+            let current_phase = epoch_phases.get_current_epoch_state(current_slot);
+            if current_phase != EpochState::Active {
+                info!(
+                    "No longer in active phase (current phase: {:?}), exiting compression",
+                    current_phase
+                );
+                break;
+            }
+
+            // Check forester eligibility
+            if !self
+                .check_compression_eligibility(current_epoch, current_slot, &epoch_phases)
+                .await?
+            {
+                warn!(
+                    "Forester no longer eligible for compression in epoch {}",
+                    current_epoch
+                );
+                break;
+            }
+
+            // Get accounts that are ready to be compressed
+            let accounts = self.tracker.get_ready_to_compress(current_slot);
 
             if accounts.is_empty() {
                 debug!("No compressible accounts found");
+                tokio::time::sleep(Duration::from_millis(sleep_when_idle_ms)).await;
                 continue;
             }
 
             info!("Found {} compressible accounts", accounts.len());
 
-            // TODO: Check forester eligibility before compressing
-            // This requires access to current epoch info from EpochManager
+            let mut total_compressed = 0;
 
             // Process in batches
-            for (batch_num, batch) in accounts.chunks(BATCH_SIZE).enumerate() {
-                debug!(
+            for (batch_num, batch) in accounts.chunks(self.batch_size).enumerate() {
+                info!(
                     "Processing batch {} with {} accounts",
                     batch_num + 1,
                     batch.len()
                 );
 
-                match self.compress_batch(batch).await {
+                match self.compress_batch(batch, current_epoch).await {
                     Ok(sig) => {
                         info!(
                             "Successfully compressed {} accounts in batch {}: {}",
@@ -88,8 +122,10 @@ impl<R: Rpc> Compressor<R> {
 
                         // Remove successfully compressed accounts from tracker
                         for account in batch {
+                            debug!("Removing compressed account {}", account.pubkey);
                             self.tracker.remove(&account.pubkey);
                         }
+                        total_compressed += batch.len();
                     }
                     Err(e) => {
                         error!("Failed to compress batch {}: {:?}", batch_num + 1, e);
@@ -97,13 +133,81 @@ impl<R: Rpc> Compressor<R> {
                     }
                 }
             }
+
+            // Sleep based on whether we did work
+            let sleep_duration_ms = if total_compressed > 0 {
+                sleep_after_processing_ms
+            } else {
+                sleep_when_idle_ms
+            };
+            tokio::time::sleep(Duration::from_millis(sleep_duration_ms)).await;
         }
+
+        info!("Compression for epoch {} completed", current_epoch);
+        Ok(())
     }
 
-    async fn compress_batch(&self, accounts: &[CompressibleAccountState]) -> Result<Signature> {
-        // TODO: Get current epoch from EpochManager
-        let current_epoch = 0u64;
+    /// Check if forester is eligible for compression in the current epoch
+    async fn check_compression_eligibility(
+        &self,
+        current_epoch: u64,
+        current_slot: u64,
+        epoch_phases: &EpochPhases,
+    ) -> Result<bool> {
+        // Check if in active phase
+        let current_phase = epoch_phases.get_current_epoch_state(current_slot);
+        if current_phase != EpochState::Active {
+            return Ok(false);
+        }
 
+        // Check if forester is registered for this epoch
+        let (forester_epoch_pda_pubkey, _) =
+            get_forester_epoch_pda_from_authority(&self.payer_keypair.pubkey(), current_epoch);
+
+        let rpc = self.rpc_pool.get_connection().await?;
+        let forester_epoch_pda = rpc
+            .get_anchor_account::<ForesterEpochPda>(&forester_epoch_pda_pubkey)
+            .await?;
+
+        if forester_epoch_pda.is_none() {
+            return Ok(false);
+        }
+
+        let pda = forester_epoch_pda.unwrap();
+
+        // Get total epoch weight
+        let total_epoch_weight = match pda.total_epoch_weight {
+            Some(weight) => weight,
+            None => {
+                debug!(
+                    "Total epoch weight not yet available for epoch {}",
+                    current_epoch
+                );
+                return Ok(false);
+            }
+        };
+
+        // Calculate current light slot
+        let current_light_slot =
+            (current_slot - epoch_phases.active.start) / pda.protocol_config.slot_length;
+
+        // Check eligibility using Pubkey::default() (epoch-level, not tree-specific)
+        let eligible_forester_slot_index = ForesterEpochPda::get_eligible_forester_index(
+            current_light_slot,
+            &Pubkey::default(),
+            total_epoch_weight,
+            current_epoch,
+        )
+        .map_err(|e| anyhow::anyhow!("Failed to calculate eligible forester index: {:?}", e))?;
+
+        Ok(pda.is_eligible(eligible_forester_slot_index))
+    }
+
+    pub async fn compress_batch(
+        &self,
+        accounts: &[CompressibleAccountState],
+        current_epoch: u64,
+    ) -> Result<Signature> {
         let registry_program_id = Pubkey::from_str(REGISTRY_PROGRAM_ID_STR)?;
         let compressed_token_program_id = Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID);
 
@@ -133,6 +237,11 @@ impl<R: Rpc> Compressor<R> {
 
         // Get output tree from RPC
         let mut rpc = self.rpc_pool.get_connection().await?;
+        // TODO: use a tree from config.
+        rpc.get_latest_active_state_trees()
+            .await
+            .map_err(|e| anyhow::anyhow!("Failed to get state tree info: {}", e))?;
+
         let output_tree_info = rpc
             .get_random_state_tree_info()
             .map_err(|e| anyhow::anyhow!("Failed to get state tree info: {}", e))?;
@@ -150,17 +259,40 @@ impl<R: Rpc> Compressor<R> {
 
         for account_state in accounts {
             let source_index = packed_accounts.insert_or_get(account_state.pubkey);
-            let mint_index = packed_accounts.insert_or_get(account_state.mint);
+
+            // Convert mint from light_compressed_account::Pubkey to solana_sdk::Pubkey
+            let mint = Pubkey::new_from_array(account_state.account.mint.to_bytes());
+            let mint_index = packed_accounts.insert_or_get(mint);
+
+            // Get compressible extension to extract rent_sponsor and compress_to_pubkey
+            let compressible_ext = account_state
+                .account
+                .extensions
+                .as_ref()
+                .and_then(|exts| {
+                    exts.iter().find_map(|ext| {
+                        if let light_ctoken_types::state::ExtensionStruct::Compressible(comp) = ext
+                        {
+                            Some(comp)
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .ok_or_else(|| anyhow::anyhow!("Account missing compressible extension"))?;
 
             // Determine owner based on compress_to_pubkey flag
-            let compressed_token_owner = if account_state.compress_to_pubkey {
+            let compressed_token_owner = if compressible_ext.compress_to_pubkey != 0 {
                 account_state.pubkey // Use account pubkey for PDAs
             } else {
-                account_state.owner // Use original owner
+                Pubkey::new_from_array(account_state.account.owner.to_bytes()) // Use original owner
             };
 
             let owner_index = packed_accounts.insert_or_get(compressed_token_owner);
-            let rent_sponsor_index = packed_accounts.insert_or_get(account_state.rent_sponsor);
+
+            // Extract rent_sponsor from extension
+            let rent_sponsor = Pubkey::new_from_array(compressible_ext.rent_sponsor);
+            let rent_sponsor_index = packed_accounts.insert_or_get(rent_sponsor);
 
             indices_vec.push(CompressAndCloseIndices {
                 source_index,

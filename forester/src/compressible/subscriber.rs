@@ -1,20 +1,17 @@
-use std::str::FromStr;
-use std::sync::Arc;
+use std::{str::FromStr, sync::Arc};
 
 use futures::StreamExt;
+use light_ctoken_types::{COMPRESSED_TOKEN_PROGRAM_ID, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
 use solana_account_decoder::UiAccountEncoding;
-use solana_client::rpc_response::Response as RpcResponse;
 use solana_client::{
     nonblocking::pubsub_client::PubsubClient,
     rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
-    rpc_response::RpcKeyedAccount,
+    rpc_response::{Response as RpcResponse, RpcKeyedAccount},
 };
 use solana_rpc_client_api::filter::RpcFilterType;
 use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey};
 use tokio::sync::oneshot;
 use tracing::{debug, error, info};
-
-use light_ctoken_types::{COMPRESSED_TOKEN_PROGRAM_ID, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
 
 use super::state::CompressibleAccountTracker;
 use crate::Result;
@@ -102,17 +99,6 @@ impl AccountSubscriber {
                 return;
             }
         };
-
-        // Check if account was closed (lamports == 0)
-        if response.value.account.lamports == 0 {
-            if let Some(removed) = self.tracker.remove(&pubkey) {
-                info!(
-                    "Removed closed account: {} (amount was {})",
-                    pubkey, removed.account.amount
-                );
-            }
-            return;
-        }
 
         // Decode Base64 account data
         use solana_account_decoder::UiAccountData;

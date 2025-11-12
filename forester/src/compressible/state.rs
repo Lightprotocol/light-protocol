@@ -1,19 +1,19 @@
+use std::sync::Arc;
+
 use borsh::BorshDeserialize;
 use dashmap::DashMap;
-use solana_sdk::pubkey::Pubkey;
-use std::sync::Arc;
-use tracing::debug;
-
-use light_compressible::rent::AccountRentState;
 use light_ctoken_types::{
     state::{extensions::ExtensionStruct, CToken},
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
 };
+use solana_sdk::pubkey::Pubkey;
+use tracing::debug;
 
 use super::types::CompressibleAccountState;
 use crate::Result;
 
 /// Tracker for compressible CToken accounts
+#[derive(Debug)]
 pub struct CompressibleAccountTracker {
     accounts: Arc<DashMap<Pubkey, CompressibleAccountState>>,
 }
@@ -54,6 +54,8 @@ impl CompressibleAccountTracker {
 
     /// Get accounts that are ready to be compressed (rent expired)
     pub fn get_ready_to_compress(&self, current_slot: u64) -> Vec<CompressibleAccountState> {
+        use light_compressible::rent::SLOTS_PER_EPOCH;
+
         self.accounts
             .iter()
             .filter(|entry| {
@@ -65,18 +67,19 @@ impl CompressibleAccountTracker {
                             .find(|ext| matches!(ext, ExtensionStruct::Compressible(_)))
                     })
                 {
-                    let account_state = AccountRentState {
-                        num_bytes: COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as u64,
-                        current_slot,
-                        current_lamports: state.lamports,
-                        last_claimed_slot: compressible_ext.last_claimed_slot,
-                    };
-                    account_state
-                        .is_compressible(
-                            &compressible_ext.rent_config,
+                    // Get the last funded epoch using the extension's method
+                    let last_funded_epoch = compressible_ext
+                        .get_last_funded_epoch(
+                            COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as u64,
+                            state.lamports,
                             COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                         )
-                        .is_some()
+                        .unwrap_or(0);
+
+                    let last_funded_slot = last_funded_epoch * SLOTS_PER_EPOCH;
+
+                    // Account is compressible if current slot is past the last funded slot
+                    last_funded_slot < current_slot
                 } else {
                     false
                 }

@@ -40,6 +40,7 @@ use tokio::{
 use tracing::{debug, error, info, info_span, instrument, trace, warn};
 
 use crate::{
+    compressible::{CompressibleAccountTracker, Compressor},
     errors::{
         ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
     },
@@ -108,6 +109,7 @@ pub struct EpochManager<R: Rpc> {
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
     coordinator: Option<Arc<QueueEventRouter>>,
+    compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
 }
 
 impl<R: Rpc> Clone for EpochManager<R> {
@@ -125,6 +127,7 @@ impl<R: Rpc> Clone for EpochManager<R> {
             tx_cache: self.tx_cache.clone(),
             ops_cache: self.ops_cache.clone(),
             coordinator: self.coordinator.clone(),
+            compressible_tracker: self.compressible_tracker.clone(),
         }
     }
 }
@@ -141,6 +144,7 @@ impl<R: Rpc> EpochManager<R> {
         new_tree_sender: broadcast::Sender<TreeAccounts>,
         tx_cache: Arc<Mutex<ProcessedHashCache>>,
         ops_cache: Arc<Mutex<ProcessedHashCache>>,
+        compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
     ) -> Result<Self> {
         let coordinator = if let Some(url) = &config.external_services.photon_grpc_url {
             match QueueEventRouter::new(url.clone()).await {
@@ -181,6 +185,7 @@ impl<R: Rpc> EpochManager<R> {
             tx_cache,
             ops_cache,
             coordinator,
+            compressible_tracker,
         })
     }
 
@@ -999,6 +1004,61 @@ impl<R: Rpc> EpochManager<R> {
             });
 
             handles.push(handle);
+        }
+
+        // Spawn compression task if enabled
+        if let Some(tracker) = self.compressible_tracker.clone() {
+            if let Some(comp_config) = &self.config.compressible_config {
+                if comp_config.enabled {
+                    let epoch_info_clone = epoch_info_arc.clone();
+                    let rpc_pool = self.rpc_pool.clone();
+                    let payer_keypair = self.config.payer_keypair.insecure_clone();
+                    let slot_tracker = self.slot_tracker.clone();
+                    let sleep_after = self.config.general_config.sleep_after_processing_ms;
+                    let sleep_idle = self.config.general_config.sleep_when_idle_ms;
+                    let batch_size = comp_config.batch_size;
+
+                    info!(
+                        "Spawning compression task for epoch {}",
+                        epoch_info_clone.epoch.epoch
+                    );
+
+                    let compression_handle = tokio::spawn(async move {
+                        let mut compressor = Compressor::new(
+                            rpc_pool,
+                            tracker,
+                            payer_keypair,
+                            slot_tracker.clone(),
+                            batch_size,
+                        );
+
+                        match compressor
+                            .run_for_epoch(
+                                epoch_info_clone.epoch.epoch,
+                                epoch_info_clone.epoch.phases.active.end,
+                                epoch_info_clone.epoch.phases.clone(),
+                                sleep_after,
+                                sleep_idle,
+                            )
+                            .await
+                        {
+                            Ok(()) => {
+                                info!(
+                                    "Compression task completed for epoch {}",
+                                    epoch_info_clone.epoch.epoch
+                                );
+                                Ok(())
+                            }
+                            Err(e) => {
+                                error!("Compression task error: {:?}", e);
+                                Err(e)
+                            }
+                        }
+                    });
+
+                    handles.push(compression_handle);
+                }
+            }
         }
 
         for result in join_all(handles).await {
@@ -1991,6 +2051,7 @@ pub async fn run_service<R: Rpc>(
     slot_tracker: Arc<SlotTracker>,
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
+    compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
 ) -> Result<()> {
     info_span!("run_service", forester = %config.payer_keypair.pubkey())
         .in_scope(|| async {
@@ -2062,6 +2123,7 @@ pub async fn run_service<R: Rpc>(
                     new_tree_sender.clone(),
                     tx_cache.clone(),
                     ops_cache.clone(),
+                    compressible_tracker.clone(),
                 )
                 .await
                 {
