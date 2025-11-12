@@ -157,12 +157,14 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             tree_state.node_count()
         );
 
-        let prepared_batches = self.prepare_batches(
-            tree_state,
-            &pattern,
-            append_data.as_ref(),
-            nullify_data.as_ref(),
-        )?;
+        let prepared_batches = self
+            .prepare_batches(
+                tree_state,
+                &pattern,
+                append_data.as_ref(),
+                nullify_data.as_ref(),
+            )
+            .await?;
 
         let phase1_duration = phase1_start.elapsed();
 
@@ -457,61 +459,65 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         Option<light_client::indexer::InputQueueDataV2>,
     )> {
         let output_queue = if let Some(ref metadata) = append_metadata {
-            let oq = response
-                .output_queue
-                .ok_or_else(|| anyhow::anyhow!("Expected output queue"))?;
-
-            if oq.initial_root != current_onchain_root {
-                return Err(CoordinatorError::PhotonStale {
-                    queue_type: "output".to_string(),
-                    photon_root: oq.initial_root[..8].try_into().unwrap(),
-                    onchain_root: current_onchain_root[..8].try_into().unwrap(),
+            // Output queue might not be available yet in event-driven scenarios
+            if let Some(oq) = response.output_queue {
+                if oq.initial_root != current_onchain_root {
+                    return Err(CoordinatorError::PhotonStale {
+                        queue_type: "output".to_string(),
+                        photon_root: oq.initial_root[..8].try_into().unwrap(),
+                        onchain_root: current_onchain_root[..8].try_into().unwrap(),
+                    }
+                    .into());
                 }
-                .into());
-            }
 
-            let (_, queue_data) = metadata;
-            let expected_total =
-                queue_data.zkp_batch_size as usize * queue_data.leaves_hash_chains.len();
-            if oq.leaf_indices.len() != expected_total {
-                anyhow::bail!(
-                    "Expected {} output elements, got {}",
-                    expected_total,
-                    oq.leaf_indices.len()
-                );
-            }
+                let (_, queue_data) = metadata;
+                let expected_total =
+                    queue_data.zkp_batch_size as usize * queue_data.leaves_hash_chains.len();
+                if oq.leaf_indices.len() != expected_total {
+                    anyhow::bail!(
+                        "Expected {} output elements, got {}",
+                        expected_total,
+                        oq.leaf_indices.len()
+                    );
+                }
 
-            Some(oq)
+                Some(oq)
+            } else {
+                // Output queue not available yet, will retry on next update
+                None
+            }
         } else {
             None
         };
 
         let input_queue = if nullify_metadata.is_some() {
-            let iq = response
-                .input_queue
-                .ok_or_else(|| anyhow::anyhow!("Expected input queue"))?;
-
-            if iq.initial_root != current_onchain_root {
-                return Err(CoordinatorError::PhotonStale {
-                    queue_type: "input".to_string(),
-                    photon_root: iq.initial_root[..8].try_into().unwrap(),
-                    onchain_root: current_onchain_root[..8].try_into().unwrap(),
+            // Input queue might not be available yet in event-driven scenarios
+            if let Some(iq) = response.input_queue {
+                if iq.initial_root != current_onchain_root {
+                    return Err(CoordinatorError::PhotonStale {
+                        queue_type: "input".to_string(),
+                        photon_root: iq.initial_root[..8].try_into().unwrap(),
+                        onchain_root: current_onchain_root[..8].try_into().unwrap(),
+                    }
+                    .into());
                 }
-                .into());
-            }
 
-            let tree_data = nullify_metadata.as_ref().unwrap();
-            let expected_total =
-                tree_data.zkp_batch_size as usize * tree_data.leaves_hash_chains.len();
-            if iq.leaf_indices.len() != expected_total {
-                anyhow::bail!(
-                    "Expected {} input elements, got {}",
-                    expected_total,
-                    iq.leaf_indices.len()
-                );
-            }
+                let tree_data = nullify_metadata.as_ref().unwrap();
+                let expected_total =
+                    tree_data.zkp_batch_size as usize * tree_data.leaves_hash_chains.len();
+                if iq.leaf_indices.len() != expected_total {
+                    anyhow::bail!(
+                        "Expected {} input elements, got {}",
+                        expected_total,
+                        iq.leaf_indices.len()
+                    );
+                }
 
-            Some(iq)
+                Some(iq)
+            } else {
+                // Input queue not available yet, will retry on next update
+                None
+            }
         } else {
             None
         };
@@ -600,7 +606,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     }
 
     /// Prepare all batches according to the interleaving pattern.
-    fn prepare_batches(
+    async fn prepare_batches(
         &self,
         tree_state: TreeState,
         pattern: &[BatchType],
@@ -658,7 +664,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         // Update shared state with computed root
         {
-            let mut shared = self.shared_state.blocking_write();
+            let mut shared = self.shared_state.write().await;
             shared.update_root(state.current_root);
         }
 

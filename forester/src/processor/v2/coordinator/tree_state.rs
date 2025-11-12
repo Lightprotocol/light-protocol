@@ -34,9 +34,6 @@ pub fn decode_node_index(encoded: u64) -> (u8, u64) {
 pub struct TreeState {
     pub nodes: HashMap<u64, [u8; 32]>,
     current_root: [u8; 32],
-
-    /// Leaves modified in this processing cycle
-    modified_leaves: HashMap<usize, [u8; 32]>,
 }
 
 impl TreeState {
@@ -97,7 +94,6 @@ impl TreeState {
         Ok(Self {
             nodes,
             current_root: initial_root,
-            modified_leaves: HashMap::new(),
         })
     }
 
@@ -165,21 +161,6 @@ impl TreeState {
         self.current_root = new_root;
     }
 
-    /// Track a leaf modification for cross-batch dependencies.
-    ///
-    /// This is used when nullify batches need to reference leaves
-    /// modified by earlier append batches in the same processing cycle.
-    pub fn track_leaf_modification(&mut self, tree_index: usize, new_leaf: [u8; 32]) {
-        self.modified_leaves.insert(tree_index, new_leaf);
-        let node_idx = encode_node_index(0, tree_index as u64);
-        self.nodes.insert(node_idx, new_leaf);
-    }
-
-    /// Get a leaf value that was modified in this processing cycle.
-    pub fn get_modified_leaf(&self, tree_index: usize) -> Option<[u8; 32]> {
-        self.modified_leaves.get(&tree_index).copied()
-    }
-
     /// Get the current root hash.
     pub fn current_root(&self) -> [u8; 32] {
         self.current_root
@@ -188,13 +169,6 @@ impl TreeState {
     /// Get the total number of nodes stored.
     pub fn node_count(&self) -> usize {
         self.nodes.len()
-    }
-
-    /// Clear tracked leaf modifications.
-    ///
-    /// Call this after processing cycle completes.
-    pub fn clear_modified_leaves(&mut self) {
-        self.modified_leaves.clear();
     }
 }
 
@@ -233,18 +207,5 @@ mod tests {
         let state = TreeState::from_v2_response(None, None).unwrap();
         assert_eq!(state.node_count(), 0);
         assert_eq!(state.current_root(), [0u8; 32]);
-    }
-
-    #[test]
-    fn test_leaf_modification_tracking() {
-        let mut state = TreeState::from_v2_response(None, None).unwrap();
-        let leaf = [42u8; 32];
-
-        state.track_leaf_modification(100, leaf);
-        assert_eq!(state.get_modified_leaf(100), Some(leaf));
-        assert_eq!(state.get_modified_leaf(999), None);
-
-        state.clear_modified_leaves();
-        assert_eq!(state.get_modified_leaf(100), None);
     }
 }

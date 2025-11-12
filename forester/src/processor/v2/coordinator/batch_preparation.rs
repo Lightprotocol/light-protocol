@@ -8,7 +8,7 @@ use light_prover_client::proof_types::{
     batch_append::{get_batch_append_inputs, BatchAppendsCircuitInputs},
     batch_update::{get_batch_update_inputs, BatchUpdateCircuitInputs},
 };
-use tracing::{debug, error, trace};
+use tracing::{error, trace};
 
 use super::{
     error::CoordinatorError,
@@ -79,13 +79,12 @@ pub fn prepare_append_batch(
         .extend(batch_changelogs.iter().cloned());
     state.current_root = new_root;
 
-    // Track leaf modifications for potential nullify batches
+    // Update leaf nodes for potential cross-batch dependencies
     for (i, changelog) in batch_changelogs.iter().enumerate() {
         let new_leaf = leaves[i];
         let tree_index = changelog.index();
-        state
-            .tree_state
-            .track_leaf_modification(tree_index, new_leaf);
+        let node_idx = encode_node_index(0, tree_index as u64);
+        state.tree_state.nodes.insert(node_idx, new_leaf);
     }
 
     state.append_batch_index += 1;
@@ -124,31 +123,22 @@ pub fn prepare_nullify_batch(
     let mut old_leaves = Vec::new();
     let mut path_indices = Vec::new();
 
-    // Gather data, checking for modified leaves from append batches
+    // Gather data from batch elements
     for element in batch_elements.iter() {
         let leaf_idx = element.leaf_index;
-        let tree_index = leaf_idx as usize;
 
         leaves.push(element.account_hash);
         tx_hashes.push(element.tx_hash.unwrap_or([0u8; 32]));
         path_indices.push(leaf_idx as u32);
 
-        // Use modified leaf from earlier append if available
-        let old_leaf = if let Some(modified) = state.tree_state.get_modified_leaf(tree_index) {
-            debug!(
-                "Using modified leaf value at index {} from earlier append",
-                leaf_idx
-            );
-            modified
-        } else {
-            let node_idx = encode_node_index(0, leaf_idx);
-            state
-                .tree_state
-                .nodes
-                .get(&node_idx)
-                .copied()
-                .unwrap_or([0u8; 32])
-        };
+        // Get leaf value (may have been modified by earlier append batch in same iteration)
+        let node_idx = encode_node_index(0, leaf_idx);
+        let old_leaf = state
+            .tree_state
+            .nodes
+            .get(&node_idx)
+            .copied()
+            .unwrap_or([0u8; 32]);
         old_leaves.push(old_leaf);
     }
 
