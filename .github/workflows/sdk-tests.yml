@@ -79,6 +79,14 @@ jobs:
         run: |
           npx nx build @lightprotocol/zk-compression-cli
 
+      - name: Prepare csdk-anchor-test artifact
+        if: matrix.program == 'anchor & pinocchio'
+        run: |
+
+          cargo build-sbf -p csdk-anchor-test
+          mkdir -p target/sbpf-solana-solana/release
+          cp -f target/deploy/csdk_anchor_test.so target/sbpf-solana-solana/release/csdk_anchor_test.so
+
       - name: Run sub-tests for ${{ matrix.program }}
         if: matrix.sub-tests != null
         run: |
