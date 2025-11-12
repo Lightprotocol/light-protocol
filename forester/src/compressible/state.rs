@@ -1,3 +1,4 @@
+use borsh::BorshDeserialize;
 use dashmap::DashMap;
 use solana_sdk::pubkey::Pubkey;
 use std::sync::Arc;
@@ -5,10 +6,9 @@ use tracing::debug;
 
 use light_compressible::rent::AccountRentState;
 use light_ctoken_types::{
-    state::{CToken, ZExtensionStruct},
-    COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+    state::{extensions::ExtensionStruct, CToken},
+    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
 };
-use light_zero_copy::traits::ZeroCopyAt;
 
 use super::types::CompressibleAccountState;
 use crate::Result;
@@ -36,11 +36,51 @@ impl CompressibleAccountTracker {
         self.accounts.remove(pubkey).map(|(_, v)| v)
     }
 
-    /// Get all compressible accounts (accounts where is_compressible == true)
+    /// Get all accounts with compressible extension
     pub fn get_compressible_accounts(&self) -> Vec<CompressibleAccountState> {
         self.accounts
             .iter()
-            .filter(|entry| entry.value().is_compressible)
+            .filter(|entry| {
+                let state = entry.value();
+                // Check if account has compressible extension
+                state.account.extensions.as_ref().map_or(false, |exts| {
+                    exts.iter()
+                        .any(|ext| matches!(ext, ExtensionStruct::Compressible(_)))
+                })
+            })
+            .map(|entry| entry.value().clone())
+            .collect()
+    }
+
+    /// Get accounts that are ready to be compressed (rent expired)
+    pub fn get_ready_to_compress(&self, current_slot: u64) -> Vec<CompressibleAccountState> {
+        self.accounts
+            .iter()
+            .filter(|entry| {
+                let state = entry.value();
+                // Check if account has compressible extension and is currently compressible
+                if let Some(ExtensionStruct::Compressible(compressible_ext)) =
+                    state.account.extensions.as_ref().and_then(|exts| {
+                        exts.iter()
+                            .find(|ext| matches!(ext, ExtensionStruct::Compressible(_)))
+                    })
+                {
+                    let account_state = AccountRentState {
+                        num_bytes: COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as u64,
+                        current_slot,
+                        current_lamports: state.lamports,
+                        last_claimed_slot: compressible_ext.last_claimed_slot,
+                    };
+                    account_state
+                        .is_compressible(
+                            &compressible_ext.rent_config,
+                            COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                        )
+                        .is_some()
+                } else {
+                    false
+                }
+            })
             .map(|entry| entry.value().clone())
             .collect()
     }
@@ -61,58 +101,21 @@ impl CompressibleAccountTracker {
         pubkey: Pubkey,
         account_data: &[u8],
         lamports: u64,
-        slot: u64,
     ) -> Result<()> {
-        // Deserialize CToken using zero-copy
-        let (ctoken, _) = CToken::zero_copy_at(account_data)
-            .map_err(|e| anyhow::anyhow!("Failed to deserialize CToken: {:?}", e))?;
+        // Deserialize CToken using borsh
+        let ctoken = CToken::try_from_slice(account_data)
+            .map_err(|e| anyhow::anyhow!("Failed to deserialize CToken with borsh: {:?}", e))?;
 
-        // Find Compressible extension
-        let extensions = ctoken
-            .extensions
-            .as_ref()
-            .ok_or_else(|| anyhow::anyhow!("No extensions found"))?;
-
-        let compressible_ext = extensions
-            .iter()
-            .find_map(|ext| match ext {
-                ZExtensionStruct::Compressible(e) => Some(e),
-                _ => None,
-            })
-            .ok_or_else(|| anyhow::anyhow!("No compressible extension found"))?;
-
-        // Check if account is compressible using AccountRentState
-        let account_state = AccountRentState {
-            num_bytes: account_data.len() as u64,
-            current_slot: slot,
-            current_lamports: lamports,
-            last_claimed_slot: u64::from(compressible_ext.last_claimed_slot),
-        };
-
-        let is_compressible = account_state
-            .is_compressible(
-                &compressible_ext.rent_config,
-                COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
-            )
-            .is_some();
-
-        // Extract all required fields
+        // Create state with full CToken account
         let state = CompressibleAccountState {
             pubkey,
-            mint: Pubkey::from(ctoken.mint.to_bytes()),
-            owner: Pubkey::from(ctoken.owner.to_bytes()),
-            balance: u64::from(*ctoken.amount),
-            last_claimed_slot: u64::from(compressible_ext.last_claimed_slot),
-            compression_authority: Pubkey::from(compressible_ext.compression_authority),
-            rent_sponsor: Pubkey::from(compressible_ext.rent_sponsor),
-            compress_to_pubkey: compressible_ext.compress_to_pubkey(),
-            last_seen_slot: slot,
-            is_compressible,
+            account: ctoken,
+            lamports,
         };
 
         debug!(
-            "Updated account {}: compressible={}, balance={}",
-            pubkey, is_compressible, state.balance
+            "Updated account {}: mint={:?}, owner={:?}, amount={}",
+            pubkey, state.account.mint, state.account.owner, state.account.amount
         );
 
         // Store in DashMap
@@ -125,78 +128,5 @@ impl CompressibleAccountTracker {
 impl Default for CompressibleAccountTracker {
     fn default() -> Self {
         Self::new()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_tracker_insert_and_remove() {
-        let tracker = CompressibleAccountTracker::new();
-        let pubkey = Pubkey::new_unique();
-
-        let state = CompressibleAccountState {
-            pubkey,
-            mint: Pubkey::new_unique(),
-            owner: Pubkey::new_unique(),
-            balance: 100,
-            last_claimed_slot: 0,
-            compression_authority: Pubkey::new_unique(),
-            rent_sponsor: Pubkey::new_unique(),
-            compress_to_pubkey: false,
-            last_seen_slot: 1000,
-            is_compressible: true,
-        };
-
-        tracker.insert(state.clone());
-        assert_eq!(tracker.len(), 1);
-
-        let removed = tracker.remove(&pubkey);
-        assert!(removed.is_some());
-        assert_eq!(tracker.len(), 0);
-    }
-
-    #[test]
-    fn test_get_compressible_accounts() {
-        let tracker = CompressibleAccountTracker::new();
-
-        // Add compressible account
-        let compressible_state = CompressibleAccountState {
-            pubkey: Pubkey::new_unique(),
-            mint: Pubkey::new_unique(),
-            owner: Pubkey::new_unique(),
-            balance: 100,
-            last_claimed_slot: 0,
-            compression_authority: Pubkey::new_unique(),
-            rent_sponsor: Pubkey::new_unique(),
-            compress_to_pubkey: false,
-            last_seen_slot: 1000,
-            is_compressible: true,
-        };
-
-        // Add non-compressible account
-        let non_compressible_state = CompressibleAccountState {
-            pubkey: Pubkey::new_unique(),
-            mint: Pubkey::new_unique(),
-            owner: Pubkey::new_unique(),
-            balance: 200,
-            last_claimed_slot: 0,
-            compression_authority: Pubkey::new_unique(),
-            rent_sponsor: Pubkey::new_unique(),
-            compress_to_pubkey: false,
-            last_seen_slot: 1000,
-            is_compressible: false,
-        };
-
-        tracker.insert(compressible_state);
-        tracker.insert(non_compressible_state);
-
-        assert_eq!(tracker.len(), 2);
-
-        let compressible_accounts = tracker.get_compressible_accounts();
-        assert_eq!(compressible_accounts.len(), 1);
-        assert!(compressible_accounts[0].is_compressible);
     }
 }

@@ -2305,6 +2305,7 @@ dependencies = [
  "light-sparse-merkle-tree",
  "light-system-program-anchor",
  "light-test-utils",
+ "light-token-client",
  "light-zero-copy",
  "num-bigint 0.4.6",
  "once_cell",

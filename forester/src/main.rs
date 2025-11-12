@@ -34,14 +34,18 @@ async fn main() -> Result<(), ForesterError> {
                 register_metrics();
             }
 
-            let (shutdown_sender, shutdown_receiver) = oneshot::channel();
+            let (shutdown_sender_service, shutdown_receiver_service) = oneshot::channel();
+            let (shutdown_sender_compressible, shutdown_receiver_compressible) = oneshot::channel();
             let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
             tokio::spawn(async move {
                 ctrl_c().await.expect("Failed to listen for Ctrl+C");
-                shutdown_sender
+                shutdown_sender_service
                     .send(())
-                    .expect("Failed to send shutdown signal");
+                    .expect("Failed to send shutdown signal to service");
+                shutdown_sender_compressible
+                    .send(())
+                    .expect("Failed to send shutdown signal to compressible");
             });
 
             tokio::spawn(async move {
@@ -64,7 +68,8 @@ async fn main() -> Result<(), ForesterError> {
                 config,
                 rpc_rate_limiter,
                 send_tx_limiter,
-                shutdown_receiver,
+                shutdown_receiver_service,
+                shutdown_receiver_compressible,
                 work_report_sender,
             )
             .await?

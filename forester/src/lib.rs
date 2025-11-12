@@ -155,7 +155,8 @@ pub async fn run_pipeline<R: Rpc>(
     config: Arc<ForesterConfig>,
     rpc_rate_limiter: Option<RateLimiter>,
     send_tx_rate_limiter: Option<RateLimiter>,
-    shutdown: oneshot::Receiver<()>,
+    shutdown_service: oneshot::Receiver<()>,
+    shutdown_compressible: oneshot::Receiver<()>,
     work_report_sender: mpsc::Sender<WorkReport>,
 ) -> Result<()> {
     let mut builder = SolanaRpcPoolBuilder::<R>::default()
@@ -224,7 +225,7 @@ pub async fn run_pipeline<R: Rpc>(
             );
 
             tokio::spawn(async move {
-                if let Err(e) = service.run().await {
+                if let Err(e) = service.run(shutdown_compressible).await {
                     tracing::error!("Compressible service error: {:?}", e);
                 }
             });
@@ -236,7 +237,7 @@ pub async fn run_pipeline<R: Rpc>(
         config,
         Arc::new(protocol_config),
         arc_pool,
-        shutdown,
+        shutdown_service,
         work_report_sender,
         arc_slot_tracker,
         tx_cache,

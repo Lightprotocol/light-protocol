@@ -55,7 +55,9 @@ impl<R: Rpc> Compressor<R> {
             tokio::time::sleep(Duration::from_secs(COMPRESSION_LOOP_INTERVAL_SECS)).await;
 
             // Get all compressible accounts
-            let accounts = self.tracker.get_compressible_accounts();
+            // TODO: Get actual current slot instead of hardcoded value
+            let current_slot = 0;
+            let accounts = self.tracker.get_compressible_accounts(current_slot);
 
             if accounts.is_empty() {
                 debug!("No compressible accounts found");

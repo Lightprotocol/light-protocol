@@ -1,20 +1,20 @@
-use std::sync::Arc;
 use std::str::FromStr;
+use std::sync::Arc;
 
 use futures::StreamExt;
 use solana_account_decoder::UiAccountEncoding;
+use solana_client::rpc_response::Response as RpcResponse;
 use solana_client::{
     nonblocking::pubsub_client::PubsubClient,
     rpc_config::{RpcAccountInfoConfig, RpcProgramAccountsConfig},
     rpc_response::RpcKeyedAccount,
 };
 use solana_rpc_client_api::filter::RpcFilterType;
-use solana_client::rpc_response::Response as RpcResponse;
 use solana_sdk::{commitment_config::CommitmentConfig, pubkey::Pubkey};
-use tokio::sync::mpsc;
+use tokio::sync::oneshot;
 use tracing::{debug, error, info};
 
-use light_ctoken_types::{COMPRESSIBLE_TOKEN_ACCOUNT_SIZE, COMPRESSED_TOKEN_PROGRAM_ID};
+use light_ctoken_types::{COMPRESSED_TOKEN_PROGRAM_ID, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE};
 
 use super::state::CompressibleAccountTracker;
 use crate::Result;
@@ -23,14 +23,14 @@ use crate::Result;
 pub struct AccountSubscriber {
     ws_url: String,
     tracker: Arc<CompressibleAccountTracker>,
-    shutdown_rx: mpsc::Receiver<()>,
+    shutdown_rx: oneshot::Receiver<()>,
 }
 
 impl AccountSubscriber {
     pub fn new(
         ws_url: String,
         tracker: Arc<CompressibleAccountTracker>,
-        shutdown_rx: mpsc::Receiver<()>,
+        shutdown_rx: oneshot::Receiver<()>,
     ) -> Self {
         Self {
             ws_url,
@@ -81,7 +81,7 @@ impl AccountSubscriber {
                 Some(response) = subscription.next() => {
                     self.handle_account_update(response).await;
                 }
-                _ = self.shutdown_rx.recv() => {
+                _ = &mut self.shutdown_rx => {
                     info!("Shutdown signal received");
                     unsubscribe().await;
                     break;
@@ -106,7 +106,10 @@ impl AccountSubscriber {
         // Check if account was closed (lamports == 0)
         if response.value.account.lamports == 0 {
             if let Some(removed) = self.tracker.remove(&pubkey) {
-                info!("Removed closed account: {} (balance was {})", pubkey, removed.balance);
+                info!(
+                    "Removed closed account: {} (amount was {})",
+                    pubkey, removed.account.amount
+                );
             }
             return;
         }
@@ -114,26 +117,24 @@ impl AccountSubscriber {
         // Decode Base64 account data
         use solana_account_decoder::UiAccountData;
         let account_data = match &response.value.account.data {
-            UiAccountData::Binary(data, encoding) => {
-                match encoding {
-                    solana_account_decoder::UiAccountEncoding::Base64 => {
-                        match base64::engine::Engine::decode(
-                            &base64::engine::general_purpose::STANDARD,
-                            data,
-                        ) {
-                            Ok(decoded) => decoded,
-                            Err(e) => {
-                                error!("Failed to decode base64 for {}: {}", pubkey, e);
-                                return;
-                            }
+            UiAccountData::Binary(data, encoding) => match encoding {
+                solana_account_decoder::UiAccountEncoding::Base64 => {
+                    match base64::engine::Engine::decode(
+                        &base64::engine::general_purpose::STANDARD,
+                        data,
+                    ) {
+                        Ok(decoded) => decoded,
+                        Err(e) => {
+                            error!("Failed to decode base64 for {}: {}", pubkey, e);
+                            return;
                         }
                     }
-                    _ => {
-                        error!("Unexpected encoding for account {}", pubkey);
-                        return;
-                    }
                 }
-            }
+                _ => {
+                    error!("Unexpected encoding for account {}", pubkey);
+                    return;
+                }
+            },
             _ => {
                 error!("Unexpected account data format for {}", pubkey);
                 return;
@@ -145,7 +146,6 @@ impl AccountSubscriber {
             pubkey,
             &account_data,
             response.value.account.lamports,
-            response.context.slot,
         ) {
             Ok(()) => {
                 debug!(

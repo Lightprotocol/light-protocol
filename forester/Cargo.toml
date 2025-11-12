@@ -77,6 +77,7 @@ light-prover-client = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
+light-token-client = { workspace = true }
 dotenvy = "0.15"
 light-compressed-token = { workspace = true }
 rand = { workspace = true }
