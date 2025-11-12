@@ -83,7 +83,7 @@ jobs:
         if: matrix.program == 'anchor & pinocchio'
         run: |
 
-          cargo build-sbf -p csdk-anchor-test
+          cd sdk-tests/csdk-anchor-test && cargo build-sbf
           mkdir -p target/sbpf-solana-solana/release
           cp -f target/deploy/csdk_anchor_test.so target/sbpf-solana-solana/release/csdk_anchor_test.so
 
