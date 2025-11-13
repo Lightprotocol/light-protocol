@@ -101,7 +101,7 @@ pub fn process_actions<'a>(
 
                 // Accumulate transfer amount if present (deduplication happens here)
                 if let Some((account_index, amount)) = transfer {
-                    if account_index as usize > 40 {
+                    if account_index as usize >= 40 {
                         msg!(
                             "Too many compression transfers: {}, max 40 allowed",
                             account_index
