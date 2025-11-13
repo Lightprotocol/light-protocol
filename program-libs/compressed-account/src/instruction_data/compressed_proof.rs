@@ -40,6 +40,7 @@ impl Default for CompressedProof {
 }
 
 impl CompressedProof {
+    /// Convert the proof to a fixed-size byte array [u8; 128]
     pub fn to_array(&self) -> [u8; 128] {
         let mut result = [0u8; 128];
         result[0..32].copy_from_slice(&self.a);
@@ -122,6 +123,8 @@ impl From<&Option<CompressedProof>> for ValidityProof {
 impl TryFrom<&[u8]> for ValidityProof {
     type Error = crate::CompressedAccountError;
 
+    /// Convert bytes to ValidityProof.
+    /// Empty slice returns None, otherwise attempts to parse as CompressedProof and returns Some.
     fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
         if bytes.is_empty() {
             Ok(Self(None))
