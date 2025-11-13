@@ -17,7 +17,7 @@ use crate::Result;
 const PAGE_SIZE: usize = 10_000;
 
 /// Bootstrap the compressible account tracker by fetching existing accounts
-/// Uses standard getProgramAccounts for localhost, getProgramAccountsV2 for mainnet
+/// Uses standard getProgramAccounts for localhost, getProgramAccountsV2 for remote networks
 pub async fn bootstrap_compressible_accounts(
     rpc_url: String,
     tracker: Arc<CompressibleAccountTracker>,
@@ -31,7 +31,7 @@ pub async fn bootstrap_compressible_accounts(
         info!("Detected localhost, using standard getProgramAccounts");
         bootstrap_with_standard_api(rpc_url, tracker, shutdown_rx).await
     } else {
-        info!("Using Helius getProgramAccountsV2 with pagination");
+        info!("Using getProgramAccountsV2 with pagination");
         bootstrap_with_v2_api(rpc_url, tracker, shutdown_rx).await
     }
 }
@@ -68,10 +68,18 @@ fn process_account(
         }
     };
 
-    let lamports = account_obj
-        .get("lamports")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(0);
+    // Check lamports - skip closed accounts (lamports == 0)
+    let lamports = match account_obj.get("lamports").and_then(|v| v.as_u64()) {
+        Some(0) => {
+            debug!("Skipping closed account {} (lamports == 0)", pubkey);
+            return Ok(false);
+        }
+        Some(lamports) => lamports,
+        None => {
+            debug!("Skipping account {} with missing lamports field", pubkey);
+            return Ok(false);
+        }
+    };
 
     let data_array = match account_obj.get("data").and_then(|v| v.as_array()) {
         Some(arr) if !arr.is_empty() => arr,
@@ -208,7 +216,7 @@ async fn bootstrap_with_v2_api(
 
         // Add cursor for pagination
         if let Some(ref c) = cursor {
-            params[1]["cursor"] = json!(c);
+            params[1]["paginationKey"] = json!(c);
         }
 
         let payload = json!({
@@ -274,7 +282,7 @@ async fn bootstrap_with_v2_api(
 
         // Get cursor for next page
         cursor = result
-            .get("cursor")
+            .get("paginationKey")
             .and_then(|c| c.as_str())
             .map(|s| s.to_string());
 

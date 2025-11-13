@@ -388,8 +388,8 @@ async fn e2e_test() {
     };
 
     // Create compressible token account with 0 epochs rent (instantly compressible)
-    // This account is picked up by the bootstraping process
-    let compressible_account = create_compressible_token_account(
+    // This account is picked up by the bootstrapping process
+    let compressible_account_bootstrap = create_compressible_token_account(
         &mut rpc,
         CreateCompressibleTokenAccountInputs {
             owner: Keypair::new().pubkey(),
@@ -403,7 +403,10 @@ async fn e2e_test() {
     )
     .await
     .expect("Failed to create compressible token account");
-    println!("Created compressible account: {:?}", compressible_account);
+    println!(
+        "Created compressible account (bootstrap): {:?}",
+        compressible_account_bootstrap
+    );
 
     let mut sender_batched_accs_counter = 0;
     let mut sender_legacy_accs_counter = 0;
@@ -421,15 +424,20 @@ async fn e2e_test() {
         get_registration_phase_start_slot(&mut rpc, &protocol_config).await;
     wait_for_slot(&mut rpc, registration_phase_slot).await;
 
-    let (service_handle, shutdown_sender, _shutdown_compressible_sender, mut work_report_receiver) =
-        setup_forester_pipeline(&config).await;
+    let (
+        service_handle,
+        shutdown_sender,
+        shutdown_compressible_sender,
+        shutdown_bootstrap_sender,
+        mut work_report_receiver,
+    ) = setup_forester_pipeline(&config).await;
 
     let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
     wait_for_slot(&mut rpc, active_phase_slot).await;
 
     // Create 2nd compressible token account with 0 epochs rent (instantly compressible)
     // This account is picked up by the subscriber
-    let compressible_account = create_compressible_token_account(
+    let compressible_account_subscriber = create_compressible_token_account(
         &mut rpc,
         CreateCompressibleTokenAccountInputs {
             owner: Keypair::new().pubkey(),
@@ -443,7 +451,10 @@ async fn e2e_test() {
     )
     .await
     .expect("Failed to create compressible token account");
-    println!("Created compressible account 2: {:?}", compressible_account);
+    println!(
+        "Created compressible account (subscriber): {:?}",
+        compressible_account_subscriber
+    );
 
     execute_test_transactions(
         &mut rpc,
@@ -511,15 +522,33 @@ async fn e2e_test() {
         }
     }
 
-    // Verify compressible account was closed
-    println!("Verifying compressible account is closed...");
-    let account = rpc.get_account(compressible_account).await.unwrap();
-    assert!(
-        account.is_none() || account.unwrap().lamports == 0,
-        "Compressible account should be closed"
-    );
-    println!("Compressible account successfully closed");
+    // Verify both compressible accounts were closed
+    println!("Verifying compressible accounts are closed...");
 
+    let account_bootstrap = rpc
+        .get_account(compressible_account_bootstrap)
+        .await
+        .unwrap();
+    assert!(
+        account_bootstrap.is_none() || account_bootstrap.unwrap().lamports == 0,
+        "Compressible account (bootstrap) should be closed"
+    );
+    println!("Compressible account (bootstrap) successfully closed");
+
+    let account_subscriber = rpc
+        .get_account(compressible_account_subscriber)
+        .await
+        .unwrap();
+    assert!(
+        account_subscriber.is_none() || account_subscriber.unwrap().lamports == 0,
+        "Compressible account (subscriber) should be closed"
+    );
+    println!("Compressible account (subscriber) successfully closed");
+
+    // Shutdown all services
+    // Bootstrap may have already completed, so ignore send errors
+    let _ = shutdown_bootstrap_sender.send(());
+    let _ = shutdown_compressible_sender.send(());
     shutdown_sender
         .send(())
         .expect("Failed to send shutdown signal");
@@ -730,10 +759,12 @@ async fn setup_forester_pipeline(
     tokio::task::JoinHandle<anyhow::Result<()>>,
     oneshot::Sender<()>,
     oneshot::Sender<()>,
+    oneshot::Sender<()>,
     mpsc::Receiver<WorkReport>,
 ) {
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
     let (shutdown_compressible_sender, shutdown_compressible_receiver) = oneshot::channel();
+    let (shutdown_bootstrap_sender, shutdown_bootstrap_receiver) = oneshot::channel();
     let (work_report_sender, work_report_receiver) = mpsc::channel(100);
 
     let service_handle = tokio::spawn(run_pipeline::<LightClient>(
@@ -742,7 +773,7 @@ async fn setup_forester_pipeline(
         None,
         shutdown_receiver,
         Some(shutdown_compressible_receiver),
-        None, // shutdown_bootstrap
+        Some(shutdown_bootstrap_receiver),
         work_report_sender,
     ));
 
@@ -750,6 +781,7 @@ async fn setup_forester_pipeline(
         service_handle,
         shutdown_sender,
         shutdown_compressible_sender,
+        shutdown_bootstrap_sender,
         work_report_receiver,
     )
 }
