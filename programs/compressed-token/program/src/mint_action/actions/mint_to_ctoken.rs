@@ -21,7 +21,7 @@ pub fn process_mint_to_ctoken_action(
     validated_accounts: &MintActionAccounts,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     mint: Pubkey,
-) -> Result<(), ProgramError> {
+) -> Result<Option<(u8, u64)>, ProgramError> {
     check_authority(
         compressed_mint.base.mint_authority,
         validated_accounts.authority.key(),
@@ -54,10 +54,12 @@ pub fn process_mint_to_ctoken_action(
         token_account_info,
         packed_accounts,
     );
-    // For mint_to_ctoken, we don't need to handle lamport transfers
-    // as there's no compressible extension on the target account
-    compress_or_decompress_ctokens(inputs)?;
-    Ok(())
+
+    // Capture top-up lamport amount if compressible extension present
+    let transfer_amount = compress_or_decompress_ctokens(inputs)?;
+
+    // Return account index and amount if there's a transfer needed
+    Ok(transfer_amount.map(|amount| (action.recipient.account_index, amount)))
 }
 
 #[profile]
