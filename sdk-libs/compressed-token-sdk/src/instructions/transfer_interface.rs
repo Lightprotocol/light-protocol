@@ -1,4 +1,4 @@
-use light_compressed_account::instruction_data::compressed_proof::borsh_compat::ValidityProof;
+use light_compressed_account::instruction_data::compressed_proof::ValidityProof;
 use light_ctoken_types::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
 use light_program_profiler::profile;
 use solana_account_info::AccountInfo;
@@ -144,7 +144,7 @@ pub fn create_transfer_ctoken_to_spl_instruction(
     };
 
     let inputs = Transfer2Inputs {
-        validity_proof: ValidityProof::new(None).into(),
+        validity_proof: ValidityProof::new(None),
         transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
         meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
             payer,

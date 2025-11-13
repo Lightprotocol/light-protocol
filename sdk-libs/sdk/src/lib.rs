@@ -99,9 +99,11 @@ pub mod cpi;
 pub mod error;
 pub mod instruction;
 pub mod legacy;
+pub mod proof;
 pub mod transfer;
 pub mod utils;
 
+pub use proof::borsh_compat;
 pub mod compressible;
 #[cfg(feature = "merkle-tree")]
 pub mod merkle_tree;
