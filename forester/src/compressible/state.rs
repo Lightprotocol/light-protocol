@@ -128,7 +128,11 @@ impl CompressibleAccountTracker {
 
         debug!(
             "Updated account {}: mint={:?}, owner={:?}, amount={}, compressible_slot={}",
-            pubkey, state.account.mint, state.account.owner, state.account.amount, compressible_slot
+            pubkey,
+            state.account.mint,
+            state.account.owner,
+            state.account.amount,
+            compressible_slot
         );
 
         // Store in DashMap

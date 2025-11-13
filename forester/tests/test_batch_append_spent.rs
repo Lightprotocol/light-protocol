@@ -332,6 +332,7 @@ async fn run_forester(config: &ForesterConfig, duration: Duration) {
         None,
         shutdown_receiver,
         Some(shutdown_compressible_receiver),
+        None, // shutdown_bootstrap
         work_report_sender,
     ));
 

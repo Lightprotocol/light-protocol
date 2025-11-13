@@ -335,3 +335,250 @@ async fn test_compressible_ctoken_compression() {
         .expect("Failed to send shutdown signal");
     subscriber_handle.await.expect("Subscriber task panicked");
 }
+
+/// Test that bootstrap process picks up existing compressible token accounts
+///
+/// 1. Create compressible token accounts on-chain
+/// 2. Start bootstrap with empty tracker
+/// 3. Assert bootstrap discovers and populates all accounts into tracker
+/// 4. Verify account data and compressible_slot are correct
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[serial]
+async fn test_compressible_ctoken_bootstrap() {
+    // Start validator and RPC client
+    spawn_validator(LightValidatorConfig {
+        enable_indexer: true,
+        enable_prover: false,
+        wait_time: 10,
+        sbf_programs: vec![],
+        limit_ledger_size: None,
+        grpc_port: None,
+    })
+    .await;
+
+    let mut rpc = LightClient::new(LightClientConfig::local())
+        .await
+        .expect("Failed to create LightClient");
+    rpc.get_latest_active_state_trees()
+        .await
+        .expect("Failed to get state trees");
+
+    let payer = rpc.get_payer().insecure_clone();
+    rpc.airdrop_lamports(&payer.pubkey(), 10_000_000_000)
+        .await
+        .expect("Failed to airdrop lamports");
+
+    // Create mint
+    let mint_seed = Keypair::new();
+    let address_tree = rpc.get_address_tree_v2().tree;
+    let mint = Pubkey::from(create_compressed_mint::derive_compressed_mint_address(
+        &mint_seed.pubkey(),
+        &address_tree,
+    ));
+
+    // Create 3 compressible token accounts BEFORE bootstrap runs
+    let mut created_pubkeys = vec![];
+
+    for i in 0..3 {
+        let owner_keypair = Keypair::new();
+        let token_account_pubkey = create_compressible_token_account(
+            &mut rpc,
+            CreateCompressibleTokenAccountInputs {
+                owner: owner_keypair.pubkey(),
+                mint,
+                num_prepaid_epochs: i + 2, // Different rent for each account
+                payer: &payer,
+                token_account_keypair: None,
+                lamports_per_write: Some(100),
+                token_account_version: TokenDataVersion::ShaFlat,
+            },
+        )
+        .await
+        .expect("Failed to create compressible token account");
+
+        created_pubkeys.push(token_account_pubkey);
+        println!(
+            "Created compressible account {}: {}",
+            i + 1,
+            token_account_pubkey
+        );
+    }
+
+    // Wait a bit for accounts to be fully indexed
+    sleep(Duration::from_secs(2)).await;
+
+    // Run bootstrap test with localhost
+    run_bootstrap_test(
+        "http://localhost:8899".to_string(),
+        3,
+        Some((created_pubkeys, mint)),
+    )
+    .await;
+}
+
+/// Helper function to run bootstrap test with a given RPC URL
+/// expected_count: expected number of accounts (0 = skip count assertion)
+/// expected_data: if provided, verifies the specific accounts and mint
+async fn run_bootstrap_test(
+    rpc_url: String,
+    expected_count: usize,
+    expected_data: Option<(Vec<Pubkey>, Pubkey)>,
+) {
+    println!(
+        "Testing bootstrap with RPC URL: {} (expecting {} accounts)",
+        rpc_url, expected_count
+    );
+
+    // Create empty tracker - should start with 0 accounts
+    let tracker = Arc::new(CompressibleAccountTracker::new());
+    assert_eq!(tracker.len(), 0, "Tracker should start empty");
+
+    // Setup bootstrap
+    let (shutdown_tx, shutdown_rx) = oneshot::channel();
+    let tracker_clone = tracker.clone();
+    let rpc_url_clone = rpc_url.clone();
+
+    println!("Starting bootstrap...");
+    let bootstrap_handle = tokio::spawn(async move {
+        if let Err(e) = forester::compressible::bootstrap_compressible_accounts(
+            rpc_url_clone,
+            tracker_clone,
+            shutdown_rx,
+        )
+        .await
+        {
+            tracing::error!("Bootstrap failed: {:?}", e);
+            panic!("Bootstrap failed: {:?}", e);
+        } else {
+            tracing::info!("Bootstrap complete");
+        }
+    });
+
+    if expected_count > 0 {
+        // Wait for bootstrap to find expected number of accounts (with timeout)
+        let start = tokio::time::Instant::now();
+        let timeout = Duration::from_secs(60);
+
+        while start.elapsed() < timeout {
+            if tracker.len() >= expected_count {
+                println!("Bootstrap found {} accounts", tracker.len());
+                break;
+            }
+            sleep(Duration::from_millis(500)).await;
+        }
+
+        // Assert bootstrap picked up all accounts
+        assert_eq!(
+            tracker.len(),
+            expected_count,
+            "Bootstrap should have found all {} accounts",
+            expected_count
+        );
+    } else {
+        // Mainnet test: wait a bit for bootstrap to run
+        sleep(Duration::from_secs(30)).await;
+        println!("Bootstrap found {} accounts", tracker.len());
+    }
+
+    // Get all compressible accounts from tracker
+    let accounts = tracker.get_compressible_accounts();
+
+    if let Some((expected_pubkeys, expected_mint)) = expected_data {
+        // Verify specific accounts (localhost test)
+
+        // Verify all created accounts are in tracker
+        for pubkey in &expected_pubkeys {
+            let found = accounts.iter().any(|acc| acc.pubkey == *pubkey);
+            assert!(found, "Bootstrap should have found account {}", pubkey);
+        }
+
+        // Verify account data is correct
+        for account_state in &accounts {
+            println!(
+                "Verifying account {}: mint={:?}, lamports={}",
+                account_state.pubkey, account_state.account.mint, account_state.lamports
+            );
+
+            // Verify mint matches
+            assert_eq!(
+                account_state.account.mint,
+                expected_mint.to_bytes(),
+                "Mint should match for account {}",
+                account_state.pubkey
+            );
+
+            // Verify account has lamports
+            assert!(
+                account_state.lamports > 0,
+                "Account {} should have lamports",
+                account_state.pubkey
+            );
+
+            // Verify account has compressible extension
+            let has_compressible = account_state
+                .account
+                .extensions
+                .as_ref()
+                .is_some_and(|exts| {
+                    exts.iter().any(|ext| {
+                        matches!(
+                            ext,
+                            light_ctoken_types::state::extensions::ExtensionStruct::Compressible(_)
+                        )
+                    })
+                });
+            assert!(
+                has_compressible,
+                "Account {} should have Compressible extension",
+                account_state.pubkey
+            );
+
+            // Verify compressible_slot was calculated (should not be u64::MAX for valid accounts)
+            assert!(
+                account_state.compressible_slot < u64::MAX,
+                "Account {} should have valid compressible_slot",
+                account_state.pubkey
+            );
+        }
+
+        println!("All assertions passed!");
+    } else {
+        // Mainnet test: verify sample accounts if any were found
+        if !accounts.is_empty() {
+            println!("Successfully bootstrapped {} accounts", accounts.len());
+
+            // Verify a sample account has valid data
+            if let Some(account) = accounts.first() {
+                println!("Sample account: {}", account.pubkey);
+                assert!(account.lamports > 0, "Account should have lamports");
+                assert!(
+                    account.compressible_slot < u64::MAX,
+                    "Account should have valid compressible_slot"
+                );
+            }
+        } else {
+            println!("Warning: No compressible accounts found on mainnet");
+        }
+
+        println!("Mainnet bootstrap test completed successfully");
+    }
+
+    // Cleanup
+    let _ = shutdown_tx.send(());
+    let _ = tokio::time::timeout(Duration::from_secs(5), bootstrap_handle).await;
+}
+
+/// Test bootstrap with mainnet to verify getProgramAccountsV2 (Helius) branch
+/// Requires MAINNET_RPC_URL environment variable to be set
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+#[serial]
+async fn test_compressible_ctoken_bootstrap_mainnet() {
+    use std::env;
+
+    // Check for mainnet RPC URL
+    let rpc_url = env::var("MAINNET_RPC_URL")
+        .expect("MAINNET_RPC_URL environment variable must be set for mainnet bootstrap test");
+
+    // Run bootstrap test with mainnet (no expected count, no expected accounts)
+    run_bootstrap_test(rpc_url, 0, None).await;
+}

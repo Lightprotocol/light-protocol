@@ -387,6 +387,7 @@ async fn e2e_test() {
     };
 
     // Create compressible token account with 0 epochs rent (instantly compressible)
+    // This account is picked up by the bootstraping process
     let compressible_account = create_compressible_token_account(
         &mut rpc,
         CreateCompressibleTokenAccountInputs {
@@ -424,6 +425,24 @@ async fn e2e_test() {
 
     let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
     wait_for_slot(&mut rpc, active_phase_slot).await;
+
+    // Create 2nd compressible token account with 0 epochs rent (instantly compressible)
+    // This account is picked up by the subscriber
+    let compressible_account = create_compressible_token_account(
+        &mut rpc,
+        CreateCompressibleTokenAccountInputs {
+            owner: Keypair::new().pubkey(),
+            mint: Pubkey::new_unique(),
+            num_prepaid_epochs: 0,
+            payer: &payer,
+            token_account_keypair: None,
+            lamports_per_write: Some(100),
+            token_account_version: TokenDataVersion::ShaFlat,
+        },
+    )
+    .await
+    .expect("Failed to create compressible token account");
+    println!("Created compressible account 2: {:?}", compressible_account);
 
     execute_test_transactions(
         &mut rpc,
@@ -722,6 +741,7 @@ async fn setup_forester_pipeline(
         None,
         shutdown_receiver,
         Some(shutdown_compressible_receiver),
+        None, // shutdown_bootstrap
         work_report_sender,
     ));
 

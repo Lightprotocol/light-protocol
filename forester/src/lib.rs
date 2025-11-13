@@ -160,6 +160,7 @@ pub async fn run_pipeline<R: Rpc>(
     send_tx_rate_limiter: Option<RateLimiter>,
     shutdown_service: oneshot::Receiver<()>,
     shutdown_compressible: Option<oneshot::Receiver<()>>,
+    shutdown_bootstrap: Option<oneshot::Receiver<()>>,
     work_report_sender: mpsc::Sender<WorkReport>,
 ) -> Result<()> {
     let mut builder = SolanaRpcPoolBuilder::<R>::default()
@@ -233,6 +234,26 @@ pub async fn run_pipeline<R: Rpc>(
                     tracing::error!("Compressible subscriber error: {:?}", e);
                 }
             });
+
+            // Spawn bootstrap task
+            if let Some(shutdown_bootstrap_rx) = shutdown_bootstrap {
+                let tracker_clone = tracker.clone();
+                let rpc_url = config.external_services.rpc_url.clone();
+
+                tokio::spawn(async move {
+                    if let Err(e) = compressible::bootstrap_compressible_accounts(
+                        rpc_url,
+                        tracker_clone,
+                        shutdown_bootstrap_rx,
+                    )
+                    .await
+                    {
+                        tracing::error!("Bootstrap failed: {:?}", e);
+                    } else {
+                        tracing::info!("Bootstrap complete");
+                    }
+                });
+            }
 
             Some(tracker)
         } else {
