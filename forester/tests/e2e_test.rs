@@ -36,10 +36,10 @@ use light_compressed_token::process_transfer::{
     TokenTransferOutputData,
 };
 use light_ctoken_types::state::TokenDataVersion;
+use light_compressed_token_sdk::compat::TokenDataWithMerkleContext;
 use light_hasher::Poseidon;
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_prover_client::prover::spawn_prover;
-use light_sdk::token::TokenDataWithMerkleContext;
 use light_test_utils::{
     conversions::sdk_to_program_token_data, get_concurrent_merkle_tree, get_indexed_merkle_tree,
     pack::pack_new_address_params_assigned, spl::create_mint_helper_with_keypair,

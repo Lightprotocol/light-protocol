@@ -1,10 +1,11 @@
 #[cfg(test)]
 mod tests {
-    use light_sdk::{
-        compressible::Pack,
-        instruction::PackedAccounts,
-        token::{PackedCTokenDataWithVariant, TokenData, TokenDataWithVariant},
+
+    use light_compressed_token_sdk::{
+        compat::{PackedCTokenDataWithVariant, TokenData, TokenDataWithVariant},
+        Pack,
     };
+    use light_sdk::instruction::PackedAccounts;
     use solana_pubkey::Pubkey;
 
     #[test]
@@ -33,7 +34,7 @@ mod tests {
         assert_eq!(packed.delegate, 2); // Third pubkey gets index 2
         assert_eq!(packed.amount, 1000);
         assert!(packed.has_delegate);
-        assert_eq!(packed.version, 2);
+        assert_eq!(packed.version, 3); // TokenDataVersion::ShaFlat
 
         // Verify remaining_accounts contains the pubkeys
         let pubkeys = remaining_accounts.packed_pubkeys();

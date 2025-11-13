@@ -5,10 +5,10 @@ use light_client::{
 };
 use light_compressed_token_sdk::{
     instructions::{
-        create_mint_to_compressed_instruction, derive_cmint_from_spl_mint, derive_token_pool,
-        DecompressedMintConfig, MintToCompressedInputs,
+        create_mint_to_compressed_instruction, derive_cmint_from_spl_mint, DecompressedMintConfig,
+        MintToCompressedInputs,
     },
-    token_pool::find_token_pool_pda_with_index,
+    token_pool::{derive_token_pool, find_token_pool_pda_with_index},
 };
 use light_ctoken_types::{
     instructions::mint_action::{CompressedMintWithContext, Recipient},

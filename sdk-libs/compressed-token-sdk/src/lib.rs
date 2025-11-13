@@ -3,6 +3,7 @@ pub mod account2;
 pub mod ctoken;
 pub mod error;
 pub mod instructions;
+pub mod pack;
 pub mod token_metadata_ui;
 pub mod token_pool;
 pub mod utils;
@@ -12,5 +13,8 @@ pub mod utils;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-pub use light_compressed_token_types::*;
+// Re-export all types and utilities
+pub use pack::*;
+// Re-export Pack/Unpack traits at crate root for convenience
+pub use pack::{Pack, Unpack};
 pub use utils::*;

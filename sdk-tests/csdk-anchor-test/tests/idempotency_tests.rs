@@ -14,9 +14,7 @@ use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
 mod helpers;
-use helpers::{
-    create_record, decompress_single_user_record, ADDRESS_SPACE, CTOKEN_RENT_SPONSOR, RENT_SPONSOR,
-};
+use helpers::{create_record, decompress_single_user_record, ADDRESS_SPACE, RENT_SPONSOR};
 
 #[tokio::test]
 async fn test_double_decompression_attack() {

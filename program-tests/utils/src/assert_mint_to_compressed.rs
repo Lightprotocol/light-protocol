@@ -51,12 +51,12 @@ pub async fn assert_mint_to_compressed<R: Rpc + Indexer>(
             });
 
         // Create expected token data
-        let expected_token_data = light_sdk::token::TokenData {
+        let expected_token_data = light_compressed_token_sdk::compat::TokenData {
             mint: spl_mint_pda,
             owner: recipient_pubkey,
             amount: recipient.amount,
             delegate: None,
-            state: light_sdk::token::AccountState::Initialized,
+            state: light_compressed_token_sdk::compat::AccountState::Initialized,
             tlv: None,
         };
 

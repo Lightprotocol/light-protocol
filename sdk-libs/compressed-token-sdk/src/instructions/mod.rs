@@ -62,13 +62,3 @@ pub use update_compressed_mint::{
     UPDATE_COMPRESSED_MINT_DISCRIMINATOR,
 };
 pub use withdraw_funding_pool::withdraw_funding_pool;
-
-/// Derive token pool information for a given mint
-pub fn derive_token_pool(mint: &solana_pubkey::Pubkey, index: u8) -> mint_action::TokenPool {
-    let (pubkey, bump) = crate::token_pool::find_token_pool_pda_with_index(mint, index);
-    mint_action::TokenPool {
-        pubkey,
-        bump,
-        index,
-    }
-}

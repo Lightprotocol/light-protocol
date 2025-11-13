@@ -14,7 +14,7 @@ use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
 mod helpers;
-use helpers::{create_game_session, ADDRESS_SPACE, CTOKEN_RENT_SPONSOR, RENT_SPONSOR};
+use helpers::{create_game_session, ADDRESS_SPACE, RENT_SPONSOR};
 
 // Test: create, decompress game session, compress with custom data at
 // compression

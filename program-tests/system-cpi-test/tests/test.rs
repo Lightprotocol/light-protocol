@@ -18,6 +18,7 @@ use light_compressed_account::{
     TreeType,
 };
 use light_compressed_token::process_transfer::InputTokenDataWithContext;
+use light_compressed_token_sdk::compat::{AccountState, TokenDataWithMerkleContext};
 use light_hasher::{Hasher, Poseidon};
 use light_merkle_tree_metadata::errors::MerkleTreeMetadataError;
 use light_program_test::{
@@ -28,7 +29,6 @@ use light_program_test::{
     ProgramTestConfig,
 };
 use light_registry::account_compression_cpi::sdk::create_batch_update_address_tree_instruction;
-use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_system_program::errors::SystemProgramError;
 use light_test_utils::{
     e2e_test_env::init_program_test_env,

@@ -38,6 +38,7 @@ use light_compressed_token::{
     spl_compression::check_spl_token_pool_derivation_with_index,
     ErrorCode, TokenData,
 };
+use light_compressed_token_sdk::compat::{AccountState, TokenDataWithMerkleContext};
 use light_program_test::{
     accounts::{test_accounts::TestAccounts, test_keypairs::TestKeypairs},
     indexer::{TestIndexer, TestIndexerExtensions},
@@ -45,7 +46,6 @@ use light_program_test::{
     LightProgramTest, ProgramTestConfig,
 };
 use light_prover_client::prover::spawn_prover;
-use light_sdk::token::{AccountState, TokenDataWithMerkleContext};
 use light_system_program::{errors::SystemProgramError, utils::get_sol_pool_pda};
 use light_test_utils::{
     assert_custom_error_or_program_error,
@@ -667,12 +667,13 @@ async fn test_wrapped_sol() {
             None,
         )
         .await;
-        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
         decompress_test(
             &payer,
             &mut rpc,
@@ -1379,7 +1380,9 @@ async fn perform_transfer_22_test(
     for _ in 0..outputs {
         recipients.push(Pubkey::new_unique());
     }
-    let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> = test_indexer
+    let input_compressed_accounts: Vec<
+        light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+    > = test_indexer
         .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
         .await
         .unwrap()
@@ -1595,11 +1598,12 @@ async fn test_mint_to_and_burn_from_all_token_pools() {
             iterator
         };
         for i in iterator {
-            let accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> = test_indexer
-                .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+            let accounts: Vec<light_compressed_token_sdk::compat::TokenDataWithMerkleContext> =
+                test_indexer
+                    .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
+                    .await
+                    .unwrap()
+                    .into();
             let input_compressed_account = accounts[0].clone();
             let change_account_merkle_tree = input_compressed_account
                 .compressed_account
@@ -1690,11 +1694,12 @@ async fn test_multiple_decompression() {
         let mut iterator = vec![0, 1, 2, 3, 4];
         iterator.shuffle(rng);
         for i in iterator {
-            let accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> = test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+            let accounts: Vec<light_compressed_token_sdk::compat::TokenDataWithMerkleContext> =
+                test_indexer
+                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                    .await
+                    .unwrap()
+                    .into();
             let input_compressed_account = accounts
                 .iter()
                 .filter(|x| x.token_data.amount != 0)
@@ -1742,11 +1747,12 @@ async fn test_multiple_decompression() {
 
         // Decompress from all token pools
         {
-            let all_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> = test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+            let all_accounts: Vec<light_compressed_token_sdk::compat::TokenDataWithMerkleContext> =
+                test_indexer
+                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                    .await
+                    .unwrap()
+                    .into();
             let input_compressed_accounts = all_accounts[0..4].to_vec();
             let amount = input_compressed_accounts
                 .iter()
@@ -1770,11 +1776,12 @@ async fn test_multiple_decompression() {
                 Some(add_token_pool_accounts.clone()),
             )
             .await;
-            let all_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> = test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+            let all_accounts: Vec<light_compressed_token_sdk::compat::TokenDataWithMerkleContext> =
+                test_indexer
+                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                    .await
+                    .unwrap()
+                    .into();
             let input_compressed_accounts = all_accounts
                 .iter()
                 .filter(|x| x.token_data.amount != 0)
@@ -1839,12 +1846,13 @@ async fn test_delegation(
     .await;
     // 1. Delegate tokens
     {
-        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
         let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
             .compressed_account
             .merkle_context
@@ -1868,12 +1876,13 @@ async fn test_delegation(
     let recipient = Pubkey::new_unique();
     // 2. Transfer partial delegated amount
     {
-        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
         let input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
@@ -1898,12 +1907,13 @@ async fn test_delegation(
     }
     // 3. Transfer full delegated amount
     {
-        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
         let input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
@@ -1980,12 +1990,13 @@ async fn test_delegation_mixed() {
     .await;
     // 1. Delegate tokens
     {
-        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
         let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
             .compressed_account
             .merkle_context
@@ -2009,23 +2020,25 @@ async fn test_delegation_mixed() {
     let recipient = Pubkey::new_unique();
     // 2. Transfer partial delegated amount with delegate change account
     {
-        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
         let mut input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
             .collect::<Vec<TokenDataWithMerkleContext>>();
-        let delegate_input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&delegate.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let delegate_input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&delegate.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
         input_compressed_accounts
             .extend_from_slice(&[delegate_input_compressed_accounts[0].clone()]);
         let delegate_lamports = delegate_input_compressed_accounts[0]
@@ -2056,23 +2069,25 @@ async fn test_delegation_mixed() {
     let recipient = Pubkey::new_unique();
     // 3. Transfer partial delegated amount without delegate change account
     {
-        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
         let mut input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
             .collect::<Vec<TokenDataWithMerkleContext>>();
-        let delegate_input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&delegate.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let delegate_input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&delegate.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
         input_compressed_accounts
             .extend_from_slice(&[delegate_input_compressed_accounts[0].clone()]);
         let delegate_input_amount = input_compressed_accounts
@@ -2105,23 +2120,25 @@ async fn test_delegation_mixed() {
     }
     // 3. Transfer full delegated amount
     {
-        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
         let mut input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
             .cloned()
             .collect::<Vec<TokenDataWithMerkleContext>>();
-        let delegate_input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&delegate.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let delegate_input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&delegate.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
 
         input_compressed_accounts.extend_from_slice(&delegate_input_compressed_accounts);
         let input_amount = input_compressed_accounts
@@ -2218,7 +2235,9 @@ async fn test_approve_failing() {
     )
     .await;
 
-    let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> = test_indexer
+    let input_compressed_accounts: Vec<
+        light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+    > = test_indexer
         .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
         .await
         .unwrap()
@@ -2506,12 +2525,13 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
     .await;
     // 1. Delegate tokens
     {
-        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
         for input in input_compressed_accounts.iter() {
             let input_compressed_accounts = vec![input.clone()];
             let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
@@ -2536,17 +2556,18 @@ async fn test_revoke(num_inputs: usize, mint_amount: u64, delegated_amount: u64)
     }
     // 2. Revoke
     {
-        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .value
-                .items
-                .iter()
-                .filter(|x| x.token.delegate.is_some())
-                .map(|x| x.clone().into())
-                .collect::<Vec<TokenDataWithMerkleContext>>();
+        let input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+            .await
+            .unwrap()
+            .value
+            .items
+            .iter()
+            .filter(|x| x.token.delegate.is_some())
+            .map(|x| x.clone().into())
+            .collect::<Vec<TokenDataWithMerkleContext>>();
         let input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.delegate.is_some())
@@ -2632,12 +2653,13 @@ async fn test_revoke_failing() {
     .await;
     // Delegate tokens
     {
-        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
         let delegated_amount = 1000u64;
         let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
             .compressed_account
@@ -2659,7 +2681,9 @@ async fn test_revoke_failing() {
         .await;
     }
 
-    let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> = test_indexer
+    let input_compressed_accounts: Vec<
+        light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+    > = test_indexer
         .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
         .await
         .unwrap()
@@ -2855,12 +2879,13 @@ async fn test_burn() {
         .await;
         // 1. Burn tokens
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let burn_amount = 1000u64;
             let change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -2883,12 +2908,13 @@ async fn test_burn() {
         }
         // 2. Delegate tokens
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let delegated_amount = 1000u64;
             let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -2911,12 +2937,13 @@ async fn test_burn() {
         }
         // 3. Burn delegated tokens
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
                 .filter(|x| x.token_data.delegate.is_some())
@@ -2944,12 +2971,13 @@ async fn test_burn() {
         }
         // 3. Burn all delegated tokens
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
                 .filter(|x| x.token_data.delegate.is_some())
@@ -2994,18 +3022,19 @@ async fn test_burn() {
             )
             .await
             .unwrap();
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .value
-                    .items
-                    .iter()
-                    .filter(|x| x.token.amount != 0)
-                    .map(|x| x.clone().into())
-                    .collect::<Vec<_>>()[0..4]
-                    .to_vec();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .value
+                .items
+                .iter()
+                .filter(|x| x.token.amount != 0)
+                .map(|x| x.clone().into())
+                .collect::<Vec<_>>()[0..4]
+                .to_vec();
             let burn_amount = input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data.amount)
@@ -3046,17 +3075,18 @@ async fn test_burn() {
                 .unwrap();
             let slot = rpc.get_slot().await.unwrap();
             test_indexer.add_event_and_compressed_accounts(slot, &event);
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .value
-                    .items
-                    .iter()
-                    .filter(|x| x.token.amount != 0)
-                    .map(|x| x.clone().into())
-                    .collect::<Vec<_>>();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .value
+                .items
+                .iter()
+                .filter(|x| x.token.amount != 0)
+                .map(|x| x.clone().into())
+                .collect::<Vec<_>>();
             let burn_amount = input_compressed_accounts
                 .iter()
                 .map(|x| x.token_data.amount)
@@ -3129,12 +3159,13 @@ async fn failing_tests_burn() {
         .await;
         // Delegate tokens
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let delegated_amount = 1000u64;
             let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3157,12 +3188,13 @@ async fn failing_tests_burn() {
         }
         // 1. invalid proof
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let burn_amount = 1;
             let change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3191,12 +3223,13 @@ async fn failing_tests_burn() {
         }
         // 2. Signer is delegate but token data has no delegate.
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let burn_amount = 1;
             let change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3228,12 +3261,13 @@ async fn failing_tests_burn() {
         }
         // 3. Signer is delegate but token data has no delegate.
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
                 .filter(|x| x.token_data.delegate.is_some())
@@ -3266,12 +3300,13 @@ async fn failing_tests_burn() {
         }
         // 4. invalid authority (use delegate as authority)
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let burn_amount = 1;
             let change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3303,12 +3338,13 @@ async fn failing_tests_burn() {
         }
         // 5. invalid mint
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let burn_amount = 1;
             let change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3341,12 +3377,13 @@ async fn failing_tests_burn() {
         }
         // 6. invalid change merkle tree
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let burn_amount = 1;
             let invalid_change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3379,12 +3416,13 @@ async fn failing_tests_burn() {
         }
         // 6. invalid token pool (not initialized)
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let burn_amount = 1;
             let invalid_change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3412,12 +3450,13 @@ async fn failing_tests_burn() {
         }
         // 7. invalid token pool (invalid mint)
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let burn_amount = 1;
             let invalid_change_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
@@ -3492,12 +3531,13 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
         .await;
         // 1. Freeze tokens
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let output_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
@@ -3516,12 +3556,13 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
         }
         // 2. Thaw tokens
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
                 .filter(|x| x.token_data.state == AccountState::Frozen)
@@ -3544,12 +3585,13 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
         }
         // 3. Delegate tokens
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let delegated_compressed_account_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
@@ -3571,12 +3613,13 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
         }
         // 4. Freeze delegated tokens
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let output_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
@@ -3595,12 +3638,13 @@ async fn test_freeze_and_thaw(mint_amount: u64, delegated_amount: u64) {
         }
         // 5. Thaw delegated tokens
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
                 .filter(|x| x.token_data.state == AccountState::Frozen)
@@ -3681,15 +3725,16 @@ async fn test_failing_freeze() {
         )
         .await;
 
-        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            vec![test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .value
-                .items[0]
-                .clone()
-                .into()];
+        let input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = vec![test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+            .await
+            .unwrap()
+            .value
+            .items[0]
+            .clone()
+            .into()];
         let outputs_merkle_tree = input_compressed_accounts[0]
             .compressed_account
             .merkle_context
@@ -3947,15 +3992,16 @@ async fn test_failing_thaw() {
 
         // Freeze tokens
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                vec![test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .value
-                    .items[0]
-                    .clone()
-                    .into()];
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = vec![test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .value
+                .items[0]
+                .clone()
+                .into()];
             let output_merkle_tree = input_compressed_accounts[0]
                 .compressed_account
                 .merkle_context
@@ -3973,12 +4019,13 @@ async fn test_failing_thaw() {
             .await;
         }
 
-        let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let input_compressed_accounts: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
         let input_compressed_accounts = input_compressed_accounts
             .iter()
             .filter(|x| x.token_data.state == AccountState::Frozen)
@@ -4120,12 +4167,13 @@ async fn test_failing_thaw() {
         }
         // 4. thaw compressed account which is not frozen
         {
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let input_compressed_accounts = input_compressed_accounts
                 .iter()
                 .filter(|x| x.token_data.state == AccountState::Initialized)
@@ -4253,12 +4301,13 @@ async fn test_failing_decompression() {
         )
         .await
         .unwrap();
-        let input_compressed_account: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-            test_indexer
-                .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
-                .await
-                .unwrap()
-                .into();
+        let input_compressed_account: Vec<
+            light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+        > = test_indexer
+            .get_compressed_token_accounts_by_owner(&sender.pubkey(), None, None)
+            .await
+            .unwrap()
+            .into();
         let decompress_amount = amount - 1000;
         // Test 1: invalid decompress account
         {
@@ -5505,12 +5554,13 @@ async fn test_transfer_with_photon_and_batched_tree() {
                 Pubkey::from_str("24fLJv6tHmsxQg5vDD7XWy85TMhFzJdkqZ9Ta3LtVReU").unwrap(),
             ];
             println!("recipients {:?}", recipients);
-            let input_compressed_accounts: Vec<light_sdk::token::TokenDataWithMerkleContext> =
-                test_indexer
-                    .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
-                    .await
-                    .unwrap()
-                    .into();
+            let input_compressed_accounts: Vec<
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
+            > = test_indexer
+                .get_compressed_token_accounts_by_owner(&payer.pubkey(), None, None)
+                .await
+                .unwrap()
+                .into();
             let equal_amount = (amount * inputs as u64) / outputs as u64;
             let rest_amount = (amount * inputs as u64) % outputs as u64;
             let mut output_amounts = vec![equal_amount; outputs - 1];
@@ -5647,7 +5697,7 @@ async fn batch_compress_with_batched_tree() {
 
         for i in 0..num_recipients {
             let recipient_compressed_token_accounts: Vec<
-                light_sdk::token::TokenDataWithMerkleContext,
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
             > = test_indexer
                 .get_compressed_token_accounts_by_owner(&recipients[i as usize], None, None)
                 .await
@@ -5655,7 +5705,7 @@ async fn batch_compress_with_batched_tree() {
                 .into();
             assert_eq!(recipient_compressed_token_accounts.len(), 1);
             let recipient_compressed_token_account = &recipient_compressed_token_accounts[0];
-            let expected_token_data = light_sdk::token::TokenData {
+            let expected_token_data = light_compressed_token_sdk::compat::TokenData {
                 mint,
                 owner: recipients[i as usize],
                 amount: (i + 1),
@@ -5715,7 +5765,7 @@ async fn batch_compress_with_batched_tree() {
 
         for recipient in &recipients {
             let recipient_compressed_token_accounts: Vec<
-                light_sdk::token::TokenDataWithMerkleContext,
+                light_compressed_token_sdk::compat::TokenDataWithMerkleContext,
             > = test_indexer
                 .get_compressed_token_accounts_by_owner(recipient, None, None)
                 .await
@@ -5723,7 +5773,7 @@ async fn batch_compress_with_batched_tree() {
                 .into();
             assert_eq!(recipient_compressed_token_accounts.len(), 1);
             let recipient_compressed_token_account = &recipient_compressed_token_accounts[0];
-            let expected_token_data = light_sdk::token::TokenData {
+            let expected_token_data = light_compressed_token_sdk::compat::TokenData {
                 mint,
                 owner: *recipient,
                 amount,

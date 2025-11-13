@@ -11,6 +11,7 @@ use light_compressed_account::address::derive_address;
 use light_compressed_token_sdk::{
     ctoken,
     instructions::{create_compressed_mint::find_spl_mint_address, derive_compressed_mint_address},
+    pack::compat::CTokenDataWithVariant,
 };
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
 use light_compressible_client::CompressibleInstruction;
@@ -27,7 +28,6 @@ use light_program_test::{
 use light_sdk::{
     compressible::CompressibleConfig,
     instruction::{PackedAccounts, SystemAccountMetaConfig},
-    token::CTokenDataWithVariant,
 };
 use light_sdk_types::C_TOKEN_PROGRAM_ID;
 use solana_instruction::Instruction;

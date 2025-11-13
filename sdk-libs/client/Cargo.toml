@@ -47,6 +47,7 @@ light-indexed-merkle-tree = { workspace = true }
 light-sdk = { workspace = true }
 light-hasher = { workspace = true, features = ["poseidon"] }
 light-compressed-account = { workspace = true, features = ["solana", "poseidon"] }
+light-compressed-token-sdk = { workspace = true }
 light-event = { workspace = true }
 
 photon-api = { workspace = true }

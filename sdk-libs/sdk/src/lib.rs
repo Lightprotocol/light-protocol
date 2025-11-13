@@ -99,7 +99,6 @@ pub mod cpi;
 pub mod error;
 pub mod instruction;
 pub mod legacy;
-pub mod token;
 pub mod transfer;
 pub mod utils;
 

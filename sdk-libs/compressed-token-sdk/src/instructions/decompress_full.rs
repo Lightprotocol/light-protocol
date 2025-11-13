@@ -6,7 +6,6 @@ use light_program_profiler::profile;
 use light_sdk::{
     error::LightSdkError,
     instruction::{AccountMetasVec, PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
-    token::TokenData,
 };
 use solana_account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction};
@@ -14,6 +13,7 @@ use solana_pubkey::Pubkey;
 
 use crate::{
     account2::CTokenAccount2,
+    compat::TokenData,
     error::TokenSdkError,
     instructions::{
         transfer2::{

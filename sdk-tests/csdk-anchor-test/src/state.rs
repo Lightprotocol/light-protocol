@@ -3,11 +3,13 @@
 // hasCompressionInfo implementions.
 
 use anchor_lang::prelude::*;
+use light_compressed_token_sdk::Pack as _TokenPack;
 use light_ctoken_types::instructions::mint_action::CompressedMintWithContext;
 use light_sdk::{
     account::Size,
     compressible::{
-        CompressAs, CompressedInitSpace, CompressionInfo, HasCompressionInfo, Pack, Unpack,
+        CompressAs, CompressedInitSpace, CompressionInfo, HasCompressionInfo, Pack as SdkPack,
+        Unpack as SdkUnpack,
     },
     instruction::{
         account_meta::CompressedAccountMetaNoLamportsNoAddress, PackedAccounts,
@@ -34,8 +36,8 @@ pub enum CompressedAccountVariant {
     PackedGameSession(PackedGameSession),
     PlaceholderRecord(PlaceholderRecord),
     PackedPlaceholderRecord(PackedPlaceholderRecord),
-    PackedCTokenData(light_sdk::token::PackedCTokenData<CTokenAccountVariant>),
-    CTokenData(light_sdk::token::CTokenData<CTokenAccountVariant>),
+    PackedCTokenData(light_compressed_token_sdk::compat::PackedCTokenData<CTokenAccountVariant>),
+    CTokenData(light_compressed_token_sdk::compat::CTokenData<CTokenAccountVariant>),
 }
 
 impl Default for CompressedAccountVariant {
@@ -120,7 +122,7 @@ impl Size for CompressedAccountVariant {
 
 // Pack implementation for CompressedAccountVariant
 // This delegates to the underlying type's Pack implementation
-impl Pack for CompressedAccountVariant {
+impl SdkPack for CompressedAccountVariant {
     type Packed = Self;
 
     fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
@@ -141,7 +143,7 @@ impl Pack for CompressedAccountVariant {
 
 // Unpack implementation for CompressedAccountVariant
 // This delegates to the underlying type's Unpack implementation
-impl Unpack for CompressedAccountVariant {
+impl SdkUnpack for CompressedAccountVariant {
     type Unpacked = Self;
 
     fn unpack(
@@ -247,7 +249,7 @@ pub struct PackedUserRecord {
 }
 
 // Identity Pack implementation - no custom packing needed for PDA types
-impl Pack for UserRecord {
+impl SdkPack for UserRecord {
     type Packed = PackedUserRecord;
 
     fn pack(&self, remaining_accounts: &mut PackedAccounts) -> Self::Packed {
@@ -261,7 +263,7 @@ impl Pack for UserRecord {
 }
 
 // Identity Unpack implementation - PDA types are sent unpacked
-impl Unpack for UserRecord {
+impl SdkUnpack for UserRecord {
     type Unpacked = Self;
 
     fn unpack(
@@ -273,7 +275,7 @@ impl Unpack for UserRecord {
 }
 
 // Identity Pack implementation - no custom packing needed for PDA types
-impl Pack for PackedUserRecord {
+impl SdkPack for PackedUserRecord {
     type Packed = Self;
 
     fn pack(&self, _remaining_accounts: &mut PackedAccounts) -> Self::Packed {
@@ -282,7 +284,7 @@ impl Pack for PackedUserRecord {
 }
 
 // Identity Unpack implementation - PDA types are sent unpacked
-impl Unpack for PackedUserRecord {
+impl SdkUnpack for PackedUserRecord {
     type Unpacked = UserRecord;
 
     fn unpack(
@@ -367,7 +369,7 @@ impl CompressAs for GameSession {
 }
 
 // Identity Pack implementation - no custom packing needed for PDA types
-impl Pack for GameSession {
+impl SdkPack for GameSession {
     type Packed = Self;
 
     fn pack(&self, _remaining_accounts: &mut PackedAccounts) -> Self::Packed {
@@ -376,7 +378,7 @@ impl Pack for GameSession {
 }
 
 // Identity Unpack implementation - PDA types are sent unpacked
-impl Unpack for GameSession {
+impl SdkUnpack for GameSession {
     type Unpacked = Self;
 
     fn unpack(
@@ -443,7 +445,7 @@ impl CompressAs for PlaceholderRecord {
 }
 
 // Identity Pack implementation - no custom packing needed for PDA types
-impl Pack for PlaceholderRecord {
+impl SdkPack for PlaceholderRecord {
     type Packed = Self;
 
     fn pack(&self, _remaining_accounts: &mut PackedAccounts) -> Self::Packed {
@@ -452,7 +454,7 @@ impl Pack for PlaceholderRecord {
 }
 
 // Identity Unpack implementation - PDA types are sent unpacked
-impl Unpack for PlaceholderRecord {
+impl SdkUnpack for PlaceholderRecord {
     type Unpacked = Self;
 
     fn unpack(

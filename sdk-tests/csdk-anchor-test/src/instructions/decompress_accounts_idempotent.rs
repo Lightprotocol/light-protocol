@@ -156,7 +156,7 @@ pub fn decompress_accounts_idempotent<'info>(
         ctoken_config: &anchor_lang::prelude::AccountInfo<'info>,
         config: &anchor_lang::prelude::AccountInfo<'info>,
         ctoken_accounts: Vec<(
-            light_sdk::token::PackedCTokenData<CTokenAccountVariant>,
+            light_compressed_token_sdk::compat::PackedCTokenData<CTokenAccountVariant>,
             light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
         )>,
         proof: light_sdk::instruction::ValidityProof,
@@ -298,7 +298,7 @@ pub fn decompress_accounts_idempotent<'info>(
     }
 
     let mut ctoken_accounts: Vec<(
-        light_sdk::token::PackedCTokenData<CTokenAccountVariant>,
+        light_compressed_token_sdk::compat::PackedCTokenData<CTokenAccountVariant>,
         light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
     )> = Vec::with_capacity(token_count);
     let mut compressed_pda_infos = Vec::with_capacity(pda_count);
