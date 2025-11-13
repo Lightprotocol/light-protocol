@@ -1,6 +1,5 @@
 //! Pack implementation for TokenData types for c-tokens.
 use light_compressed_account::compressed_account::CompressedAccountWithMerkleContext;
-pub use light_compressed_token_types::*;
 pub use light_ctoken_types::state::TokenData;
 use light_ctoken_types::state::TokenDataVersion;
 use light_sdk::{

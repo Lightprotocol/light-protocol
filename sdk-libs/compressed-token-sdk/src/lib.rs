@@ -13,8 +13,10 @@ pub mod utils;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-// Re-export all types and utilities
-pub use pack::*;
-// Re-export Pack/Unpack traits at crate root for convenience
-pub use pack::{Pack, Unpack};
-pub use utils::*;
+// Re-export
+pub use light_compressed_token_types::*;
+pub use pack::{compat, Pack, Unpack};
+pub use utils::{
+    account_meta_from_account_info, is_ctoken_account, AccountInfoToCompress,
+    PackedCompressedTokenDataWithContext,
+};

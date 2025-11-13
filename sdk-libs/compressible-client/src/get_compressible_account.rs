@@ -126,6 +126,7 @@ where
     T::try_deserialize(&mut &data[..]).map_err(CompressibleAccountError::AnchorDeserialization)
 }
 
+// TODO: add discriminator check.
 #[cfg(not(feature = "anchor"))]
 #[allow(clippy::result_large_err)]
 pub fn deserialize_account<T>(account: &AccountInfoInterface) -> Result<T, CompressibleAccountError>

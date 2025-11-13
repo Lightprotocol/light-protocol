@@ -6,11 +6,9 @@ pub const CTOKEN_PROGRAM_ID: Pubkey = pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi
 
 pub const CTOKEN_CPI_AUTHORITY: Pubkey = pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
 
-pub const ID: Pubkey = CTOKEN_PROGRAM_ID;
-
 /// Returns the program ID for the Compressed Token Program
 pub fn id() -> Pubkey {
-    ID
+    CTOKEN_PROGRAM_ID
 }
 
 /// Return the cpi authority pda of the Compressed Token Program.
@@ -24,11 +22,7 @@ pub fn get_token_pool_address_and_bump(mint: &Pubkey) -> (Pubkey, u8) {
 
 /// Returns the associated ctoken address for a given owner and mint.
 pub fn get_associated_ctoken_address(owner: &Pubkey, mint: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(
-        &[&owner.to_bytes(), &id().to_bytes(), &mint.to_bytes()],
-        &id(),
-    )
-    .0
+    get_associated_ctoken_address_and_bump(owner, mint).0
 }
 
 /// Returns the associated ctoken address and bump for a given owner and mint.
@@ -53,14 +47,4 @@ pub fn rent_sponsor_pda() -> Pubkey {
 
 pub fn compression_authority_pda() -> Pubkey {
     CompressibleConfig::ctoken_v1_compression_authority_pda()
-}
-
-/// Alias for `rent_sponsor_pda()` for convenience
-pub fn rent_sponsor() -> Pubkey {
-    rent_sponsor_pda()
-}
-
-/// Alias for `compression_authority_pda()` for convenience
-pub fn compression_authority() -> Pubkey {
-    compression_authority_pda()
 }
