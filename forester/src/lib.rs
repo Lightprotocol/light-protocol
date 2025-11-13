@@ -146,6 +146,9 @@ pub async fn run_queue_info(
                     .with_label_values(&["AddressV2", &tree_data.merkle_tree.to_string()])
                     .set(queue_length as i64);
             }
+            TreeType::Unknown => {
+                // Virtual tree type for compression, no queue to monitor
+            }
         };
     }
     Ok(())
@@ -156,7 +159,7 @@ pub async fn run_pipeline<R: Rpc>(
     rpc_rate_limiter: Option<RateLimiter>,
     send_tx_rate_limiter: Option<RateLimiter>,
     shutdown_service: oneshot::Receiver<()>,
-    shutdown_compressible: oneshot::Receiver<()>,
+    shutdown_compressible: Option<oneshot::Receiver<()>>,
     work_report_sender: mpsc::Sender<WorkReport>,
 ) -> Result<()> {
     let mut builder = SolanaRpcPoolBuilder::<R>::default()
@@ -217,20 +220,25 @@ pub async fn run_pipeline<R: Rpc>(
 
     // Start compressible subscriber if enabled and get tracker
     let compressible_tracker = if let Some(compressible_config) = &config.compressible_config {
-        let tracker = Arc::new(compressible::CompressibleAccountTracker::new());
-        let tracker_clone = tracker.clone();
-        let ws_url = compressible_config.ws_url.clone();
+        if let Some(shutdown_rx) = shutdown_compressible {
+            let tracker = Arc::new(compressible::CompressibleAccountTracker::new());
+            let tracker_clone = tracker.clone();
+            let ws_url = compressible_config.ws_url.clone();
 
-        // Spawn subscriber
-        tokio::spawn(async move {
-            let mut subscriber =
-                compressible::AccountSubscriber::new(ws_url, tracker_clone, shutdown_compressible);
-            if let Err(e) = subscriber.run().await {
-                tracing::error!("Compressible subscriber error: {:?}", e);
-            }
-        });
+            // Spawn subscriber
+            tokio::spawn(async move {
+                let mut subscriber =
+                    compressible::AccountSubscriber::new(ws_url, tracker_clone, shutdown_rx);
+                if let Err(e) = subscriber.run().await {
+                    tracing::error!("Compressible subscriber error: {:?}", e);
+                }
+            });
 
-        Some(tracker)
+            Some(tracker)
+        } else {
+            tracing::warn!("Compressible config enabled but no shutdown receiver provided");
+            None
+        }
     } else {
         None
     };

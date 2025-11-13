@@ -82,7 +82,7 @@ async fn test_priority_fee_request() {
         send_tx_rate_limit: None,
         processor_mode: ProcessorMode::All,
         tree_id: None,
-        compressible_ws_url: None,
+        enable_compressible: true,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");

@@ -35,18 +35,29 @@ async fn main() -> Result<(), ForesterError> {
             }
 
             let (shutdown_sender_service, shutdown_receiver_service) = oneshot::channel();
-            let (shutdown_sender_compressible, shutdown_receiver_compressible) = oneshot::channel();
             let (work_report_sender, mut work_report_receiver) = mpsc::channel(100);
 
-            tokio::spawn(async move {
-                ctrl_c().await.expect("Failed to listen for Ctrl+C");
-                shutdown_sender_service
-                    .send(())
-                    .expect("Failed to send shutdown signal to service");
-                shutdown_sender_compressible
-                    .send(())
-                    .expect("Failed to send shutdown signal to compressible");
-            });
+            // Only create compressible shutdown channel if compressible is enabled
+            let shutdown_receiver_compressible = if config.compressible_config.is_some() {
+                let (shutdown_sender_compressible, shutdown_receiver_compressible) =
+                    oneshot::channel();
+                tokio::spawn(async move {
+                    ctrl_c().await.expect("Failed to listen for Ctrl+C");
+                    shutdown_sender_service
+                        .send(())
+                        .expect("Failed to send shutdown signal to service");
+                    let _ = shutdown_sender_compressible.send(());
+                });
+                Some(shutdown_receiver_compressible)
+            } else {
+                tokio::spawn(async move {
+                    ctrl_c().await.expect("Failed to listen for Ctrl+C");
+                    shutdown_sender_service
+                        .send(())
+                        .expect("Failed to send shutdown signal to service");
+                });
+                None
+            };
 
             tokio::spawn(async move {
                 while let Some(report) = work_report_receiver.recv().await {

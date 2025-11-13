@@ -1,9 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use forester::{
-    compressible::{AccountSubscriber, CompressibleAccountTracker, Compressor},
-    slot_tracker::SlotTracker,
-};
+use forester::compressible::{AccountSubscriber, CompressibleAccountTracker, Compressor};
 use forester_utils::{
     forester_epoch::get_epoch_phases,
     rpc_pool::{SolanaRpcPool, SolanaRpcPoolBuilder},
@@ -287,18 +284,17 @@ async fn test_compressible_ctoken_compression() {
     let ready_accounts = tracker.get_ready_to_compress(current_slot);
     assert_eq!(ready_accounts.len(), 1, "Should have 1 account ready");
     assert_eq!(ready_accounts[0].pubkey, token_account_pubkey_2);
-    let slot_tracker = Arc::new(SlotTracker::new(current_slot, Duration::from_secs(10)));
 
-    let mut compressor = Compressor::new(
-        ctx.rpc_pool.clone(),
-        tracker.clone(),
-        ctx.forester_keypair,
-        slot_tracker.clone(),
-        10,
+    let (registered_forester_pda, _) = light_registry::utils::get_forester_epoch_pda_from_authority(
+        &ctx.forester_keypair.pubkey(),
+        ctx.epoch.epoch,
     );
-    let epoch = ctx.epoch;
-    let compressor_handle =
-        tokio::spawn(async move { compressor.run_for_epoch(&epoch, 50, 100).await });
+    let compressor = Compressor::new(ctx.rpc_pool.clone(), tracker.clone(), ctx.forester_keypair);
+    let compressor_handle = tokio::spawn(async move {
+        compressor
+            .compress_batch(&ready_accounts, registered_forester_pda)
+            .await
+    });
     sleep(Duration::from_millis(2000)).await;
     // Wait for account to be closed
     let start = tokio::time::Instant::now();

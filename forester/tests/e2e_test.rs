@@ -419,7 +419,7 @@ async fn e2e_test() {
         get_registration_phase_start_slot(&mut rpc, &protocol_config).await;
     wait_for_slot(&mut rpc, registration_phase_slot).await;
 
-    let (service_handle, shutdown_sender, mut work_report_receiver) =
+    let (service_handle, shutdown_sender, _shutdown_compressible_sender, mut work_report_receiver) =
         setup_forester_pipeline(&config).await;
 
     let active_phase_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
@@ -607,6 +607,9 @@ async fn get_initial_merkle_tree_state(
                 merkle_tree.get_root().unwrap(),
             )
         }
+        TreeType::Unknown => {
+            panic!("TreeType::Unknown is not supported for get_initial_merkle_tree_state - compression trees have no merkle tree state to fetch")
+        }
     }
 }
 
@@ -678,6 +681,9 @@ async fn verify_root_changed(
             );
             merkle_tree.get_root().unwrap()
         }
+        TreeType::Unknown => {
+            panic!("TreeType::Unknown is not supported for verify_root_changed - compression trees have no merkle tree root to verify")
+        }
     };
 
     assert_ne!(
@@ -703,10 +709,11 @@ async fn setup_forester_pipeline(
 ) -> (
     tokio::task::JoinHandle<anyhow::Result<()>>,
     oneshot::Sender<()>,
+    oneshot::Sender<()>,
     mpsc::Receiver<WorkReport>,
 ) {
     let (shutdown_sender, shutdown_receiver) = oneshot::channel();
-    let (_shutdown_compressible_sender, shutdown_compressible_receiver) = oneshot::channel();
+    let (shutdown_compressible_sender, shutdown_compressible_receiver) = oneshot::channel();
     let (work_report_sender, work_report_receiver) = mpsc::channel(100);
 
     let service_handle = tokio::spawn(run_pipeline::<LightClient>(
@@ -714,11 +721,16 @@ async fn setup_forester_pipeline(
         None,
         None,
         shutdown_receiver,
-        shutdown_compressible_receiver,
+        Some(shutdown_compressible_receiver),
         work_report_sender,
     ));
 
-    (service_handle, shutdown_sender, work_report_receiver)
+    (
+        service_handle,
+        shutdown_sender,
+        shutdown_compressible_sender,
+        work_report_receiver,
+    )
 }
 
 async fn wait_for_work_report(

@@ -190,6 +190,18 @@ impl<R: Rpc> EpochManager<R> {
     }
 
     pub async fn run(self: Arc<Self>) -> Result<()> {
+        // Add synthetic compression tree if enabled
+        if self.compressible_tracker.is_some() && self.config.compressible_config.is_some() {
+            let compression_tree_accounts = TreeAccounts {
+                merkle_tree: solana_sdk::pubkey::Pubkey::default(),
+                queue: solana_sdk::pubkey::Pubkey::default(),
+                tree_type: TreeType::Unknown,
+                is_rolledover: false,
+            };
+            self.add_new_tree(compression_tree_accounts).await?;
+            info!("Added compression tree");
+        }
+
         let (tx, mut rx) = mpsc::channel(100);
         let tx = Arc::new(tx);
 
@@ -1006,29 +1018,6 @@ impl<R: Rpc> EpochManager<R> {
             handles.push(handle);
         }
 
-        // Spawn compression task if enabled
-        if let Some(tracker) = self.compressible_tracker.clone() {
-            if let Some(comp_config) = &self.config.compressible_config {
-                let compression_handle = Compressor::spawn_task(
-                    crate::compressible::compressor::SpawnCompressionTaskInput {
-                        tracker,
-                        config: comp_config.clone(),
-                        epoch_info: epoch_info_arc.epoch.clone(),
-                        rpc_pool: self.rpc_pool.clone(),
-                        payer_keypair: self.config.payer_keypair.insecure_clone(),
-                        slot_tracker: self.slot_tracker.clone(),
-                        sleep_after_processing_ms: self
-                            .config
-                            .general_config
-                            .sleep_after_processing_ms,
-                        sleep_when_idle_ms: self.config.general_config.sleep_when_idle_ms,
-                    },
-                );
-
-                handles.push(compression_handle);
-            }
-        }
-
         for result in join_all(handles).await {
             match result {
                 Ok(Ok(())) => {
@@ -1183,6 +1172,13 @@ impl<R: Rpc> EpochManager<R> {
                             )
                             .await
                         }
+                    }
+                    TreeType::Unknown => {
+                        warn!(
+                            "TreeType::Unknown not supported for light slot processing. \
+                            Compression is handled separately via dispatch_compression()"
+                        );
+                        Ok(())
                     }
                 };
 
@@ -1627,6 +1623,7 @@ impl<R: Rpc> EpochManager<R> {
         queue_update: Option<&QueueUpdateMessage>,
     ) -> Result<usize> {
         match tree_accounts.tree_type {
+            TreeType::Unknown => self.dispatch_compression(epoch_info.epoch).await,
             TreeType::StateV1 | TreeType::AddressV1 => {
                 self.process_v1(
                     epoch_info,
@@ -1642,6 +1639,90 @@ impl<R: Rpc> EpochManager<R> {
                     .await
             }
         }
+    }
+
+    async fn dispatch_compression(&self, current_epoch: u64) -> Result<usize> {
+        trace!("Dispatching compression for epoch {}", current_epoch);
+
+        let tracker = self
+            .compressible_tracker
+            .as_ref()
+            .ok_or_else(|| anyhow!("Compressible tracker not initialized"))?;
+
+        let config = self
+            .config
+            .compressible_config
+            .as_ref()
+            .ok_or_else(|| anyhow!("Compressible config not set"))?;
+
+        let current_slot = self.slot_tracker.estimated_current_slot();
+        let accounts = tracker.get_ready_to_compress(current_slot);
+
+        if accounts.is_empty() {
+            trace!("No compressible accounts ready for compression");
+            return Ok(0);
+        }
+
+        let num_batches = accounts.len().div_ceil(config.batch_size);
+        info!(
+            "Processing {} compressible accounts in {} batches (batch_size={})",
+            accounts.len(),
+            num_batches,
+            config.batch_size
+        );
+
+        let compressor = Compressor::new(
+            self.rpc_pool.clone(),
+            tracker.clone(),
+            self.config.payer_keypair.insecure_clone(),
+        );
+
+        // Derive registered forester PDA once for all batches
+        let (registered_forester_pda, _) =
+            light_registry::utils::get_forester_epoch_pda_from_authority(
+                &self.config.derivation_pubkey,
+                current_epoch,
+            );
+
+        let mut total_compressed = 0;
+        for (batch_idx, batch) in accounts.chunks(config.batch_size).enumerate() {
+            debug!(
+                "Processing compression batch {}/{} with {} accounts",
+                batch_idx + 1,
+                num_batches,
+                batch.len()
+            );
+
+            match compressor
+                .compress_batch(batch, registered_forester_pda)
+                .await
+            {
+                Ok(sig) => {
+                    info!(
+                        "Successfully compressed {} accounts in batch {}/{}: {}",
+                        batch.len(),
+                        batch_idx + 1,
+                        num_batches,
+                        sig
+                    );
+                    total_compressed += batch.len();
+                }
+                Err(e) => {
+                    error!(
+                        "Compression batch {}/{} failed: {:?}",
+                        batch_idx + 1,
+                        num_batches,
+                        e
+                    );
+                }
+            }
+        }
+
+        info!(
+            "Completed compression for epoch {}: compressed {} accounts",
+            current_epoch, total_compressed
+        );
+        Ok(total_compressed)
     }
 
     async fn process_v1(
@@ -2001,6 +2082,7 @@ fn should_skip_tree(config: &ForesterConfig, tree_type: &TreeType) -> bool {
         TreeType::AddressV2 => config.general_config.skip_v2_address_trees,
         TreeType::StateV1 => config.general_config.skip_v1_state_trees,
         TreeType::StateV2 => config.general_config.skip_v2_state_trees,
+        TreeType::Unknown => false, // Never skip compression tree
     }
 }
 

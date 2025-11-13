@@ -38,6 +38,7 @@ env:
   TEST_V2_STATE: "true"
   TEST_V1_ADDRESS: "true"
   TEST_V2_ADDRESS: "true"
+  FORESTER_ENABLE_COMPRESSIBLE: "true"
 
 jobs:
   test:
