@@ -62,7 +62,7 @@ pub async fn wait_for_indexer<R: Rpc>(rpc: &R) -> Result<(), ForesterUtilsError>
             );
         }
 
-        sleep(std::time::Duration::from_millis(1000)).await;
+        sleep(std::time::Duration::from_millis(200)).await;
         indexer_slot = rpc.indexer()?.get_indexer_slot(None).await.map_err(|e| {
             error!("failed to get indexer slot from indexer: {:?}", e);
             ForesterUtilsError::Indexer("Failed to get indexer slot".into())

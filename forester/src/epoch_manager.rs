@@ -7,9 +7,8 @@ use std::{
     time::Duration,
 };
 
-use sysinfo::System;
-
 use anyhow::{anyhow, Context};
+use borsh::BorshDeserialize;
 use dashmap::DashMap;
 use forester_utils::{
     forester_epoch::{get_epoch_phases, Epoch, ForesterSlot, TreeAccounts, TreeForesterSchedule},
@@ -34,6 +33,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::TransactionError,
 };
+use sysinfo::System;
 use tokio::{
     sync::{broadcast, broadcast::error::RecvError, mpsc, oneshot, Mutex},
     task::JoinHandle,
@@ -45,7 +45,7 @@ use crate::{
     errors::{
         ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
     },
-    grpc::{QueueUpdateMessage, QueueEventRouter},
+    grpc::{QueueEventRouter, QueueUpdateMessage},
     metrics::{push_metrics, queue_metric_update, update_forester_sol_balance},
     pagerduty::send_pagerduty_alert,
     processor::{
@@ -564,23 +564,23 @@ impl<R: Rpc> EpochManager<R> {
                 {
                     Ok(info) => info,
                     Err(ForesterError::Registration(
-                            RegistrationError::RegistrationPhaseEnded {
-                                epoch: failed_epoch,
-                                current_slot,
-                                registration_end,
-                            },
+                        RegistrationError::RegistrationPhaseEnded {
+                            epoch: failed_epoch,
+                            current_slot,
+                            registration_end,
+                        },
                     )) => {
                         let next_epoch = failed_epoch + 1;
                         let next_phases = get_epoch_phases(&self.protocol_config, next_epoch);
                         let slots_to_wait =
                             next_phases.registration.start.saturating_sub(current_slot);
 
-                            info!(
+                        info!(
                             "Too late to register for epoch {} (registration ended at slot {}, current slot: {}). Next available epoch: {}. Registration opens at slot {} ({} slots to wait).",
                             failed_epoch, registration_end, current_slot, next_epoch, next_phases.registration.start, slots_to_wait
                             );
-                            return Ok(());
-                        }
+                        return Ok(());
+                    }
                     Err(e) => return Err(e.into()),
                 }
             }
@@ -751,33 +751,48 @@ impl<R: Rpc> EpochManager<R> {
                     }
                 };
 
-                let forester_epoch_pda = rpc
-                    .get_anchor_account::<ForesterEpochPda>(&registered_epoch.forester_epoch_pda)
+                let epoch_pda_address = get_epoch_pda_address(epoch);
+                let mut accounts = rpc
+                    .get_multiple_accounts(&[registered_epoch.forester_epoch_pda, epoch_pda_address])
                     .await
                     .with_context(|| {
                         format!(
-                            "Failed to fetch ForesterEpochPda from RPC for address {}",
-                            registered_epoch.forester_epoch_pda
+                            "Failed to fetch accounts from RPC for ForesterEpochPda {} and EpochPda {}",
+                            registered_epoch.forester_epoch_pda, epoch_pda_address
                         )
-                    })?
-                    .ok_or(RegistrationError::ForesterEpochPdaNotFound {
-                        epoch,
-                        pda_address: registered_epoch.forester_epoch_pda,
                     })?;
 
-                let epoch_pda_address = get_epoch_pda_address(epoch);
-                let epoch_pda = rpc
-                    .get_anchor_account::<EpochPda>(&epoch_pda_address)
-                    .await
+                let forester_epoch_pda_account =
+                    accounts[0]
+                        .take()
+                        .ok_or(RegistrationError::ForesterEpochPdaNotFound {
+                            epoch,
+                            pda_address: registered_epoch.forester_epoch_pda,
+                        })?;
+
+                let epoch_pda_account =
+                    accounts[1]
+                        .take()
+                        .ok_or(RegistrationError::EpochPdaNotFound {
+                            epoch,
+                            pda_address: epoch_pda_address,
+                        })?;
+
+                let forester_epoch_pda =
+                    ForesterEpochPda::try_from_slice(&forester_epoch_pda_account.data[8..])
+                        .with_context(|| {
+                            format!(
+                                "Failed to deserialize ForesterEpochPda from account {}",
+                                registered_epoch.forester_epoch_pda
+                            )
+                        })?;
+
+                let epoch_pda = EpochPda::try_from_slice(&epoch_pda_account.data[8..])
                     .with_context(|| {
                         format!(
-                            "Failed to fetch EpochPda from RPC for address {}",
+                            "Failed to deserialize EpochPda from account {}",
                             epoch_pda_address
                         )
-                    })?
-                    .ok_or(RegistrationError::EpochPdaNotFound {
-                        epoch,
-                        pda_address: epoch_pda_address,
                     })?;
 
                 ForesterEpochInfo {
@@ -1162,14 +1177,13 @@ impl<R: Rpc> EpochManager<R> {
                 let mut sys = System::new();
                 let pid = Pid::from_u32(std::process::id());
                 sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
-                sys.process(pid).map(|p| p.memory() / 1024 / 1024).unwrap_or(0)
+                sys.process(pid)
+                    .map(|p| p.memory() / 1024 / 1024)
+                    .unwrap_or(0)
             };
             debug!(
                 "[MEMORY] Forester process: {} MB RSS (tree={}, slot={}, type={:?})",
-                mem_mb,
-                tree_schedule.tree_accounts.merkle_tree,
-                current_slot,
-                tree_type
+                mem_mb, tree_schedule.tree_accounts.merkle_tree, current_slot, tree_type
             );
 
             let next_slot_to_process = tree_schedule
@@ -1787,11 +1801,12 @@ impl<R: Rpc> EpochManager<R> {
                 .clone()
                 .unwrap_or_else(|| default_prover_url.clone()),
             prover_api_key: self.config.external_services.prover_api_key.clone(),
-            prover_polling_interval: Duration::from_secs(1),
+            prover_polling_interval: Duration::from_millis(100),
             prover_max_wait_time: Duration::from_secs(600),
             ops_cache: self.ops_cache.clone(),
             epoch_phases: epoch_info.phases.clone(),
             slot_tracker: self.slot_tracker.clone(),
+            slot_length: self.protocol_config.slot_length,
             input_queue_hint,
             output_queue_hint,
         };

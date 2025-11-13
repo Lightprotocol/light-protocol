@@ -514,6 +514,19 @@ impl Rpc for LightClient {
         .await
     }
 
+    async fn get_multiple_accounts(
+        &self,
+        addresses: &[Pubkey],
+    ) -> Result<Vec<Option<Account>>, RpcError> {
+        self.retry(|| async {
+            self.client
+                .get_multiple_accounts_with_commitment(addresses, self.client.commitment())
+                .map(|response| response.value)
+                .map_err(RpcError::from)
+        })
+        .await
+    }
+
     async fn get_minimum_balance_for_rent_exemption(
         &self,
         data_len: usize,

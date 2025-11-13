@@ -1,13 +1,14 @@
+use ahash::AHashMap;
 use light_hasher::hash_chain::create_hash_chain_from_array;
 use light_sparse_merkle_tree::changelog::ChangelogEntry;
 use num_bigint::{BigInt, Sign};
 use serde::Serialize;
 use tracing::{error, info};
 
-use crate::{
-    errors::ProverClientError,
-    helpers::bigint_to_u8_32,
-};
+use crate::{errors::ProverClientError, helpers::bigint_to_u8_32};
+
+/// Cache type for Merkle root computations
+type MerkleRootCache = AHashMap<(usize, u32, [u8; 32], [u8; 32]), [u8; 32]>;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct BatchAppendsCircuitInputs {
@@ -46,15 +47,13 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
     batch_size: u32,
     previous_changelogs: &[ChangelogEntry<HEIGHT>],
 ) -> Result<(BatchAppendsCircuitInputs, Vec<ChangelogEntry<HEIGHT>>), ProverClientError> {
-    use std::collections::HashMap;
-
     let mut new_root = [0u8; 32];
     let mut circuit_merkle_proofs = Vec::with_capacity(batch_size as usize);
 
     // Create cache for parent node computations across all leaves in this batch
     // Cache key: (level, parent_position, left_hash, right_hash) -> parent_hash
-    let mut root_computation_cache: HashMap<(usize, u32, [u8; 32], [u8; 32]), [u8; 32]> =
-        HashMap::new();
+    let estimated_capacity = (batch_size as usize * HEIGHT) / 2;
+    let mut root_computation_cache: MerkleRootCache = AHashMap::with_capacity(estimated_capacity);
 
     // Phase 1: Adjust all proofs and collect data
     let mut adjusted_proofs = Vec::with_capacity(batch_size as usize);
@@ -95,7 +94,11 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
 
         // Determine final leaf value
         let is_old_leaf_zero = old_leaf.iter().all(|&byte| byte == 0);
-        let final_leaf = if is_old_leaf_zero { *new_leaf } else { *old_leaf };
+        let final_leaf = if is_old_leaf_zero {
+            *new_leaf
+        } else {
+            *old_leaf
+        };
 
         final_leaves.push(final_leaf);
         path_indices.push(start_index + i as u32);
@@ -124,7 +127,10 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
         }
 
         // Compute root and changelog for this leaf with caching
-        let merkle_proof_array: [[u8; 32]; HEIGHT] = merkle_proof.clone().try_into().unwrap();
+        let merkle_proof_array: [[u8; 32]; HEIGHT] =
+            merkle_proof.as_slice().try_into().map_err(|_| {
+                ProverClientError::GenericError("Invalid merkle proof length".to_string())
+            })?;
         let (root, changelog_entry) = crate::helpers::compute_root_from_merkle_proof_with_cache(
             final_leaf,
             &merkle_proof_array,
@@ -132,7 +138,7 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
             Some(&mut root_computation_cache),
         );
         new_root = root;
-        temp_changelog.push(changelog_entry.clone());
+        temp_changelog.push(changelog_entry);
 
         adjusted_proofs.push(merkle_proof);
         circuit_merkle_proofs.push(

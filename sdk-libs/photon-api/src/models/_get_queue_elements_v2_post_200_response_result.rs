@@ -23,9 +23,7 @@ pub struct GetQueueElementsV2Post200ResponseResult {
 }
 
 impl GetQueueElementsV2Post200ResponseResult {
-    pub fn new(
-        context: models::Context,
-    ) -> GetQueueElementsV2Post200ResponseResult {
+    pub fn new(context: models::Context) -> GetQueueElementsV2Post200ResponseResult {
         GetQueueElementsV2Post200ResponseResult {
             context: Box::new(context),
             output_queue: None,

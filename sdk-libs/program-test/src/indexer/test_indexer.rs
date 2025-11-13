@@ -29,8 +29,9 @@ use light_client::{
         CompressedTokenAccount, Context, GetCompressedAccountsByOwnerConfig,
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer, IndexerError,
         IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
-        OwnerBalance, PaginatedOptions, QueueElementsResult, QueueElementsV2Result, Response, RetryConfig, RootIndex,
-        SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance, ValidityProofWithContext,
+        OwnerBalance, PaginatedOptions, QueueElementsResult, QueueElementsV2Result, Response,
+        RetryConfig, RootIndex, SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance,
+        ValidityProofWithContext,
     },
 };
 use light_compressed_account::{
@@ -1063,12 +1064,7 @@ impl Indexer for TestIndexer {
     async fn get_queue_elements_v2(
         &mut self,
         _merkle_tree_pubkey: [u8; 32],
-        _output_queue_start_index: Option<u64>,
-        _output_queue_limit: Option<u16>,
-        _input_queue_start_index: Option<u64>,
-        _input_queue_limit: Option<u16>,
-        _address_queue_start_index: Option<u64>,
-        _address_queue_limit: Option<u16>,
+        _options: light_client::indexer::QueueElementsV2Options,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<QueueElementsV2Result>, IndexerError> {
         todo!("get_queue_elements_v2 not implemented for test indexer")

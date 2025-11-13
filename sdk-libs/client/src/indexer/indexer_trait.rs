@@ -10,7 +10,7 @@ use super::{
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
     GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
     IndexerError, IndexerRpcConfig, MerkleProof, NewAddressProofWithContext, PaginatedOptions,
-    RetryConfig,
+    QueueElementsV2Options, RetryConfig,
 };
 // TODO: remove all references in input types.
 #[async_trait]
@@ -201,17 +201,11 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<QueueElementsResult>, IndexerError>;
 
-
     /// V2: Returns queue elements with deduplicated nodes.
     async fn get_queue_elements_v2(
         &mut self,
         merkle_tree_pubkey: [u8; 32],
-        output_queue_start_index: Option<u64>,
-        output_queue_limit: Option<u16>,
-        input_queue_start_index: Option<u64>,
-        input_queue_limit: Option<u16>,
-        address_queue_start_index: Option<u64>,
-        address_queue_limit: Option<u16>,
+        options: QueueElementsV2Options,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<QueueElementsV2Result>, IndexerError>;
 

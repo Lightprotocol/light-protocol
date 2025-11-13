@@ -89,10 +89,10 @@ pub async fn wait_until_slot_reached<R: Rpc>(
         let actual_slot = rpc.get_slot().await?;
         slot_tracker.update(actual_slot);
 
-            if actual_slot >= target_slot {
+        if actual_slot >= target_slot {
             trace!("Slot {} reached (actual: {})", target_slot, actual_slot);
-                break;
-            }
+            break;
+        }
 
         let slots_remaining = target_slot.saturating_sub(actual_slot);
 

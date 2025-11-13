@@ -90,23 +90,22 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
     // Process each token account and build indices
     let mut indices_vec = Vec::with_capacity(solana_ctoken_accounts.len());
 
-    for solana_ctoken_account_pubkey in solana_ctoken_accounts {
-        // Get the ctoken account data
-        let ctoken_solana_account = rpc
-            .get_account(*solana_ctoken_account_pubkey)
-            .await
-            .map_err(|e| {
-                RpcError::CustomError(format!(
-                    "Failed to get ctoken account {}: {}",
-                    solana_ctoken_account_pubkey, e
-                ))
-            })?
-            .ok_or_else(|| {
-                RpcError::CustomError(format!(
-                    "CToken account {} not found",
-                    solana_ctoken_account_pubkey
-                ))
-            })?;
+    // Batch fetch all ctoken accounts in a single RPC call for efficiency
+    let ctoken_accounts = rpc
+        .get_multiple_accounts(solana_ctoken_accounts)
+        .await
+        .map_err(|e| {
+            RpcError::CustomError(format!("Failed to batch fetch ctoken accounts: {}", e))
+        })?;
+
+    for (idx, solana_ctoken_account_pubkey) in solana_ctoken_accounts.iter().enumerate() {
+        // Get the ctoken account data from batched results
+        let ctoken_solana_account = ctoken_accounts[idx].as_ref().ok_or_else(|| {
+            RpcError::CustomError(format!(
+                "CToken account {} not found",
+                solana_ctoken_account_pubkey
+            ))
+        })?;
 
         let (ctoken_account, _) = CToken::zero_copy_at(ctoken_solana_account.data.as_slice())
             .map_err(|e| {

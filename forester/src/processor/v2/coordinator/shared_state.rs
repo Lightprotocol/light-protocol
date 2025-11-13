@@ -1,10 +1,8 @@
-use std::collections::HashSet;
-use std::sync::Arc;
-use std::time::Duration;
+use std::{collections::HashSet, sync::Arc, time::Duration};
+
 use tokio::sync::RwLock;
 use tracing::{debug, info};
 
-/// Unique identifier for a processed batch.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct ProcessedBatchId {
     pub batch_index: usize,
@@ -38,7 +36,6 @@ impl ProcessedBatchId {
     }
 }
 
-/// Shared tree state with concurrent access protection.
 pub struct SharedTreeState {
     pub current_root: [u8; 32],
     pub processed_batches: HashSet<ProcessedBatchId>,
@@ -58,12 +55,10 @@ impl SharedTreeState {
         }
     }
 
-    /// Update the current root hash.
     pub fn update_root(&mut self, new_root: [u8; 32]) {
         self.current_root = new_root;
     }
 
-    /// Mark a batch as processed to prevent duplicate work.
     pub fn mark_batch_processed(&mut self, batch_id: ProcessedBatchId) {
         debug!(
             "Marking batch as processed: batch_idx={}, zkp_batch_idx={}, type={}",
@@ -78,10 +73,6 @@ impl SharedTreeState {
         self.processed_batches.contains(batch_id)
     }
 
-    /// Reset state to sync with on-chain data.
-    ///
-    /// This clears processed batches that have been confirmed on-chain
-    /// while keeping batches that are still pending.
     pub fn reset(
         &mut self,
         on_chain_root: [u8; 32],
@@ -191,7 +182,6 @@ pub fn create_shared_state(initial_root: [u8; 32]) -> SharedState {
     Arc::new(RwLock::new(SharedTreeState::new(initial_root)))
 }
 
-/// Metrics for a single processing iteration.
 #[derive(Debug, Clone, Default)]
 pub struct IterationMetrics {
     pub phase1_duration: Duration,
@@ -292,11 +282,33 @@ impl CumulativeMetrics {
         println!("  Total:                 {}", self.total_batches());
 
         if self.iterations > 0 {
+            let avg_phase1 = self.phase1_total / self.iterations as u32;
+            let avg_phase2 = self.phase2_total / self.iterations as u32;
+            let avg_phase3 = self.phase3_total / self.iterations as u32;
+
             println!();
-            println!("Phase timing breakdown:");
-            println!("  Phase 1 (prep):        {:?}", self.phase1_total);
-            println!("  Phase 2 (proof):       {:?}", self.phase2_total);
-            println!("  Phase 3 (submit):      {:?}", self.phase3_total);
+            println!("Phase timing breakdown (total / avg per iteration):");
+            println!(
+                "  Phase 1 (prep):        {:?} / {:?}",
+                self.phase1_total, avg_phase1
+            );
+            println!(
+                "  Phase 2 (proof):       {:?} / {:?}",
+                self.phase2_total, avg_phase2
+            );
+            println!(
+                "  Phase 3 (submit):      {:?} / {:?}",
+                self.phase3_total, avg_phase3
+            );
+            println!("  ─────────────────────────────────────────────────────");
+            println!(
+                "  Total (actual):        {:?} / {:?}",
+                self.total_duration,
+                self.avg_iteration_duration()
+            );
+            println!();
+            println!("Note: Phase 2 and Phase 3 run concurrently (pipelined),");
+            println!("      so total < sum of individual phases.");
         }
 
         println!("========================================\n");

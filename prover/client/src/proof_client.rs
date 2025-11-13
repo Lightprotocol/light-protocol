@@ -20,7 +20,7 @@ use crate::{
 
 const MAX_RETRIES: u32 = 10;
 const BASE_RETRY_DELAY_SECS: u64 = 1;
-const DEFAULT_POLLING_INTERVAL_SECS: u64 = 1;
+const DEFAULT_POLLING_INTERVAL_MS: u64 = 100;
 const DEFAULT_MAX_WAIT_TIME_SECS: u64 = 600;
 const DEFAULT_LOCAL_SERVER: &str = "http://localhost:3001";
 
@@ -59,7 +59,7 @@ impl ProofClient {
         Self {
             client: Client::new(),
             server_address: DEFAULT_LOCAL_SERVER.to_string(),
-            polling_interval: Duration::from_secs(DEFAULT_POLLING_INTERVAL_SECS),
+            polling_interval: Duration::from_millis(DEFAULT_POLLING_INTERVAL_MS),
             max_wait_time: Duration::from_secs(DEFAULT_MAX_WAIT_TIME_SECS),
             api_key: None,
         }
@@ -79,6 +79,58 @@ impl ProofClient {
             max_wait_time,
             api_key,
         }
+    }
+
+    /// Submit a proof request and return the job ID immediately without polling.
+    /// This allows for parallel submission of multiple proof requests.
+    pub async fn submit_proof_async(
+        &self,
+        inputs_json: String,
+        circuit_type: &str,
+    ) -> Result<String, ProverClientError> {
+        debug!(
+            "Submitting async proof request for circuit type: {}",
+            circuit_type
+        );
+
+        let response = self.send_proof_request(&inputs_json).await?;
+        let status_code = response.status();
+        let response_text = response.text().await.map_err(|e| {
+            ProverClientError::ProverServerError(format!("Failed to read response body: {}", e))
+        })?;
+
+        self.log_response(status_code, &response_text);
+
+        match status_code {
+            reqwest::StatusCode::ACCEPTED => {
+                debug!("Received asynchronous job response");
+                let job_response = self.parse_job_response(&response_text)?;
+                match job_response {
+                    ProofResponse::Async { job_id, .. } => {
+                        info!("Proof job queued with ID: {}", job_id);
+                        Ok(job_id)
+                    }
+                }
+            }
+            reqwest::StatusCode::OK => {
+                // Synchronous response - for now, error since we expect async
+                Err(ProverClientError::ProverServerError(
+                    "Expected async response but got synchronous proof".to_string(),
+                ))
+            }
+            _ => self
+                .handle_error_response(&response_text)
+                .map(|_| unreachable!()),
+        }
+    }
+
+    /// Poll for the completion of a previously submitted proof job.
+    /// This allows polling multiple jobs in parallel.
+    pub async fn poll_proof_completion(
+        &self,
+        job_id: String,
+    ) -> Result<ProofCompressed, ProverClientError> {
+        self.poll_for_result(&job_id, Duration::ZERO).await
     }
 
     pub async fn generate_proof(
@@ -257,10 +309,7 @@ impl ProofClient {
         let error_str = error.to_string();
 
         if error_str.contains("constraint") || error_str.contains("not satisfied") {
-            debug!(
-                "Not retrying (constraint violation): {}",
-                error_str
-            );
+            debug!("Not retrying (constraint violation): {}", error_str);
             return false;
         }
 

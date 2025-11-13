@@ -171,7 +171,6 @@ impl PhotonIndexer {
             }),
         }
     }
-
 }
 
 impl Debug for PhotonIndexer {
@@ -1736,16 +1735,10 @@ impl Indexer for PhotonIndexer {
         }
     }
 
-
     async fn get_queue_elements_v2(
         &mut self,
         _pubkey: [u8; 32],
-        _output_queue_start_index: Option<u64>,
-        _output_queue_limit: Option<u16>,
-        _input_queue_start_index: Option<u64>,
-        _input_queue_limit: Option<u16>,
-        _address_queue_start_index: Option<u64>,
-        _address_queue_limit: Option<u16>,
+        _options: crate::indexer::QueueElementsV2Options,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<QueueElementsV2Result>, IndexerError> {
         #[cfg(not(feature = "v2"))]
@@ -1753,12 +1746,12 @@ impl Indexer for PhotonIndexer {
         #[cfg(feature = "v2")]
         {
             let pubkey = _pubkey;
-            let output_queue_start_index = _output_queue_start_index;
-            let output_queue_limit = _output_queue_limit;
-            let input_queue_start_index = _input_queue_start_index;
-            let input_queue_limit = _input_queue_limit;
-            let address_queue_start_index = _address_queue_start_index;
-            let address_queue_limit = _address_queue_limit;
+            let output_queue_start_index = _options.output_queue_start_index;
+            let output_queue_limit = _options.output_queue_limit;
+            let input_queue_start_index = _options.input_queue_start_index;
+            let input_queue_limit = _options.input_queue_limit;
+            let address_queue_start_index = _options.address_queue_start_index;
+            let address_queue_limit = _options.address_queue_limit;
             let config = _config.unwrap_or_default();
 
             self.retry(config.retry_config, || async {

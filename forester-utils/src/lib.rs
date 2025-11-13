@@ -2,9 +2,9 @@
 #![allow(clippy::large_enum_variant)]
 #![allow(deprecated)]
 
-pub mod batch_parsing;
 pub mod account_zero_copy;
 pub mod address_merkle_tree_config;
+pub mod batch_parsing;
 pub mod error;
 pub mod forester_epoch;
 pub mod instructions;

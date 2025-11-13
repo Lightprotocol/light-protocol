@@ -54,7 +54,6 @@ pub fn prepare_append_batch(
         .map(|&idx| state.tree_state.get_leaf(idx).unwrap_or([0u8; 32]))
         .collect();
 
-    // Generate circuit inputs with NO changelogs (proofs are already current!)
     let circuit_start = std::time::Instant::now();
     let empty_changelogs = Vec::new();
     let (circuit_inputs, batch_changelogs) =
@@ -66,18 +65,16 @@ pub fn prepare_append_batch(
             old_leaves,
             merkle_proofs,
             append_data.zkp_batch_size as u32,
-            &empty_changelogs, // Empty! Tree is already up-to-date
+            &empty_changelogs,
         )?;
     let circuit_time = circuit_start.elapsed();
 
-    // Update state with new root
     let new_root = bigint_to_be_bytes_array::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
         &circuit_inputs.new_root.to_biguint().unwrap(),
     )?;
 
     state.current_root = new_root;
 
-    // Batch update all leaves at once - efficient propagation
     let update_start = std::time::Instant::now();
     let updates: Vec<(u64, [u8; 32])> = batch_changelogs
         .iter()
@@ -137,10 +134,7 @@ pub fn prepare_nullify_batch(
         path_indices.push(leaf_idx as u32);
 
         // Get current leaf value from tree (includes any prior updates from appends)
-        let old_leaf = state
-            .tree_state
-            .get_leaf(leaf_idx)
-            .unwrap_or([0u8; 32]);
+        let old_leaf = state.tree_state.get_leaf(leaf_idx).unwrap_or([0u8; 32]);
         old_leaves.push(old_leaf);
     }
 
@@ -151,7 +145,6 @@ pub fn prepare_nullify_batch(
         .collect::<Result<Vec<_>>>()?;
     let proof_time = proof_start.elapsed();
 
-    // Validate hash chain
     validate_nullify_hash_chain(
         batch_idx,
         &leaves,
@@ -160,7 +153,7 @@ pub fn prepare_nullify_batch(
         leaves_hash_chain,
     )?;
 
-    // Generate circuit inputs with NO changelogs (tree is already current!)
+    // Generate circuit inputs with NO changelogs
     let circuit_start = std::time::Instant::now();
     let empty_changelogs = Vec::new();
     let (circuit_inputs, batch_changelog) =
@@ -173,18 +166,16 @@ pub fn prepare_nullify_batch(
             merkle_proofs,
             path_indices,
             nullify_data.zkp_batch_size as u32,
-            &empty_changelogs, // Empty! Tree is already up-to-date
+            &empty_changelogs,
         )?;
     let circuit_time = circuit_start.elapsed();
 
-    // Update state with new root
     let new_root = bigint_to_be_bytes_array::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
         &circuit_inputs.new_root.to_biguint().unwrap(),
     )?;
 
     state.current_root = new_root;
 
-    // Batch update all leaves at once - efficient propagation
     let update_start = std::time::Instant::now();
     let updates: Vec<(u64, [u8; 32])> = batch_changelog
         .iter()
@@ -212,8 +203,6 @@ pub fn prepare_nullify_batch(
 }
 
 /// Validates that the computed nullifier hash chain matches the on-chain value.
-///
-/// This is critical for ensuring that the circuit will not fail constraint validation.
 fn validate_nullify_hash_chain(
     batch_idx: usize,
     leaves: &[[u8; 32]],

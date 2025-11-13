@@ -228,28 +228,14 @@ impl Indexer for LightClient {
     async fn get_queue_elements_v2(
         &mut self,
         merkle_tree_pubkey: [u8; 32],
-        output_queue_start_index: Option<u64>,
-        output_queue_limit: Option<u16>,
-        input_queue_start_index: Option<u64>,
-        input_queue_limit: Option<u16>,
-        address_queue_start_index: Option<u64>,
-        address_queue_limit: Option<u16>,
+        options: crate::indexer::QueueElementsV2Options,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<crate::indexer::QueueElementsV2Result>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()
             .ok_or(IndexerError::NotInitialized)?
-            .get_queue_elements_v2(
-                merkle_tree_pubkey,
-                output_queue_start_index,
-                output_queue_limit,
-                input_queue_start_index,
-                input_queue_limit,
-                address_queue_start_index,
-                address_queue_limit,
-                config,
-            )
+            .get_queue_elements_v2(merkle_tree_pubkey, options, config)
             .await?)
     }
 

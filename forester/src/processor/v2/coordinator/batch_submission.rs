@@ -12,7 +12,6 @@ use solana_sdk::{instruction::Instruction, signer::Signer};
 use tracing::info;
 
 use crate::processor::v2::common::{send_transaction_batch, BatchContext};
-use forester_utils::utils::wait_for_indexer;
 
 const MAX_INSTRUCTIONS_PER_TX: usize = 4;
 
@@ -67,17 +66,11 @@ pub async fn submit_append_batches<R: Rpc>(
             batch_chunk.len()
         );
 
-        // Wait for indexer to catch up before proceeding
-        let rpc = context.rpc_pool.get_connection().await?;
-        wait_for_indexer(&*rpc)
-            .await
-            .map_err(|e| anyhow::anyhow!("Indexer failed to catch up after append batch: {}", e))?;
-
         total_batches_submitted += batch_chunk.len();
     }
 
     let total_elements = total_batches_submitted * zkp_batch_size as usize;
-    let num_transactions = (total_batches + MAX_INSTRUCTIONS_PER_TX - 1) / MAX_INSTRUCTIONS_PER_TX;
+    let num_transactions = total_batches.div_ceil(MAX_INSTRUCTIONS_PER_TX);
 
     info!(
         "Submitted {} append batches ({} elements) in {} transactions",
@@ -137,17 +130,11 @@ pub async fn submit_nullify_batches<R: Rpc>(
             batch_chunk.len()
         );
 
-        // Wait for indexer to catch up before proceeding
-        let rpc = context.rpc_pool.get_connection().await?;
-        wait_for_indexer(&*rpc).await.map_err(|e| {
-            anyhow::anyhow!("Indexer failed to catch up after nullify batch: {}", e)
-        })?;
-
         total_batches_submitted += batch_chunk.len();
     }
 
     let total_elements = total_batches_submitted * zkp_batch_size as usize;
-    let num_transactions = (total_batches + MAX_INSTRUCTIONS_PER_TX - 1) / MAX_INSTRUCTIONS_PER_TX;
+    let num_transactions = total_batches.div_ceil(MAX_INSTRUCTIONS_PER_TX);
 
     info!(
         "Submitted {} nullify batches ({} elements) in {} transactions",
@@ -217,12 +204,6 @@ pub async fn submit_interleaved_batches<R: Rpc>(
                 current_tx_instructions.len(),
                 signature
             );
-
-            // Wait for indexer to catch up
-            let rpc = context.rpc_pool.get_connection().await?;
-            wait_for_indexer(&*rpc)
-                .await
-                .map_err(|e| anyhow::anyhow!("Indexer failed to catch up: {}", e))?;
 
             total_items += current_tx_instructions.len();
             current_tx_instructions.clear();

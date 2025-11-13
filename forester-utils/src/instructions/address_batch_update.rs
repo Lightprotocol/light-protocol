@@ -2,8 +2,10 @@ use std::{pin::Pin, sync::Arc, time::Duration};
 
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_stream::stream;
-use futures::stream::{FuturesOrdered, Stream};
-use futures::StreamExt;
+use futures::{
+    stream::{FuturesOrdered, Stream},
+    StreamExt,
+};
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT, merkle_tree::InstructionDataAddressAppendInputs,
 };

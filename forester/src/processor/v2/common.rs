@@ -1,17 +1,21 @@
 use std::{future::Future, sync::Arc, time::Duration};
 
 use borsh::BorshSerialize;
+pub use forester_utils::ParsedMerkleTreeData;
 use forester_utils::{
     forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool, utils::wait_for_indexer,
 };
-pub use forester_utils::ParsedMerkleTreeData;
 use futures::{pin_mut, stream::StreamExt, Stream};
 use light_client::rpc::Rpc;
-use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair};
-use solana_sdk::signature::Signer;
+use light_registry::protocol_config::state::EpochState;
+use solana_sdk::{
+    instruction::Instruction,
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+};
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
-use light_registry::protocol_config::state::EpochState;
+
 use crate::{
     errors::ForesterError, processor::tx_cache::ProcessedHashCache, slot_tracker::SlotTracker,
     Result,
@@ -34,13 +38,11 @@ pub struct BatchContext<R: Rpc> {
     pub ops_cache: Arc<Mutex<ProcessedHashCache>>,
     pub epoch_phases: EpochPhases,
     pub slot_tracker: Arc<SlotTracker>,
-    /// input queue size from gRPC
+    pub slot_length: u64,
     pub input_queue_hint: Option<u64>,
-    /// output queue size from gRPC
     pub output_queue_hint: Option<u64>,
 }
 
-/// Processes a stream of batched instruction data into transactions.
 pub(crate) async fn process_stream<R, S, D, FutC>(
     context: &BatchContext<R>,
     stream_creator_future: FutC,
@@ -156,6 +158,8 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         context.merkle_tree
     );
     let mut rpc = context.rpc_pool.get_connection().await?;
+    // create_and_send_transaction already includes confirmation via send_and_confirm_transaction
+    // No need to confirm again - this saves ~50-200ms per transaction
     let signature = rpc
         .create_and_send_transaction(
             &instructions,
@@ -164,18 +168,8 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         )
         .await?;
 
-    debug!("Waiting for transaction confirmation: {}", signature);
-    let confirmed = rpc.confirm_transaction(signature).await?;
-    if !confirmed {
-        return Err(anyhow::anyhow!(
-            "Transaction {} failed to confirm for tree {}",
-            signature,
-            context.merkle_tree
-        ));
-    }
-
     info!(
-        "Transaction confirmed successfully: {} for tree: {}",
+        "Transaction confirmed and sent: {} for tree: {}",
         signature, context.merkle_tree
     );
 

@@ -1,54 +1,71 @@
+use std::{
+    collections::HashMap,
+    sync::Arc,
+    time::{Duration, Instant},
+};
+
 use anyhow::Result;
+use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
 use light_batched_merkle_tree::{
-    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
+    merkle_tree::{
+        BatchedMerkleTreeAccount, InstructionDataBatchAppendInputs,
+        InstructionDataBatchNullifyInputs,
+    },
+    queue::BatchedQueueAccount,
 };
 use light_client::{indexer::Indexer, rpc::Rpc};
+use light_prover_client::proof_client::ProofClient;
 use once_cell::sync::Lazy;
-use solana_sdk::pubkey::Pubkey;
-use std::collections::HashMap;
-use std::sync::Arc;
-use std::time::Instant;
-use sysinfo::System;
+use solana_sdk::{account::Account, pubkey::Pubkey};
 use tokio::sync::Mutex as TokioMutex;
-use tracing::{debug, info, warn};
-
-use forester_utils::{utils::wait_for_indexer, ParsedMerkleTreeData, ParsedQueueData};
-
-use crate::processor::v2::common::BatchContext;
+use tracing::{debug, error, info, warn};
 
 use super::{
     batch_preparation, batch_submission,
     error::CoordinatorError,
-    proof_generation::{self, ProofConfig},
+    proof_generation::ProofConfig,
     shared_state::{
         create_shared_state, CumulativeMetrics, IterationMetrics, ProcessedBatchId, SharedState,
     },
     tree_state::TreeState,
     types::{AppendQueueData, BatchType, NullifyQueueData, PreparationState, PreparedBatch},
 };
+use crate::processor::v2::common::BatchContext;
 
-static PERSISTENT_TREE_STATES: Lazy<Arc<TokioMutex<HashMap<(Pubkey, u64), SharedState>>>> =
+type PersistentTreeStatesCache = Arc<TokioMutex<HashMap<(Pubkey, u64), SharedState>>>;
+
+static PERSISTENT_TREE_STATES: Lazy<PersistentTreeStatesCache> =
     Lazy::new(|| Arc::new(TokioMutex::new(HashMap::new())));
 
-/// Get current process memory usage in MB.
-fn get_process_memory_mb() -> u64 {
-    use sysinfo::Pid;
-    let mut sys = System::new();
-    let pid = Pid::from_u32(std::process::id());
-    sys.refresh_processes(sysinfo::ProcessesToUpdate::Some(&[pid]), true);
-    sys.process(pid)
-        .map(|p| p.memory() / 1024 / 1024)
-        .unwrap_or(0)
+struct QueueFetchResult {
+    tree_state: TreeState,
+    append_data: Option<AppendQueueData>,
+    nullify_data: Option<NullifyQueueData>,
+    append_batch_ids: Vec<ProcessedBatchId>,
+    nullify_batch_ids: Vec<ProcessedBatchId>,
 }
 
-/// Main coordinator for state tree batch processing.
+struct ParsedOnchainState {
+    current_onchain_root: [u8; 32],
+    append_metadata: Option<(ParsedMerkleTreeData, ParsedQueueData)>,
+    nullify_metadata: Option<ParsedMerkleTreeData>,
+    append_batch_ids: Vec<ProcessedBatchId>,
+    nullify_batch_ids: Vec<ProcessedBatchId>,
+}
+
+enum ProofResult {
+    Append(light_batched_merkle_tree::merkle_tree::InstructionDataBatchAppendInputs),
+    Nullify(light_batched_merkle_tree::merkle_tree::InstructionDataBatchNullifyInputs),
+}
+
 pub struct StateTreeCoordinator<R: Rpc> {
     shared_state: SharedState,
     context: BatchContext<R>,
+    cached_tree_state: Option<(TreeState, Vec<ProcessedBatchId>, Vec<ProcessedBatchId>)>,
+    current_light_slot: Option<u64>,
 }
 
 impl<R: Rpc> StateTreeCoordinator<R> {
-    /// Create new coordinator with persistent state management.
     pub async fn new(context: BatchContext<R>, initial_root: [u8; 32]) -> Self {
         let key = (context.merkle_tree, context.epoch);
 
@@ -68,26 +85,90 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         Self {
             shared_state,
             context,
+            cached_tree_state: None,
+            current_light_slot: None,
         }
     }
 
-    /// Main processing loop - continues until no work remains.
-    ///
-    /// Returns total number of items processed.
+    fn calculate_light_slot(&self) -> u64 {
+        let estimated_slot = self.context.slot_tracker.estimated_current_slot();
+        let active_phase_start = self.context.epoch_phases.active.start;
+        (estimated_slot - active_phase_start) / self.context.slot_length
+    }
+
     pub async fn process(&mut self) -> Result<usize> {
         let mut total_items_processed = 0;
+        let mut loop_iteration = 0;
 
         loop {
-            self.sync_with_chain().await?;
+            loop_iteration += 1;
 
-            let (num_append_batches, num_nullify_batches) = self.check_readiness().await?;
+            let light_slot = self.calculate_light_slot();
+            if let Some(cached_slot) = self.current_light_slot {
+                if light_slot != cached_slot {
+                    debug!(
+                        "Light slot changed {} -> {}, invalidating cache",
+                        cached_slot, light_slot
+                    );
+                    self.cached_tree_state = None;
+                    self.current_light_slot = Some(light_slot);
+                }
+            } else {
+                self.current_light_slot = Some(light_slot);
+            }
+
+            let (num_append_batches, num_nullify_batches) = if self.cached_tree_state.is_some() {
+                let rpc = self.context.rpc_pool.get_connection().await?;
+                let mut accounts = rpc
+                    .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
+                    .await?;
+
+                let mut merkle_tree_account = accounts[0]
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
+                let output_queue_account = accounts[1].take();
+                drop(rpc);
+
+                self.check_readiness_with_accounts(
+                    &mut merkle_tree_account,
+                    output_queue_account.as_ref(),
+                )
+                .await?
+            } else {
+                let rpc = self.context.rpc_pool.get_connection().await?;
+                let mut accounts = rpc
+                    .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
+                    .await?;
+
+                let mut merkle_tree_account = accounts[0]
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
+                let output_queue_account = accounts[1].take();
+                drop(rpc);
+
+                self.sync_with_chain_with_accounts(
+                    &mut merkle_tree_account,
+                    output_queue_account.as_ref(),
+                )
+                .await?;
+
+                self.check_readiness_with_accounts(
+                    &mut merkle_tree_account,
+                    output_queue_account.as_ref(),
+                )
+                .await?
+            };
 
             if num_append_batches == 0 && num_nullify_batches == 0 {
                 break;
             }
 
             match self
-                .process_single_iteration(num_append_batches, num_nullify_batches)
+                .process_single_iteration_pipelined_with_cache(
+                    num_append_batches,
+                    num_nullify_batches,
+                    loop_iteration,
+                )
                 .await
             {
                 Ok(items_this_iteration) => {
@@ -96,6 +177,9 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 Err(e) => {
                     if let Some(coord_err) = e.downcast_ref::<CoordinatorError>() {
                         if coord_err.is_retryable() {
+                            self.cached_tree_state = None;
+                            debug!("Invalidating cache due to retryable error");
+
                             if matches!(coord_err, CoordinatorError::PhotonStale { .. }) {
                                 debug!("Photon staleness detected, waiting before retry");
                                 tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
@@ -103,12 +187,12 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                             continue;
                         }
                     }
+                    self.cached_tree_state = None;
                     return Err(e);
                 }
             }
         }
 
-        // Print final summary
         {
             let state = self.shared_state.read().await;
             state.print_performance_summary(&format!(
@@ -120,66 +204,75 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         Ok(total_items_processed)
     }
 
-    /// Process a single iteration of batch operations.
-    async fn process_single_iteration(
+    async fn process_single_iteration_pipelined_with_cache(
         &mut self,
         num_append_batches: usize,
         num_nullify_batches: usize,
+        loop_iteration: usize,
     ) -> Result<usize> {
         let iteration_start = Instant::now();
-
-        // Phase 1: Fetch queues and prepare batches
         let phase1_start = Instant::now();
 
-        let rpc = self.context.rpc_pool.get_connection().await?;
-        wait_for_indexer(&*rpc)
-            .await
-            .map_err(|e| anyhow::anyhow!("Indexer failed to catch up: {}", e))?;
-        drop(rpc);
+        let (mut tree_state, append_data, nullify_data, append_batch_ids, nullify_batch_ids) =
+            if let Some((cached_state, _, _)) = self.cached_tree_state.take() {
+                let rpc = self.context.rpc_pool.get_connection().await?;
+                let mut accounts = rpc
+                    .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
+                    .await?;
 
-        let mem_before = get_process_memory_mb();
-        debug!(
-            "[MEMORY] Before fetch: {} MB (tree={})",
-            mem_before, self.context.merkle_tree
-        );
+                let merkle_tree_account = accounts[0]
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
+                let output_queue_account = accounts[1].take();
+                drop(rpc);
 
-        let (mut tree_state, append_data, nullify_data, append_batch_ids, nullify_batch_ids) = self
-            .fetch_queues(num_append_batches, num_nullify_batches)
-            .await?;
+                let (_, append_data, nullify_data, append_batch_ids, nullify_batch_ids) = self
+                    .fetch_queues_with_accounts(
+                        num_append_batches,
+                        num_nullify_batches,
+                        merkle_tree_account,
+                        output_queue_account,
+                    )
+                    .await?;
 
-        let initial_root = tree_state.current_root();
+                (
+                    cached_state,
+                    append_data,
+                    nullify_data,
+                    append_batch_ids,
+                    nullify_batch_ids,
+                )
+            } else {
+                let rpc = self.context.rpc_pool.get_connection().await?;
+                forester_utils::utils::wait_for_indexer(&*rpc)
+                    .await
+                    .map_err(|e| {
+                        anyhow::anyhow!("Indexer failed to catch up before iteration: {}", e)
+                    })?;
+
+                let mut accounts = rpc
+                    .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
+                    .await?;
+
+                let merkle_tree_account = accounts[0]
+                    .take()
+                    .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
+                let output_queue_account = accounts[1].take();
+                drop(rpc);
+
+                self.fetch_queues_with_accounts(
+                    num_append_batches,
+                    num_nullify_batches,
+                    merkle_tree_account,
+                    output_queue_account,
+                )
+                .await?
+            };
+
         let pattern = Self::create_interleaving_pattern(num_append_batches, num_nullify_batches);
 
-        let mem_after_fetch = get_process_memory_mb();
-        debug!(
-            "[MEMORY] After fetch: {} MB ({} nodes)",
-            mem_after_fetch,
-            tree_state.node_count()
-        );
-
-        let prepared_batches = self
-            .prepare_batches(
-                tree_state,
-                &pattern,
-                append_data.as_ref(),
-                nullify_data.as_ref(),
-            )
-            .await?;
-
-        let phase1_duration = phase1_start.elapsed();
-
-        let mem_after_prep = get_process_memory_mb();
-        debug!("[MEMORY] After preparation: {} MB", mem_after_prep);
-
-        // Validate root hasn't changed
-        self.validate_root(initial_root, "preparation").await?;
-
-        // Phase 2: Generate proofs in parallel
-        let phase2_start = Instant::now();
-        info!("Phase 2: Parallel proof generation");
-
-        let (append_circuit_inputs, nullify_circuit_inputs) =
-            Self::split_prepared_batches(prepared_batches);
+        let (prep_tx, prep_rx) = tokio::sync::mpsc::channel(50);
+        let (proof_tx, proof_rx) = tokio::sync::mpsc::channel(50);
 
         let proof_config = ProofConfig {
             append_url: self.context.prover_append_url.clone(),
@@ -189,40 +282,39 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             api_key: self.context.prover_api_key.clone(),
         };
 
-        let (append_proofs, nullify_proofs) = tokio::join!(
-            proof_generation::generate_append_proofs(append_circuit_inputs, &proof_config),
-            proof_generation::generate_nullify_proofs(nullify_circuit_inputs, &proof_config)
-        );
+        let proof_gen_handle = tokio::spawn(async move {
+            Self::generate_proofs_streaming(prep_rx, proof_tx, proof_config).await
+        });
 
-        let append_proofs = append_proofs?;
-        let nullify_proofs = nullify_proofs?;
-        let phase2_duration = phase2_start.elapsed();
-
-        info!(
-            "Phase 2 complete: {} append proofs, {} nullify proofs in {:?}",
-            append_proofs.len(),
-            nullify_proofs.len(),
-            phase2_duration
-        );
-
-        // Validate root again before submission
-        self.validate_root(initial_root, "proof generation").await?;
-
-        // Phase 3: Submit transactions
-        let phase3_start = Instant::now();
-        info!("Phase 3: Transaction submission");
-
-        let total_items = self
-            .submit_batches(
-                append_proofs,
-                nullify_proofs,
+        let tree_capacity = tree_state.capacity();
+        let final_root = self
+            .prepare_batches_streaming(
+                tree_state,
                 &pattern,
                 append_data.as_ref(),
                 nullify_data.as_ref(),
+                prep_tx,
             )
             .await?;
 
-        let phase3_duration = phase3_start.elapsed();
+        tree_state = TreeState::from_root_and_capacity(final_root, tree_capacity);
+
+        if loop_iteration.is_multiple_of(5) {
+            tree_state.shrink_to_fit();
+        }
+
+        {
+            let mut state = self.shared_state.write().await;
+            state.update_root(final_root);
+        }
+
+        let phase1_duration = phase1_start.elapsed();
+
+        let (total_items, phase3_duration) = self
+            .submit_proofs_streaming_inline(proof_rx, &pattern)
+            .await?;
+
+        let phase2_duration = proof_gen_handle.await??;
         let total_duration = iteration_start.elapsed();
 
         let metrics = IterationMetrics {
@@ -233,33 +325,34 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             append_batches: num_append_batches,
             nullify_batches: num_nullify_batches,
         };
-        
+
         {
             let mut state = self.shared_state.write().await;
             state.add_iteration_metrics(metrics);
         }
 
-        self.mark_batches_processed(append_batch_ids, nullify_batch_ids)
+        self.mark_batches_processed(append_batch_ids.clone(), nullify_batch_ids.clone())
             .await;
+
+        self.validate_root(final_root, "pipelined execution")
+            .await?;
+
+        self.cached_tree_state = Some((tree_state, append_batch_ids, nullify_batch_ids));
 
         Ok(total_items)
     }
 
-    /// Check how many batches are ready for processing.
-    async fn check_readiness(&self) -> Result<(usize, usize)> {
+    async fn check_readiness_with_accounts(
+        &self,
+        merkle_tree_account: &mut Account,
+        output_queue_account: Option<&Account>,
+    ) -> Result<(usize, usize)> {
         if let (Some(0), Some(0)) = (
             self.context.input_queue_hint,
             self.context.output_queue_hint,
         ) {
-            debug!("gRPC hints indicate both queues empty");
             return Ok((0, 0));
         }
-
-        let rpc = self.context.rpc_pool.get_connection().await?;
-        let mut merkle_tree_account = rpc
-            .get_account(self.context.merkle_tree)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
 
         let tree_data = BatchedMerkleTreeAccount::state_from_bytes(
             merkle_tree_account.data.as_mut_slice(),
@@ -272,11 +365,9 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let num_nullify_batches =
             Self::count_ready_batches(&tree_data.queue_batches.batches, processed_batches, false);
 
-        let num_append_batches = if let Ok(Some(mut queue_account)) =
-            rpc.get_account(self.context.output_queue).await
-        {
-            let queue_data =
-                BatchedQueueAccount::output_from_bytes(queue_account.data.as_mut_slice())?;
+        let num_append_batches = if let Some(queue_account) = output_queue_account {
+            let mut queue_account_data = queue_account.data.clone();
+            let queue_data = BatchedQueueAccount::output_from_bytes(&mut queue_account_data)?;
             Self::count_ready_batches(&queue_data.batch_metadata.batches, processed_batches, true)
         } else {
             0
@@ -286,7 +377,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         Ok((num_append_batches, num_nullify_batches))
     }
 
-    /// Count ready batches that haven't been processed yet.
     fn count_ready_batches(
         batches: &[light_batched_merkle_tree::batch::Batch; 2],
         processed_batches: &std::collections::HashSet<ProcessedBatchId>,
@@ -318,25 +408,13 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         total_ready
     }
 
-    /// Fetch queue data and construct tree state.
-    async fn fetch_queues(
+    async fn parse_onchain_accounts(
         &self,
         num_append_batches: usize,
         num_nullify_batches: usize,
-    ) -> Result<(
-        TreeState,
-        Option<AppendQueueData>,
-        Option<NullifyQueueData>,
-        Vec<ProcessedBatchId>,
-        Vec<ProcessedBatchId>,
-    )> {
-        let rpc = self.context.rpc_pool.get_connection().await?;
-
-        let mut merkle_tree_account = rpc
-            .get_account(self.context.merkle_tree)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
-
+        mut merkle_tree_account: Account,
+        output_queue_account: Option<Account>,
+    ) -> Result<ParsedOnchainState> {
         let merkle_tree_parsed = BatchedMerkleTreeAccount::state_from_bytes(
             merkle_tree_account.data.as_mut_slice(),
             &self.context.merkle_tree.into(),
@@ -348,12 +426,9 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             .copied()
             .ok_or_else(|| anyhow::anyhow!("No root in tree history"))?;
 
-        // Parse on-chain data
         let (append_metadata, nullify_metadata, append_batch_ids, nullify_batch_ids) =
             if num_append_batches > 0 {
-                let mut queue_account = rpc
-                    .get_account(self.context.output_queue)
-                    .await?
+                let mut queue_account = output_queue_account
                     .ok_or_else(|| anyhow::anyhow!("Output queue account not found"))?;
 
                 let output_queue_parsed =
@@ -380,54 +455,120 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 (None, Some(tree_data), vec![], nullify_ids)
             };
 
-        // Fetch indexed queue elements
-        let (output_queue_limit, input_queue_limit) =
-            Self::calculate_queue_limits(&append_metadata, &nullify_metadata, num_nullify_batches);
+        Ok(ParsedOnchainState {
+            current_onchain_root,
+            append_metadata,
+            nullify_metadata,
+            append_batch_ids,
+            nullify_batch_ids,
+        })
+    }
+
+    async fn fetch_indexed_queues(
+        &self,
+        parsed_state: &ParsedOnchainState,
+        num_nullify_batches: usize,
+    ) -> Result<light_client::indexer::QueueElementsV2Result> {
+        let (output_queue_limit, input_queue_limit) = Self::calculate_queue_limits(
+            &parsed_state.append_metadata,
+            &parsed_state.nullify_metadata,
+            num_nullify_batches,
+        );
 
         let mut connection = self.context.rpc_pool.get_connection().await?;
         let indexer = connection.indexer_mut()?;
 
+        let options = light_client::indexer::QueueElementsV2Options {
+            output_queue_start_index: None,
+            output_queue_limit,
+            input_queue_start_index: None,
+            input_queue_limit,
+            address_queue_start_index: None,
+            address_queue_limit: None,
+        };
+
         let queue_elements_response = indexer
-            .get_queue_elements_v2(
-                self.context.merkle_tree.to_bytes(),
-                None,
-                output_queue_limit,
-                None,
-                input_queue_limit,
-                None,
-                None,
-                None,
-            )
+            .get_queue_elements_v2(self.context.merkle_tree.to_bytes(), options, None)
             .await?;
 
         drop(connection);
 
-        // Validate and construct queue data
-        let (output_queue_v2, input_queue_v2) = Self::validate_queue_responses(
-            queue_elements_response.value,
-            current_onchain_root,
-            &append_metadata,
-            &nullify_metadata,
-        )?;
+        Ok(queue_elements_response.value)
+    }
 
+    fn construct_result(
+        &self,
+        parsed_state: ParsedOnchainState,
+        output_queue_v2: Option<light_client::indexer::OutputQueueDataV2>,
+        input_queue_v2: Option<light_client::indexer::InputQueueDataV2>,
+    ) -> Result<QueueFetchResult> {
         let tree_state =
             TreeState::from_v2_response(output_queue_v2.as_ref(), input_queue_v2.as_ref())?;
 
-        let append_data =
-            Self::build_append_data(output_queue_v2.as_ref(), &append_metadata, &self.context)?;
-        let nullify_data =
-            Self::build_nullify_data(input_queue_v2.as_ref(), &nullify_metadata, &self.context)?;
+        let append_data = Self::build_append_data(
+            output_queue_v2.as_ref(),
+            &parsed_state.append_metadata,
+            &self.context,
+        )?;
+        let nullify_data = Self::build_nullify_data(
+            input_queue_v2.as_ref(),
+            &parsed_state.nullify_metadata,
+            &self.context,
+        )?;
 
-        Ok((
+        Ok(QueueFetchResult {
             tree_state,
             append_data,
             nullify_data,
-            append_batch_ids,
-            nullify_batch_ids,
+            append_batch_ids: parsed_state.append_batch_ids,
+            nullify_batch_ids: parsed_state.nullify_batch_ids,
+        })
+    }
+
+    async fn fetch_queues_with_accounts(
+        &self,
+        num_append_batches: usize,
+        num_nullify_batches: usize,
+        merkle_tree_account: Account,
+        output_queue_account: Option<Account>,
+    ) -> Result<(
+        TreeState,
+        Option<AppendQueueData>,
+        Option<NullifyQueueData>,
+        Vec<ProcessedBatchId>,
+        Vec<ProcessedBatchId>,
+    )> {
+        let parsed_state = self
+            .parse_onchain_accounts(
+                num_append_batches,
+                num_nullify_batches,
+                merkle_tree_account,
+                output_queue_account,
+            )
+            .await?;
+
+        let indexed_queues = self
+            .fetch_indexed_queues(&parsed_state, num_nullify_batches)
+            .await?;
+
+        let (output_queue_v2, input_queue_v2) = Self::validate_queue_responses(
+            indexed_queues,
+            parsed_state.current_onchain_root,
+            &parsed_state.append_metadata,
+            &parsed_state.nullify_metadata,
+        )?;
+
+        let result = self.construct_result(parsed_state, output_queue_v2, input_queue_v2)?;
+
+        Ok((
+            result.tree_state,
+            result.append_data,
+            result.nullify_data,
+            result.append_batch_ids,
+            result.nullify_batch_ids,
         ))
     }
 
-    /// Calculate queue limits for indexer fetch.
     fn calculate_queue_limits(
         append_metadata: &Option<(ParsedMerkleTreeData, ParsedQueueData)>,
         nullify_metadata: &Option<ParsedMerkleTreeData>,
@@ -448,7 +589,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         (output_queue_limit, input_queue_limit)
     }
 
-    /// Validate queue responses from indexer.
     fn validate_queue_responses(
         response: light_client::indexer::QueueElementsV2Result,
         current_onchain_root: [u8; 32],
@@ -459,7 +599,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         Option<light_client::indexer::InputQueueDataV2>,
     )> {
         let output_queue = if let Some(ref metadata) = append_metadata {
-            // Output queue might not be available yet in event-driven scenarios
             if let Some(oq) = response.output_queue {
                 if oq.initial_root != current_onchain_root {
                     return Err(CoordinatorError::PhotonStale {
@@ -483,7 +622,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
                 Some(oq)
             } else {
-                // Output queue not available yet, will retry on next update
                 None
             }
         } else {
@@ -491,7 +629,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         };
 
         let input_queue = if nullify_metadata.is_some() {
-            // Input queue might not be available yet in event-driven scenarios
             if let Some(iq) = response.input_queue {
                 if iq.initial_root != current_onchain_root {
                     return Err(CoordinatorError::PhotonStale {
@@ -515,7 +652,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
                 Some(iq)
             } else {
-                // Input queue not available yet, will retry on next update
                 None
             }
         } else {
@@ -525,7 +661,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         Ok((output_queue, input_queue))
     }
 
-    /// Build append queue data from response.
     fn build_append_data(
         output_queue: Option<&light_client::indexer::OutputQueueDataV2>,
         metadata: &Option<(ParsedMerkleTreeData, ParsedQueueData)>,
@@ -563,7 +698,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         }
     }
 
-    /// Build nullify queue data from response.
     fn build_nullify_data(
         input_queue: Option<&light_client::indexer::InputQueueDataV2>,
         metadata: &Option<ParsedMerkleTreeData>,
@@ -605,14 +739,14 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         }
     }
 
-    /// Prepare all batches according to the interleaving pattern.
-    async fn prepare_batches(
+    async fn prepare_batches_streaming(
         &self,
         tree_state: TreeState,
         pattern: &[BatchType],
         append_data: Option<&AppendQueueData>,
         nullify_data: Option<&NullifyQueueData>,
-    ) -> Result<Vec<PreparedBatch>> {
+        tx: tokio::sync::mpsc::Sender<(usize, PreparedBatch)>,
+    ) -> Result<[u8; 32]> {
         let append_leaf_indices: Vec<u64> = if let Some(data) = append_data {
             data.queue_elements
                 .iter()
@@ -623,16 +757,15 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         };
 
         let mut state = PreparationState::new(tree_state, append_leaf_indices);
-        let mut prepared_batches = Vec::new();
+        let mut prepared_batches = Vec::with_capacity(pattern.len());
 
         for (i, batch_type) in pattern.iter().enumerate() {
-            match batch_type {
+            let prepared_batch = match batch_type {
                 BatchType::Append => {
                     let append_data =
                         append_data.ok_or_else(|| anyhow::anyhow!("Append data not available"))?;
                     let circuit_inputs =
                         batch_preparation::prepare_append_batch(append_data, &mut state)?;
-                    prepared_batches.push(PreparedBatch::Append(circuit_inputs));
 
                     if i < 3 {
                         debug!(
@@ -642,13 +775,14 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                             &state.current_root[..8]
                         );
                     }
+
+                    PreparedBatch::Append(circuit_inputs)
                 }
                 BatchType::Nullify => {
                     let nullify_data = nullify_data
                         .ok_or_else(|| anyhow::anyhow!("Nullify data not available"))?;
                     let circuit_inputs =
                         batch_preparation::prepare_nullify_batch(nullify_data, &mut state)?;
-                    prepared_batches.push(PreparedBatch::Nullify(circuit_inputs));
 
                     if i < 3 {
                         debug!(
@@ -658,88 +792,271 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                             &state.current_root[..8]
                         );
                     }
+
+                    PreparedBatch::Nullify(circuit_inputs)
+                }
+            };
+
+            prepared_batches.push((i, prepared_batch));
+        }
+
+        for (i, prepared_batch) in prepared_batches {
+            tx.send((i, prepared_batch))
+                .await
+                .map_err(|e| anyhow::anyhow!("Failed to send prepared batch: {}", e))?;
+        }
+
+        Ok(state.current_root)
+    }
+
+    async fn generate_proofs_streaming(
+        mut prep_rx: tokio::sync::mpsc::Receiver<(usize, PreparedBatch)>,
+        proof_tx: tokio::sync::mpsc::Sender<(usize, PreparedBatch, Result<ProofResult>)>,
+        config: ProofConfig,
+    ) -> Result<Duration> {
+        use light_prover_client::proof_types::{
+            batch_append::BatchAppendInputsJson, batch_update::update_inputs_string,
+        };
+
+        let append_client = Arc::new(ProofClient::with_config(
+            config.append_url.clone(),
+            config.polling_interval,
+            config.max_wait_time,
+            config.api_key.clone(),
+        ));
+
+        let nullify_client = Arc::new(ProofClient::with_config(
+            config.update_url.clone(),
+            config.polling_interval,
+            config.max_wait_time,
+            config.api_key.clone(),
+        ));
+
+        let mut poll_handles = Vec::new();
+        let proof_gen_start = Instant::now();
+        let mut job_count = 0;
+
+        while let Some((idx, prepared_batch)) = prep_rx.recv().await {
+            let proof_tx_clone = proof_tx.clone();
+
+            match &prepared_batch {
+                PreparedBatch::Append(circuit_inputs) => {
+                    debug!("Submitting append proof request for batch {}", idx);
+                    let inputs_json =
+                        BatchAppendInputsJson::from_inputs(circuit_inputs).to_string();
+                    match append_client
+                        .submit_proof_async(inputs_json, "append")
+                        .await
+                    {
+                        Ok(job_id) => {
+                            info!("Batch {} (append) submitted with job_id: {}", idx, job_id);
+                            job_count += 1;
+
+                            let client = append_client.clone();
+                            let circuit_inputs = circuit_inputs.clone();
+                            let handle = tokio::spawn(async move {
+                                debug!(
+                                    "Polling for append proof completion: batch {}, job {}",
+                                    idx, job_id
+                                );
+                                let result = client.poll_proof_completion(job_id).await;
+                                debug!("Append proof polling complete for batch {}", idx);
+
+                                let proof_result = result
+                                    .map(|proof| {
+                                        let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(
+                                            &circuit_inputs.new_root.to_biguint().unwrap(),
+                                        ).expect("Failed to convert new_root");
+
+                                        ProofResult::Append(InstructionDataBatchAppendInputs {
+                                            new_root,
+                                            compressed_proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof {
+                                                a: proof.a,
+                                                b: proof.b,
+                                                c: proof.c,
+                                            },
+                                        })
+                                    })
+                                    .map_err(|e| anyhow::anyhow!("{}", e));
+
+                                let _ = proof_tx_clone
+                                    .send((
+                                        idx,
+                                        PreparedBatch::Append(circuit_inputs),
+                                        proof_result,
+                                    ))
+                                    .await;
+                            });
+                            poll_handles.push(handle);
+                        }
+                        Err(e) => {
+                            error!("Failed to submit batch {} (append): {}", idx, e);
+                            let _ = proof_tx_clone
+                                .send((idx, prepared_batch, Err(anyhow::anyhow!("{}", e))))
+                                .await;
+                        }
+                    }
+                }
+                PreparedBatch::Nullify(circuit_inputs) => {
+                    debug!("Submitting nullify proof request for batch {}", idx);
+                    let inputs_json = update_inputs_string(circuit_inputs);
+                    match nullify_client
+                        .submit_proof_async(inputs_json, "update")
+                        .await
+                    {
+                        Ok(job_id) => {
+                            info!("Batch {} (nullify) submitted with job_id: {}", idx, job_id);
+                            job_count += 1;
+
+                            let client = nullify_client.clone();
+                            let circuit_inputs = circuit_inputs.clone();
+                            let handle = tokio::spawn(async move {
+                                debug!(
+                                    "Polling for nullify proof completion: batch {}, job {}",
+                                    idx, job_id
+                                );
+                                let result = client.poll_proof_completion(job_id).await;
+                                debug!("Nullify proof polling complete for batch {}", idx);
+
+                                let proof_result = result
+                                    .map(|proof| {
+                                        let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(
+                                            &circuit_inputs.new_root.to_biguint().unwrap(),
+                                        ).expect("Failed to convert new_root");
+
+                                        ProofResult::Nullify(InstructionDataBatchNullifyInputs {
+                                            new_root,
+                                            compressed_proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof {
+                                                a: proof.a,
+                                                b: proof.b,
+                                                c: proof.c,
+                                            },
+                                        })
+                                    })
+                                    .map_err(|e| anyhow::anyhow!("{}", e));
+
+                                let _ = proof_tx_clone
+                                    .send((
+                                        idx,
+                                        PreparedBatch::Nullify(circuit_inputs),
+                                        proof_result,
+                                    ))
+                                    .await;
+                            });
+                            poll_handles.push(handle);
+                        }
+                        Err(e) => {
+                            error!("Failed to submit batch {} (nullify): {}", idx, e);
+                            let _ = proof_tx_clone
+                                .send((idx, prepared_batch, Err(anyhow::anyhow!("{}", e))))
+                                .await;
+                        }
+                    }
                 }
             }
         }
 
-        // Update shared state with computed root
-        {
-            let mut shared = self.shared_state.write().await;
-            shared.update_root(state.current_root);
+        info!(
+            "All {} proof requests submitted and polling started",
+            job_count
+        );
+
+        for handle in poll_handles {
+            handle
+                .await
+                .map_err(|e| anyhow::anyhow!("Proof polling task join error: {}", e))?;
         }
 
-        Ok(prepared_batches)
+        let proof_gen_duration = proof_gen_start.elapsed();
+
+        info!(
+            "Phase 2 complete: All proofs received in {:?}",
+            proof_gen_duration
+        );
+
+        Ok(proof_gen_duration)
     }
 
-    /// Split prepared batches into separate append and nullify collections.
-    fn split_prepared_batches(
-        batches: Vec<PreparedBatch>,
-    ) -> (
-        Vec<light_prover_client::proof_types::batch_append::BatchAppendsCircuitInputs>,
-        Vec<light_prover_client::proof_types::batch_update::BatchUpdateCircuitInputs>,
-    ) {
-        let mut append_inputs = Vec::new();
-        let mut nullify_inputs = Vec::new();
-
-        for batch in batches {
-            match batch {
-                PreparedBatch::Append(inputs) => append_inputs.push(inputs),
-                PreparedBatch::Nullify(inputs) => nullify_inputs.push(inputs),
-            }
-        }
-
-        (append_inputs, nullify_inputs)
-    }
-
-    /// Submit batches to blockchain.
-    async fn submit_batches(
+    async fn submit_proofs_streaming_inline(
         &self,
-        append_proofs: Vec<
-            light_batched_merkle_tree::merkle_tree::InstructionDataBatchAppendInputs,
-        >,
-        nullify_proofs: Vec<
-            light_batched_merkle_tree::merkle_tree::InstructionDataBatchNullifyInputs,
-        >,
+        mut proof_rx: tokio::sync::mpsc::Receiver<(usize, PreparedBatch, Result<ProofResult>)>,
         pattern: &[BatchType],
-        append_data: Option<&AppendQueueData>,
-        nullify_data: Option<&NullifyQueueData>,
-    ) -> Result<usize> {
-        let total_items = if !append_proofs.is_empty() && !nullify_proofs.is_empty() {
-            // Interleaved submission
-            batch_submission::submit_interleaved_batches(
-                &self.context,
-                append_proofs,
-                nullify_proofs,
-                pattern,
-            )
-            .await?
-        } else {
-            let mut total = 0;
-            if !append_proofs.is_empty() {
-                let zkp_batch_size = append_data.map(|d| d.zkp_batch_size).unwrap_or(10);
-                total += batch_submission::submit_append_batches(
-                    &self.context,
-                    append_proofs,
-                    zkp_batch_size,
-                )
-                .await?;
-            }
-            if !nullify_proofs.is_empty() {
-                let zkp_batch_size = nullify_data.map(|d| d.zkp_batch_size).unwrap_or(10);
-                total += batch_submission::submit_nullify_batches(
-                    &self.context,
-                    nullify_proofs,
-                    zkp_batch_size,
-                )
-                .await?;
-            }
-            total
-        };
+    ) -> Result<(usize, Duration)> {
+        use std::collections::BTreeMap;
 
-        Ok(total_items)
+        const MAX_BATCH_SIZE: usize = 4;
+
+        let mut buffer: BTreeMap<usize, Result<ProofResult>> = BTreeMap::new();
+        let mut next_to_submit = 0;
+        let mut total_items = 0;
+        let mut total_submit_duration = Duration::ZERO;
+        let mut ready_append_proofs = Vec::new();
+        let mut ready_nullify_proofs = Vec::new();
+        let mut ready_pattern = Vec::new();
+
+        while let Some((idx, _batch, proof_result)) = proof_rx.recv().await {
+            buffer.insert(idx, proof_result);
+
+            while let Some(proof_result) = buffer.remove(&next_to_submit) {
+                let proof = proof_result.map_err(|e| {
+                    anyhow::anyhow!(
+                        "Proof generation failed for batch {}: {}",
+                        next_to_submit,
+                        e
+                    )
+                })?;
+
+                let batch_type = pattern[next_to_submit];
+                ready_pattern.push(batch_type);
+
+                match proof {
+                    ProofResult::Append(append_proof) => {
+                        ready_append_proofs.push(append_proof);
+                    }
+                    ProofResult::Nullify(nullify_proof) => {
+                        ready_nullify_proofs.push(nullify_proof);
+                    }
+                }
+
+                next_to_submit += 1;
+
+                if ready_pattern.len() >= MAX_BATCH_SIZE {
+                    let submit_start = Instant::now();
+                    total_items += batch_submission::submit_interleaved_batches(
+                        &self.context,
+                        std::mem::take(&mut ready_append_proofs),
+                        std::mem::take(&mut ready_nullify_proofs),
+                        &std::mem::take(&mut ready_pattern),
+                    )
+                    .await?;
+                    total_submit_duration += submit_start.elapsed();
+                }
+            }
+        }
+
+        if !ready_pattern.is_empty() {
+            let submit_start = Instant::now();
+            total_items += batch_submission::submit_interleaved_batches(
+                &self.context,
+                ready_append_proofs,
+                ready_nullify_proofs,
+                &ready_pattern,
+            )
+            .await?;
+            total_submit_duration += submit_start.elapsed();
+        }
+
+        if !buffer.is_empty() {
+            anyhow::bail!("Pipeline ended with {} unsubmitted batches", buffer.len());
+        }
+
+        info!(
+            "Phase 3 actual submission time: {:?}",
+            total_submit_duration
+        );
+        Ok((total_items, total_submit_duration))
     }
 
-    /// Create interleaving pattern for batch operations.
     fn create_interleaving_pattern(num_appends: usize, num_nullifies: usize) -> Vec<BatchType> {
         let mut pattern = Vec::new();
 
@@ -754,7 +1071,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         pattern
     }
 
-    /// Validate that on-chain root matches expected root.
     async fn validate_root(&self, expected_root: [u8; 32], phase: &str) -> Result<()> {
         let current_root = self.get_current_onchain_root().await?;
         if current_root != expected_root {
@@ -780,7 +1096,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         Ok(())
     }
 
-    /// Mark batches as successfully processed.
     async fn mark_batches_processed(
         &self,
         append_batch_ids: Vec<ProcessedBatchId>,
@@ -797,16 +1112,13 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         }
     }
 
-    /// Sync state with on-chain data.
-    async fn sync_with_chain(&mut self) -> Result<()> {
-        let rpc = self.context.rpc_pool.get_connection().await?;
-        let mut account = rpc
-            .get_account(self.context.merkle_tree)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
-
+    async fn sync_with_chain_with_accounts(
+        &mut self,
+        merkle_tree_account: &mut Account,
+        output_queue_account: Option<&Account>,
+    ) -> Result<()> {
         let tree_data = BatchedMerkleTreeAccount::state_from_bytes(
-            account.data.as_mut_slice(),
+            merkle_tree_account.data.as_mut_slice(),
             &self.context.merkle_tree.into(),
         )?;
 
@@ -816,14 +1128,13 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             .copied()
             .ok_or_else(|| anyhow::anyhow!("No root in tree history"))?;
 
-        let output_queue_batches =
-            if let Ok(Some(mut queue_account)) = rpc.get_account(self.context.output_queue).await {
-                let queue_data =
-                    BatchedQueueAccount::output_from_bytes(queue_account.data.as_mut_slice())?;
-                queue_data.batch_metadata.batches
-            } else {
-                [light_batched_merkle_tree::batch::Batch::default(); 2]
-            };
+        let output_queue_batches = if let Some(queue_account) = output_queue_account {
+            let mut queue_account_data = queue_account.data.clone();
+            let queue_data = BatchedQueueAccount::output_from_bytes(&mut queue_account_data)?;
+            queue_data.batch_metadata.batches
+        } else {
+            [light_batched_merkle_tree::batch::Batch::default(); 2]
+        };
 
         let mut state = self.shared_state.write().await;
         info!("Syncing: on-chain root = {:?}", &on_chain_root[..8]);
@@ -837,7 +1148,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         Ok(())
     }
 
-    /// Get current on-chain root.
     async fn get_current_onchain_root(&self) -> Result<[u8; 32]> {
         let rpc = self.context.rpc_pool.get_connection().await?;
         let mut account = rpc
@@ -857,7 +1167,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             .ok_or_else(|| anyhow::anyhow!("No root in tree history"))
     }
 
-    /// Parse tree and queue data from on-chain accounts (helper method).
     async fn parse_tree_and_queue_data(
         &self,
         merkle_tree: &BatchedMerkleTreeAccount<'_>,
@@ -963,7 +1272,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         Ok((tree_data, queue_data, nullify_batch_ids, append_batch_ids))
     }
 
-    /// Parse tree data only (helper method).
     async fn parse_tree_data(
         &self,
         merkle_tree: &BatchedMerkleTreeAccount<'_>,
@@ -1026,7 +1334,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     }
 }
 
-/// Clean up old epoch states and merge metrics into current epoch.
 async fn cleanup_old_epochs(tree: Pubkey, current_epoch: u64) {
     let mut states = PERSISTENT_TREE_STATES.lock().await;
 

@@ -1,3 +1,3 @@
 mod router;
 
-pub use router::{QueueUpdateMessage, QueueEventRouter};
+pub use router::{QueueEventRouter, QueueUpdateMessage};

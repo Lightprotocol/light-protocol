@@ -76,3 +76,11 @@ dotenvy = "0.15"
 light-compressed-token = { workspace = true }
 rand = { workspace = true }
 create-address-test-program = { workspace = true }
+
+[profile.bench]
+debug = true
+
+[[bench]]
+name = "batch_preparation_bench"
+harness = true
+

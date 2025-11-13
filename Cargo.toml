@@ -249,3 +249,4 @@ solana-program-runtime = { git = "https://github.com/Lightprotocol/agave", rev =
 solana-bpf-loader-program = { git = "https://github.com/Lightprotocol/agave", rev = "3a9e4e0a4411df4d9961aaa7c9f190d3fa15bc21" }
 # Patch solana-program-memory to use older version where is_nonoverlapping is public
 solana-program-memory = { git = "https://github.com/anza-xyz/solana-sdk", rev = "1c1d667f161666f12f5a43ebef8eda9470a8c6ee" }
+

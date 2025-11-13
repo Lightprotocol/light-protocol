@@ -1,11 +1,12 @@
+use ahash::AHashMap;
 use light_hasher::{hash_chain::create_hash_chain_from_array, Hasher, Poseidon};
 use light_sparse_merkle_tree::changelog::ChangelogEntry;
 use num_bigint::{BigInt, Sign};
 
-use crate::{
-    errors::ProverClientError,
-    helpers::bigint_to_u8_32,
-};
+use crate::{errors::ProverClientError, helpers::bigint_to_u8_32};
+
+/// Cache type for Merkle root computations
+type MerkleRootCache = AHashMap<(usize, u32, [u8; 32], [u8; 32]), [u8; 32]>;
 
 #[derive(Clone, Debug)]
 pub struct BatchUpdateCircuitInputs {
@@ -50,17 +51,15 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
     batch_size: u32,
     previous_changelogs: &[ChangelogEntry<HEIGHT>],
 ) -> Result<(BatchUpdateCircuitInputs, Vec<ChangelogEntry<HEIGHT>>), ProverClientError> {
-    use std::collections::HashMap;
-
     let mut new_root = [0u8; 32];
     let old_root = current_root;
-    let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
-    let mut circuit_merkle_proofs = vec![];
+    let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::with_capacity(leaves.len());
+    let mut circuit_merkle_proofs = Vec::with_capacity(leaves.len());
     let mut adjusted_path_indices = Vec::with_capacity(leaves.len());
 
     // Create cache for parent node computations across all leaves in this batch
-    let mut root_computation_cache: HashMap<(usize, u32, [u8; 32], [u8; 32]), [u8; 32]> =
-        HashMap::new();
+    let estimated_capacity = (batch_size as usize * HEIGHT) / 2;
+    let mut root_computation_cache: MerkleRootCache = AHashMap::with_capacity(estimated_capacity);
 
     for (i, (leaf, (mut merkle_proof, index))) in leaves
         .iter()
@@ -69,7 +68,7 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
     {
         adjusted_path_indices.push(*index);
 
-        for (_, entry) in previous_changelogs.iter().enumerate() {
+        for entry in previous_changelogs.iter() {
             if entry.index() == *index as usize {
                 continue;
             }
@@ -101,7 +100,10 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
             }
         }
 
-        let merkle_proof_array = merkle_proof.try_into().unwrap();
+        let merkle_proof_array: [[u8; 32]; HEIGHT] =
+            merkle_proof.as_slice().try_into().map_err(|_| {
+                ProverClientError::GenericError("Invalid merkle proof length".to_string())
+            })?;
 
         // Use the adjusted index bytes for computing the nullifier.
         let index_bytes = (*index).to_be_bytes();

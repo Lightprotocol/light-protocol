@@ -3956,6 +3956,7 @@ dependencies = [
 name = "light-prover-client"
 version = "4.0.0"
 dependencies = [
+ "ahash",
  "ark-bn254 0.5.0",
  "ark-serialize 0.5.0",
  "ark-std 0.5.0",

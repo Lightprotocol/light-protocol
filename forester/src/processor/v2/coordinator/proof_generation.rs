@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 /// Proof generation logic for batched operations.
 use anyhow::Result;
 use light_batched_merkle_tree::merkle_tree::{
@@ -9,7 +11,6 @@ use light_prover_client::{
         batch_append::BatchAppendsCircuitInputs, batch_update::BatchUpdateCircuitInputs,
     },
 };
-use std::sync::Arc;
 use tracing::{debug, info};
 
 /// Configuration for proof generation.

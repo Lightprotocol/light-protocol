@@ -1,9 +1,8 @@
-use crate::{error::ForesterUtilsError, ParsedMerkleTreeData, ParsedQueueData};
 use light_batched_merkle_tree::{
-    batch::BatchState,
-    merkle_tree::BatchedMerkleTreeAccount,
-    queue::BatchedQueueAccount,
+    batch::BatchState, merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
+
+use crate::{error::ForesterUtilsError, ParsedMerkleTreeData, ParsedQueueData};
 
 type Result<T> = std::result::Result<T, ForesterUtilsError>;
 
@@ -24,8 +23,7 @@ pub fn parse_merkle_tree_batch(
 
     let mut leaves_hash_chains = Vec::new();
     for i in num_inserted_zkps..current_zkp_batch_index {
-        leaves_hash_chains
-            .push(merkle_tree.hash_chain_stores[batch_index as usize][i as usize]);
+        leaves_hash_chains.push(merkle_tree.hash_chain_stores[batch_index as usize][i as usize]);
     }
 
     let parsed_data = ParsedMerkleTreeData {
@@ -40,8 +38,8 @@ pub fn parse_merkle_tree_batch(
         leaves_hash_chains,
     };
 
-    let is_ready = batch.get_state() != BatchState::Inserted
-        && current_zkp_batch_index > num_inserted_zkps;
+    let is_ready =
+        batch.get_state() != BatchState::Inserted && current_zkp_batch_index > num_inserted_zkps;
 
     Ok((parsed_data, is_ready))
 }
@@ -61,8 +59,7 @@ pub fn parse_output_queue_batch(
 
     let mut leaves_hash_chains = Vec::new();
     for i in num_inserted_zkps..current_zkp_batch_index {
-        leaves_hash_chains
-            .push(output_queue.hash_chain_stores[batch_index as usize][i as usize]);
+        leaves_hash_chains.push(output_queue.hash_chain_stores[batch_index as usize][i as usize]);
     }
 
     let parsed_data = ParsedQueueData {
@@ -73,8 +70,8 @@ pub fn parse_output_queue_batch(
         leaves_hash_chains,
     };
 
-    let is_ready = batch.get_state() != BatchState::Inserted
-        && current_zkp_batch_index > num_inserted_zkps;
+    let is_ready =
+        batch.get_state() != BatchState::Inserted && current_zkp_batch_index > num_inserted_zkps;
 
     Ok((parsed_data, is_ready))
 }

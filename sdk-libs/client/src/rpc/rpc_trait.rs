@@ -103,6 +103,12 @@ pub trait Rpc: Send + Sync + Debug + 'static {
     /// Returns an account struct.
     async fn get_account(&self, address: Pubkey) -> Result<Option<Account>, RpcError>;
 
+    /// Returns multiple account structs in a single RPC call.
+    async fn get_multiple_accounts(
+        &self,
+        addresses: &[Pubkey],
+    ) -> Result<Vec<Option<Account>>, RpcError>;
+
     /// Returns an a borsh deserialized account.
     /// Deserialization skips the discriminator.
     async fn get_anchor_account<T: BorshDeserialize>(

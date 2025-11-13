@@ -14,19 +14,28 @@ pub struct GetQueueElementsV2PostRequestParams {
     #[serde(rename = "tree")]
     pub tree: String,
     /// Starting index for the output queue
-    #[serde(rename = "outputQueueStartIndex", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "outputQueueStartIndex",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub output_queue_start_index: Option<u64>,
     /// Limit for the output queue elements
     #[serde(rename = "outputQueueLimit", skip_serializing_if = "Option::is_none")]
     pub output_queue_limit: Option<u16>,
     /// Starting index for the input queue
-    #[serde(rename = "inputQueueStartIndex", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "inputQueueStartIndex",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub input_queue_start_index: Option<u64>,
     /// Limit for the input queue elements
     #[serde(rename = "inputQueueLimit", skip_serializing_if = "Option::is_none")]
     pub input_queue_limit: Option<u16>,
     /// Starting index for the address queue
-    #[serde(rename = "addressQueueStartIndex", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "addressQueueStartIndex",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub address_queue_start_index: Option<u64>,
     /// Limit for the address queue elements
     #[serde(rename = "addressQueueLimit", skip_serializing_if = "Option::is_none")]

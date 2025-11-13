@@ -28,6 +28,7 @@ num-traits = { workspace = true }
 reqwest = { version = "0.11.24", features = ["json", "rustls-tls"] }
 solana-bn254 = { workspace = true }
 tokio = { workspace = true }
+ahash = "0.8"
 
 [dev-dependencies]
 serial_test = { workspace = true }
