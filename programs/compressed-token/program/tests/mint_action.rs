@@ -10,9 +10,9 @@ use light_ctoken_types::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
         mint_action::{
             Action, CompressedMintInstructionData, CpiContext, CreateMint, CreateSplMintAction,
-            DecompressedRecipient, MintActionCompressedInstructionData, MintToCTokenAction,
-            MintToCompressedAction, Recipient, RemoveMetadataKeyAction, UpdateAuthority,
-            UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
+            MintActionCompressedInstructionData, MintToCTokenAction, MintToCompressedAction,
+            Recipient, RemoveMetadataKeyAction, UpdateAuthority, UpdateMetadataAuthorityAction,
+            UpdateMetadataFieldAction,
         },
     },
     state::CompressedMintMetadata,
@@ -72,10 +72,8 @@ fn random_mint_to_action(rng: &mut StdRng) -> MintToCompressedAction {
 
 fn random_mint_to_decompressed_action(rng: &mut StdRng) -> MintToCTokenAction {
     MintToCTokenAction {
-        recipient: DecompressedRecipient {
-            amount: rng.gen_range(1..=1_000_000),
-            account_index: rng.gen_range(1..=255),
-        },
+        amount: rng.gen_range(1..=1_000_000),
+        account_index: rng.gen_range(1..=255),
     }
 }
 

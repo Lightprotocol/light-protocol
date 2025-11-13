@@ -28,7 +28,7 @@ pub fn process_mint_to_ctoken_action(
         "mint authority",
     )?;
 
-    let amount = u64::from(action.recipient.amount);
+    let amount = u64::from(action.amount);
     compressed_mint.base.supply = compressed_mint
         .base
         .supply
@@ -44,7 +44,7 @@ pub fn process_mint_to_ctoken_action(
 
     // Get the recipient token account from packed accounts using the index
     let token_account_info =
-        packed_accounts.get_u8(action.recipient.account_index, "ctoken mint to recipient")?;
+        packed_accounts.get_u8(action.account_index, "ctoken mint to recipient")?;
 
     // Authority check now performed above - safe to proceed with decompression
     // Use the mint_ctokens constructor for simple decompression operations
@@ -59,7 +59,7 @@ pub fn process_mint_to_ctoken_action(
     let transfer_amount = compress_or_decompress_ctokens(inputs)?;
 
     // Return account index and amount if there's a transfer needed
-    Ok(transfer_amount.map(|amount| (action.recipient.account_index, amount)))
+    Ok(transfer_amount.map(|amount| (action.account_index, amount)))
 }
 
 #[profile]

@@ -161,7 +161,7 @@ pub fn process_actions<'a>(
         let fee_payer = validated_accounts
             .executing
             .as_ref()
-            .and_then(|exec| Some(exec.system.fee_payer))
+            .map(|exec| exec.system.fee_payer)
             .ok_or_else(|| {
                 msg!("Fee payer required for compressible token account top-ups");
                 ProgramError::NotEnoughAccountKeys
