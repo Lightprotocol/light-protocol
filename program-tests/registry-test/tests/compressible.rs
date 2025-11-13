@@ -320,7 +320,8 @@ async fn pause_compressible_config<R: Rpc>(
         fee_payer: payer.pubkey(),
         update_authority: update_authority.pubkey(),
         compressible_config,
-        system_program: solana_sdk::system_program::id(),
+        new_update_authority: None,
+        new_withdrawal_authority: None,
     };
 
     let instruction = Instruction {
@@ -354,7 +355,8 @@ async fn unpause_compressible_config<R: Rpc>(
         fee_payer: payer.pubkey(),
         update_authority: update_authority.pubkey(),
         compressible_config,
-        system_program: solana_sdk::system_program::id(),
+        new_update_authority: None,
+        new_withdrawal_authority: None,
     };
 
     let instruction = Instruction {
@@ -388,7 +390,8 @@ async fn deprecate_compressible_config<R: Rpc>(
         fee_payer: payer.pubkey(),
         update_authority: update_authority.pubkey(),
         compressible_config,
-        system_program: solana_sdk::system_program::id(),
+        new_update_authority: None,
+        new_withdrawal_authority: None,
     };
 
     let instruction = Instruction {
@@ -402,6 +405,51 @@ async fn deprecate_compressible_config<R: Rpc>(
         &[instruction],
         Some(&payer.pubkey()),
         &[payer, update_authority],
+        blockhash,
+    );
+
+    rpc.process_transaction(transaction).await
+}
+
+/// Helper function to update compressible config authorities
+async fn update_compressible_config_authorities<R: Rpc>(
+    rpc: &mut R,
+    update_authority: &Keypair,
+    new_update_authority: Option<&Keypair>,
+    new_withdrawal_authority: Option<&Keypair>,
+    payer: &Keypair,
+) -> Result<Signature, RpcError> {
+    let compressible_config = CompressibleConfig::ctoken_v1_config_pda();
+
+    let accounts = UpdateCompressibleConfigAccounts {
+        fee_payer: payer.pubkey(),
+        update_authority: update_authority.pubkey(),
+        compressible_config,
+        new_update_authority: new_update_authority.map(|k| k.pubkey()),
+        new_withdrawal_authority: new_withdrawal_authority.map(|k| k.pubkey()),
+    };
+
+    let instruction = Instruction {
+        program_id: light_registry::ID,
+        accounts: accounts.to_account_metas(Some(true)),
+        data: light_registry::instruction::UpdateCompressibleConfig {}.data(),
+    };
+
+    let (blockhash, _) = rpc.get_latest_blockhash().await.unwrap();
+
+    // Collect signers
+    let mut signers: Vec<&Keypair> = vec![payer, update_authority];
+    if let Some(new_auth) = new_update_authority {
+        signers.push(new_auth);
+    }
+    if let Some(new_auth) = new_withdrawal_authority {
+        signers.push(new_auth);
+    }
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &signers,
         blockhash,
     );
 
@@ -797,6 +845,217 @@ async fn test_deprecate_compressible_config_with_invalid_authority() -> Result<(
         .expect("Failed to deserialize CompressibleConfig");
 
     assert_eq!(config.state, 1, "Config state should still be active (1)");
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_update_compressible_config_update_authority() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Create new update authority
+    let new_update_authority = Keypair::new();
+    airdrop_lamports(&mut rpc, &new_update_authority.pubkey(), 1_000_000)
+        .await
+        .unwrap();
+
+    // Update the update_authority
+    update_compressible_config_authorities(
+        &mut rpc,
+        &payer, // current update_authority
+        Some(&new_update_authority),
+        None,
+        &payer,
+    )
+    .await
+    .unwrap();
+
+    // Verify the update_authority was updated
+    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let account_data = rpc
+        .get_account(compressible_config_pda)
+        .await?
+        .expect("CompressibleConfig account should exist");
+
+    let config = CompressibleConfig::try_from_slice(&account_data.data[8..])
+        .expect("Failed to deserialize CompressibleConfig");
+
+    assert_eq!(
+        config.update_authority,
+        new_update_authority.pubkey(),
+        "Update authority should be updated"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_update_compressible_config_withdrawal_authority() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Store original withdrawal authority
+    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let account_data_before = rpc
+        .get_account(compressible_config_pda)
+        .await?
+        .expect("CompressibleConfig account should exist");
+    let config_before = CompressibleConfig::try_from_slice(&account_data_before.data[8..])
+        .expect("Failed to deserialize CompressibleConfig");
+    let original_withdrawal_authority = config_before.withdrawal_authority;
+
+    // Create new withdrawal authority
+    let new_withdrawal_authority = Keypair::new();
+    airdrop_lamports(&mut rpc, &new_withdrawal_authority.pubkey(), 1_000_000)
+        .await
+        .unwrap();
+
+    // Update the withdrawal_authority
+    update_compressible_config_authorities(
+        &mut rpc,
+        &payer, // current update_authority
+        None,
+        Some(&new_withdrawal_authority),
+        &payer,
+    )
+    .await
+    .unwrap();
+
+    // Verify the withdrawal_authority was updated
+    let account_data = rpc
+        .get_account(compressible_config_pda)
+        .await?
+        .expect("CompressibleConfig account should exist");
+
+    let config = CompressibleConfig::try_from_slice(&account_data.data[8..])
+        .expect("Failed to deserialize CompressibleConfig");
+
+    assert_eq!(
+        config.withdrawal_authority,
+        new_withdrawal_authority.pubkey(),
+        "Withdrawal authority should be updated"
+    );
+    assert_eq!(
+        config.update_authority,
+        payer.pubkey(),
+        "Update authority should remain unchanged"
+    );
+    assert_ne!(
+        config.withdrawal_authority, original_withdrawal_authority,
+        "Withdrawal authority should be different from original"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_update_compressible_config_both_authorities() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Create new authorities
+    let new_update_authority = Keypair::new();
+    let new_withdrawal_authority = Keypair::new();
+    airdrop_lamports(&mut rpc, &new_update_authority.pubkey(), 1_000_000)
+        .await
+        .unwrap();
+    airdrop_lamports(&mut rpc, &new_withdrawal_authority.pubkey(), 1_000_000)
+        .await
+        .unwrap();
+
+    // Update both authorities
+    update_compressible_config_authorities(
+        &mut rpc,
+        &payer, // current update_authority
+        Some(&new_update_authority),
+        Some(&new_withdrawal_authority),
+        &payer,
+    )
+    .await
+    .unwrap();
+
+    // Verify both authorities were updated
+    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let account_data = rpc
+        .get_account(compressible_config_pda)
+        .await?
+        .expect("CompressibleConfig account should exist");
+
+    let config = CompressibleConfig::try_from_slice(&account_data.data[8..])
+        .expect("Failed to deserialize CompressibleConfig");
+
+    assert_eq!(
+        config.update_authority,
+        new_update_authority.pubkey(),
+        "Update authority should be updated"
+    );
+    assert_eq!(
+        config.withdrawal_authority,
+        new_withdrawal_authority.pubkey(),
+        "Withdrawal authority should be updated"
+    );
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_update_compressible_config_invalid_authority() -> Result<(), RpcError> {
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+
+    // Create wrong authority keypair
+    let wrong_authority = Keypair::new();
+    airdrop_lamports(&mut rpc, &wrong_authority.pubkey(), 1_000_000)
+        .await
+        .unwrap();
+
+    // Create new update authority
+    let new_update_authority = Keypair::new();
+    airdrop_lamports(&mut rpc, &new_update_authority.pubkey(), 1_000_000)
+        .await
+        .unwrap();
+
+    // Try to update with wrong authority
+    let result = update_compressible_config_authorities(
+        &mut rpc,
+        &wrong_authority, // wrong update_authority
+        Some(&new_update_authority),
+        None,
+        &payer,
+    )
+    .await;
+
+    assert_rpc_error(
+        result,
+        0,
+        anchor_lang::prelude::ErrorCode::ConstraintHasOne.into(),
+    )
+    .unwrap();
+
+    // Verify the update_authority was NOT updated
+    let compressible_config_pda = CompressibleConfig::ctoken_v1_config_pda();
+    let account_data = rpc
+        .get_account(compressible_config_pda)
+        .await?
+        .expect("CompressibleConfig account should exist");
+
+    let config = CompressibleConfig::try_from_slice(&account_data.data[8..])
+        .expect("Failed to deserialize CompressibleConfig");
+
+    assert_eq!(
+        config.update_authority,
+        payer.pubkey(),
+        "Update authority should remain unchanged"
+    );
 
     Ok(())
 }

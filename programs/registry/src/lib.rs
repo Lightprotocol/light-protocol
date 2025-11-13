@@ -39,10 +39,7 @@ use light_batched_merkle_tree::{
     initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
-use light_compressible::registry_instructions::{
-    CreateCompressibleConfig as CreateCompressibleConfigData,
-    CreateConfigCounter as CreateConfigCounterData,
-};
+use light_compressible::registry_instructions::CreateCompressibleConfig as CreateCompressibleConfigData;
 use protocol_config::state::ProtocolConfig;
 pub use selection::forester::*;
 
@@ -691,10 +688,7 @@ pub mod light_registry {
     }
 
     /// Creates the config counter PDA
-    pub fn create_config_counter(
-        ctx: Context<CreateConfigCounter>,
-        _params: CreateConfigCounterData,
-    ) -> Result<()> {
+    pub fn create_config_counter(ctx: Context<CreateConfigCounter>) -> Result<()> {
         ctx.accounts.config_counter.counter += 1;
         Ok(())
     }
@@ -718,19 +712,15 @@ pub mod light_registry {
     }
 
     /// Updates an existing compressible config
-    pub fn update_compressible_config(
-        ctx: Context<UpdateCompressibleConfig>,
-        new_update_authority: Option<Pubkey>,
-        new_withdrawal_authority: Option<Pubkey>,
-    ) -> Result<()> {
+    pub fn update_compressible_config(ctx: Context<UpdateCompressibleConfig>) -> Result<()> {
         // Update the update_authority if provided
-        if let Some(authority) = new_update_authority {
-            ctx.accounts.compressible_config.update_authority = authority;
+        if let Some(authority) = ctx.accounts.new_update_authority.as_ref() {
+            ctx.accounts.compressible_config.update_authority = authority.key();
         }
 
         // Update the withdrawal_authority if provided
-        if let Some(authority) = new_withdrawal_authority {
-            ctx.accounts.compressible_config.withdrawal_authority = authority;
+        if let Some(authority) = ctx.accounts.new_withdrawal_authority.as_ref() {
+            ctx.accounts.compressible_config.withdrawal_authority = authority.key();
         }
 
         Ok(())
