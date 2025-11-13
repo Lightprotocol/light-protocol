@@ -782,7 +782,7 @@ pub mod __internal {
                         prove_by_index: tree_info.prove_by_index,
                     },
                     root_index: input_account_meta.get_root_index().unwrap_or_default(),
-                    discriminator: [0u8; 8], // TODO: consider 0 (need adapt client etc)
+                    discriminator: [0u8; 8],
                 }
             };
             let output_account_info = {

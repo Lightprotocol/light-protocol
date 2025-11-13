@@ -12,5 +12,5 @@ pub use errors::RpcError;
 pub use rpc_trait::{LightClientConfig, Rpc};
 pub mod get_light_state_tree_infos;
 
-pub use lut::load_lookup_table;
 pub mod lut;
+pub use lut::load_lookup_table;

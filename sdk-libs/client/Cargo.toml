@@ -36,9 +36,7 @@ solana-address-lookup-table-interface = { version = "2.2.1", features = [
     "bytemuck",
     "bincode",
 ] }
-solana-message = "2.2"
-# TODO: check if we can move.
-anchor-lang = { workspace = true, features = ["idl-build"], optional = true }
+solana-message = { workspace = true }
 
 # Light Protocol dependencies
 light-merkle-tree-metadata = { workspace = true, features = ["solana"] }

@@ -93,6 +93,7 @@ solana-transaction-context = "2.3"
 solana-frozen-abi = "2.3"
 solana-frozen-abi-macro = "2.3"
 solana-msg = { version = "2.2" }
+solana-message = "2.2"
 solana-zk-token-sdk = "2.3"
 solana-logger = "2.3"
 solana-bn254 = "2.2"
