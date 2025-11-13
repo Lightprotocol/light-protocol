@@ -30,6 +30,9 @@ use crate::{
     },
 };
 
+/// Maximum number of packed accounts allowed in a single instruction
+const MAX_PACKED_ACCOUNTS: usize = 40;
+
 #[allow(clippy::too_many_arguments)]
 #[profile]
 pub fn process_actions<'a>(
@@ -43,8 +46,8 @@ pub fn process_actions<'a>(
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     compressed_mint: &mut CompressedMint,
 ) -> Result<(), ProgramError> {
-    // Array to accumulate transfer amounts by account index (max 40 packed accounts)
-    let mut transfer_map = [0u64; 40];
+    // Array to accumulate transfer amounts by account index
+    let mut transfer_map = [0u64; MAX_PACKED_ACCOUNTS];
 
     // Start metadata authority with same value as mint authority
     for action in parsed_instruction_data.actions.iter() {
@@ -91,7 +94,7 @@ pub fn process_actions<'a>(
                 // compressed_mint.metadata.spl_mint_initialized = true;
             }
             ZAction::MintToCToken(mint_to_ctoken_action) => {
-                let transfer = process_mint_to_ctoken_action(
+                let transfer_amount = process_mint_to_ctoken_action(
                     mint_to_ctoken_action,
                     compressed_mint,
                     validated_accounts,
@@ -100,11 +103,13 @@ pub fn process_actions<'a>(
                 )?;
 
                 // Accumulate transfer amount if present (deduplication happens here)
-                if let Some((account_index, amount)) = transfer {
-                    if account_index as usize >= 40 {
+                if let Some(amount) = transfer_amount {
+                    let account_index = mint_to_ctoken_action.account_index;
+                    if account_index as usize >= MAX_PACKED_ACCOUNTS {
                         msg!(
-                            "Too many compression transfers: {}, max 40 allowed",
-                            account_index
+                            "Too many compression transfers: {}, max {} allowed",
+                            account_index,
+                            MAX_PACKED_ACCOUNTS
                         );
                         return Err(ErrorCode::TooManyCompressionTransfers.into());
                     }
@@ -138,7 +143,7 @@ pub fn process_actions<'a>(
     }
 
     // Build transfers array from deduplicated map
-    let transfers: ArrayVec<Transfer, 40> = transfer_map
+    let transfers: ArrayVec<Transfer, MAX_PACKED_ACCOUNTS> = transfer_map
         .iter()
         .enumerate()
         .filter_map(|(index, &amount)| {
@@ -154,7 +159,7 @@ pub fn process_actions<'a>(
                 amount,
             })
         })
-        .collect::<Result<ArrayVec<Transfer, 40>, ProgramError>>()?;
+        .collect::<Result<ArrayVec<Transfer, MAX_PACKED_ACCOUNTS>, ProgramError>>()?;
 
     // Execute transfers if any exist
     if !transfers.is_empty() {
