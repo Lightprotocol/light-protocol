@@ -71,7 +71,7 @@ pub fn create_transfer_spl_to_ctoken_instruction(
     };
 
     let inputs = Transfer2Inputs {
-        validity_proof: ValidityProof::new(None).into(),
+        validity_proof: ValidityProof::new(None),
         transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
         meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
             payer,

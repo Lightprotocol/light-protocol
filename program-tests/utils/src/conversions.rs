@@ -1,5 +1,5 @@
 use light_ctoken_types::state::{CompressedTokenAccountState, TokenData as ProgramTokenData};
-
+// TODO: most of this seems to be legacy and can be replaced with into().
 // pub fn sdk_to_program_merkle_context(
 //     sdk_merkle_context: sdk::merkle_context::MerkleContext,
 // ) -> ProgramMerkleContext {

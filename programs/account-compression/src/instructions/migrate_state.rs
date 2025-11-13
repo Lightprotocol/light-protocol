@@ -128,11 +128,7 @@ fn migrate_state(
         nullified_leaves_indices: vec![migrate_leaf_params.leaf_index],
         seq: merkle_tree.sequence_number() as u64,
     };
-    #[cfg(target_os = "solana")]
     let slot = Clock::get()?.slot;
-    // Mock slot for unit tests
-    #[cfg(not(target_os = "solana"))]
-    let slot = 0u64;
     // 3. Inserts the leaf in the output queue.
     output_queue
         .insert_into_current_batch(&migrate_leaf_params.leaf, &slot)

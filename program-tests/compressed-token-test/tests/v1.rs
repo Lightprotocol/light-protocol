@@ -5613,7 +5613,7 @@ async fn batch_compress_with_batched_tree() {
                 .into();
             assert_eq!(recipient_compressed_token_accounts.len(), 1);
             let recipient_compressed_token_account = &recipient_compressed_token_accounts[0];
-            let expected_token_data = tokenData {
+            let expected_token_data = light_compressed_token_sdk::compat::TokenData {
                 mint,
                 owner: recipients[i as usize],
                 amount: (i + 1),
@@ -5679,7 +5679,7 @@ async fn batch_compress_with_batched_tree() {
                 .into();
             assert_eq!(recipient_compressed_token_accounts.len(), 1);
             let recipient_compressed_token_account = &recipient_compressed_token_accounts[0];
-            let expected_token_data = tokenData {
+            let expected_token_data = light_compressed_token_sdk::compat::TokenData {
                 mint,
                 owner: *recipient,
                 amount,
