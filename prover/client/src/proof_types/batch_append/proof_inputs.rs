@@ -6,7 +6,7 @@ use tracing::{error, info};
 
 use crate::{
     errors::ProverClientError,
-    helpers::{bigint_to_u8_32, compute_root_from_merkle_proof},
+    helpers::bigint_to_u8_32,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -46,9 +46,21 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
     batch_size: u32,
     previous_changelogs: &[ChangelogEntry<HEIGHT>],
 ) -> Result<(BatchAppendsCircuitInputs, Vec<ChangelogEntry<HEIGHT>>), ProverClientError> {
+    use std::collections::HashMap;
+
     let mut new_root = [0u8; 32];
-    let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
     let mut circuit_merkle_proofs = Vec::with_capacity(batch_size as usize);
+
+    // Create cache for parent node computations across all leaves in this batch
+    // Cache key: (level, parent_position, left_hash, right_hash) -> parent_hash
+    let mut root_computation_cache: HashMap<(usize, u32, [u8; 32], [u8; 32]), [u8; 32]> =
+        HashMap::new();
+
+    // Phase 1: Adjust all proofs and collect data
+    let mut adjusted_proofs = Vec::with_capacity(batch_size as usize);
+    let mut final_leaves = Vec::with_capacity(batch_size as usize);
+    let mut path_indices = Vec::with_capacity(batch_size as usize);
+    let mut temp_changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
 
     for (i, (old_leaf, (new_leaf, mut merkle_proof))) in old_leaves
         .iter()
@@ -81,8 +93,16 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
             }
         }
 
+        // Determine final leaf value
+        let is_old_leaf_zero = old_leaf.iter().all(|&byte| byte == 0);
+        let final_leaf = if is_old_leaf_zero { *new_leaf } else { *old_leaf };
+
+        final_leaves.push(final_leaf);
+        path_indices.push(start_index + i as u32);
+
+        // Adjust proof using previously computed changelogs
         if i > 0 {
-            for change_log_entry in changelog.iter() {
+            for change_log_entry in temp_changelog.iter() {
                 if change_log_entry.index() == current_index {
                     continue;
                 }
@@ -103,20 +123,18 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
             }
         }
 
-        let merkle_proof_array = merkle_proof.try_into().unwrap();
-        // Determine if we use the old or new leaf based on whether the old leaf is nullified (zeroed).
-        let is_old_leaf_zero = old_leaf.iter().all(|&byte| byte == 0);
-        let final_leaf = if is_old_leaf_zero {
-            *new_leaf
-        } else {
-            *old_leaf
-        };
+        // Compute root and changelog for this leaf with caching
+        let merkle_proof_array: [[u8; 32]; HEIGHT] = merkle_proof.clone().try_into().unwrap();
+        let (root, changelog_entry) = crate::helpers::compute_root_from_merkle_proof_with_cache(
+            final_leaf,
+            &merkle_proof_array,
+            start_index + i as u32,
+            Some(&mut root_computation_cache),
+        );
+        new_root = root;
+        temp_changelog.push(changelog_entry.clone());
 
-        // Update the root based on the current proof and nullifier
-        let (updated_root, changelog_entry) =
-            compute_root_from_merkle_proof(final_leaf, &merkle_proof_array, start_index + i as u32);
-        new_root = updated_root;
-        changelog.push(changelog_entry);
+        adjusted_proofs.push(merkle_proof);
         circuit_merkle_proofs.push(
             merkle_proof_array
                 .iter()
@@ -124,6 +142,24 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
                 .collect(),
         );
     }
+
+    // Log cache effectiveness
+    let cache_size = root_computation_cache.len();
+    let max_possible_hashes = batch_size as usize * HEIGHT;
+    let hashes_computed = cache_size;
+    let hashes_saved = max_possible_hashes.saturating_sub(hashes_computed);
+    if hashes_saved > 0 {
+        info!(
+            "Batch append root computation: {} leaves, {} unique hashes computed, {} hashes saved via caching ({:.1}% reduction)",
+            batch_size,
+            hashes_computed,
+            hashes_saved,
+            (hashes_saved as f64 / max_possible_hashes as f64) * 100.0
+        );
+    }
+
+    // Use the temp_changelog as the final changelog
+    let changelog = temp_changelog;
 
     let mut start_index_bytes = [0u8; 32];
     start_index_bytes[28..].copy_from_slice(start_index.to_be_bytes().as_slice());

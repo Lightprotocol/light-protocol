@@ -92,7 +92,7 @@ pub struct PreparationState {
 
 impl PreparationState {
     /// Create new preparation state from initial tree state.
-    pub fn new(tree_state: super::tree_state::TreeState, append_leaf_indices: Vec<u64>) -> Self {
+    pub fn new(mut tree_state: super::tree_state::TreeState, append_leaf_indices: Vec<u64>) -> Self {
         let initial_root = tree_state.current_root();
         Self {
             tree_state,

@@ -4,7 +4,7 @@ use num_bigint::{BigInt, Sign};
 
 use crate::{
     errors::ProverClientError,
-    helpers::{bigint_to_u8_32, compute_root_from_merkle_proof},
+    helpers::bigint_to_u8_32,
 };
 
 #[derive(Clone, Debug)]
@@ -50,11 +50,17 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
     batch_size: u32,
     previous_changelogs: &[ChangelogEntry<HEIGHT>],
 ) -> Result<(BatchUpdateCircuitInputs, Vec<ChangelogEntry<HEIGHT>>), ProverClientError> {
+    use std::collections::HashMap;
+
     let mut new_root = [0u8; 32];
     let old_root = current_root;
     let mut changelog: Vec<ChangelogEntry<HEIGHT>> = Vec::new();
     let mut circuit_merkle_proofs = vec![];
     let mut adjusted_path_indices = Vec::with_capacity(leaves.len());
+
+    // Create cache for parent node computations across all leaves in this batch
+    let mut root_computation_cache: HashMap<(usize, u32, [u8; 32], [u8; 32]), [u8; 32]> =
+        HashMap::new();
 
     for (i, (leaf, (mut merkle_proof, index))) in leaves
         .iter()
@@ -100,8 +106,12 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
         // Use the adjusted index bytes for computing the nullifier.
         let index_bytes = (*index).to_be_bytes();
         let nullifier = Poseidon::hashv(&[leaf, &index_bytes, &tx_hashes[i]]).unwrap();
-        let (root, changelog_entry) =
-            compute_root_from_merkle_proof(nullifier, &merkle_proof_array, *index);
+        let (root, changelog_entry) = crate::helpers::compute_root_from_merkle_proof_with_cache(
+            nullifier,
+            &merkle_proof_array,
+            *index,
+            Some(&mut root_computation_cache),
+        );
         new_root = root;
         changelog.push(changelog_entry);
         circuit_merkle_proofs.push(
@@ -109,6 +119,21 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
                 .iter()
                 .map(|hash| BigInt::from_bytes_be(Sign::Plus, hash))
                 .collect(),
+        );
+    }
+
+    // Log cache effectiveness
+    let cache_size = root_computation_cache.len();
+    let max_possible_hashes = batch_size as usize * HEIGHT;
+    let hashes_computed = cache_size;
+    let hashes_saved = max_possible_hashes.saturating_sub(hashes_computed);
+    if hashes_saved > 0 {
+        tracing::info!(
+            "Batch update root computation: {} leaves, {} unique hashes computed, {} hashes saved via caching ({:.1}% reduction)",
+            batch_size,
+            hashes_computed,
+            hashes_saved,
+            (hashes_saved as f64 / max_possible_hashes as f64) * 100.0
         );
     }
 

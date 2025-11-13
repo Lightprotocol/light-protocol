@@ -143,7 +143,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             mem_before, self.context.merkle_tree
         );
 
-        let (tree_state, append_data, nullify_data, append_batch_ids, nullify_batch_ids) = self
+        let (mut tree_state, append_data, nullify_data, append_batch_ids, nullify_batch_ids) = self
             .fetch_queues(num_append_batches, num_nullify_batches)
             .await?;
 

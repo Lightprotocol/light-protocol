@@ -187,6 +187,89 @@ where
         Ok(())
     }
 
+    /// Batch update multiple leaves efficiently.
+    ///
+    /// This method updates all leaves first, then propagates changes up the tree
+    /// only for affected nodes. This is significantly faster than calling update()
+    /// multiple times, especially when leaves share parent nodes.
+    ///
+    /// Performance: For N updates, this does O(N * log(tree_height)) work instead
+    /// of O(N^2 * log(tree_height)) when parent nodes overlap.
+    pub fn batch_update(
+        &mut self,
+        updates: &[(usize, [u8; 32])],
+    ) -> Result<(), ReferenceMerkleTreeError> {
+        if updates.is_empty() {
+            return Ok(());
+        }
+
+        // Update all leaves first
+        for (leaf_index, leaf) in updates {
+            *self.layers[0]
+                .get_mut(*leaf_index)
+                .ok_or(ReferenceMerkleTreeError::LeafDoesNotExist(*leaf_index))? = *leaf;
+        }
+
+        // Find the range of affected indices
+        let min_index = updates.iter().map(|(idx, _)| *idx).min().unwrap();
+        let max_index = updates.iter().map(|(idx, _)| *idx).max().unwrap();
+
+        // Propagate changes level by level for the affected range
+        self.update_range(min_index, max_index)?;
+
+        self.sequence_number += 1;
+        Ok(())
+    }
+
+    /// Update a range of nodes from min_index to max_index (inclusive) at leaf level,
+    /// propagating changes up to the root.
+    fn update_range(&mut self, min_index: usize, max_index: usize) -> Result<(), HasherError> {
+        let mut range_start = min_index;
+        let mut range_end = max_index;
+
+        // For each level, update only the affected parent nodes
+        for level in 1..self.height {
+            range_start /= 2;
+            range_end /= 2;
+
+            for i in range_start..=range_end {
+                let left_index = i * 2;
+                let right_index = i * 2 + 1;
+
+                let left_child = self.layers[level - 1]
+                    .get(left_index)
+                    .cloned()
+                    .unwrap_or(H::zero_bytes()[level - 1]);
+                let right_child = self.layers[level - 1]
+                    .get(right_index)
+                    .cloned()
+                    .unwrap_or(H::zero_bytes()[level - 1]);
+
+                let node = H::hashv(&[&left_child[..], &right_child[..]])?;
+                if self.layers[level].len() > i {
+                    self.layers[level][i] = node;
+                } else {
+                    self.layers[level].push(node);
+                }
+            }
+        }
+
+        // Update root
+        let left_child = &self.layers[self.height - 1]
+            .first()
+            .cloned()
+            .unwrap_or(H::zero_bytes()[self.height - 1]);
+        let right_child = &self.layers[self.height - 1]
+            .get(1)
+            .cloned()
+            .unwrap_or(H::zero_bytes()[self.height - 1]);
+        let root = H::hashv(&[&left_child[..], &right_child[..]])?;
+
+        self.roots.push(root);
+
+        Ok(())
+    }
+
     pub fn root(&self) -> [u8; 32] {
         // PANICS: We always initialize the Merkle tree with a
         // root (from zero bytes), so the following should never

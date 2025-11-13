@@ -10,12 +10,17 @@ pub const TREE_HEIGHT: usize = 32;
 ///
 /// Provides a simplified interface for loading deduplicated nodes from indexer
 /// and generating proofs without needing changelog adjustments.
+///
+/// **Performance optimization:** Uses lazy root computation. The root is only
+/// recomputed when accessed via `current_root()`, not after every leaf update.
 #[derive(Debug, Clone)]
 pub struct TreeState {
     tree: MerkleTree<Poseidon>,
     /// Track root separately since we load sparse nodes from indexer
     /// and can't rely on tree's computed root
     cached_root: [u8; 32],
+    /// Flag indicating root needs recomputation
+    root_dirty: bool,
 }
 
 impl TreeState {
@@ -82,7 +87,11 @@ impl TreeState {
 
         debug!("TreeState initialized with {} nodes, root: {:?}", node_count, &cached_root[..8]);
 
-        Ok(Self { tree, cached_root })
+        Ok(Self {
+            tree,
+            cached_root,
+            root_dirty: false,
+        })
     }
 
     /// Helper to set a node in the tree's layer structure.
@@ -121,20 +130,27 @@ impl TreeState {
 
     /// Update a leaf and propagate changes up the tree.
     ///
-    /// This replaces the old `apply_changelog` approach - we now update the tree
-    /// immediately instead of accumulating changelogs for later adjustment.
+    /// **Performance optimization:** Does NOT recompute root immediately.
+    /// Root is computed lazily when `current_root()` is called.
+    /// This allows batching multiple updates before computing the root once.
     pub fn update_leaf(&mut self, leaf_index: u64, new_leaf: [u8; 32]) -> Result<()> {
         self.tree
             .update(&new_leaf, leaf_index as usize)
             .map_err(|e| anyhow!("Failed to update leaf {}: {:?}", leaf_index, e))?;
 
-        // Update cached root
-        self.cached_root = self.tree.root();
+        // Mark root as dirty instead of recomputing immediately
+        self.root_dirty = true;
         Ok(())
     }
 
     /// Get the current root hash.
-    pub fn current_root(&self) -> [u8; 32] {
+    ///
+    /// **Lazy computation:** Only recomputes if tree has been modified since last call.
+    pub fn current_root(&mut self) -> [u8; 32] {
+        if self.root_dirty {
+            self.cached_root = self.tree.root();
+            self.root_dirty = false;
+        }
         self.cached_root
     }
 
@@ -158,12 +174,54 @@ impl TreeState {
         }
     }
 
+    /// Update multiple leaves in a single batch operation.
+    ///
+    /// **Performance optimization:** Uses the reference tree's batch_update() which
+    /// updates all leaves first, then propagates changes only once through the tree.
+    /// This avoids redundant recomputation of shared parent nodes.
+    pub fn batch_update_leaves(&mut self, updates: &[(u64, [u8; 32])]) -> Result<()> {
+        if updates.is_empty() {
+            return Ok(());
+        }
+
+        let convert_start = std::time::Instant::now();
+        // Convert to usize indices for the reference tree
+        let tree_updates: Vec<(usize, [u8; 32])> = updates
+            .iter()
+            .map(|(idx, leaf)| (*idx as usize, *leaf))
+            .collect();
+        let convert_time = convert_start.elapsed();
+
+        let update_start = std::time::Instant::now();
+        self.tree
+            .batch_update(&tree_updates)
+            .map_err(|e| anyhow!("Failed to batch update leaves: {:?}", e))?;
+        let update_time = update_start.elapsed();
+
+        let root_start = std::time::Instant::now();
+        // Update cached root from the tree
+        self.cached_root = self.tree.root();
+        self.root_dirty = false;
+        let root_time = root_start.elapsed();
+
+        trace!(
+            "batch_update_leaves: {} updates | convert={:?} update={:?} root={:?}",
+            updates.len(),
+            convert_time,
+            update_time,
+            root_time
+        );
+
+        Ok(())
+    }
+
     /// Clear all tree data and reset to empty state.
     ///
     /// Use this when reloading tree state from indexer or switching epochs.
     pub fn clear(&mut self) {
         self.tree = MerkleTree::<Poseidon>::new(TREE_HEIGHT, 0);
         self.cached_root = [0u8; 32];
+        self.root_dirty = false;
     }
 }
 
@@ -183,7 +241,7 @@ mod tests {
 
     #[test]
     fn test_empty_tree_state() {
-        let state = TreeState::from_v2_response(None, None).unwrap();
+        let mut state = TreeState::from_v2_response(None, None).unwrap();
         // Empty tree should have zero root
         assert_eq!(state.current_root(), [0u8; 32]);
     }
