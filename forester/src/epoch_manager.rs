@@ -1684,34 +1684,62 @@ impl<R: Rpc> EpochManager<R> {
                 current_epoch,
             );
 
-        let mut total_compressed = 0;
-        for (batch_idx, batch) in accounts.chunks(config.batch_size).enumerate() {
-            debug!(
-                "Processing compression batch {}/{} with {} accounts",
-                batch_idx + 1,
-                num_batches,
-                batch.len()
-            );
+        // Create parallel compression futures
+        use futures::stream::StreamExt;
 
-            match compressor
-                .compress_batch(batch, registered_forester_pda)
-                .await
-            {
-                Ok(sig) => {
+        // Collect chunks into owned vectors to avoid lifetime issues
+        let batches: Vec<(usize, Vec<_>)> = accounts
+            .chunks(config.batch_size)
+            .enumerate()
+            .map(|(idx, chunk)| (idx, chunk.to_vec()))
+            .collect();
+
+        let compression_futures = batches.into_iter().map(|(batch_idx, batch)| {
+            let compressor = compressor.clone();
+            async move {
+                debug!(
+                    "Processing compression batch {}/{} with {} accounts",
+                    batch_idx + 1,
+                    num_batches,
+                    batch.len()
+                );
+
+                match compressor
+                    .compress_batch(&batch, registered_forester_pda)
+                    .await
+                {
+                    Ok(sig) => Ok((batch_idx, batch.len(), sig)),
+                    Err(e) => Err((batch_idx, batch.len(), e)),
+                }
+            }
+        });
+
+        // Execute batches in parallel with concurrency limit
+        let results = futures::stream::iter(compression_futures)
+            .buffer_unordered(config.max_concurrent_batches)
+            .collect::<Vec<_>>()
+            .await;
+
+        // Aggregate results
+        let mut total_compressed = 0;
+        for result in results {
+            match result {
+                Ok((batch_idx, count, sig)) => {
                     info!(
                         "Successfully compressed {} accounts in batch {}/{}: {}",
-                        batch.len(),
+                        count,
                         batch_idx + 1,
                         num_batches,
                         sig
                     );
-                    total_compressed += batch.len();
+                    total_compressed += count;
                 }
-                Err(e) => {
+                Err((batch_idx, count, e)) => {
                     error!(
-                        "Compression batch {}/{} failed: {:?}",
+                        "Compression batch {}/{} ({} accounts) failed: {:?}",
                         batch_idx + 1,
                         num_batches,
+                        count,
                         e
                     );
                 }

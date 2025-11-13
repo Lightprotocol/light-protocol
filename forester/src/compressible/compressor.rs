@@ -31,6 +31,16 @@ pub struct Compressor<R: Rpc> {
     payer_keypair: Keypair,
 }
 
+impl<R: Rpc> Clone for Compressor<R> {
+    fn clone(&self) -> Self {
+        Self {
+            rpc_pool: Arc::clone(&self.rpc_pool),
+            tracker: Arc::clone(&self.tracker),
+            payer_keypair: self.payer_keypair.insecure_clone(),
+        }
+    }
+}
+
 impl<R: Rpc> Compressor<R> {
     pub fn new(
         rpc_pool: Arc<SolanaRpcPool<R>>,

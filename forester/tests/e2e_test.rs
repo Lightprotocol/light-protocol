@@ -254,6 +254,7 @@ async fn e2e_test() {
         compressible_config: Some(forester::compressible::CompressibleConfig {
             ws_url: get_ws_rpc_url(),
             batch_size: 10,
+            max_concurrent_batches: 10,
         }),
     };
     let test_mode = TestMode::from_env();

@@ -7,9 +7,16 @@ pub struct CompressibleConfig {
     /// Batch size for compression operations
     #[serde(default = "default_batch_size")]
     pub batch_size: usize,
+    /// Maximum number of concurrent compression batches
+    #[serde(default = "default_max_concurrent_batches")]
+    pub max_concurrent_batches: usize,
 }
 
 fn default_batch_size() -> usize {
+    10
+}
+
+fn default_max_concurrent_batches() -> usize {
     10
 }
 
@@ -18,6 +25,7 @@ impl CompressibleConfig {
         Self {
             ws_url,
             batch_size: default_batch_size(),
+            max_concurrent_batches: default_max_concurrent_batches(),
         }
     }
 }
