@@ -1,25 +1,69 @@
-//! SDK for building programs with compressed accounts on Solana.
+//! The base library to use Compressed Accounts in Solana on-chain Rust and Anchor programs.
 //!
-//! State is stored as hashes in Merkle trees. Validity proofs verify state exists.
-//! No rent required. Constant 128-byte proof per transaction.
+//! Compressed Accounts stores state as account hashes in State Merkle trees.
+//! and unique addresses in Address Merkle trees.
+//! Validity proofs (zero-knowledge proofs) verify that compressed account
+//! state exists and new addresses do not exist yet.
 //!
-//! See [zkcompression.com](https://www.zkcompression.com/) for docs and [Program Examples](https://github.com/Lightprotocol/program-examples).
+//! - No rent exemption payment required.
+//! - Constant 128-byte validity proof per transaction for one or multiple compressed accounts and addresses.
+//! - Compressed account data is sent as instruction data when accessed.
+//! - State and address trees are managed by the protocol.
 //!
-//! Related crates:
-//! - [`light-sdk-pinocchio`](https://docs.rs/light-sdk-pinocchio) - Pinocchio programs
-//! - [`light-client`](https://docs.rs/light-client) - Client development
-//! - [`light-program-test`](https://docs.rs/light-program-test) - Testing
+//! For full program examples, see the [Program Examples](https://github.com/Lightprotocol/program-examples).
+//! For detailed documentation, visit [zkcompression.com](https://www.zkcompression.com/).
+//! For pinocchio solana program development see [`light-sdk-pinocchio`](https://docs.rs/light-sdk-pinocchio).
+//! For rust client developement see [`light-client`](https://docs.rs/light-client).
+//! For rust program testing see [`light-program-test`](https://docs.rs/light-program-test).
+//! For local test validator with light system programs see [Light CLI](https://www.npmjs.com/package/@lightprotocol/zk-compression-cli).
 //!
-//! # Main modules
-//! - [`instruction`] - Build instructions with compressed accounts
-//! - [`account`] - LightAccount abstraction
-//! - [`address`] - Derive compressed addresses
-//! - [`cpi`] - CPI to light system program
+//! #  Using Compressed Accounts in Solana Programs
+//! 1. [`Instruction`](crate::instruction)
+//!     - [`CompressedAccountMeta`](crate::instruction::account_meta::CompressedAccountMeta) - Compressed account metadata structs for instruction data.
+//!     - [`PackedAccounts`](crate::instruction::PackedAccounts) - Abstraction to prepare accounts offchain for instructions with compressed accounts.
+//!     - [`ValidityProof`](crate::instruction::ValidityProof) - Proves that new addresses don't exist yet, and compressed account state exists.
+//! 2. Compressed Account in Program
+//!     - [`LightAccount`](crate::account) - Compressed account abstraction similar to anchor Account.
+//!     - [`derive_address`](crate::address) - Create a compressed account address.
+//!     - [`LightDiscriminator`] - DeriveMacro to derive a compressed account discriminator.
+//! 3. [`Cpi`](crate::cpi)
+//!     - [`CpiAccounts`](crate::cpi::v1::CpiAccounts) - Prepare accounts to cpi the light system program.
+//!     - [`LightSystemProgramCpi`](crate::cpi::v1::LightSystemProgramCpi) - Prepare instruction data to cpi the light system program.
+//!     - [`InvokeLightSystemProgram::invoke`](crate::cpi) - Invoke the light system program via cpi.
+//!
+//! ```text
+//!  ├─ 𝐂𝐥𝐢𝐞𝐧𝐭
+//!  │  ├─ Get ValidityProof from RPC.
+//!  │  ├─ pack accounts with PackedAccounts into PackedAddressTreeInfo and PackedStateTreeInfo.
+//!  │  ├─ pack CompressedAccountMeta.
+//!  │  ├─ Build Instruction from PackedAccounts and CompressedAccountMetas.
+//!  │  └─ Send transaction.
+//!  │
+//!  └─ 𝐂𝐮𝐬𝐭𝐨𝐦 𝐏𝐫𝐨𝐠𝐫𝐚𝐦
+//!     ├─ CpiAccounts parse accounts consistent with PackedAccounts.
+//!     ├─ LightAccount instantiates from CompressedAccountMeta.
+//!     │
+//!     └─ 𝐋𝐢𝐠𝐡𝐭 𝐒𝐲𝐬𝐭𝐞𝐦 𝐏𝐫𝐨𝐠𝐫𝐚𝐦 𝐂𝐏𝐈
+//!        ├─ Verify ValidityProof.
+//!        ├─ Update State Merkle tree.
+//!        ├─ Update Address Merkle tree.
+//!        └─ Complete atomic state transition.
+//! ```
 //!
 //! # Features
-//! - `anchor` - Use AnchorSerialize/AnchorDeserialize
-//! - `v2` - Optimized v2 instructions (devnet, localnet)
-//! - `cpi-context` - Share one validity proof across multiple CPIs (requires v2)
+//! 1. `anchor` - Derives AnchorSerialize, AnchorDeserialize instead of BorshSerialize, BorshDeserialize.
+//!
+//! 2. `v2`
+//!     - available on devnet, localnet, and light-program-test.
+//!     - Support for optimized v2 light system program instructions.
+//!
+//! 3. `cpi-context` - Enables CPI context operations for batched compressed account operations.
+//!    - available on devnet, localnet, and light-program-test.
+//!    - Enables the use of one validity proof across multiple cpis from different programs in one instruction.
+//!    - For example spending compressed tokens (owned by the ctoken program) and updating a compressed pda (owned by a custom program)
+//!      with one validity proof.
+//!    - An instruction should not use more than one validity proof.
+//!    - Requires the v2 feature.
 //!
 //! ### Example Solana program code to create a compressed account
 //! ```rust, compile_fail
@@ -91,15 +135,20 @@
 //!}
 //! ```
 
+/// Compressed account abstraction similar to anchor Account.
 pub mod account;
 pub use account::sha::LightAccount;
 
+/// Functions to derive compressed account addresses.
 pub mod address;
+/// Utilities to invoke the light-system-program via cpi.
 pub mod cpi;
 pub mod error;
+/// Utilities to build instructions for programs with compressed accounts.
 pub mod instruction;
 pub mod legacy;
 pub mod proof;
+/// Transfer compressed sol between compressed accounts.
 pub mod transfer;
 pub mod utils;
 
