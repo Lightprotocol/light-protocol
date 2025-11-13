@@ -5,10 +5,10 @@ use light_client::indexer::Indexer;
 use light_compressed_token_sdk::instructions::mint_action::MintActionType;
 use light_ctoken_types::state::{
     extensions::{AdditionalMetadata, ExtensionStruct},
-    CompressedMint,
+    CToken, CompressedMint,
 };
-use light_program_test::LightProgramTest;
-use solana_sdk::{program_pack::Pack, pubkey::Pubkey};
+use light_program_test::{LightProgramTest, Rpc};
+use solana_sdk::pubkey::Pubkey;
 
 /// Assert that mint actions produce the expected state changes
 ///
@@ -141,22 +141,88 @@ pub async fn assert_mint_action(
         let pre_account = rpc
             .get_pre_transaction_account(&account_pubkey)
             .expect("CToken account should exist before minting");
-        let mut expected_token_account =
-            spl_token::state::Account::unpack(&pre_account.data[..165]).unwrap();
+
+        // Parse pre-transaction CToken state
+        let mut pre_ctoken: CToken =
+            BorshDeserialize::deserialize(&mut &pre_account.data[..]).unwrap();
 
         // Apply the total minted amount (handles multiple mints to same account)
-        expected_token_account.amount += total_minted_amount;
+        pre_ctoken.amount = pre_ctoken
+            .amount
+            .checked_add(total_minted_amount)
+            .expect("Token amount overflow");
 
         // Get actual post-transaction account
         let account_data = rpc.context.get_account(&account_pubkey).unwrap();
-        let actual_token_account =
-            spl_token::state::Account::unpack(&account_data.data[..165]).unwrap();
+        let post_ctoken: CToken =
+            BorshDeserialize::deserialize(&mut &account_data.data[..]).unwrap();
 
-        // Single assertion for complete account state
+        // Assert token amount matches expected
         assert_eq!(
-            actual_token_account, expected_token_account,
-            "CToken account state at {} should match expected after minting {} tokens",
-            account_pubkey, total_minted_amount
+            post_ctoken.amount, pre_ctoken.amount,
+            "CToken account state at {} should have {} tokens after minting, got {}",
+            account_pubkey, pre_ctoken.amount, post_ctoken.amount
         );
+
+        // Validate lamport balance changes for compressible accounts
+        let pre_lamports = pre_account.lamports;
+        let post_lamports = account_data.lamports;
+
+        // Check if account has compressible extension (reuse pre_ctoken parsed earlier)
+        if let Some(extensions) = pre_ctoken.extensions.as_ref() {
+            // Look for compressible extension
+            let compressible_ext = extensions.iter().find_map(|ext| {
+                if let ExtensionStruct::Compressible(comp) = ext {
+                    Some(comp)
+                } else {
+                    None
+                }
+            });
+
+            if let Some(compressible) = compressible_ext {
+                // Account has compressible extension - calculate expected top-up
+                let current_slot = rpc.get_slot().await.unwrap();
+                let account_size = pre_account.data.len() as u64;
+
+                let expected_top_up = compressible
+                    .calculate_top_up_lamports(
+                        account_size,
+                        current_slot,
+                        pre_lamports,
+                        compressible.lamports_per_write,
+                        light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                    )
+                    .unwrap();
+
+                let actual_lamport_change = post_lamports
+                    .checked_sub(pre_lamports)
+                    .expect("Post lamports should be >= pre lamports");
+
+                assert_eq!(
+                    actual_lamport_change, expected_top_up,
+                    "CToken account at {} should receive {} lamports top-up for compressible extension, got {}",
+                    account_pubkey, expected_top_up, actual_lamport_change
+                );
+
+                println!(
+                        "✓ Lamport top-up validated: {} lamports transferred to compressible ctoken account {}",
+                        expected_top_up, account_pubkey
+                    );
+            } else {
+                // Has extensions but no compressible extension - lamports should not change
+                assert_eq!(
+                    pre_lamports, post_lamports,
+                    "Non-compressible CToken account at {} should not receive lamport top-up",
+                    account_pubkey
+                );
+            }
+        } else {
+            // No extensions - lamports should not change
+            assert_eq!(
+                pre_lamports, post_lamports,
+                "CToken account without extensions at {} should not receive lamport top-up",
+                account_pubkey
+            );
+        }
     }
 }

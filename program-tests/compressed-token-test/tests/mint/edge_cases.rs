@@ -1,9 +1,13 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
 use light_compressed_token_sdk::instructions::{
+    create_associated_token_account::{
+        create_compressible_associated_token_account,
+        CreateCompressibleAssociatedTokenAccountInputs,
+    },
     derive_compressed_mint_address, find_spl_mint_address,
 };
-use light_ctoken_types::state::{extensions::AdditionalMetadata, CompressedMint};
+use light_ctoken_types::state::{extensions::AdditionalMetadata, CompressedMint, TokenDataVersion};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
@@ -139,16 +143,26 @@ async fn functional_all_in_one_instruction() {
     let new_freeze_authority = Keypair::new();
     let new_metadata_authority = Keypair::new();
 
-    // Create a ctoken account for MintToCToken
+    // Create a compressible ctoken account for MintToCToken
     let recipient = Keypair::new();
-    let create_ata_ix = light_compressed_token_sdk::instructions::create_associated_token_account(
-        payer.pubkey(),
-        recipient.pubkey(),
-        spl_mint_pda,
+    let create_compressible_ata_ix = create_compressible_associated_token_account(
+        CreateCompressibleAssociatedTokenAccountInputs {
+            payer: payer.pubkey(),
+            owner: recipient.pubkey(),
+            mint: spl_mint_pda,
+            rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+            pre_pay_num_epochs: 0,
+            lamports_per_write: Some(1000),
+            compressible_config: rpc
+                .test_accounts
+                .funding_pool_config
+                .compressible_config_pda,
+            token_account_version: TokenDataVersion::ShaFlat,
+        },
     )
     .unwrap();
 
-    rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
+    rpc.create_and_send_transaction(&[create_compressible_ata_ix], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
 
