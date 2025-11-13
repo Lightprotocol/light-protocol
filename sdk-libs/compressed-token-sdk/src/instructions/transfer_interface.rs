@@ -70,7 +70,6 @@ pub fn create_transfer_spl_to_ctoken_instruction(
         method_used: true,
     };
 
-    // Create Transfer2Inputs following the test
     let inputs = Transfer2Inputs {
         validity_proof: ValidityProof::new(None).into(),
         transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),

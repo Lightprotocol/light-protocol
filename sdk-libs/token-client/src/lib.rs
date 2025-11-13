@@ -9,7 +9,7 @@ pub const CTOKEN_PROGRAM_ID: Pubkey = pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi
 pub const CTOKEN_CPI_AUTHORITY: Pubkey = pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
 
 pub mod ctoken {
-    use light_compressed_token_sdk::POOL_SEED;
+    use light_compressed_token_types::POOL_SEED;
     use light_compressible::config::CompressibleConfig;
     use solana_pubkey::Pubkey;
 

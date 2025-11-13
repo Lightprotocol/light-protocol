@@ -3689,6 +3689,7 @@ dependencies = [
  "light-compressed-account",
  "light-compressed-token",
  "light-compressed-token-types",
+ "light-compressible",
  "light-ctoken-types",
  "light-macros",
  "light-program-profiler",
