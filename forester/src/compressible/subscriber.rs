@@ -140,7 +140,7 @@ impl AccountSubscriber {
                 );
             }
             Err(e) => {
-                debug!("Failed to update tracker for {}: {}", pubkey, e);
+                error!("Failed to update tracker for {}: {}", pubkey, e);
             }
         }
     }
