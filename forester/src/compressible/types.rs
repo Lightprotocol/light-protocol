@@ -8,4 +8,7 @@ pub struct CompressibleAccountState {
     pub pubkey: Pubkey,
     pub account: CToken,
     pub lamports: u64,
+    /// The slot at which this account becomes compressible (last_funded_epoch * SLOTS_PER_EPOCH)
+    /// Accounts are ready to compress when current_slot > compressible_slot
+    pub compressible_slot: u64,
 }
