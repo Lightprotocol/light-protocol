@@ -8,8 +8,9 @@ use csdk_anchor_test::{
 };
 use light_client::indexer::CompressedAccount;
 use light_compressed_account::address::derive_address;
-use light_compressed_token_sdk::instructions::{
-    create_compressed_mint::find_spl_mint_address, derive_compressed_mint_address,
+use light_compressed_token_sdk::{
+    ctoken,
+    instructions::{create_compressed_mint::find_spl_mint_address, derive_compressed_mint_address},
 };
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
 use light_compressible_client::CompressibleInstruction;
@@ -29,16 +30,13 @@ use light_sdk::{
     token::CTokenDataWithVariant,
 };
 use light_sdk_types::C_TOKEN_PROGRAM_ID;
-use light_token_client::ctoken;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
 
 mod helpers;
-use helpers::{
-    create_game_session, create_record, ADDRESS_SPACE, CTOKEN_RENT_SPONSOR, RENT_SPONSOR,
-};
+use helpers::{create_game_session, create_record, ADDRESS_SPACE, RENT_SPONSOR};
 
 // Tests
 // 1. create and decompress two accounts and compress token accounts after

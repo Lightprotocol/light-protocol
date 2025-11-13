@@ -6,6 +6,7 @@ use anchor_lang::{
 };
 use csdk_anchor_test::{CompressedAccountVariant, GameSession, UserRecord};
 use light_compressed_account::address::derive_address;
+use light_compressed_token_sdk::ctoken;
 use light_compressible_client::CompressibleInstruction;
 use light_macros::pubkey;
 use light_program_test::{program_test::LightProgramTest, AddressWithTree, Indexer, Rpc};
@@ -13,7 +14,6 @@ use light_sdk::{
     compressible::CompressibleConfig,
     instruction::{PackedAccounts, SystemAccountMetaConfig},
 };
-use light_token_client::ctoken;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;

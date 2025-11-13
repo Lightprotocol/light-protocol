@@ -1,5 +1,6 @@
 use anchor_lang::{AccountDeserialize, AnchorDeserialize, Discriminator, ToAccountMetas};
 use light_compressed_account::address::derive_address;
+use light_compressed_token_sdk::ctoken;
 use light_compressible_client::CompressibleInstruction;
 use light_program_test::{
     program_test::{
@@ -8,7 +9,6 @@ use light_program_test::{
     Indexer, ProgramTestConfig, Rpc,
 };
 use light_sdk::compressible::{CompressAs, CompressibleConfig};
-use light_token_client::ctoken;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
