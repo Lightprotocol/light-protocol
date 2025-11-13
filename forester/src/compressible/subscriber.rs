@@ -75,8 +75,17 @@ impl AccountSubscriber {
         // Process subscription messages
         loop {
             tokio::select! {
-                Some(response) = subscription.next() => {
-                    self.handle_account_update(response).await;
+                result = subscription.next() => {
+                    match result {
+                        Some(response) => {
+                            self.handle_account_update(response).await;
+                        }
+                        None => {
+                            error!("Account subscription stream closed unexpectedly");
+                            unsubscribe().await;
+                            return Err(anyhow::anyhow!("Account subscription stream closed"));
+                        }
+                    }
                 }
                 _ = &mut self.shutdown_rx => {
                     info!("Shutdown signal received");
