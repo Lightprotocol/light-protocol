@@ -14,19 +14,19 @@ no-idl = []
 no-log-ix-name = []
 cpi = ["no-entrypoint"]
 default = []
-idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build"]
+idl-build = ["anchor-lang/idl-build", "light-sdk/idl-build", "anchor-spl/idl-build"]
 test-sbf = []
 
 [dependencies]
-light-sdk = { workspace = true, features = ["anchor", "idl-build", "v2", "anchor-discriminator", "cpi-context"] }
+light-sdk = { workspace = true, features = ["anchor", "v2", "anchor-discriminator", "cpi-context"] }
 light-sdk-types = { workspace = true, features = ["v2", "cpi-context"] }
 light-hasher = { workspace = true, features = ["solana"] }
 solana-program = { workspace = true }
 light-macros = { workspace = true, features = ["solana"] }
 borsh = { workspace = true }
 light-compressed-account = { workspace = true, features = ["solana"] }
-anchor-lang = { workspace = true, features = ["idl-build"] }
-anchor-spl = { version = "=0.31.1", git = "https://github.com/lightprotocol/anchor", rev = "d8a2b3d9", features = ["memo", "metadata", "idl-build"] }
+anchor-lang = { workspace = true }
+anchor-spl = { version = "=0.31.1", git = "https://github.com/lightprotocol/anchor", rev = "d8a2b3d9", features = ["memo", "metadata"] }
 light-ctoken-types = { workspace = true, features = ["anchor"] }
 light-compressed-token-sdk = { workspace = true, features = ["anchor"] }
 light-compressed-token-types = { workspace = true, features = ["anchor"] }
