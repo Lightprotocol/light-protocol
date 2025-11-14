@@ -1,6 +1,7 @@
 pub type Result<T> = anyhow::Result<T>;
 
 pub mod cli;
+pub mod compressible;
 pub mod config;
 pub mod epoch_manager;
 pub mod errors;
@@ -14,7 +15,7 @@ pub mod processor;
 pub mod pubsub_client;
 pub mod queue_helpers;
 pub mod rollover;
-mod slot_tracker;
+pub mod slot_tracker;
 pub mod smart_transaction;
 pub mod telemetry;
 pub mod tree_data_sync;
@@ -145,6 +146,9 @@ pub async fn run_queue_info(
                     .with_label_values(&["AddressV2", &tree_data.merkle_tree.to_string()])
                     .set(queue_length as i64);
             }
+            TreeType::Unknown => {
+                // Virtual tree type for compression, no queue to monitor
+            }
         };
     }
     Ok(())
@@ -154,7 +158,9 @@ pub async fn run_pipeline<R: Rpc>(
     config: Arc<ForesterConfig>,
     rpc_rate_limiter: Option<RateLimiter>,
     send_tx_rate_limiter: Option<RateLimiter>,
-    shutdown: oneshot::Receiver<()>,
+    shutdown_service: oneshot::Receiver<()>,
+    shutdown_compressible: Option<oneshot::Receiver<()>>,
+    shutdown_bootstrap: Option<oneshot::Receiver<()>>,
     work_report_sender: mpsc::Sender<WorkReport>,
 ) -> Result<()> {
     let mut builder = SolanaRpcPoolBuilder::<R>::default()
@@ -213,16 +219,62 @@ pub async fn run_pipeline<R: Rpc>(
         config.transaction_config.ops_cache_ttl_seconds,
     )));
 
+    // Start compressible subscriber if enabled and get tracker
+    let compressible_tracker = if let Some(compressible_config) = &config.compressible_config {
+        if let Some(shutdown_rx) = shutdown_compressible {
+            let tracker = Arc::new(compressible::CompressibleAccountTracker::new());
+            let tracker_clone = tracker.clone();
+            let ws_url = compressible_config.ws_url.clone();
+
+            // Spawn subscriber
+            tokio::spawn(async move {
+                let mut subscriber =
+                    compressible::AccountSubscriber::new(ws_url, tracker_clone, shutdown_rx);
+                if let Err(e) = subscriber.run().await {
+                    tracing::error!("Compressible subscriber error: {:?}", e);
+                }
+            });
+
+            // Spawn bootstrap task
+            if let Some(shutdown_bootstrap_rx) = shutdown_bootstrap {
+                let tracker_clone = tracker.clone();
+                let rpc_url = config.external_services.rpc_url.clone();
+
+                tokio::spawn(async move {
+                    if let Err(e) = compressible::bootstrap_compressible_accounts(
+                        rpc_url,
+                        tracker_clone,
+                        shutdown_bootstrap_rx,
+                    )
+                    .await
+                    {
+                        tracing::error!("Bootstrap failed: {:?}", e);
+                    } else {
+                        tracing::info!("Bootstrap complete");
+                    }
+                });
+            }
+
+            Some(tracker)
+        } else {
+            tracing::warn!("Compressible config enabled but no shutdown receiver provided");
+            None
+        }
+    } else {
+        None
+    };
+
     debug!("Starting Forester pipeline");
     run_service(
         config,
         Arc::new(protocol_config),
         arc_pool,
-        shutdown,
+        shutdown_service,
         work_report_sender,
         arc_slot_tracker,
         tx_cache,
         ops_cache,
+        compressible_tracker,
     )
     .await?;
     Ok(())

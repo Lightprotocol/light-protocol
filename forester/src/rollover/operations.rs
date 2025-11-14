@@ -26,7 +26,7 @@ use solana_sdk::{
     compute_budget::ComputeBudgetInstruction, instruction::Instruction, pubkey::Pubkey,
     signature::Keypair, signer::Signer, transaction::Transaction,
 };
-use tracing::trace;
+use tracing::{trace, warn};
 
 use crate::errors::ForesterError;
 
@@ -145,6 +145,14 @@ pub async fn get_tree_fullness<R: Rpc>(
                 fullness,
                 next_index,
                 threshold,
+            })
+        }
+        TreeType::Unknown => {
+            warn!("TreeType::Unknown is a virtual type and cannot be rolled over");
+            Ok(TreeInfo {
+                fullness: 0.0,
+                next_index: 0,
+                threshold: 0,
             })
         }
     }

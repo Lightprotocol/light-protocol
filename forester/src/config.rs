@@ -27,6 +27,7 @@ pub struct ForesterConfig {
     pub derivation_pubkey: Pubkey,
     pub address_tree_data: Vec<TreeAccounts>,
     pub state_tree_data: Vec<TreeAccounts>,
+    pub compressible_config: Option<crate::compressible::config::CompressibleConfig>,
 }
 
 #[derive(Debug, Clone)]
@@ -305,6 +306,13 @@ impl ForesterConfig {
             derivation_pubkey: derivation,
             address_tree_data: vec![],
             state_tree_data: vec![],
+            compressible_config: if args.enable_compressible {
+                args.ws_rpc_url
+                    .clone()
+                    .map(crate::compressible::config::CompressibleConfig::new)
+            } else {
+                None
+            },
         })
     }
 
@@ -358,6 +366,7 @@ impl ForesterConfig {
             derivation_pubkey: Pubkey::default(),
             address_tree_data: vec![],
             state_tree_data: vec![],
+            compressible_config: None,
         })
     }
 }
@@ -376,6 +385,7 @@ impl Clone for ForesterConfig {
             derivation_pubkey: self.derivation_pubkey,
             address_tree_data: self.address_tree_data.clone(),
             state_tree_data: self.state_tree_data.clone(),
+            compressible_config: self.compressible_config.clone(),
         }
     }
 }

@@ -1699,6 +1699,19 @@ async fn regenerate_accounts() {
         ),
         // ("forester_epoch_pda", forester_epoch_pda),
         // ("epoch_pda", epoch_pda),
+        (
+            "compressible_config_pda",
+            env.funding_pool_config.compressible_config_pda,
+        ),
+        ("rent_sponsor_pda", env.funding_pool_config.rent_sponsor_pda),
+        (
+            "config_counter_pda",
+            solana_sdk::pubkey::Pubkey::find_program_address(
+                &[b"compressible_config_counter"],
+                &solana_sdk::pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX"),
+            )
+            .0,
+        ),
     ];
 
     // Add all v1 state trees
@@ -1739,11 +1752,11 @@ async fn regenerate_accounts() {
         println!("name {:?}", name);
         // Fetch account data. Adjust this part to match how you retrieve and structure your account data.
         let account = rpc.get_account(pubkey).await.unwrap();
-        println!(
-            "{} DISCRIMINATOR {:?}",
-            name,
-            account.as_ref().unwrap().data[0..8].to_vec()
-        );
+        // println!(
+        //     "{} DISCRIMINATOR {:?}",
+        //     name,
+        //     account.as_ref().unwrap().data[0..8].to_vec()
+        // );
         let unwrapped_account = account.unwrap();
         let account = CliAccount::new(&pubkey, &unwrapped_account, true);
 

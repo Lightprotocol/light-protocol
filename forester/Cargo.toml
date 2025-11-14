@@ -28,8 +28,13 @@ light-merkle-tree-metadata = { workspace = true }
 light-sparse-merkle-tree = { workspace = true }
 light-sdk = { workspace = true, features = ["anchor"] }
 light-program-test = { workspace = true }
+light-compressible = { workspace = true }
+light-ctoken-types = { workspace = true }
+light-compressed-token-sdk = { workspace = true }
+solana-rpc-client-api = { workspace = true }
 solana-transaction-status = { workspace = true }
 bb8 = { workspace = true }
+base64 = "0.22" # make workspace dep
 
 serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
@@ -71,6 +76,7 @@ light-prover-client = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
 light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
+light-token-client = { workspace = true }
 dotenvy = "0.15"
 light-compressed-token = { workspace = true }
 rand = { workspace = true }

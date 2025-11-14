@@ -220,6 +220,14 @@ pub struct StartArgs {
         help = "Process only the specified tree (Pubkey). If specified, forester will process only this tree and ignore all others"
     )]
     pub tree_id: Option<String>,
+
+    #[arg(
+        long,
+        env = "FORESTER_ENABLE_COMPRESSIBLE",
+        help = "Enable compressible account tracking and compression using ws_rpc_url",
+        default_value = "false"
+    )]
+    pub enable_compressible: bool,
 }
 
 #[derive(Parser, Clone, Debug)]

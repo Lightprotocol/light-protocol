@@ -18,6 +18,7 @@ impl TreeInfo {
             TreeType::StateV2 => 32,
             TreeType::AddressV1 => 26,
             TreeType::AddressV2 => 40,
+            TreeType::Unknown => 0,
         }
     }
 }

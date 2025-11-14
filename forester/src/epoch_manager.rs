@@ -40,6 +40,7 @@ use tokio::{
 use tracing::{debug, error, info, info_span, instrument, trace, warn};
 
 use crate::{
+    compressible::{CompressibleAccountTracker, Compressor},
     errors::{
         ChannelError, ForesterError, InitializationError, RegistrationError, WorkReportError,
     },
@@ -108,6 +109,7 @@ pub struct EpochManager<R: Rpc> {
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
     coordinator: Option<Arc<QueueEventRouter>>,
+    compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
 }
 
 impl<R: Rpc> Clone for EpochManager<R> {
@@ -125,6 +127,7 @@ impl<R: Rpc> Clone for EpochManager<R> {
             tx_cache: self.tx_cache.clone(),
             ops_cache: self.ops_cache.clone(),
             coordinator: self.coordinator.clone(),
+            compressible_tracker: self.compressible_tracker.clone(),
         }
     }
 }
@@ -141,6 +144,7 @@ impl<R: Rpc> EpochManager<R> {
         new_tree_sender: broadcast::Sender<TreeAccounts>,
         tx_cache: Arc<Mutex<ProcessedHashCache>>,
         ops_cache: Arc<Mutex<ProcessedHashCache>>,
+        compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
     ) -> Result<Self> {
         let coordinator = if let Some(url) = &config.external_services.photon_grpc_url {
             match QueueEventRouter::new(url.clone()).await {
@@ -181,10 +185,23 @@ impl<R: Rpc> EpochManager<R> {
             tx_cache,
             ops_cache,
             coordinator,
+            compressible_tracker,
         })
     }
 
     pub async fn run(self: Arc<Self>) -> Result<()> {
+        // Add synthetic compression tree if enabled
+        if self.compressible_tracker.is_some() && self.config.compressible_config.is_some() {
+            let compression_tree_accounts = TreeAccounts {
+                merkle_tree: solana_sdk::pubkey::Pubkey::default(),
+                queue: solana_sdk::pubkey::Pubkey::default(),
+                tree_type: TreeType::Unknown,
+                is_rolledover: false,
+            };
+            self.add_new_tree(compression_tree_accounts).await?;
+            info!("Added compression tree");
+        }
+
         let (tx, mut rx) = mpsc::channel(100);
         let tx = Arc::new(tx);
 
@@ -1156,6 +1173,13 @@ impl<R: Rpc> EpochManager<R> {
                             .await
                         }
                     }
+                    TreeType::Unknown => {
+                        warn!(
+                            "TreeType::Unknown not supported for light slot processing. \
+                            Compression is handled separately via dispatch_compression()"
+                        );
+                        Ok(())
+                    }
                 };
 
                 match result {
@@ -1599,6 +1623,7 @@ impl<R: Rpc> EpochManager<R> {
         queue_update: Option<&QueueUpdateMessage>,
     ) -> Result<usize> {
         match tree_accounts.tree_type {
+            TreeType::Unknown => self.dispatch_compression(epoch_info.epoch).await,
             TreeType::StateV1 | TreeType::AddressV1 => {
                 self.process_v1(
                     epoch_info,
@@ -1614,6 +1639,118 @@ impl<R: Rpc> EpochManager<R> {
                     .await
             }
         }
+    }
+
+    async fn dispatch_compression(&self, current_epoch: u64) -> Result<usize> {
+        trace!("Dispatching compression for epoch {}", current_epoch);
+
+        let tracker = self
+            .compressible_tracker
+            .as_ref()
+            .ok_or_else(|| anyhow!("Compressible tracker not initialized"))?;
+
+        let config = self
+            .config
+            .compressible_config
+            .as_ref()
+            .ok_or_else(|| anyhow!("Compressible config not set"))?;
+
+        let current_slot = self.slot_tracker.estimated_current_slot();
+        let accounts = tracker.get_ready_to_compress(current_slot);
+
+        if accounts.is_empty() {
+            trace!("No compressible accounts ready for compression");
+            return Ok(0);
+        }
+
+        let num_batches = accounts.len().div_ceil(config.batch_size);
+        info!(
+            "Processing {} compressible accounts in {} batches (batch_size={})",
+            accounts.len(),
+            num_batches,
+            config.batch_size
+        );
+
+        let compressor = Compressor::new(
+            self.rpc_pool.clone(),
+            tracker.clone(),
+            self.config.payer_keypair.insecure_clone(),
+        );
+
+        // Derive registered forester PDA once for all batches
+        let (registered_forester_pda, _) =
+            light_registry::utils::get_forester_epoch_pda_from_authority(
+                &self.config.derivation_pubkey,
+                current_epoch,
+            );
+
+        // Create parallel compression futures
+        use futures::stream::StreamExt;
+
+        // Collect chunks into owned vectors to avoid lifetime issues
+        let batches: Vec<(usize, Vec<_>)> = accounts
+            .chunks(config.batch_size)
+            .enumerate()
+            .map(|(idx, chunk)| (idx, chunk.to_vec()))
+            .collect();
+
+        let compression_futures = batches.into_iter().map(|(batch_idx, batch)| {
+            let compressor = compressor.clone();
+            async move {
+                debug!(
+                    "Processing compression batch {}/{} with {} accounts",
+                    batch_idx + 1,
+                    num_batches,
+                    batch.len()
+                );
+
+                match compressor
+                    .compress_batch(&batch, registered_forester_pda)
+                    .await
+                {
+                    Ok(sig) => Ok((batch_idx, batch.len(), sig)),
+                    Err(e) => Err((batch_idx, batch.len(), e)),
+                }
+            }
+        });
+
+        // Execute batches in parallel with concurrency limit
+        let results = futures::stream::iter(compression_futures)
+            .buffer_unordered(config.max_concurrent_batches)
+            .collect::<Vec<_>>()
+            .await;
+
+        // Aggregate results
+        let mut total_compressed = 0;
+        for result in results {
+            match result {
+                Ok((batch_idx, count, sig)) => {
+                    info!(
+                        "Successfully compressed {} accounts in batch {}/{}: {}",
+                        count,
+                        batch_idx + 1,
+                        num_batches,
+                        sig
+                    );
+                    total_compressed += count;
+                }
+                Err((batch_idx, count, e)) => {
+                    error!(
+                        "Compression batch {}/{} ({} accounts) failed: {:?}",
+                        batch_idx + 1,
+                        num_batches,
+                        count,
+                        e
+                    );
+                }
+            }
+        }
+
+        info!(
+            "Completed compression for epoch {}: compressed {} accounts",
+            current_epoch, total_compressed
+        );
+        Ok(total_compressed)
     }
 
     async fn process_v1(
@@ -1973,6 +2110,7 @@ fn should_skip_tree(config: &ForesterConfig, tree_type: &TreeType) -> bool {
         TreeType::AddressV2 => config.general_config.skip_v2_address_trees,
         TreeType::StateV1 => config.general_config.skip_v1_state_trees,
         TreeType::StateV2 => config.general_config.skip_v2_state_trees,
+        TreeType::Unknown => false, // Never skip compression tree
     }
 }
 
@@ -1991,6 +2129,7 @@ pub async fn run_service<R: Rpc>(
     slot_tracker: Arc<SlotTracker>,
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
+    compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
 ) -> Result<()> {
     info_span!("run_service", forester = %config.payer_keypair.pubkey())
         .in_scope(|| async {
@@ -2062,6 +2201,7 @@ pub async fn run_service<R: Rpc>(
                     new_tree_sender.clone(),
                     tx_cache.clone(),
                     ops_cache.clone(),
+                    compressible_tracker.clone(),
                 )
                 .await
                 {
@@ -2172,6 +2312,7 @@ mod tests {
             derivation_pubkey: Pubkey::default(),
             address_tree_data: vec![],
             state_tree_data: vec![],
+            compressible_config: None,
         }
     }
 

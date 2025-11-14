@@ -182,6 +182,7 @@ pub enum TreeType {
     AddressV1 = ADDRESS_MERKLE_TREE_TYPE_V1,
     StateV2 = STATE_MERKLE_TREE_TYPE_V2,
     AddressV2 = ADDRESS_MERKLE_TREE_TYPE_V2,
+    Unknown = 255,
 }
 
 impl Display for TreeType {
@@ -191,6 +192,7 @@ impl Display for TreeType {
             TreeType::AddressV1 => write!(f, "AddressV1"),
             TreeType::StateV2 => write!(f, "StateV2"),
             TreeType::AddressV2 => write!(f, "AddressV2"),
+            TreeType::Unknown => write!(f, "Unknown"),
         }
     }
 }
@@ -210,6 +212,7 @@ impl From<u64> for TreeType {
             2 => TreeType::AddressV1,
             3 => TreeType::StateV2,
             4 => TreeType::AddressV2,
+            255 => TreeType::Unknown,
             _ => panic!("Invalid TreeType"),
         }
     }
