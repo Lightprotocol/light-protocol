@@ -202,7 +202,7 @@ pub async fn create_mint(
         derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
     // Find mint bump for the instruction
-    let (mint, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
+    let (mint, _) = find_spl_mint_address(&mint_seed.pubkey());
 
     // Create compressed token associated token account for the mint authority
     let (token_account, _) = derive_ctoken_ata(&mint_authority.pubkey(), &mint);
@@ -322,7 +322,6 @@ pub async fn create_mint(
     let instruction_data = sdk_token_test::instruction::PdaCtoken {
         input: ChainedCtokenInstructionData {
             compressed_mint_with_context,
-            mint_bump,
             token_recipients,
             final_mint_authority: None, // Revoke mint authority (set to None)
             pda_creation,

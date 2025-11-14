@@ -30,7 +30,6 @@ pub const MINT_ACTION_DISCRIMINATOR: u8 = 103;
 pub struct CreateMintInputs {
     pub compressed_mint_inputs: CompressedMintWithContext,
     pub mint_seed: Pubkey,
-    pub mint_bump: u8,
     pub authority: Pubkey,
     pub payer: Pubkey,
     pub proof: Option<CompressedProof>,
@@ -77,7 +76,7 @@ impl MintActionInputs {
             compressed_mint_inputs: inputs.compressed_mint_inputs,
             mint_seed: inputs.mint_seed,
             create_mint: true,
-            mint_bump: Some(inputs.mint_bump),
+            mint_bump: None,
             authority: inputs.authority,
             payer: inputs.payer,
             proof: inputs.proof,
@@ -261,12 +260,8 @@ pub fn create_mint_action_cpi(
 ) -> Result<Instruction> {
     // Convert high-level actions to program-level actions
     let mut program_actions = Vec::new();
-    let mint_bump = input.mint_bump.unwrap_or(0u8);
     let create_mint = if input.create_mint {
-        Some(CreateMint {
-            mint_bump,
-            ..Default::default()
-        })
+        Some(CreateMint::default())
     } else {
         None
     };
@@ -472,7 +467,6 @@ pub struct CreateMintCpiWriteInputs {
     pub compressed_mint_inputs:
         light_ctoken_types::instructions::mint_action::CompressedMintWithContext,
     pub mint_seed: Pubkey,
-    pub mint_bump: u8,
     pub authority: Pubkey,
     pub payer: Pubkey,
     pub cpi_context_pubkey: Pubkey,
@@ -515,7 +509,7 @@ impl MintActionInputsCpiWrite {
         Self {
             compressed_mint_inputs: inputs.compressed_mint_inputs,
             mint_seed: Some(inputs.mint_seed),
-            mint_bump: Some(inputs.mint_bump),
+            mint_bump: None,
             create_mint: true,
             authority: inputs.authority,
             payer: inputs.payer,
@@ -662,12 +656,8 @@ pub fn mint_action_cpi_write(input: MintActionInputsCpiWrite) -> Result<Instruct
 
     // Convert high-level actions to program-level actions
     let mut program_actions = Vec::new();
-    let mint_bump = input.mint_bump.unwrap_or(0u8);
     let create_mint = if input.create_mint {
-        Some(CreateMint {
-            mint_bump,
-            ..Default::default()
-        })
+        Some(CreateMint::default())
     } else {
         None
     };

@@ -18,29 +18,19 @@ pub fn process_create_mint_action(
     cpi_instruction_struct: &mut ZInstructionDataInvokeCpiWithReadOnlyMut<'_>,
     address_merkle_tree_account_index: u8,
 ) -> Result<(), ProgramError> {
-    // 1. Create spl mint PDA using provided bump
-    // - The compressed address is derived from the spl_mint_pda.
-    // - The spl mint pda is used as mint in compressed token accounts.
-    // Note: we cant use pinocchio_pubkey::derive_address because don't use the mint_pda in this ix.
-    //  The pda would be unvalidated and an invalid bump could be used.
-    let spl_mint_pda = solana_pubkey::Pubkey::create_program_address(
-        &[
-            COMPRESSED_MINT_SEED,
-            mint_signer.as_slice(),
-            &[parsed_instruction_data
-                .create_mint
-                .as_ref()
-                .ok_or(ProgramError::InvalidInstructionData)?
-                .mint_bump],
-        ],
+    // 1. Derive compressed mint address without bump to ensure
+    //      that only one mint per seed can be created.
+    let spl_mint_pda = solana_pubkey::Pubkey::find_program_address(
+        &[COMPRESSED_MINT_SEED, mint_signer.as_slice()],
         &crate::ID,
-    )?
+    )
+    .0
     .to_bytes();
 
-    if spl_mint_pda != parsed_instruction_data.mint.metadata.mint.to_bytes() {
-        msg!("Invalid mint PDA derivation");
-        return Err(ErrorCode::MintActionInvalidMintPda.into());
-    }
+    parsed_instruction_data
+        .create_mint
+        .as_ref()
+        .ok_or(ProgramError::InvalidInstructionData)?;
     // With cpi context this program does not have access
     // to the address Merkle tree account that is used in the cpi to the light system program.
     // This breaks the implicit check of new_address_params_assigned.

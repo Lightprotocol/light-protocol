@@ -5,11 +5,8 @@ use light_client::{
 use light_compressed_token_sdk::instructions::create_compressed_mint::{
     create_compressed_mint, derive_compressed_mint_address, CreateCompressedMintInputs,
 };
-use light_ctoken_types::{
-    instructions::extensions::{
-        token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
-    },
-    COMPRESSED_MINT_SEED,
+use light_ctoken_types::instructions::extensions::{
+    token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
 };
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
@@ -46,12 +43,6 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
     let compressed_mint_address =
         derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
 
-    // Find mint bump for the instruction
-    let (_, mint_bump) = Pubkey::find_program_address(
-        &[COMPRESSED_MINT_SEED, mint_seed.pubkey().as_ref()],
-        &Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
-    );
-
     // Create extensions if metadata is provided
     let extensions = metadata.map(|meta| vec![ExtensionInstructionData::TokenMetadata(meta)]);
 
@@ -76,7 +67,6 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
         mint_authority,
         freeze_authority,
         proof: rpc_result.proof.0.unwrap(),
-        mint_bump,
         address_merkle_tree_root_index,
         mint_signer: mint_seed.pubkey(),
         payer,

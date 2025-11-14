@@ -28,7 +28,6 @@ pub struct CreateCompressedMintInputs {
     pub mint_authority: Pubkey,
     pub freeze_authority: Option<Pubkey>,
     pub proof: CompressedProof,
-    pub mint_bump: u8,
     pub address_merkle_tree_root_index: u16,
     pub mint_signer: Pubkey,
     pub payer: Pubkey,
@@ -87,7 +86,7 @@ pub fn create_compressed_mint_cpi(
         compressed_mint_inputs: compressed_mint_with_context,
         mint_seed: input.mint_signer,
         create_mint: true, // Key difference - we're creating a new compressed mint
-        mint_bump: Some(input.mint_bump),
+        mint_bump: None,
         authority: input.mint_authority,
         payer: input.payer,
         proof: Some(input.proof),
@@ -112,7 +111,6 @@ pub struct CreateCompressedMintInputsCpiWrite {
     pub decimals: u8,
     pub mint_authority: Pubkey,
     pub freeze_authority: Option<Pubkey>,
-    pub mint_bump: u8,
     pub address_merkle_tree_root_index: u16,
     pub mint_signer: Pubkey,
     pub payer: Pubkey,
@@ -172,7 +170,7 @@ pub fn create_compressed_mint_cpi_write(
     let mint_action_inputs = MintActionInputsCpiWrite {
         compressed_mint_inputs: compressed_mint_with_context,
         mint_seed: Some(input.mint_signer),
-        mint_bump: Some(input.mint_bump),
+        mint_bump: None,
         create_mint: true, // Key difference - we're creating a new compressed mint
         authority: input.mint_authority,
         payer: input.payer,

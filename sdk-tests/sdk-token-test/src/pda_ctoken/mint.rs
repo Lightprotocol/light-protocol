@@ -19,7 +19,6 @@ pub fn process_mint_action<'a, 'info>(
     let mint_action_inputs = MintActionInputs::new_create_mint(CreateMintInputs {
         compressed_mint_inputs: input.compressed_mint_with_context.clone(),
         mint_seed: ctx.accounts.mint_seed.key(),
-        mint_bump: input.mint_bump,
         authority: ctx.accounts.mint_authority.key(),
         payer: ctx.accounts.payer.key(),
         proof: input.pda_creation.proof.into(),
