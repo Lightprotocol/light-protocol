@@ -1,5 +1,6 @@
 use anchor_compressed_token::ErrorCode;
 use anchor_lang::prelude::ProgramError;
+use arrayvec::ArrayVec;
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
 use light_compressed_account::instruction_data::data::ZOutputCompressedAccountWithPackedContextMut;
 use light_ctoken_types::{
@@ -9,18 +10,28 @@ use light_ctoken_types::{
 };
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
+use spl_pod::solana_msg::msg;
 
-use crate::mint_action::{
-    accounts::MintActionAccounts,
-    check_authority,
-    mint_to::process_mint_to_compressed_action,
-    mint_to_ctoken::process_mint_to_ctoken_action,
-    queue_indices::QueueIndices,
-    update_metadata::{
-        process_remove_metadata_key_action, process_update_metadata_authority_action,
-        process_update_metadata_field_action,
+use crate::{
+    mint_action::{
+        accounts::MintActionAccounts,
+        check_authority,
+        mint_to::process_mint_to_compressed_action,
+        mint_to_ctoken::process_mint_to_ctoken_action,
+        queue_indices::QueueIndices,
+        update_metadata::{
+            process_remove_metadata_key_action, process_update_metadata_authority_action,
+            process_update_metadata_field_action,
+        },
+    },
+    shared::{
+        convert_program_error,
+        transfer_lamports::{multi_transfer_lamports, Transfer},
     },
 };
+
+/// Maximum number of packed accounts allowed in a single instruction
+const MAX_PACKED_ACCOUNTS: usize = 40;
 
 #[allow(clippy::too_many_arguments)]
 #[profile]
@@ -35,6 +46,9 @@ pub fn process_actions<'a>(
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     compressed_mint: &mut CompressedMint,
 ) -> Result<(), ProgramError> {
+    // Array to accumulate transfer amounts by account index
+    let mut transfer_map = [0u64; MAX_PACKED_ACCOUNTS];
+
     // Start metadata authority with same value as mint authority
     for action in parsed_instruction_data.actions.iter() {
         match action {
@@ -80,13 +94,29 @@ pub fn process_actions<'a>(
                 // compressed_mint.metadata.spl_mint_initialized = true;
             }
             ZAction::MintToCToken(mint_to_ctoken_action) => {
-                process_mint_to_ctoken_action(
+                let transfer_amount = process_mint_to_ctoken_action(
                     mint_to_ctoken_action,
                     compressed_mint,
                     validated_accounts,
                     packed_accounts,
                     parsed_instruction_data.mint.metadata.mint,
                 )?;
+
+                // Accumulate transfer amount if present (deduplication happens here)
+                if let Some(amount) = transfer_amount {
+                    let account_index = mint_to_ctoken_action.account_index;
+                    if account_index as usize >= MAX_PACKED_ACCOUNTS {
+                        msg!(
+                            "Too many compression transfers: {}, max {} allowed",
+                            account_index,
+                            MAX_PACKED_ACCOUNTS
+                        );
+                        return Err(ErrorCode::TooManyCompressionTransfers.into());
+                    }
+                    transfer_map[account_index as usize] = transfer_map[account_index as usize]
+                        .checked_add(amount)
+                        .ok_or(ProgramError::ArithmeticOverflow)?;
+                }
             }
             ZAction::UpdateMetadataField(update_metadata_action) => {
                 process_update_metadata_field_action(
@@ -110,6 +140,38 @@ pub fn process_actions<'a>(
                 )?;
             }
         }
+    }
+
+    // Build transfers array from deduplicated map
+    let transfers: ArrayVec<Transfer, MAX_PACKED_ACCOUNTS> = transfer_map
+        .iter()
+        .enumerate()
+        .filter_map(|(index, &amount)| {
+            if amount != 0 {
+                Some((index as u8, amount))
+            } else {
+                None
+            }
+        })
+        .map(|(index, amount)| {
+            Ok(Transfer {
+                account: packed_accounts.get_u8(index, "transfer account")?,
+                amount,
+            })
+        })
+        .collect::<Result<ArrayVec<Transfer, MAX_PACKED_ACCOUNTS>, ProgramError>>()?;
+
+    // Execute transfers if any exist
+    if !transfers.is_empty() {
+        let fee_payer = validated_accounts
+            .executing
+            .as_ref()
+            .map(|exec| exec.system.fee_payer)
+            .ok_or_else(|| {
+                msg!("Fee payer required for compressible token account top-ups");
+                ProgramError::NotEnoughAccountKeys
+            })?;
+        multi_transfer_lamports(fee_payer, &transfers).map_err(convert_program_error)?;
     }
 
     Ok(())

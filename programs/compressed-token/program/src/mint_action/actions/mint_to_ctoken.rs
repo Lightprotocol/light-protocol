@@ -21,14 +21,14 @@ pub fn process_mint_to_ctoken_action(
     validated_accounts: &MintActionAccounts,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
     mint: Pubkey,
-) -> Result<(), ProgramError> {
+) -> Result<Option<u64>, ProgramError> {
     check_authority(
         compressed_mint.base.mint_authority,
         validated_accounts.authority.key(),
         "mint authority",
     )?;
 
-    let amount = u64::from(action.recipient.amount);
+    let amount = u64::from(action.amount);
     compressed_mint.base.supply = compressed_mint
         .base
         .supply
@@ -44,7 +44,7 @@ pub fn process_mint_to_ctoken_action(
 
     // Get the recipient token account from packed accounts using the index
     let token_account_info =
-        packed_accounts.get_u8(action.recipient.account_index, "ctoken mint to recipient")?;
+        packed_accounts.get_u8(action.account_index, "ctoken mint to recipient")?;
 
     // Authority check now performed above - safe to proceed with decompression
     // Use the mint_ctokens constructor for simple decompression operations
@@ -54,10 +54,8 @@ pub fn process_mint_to_ctoken_action(
         token_account_info,
         packed_accounts,
     );
-    // For mint_to_ctoken, we don't need to handle lamport transfers
-    // as there's no compressible extension on the target account
-    compress_or_decompress_ctokens(inputs)?;
-    Ok(())
+
+    compress_or_decompress_ctokens(inputs)
 }
 
 #[profile]
