@@ -2,12 +2,6 @@ use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{Data, DeriveInput, Fields, Result, Type};
 
-/// Generates Pack and Unpack trait implementations for compressible account types
-///
-/// For types with Pubkey fields, this also generates a PackedXxx struct where Pubkeys become u8 indices.
-/// For types without Pubkeys, generates identity Pack/Unpack implementations.
-///
-/// Usage: #[derive(CompressiblePack)]
 #[inline(never)]
 pub fn derive_compressible_pack(input: DeriveInput) -> Result<TokenStream> {
     let struct_name = &input.ident;
@@ -31,7 +25,6 @@ pub fn derive_compressible_pack(input: DeriveInput) -> Result<TokenStream> {
         }
     };
 
-    // Check if this struct has any Pubkey fields that need packing
     let has_pubkey_fields = fields.iter().any(|field| {
         if let Type::Path(type_path) = &field.ty {
             if let Some(segment) = type_path.path.segments.last() {
@@ -45,10 +38,8 @@ pub fn derive_compressible_pack(input: DeriveInput) -> Result<TokenStream> {
     });
 
     if has_pubkey_fields {
-        // Generate PackedXxx struct and Pack/Unpack implementations for types with Pubkeys
         generate_with_packed_struct(struct_name, &packed_struct_name, fields)
     } else {
-        // Generate identity Pack/Unpack implementations for types without Pubkeys
         generate_identity_pack_unpack(struct_name)
     }
 }
@@ -59,12 +50,10 @@ fn generate_with_packed_struct(
     packed_struct_name: &syn::Ident,
     fields: &syn::punctuated::Punctuated<syn::Field, syn::token::Comma>,
 ) -> Result<TokenStream> {
-    // Generate fields for the packed struct
     let packed_fields = fields.iter().map(|field| {
         let field_name = field.ident.as_ref().unwrap();
         let field_type = &field.ty;
 
-        // Convert Pubkey fields to u8, keep others as-is
         let packed_type = if is_pubkey_type(field_type) {
             quote! { u8 }
         } else {
@@ -74,7 +63,6 @@ fn generate_with_packed_struct(
         quote! { pub #field_name: #packed_type }
     });
 
-    // Generate the packed struct
     let packed_struct = quote! {
         #[derive(Debug, Clone, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
         pub struct #packed_struct_name {
@@ -82,7 +70,6 @@ fn generate_with_packed_struct(
         }
     };
 
-    // Generate Pack implementation for original struct
     let pack_field_assignments = fields.iter().map(|field| {
         let field_name = field.ident.as_ref().unwrap();
         let field_type = &field.ty;
@@ -104,7 +91,6 @@ fn generate_with_packed_struct(
 
             #[inline(never)]
             fn pack(&self, remaining_accounts: &mut light_sdk::instruction::PackedAccounts) -> Self::Packed {
-                // Use stack-efficient struct construction to minimize frame size
                 #packed_struct_name {
                     #(#pack_field_assignments,)*
                 }
@@ -112,7 +98,6 @@ fn generate_with_packed_struct(
         }
     };
 
-    // Generate Unpack implementation for original struct (identity)
     let unpack_impl_original = quote! {
         impl light_sdk::compressible::Unpack for #struct_name {
             type Unpacked = Self;
@@ -127,7 +112,6 @@ fn generate_with_packed_struct(
         }
     };
 
-    // Generate Pack implementation for packed struct (identity)
     let pack_impl_packed = quote! {
         impl light_sdk::compressible::Pack for #packed_struct_name {
             type Packed = Self;
@@ -139,7 +123,6 @@ fn generate_with_packed_struct(
         }
     };
 
-    // Generate Unpack implementation for packed struct
     let unpack_field_assignments = fields.iter().map(|field| {
         let field_name = field.ident.as_ref().unwrap();
         let field_type = &field.ty;
@@ -166,7 +149,6 @@ fn generate_with_packed_struct(
                 &self,
                 remaining_accounts: &[anchor_lang::prelude::AccountInfo],
             ) -> std::result::Result<Self::Unpacked, anchor_lang::prelude::ProgramError> {
-                // Use stack-efficient struct construction to minimize frame size
                 Ok(#struct_name {
                     #(#unpack_field_assignments,)*
                 })
@@ -220,7 +202,6 @@ fn generate_identity_pack_unpack(struct_name: &syn::Ident) -> Result<TokenStream
     Ok(expanded)
 }
 
-/// Check if a type is Pubkey
 #[inline(never)]
 fn is_pubkey_type(ty: &Type) -> bool {
     if let Type::Path(type_path) = ty {
@@ -234,7 +215,6 @@ fn is_pubkey_type(ty: &Type) -> bool {
     }
 }
 
-/// Determines if a type is likely to be Copy (simple heuristic)
 #[inline(never)]
 fn is_copy_type(ty: &Type) -> bool {
     match ty {
@@ -268,7 +248,6 @@ fn is_copy_type(ty: &Type) -> bool {
     }
 }
 
-/// Check if Option<T> where T is Copy
 #[inline(never)]
 fn has_copy_inner_type(args: &syn::PathArguments) -> bool {
     match args {

@@ -6,7 +6,6 @@ use syn::{
     Ident, Result, Token,
 };
 
-/// Parse a comma-separated list of account type identifiers
 struct AccountTypeList {
     types: Punctuated<Ident, Token![,]>,
 }
@@ -19,14 +18,6 @@ impl Parse for AccountTypeList {
     }
 }
 
-/// Generates CompressedAccountVariant enum and CompressedAccountData struct with all trait implementations
-///
-/// Usage: compressed_account_variant!(UserRecord, GameSession, PlaceholderRecord);
-///
-/// This generates:
-/// - CompressedAccountVariant enum with variants for each type + token variants
-/// - All required trait implementations: Default, DataHasher, LightDiscriminator, HasCompressionInfo, Size, Pack, Unpack
-/// - CompressedAccountData struct for instruction data
 pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
     let type_list = syn::parse2::<AccountTypeList>(input)?;
     let account_types: Vec<&Ident> = type_list.types.iter().collect();
@@ -38,7 +29,6 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
         ));
     }
 
-    // Generate enum variants for account types
     let account_variants = account_types.iter().map(|name| {
         let packed_name = quote::format_ident!("Packed{}", name);
         quote! {
@@ -47,20 +37,15 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
         }
     });
 
-    // Generate the CompressedAccountVariant enum with token variants
     let enum_def = quote! {
         #[derive(Clone, Debug, anchor_lang::AnchorSerialize, anchor_lang::AnchorDeserialize)]
         pub enum CompressedAccountVariant {
             #(#account_variants)*
-            // Token account variants (always included)
-            PackedCTokenData(
-                light_compressed_token_sdk::compat::PackedCTokenData<CTokenAccountVariant>
-            ),
+            PackedCTokenData(light_compressed_token_sdk::compat::PackedCTokenData<CTokenAccountVariant>),
             CTokenData(light_compressed_token_sdk::compat::CTokenData<CTokenAccountVariant>),
         }
     };
 
-    // Generate Default implementation
     let first_type = account_types[0];
     let default_impl = quote! {
         impl Default for CompressedAccountVariant {
@@ -70,7 +55,6 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
         }
     };
 
-    // Generate DataHasher implementation
     let hash_match_arms = account_types.iter().map(|name| {
         let packed_name = quote::format_ident!("Packed{}", name);
         quote! {
@@ -91,15 +75,13 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
         }
     };
 
-    // Generate LightDiscriminator implementation
     let light_discriminator_impl = quote! {
         impl light_sdk::LightDiscriminator for CompressedAccountVariant {
-            const LIGHT_DISCRIMINATOR: [u8; 8] = [0; 8]; // This won't be used directly
+            const LIGHT_DISCRIMINATOR: [u8; 8] = [0; 8];
             const LIGHT_DISCRIMINATOR_SLICE: &'static [u8] = &Self::LIGHT_DISCRIMINATOR;
         }
     };
 
-    // Generate HasCompressionInfo implementation
     let compression_info_match_arms = account_types.iter().map(|name| {
         let packed_name = quote::format_ident!("Packed{}", name);
         quote! {
@@ -168,7 +150,6 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
         }
     };
 
-    // Generate Size implementation
     let size_match_arms = account_types.iter().map(|name| {
         let packed_name = quote::format_ident!("Packed{}", name);
         quote! {
@@ -189,7 +170,6 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
         }
     };
 
-    // Generate Pack implementation
     let pack_match_arms = account_types.iter().map(|name| {
         let packed_name = quote::format_ident!("Packed{}", name);
         quote! {
@@ -214,7 +194,6 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
         }
     };
 
-    // Generate Unpack implementation
     let unpack_match_arms = account_types.iter().map(|name| {
         let packed_name = quote::format_ident!("Packed{}", name);
         quote! {
@@ -233,14 +212,13 @@ pub fn compressed_account_variant(input: TokenStream) -> Result<TokenStream> {
             ) -> std::result::Result<Self::Unpacked, anchor_lang::prelude::ProgramError> {
                 match self {
                     #(#unpack_match_arms)*
-                    Self::PackedCTokenData(_data) => Ok(self.clone()), // as-is
-                    Self::CTokenData(_data) => unreachable!(),            // as-is
+                    Self::PackedCTokenData(_data) => Ok(self.clone()),
+                    Self::CTokenData(_data) => unreachable!(),
                 }
             }
         }
     };
 
-    // Generate CompressedAccountData struct
     let compressed_account_data_struct = quote! {
         #[derive(Clone, Debug, anchor_lang::AnchorDeserialize, anchor_lang::AnchorSerialize)]
         pub struct CompressedAccountData {

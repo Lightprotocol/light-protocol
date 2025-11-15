@@ -104,14 +104,4 @@ pub struct CompressAccountsIdempotent<'info> {
     /// CHECK: Validated by SDK
     #[account(mut)]
     pub compression_authority: AccountInfo<'info>,
-    /// CHECK: Validated by SDK
-    #[account(mut)]
-    pub ctoken_compression_authority: AccountInfo<'info>,
-    /// CHECK: Validated by SDK
-    #[account(mut)]
-    pub ctoken_rent_sponsor: AccountInfo<'info>,
-    /// CHECK: Validated by SDK
-    pub ctoken_program: AccountInfo<'info>,
-    /// CHECK: Validated by SDK
-    pub ctoken_cpi_authority: AccountInfo<'info>,
 }

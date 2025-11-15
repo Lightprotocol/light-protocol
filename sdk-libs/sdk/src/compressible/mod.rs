@@ -19,7 +19,7 @@ pub use compress_account::prepare_account_for_compression;
 #[cfg(feature = "v2")]
 pub use compress_account_on_init::prepare_compressed_account_on_init;
 #[cfg(feature = "v2")]
-pub use compress_runtime::CompressContext;
+pub use compress_runtime::{process_compress_pda_accounts_idempotent, CompressContext};
 pub use compression_info::{
     CompressAs, CompressedInitSpace, CompressionInfo, HasCompressionInfo, Pack, Space, Unpack,
 };

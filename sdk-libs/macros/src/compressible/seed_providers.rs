@@ -1,11 +1,4 @@
-//! Unified seed provider generation for PDA and CToken accounts.
-//!
-//! This module consolidates seed-related functionality:
-//! - CToken seed provider implementations
-//! - Client-side seed functions
-//!
-//! All seed generation happens within add_compressible_instructions which has
-//! full context (instruction data, accounts struct) for proper seed derivation.
+//! Seed provider generation for PDA and CToken accounts.
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -13,10 +6,6 @@ use syn::{spanned::Spanned, Ident, Result};
 
 use crate::compressible::instructions::{InstructionDataSpec, SeedElement, TokenSeedSpec};
 
-/// CToken seed provider
-///
-/// Generates CTokenAccountVariant enum from token seed specifications.
-///
 pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Result<TokenStream> {
     let variants = token_seeds.iter().enumerate().map(|(index, spec)| {
         let variant_name = &spec.variant;
@@ -27,7 +16,6 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
     });
 
     Ok(quote! {
-        /// Auto-generated CTokenAccountVariant enum from token seed specifications
         #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
         #[repr(u8)]
         pub enum CTokenAccountVariant {
@@ -36,7 +24,6 @@ pub fn generate_ctoken_account_variant_enum(token_seeds: &[TokenSeedSpec]) -> Re
     })
 }
 
-/// Generate CTokenSeedProvider implementation from token seed specifications.
 pub fn generate_ctoken_seed_provider_implementation(
     token_seeds: &[TokenSeedSpec],
 ) -> Result<TokenStream> {
@@ -365,7 +352,6 @@ pub fn generate_ctoken_seed_provider_implementation(
     }
 
     Ok(quote! {
-        /// Auto-generated CTokenSeedProvider implementation
         impl ctoken_seed_system::CTokenSeedProvider for CTokenAccountVariant {
             fn get_seeds<'a, 'info>(
                 &self,
@@ -394,9 +380,6 @@ pub fn generate_ctoken_seed_provider_implementation(
     })
 }
 
-/// Client-side seed functions
-///
-/// Generates public client-side seed functions for external consumption.
 #[inline(never)]
 pub fn generate_client_seed_functions(
     _account_types: &[Ident],
@@ -417,7 +400,6 @@ pub fn generate_client_seed_functions(
 
             let seed_count = seed_expressions.len();
             let function = quote! {
-                /// Auto-generated client-side seed function
                 pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
                     let mut seed_values = Vec::with_capacity(#seed_count + 1);
                     #(
@@ -449,7 +431,6 @@ pub fn generate_client_seed_functions(
 
             let seed_count = seed_expressions.len();
             let function = quote! {
-                /// Auto-generated client-side CToken seed function
                 pub fn #function_name(#(#parameters),*) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
                     let mut seed_values = Vec::with_capacity(#seed_count + 1);
                     #(
@@ -516,7 +497,6 @@ pub fn generate_client_seed_functions(
                     )
                 };
                 let authority_function = quote! {
-                    /// Auto-generated authority seed function for compression signing
                     pub fn #authority_function_name(#fn_params) -> (Vec<Vec<u8>>, solana_pubkey::Pubkey) {
                         #fn_body
                     }
@@ -527,7 +507,6 @@ pub fn generate_client_seed_functions(
     }
 
     Ok(quote! {
-        /// Client-side seed derivation functions (not program instructions)
         mod __client_seed_functions {
             use super::*;
             #(#functions)*
@@ -537,7 +516,6 @@ pub fn generate_client_seed_functions(
     })
 }
 
-/// Analyze seed specification and generate parameters + expressions for client functions.
 #[inline(never)]
 fn analyze_seed_spec_for_client(
     spec: &TokenSeedSpec,
@@ -714,7 +692,6 @@ fn analyze_seed_spec_for_client(
     Ok((parameters, expressions))
 }
 
-/// Helper to analyze a single expression for client functions.
 #[inline(never)]
 fn analyze_seed_spec_for_client_expr(
     expr: &syn::Expr,

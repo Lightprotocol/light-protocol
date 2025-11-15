@@ -1,6 +1,5 @@
 pub mod account;
 pub mod account2;
-pub mod compress_runtime;
 pub mod ctoken;
 pub mod decompress_runtime;
 pub mod error;
@@ -15,8 +14,6 @@ pub mod utils;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
-// Re-export
-pub use compress_runtime::{process_compress_accounts_idempotent, CompressContext};
 pub use decompress_runtime::{process_decompress_tokens_runtime, CTokenSeedProvider};
 pub use light_compressed_token_types::*;
 pub use pack::{compat, Pack, Unpack};

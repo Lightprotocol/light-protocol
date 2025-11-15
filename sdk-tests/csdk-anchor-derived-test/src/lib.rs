@@ -261,14 +261,12 @@ pub mod csdk_anchor_derived_test {
         compressed_accounts: Vec<
             light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
         >,
-        signer_seeds: Vec<Vec<Vec<u8>>>,
         system_accounts_offset: u8,
     ) -> Result<()> {
         crate::processor::process_compress_accounts_idempotent(
             ctx.accounts,
             ctx.remaining_accounts,
             compressed_accounts,
-            signer_seeds,
             system_accounts_offset,
         )
     }

@@ -1,9 +1,4 @@
 //! Trait derivation for compressible accounts.
-//!
-//! This module provides derive macros for:
-//! - `HasCompressionInfo`: Adds CompressionInfo field handling
-//! - `CompressAs`: Allows selective field compression
-//! - `Compressible`: Full compressible account support
 
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -13,7 +8,6 @@ use syn::{
     Data, DeriveInput, Expr, Fields, Ident, ItemStruct, Result, Token,
 };
 
-/// Parse the compress_as attribute content
 struct CompressAsFields {
     fields: Punctuated<CompressAsField, Token![,]>,
 }
@@ -40,24 +34,20 @@ impl Parse for CompressAsFields {
     }
 }
 
-/// Generates CompressAs trait implementation for a struct with optional compress_as attribute
 pub fn derive_compress_as(input: ItemStruct) -> Result<TokenStream> {
     let struct_name = &input.ident;
 
-    // Find the compress_as attribute (optional)
     let compress_as_attr = input
         .attrs
         .iter()
         .find(|attr| attr.path().is_ident("compress_as"));
 
-    // Parse the attribute content if it exists
     let compress_as_fields = if let Some(attr) = compress_as_attr {
         Some(attr.parse_args::<CompressAsFields>()?)
     } else {
         None
     };
 
-    // Get struct fields
     let fields = match &input.fields {
         Fields::Named(fields) => &fields.named,
         _ => {
@@ -68,20 +58,16 @@ pub fn derive_compress_as(input: ItemStruct) -> Result<TokenStream> {
         }
     };
 
-    // Build the compress_as method body
     let mut field_assignments = Vec::new();
 
-    // Add all field copies or default values
     for field in fields {
         let field_name = field.ident.as_ref().unwrap();
         let field_type = &field.ty;
 
-        // Skip compression_info field
         if field.attrs.iter().any(|attr| attr.path().is_ident("skip")) {
             continue;
         }
 
-        // Check if this field has a compress_as override
         let has_override = compress_as_fields
             .as_ref()
             .is_some_and(|cas| cas.fields.iter().any(|f| &f.name == field_name));
@@ -99,12 +85,10 @@ pub fn derive_compress_as(input: ItemStruct) -> Result<TokenStream> {
                 #field_name: #value,
             });
         } else if is_copy_type(field_type) {
-            // For Copy types, copy the value
             field_assignments.push(quote! {
                 #field_name: self.#field_name,
             });
         } else {
-            // For non-Copy types, clone the value
             field_assignments.push(quote! {
                 #field_name: self.#field_name.clone(),
             });
@@ -125,11 +109,9 @@ pub fn derive_compress_as(input: ItemStruct) -> Result<TokenStream> {
     })
 }
 
-/// Generates HasCompressionInfo trait implementation
 pub fn derive_has_compression_info(input: syn::ItemStruct) -> Result<TokenStream> {
     let struct_name = &input.ident;
 
-    // Verify compression_info field exists
     let fields = match &input.fields {
         Fields::Named(fields) => &fields.named,
         _ => {
@@ -175,24 +157,20 @@ pub fn derive_has_compression_info(input: syn::ItemStruct) -> Result<TokenStream
     })
 }
 
-/// Generates full Compressible trait implementation with Size, HasCompressionInfo, and CompressAs
 pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
     let struct_name = &input.ident;
 
-    // Find the compress_as attribute (optional)
     let compress_as_attr = input
         .attrs
         .iter()
         .find(|attr| attr.path().is_ident("compress_as"));
 
-    // Parse the attribute content if it exists
     let compress_as_fields = if let Some(attr) = compress_as_attr {
         Some(attr.parse_args::<CompressAsFields>()?)
     } else {
         None
     };
 
-    // Get struct fields
     let fields = match &input.data {
         Data::Struct(data) => match &data.fields {
             Fields::Named(fields) => &fields.named,
@@ -211,7 +189,6 @@ pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
         }
     };
 
-    // Verify compression_info field exists
     let has_compression_info_field = fields.iter().any(|field| {
         field
             .ident
@@ -226,19 +203,16 @@ pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
         ));
     }
 
-    // Build the compress_as method body
     let mut field_assignments = Vec::new();
 
     for field in fields.iter() {
         let field_name = field.ident.as_ref().unwrap();
         let field_type = &field.ty;
 
-        // Skip compression_info field
         if field.attrs.iter().any(|attr| attr.path().is_ident("skip")) {
             continue;
         }
 
-        // Check if this field has a compress_as override
         let has_override = compress_as_fields
             .as_ref()
             .is_some_and(|cas| cas.fields.iter().any(|f| &f.name == field_name));
@@ -266,12 +240,10 @@ pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
         }
     }
 
-    // Calculate size (borsh-serialized size approximation)
     let mut size_fields = Vec::new();
     for field in fields.iter() {
         let field_name = field.ident.as_ref().unwrap();
 
-        // Skip compression_info since it's excluded from hashing/serialization
         if field.attrs.iter().any(|attr| attr.path().is_ident("skip")) {
             continue;
         }
@@ -326,7 +298,6 @@ pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
     })
 }
 
-/// Helper function to determine if a type implements Copy
 fn is_copy_type(ty: &syn::Type) -> bool {
     if let syn::Type::Path(type_path) = ty {
         if let Some(segment) = type_path.path.segments.last() {
@@ -356,7 +327,6 @@ fn is_copy_type(ty: &syn::Type) -> bool {
     }
 }
 
-/// Check if a generic type argument is a Copy type (e.g., Option<u64>)
 fn has_copy_inner_type(args: &syn::PathArguments) -> bool {
     if let syn::PathArguments::AngleBracketed(angle_args) = args {
         angle_args.args.iter().any(|arg| {

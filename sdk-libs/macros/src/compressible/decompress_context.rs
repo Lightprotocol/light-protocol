@@ -1,7 +1,4 @@
-//! Derive macro for DecompressContext trait.
-//!
-//! This generates the trait implementation automatically from struct fields and attributes.
-//! Can be used standalone or via add_compressible_instructions.
+//! DecompressContext trait generation.
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -11,7 +8,6 @@ use syn::{
     DeriveInput, Ident, Result, Token,
 };
 
-/// Parse the pda_types attribute: #[pda_types(MyAccount)]
 struct PdaTypesAttr {
     types: Punctuated<Ident, Token![,]>,
 }
@@ -24,7 +20,6 @@ impl Parse for PdaTypesAttr {
     }
 }
 
-/// Parse the token_variant attribute: #[token_variant(CTokenAccountVariant)]
 struct TokenVariantAttr {
     variant: Ident,
 }
@@ -37,22 +32,11 @@ impl Parse for TokenVariantAttr {
     }
 }
 
-/// Internal function to generate DecompressContext trait implementation.
-///
-/// This is used by both:
-/// - #[derive(DecompressContext)] macro (from attributes)
-/// - #[add_compressible_instructions] macro (from parsed args)
-///
-/// Generates:
-/// - Account accessor methods
-/// - collect_pda_and_token method with variant matching
-/// - process_tokens method that delegates to runtime
 pub fn generate_decompress_context_trait_impl(
     pda_type_idents: Vec<Ident>,
     token_variant_ident: Ident,
     lifetime: syn::Lifetime,
 ) -> Result<TokenStream> {
-    // Generate match arms for PDA collection
     let pda_match_arms: Vec<_> = pda_type_idents
         .iter()
         .map(|pda_type| {
@@ -88,7 +72,6 @@ pub fn generate_decompress_context_trait_impl(
             type PackedTokenData = light_compressed_token_sdk::compat::PackedCTokenData<#token_variant_ident>;
             type CompressedMeta = light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 
-            // Account accessors
             fn fee_payer(&self) -> &solana_account_info::AccountInfo<#lifetime> {
                 &*self.fee_payer
             }
@@ -117,7 +100,6 @@ pub fn generate_decompress_context_trait_impl(
                 &*self.ctoken_config
             }
 
-            // Program-specific collection logic
             fn collect_pda_and_token<'b>(
                 &self,
                 cpi_accounts: &light_sdk::cpi::v2::CpiAccounts<'b, #lifetime>,
@@ -153,7 +135,6 @@ pub fn generate_decompress_context_trait_impl(
                 std::result::Result::Ok((compressed_pda_infos, compressed_token_accounts))
             }
 
-            // Token processing - delegates to runtime
             #[inline(never)]
             #[allow(clippy::too_many_arguments)]
             fn process_tokens<'b>(
@@ -192,11 +173,7 @@ pub fn generate_decompress_context_trait_impl(
     })
 }
 
-/// Derive DecompressContext trait implementation from attributes.
-///
-/// This is the public derive macro entry point.
 pub fn derive_decompress_context(input: DeriveInput) -> Result<TokenStream> {
-    // Extract pda_types attribute
     let pda_types_attr = input
         .attrs
         .iter()
@@ -211,7 +188,6 @@ pub fn derive_decompress_context(input: DeriveInput) -> Result<TokenStream> {
     let pda_types: PdaTypesAttr = pda_types_attr.parse_args()?;
     let pda_type_idents: Vec<Ident> = pda_types.types.iter().cloned().collect();
 
-    // Extract token_variant attribute
     let token_variant_attr = input
         .attrs
         .iter()
@@ -226,7 +202,6 @@ pub fn derive_decompress_context(input: DeriveInput) -> Result<TokenStream> {
     let token_variant: TokenVariantAttr = token_variant_attr.parse_args()?;
     let token_variant_ident = token_variant.variant;
 
-    // Extract lifetime from struct
     let lifetime = if let Some(lt) = input.generics.lifetimes().next() {
         lt.lifetime.clone()
     } else {
@@ -236,6 +211,5 @@ pub fn derive_decompress_context(input: DeriveInput) -> Result<TokenStream> {
         ));
     };
 
-    // Call shared implementation
     generate_decompress_context_trait_impl(pda_type_idents, token_variant_ident, lifetime)
 }

@@ -413,10 +413,6 @@ async fn compress_pdas(
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
                 rent_sponsor: RENT_SPONSOR,
                 compression_authority: payer.pubkey(),
-                ctoken_compression_authority: payer.pubkey(),
-                ctoken_rent_sponsor: light_compressed_token_sdk::ctoken::rent_sponsor_pda(),
-                ctoken_program: light_compressed_token_sdk::ctoken::id(),
-                ctoken_cpi_authority: light_compressed_token_sdk::ctoken::cpi_authority(),
             }
             .to_account_metas(None),
             vec![user_seeds.0, game_seeds.0],

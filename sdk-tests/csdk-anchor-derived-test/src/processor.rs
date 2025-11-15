@@ -213,24 +213,8 @@ impl<'info> light_sdk::compressible::CompressContext<'info> for CompressAccounts
         &self.rent_sponsor
     }
 
-    fn ctoken_rent_sponsor(&self) -> &AccountInfo<'info> {
-        &self.ctoken_rent_sponsor
-    }
-
     fn compression_authority(&self) -> &AccountInfo<'info> {
         &self.compression_authority
-    }
-
-    fn ctoken_compression_authority(&self) -> &AccountInfo<'info> {
-        &self.ctoken_compression_authority
-    }
-
-    fn ctoken_program(&self) -> &AccountInfo<'info> {
-        &self.ctoken_program
-    }
-
-    fn ctoken_cpi_authority(&self) -> &AccountInfo<'info> {
-        &self.ctoken_cpi_authority
     }
 
     fn compress_pda_account(
@@ -306,14 +290,12 @@ pub fn process_compress_accounts_idempotent<'info>(
     accounts: &CompressAccountsIdempotent<'info>,
     remaining_accounts: &[AccountInfo<'info>],
     compressed_accounts: Vec<CompressedAccountMetaNoLamportsNoAddress>,
-    signer_seeds: Vec<Vec<Vec<u8>>>,
     system_accounts_offset: u8,
 ) -> Result<()> {
-    light_compressed_token_sdk::compress_runtime::process_compress_accounts_idempotent(
+    light_sdk::compressible::process_compress_pda_accounts_idempotent(
         accounts,
         remaining_accounts,
         compressed_accounts,
-        signer_seeds,
         system_accounts_offset,
         LIGHT_CPI_SIGNER,
         &crate::ID,

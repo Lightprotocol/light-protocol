@@ -1,10 +1,4 @@
-//! Consolidated compressible instructions generation.
-//!
-//! This module handles the complete generation of compression/decompression instructions,
-//! combining what was previously split across three files:
-//! - Main instruction orchestration (add_compressible_instructions)
-//! - Compress instruction generation  
-//! - Decompress instruction generation
+//! Compressible instructions generation.
 
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
@@ -14,11 +8,6 @@ use syn::{
     Expr, Ident, Item, ItemMod, LitStr, Result, Token,
 };
 
-// ============================================================================
-// SECTION 1: Core Types and Parsing
-// ============================================================================
-
-/// Helper macro to create syn::Error with file:line information
 macro_rules! macro_error {
     ($span:expr, $msg:expr) => {
         syn::Error::new_spanned(
@@ -44,18 +33,13 @@ macro_rules! macro_error {
     };
 }
 
-/// Determines which type of instruction to generate based on seed specifications
 #[derive(Debug, Clone, Copy)]
 pub enum InstructionVariant {
-    /// Only PDA seeds specified - generate PDA-only instructions
     PdaOnly,
-    /// Only token seeds specified - generate token-only instructions  
     TokenOnly,
-    /// Both PDA and token seeds specified - generate mixed instructions
     Mixed,
 }
 
-/// Parse seed specification for a token account variant
 #[derive(Clone)]
 pub struct TokenSeedSpec {
     pub variant: Ident,
@@ -300,11 +284,6 @@ impl Parse for EnhancedMacroArgs {
     }
 }
 
-// ============================================================================
-// SECTION 2: Main Instruction Generation (add_compressible_instructions)
-// ============================================================================
-
-/// Generate full mixed PDA + compressed-token support for an Anchor program module.
 #[inline(never)]
 pub fn add_compressible_instructions(
     args: TokenStream,
@@ -703,29 +682,14 @@ pub fn add_compressible_instructions(
         pub struct CompressAccountsIdempotent<'info> {
             #[account(mut)]
             pub fee_payer: Signer<'info>,
-            /// CHECK: Config is validated by the SDK's load_checked method
+            /// CHECK: validated by SDK
             pub config: AccountInfo<'info>,
-            /// CHECK: Rent sponsor is validated against the config
+            /// CHECK: validated by SDK
             #[account(mut)]
             pub rent_sponsor: AccountInfo<'info>,
-
-            /// CHECK: compression_authority must be the rent_authority defined when creating the PDA account.
+            /// CHECK: validated by SDK
             #[account(mut)]
             pub compression_authority: AccountInfo<'info>,
-
-            /// CHECK: token_compression_authority must be the rent_authority defined when creating the token account.
-            #[account(mut)]
-            pub ctoken_compression_authority: AccountInfo<'info>,
-
-            /// CHECK: Token rent sponsor is validated against the config
-            #[account(mut)]
-            pub ctoken_rent_sponsor: AccountInfo<'info>,
-
-            /// CHECK: Program ID validated to be cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m
-            pub ctoken_program: UncheckedAccount<'info>,
-
-            /// CHECK: PDA derivation validated with seeds ["cpi_authority"] and bump 254
-            pub ctoken_cpi_authority: UncheckedAccount<'info>,
         }
         },
     };
@@ -748,10 +712,10 @@ pub fn add_compressible_instructions(
         pub struct InitializeCompressionConfig<'info> {
             #[account(mut)]
             pub payer: Signer<'info>,
-            /// CHECK: Config PDA is created and validated by the SDK
+            /// CHECK: validated by SDK
             #[account(mut)]
             pub config: AccountInfo<'info>,
-            /// CHECK: Program data account is validated by the SDK
+            /// CHECK: validated by SDK
             pub program_data: AccountInfo<'info>,
             pub authority: Signer<'info>,
             pub system_program: Program<'info, System>,
@@ -761,10 +725,10 @@ pub fn add_compressible_instructions(
     let update_config_accounts: syn::ItemStruct = syn::parse_quote! {
         #[derive(Accounts)]
         pub struct UpdateCompressionConfig<'info> {
-            /// CHECK: config account is validated by the SDK
+            /// CHECK: validated by SDK
             #[account(mut)]
             pub config: AccountInfo<'info>,
-            /// CHECK: authority must be the current update authority
+            /// CHECK: validated by SDK
             pub authority: Signer<'info>,
         }
     };
@@ -866,10 +830,6 @@ pub fn add_compressible_instructions(
     })
 }
 
-// ============================================================================
-// SECTION 3: Decompress Instruction Generation
-// ============================================================================
-
 pub fn generate_decompress_context_impl(
     _variant: InstructionVariant,
     pda_type_idents: Vec<Ident>,
@@ -941,10 +901,6 @@ pub fn generate_decompress_instruction_entrypoint(
     })
 }
 
-// ============================================================================
-// SECTION 4: Compress Instruction Generation
-// ============================================================================
-
 pub fn generate_compress_context_impl(
     _variant: InstructionVariant,
     account_types: Vec<Ident>,
@@ -1007,24 +963,8 @@ pub fn generate_compress_context_impl(
                     &self.rent_sponsor
                 }
 
-                fn ctoken_rent_sponsor(&self) -> &solana_account_info::AccountInfo<#lifetime> {
-                    &self.ctoken_rent_sponsor
-                }
-
                 fn compression_authority(&self) -> &solana_account_info::AccountInfo<#lifetime> {
                     &self.compression_authority
-                }
-
-                fn ctoken_compression_authority(&self) -> &solana_account_info::AccountInfo<#lifetime> {
-                    &self.ctoken_compression_authority
-                }
-
-                fn ctoken_program(&self) -> &solana_account_info::AccountInfo<#lifetime> {
-                    &*self.ctoken_program
-                }
-
-                fn ctoken_cpi_authority(&self) -> &solana_account_info::AccountInfo<#lifetime> {
-                    &*self.ctoken_cpi_authority
                 }
 
                 fn compress_pda_account(
@@ -1073,14 +1013,12 @@ pub fn generate_process_compress_accounts_idempotent(
             accounts: &CompressAccountsIdempotent<'info>,
             remaining_accounts: &[solana_account_info::AccountInfo<'info>],
             compressed_accounts: Vec<light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress>,
-            signer_seeds: Vec<Vec<Vec<u8>>>,
             system_accounts_offset: u8,
         ) -> Result<()> {
-            light_compressed_token_sdk::compress_runtime::process_compress_accounts_idempotent(
+            light_sdk::compressible::compress_runtime::process_compress_pda_accounts_idempotent(
                 accounts,
                 remaining_accounts,
                 compressed_accounts,
-                signer_seeds,
                 system_accounts_offset,
                 LIGHT_CPI_SIGNER,
                 &crate::ID,
@@ -1099,23 +1037,17 @@ pub fn generate_compress_instruction_entrypoint(
             ctx: Context<'_, '_, '_, 'info, CompressAccountsIdempotent<'info>>,
             proof: light_sdk::instruction::ValidityProof,
             compressed_accounts: Vec<light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress>,
-            signer_seeds: Vec<Vec<Vec<u8>>>,
             system_accounts_offset: u8,
         ) -> Result<()> {
             __processor_functions::process_compress_accounts_idempotent(
                 &ctx.accounts,
                 &ctx.remaining_accounts,
                 compressed_accounts,
-                signer_seeds,
                 system_accounts_offset,
             )
         }
     })
 }
-
-// ============================================================================
-// SECTION 5: Helper Functions
-// ============================================================================
 
 #[inline(never)]
 fn generate_pda_seed_derivation_for_trait(
@@ -1331,7 +1263,7 @@ fn generate_decompress_accounts_struct(
             pub fee_payer: Signer<'info>
         },
         quote! {
-            /// CHECK: load_checked.
+            /// CHECK: validated by SDK
             pub config: AccountInfo<'info>
         },
     ];
@@ -1346,12 +1278,12 @@ fn generate_decompress_accounts_struct(
         InstructionVariant::Mixed => {
             account_fields.extend(vec![
                 quote! {
-                    /// UNCHECKED: Anyone can pay to init PDAs.
+                    /// CHECK: anyone can pay
                     #[account(mut)]
                     pub rent_payer: Signer<'info>
                 },
                 quote! {
-                    /// UNCHECKED: Anyone can pay to init compressed tokens.
+                    /// CHECK: anyone can pay
                     #[account(mut)]
                     pub ctoken_rent_sponsor: AccountInfo<'info>
                 },
@@ -1366,17 +1298,17 @@ fn generate_decompress_accounts_struct(
         InstructionVariant::Mixed => {
             account_fields.extend(vec![
                 quote! {
-                    /// CHECK: Enforced to be cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m
+                    /// CHECK: address verified
                     #[account(address = solana_pubkey::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"))]
                     pub ctoken_program: UncheckedAccount<'info>
                 },
                 quote! {
-                    /// CHECK: Enforced to be GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy
+                    /// CHECK: address verified
                     #[account(address = solana_pubkey::pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy"))]
                     pub ctoken_cpi_authority: UncheckedAccount<'info>
                 },
                 quote! {
-                    /// CHECK: CToken CompressibleConfig account (default but can be overridden)
+                    /// CHECK: validated by SDK
                     pub ctoken_config: UncheckedAccount<'info>
                 },
             ]);
@@ -1400,7 +1332,7 @@ fn generate_decompress_accounts_struct(
         if !standard_fields.contains(&account_name.as_str()) {
             let account_ident = syn::Ident::new(account_name, proc_macro2::Span::call_site());
             account_fields.push(quote! {
-                /// CHECK: Optional seed account - required only if decompressing dependent accounts.
+                /// CHECK: optional seed account
                 pub #account_ident: Option<UncheckedAccount<'info>>
             });
         }
@@ -1437,11 +1369,11 @@ fn validate_compressed_account_sizes(account_types: &[Ident]) -> Result<TokenStr
 #[inline(never)]
 fn generate_error_codes(variant: InstructionVariant) -> Result<TokenStream> {
     let base_errors = quote! {
-            #[msg("Rent sponsor does not match config")]
+            #[msg("Rent sponsor mismatch")]
             InvalidRentSponsor,
-        #[msg("Required seed account is missing for decompression - check that all seed accounts for compressed accounts are provided")]
+        #[msg("Missing seed account")]
         MissingSeedAccount,
-        #[msg("ATA variants use SPL ATA derivation, not seed-based PDA derivation")]
+        #[msg("ATA uses SPL ATA derivation")]
         AtaDoesNotUseSeedDerivation,
     };
 
@@ -1449,13 +1381,13 @@ fn generate_error_codes(variant: InstructionVariant) -> Result<TokenStream> {
         InstructionVariant::PdaOnly => unreachable!(),
         InstructionVariant::TokenOnly => unreachable!(),
         InstructionVariant::Mixed => quote! {
-            #[msg("CToken decompression not yet implemented")]
+            #[msg("Not implemented")]
             CTokenDecompressionNotImplemented,
-            #[msg("PDA decompression not implemented in token-only variant")]
+            #[msg("Not implemented")]
             PdaDecompressionNotImplemented,
-            #[msg("Token compression not implemented in PDA-only variant")]
+            #[msg("Not implemented")]
             TokenCompressionNotImplemented,
-            #[msg("PDA compression not implemented in token-only variant")]
+            #[msg("Not implemented")]
             PdaCompressionNotImplemented,
         },
     };
