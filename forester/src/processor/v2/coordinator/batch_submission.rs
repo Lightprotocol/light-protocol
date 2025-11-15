@@ -8,7 +8,7 @@ use light_client::rpc::Rpc;
 use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
 };
-use solana_sdk::{instruction::Instruction, signer::Signer};
+use solana_sdk::signer::Signer;
 use tracing::info;
 
 use crate::processor::v2::common::{send_transaction_batch, BatchContext};
@@ -35,19 +35,20 @@ pub async fn submit_append_batches<R: Rpc>(
     for (chunk_idx, batch_chunk) in proofs.chunks(MAX_INSTRUCTIONS_PER_TX).enumerate() {
         let start_batch_idx = chunk_idx * MAX_INSTRUCTIONS_PER_TX;
 
-        let instructions: Vec<Instruction> = batch_chunk
-            .iter()
-            .map(|batch_data| {
-                create_batch_append_instruction(
-                    context.authority.pubkey(),
-                    context.derivation,
-                    context.merkle_tree,
-                    context.output_queue,
-                    context.epoch,
-                    batch_data.try_to_vec().expect("Failed to serialize proof"),
-                )
-            })
-            .collect();
+        let mut instructions = Vec::new();
+        for batch_data in batch_chunk {
+            let serialized = batch_data
+                .try_to_vec()
+                .map_err(|e| anyhow::anyhow!("Failed to serialize append proof: {}", e))?;
+            instructions.push(create_batch_append_instruction(
+                context.authority.pubkey(),
+                context.derivation,
+                context.merkle_tree,
+                context.output_queue,
+                context.epoch,
+                serialized,
+            ));
+        }
 
         info!(
             "Submitting append transaction {} with {} batches (batches {}-{})",
@@ -100,18 +101,19 @@ pub async fn submit_nullify_batches<R: Rpc>(
     for (chunk_idx, batch_chunk) in proofs.chunks(MAX_INSTRUCTIONS_PER_TX).enumerate() {
         let start_batch_idx = chunk_idx * MAX_INSTRUCTIONS_PER_TX;
 
-        let instructions: Vec<Instruction> = batch_chunk
-            .iter()
-            .map(|batch_data| {
-                create_batch_nullify_instruction(
-                    context.authority.pubkey(),
-                    context.derivation,
-                    context.merkle_tree,
-                    context.epoch,
-                    batch_data.try_to_vec().expect("Failed to serialize proof"),
-                )
-            })
-            .collect();
+        let mut instructions = Vec::new();
+        for batch_data in batch_chunk {
+            let serialized = batch_data
+                .try_to_vec()
+                .map_err(|e| anyhow::anyhow!("Failed to serialize nullify proof: {}", e))?;
+            instructions.push(create_batch_nullify_instruction(
+                context.authority.pubkey(),
+                context.derivation,
+                context.merkle_tree,
+                context.epoch,
+                serialized,
+            ));
+        }
 
         info!(
             "Submitting nullify transaction {} with {} batches (batches {}-{})",
@@ -193,7 +195,6 @@ pub async fn submit_interleaved_batches<R: Rpc>(
 
         current_tx_instructions.push(instruction);
 
-        // Submit when we reach the limit or finished all batches
         if current_tx_instructions.len() == MAX_INSTRUCTIONS_PER_TX
             || (append_idx + nullify_idx) == (append_proofs.len() + nullify_proofs.len())
         {

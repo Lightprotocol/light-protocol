@@ -205,7 +205,6 @@ impl<R: Rpc> EpochManager<R> {
             async move { self_clone.monitor_epochs(tx_clone).await }
         });
 
-        // Process current and previous epochs
         let current_previous_handle = tokio::spawn({
             let self_clone = Arc::clone(&self);
             let tx_clone = Arc::clone(&tx);
@@ -540,12 +539,10 @@ impl<R: Rpc> EpochManager<R> {
         }
         let phases = get_epoch_phases(&self.protocol_config, epoch);
 
-        // Attempt to recover registration info
         debug!("Recovering registration info for epoch {}", epoch);
         let mut registration_info = match self.recover_registration_info(epoch).await {
             Ok(info) => info,
             Err(e) => {
-                // Check if it's the expected "not found" error
                 if matches!(
                     e.downcast_ref::<RegistrationError>(),
                     Some(RegistrationError::ForesterEpochPdaNotFound { .. })
@@ -557,7 +554,6 @@ impl<R: Rpc> EpochManager<R> {
                 } else {
                     warn!("Failed to recover registration info: {:?}", e);
                 }
-                // Attempt to register
                 match self
                     .register_for_epoch_with_retry(epoch, 100, Duration::from_millis(1000))
                     .await
@@ -587,27 +583,19 @@ impl<R: Rpc> EpochManager<R> {
         };
         debug!("Recovered registration info for epoch {}", epoch);
 
-        // Wait for the active phase
         registration_info = self.wait_for_active_phase(&registration_info).await?;
 
-        // Perform work
         if self.sync_slot().await? < phases.active.end {
             self.perform_active_work(&registration_info).await?;
         }
-        // Wait for report work phase
         if self.sync_slot().await? < phases.report_work.start {
             self.wait_for_report_work_phase(&registration_info).await?;
         }
 
-        // Report work
         if self.sync_slot().await? < phases.report_work.end {
             self.report_work(&registration_info).await?;
         }
 
-        // TODO: implement
-        // self.claim(&registration_info).await?;
-
-        // Ensure we reset the processing flag when we're done
         let _reset_guard = scopeguard::guard((), |_| {
             processing_flag.store(false, Ordering::SeqCst);
         });

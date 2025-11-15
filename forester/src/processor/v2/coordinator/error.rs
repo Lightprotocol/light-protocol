@@ -38,6 +38,10 @@ pub enum CoordinatorError {
         source: anyhow::Error,
     },
 
+    /// Constraint error during proof generation, likely due to stale tree state.
+    #[error("Constraint error in batch {batch_index}: {details}")]
+    ConstraintError { batch_index: usize, details: String },
+
     /// Transaction submission failed.
     #[error("Transaction submission failed: {0}")]
     TransactionFailed(#[from] anyhow::Error),
@@ -49,11 +53,19 @@ impl CoordinatorError {
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
-            CoordinatorError::RootChanged { .. } | CoordinatorError::PhotonStale { .. }
+            CoordinatorError::RootChanged { .. }
+                | CoordinatorError::PhotonStale { .. }
+                | CoordinatorError::HashChainMismatch { .. }
+                | CoordinatorError::ConstraintError { .. }
         )
     }
 
     pub fn requires_resync(&self) -> bool {
-        matches!(self, CoordinatorError::RootChanged { .. })
+        matches!(
+            self,
+            CoordinatorError::RootChanged { .. }
+                | CoordinatorError::HashChainMismatch { .. }
+                | CoordinatorError::ConstraintError { .. }
+        )
     }
 }

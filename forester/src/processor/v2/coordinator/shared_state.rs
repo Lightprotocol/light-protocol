@@ -91,7 +91,6 @@ impl SharedTreeState {
 
         self.current_root = on_chain_root;
 
-        // Keep only batches that haven't been confirmed on-chain yet
         self.processed_batches.retain(|batch_id| {
             let on_chain_inserted = if batch_id.is_append {
                 output_queue_batches

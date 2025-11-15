@@ -88,6 +88,9 @@ pub struct PreparationState {
     pub append_batch_index: usize,
     pub nullify_batch_index: usize,
     pub append_leaf_indices: Vec<u64>,
+    /// Persistent staging tree that accumulates ALL updates across all batches.
+    /// This ensures that each batch sees updates from previous batches in the same cycle.
+    pub staging: super::tree_state::StagingTree,
 }
 
 impl PreparationState {
@@ -97,12 +100,34 @@ impl PreparationState {
         append_leaf_indices: Vec<u64>,
     ) -> Self {
         let initial_root = tree_state.current_root();
+        // Create staging tree once at the beginning - it will be reused across all batches
+        let staging = tree_state.create_staging();
         Self {
             tree_state,
             current_root: initial_root,
             append_batch_index: 0,
             nullify_batch_index: 0,
             append_leaf_indices,
+            staging,
+        }
+    }
+
+    /// Create new preparation state with a cached staging tree.
+    /// This reuses the staging tree from a previous cycle to preserve accumulated updates
+    /// when the root hasn't changed (e.g., during epoch transitions with in-flight transactions).
+    pub fn with_cached_staging(
+        tree_state: super::tree_state::TreeState,
+        append_leaf_indices: Vec<u64>,
+        staging: super::tree_state::StagingTree,
+        current_root: [u8; 32],
+    ) -> Self {
+        Self {
+            tree_state,
+            current_root,
+            append_batch_index: 0,
+            nullify_batch_index: 0,
+            append_leaf_indices,
+            staging,
         }
     }
 }

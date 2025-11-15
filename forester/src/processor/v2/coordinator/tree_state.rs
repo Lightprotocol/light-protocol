@@ -13,6 +13,60 @@ pub struct TreeState {
     root_dirty: bool,
 }
 
+/// Staging tree for incremental proof generation.
+///
+/// Maintains a working copy of the tree that can be updated incrementally.
+/// Each call to get_proof returns a proof that includes all prior updates,
+/// eliminating the need for changelog adjustments.
+pub struct StagingTree {
+    tree: MerkleTree<Poseidon>,
+    base_root: [u8; 32],
+    updates: Vec<(u64, [u8; 32])>,
+}
+
+impl StagingTree {
+    pub fn base_root(&self) -> [u8; 32] {
+        self.base_root
+    }
+
+    pub fn current_root(&self) -> [u8; 32] {
+        self.tree.root()
+    }
+
+    pub fn get_leaf(&self, leaf_index: u64) -> [u8; 32] {
+        self.tree.layers[0]
+            .get(leaf_index as usize)
+            .copied()
+            .unwrap_or([0u8; 32])
+    }
+
+    pub fn update_leaf(&mut self, leaf_index: u64, new_leaf: [u8; 32]) -> Result<()> {
+        self.tree
+            .update(&new_leaf, leaf_index as usize)
+            .map_err(|e| anyhow!("Failed to update leaf {}: {:?}", leaf_index, e))?;
+        self.updates.push((leaf_index, new_leaf));
+        Ok(())
+    }
+
+    pub fn get_proof(&self, leaf_index: u64) -> Result<Vec<[u8; 32]>> {
+        self.tree
+            .get_proof_of_leaf(leaf_index as usize, true)
+            .map_err(|e| anyhow!("Failed to get proof for leaf {}: {:?}", leaf_index, e))
+    }
+
+    pub fn get_updates(&self) -> &[(u64, [u8; 32])] {
+        &self.updates
+    }
+
+    pub fn clear_updates(&mut self) {
+        self.updates.clear();
+    }
+
+    pub fn into_updates(self) -> Vec<(u64, [u8; 32])> {
+        self.updates
+    }
+}
+
 impl TreeState {
     pub fn from_v2_response(
         output_queue: Option<&OutputQueueDataV2>,
@@ -58,6 +112,15 @@ impl TreeState {
                 cached_root = iq.initial_root;
             }
         }
+
+        // NOTE: We do NOT verify the tree root here because the tree is loaded with
+        // deduplicated nodes from the indexer. The tree structure is incomplete but sufficient
+        // for incremental proof generation via the staging tree mechanism.
+        debug!(
+            "Tree loaded from indexer: cached_root={:?}, nodes={} total (deduplicated)",
+            &cached_root[..8],
+            tree.layers.iter().map(|l| l.len()).sum::<usize>()
+        );
 
         Ok(Self {
             tree,
@@ -109,6 +172,10 @@ impl TreeState {
             self.cached_root = self.tree.root();
             self.root_dirty = false;
         }
+        self.cached_root
+    }
+
+    pub fn get_cached_root(&self) -> [u8; 32] {
         self.cached_root
     }
 
@@ -179,6 +246,19 @@ impl TreeState {
     pub fn clear(&mut self) {
         self.tree = MerkleTree::<Poseidon>::new(TREE_HEIGHT, 0);
         self.cached_root = [0u8; 32];
+        self.root_dirty = false;
+    }
+
+    pub fn create_staging(&self) -> StagingTree {
+        StagingTree {
+            tree: self.tree.clone(),
+            base_root: self.cached_root,
+            updates: Vec::new(),
+        }
+    }
+
+    pub fn set_cached_root(&mut self, root: [u8; 32]) {
+        self.cached_root = root;
         self.root_dirty = false;
     }
 }

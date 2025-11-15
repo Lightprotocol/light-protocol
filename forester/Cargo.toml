@@ -46,6 +46,7 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-appender = { workspace = true }
 anyhow = { workspace = true }
+ahash = "0.8"
 
 prometheus = "0.13"
 sysinfo = "0.32"
@@ -83,4 +84,3 @@ debug = true
 [[bench]]
 name = "batch_preparation_bench"
 harness = true
-

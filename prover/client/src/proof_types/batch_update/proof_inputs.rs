@@ -168,3 +168,59 @@ pub fn get_batch_update_inputs<const HEIGHT: usize>(
 
     Ok((inputs, changelog))
 }
+
+/// V2: Batch update without changelogs (for use with staging trees).
+#[allow(clippy::too_many_arguments)]
+pub fn get_batch_update_inputs_v2<const HEIGHT: usize>(
+    current_root: [u8; 32],
+    tx_hashes: Vec<[u8; 32]>,
+    leaves: Vec<[u8; 32]>,
+    leaves_hashchain: [u8; 32],
+    old_leaves: Vec<[u8; 32]>,
+    merkle_proofs: Vec<Vec<[u8; 32]>>,
+    path_indices: Vec<u32>,
+    batch_size: u32,
+    new_root: [u8; 32],
+) -> Result<BatchUpdateCircuitInputs, ProverClientError> {
+    let mut circuit_merkle_proofs = Vec::with_capacity(batch_size as usize);
+
+    for merkle_proof in merkle_proofs.into_iter() {
+        let merkle_proof_array: [[u8; 32]; HEIGHT] =
+            merkle_proof.as_slice().try_into().map_err(|_| {
+                ProverClientError::GenericError("Invalid merkle proof length".to_string())
+            })?;
+
+        circuit_merkle_proofs.push(
+            merkle_proof_array
+                .iter()
+                .map(|proof_elem| BigInt::from_bytes_be(Sign::Plus, proof_elem))
+                .collect(),
+        );
+    }
+
+    let public_input_hash =
+        create_hash_chain_from_array([current_root, new_root, leaves_hashchain])?;
+
+    Ok(BatchUpdateCircuitInputs {
+        public_input_hash: BigInt::from_bytes_be(Sign::Plus, &public_input_hash),
+        old_root: BigInt::from_bytes_be(Sign::Plus, &current_root),
+        new_root: BigInt::from_bytes_be(Sign::Plus, &new_root),
+        tx_hashes: tx_hashes
+            .iter()
+            .map(|tx| BigInt::from_bytes_be(Sign::Plus, tx))
+            .collect(),
+        leaves_hashchain_hash: BigInt::from_bytes_be(Sign::Plus, &leaves_hashchain),
+        leaves: leaves
+            .iter()
+            .map(|leaf| BigInt::from_bytes_be(Sign::Plus, leaf))
+            .collect(),
+        old_leaves: old_leaves
+            .iter()
+            .map(|leaf| BigInt::from_bytes_be(Sign::Plus, leaf))
+            .collect(),
+        merkle_proofs: circuit_merkle_proofs,
+        path_indices,
+        height: HEIGHT as u32,
+        batch_size,
+    })
+}
