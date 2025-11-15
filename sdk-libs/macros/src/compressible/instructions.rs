@@ -1,3 +1,11 @@
+//! Consolidated compressible instructions generation.
+//!
+//! This module handles the complete generation of compression/decompression instructions,
+//! combining what was previously split across three files:
+//! - Main instruction orchestration (add_compressible_instructions)
+//! - Compress instruction generation  
+//! - Decompress instruction generation
+
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
 use syn::{
@@ -6,8 +14,11 @@ use syn::{
     Expr, Ident, Item, ItemMod, LitStr, Result, Token,
 };
 
+// ============================================================================
+// SECTION 1: Core Types and Parsing
+// ============================================================================
+
 /// Helper macro to create syn::Error with file:line information
-/// This helps track exactly where in the macro the error originated
 macro_rules! macro_error {
     ($span:expr, $msg:expr) => {
         syn::Error::new_spanned(
@@ -35,7 +46,7 @@ macro_rules! macro_error {
 
 /// Determines which type of instruction to generate based on seed specifications
 #[derive(Debug, Clone, Copy)]
-pub(crate) enum InstructionVariant {
+pub enum InstructionVariant {
     /// Only PDA seeds specified - generate PDA-only instructions
     PdaOnly,
     /// Only token seeds specified - generate token-only instructions  
@@ -46,13 +57,13 @@ pub(crate) enum InstructionVariant {
 
 /// Parse seed specification for a token account variant
 #[derive(Clone)]
-pub(crate) struct TokenSeedSpec {
+pub struct TokenSeedSpec {
     pub variant: Ident,
     pub _eq: Token![=],
-    pub is_token: Option<bool>, // Optional explicit token flag
-    pub is_ata: bool,           // Flag for user-owned ATA (no seeds/authority needed)
+    pub is_token: Option<bool>,
+    pub is_ata: bool,
     pub seeds: Punctuated<SeedElement, Token![,]>,
-    pub authority: Option<Vec<SeedElement>>, // Optional authority seeds for CToken accounts
+    pub authority: Option<Vec<SeedElement>>,
 }
 
 impl Parse for TokenSeedSpec {
@@ -63,23 +74,18 @@ impl Parse for TokenSeedSpec {
         let content;
         syn::parenthesized!(content in input);
 
-        // Check if first element is an explicit token flag
         let (is_token, is_ata, seeds, authority) = if content.peek(Ident) {
             let first_ident: Ident = content.parse()?;
 
             match first_ident.to_string().as_str() {
                 "is_token" => {
-                    // Explicit token flag - check for is_ata
                     let _comma: Token![,] = content.parse()?;
 
-                    // Check if next is is_ata
                     if content.peek(Ident) {
                         let fork = content.fork();
                         if let Ok(second_ident) = fork.parse::<Ident>() {
                             if second_ident == "is_ata" {
-                                // Consume is_ata
                                 let _: Ident = content.parse()?;
-                                // ATAs have no seeds or authority
                                 return Ok(TokenSeedSpec {
                                     variant,
                                     _eq,
@@ -92,24 +98,20 @@ impl Parse for TokenSeedSpec {
                         }
                     }
 
-                    // Regular token (not ATA) - parse seeds and authority
                     let (seeds, authority) = parse_seeds_with_authority(&content)?;
                     (Some(true), false, seeds, authority)
                 }
                 "true" => {
-                    // Explicit token flag
                     let _comma: Token![,] = content.parse()?;
                     let (seeds, authority) = parse_seeds_with_authority(&content)?;
                     (Some(true), false, seeds, authority)
                 }
                 "is_pda" | "false" => {
-                    // Explicit PDA flag
                     let _comma: Token![,] = content.parse()?;
                     let (seeds, authority) = parse_seeds_with_authority(&content)?;
                     (Some(false), false, seeds, authority)
                 }
                 _ => {
-                    // Not a flag, treat as first seed element
                     let mut seeds = Punctuated::new();
                     seeds.push(SeedElement::Expression(Box::new(syn::Expr::Path(
                         syn::ExprPath {
@@ -130,7 +132,6 @@ impl Parse for TokenSeedSpec {
                 }
             }
         } else {
-            // No identifier first, parse all as seeds
             let (seeds, authority) = parse_seeds_with_authority(&content)?;
             (None, false, seeds, authority)
         };
@@ -146,7 +147,6 @@ impl Parse for TokenSeedSpec {
     }
 }
 
-// Helper function to parse seeds and extract authority if present
 #[allow(clippy::type_complexity)]
 fn parse_seeds_with_authority(
     content: ParseStream,
@@ -155,18 +155,14 @@ fn parse_seeds_with_authority(
     let mut authority = None;
 
     while !content.is_empty() {
-        // Check for "authority = <expr>" pattern
         if content.peek(Ident) {
             let fork = content.fork();
             if let Ok(ident) = fork.parse::<Ident>() {
                 if ident == "authority" && fork.peek(Token![=]) {
-                    // Found authority assignment
                     let _: Ident = content.parse()?;
                     let _: Token![=] = content.parse()?;
 
-                    // Check if authority is a tuple (multiple seeds) or single seed
                     if content.peek(syn::token::Paren) {
-                        // Parse tuple: authority = ("auth", ctx.accounts.mint)
                         let auth_content;
                         syn::parenthesized!(auth_content in content);
                         let mut auth_seeds = Vec::new();
@@ -181,11 +177,9 @@ fn parse_seeds_with_authority(
                         }
                         authority = Some(auth_seeds);
                     } else {
-                        // Parse single seed: authority = LIGHT_CPI_SIGNER
                         authority = Some(vec![content.parse::<SeedElement>()?]);
                     }
 
-                    // Check if there's more after authority
                     if content.peek(Token![,]) {
                         let _: Token![,] = content.parse()?;
                         continue;
@@ -196,7 +190,6 @@ fn parse_seeds_with_authority(
             }
         }
 
-        // Regular seed element
         seeds.push(content.parse::<SeedElement>()?);
 
         if content.peek(Token![,]) {
@@ -213,10 +206,8 @@ fn parse_seeds_with_authority(
 }
 
 #[derive(Clone)]
-pub(crate) enum SeedElement {
-    /// String literal like "user_record"
+pub enum SeedElement {
     Literal(LitStr),
-    /// Any expression: data.owner, ctx.fee_payer, data.session_id.to_le_bytes(), CONST_NAME, etc.
     Expression(Box<Expr>),
 }
 
@@ -225,22 +216,18 @@ impl Parse for SeedElement {
         if input.peek(LitStr) {
             Ok(SeedElement::Literal(input.parse()?))
         } else {
-            // Parse everything else as an expression
-            // This will handle ctx.fee_payer, data.session_id.to_le_bytes(), etc.
             Ok(SeedElement::Expression(input.parse()?))
         }
     }
 }
 
-/// Parse instruction data field specification: field_name = Type
-pub(crate) struct InstructionDataSpec {
+pub struct InstructionDataSpec {
     pub field_name: Ident,
     pub field_type: syn::Type,
 }
 
 impl Parse for InstructionDataSpec {
     fn parse(input: ParseStream) -> Result<Self> {
-        // Parse: field_name = Type (e.g., session_id = u64)
         let field_name: Ident = input.parse()?;
         let _eq: Token![=] = input.parse()?;
         let field_type: syn::Type = input.parse()?;
@@ -252,7 +239,6 @@ impl Parse for InstructionDataSpec {
     }
 }
 
-/// Parse enhanced macro arguments with mixed account types, PDA seeds, token seeds, and instruction data
 struct EnhancedMacroArgs {
     account_types: Vec<Ident>,
     pda_seeds: Vec<TokenSeedSpec>,
@@ -275,7 +261,6 @@ impl Parse for EnhancedMacroArgs {
                 let _eq: Token![=] = input.parse()?;
 
                 if input.peek(syn::token::Paren) {
-                    // This is a seed specification (either PDA or CToken). Reuse TokenSeedSpec parser to avoid mis-parsing
                     let content;
                     syn::parenthesized!(content in input);
                     let inside: TokenStream = content.parse()?;
@@ -289,7 +274,6 @@ impl Parse for EnhancedMacroArgs {
                         account_types.push(ident);
                     }
                 } else {
-                    // This is an instruction data type specification: field_name = Type
                     let field_type: syn::Type = input.parse()?;
                     instruction_data.push(InstructionDataSpec {
                         field_name: ident,
@@ -297,7 +281,6 @@ impl Parse for EnhancedMacroArgs {
                     });
                 }
             } else {
-                // This is a regular account type without seed specification
                 account_types.push(ident);
             }
 
@@ -317,54 +300,16 @@ impl Parse for EnhancedMacroArgs {
     }
 }
 
+// ============================================================================
+// SECTION 2: Main Instruction Generation (add_compressible_instructions)
+// ============================================================================
+
 /// Generate full mixed PDA + compressed-token support for an Anchor program module.
-///
-/// This macro is a thin wrapper that wires together the lower-level derive macros
-/// (`DeriveSeeds`, `DeriveCTokenSeeds`, `Compressible`, `CompressiblePack`) and the
-/// runtime traits in `light_sdk::compressible`.
-///
-/// ### Usage (mixed PDA + token)
-/// ```ignore
-/// use light_sdk_macros::{Compressible, CompressiblePack, DeriveSeeds};
-///
-/// #[derive(Compressible, CompressiblePack, DeriveSeeds)]
-/// #[seeds("user_record", owner)]
-/// #[account]
-/// pub struct UserRecord { /* ... */ }
-///
-/// #[add_compressible_instructions(
-///     // PDA account types (must already implement PdaSeedProvider via DeriveSeeds)
-///     UserRecord   = ("user_record", data.owner),
-///
-///     // Token variant (ctoken account) – must start with `is_token`
-///     CTokenSigner = (is_token, "ctoken_signer", ctx.user, ctx.mint),
-///
-///     // Instruction data fields used in the seed expressions above
-///     owner = Pubkey,
-/// )]
-/// #[program]
-/// pub mod my_program { /* regular instructions here */ }
-/// ```
-///
-/// ### It generates:
-/// - Compile-time account size checks (max 800 bytes).
-/// - `CTokenAccountVariant` and `CompressedAccountVariant` enums + all required traits.
-/// - Accounts structs for compression/decompression.
-/// - Instruction entrypoints: decompress, compress, config.
-/// - `PdaSeedProvider` implementations for each PDA type derived from the macro seeds.
-/// - Token seed providers (either via `DeriveCTokenSeeds` or the legacy generator).
-/// - Client helpers for deriving **token** PDAs.
-///
-/// Notes:
-/// - Currently the macro is designed for **mixed** flows (at least one PDA account
-///   and at least one token variant). Pure‑PDA or pure‑token configurations are not
-///   yet supported.
 #[inline(never)]
 pub fn add_compressible_instructions(
     args: TokenStream,
     mut module: ItemMod,
 ) -> Result<TokenStream> {
-    // Parse with enhanced format - no legacy fallback!
     let enhanced_args = match syn::parse2::<EnhancedMacroArgs>(args.clone()) {
         Ok(args) => args,
         Err(e) => {
@@ -390,18 +335,17 @@ pub fn add_compressible_instructions(
         ));
     }
 
-    // Generate compile-time size validation for compressed accounts
     let size_validation_checks = validate_compressed_account_sizes(&account_types)?;
 
     let content = module.content.as_mut().unwrap();
 
-    // Generate the CTokenAccountVariant enum automatically from token_seeds.
     let ctoken_enum = if let Some(ref token_seed_specs) = token_seeds {
         if !token_seed_specs.is_empty() {
-            crate::ctoken_seed_generation::generate_ctoken_account_variant_enum(token_seed_specs)?
+            crate::compressible::seed_providers::generate_ctoken_account_variant_enum(
+                token_seed_specs,
+            )?
         } else {
             quote! {
-                // No CToken variants - generate empty enum for compatibility
                 #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
                 #[repr(u8)]
                 pub enum CTokenAccountVariant {}
@@ -409,19 +353,15 @@ pub fn add_compressible_instructions(
         }
     } else {
         quote! {
-            // No CToken variants - generate empty enum for compatibility
             #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
             #[repr(u8)]
             pub enum CTokenAccountVariant {}
         }
     };
 
-    // Validate that token variants have authority specified for compression signing
-    // (except for ATAs which are user-owned and don't need authority)
     if let Some(ref token_seed_specs) = token_seeds {
         for spec in token_seed_specs {
             if spec.is_ata {
-                // ATAs must not have seeds or authority
                 if !spec.seeds.is_empty() {
                     return Err(macro_error!(
                         &spec.variant,
@@ -437,7 +377,6 @@ pub fn add_compressible_instructions(
                     ));
                 }
             } else if spec.authority.is_none() {
-                // Non-ATA tokens must have authority for PDA signing
                 return Err(macro_error!(
                     &spec.variant,
                     "Program-owned token account '{}' must specify authority = <seed_expr> for compression signing. For user-owned ATAs, use is_ata flag instead.",
@@ -447,7 +386,6 @@ pub fn add_compressible_instructions(
         }
     }
 
-    // Generate the compressed_account_variant enum automatically
     let mut account_types_stream = TokenStream::new();
     for (i, account_type) in account_types.iter().enumerate() {
         if i > 0 {
@@ -455,9 +393,9 @@ pub fn add_compressible_instructions(
         }
         account_types_stream.extend(quote! { #account_type });
     }
-    let enum_and_traits = crate::variant_enum::compressed_account_variant(account_types_stream)?;
+    let enum_and_traits =
+        crate::compressible::variant_enum::compressed_account_variant(account_types_stream)?;
 
-    // Determine instruction variant based on seed types
     let has_pda_seeds = pda_seeds.as_ref().map(|p| !p.is_empty()).unwrap_or(false);
     let has_token_seeds = token_seeds.as_ref().map(|t| !t.is_empty()).unwrap_or(false);
 
@@ -473,17 +411,13 @@ pub fn add_compressible_instructions(
         }
     };
 
-    // Generate error codes automatically based on instruction variant
     let error_codes = generate_error_codes(instruction_variant)?;
 
-    // Extract required accounts from seed expressions and track dependencies
     let required_accounts = extract_required_accounts_from_seeds(&pda_seeds, &token_seeds)?;
 
-    // Generate the DecompressAccountsIdempotent accounts struct with required accounts
     let decompress_accounts =
         generate_decompress_accounts_struct(&required_accounts, instruction_variant)?;
 
-    // Generate PdaSeedProvider implementations for each PDA account type from the macro seeds.
     let pda_seed_provider_impls: Result<Vec<_>> = account_types
         .iter()
         .map(|name| {
@@ -521,7 +455,6 @@ pub fn add_compressible_instructions(
         .collect();
     let pda_seed_provider_impls = pda_seed_provider_impls?;
 
-    // Generate thin helper functions that delegate to SDK
     let helper_packed_fns: Vec<_> = account_types.iter().map(|name| {
         let packed_name = format_ident!("Packed{}", name);
         let func_name = format_ident!("handle_packed_{}", name);
@@ -555,7 +488,6 @@ pub fn add_compressible_instructions(
         }
     }).collect();
 
-    // Generate match arms for unpacked variants - should be unreachable in decompression
     let call_unpacked_arms: Vec<_> = account_types.iter().map(|name| {
         quote! {
             CompressedAccountVariant::#name(_) => {
@@ -576,20 +508,16 @@ pub fn add_compressible_instructions(
         }
     }).collect();
 
-    // Generate trait implementations for runtime compatibility
     let trait_impls: syn::ItemMod = syn::parse_quote! {
-        /// Trait implementations for standardized runtime helpers
         mod __trait_impls {
             use super::*;
 
-            /// Implement HasTokenVariant for CompressedAccountVariant
             impl light_sdk::compressible::HasTokenVariant for CompressedAccountData {
                 fn is_packed_ctoken(&self) -> bool {
                     matches!(self.data, CompressedAccountVariant::PackedCTokenData(_))
                 }
             }
 
-            /// Implement CTokenSeedProvider for CTokenAccountVariant via local seed system
             impl light_sdk::compressible::CTokenSeedProvider for CTokenAccountVariant {
                 type Accounts<'info> = DecompressAccountsIdempotent<'info>;
 
@@ -626,7 +554,6 @@ pub fn add_compressible_instructions(
                 }
             }
 
-            /// Also implement light_compressed_token_sdk::CTokenSeedProvider for token decompression runtime
             impl light_compressed_token_sdk::CTokenSeedProvider for CTokenAccountVariant {
                 type Accounts<'info> = DecompressAccountsIdempotent<'info>;
 
@@ -681,9 +608,7 @@ pub fn add_compressible_instructions(
         }
     };
 
-    // Generate local trait system for CToken variant seed handling
     let ctoken_trait_system: syn::ItemMod = syn::parse_quote! {
-        /// Local trait-based system for CToken variant seed handling
         pub mod ctoken_seed_system {
             use super::*;
 
@@ -693,13 +618,11 @@ pub fn add_compressible_instructions(
             }
 
             pub trait CTokenSeedProvider {
-                /// Get seeds for the token account PDA (used for decompression)
                 fn get_seeds<'a, 'info>(
                     &self,
                     ctx: &CTokenSeedContext<'a, 'info>,
                 ) -> Result<(Vec<Vec<u8>>, solana_pubkey::Pubkey)>;
 
-                /// Get authority seeds for signing during compression
                 fn get_authority_seeds<'a, 'info>(
                     &self,
                     ctx: &CTokenSeedContext<'a, 'info>,
@@ -708,11 +631,6 @@ pub fn add_compressible_instructions(
         }
     };
 
-    // Generate helper functions inside a private submodule to avoid Anchor treating them as instructions.
-    //
-    // Note: PDA seed derivation is now provided by the DeriveSeeds macro (which implements
-    // `light_sdk::compressible::PdaSeedProvider` for each account type). This helper module
-    // only wires those traits into the generic decompression runtime.
     let helpers_module: syn::ItemMod = {
         let helper_packed_fns = helper_packed_fns.clone();
         let call_unpacked_arms = call_unpacked_arms.clone();
@@ -766,27 +684,17 @@ pub fn add_compressible_instructions(
         }
     };
 
-    // Determine token variant name
     let token_variant_name = format_ident!("CTokenAccountVariant");
 
-    // Generate decompress-related code using helper module
-    // The helper now uses the shared derive_decompress_context implementation!
-    let decompress_context_impl =
-        crate::compressible_instructions_decompress::generate_decompress_context_impl(
-            instruction_variant,
-            account_types.clone(),
-            token_variant_name,
-        )?;
+    let decompress_context_impl = generate_decompress_context_impl(
+        instruction_variant,
+        account_types.clone(),
+        token_variant_name,
+    )?;
     let decompress_processor_fn =
-        crate::compressible_instructions_decompress::generate_process_decompress_accounts_idempotent(
-            instruction_variant,
-        )?;
-    let decompress_instruction =
-        crate::compressible_instructions_decompress::generate_decompress_instruction_entrypoint(
-            instruction_variant,
-        )?;
+        generate_process_decompress_accounts_idempotent(instruction_variant)?;
+    let decompress_instruction = generate_decompress_instruction_entrypoint(instruction_variant)?;
 
-    // Generate the CompressAccountsIdempotent accounts struct based on variant
     let compress_accounts: syn::ItemStruct = match instruction_variant {
         InstructionVariant::PdaOnly => unreachable!(),
         InstructionVariant::TokenOnly => unreachable!(),
@@ -795,10 +703,8 @@ pub fn add_compressible_instructions(
         pub struct CompressAccountsIdempotent<'info> {
             #[account(mut)]
             pub fee_payer: Signer<'info>,
-            /// The global config account
             /// CHECK: Config is validated by the SDK's load_checked method
             pub config: AccountInfo<'info>,
-            /// Rent sponsor - must match config
             /// CHECK: Rent sponsor is validated against the config
             #[account(mut)]
             pub rent_sponsor: AccountInfo<'info>,
@@ -811,39 +717,24 @@ pub fn add_compressible_instructions(
             #[account(mut)]
             pub ctoken_compression_authority: AccountInfo<'info>,
 
-            /// Token rent sponsor - must match config
             /// CHECK: Token rent sponsor is validated against the config
             #[account(mut)]
             pub ctoken_rent_sponsor: AccountInfo<'info>,
 
-            // Required token-specific accounts (always needed in mixed variant for simplicity)
-            /// Compressed token program (always required in mixed variant)
             /// CHECK: Program ID validated to be cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m
             pub ctoken_program: UncheckedAccount<'info>,
 
-            /// CPI authority PDA of the compressed token program (always required in mixed variant)
             /// CHECK: PDA derivation validated with seeds ["cpi_authority"] and bump 254
             pub ctoken_cpi_authority: UncheckedAccount<'info>,
         }
         },
     };
 
-    // Generate compress-related code using helper module
     let compress_context_impl =
-        crate::compressible_instructions_compress::generate_compress_context_impl(
-            instruction_variant,
-            account_types.clone(),
-        )?;
-    let compress_processor_fn =
-        crate::compressible_instructions_compress::generate_process_compress_accounts_idempotent(
-            instruction_variant,
-        )?;
-    let compress_instruction =
-        crate::compressible_instructions_compress::generate_compress_instruction_entrypoint(
-            instruction_variant,
-        )?;
+        generate_compress_context_impl(instruction_variant, account_types.clone())?;
+    let compress_processor_fn = generate_process_compress_accounts_idempotent(instruction_variant)?;
+    let compress_instruction = generate_compress_instruction_entrypoint(instruction_variant)?;
 
-    // Wrap processor functions in a private module to avoid Anchor scanning them
     let processor_module: syn::ItemMod = syn::parse_quote! {
         mod __processor_functions {
             use super::*;
@@ -852,9 +743,6 @@ pub fn add_compressible_instructions(
         }
     };
 
-    // OLD INLINE VERSION (keeping as comment for reference - can delete later)
-
-    // Generate compression config instructions
     let init_config_accounts: syn::ItemStruct = syn::parse_quote! {
         #[derive(Accounts)]
         pub struct InitializeCompressionConfig<'info> {
@@ -863,10 +751,8 @@ pub fn add_compressible_instructions(
             /// CHECK: Config PDA is created and validated by the SDK
             #[account(mut)]
             pub config: AccountInfo<'info>,
-            /// The program's data account
             /// CHECK: Program data account is validated by the SDK
             pub program_data: AccountInfo<'info>,
-            /// The program's upgrade authority (must sign)
             pub authority: Signer<'info>,
             pub system_program: Program<'info, System>,
         }
@@ -884,7 +770,6 @@ pub fn add_compressible_instructions(
     };
 
     let init_config_instruction: syn::ItemFn = syn::parse_quote! {
-        /// Initialize compression config for the program
         #[inline(never)]
         pub fn initialize_compression_config<'info>(
             ctx: Context<'_, '_, '_, 'info, InitializeCompressionConfig<'info>>,
@@ -899,7 +784,7 @@ pub fn add_compressible_instructions(
                 &rent_sponsor,
                 address_space,
                 compression_delay,
-                0, // one global config for now, so bump is 0.
+                0,
                 &ctx.accounts.payer.to_account_info(),
                 &ctx.accounts.system_program.to_account_info(),
                 &crate::ID,
@@ -909,7 +794,6 @@ pub fn add_compressible_instructions(
     };
 
     let update_config_instruction: syn::ItemFn = syn::parse_quote! {
-        /// Update compression config for the program
         #[inline(never)]
         pub fn update_compression_config<'info>(
             ctx: Context<'_, '_, '_, 'info, UpdateCompressionConfig<'info>>,
@@ -931,7 +815,6 @@ pub fn add_compressible_instructions(
         }
     };
 
-    // Add all generated items to the module
     content.1.push(Item::Struct(decompress_accounts));
     content.1.push(Item::Mod(helpers_module));
     content.1.push(Item::Mod(ctoken_trait_system));
@@ -947,13 +830,12 @@ pub fn add_compressible_instructions(
     content.1.push(Item::Fn(init_config_instruction));
     content.1.push(Item::Fn(update_config_instruction));
 
-    // Generate automatic CTokenSeedProvider implementation from token seed specifications.
-    // This must be added to the module content so it can access ctoken_seed_system
     if let Some(ref seeds) = token_seeds {
         if !seeds.is_empty() {
             let impl_code =
-                crate::ctoken_seed_generation::generate_ctoken_seed_provider_implementation(seeds)?;
-            // Parse the implementation into an Item so we can add it to the module
+                crate::compressible::seed_providers::generate_ctoken_seed_provider_implementation(
+                    seeds,
+                )?;
             let ctoken_impl: syn::ItemImpl = syn::parse2(impl_code).map_err(|e| {
                 syn::Error::new_spanned(
                     &seeds[0].variant,
@@ -964,48 +846,277 @@ pub fn add_compressible_instructions(
         }
     }
 
-    // Generate public client-side seed functions for external consumption.
-    //
-    // PDA seed functions are generated from the same macro seed DSL (for clients) while
-    // PdaSeedProvider impls are generated above (for the on-chain runtime).
-    let client_seed_functions = crate::client_seed_functions::generate_client_seed_functions(
-        &account_types,
-        &pda_seeds,
-        &token_seeds,
-        &instruction_data,
-    )?;
+    let client_seed_functions =
+        crate::compressible::seed_providers::generate_client_seed_functions(
+            &account_types,
+            &pda_seeds,
+            &token_seeds,
+            &instruction_data,
+        )?;
 
     Ok(quote! {
-        // Compile-time size validation for compressed accounts (must be first)
         #size_validation_checks
-
-        // Auto-generated error codes for the macro
         #error_codes
-
-        // Auto-generated CTokenAccountVariant enum
         #ctoken_enum
-
-        // Auto-generated CompressedAccountVariant enum and traits
         #enum_and_traits
-
-        // Auto-generated PdaSeedProvider implementations for each account type
         #(#pda_seed_provider_impls)*
-
-        // Note: CTokenSeedProvider implementation is added to module content above
-
-        // Suppress snake_case warnings for account type names in macro usage
         #[allow(non_snake_case)]
         #module
-
-        // Auto-generated public seed functions for client consumption (after module to avoid Anchor scanning)
         #client_seed_functions
     })
 }
 
-/// Generate PDA seed derivation for PdaSeedProvider trait implementation.
-///
-/// This generates seed derivation code that uses `&self` (the unpacked account data)
-/// instead of extracting from an accounts struct.
+// ============================================================================
+// SECTION 3: Decompress Instruction Generation
+// ============================================================================
+
+pub fn generate_decompress_context_impl(
+    _variant: InstructionVariant,
+    pda_type_idents: Vec<Ident>,
+    token_variant_ident: Ident,
+) -> Result<syn::ItemMod> {
+    let lifetime: syn::Lifetime = syn::parse_quote!('info);
+
+    let trait_impl =
+        crate::compressible::decompress_context::generate_decompress_context_trait_impl(
+            pda_type_idents,
+            token_variant_ident,
+            lifetime,
+        )?;
+
+    Ok(syn::parse_quote! {
+        mod __decompress_context_impl {
+            use super::*;
+
+            #trait_impl
+        }
+    })
+}
+
+pub fn generate_process_decompress_accounts_idempotent(
+    _variant: InstructionVariant,
+) -> Result<syn::ItemFn> {
+    Ok(syn::parse_quote! {
+        #[inline(never)]
+        pub fn process_decompress_accounts_idempotent<'info>(
+            accounts: &DecompressAccountsIdempotent<'info>,
+            remaining_accounts: &[solana_account_info::AccountInfo<'info>],
+            proof: light_sdk::instruction::ValidityProof,
+            compressed_accounts: Vec<CompressedAccountData>,
+            system_accounts_offset: u8,
+        ) -> Result<()> {
+            light_sdk::compressible::process_decompress_accounts_idempotent(
+                accounts,
+                remaining_accounts,
+                compressed_accounts,
+                proof,
+                system_accounts_offset,
+                LIGHT_CPI_SIGNER,
+                &crate::ID,
+            )
+            .map_err(|e: solana_program_error::ProgramError| -> anchor_lang::error::Error { e.into() })
+        }
+    })
+}
+
+pub fn generate_decompress_instruction_entrypoint(
+    _variant: InstructionVariant,
+) -> Result<syn::ItemFn> {
+    Ok(syn::parse_quote! {
+        #[inline(never)]
+        pub fn decompress_accounts_idempotent<'info>(
+            ctx: Context<'_, '_, '_, 'info, DecompressAccountsIdempotent<'info>>,
+            proof: light_sdk::instruction::ValidityProof,
+            compressed_accounts: Vec<CompressedAccountData>,
+            system_accounts_offset: u8,
+        ) -> Result<()> {
+            __processor_functions::process_decompress_accounts_idempotent(
+                &ctx.accounts,
+                &ctx.remaining_accounts,
+                proof,
+                compressed_accounts,
+                system_accounts_offset,
+            )
+        }
+    })
+}
+
+// ============================================================================
+// SECTION 4: Compress Instruction Generation
+// ============================================================================
+
+pub fn generate_compress_context_impl(
+    _variant: InstructionVariant,
+    account_types: Vec<Ident>,
+) -> Result<syn::ItemMod> {
+    let lifetime: syn::Lifetime = syn::parse_quote!('info);
+
+    let compress_arms: Vec<_> = account_types.iter().map(|name| {
+        quote! {
+            d if d == #name::LIGHT_DISCRIMINATOR => {
+                drop(data);
+                let data_borrow = account_info.try_borrow_data().map_err(|e| {
+                    let err: anchor_lang::error::Error = e.into();
+                    let program_error: anchor_lang::prelude::ProgramError = err.into();
+                    let code = match program_error {
+                        anchor_lang::prelude::ProgramError::Custom(code) => code,
+                        _ => 0,
+                    };
+                    solana_program_error::ProgramError::Custom(code)
+                })?;
+                let mut account_data = #name::try_deserialize(&mut &data_borrow[..]).map_err(|e| {
+                    let err: anchor_lang::error::Error = e.into();
+                    let program_error: anchor_lang::prelude::ProgramError = err.into();
+                    let code = match program_error {
+                        anchor_lang::prelude::ProgramError::Custom(code) => code,
+                        _ => 0,
+                    };
+                    solana_program_error::ProgramError::Custom(code)
+                })?;
+                drop(data_borrow);
+
+                let compressed_info = light_sdk::compressible::compress_account::prepare_account_for_compression::<#name>(
+                    program_id,
+                    account_info,
+                    &mut account_data,
+                    meta,
+                    cpi_accounts,
+                    &compression_config.compression_delay,
+                    &compression_config.address_space,
+                )?;
+                Ok(Some(compressed_info))
+            }
+        }
+    }).collect();
+
+    Ok(syn::parse_quote! {
+        mod __compress_context_impl {
+            use super::*;
+            use light_sdk::LightDiscriminator;
+
+            impl<#lifetime> light_sdk::compressible::CompressContext<#lifetime> for CompressAccountsIdempotent<#lifetime> {
+                fn fee_payer(&self) -> &solana_account_info::AccountInfo<#lifetime> {
+                    &*self.fee_payer
+                }
+
+                fn config(&self) -> &solana_account_info::AccountInfo<#lifetime> {
+                    &self.config
+                }
+
+                fn rent_sponsor(&self) -> &solana_account_info::AccountInfo<#lifetime> {
+                    &self.rent_sponsor
+                }
+
+                fn ctoken_rent_sponsor(&self) -> &solana_account_info::AccountInfo<#lifetime> {
+                    &self.ctoken_rent_sponsor
+                }
+
+                fn compression_authority(&self) -> &solana_account_info::AccountInfo<#lifetime> {
+                    &self.compression_authority
+                }
+
+                fn ctoken_compression_authority(&self) -> &solana_account_info::AccountInfo<#lifetime> {
+                    &self.ctoken_compression_authority
+                }
+
+                fn ctoken_program(&self) -> &solana_account_info::AccountInfo<#lifetime> {
+                    &*self.ctoken_program
+                }
+
+                fn ctoken_cpi_authority(&self) -> &solana_account_info::AccountInfo<#lifetime> {
+                    &*self.ctoken_cpi_authority
+                }
+
+                fn compress_pda_account(
+                    &self,
+                    account_info: &solana_account_info::AccountInfo<#lifetime>,
+                    meta: &light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress,
+                    cpi_accounts: &light_sdk::cpi::v2::CpiAccounts<'_, #lifetime>,
+                    compression_config: &light_sdk::compressible::CompressibleConfig,
+                    program_id: &solana_pubkey::Pubkey,
+                ) -> std::result::Result<Option<light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo>, solana_program_error::ProgramError> {
+                    let data = account_info.try_borrow_data().map_err(|e| {
+                        let err: anchor_lang::error::Error = e.into();
+                        let program_error: anchor_lang::prelude::ProgramError = err.into();
+                        let code = match program_error {
+                            anchor_lang::prelude::ProgramError::Custom(code) => code,
+                            _ => 0,
+                        };
+                        solana_program_error::ProgramError::Custom(code)
+                    })?;
+                    let discriminator = &data[0..8];
+
+                    match discriminator {
+                        #(#compress_arms)*
+                        _ => {
+                            let err: anchor_lang::error::Error = anchor_lang::error::ErrorCode::AccountDiscriminatorMismatch.into();
+                            let program_error: anchor_lang::prelude::ProgramError = err.into();
+                            let code = match program_error {
+                                anchor_lang::prelude::ProgramError::Custom(code) => code,
+                                _ => 0,
+                            };
+                            Err(solana_program_error::ProgramError::Custom(code))
+                        }
+                    }
+                }
+            }
+        }
+    })
+}
+
+pub fn generate_process_compress_accounts_idempotent(
+    _variant: InstructionVariant,
+) -> Result<syn::ItemFn> {
+    Ok(syn::parse_quote! {
+        #[inline(never)]
+        pub fn process_compress_accounts_idempotent<'info>(
+            accounts: &CompressAccountsIdempotent<'info>,
+            remaining_accounts: &[solana_account_info::AccountInfo<'info>],
+            compressed_accounts: Vec<light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress>,
+            signer_seeds: Vec<Vec<Vec<u8>>>,
+            system_accounts_offset: u8,
+        ) -> Result<()> {
+            light_compressed_token_sdk::compress_runtime::process_compress_accounts_idempotent(
+                accounts,
+                remaining_accounts,
+                compressed_accounts,
+                signer_seeds,
+                system_accounts_offset,
+                LIGHT_CPI_SIGNER,
+                &crate::ID,
+            )
+            .map_err(|e: solana_program_error::ProgramError| -> anchor_lang::error::Error { e.into() })
+        }
+    })
+}
+
+pub fn generate_compress_instruction_entrypoint(
+    _variant: InstructionVariant,
+) -> Result<syn::ItemFn> {
+    Ok(syn::parse_quote! {
+        #[inline(never)]
+        pub fn compress_accounts_idempotent<'info>(
+            ctx: Context<'_, '_, '_, 'info, CompressAccountsIdempotent<'info>>,
+            proof: light_sdk::instruction::ValidityProof,
+            compressed_accounts: Vec<light_sdk::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress>,
+            signer_seeds: Vec<Vec<Vec<u8>>>,
+            system_accounts_offset: u8,
+        ) -> Result<()> {
+            __processor_functions::process_compress_accounts_idempotent(
+                &ctx.accounts,
+                &ctx.remaining_accounts,
+                compressed_accounts,
+                signer_seeds,
+                system_accounts_offset,
+            )
+        }
+    })
+}
+
+// ============================================================================
+// SECTION 5: Helper Functions
+// ============================================================================
+
 #[inline(never)]
 fn generate_pda_seed_derivation_for_trait(
     spec: &TokenSeedSpec,
@@ -1021,7 +1132,6 @@ fn generate_pda_seed_derivation_for_trait(
                 seed_refs.push(quote! { #value.as_bytes() });
             }
             SeedElement::Expression(expr) => {
-                // Check for uppercase consts
                 if let syn::Expr::Path(path_expr) = &**expr {
                     if let Some(ident) = path_expr.path.get_ident() {
                         let ident_str = ident.to_string();
@@ -1032,15 +1142,12 @@ fn generate_pda_seed_derivation_for_trait(
                     }
                 }
 
-                // Handle data.field -> self.field
                 match &**expr {
                     syn::Expr::MethodCall(mc) if mc.method == "to_le_bytes" => {
-                        // Check if it's data.field.to_le_bytes()
                         if let syn::Expr::Field(field_expr) = &*mc.receiver {
                             if let syn::Expr::Path(path) = &*field_expr.base {
                                 if let Some(segment) = path.path.segments.first() {
                                     if segment.ident == "data" {
-                                        // Rewrite data.field.to_le_bytes() to self.field.to_le_bytes()
                                         if let syn::Member::Named(field_name) = &field_expr.member {
                                             let binding_name = syn::Ident::new(
                                                 &format!("seed_{}", i),
@@ -1061,7 +1168,6 @@ fn generate_pda_seed_derivation_for_trait(
                         if let syn::Expr::Path(path) = &*field_expr.base {
                             if let Some(segment) = path.path.segments.first() {
                                 if segment.ident == "data" {
-                                    // Rewrite data.field to self.field
                                     if let syn::Member::Named(field_name) = &field_expr.member {
                                         seed_refs.push(quote! { self.#field_name.as_ref() });
                                         continue;
@@ -1073,7 +1179,6 @@ fn generate_pda_seed_derivation_for_trait(
                     _ => {}
                 }
 
-                // Fallback: use expression as-is (for consts, etc.)
                 seed_refs.push(quote! { (#expr).as_ref() });
             }
         }
@@ -1094,19 +1199,13 @@ fn generate_pda_seed_derivation_for_trait(
     })
 }
 
-/// Extract required account names from seed expressions and track dependencies
-///
-/// Returns: (all_required_accounts, account_dependencies)
+#[inline(never)]
 fn extract_required_accounts_from_seeds(
     pda_seeds: &Option<Vec<TokenSeedSpec>>,
     token_seeds: &Option<Vec<TokenSeedSpec>>,
 ) -> Result<Vec<String>> {
-    // Use a Vec to preserve insertion order and perform manual dedup.
-    // The number of accounts is small, so O(n^2) dedup is fine and avoids
-    // bringing in external crates for ordered sets.
     let mut required_accounts: Vec<String> = Vec::new();
 
-    // Helper to push if not present yet, preserving order.
     #[inline(always)]
     fn push_unique(list: &mut Vec<String>, value: String) {
         if !list.iter().any(|v| v == &value) {
@@ -1114,7 +1213,6 @@ fn extract_required_accounts_from_seeds(
         }
     }
 
-    // Local wrapper that delegates to the expression walkers below.
     #[inline(never)]
     fn extract_accounts_from_seed_spec(
         spec: &TokenSeedSpec,
@@ -1131,7 +1229,6 @@ fn extract_required_accounts_from_seeds(
                 }
             }
         }
-        // Also check authority seeds for token accounts
         if let Some(authority_seeds) = &spec.authority {
             for seed in authority_seeds {
                 if let SeedElement::Expression(expr) = seed {
@@ -1147,15 +1244,12 @@ fn extract_required_accounts_from_seeds(
         Ok(spec_accounts)
     }
 
-    // TODO: check if we can remove.
-    // Walk PDA seeds in declared order
     if let Some(pda_seed_specs) = pda_seeds {
         for spec in pda_seed_specs {
             let _required_seeds = extract_accounts_from_seed_spec(spec, &mut required_accounts)?;
         }
     }
 
-    // Then token seeds in declared order
     if let Some(token_seed_specs) = token_seeds {
         for spec in token_seed_specs {
             let _required_seeds = extract_accounts_from_seed_spec(spec, &mut required_accounts)?;
@@ -1165,13 +1259,8 @@ fn extract_required_accounts_from_seeds(
     Ok(required_accounts)
 }
 
-/// Extract account names from a seed expression, preserving insertion order.
-/// Looks for ctx.accounts.FIELD_NAME pattern and extracts FIELD_NAME; also
-/// supports ctx.FIELD_NAME shorthand and direct identifiers that are not
-/// constants.
 #[inline(never)]
 fn extract_account_from_expr(expr: &syn::Expr, ordered_accounts: &mut Vec<String>) {
-    // Helper to push unique values
     #[inline(always)]
     fn push_unique(list: &mut Vec<String>, value: String) {
         if !list.iter().any(|v| v == &value) {
@@ -1181,12 +1270,9 @@ fn extract_account_from_expr(expr: &syn::Expr, ordered_accounts: &mut Vec<String
 
     match expr {
         syn::Expr::MethodCall(method_call) => {
-            // For method calls, check the receiver
-            // e.g., ctx.accounts.mint.key().as_ref() -> check ctx.accounts.mint.key()
             extract_account_from_expr(&method_call.receiver, ordered_accounts);
         }
         syn::Expr::Field(field_expr) => {
-            // Check if this is ctx.accounts.FIELD_NAME or ctx.FIELD_NAME
             if let syn::Member::Named(field_name) = &field_expr.member {
                 if let syn::Expr::Field(nested_field) = &*field_expr.base {
                     if let syn::Member::Named(base_name) = &nested_field.member {
@@ -1203,7 +1289,6 @@ fn extract_account_from_expr(expr: &syn::Expr, ordered_accounts: &mut Vec<String
                 } else if let syn::Expr::Path(path) = &*field_expr.base {
                     if let Some(segment) = path.path.segments.first() {
                         if segment.ident == "ctx" && field_name != "accounts" {
-                            // Found ctx.FIELD_NAME (shorthand) - treat as account
                             push_unique(ordered_accounts, field_name.to_string());
                         }
                     }
@@ -1211,10 +1296,8 @@ fn extract_account_from_expr(expr: &syn::Expr, ordered_accounts: &mut Vec<String
             }
         }
         syn::Expr::Path(path_expr) => {
-            // Handle direct account references (just an identifier)
             if let Some(ident) = path_expr.path.get_ident() {
                 let name = ident.to_string();
-                // Skip "ctx", "data", and uppercase consts (like POOL_VAULT_SEED)
                 if name != "ctx"
                     && name != "data"
                     && !name
@@ -1226,42 +1309,33 @@ fn extract_account_from_expr(expr: &syn::Expr, ordered_accounts: &mut Vec<String
             }
         }
         syn::Expr::Call(call_expr) => {
-            // Recursively extract accounts from all function arguments
-            // This handles max_key(&base_mint.key(), &quote_mint.key())
             for arg in &call_expr.args {
                 extract_account_from_expr(arg, ordered_accounts);
             }
         }
         syn::Expr::Reference(ref_expr) => {
-            // Unwrap references and continue extracting
             extract_account_from_expr(&ref_expr.expr, ordered_accounts);
         }
-        _ => {
-            // Ignore other expression types
-        }
+        _ => {}
     }
 }
 
-/// Generate DecompressAccountsIdempotent struct with required accounts
 #[inline(never)]
 fn generate_decompress_accounts_struct(
     required_accounts: &[String],
     variant: InstructionVariant,
 ) -> Result<syn::ItemStruct> {
     let mut account_fields = vec![
-        // Standard fields always present
         quote! {
             #[account(mut)]
             pub fee_payer: Signer<'info>
         },
         quote! {
-            /// The global config account
             /// CHECK: load_checked.
             pub config: AccountInfo<'info>
         },
     ];
 
-    // Add rent payer fields based on variant
     match variant {
         InstructionVariant::PdaOnly => {
             unreachable!()
@@ -1270,7 +1344,6 @@ fn generate_decompress_accounts_struct(
             unreachable!()
         }
         InstructionVariant::Mixed => {
-            // Mixed: need both rent payers
             account_fields.extend(vec![
                 quote! {
                     /// UNCHECKED: Anyone can pay to init PDAs.
@@ -1286,23 +1359,18 @@ fn generate_decompress_accounts_struct(
         }
     }
 
-    // Add token-specific accounts based on variant
     match variant {
         InstructionVariant::TokenOnly => {
             unreachable!()
         }
         InstructionVariant::Mixed => {
-            // Mixed: required token program accounts with address constraints for constants
-            // Use hardcoded well-known Pubkeys for ctoken program and cpi authority
             account_fields.extend(vec![
                 quote! {
-                    /// Compressed token program (auto-resolved constant)
                     /// CHECK: Enforced to be cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m
                     #[account(address = solana_pubkey::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"))]
                     pub ctoken_program: UncheckedAccount<'info>
                 },
                 quote! {
-                    /// CPI authority PDA of the compressed token program (auto-resolved constant)
                     /// CHECK: Enforced to be GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy
                     #[account(address = solana_pubkey::pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy"))]
                     pub ctoken_cpi_authority: UncheckedAccount<'info>
@@ -1318,8 +1386,6 @@ fn generate_decompress_accounts_struct(
         }
     }
 
-    // Add required accounts as OPTIONAL unchecked accounts (skip standard fields)
-    // Seed accounts are optional - only needed if their dependent compressible account is being decompressed
     let standard_fields = [
         "fee_payer",
         "rent_payer",
@@ -1335,7 +1401,6 @@ fn generate_decompress_accounts_struct(
             let account_ident = syn::Ident::new(account_name, proc_macro2::Span::call_site());
             account_fields.push(quote! {
                 /// CHECK: Optional seed account - required only if decompressing dependent accounts.
-                /// Validated by runtime checks when needed.
                 pub #account_ident: Option<UncheckedAccount<'info>>
             });
         }
@@ -1351,14 +1416,11 @@ fn generate_decompress_accounts_struct(
     syn::parse2(struct_def)
 }
 
-/// Validate that all compressed account types don't exceed the maximum size limit
 #[inline(never)]
 fn validate_compressed_account_sizes(account_types: &[Ident]) -> Result<TokenStream> {
     let size_checks: Vec<_> = account_types.iter().map(|account_type| {
         quote! {
             const _: () = {
-                // Use COMPRESSED_INIT_SPACE, computed by the Compressible
-                // derive. Considers compress_as attributes.
                 const COMPRESSED_SIZE: usize = 8 + <#account_type as light_sdk::compressible::compression_info::CompressedInitSpace>::COMPRESSED_INIT_SPACE;
                 if COMPRESSED_SIZE > 800 {
                     panic!(concat!(
@@ -1372,8 +1434,6 @@ fn validate_compressed_account_sizes(account_types: &[Ident]) -> Result<TokenStr
     Ok(quote! { #(#size_checks)* })
 }
 
-/// Generate error codes automatically based on instruction variant
-/// This generates additional error variants that get added to the user's ErrorCode enum
 #[inline(never)]
 fn generate_error_codes(variant: InstructionVariant) -> Result<TokenStream> {
     let base_errors = quote! {
@@ -1400,10 +1460,7 @@ fn generate_error_codes(variant: InstructionVariant) -> Result<TokenStream> {
         },
     };
 
-    // Generate macro-specific error codes that don't conflict with user's ErrorCode
     Ok(quote! {
-        /// Auto-generated error codes for compressible instructions
-        /// These are separate from the user's ErrorCode enum to avoid conflicts
         #[error_code]
         pub enum CompressibleInstructionError {
             #base_errors

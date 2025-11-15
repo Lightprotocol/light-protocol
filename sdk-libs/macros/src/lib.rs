@@ -7,27 +7,13 @@ use syn::{parse_macro_input, DeriveInput, ItemStruct};
 use traits::process_light_traits;
 
 mod account;
-mod account_seeds;
 mod accounts;
-mod client_seed_functions;
-mod compress_as;
 mod compressible;
-mod compressible_derive;
-mod compressible_instructions;
-mod compressible_instructions_compress;
-mod compressible_instructions_decompress;
 mod cpi_signer;
-mod ctoken_seed_generation;
-mod derive_decompress_context;
-// Legacy CToken and instruction generator modules removed - functionality integrated into compressible_instructions
-mod derive_seeds;
 mod discriminator;
 mod hasher;
-
-mod pack_unpack;
 mod program;
 mod traits;
-mod variant_enum;
 
 /// Adds required fields to your anchor instruction for applying a zk-compressed
 /// state transition.
@@ -301,7 +287,7 @@ pub fn data_hasher(input: TokenStream) -> TokenStream {
 pub fn has_compression_info(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
 
-    compressible::derive_has_compression_info(input)
+    compressible::traits::derive_has_compression_info(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
@@ -343,7 +329,7 @@ pub fn has_compression_info(input: TokenStream) -> TokenStream {
 pub fn compress_as_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
 
-    compress_as::derive_compress_as(input)
+    compressible::traits::derive_compress_as(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
@@ -373,7 +359,7 @@ pub fn compress_as_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn add_compressible_instructions(args: TokenStream, input: TokenStream) -> TokenStream {
     let module = syn::parse_macro_input!(input as syn::ItemMod);
-    compressible_instructions::add_compressible_instructions(args.into(), module)
+    compressible::instructions::add_compressible_instructions(args.into(), module)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
@@ -452,7 +438,7 @@ pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
 pub fn compressible_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    compressible_derive::derive_compressible(input)
+    compressible::traits::derive_compressible(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
@@ -480,7 +466,7 @@ pub fn compressible_derive(input: TokenStream) -> TokenStream {
 pub fn compressible_pack(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    pack_unpack::derive_compressible_pack(input)
+    compressible::pack_unpack::derive_compressible_pack(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
@@ -526,111 +512,7 @@ pub fn compressible_pack(input: TokenStream) -> TokenStream {
 ///
 /// The generated instructions automatically handle seed derivation for each account type
 /// without requiring manual seed function calls.
-// DEPRECATED: compressed_account_variant_with_instructions macro is now integrated into add_compressible_instructions
-// Use add_compressible_instructions instead for complete automation with declarative seed syntax
-/// Generates seed getter functions by analyzing Anchor account structs.
 ///
-/// This macro scans account structs for `#[account(seeds = [...], ...)]` attributes
-/// and generates corresponding public seed getter functions that can be used by
-/// both the program and external clients.
-///
-/// ## Example
-///
-/// ```ignore
-/// use light_sdk_macros::generate_seed_functions;
-///
-/// generate_seed_functions! {
-///     #[derive(Accounts)]
-///     pub struct CreateRecord<'info> {
-///         #[account(
-///             init,
-///             seeds = [b"user_record", user.key().as_ref()],
-///             bump,
-///         )]
-///         pub user_record: Account<'info, UserRecord>,
-///         pub user: Signer<'info>,
-///     }
-///
-///     #[derive(Accounts)]
-///     #[instruction(session_id: u64)]
-///     pub struct CreateGameSession<'info> {
-///         #[account(
-///             init,
-///             seeds = [b"game_session", session_id.to_le_bytes().as_ref()],
-///             bump,
-///         )]
-///         pub game_session: Account<'info, GameSession>,
-///         pub player: Signer<'info>,
-///     }
-/// }
-/// ```
-///
-/// This generates:
-/// - `get_user_record_seeds(user: &Pubkey) -> (Vec<Vec<u8>>, Pubkey)`
-/// - `get_game_session_seeds(session_id: u64) -> (Vec<Vec<u8>>, Pubkey)`
-///
-/// The functions extract parameters from the seeds expressions and create
-/// public functions that match the exact same seed derivation logic.
-#[proc_macro]
-pub fn generate_seed_functions(input: TokenStream) -> TokenStream {
-    account_seeds::generate_seed_functions(input.into())
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
-// Legacy add_compressible_instructions_enhanced macro removed - now just use add_compressible_instructions!
-
-// DEPRECATED: ctoken_seeds macro is now integrated into add_compressible_instructions
-// Use add_compressible_instructions with CToken seed specifications instead
-
-/// Automatically generates seed getter functions for PDA and token accounts.
-///
-/// This derive macro generates public functions that can be used by both the program
-/// and external clients to get PDA seeds and addresses.
-///
-/// ## Example - PDA Account
-///
-/// ```ignore
-/// use light_sdk_macros::DeriveSeeds;
-///
-/// #[derive(DeriveSeeds)]
-/// #[seeds("user_record", owner)]
-/// pub struct UserRecord {
-///     pub owner: Pubkey,
-///     pub name: String,
-///     pub score: u64,
-/// }
-/// // Generates: get_user_record_seeds(owner: &Pubkey) -> (Vec<Vec<u8>>, Pubkey)
-/// ```
-///
-/// ## Example - Token Account
-///
-/// ```ignore
-/// #[derive(DeriveSeeds)]
-/// #[seeds("ctoken_signer", user, mint)]
-/// #[token_account]
-/// pub struct CTokenSigner {
-///     pub user: Pubkey,
-///     pub mint: Pubkey,
-/// }
-/// // Generates: get_c_token_signer_seeds(user: &Pubkey, mint: &Pubkey) -> (Vec<Vec<u8>>, Pubkey)
-/// ```
-///
-/// ## Supported Seed Types
-///
-/// - String literals: `"user_record"` -> `b"user_record".as_ref()`
-/// - Pubkey fields: `owner` -> `owner.as_ref()`
-/// - u64 fields: `session_id` -> `session_id.to_le_bytes().as_ref()`
-/// - Custom expressions: `custom_expr` -> `custom_expr`
-#[proc_macro_derive(DeriveSeeds, attributes(seeds, token_account))]
-pub fn derive_seeds(input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as DeriveInput);
-
-    derive_seeds::derive_seeds(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
-}
-
 /// Derive DecompressContext trait implementation.
 ///
 /// This generates the full DecompressContext trait implementation for
@@ -664,7 +546,7 @@ pub fn derive_seeds(input: TokenStream) -> TokenStream {
 pub fn derive_decompress_context(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
 
-    derive_decompress_context::derive_decompress_context(input)
+    compressible::decompress_context::derive_decompress_context(input)
         .unwrap_or_else(|err| err.to_compile_error())
         .into()
 }
@@ -684,7 +566,6 @@ pub fn derive_decompress_context(input: TokenStream) -> TokenStream {
 pub fn derive_light_cpi_signer(input: TokenStream) -> TokenStream {
     cpi_signer::derive_light_cpi_signer(input)
 }
-
 /// Generates a Light program for the given module.
 ///
 /// ## Example

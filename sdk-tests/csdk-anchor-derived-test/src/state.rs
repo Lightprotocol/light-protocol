@@ -1,23 +1,15 @@
 use anchor_lang::prelude::*;
 use light_ctoken_types::instructions::mint_action::CompressedMintWithContext;
 use light_sdk::{
-    compressible::CompressionInfo,
+    compressible::{CompressionInfo, PdaSeedProvider},
     instruction::{PackedAddressTreeInfo, ValidityProof},
     LightDiscriminator, LightHasher,
 };
-use light_sdk_macros::{Compressible, CompressiblePack, DeriveSeeds};
+use light_sdk_macros::{Compressible, CompressiblePack};
 
 #[derive(
-    Default,
-    Debug,
-    LightHasher,
-    LightDiscriminator,
-    InitSpace,
-    Compressible,
-    CompressiblePack,
-    DeriveSeeds,
+    Default, Debug, LightHasher, LightDiscriminator, InitSpace, Compressible, CompressiblePack,
 )]
-#[seeds("user_record", owner)]
 #[account]
 pub struct UserRecord {
     #[skip]
@@ -30,17 +22,9 @@ pub struct UserRecord {
 }
 
 #[derive(
-    Default,
-    Debug,
-    LightHasher,
-    LightDiscriminator,
-    InitSpace,
-    Compressible,
-    CompressiblePack,
-    DeriveSeeds,
+    Default, Debug, LightHasher, LightDiscriminator, InitSpace, Compressible, CompressiblePack,
 )]
 #[compress_as(start_time = 0, end_time = None, score = 0)]
-#[seeds("game_session", session_id)]
 #[account]
 pub struct GameSession {
     #[skip]
@@ -56,16 +40,8 @@ pub struct GameSession {
 }
 
 #[derive(
-    Default,
-    Debug,
-    LightHasher,
-    LightDiscriminator,
-    InitSpace,
-    Compressible,
-    CompressiblePack,
-    DeriveSeeds,
+    Default, Debug, LightHasher, LightDiscriminator, InitSpace, Compressible, CompressiblePack,
 )]
-#[seeds("placeholder_record", placeholder_id)]
 #[account]
 pub struct PlaceholderRecord {
     #[skip]
@@ -75,6 +51,24 @@ pub struct PlaceholderRecord {
     #[max_len(32)]
     pub name: String,
     pub placeholder_id: u64,
+}
+
+impl PdaSeedProvider for UserRecord {
+    fn derive_pda_seeds(&self, _program_id: &Pubkey) -> (Vec<Vec<u8>>, Pubkey) {
+        crate::seeds::get_user_record_seeds(&self.owner)
+    }
+}
+
+impl PdaSeedProvider for GameSession {
+    fn derive_pda_seeds(&self, _program_id: &Pubkey) -> (Vec<Vec<u8>>, Pubkey) {
+        crate::seeds::get_game_session_seeds(self.session_id)
+    }
+}
+
+impl PdaSeedProvider for PlaceholderRecord {
+    fn derive_pda_seeds(&self, _program_id: &Pubkey) -> (Vec<Vec<u8>>, Pubkey) {
+        crate::seeds::get_placeholder_record_seeds(self.placeholder_id)
+    }
 }
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]

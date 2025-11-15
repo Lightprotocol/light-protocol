@@ -400,7 +400,7 @@ async fn compress_pdas(
 
     // Use auto-generated seed functions
     let user_seeds = csdk_anchor_derived_test::seeds::get_user_record_seeds(&payer.pubkey());
-    let game_seeds = csdk_anchor_derived_test::seeds::get_game_session_seeds(&session_id);
+    let game_seeds = csdk_anchor_derived_test::seeds::get_game_session_seeds(session_id);
 
     let instruction =
         light_compressible_client::CompressibleInstruction::compress_accounts_idempotent(
