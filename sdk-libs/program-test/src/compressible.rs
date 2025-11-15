@@ -278,15 +278,12 @@ async fn try_compress_chunk(
         Err(_) => return,
     };
 
-    let signer_seeds: Vec<Vec<Vec<u8>>> = (0..pdas.len()).map(|_| Vec::new()).collect();
-
     let ix_res = CompressibleInstruction::compress_accounts_idempotent(
         program_id,
         &CompressibleInstruction::COMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
         &pdas,
         &accounts_to_compress,
         program_metas,
-        signer_seeds,
         proof_with_context,
         output_state_tree_info,
     )

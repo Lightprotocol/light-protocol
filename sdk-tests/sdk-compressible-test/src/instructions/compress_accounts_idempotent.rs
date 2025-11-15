@@ -16,7 +16,6 @@ pub fn compress_accounts_idempotent<'info>(
     ctx: Context<'_, '_, 'info, 'info, CompressAccountsIdempotent<'info>>,
     proof: ValidityProof,
     compressed_accounts: Vec<CompressedAccountMetaNoLamportsNoAddress>,
-    signer_seeds: Vec<Vec<Vec<u8>>>,
     system_accounts_offset: u8,
 ) -> Result<()> {
     let compression_config = CompressibleConfig::load_checked(&ctx.accounts.config, &crate::ID)?;
@@ -38,8 +37,8 @@ pub fn compress_accounts_idempotent<'info>(
         LIGHT_CPI_SIGNER,
     );
 
-    let pda_accounts_start = ctx.remaining_accounts.len() - signer_seeds.len();
-    let solana_accounts = &ctx.remaining_accounts[pda_accounts_start..];
+    let system_accounts_end = cpi_accounts.system_accounts_end_offset();
+    let solana_accounts = &cpi_accounts.to_account_infos()[system_accounts_end..];
 
     let mut compressed_pda_infos = Vec::new();
     let mut pda_indices_to_close: Vec<usize> = Vec::new();

@@ -46,7 +46,6 @@ pub struct DecompressMultipleAccountsIdempotentData<T> {
 pub struct CompressAccountsIdempotentData {
     pub proof: ValidityProof,
     pub compressed_accounts: Vec<CompressedAccountMetaNoLamportsNoAddress>,
-    pub signer_seeds: Vec<Vec<Vec<u8>>>,
     pub system_accounts_offset: u8,
 }
 
@@ -279,7 +278,7 @@ pub mod compressible_instruction {
         })
     }
 
-    /// Builds compress_accounts_idempotent instruction for PDAs and token accounts
+    /// Builds compress_accounts_idempotent instruction for PDAs only
     #[allow(clippy::too_many_arguments)]
     pub fn compress_accounts_idempotent(
         program_id: &Pubkey,
@@ -287,50 +286,11 @@ pub mod compressible_instruction {
         account_pubkeys: &[Pubkey],
         accounts_to_compress: &[Account],
         program_account_metas: &[AccountMeta],
-        signer_seeds: Vec<Vec<Vec<u8>>>,
         validity_proof_with_context: ValidityProofWithContext,
         output_state_tree_info: TreeInfo,
     ) -> Result<Instruction, Box<dyn std::error::Error>> {
         if account_pubkeys.len() != accounts_to_compress.len() {
             return Err("Accounts pubkeys length must match accounts length".into());
-        }
-        println!(
-            "compress_accounts_idempotent - account_pubkeys: {:?}",
-            account_pubkeys
-        );
-        // Sanity checks.
-        if !signer_seeds.is_empty() && signer_seeds.len() != accounts_to_compress.len() {
-            return Err("Signer seeds length must match accounts length or be empty".into());
-        }
-        for (i, account) in account_pubkeys.iter().enumerate() {
-            if !signer_seeds.is_empty() {
-                let seeds = &signer_seeds[i];
-                if !seeds.is_empty() {
-                    let derived = Pubkey::create_program_address(
-                        &seeds.iter().map(|v| v.as_slice()).collect::<Vec<&[u8]>>(),
-                        program_id,
-                    );
-                    match derived {
-                        Ok(derived_pubkey) => {
-                            if derived_pubkey != *account {
-                                return Err(format!(
-                                    "Derived PDA does not match account_to_compress at index {}: expected {}, got {:?}",
-                                    i,
-                                    account,
-                                    derived_pubkey
-                                ).into());
-                            }
-                        }
-                        Err(e) => {
-                            return Err(format!(
-                                "Failed to derive PDA for account_to_compress at index {}: {}",
-                                i, e
-                            )
-                            .into());
-                        }
-                    }
-                }
-            }
         }
 
         let mut remaining_accounts = PackedAccounts::default();
@@ -373,7 +333,6 @@ pub mod compressible_instruction {
         let instruction_data = CompressAccountsIdempotentData {
             proof: validity_proof_with_context.proof,
             compressed_accounts: compressed_account_metas_no_lamports_no_address,
-            signer_seeds,
             system_accounts_offset: system_accounts_offset as u8,
         };
 
