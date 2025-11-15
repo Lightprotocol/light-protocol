@@ -110,7 +110,9 @@ where
 
     let light_account = LightAccount::<T>::new_close(program_id, &compressed_meta, data)?;
 
-    let space = T::size(&light_account.account);
+    // Account space needs to include discriminator + serialized data
+    let discriminator_len = T::LIGHT_DISCRIMINATOR.len();
+    let space = discriminator_len + T::size(&light_account.account);
     let rent_minimum_balance = rent.minimum_balance(space);
 
     invoke_create_account_with_heap(

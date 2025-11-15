@@ -313,7 +313,10 @@ pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
 
         impl light_sdk::account::Size for #struct_name {
             fn size(&self) -> usize {
-                0 #(#size_fields)*
+                // Always allocate space for Some(CompressionInfo) since it will be set during decompression
+                // CompressionInfo size: 1 byte (Option discriminant) + 8 bytes (last_written_slot) + 1 byte (state enum) = 10 bytes
+                let compression_info_size = 10;
+                compression_info_size #(#size_fields)*
             }
         }
 

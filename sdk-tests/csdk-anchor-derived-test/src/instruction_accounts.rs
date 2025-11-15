@@ -10,7 +10,7 @@ pub struct CreateUserRecordAndGameSession<'info> {
     #[account(
         init,
         payer = user,
-        space = 8 + 32 + 4 + 32 + 8 + 10,
+        space = 8 + UserRecord::INIT_SPACE,
         seeds = [b"user_record", user.key().as_ref()],
         bump,
     )]
@@ -18,7 +18,7 @@ pub struct CreateUserRecordAndGameSession<'info> {
     #[account(
         init,
         payer = user,
-        space = 8 + 10 + 8 + 32 + 4 + 32 + 8 + 9 + 8,
+        space = 8 + GameSession::INIT_SPACE,
         seeds = [b"game_session", account_data.session_id.to_le_bytes().as_ref()],
         bump,
     )]
