@@ -998,9 +998,9 @@ pub async fn compress_token_account_after_decompress(
         "Token account should have data before compression"
     );
 
-    let (user_record_seeds, user_record_pubkey) =
+    let (_user_record_seeds, user_record_pubkey) =
         sdk_compressible_test::get_userrecord_seeds(&user.pubkey());
-    let (game_session_seeds, game_session_pubkey) =
+    let (_game_session_seeds, game_session_pubkey) =
         sdk_compressible_test::get_gamesession_seeds(session_id);
     let (_, token_account_address) = get_ctoken_signer_seeds(&user.pubkey(), &mint);
 

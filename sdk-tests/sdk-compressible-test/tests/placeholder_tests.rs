@@ -416,7 +416,7 @@ pub async fn compress_placeholder_record(
         .unwrap()
         .value;
 
-    let placeholder_seeds = sdk_compressible_test::get_placeholderrecord_seeds(placeholder_id);
+    let _placeholder_seeds = sdk_compressible_test::get_placeholderrecord_seeds(placeholder_id);
 
     let account = rpc
         .get_account(*placeholder_record_pda)
@@ -503,7 +503,7 @@ pub async fn compress_placeholder_record_for_double_test(
         .unwrap()
         .value;
 
-    let placeholder_seeds = sdk_compressible_test::get_placeholderrecord_seeds(placeholder_id);
+    let _placeholder_seeds = sdk_compressible_test::get_placeholderrecord_seeds(placeholder_id);
 
     let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
