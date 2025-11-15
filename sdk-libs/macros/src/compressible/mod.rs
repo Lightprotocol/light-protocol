@@ -5,4 +5,5 @@ pub mod instructions;
 pub mod pack_unpack;
 pub mod seed_providers;
 pub mod traits;
+pub mod utils;
 pub mod variant_enum;

@@ -1,6 +1,8 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Data, DeriveInput, Fields, Result, Type};
+use syn::{Data, DeriveInput, Fields, Result};
+
+use super::utils::{is_copy_type, is_pubkey_type};
 
 #[inline(never)]
 pub fn derive_compressible_pack(input: DeriveInput) -> Result<TokenStream> {
@@ -25,17 +27,7 @@ pub fn derive_compressible_pack(input: DeriveInput) -> Result<TokenStream> {
         }
     };
 
-    let has_pubkey_fields = fields.iter().any(|field| {
-        if let Type::Path(type_path) = &field.ty {
-            if let Some(segment) = type_path.path.segments.last() {
-                segment.ident == "Pubkey"
-            } else {
-                false
-            }
-        } else {
-            false
-        }
-    });
+    let has_pubkey_fields = fields.iter().any(|field| is_pubkey_type(&field.ty));
 
     if has_pubkey_fields {
         generate_with_packed_struct(struct_name, &packed_struct_name, fields)
@@ -200,64 +192,4 @@ fn generate_identity_pack_unpack(struct_name: &syn::Ident) -> Result<TokenStream
     };
 
     Ok(expanded)
-}
-
-#[inline(never)]
-fn is_pubkey_type(ty: &Type) -> bool {
-    if let Type::Path(type_path) = ty {
-        if let Some(segment) = type_path.path.segments.last() {
-            segment.ident == "Pubkey"
-        } else {
-            false
-        }
-    } else {
-        false
-    }
-}
-
-#[inline(never)]
-fn is_copy_type(ty: &Type) -> bool {
-    match ty {
-        Type::Path(type_path) => {
-            if let Some(segment) = type_path.path.segments.last() {
-                let type_name = segment.ident.to_string();
-                matches!(
-                    type_name.as_str(),
-                    "u8" | "u16"
-                        | "u32"
-                        | "u64"
-                        | "u128"
-                        | "usize"
-                        | "i8"
-                        | "i16"
-                        | "i32"
-                        | "i64"
-                        | "i128"
-                        | "isize"
-                        | "f32"
-                        | "f64"
-                        | "bool"
-                        | "char"
-                        | "Pubkey"
-                ) || (type_name == "Option" && has_copy_inner_type(&segment.arguments))
-            } else {
-                false
-            }
-        }
-        _ => false,
-    }
-}
-
-#[inline(never)]
-fn has_copy_inner_type(args: &syn::PathArguments) -> bool {
-    match args {
-        syn::PathArguments::AngleBracketed(args) => args.args.iter().any(|arg| {
-            if let syn::GenericArgument::Type(ty) = arg {
-                is_copy_type(ty)
-            } else {
-                false
-            }
-        }),
-        _ => false,
-    }
 }
