@@ -13,6 +13,7 @@ use crate::{
 };
 
 impl ZOutputCompressedAccountWithPackedContextMut<'_> {
+    #[profile]
     #[inline]
     pub fn set(
         &mut self,
