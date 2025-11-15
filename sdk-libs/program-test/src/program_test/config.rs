@@ -134,7 +134,7 @@ impl Default for ProgramTestConfig {
             },
             with_prover: true,
             #[cfg(feature = "devenv")]
-            auto_register_custom_programs_for_pda_compression: true,
+            auto_register_custom_programs_for_pda_compression: false,
             #[cfg(feature = "devenv")]
             skip_second_v1_tree: false,
             #[cfg(feature = "devenv")]

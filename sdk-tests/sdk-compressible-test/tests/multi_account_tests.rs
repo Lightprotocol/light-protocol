@@ -48,6 +48,7 @@ async fn test_create_and_decompress_two_accounts() {
     let mut config =
         ProgramTestConfig::new_v2(true, Some(vec![("sdk_compressible_test", program_id)]));
     config = config.with_light_protocol_events();
+    config.auto_register_custom_programs_for_pda_compression = true;
 
     let mut rpc = LightProgramTest::new(config).await.unwrap();
 
