@@ -15,7 +15,6 @@ pub struct UpdateCompressedMintMetaConfig {
 }
 
 /// Generates account metas for the update compressed mint instruction
-/// Following the same pattern as other compressed token instructions
 pub fn get_update_compressed_mint_instruction_account_metas(
     config: UpdateCompressedMintMetaConfig,
 ) -> Vec<AccountMeta> {

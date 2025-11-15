@@ -27,6 +27,7 @@ solana-clock = { workspace = true }
 solana-signature = { workspace = true }
 solana-commitment-config = { workspace = true }
 solana-account = { workspace = true }
+solana-signer = { workspace = true }
 solana-epoch-info = { workspace = true }
 solana-keypair = { workspace = true }
 solana-compute-budget-interface = { workspace = true }
@@ -35,6 +36,7 @@ solana-address-lookup-table-interface = { version = "2.2.1", features = [
     "bytemuck",
     "bincode",
 ] }
+solana-message = { workspace = true }
 
 # Light Protocol dependencies
 light-merkle-tree-metadata = { workspace = true, features = ["solana"] }
@@ -43,6 +45,7 @@ light-indexed-merkle-tree = { workspace = true }
 light-sdk = { workspace = true }
 light-hasher = { workspace = true, features = ["poseidon"] }
 light-compressed-account = { workspace = true, features = ["solana", "poseidon"] }
+light-compressed-token-sdk = { workspace = true }
 light-event = { workspace = true }
 
 photon-api = { workspace = true }

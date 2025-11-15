@@ -117,6 +117,7 @@ use light_compressed_account::{
     TreeType,
 };
 use light_compressed_token::process_transfer::transfer_sdk::to_account_metas;
+use light_compressed_token_sdk::compat::{AccountState, TokenDataWithMerkleContext};
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_indexed_merkle_tree::{
     array::IndexedArray, reference::IndexedMerkleTree, HIGHEST_ADDRESS_PLUS_ONE,
@@ -147,7 +148,6 @@ use light_registry::{
 use light_sdk::{
     address::NewAddressParamsAssignedPacked,
     constants::{ADDRESS_MERKLE_TREE_ROOTS, CPI_AUTHORITY_PDA_SEED, STATE_MERKLE_TREE_ROOTS},
-    token::{AccountState, TokenDataWithMerkleContext},
 };
 use light_sparse_merkle_tree::{
     changelog::ChangelogEntry, indexed_changelog::IndexedChangelogEntry, SparseMerkleTree,

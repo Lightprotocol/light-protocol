@@ -128,7 +128,7 @@ async fn test_spl_to_ctoken_transfer() {
     println!("Testing reverse transfer: ctoken to SPL");
 
     // Transfer from recipient's compressed token account back to sender's SPL token account
-    transfer2::ctoken_to_spl_transfer(
+    transfer2::transfer_ctoken_to_spl(
         &mut rpc,
         associated_token_account,
         spl_token_account_keypair.pubkey(),

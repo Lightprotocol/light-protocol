@@ -23,13 +23,13 @@ use light_compressed_account::{
 use light_compressed_token::process_transfer::{
     transfer_sdk::create_transfer_instruction, TokenTransferOutputData,
 };
+use light_compressed_token_sdk::compat::TokenDataWithMerkleContext;
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_prover_client::prover::spawn_prover;
 use light_registry::{
     protocol_config::state::{ProtocolConfig, ProtocolConfigPda},
     utils::get_protocol_config_pda_address,
 };
-use light_sdk::token::TokenDataWithMerkleContext;
 use light_test_utils::{
     conversions::sdk_to_program_token_data, spl::create_mint_helper_with_keypair,
     system_program::create_invoke_instruction,

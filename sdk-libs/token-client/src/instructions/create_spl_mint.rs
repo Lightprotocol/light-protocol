@@ -3,9 +3,12 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_compressed_token_sdk::instructions::{
-    create_spl_mint_instruction as sdk_create_spl_mint_instruction, derive_token_pool,
-    find_spl_mint_address, CreateSplMintInputs,
+use light_compressed_token_sdk::{
+    instructions::{
+        create_spl_mint_instruction as sdk_create_spl_mint_instruction, find_spl_mint_address,
+        CreateSplMintInputs,
+    },
+    token_pool::derive_token_pool,
 };
 use light_ctoken_types::{
     instructions::mint_action::CompressedMintWithContext, state::CompressedMint,

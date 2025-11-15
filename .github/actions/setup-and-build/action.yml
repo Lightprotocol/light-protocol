@@ -196,7 +196,8 @@ runs:
         path: |
           target/deploy/create_address_test_program.so
           target/deploy/sdk_anchor_test.so
-        key: ${{ runner.os }}-program-tests-${{ hashFiles('program-tests/**/Cargo.toml', 'program-tests/**/Cargo.lock', 'program-tests/**/*.rs', 'test-programs/**/Cargo.toml', 'test-programs/**/*.rs') }}
+          target/deploy/sdk-compressible-test.so
+        key: ${{ runner.os }}-program-tests-${{ hashFiles('program-tests/**/Cargo.toml', 'program-tests/**/Cargo.lock', 'program-tests/**/*.rs', 'test-programs/**/Cargo.toml', 'test-programs/**/*.rs', 'sdk-tests/**/Cargo.toml', 'sdk-tests/**/*.rs') }}
         restore-keys: |
           ${{ runner.os }}-program-tests-
 

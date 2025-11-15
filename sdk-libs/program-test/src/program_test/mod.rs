@@ -8,3 +8,6 @@ pub mod test_rpc;
 pub use light_program_test::LightProgramTest;
 pub mod indexer;
 pub use test_rpc::TestRpc;
+
+pub mod compressible_setup;
+pub use compressible_setup::*;

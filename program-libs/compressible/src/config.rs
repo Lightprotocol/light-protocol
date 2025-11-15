@@ -258,4 +258,29 @@ impl CompressibleConfig {
     pub fn derive_default_pda(program_id: &Pubkey) -> (Pubkey, u8) {
         Self::derive_pda(program_id, 0)
     }
+
+    pub fn derive_compression_authority_pda(program_id: &Pubkey, version: u16) -> (Pubkey, u8) {
+        let seeds = Self::get_compression_authority_seeds(version);
+        let seeds_refs: [&[u8]; 2] = [seeds[0].as_slice(), seeds[1].as_slice()];
+        Pubkey::find_program_address(&seeds_refs, program_id)
+    }
+
+    pub fn derive_rent_sponsor_pda(program_id: &Pubkey, version: u16) -> (Pubkey, u8) {
+        let seeds = Self::get_rent_sponsor_seeds(version);
+        let seeds_refs: [&[u8]; 2] = [seeds[0].as_slice(), seeds[1].as_slice()];
+        Pubkey::find_program_address(&seeds_refs, program_id)
+    }
+
+    /// Derives the default ctoken compression authority PDA (version = 1)
+    pub fn ctoken_v1_compression_authority_pda() -> Pubkey {
+        Self::derive_compression_authority_pda(
+            &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX"),
+            1,
+        )
+        .0
+    }
+    /// Derives the default ctoken rent sponsor PDA (version = 1)
+    pub fn ctoken_v1_rent_sponsor_pda() -> Pubkey {
+        Self::derive_rent_sponsor_pda(&pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"), 1).0
+    }
 }

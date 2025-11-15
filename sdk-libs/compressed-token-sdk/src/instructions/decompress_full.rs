@@ -6,7 +6,6 @@ use light_program_profiler::profile;
 use light_sdk::{
     error::LightSdkError,
     instruction::{AccountMetasVec, PackedAccounts, PackedStateTreeInfo, SystemAccountMetaConfig},
-    token::TokenData,
 };
 use solana_account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction};
@@ -14,6 +13,7 @@ use solana_pubkey::Pubkey;
 
 use crate::{
     account2::CTokenAccount2,
+    compat::TokenData,
     error::TokenSdkError,
     instructions::{
         transfer2::{
@@ -59,6 +59,12 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
     // Process each set of indices
     let mut token_accounts = Vec::with_capacity(indices.len());
 
+    // Convert packed_accounts to AccountMetas
+    // TODO: we may have to add conditional delegate signers for delegate
+    // support via CPI.
+    // Build signer flags in O(n) instead of scanning on every meta push
+    let mut signer_flags = vec![false; packed_accounts.len()];
+
     for idx in indices.iter() {
         // Create CTokenAccount2 with the source data
         // For decompress_full, we don't have an output tree since everything goes to the destination
@@ -67,18 +73,23 @@ pub fn decompress_full_ctoken_accounts_with_indices<'info>(
         // Set up decompress_full - decompress entire balance to destination ctoken account
         token_account.decompress_ctoken(idx.source.amount, idx.destination_index)?;
         token_accounts.push(token_account);
+
+        let owner_idx = idx.source.owner as usize;
+        if owner_idx >= signer_flags.len() {
+            return Err(TokenSdkError::InvalidAccountData);
+        }
+        signer_flags[owner_idx] = true;
     }
 
-    // Convert packed_accounts to AccountMetas
     let mut packed_account_metas = Vec::with_capacity(packed_accounts.len());
-    for info in packed_accounts.iter() {
+
+    for (i, info) in packed_accounts.iter().enumerate() {
         packed_account_metas.push(AccountMeta {
             pubkey: *info.key,
-            is_signer: info.is_signer,
+            is_signer: info.is_signer || signer_flags[i],
             is_writable: info.is_writable,
         });
     }
-
     let (meta_config, transfer_config) = if let Some(cpi_context) = cpi_context_pubkey {
         let cpi_context_config = CompressedCpiContext {
             set_context: false,

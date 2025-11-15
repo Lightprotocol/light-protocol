@@ -166,3 +166,136 @@ pub async fn claim_and_compress(
 
     Ok(())
 }
+
+#[cfg(feature = "devenv")]
+pub async fn auto_compress_program_pdas(
+    rpc: &mut LightProgramTest,
+    program_id: Pubkey,
+) -> Result<(), RpcError> {
+    use solana_instruction::AccountMeta;
+    use solana_sdk::signature::Signer;
+
+    let payer = rpc.get_payer().insecure_clone();
+
+    let config_pda = CompressibleConfig::derive_pda(&program_id, 0).0;
+    let cfg_acc = rpc
+        .get_account(config_pda)
+        .await?
+        .ok_or_else(|| RpcError::CustomError("compressible config not found".into()))?;
+    let cfg = CompressibleConfig::deserialize(&mut &cfg_acc.data[..])
+        .map_err(|e| RpcError::CustomError(format!("config deserialize: {e:?}")))?;
+    let rent_sponsor = cfg.rent_sponsor;
+    let address_tree = cfg.address_space[0];
+
+    let program_accounts = rpc.context.get_program_accounts(&program_id);
+    if program_accounts.is_empty() {
+        return Ok(());
+    }
+
+    let output_state_tree_info = rpc
+        .get_random_state_tree_info()
+        .map_err(|e| RpcError::CustomError(format!("no state tree: {e:?}")))?;
+
+    let program_metas = vec![
+        AccountMeta::new(payer.pubkey(), true),
+        AccountMeta::new_readonly(config_pda, false),
+        AccountMeta::new(rent_sponsor, false),
+    ];
+
+    const BATCH_SIZE: usize = 5;
+    let mut chunk = Vec::with_capacity(BATCH_SIZE);
+    for (pubkey, account) in program_accounts
+        .into_iter()
+        .filter(|(_, acc)| acc.lamports > 0 && !acc.data.is_empty())
+    {
+        chunk.push((pubkey, account));
+        if chunk.len() == BATCH_SIZE {
+            try_compress_chunk(
+                rpc,
+                &program_id,
+                &chunk,
+                &program_metas,
+                &address_tree,
+                output_state_tree_info,
+            )
+            .await;
+            chunk.clear();
+        }
+    }
+
+    if !chunk.is_empty() {
+        try_compress_chunk(
+            rpc,
+            &program_id,
+            &chunk,
+            &program_metas,
+            &address_tree,
+            output_state_tree_info,
+        )
+        .await;
+    }
+
+    Ok(())
+}
+
+#[cfg(feature = "devenv")]
+async fn try_compress_chunk(
+    rpc: &mut LightProgramTest,
+    program_id: &Pubkey,
+    chunk: &[(Pubkey, solana_sdk::account::Account)],
+    program_metas: &[solana_instruction::AccountMeta],
+    address_tree: &Pubkey,
+    output_state_tree_info: light_client::indexer::TreeInfo,
+) {
+    use light_client::indexer::Indexer;
+    use light_compressed_account::address::derive_address;
+    use light_compressible_client::CompressibleInstruction;
+    use solana_sdk::signature::Signer;
+
+    let mut pdas = Vec::with_capacity(chunk.len());
+    let mut accounts_to_compress = Vec::with_capacity(chunk.len());
+    let mut hashes = Vec::with_capacity(chunk.len());
+    for (pda, acc) in chunk.iter() {
+        let addr = derive_address(
+            &pda.to_bytes(),
+            &address_tree.to_bytes(),
+            &program_id.to_bytes(),
+        );
+        if let Ok(resp) = rpc.get_compressed_account(addr, None).await {
+            if let Some(cacc) = resp.value {
+                pdas.push(*pda);
+                accounts_to_compress.push(acc.clone());
+                hashes.push(cacc.hash);
+            }
+        }
+    }
+    if pdas.is_empty() {
+        return;
+    }
+
+    let proof_with_context = match rpc.get_validity_proof(hashes, vec![], None).await {
+        Ok(r) => r.value,
+        Err(_) => return,
+    };
+
+    let signer_seeds: Vec<Vec<Vec<u8>>> = (0..pdas.len()).map(|_| Vec::new()).collect();
+
+    let ix_res = CompressibleInstruction::compress_accounts_idempotent(
+        program_id,
+        &CompressibleInstruction::COMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
+        &pdas,
+        &accounts_to_compress,
+        program_metas,
+        signer_seeds,
+        proof_with_context,
+        output_state_tree_info,
+    )
+    .map_err(|e| e.to_string());
+    if let Ok(ix) = ix_res {
+        let payer = rpc.get_payer().insecure_clone();
+        let payer_pubkey = payer.pubkey();
+        let _ = rpc
+            .create_and_send_transaction(&[ix], &payer_pubkey, &[&payer])
+            .await;
+    }
+}

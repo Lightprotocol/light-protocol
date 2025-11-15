@@ -44,7 +44,7 @@ class TokenBalanceCommand extends Command {
         return;
       }
 
-      const compressedTokenAccounts = tokenAccounts.items.filter((acc) =>
+      const compressedTokenAccounts = tokenAccounts.items.filter((acc: any) =>
         acc.parsed.mint.equals(refMint),
       );
 
@@ -56,7 +56,7 @@ class TokenBalanceCommand extends Command {
 
       let totalBalance = BigInt(0);
 
-      compressedTokenAccounts.forEach((account) => {
+      compressedTokenAccounts.forEach((account: any) => {
         const amount = account.parsed.amount;
         totalBalance += BigInt(amount.toString());
       });

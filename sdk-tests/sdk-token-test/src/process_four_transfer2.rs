@@ -207,13 +207,11 @@ pub fn process_four_transfer2<'info>(
             )
             .map_err(ProgramError::from)?;
 
-        msg!("tree_pubkeys {:?}", cpi_accounts.tree_pubkeys());
         let tree_accounts = cpi_accounts.tree_accounts().unwrap();
         let mut packed_accounts = Vec::with_capacity(tree_accounts.len());
         for account_info in tree_accounts {
             packed_accounts.push(account_meta_from_account_info(account_info));
         }
-        msg!("packed_accounts {:?}", packed_accounts);
 
         let inputs = Transfer2Inputs {
             validity_proof: proof,

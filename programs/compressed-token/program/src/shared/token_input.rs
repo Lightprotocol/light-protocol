@@ -146,7 +146,7 @@ fn set_input_compressed_account_inner<const IS_FROZEN: bool>(
         &input_token_data.merkle_context,
         *input_token_data.root_index,
         lamports,
-        None, // Token accounts don't have addresses
+        None,
     )?;
     Ok(())
 }

@@ -40,6 +40,7 @@ use light_compressed_account::{
     tx_hash::create_tx_hash,
     TreeType,
 };
+use light_compressed_token_sdk::compat::{TokenData, TokenDataWithMerkleContext};
 use light_event::event::PublicTransactionEvent;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Poseidon};
 use light_merkle_tree_reference::MerkleTree;
@@ -66,10 +67,7 @@ use light_prover_client::{
         },
     },
 };
-use light_sdk::{
-    light_hasher::Hash,
-    token::{TokenData, TokenDataWithMerkleContext},
-};
+use light_sdk::light_hasher::Hash;
 use log::info;
 use num_bigint::{BigInt, BigUint};
 use num_traits::FromBytes;

@@ -1,22 +1,13 @@
 use std::ops::Deref;
 
-use light_compressed_token_types::ValidityProof;
 use light_ctoken_types::instructions::transfer2::{
     Compression, CompressionMode, MultiInputTokenDataWithContext, MultiTokenTransferOutputData,
 };
 use light_program_profiler::profile;
 use solana_account_info::AccountInfo;
-use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
-use crate::{
-    error::TokenSdkError,
-    instructions::transfer2::{
-        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
-        Transfer2Inputs,
-    },
-    utils::get_token_account_balance,
-};
+use crate::{error::TokenSdkError, utils::get_token_account_balance};
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct CTokenAccount2 {
@@ -409,153 +400,4 @@ impl Deref for CTokenAccount2 {
     fn deref(&self) -> &Self::Target {
         &self.output
     }
-}
-
-#[allow(clippy::too_many_arguments)]
-#[profile]
-pub fn create_spl_to_ctoken_transfer_instruction(
-    source_spl_token_account: Pubkey,
-    to: Pubkey,
-    amount: u64,
-    authority: Pubkey,
-    mint: Pubkey,
-    payer: Pubkey,
-    token_pool_pda: Pubkey,
-    token_pool_pda_bump: u8,
-) -> Result<Instruction, TokenSdkError> {
-    let packed_accounts = vec![
-        // Mint (index 0)
-        AccountMeta::new_readonly(mint, false),
-        // Destination token account (index 1)
-        AccountMeta::new(to, false),
-        // Authority for compression (index 2) - signer
-        AccountMeta::new_readonly(authority, true),
-        // Source SPL token account (index 3) - writable
-        AccountMeta::new(source_spl_token_account, false),
-        // Token pool PDA (index 4) - writable
-        AccountMeta::new(token_pool_pda, false),
-        // SPL Token program (index 5) - needed for CPI
-        AccountMeta::new_readonly(
-            Pubkey::from(light_compressed_token_types::constants::SPL_TOKEN_PROGRAM_ID),
-            false,
-        ),
-    ];
-
-    let wrap_spl_to_ctoken_account = CTokenAccount2 {
-        inputs: vec![],
-        output: MultiTokenTransferOutputData::default(),
-        compression: Some(Compression::compress_spl(
-            amount,
-            0, // mint
-            3, // source or recpient
-            2, // authority
-            4, // pool_account_index:
-            0, // pool_index
-            token_pool_pda_bump,
-        )),
-        delegate_is_set: false,
-        method_used: true,
-    };
-
-    let ctoken_account = CTokenAccount2 {
-        inputs: vec![],
-        output: MultiTokenTransferOutputData::default(),
-        compression: Some(Compression::decompress_ctoken(amount, 0, 1)),
-        delegate_is_set: false,
-        method_used: true,
-    };
-
-    // Create Transfer2Inputs following the test pattern
-    let inputs = Transfer2Inputs {
-        validity_proof: ValidityProof::default(),
-        transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
-        meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
-            payer,
-            packed_accounts,
-        ),
-        in_lamports: None,
-        out_lamports: None,
-        token_accounts: vec![wrap_spl_to_ctoken_account, ctoken_account],
-        output_queue: 0, // Decompressed accounts only, no output queue needed
-    };
-
-    // Create the actual transfer2 instruction
-    create_transfer2_instruction(inputs)
-}
-
-#[allow(clippy::too_many_arguments)]
-#[profile]
-pub fn create_ctoken_to_spl_transfer_instruction(
-    source_ctoken_account: Pubkey,
-    destination_spl_token_account: Pubkey,
-    amount: u64,
-    authority: Pubkey,
-    mint: Pubkey,
-    payer: Pubkey,
-    token_pool_pda: Pubkey,
-    token_pool_pda_bump: u8,
-) -> Result<Instruction, TokenSdkError> {
-    let packed_accounts = vec![
-        // Mint (index 0)
-        AccountMeta::new_readonly(mint, false),
-        // Source ctoken account (index 1) - writable
-        AccountMeta::new(source_ctoken_account, false),
-        // Destination SPL token account (index 2) - writable
-        AccountMeta::new(destination_spl_token_account, false),
-        // Authority (index 3) - signer
-        AccountMeta::new_readonly(authority, true),
-        // Token pool PDA (index 4) - writable
-        AccountMeta::new(token_pool_pda, false),
-        // SPL Token program (index 5) - needed for CPI
-        AccountMeta::new_readonly(
-            Pubkey::from(light_compressed_token_types::constants::SPL_TOKEN_PROGRAM_ID),
-            false,
-        ),
-    ];
-
-    // First operation: compress from ctoken account to pool using compress_spl
-    let compress_to_pool = CTokenAccount2 {
-        inputs: vec![],
-        output: MultiTokenTransferOutputData::default(),
-        compression: Some(Compression::compress_ctoken(
-            amount, 0, // mint index
-            1, // source ctoken account index
-            3, // authority index
-        )),
-        delegate_is_set: false,
-        method_used: true,
-    };
-
-    // Second operation: decompress from pool to SPL token account using decompress_spl
-    let decompress_to_spl = CTokenAccount2 {
-        inputs: vec![],
-        output: MultiTokenTransferOutputData::default(),
-        compression: Some(Compression::decompress_spl(
-            amount,
-            0, // mint index
-            2, // destination SPL token account index
-            4, // pool_account_index
-            0, // pool_index (TODO: make dynamic)
-            token_pool_pda_bump,
-        )),
-        delegate_is_set: false,
-        method_used: true,
-    };
-
-    // Create Transfer2Inputs
-    let inputs = Transfer2Inputs {
-        validity_proof: ValidityProof::default(),
-        transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
-        meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
-            payer,
-            packed_accounts,
-        ),
-        in_lamports: None,
-        out_lamports: None,
-        token_accounts: vec![compress_to_pool, decompress_to_spl],
-        output_queue: 0, // Decompressed accounts only, no output queue needed
-    };
-
-    // Create the actual transfer2 instruction
-    create_transfer2_instruction(inputs)
 }
