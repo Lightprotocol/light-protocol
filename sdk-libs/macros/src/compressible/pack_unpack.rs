@@ -1,31 +1,14 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use syn::{Data, DeriveInput, Fields, Result};
+use syn::{DeriveInput, Result};
 
-use super::utils::{is_copy_type, is_pubkey_type};
+use super::utils::{extract_fields_from_derive_input, is_copy_type, is_pubkey_type};
 
 #[inline(never)]
 pub fn derive_compressible_pack(input: DeriveInput) -> Result<TokenStream> {
     let struct_name = &input.ident;
     let packed_struct_name = format_ident!("Packed{}", struct_name);
-
-    let fields = match &input.data {
-        Data::Struct(data) => match &data.fields {
-            Fields::Named(fields) => &fields.named,
-            _ => {
-                return Err(syn::Error::new_spanned(
-                    &input,
-                    "CompressiblePack only supports structs with named fields",
-                ));
-            }
-        },
-        _ => {
-            return Err(syn::Error::new_spanned(
-                &input,
-                "CompressiblePack only supports structs",
-            ));
-        }
-    };
+    let fields = extract_fields_from_derive_input(&input)?;
 
     let has_pubkey_fields = fields.iter().any(|field| is_pubkey_type(&field.ty));
 

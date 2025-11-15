@@ -5,10 +5,12 @@ use quote::quote;
 use syn::{
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
-    Data, DeriveInput, Expr, Field, Fields, Ident, ItemStruct, Result, Token,
+    DeriveInput, Expr, Field, Ident, ItemStruct, Result, Token,
 };
 
-use super::utils::is_copy_type;
+use super::utils::{
+    extract_fields_from_derive_input, extract_fields_from_item_struct, is_copy_type,
+};
 
 struct CompressAsFields {
     fields: Punctuated<CompressAsField, Token![,]>,
@@ -189,6 +191,7 @@ fn generate_compressed_init_space_impl(struct_name: &Ident) -> TokenStream {
 
 pub fn derive_compress_as(input: ItemStruct) -> Result<TokenStream> {
     let struct_name = &input.ident;
+    let fields = extract_fields_from_item_struct(&input)?;
 
     let compress_as_attr = input
         .attrs
@@ -201,32 +204,13 @@ pub fn derive_compress_as(input: ItemStruct) -> Result<TokenStream> {
         None
     };
 
-    let fields = match &input.fields {
-        Fields::Named(fields) => &fields.named,
-        _ => {
-            return Err(syn::Error::new_spanned(
-                struct_name,
-                "CompressAs only supports structs with named fields",
-            ))
-        }
-    };
-
     let field_assignments = generate_compress_as_field_assignments(fields, &compress_as_fields);
     Ok(generate_compress_as_impl(struct_name, &field_assignments))
 }
 
 pub fn derive_has_compression_info(input: syn::ItemStruct) -> Result<TokenStream> {
     let struct_name = &input.ident;
-
-    let fields = match &input.fields {
-        Fields::Named(fields) => &fields.named,
-        _ => {
-            return Err(syn::Error::new_spanned(
-                struct_name,
-                "HasCompressionInfo only supports structs with named fields",
-            ))
-        }
-    };
+    let fields = extract_fields_from_item_struct(&input)?;
 
     validate_compression_info_field(fields, struct_name)?;
     Ok(generate_has_compression_info_impl(struct_name))
@@ -234,6 +218,7 @@ pub fn derive_has_compression_info(input: syn::ItemStruct) -> Result<TokenStream
 
 pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
     let struct_name = &input.ident;
+    let fields = extract_fields_from_derive_input(&input)?;
 
     // Extract compress_as attribute
     let compress_as_attr = input
@@ -245,25 +230,6 @@ pub fn derive_compressible(input: DeriveInput) -> Result<TokenStream> {
         Some(attr.parse_args::<CompressAsFields>()?)
     } else {
         None
-    };
-
-    // Extract named fields
-    let fields = match &input.data {
-        Data::Struct(data) => match &data.fields {
-            Fields::Named(fields) => &fields.named,
-            _ => {
-                return Err(syn::Error::new_spanned(
-                    struct_name,
-                    "Compressible only supports structs with named fields",
-                ))
-            }
-        },
-        _ => {
-            return Err(syn::Error::new_spanned(
-                struct_name,
-                "Compressible only supports structs",
-            ))
-        }
     };
 
     // Validate compression_info field exists

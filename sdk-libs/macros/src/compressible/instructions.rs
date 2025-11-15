@@ -324,18 +324,10 @@ pub fn add_compressible_instructions(
                 token_seed_specs,
             )?
         } else {
-            quote! {
-                #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
-                #[repr(u8)]
-                pub enum CTokenAccountVariant {}
-            }
+            crate::compressible::utils::generate_empty_ctoken_enum()
         }
     } else {
-        quote! {
-            #[derive(AnchorSerialize, AnchorDeserialize, Debug, Clone, Copy)]
-            #[repr(u8)]
-            pub enum CTokenAccountVariant {}
-        }
+        crate::compressible::utils::generate_empty_ctoken_enum()
     };
 
     if let Some(ref token_seed_specs) = token_seeds {

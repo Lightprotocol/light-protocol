@@ -5,6 +5,7 @@ use hasher::{derive_light_hasher, derive_light_hasher_sha};
 use proc_macro::TokenStream;
 use syn::{parse_macro_input, DeriveInput, ItemStruct};
 use traits::process_light_traits;
+use utils::into_token_stream;
 
 mod account;
 mod accounts;
@@ -14,6 +15,7 @@ mod discriminator;
 mod hasher;
 mod program;
 mod traits;
+mod utils;
 
 /// Adds required fields to your anchor instruction for applying a zk-compressed
 /// state transition.
@@ -48,28 +50,19 @@ mod traits;
 #[proc_macro_attribute]
 pub fn light_system_accounts(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-
-    process_light_system_accounts(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
+    into_token_stream(process_light_system_accounts(input))
 }
 
 #[proc_macro_attribute]
 pub fn light_accounts(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-
-    match process_light_accounts(input) {
-        Ok(token_stream) => token_stream.into(),
-        Err(err) => TokenStream::from(err.to_compile_error()),
-    }
+    into_token_stream(process_light_accounts(input))
 }
 
 #[proc_macro_derive(LightAccounts, attributes(light_account))]
 pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    accounts::process_light_accounts_derive(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
+    into_token_stream(accounts::process_light_accounts_derive(input))
 }
 
 /// Implements traits on the given struct required for invoking The Light system
@@ -127,19 +120,13 @@ pub fn light_accounts_derive(input: TokenStream) -> TokenStream {
 )]
 pub fn light_traits_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-
-    match process_light_traits(input) {
-        Ok(token_stream) => token_stream.into(),
-        Err(err) => TokenStream::from(err.to_compile_error()),
-    }
+    into_token_stream(process_light_traits(input))
 }
 
 #[proc_macro_derive(LightDiscriminator)]
 pub fn light_discriminator(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-    discriminator(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
+    into_token_stream(discriminator(input))
 }
 
 // /// SHA256 variant of the LightDiscriminator derive macro.
@@ -215,10 +202,7 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(LightHasher, attributes(hash, skip))]
 pub fn light_hasher(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-
-    derive_light_hasher(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
+    into_token_stream(derive_light_hasher(input))
 }
 
 /// SHA256 variant of the LightHasher derive macro.
@@ -241,20 +225,14 @@ pub fn light_hasher(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(LightHasherSha, attributes(hash, skip))]
 pub fn light_hasher_sha(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-
-    derive_light_hasher_sha(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
+    into_token_stream(derive_light_hasher_sha(input))
 }
 
 /// Alias of `LightHasher`.
 #[proc_macro_derive(DataHasher, attributes(skip, hash))]
 pub fn data_hasher(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-
-    derive_light_hasher_sha(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
+    into_token_stream(derive_light_hasher_sha(input))
 }
 
 /// Automatically implements the HasCompressionInfo trait for structs that have a
@@ -286,10 +264,7 @@ pub fn data_hasher(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(HasCompressionInfo)]
 pub fn has_compression_info(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-
-    compressible::traits::derive_has_compression_info(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
+    into_token_stream(compressible::traits::derive_has_compression_info(input))
 }
 
 /// Legacy CompressAs trait implementation (use Compressible instead).
@@ -328,10 +303,7 @@ pub fn has_compression_info(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(CompressAs, attributes(compress_as))]
 pub fn compress_as_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-
-    compressible::traits::derive_compress_as(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
+    into_token_stream(compressible::traits::derive_compress_as(input))
 }
 
 /// Adds compressible account support with automatic seed generation.
@@ -359,9 +331,10 @@ pub fn compress_as_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn add_compressible_instructions(args: TokenStream, input: TokenStream) -> TokenStream {
     let module = syn::parse_macro_input!(input as syn::ItemMod);
-    compressible::instructions::add_compressible_instructions(args.into(), module)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
+    into_token_stream(compressible::instructions::add_compressible_instructions(
+        args.into(),
+        module,
+    ))
 }
 
 // /// Adds native compressible instructions for the specified account types
@@ -391,10 +364,7 @@ pub fn add_compressible_instructions(args: TokenStream, input: TokenStream) -> T
 #[proc_macro_attribute]
 pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
-
-    account::account(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
+    into_token_stream(account::account(input))
 }
 
 /// Automatically implements all required traits for compressible accounts.
@@ -437,10 +407,7 @@ pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
 #[proc_macro_derive(Compressible, attributes(compress_as, light_seeds))]
 pub fn compressible_derive(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-
-    compressible::traits::derive_compressible(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
+    into_token_stream(compressible::traits::derive_compressible(input))
 }
 
 /// Automatically implements Pack and Unpack traits for compressible accounts.
@@ -465,10 +432,7 @@ pub fn compressible_derive(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(CompressiblePack)]
 pub fn compressible_pack(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-
-    compressible::pack_unpack::derive_compressible_pack(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
+    into_token_stream(compressible::pack_unpack::derive_compressible_pack(input))
 }
 
 // DEPRECATED: compressed_account_variant macro is now integrated into add_compressible_instructions
@@ -545,10 +509,9 @@ pub fn compressible_pack(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(DecompressContext, attributes(pda_types, token_variant))]
 pub fn derive_decompress_context(input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as DeriveInput);
-
-    compressible::decompress_context::derive_decompress_context(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
+    into_token_stream(compressible::decompress_context::derive_decompress_context(
+        input,
+    ))
 }
 
 /// Derive the CPI signer from the program ID. The program ID must be a string
@@ -584,8 +547,5 @@ pub fn derive_light_cpi_signer(input: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn light_program(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as syn::ItemMod);
-
-    program::program(input)
-        .unwrap_or_else(|err| err.to_compile_error())
-        .into()
+    into_token_stream(program::program(input))
 }
