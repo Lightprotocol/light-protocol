@@ -148,14 +148,12 @@ pub mod sdk_compressible_test {
         ctx: Context<'_, '_, 'info, 'info, CompressAccountsIdempotent<'info>>,
         proof: ValidityProof,
         compressed_accounts: Vec<CompressedAccountMetaNoLamportsNoAddress>,
-        signer_seeds: Vec<Vec<Vec<u8>>>,
         system_accounts_offset: u8,
     ) -> Result<()> {
         instructions::compress_accounts_idempotent::compress_accounts_idempotent(
             ctx,
             proof,
             compressed_accounts,
-            signer_seeds,
             system_accounts_offset,
         )
     }

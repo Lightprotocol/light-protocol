@@ -1112,7 +1112,6 @@ pub async fn compress_token_account_after_decompress(
                 rent_sponsor: RENT_SPONSOR,
             }
             .to_account_metas(None),
-            vec![user_record_seeds, game_session_seeds],
             proof_with_context,
             random_tree_info,
         )

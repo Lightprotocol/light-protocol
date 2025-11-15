@@ -236,7 +236,6 @@ pub async fn compress_record(
             rent_sponsor: RENT_SPONSOR,
         }
         .to_account_metas(None),
-        vec![sdk_compressible_test::get_userrecord_seeds(&payer.pubkey()).0],
         rpc_result,
         output_state_tree_info,
     )

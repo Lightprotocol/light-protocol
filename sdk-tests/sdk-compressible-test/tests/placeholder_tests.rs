@@ -437,7 +437,6 @@ pub async fn compress_placeholder_record(
                 rent_sponsor: RENT_SPONSOR,
             }
             .to_account_metas(None),
-            vec![placeholder_seeds.0],
             rpc_result,
             output_state_tree_info,
         )
@@ -525,7 +524,6 @@ pub async fn compress_placeholder_record_for_double_test(
                 rent_sponsor: RENT_SPONSOR,
             }
             .to_account_metas(None),
-            vec![placeholder_seeds.0],
             rpc_result,
             output_state_tree_info,
         )

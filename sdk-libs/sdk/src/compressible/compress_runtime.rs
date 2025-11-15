@@ -61,7 +61,11 @@ where
     let mut pda_indices_to_close: Vec<usize> = Vec::with_capacity(compressed_accounts.len());
 
     let system_accounts_start = cpi_accounts.system_accounts_end_offset();
-    let solana_accounts = &cpi_accounts.to_account_infos()[system_accounts_start..];
+    let all_post_system = &cpi_accounts.to_account_infos()[system_accounts_start..];
+
+    // PDAs are at the end of remaining_accounts, after all the merkle tree/queue accounts
+    let pda_start_in_all_accounts = all_post_system.len() - compressed_accounts.len();
+    let solana_accounts = &all_post_system[pda_start_in_all_accounts..];
 
     for (i, account_info) in solana_accounts.iter().enumerate() {
         if account_info.data_is_empty() {

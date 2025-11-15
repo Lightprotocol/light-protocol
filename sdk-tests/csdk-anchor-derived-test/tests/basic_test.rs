@@ -398,10 +398,6 @@ async fn compress_pdas(
 
     let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
-    // Use auto-generated seed functions
-    let user_seeds = csdk_anchor_derived_test::seeds::get_user_record_seeds(&payer.pubkey());
-    let game_seeds = csdk_anchor_derived_test::seeds::get_game_session_seeds(session_id);
-
     let instruction =
         light_compressible_client::CompressibleInstruction::compress_accounts_idempotent(
             program_id,
@@ -415,7 +411,6 @@ async fn compress_pdas(
                 compression_authority: payer.pubkey(),
             }
             .to_account_metas(None),
-            vec![user_seeds.0, game_seeds.0],
             rpc_result,
             output_state_tree_info,
         )
