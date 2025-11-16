@@ -95,6 +95,7 @@ pub mod csdk_anchor_derived_test {
         let user_compressed_info = prepare_compressed_account_on_init::<UserRecord>(
             &user_record_info,
             user_record_data_mut,
+            &config,
             compression_params.user_compressed_address,
             user_new_address_params,
             compression_params.user_output_state_tree_index,
@@ -109,6 +110,7 @@ pub mod csdk_anchor_derived_test {
         let game_compressed_info = prepare_compressed_account_on_init::<GameSession>(
             &game_session_info,
             game_session_data_mut,
+            &config,
             compression_params.game_compressed_address,
             game_new_address_params,
             compression_params.game_output_state_tree_index,
@@ -202,17 +204,21 @@ pub mod csdk_anchor_derived_test {
 
     pub fn initialize_compression_config<'info>(
         ctx: Context<'_, '_, '_, 'info, InitializeCompressionConfig<'info>>,
-        compression_delay: u32,
         rent_sponsor: Pubkey,
         address_space: Vec<Pubkey>,
     ) -> Result<()> {
+        let compression_authority = ctx.accounts.authority.key();
+        let rent_config = light_compressible::rent::RentConfig::default();
+        let write_top_up: u32 = 5_000;
         light_sdk::compressible::process_initialize_compression_config_checked(
             &ctx.accounts.config.to_account_info(),
             &ctx.accounts.authority.to_account_info(),
             &ctx.accounts.program_data.to_account_info(),
             &rent_sponsor,
+            &compression_authority,
+            rent_config,
+            write_top_up,
             address_space,
-            compression_delay,
             0,
             &ctx.accounts.payer.to_account_info(),
             &ctx.accounts.system_program.to_account_info(),
@@ -223,8 +229,10 @@ pub mod csdk_anchor_derived_test {
 
     pub fn update_compression_config<'info>(
         ctx: Context<'_, '_, '_, 'info, UpdateCompressionConfig<'info>>,
-        new_compression_delay: Option<u32>,
         new_rent_sponsor: Option<Pubkey>,
+        new_compression_authority: Option<Pubkey>,
+        new_rent_config: Option<light_compressible::rent::RentConfig>,
+        new_write_top_up: Option<u32>,
         new_address_space: Option<Vec<Pubkey>>,
         new_update_authority: Option<Pubkey>,
     ) -> Result<()> {
@@ -233,8 +241,10 @@ pub mod csdk_anchor_derived_test {
             ctx.accounts.authority.as_ref(),
             new_update_authority.as_ref(),
             new_rent_sponsor.as_ref(),
+            new_compression_authority.as_ref(),
+            new_rent_config,
+            new_write_top_up,
             new_address_space,
-            new_compression_delay,
             &crate::ID,
         )?;
         Ok(())

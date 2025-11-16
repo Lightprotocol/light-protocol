@@ -105,6 +105,7 @@ pub mod csdk_anchor_full_derived_test {
         let user_compressed_info = prepare_compressed_account_on_init::<UserRecord>(
             &user_record_info,
             user_record_data_mut,
+            &config,
             compression_params.user_compressed_address,
             user_new_address_params,
             compression_params.user_output_state_tree_index,
@@ -119,6 +120,7 @@ pub mod csdk_anchor_full_derived_test {
         let game_compressed_info = prepare_compressed_account_on_init::<GameSession>(
             &game_session_info,
             game_session_data_mut,
+            &config,
             compression_params.game_compressed_address,
             game_new_address_params,
             compression_params.game_output_state_tree_index,

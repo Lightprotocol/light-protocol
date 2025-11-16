@@ -49,6 +49,9 @@ where
     if *ctx.rent_sponsor().key != compression_config.rent_sponsor {
         return Err(ProgramError::Custom(0));
     }
+    if *ctx.compression_authority().key != compression_config.compression_authority {
+        return Err(ProgramError::Custom(0));
+    }
 
     let cpi_accounts = CpiAccounts::new(
         ctx.fee_payer(),

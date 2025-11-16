@@ -241,7 +241,6 @@ impl<'info> light_sdk::compressible::CompressContext<'info> for CompressAccounts
                     &mut account_data,
                     meta,
                     cpi_accounts,
-                    &compression_config.compression_delay,
                     &compression_config.address_space,
                 )?;
                 Ok(Some(compressed_info))
@@ -258,7 +257,6 @@ impl<'info> light_sdk::compressible::CompressContext<'info> for CompressAccounts
                     &mut account_data,
                     meta,
                     cpi_accounts,
-                    &compression_config.compression_delay,
                     &compression_config.address_space,
                 )?;
                 Ok(Some(compressed_info))
@@ -275,7 +273,6 @@ impl<'info> light_sdk::compressible::CompressContext<'info> for CompressAccounts
                     &mut account_data,
                     meta,
                     cpi_accounts,
-                    &compression_config.compression_delay,
                     &compression_config.address_space,
                 )?;
                 Ok(Some(compressed_info))

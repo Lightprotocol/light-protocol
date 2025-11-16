@@ -172,8 +172,8 @@ fn generate_size_impl(struct_name: &Ident, size_fields: &[TokenStream]) -> Token
         impl light_sdk::account::Size for #struct_name {
             fn size(&self) -> usize {
                 // Always allocate space for Some(CompressionInfo) since it will be set during decompression
-                // CompressionInfo size: 1 byte (Option discriminant) + 8 bytes (last_written_slot) + 1 byte (state enum) = 10 bytes
-                let compression_info_size = 10;
+                // CompressionInfo size: 1 byte (Option discriminant) + <CompressionInfo as Space>::INIT_SPACE
+                let compression_info_size = 1 + <light_sdk::compressible::CompressionInfo as light_sdk::compressible::Space>::INIT_SPACE;
                 compression_info_size #(#size_fields)*
             }
         }
