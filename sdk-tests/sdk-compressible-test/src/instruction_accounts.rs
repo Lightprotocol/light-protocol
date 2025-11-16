@@ -142,6 +142,7 @@ pub struct UpdateRecord<'info> {
         constraint = user_record.owner == user.key()
     )]
     pub user_record: Account<'info, UserRecord>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -156,6 +157,7 @@ pub struct UpdateGameSession<'info> {
         constraint = game_session.player == player.key()
     )]
     pub game_session: Account<'info, GameSession>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]

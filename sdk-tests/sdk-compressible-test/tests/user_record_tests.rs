@@ -125,6 +125,7 @@ async fn test_update_record_compression_info() {
     let accounts = sdk_compressible_test::accounts::UpdateRecord {
         user: payer.pubkey(),
         user_record: user_record_pda,
+        system_program: solana_sdk::system_program::id(),
     };
 
     let instruction_data = sdk_compressible_test::instruction::UpdateRecord {
