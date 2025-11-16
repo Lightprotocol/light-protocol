@@ -15,6 +15,7 @@ use forester_utils::{
     rpc_pool::SolanaRpcPool,
 };
 use futures::future::join_all;
+use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::{
     indexer::{MerkleProof, NewAddressProofWithContext},
     rpc::{LightClient, LightClientConfig, RetryConfig, Rpc, RpcError},
@@ -55,7 +56,10 @@ use crate::{
             send_transaction::send_batched_transactions,
             tx_builder::EpochManagerTransactions,
         },
-        v2::{process_batched_operations, BatchContext},
+        v2::{
+            coordinator::state_tree_coordinator::StateTreeCoordinator, process_batched_operations,
+            BatchContext,
+        },
     },
     queue_helpers::QueueItemData,
     rollover::{
@@ -1158,6 +1162,73 @@ impl<R: Rpc> EpochManager<R> {
 
         let use_events = queue_update_rx.is_some();
 
+        // Create persistent StateTreeCoordinator for StateV2 trees
+        let mut state_tree_coordinator = if tree_type == TreeType::StateV2 {
+            let rpc = self.rpc_pool.get_connection().await?;
+            let mut account = rpc
+                .get_account(tree_schedule.tree_accounts.merkle_tree)
+                .await?
+                .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
+
+            let tree_data = BatchedMerkleTreeAccount::state_from_bytes(
+                account.data.as_mut_slice(),
+                &tree_schedule.tree_accounts.merkle_tree.into(),
+            )?;
+
+            let initial_root = tree_data
+                .root_history
+                .last()
+                .copied()
+                .ok_or_else(|| anyhow::anyhow!("No root in tree history"))?;
+
+            drop(rpc);
+
+            let default_prover_url = "http://127.0.0.1:3001".to_string();
+            let batch_context = BatchContext {
+                rpc_pool: self.rpc_pool.clone(),
+                authority: self.config.payer_keypair.insecure_clone(),
+                derivation: self.config.derivation_pubkey,
+                epoch: epoch_info.epoch,
+                merkle_tree: tree_schedule.tree_accounts.merkle_tree,
+                output_queue: tree_schedule.tree_accounts.queue,
+                prover_append_url: self
+                    .config
+                    .external_services
+                    .prover_append_url
+                    .clone()
+                    .unwrap_or_else(|| default_prover_url.clone()),
+                prover_update_url: self
+                    .config
+                    .external_services
+                    .prover_update_url
+                    .clone()
+                    .unwrap_or_else(|| default_prover_url.clone()),
+                prover_address_append_url: self
+                    .config
+                    .external_services
+                    .prover_address_append_url
+                    .clone()
+                    .unwrap_or_else(|| default_prover_url.clone()),
+                prover_api_key: self.config.external_services.prover_api_key.clone(),
+                prover_polling_interval: Duration::from_millis(100),
+                prover_max_wait_time: Duration::from_secs(600),
+                ops_cache: self.ops_cache.clone(),
+                epoch_phases: epoch_info.phases.clone(),
+                slot_tracker: self.slot_tracker.clone(),
+                slot_length: self.protocol_config.slot_length,
+                input_queue_hint: None,
+                output_queue_hint: None,
+            };
+
+            debug!(
+                "Creating persistent StateTreeCoordinator for tree {}",
+                tree_schedule.tree_accounts.merkle_tree
+            );
+            Some(StateTreeCoordinator::new(batch_context, initial_root).await)
+        } else {
+            None
+        };
+
         'outer_slot_loop: while current_slot < epoch_info.phases.active.end {
             // Log memory footprint at each slot iteration
             let mem_mb = {
@@ -1200,6 +1271,7 @@ impl<R: Rpc> EpochManager<R> {
                                 &light_slot_details,
                                 queue_update_rx.as_mut().unwrap(),
                                 coordinator.clone(),
+                                state_tree_coordinator.as_mut(),
                             )
                             .await
                         } else {
@@ -1208,6 +1280,7 @@ impl<R: Rpc> EpochManager<R> {
                                 epoch_pda,
                                 &tree_schedule.tree_accounts,
                                 &light_slot_details,
+                                state_tree_coordinator.as_mut(),
                             )
                             .await
                         }
@@ -1311,13 +1384,14 @@ impl<R: Rpc> EpochManager<R> {
 
             let processing_start_time = Instant::now();
             let items_processed_this_iteration = match self
-                .dispatch_tree_processing(
+                .dispatch_tree_processing::<R>(
                     epoch_info,
                     epoch_pda,
                     tree_accounts,
                     forester_slot_details,
                     estimated_slot,
                     None,
+                    None, // No StateTreeCoordinator for V1 trees
                 )
                 .await
             {
@@ -1360,10 +1434,10 @@ impl<R: Rpc> EpochManager<R> {
 
     #[instrument(
         level = "debug",
-        skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details, queue_update_rx, coordinator),
+        skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details, queue_update_rx, coordinator, state_tree_coordinator),
         fields(tree = %tree_accounts.merkle_tree)
     )]
-    async fn process_light_slot_v2_event(
+    async fn process_light_slot_v2_event<R2: Rpc>(
         &self,
         epoch_info: &Epoch,
         epoch_pda: &ForesterEpochPda,
@@ -1371,6 +1445,7 @@ impl<R: Rpc> EpochManager<R> {
         forester_slot_details: &ForesterSlot,
         queue_update_rx: &mut mpsc::Receiver<QueueUpdateMessage>,
         coordinator: Option<Arc<QueueEventRouter>>,
+        mut state_tree_coordinator: Option<&mut StateTreeCoordinator<R2>>,
     ) -> Result<()> {
         info!(
             "Processing V2 light slot {} ({}-{})",
@@ -1438,6 +1513,7 @@ impl<R: Rpc> EpochManager<R> {
                             forester_slot_details,
                             estimated_slot,
                             Some(&update), // Pass gRPC queue update hint
+                            state_tree_coordinator.as_deref_mut(),
                         ).await {
                             Ok(count) => {
                                 if count > 0 {
@@ -1474,6 +1550,7 @@ impl<R: Rpc> EpochManager<R> {
                             forester_slot_details,
                             estimated_slot,
                             None, // No queue update hint in fallback path
+                            state_tree_coordinator.as_deref_mut(),
                         ).await {
                             Ok(count) if count > 0 => {
                                 info!("V2 fallback found {} items", count);
@@ -1502,15 +1579,16 @@ impl<R: Rpc> EpochManager<R> {
     /// V2 polling fallback (when gRPC unavailable)
     #[instrument(
         level = "debug",
-        skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details),
+        skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details, state_tree_coordinator),
         fields(tree = %tree_accounts.merkle_tree)
     )]
-    async fn process_light_slot_v2_fallback(
+    async fn process_light_slot_v2_fallback<R2: Rpc>(
         &self,
         epoch_info: &Epoch,
         epoch_pda: &ForesterEpochPda,
         tree_accounts: &TreeAccounts,
         forester_slot_details: &ForesterSlot,
+        mut state_tree_coordinator: Option<&mut StateTreeCoordinator<R2>>,
     ) -> Result<()> {
         info!(
             "Processing V2 light slot {} fallback ({}-{})",
@@ -1562,6 +1640,7 @@ impl<R: Rpc> EpochManager<R> {
                     forester_slot_details,
                     estimated_slot,
                     None, // No queue update hint for regular processing
+                    state_tree_coordinator.as_deref_mut(),
                 )
                 .await
             {
@@ -1650,7 +1729,7 @@ impl<R: Rpc> EpochManager<R> {
         Ok(true)
     }
 
-    async fn dispatch_tree_processing(
+    async fn dispatch_tree_processing<R2: Rpc>(
         &self,
         epoch_info: &Epoch,
         epoch_pda: &ForesterEpochPda,
@@ -1658,6 +1737,7 @@ impl<R: Rpc> EpochManager<R> {
         forester_slot_details: &ForesterSlot,
         current_solana_slot: u64,
         queue_update: Option<&QueueUpdateMessage>,
+        state_tree_coordinator: Option<&mut StateTreeCoordinator<R2>>,
     ) -> Result<usize> {
         match tree_accounts.tree_type {
             TreeType::StateV1 | TreeType::AddressV1 => {
@@ -1671,8 +1751,13 @@ impl<R: Rpc> EpochManager<R> {
                 .await
             }
             TreeType::StateV2 | TreeType::AddressV2 => {
-                self.process_v2(epoch_info, tree_accounts, queue_update)
-                    .await
+                self.process_v2(
+                    epoch_info,
+                    tree_accounts,
+                    queue_update,
+                    state_tree_coordinator,
+                )
+                .await
             }
         }
     }
@@ -1741,11 +1826,12 @@ impl<R: Rpc> EpochManager<R> {
         }
     }
 
-    async fn process_v2(
+    async fn process_v2<R2: Rpc>(
         &self,
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
         queue_update: Option<&QueueUpdateMessage>,
+        state_tree_coordinator: Option<&mut StateTreeCoordinator<R2>>,
     ) -> Result<usize> {
         let default_prover_url = "http://127.0.0.1:3001".to_string();
 
@@ -1763,6 +1849,24 @@ impl<R: Rpc> EpochManager<R> {
             (None, None)
         };
 
+        // For StateV2 trees, use the persistent coordinator if provided
+        if tree_accounts.tree_type == TreeType::StateV2 {
+            if let Some(coordinator) = state_tree_coordinator {
+                // Update queue hints in the coordinator's context
+                coordinator.context.input_queue_hint = input_queue_hint;
+                coordinator.context.output_queue_hint = output_queue_hint;
+
+                return coordinator.process().await.map_err(|e| {
+                    anyhow!(
+                        "Failed to process V2 operations with persistent coordinator: {}",
+                        e
+                    )
+                });
+            }
+        }
+
+        // Fallback: create context and call process_batched_operations
+        // (used for AddressV2 or when coordinator not available)
         let batch_context = BatchContext {
             rpc_pool: self.rpc_pool.clone(),
             authority: self.config.payer_keypair.insecure_clone(),

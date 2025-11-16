@@ -60,12 +60,12 @@ enum ProofResult {
 
 pub struct StateTreeCoordinator<R: Rpc> {
     shared_state: SharedState,
-    context: BatchContext<R>,
-    cached_tree_state: Option<(TreeState, Vec<ProcessedBatchId>, Vec<ProcessedBatchId>)>,
+    pub context: BatchContext<R>,
     current_light_slot: Option<u64>,
-    /// Cached staging tree to preserve across resets when root hasn't changed.
-    /// This prevents recreating the staging tree from potentially incomplete deduplicated data
-    /// when transactions are in-flight during epoch transitions.
+    /// Cached staging tree to preserve across iterations when root hasn't changed.
+    /// The indexer returns deduplicated (but complete) tree data for efficiency.
+    /// Caching avoids rebuilding the tree structure when processing sequential batches.
+    /// This is the single source of cached tree state for the coordinator.
     cached_staging_tree: Option<(super::tree_state::StagingTree, [u8; 32])>,
 }
 
@@ -89,7 +89,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         Self {
             shared_state,
             context,
-            cached_tree_state: None,
             current_light_slot: None,
             cached_staging_tree: None,
         }
@@ -123,7 +122,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 self.current_light_slot = Some(light_slot);
             }
 
-            let (num_append_batches, num_nullify_batches) = if self.cached_tree_state.is_some() {
+            let (num_append_batches, num_nullify_batches) = {
                 let rpc = self.context.rpc_pool.get_connection().await?;
                 let mut accounts = rpc
                     .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
@@ -135,32 +134,40 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let output_queue_account = accounts[1].take();
                 drop(rpc);
 
-                self.check_readiness_with_accounts(
+                // Always sync to update processed_batches with on-chain confirmation state
+                self.sync_with_chain_with_accounts(
                     &mut merkle_tree_account,
                     output_queue_account.as_ref(),
                 )
-                .await?
-            } else {
-                let rpc = self.context.rpc_pool.get_connection().await?;
-                let mut accounts = rpc
-                    .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
-                    .await?;
+                .await?;
 
-                let mut merkle_tree_account = accounts[0]
-                    .take()
-                    .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
-                let output_queue_account = accounts[1].take();
-                drop(rpc);
+                // Check if cached tree is stale by comparing with on-chain root
+                let tree_data = BatchedMerkleTreeAccount::state_from_bytes(
+                    merkle_tree_account.data.as_mut_slice(),
+                    &self.context.merkle_tree.into(),
+                )?;
+                let on_chain_root = tree_data
+                    .root_history
+                    .last()
+                    .copied()
+                    .ok_or_else(|| anyhow::anyhow!("No root in tree history"))?;
 
-                let root_changed = self
-                    .sync_with_chain_with_accounts(
-                        &mut merkle_tree_account,
-                        output_queue_account.as_ref(),
-                    )
-                    .await?;
+                let cache_is_stale = if let Some((_, cached_root)) = &self.cached_staging_tree {
+                    *cached_root != on_chain_root
+                } else {
+                    true // No cache, need to fetch
+                };
 
-                if root_changed {
-                    self.cached_tree_state = None;
+                // Only invalidate cache if it's actually stale
+                // (transaction failed, or another forester processed batches)
+                if cache_is_stale {
+                    debug!(
+                        "Cache is stale, invalidating. Cached root: {:?}, on-chain root: {:?}",
+                        self.cached_staging_tree
+                            .as_ref()
+                            .map(|(_, root)| &root[..8]),
+                        &on_chain_root[..8]
+                    );
                     self.cached_staging_tree = None;
                 }
 
@@ -197,7 +204,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                                     "Max consecutive retries ({}) reached for error: {}. Giving up on this batch.",
                                     MAX_CONSECUTIVE_RETRIES, coord_err
                                 );
-                                self.cached_tree_state = None;
                                 self.cached_staging_tree = None;
                                 // Break out of retry loop but don't return error - just move to next iteration
                                 break;
@@ -210,7 +216,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                                     "Invalidating cache and resyncing due to: {} (retry {}/{})",
                                     coord_err, consecutive_retries, MAX_CONSECUTIVE_RETRIES
                                 );
-                                self.cached_tree_state = None;
                                 self.cached_staging_tree = None;
                             } else {
                                 debug!("Retrying without resync for: {}", coord_err);
@@ -223,7 +228,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                             continue;
                         }
                     }
-                    self.cached_tree_state = None;
                     self.cached_staging_tree = None;
                     return Err(e);
                 }
@@ -250,61 +254,46 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let iteration_start = Instant::now();
         let phase1_start = Instant::now();
 
-        let (mut tree_state, append_data, nullify_data, append_batch_ids, nullify_batch_ids) =
-            if let Some((cached_state, _, _)) = self.cached_tree_state.take() {
-                let rpc = self.context.rpc_pool.get_connection().await?;
-                let mut accounts = rpc
-                    .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
-                    .await?;
+        // Always fetch queue data from indexer - we need it for batch preparation
+        let (tree_state, append_data, nullify_data, append_batch_ids, nullify_batch_ids) = {
+            let rpc = self.context.rpc_pool.get_connection().await?;
 
-                let merkle_tree_account = accounts[0]
-                    .take()
-                    .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
-                let output_queue_account = accounts[1].take();
-                drop(rpc);
-
-                let (_, append_data, nullify_data, append_batch_ids, nullify_batch_ids) = self
-                    .fetch_queues_with_accounts(
-                        num_append_batches,
-                        num_nullify_batches,
-                        merkle_tree_account,
-                        output_queue_account,
-                    )
-                    .await?;
-
-                (
-                    cached_state,
-                    append_data,
-                    nullify_data,
-                    append_batch_ids,
-                    nullify_batch_ids,
-                )
-            } else {
-                let rpc = self.context.rpc_pool.get_connection().await?;
+            if self.cached_staging_tree.is_none() {
+                // No cache - wait for indexer to catch up
                 forester_utils::utils::wait_for_indexer(&*rpc)
                     .await
                     .map_err(|e| {
                         anyhow::anyhow!("Indexer failed to catch up before iteration: {}", e)
                     })?;
+            } else {
+                debug!(
+                    "Reusing cached StagingTree (root: {:?}), skipping indexer wait",
+                    self.cached_staging_tree
+                        .as_ref()
+                        .map(|(_, root)| &root[..8])
+                );
+            }
 
-                let mut accounts = rpc
-                    .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
-                    .await?;
+            let mut accounts = rpc
+                .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
+                .await?;
 
-                let merkle_tree_account = accounts[0]
-                    .take()
-                    .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
-                let output_queue_account = accounts[1].take();
-                drop(rpc);
+            let merkle_tree_account = accounts[0]
+                .take()
+                .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
+            let output_queue_account = accounts[1].take();
+            drop(rpc);
 
-                self.fetch_queues_with_accounts(
-                    num_append_batches,
-                    num_nullify_batches,
-                    merkle_tree_account,
-                    output_queue_account,
-                )
-                .await?
-            };
+            self.fetch_queues_with_accounts(
+                num_append_batches,
+                num_nullify_batches,
+                merkle_tree_account,
+                output_queue_account,
+            )
+            .await?
+        };
+
+        let mut tree_state = tree_state;
 
         let pattern = Self::create_interleaving_pattern(num_append_batches, num_nullify_batches);
 
@@ -373,7 +362,11 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         self.validate_root(final_root, "pipelined execution")
             .await?;
 
-        self.cached_tree_state = Some((tree_state, append_batch_ids, nullify_batch_ids));
+        debug!(
+            "Iteration complete. Processed {} items with final root: {:?}",
+            total_items,
+            &final_root[..8]
+        );
 
         Ok(total_items)
     }
@@ -810,33 +803,10 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         let current_root = tree_state.get_cached_root();
 
-        // Check if we can reuse the cached staging tree from a previous cycle.
-        // This is safe when the root hasn't changed, which happens during epoch
-        // transitions with in-flight transactions.
-        let mut state = if let Some((cached_staging, cached_root)) = self.cached_staging_tree.take()
-        {
-            if cached_root == current_root {
-                debug!(
-                    "Reusing cached staging tree (root unchanged): {:?}",
-                    &current_root[..8]
-                );
-                PreparationState::with_cached_staging(
-                    tree_state,
-                    append_leaf_indices,
-                    cached_staging,
-                    current_root,
-                )
-            } else {
-                debug!(
-                    "Cached staging tree root mismatch (cached={:?}, current={:?}), creating new staging tree",
-                    &cached_root[..8],
-                    &current_root[..8]
-                );
-                PreparationState::new(tree_state, append_leaf_indices)
-            }
-        } else {
-            PreparationState::new(tree_state, append_leaf_indices)
-        };
+        // TODO: Optimization - reuse cached staging tree when we're just waiting for our turn
+        // For now, always create fresh staging tree from indexer data to avoid stale cache issues
+        // where new leaves were added since we last cached.
+        let mut state = PreparationState::new(tree_state, append_leaf_indices);
         let mut prepared_batches = Vec::with_capacity(pattern.len());
 
         for (i, batch_type) in pattern.iter().enumerate() {
@@ -891,17 +861,12 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         state.tree_state.batch_update_leaves(&updates)?;
         state.tree_state.set_cached_root(state.current_root);
 
-        // Clear the updates list from the staging tree since we've committed them.
-        // This prevents double-committing if we reuse the staging tree in the next cycle.
-        state.staging.clear_updates();
+        // TODO: Re-enable caching optimization
+        // For now, don't cache to avoid stale cache issues
+        // state.staging.clear_updates();
+        // self.cached_staging_tree = Some((state.staging, state.current_root));
 
-        // Cache the staging tree with the current root for potential reuse.
-        // This helps when epoch transitions happen with in-flight transactions.
-        // The staging tree still has the accumulated leaf state in its tree structure,
-        // but the updates list is empty so we won't commit them twice.
         let final_root = state.current_root;
-        self.cached_staging_tree = Some((state.staging, final_root));
-
         Ok((state.tree_state, final_root))
     }
 
