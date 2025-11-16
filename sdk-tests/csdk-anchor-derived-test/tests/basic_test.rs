@@ -48,7 +48,6 @@ async fn test_create_decompress_compress() {
         &payer,
         &program_id,
         &payer,
-        100,
         RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
         &light_compressible_client::CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
@@ -285,7 +284,7 @@ async fn decompress_pdas(
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         expected_slot
     );
 
@@ -310,7 +309,7 @@ async fn decompress_pdas(
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         expected_slot
     );
 

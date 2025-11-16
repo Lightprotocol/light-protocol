@@ -30,7 +30,6 @@ async fn test_double_decompression_attack() {
         &payer,
         &program_id,
         &payer,
-        100,
         RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
         &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,

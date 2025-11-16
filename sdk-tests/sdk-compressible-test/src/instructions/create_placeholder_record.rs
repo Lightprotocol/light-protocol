@@ -49,6 +49,7 @@ pub fn create_placeholder_record<'info>(
     let compressed_info = prepare_compressed_account_on_init::<PlaceholderRecord>(
         &placeholder_info,
         placeholder_data_mut,
+        &config,
         compressed_address,
         new_address_params,
         output_state_tree_index,

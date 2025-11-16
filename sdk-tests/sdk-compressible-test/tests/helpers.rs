@@ -230,7 +230,7 @@ pub async fn decompress_single_user_record(
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         expected_slot
     );
 }

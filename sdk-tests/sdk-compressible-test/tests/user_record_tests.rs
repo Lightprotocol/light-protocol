@@ -38,7 +38,6 @@ async fn test_create_decompress_compress_single_account() {
         &payer,
         &program_id,
         &payer,
-        100,
         RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
         &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
@@ -96,7 +95,6 @@ async fn test_update_record_compression_info() {
         &payer,
         &program_id,
         &payer,
-        100,
         RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
         &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
@@ -165,7 +163,7 @@ async fn test_update_record_compression_info() {
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         150
     );
     assert!(!updated_user_record

@@ -42,6 +42,7 @@ pub fn compress_accounts_idempotent<'info>(
 
     let mut compressed_pda_infos = Vec::new();
     let mut pda_indices_to_close: Vec<usize> = Vec::new();
+    let mut compressed_account_idx = 0;
 
     for (i, account_info) in solana_accounts.iter().enumerate() {
         if account_info.data_is_empty() {
@@ -51,7 +52,8 @@ pub fn compress_accounts_idempotent<'info>(
         if account_info.owner == &crate::ID {
             let data = account_info.try_borrow_data()?;
             let discriminator = &data[0..8];
-            let meta = compressed_accounts[i];
+            let meta = compressed_accounts[compressed_account_idx];
+            compressed_account_idx += 1;
 
             // TODO: consider CHECKING seeds.
             match discriminator {
@@ -67,7 +69,6 @@ pub fn compress_accounts_idempotent<'info>(
                         &mut account_data,
                         &meta,
                         &cpi_accounts,
-                        &compression_config.compression_delay,
                         &compression_config.address_space,
                     )?;
 
@@ -86,7 +87,6 @@ pub fn compress_accounts_idempotent<'info>(
                         &mut account_data,
                         &meta,
                         &cpi_accounts,
-                        &compression_config.compression_delay,
                         &compression_config.address_space,
                     )?;
 
@@ -106,7 +106,6 @@ pub fn compress_accounts_idempotent<'info>(
                         &mut account_data,
                         &meta,
                         &cpi_accounts,
-                        &compression_config.compression_delay,
                         &compression_config.address_space,
                     )?;
 

@@ -15,7 +15,7 @@ pub struct CreateRecord<'info> {
         // discriminator + owner + string len + name + score +
         // option<compression_info>. Note that in the onchain space
         // CompressionInfo is always Some.
-        space = 8 + 32 + 4 + 32 + 8 + 10,
+        space = 8 + 32 + 4 + 32 + 8 + 88,
         seeds = [b"user_record", user.key().as_ref()],
         bump,
     )]
@@ -40,7 +40,7 @@ pub struct CreatePlaceholderRecord<'info> {
         init,
         payer = user,
         // discriminator + compression_info + owner + string len + name + placeholder_id
-        space = 8 + 10 + 32 + 4 + 32 + 8,
+        space = 8 + 88 + 32 + 4 + 32 + 8,
         seeds = [b"placeholder_record", placeholder_id.to_le_bytes().as_ref()],
         bump,
     )]
@@ -67,7 +67,7 @@ pub struct CreateUserRecordAndGameSession<'info> {
         // discriminator + owner + string len + name + score +
         // option<compression_info>. Note that in the onchain space
         // CompressionInfo is always Some.
-        space = 8 + 32 + 4 + 32 + 8 + 10,
+        space = 8 + 32 + 4 + 32 + 8 + 88,
         seeds = [b"user_record", user.key().as_ref()],
         bump,
     )]
@@ -77,7 +77,7 @@ pub struct CreateUserRecordAndGameSession<'info> {
         payer = user,
         // discriminator + option<compression_info> + session_id + player +
         // string len + game_type + start_time + end_time(Option) + score
-        space = 8 + 10 + 8 + 32 + 4 + 32 + 8 + 9 + 8,
+        space = 8 + 88 + 8 + 32 + 4 + 32 + 8 + 9 + 8,
         seeds = [b"game_session", account_data.session_id.to_le_bytes().as_ref()],
         bump,
     )]
@@ -116,7 +116,7 @@ pub struct CreateGameSession<'info> {
     #[account(
         init,
         payer = player,
-        space = 8 + 9 + 8 + 32 + 4 + 32 + 8 + 9 + 8, // discriminator + compression_info + session_id + player + string len + game_type + start_time + end_time(Option) + score
+        space = 8 + 88 + 8 + 32 + 4 + 32 + 8 + 9 + 8, // discriminator + compression_info + session_id + player + string len + game_type + start_time + end_time(Option) + score
         seeds = [b"game_session", session_id.to_le_bytes().as_ref()],
         bump,
     )]

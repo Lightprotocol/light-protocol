@@ -12,9 +12,11 @@ use solana_system_interface::instruction as system_instruction;
 use solana_sysvar::{rent::Rent, Sysvar};
 
 use crate::{
-    account::sha::LightAccount, compressible::compression_info::HasCompressionInfo,
-    cpi::v2::CpiAccounts, error::LightSdkError, AnchorDeserialize, AnchorSerialize,
-    LightDiscriminator,
+    account::sha::LightAccount,
+    compressible::compression_info::{CompressionInfo, HasCompressionInfo, Space},
+    cpi::v2::CpiAccounts,
+    error::LightSdkError,
+    AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
 
 /// Convert a `CompressedAccountMetaNoLamportsNoAddress` to a
@@ -111,8 +113,12 @@ where
     let light_account = LightAccount::<T>::new_close(program_id, &compressed_meta, data)?;
 
     // Account space needs to include discriminator + serialized data
+    // The compressed account has compression_info: None, but after decompression
+    // it will have compression_info: Some(...), so we need to add that space
     let discriminator_len = T::LIGHT_DISCRIMINATOR.len();
-    let space = discriminator_len + T::size(&light_account.account);
+    let base_space = discriminator_len + T::size(&light_account.account);
+    // Add space for CompressionInfo (Option::None is 1 byte, Option::Some is 1 + INIT_SPACE)
+    let space = base_space + CompressionInfo::INIT_SPACE;
     let rent_minimum_balance = rent.minimum_balance(space);
 
     invoke_create_account_with_heap(
@@ -126,8 +132,7 @@ where
     )?;
 
     let mut decompressed_pda = light_account.account.clone();
-    *decompressed_pda.compression_info_mut_opt() =
-        Some(super::compression_info::CompressionInfo::new_decompressed()?);
+    *decompressed_pda.compression_info_mut_opt() = Some(CompressionInfo::new_decompressed()?);
 
     let mut account_data = solana_account.try_borrow_mut_data()?;
     let discriminator_len = T::LIGHT_DISCRIMINATOR.len();

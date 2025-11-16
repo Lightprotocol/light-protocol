@@ -33,7 +33,6 @@ async fn test_custom_compression_game_session() {
         &payer,
         &program_id,
         &payer,
-        100,
         RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
         &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
@@ -183,7 +182,7 @@ pub async fn decompress_single_game_session(
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         expected_slot
     );
 }

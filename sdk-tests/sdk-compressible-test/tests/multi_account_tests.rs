@@ -61,7 +61,6 @@ async fn test_create_and_decompress_two_accounts() {
         &payer,
         &program_id,
         &payer,
-        100,
         RENT_SPONSOR,
         vec![crate::helpers::ADDRESS_SPACE[0]],
         &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
@@ -697,7 +696,7 @@ pub async fn decompress_multiple_pdas_with_ctoken(
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         expected_slot
     );
 
@@ -730,7 +729,7 @@ pub async fn decompress_multiple_pdas_with_ctoken(
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         expected_slot
     );
 
@@ -914,7 +913,7 @@ pub async fn decompress_multiple_pdas(
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         expected_slot
     );
 
@@ -947,7 +946,7 @@ pub async fn decompress_multiple_pdas(
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         expected_slot
     );
 
@@ -1330,7 +1329,6 @@ async fn test_create_and_decompress_accounts_with_different_state_trees() {
         &payer,
         &program_id,
         &payer,
-        100,
         RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
         &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,

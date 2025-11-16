@@ -4134,6 +4134,7 @@ dependencies = [
  "borsh 0.10.4",
  "light-account-checks",
  "light-compressed-account",
+ "light-compressible",
  "light-concurrent-merkle-tree",
  "light-ctoken-types",
  "light-hasher",
