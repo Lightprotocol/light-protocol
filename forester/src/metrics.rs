@@ -1,10 +1,13 @@
 use std::{
     sync::Once,
-    time::{SystemTime, UNIX_EPOCH},
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use lazy_static::lazy_static;
-use prometheus::{Encoder, GaugeVec, IntCounterVec, IntGauge, IntGaugeVec, Registry, TextEncoder};
+use prometheus::{
+    Encoder, GaugeVec, HistogramOpts, HistogramVec, IntCounterVec, IntGauge, IntGaugeVec, Registry,
+    TextEncoder,
+};
 use reqwest::Client;
 use solana_sdk::pubkey::Pubkey;
 use tokio::sync::Mutex;
@@ -69,6 +72,30 @@ lazy_static! {
         &["event", "reason", "tree"]
     )
     .expect("metric can be created");
+    pub static ref SPECULATIVE_EVENTS: IntCounterVec = IntCounterVec::new(
+        prometheus::opts!(
+            "forester_speculative_events_total",
+            "Speculative pipeline events grouped by outcome"
+        ),
+        &["event", "reason", "tree"]
+    )
+    .expect("metric can be created");
+    pub static ref PENDING_QUEUE_ITEMS: IntGaugeVec = IntGaugeVec::new(
+        prometheus::opts!(
+            "forester_pending_queue_items",
+            "Coordinator view of pending queue items"
+        ),
+        &["tree"]
+    )
+    .expect("metric can be created");
+    pub static ref CONTROLLER_ITERATION_SECONDS: HistogramVec = HistogramVec::new(
+        HistogramOpts::new(
+            "forester_controller_iteration_seconds",
+            "Total duration of a coordinator iteration"
+        ),
+        &["tree"]
+    )
+    .expect("metric can be created");
     static ref METRIC_UPDATES: Mutex<Vec<(u64, usize, std::time::Duration)>> =
         Mutex::new(Vec::new());
 }
@@ -99,6 +126,15 @@ pub fn register_metrics() {
             .expect("collector can be registered");
         REGISTRY
             .register(Box::new(STAGING_CACHE_EVENTS.clone()))
+            .expect("collector can be registered");
+        REGISTRY
+            .register(Box::new(SPECULATIVE_EVENTS.clone()))
+            .expect("collector can be registered");
+        REGISTRY
+            .register(Box::new(PENDING_QUEUE_ITEMS.clone()))
+            .expect("collector can be registered");
+        REGISTRY
+            .register(Box::new(CONTROLLER_ITERATION_SECONDS.clone()))
             .expect("collector can be registered");
     });
 }
@@ -167,6 +203,24 @@ pub fn record_staging_cache_event(tree: &Pubkey, event: &str, reason: &str) {
     STAGING_CACHE_EVENTS
         .with_label_values(&[event, reason, &tree.to_string()])
         .inc();
+}
+
+pub fn record_speculative_event(tree: &Pubkey, event: &str, reason: &str) {
+    SPECULATIVE_EVENTS
+        .with_label_values(&[event, reason, &tree.to_string()])
+        .inc();
+}
+
+pub fn update_pending_queue_items(tree: &Pubkey, items: usize) {
+    PENDING_QUEUE_ITEMS
+        .with_label_values(&[&tree.to_string()])
+        .set(items as i64);
+}
+
+pub fn observe_iteration_duration(tree: &Pubkey, duration: Duration) {
+    CONTROLLER_ITERATION_SECONDS
+        .with_label_values(&[&tree.to_string()])
+        .observe(duration.as_secs_f64());
 }
 
 pub async fn push_metrics(url: &Option<String>) -> Result<()> {

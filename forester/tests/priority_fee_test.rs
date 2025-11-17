@@ -82,6 +82,10 @@ async fn test_priority_fee_request() {
         send_tx_rate_limit: None,
         processor_mode: ProcessorMode::All,
         tree_id: None,
+        speculative_lead_time_seconds: 40,
+        speculative_min_queue_items: 32,
+        speculative_min_append_queue_items: None,
+        speculative_min_nullify_queue_items: None,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");

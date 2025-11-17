@@ -41,6 +41,9 @@ pub struct BatchContext<R: Rpc> {
     pub slot_length: u64,
     pub input_queue_hint: Option<u64>,
     pub output_queue_hint: Option<u64>,
+    pub speculative_lead_time: Duration,
+    pub speculative_min_append_queue_items: usize,
+    pub speculative_min_nullify_queue_items: usize,
 }
 
 pub(crate) async fn process_stream<R, S, D, FutC>(

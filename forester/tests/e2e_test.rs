@@ -7,6 +7,7 @@ use create_address_test_program::create_invoke_cpi_instruction;
 use forester::{
     config::{ExternalServicesConfig, GeneralConfig, RpcPoolConfig, TransactionConfig},
     epoch_manager::WorkReport,
+    metrics::{process_queued_metrics, register_metrics, REGISTRY},
     processor::v2::coordinator::print_cumulative_performance_summary,
     run_pipeline,
     utils::get_protocol_config,
@@ -45,6 +46,7 @@ use light_test_utils::{
     pack::pack_new_address_params_assigned, spl::create_mint_helper_with_keypair,
     system_program::create_invoke_instruction,
 };
+use prometheus::{Encoder, TextEncoder};
 use rand::{prelude::SliceRandom, rngs::StdRng, Rng, SeedableRng};
 use serial_test::serial;
 use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};
@@ -196,6 +198,7 @@ fn is_v2_address_test_enabled() -> bool {
 #[tokio::test(flavor = "multi_thread", worker_threads = 16)]
 #[serial]
 async fn e2e_test() {
+    register_metrics();
     let state_tree_params = InitStateTreeAccountsInstructionData::test_default();
     let env = TestAccounts::get_local_test_validator_accounts();
     println!("env {:?}", env);
@@ -226,12 +229,16 @@ async fn e2e_test() {
         general_config: GeneralConfig {
             slot_update_interval_seconds: 10,
             tree_discovery_interval_seconds: 5,
-            enable_metrics: false,
+            enable_metrics: true,
             skip_v1_state_trees: false,
             skip_v2_state_trees: false,
             skip_v1_address_trees: false,
             skip_v2_address_trees: false,
             tree_id: None,
+            speculative_lead_time_seconds: 40,
+            speculative_min_queue_items: 32,
+            speculative_min_append_queue_items: 32,
+            speculative_min_nullify_queue_items: 32,
         },
         rpc_pool_config: RpcPoolConfig {
             max_size: 50,
@@ -470,6 +477,8 @@ async fn e2e_test() {
         .expect("Failed to send shutdown signal");
     service_handle.await.unwrap().unwrap();
 
+    assert_metrics_recorded().await;
+
     print_cumulative_performance_summary("Performance").await;
 }
 
@@ -489,6 +498,26 @@ async fn ensure_sufficient_balance(rpc: &mut LightClient, pubkey: &Pubkey, targe
     if rpc.get_balance(pubkey).await.unwrap() < target_balance {
         rpc.airdrop_lamports(pubkey, target_balance).await.unwrap();
     }
+}
+
+async fn assert_metrics_recorded() {
+    process_queued_metrics().await;
+    let metric_families = REGISTRY.gather();
+    let mut buffer = Vec::new();
+    TextEncoder::new()
+        .encode(&metric_families, &mut buffer)
+        .expect("encode metrics");
+    let metrics_text = String::from_utf8(buffer).expect("metrics utf8");
+    assert!(
+        metrics_text.contains("forester_staging_cache_events_total"),
+        "staging cache metric missing:\n{}",
+        metrics_text
+    );
+    assert!(
+        metrics_text.contains("queue_update"),
+        "expected queue_update reason in metrics:\n{}",
+        metrics_text
+    );
 }
 
 async fn get_initial_merkle_tree_state(

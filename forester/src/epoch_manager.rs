@@ -1444,6 +1444,13 @@ impl<R: Rpc> EpochManager<R> {
                 break 'inner_processing_loop;
             }
 
+            let seconds_until_slot_start = {
+                let slots_until_start = forester_slot_details
+                    .start_solana_slot
+                    .saturating_sub(estimated_slot);
+                (slots_until_start as f64) * slot_duration().as_secs_f64()
+            };
+
             tokio::select! {
                 Some(update) = queue_update_rx.recv() => {
                     if update.queue_size > 0 {
@@ -1453,9 +1460,63 @@ impl<R: Rpc> EpochManager<R> {
                         );
 
                         if let Some(handle) = state_tree_coordinator.clone() {
-                            {
+                            let should_prepare = {
                                 let mut coordinator = handle.lock().await;
                                 coordinator.on_queue_update(&update);
+                                coordinator.should_prepare_speculative_job(
+                                    seconds_until_slot_start,
+                                    Some((
+                                        update.queue_type,
+                                        update.queue_size.min(usize::MAX as u64) as usize,
+                                    )),
+                                )
+                            };
+
+                            if should_prepare {
+                                let handle_for_spec = handle.clone();
+                                let tree = tree_pubkey;
+                                tokio::spawn(async move {
+                                    let mut coordinator = handle_for_spec.lock().await;
+                                    if let Err(e) = coordinator.prepare_speculative_job().await {
+                                        warn!(
+                                            "Speculative preparation failed for tree {}: {:?}",
+                                            tree, e
+                                        );
+                                    }
+                                });
+                            } else {
+                                trace!(
+                                    "Speculative preparation skipped for tree {} (seconds_until_slot={:.1}, queue_size={})",
+                                    tree_pubkey,
+                                    seconds_until_slot_start,
+                                    update.queue_size
+                                );
+                            }
+
+                            {
+                                let mut coordinator = handle.lock().await;
+                                match coordinator.try_execute_speculative_job().await {
+                                    Ok(Some(processed)) => {
+                                        self.update_metrics_and_counts(
+                                            epoch_info.epoch,
+                                            processed,
+                                            Duration::from_millis(1),
+                                        )
+                                        .await;
+                                        push_metrics(
+                                            &self.config.external_services.pushgateway_url,
+                                        )
+                                        .await?;
+                                        continue 'inner_processing_loop;
+                                    }
+                                    Ok(None) => {}
+                                    Err(e) => {
+                                        warn!(
+                                            "Speculative submission failed for tree {}: {:?}",
+                                            tree_pubkey, e
+                                        );
+                                    }
+                                }
                             }
                         }
 
@@ -1492,6 +1553,53 @@ impl<R: Rpc> EpochManager<R> {
                         .map(|c| c.is_healthy())
                         .unwrap_or(false);
 
+                    if let Some(handle) = state_tree_coordinator.clone() {
+                        let should_prepare = {
+                            let coordinator = handle.lock().await;
+                            let backlog = coordinator.backlog_snapshot();
+                            coordinator.should_prepare_speculative_job(
+                                seconds_until_slot_start,
+                                backlog,
+                            )
+                        };
+
+                        if should_prepare {
+                            let handle_for_spec = handle.clone();
+                            let tree = tree_pubkey;
+                            tokio::spawn(async move {
+                                let mut coordinator = handle_for_spec.lock().await;
+                                if let Err(e) = coordinator.prepare_speculative_job().await {
+                                    warn!(
+                                        "Speculative preparation failed during fallback for tree {}: {:?}",
+                                        tree, e
+                                    );
+                                }
+                            });
+                        }
+
+                        {
+                            let mut coordinator = handle.lock().await;
+                            match coordinator.try_execute_speculative_job().await {
+                                Ok(Some(processed)) => {
+                                    self.update_metrics_and_counts(
+                                        epoch_info.epoch,
+                                        processed,
+                                        Duration::from_millis(1),
+                                    )
+                                    .await;
+                                    push_metrics(&self.config.external_services.pushgateway_url)
+                                        .await?;
+                                    continue 'inner_processing_loop;
+                                }
+                                Ok(None) => {}
+                                Err(e) => warn!(
+                                    "Speculative submission failed during fallback: {:?}",
+                                    e
+                                ),
+                            }
+                        }
+                    }
+
                     if !is_healthy {
                         warn!("V2 gRPC connection unhealthy, running fallback check for tree {}", tree_pubkey);
                         let processing_start_time = Instant::now();
@@ -1501,7 +1609,7 @@ impl<R: Rpc> EpochManager<R> {
                             tree_accounts,
                             forester_slot_details,
                             estimated_slot,
-                            None, // No queue update hint in fallback path
+                            None,
                             state_tree_coordinator.clone(),
                         ).await {
                             Ok(count) if count > 0 => {
@@ -1671,6 +1779,17 @@ impl<R: Rpc> EpochManager<R> {
             slot_length: self.protocol_config.slot_length,
             input_queue_hint: None,
             output_queue_hint: None,
+            speculative_lead_time: Duration::from_secs(
+                self.config.general_config.speculative_lead_time_seconds,
+            ),
+            speculative_min_append_queue_items: self
+                .config
+                .general_config
+                .speculative_min_append_queue_items,
+            speculative_min_nullify_queue_items: self
+                .config
+                .general_config
+                .speculative_min_nullify_queue_items,
         }
     }
 
@@ -1957,6 +2076,17 @@ impl<R: Rpc> EpochManager<R> {
             slot_length: self.protocol_config.slot_length,
             input_queue_hint,
             output_queue_hint,
+            speculative_lead_time: Duration::from_secs(
+                self.config.general_config.speculative_lead_time_seconds,
+            ),
+            speculative_min_append_queue_items: self
+                .config
+                .general_config
+                .speculative_min_append_queue_items,
+            speculative_min_nullify_queue_items: self
+                .config
+                .general_config
+                .speculative_min_nullify_queue_items,
         };
 
         process_batched_operations(batch_context, tree_accounts.tree_type)

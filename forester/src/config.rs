@@ -83,6 +83,10 @@ pub struct GeneralConfig {
     pub skip_v2_state_trees: bool,
     pub skip_v2_address_trees: bool,
     pub tree_id: Option<Pubkey>,
+    pub speculative_lead_time_seconds: u64,
+    pub speculative_min_queue_items: usize,
+    pub speculative_min_append_queue_items: usize,
+    pub speculative_min_nullify_queue_items: usize,
 }
 
 impl Default for GeneralConfig {
@@ -96,6 +100,10 @@ impl Default for GeneralConfig {
             skip_v2_state_trees: false,
             skip_v2_address_trees: false,
             tree_id: None,
+            speculative_lead_time_seconds: 40,
+            speculative_min_queue_items: 32,
+            speculative_min_append_queue_items: 32,
+            speculative_min_nullify_queue_items: 32,
         }
     }
 }
@@ -111,6 +119,10 @@ impl GeneralConfig {
             skip_v2_state_trees: true,
             skip_v2_address_trees: false,
             tree_id: None,
+            speculative_lead_time_seconds: 40,
+            speculative_min_queue_items: 32,
+            speculative_min_append_queue_items: 32,
+            speculative_min_nullify_queue_items: 32,
         }
     }
 
@@ -124,6 +136,10 @@ impl GeneralConfig {
             skip_v2_state_trees: false,
             skip_v2_address_trees: true,
             tree_id: None,
+            speculative_lead_time_seconds: 40,
+            speculative_min_queue_items: 32,
+            speculative_min_append_queue_items: 32,
+            speculative_min_nullify_queue_items: 32,
         }
     }
 }
@@ -213,6 +229,13 @@ impl ForesterConfig {
             .clone()
             .ok_or(ConfigError::MissingField { field: "rpc_url" })?;
 
+        let min_append_threshold = args
+            .speculative_min_append_queue_items
+            .unwrap_or(args.speculative_min_queue_items);
+        let min_nullify_threshold = args
+            .speculative_min_nullify_queue_items
+            .unwrap_or(args.speculative_min_queue_items);
+
         Ok(Self {
             external_services: ExternalServicesConfig {
                 rpc_url,
@@ -276,6 +299,10 @@ impl ForesterConfig {
                     .tree_id
                     .as_ref()
                     .and_then(|id| Pubkey::from_str(id).ok()),
+                speculative_lead_time_seconds: args.speculative_lead_time_seconds,
+                speculative_min_queue_items: args.speculative_min_queue_items,
+                speculative_min_append_queue_items: min_append_threshold,
+                speculative_min_nullify_queue_items: min_nullify_threshold,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: args.rpc_pool_size,
@@ -332,6 +359,10 @@ impl ForesterConfig {
                 skip_v1_address_trees: false,
                 skip_v2_address_trees: false,
                 tree_id: None,
+                speculative_lead_time_seconds: 40,
+                speculative_min_queue_items: 32,
+                speculative_min_append_queue_items: 32,
+                speculative_min_nullify_queue_items: 32,
             },
             rpc_pool_config: RpcPoolConfig {
                 max_size: 10,

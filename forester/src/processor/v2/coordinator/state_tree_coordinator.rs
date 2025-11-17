@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{BTreeMap, HashMap, VecDeque},
     fmt,
     sync::Arc,
     time::{Duration, Instant},
@@ -20,7 +20,7 @@ use light_prover_client::proof_client::ProofClient;
 use once_cell::sync::Lazy;
 use solana_sdk::{account::Account, pubkey::Pubkey};
 use tokio::sync::Mutex as TokioMutex;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 
 use super::{
     batch_preparation, batch_submission,
@@ -79,6 +79,9 @@ pub struct StateTreeCoordinator<R: Rpc> {
     /// already contains all previous updates, ensuring proofs include prior changes.
     cached_staging: Option<(super::tree_state::StagingTree, [u8; 32])>,
     pending_queue_items: usize,
+    pending_append_items: usize,
+    pending_nullify_items: usize,
+    speculative: SpeculativeEngine,
 }
 
 impl<R: Rpc> fmt::Debug for StateTreeCoordinator<R> {
@@ -94,6 +97,14 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         metrics::record_staging_cache_event(&self.context.merkle_tree, event, reason);
     }
 
+    fn record_speculative_event(&self, event: &'static str, reason: &'static str) {
+        metrics::record_speculative_event(&self.context.merkle_tree, event, reason);
+    }
+
+    fn update_pending_queue_metric(&self) {
+        metrics::update_pending_queue_items(&self.context.merkle_tree, self.pending_queue_items);
+    }
+
     pub fn refresh_epoch_context(
         &mut self,
         epoch: u64,
@@ -105,41 +116,121 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         self.context.output_queue = output_queue;
         self.context.input_queue_hint = None;
         self.context.output_queue_hint = None;
+        self.speculative.reset(epoch);
     }
 
     pub fn on_queue_update(&mut self, update: &QueueUpdateMessage) {
-        let added = update.queue_size as usize;
-        self.pending_queue_items = self.pending_queue_items.saturating_add(added);
         let reason = match update.queue_type {
             QueueType::InputStateV2 => {
                 self.context.input_queue_hint = Some(update.queue_size);
+                self.pending_nullify_items = update.queue_size.min(usize::MAX as u64) as usize;
                 "input"
             }
             QueueType::OutputStateV2 => {
                 self.context.output_queue_hint = Some(update.queue_size);
+                self.pending_append_items = update.queue_size.min(usize::MAX as u64) as usize;
                 "output"
             }
             QueueType::AddressV2 => "address",
             _ => "other",
         };
+        self.pending_queue_items = self
+            .pending_append_items
+            .saturating_add(self.pending_nullify_items);
+        self.update_pending_queue_metric();
+        self.speculative.record(update.clone());
         self.record_cache_event("queue_update", reason);
     }
 
-    fn consume_processed_items(&mut self, processed: usize) {
-        if processed == 0 {
-            return;
-        }
-        if self.pending_queue_items > 0 {
-            let before = self.pending_queue_items;
-            self.pending_queue_items = self.pending_queue_items.saturating_sub(processed);
+    fn consume_processed_items(&mut self, append_processed: usize, nullify_processed: usize) {
+        if append_processed > 0 {
+            let before = self.pending_append_items;
+            self.pending_append_items = self.pending_append_items.saturating_sub(append_processed);
             debug!(
-                "Pending queue items adjusted: {} -> {} (processed {})",
-                before, self.pending_queue_items, processed
+                "Pending append items adjusted: {} -> {} (processed {})",
+                before, self.pending_append_items, append_processed
             );
-            if self.pending_queue_items == 0 {
-                self.record_cache_event("queue_drain", "processed");
-            }
         }
+        if nullify_processed > 0 {
+            let before = self.pending_nullify_items;
+            self.pending_nullify_items =
+                self.pending_nullify_items.saturating_sub(nullify_processed);
+            debug!(
+                "Pending nullify items adjusted: {} -> {} (processed {})",
+                before, self.pending_nullify_items, nullify_processed
+            );
+        }
+        let before_total = self.pending_queue_items;
+        self.pending_queue_items = self
+            .pending_append_items
+            .saturating_add(self.pending_nullify_items);
+        if before_total != self.pending_queue_items {
+            debug!(
+                "Total pending queue items adjusted: {} -> {}",
+                before_total, self.pending_queue_items
+            );
+        }
+        self.update_pending_queue_metric();
+        if self.pending_queue_items == 0 {
+            self.record_cache_event("queue_drain", "processed");
+        }
+    }
+
+    pub fn should_prepare_speculative_job(
+        &self,
+        seconds_until_slot_start: f64,
+        backlog: Option<(QueueType, usize)>,
+    ) -> bool {
+        if self.speculative.is_busy() {
+            trace!(
+                "Speculation already inflight/job ready for tree {}",
+                self.context.merkle_tree
+            );
+            self.record_speculative_event("skipped", "inflight");
+            return false;
+        }
+
+        let lead_time_secs = self.context.speculative_lead_time.as_secs_f64();
+        let time_ready = seconds_until_slot_start <= lead_time_secs;
+
+        let queue_ready = backlog
+            .map(|(queue_type, queue_len)| {
+                let threshold = match queue_type {
+                    QueueType::InputStateV2 => self.context.speculative_min_nullify_queue_items,
+                    QueueType::OutputStateV2 => self.context.speculative_min_append_queue_items,
+                    _ => self.context.speculative_min_append_queue_items,
+                };
+                trace!(
+                    "Speculation backlog check tree {}: type={:?} len={} threshold={}",
+                    self.context.merkle_tree,
+                    queue_type,
+                    queue_len,
+                    threshold
+                );
+                threshold == 0 || queue_len >= threshold
+            })
+            .unwrap_or(false);
+
+        let allowed = time_ready || queue_ready;
+        if !allowed {
+            self.record_speculative_event("skipped", "insufficient_backlog");
+        }
+
+        allowed
+    }
+
+    pub fn backlog_snapshot(&self) -> Option<(QueueType, usize)> {
+        if self.pending_append_items >= self.pending_nullify_items {
+            if self.pending_append_items > 0 {
+                return Some((QueueType::OutputStateV2, self.pending_append_items));
+            }
+            if self.pending_nullify_items > 0 {
+                return Some((QueueType::InputStateV2, self.pending_nullify_items));
+            }
+        } else if self.pending_nullify_items > 0 {
+            return Some((QueueType::InputStateV2, self.pending_nullify_items));
+        }
+        None
     }
 
     pub async fn new(context: BatchContext<R>, initial_root: [u8; 32]) -> Self {
@@ -196,12 +287,16 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             );
         }
 
+        let initial_epoch = context.epoch;
         Self {
             shared_state,
             context,
             current_light_slot: None,
             cached_staging,
             pending_queue_items: 0,
+            pending_append_items: 0,
+            pending_nullify_items: 0,
+            speculative: SpeculativeEngine::new(initial_epoch),
         }
     }
 
@@ -239,75 +334,13 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 self.current_light_slot = Some(light_slot);
             }
 
-            let (num_append_batches, num_nullify_batches) = {
-                let rpc = self.context.rpc_pool.get_connection().await?;
-                let mut accounts = rpc
-                    .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
-                    .await?;
-
-                let mut merkle_tree_account = accounts[0]
-                    .take()
-                    .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
-                let output_queue_account = accounts[1].take();
-                drop(rpc);
-
-                // Always sync to update processed_batches with on-chain confirmation state
-                self.sync_with_chain_with_accounts(
-                    &mut merkle_tree_account,
-                    output_queue_account.as_ref(),
-                )
-                .await?;
-
-                // Check if cached tree is stale by comparing with on-chain root
-                let tree_data = BatchedMerkleTreeAccount::state_from_bytes(
-                    merkle_tree_account.data.as_mut_slice(),
-                    &self.context.merkle_tree.into(),
-                )?;
-                let on_chain_root = tree_data
-                    .root_history
-                    .last()
-                    .copied()
-                    .ok_or_else(|| anyhow::anyhow!("No root in tree history"))?;
-
-                let cache_is_stale = if let Some((_, cached_root)) = &self.cached_staging {
-                    let stale = *cached_root != on_chain_root;
-                    if stale {
-                        info!(
-                            "Cache is STALE: cached_root={:?}, on_chain_root={:?}",
-                            &cached_root[..8],
-                            &on_chain_root[..8]
-                        );
-                        self.record_cache_event("invalidate", "root_mismatch");
-                    } else {
-                        debug!("Cache is fresh: root={:?}", &on_chain_root[..8]);
-                    }
-                    stale
+            let iteration_inputs = self.prepare_iteration_inputs().await?;
+            let (num_append_batches, num_nullify_batches, queue_result) =
+                if let Some(inputs) = iteration_inputs {
+                    inputs
                 } else {
-                    debug!("No cache present, on_chain_root={:?}", &on_chain_root[..8]);
-                    true // No cache, need to fetch
+                    break;
                 };
-
-                // Only invalidate cache if it's actually stale
-                // (transaction failed, or another forester processed batches)
-                if cache_is_stale {
-                    self.cached_staging = None;
-                    // Also clear global cache
-                    {
-                        let mut staging_cache = PERSISTENT_STAGING_TREES.lock().await;
-                        staging_cache.remove(&self.context.merkle_tree);
-                        info!(
-                            "Invalidated both local and global staging cache for tree={}",
-                            self.context.merkle_tree
-                        );
-                    }
-                }
-
-                self.check_readiness_with_accounts(
-                    &mut merkle_tree_account,
-                    output_queue_account.as_ref(),
-                )
-                .await?
-            };
 
             if num_append_batches == 0 && num_nullify_batches == 0 {
                 break;
@@ -318,13 +351,13 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     num_append_batches,
                     num_nullify_batches,
                     loop_iteration,
+                    queue_result,
                 )
                 .await
             {
                 Ok(items_this_iteration) => {
                     total_items_processed += items_this_iteration;
                     consecutive_retries = 0; // Reset retry counter on success
-                    self.consume_processed_items(items_this_iteration);
                 }
                 Err(e) => {
                     if let Some(coord_err) = e.downcast_ref::<CoordinatorError>() {
@@ -406,45 +439,10 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         num_append_batches: usize,
         num_nullify_batches: usize,
         _loop_iteration: usize,
+        queue_result: QueueFetchResult,
     ) -> Result<usize> {
         let iteration_start = Instant::now();
         let phase1_start = Instant::now();
-
-        // Always fetch queue data from indexer - we need it for batch preparation
-        let queue_result = {
-            let rpc = self.context.rpc_pool.get_connection().await?;
-
-            if let Some((_, root)) = &self.cached_staging {
-                debug!(
-                    "Reusing cached staging (root: {:?}), skipping indexer wait",
-                    &root[..8]
-                );
-            } else {
-                self.record_cache_event("miss", "not_present");
-                debug!(
-                    "No cached staging tree for {}, will build from indexer",
-                    self.context.merkle_tree
-                );
-            }
-
-            let mut accounts = rpc
-                .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
-                .await?;
-
-            let merkle_tree_account = accounts[0]
-                .take()
-                .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
-            let output_queue_account = accounts[1].take();
-            drop(rpc);
-
-            self.fetch_queues_with_accounts(
-                num_append_batches,
-                num_nullify_batches,
-                merkle_tree_account,
-                output_queue_account,
-            )
-            .await?
-        };
 
         let pattern = Self::create_interleaving_pattern(num_append_batches, num_nullify_batches);
 
@@ -474,7 +472,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             .map(|data| data.zkp_batch_size)
             .unwrap_or(0);
 
-        let final_root = self
+        let (staging_after, final_root) = self
             .prepare_batches_streaming(
                 queue_result.staging,
                 queue_result.output_queue_v2.as_ref(),
@@ -486,6 +484,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 prep_tx,
             )
             .await?;
+        self.cache_staging_tree(staging_after.clone(), final_root)
+            .await;
 
         {
             let mut state = self.shared_state.write().await;
@@ -514,6 +514,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             append_batches: num_append_batches,
             nullify_batches: num_nullify_batches,
         };
+        metrics::observe_iteration_duration(&self.context.merkle_tree, total_duration);
 
         {
             let mut state = self.shared_state.write().await;
@@ -529,6 +530,12 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         self.validate_root(final_root, "pipelined execution")
             .await?;
 
+        let append_processed_items =
+            num_append_batches.saturating_mul(append_zkp_batch_size as usize);
+        let nullify_processed_items =
+            num_nullify_batches.saturating_mul(nullify_zkp_batch_size as usize);
+        self.consume_processed_items(append_processed_items, nullify_processed_items);
+
         debug!(
             "Iteration complete. Processed {} items with final root: {:?}",
             total_items,
@@ -536,6 +543,265 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         );
 
         Ok(total_items)
+    }
+
+    async fn cache_staging_tree(
+        &mut self,
+        staging: super::tree_state::StagingTree,
+        final_root: [u8; 32],
+    ) {
+        self.cached_staging = Some((staging.clone(), final_root));
+        {
+            let mut staging_cache = PERSISTENT_STAGING_TREES.lock().await;
+            staging_cache.insert(self.context.merkle_tree, (staging, final_root));
+        }
+        self.record_cache_event("store", "post_iteration");
+    }
+
+    async fn prepare_iteration_inputs(
+        &mut self,
+    ) -> Result<Option<(usize, usize, QueueFetchResult)>> {
+        if self.cached_staging.is_none() {
+            self.record_cache_event("miss", "not_present");
+        }
+
+        let rpc = self.context.rpc_pool.get_connection().await?;
+        let mut accounts = rpc
+            .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
+            .await?;
+
+        let mut merkle_tree_account = accounts[0]
+            .take()
+            .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
+        let output_queue_account = accounts[1].take();
+        drop(rpc);
+
+        self.sync_with_chain_with_accounts(&mut merkle_tree_account, output_queue_account.as_ref())
+            .await?;
+
+        let tree_data = BatchedMerkleTreeAccount::state_from_bytes(
+            merkle_tree_account.data.as_mut_slice(),
+            &self.context.merkle_tree.into(),
+        )?;
+        let on_chain_root = tree_data
+            .root_history
+            .last()
+            .copied()
+            .ok_or_else(|| anyhow::anyhow!("No root in tree history"))?;
+
+        if let Some((_, cached_root)) = &self.cached_staging {
+            if *cached_root != on_chain_root {
+                info!(
+                    "Cache is STALE for speculation prep: cached_root={:?}, on_chain_root={:?}",
+                    &cached_root[..8],
+                    &on_chain_root[..8]
+                );
+                self.cached_staging = None;
+                let mut staging_cache = PERSISTENT_STAGING_TREES.lock().await;
+                staging_cache.remove(&self.context.merkle_tree);
+                self.record_cache_event("invalidate", "root_mismatch");
+            }
+        }
+
+        let (num_append_batches, num_nullify_batches) = self
+            .check_readiness_with_accounts(&mut merkle_tree_account, output_queue_account.as_ref())
+            .await?;
+
+        if num_append_batches == 0 && num_nullify_batches == 0 {
+            return Ok(None);
+        }
+
+        let queue_result = self
+            .fetch_queues_with_accounts(
+                num_append_batches,
+                num_nullify_batches,
+                merkle_tree_account,
+                output_queue_account,
+            )
+            .await?;
+
+        Ok(Some((
+            num_append_batches,
+            num_nullify_batches,
+            queue_result,
+        )))
+    }
+
+    pub async fn prepare_speculative_job(&mut self) -> Result<Option<usize>> {
+        if !self.speculative.mark_inflight() {
+            self.record_speculative_event("skipped", "inflight");
+            return Ok(None);
+        }
+
+        let job_result = async {
+            let (num_append_batches, num_nullify_batches, queue_result) =
+                match self.prepare_iteration_inputs().await? {
+                    Some(data) => data,
+                    None => return Ok(None),
+                };
+
+            let pattern =
+                Self::create_interleaving_pattern(num_append_batches, num_nullify_batches);
+
+            let iteration_start = Instant::now();
+            let phase1_start = Instant::now();
+
+            let (prep_tx, prep_rx) = tokio::sync::mpsc::channel(50);
+            let (proof_tx, proof_rx) = tokio::sync::mpsc::channel(50);
+
+            let proof_config = ProofConfig {
+                append_url: self.context.prover_append_url.clone(),
+                update_url: self.context.prover_update_url.clone(),
+                polling_interval: self.context.prover_polling_interval,
+                max_wait_time: self.context.prover_max_wait_time,
+                api_key: self.context.prover_api_key.clone(),
+            };
+
+            let proof_gen_handle = tokio::spawn(async move {
+                Self::generate_proofs_streaming(prep_rx, proof_tx, proof_config).await
+            });
+
+            let (staging_after, final_root) = self
+                .prepare_batches_streaming(
+                    queue_result.staging,
+                    queue_result.output_queue_v2.as_ref(),
+                    queue_result.input_queue_v2.as_ref(),
+                    queue_result.on_chain_root,
+                    &pattern,
+                    queue_result.append_data.as_ref(),
+                    queue_result.nullify_data.as_ref(),
+                    prep_tx,
+                )
+                .await?;
+
+            let phase1_duration = phase1_start.elapsed();
+
+            let (append_proofs, nullify_proofs, total_items) =
+                Self::collect_proofs_streaming(proof_rx).await?;
+
+            let phase2_duration = proof_gen_handle.await??;
+            let total_duration = iteration_start.elapsed();
+
+            let metrics = IterationMetrics {
+                phase1_duration,
+                phase2_duration,
+                phase3_duration: Duration::ZERO,
+                total_duration,
+                append_batches: num_append_batches,
+                nullify_batches: num_nullify_batches,
+            };
+
+            let job = SpeculativeJob {
+                pattern,
+                append_proofs,
+                nullify_proofs,
+                append_zkp_batch_size: queue_result
+                    .append_data
+                    .as_ref()
+                    .map(|d| d.zkp_batch_size)
+                    .unwrap_or(0),
+                nullify_zkp_batch_size: queue_result
+                    .nullify_data
+                    .as_ref()
+                    .map(|d| d.zkp_batch_size)
+                    .unwrap_or(0),
+                append_batch_ids: queue_result.append_batch_ids,
+                nullify_batch_ids: queue_result.nullify_batch_ids,
+                staging: staging_after,
+                final_root,
+                total_items,
+                metrics,
+            };
+
+            Ok(Some((job, total_items)))
+        }
+        .await;
+
+        match job_result {
+            Ok(Some((job, total_items))) => {
+                self.speculative.store_job(job);
+                info!(
+                    "Speculative job prepared for tree {}",
+                    self.context.merkle_tree
+                );
+                self.record_speculative_event("prepared", "ok");
+                Ok(Some(total_items))
+            }
+            Ok(None) => {
+                self.speculative.clear_inflight();
+                self.record_speculative_event("skipped", "not_ready");
+                Ok(None)
+            }
+            Err(e) => {
+                self.speculative.clear_inflight();
+                self.record_speculative_event("failed", "prepare_error");
+                Err(e)
+            }
+        }
+    }
+
+    pub async fn try_execute_speculative_job(&mut self) -> Result<Option<usize>> {
+        if let Some(job) = self.speculative.take_job() {
+            info!(
+                "Submitting speculative job for tree {} ({} items)",
+                self.context.merkle_tree, job.total_items
+            );
+            let submit_start = Instant::now();
+            let submission_result = batch_submission::submit_interleaved_batches(
+                &self.context,
+                job.append_proofs,
+                job.append_zkp_batch_size,
+                job.nullify_proofs,
+                job.nullify_zkp_batch_size,
+                &job.pattern,
+            )
+            .await;
+            let total_items = match submission_result {
+                Ok(value) => value,
+                Err(e) => {
+                    self.record_speculative_event("failed", "submit_error");
+                    return Err(e);
+                }
+            };
+            let phase3_duration = submit_start.elapsed();
+
+            let append_batches_count = job.metrics.append_batches;
+            let nullify_batches_count = job.metrics.nullify_batches;
+            let mut metrics = job.metrics;
+            metrics.phase3_duration = phase3_duration;
+            metrics.total_duration += phase3_duration;
+
+            self.cache_staging_tree(job.staging.clone(), job.final_root)
+                .await;
+
+            {
+                let mut state = self.shared_state.write().await;
+                state.update_root(job.final_root);
+                state.add_iteration_metrics(metrics);
+            }
+
+            self.mark_batches_processed(job.append_batch_ids, job.nullify_batch_ids)
+                .await;
+
+            if let Err(e) = self
+                .validate_root(job.final_root, "speculative submission")
+                .await
+            {
+                self.record_speculative_event("failed", "root_validation");
+                return Err(e);
+            }
+
+            let append_processed_items =
+                append_batches_count.saturating_mul(job.append_zkp_batch_size as usize);
+            let nullify_processed_items =
+                nullify_batches_count.saturating_mul(job.nullify_zkp_batch_size as usize);
+            self.consume_processed_items(append_processed_items, nullify_processed_items);
+            self.record_speculative_event("executed", "ok");
+
+            Ok(Some(total_items))
+        } else {
+            Ok(None)
+        }
     }
 
     async fn check_readiness_with_accounts(
@@ -971,7 +1237,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         append_data: Option<&AppendQueueData>,
         nullify_data: Option<&NullifyQueueData>,
         tx: tokio::sync::mpsc::Sender<(usize, PreparedBatch)>,
-    ) -> Result<[u8; 32]> {
+    ) -> Result<(super::tree_state::StagingTree, [u8; 32])> {
         let append_leaf_indices: Vec<u64> = if let Some(data) = append_data {
             data.queue_elements
                 .iter()
@@ -1094,15 +1360,9 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         }
 
         let final_root = state.staging.current_root();
-        let staging_to_cache = (state.staging.clone(), final_root);
-        self.cached_staging = Some(staging_to_cache.clone());
-        {
-            let mut staging_cache = PERSISTENT_STAGING_TREES.lock().await;
-            staging_cache.insert(self.context.merkle_tree, staging_to_cache);
-        }
-        self.record_cache_event("store", "post_iteration");
+        let staging_to_cache = state.staging.clone();
 
-        Ok(final_root)
+        Ok((staging_to_cache, final_root))
     }
 
     async fn generate_proofs_streaming(
@@ -1403,6 +1663,52 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             total_submit_duration
         );
         Ok((total_items, total_submit_duration))
+    }
+
+    async fn collect_proofs_streaming(
+        mut proof_rx: tokio::sync::mpsc::Receiver<(usize, PreparedBatch, Result<ProofResult>)>,
+    ) -> Result<(
+        Vec<InstructionDataBatchAppendInputs>,
+        Vec<InstructionDataBatchNullifyInputs>,
+        usize,
+    )> {
+        let mut buffer: BTreeMap<usize, (PreparedBatch, Result<ProofResult>)> = BTreeMap::new();
+        let mut next_to_collect = 0;
+        let mut append_proofs = Vec::new();
+        let mut nullify_proofs = Vec::new();
+        let mut total_items = 0usize;
+
+        while let Some((idx, batch, proof_result)) = proof_rx.recv().await {
+            buffer.insert(idx, (batch, proof_result));
+
+            while let Some((batch, proof_result)) = buffer.remove(&next_to_collect) {
+                let batch_items = match &batch {
+                    PreparedBatch::Append(inputs) => inputs.batch_size as usize,
+                    PreparedBatch::Nullify(inputs) => inputs.batch_size as usize,
+                };
+                let proof = proof_result.map_err(|e| anyhow::anyhow!(e))?;
+                match proof {
+                    ProofResult::Append(append_proof) => {
+                        append_proofs.push(append_proof);
+                    }
+                    ProofResult::Nullify(nullify_proof) => {
+                        nullify_proofs.push(nullify_proof);
+                    }
+                }
+
+                total_items += batch_items;
+                next_to_collect += 1;
+            }
+        }
+
+        if !buffer.is_empty() {
+            anyhow::bail!(
+                "Speculative pipeline ended with {} pending batches",
+                buffer.len()
+            );
+        }
+
+        Ok((append_proofs, nullify_proofs, total_items))
     }
 
     fn create_interleaving_pattern(num_appends: usize, num_nullifies: usize) -> Vec<BatchType> {
@@ -1738,4 +2044,75 @@ pub async fn print_cumulative_performance_summary(label: &str) {
     println!("========================================");
     println!("Trees processed:         {}", tree_count);
     total_metrics.print_summary("");
+}
+
+#[derive(Default)]
+struct SpeculativeEngine {
+    epoch: u64,
+    queued_updates: VecDeque<QueueUpdateMessage>,
+    inflight: bool,
+    job: Option<SpeculativeJob>,
+}
+
+impl SpeculativeEngine {
+    fn new(epoch: u64) -> Self {
+        Self {
+            epoch,
+            queued_updates: VecDeque::new(),
+            inflight: false,
+            job: None,
+        }
+    }
+
+    fn reset(&mut self, epoch: u64) {
+        if self.epoch != epoch {
+            self.epoch = epoch;
+            self.queued_updates.clear();
+            self.job = None;
+            self.inflight = false;
+        }
+    }
+
+    fn record(&mut self, update: QueueUpdateMessage) {
+        self.queued_updates.push_back(update);
+    }
+
+    fn mark_inflight(&mut self) -> bool {
+        if self.inflight || self.job.is_some() {
+            return false;
+        }
+        self.inflight = true;
+        true
+    }
+
+    fn clear_inflight(&mut self) {
+        self.inflight = false;
+    }
+
+    fn store_job(&mut self, job: SpeculativeJob) {
+        self.job = Some(job);
+        self.inflight = false;
+    }
+
+    fn take_job(&mut self) -> Option<SpeculativeJob> {
+        self.job.take()
+    }
+
+    fn is_busy(&self) -> bool {
+        self.inflight || self.job.is_some()
+    }
+}
+
+struct SpeculativeJob {
+    pattern: Vec<BatchType>,
+    append_proofs: Vec<InstructionDataBatchAppendInputs>,
+    nullify_proofs: Vec<InstructionDataBatchNullifyInputs>,
+    append_zkp_batch_size: u16,
+    nullify_zkp_batch_size: u16,
+    append_batch_ids: Vec<ProcessedBatchId>,
+    nullify_batch_ids: Vec<ProcessedBatchId>,
+    staging: super::tree_state::StagingTree,
+    final_root: [u8; 32],
+    total_items: usize,
+    metrics: IterationMetrics,
 }

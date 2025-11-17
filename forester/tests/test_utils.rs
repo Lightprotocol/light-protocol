@@ -103,12 +103,16 @@ pub fn forester_config() -> ForesterConfig {
         general_config: GeneralConfig {
             slot_update_interval_seconds: 10,
             tree_discovery_interval_seconds: 5,
-            enable_metrics: false,
+            enable_metrics: true,
             skip_v1_state_trees: false,
             skip_v2_state_trees: false,
             skip_v1_address_trees: false,
             skip_v2_address_trees: false,
             tree_id: None,
+            speculative_lead_time_seconds: 40,
+            speculative_min_queue_items: 32,
+            speculative_min_append_queue_items: 32,
+            speculative_min_nullify_queue_items: 32,
         },
         rpc_pool_config: RpcPoolConfig {
             max_size: 50,

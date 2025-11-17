@@ -220,6 +220,36 @@ pub struct StartArgs {
         help = "Process only the specified tree (Pubkey). If specified, forester will process only this tree and ignore all others"
     )]
     pub tree_id: Option<String>,
+
+    #[arg(
+        long,
+        env = "FORESTER_SPECULATIVE_LEAD_TIME_SECONDS",
+        default_value = "40",
+        help = "Seconds before an eligible slot when speculative jobs may start"
+    )]
+    pub speculative_lead_time_seconds: u64,
+
+    #[arg(
+        long,
+        env = "FORESTER_SPECULATIVE_MIN_QUEUE_ITEMS",
+        default_value = "32",
+        help = "Minimum queued items required to trigger speculation early"
+    )]
+    pub speculative_min_queue_items: usize,
+
+    #[arg(
+        long,
+        env = "FORESTER_SPECULATIVE_MIN_APPEND_QUEUE_ITEMS",
+        help = "Optional override for append queue backlog threshold; defaults to FORESTER_SPECULATIVE_MIN_QUEUE_ITEMS"
+    )]
+    pub speculative_min_append_queue_items: Option<usize>,
+
+    #[arg(
+        long,
+        env = "FORESTER_SPECULATIVE_MIN_NULLIFY_QUEUE_ITEMS",
+        help = "Optional override for nullify queue backlog threshold; defaults to FORESTER_SPECULATIVE_MIN_QUEUE_ITEMS"
+    )]
+    pub speculative_min_nullify_queue_items: Option<usize>,
 }
 
 #[derive(Parser, Clone, Debug)]
