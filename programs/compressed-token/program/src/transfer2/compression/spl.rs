@@ -77,13 +77,6 @@ fn spl_token_transfer_invoke_cpi(
     cpi_authority: &AccountInfo,
     amount: u64,
 ) -> Result<(), ProgramError> {
-    msg!("spl_token_transfer_invoke_cpi");
-    msg!(
-        "from {:?}",
-        solana_pubkey::Pubkey::new_from_array(*from.key())
-    );
-    msg!("to {:?}", solana_pubkey::Pubkey::new_from_array(*to.key()));
-    msg!("amount {:?}", amount);
     let bump_seed = [BUMP_CPI_AUTHORITY];
     let seed_array = [
         Seed::from(CPI_AUTHORITY_PDA_SEED),
@@ -110,13 +103,6 @@ fn spl_token_transfer_invoke(
     authority: &AccountInfo,
     amount: u64,
 ) -> Result<(), ProgramError> {
-    msg!("spl_token_transfer_invoke");
-    msg!(
-        "from {:?}",
-        solana_pubkey::Pubkey::new_from_array(*from.key())
-    );
-    msg!("to {:?}", solana_pubkey::Pubkey::new_from_array(*to.key()));
-    msg!("amount {:?}", amount);
     spl_token_transfer_common(program_id, from, to, authority, amount, None)
 }
 

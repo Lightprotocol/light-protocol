@@ -188,8 +188,10 @@ async fn test_spl_to_ctoken_transfer() {
 
 #[tokio::test]
 async fn test_ctoken_to_spl_with_compress_and_close() {
-    use light_compressed_token_sdk::instructions::create_ctoken_to_spl_transfer_and_close_instruction;
-    use light_compressed_token_sdk::token_pool::find_token_pool_pda_with_index;
+    use light_compressed_token_sdk::{
+        instructions::create_ctoken_to_spl_transfer_and_close_instruction,
+        token_pool::find_token_pool_pda_with_index,
+    };
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new(true, None))
         .await
@@ -279,6 +281,7 @@ async fn test_ctoken_to_spl_with_compress_and_close() {
     let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
 
     // Create instruction using compress_and_close variant
+    // Note: Using spl_token::ID because create_mint_helper creates Token (not Token-2022) mints
     let transfer_ix = create_ctoken_to_spl_transfer_and_close_instruction(
         associated_token_account,
         spl_token_account_keypair.pubkey(),
@@ -288,7 +291,7 @@ async fn test_ctoken_to_spl_with_compress_and_close() {
         payer.pubkey(),
         token_pool_pda,
         token_pool_pda_bump,
-        spl_token_2022::ID,
+        anchor_spl::token::ID,
     )
     .unwrap();
 

@@ -20,7 +20,7 @@ use light_test_utils::{
     airdrop_lamports, assert_claim::assert_claim, spl::create_mint_helper, Rpc, RpcError,
 };
 use light_token_client::actions::{
-    create_compressible_token_account, CreateCompressibleTokenAccountInputs,
+    create_compressible_token_account, transfer_ctoken, CreateCompressibleTokenAccountInputs,
 };
 use solana_sdk::{
     instruction::Instruction,
@@ -1140,7 +1140,6 @@ async fn assert_not_compressible<R: Rpc>(
 #[tokio::test]
 async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
     use light_test_utils::assert_ctoken_transfer::assert_ctoken_transfer;
-    use light_token_client::actions::ctoken_transfer;
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
         .await
@@ -1281,7 +1280,7 @@ async fn test_compressible_account_infinite_funding() -> Result<(), RpcError> {
         };
 
         // Transfer all tokens from source to dest
-        ctoken_transfer(
+        transfer_ctoken(
             &mut rpc,
             source,
             dest,
