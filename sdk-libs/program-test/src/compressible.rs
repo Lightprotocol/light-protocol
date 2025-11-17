@@ -124,44 +124,71 @@ pub async fn claim_and_compress(
     }
 
     let current_slot = rpc.get_slot().await?;
-    let compressible_accounts = {
-        stored_compressible_accounts
-            .iter()
-            .filter(|a| a.1.last_paid_slot < current_slot)
-            .map(|e| e.1)
-            .collect::<Vec<_>>()
-    };
+    let rent_exemption = rpc
+        .get_minimum_balance_for_rent_exemption(COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize)
+        .await?;
 
-    let claim_able_accounts = stored_compressible_accounts
-        .iter()
-        .filter(|a| a.1.last_paid_slot >= current_slot)
-        .map(|e| *e.0)
-        .collect::<Vec<_>>();
+    let mut compress_accounts = Vec::new();
+    let mut claim_accounts = Vec::new();
+
+    // For each stored account, determine action using AccountRentState
+    for (pubkey, stored_account) in stored_compressible_accounts.iter() {
+        let account = rpc.get_account(*pubkey).await?.unwrap();
+
+        // Get compressible extension
+        if let Some(extensions) = stored_account.account.extensions.as_ref() {
+            for extension in extensions.iter() {
+                if let ExtensionStruct::Compressible(comp_ext) = extension {
+                    use light_compressible::rent::AccountRentState;
+
+                    // Create state for rent calculation
+                    let state = AccountRentState {
+                        num_bytes: account.data.len() as u64,
+                        current_slot,
+                        current_lamports: account.lamports,
+                        last_claimed_slot: comp_ext.last_claimed_slot,
+                    };
+
+                    // Check what action is needed
+                    match state.calculate_claimable_rent(&comp_ext.rent_config, rent_exemption) {
+                        None => {
+                            // Account is compressible (has rent deficit)
+                            compress_accounts.push(*pubkey);
+                        }
+                        Some(claimable_amount) if claimable_amount > 0 => {
+                            // Has rent to claim from completed epochs
+                            claim_accounts.push(*pubkey);
+                        }
+                        Some(_) => {
+                            // Well-funded, nothing to claim (0 completed epochs)
+                            // Do nothing - skip this account
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     // Process claimable accounts in batches
-    for token_accounts in claim_able_accounts.as_slice().chunks(20) {
-        println!("Claim from : {:?}", token_accounts);
-        // Use the new claim_forester function to claim via registry program
+    for token_accounts in claim_accounts.as_slice().chunks(20) {
+        println!(
+            "Claim from {} accounts: {:?}",
+            token_accounts.len(),
+            token_accounts
+        );
         claim_forester(rpc, token_accounts, &forester_keypair, &payer).await?;
     }
 
     // Process compressible accounts in batches
-    const BATCH_SIZE: usize = 10; // Process up to 10 accounts at a time
-    let mut pubkeys = Vec::with_capacity(compressible_accounts.len());
-    for chunk in compressible_accounts.chunks(BATCH_SIZE) {
-        let chunk_pubkeys: Vec<Pubkey> = chunk.iter().map(|e| e.pubkey).collect();
-        println!("Compress and close: {:?}", chunk_pubkeys);
+    const BATCH_SIZE: usize = 10;
+    for chunk in compress_accounts.chunks(BATCH_SIZE) {
+        println!("Compress and close {} accounts: {:?}", chunk.len(), chunk);
+        compress_and_close_forester(rpc, chunk, &forester_keypair, &payer, None).await?;
 
-        // Use the new compress_and_close_forester function via registry program
-        compress_and_close_forester(rpc, &chunk_pubkeys, &forester_keypair, &payer, None).await?;
-
-        // Remove processed accounts from the HashMap
+        // Remove compressed accounts from HashMap
         for account_pubkey in chunk {
-            pubkeys.push(account_pubkey.pubkey);
+            stored_compressible_accounts.remove(account_pubkey);
         }
-    }
-    for pubkey in pubkeys {
-        stored_compressible_accounts.remove(&pubkey);
     }
 
     Ok(())

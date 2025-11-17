@@ -5587,6 +5587,8 @@ version = "1.1.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
+ "anchor-spl",
+ "borsh 0.10.4",
  "forester-utils",
  "light-account-checks",
  "light-batched-merkle-tree",
@@ -5601,6 +5603,7 @@ dependencies = [
  "light-registry",
  "light-test-utils",
  "light-token-client",
+ "light-zero-copy",
  "serial_test",
  "solana-sdk",
  "tokio",
