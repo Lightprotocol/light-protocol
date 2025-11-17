@@ -333,9 +333,7 @@ pub fn create_mint_action_cpi(
                 }));
             }
             MintActionType::MintToCToken { account, amount } => {
-                use light_ctoken_types::instructions::mint_action::{
-                    DecompressedRecipient, MintToCTokenAction,
-                };
+                use light_ctoken_types::instructions::mint_action::MintToCTokenAction;
 
                 // Add account to decompressed accounts list and get its index
                 decompressed_accounts.push(account);
@@ -343,10 +341,8 @@ pub fn create_mint_action_cpi(
                 decompressed_account_index += 1;
 
                 program_actions.push(Action::MintToCToken(MintToCTokenAction {
-                    recipient: DecompressedRecipient {
-                        account_index: current_index,
-                        amount,
-                    },
+                    account_index: current_index,
+                    amount,
                 }));
             }
             MintActionType::UpdateMetadataField {
