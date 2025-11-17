@@ -898,44 +898,44 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         };
 
         // Smart cache: Reuse cached staging tree when root matches
-        let mut state = if let Some((cached_staging, cached_root)) = self.cached_staging.take() {
-            let root_matches = cached_root == on_chain_root;
+        // let mut state = if let Some((cached_staging, cached_root)) = self.cached_staging.take() {
+        //     let root_matches = cached_root == on_chain_root ;
 
-            if root_matches {
-                // Root matches - our tx hasn't landed yet, cache is valid
-                // Reuse staging tree with all accumulated updates; batch indices reset for new queue data
-                debug!(
-                    "Reusing cached staging: root={:?}, {} accumulated updates",
-                    &on_chain_root[..8],
-                    cached_staging.get_updates().len()
-                );
+        //     if root_matches {
+        //         // Root matches - our tx hasn't landed yet, cache is valid
+        //         // Reuse staging tree with all accumulated updates; batch indices reset for new queue data
+        //         debug!(
+        //             "Reusing cached staging: root={:?}, {} accumulated updates",
+        //             &on_chain_root[..8],
+        //             cached_staging.get_updates().len()
+        //         );
 
-                // Cached tree has all previous updates. Process new queue data starting from batch 0.
-                PreparationState::with_cached_staging(
-                    append_leaf_indices,
-                    cached_staging,
-                    output_queue_v2,
-                    input_queue_v2,
-                    on_chain_root,
-                )
-            } else {
-                // Root changed - our tx landed, rebuild from fresh
-                debug!(
-                    "Root changed, rebuilding: cached={:?}, current={:?}",
-                    &cached_root[..8],
-                    &on_chain_root[..8]
-                );
+        //         // Cached tree has all previous updates. Process new queue data starting from batch 0.
+        //         PreparationState::with_cached_staging(
+        //             append_leaf_indices,
+        //             cached_staging,
+        //             output_queue_v2,
+        //             input_queue_v2,
+        //             on_chain_root,
+        //         )
+        //     } else {
+        //         // Root changed - our tx landed, rebuild from fresh
+        //         debug!(
+        //             "Root changed, rebuilding: cached={:?}, current={:?}",
+        //             &cached_root[..8],
+        //             &on_chain_root[..8]
+        //         );
 
-                PreparationState::new(staging, append_leaf_indices)
-            }
-        } else {
-            // No cache - build fresh
-            info!(
-                "No cached staging tree, building fresh from on-chain root={:?}",
-                &on_chain_root[..8]
-            );
-            PreparationState::new(staging, append_leaf_indices)
-        };
+        //         PreparationState::new(staging, append_leaf_indices)
+        //     }
+        // } else {
+        // No cache - build fresh
+        info!(
+            "No cached staging tree, building fresh from on-chain root={:?}",
+            &on_chain_root[..8]
+        );
+        let mut state = PreparationState::new(staging, append_leaf_indices);
+        // };
         let mut prepared_batches = Vec::with_capacity(pattern.len());
 
         // DIAGNOSTIC: Log initial staging root before any batch preparation
@@ -1029,8 +1029,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         //     let mut staging_cache = PERSISTENT_STAGING_TREES.lock().await;
         //     staging_cache.insert(self.context.merkle_tree, staging_to_cache);
         // }
-
-        debug!("⚠️ CACHE DISABLED - Building fresh staging tree each iteration for debugging");
 
         Ok(final_root)
     }
