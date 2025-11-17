@@ -1,11 +1,12 @@
 use std::{
     collections::HashMap,
+    fmt,
     sync::Arc,
     time::{Duration, Instant},
 };
 
 use anyhow::Result;
-use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
+use forester_utils::{forester_epoch::EpochPhases, ParsedMerkleTreeData, ParsedQueueData};
 use light_batched_merkle_tree::{
     merkle_tree::{
         BatchedMerkleTreeAccount, InstructionDataBatchAppendInputs,
@@ -14,6 +15,7 @@ use light_batched_merkle_tree::{
     queue::BatchedQueueAccount,
 };
 use light_client::{indexer::Indexer, rpc::Rpc};
+use light_compressed_account::QueueType;
 use light_prover_client::proof_client::ProofClient;
 use once_cell::sync::Lazy;
 use solana_sdk::{account::Account, pubkey::Pubkey};
@@ -29,9 +31,9 @@ use super::{
     },
     types::{AppendQueueData, BatchType, NullifyQueueData, PreparationState, PreparedBatch},
 };
-use crate::{metrics, processor::v2::common::BatchContext};
+use crate::{grpc::QueueUpdateMessage, metrics, processor::v2::common::BatchContext};
 
-type PersistentTreeStatesCache = Arc<TokioMutex<HashMap<(Pubkey, u64), SharedState>>>;
+type PersistentTreeStatesCache = Arc<TokioMutex<HashMap<Pubkey, SharedState>>>;
 type StagingTreeCache =
     Arc<TokioMutex<HashMap<Pubkey, (super::tree_state::StagingTree, [u8; 32])>>>;
 
@@ -76,6 +78,15 @@ pub struct StateTreeCoordinator<R: Rpc> {
     /// When reusing, batch indices reset to 0 for new queue data, but the staging tree
     /// already contains all previous updates, ensuring proofs include prior changes.
     cached_staging: Option<(super::tree_state::StagingTree, [u8; 32])>,
+    pending_queue_items: usize,
+}
+
+impl<R: Rpc> fmt::Debug for StateTreeCoordinator<R> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("StateTreeCoordinator")
+            .field("tree", &self.context.merkle_tree)
+            .finish()
+    }
 }
 
 impl<R: Rpc> StateTreeCoordinator<R> {
@@ -83,24 +94,70 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         metrics::record_staging_cache_event(&self.context.merkle_tree, event, reason);
     }
 
+    pub fn refresh_epoch_context(
+        &mut self,
+        epoch: u64,
+        epoch_phases: EpochPhases,
+        output_queue: Pubkey,
+    ) {
+        self.context.epoch = epoch;
+        self.context.epoch_phases = epoch_phases;
+        self.context.output_queue = output_queue;
+        self.context.input_queue_hint = None;
+        self.context.output_queue_hint = None;
+    }
+
+    pub fn on_queue_update(&mut self, update: &QueueUpdateMessage) {
+        let added = update.queue_size as usize;
+        self.pending_queue_items = self.pending_queue_items.saturating_add(added);
+        let reason = match update.queue_type {
+            QueueType::InputStateV2 => {
+                self.context.input_queue_hint = Some(update.queue_size);
+                "input"
+            }
+            QueueType::OutputStateV2 => {
+                self.context.output_queue_hint = Some(update.queue_size);
+                "output"
+            }
+            QueueType::AddressV2 => "address",
+            _ => "other",
+        };
+        self.record_cache_event("queue_update", reason);
+    }
+
+    fn consume_processed_items(&mut self, processed: usize) {
+        if processed == 0 {
+            return;
+        }
+        if self.pending_queue_items > 0 {
+            let before = self.pending_queue_items;
+            self.pending_queue_items = self.pending_queue_items.saturating_sub(processed);
+            debug!(
+                "Pending queue items adjusted: {} -> {} (processed {})",
+                before, self.pending_queue_items, processed
+            );
+            if self.pending_queue_items == 0 {
+                self.record_cache_event("queue_drain", "processed");
+            }
+        }
+    }
+
     pub async fn new(context: BatchContext<R>, initial_root: [u8; 32]) -> Self {
-        let key = (context.merkle_tree, context.epoch);
+        let key = context.merkle_tree;
 
         let shared_state = {
             let mut states = PERSISTENT_TREE_STATES.lock().await;
             if let Some(state) = states.get(&key) {
                 info!(
-                    "COORDINATOR REUSE: Found existing SharedState for tree={}, epoch={} (initial_root={:?})",
+                    "COORDINATOR REUSE: Found existing SharedState for tree={} (initial_root={:?})",
                     context.merkle_tree,
-                    context.epoch,
                     &initial_root[..8]
                 );
                 state.clone()
             } else {
                 info!(
-                    "COORDINATOR CREATE: Creating NEW SharedState for tree={}, epoch={} (initial_root={:?})",
+                    "COORDINATOR CREATE: Creating NEW SharedState for tree={} (initial_root={:?})",
                     context.merkle_tree,
-                    context.epoch,
                     &initial_root[..8]
                 );
                 let new_state = create_shared_state(initial_root);
@@ -108,8 +165,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 new_state
             }
         };
-
-        cleanup_old_epochs(context.merkle_tree, context.epoch).await;
 
         // DIAGNOSTIC: Log coordinator instance creation with unique identifier
         let coordinator_id = format!(
@@ -146,6 +201,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             context,
             current_light_slot: None,
             cached_staging,
+            pending_queue_items: 0,
         }
     }
 
@@ -268,6 +324,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 Ok(items_this_iteration) => {
                     total_items_processed += items_this_iteration;
                     consecutive_retries = 0; // Reset retry counter on success
+                    self.consume_processed_items(items_this_iteration);
                 }
                 Err(e) => {
                     if let Some(coord_err) = e.downcast_ref::<CoordinatorError>() {
@@ -348,7 +405,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         &mut self,
         num_append_batches: usize,
         num_nullify_batches: usize,
-        loop_iteration: usize,
+        _loop_iteration: usize,
     ) -> Result<usize> {
         let iteration_start = Instant::now();
         let phase1_start = Instant::now();
@@ -357,18 +414,16 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let queue_result = {
             let rpc = self.context.rpc_pool.get_connection().await?;
 
-            if self.cached_staging.is_none() {
-                self.record_cache_event("miss", "not_present");
-                // No cache - wait for indexer to catch up
-                forester_utils::utils::wait_for_indexer(&*rpc)
-                    .await
-                    .map_err(|e| {
-                        anyhow::anyhow!("Indexer failed to catch up before iteration: {}", e)
-                    })?;
-            } else {
+            if let Some((_, root)) = &self.cached_staging {
                 debug!(
                     "Reusing cached staging (root: {:?}), skipping indexer wait",
-                    self.cached_staging.as_ref().map(|(_, root)| &root[..8])
+                    &root[..8]
+                );
+            } else {
+                self.record_cache_event("miss", "not_present");
+                debug!(
+                    "No cached staging tree for {}, will build from indexer",
+                    self.context.merkle_tree
                 );
             }
 
@@ -617,6 +672,9 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         );
 
         let mut connection = self.context.rpc_pool.get_connection().await?;
+        forester_utils::utils::wait_for_indexer(&*connection)
+            .await
+            .map_err(|e| anyhow::anyhow!("Indexer failed to catch up before fetch: {}", e))?;
         let indexer = connection.indexer_mut()?;
 
         let options = light_client::indexer::QueueElementsV2Options {
@@ -940,7 +998,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     on_chain_root,
                 )
             } else {
-                info!(
+                warn!(
                     "Cached staging root diverged (cached={:?}, current={:?}); rebuilding",
                     &cached_root[..8],
                     &on_chain_root[..8]
@@ -949,7 +1007,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 PreparationState::new(staging, append_leaf_indices)
             }
         } else {
-            info!(
+            debug!(
                 "No cached staging tree, building fresh from on-chain root={:?}",
                 &on_chain_root[..8]
             );
@@ -1635,68 +1693,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     }
 }
 
-async fn cleanup_old_epochs(tree: Pubkey, current_epoch: u64) {
-    let mut states = PERSISTENT_TREE_STATES.lock().await;
-
-    let mut aggregated_metrics = CumulativeMetrics::default();
-    let mut old_epochs_to_remove = Vec::new();
-
-    for ((t, e), shared_state) in states.iter() {
-        if *t == tree && *e < current_epoch {
-            let state = shared_state.read().await;
-            let metrics = state.get_metrics();
-
-            aggregated_metrics.iterations += metrics.iterations;
-            aggregated_metrics.total_duration += metrics.total_duration;
-            aggregated_metrics.phase1_total += metrics.phase1_total;
-            aggregated_metrics.phase2_total += metrics.phase2_total;
-            aggregated_metrics.phase3_total += metrics.phase3_total;
-            aggregated_metrics.total_append_batches += metrics.total_append_batches;
-            aggregated_metrics.total_nullify_batches += metrics.total_nullify_batches;
-
-            if let Some(min) = metrics.min_iteration {
-                aggregated_metrics.min_iteration = Some(
-                    aggregated_metrics
-                        .min_iteration
-                        .map(|m| m.min(min))
-                        .unwrap_or(min),
-                );
-            }
-            if let Some(max) = metrics.max_iteration {
-                aggregated_metrics.max_iteration = Some(
-                    aggregated_metrics
-                        .max_iteration
-                        .map(|m| m.max(max))
-                        .unwrap_or(max),
-                );
-            }
-
-            info!(
-                "Aggregating metrics from tree {} epoch {}: {} iterations",
-                t, e, metrics.iterations
-            );
-
-            old_epochs_to_remove.push((*t, *e));
-        }
-    }
-
-    if aggregated_metrics.iterations > 0 {
-        if let Some(current_state) = states.get(&(tree, current_epoch)) {
-            let mut state = current_state.write().await;
-            state.merge_metrics(aggregated_metrics);
-            info!(
-                "Merged metrics from {} old epochs into current epoch",
-                old_epochs_to_remove.len()
-            );
-        }
-    }
-
-    for key in old_epochs_to_remove {
-        info!("Cleaning up old state for tree {} epoch {}", key.0, key.1);
-        states.remove(&key);
-    }
-}
-
 /// Print cumulative performance summary across all trees.
 pub async fn print_cumulative_performance_summary(label: &str) {
     let states = PERSISTENT_TREE_STATES.lock().await;
@@ -1704,7 +1700,7 @@ pub async fn print_cumulative_performance_summary(label: &str) {
     let mut total_metrics = CumulativeMetrics::default();
     let mut tree_count = 0;
 
-    for ((tree, epoch), shared_state) in states.iter() {
+    for (tree, shared_state) in states.iter() {
         let state = shared_state.read().await;
         let metrics = state.get_metrics();
         total_metrics.iterations += metrics.iterations;
@@ -1734,10 +1730,7 @@ pub async fn print_cumulative_performance_summary(label: &str) {
 
         tree_count += 1;
 
-        debug!(
-            "Tree {} epoch {}: {} iterations",
-            tree, epoch, metrics.iterations
-        );
+        debug!("Tree {}: {} iterations", tree, metrics.iterations);
     }
 
     println!("\n========================================");
