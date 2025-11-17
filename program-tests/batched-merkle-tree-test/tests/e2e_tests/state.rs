@@ -206,10 +206,16 @@ async fn test_fill_state_queues_completely() {
         // Fill up complete input queue.
         let num_tx = NUM_BATCHES as u64 * params.input_queue_batch_size;
         let mut first_value = [0u8; 32];
+        let mut first_batch_values = Vec::new();
+        let mut counter = 0;
         for tx in 0..num_tx {
             println!("Input insert ----------------------------- {}", tx);
             let (_, leaf) = get_random_leaf(&mut rng, &mut mock_indexer.active_leaves);
             let leaf_index = mock_indexer.merkle_tree.get_leaf_index(&leaf).unwrap();
+            if counter < params.input_queue_batch_size {
+                first_batch_values.push(leaf);
+            }
+            counter += 1;
 
             let mut pre_mt_account_data = mt_account_data.clone();
             let pre_merkle_tree_account =
@@ -320,6 +326,9 @@ async fn test_fill_state_queues_completely() {
         }
         // Root of the final batch of first input queue batch
         let mut first_input_batch_update_root_value = [0u8; 32];
+        for value in first_batch_values.iter(){
+            assert!(mock_indexer.merkle_tree.get_leaf_index(&value).is_some());
+        }
         let num_updates =
             params.input_queue_batch_size / params.input_queue_zkp_batch_size * NUM_BATCHES as u64;
         for i in 0..num_updates {
@@ -344,6 +353,10 @@ async fn test_fill_state_queues_completely() {
             if i >= 5 {
                 let batch = merkle_tree_account.queue_batches.batches.first().unwrap();
                 assert!(batch.bloom_filter_is_zeroed());
+                //zeroed out values are no longer on the tree
+                for value in first_batch_values.iter(){
+                    assert!(!mock_indexer.merkle_tree.get_leaf_index(&value).is_some());
+                }
 
                 // Assert that none of the unsafe roots from batch 0 exist in root history
                 if let Some(unsafe_roots) = batch_roots.get_by_key(&0) {
