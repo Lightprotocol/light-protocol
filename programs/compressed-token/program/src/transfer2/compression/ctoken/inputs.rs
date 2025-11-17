@@ -1,10 +1,7 @@
 use light_account_checks::packed_accounts::ProgramPackedAccounts;
-use light_ctoken_types::{
-    instructions::transfer2::{
-        ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
-        ZMultiTokenTransferOutputData,
-    },
-    CTokenError,
+use light_ctoken_types::instructions::transfer2::{
+    ZCompressedTokenInstructionDataTransfer2, ZCompression, ZCompressionMode,
+    ZMultiTokenTransferOutputData,
 };
 use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 
@@ -12,7 +9,7 @@ use pinocchio::{account_info::AccountInfo, pubkey::Pubkey};
 pub struct CompressAndCloseInputs<'a> {
     pub destination: &'a AccountInfo,
     pub rent_sponsor: &'a AccountInfo,
-    pub compressed_token_account: &'a ZMultiTokenTransferOutputData<'a>,
+    pub compressed_token_account: Option<&'a ZMultiTokenTransferOutputData<'a>>,
 }
 
 /// Input struct for ctoken compression/decompression operations
@@ -60,8 +57,7 @@ impl<'a> CTokenCompressionInputs<'a> {
                 )?,
                 compressed_token_account: inputs
                     .out_token_data
-                    .get(compression.get_compressed_token_account_index()? as usize)
-                    .ok_or(CTokenError::AccountFrozen)?,
+                    .get(compression.get_compressed_token_account_index()? as usize),
             })
         } else {
             None

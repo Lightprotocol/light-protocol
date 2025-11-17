@@ -424,6 +424,8 @@ pub enum ErrorCode {
     MintActionInvalidCpiContextAddressTreePubkey,
     #[msg("CompressAndClose: Cannot use the same compressed output account for multiple closures")]
     CompressAndCloseDuplicateOutput,
+    #[msg("CompressAndClose by rent authority requires compressed token account in outputs")]
+    CompressAndCloseOutputMissing,
 }
 
 impl From<ErrorCode> for ProgramError {

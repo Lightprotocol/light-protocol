@@ -50,10 +50,13 @@ pub fn process_compress_and_close(
 
     if compression_authority_is_signer {
         // Compress the complete balance to this compressed token account.
+        let compressed_account = close_inputs
+            .compressed_token_account
+            .ok_or(ErrorCode::CompressAndCloseOutputMissing)?;
         validate_compressed_token_account(
             packed_accounts,
             amount,
-            close_inputs.compressed_token_account,
+            compressed_account,
             ctoken,
             compress_to_pubkey,
             token_account_info.key(),
