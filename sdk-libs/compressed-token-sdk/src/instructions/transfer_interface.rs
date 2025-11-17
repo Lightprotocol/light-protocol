@@ -159,6 +159,82 @@ pub fn create_transfer_ctoken_to_spl_instruction(
     create_transfer2_instruction(inputs)
 }
 
+#[allow(clippy::too_many_arguments)]
+#[profile]
+pub fn create_ctoken_to_spl_transfer_and_close_instruction(
+    source_ctoken_account: Pubkey,
+    destination_spl_token_account: Pubkey,
+    amount: u64,
+    authority: Pubkey,
+    mint: Pubkey,
+    payer: Pubkey,
+    token_pool_pda: Pubkey,
+    token_pool_pda_bump: u8,
+    spl_token_program: Pubkey,
+) -> Result<Instruction, TokenSdkError> {
+    let packed_accounts = vec![
+        // Mint (index 0)
+        AccountMeta::new_readonly(mint, false),
+        // Source ctoken account (index 1) - writable
+        AccountMeta::new(source_ctoken_account, false),
+        // Destination SPL token account (index 2) - writable
+        AccountMeta::new(destination_spl_token_account, false),
+        // Authority (index 3) - signer
+        AccountMeta::new(authority, true),
+        // Token pool PDA (index 4) - writable
+        AccountMeta::new(token_pool_pda, false),
+        // SPL Token program (index 5) - needed for CPI
+        AccountMeta::new_readonly(spl_token_program, false),
+    ];
+
+    // First operation: compress from ctoken account to pool using compress_and_close
+    let compress_to_pool = CTokenAccount2 {
+        inputs: vec![],
+        output: MultiTokenTransferOutputData::default(),
+        compression: Some(Compression::compress_and_close_ctoken(
+            amount, 0, // mint index
+            1, // source ctoken account index
+            3, // authority index
+            0, // no rent sponsor
+            0, // no compressed account
+            3, // destination is authority
+        )),
+        delegate_is_set: false,
+        method_used: true,
+    };
+
+    // Second operation: decompress from pool to SPL token account using decompress_spl
+    let decompress_to_spl = CTokenAccount2 {
+        inputs: vec![],
+        output: MultiTokenTransferOutputData::default(),
+        compression: Some(Compression::decompress_spl(
+            amount,
+            0, // mint index
+            2, // destination SPL token account index
+            4, // pool_account_index
+            0, // pool_index (TODO: make dynamic)
+            token_pool_pda_bump,
+        )),
+        delegate_is_set: false,
+        method_used: true,
+    };
+
+    let inputs = Transfer2Inputs {
+        validity_proof: ValidityProof::new(None),
+        transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
+        meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
+            payer,
+            packed_accounts,
+        ),
+        in_lamports: None,
+        out_lamports: None,
+        token_accounts: vec![compress_to_pool, decompress_to_spl],
+        output_queue: 0, // Decompressed accounts only, no output queue needed
+    };
+
+    create_transfer2_instruction(inputs)
+}
+
 /// Transfer SPL tokens to compressed tokens
 #[allow(clippy::too_many_arguments)]
 pub fn transfer_spl_to_ctoken<'info>(

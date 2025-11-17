@@ -54,6 +54,7 @@ pub use mint_to_compressed::{
 };
 pub use transfer_ctoken::{transfer_ctoken, transfer_ctoken_signed};
 pub use transfer_interface::{
+    create_ctoken_to_spl_transfer_and_close_instruction,
     create_transfer_ctoken_to_spl_instruction, create_transfer_spl_to_ctoken_instruction,
     transfer_interface, transfer_interface_signed,
 };
