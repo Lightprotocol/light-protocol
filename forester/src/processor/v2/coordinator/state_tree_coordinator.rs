@@ -29,7 +29,7 @@ use super::{
     },
     types::{AppendQueueData, BatchType, NullifyQueueData, PreparationState, PreparedBatch},
 };
-use crate::processor::v2::common::BatchContext;
+use crate::{metrics, processor::v2::common::BatchContext};
 
 type PersistentTreeStatesCache = Arc<TokioMutex<HashMap<(Pubkey, u64), SharedState>>>;
 type StagingTreeCache =
@@ -79,6 +79,10 @@ pub struct StateTreeCoordinator<R: Rpc> {
 }
 
 impl<R: Rpc> StateTreeCoordinator<R> {
+    fn record_cache_event(&self, event: &'static str, reason: &'static str) {
+        metrics::record_staging_cache_event(&self.context.merkle_tree, event, reason);
+    }
+
     pub async fn new(context: BatchContext<R>, initial_root: [u8; 32]) -> Self {
         let key = (context.merkle_tree, context.epoch);
 
@@ -217,6 +221,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                             &cached_root[..8],
                             &on_chain_root[..8]
                         );
+                        self.record_cache_event("invalidate", "root_mismatch");
                     } else {
                         debug!("Cache is fresh: root={:?}", &on_chain_root[..8]);
                     }
@@ -274,6 +279,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                                     "Max consecutive retries ({}) reached for error: {}. Giving up on this batch.",
                                     MAX_CONSECUTIVE_RETRIES, coord_err
                                 );
+                                self.record_cache_event("invalidate", "max_retries");
                                 self.cached_staging = None;
                                 // Break out of retry loop but don't return error - just move to next iteration
                                 break;
@@ -286,6 +292,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                                     "Invalidating cache and resyncing due to: {} (retry {}/{})",
                                     coord_err, consecutive_retries, MAX_CONSECUTIVE_RETRIES
                                 );
+                                self.record_cache_event("invalidate", "retryable_resync");
                                 self.cached_staging = None;
                             } else {
                                 debug!("Retrying without resync for: {}", coord_err);
@@ -299,6 +306,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                         }
                     }
                     // Clear both local and global cache on error
+                    self.record_cache_event("invalidate", "non_retryable_error");
                     self.cached_staging = None;
                     {
                         let mut staging_cache = PERSISTENT_STAGING_TREES.lock().await;
@@ -327,6 +335,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             debug!(
                 "Invalidating cached staging tree due to external failure (e.g., transaction submission failed)"
             );
+            self.record_cache_event("invalidate", "external_request");
             self.cached_staging = None;
 
             // Also clear from global cache
@@ -349,6 +358,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             let rpc = self.context.rpc_pool.get_connection().await?;
 
             if self.cached_staging.is_none() {
+                self.record_cache_event("miss", "not_present");
                 // No cache - wait for indexer to catch up
                 forester_utils::utils::wait_for_indexer(&*rpc)
                     .await
@@ -913,45 +923,38 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             vec![]
         };
 
-        // Smart cache: Reuse cached staging tree when root matches
-        // let mut state = if let Some((cached_staging, cached_root)) = self.cached_staging.take() {
-        //     let root_matches = cached_root == on_chain_root ;
+        let mut state = if let Some((cached_staging, cached_root)) = self.cached_staging.take() {
+            if cached_root == on_chain_root {
+                debug!(
+                    "Reusing cached staging: root={:?}, {} accumulated updates",
+                    &on_chain_root[..8],
+                    cached_staging.get_updates().len()
+                );
+                self.record_cache_event("hit", "prep_root_match");
 
-        //     if root_matches {
-        //         // Root matches - our tx hasn't landed yet, cache is valid
-        //         // Reuse staging tree with all accumulated updates; batch indices reset for new queue data
-        //         debug!(
-        //             "Reusing cached staging: root={:?}, {} accumulated updates",
-        //             &on_chain_root[..8],
-        //             cached_staging.get_updates().len()
-        //         );
-
-        //         // Cached tree has all previous updates. Process new queue data starting from batch 0.
-        //         PreparationState::with_cached_staging(
-        //             append_leaf_indices,
-        //             cached_staging,
-        //             output_queue_v2,
-        //             input_queue_v2,
-        //             on_chain_root,
-        //         )
-        //     } else {
-        //         // Root changed - our tx landed, rebuild from fresh
-        //         debug!(
-        //             "Root changed, rebuilding: cached={:?}, current={:?}",
-        //             &cached_root[..8],
-        //             &on_chain_root[..8]
-        //         );
-
-        //         PreparationState::new(staging, append_leaf_indices)
-        //     }
-        // } else {
-        // No cache - build fresh
-        info!(
-            "No cached staging tree, building fresh from on-chain root={:?}",
-            &on_chain_root[..8]
-        );
-        let mut state = PreparationState::new(staging, append_leaf_indices);
-        // };
+                PreparationState::with_cached_staging(
+                    append_leaf_indices,
+                    cached_staging,
+                    output_queue_v2,
+                    input_queue_v2,
+                    on_chain_root,
+                )
+            } else {
+                info!(
+                    "Cached staging root diverged (cached={:?}, current={:?}); rebuilding",
+                    &cached_root[..8],
+                    &on_chain_root[..8]
+                );
+                self.record_cache_event("invalidate", "prep_root_mismatch");
+                PreparationState::new(staging, append_leaf_indices)
+            }
+        } else {
+            info!(
+                "No cached staging tree, building fresh from on-chain root={:?}",
+                &on_chain_root[..8]
+            );
+            PreparationState::new(staging, append_leaf_indices)
+        };
         let mut prepared_batches = Vec::with_capacity(pattern.len());
 
         // DIAGNOSTIC: Log initial staging root before any batch preparation
@@ -1032,19 +1035,14 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 .map_err(|e| anyhow::anyhow!("Failed to send prepared batch: {}", e))?;
         }
 
-        // TEMPORARY: Disable caching to isolate cache-related issues
-        // Cache the staging tree with all its accumulated updates
-        // The staging tree contains complete state; new iterations start from batch 0 with new queue data
         let final_root = state.staging.current_root();
-
-        // DISABLED FOR DEBUGGING:
-        // let staging_to_cache = (state.staging.clone(), final_root);
-        // self.cached_staging = Some(staging_to_cache.clone());
-        // Also save to global cache (survives across epochs)
-        // {
-        //     let mut staging_cache = PERSISTENT_STAGING_TREES.lock().await;
-        //     staging_cache.insert(self.context.merkle_tree, staging_to_cache);
-        // }
+        let staging_to_cache = (state.staging.clone(), final_root);
+        self.cached_staging = Some(staging_to_cache.clone());
+        {
+            let mut staging_cache = PERSISTENT_STAGING_TREES.lock().await;
+            staging_cache.insert(self.context.merkle_tree, staging_to_cache);
+        }
+        self.record_cache_event("store", "post_iteration");
 
         Ok(final_root)
     }

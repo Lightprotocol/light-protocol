@@ -192,11 +192,11 @@ pub async fn submit_interleaved_batches<R: Rpc>(
                 )
             }
             BatchType::Nullify if nullify_idx < nullify_proofs.len() => {
-                    let proof = &nullify_proofs[nullify_idx];
-                    submitted_nullify_batches += 1;
-                    nullify_idx += 1;
-                    create_batch_nullify_instruction(
-                        context.authority.pubkey(),
+                let proof = &nullify_proofs[nullify_idx];
+                submitted_nullify_batches += 1;
+                nullify_idx += 1;
+                create_batch_nullify_instruction(
+                    context.authority.pubkey(),
                     context.derivation,
                     context.merkle_tree,
                     context.epoch,

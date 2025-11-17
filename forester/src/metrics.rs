@@ -6,6 +6,7 @@ use std::{
 use lazy_static::lazy_static;
 use prometheus::{Encoder, GaugeVec, IntCounterVec, IntGauge, IntGaugeVec, Registry, TextEncoder};
 use reqwest::Client;
+use solana_sdk::pubkey::Pubkey;
 use tokio::sync::Mutex;
 use tracing::{debug, error, log::trace};
 
@@ -60,6 +61,14 @@ lazy_static! {
         &["epoch", "authority"]
     )
     .expect("metric can be created");
+    pub static ref STAGING_CACHE_EVENTS: IntCounterVec = IntCounterVec::new(
+        prometheus::opts!(
+            "forester_staging_cache_events_total",
+            "Count of staging cache events by type and reason"
+        ),
+        &["event", "reason", "tree"]
+    )
+    .expect("metric can be created");
     static ref METRIC_UPDATES: Mutex<Vec<(u64, usize, std::time::Duration)>> =
         Mutex::new(Vec::new());
 }
@@ -87,6 +96,9 @@ pub fn register_metrics() {
             .expect("collector can be registered");
         REGISTRY
             .register(Box::new(REGISTERED_FORESTERS.clone()))
+            .expect("collector can be registered");
+        REGISTRY
+            .register(Box::new(STAGING_CACHE_EVENTS.clone()))
             .expect("collector can be registered");
     });
 }
@@ -149,6 +161,12 @@ pub fn update_registered_foresters(epoch: u64, authority: &str) {
     REGISTERED_FORESTERS
         .with_label_values(&[&epoch.to_string(), authority])
         .set(1.0);
+}
+
+pub fn record_staging_cache_event(tree: &Pubkey, event: &str, reason: &str) {
+    STAGING_CACHE_EVENTS
+        .with_label_values(&[event, reason, &tree.to_string()])
+        .inc();
 }
 
 pub async fn push_metrics(url: &Option<String>) -> Result<()> {
