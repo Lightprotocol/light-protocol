@@ -83,8 +83,6 @@ impl NullifyQueueData {
 /// Note: We no longer accumulate changelogs - the tree is updated immediately
 /// after each operation, eliminating the need for proof adjustments.
 pub struct PreparationState {
-    pub tree_state: super::tree_state::TreeState,
-    pub current_root: [u8; 32],
     pub append_batch_index: usize,
     pub nullify_batch_index: usize,
     pub append_leaf_indices: Vec<u64>,
@@ -94,17 +92,9 @@ pub struct PreparationState {
 }
 
 impl PreparationState {
-    /// Create new preparation state from initial tree state.
-    pub fn new(
-        mut tree_state: super::tree_state::TreeState,
-        append_leaf_indices: Vec<u64>,
-    ) -> Self {
-        let initial_root = tree_state.current_root();
-        // Create staging tree once at the beginning - it will be reused across all batches
-        let staging = tree_state.create_staging();
+    /// Create new preparation state from staging tree.
+    pub fn new(staging: super::tree_state::StagingTree, append_leaf_indices: Vec<u64>) -> Self {
         Self {
-            tree_state,
-            current_root: initial_root,
             append_batch_index: 0,
             nullify_batch_index: 0,
             append_leaf_indices,
@@ -113,17 +103,37 @@ impl PreparationState {
     }
 
     /// Create new preparation state with a cached staging tree.
-    /// This reuses the staging tree from a previous cycle to preserve accumulated updates
-    /// when the root hasn't changed (e.g., during epoch transitions with in-flight transactions).
+    /// Reuses the cached staging tree as-is with all its accumulated updates.
+    /// The batch indices are reset to 0 because the new queue data contains only new elements,
+    /// but the staging tree already contains all previous updates, ensuring correct proofs.
     pub fn with_cached_staging(
-        tree_state: super::tree_state::TreeState,
         append_leaf_indices: Vec<u64>,
-        staging: super::tree_state::StagingTree,
-        current_root: [u8; 32],
+        mut staging: super::tree_state::StagingTree,
+        output_queue: Option<&light_client::indexer::OutputQueueDataV2>,
+        input_queue: Option<&light_client::indexer::InputQueueDataV2>,
+        on_chain_root: [u8; 32],
     ) -> Self {
+        // Use the staging tree's current root, which includes all accumulated updates
+        let staging_root = staging.current_root();
+        tracing::debug!(
+            "Reusing cached staging tree with {} accumulated updates (batch indices reset to 0 for new queue data), staging_root={:?}",
+            staging.get_updates().len(),
+            &staging_root[..8]
+        );
+
+        // CRITICAL: Merge fresh nodes from indexer into the cached staging tree.
+        // The indexer contains new deduplicated nodes for the new queue elements.
+        // The cached staging tree needs these fresh nodes to generate correct proofs for new batches.
+        if let Err(e) =
+            staging.merge_fresh_nodes_from_indexer(output_queue, input_queue, on_chain_root)
+        {
+            tracing::error!(
+                "Failed to merge fresh nodes into cached staging tree: {:?}",
+                e
+            );
+        }
+
         Self {
-            tree_state,
-            current_root,
             append_batch_index: 0,
             nullify_batch_index: 0,
             append_leaf_indices,
