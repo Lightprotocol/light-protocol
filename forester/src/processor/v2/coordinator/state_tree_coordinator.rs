@@ -398,6 +398,17 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             Self::generate_proofs_streaming(prep_rx, proof_tx, proof_config).await
         });
 
+        let append_zkp_batch_size = queue_result
+            .append_data
+            .as_ref()
+            .map(|data| data.zkp_batch_size)
+            .unwrap_or(0);
+        let nullify_zkp_batch_size = queue_result
+            .nullify_data
+            .as_ref()
+            .map(|data| data.zkp_batch_size)
+            .unwrap_or(0);
+
         let final_root = self
             .prepare_batches_streaming(
                 queue_result.staging,
@@ -419,7 +430,12 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let phase1_duration = phase1_start.elapsed();
 
         let (total_items, phase3_duration) = self
-            .submit_proofs_streaming_inline(proof_rx, &pattern)
+            .submit_proofs_streaming_inline(
+                proof_rx,
+                &pattern,
+                append_zkp_batch_size,
+                nullify_zkp_batch_size,
+            )
             .await?;
 
         let phase2_duration = proof_gen_handle.await??;
@@ -1211,6 +1227,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         &self,
         mut proof_rx: tokio::sync::mpsc::Receiver<(usize, PreparedBatch, Result<ProofResult>)>,
         pattern: &[BatchType],
+        append_zkp_batch_size: u16,
+        nullify_zkp_batch_size: u16,
     ) -> Result<(usize, Duration)> {
         use std::collections::BTreeMap;
 
@@ -1295,7 +1313,9 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     total_items += batch_submission::submit_interleaved_batches(
                         &self.context,
                         std::mem::take(&mut ready_append_proofs),
+                        append_zkp_batch_size,
                         std::mem::take(&mut ready_nullify_proofs),
+                        nullify_zkp_batch_size,
                         &std::mem::take(&mut ready_pattern),
                     )
                     .await?;
@@ -1309,7 +1329,9 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             total_items += batch_submission::submit_interleaved_batches(
                 &self.context,
                 ready_append_proofs,
+                append_zkp_batch_size,
                 ready_nullify_proofs,
+                nullify_zkp_batch_size,
                 &ready_pattern,
             )
             .await?;

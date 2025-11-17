@@ -54,7 +54,7 @@ pub fn prepare_append_batch(
 
     let circuit_start = std::time::Instant::now();
     let empty_changelogs = Vec::new();
-    let old_root = state.staging.base_root();
+    let old_root = state.staging.current_root();
     let (circuit_inputs, batch_changelogs) =
         get_batch_append_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
             old_root,

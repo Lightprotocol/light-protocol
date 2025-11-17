@@ -149,9 +149,19 @@ pub async fn submit_nullify_batches<R: Rpc>(
 pub async fn submit_interleaved_batches<R: Rpc>(
     context: &BatchContext<R>,
     append_proofs: Vec<InstructionDataBatchAppendInputs>,
+    append_zkp_batch_size: u16,
     nullify_proofs: Vec<InstructionDataBatchNullifyInputs>,
+    nullify_zkp_batch_size: u16,
     pattern: &[super::types::BatchType],
 ) -> Result<usize> {
+    debug_assert!(
+        append_proofs.is_empty() || append_zkp_batch_size > 0,
+        "append_zkp_batch_size must be > 0 when append proofs exist"
+    );
+    debug_assert!(
+        nullify_proofs.is_empty() || nullify_zkp_batch_size > 0,
+        "nullify_zkp_batch_size must be > 0 when nullify proofs exist"
+    );
     use super::types::BatchType;
 
     info!(
@@ -163,12 +173,14 @@ pub async fn submit_interleaved_batches<R: Rpc>(
     let mut current_tx_instructions = Vec::new();
     let mut append_idx = 0;
     let mut nullify_idx = 0;
-    let mut total_items = 0;
+    let mut submitted_append_batches = 0usize;
+    let mut submitted_nullify_batches = 0usize;
 
     for batch_type in pattern.iter() {
         let instruction = match batch_type {
             BatchType::Append if append_idx < append_proofs.len() => {
                 let proof = &append_proofs[append_idx];
+                submitted_append_batches += 1;
                 append_idx += 1;
                 create_batch_append_instruction(
                     context.authority.pubkey(),
@@ -180,10 +192,11 @@ pub async fn submit_interleaved_batches<R: Rpc>(
                 )
             }
             BatchType::Nullify if nullify_idx < nullify_proofs.len() => {
-                let proof = &nullify_proofs[nullify_idx];
-                nullify_idx += 1;
-                create_batch_nullify_instruction(
-                    context.authority.pubkey(),
+                    let proof = &nullify_proofs[nullify_idx];
+                    submitted_nullify_batches += 1;
+                    nullify_idx += 1;
+                    create_batch_nullify_instruction(
+                        context.authority.pubkey(),
                     context.derivation,
                     context.merkle_tree,
                     context.epoch,
@@ -206,15 +219,17 @@ pub async fn submit_interleaved_batches<R: Rpc>(
                 signature
             );
 
-            total_items += current_tx_instructions.len();
             current_tx_instructions.clear();
         }
     }
 
     info!(
-        "Submitted {} total batches in interleaved pattern",
-        total_items
+        "Submitted {} append batches and {} nullify batches in interleaved pattern",
+        submitted_append_batches, submitted_nullify_batches
     );
 
-    Ok(total_items)
+    let total_elements = submitted_append_batches * append_zkp_batch_size as usize
+        + submitted_nullify_batches * nullify_zkp_batch_size as usize;
+
+    Ok(total_elements)
 }

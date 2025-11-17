@@ -15,6 +15,7 @@ pub const TREE_HEIGHT: usize = 32;
 pub struct StagingTree {
     tree: MerkleTree<Poseidon>,
     base_root: [u8; 32],
+    current_root: [u8; 32],
     updates: Vec<(u64, [u8; 32])>,
 }
 
@@ -24,7 +25,7 @@ impl StagingTree {
     }
 
     pub fn current_root(&self) -> [u8; 32] {
-        self.tree.root()
+        self.current_root
     }
 
     pub fn get_leaf(&self, leaf_index: u64) -> [u8; 32] {
@@ -53,6 +54,7 @@ impl StagingTree {
             .update(&new_leaf, leaf_idx)
             .map_err(|e| anyhow!("Failed to update leaf {}: {:?}", leaf_index, e))?;
         self.updates.push((leaf_index, new_leaf));
+        self.current_root = self.tree.root();
         Ok(())
     }
 
@@ -138,15 +140,26 @@ impl StagingTree {
         // NOTE: We do NOT verify the tree root here because the tree is loaded with
         // deduplicated nodes from the indexer. The tree structure is sparse but sufficient
         // for incremental proof generation via the staging tree mechanism.
+        let total_nodes = tree.layers.iter().map(|l| l.len()).sum::<usize>();
         debug!(
             "StagingTree loaded: base_root={:?}, nodes={} total (sparse, deduplicated)",
             &base_root[..8],
-            tree.layers.iter().map(|l| l.len()).sum::<usize>()
+            total_nodes
         );
+
+        let computed_root = tree.root();
+        if computed_root != base_root {
+            debug!(
+                "StagingTree root mismatch after load: computed={:?}, expected(base)={:?}",
+                &computed_root[..8],
+                &base_root[..8]
+            );
+        }
 
         Ok(Self {
             tree,
             base_root,
+            current_root: base_root,
             updates: Vec::new(),
         })
     }
