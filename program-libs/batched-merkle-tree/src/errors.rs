@@ -51,8 +51,6 @@ pub enum BatchedMerkleTreeError {
     NonInclusionCheckFailed,
     #[error("Bloom filter must be zeroed prior to reusing a batch.")]
     BloomFilterNotZeroed,
-    #[error("Cannot zero out complete or more than complete root history.")]
-    CannotZeroCompleteRootHistory,
     #[error("Account error {0}")]
     AccountError(#[from] AccountError),
 }
@@ -72,7 +70,6 @@ impl From<BatchedMerkleTreeError> for u32 {
             BatchedMerkleTreeError::TreeIsFull => 14310,
             BatchedMerkleTreeError::NonInclusionCheckFailed => 14311,
             BatchedMerkleTreeError::BloomFilterNotZeroed => 14312,
-            BatchedMerkleTreeError::CannotZeroCompleteRootHistory => 14313,
             BatchedMerkleTreeError::Hasher(e) => e.into(),
             BatchedMerkleTreeError::ZeroCopy(e) => e.into(),
             BatchedMerkleTreeError::MerkleTreeMetadata(e) => e.into(),

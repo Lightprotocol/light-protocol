@@ -1880,7 +1880,7 @@ async fn test_batch_address_tree() {
 
     {
         println!("pre perform_batch_address_merkle_tree_update");
-        for _ in 0..6 {
+        for _ in 0..4 {
             perform_batch_address_merkle_tree_update(
                 &mut rpc,
                 &mut test_indexer,
@@ -1928,7 +1928,7 @@ async fn test_batch_address_tree() {
             .await
             .unwrap();
     }
-    for _ in 0..3 {
+    for _ in 0..5 {
         perform_batch_address_merkle_tree_update(
             &mut rpc,
             &mut test_indexer,
