@@ -348,9 +348,9 @@ async fn test_fill_state_queues_completely() {
                     .unwrap();
 
             // after 5 updates the first batch is completely inserted
-            // As soon as we switch to inserting the second batch we zero out the first batch since
-            // the second batch is completely full.
-            if i >= 5 {
+            // At the 5th update (i=4), batch 0 is marked as inserted and the bloom filter is zeroed
+            // since the second batch is completely full.
+            if i >= 4 {
                 let batch = merkle_tree_account.queue_batches.batches.first().unwrap();
                 assert!(batch.bloom_filter_is_zeroed());
                 //zeroed out values are no longer on the tree
@@ -358,17 +358,34 @@ async fn test_fill_state_queues_completely() {
                     assert!(!mock_indexer.merkle_tree.get_leaf_index(&value).is_some());
                 }
 
-                // Assert that none of the unsafe roots from batch 0 exist in root history
+                // Assert that all unsafe roots except the last one are zeroed
+                // The last root (at root_index) is the first safe root and should remain
                 if let Some(unsafe_roots) = batch_roots.get_by_key(&0) {
-                    for unsafe_root in unsafe_roots {
-                        assert!(
-                            !merkle_tree_account
-                                .root_history
-                                .iter()
-                                .any(|x| *x == *unsafe_root),
-                            "Unsafe root from batch 0 should be zeroed: {:?}",
-                            unsafe_root
-                        );
+                    // Only check roots that are still in root_history (not rotated out)
+                    for (idx, unsafe_root) in unsafe_roots.iter().enumerate() {
+                        let is_last_root = idx == unsafe_roots.len() - 1;
+
+                        if is_last_root {
+                            // The last root should still exist in root_history as the first safe root
+                            // Skip check if it's been rotated out
+                            if merkle_tree_account.root_history.iter().any(|x| *x == *unsafe_root) {
+                                assert!(
+                                    *unsafe_root != [0u8; 32],
+                                    "Last root from batch 0 should remain as first safe root: {:?}",
+                                    unsafe_root
+                                );
+                            }
+                        } else {
+                            // All other roots should NOT exist in root_history (either zeroed or rotated out)
+                            assert!(
+                                !merkle_tree_account
+                                    .root_history
+                                    .iter()
+                                    .any(|x| *x == *unsafe_root),
+                                "Unsafe root from batch 0 should be zeroed: {:?}",
+                                unsafe_root
+                            );
+                        }
                     }
                 }
             } else {

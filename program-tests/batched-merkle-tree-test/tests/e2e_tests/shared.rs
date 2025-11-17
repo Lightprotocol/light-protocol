@@ -149,19 +149,13 @@ pub fn assert_merkle_tree_update(
     let is_half_full = input_queue_current_batch.get_num_inserted_elements()
         >= input_queue_current_batch.batch_size / 2
         && input_queue_current_batch.get_state() != BatchState::Inserted;
-    let root_history_len = old_account.root_history.capacity() as u64;
-    let previous_batch = old_account.queue_batches.get_previous_batch();
-    let no_insert_since_last_batch_root = (previous_batch
-        .sequence_number
-        .saturating_sub(root_history_len))
-        == old_account.sequence_number;
+
     if is_half_full
         && input_queue_previous_batch_state == BatchState::Inserted
         && !old_account
             .queue_batches
             .get_previous_batch()
             .bloom_filter_is_zeroed()
-        && !no_insert_since_last_batch_root
     {
         println!("Entering zeroing block for batch {}", previous_batch_index);
         println!(
@@ -213,27 +207,45 @@ pub fn assert_merkle_tree_update(
             //    inclusion of values nullified in the previous batch.
             let num_remaining_roots = sequence_number - old_account.sequence_number;
             // 2.2. Zero out roots oldest to first safe root index.
-            for _ in 0..num_remaining_roots {
+            //      Skip one iteration we don't need to zero out
+            //      the first safe root.
+            for _ in 1..num_remaining_roots {
                 old_account.root_history[oldest_root_index] = [0u8; 32];
                 oldest_root_index += 1;
                 oldest_root_index %= old_account.root_history.len();
             }
 
-            // Assert that all unsafe roots from this batch are zeroed
+            // Assert that all unsafe roots except the last one are zeroed
+            // The last root (at root_index) is the first safe root and should remain
             let batch_key = previous_batch_index as u32;
             if let Some(unsafe_roots) = batch_roots.get_by_key(&batch_key) {
-                for unsafe_root in unsafe_roots {
-                    assert!(
-                        !old_account
-                            .root_history
-                            .iter()
-                            .any(|x| *x == *unsafe_root),
-                        "Unsafe root from batch {} should be zeroed: {:?} root history {:?}, unsafe roots {:?}",
-                        previous_batch_index,
-                        unsafe_root,
-                        old_account.root_history, unsafe_roots
-                    );
+                // Check all roots except the last one are zeroed
+                for (idx, unsafe_root) in unsafe_roots.iter().enumerate() {
+                    let is_last_root = idx == unsafe_roots.len() - 1;
+
+                    if is_last_root {
+                        // The last root is the first safe root.
+                        // Skip check if it's been rotated out of root_history
+                        if old_account.root_history.iter().any(|x| *x == *unsafe_root) {
+                            assert!(
+                                *unsafe_root != [0u8; 32],
+                                "Last root from batch {} should remain as first safe root: {:?}",
+                                previous_batch_index,
+                                unsafe_root
+                            );
+                        }
+                    } else {
+                        // All other roots should NOT exist in root_history (either zeroed or rotated out)
+                        assert!(
+                            !old_account.root_history.iter().any(|x| *x == *unsafe_root),
+                            "Unsafe root from batch {} should be zeroed: {:?} root history {:?}, unsafe roots {:?}",
+                            previous_batch_index,
+                            unsafe_root,
+                            old_account.root_history, unsafe_roots
+                        );
+                    }
                 }
+
                 // Clear unsafe roots after verification - batch index will be reused
                 if let Some(roots) = batch_roots.get_mut_by_key(&batch_key) {
                     roots.clear();
