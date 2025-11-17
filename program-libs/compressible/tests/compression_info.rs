@@ -406,13 +406,13 @@ fn test_calculate_top_up_lamports() {
             description: "Epoch 1: available_balance=775 (1.997 epochs), required=776 (2 epochs), compressible with 1 lamport deficit",
         },
         TestCase {
-            name: "exact boundary - not compressible by exact match",
+            name: "exact boundary - lagging claim requires top-up",
             current_slot: SLOTS_PER_EPOCH,
             current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 2),
             last_claimed_slot: 0,
             lamports_per_write,
-            expected_top_up: 0,
-            description: "Epoch 1: available_balance=776 == required=776 (2 epochs), not compressible, epochs_funded_ahead=2",
+            expected_top_up: lamports_per_write as u64,
+            description: "Epoch 1: last_claimed=epoch 0, funded through epoch 1, epochs_funded_ahead=1 < max=2",
         },
         // ============================================================
         // PATH 2: NOT COMPRESSIBLE, NEEDS TOP-UP (lamports_per_write)
@@ -472,7 +472,7 @@ fn test_calculate_top_up_lamports() {
             last_claimed_slot: 0,
             lamports_per_write,
             expected_top_up: 0,
-            description: "Epoch 0: not compressible, epochs_funded_ahead=2 >= max_funded_epochs=2, no top-up needed",
+            description: "Epoch 0: last_claimed=epoch 0, funded through epoch 1, epochs_funded_ahead=2 >= max=2",
         },
         TestCase {
             name: "3 epochs when max is 2",
@@ -487,7 +487,7 @@ fn test_calculate_top_up_lamports() {
             name: "2 epochs at epoch 1 boundary",
             current_slot: SLOTS_PER_EPOCH,
             current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 2),
-            last_claimed_slot: 0,
+            last_claimed_slot: SLOTS_PER_EPOCH,
             lamports_per_write,
             expected_top_up: 0,
             description: "Epoch 1: not compressible (has 776 for required 776), epochs_funded_ahead=2 >= max_funded_epochs=2",
