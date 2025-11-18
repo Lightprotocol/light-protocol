@@ -9,13 +9,11 @@ use light_compressed_account::hash_to_bn254_field_size_be;
 use light_compressed_token::mint_sdk::{
     create_create_token_pool_instruction, create_mint_to_instruction,
 };
+use light_compressed_token_sdk::compat::{AccountState, TokenData};
 use light_program_test::{
     accounts::test_accounts::TestAccounts, program_test::LightProgramTest, ProgramTestConfig,
 };
-use light_sdk::{
-    address::{v1::derive_address, NewAddressParams},
-    token::{AccountState, TokenData},
-};
+use light_sdk::address::{v1::derive_address, NewAddressParams};
 use light_test_utils::{system_program::create_invoke_instruction, RpcError};
 use solana_sdk::{
     compute_budget::ComputeBudgetInstruction,

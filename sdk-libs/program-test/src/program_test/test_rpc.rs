@@ -157,6 +157,9 @@ impl TestRpc for LightProgramTest {
         self.context.warp_to_slot(current_slot);
         let mut store = CompressibleAccountStore::new();
         crate::compressible::claim_and_compress(self, &mut store).await?;
+        for program_id in self.auto_compress_programs.clone() {
+            crate::compressible::auto_compress_program_pdas(self, program_id).await?;
+        }
         Ok(())
     }
 }

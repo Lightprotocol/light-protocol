@@ -31,7 +31,7 @@ light-prover-client = { workspace = true, features = ["devenv"] }
 num-bigint = { workspace = true }
 anchor-spl = { workspace = true }
 anchor-lang = { workspace = true }
-account-compression = { workspace = true }
+account-compression = { workspace = true, features = ["test"] }
 light-hasher = { workspace = true, features = ["poseidon"] }
 light-hash-set = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true }

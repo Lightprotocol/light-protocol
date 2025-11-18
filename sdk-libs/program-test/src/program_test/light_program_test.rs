@@ -33,6 +33,8 @@ pub struct LightProgramTest {
     pub test_accounts: TestAccounts,
     pub payer: Keypair,
     pub transaction_counter: usize,
+    #[cfg(feature = "devenv")]
+    pub auto_compress_programs: Vec<solana_sdk::pubkey::Pubkey>,
 }
 
 impl LightProgramTest {
@@ -77,6 +79,8 @@ impl LightProgramTest {
             payer,
             config: config.clone(),
             transaction_counter: 0,
+            #[cfg(feature = "devenv")]
+            auto_compress_programs: Vec::new(),
         };
         let keypairs = TestKeypairs::program_test_default();
 
@@ -148,6 +152,20 @@ impl LightProgramTest {
                                 e
                             ))
                         })?;
+                }
+            }
+            let (auto_register, additional_programs) = {
+                let auto = context
+                    .config
+                    .auto_register_custom_programs_for_pda_compression;
+                let progs = context.config.additional_programs.clone();
+                (auto, progs)
+            };
+            if auto_register {
+                if let Some(programs) = additional_programs {
+                    for (_, pid) in programs.into_iter() {
+                        context.register_auto_compression(pid);
+                    }
                 }
             }
             // Copy v1 state merkle tree accounts to devnet pubkeys
@@ -403,6 +421,13 @@ impl LightProgramTest {
             .as_ref()
             .ok_or(RpcError::IndexerNotInitialized)?)
         .clone())
+    }
+
+    #[cfg(feature = "devenv")]
+    pub fn register_auto_compression(&mut self, program_id: solana_sdk::pubkey::Pubkey) {
+        if !self.auto_compress_programs.contains(&program_id) {
+            self.auto_compress_programs.push(program_id);
+        }
     }
 }
 

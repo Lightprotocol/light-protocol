@@ -201,10 +201,7 @@ pub fn derive_compressed_mint_address(
     )
 }
 
-pub fn derive_compressed_mint_from_spl_mint(
-    mint: &Pubkey,
-    address_tree_pubkey: &Pubkey,
-) -> [u8; 32] {
+pub fn derive_cmint_from_spl_mint(mint: &Pubkey, address_tree_pubkey: &Pubkey) -> [u8; 32] {
     light_compressed_account::address::derive_address(
         &mint.to_bytes(),
         &address_tree_pubkey.to_bytes(),

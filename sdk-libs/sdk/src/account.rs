@@ -302,6 +302,17 @@ pub mod __internal {
         pub fn owner(&self) -> &Pubkey {
             &self.owner
         }
+        /// Get the byte size of the account type.
+        pub fn size(&self) -> usize
+        where
+            A: Size,
+        {
+            self.account.size()
+        }
+
+        pub fn remove_data(&mut self) {
+            self.should_remove_data = true;
+        }
 
         pub fn in_account_info(&self) -> &Option<InAccountInfo> {
             &self.account_info.input
