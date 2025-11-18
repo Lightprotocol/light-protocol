@@ -22,7 +22,6 @@ light-bloom-filter = { workspace = true, features = ["solana"] }
 light-zero-copy = { workspace = true }
 solana-pubkey = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
-light-array-map = { workspace = true}
 
 [lints.rust.unexpected_cfgs]
 level = "allow"
