@@ -27,6 +27,7 @@ tokio = { workspace = true }
 light-prover-client = { workspace = true, features = ["devenv"] }
 light-client = { workspace = true, features = ["devenv"] }
 anchor-lang = { workspace = true }
+anchor-spl = { workspace = true }
 forester-utils = { workspace = true }
 light-registry = { workspace = true }
 account-compression = { workspace = true }
@@ -40,3 +41,5 @@ light-compressed-token-sdk = { workspace = true }
 light-compressible = { workspace = true }
 light-token-client = { workspace = true }
 light-ctoken-types = { workspace = true }
+light-zero-copy = { workspace = true }
+borsh = { workspace = true }
