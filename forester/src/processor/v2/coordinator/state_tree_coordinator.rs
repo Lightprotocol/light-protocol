@@ -4,6 +4,9 @@ use std::{
     sync::Arc,
     time::{Duration, Instant},
 };
+use light_prover_client::proof_types::{
+    batch_append::BatchAppendInputsJson, batch_update::update_inputs_string,
+};
 
 use anyhow::Result;
 use forester_utils::{forester_epoch::EpochPhases, ParsedMerkleTreeData, ParsedQueueData};
@@ -57,7 +60,7 @@ struct QueueFetchResult {
     nullify_batch_ids: Vec<ProcessedBatchId>,
 }
 
-struct ParsedOnchainState {
+struct OnchainState {
     current_onchain_root: [u8; 32],
     root_history: Vec<[u8; 32]>,
     append_metadata: Option<(ParsedMerkleTreeData, ParsedQueueData)>,
@@ -75,10 +78,8 @@ pub struct StateTreeCoordinator<R: Rpc> {
     shared_state: SharedState,
     pub context: BatchContext<R>,
     current_light_slot: Option<u64>,
-    /// Cached staging tree to preserve across iterations when root hasn't changed.
-    /// Stores (staging_tree, root). The staging tree accumulates all updates across iterations.
-    /// When reusing, batch indices reset to 0 for new queue data, but the staging tree
-    /// already contains all previous updates, ensuring proofs include prior changes.
+    /// Cached staging tree to preserve across iteration.
+    /// Stores (staging_tree, root).
     cached_staging: Option<(super::tree_state::StagingTree, [u8; 32])>,
     pending_queue_items: usize,
     pending_append_items: usize,
@@ -202,13 +203,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     QueueType::OutputStateV2 => self.context.speculative_min_append_queue_items,
                     _ => self.context.speculative_min_append_queue_items,
                 };
-                trace!(
-                    "Speculation backlog check tree {}: type={:?} len={} threshold={}",
-                    self.context.merkle_tree,
-                    queue_type,
-                    queue_len,
-                    threshold
-                );
                 threshold == 0 || queue_len >= threshold
             })
             .unwrap_or(false);
@@ -241,55 +235,18 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let shared_state = {
             let mut states = PERSISTENT_TREE_STATES.lock().await;
             if let Some(state) = states.get(&key) {
-                info!(
-                    "COORDINATOR REUSE: Found existing SharedState for tree={} (initial_root={:?}, epoch={})",
-                    context.merkle_tree,
-                    &initial_root[..8],
-                    context.epoch
-                );
                 state.clone()
             } else {
-                info!(
-                    "COORDINATOR CREATE: Creating NEW SharedState for tree={} (initial_root={:?}, epoch={})",
-                    context.merkle_tree,
-                    &initial_root[..8],
-                    context.epoch
-                );
                 let new_state = create_shared_state(initial_root);
                 states.insert(key, new_state.clone());
                 new_state
             }
         };
 
-        // DIAGNOSTIC: Log coordinator instance creation with unique identifier
-        let coordinator_id = format!(
-            "{}@epoch{}",
-            &context.merkle_tree.to_string()[..8],
-            context.epoch
-        );
-        info!(
-            "StateTreeCoordinator instance created: id={}, tree={}, epoch={}, initial_root={:?}",
-            coordinator_id,
-            context.merkle_tree,
-            context.epoch,
-            &initial_root[..8]
-        );
-
-        // Load staging tree from global cache (survives across epochs)
         let cached_staging = {
             let staging_cache = PERSISTENT_STAGING_TREES.lock().await;
             staging_cache.get(&context.merkle_tree).cloned()
         };
-
-        if let Some((ref staging, ref cached_root)) = cached_staging {
-            info!(
-                "Loaded staging tree from previous epoch for tree={}, cached_root={:?}, on_chain_root={:?}, updates={}",
-                context.merkle_tree,
-                &cached_root[..8],
-                &initial_root[..8],
-                staging.get_updates().len()
-            );
-        }
 
         let initial_epoch = context.epoch;
         Self {
@@ -313,14 +270,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     pub async fn process(&mut self) -> Result<usize> {
         let mut total_items_processed = 0;
         let mut loop_iteration = 0;
-        let mut consecutive_retries = 0;
-        const MAX_CONSECUTIVE_RETRIES: usize = 10;
-
-        // DIAGNOSTIC: Log process() entry to track coordinator usage
-        debug!(
-            "StateTreeCoordinator::process() called for tree={}, epoch={}",
-            self.context.merkle_tree, self.context.epoch
-        );
+        let mut retries = 0;
+        const MAX_RETRIES: usize = 10;
 
         loop {
             loop_iteration += 1;
@@ -328,10 +279,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             let light_slot = self.calculate_light_slot();
             if let Some(cached_slot) = self.current_light_slot {
                 if light_slot != cached_slot {
-                    debug!(
-                        "Light slot changed {} -> {} (caches preserved until root changes)",
-                        cached_slot, light_slot
-                    );
                     self.current_light_slot = Some(light_slot);
                 }
             } else {
@@ -361,30 +308,27 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             {
                 Ok(items_this_iteration) => {
                     total_items_processed += items_this_iteration;
-                    consecutive_retries = 0; // Reset retry counter on success
+                    retries = 0;
                 }
                 Err(e) => {
                     if let Some(coord_err) = e.downcast_ref::<CoordinatorError>() {
                         if coord_err.is_retryable() {
-                            consecutive_retries += 1;
+                            retries += 1;
 
-                            if consecutive_retries >= MAX_CONSECUTIVE_RETRIES {
+                            if retries >= MAX_RETRIES {
                                 warn!(
-                                    "Max consecutive retries ({}) reached for error: {}. Giving up on this batch.",
-                                    MAX_CONSECUTIVE_RETRIES, coord_err
+                                    "Max retries ({}) reached for error: {}",
+                                    MAX_RETRIES, coord_err
                                 );
                                 self.record_cache_event("invalidate", "max_retries");
                                 self.cached_staging = None;
-                                // Break out of retry loop but don't return error - just move to next iteration
                                 break;
                             }
 
-                            // Only invalidate cache (force resync) if the error indicates we're out of sync
-                            // For other retryable errors (like PhotonStale), keep our optimistic local state
                             if coord_err.requires_resync() {
                                 debug!(
                                     "Invalidating cache and resyncing due to: {} (retry {}/{})",
-                                    coord_err, consecutive_retries, MAX_CONSECUTIVE_RETRIES
+                                    coord_err, retries, MAX_RETRIES
                                 );
                                 self.record_cache_event("invalidate", "retryable_resync");
                                 self.cached_staging = None;
@@ -392,14 +336,9 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                                 debug!("Retrying without resync for: {}", coord_err);
                             }
 
-                            if matches!(coord_err, CoordinatorError::PhotonStale { .. }) {
-                                debug!("Photon staleness detected, waiting before retry");
-                                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-                            }
                             continue;
                         }
                     }
-                    // Clear both local and global cache on error
                     self.record_cache_event("invalidate", "non_retryable_error");
                     self.cached_staging = None;
                     {
@@ -426,13 +365,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     /// Call this when transaction submission fails to ensure the next iteration starts fresh.
     pub async fn invalidate_cache(&mut self) {
         if self.cached_staging.is_some() {
-            debug!(
-                "Invalidating cached staging tree due to external failure (e.g., transaction submission failed)"
-            );
             self.record_cache_event("invalidate", "external_request");
             self.cached_staging = None;
-
-            // Also clear from global cache
             let mut staging_cache = PERSISTENT_STAGING_TREES.lock().await;
             staging_cache.remove(&self.context.merkle_tree);
         }
@@ -442,7 +376,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         &mut self,
         num_append_batches: usize,
         num_nullify_batches: usize,
-        _loop_iteration: usize,
         queue_result: QueueFetchResult,
     ) -> Result<usize> {
         let iteration_start = Instant::now();
@@ -554,12 +487,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 num_nullify_batches,
             );
         }
-
-        debug!(
-            "Iteration complete. Processed {} items with final root: {:?}",
-            total_items,
-            &final_root[..8]
-        );
 
         Ok(total_items)
     }
@@ -897,7 +824,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         num_nullify_batches: usize,
         mut merkle_tree_account: Account,
         output_queue_account: Option<Account>,
-    ) -> Result<ParsedOnchainState> {
+    ) -> Result<OnchainState> {
         let merkle_tree_parsed = BatchedMerkleTreeAccount::state_from_bytes(
             merkle_tree_account.data.as_mut_slice(),
             &self.context.merkle_tree.into(),
@@ -938,7 +865,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 (None, Some(tree_data), vec![], nullify_ids)
             };
 
-        Ok(ParsedOnchainState {
+        Ok(OnchainState {
             current_onchain_root,
             root_history: merkle_tree_parsed.root_history.to_vec(),
             append_metadata,
@@ -950,7 +877,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
     async fn fetch_indexed_queues(
         &self,
-        parsed_state: &ParsedOnchainState,
+        parsed_state: &OnchainState,
         num_nullify_batches: usize,
     ) -> Result<light_client::indexer::QueueElementsV2Result> {
         let (output_queue_limit, input_queue_limit) = Self::calculate_queue_limits(
@@ -959,7 +886,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             num_nullify_batches,
         );
 
-        // Note: wait_for_indexer is now called before fetching accounts in fetch_queues_with_accounts
         let mut connection = self.context.rpc_pool.get_connection().await?;
         let indexer = connection.indexer_mut()?;
 
@@ -984,30 +910,14 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
     fn construct_result(
         &self,
-        parsed_state: ParsedOnchainState,
+        parsed_state: OnchainState,
         output_queue_v2: Option<light_client::indexer::OutputQueueDataV2>,
         input_queue_v2: Option<light_client::indexer::InputQueueDataV2>,
     ) -> Result<QueueFetchResult> {
-        // Build staging tree directly from indexer data using sparse tree approach
         let staging = super::tree_state::StagingTree::from_v2_response(
             output_queue_v2.as_ref(),
             input_queue_v2.as_ref(),
         )?;
-
-        tracing::info!(
-            "construct_result: Built staging tree from indexer (sparse), root={:?}, on-chain root={:?}",
-            &staging.base_root()[..8],
-            &parsed_state.current_onchain_root[..8]
-        );
-
-        // Verify that indexer's root matches on-chain root
-        if staging.base_root() != parsed_state.current_onchain_root {
-            tracing::warn!(
-                "Indexer root mismatch! indexer={:?}, on-chain={:?}",
-                &staging.base_root()[..8],
-                &parsed_state.current_onchain_root[..8]
-            );
-        }
 
         let append_data = Self::build_append_data(
             output_queue_v2.as_ref(),
@@ -1036,17 +946,13 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         &self,
         num_append_batches: usize,
         num_nullify_batches: usize,
-        _merkle_tree_account: Account,
-        _output_queue_account: Option<Account>,
     ) -> Result<QueueFetchResult> {
-        // Wait for indexer to sync FIRST, before fetching fresh on-chain state
         let connection = self.context.rpc_pool.get_connection().await?;
         forester_utils::utils::wait_for_indexer(&*connection)
             .await
             .map_err(|e| anyhow::anyhow!("Indexer failed to catch up before fetch: {}", e))?;
         drop(connection);
 
-        // Now fetch fresh on-chain accounts AFTER indexer is synced
         let rpc = self.context.rpc_pool.get_connection().await?;
         let mut fresh_accounts = rpc
             .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
@@ -1119,24 +1025,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     photon_root.copy_from_slice(&oq.initial_root[..8]);
                     onchain_root.copy_from_slice(&current_onchain_root[..8]);
 
-                    // Verify if Photon's root exists in on-chain root history
-                    let root_in_history = root_history.contains(&oq.initial_root);
-                    if root_in_history {
-                        warn!(
-                            "Photon output queue root exists in history but is stale (photon={:?}, current={:?}, history_len={})",
-                            photon_root,
-                            onchain_root,
-                            root_history.len()
-                        );
-                    } else {
-                        error!(
-                            "Photon output queue root NOT found in on-chain history! This indicates data corruption or wrong tree (photon={:?}, current={:?}, history_len={})",
-                            photon_root,
-                            onchain_root,
-                            root_history.len()
-                        );
-                    }
-
                     return Err(CoordinatorError::PhotonStale {
                         queue_type: "output".to_string(),
                         photon_root,
@@ -1171,25 +1059,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     let mut onchain_root = [0u8; 8];
                     photon_root.copy_from_slice(&iq.initial_root[..8]);
                     onchain_root.copy_from_slice(&current_onchain_root[..8]);
-
-                    // Verify if Photon's root exists in on-chain root history
-                    let root_in_history = root_history.contains(&iq.initial_root);
-                    if root_in_history {
-                        warn!(
-                            "Photon input queue root exists in history but is stale (photon={:?}, current={:?}, history_len={})",
-                            photon_root,
-                            onchain_root,
-                            root_history.len()
-                        );
-                    } else {
-                        error!(
-                            "Photon input queue root NOT found in on-chain history! This indicates data corruption or wrong tree (photon={:?}, current={:?}, history_len={})",
-                            photon_root,
-                            onchain_root,
-                            root_history.len()
-                        );
-                    }
-
                     return Err(CoordinatorError::PhotonStale {
                         queue_type: "input".to_string(),
                         photon_root,
@@ -1326,12 +1195,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         let mut state = if let Some((cached_staging, cached_root)) = self.cached_staging.take() {
             if cached_root == on_chain_root {
-                debug!(
-                    "Reusing cached staging: root={:?}, {} accumulated updates",
-                    &on_chain_root[..8],
-                    cached_staging.get_updates().len()
-                );
-                self.record_cache_event("hit", "prep_root_match");
+               self.record_cache_event("hit", "prep_root_match");
 
                 PreparationState::with_cached_staging(
                     append_leaf_indices,
@@ -1341,38 +1205,15 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     on_chain_root,
                 )
             } else {
-                warn!(
-                    "Cached staging root diverged (cached={:?}, current={:?}); rebuilding",
-                    &cached_root[..8],
-                    &on_chain_root[..8]
-                );
                 self.record_cache_event("invalidate", "prep_root_mismatch");
                 PreparationState::new(staging, append_leaf_indices)
             }
         } else {
-            debug!(
-                "No cached staging tree, building fresh from on-chain root={:?}",
-                &on_chain_root[..8]
-            );
             PreparationState::new(staging, append_leaf_indices)
         };
         let mut prepared_batches = Vec::with_capacity(pattern.len());
 
-        // DIAGNOSTIC: Log initial staging root before any batch preparation
-        debug!(
-            "Starting batch preparation: staging.current_root={:?}",
-            &state.staging.current_root()[..8]
-        );
-
         for (i, batch_type) in pattern.iter().enumerate() {
-            // DIAGNOSTIC: Log staging root before each batch
-            debug!(
-                "Before preparing batch {} (type={:?}): staging.current_root={:?}",
-                i,
-                batch_type.as_str(),
-                &state.staging.current_root()[..8]
-            );
-
             let prepared_batch = match batch_type {
                 BatchType::Append => {
                     let append_data =
@@ -1424,7 +1265,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 }
             };
 
-            // DIAGNOSTIC: Log staging root after each batch
             debug!(
                 "After preparing batch {} (type={:?}): staging.current_root={:?}",
                 i,
@@ -1452,9 +1292,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         proof_tx: tokio::sync::mpsc::Sender<(usize, PreparedBatch, Result<ProofResult>)>,
         config: ProofConfig,
     ) -> Result<Duration> {
-        use light_prover_client::proof_types::{
-            batch_append::BatchAppendInputsJson, batch_update::update_inputs_string,
-        };
 
         let append_client = Arc::new(ProofClient::with_config(
             config.append_url.clone(),
@@ -2225,7 +2062,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     }
 }
 
-/// Print cumulative performance summary across all trees.
 pub async fn print_cumulative_performance_summary(label: &str) {
     let states = PERSISTENT_TREE_STATES.lock().await;
 

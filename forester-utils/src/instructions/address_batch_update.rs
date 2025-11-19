@@ -20,9 +20,9 @@ use light_prover_client::{
     proof_types::batch_address_append::get_batch_address_append_circuit_inputs,
 };
 use light_sparse_merkle_tree::SparseMerkleTree;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
-use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool, utils::wait_for_indexer};
+use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool};
 
 const MAX_PHOTON_ELEMENTS_PER_CALL: usize = 500;
 const MAX_PROOFS_PER_TX: usize = 3;
