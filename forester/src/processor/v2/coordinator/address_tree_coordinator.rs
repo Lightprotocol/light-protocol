@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, VecDeque},
     fmt,
     sync::Arc,
     time::{Duration, Instant},
@@ -44,7 +44,7 @@ struct ParsedOnchainState {
     root_history: Vec<[u8; 32]>,
     zkp_batch_size: u16,
     start_index: u64,
-    _batch_ids: Vec<ProcessedBatchId>,
+    batch_ids: VecDeque<ProcessedBatchId>,
 }
 
 pub struct AddressTreeCoordinator<R: Rpc> {
@@ -66,8 +66,9 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         metrics::update_pending_queue_items(&self.context.merkle_tree, self.pending_queue_items);
     }
 
-    pub fn refresh_epoch_context(&mut self, epoch: u64) {
+    pub fn refresh_epoch_context(&mut self, epoch: u64, epoch_phases: forester_utils::forester_epoch::EpochPhases) {
         self.context.epoch = epoch;
+        self.context.epoch_phases = epoch_phases;
     }
 
     pub fn on_queue_update(&mut self, queue_size: u64) {
@@ -100,16 +101,18 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             let mut states = PERSISTENT_ADDRESS_TREE_STATES.lock().await;
             if let Some(state) = states.get(&key) {
                 info!(
-                    "COORDINATOR REUSE: Found existing SharedState for address tree={} (initial_root={:?})",
+                    "COORDINATOR REUSE: Found existing SharedState for address tree={} (initial_root={:?}, epoch={})",
                     context.merkle_tree,
-                    &initial_root[..8]
+                    &initial_root[..8],
+                    context.epoch
                 );
                 state.clone()
             } else {
                 info!(
-                    "COORDINATOR NEW: Creating new SharedState for address tree={} (initial_root={:?})",
+                    "COORDINATOR NEW: Creating new SharedState for address tree={} (initial_root={:?}, epoch={})",
                     context.merkle_tree,
-                    &initial_root[..8]
+                    &initial_root[..8],
+                    context.epoch
                 );
                 let new_state = create_shared_state(initial_root);
                 states.insert(key, new_state.clone());
@@ -163,6 +166,16 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
                 Ok(items_this_iteration) => {
                     total_items_processed += items_this_iteration;
                     consecutive_retries = 0;
+
+                    // If we had batches to process but processed 0 items, it means
+                    // the active phase ended and we couldn't submit. Exit the loop.
+                    if num_batches > 0 && items_this_iteration == 0 {
+                        info!(
+                            "Active phase ended with {} batches remaining unprocessed. Exiting epoch {} processing.",
+                            num_batches, self.context.epoch
+                        );
+                        break;
+                    }
                 }
                 Err(e) => {
                     if let Some(coord_err) = e.downcast_ref::<CoordinatorError>() {
@@ -225,12 +238,12 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
 
     async fn process_single_iteration(
         &mut self,
-        num_batches: usize,
+        _num_batches: usize,
         _loop_iteration: usize,
         address_data: AddressQueueData,
     ) -> Result<usize> {
         let iteration_start = Instant::now();
-        let phase1_start = Instant::now();
+        let total_batches = address_data.leaves_hash_chains.len();
 
         let (prep_tx, prep_rx) = tokio::sync::mpsc::channel(50);
         let (proof_tx, proof_rx) = tokio::sync::mpsc::channel(50);
@@ -248,20 +261,45 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             Self::generate_proofs_streaming(prep_rx, proof_tx, proof_config).await
         });
 
-        let final_root = self
-            .prepare_batches_streaming(&address_data, prep_tx)
-            .await?;
+        let prepare_future = self.prepare_batches_streaming(&address_data, prep_tx);
+        let submit_future = self.submit_proofs_streaming(proof_rx, address_data.zkp_batch_size);
+
+        let ((final_root, phase1_duration), (total_items, phase3_duration)) =
+            tokio::try_join!(prepare_future, submit_future)?;
+
+        let submitted_batches = total_items
+            .checked_div(address_data.zkp_batch_size as usize)
+            .unwrap_or(0);
+
+        info!(
+            "Submitted {} out of {} address batches for tree {} (total_items={}, zkp_batch_size={})",
+            submitted_batches, total_batches, self.context.merkle_tree, total_items, address_data.zkp_batch_size
+        );
 
         {
             let mut state = self.shared_state.write().await;
-            state.update_root(final_root);
+            if submitted_batches == total_batches {
+                state.update_root(final_root);
+            } else if submitted_batches > 0 {
+                debug!(
+                    "Deferring root update: submitted {}/{} address batches for tree {}",
+                    submitted_batches, total_batches, self.context.merkle_tree
+                );
+            }
+
+            info!(
+                "Marking {} batches as processed (out of {} batch_ids available)",
+                submitted_batches,
+                address_data.batch_ids.len()
+            );
+            for (i, batch_id) in address_data.batch_ids.iter().take(submitted_batches).enumerate() {
+                debug!(
+                    "  marking batch_id[{}] as processed: batch_index={}, zkp_batch_index={}, start_leaf_index={:?}",
+                    i, batch_id.batch_index, batch_id.zkp_batch_index, batch_id.start_leaf_index
+                );
+                state.mark_batch_processed(*batch_id);
+            }
         }
-
-        let phase1_duration = phase1_start.elapsed();
-
-        let (total_items, phase3_duration) = self
-            .submit_proofs_streaming(proof_rx, address_data.zkp_batch_size)
-            .await?;
 
         let phase2_duration = proof_gen_handle.await??;
         let total_duration = iteration_start.elapsed();
@@ -271,7 +309,7 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             phase2_duration,
             phase3_duration,
             total_duration,
-            append_batches: num_batches,
+            append_batches: submitted_batches,
             nullify_batches: 0,
         };
         metrics::observe_iteration_duration(&self.context.merkle_tree, total_duration);
@@ -281,17 +319,20 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             state.add_iteration_metrics(metrics);
         }
 
-        self.validate_root(final_root, "address tree execution")
-            .await?;
-
-        let processed_items = num_batches.saturating_mul(address_data.zkp_batch_size as usize);
-        self.consume_processed_items(processed_items);
-        metrics::increment_batches_processed(&self.context.merkle_tree, "address", num_batches);
+        if submitted_batches > 0 {
+            self.validate_root(final_root, "address tree execution")
+                .await?;
+            self.consume_processed_items(total_items);
+            metrics::increment_batches_processed(
+                &self.context.merkle_tree,
+                "address",
+                submitted_batches,
+            );
+        }
 
         debug!(
-            "Iteration complete. Processed {} items with final root: {:?}",
-            total_items,
-            &final_root[..8]
+            "Iteration complete. Submitted {} address batches ({} items)",
+            submitted_batches, total_items
         );
 
         Ok(total_items)
@@ -306,8 +347,12 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         let shared_state = self.shared_state.read().await;
         let processed_batches = &shared_state.processed_batches;
 
-        let num_batches =
-            Self::count_ready_batches(&tree_data.queue_batches.batches, processed_batches);
+        let num_batches = Self::count_ready_batches(
+            &tree_data.queue_batches.batches,
+            processed_batches,
+            tree_data.next_index,
+        )
+        .min(1);
 
         drop(shared_state);
         Ok(num_batches)
@@ -323,8 +368,12 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         let shared_state = self.shared_state.read().await;
         let processed_batches = &shared_state.processed_batches;
 
-        let num_batches =
-            Self::count_ready_batches(&tree_data.queue_batches.batches, processed_batches);
+        let num_batches = Self::count_ready_batches(
+            &tree_data.queue_batches.batches,
+            processed_batches,
+            tree_data.next_index,
+        )
+        .min(1);
 
         drop(shared_state);
         Ok(num_batches)
@@ -333,6 +382,7 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
     fn count_ready_batches(
         batches: &[light_batched_merkle_tree::batch::Batch; 2],
         processed_batches: &std::collections::HashSet<ProcessedBatchId>,
+        _queue_next_index: u64,
     ) -> usize {
         let mut total_ready = 0;
 
@@ -346,10 +396,12 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             let num_inserted_zkps = batch.get_num_inserted_zkps() as usize;
 
             for zkp_idx in num_inserted_zkps..num_full_zkp_batches {
+                let start_leaf_index = batch.start_index + (zkp_idx as u64 * batch.zkp_batch_size);
                 let batch_id = ProcessedBatchId {
                     batch_index: batch_idx,
                     zkp_batch_index: zkp_idx as u64,
                     is_append: false, // Address trees use non-append batch tracking
+                    start_leaf_index: Some(start_leaf_index),
                 };
                 if !processed_batches.contains(&batch_id) {
                     total_ready += 1;
@@ -381,6 +433,20 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         let mut batch_ids = Vec::new();
         let mut zkp_batch_size = 0u16;
         let mut start_index = 0u64;
+        let mut start_index_set = false;
+
+        // For rolling batches, calculate the actual start position based on the tree's next_index
+        // and which batches have been fully inserted
+        let tree_next_index = merkle_tree_parsed.next_index;
+        let queue_next_index = merkle_tree_parsed.queue_batches.next_index;
+
+        // Calculate how many addresses have been inserted into the tree
+        // tree.next_index is where the NEXT leaf will go (1-indexed for address trees)
+        let num_addresses_in_tree = if tree_next_index > 1 {
+            tree_next_index - 1
+        } else {
+            0
+        };
 
         for (batch_idx, batch) in merkle_tree_parsed.queue_batches.batches.iter().enumerate() {
             let batch_state = batch.get_state();
@@ -393,30 +459,86 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
 
                 if batch_idx == 0 || zkp_batch_size == 0 {
                     zkp_batch_size = batch.zkp_batch_size as u16;
-                    start_index = merkle_tree_parsed.next_index;
                 }
 
-                for i in num_inserted..current_index {
-                    let batch_id = ProcessedBatchId {
-                        batch_index: batch_idx,
-                        zkp_batch_index: i,
-                        is_append: false,
-                    };
+                tracing::debug!(
+                    "Address batch {} state={:?} num_inserted={} current_index={} start_index={} (on-chain stale), tree_next_index={}, num_addresses_in_tree={}",
+                    batch_idx,
+                    batch_state,
+                    num_inserted,
+                    current_index,
+                    batch.start_index,
+                    tree_next_index,
+                    num_addresses_in_tree
+                );
 
-                    if !shared_state.is_batch_processed(&batch_id) {
-                        batch_ids.push(batch_id);
+                if current_index > num_inserted {
+                    // Calculate the ACTUAL start position for this zkp batch
+                    // tree.next_index tells us where the NEXT leaf will go in the tree
+                    // For address trees, tree.next_index is 1-indexed (first address at index 1)
+                    // So num_addresses_in_tree = tree.next_index - 1
+                    //
+                    // The first uninserted zkp batch (at index num_inserted) should start at tree.next_index
+                    let first_uninserted_start = tree_next_index;
+
+                    if !start_index_set {
+                        start_index = first_uninserted_start;
+                        start_index_set = true;
+                    }
+
+                    for i in num_inserted..current_index {
+                        // Each zkp batch after num_inserted is offset by (i - num_inserted) * zkp_batch_size
+                        let start_leaf_index = first_uninserted_start + ((i - num_inserted) * batch.zkp_batch_size);
+
+                        tracing::debug!(
+                            "  Creating batch_id: batch_index={}, zkp_batch_index={}, start_leaf_index={} (calculated: tree.next_index={} + ({} - {}) * {})",
+                            batch_idx,
+                            i,
+                            start_leaf_index,
+                            tree_next_index,
+                            i,
+                            num_inserted,
+                            batch.zkp_batch_size
+                        );
+
+                        let batch_id = ProcessedBatchId {
+                            batch_index: batch_idx,
+                            zkp_batch_index: i,
+                            is_append: false,
+                            start_leaf_index: Some(start_leaf_index),
+                        };
+
+                        if !shared_state.is_batch_processed(&batch_id) {
+                            batch_ids.push(batch_id);
+                        }
                     }
                 }
             }
         }
         drop(shared_state);
 
+        info!(
+            "Created {} batch_ids for processing (tree={})",
+            batch_ids.len(),
+            self.context.merkle_tree
+        );
+        for (i, batch_id) in batch_ids.iter().enumerate() {
+            debug!(
+                "  batch_id[{}]: batch_index={}, zkp_batch_index={}, start_leaf_index={:?}",
+                i, batch_id.batch_index, batch_id.zkp_batch_index, batch_id.start_leaf_index
+            );
+        }
+
         Ok(ParsedOnchainState {
             current_onchain_root,
             root_history: merkle_tree_parsed.root_history.to_vec(),
             zkp_batch_size,
-            start_index,
-            _batch_ids: batch_ids,
+            start_index: if start_index_set {
+                start_index
+            } else {
+                merkle_tree_parsed.next_index
+            },
+            batch_ids: VecDeque::from(batch_ids),
         })
     }
 
@@ -492,21 +614,48 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             .check_readiness_from_account(&fresh_merkle_tree_account)
             .await?;
 
-        let parsed_state = self
+        let mut parsed_state = self
             .parse_onchain_account(num_batches_fresh, fresh_merkle_tree_account)
             .await?;
 
         let total_elements = num_batches_fresh * parsed_state.zkp_batch_size as usize;
 
+        debug!(
+            "Requesting {} address elements from Photon (num_batches={}, zkp_batch_size={})",
+            total_elements, num_batches_fresh, parsed_state.zkp_batch_size
+        );
+
         let mut connection = self.context.rpc_pool.get_connection().await?;
         let indexer = connection.indexer_mut()?;
+
+        // Calculate the queue start index: for address trees, queue_index = leaf_index - 1
+        // (first address in queue goes to leaf position 1)
+        // Use the first batch_id's start_leaf_index to get the correct starting position
+        let address_queue_start_idx = if let Some(first_batch_id) = parsed_state.batch_ids.front() {
+            if let Some(start_leaf) = first_batch_id.start_leaf_index {
+                if start_leaf > 1 {
+                    Some(start_leaf - 1)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        } else {
+            None
+        };
+
+        debug!(
+            "Photon options: address_queue_start_index={:?}, limit={}, zkp_batch_size={}",
+            address_queue_start_idx, total_elements, parsed_state.zkp_batch_size
+        );
 
         let options = light_client::indexer::QueueElementsV2Options {
             output_queue_start_index: None,
             output_queue_limit: None,
             input_queue_start_index: None,
             input_queue_limit: None,
-            address_queue_start_index: None,
+            address_queue_start_index: address_queue_start_idx,
             address_queue_limit: Some(total_elements as u16),
             address_queue_zkp_batch_size: Some(parsed_state.zkp_batch_size),
         };
@@ -577,35 +726,105 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         let low_element_proofs = address_queue_v2.low_element_proofs.clone();
         let subtrees = address_queue_v2.subtrees.clone();
 
+        let all_leaves_hash_chains: Vec<[u8; 32]> = address_queue_v2
+            .leaves_hash_chains
+            .iter()
+            .map(|h| h.to_bytes())
+            .collect();
+
+        // Calculate offset: Photon returns addresses starting from address_queue_v2.start_index,
+        // but we need addresses starting from parsed_state.start_index
+        let offset_addresses = parsed_state.start_index.saturating_sub(address_queue_v2.start_index);
+        let offset_batches = (offset_addresses / parsed_state.zkp_batch_size as u64) as usize;
+
+        debug!(
+            "Photon returned {} hash chains starting at tree index {}, but we need starting at {}. Skipping {} batches (offset={} addresses)",
+            all_leaves_hash_chains.len(),
+            address_queue_v2.start_index,
+            parsed_state.start_index,
+            offset_batches,
+            offset_addresses
+        );
+
+        // Skip already-processed batches
+        let leaves_hash_chains: Vec<[u8; 32]> = all_leaves_hash_chains
+            .into_iter()
+            .skip(offset_batches)
+            .collect();
+        let batch_count = leaves_hash_chains.len();
+
+        info!(
+            "After applying offset (skipping {} batches), we have {} hash chains and {} batch_ids in VecDeque (tree={})",
+            offset_batches,
+            batch_count,
+            parsed_state.batch_ids.len(),
+            self.context.merkle_tree
+        );
+
+        let mut batch_ids = Vec::with_capacity(batch_count);
+        for i in 0..batch_count {
+            if let Some(id) = parsed_state.batch_ids.pop_front() {
+                debug!(
+                    "  Popped batch_id[{}] from VecDeque: batch_index={}, zkp_batch_index={}, start_leaf_index={:?}",
+                    i, id.batch_index, id.zkp_batch_index, id.start_leaf_index
+                );
+                batch_ids.push(id);
+            } else {
+                warn!(
+                    "  VecDeque exhausted at index {}/{} (tree={})",
+                    i, batch_count, self.context.merkle_tree
+                );
+                break;
+            }
+        }
+
+        info!(
+            "Popped {} batch_ids from VecDeque (tree={}), {} remaining in VecDeque",
+            batch_ids.len(),
+            self.context.merkle_tree,
+            parsed_state.batch_ids.len()
+        );
+
+        // Also need to skip the corresponding addresses and proofs
+        let skip_addresses = offset_batches * parsed_state.zkp_batch_size as usize;
+        let addresses: Vec<[u8; 32]> = address_queue_v2.addresses.into_iter().skip(skip_addresses).collect();
+        let low_element_values: Vec<[u8; 32]> = address_queue_v2.low_element_values.into_iter().skip(skip_addresses).collect();
+        let low_element_next_values: Vec<[u8; 32]> = address_queue_v2.low_element_next_values.into_iter().skip(skip_addresses).collect();
+        let low_element_indices: Vec<u64> = address_queue_v2.low_element_indices.into_iter().skip(skip_addresses).collect();
+        let low_element_next_indices: Vec<u64> = address_queue_v2.low_element_next_indices.into_iter().skip(skip_addresses).collect();
+        let low_element_proofs_filtered: Vec<Vec<[u8; 32]>> = low_element_proofs.into_iter().skip(skip_addresses).collect();
+
         Ok(AddressQueueData {
-            addresses: address_queue_v2.addresses.clone(),
-            low_element_values: address_queue_v2.low_element_values.clone(),
-            low_element_next_values: address_queue_v2.low_element_next_values.clone(),
-            low_element_indices: address_queue_v2.low_element_indices.clone(),
-            low_element_next_indices: address_queue_v2.low_element_next_indices.clone(),
-            low_element_proofs,
-            leaves_hash_chains: address_queue_v2
-                .leaves_hash_chains
-                .iter()
-                .map(|h| h.to_bytes())
-                .collect(),
+            addresses,
+            low_element_values,
+            low_element_next_values,
+            low_element_indices,
+            low_element_next_indices,
+            low_element_proofs: low_element_proofs_filtered,
+            leaves_hash_chains,
             zkp_batch_size: parsed_state.zkp_batch_size,
             subtrees,
             start_index: parsed_state.start_index,
+            batch_ids,
         })
     }
 
     async fn prepare_batches_streaming(
-        &mut self,
+        &self,
         address_data: &AddressQueueData,
         tx: tokio::sync::mpsc::Sender<(usize, PreparedBatch)>,
-    ) -> Result<[u8; 32]> {
+    ) -> Result<([u8; 32], Duration)> {
+        let prepare_start = Instant::now();
+
         let subtrees_array: [[u8; 32]; DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize] = address_data
             .subtrees
             .clone()
             .try_into()
             .map_err(|_| anyhow::anyhow!("Failed to convert subtrees to array"))?;
 
+        // Note: The sparse merkle tree is initialized with address_data.start_index,
+        // which represents where in the tree we should start inserting.
+        // The tree internally maintains the next available position.
         let mut sparse_merkle_tree =
             SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(
                 subtrees_array,
@@ -673,12 +892,12 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             let inputs = light_prover_client::proof_types::batch_address_append::get_batch_address_append_circuit_inputs(
                 adjusted_start_index,
                 current_root,
-                low_element_values,
-                low_element_next_values,
-                low_element_indices,
-                low_element_next_indices,
-                low_element_proofs,
-                batch_addresses,
+                low_element_values.clone(),
+                low_element_next_values.clone(),
+                low_element_indices.clone(),
+                low_element_next_indices.clone(),
+                low_element_proofs.clone(),
+                batch_addresses.clone(),
                 &mut sparse_merkle_tree,
                 *leaves_hash_chain,
                 batch_size,
@@ -687,8 +906,21 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             )
             .map_err(|e| anyhow::anyhow!("Failed to get circuit inputs: {}", e))?;
 
-            current_root = bigint_to_be_bytes_array::<32>(&inputs.new_root)
+            let new_root_bytes = bigint_to_be_bytes_array::<32>(&inputs.new_root)
                 .map_err(|e| anyhow::anyhow!("Failed to convert new_root to bytes: {}", e))?;
+
+            tracing::info!(
+                "Prepared address batch {}: start_index={}, current_root={:?}, new_root={:?}, addresses={}, low_indices_sample={:?}, leaves_hash_chain={:?}",
+                batch_idx,
+                adjusted_start_index,
+                &current_root[..8],
+                &new_root_bytes[..8],
+                batch_addresses.len(),
+                &low_element_indices[..low_element_indices.len().min(2)],
+                &leaves_hash_chain[..8]
+            );
+
+            current_root = new_root_bytes;
             next_index = next_index
                 .checked_add(batch_len)
                 .ok_or_else(|| anyhow::anyhow!("Address batch index overflow"))?;
@@ -707,7 +939,7 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             );
         }
 
-        Ok(current_root)
+        Ok((current_root, prepare_start.elapsed()))
     }
 
     async fn generate_proofs_streaming(
@@ -878,7 +1110,7 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
     ) -> Result<(usize, Duration)> {
         use std::collections::BTreeMap;
 
-        const MAX_BATCH_SIZE: usize = 3;
+        const BATCH_SUBMIT_TIMEOUT_SECS: u64 = 2; // Submit whatever we have after this timeout
 
         let mut buffer: BTreeMap<usize, Result<InstructionDataAddressAppendInputs>> =
             BTreeMap::new();
@@ -886,44 +1118,96 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         let mut total_items = 0;
         let mut total_submit_duration = Duration::ZERO;
         let mut ready_proofs = Vec::new();
+        let mut last_submit_time = Instant::now();
 
-        while let Some((idx, proof_result)) = proof_rx.recv().await {
-            buffer.insert(idx, proof_result);
+        loop {
+            let timeout_duration = Duration::from_secs(BATCH_SUBMIT_TIMEOUT_SECS);
+            let time_since_last_submit = last_submit_time.elapsed();
+            let remaining_timeout = timeout_duration.saturating_sub(time_since_last_submit);
 
-            while let Some(proof_result) = buffer.remove(&next_to_submit) {
-                let proof = proof_result.map_err(|e| {
-                    anyhow::anyhow!(
-                        "Proof generation failed for batch {}: {}",
-                        next_to_submit,
-                        e
-                    )
-                })?;
-
-                ready_proofs.push(proof);
-                next_to_submit += 1;
-
-                if ready_proofs.len() >= MAX_BATCH_SIZE {
-                    let submit_start = Instant::now();
-                    match super::batch_submission::submit_address_batches(
-                        &self.context,
-                        std::mem::take(&mut ready_proofs),
-                        zkp_batch_size,
-                    )
+            let recv_result = if remaining_timeout.is_zero() {
+                // Timeout reached, force submit what we have
+                None
+            } else {
+                // Wait for next proof or timeout
+                tokio::time::timeout(remaining_timeout, proof_rx.recv())
                     .await
-                    {
-                        Ok(processed) => {
-                            total_items += processed;
-                            total_submit_duration += submit_start.elapsed();
+                    .ok()
+                    .flatten()
+            };
+
+            let should_force_submit = recv_result.is_none() && !ready_proofs.is_empty();
+
+            if let Some((idx, proof_result)) = recv_result {
+                buffer.insert(idx, proof_result);
+
+                while let Some(proof_result) = buffer.remove(&next_to_submit) {
+                    let proof = proof_result.map_err(|e| {
+                        anyhow::anyhow!(
+                            "Proof generation failed for batch {}: {}",
+                            next_to_submit,
+                            e
+                        )
+                    })?;
+
+                    ready_proofs.push(proof);
+                    next_to_submit += 1;
+
+                    if !ready_proofs.is_empty() {
+                        let submit_start = Instant::now();
+                        match super::batch_submission::submit_address_batches(
+                            &self.context,
+                            std::mem::take(&mut ready_proofs),
+                            zkp_batch_size,
+                        )
+                        .await
+                        {
+                            Ok(processed) => {
+                                total_items += processed;
+                                total_submit_duration += submit_start.elapsed();
+                                last_submit_time = Instant::now();
+                            }
+                            Err(e) if Self::is_inactive_phase_error(&e) => {
+                                info!(
+                                    "Active phase ended before submitting address batches; deferring remaining proofs"
+                                );
+                                return Ok((total_items, total_submit_duration));
+                            }
+                            Err(e) => return Err(CoordinatorError::TransactionFailed(e).into()),
                         }
-                        Err(e) if Self::is_inactive_phase_error(&e) => {
-                            info!(
-                                "Active phase ended before submitting address batches; deferring remaining proofs"
-                            );
-                            return Ok((total_items, total_submit_duration));
-                        }
-                        Err(e) => return Err(CoordinatorError::TransactionFailed(e).into()),
                     }
                 }
+            } else if should_force_submit {
+                // Timeout reached, submit whatever we have
+                debug!(
+                    "Batch submit timeout reached ({} secs), submitting {} ready address batches",
+                    BATCH_SUBMIT_TIMEOUT_SECS,
+                    ready_proofs.len()
+                );
+                let submit_start = Instant::now();
+                match super::batch_submission::submit_address_batches(
+                    &self.context,
+                    std::mem::take(&mut ready_proofs),
+                    zkp_batch_size,
+                )
+                .await
+                {
+                    Ok(processed) => {
+                        total_items += processed;
+                        total_submit_duration += submit_start.elapsed();
+                        last_submit_time = Instant::now();
+                    }
+                    Err(e) if Self::is_inactive_phase_error(&e) => {
+                        info!(
+                            "Active phase ended before submitting address batches; deferring remaining proofs"
+                        );
+                        return Ok((total_items, total_submit_duration));
+                    }
+                    Err(e) => return Err(CoordinatorError::TransactionFailed(e).into()),
+                }
+            } else if recv_result.is_none() {
+                // Channel closed and no more proofs to submit
+                break;
             }
         }
 
@@ -1009,10 +1293,11 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         info!("Syncing: on-chain root = {:?}", &on_chain_root[..8]);
         let root_changed = state.current_root != on_chain_root;
 
-        // For address trees, we reset with empty batch arrays since they use queue_metadata
+        // Address trees store their batches in queue_batches (input queue for nullify, output queue for append)
+        // For address trees, we use queue_batches.batches as "input" since they represent the address insertion batches
         state.reset(
             on_chain_root,
-            &[light_batched_merkle_tree::batch::Batch::default(); 2],
+            &tree_data.queue_batches.batches,
             &[light_batched_merkle_tree::batch::Batch::default(); 2],
         );
 

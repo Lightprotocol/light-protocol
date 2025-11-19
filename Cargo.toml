@@ -57,6 +57,7 @@ members = [
     "forester",
     "sparse-merkle-tree",
 ]
+exclude = ["photon"]
 
 resolver = "2"
 

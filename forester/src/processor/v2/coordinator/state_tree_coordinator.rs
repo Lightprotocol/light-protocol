@@ -242,16 +242,18 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             let mut states = PERSISTENT_TREE_STATES.lock().await;
             if let Some(state) = states.get(&key) {
                 info!(
-                    "COORDINATOR REUSE: Found existing SharedState for tree={} (initial_root={:?})",
+                    "COORDINATOR REUSE: Found existing SharedState for tree={} (initial_root={:?}, epoch={})",
                     context.merkle_tree,
-                    &initial_root[..8]
+                    &initial_root[..8],
+                    context.epoch
                 );
                 state.clone()
             } else {
                 info!(
-                    "COORDINATOR CREATE: Creating NEW SharedState for tree={} (initial_root={:?})",
+                    "COORDINATOR CREATE: Creating NEW SharedState for tree={} (initial_root={:?}, epoch={})",
                     context.merkle_tree,
-                    &initial_root[..8]
+                    &initial_root[..8],
+                    context.epoch
                 );
                 let new_state = create_shared_state(initial_root);
                 states.insert(key, new_state.clone());
@@ -878,6 +880,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     batch_index: batch_idx,
                     zkp_batch_index: zkp_idx as u64,
                     is_append,
+                    start_leaf_index: None,
                 };
                 if !processed_batches.contains(&batch_id) {
                     total_ready += 1;
@@ -2080,6 +2083,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                         batch_index: batch_idx,
                         zkp_batch_index: i,
                         is_append: false,
+                        start_leaf_index: None,
                     };
 
                     if !shared_state.is_batch_processed(&batch_id) {
@@ -2127,6 +2131,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                         batch_index: batch_idx,
                         zkp_batch_index: i,
                         is_append: true,
+                        start_leaf_index: None,
                     };
 
                     if !shared_state.is_batch_processed(&batch_id) {
@@ -2183,6 +2188,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                         batch_index: batch_idx,
                         zkp_batch_index: i,
                         is_append: false,
+                        start_leaf_index: None,
                     };
 
                     if !shared_state.is_batch_processed(&batch_id) {

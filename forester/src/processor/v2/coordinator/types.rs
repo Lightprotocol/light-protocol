@@ -1,6 +1,8 @@
 /// Type definitions for the state tree coordinator.
 use light_client::indexer::MerkleProofWithContext;
 
+use super::shared_state::ProcessedBatchId;
+
 /// Type of batch operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BatchType {
@@ -106,6 +108,8 @@ pub struct AddressQueueData {
     pub subtrees: Vec<[u8; 32]>,
     /// Start index for the first batch.
     pub start_index: u64,
+    /// Identifiers for batches processed this iteration.
+    pub batch_ids: Vec<ProcessedBatchId>,
 }
 
 impl AddressQueueData {

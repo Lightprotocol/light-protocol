@@ -257,7 +257,17 @@ pub async fn submit_address_batches<R: Rpc>(
         let start_batch_idx = chunk_idx * MAX_INSTRUCTIONS_PER_TX;
 
         let mut instructions = Vec::new();
-        for batch_data in batch_chunk {
+        for (i, batch_data) in batch_chunk.iter().enumerate() {
+            let batch_idx = start_batch_idx + i;
+            info!(
+                "Address batch {} circuit inputs: new_root={:?}, proof_a={:?}, proof_b_len={}, proof_c={:?}",
+                batch_idx,
+                &batch_data.new_root[..8],
+                &batch_data.compressed_proof.a[..8],
+                batch_data.compressed_proof.b.len(),
+                &batch_data.compressed_proof.c[..8]
+            );
+
             let serialized = batch_data
                 .try_to_vec()
                 .map_err(|e| anyhow::anyhow!("Failed to serialize address append proof: {}", e))?;

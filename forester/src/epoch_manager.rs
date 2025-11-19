@@ -1443,6 +1443,15 @@ impl<R: Rpc> EpochManager<R> {
         let idle_fallback_threshold = Duration::from_secs(fallback_idle_seconds);
 
         'inner_processing_loop: loop {
+            // Check if we've exceeded the epoch boundary FIRST before waiting on select
+            if estimated_slot > epoch_info.phases.active.end {
+                info!(
+                    "Task exiting at loop start: estimated_slot ({}) exceeded active phase end ({}) for epoch {}",
+                    estimated_slot, epoch_info.phases.active.end, epoch_info.epoch
+                );
+                break 'inner_processing_loop;
+            }
+
             if estimated_slot >= forester_slot_details.end_solana_slot {
                 trace!(
                     "Ending V2 event processing for slot {:?}",
@@ -1685,6 +1694,15 @@ impl<R: Rpc> EpochManager<R> {
 
             push_metrics(&self.config.external_services.pushgateway_url).await?;
             estimated_slot = self.slot_tracker.estimated_current_slot();
+
+            // Check if we've exceeded the epoch boundary - exit immediately to unsubscribe from events
+            if estimated_slot > epoch_info.phases.active.end {
+                info!(
+                    "Task exiting: estimated_slot ({}) exceeded active phase end ({}) for epoch {}",
+                    estimated_slot, epoch_info.phases.active.end, epoch_info.epoch
+                );
+                break 'inner_processing_loop;
+            }
         }
 
         Ok(())
@@ -1926,6 +1944,8 @@ impl<R: Rpc> EpochManager<R> {
         if !self.config.general_config.enable_new_address_pipeline {
             bail!("address coordinator disabled");
         }
+
+        // Use epoch_info which is the canonical source of truth for current epoch
         {
             let registry = self.address_tree_coordinators.lock().await;
             if let Some(handle) = registry.get(&tree_accounts.merkle_tree) {
@@ -1933,7 +1953,7 @@ impl<R: Rpc> EpochManager<R> {
                 drop(registry);
                 {
                     let mut guard = handle.lock().await;
-                    guard.refresh_epoch_context(epoch_info.epoch);
+                    guard.refresh_epoch_context(epoch_info.epoch, epoch_info.phases.clone());
                 }
                 return Ok(handle);
             }
@@ -1942,7 +1962,7 @@ impl<R: Rpc> EpochManager<R> {
         let initial_root = self.fetch_tree_root(tree_accounts).await?;
         let batch_context = self.build_batch_context(epoch_info, tree_accounts);
         let mut coordinator = AddressTreeCoordinator::new(batch_context, initial_root).await;
-        coordinator.refresh_epoch_context(epoch_info.epoch);
+        coordinator.refresh_epoch_context(epoch_info.epoch, epoch_info.phases.clone());
         let handle = Arc::new(Mutex::new(coordinator));
         let mut registry = self.address_tree_coordinators.lock().await;
         registry.insert(tree_accounts.merkle_tree, handle.clone());

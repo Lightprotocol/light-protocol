@@ -8,6 +8,7 @@ pub struct ProcessedBatchId {
     pub batch_index: usize,
     pub zkp_batch_index: u64,
     pub is_append: bool,
+    pub start_leaf_index: Option<u64>,
 }
 
 impl ProcessedBatchId {
@@ -16,6 +17,7 @@ impl ProcessedBatchId {
             batch_index,
             zkp_batch_index,
             is_append: true,
+            start_leaf_index: None,
         }
     }
 
@@ -24,6 +26,7 @@ impl ProcessedBatchId {
             batch_index,
             zkp_batch_index,
             is_append: false,
+            start_leaf_index: None,
         }
     }
 
@@ -61,10 +64,11 @@ impl SharedTreeState {
 
     pub fn mark_batch_processed(&mut self, batch_id: ProcessedBatchId) {
         debug!(
-            "Marking batch as processed: batch_idx={}, zkp_batch_idx={}, type={}",
+            "Marking batch as processed: batch_idx={}, zkp_batch_idx={}, type={}, start_leaf={:?}",
             batch_id.batch_index,
             batch_id.zkp_batch_index,
-            batch_id.operation_type()
+            batch_id.operation_type(),
+            batch_id.start_leaf_index
         );
         self.processed_batches.insert(batch_id);
     }
@@ -104,15 +108,16 @@ impl SharedTreeState {
                     .unwrap_or(0)
             };
 
-            let should_keep = batch_id.zkp_batch_index >= on_chain_inserted;
+            let should_keep = batch_id.zkp_batch_index > on_chain_inserted;
 
             if !should_keep {
                 debug!(
-                    "Clearing processed batch (confirmed on-chain): batch_idx={}, zkp_batch_idx={}, type={}, on_chain_inserted={}",
+                    "Clearing processed batch (confirmed on-chain or failed to insert): batch_idx={}, zkp_batch_idx={}, type={}, on_chain_inserted={}, start_leaf={:?}",
                     batch_id.batch_index,
                     batch_id.zkp_batch_index,
                     batch_id.operation_type(),
-                    on_chain_inserted
+                    on_chain_inserted,
+                    batch_id.start_leaf_index
                 );
             }
 
@@ -132,6 +137,18 @@ impl SharedTreeState {
                 "Keeping {} processed batches (not yet confirmed on-chain)",
                 processed_count_after
             );
+        }
+    }
+
+    /// Clears all processed batches (used at start of new epoch's active phase).
+    pub fn clear_all_processed_batches(&mut self) {
+        let count = self.processed_batches.len();
+        if count > 0 {
+            info!(
+                "Clearing all {} processed batches at start of new epoch",
+                count
+            );
+            self.processed_batches.clear();
         }
     }
 
