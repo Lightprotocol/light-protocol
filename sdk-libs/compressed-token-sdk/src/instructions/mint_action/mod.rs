@@ -7,6 +7,49 @@ pub use account_metas::{
     MintActionMetaConfig, MintActionMetaConfigCpiWrite,
 };
 pub use cpi_accounts::MintActionCpiAccounts;
+
+use crate::{AnchorDeserialize, AnchorSerialize};
+use solana_pubkey::Pubkey;
+
+// Backwards compatibility types for token-client
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
+pub struct MintToRecipient {
+    pub recipient: Pubkey,
+    pub amount: u64,
+}
+
+/// High-level action types for the mint action instruction (backwards compatibility)
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
+pub enum MintActionType {
+    CreateSplMint {
+        mint_bump: u8,
+    },
+    MintTo {
+        recipients: Vec<MintToRecipient>,
+        token_account_version: u8,
+    },
+    UpdateMintAuthority {
+        new_authority: Option<Pubkey>,
+    },
+    UpdateFreezeAuthority {
+        new_authority: Option<Pubkey>,
+    },
+    MintToCToken {
+        account: Pubkey,
+        amount: u64,
+    },
+    UpdateMetadataField {
+        extension_index: u8,
+        field_type: u8,
+        key: Vec<u8>,
+        value: Vec<u8>,
+    },
+    UpdateMetadataAuthority {
+        extension_index: u8,
+        new_authority: Option<Pubkey>,
+        idempotent: u8,
+    },
+}
 use light_account_checks::AccountInfoTrait;
 use light_sdk::cpi::CpiSigner;
 
