@@ -27,7 +27,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use super::{
     batch_preparation, batch_submission,
-    batch_utils::{self, validate_root, MAX_COORDINATOR_RETRIES, MAX_JOB_NOT_FOUND_RESUBMITS},
+    batch_utils::{self, validate_root, MAX_COORDINATOR_RETRIES},
     error::CoordinatorError,
     proof_generation::ProofConfig,
     proof_utils,
@@ -1307,85 +1307,23 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                                     "Polling for append proof completion: batch {}, job {}",
                                     idx, job_id
                                 );
-                                let mut current_job = job_id;
-                                let mut resubmits = 0usize;
 
-                                loop {
-                                    let result =
-                                        client.poll_proof_completion(current_job.clone()).await;
-                                    debug!(
-                                        "Append proof polling complete for batch {} (job {})",
-                                        idx, current_job
-                                    );
+                                let result = super::proof_pipeline::poll_proof_with_retry(
+                                    client,
+                                    job_id,
+                                    inputs_json_clone,
+                                    "append",
+                                    idx,
+                                    |proof| {
+                                        proof_utils::create_append_proof_result(&circuit_inputs, proof)
+                                            .map(ProofResult::Append)
+                                    },
+                                )
+                                .await;
 
-                                    match result {
-                                        Ok(proof) => {
-                                            let proof_result =
-                                                proof_utils::create_append_proof_result(
-                                                    &circuit_inputs,
-                                                    proof,
-                                                )
-                                                .map(ProofResult::Append);
-
-                                            let _ = proof_tx_clone
-                                                .send((
-                                                    idx,
-                                                    PreparedBatch::Append(circuit_inputs.clone()),
-                                                    proof_result,
-                                                ))
-                                                .await;
-                                            break;
-                                        }
-                                        Err(e)
-                                            if e.to_string().contains("job_not_found")
-                                                && resubmits < MAX_JOB_NOT_FOUND_RESUBMITS =>
-                                        {
-                                            resubmits += 1;
-                                            warn!(
-                                                "Append proof job {} not found (batch {}), resubmitting attempt {}/{}",
-                                                current_job, idx, resubmits, MAX_JOB_NOT_FOUND_RESUBMITS
-                                            );
-                                            match client
-                                                .submit_proof_async(
-                                                    inputs_json_clone.clone(),
-                                                    "append",
-                                                )
-                                                .await
-                                            {
-                                                Ok(new_job_id) => {
-                                                    info!(
-                                                        "Batch {} (append) resubmitted with job_id {}",
-                                                        idx, new_job_id
-                                                    );
-                                                    current_job = new_job_id;
-                                                    continue;
-                                                }
-                                                Err(submit_err) => {
-                                                    let _ = proof_tx_clone
-                                                        .send((
-                                                            idx,
-                                                            PreparedBatch::Append(
-                                                                circuit_inputs.clone(),
-                                                            ),
-                                                            Err(anyhow::anyhow!("{}", submit_err)),
-                                                        ))
-                                                        .await;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        Err(e) => {
-                                            let _ = proof_tx_clone
-                                                .send((
-                                                    idx,
-                                                    PreparedBatch::Append(circuit_inputs.clone()),
-                                                    Err(anyhow::anyhow!("{}", e)),
-                                                ))
-                                                .await;
-                                            break;
-                                        }
-                                    }
-                                }
+                                let _ = proof_tx_clone
+                                    .send((idx, PreparedBatch::Append(circuit_inputs), result))
+                                    .await;
                             });
                             poll_handles.push(handle);
                         }
@@ -1416,85 +1354,23 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                                     "Polling for nullify proof completion: batch {}, job {}",
                                     idx, job_id
                                 );
-                                let mut current_job = job_id;
-                                let mut resubmits = 0usize;
 
-                                loop {
-                                    let result =
-                                        client.poll_proof_completion(current_job.clone()).await;
-                                    debug!(
-                                        "Nullify proof polling complete for batch {} (job {})",
-                                        idx, current_job
-                                    );
+                                let result = super::proof_pipeline::poll_proof_with_retry(
+                                    client,
+                                    job_id,
+                                    inputs_json_clone,
+                                    "update",
+                                    idx,
+                                    |proof| {
+                                        proof_utils::create_nullify_proof_result(&circuit_inputs, proof)
+                                            .map(ProofResult::Nullify)
+                                    },
+                                )
+                                .await;
 
-                                    match result {
-                                        Ok(proof) => {
-                                            let proof_result =
-                                                proof_utils::create_nullify_proof_result(
-                                                    &circuit_inputs,
-                                                    proof,
-                                                )
-                                                .map(ProofResult::Nullify);
-
-                                            let _ = proof_tx_clone
-                                                .send((
-                                                    idx,
-                                                    PreparedBatch::Nullify(circuit_inputs.clone()),
-                                                    proof_result,
-                                                ))
-                                                .await;
-                                            break;
-                                        }
-                                        Err(e)
-                                            if e.to_string().contains("job_not_found")
-                                                && resubmits < MAX_JOB_NOT_FOUND_RESUBMITS =>
-                                        {
-                                            resubmits += 1;
-                                            warn!(
-                                                "Nullify proof job {} not found (batch {}), resubmitting attempt {}/{}",
-                                                current_job, idx, resubmits, MAX_JOB_NOT_FOUND_RESUBMITS
-                                            );
-                                            match client
-                                                .submit_proof_async(
-                                                    inputs_json_clone.clone(),
-                                                    "update",
-                                                )
-                                                .await
-                                            {
-                                                Ok(new_job_id) => {
-                                                    info!(
-                                                        "Batch {} (nullify) resubmitted with job_id {}",
-                                                        idx, new_job_id
-                                                    );
-                                                    current_job = new_job_id;
-                                                    continue;
-                                                }
-                                                Err(submit_err) => {
-                                                    let _ = proof_tx_clone
-                                                        .send((
-                                                            idx,
-                                                            PreparedBatch::Nullify(
-                                                                circuit_inputs.clone(),
-                                                            ),
-                                                            Err(anyhow::anyhow!("{}", submit_err)),
-                                                        ))
-                                                        .await;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                        Err(e) => {
-                                            let _ = proof_tx_clone
-                                                .send((
-                                                    idx,
-                                                    PreparedBatch::Nullify(circuit_inputs.clone()),
-                                                    Err(anyhow::anyhow!("{}", e)),
-                                                ))
-                                                .await;
-                                            break;
-                                        }
-                                    }
-                                }
+                                let _ = proof_tx_clone
+                                    .send((idx, PreparedBatch::Nullify(circuit_inputs), result))
+                                    .await;
                             });
                             poll_handles.push(handle);
                         }
@@ -1545,7 +1421,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         nullify_zkp_batch_size: u16,
     ) -> Result<(usize, Duration)> {
         use std::collections::BTreeMap;
-
 
         let mut buffer: BTreeMap<usize, (PreparedBatch, Result<ProofResult>)> = BTreeMap::new();
         let mut next_to_submit = 0;

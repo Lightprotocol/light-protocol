@@ -24,7 +24,7 @@ use tracing::{debug, error, info, warn};
 
 use super::{
     batch_utils::{
-        self, validate_root, MAX_COORDINATOR_RETRIES, MAX_JOB_NOT_FOUND_RESUBMITS,
+        self, validate_root, MAX_COORDINATOR_RETRIES,
         PHOTON_STALE_MAX_RETRIES, PHOTON_STALE_RETRY_DELAY_MS,
     },
     error::CoordinatorError,
@@ -799,73 +799,18 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
                                 "Polling for address proof completion: batch {}, job {}",
                                 idx, job_id
                             );
-                            let mut current_job = job_id;
-                            let mut resubmits = 0usize;
 
-                            loop {
-                                let result = client_clone
-                                    .poll_proof_completion(current_job.clone())
-                                    .await;
-                                debug!(
-                                    "Address proof polling complete for batch {} (job {})",
-                                    idx, current_job
-                                );
+                            let result = super::proof_pipeline::poll_proof_with_retry(
+                                client_clone,
+                                job_id,
+                                inputs_json_clone,
+                                "address",
+                                idx,
+                                |proof| proof_utils::create_address_proof_result(&circuit_inputs, proof),
+                            )
+                            .await;
 
-                                match result {
-                                    Ok(proof) => {
-                                        let proof_result = proof_utils::create_address_proof_result(
-                                            &circuit_inputs,
-                                            proof,
-                                        );
-
-                                        let _ = proof_tx_clone
-                                            .send((idx, proof_result))
-                                            .await;
-                                        break;
-                                    }
-                                    Err(e)
-                                        if e.to_string().contains("job_not_found")
-                                            && resubmits < MAX_JOB_NOT_FOUND_RESUBMITS =>
-                                    {
-                                        resubmits += 1;
-                                        warn!(
-                                            "Address proof job {} not found (batch {}), resubmitting attempt {}/{}",
-                                            current_job, idx, resubmits, MAX_JOB_NOT_FOUND_RESUBMITS
-                                        );
-                                        match client_clone
-                                            .submit_proof_async(
-                                                inputs_json_clone.clone(),
-                                                "address",
-                                            )
-                                            .await
-                                        {
-                                            Ok(new_job_id) => {
-                                                info!(
-                                                    "Batch {} resubmitted with new job_id {}",
-                                                    idx, new_job_id
-                                                );
-                                                current_job = new_job_id;
-                                                continue;
-                                            }
-                                            Err(submit_err) => {
-                                                let _ = proof_tx_clone
-                                                    .send((
-                                                        idx,
-                                                        Err(anyhow::anyhow!("{}", submit_err)),
-                                                    ))
-                                                    .await;
-                                                break;
-                                            }
-                                        }
-                                    }
-                                    Err(e) => {
-                                        let _ = proof_tx_clone
-                                            .send((idx, Err(anyhow::anyhow!("{}", e))))
-                                            .await;
-                                        break;
-                                    }
-                                }
-                            }
+                            let _ = proof_tx_clone.send((idx, result)).await;
                         });
                         poll_handles.push(handle);
                     }
@@ -909,7 +854,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         zkp_batch_size: u16,
     ) -> Result<(usize, Duration)> {
         use std::collections::BTreeMap;
-
 
         let mut buffer: BTreeMap<usize, Result<InstructionDataAddressAppendInputs>> =
             BTreeMap::new();
