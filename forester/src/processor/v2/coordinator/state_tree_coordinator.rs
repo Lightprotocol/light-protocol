@@ -32,7 +32,7 @@ use super::{
     proof_generation::ProofConfig,
     proof_utils,
     shared_state::{
-        create_shared_state, CumulativeMetrics, IterationMetrics, ProcessedBatchId, SharedState,
+        get_or_create_shared_state, CumulativeMetrics, IterationMetrics, ProcessedBatchId, SharedState,
     },
     types::{AppendQueueData, BatchType, NullifyQueueData, PreparationState, PreparedBatch},
 };
@@ -232,16 +232,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     pub async fn new(context: BatchContext<R>, initial_root: [u8; 32]) -> Self {
         let key = context.merkle_tree;
 
-        let shared_state = {
-            let mut states = PERSISTENT_TREE_STATES.lock().await;
-            if let Some(state) = states.get(&key) {
-                state.clone()
-            } else {
-                let new_state = create_shared_state(initial_root);
-                states.insert(key, new_state.clone());
-                new_state
-            }
-        };
+        let shared_state =
+            get_or_create_shared_state(&PERSISTENT_TREE_STATES, key, initial_root).await;
 
         let cached_staging = {
             let staging_cache = PERSISTENT_STAGING_TREES.lock().await;

@@ -3,8 +3,8 @@ use anyhow::Result;
 use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_TREE_HEIGHT;
 use light_hasher::{hash_chain::create_hash_chain_from_slice, Hasher, Poseidon};
 use light_prover_client::proof_types::{
-    batch_append::{get_batch_append_inputs, BatchAppendsCircuitInputs},
-    batch_update::{get_batch_update_inputs, BatchUpdateCircuitInputs},
+    batch_append::{get_batch_append_inputs_v2, BatchAppendsCircuitInputs},
+    batch_update::{get_batch_update_inputs_v2, BatchUpdateCircuitInputs},
 };
 use tracing::{error, trace};
 
@@ -34,29 +34,33 @@ pub fn prepare_append_batch(
     let adjusted_start_index = batch_leaf_indices[0] as u32;
     let batch_elements = &append_data.queue_elements[start_idx..end_idx];
 
-    // Gather leaves and proofs from current tree state
+    // Gather leaves from batch elements
     let leaves: Vec<[u8; 32]> = batch_elements
         .iter()
         .map(|elem| elem.account_hash)
         .collect();
 
-    let proof_start = std::time::Instant::now();
-    let merkle_proofs: Vec<Vec<[u8; 32]>> = batch_leaf_indices
-        .iter()
-        .map(|&idx| state.staging.get_proof(idx))
-        .collect::<Result<Vec<_>>>()?;
-    let proof_time = proof_start.elapsed();
+    let old_root = state.staging.current_root();
 
-    let old_leaves: Vec<[u8; 32]> = batch_leaf_indices
-        .iter()
-        .map(|&idx| state.staging.get_leaf(idx))
-        .collect();
+    // For v2: Get proofs and update tree iteratively (each proof depends on previous updates)
+    let proof_start = std::time::Instant::now();
+    let mut merkle_proofs = Vec::with_capacity(batch_leaf_indices.len());
+    let mut old_leaves = Vec::with_capacity(batch_leaf_indices.len());
+
+    for (i, &leaf_idx) in batch_leaf_indices.iter().enumerate() {
+        // Get proof and old leaf from current tree state
+        merkle_proofs.push(state.staging.get_proof(leaf_idx)?);
+        old_leaves.push(state.staging.get_leaf(leaf_idx));
+
+        // Update tree with new leaf so next proof will be adjusted
+        state.staging.update_leaf(leaf_idx, leaves[i])?;
+    }
+    let proof_time = proof_start.elapsed();
+    let new_root = state.staging.current_root();
 
     let circuit_start = std::time::Instant::now();
-    let empty_changelogs = Vec::new();
-    let old_root = state.staging.current_root();
-    let (circuit_inputs, batch_changelogs) =
-        get_batch_append_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
+    let circuit_inputs =
+        get_batch_append_inputs_v2::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
             old_root,
             adjusted_start_index,
             leaves.clone(),
@@ -64,28 +68,20 @@ pub fn prepare_append_batch(
             old_leaves,
             merkle_proofs,
             append_data.zkp_batch_size as u32,
-            &empty_changelogs,
+            new_root,
         )?;
     let circuit_time = circuit_start.elapsed();
 
-    let update_start = std::time::Instant::now();
-    // Update staging tree with the new leaves
-    for (i, changelog) in batch_changelogs.iter().enumerate() {
-        state
-            .staging
-            .update_leaf(changelog.index() as u64, leaves[i])?;
-    }
-    let update_time = update_start.elapsed();
+    let update_time = proof_time; // Updates are now part of proof gathering
 
     state.append_batch_index += 1;
 
     let total_time = batch_start.elapsed();
-    let new_root = state.staging.current_root();
     trace!(
         "Prepared append batch {}: new_root={:?}, {} leaves | TIMING: total={:?} proof={:?} circuit={:?} update={:?}",
         batch_idx,
         &new_root[..8],
-        batch_changelogs.len(),
+        leaves.len(),
         total_time,
         proof_time,
         circuit_time,
@@ -116,28 +112,14 @@ pub fn prepare_nullify_batch(
 
     let mut leaves = Vec::new();
     let mut tx_hashes = Vec::new();
-    let mut old_leaves = Vec::new();
     let mut path_indices = Vec::new();
 
-    // Gather data from batch elements
+    // Gather basic data from batch elements (non-tree data)
     for element in batch_elements.iter() {
-        let leaf_idx = element.leaf_index;
-
         leaves.push(element.account_hash);
         tx_hashes.push(element.tx_hash.unwrap_or([0u8; 32]));
-        path_indices.push(leaf_idx as u32);
-
-        // Get current leaf value from staging tree (includes any prior updates from appends)
-        let old_leaf = state.staging.get_leaf(leaf_idx);
-        old_leaves.push(old_leaf);
+        path_indices.push(element.leaf_index as u32);
     }
-
-    let proof_start = std::time::Instant::now();
-    let merkle_proofs: Vec<Vec<[u8; 32]>> = batch_elements
-        .iter()
-        .map(|elem| state.staging.get_proof(elem.leaf_index))
-        .collect::<Result<Vec<_>>>()?;
-    let proof_time = proof_start.elapsed();
 
     validate_nullify_hash_chain(
         batch_idx,
@@ -147,12 +129,28 @@ pub fn prepare_nullify_batch(
         leaves_hash_chain,
     )?;
 
-    // Generate circuit inputs with NO changelogs
-    let circuit_start = std::time::Instant::now();
-    let empty_changelogs = Vec::new();
     let old_root = state.staging.current_root();
-    let (circuit_inputs, batch_changelog) =
-        get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
+
+    // For v2: Get proofs and update tree iteratively (each proof depends on previous updates)
+    let proof_start = std::time::Instant::now();
+    let mut merkle_proofs = Vec::with_capacity(batch_elements.len());
+    let mut old_leaves = Vec::with_capacity(batch_elements.len());
+
+    for (i, element) in batch_elements.iter().enumerate() {
+        // Get proof and old leaf from current tree state
+        merkle_proofs.push(state.staging.get_proof(element.leaf_index)?);
+        old_leaves.push(state.staging.get_leaf(element.leaf_index));
+
+        // Update tree with nullified leaf so next proof will be adjusted
+        state.staging.update_leaf(element.leaf_index, leaves[i])?;
+    }
+    let proof_time = proof_start.elapsed();
+    let new_root = state.staging.current_root();
+
+    // Generate circuit inputs
+    let circuit_start = std::time::Instant::now();
+    let circuit_inputs =
+        get_batch_update_inputs_v2::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
             old_root,
             tx_hashes.clone(),
             leaves.clone(),
@@ -161,28 +159,20 @@ pub fn prepare_nullify_batch(
             merkle_proofs,
             path_indices,
             nullify_data.zkp_batch_size as u32,
-            &empty_changelogs,
+            new_root,
         )?;
     let circuit_time = circuit_start.elapsed();
 
-    let update_start = std::time::Instant::now();
-    // Update staging tree - nullify by setting to zero (leaves are the nullified values)
-    for (i, changelog) in batch_changelog.iter().enumerate() {
-        state
-            .staging
-            .update_leaf(changelog.index() as u64, leaves[i])?;
-    }
-    let update_time = update_start.elapsed();
+    let update_time = proof_time; // Updates are now part of proof gathering
 
     state.nullify_batch_index += 1;
 
     let total_time = batch_start.elapsed();
-    let new_root = state.staging.current_root();
     trace!(
         "Prepared nullify batch {}: new_root={:?}, {} leaves | TIMING: total={:?} proof={:?} circuit={:?} update={:?}",
         batch_idx,
         &new_root[..8],
-        batch_changelog.len(),
+        leaves.len(),
         total_time,
         proof_time,
         circuit_time,

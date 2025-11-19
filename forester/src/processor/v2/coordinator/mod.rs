@@ -11,7 +11,7 @@ pub mod tree_state;
 pub mod types;
 
 pub use address_tree_coordinator::AddressTreeCoordinator;
-pub use shared_state::{create_shared_state, SharedState, SharedTreeState};
+pub use shared_state::{create_shared_state, get_or_create_shared_state, SharedState, SharedTreeState};
 pub use state_tree_coordinator::StateTreeCoordinator;
 
 /// Print combined performance summary for both state and address controllers.
