@@ -1,7 +1,6 @@
 use light_program_profiler::profile;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
-use spl_token_2022;
 
 use crate::instructions::CTokenDefaultAccounts;
 
@@ -23,6 +22,212 @@ pub struct MintActionMetaConfig {
     pub with_mint_signer: bool,
     pub mint_needs_to_sign: bool, // Only true when creating new compressed mint
     pub ctoken_accounts: Vec<Pubkey>, // For mint_to_ctoken actions
+}
+
+impl MintActionMetaConfig {
+    /// Create config for creating a new compressed mint (no CPI, no CPI context)
+    pub fn new_create_mint(
+        instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
+        authority: Pubkey,
+        mint_signer: Pubkey,
+        address_tree: Pubkey,
+        output_queue: Pubkey,
+    ) -> crate::error::Result<Self> {
+        // Sanity check: must be creating a mint
+        if instruction_data.create_mint.is_none() {
+            return Err(crate::error::TokenSdkError::InvalidAccountData);
+        }
+
+        let (has_mint_to_actions, ctoken_accounts) =
+            Self::analyze_actions(&instruction_data.actions);
+        let spl_mint_initialized = instruction_data.mint.metadata.spl_mint_initialized;
+
+        Ok(Self {
+            fee_payer: None,
+            mint_signer: Some(mint_signer),
+            authority,
+            tree_pubkey: address_tree,
+            input_queue: None, // Not needed for create
+            output_queue,
+            tokens_out_queue: if has_mint_to_actions {
+                Some(output_queue)
+            } else {
+                None
+            },
+            with_lamports: false,
+            spl_mint_initialized,
+            has_mint_to_actions,
+            with_cpi_context: None,
+            create_mint: true,
+            with_mint_signer: true,   // Always true for create
+            mint_needs_to_sign: true, // Always true for create
+            ctoken_accounts,
+        })
+    }
+
+    /// Create config for working with existing mint (no CPI, no CPI context)
+    pub fn new(
+        instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
+        authority: Pubkey,
+        state_tree: Pubkey,
+        input_queue: Pubkey,
+        output_queue: Pubkey,
+    ) -> crate::error::Result<Self> {
+        // Sanity check: must NOT be creating a mint
+        if instruction_data.create_mint.is_some() {
+            return Err(crate::error::TokenSdkError::InvalidAccountData);
+        }
+
+        let (has_mint_to_actions, ctoken_accounts) =
+            Self::analyze_actions(&instruction_data.actions);
+        let spl_mint_initialized = instruction_data.mint.metadata.spl_mint_initialized;
+        let has_create_spl_mint = instruction_data.actions.iter().any(|a| {
+            matches!(
+                a,
+                light_ctoken_types::instructions::mint_action::Action::CreateSplMint(_)
+            )
+        });
+
+        Ok(Self {
+            fee_payer: None,
+            mint_signer: None, // Will be set with chainable method if has CreateSplMint
+            authority,
+            tree_pubkey: state_tree,
+            input_queue: Some(input_queue),
+            output_queue,
+            tokens_out_queue: if has_mint_to_actions {
+                Some(output_queue)
+            } else {
+                None
+            },
+            with_lamports: false,
+            spl_mint_initialized,
+            has_mint_to_actions,
+            with_cpi_context: None,
+            create_mint: false,
+            with_mint_signer: has_create_spl_mint,
+            mint_needs_to_sign: false, // Never sign for existing mint
+            ctoken_accounts,
+        })
+    }
+
+    /// Create config for creating a new compressed mint via CPI
+    pub fn new_cpi_create_mint(
+        instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
+        authority: Pubkey,
+        fee_payer: Pubkey,
+        mint_signer: Pubkey,
+        address_tree: Pubkey,
+        output_queue: Pubkey,
+    ) -> crate::error::Result<Self> {
+        let mut config = Self::new_create_mint(
+            instruction_data,
+            authority,
+            mint_signer,
+            address_tree,
+            output_queue,
+        )?;
+        config.fee_payer = Some(fee_payer);
+        Ok(config)
+    }
+
+    /// Create config for working with existing mint via CPI
+    pub fn new_cpi(
+        instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
+        authority: Pubkey,
+        fee_payer: Pubkey,
+        state_tree: Pubkey,
+        input_queue: Pubkey,
+        output_queue: Pubkey,
+    ) -> crate::error::Result<Self> {
+        let mut config = Self::new(
+            instruction_data,
+            authority,
+            state_tree,
+            input_queue,
+            output_queue,
+        )?;
+        config.fee_payer = Some(fee_payer);
+        Ok(config)
+    }
+
+    /// Create config for CPI context mode
+    pub fn new_cpi_context(
+        instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
+        authority: Pubkey,
+        fee_payer: Pubkey,
+        cpi_context_pubkey: Pubkey,
+    ) -> crate::error::Result<Self> {
+        // Sanity check: must have CPI context
+        if instruction_data.cpi_context.is_none() {
+            return Err(crate::error::TokenSdkError::InvalidAccountData);
+        }
+
+        let (has_mint_to_actions, ctoken_accounts) =
+            Self::analyze_actions(&instruction_data.actions);
+        let spl_mint_initialized = instruction_data.mint.metadata.spl_mint_initialized;
+        let create_mint = instruction_data.create_mint.is_some();
+        let has_create_spl_mint = instruction_data.actions.iter().any(|a| {
+            matches!(
+                a,
+                light_ctoken_types::instructions::mint_action::Action::CreateSplMint(_)
+            )
+        });
+
+        Ok(Self {
+            fee_payer: Some(fee_payer),
+            mint_signer: None, // Set with chainable method if needed
+            authority,
+            tree_pubkey: Pubkey::default(), // Must be set with chainable method
+            input_queue: None,              // Set with chainable method if not create_mint
+            output_queue: Pubkey::default(), // Must be set with chainable method
+            tokens_out_queue: None,         // Set with chainable method if needed
+            with_lamports: false,
+            spl_mint_initialized,
+            has_mint_to_actions,
+            with_cpi_context: Some(cpi_context_pubkey),
+            create_mint,
+            with_mint_signer: create_mint || has_create_spl_mint,
+            mint_needs_to_sign: create_mint,
+            ctoken_accounts,
+        })
+    }
+
+    /// Chainable method to override tokens_out_queue
+    pub fn with_tokens_out_queue(mut self, queue: Pubkey) -> Self {
+        self.tokens_out_queue = Some(queue);
+        self
+    }
+
+    /// Chainable method to set mint_signer (for CreateSplMint action with existing mint)
+    pub fn with_mint_signer_for_spl_mint(mut self, signer: Pubkey) -> Self {
+        self.mint_signer = Some(signer);
+        self
+    }
+
+    /// Helper to analyze actions and extract info
+    fn analyze_actions(
+        actions: &[light_ctoken_types::instructions::mint_action::Action],
+    ) -> (bool, Vec<Pubkey>) {
+        let mut has_mint_to_actions = false;
+        let ctoken_accounts = Vec::new();
+
+        for action in actions {
+            match action {
+                light_ctoken_types::instructions::mint_action::Action::MintToCompressed(_) => {
+                    has_mint_to_actions = true;
+                }
+                light_ctoken_types::instructions::mint_action::Action::MintToCToken(_) => {
+                    // Extract account from action - but we can't because it's an index
+                    // So ctoken_accounts must be provided separately by user
+                    // Leave this empty for now
+                }
+                _ => {}
+            }
+        }
+
+        (has_mint_to_actions, ctoken_accounts)
+    }
 }
 
 /// Get the account metas for a mint action instruction

@@ -1,9 +1,9 @@
-use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
+use light_compressed_account::instruction_data::{compressed_proof::CompressedProof, traits::LightInstructionData};
 use light_ctoken_types::{
     self,
     instructions::{
         extensions::ExtensionInstructionData,
-        mint_action::{CompressedMintWithContext, CpiContext},
+        mint_action::{CompressedMintInstructionData, CompressedMintWithContext, CpiContext},
     },
     COMPRESSED_MINT_SEED,
 };
@@ -14,7 +14,8 @@ use solana_pubkey::Pubkey;
 use crate::{
     error::{Result, TokenSdkError},
     instructions::mint_action::{
-        create_mint_action_cpi, mint_action_cpi_write, MintActionInputs, MintActionInputsCpiWrite,
+        get_mint_action_instruction_account_metas, get_mint_action_instruction_account_metas_cpi_write,
+        MintActionMetaConfig, MintActionMetaConfigCpiWrite,
     },
     AnchorDeserialize, AnchorSerialize,
 };
@@ -44,68 +45,81 @@ pub fn create_compressed_mint_cpi(
     cpi_context: Option<CpiContext>,
     cpi_context_pubkey: Option<Pubkey>,
 ) -> Result<Instruction> {
-    // Build CompressedMintWithContext from the input parameters
+    // Build CompressedMintInstructionData from the input parameters
+    let compressed_mint_instruction_data = CompressedMintInstructionData {
+        supply: 0,
+        decimals: input.decimals,
+        metadata: light_ctoken_types::state::CompressedMintMetadata {
+            version: input.version,
+            mint: find_spl_mint_address(&input.mint_signer)
+                .0
+                .to_bytes()
+                .into(),
+            spl_mint_initialized: false,
+        },
+        mint_authority: Some(input.mint_authority.to_bytes().into()),
+        freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
+        extensions: input.extensions,
+    };
+
+    // Build CompressedMintWithContext
     let compressed_mint_with_context = CompressedMintWithContext {
         address: mint_address,
-        mint: light_ctoken_types::instructions::mint_action::CompressedMintInstructionData {
-            supply: 0,
-            decimals: input.decimals,
-            metadata: light_ctoken_types::state::CompressedMintMetadata {
-                version: input.version,
-                mint: find_spl_mint_address(&input.mint_signer)
-                    .0
-                    .to_bytes()
-                    .into(),
-                spl_mint_initialized: false,
-            },
-            mint_authority: Some(input.mint_authority.to_bytes().into()),
-            freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
-            extensions: input.extensions,
-        },
-        leaf_index: 0, // Default value for new mint
+        mint: compressed_mint_instruction_data,
+        leaf_index: 0,
         prove_by_index: false,
         root_index: input.address_merkle_tree_root_index,
     };
 
-    // Convert create_compressed_mint CpiContext to mint_actions CpiContext if present
-    let mint_action_cpi_context = cpi_context.map(|ctx| {
-        light_ctoken_types::instructions::mint_action::CpiContext {
-            set_context: ctx.set_context,
-            first_set_context: ctx.first_set_context,
-            in_tree_index: 0, // Default for create mint
-            in_queue_index: 0,
-            out_queue_index: 0,
-            token_out_queue_index: 0,
-            assigned_account_index: 0, // Default for create mint
-            ..Default::default()
-        }
-    });
+    // Build instruction data using builder pattern
+    let mut instruction_data = light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
+        mint_address,
+        input.address_merkle_tree_root_index,
+        input.proof,
+        compressed_mint_with_context.mint.clone(),
+    );
 
-    // Create mint action inputs for compressed mint creation
-    let mint_action_inputs = MintActionInputs {
-        compressed_mint_inputs: compressed_mint_with_context,
-        mint_seed: input.mint_signer,
-        create_mint: true, // Key difference - we're creating a new compressed mint
-        mint_bump: None,
-        authority: input.mint_authority,
-        payer: input.payer,
-        proof: Some(input.proof),
-        actions: Vec::new(), // Empty - just creating mint, no additional actions
-        address_tree_pubkey: input.address_tree_pubkey, // Address tree for new mint address
-        input_queue: None,   // Not needed for create_mint: true
-        output_queue: input.output_queue,
-        tokens_out_queue: None, // No tokens being minted
-        token_pool: None,       // Not needed for simple compressed mint creation
+    // Add CPI context if provided
+    if let Some(ctx) = cpi_context {
+        instruction_data = instruction_data.with_cpi_context(ctx);
+    }
+
+    // Build account meta config
+    let meta_config = if cpi_context_pubkey.is_some() {
+        // CPI context mode
+        MintActionMetaConfig::new_cpi_context(
+            &instruction_data,
+            input.mint_authority,
+            input.payer,
+            cpi_context_pubkey.unwrap(),
+        )?
+    } else {
+        // Regular CPI mode
+        MintActionMetaConfig::new_cpi_create_mint(
+            &instruction_data,
+            input.mint_authority,
+            input.payer,
+            input.mint_signer,
+            input.address_tree_pubkey,
+            input.output_queue,
+        )?
     };
 
-    create_mint_action_cpi(
-        mint_action_inputs,
-        mint_action_cpi_context,
-        cpi_context_pubkey,
-    )
+    // Get account metas
+    let account_metas = get_mint_action_instruction_account_metas(meta_config, &compressed_mint_with_context);
+
+    // Serialize instruction data with discriminator
+    let data = instruction_data.data().map_err(|_| TokenSdkError::SerializationError)?;
+
+    // Build instruction directly
+    Ok(Instruction {
+        program_id: solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        accounts: account_metas,
+        data,
+    })
 }
 
-/// Input struct for creating a compressed mint instruction
+/// Input struct for creating a compressed mint instruction in CPI write mode
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct CreateCompressedMintInputsCpiWrite {
     pub decimals: u8,
@@ -120,6 +134,7 @@ pub struct CreateCompressedMintInputsCpiWrite {
     pub extensions: Option<Vec<ExtensionInstructionData>>,
     pub version: u8,
 }
+
 pub fn create_compressed_mint_cpi_write(
     input: CreateCompressedMintInputsCpiWrite,
 ) -> Result<Instruction> {
@@ -131,55 +146,52 @@ pub fn create_compressed_mint_cpi_write(
         return Err(TokenSdkError::InvalidAccountData);
     }
 
-    // Build CompressedMintWithContext from the input parameters
-    let compressed_mint_with_context = CompressedMintWithContext {
-        address: input.mint_address,
-        mint: light_ctoken_types::instructions::mint_action::CompressedMintInstructionData {
-            supply: 0,
-            decimals: input.decimals,
-            metadata: light_ctoken_types::state::CompressedMintMetadata {
-                version: input.version,
-                mint: find_spl_mint_address(&input.mint_signer)
-                    .0
-                    .to_bytes()
-                    .into(),
-                spl_mint_initialized: false,
-            },
-            mint_authority: Some(input.mint_authority.to_bytes().into()),
-            freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
-            extensions: input.extensions,
+    // Build CompressedMintInstructionData
+    let compressed_mint_instruction_data = CompressedMintInstructionData {
+        supply: 0,
+        decimals: input.decimals,
+        metadata: light_ctoken_types::state::CompressedMintMetadata {
+            version: input.version,
+            mint: find_spl_mint_address(&input.mint_signer)
+                .0
+                .to_bytes()
+                .into(),
+            spl_mint_initialized: false,
         },
-        leaf_index: 0, // Default value for new mint
-        prove_by_index: false,
-        root_index: input.address_merkle_tree_root_index,
+        mint_authority: Some(input.mint_authority.to_bytes().into()),
+        freeze_authority: input.freeze_authority.map(|auth| auth.to_bytes().into()),
+        extensions: input.extensions,
     };
 
-    // Convert create_compressed_mint CpiContext to mint_actions CpiContext
-    let mint_action_cpi_context = light_ctoken_types::instructions::mint_action::CpiContext {
-        set_context: input.cpi_context.set_context,
-        first_set_context: input.cpi_context.first_set_context,
-        in_tree_index: 0, // Default for create mint
-        in_queue_index: 0,
-        out_queue_index: 0,
-        token_out_queue_index: 0,
-        assigned_account_index: 0, // Default for create mint
-        ..Default::default()
-    };
+    // Build instruction data using builder pattern
+    let instruction_data = light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
+        input.mint_address,
+        input.address_merkle_tree_root_index,
+        light_compressed_account::instruction_data::compressed_proof::CompressedProof::default(), // Dummy proof for CPI write
+        compressed_mint_instruction_data,
+    ).with_cpi_context(input.cpi_context);
 
-    // Create mint action inputs for compressed mint creation (CPI write mode)
-    let mint_action_inputs = MintActionInputsCpiWrite {
-        compressed_mint_inputs: compressed_mint_with_context,
-        mint_seed: Some(input.mint_signer),
-        mint_bump: None,
-        create_mint: true, // Key difference - we're creating a new compressed mint
+    // Build account meta config for CPI write
+    let meta_config = MintActionMetaConfigCpiWrite {
+        fee_payer: input.payer,
+        mint_signer: Some(input.mint_signer),
         authority: input.mint_authority,
-        payer: input.payer,
-        actions: Vec::new(), // Empty - just creating mint, no additional actions
-        cpi_context: mint_action_cpi_context,
-        cpi_context_pubkey: input.cpi_context_pubkey,
+        cpi_context: input.cpi_context_pubkey,
+        mint_needs_to_sign: true, // Always true for create mint
     };
 
-    mint_action_cpi_write(mint_action_inputs)
+    // Get account metas for CPI write
+    let account_metas = get_mint_action_instruction_account_metas_cpi_write(meta_config);
+
+    // Serialize instruction data with discriminator
+    let data = instruction_data.data().map_err(|_| TokenSdkError::SerializationError)?;
+
+    // Build instruction directly
+    Ok(Instruction {
+        program_id: solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        accounts: account_metas,
+        data,
+    })
 }
 
 /// Creates a compressed mint instruction with automatic mint address derivation

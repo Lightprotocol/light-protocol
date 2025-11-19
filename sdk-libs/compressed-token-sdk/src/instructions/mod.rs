@@ -5,7 +5,6 @@ pub mod close;
 pub mod compress_and_close;
 pub mod create_associated_token_account;
 pub mod create_compressed_mint;
-mod create_spl_mint;
 pub mod create_token_account;
 pub mod ctoken_accounts;
 pub mod decompress_full;
@@ -34,7 +33,6 @@ pub use compress_and_close::{
 };
 pub use create_associated_token_account::*;
 pub use create_compressed_mint::*;
-pub use create_spl_mint::*;
 pub use create_token_account::{
     create_compressible_token_account_instruction, create_ctoken_account_signed,
     create_token_account, CreateCompressibleTokenAccount,
@@ -42,9 +40,8 @@ pub use create_token_account::{
 pub use ctoken_accounts::*;
 pub use decompress_full::{decompress_full_ctoken_accounts_with_indices, DecompressFullIndices};
 pub use mint_action::{
-    get_mint_action_instruction_account_metas,
-    get_mint_action_instruction_account_metas_cpi_write, MintActionCpiAccounts,
-    MintActionMetaConfig, MintActionMetaConfigCpiWrite, MINT_ACTION_DISCRIMINATOR,
+    get_mint_action_instruction_account_metas, get_mint_action_instruction_account_metas_cpi_write,
+    MintActionCpiAccounts, MintActionMetaConfig, MintActionMetaConfigCpiWrite,
 };
 pub use mint_to_compressed::{
     create_mint_to_compressed_instruction, get_mint_to_compressed_instruction_account_metas,

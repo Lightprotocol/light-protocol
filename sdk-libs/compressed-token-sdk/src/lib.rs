@@ -18,6 +18,7 @@ use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSeria
 pub use ctoken_instruction::CTokenInstruction;
 pub use light_compressed_token_types::*;
 pub use pack::{compat, Pack, Unpack};
+pub use token_pool::TokenPool;
 pub use utils::{
     account_meta_from_account_info, is_ctoken_account, AccountInfoToCompress,
     PackedCompressedTokenDataWithContext,

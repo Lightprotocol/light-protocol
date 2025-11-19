@@ -2,7 +2,15 @@ use light_compressed_token_types::constants::POOL_SEED;
 use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
 use solana_pubkey::Pubkey;
 
-use crate::instructions::mint_action::TokenPool;
+use crate::{AnchorDeserialize, AnchorSerialize};
+
+/// Token pool information
+#[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
+pub struct TokenPool {
+    pub pubkey: Pubkey,
+    pub bump: u8,
+    pub index: u8,
+}
 
 /// Derive the token pool pda for a given mint
 pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
