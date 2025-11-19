@@ -7,9 +7,9 @@ pub use account_metas::{
     MintActionMetaConfig, MintActionMetaConfigCpiWrite,
 };
 pub use cpi_accounts::MintActionCpiAccounts;
+use solana_pubkey::Pubkey;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
-use solana_pubkey::Pubkey;
 
 // Backwards compatibility types for token-client
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]

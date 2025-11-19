@@ -1,4 +1,6 @@
-use light_compressed_account::instruction_data::{compressed_proof::CompressedProof, traits::LightInstructionData};
+use light_compressed_account::instruction_data::{
+    compressed_proof::CompressedProof, traits::LightInstructionData,
+};
 use light_ctoken_types::{
     self,
     instructions::{
@@ -14,8 +16,9 @@ use solana_pubkey::Pubkey;
 use crate::{
     error::{Result, TokenSdkError},
     instructions::mint_action::{
-        get_mint_action_instruction_account_metas, get_mint_action_instruction_account_metas_cpi_write,
-        MintActionMetaConfig, MintActionMetaConfigCpiWrite,
+        get_mint_action_instruction_account_metas,
+        get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
+        MintActionMetaConfigCpiWrite,
     },
     AnchorDeserialize, AnchorSerialize,
 };
@@ -95,25 +98,30 @@ pub fn create_compressed_mint_cpi(
         )?
     } else {
         // Regular CPI mode
-        MintActionMetaConfig::new_cpi_create_mint(
+        MintActionMetaConfig::new_create_mint(
             &instruction_data,
             input.mint_authority,
-            input.payer,
             input.mint_signer,
+            input.payer,
             input.address_tree_pubkey,
             input.output_queue,
         )?
     };
 
     // Get account metas
-    let account_metas = get_mint_action_instruction_account_metas(meta_config, &compressed_mint_with_context);
+    let account_metas =
+        get_mint_action_instruction_account_metas(meta_config, &compressed_mint_with_context);
 
     // Serialize instruction data with discriminator
-    let data = instruction_data.data().map_err(|_| TokenSdkError::SerializationError)?;
+    let data = instruction_data
+        .data()
+        .map_err(|_| TokenSdkError::SerializationError)?;
 
     // Build instruction directly
     Ok(Instruction {
-        program_id: solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: solana_pubkey::Pubkey::new_from_array(
+            light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
+        ),
         accounts: account_metas,
         data,
     })
@@ -184,11 +192,15 @@ pub fn create_compressed_mint_cpi_write(
     let account_metas = get_mint_action_instruction_account_metas_cpi_write(meta_config);
 
     // Serialize instruction data with discriminator
-    let data = instruction_data.data().map_err(|_| TokenSdkError::SerializationError)?;
+    let data = instruction_data
+        .data()
+        .map_err(|_| TokenSdkError::SerializationError)?;
 
     // Build instruction directly
     Ok(Instruction {
-        program_id: solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: solana_pubkey::Pubkey::new_from_array(
+            light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
+        ),
         accounts: account_metas,
         data,
     })

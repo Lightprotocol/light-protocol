@@ -1,4 +1,6 @@
-use light_compressed_account::instruction_data::{compressed_proof::CompressedProof, traits::LightInstructionData};
+use light_compressed_account::instruction_data::{
+    compressed_proof::CompressedProof, traits::LightInstructionData,
+};
 use light_compressed_token_types::CompressedMintAuthorityType;
 use light_ctoken_types::{
     self,
@@ -10,8 +12,9 @@ use solana_pubkey::Pubkey;
 use crate::{
     error::{Result, TokenSdkError},
     instructions::mint_action::{
-        get_mint_action_instruction_account_metas, get_mint_action_instruction_account_metas_cpi_write,
-        MintActionMetaConfig, MintActionMetaConfigCpiWrite,
+        get_mint_action_instruction_account_metas,
+        get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
+        MintActionMetaConfigCpiWrite,
     },
     AnchorDeserialize, AnchorSerialize,
 };
@@ -39,10 +42,11 @@ pub fn update_compressed_mint_cpi(
     cpi_context: Option<CpiContext>,
 ) -> Result<Instruction> {
     // Build instruction data using builder pattern
-    let mut instruction_data = light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new(
-        input.compressed_mint_inputs.clone(),
-        input.proof,
-    );
+    let mut instruction_data =
+        light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new(
+            input.compressed_mint_inputs.clone(),
+            input.proof,
+        );
 
     // Add the appropriate action based on authority type
     let update_authority = light_ctoken_types::instructions::mint_action::UpdateAuthority {
@@ -64,7 +68,7 @@ pub fn update_compressed_mint_cpi(
     }
 
     // Build account meta config
-    let meta_config = MintActionMetaConfig::new_cpi(
+    let meta_config = MintActionMetaConfig::new(
         &instruction_data,
         input.authority,
         input.payer,
@@ -74,14 +78,19 @@ pub fn update_compressed_mint_cpi(
     )?;
 
     // Get account metas
-    let account_metas = get_mint_action_instruction_account_metas(meta_config, &input.compressed_mint_inputs);
+    let account_metas =
+        get_mint_action_instruction_account_metas(meta_config, &input.compressed_mint_inputs);
 
     // Serialize instruction data with discriminator
-    let data = instruction_data.data().map_err(|_| TokenSdkError::SerializationError)?;
+    let data = instruction_data
+        .data()
+        .map_err(|_| TokenSdkError::SerializationError)?;
 
     // Build instruction directly
     Ok(Instruction {
-        program_id: solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: solana_pubkey::Pubkey::new_from_array(
+            light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
+        ),
         accounts: account_metas,
         data,
     })
@@ -113,10 +122,11 @@ pub fn create_update_compressed_mint_cpi_write(
     }
 
     // Build instruction data using builder pattern
-    let mut instruction_data = light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new(
-        inputs.compressed_mint_inputs.clone(),
-        None, // No proof for CPI write
-    );
+    let mut instruction_data =
+        light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new(
+            inputs.compressed_mint_inputs.clone(),
+            None, // No proof for CPI write
+        );
 
     // Add the appropriate action based on authority type
     let update_authority = light_ctoken_types::instructions::mint_action::UpdateAuthority {
@@ -148,11 +158,15 @@ pub fn create_update_compressed_mint_cpi_write(
     let account_metas = get_mint_action_instruction_account_metas_cpi_write(meta_config);
 
     // Serialize instruction data with discriminator
-    let data = instruction_data.data().map_err(|_| TokenSdkError::SerializationError)?;
+    let data = instruction_data
+        .data()
+        .map_err(|_| TokenSdkError::SerializationError)?;
 
     // Build instruction directly
     Ok(Instruction {
-        program_id: solana_pubkey::Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        program_id: solana_pubkey::Pubkey::new_from_array(
+            light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
+        ),
         accounts: account_metas,
         data,
     })

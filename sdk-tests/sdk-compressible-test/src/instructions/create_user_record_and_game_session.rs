@@ -1,10 +1,13 @@
 use anchor_lang::{
     prelude::*,
-    solana_program::{program::invoke, sysvar::clock::Clock},
+    solana_program::{instruction::Instruction, program::invoke, sysvar::clock::Clock},
 };
+use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_compressed_token_sdk::instructions::{
-    create_mint_action_cpi, find_spl_mint_address, MintActionInputs,
+    find_spl_mint_address,
+    mint_action::{get_mint_action_instruction_account_metas, MintActionMetaConfig},
 };
+use light_ctoken_types::instructions::mint_action::{MintToCompressedAction, Recipient};
 use light_sdk::{
     compressible::{
         compress_account_on_init::prepare_compressed_account_on_init, CompressibleConfig,
@@ -114,60 +117,47 @@ pub fn create_user_record_and_game_session<'info>(
     let mint = find_spl_mint_address(&ctx.accounts.mint_signer.key()).0;
     let (_, token_account_address) = get_ctoken_signer_seeds(&ctx.accounts.user.key(), &mint);
 
-    let actions = vec![
-        light_compressed_token_sdk::instructions::mint_action::MintActionType::MintTo {
-            recipients: vec![
-                light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
-                    recipient: token_account_address, // TRY: THE DECOMPRESS TOKEN ACCOUNT ADDRES IS THE OWNER OF ITS COMPRESSIBLED VERSION.
-                    amount: 1000,                     // Mint the full supply to the user
-                },
-                light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
-                    recipient: get_ctoken_signer2_seeds(&ctx.accounts.user.key()).1,
-                    amount: 1000,
-                },
-                light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
-                    recipient: get_ctoken_signer3_seeds(&ctx.accounts.user.key()).1,
-                    amount: 1000,
-                },
-                light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
-                    recipient: get_ctoken_signer4_seeds(
-                        &ctx.accounts.user.key(),
-                        &ctx.accounts.user.key(),
-                    )
-                    .1, // user as fee_payer
-                    amount: 1000,
-                },
-                light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
-                    recipient: get_ctoken_signer5_seeds(&ctx.accounts.user.key(), &mint, 42).1, // Fixed index 42
-                    amount: 1000,
-                },
-            ],
-            token_account_version: 3,
-        },
-    ];
-
     let output_queue = *cpi_accounts.tree_accounts().unwrap()[0].key; // Same tree as PDA
     let address_tree_pubkey = *cpi_accounts.tree_accounts().unwrap()[1].key; // Same tree as PDA
 
-    let mint_action_inputs = MintActionInputs {
-        compressed_mint_inputs: compression_params.mint_with_context.clone(),
-        mint_seed: ctx.accounts.mint_signer.key(),
-        mint_bump: Some(compression_params.mint_bump),
-        create_mint: true,
-        authority: ctx.accounts.mint_authority.key(),
-        payer: ctx.accounts.user.key(),
-        proof: compression_params.proof.into(),
-        actions,
-        input_queue: None, // Not needed for create_mint: true
-        output_queue,
-        tokens_out_queue: Some(output_queue), // For MintTo actions
-        address_tree_pubkey,
-        token_pool: None, // Not needed for simple compressed mint creation
-    };
+    let proof = compression_params.proof.0.unwrap_or_default();
+    let mut instruction_data =
+        light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
+            compression_params.mint_with_context.address,
+            0, // root_index
+            proof,
+            compression_params.mint_with_context.mint.clone(),
+        )
+    .with_mint_to_compressed(MintToCompressedAction::new(vec![
+            Recipient::new(
+                token_account_address, // TRY: THE DECOMPRESS TOKEN ACCOUNT ADDRESS IS THE OWNER OF ITS COMPRESSIBLED VERSION.
+                1000,                 // Mint the full supply to the user
+            ),
+            Recipient::new(
+                get_ctoken_signer2_seeds(&ctx.accounts.user.key()).1,
+                1000,
+            ),
+            Recipient::new(
+                get_ctoken_signer3_seeds(&ctx.accounts.user.key()).1,
+                1000,
+            ),
+            Recipient::new(
+                get_ctoken_signer4_seeds(
+                    &ctx.accounts.user.key(),
+                    &ctx.accounts.user.key(),
+                )
+                .1, // user as fee_payer
+                1000,
+            ),
+            Recipient::new(
+                get_ctoken_signer5_seeds(&ctx.accounts.user.key(), &mint, 42).1, // Fixed index 42
+                1000,
+            ),
+        ]));
 
-    let mint_action_instruction = create_mint_action_cpi(
-        mint_action_inputs,
-        Some(light_ctoken_types::instructions::mint_action::CpiContext {
+    // Add CPI context
+    instruction_data = instruction_data.with_cpi_context(
+        light_ctoken_types::instructions::mint_action::CpiContext {
             address_tree_pubkey: address_tree_pubkey.to_bytes(),
             set_context: false,
             first_set_context: false,
@@ -177,10 +167,36 @@ pub fn create_user_record_and_game_session<'info>(
             token_out_queue_index: 0,
             assigned_account_index: 2,
             read_only_address_trees: [0; 4],
-        }),
-        Some(cpi_context_pubkey),
+        },
+    );
+
+    // Build account meta config
+    let mut config = MintActionMetaConfig::new_create_mint(
+        &instruction_data,
+        ctx.accounts.mint_authority.key(),
+        ctx.accounts.mint_signer.key(),
+        ctx.accounts.user.key(), // fee_payer
+        address_tree_pubkey,
+        output_queue,
     )
     .unwrap();
+
+    // Set CPI context
+    config.with_cpi_context = Some(cpi_context_pubkey);
+
+    // Get account metas
+    let account_metas =
+        get_mint_action_instruction_account_metas(config, &compression_params.mint_with_context);
+
+    // Serialize instruction data
+    let data = instruction_data.data().unwrap();
+
+    // Build instruction
+    let mint_action_instruction = Instruction {
+        program_id: Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID),
+        accounts: account_metas,
+        data,
+    };
 
     // Get all account infos needed for the mint action
     let mut account_infos = cpi_accounts.to_account_infos();

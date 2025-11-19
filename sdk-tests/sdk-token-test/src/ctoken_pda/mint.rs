@@ -1,7 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_compressed_token_sdk::{
-    ctoken_instruction::CTokenInstruction,
-    instructions::mint_action::MintActionCpiWriteAccounts,
+    ctoken_instruction::CTokenInstruction, instructions::mint_action::MintActionCpiWriteAccounts,
 };
 use light_ctoken_types::instructions::mint_action::{
     MintActionCompressedInstructionData, MintToCompressedAction, UpdateAuthority,
@@ -32,7 +31,9 @@ pub fn process_mint_action<'a, 'info>(
 
     // Add UpdateMintAuthority action
     instruction_data = instruction_data.with_update_mint_authority(UpdateAuthority {
-        new_authority: input.final_mint_authority.map(|auth| auth.to_bytes().into()),
+        new_authority: input
+            .final_mint_authority
+            .map(|auth| auth.to_bytes().into()),
     });
 
     // Add CPI context

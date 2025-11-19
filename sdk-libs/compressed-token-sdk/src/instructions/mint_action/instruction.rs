@@ -54,9 +54,11 @@ impl CTokenInstruction for MintActionCompressedInstructionData {
             cpi_ctx.first_set_context = true;
             cpi_ctx.set_context = false;
         } else {
-            let mut cpi_ctx = light_ctoken_types::instructions::mint_action::CpiContext::default();
-            cpi_ctx.first_set_context = true;
-            instruction_data.cpi_context = Some(cpi_ctx);
+            instruction_data.cpi_context =
+                Some(light_ctoken_types::instructions::mint_action::CpiContext {
+                    first_set_context: true,
+                    ..Default::default()
+                });
         }
 
         build_cpi_write_instruction(instruction_data, accounts)
@@ -72,9 +74,11 @@ impl CTokenInstruction for MintActionCompressedInstructionData {
             cpi_ctx.set_context = true;
             cpi_ctx.first_set_context = false;
         } else {
-            let mut cpi_ctx = light_ctoken_types::instructions::mint_action::CpiContext::default();
-            cpi_ctx.set_context = true;
-            instruction_data.cpi_context = Some(cpi_ctx);
+            instruction_data.cpi_context =
+                Some(light_ctoken_types::instructions::mint_action::CpiContext {
+                    set_context: true,
+                    ..Default::default()
+                });
         }
 
         build_cpi_write_instruction(instruction_data, accounts)

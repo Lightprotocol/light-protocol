@@ -1,17 +1,19 @@
 use anchor_lang::InstructionData;
 use compressed_token_test::ID as WRAPPER_PROGRAM_ID;
 use light_client::indexer::Indexer;
+use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_compressed_token_sdk::instructions::{
     derive_compressed_mint_address, find_spl_mint_address,
-    mint_action::instruction::{
-        create_mint_action_cpi, CreateMintCpiWriteInputs, MintActionInputs,
-        MintActionInputsCpiWrite,
-    },
+    get_mint_action_instruction_account_metas, get_mint_action_instruction_account_metas_cpi_write,
+    mint_action::{MintActionMetaConfig, MintActionMetaConfigCpiWrite},
 };
 use light_ctoken_types::{
-    instructions::mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
+    instructions::mint_action::{
+        CompressedMintInstructionData, CompressedMintWithContext, CpiContext,
+        MintActionCompressedInstructionData,
+    },
     state::CompressedMintMetadata,
-    COMPRESSED_TOKEN_PROGRAM_ID,
+    CMINT_ADDRESS_TREE, COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
 use light_test_utils::Rpc;
@@ -25,12 +27,16 @@ use solana_sdk::{
 
 struct TestSetup {
     rpc: LightProgramTest,
-    mint_action_inputs: MintActionInputsCpiWrite,
+    compressed_mint_inputs: CompressedMintWithContext,
     payer: Keypair,
     mint_seed: Keypair,
     mint_authority: Keypair,
     compressed_mint_address: [u8; 32],
     cpi_context_pubkey: Pubkey,
+    address_tree: Pubkey,
+    address_tree_index: u8,
+    output_queue: Pubkey,
+    output_queue_index: u8,
 }
 
 async fn test_setup() -> TestSetup {
@@ -46,9 +52,10 @@ async fn test_setup() -> TestSetup {
     let address_tree_info = rpc.get_address_tree_v2();
     let address_tree = address_tree_info.tree;
 
-    // Get CPI context from test accounts
+    // Get CPI context and state tree info from test accounts
     let tree_info = rpc.test_accounts.v2_state_trees[0];
     let cpi_context_pubkey = tree_info.cpi_context;
+    let output_queue = tree_info.output_queue;
 
     // 2. Create mint parameters
     let mint_seed = Keypair::new();
@@ -61,7 +68,7 @@ async fn test_setup() -> TestSetup {
         derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree);
     let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());
 
-    // 3. Build mint action instruction using SDK
+    // 3. Build compressed mint inputs
     let compressed_mint_inputs = CompressedMintWithContext {
         leaf_index: 0,
         prove_by_index: false,
@@ -81,28 +88,18 @@ async fn test_setup() -> TestSetup {
         },
     };
 
-    let create_mint_inputs = CreateMintCpiWriteInputs {
-        compressed_mint_inputs,
-        mint_seed: mint_seed.pubkey(),
-        authority: mint_authority.pubkey(),
-        payer: payer.pubkey(),
-        cpi_context_pubkey,
-        first_set_context: true,
-        address_tree_index: 1,
-        output_queue_index: 0,
-        assigned_account_index: 0,
-    };
-
-    let mint_action_inputs = MintActionInputsCpiWrite::new_create_mint(create_mint_inputs);
-
     TestSetup {
         rpc,
-        mint_action_inputs,
+        compressed_mint_inputs,
         payer,
         mint_seed,
         mint_authority,
         compressed_mint_address,
         cpi_context_pubkey,
+        address_tree,
+        address_tree_index: 1,
+        output_queue,
+        output_queue_index: 0,
     }
 }
 
@@ -111,28 +108,63 @@ async fn test_setup() -> TestSetup {
 async fn test_write_to_cpi_context_create_mint() {
     let TestSetup {
         mut rpc,
-        mint_action_inputs,
+        compressed_mint_inputs,
         payer,
         mint_seed,
         mint_authority,
         compressed_mint_address,
         cpi_context_pubkey,
+        address_tree,
+        address_tree_index,
+        output_queue: _,
+        output_queue_index,
     } = test_setup().await;
 
-    // Get the compressed token program instruction
-    let ctoken_instruction =
-        light_compressed_token_sdk::instructions::mint_action::instruction::mint_action_cpi_write(
-            mint_action_inputs,
-        )
-        .expect("Failed to build mint action instruction");
+    // Build instruction data using new builder API
+    let instruction_data = MintActionCompressedInstructionData::new_mint(
+        compressed_mint_inputs.address,
+        compressed_mint_inputs.root_index,
+        CompressedProof::default(),
+        compressed_mint_inputs.mint.clone(),
+    )
+    .with_cpi_context(CpiContext {
+        set_context: false,
+        first_set_context: true,
+        in_tree_index: address_tree_index,
+        in_queue_index: 0,
+        out_queue_index: output_queue_index,
+        token_out_queue_index: 0,
+        assigned_account_index: 0,
+        read_only_address_trees: [0; 4],
+        address_tree_pubkey: address_tree.to_bytes(),
+    });
 
-    // Build wrapper program instruction
-    // The wrapper just passes through all accounts and instruction data
-
-    // Build the wrapper instruction using Anchor's InstructionData
-    let wrapper_ix_data = compressed_token_test::instruction::WriteToCpiContextMintAction {
-        inputs: ctoken_instruction.data.clone(),
+    // Build account metas using helper
+    let config = MintActionMetaConfigCpiWrite {
+        fee_payer: payer.pubkey(),
+        mint_signer: Some(mint_seed.pubkey()),
+        authority: mint_authority.pubkey(),
+        cpi_context: cpi_context_pubkey,
+        mint_needs_to_sign: true,
     };
+
+    let account_metas = get_mint_action_instruction_account_metas_cpi_write(config);
+
+    // Serialize instruction data
+    let data = instruction_data
+        .data()
+        .expect("Failed to serialize instruction data");
+
+    // Build compressed token instruction
+    let ctoken_instruction = Instruction {
+        program_id: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+        accounts: account_metas,
+        data: data.clone(),
+    };
+
+    // Build wrapper instruction using Anchor's InstructionData
+    let wrapper_ix_data =
+        compressed_token_test::instruction::WriteToCpiContextMintAction { inputs: data };
 
     let wrapper_instruction = Instruction {
         program_id: WRAPPER_PROGRAM_ID,
@@ -195,29 +227,66 @@ async fn test_write_to_cpi_context_create_mint() {
 async fn test_write_to_cpi_context_invalid_address_tree() {
     let TestSetup {
         mut rpc,
-        mut mint_action_inputs,
+        compressed_mint_inputs,
         payer,
         mint_seed,
         mint_authority,
         compressed_mint_address: _,
-        cpi_context_pubkey: _,
+        cpi_context_pubkey,
+        address_tree: _,
+        address_tree_index,
+        output_queue: _,
+        output_queue_index,
     } = test_setup().await;
 
     // Swap the address tree pubkey to a random one (this should fail validation)
     let invalid_address_tree = Pubkey::new_unique();
-    mint_action_inputs.cpi_context.address_tree_pubkey = invalid_address_tree.to_bytes();
 
-    // Get the compressed token program instruction
-    let ctoken_instruction =
-        light_compressed_token_sdk::instructions::mint_action::instruction::mint_action_cpi_write(
-            mint_action_inputs,
-        )
-        .expect("Failed to build mint action instruction");
+    // Build instruction data with invalid address tree
+    let instruction_data = MintActionCompressedInstructionData::new_mint(
+        compressed_mint_inputs.address,
+        compressed_mint_inputs.root_index,
+        CompressedProof::default(),
+        compressed_mint_inputs.mint.clone(),
+    )
+    .with_cpi_context(CpiContext {
+        set_context: false,
+        first_set_context: true,
+        in_tree_index: address_tree_index,
+        in_queue_index: 0,
+        out_queue_index: output_queue_index,
+        token_out_queue_index: 0,
+        assigned_account_index: 0,
+        read_only_address_trees: [0; 4],
+        address_tree_pubkey: invalid_address_tree.to_bytes(),
+    });
 
-    // Build wrapper program instruction
-    let wrapper_ix_data = compressed_token_test::instruction::WriteToCpiContextMintAction {
-        inputs: ctoken_instruction.data.clone(),
+    // Build account metas using helper
+    let config = MintActionMetaConfigCpiWrite {
+        fee_payer: payer.pubkey(),
+        mint_signer: Some(mint_seed.pubkey()),
+        authority: mint_authority.pubkey(),
+        cpi_context: cpi_context_pubkey,
+        mint_needs_to_sign: true,
     };
+
+    let account_metas = get_mint_action_instruction_account_metas_cpi_write(config);
+
+    // Serialize instruction data
+    let data = instruction_data
+        .data()
+        .expect("Failed to serialize instruction data");
+
+    // Build compressed token instruction
+    let ctoken_instruction = Instruction {
+        program_id: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+        accounts: account_metas,
+        data: data.clone(),
+    };
+
+    // Build wrapper instruction
+    let wrapper_ix_data =
+        compressed_token_test::instruction::WriteToCpiContextMintAction { inputs: data };
 
     let wrapper_instruction = Instruction {
         program_id: WRAPPER_PROGRAM_ID,
@@ -250,30 +319,67 @@ async fn test_write_to_cpi_context_invalid_address_tree() {
 async fn test_write_to_cpi_context_invalid_compressed_address() {
     let TestSetup {
         mut rpc,
-        mut mint_action_inputs,
+        compressed_mint_inputs,
         payer,
         mint_seed,
         mint_authority,
         compressed_mint_address: _,
-        cpi_context_pubkey: _,
+        cpi_context_pubkey,
+        address_tree,
+        address_tree_index,
+        output_queue: _,
+        output_queue_index,
     } = test_setup().await;
 
     // Swap the compressed address to a random one (this should fail validation)
-    // Keep the correct address_tree_pubkey (CMINT_ADDRESS_TREE) but provide wrong address
+    // Keep the correct address_tree_pubkey but provide wrong address
     let invalid_compressed_address = [42u8; 32];
-    mint_action_inputs.compressed_mint_inputs.address = invalid_compressed_address;
 
-    // Get the compressed token program instruction
-    let ctoken_instruction =
-        light_compressed_token_sdk::instructions::mint_action::instruction::mint_action_cpi_write(
-            mint_action_inputs,
-        )
-        .expect("Failed to build mint action instruction");
+    // Build instruction data with invalid compressed address
+    let instruction_data = MintActionCompressedInstructionData::new_mint(
+        invalid_compressed_address,
+        compressed_mint_inputs.root_index,
+        CompressedProof::default(),
+        compressed_mint_inputs.mint.clone(),
+    )
+    .with_cpi_context(CpiContext {
+        set_context: false,
+        first_set_context: true,
+        in_tree_index: address_tree_index,
+        in_queue_index: 0,
+        out_queue_index: output_queue_index,
+        token_out_queue_index: 0,
+        assigned_account_index: 0,
+        read_only_address_trees: [0; 4],
+        address_tree_pubkey: address_tree.to_bytes(),
+    });
 
-    // Build wrapper program instruction
-    let wrapper_ix_data = compressed_token_test::instruction::WriteToCpiContextMintAction {
-        inputs: ctoken_instruction.data.clone(),
+    // Build account metas using helper
+    let config = MintActionMetaConfigCpiWrite {
+        fee_payer: payer.pubkey(),
+        mint_signer: Some(mint_seed.pubkey()),
+        authority: mint_authority.pubkey(),
+        cpi_context: cpi_context_pubkey,
+        mint_needs_to_sign: true,
     };
+
+    let account_metas = get_mint_action_instruction_account_metas_cpi_write(config);
+
+    // Serialize instruction data
+    let data = instruction_data
+        .data()
+        .expect("Failed to serialize instruction data");
+
+    // Build compressed token instruction
+    let ctoken_instruction = Instruction {
+        program_id: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+        accounts: account_metas,
+        data: data.clone(),
+    };
+
+    // Build wrapper instruction
+    let wrapper_ix_data =
+        compressed_token_test::instruction::WriteToCpiContextMintAction { inputs: data };
 
     let wrapper_instruction = Instruction {
         program_id: WRAPPER_PROGRAM_ID,
@@ -306,17 +412,20 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
 async fn test_execute_cpi_context_invalid_tree_index() {
     let TestSetup {
         mut rpc,
-        mint_action_inputs,
+        compressed_mint_inputs,
         payer,
         mint_seed,
         mint_authority,
         compressed_mint_address: _,
         cpi_context_pubkey,
+        address_tree: _,
+        address_tree_index: _,
+        output_queue,
+        output_queue_index: _,
     } = test_setup().await;
 
-    // Now try to execute with invalid in_tree_index (should fail)
     // Build execute mode CPI context with invalid tree index
-    let execute_cpi_context = light_ctoken_types::instructions::mint_action::CpiContext {
+    let execute_cpi_context = CpiContext {
         set_context: false,
         first_set_context: false, // Execute mode
         in_tree_index: 5,         // Invalid! Should be 1
@@ -325,39 +434,49 @@ async fn test_execute_cpi_context_invalid_tree_index() {
         token_out_queue_index: 0,
         assigned_account_index: 0,
         read_only_address_trees: [0; 4],
-        address_tree_pubkey: light_ctoken_types::CMINT_ADDRESS_TREE,
+        address_tree_pubkey: CMINT_ADDRESS_TREE,
     };
 
-    // Get tree info for execute mode
-    let tree_info = rpc.test_accounts.v2_state_trees[0];
-
-    // Build MintActionInputs for execute mode
-    let execute_inputs = MintActionInputs {
-        compressed_mint_inputs: mint_action_inputs.compressed_mint_inputs.clone(),
-        mint_seed: mint_seed.pubkey(),
-        mint_bump: None,
-        create_mint: true,
-        authority: mint_action_inputs.authority,
-        payer: mint_action_inputs.payer,
-        proof: Some(CompressedProof::default()),
-        actions: vec![],
-        address_tree_pubkey: Pubkey::new_from_array(light_ctoken_types::CMINT_ADDRESS_TREE),
-        input_queue: None,
-        output_queue: tree_info.output_queue,
-        tokens_out_queue: None,
-        token_pool: None,
-    };
-
-    let execute_instruction = create_mint_action_cpi(
-        execute_inputs,
-        Some(execute_cpi_context),
-        Some(cpi_context_pubkey),
+    // Build instruction data for execute mode - must mark as create_mint
+    let instruction_data = MintActionCompressedInstructionData::new_mint(
+        compressed_mint_inputs.address,
+        compressed_mint_inputs.root_index,
+        CompressedProof::default(),
+        compressed_mint_inputs.mint.clone(),
     )
-    .expect("Failed to build execute instruction");
+    .with_cpi_context(execute_cpi_context);
 
-    let execute_wrapper_ix_data = compressed_token_test::instruction::ExecuteCpiContextMintAction {
-        inputs: execute_instruction.data.clone(),
+    // Build account metas using regular MintActionMetaConfig for execute mode
+    let mut config = MintActionMetaConfig::new_create_mint(
+        &instruction_data,
+        mint_authority.pubkey(),
+        mint_seed.pubkey(),
+        payer.pubkey(),
+        Pubkey::new_from_array(CMINT_ADDRESS_TREE),
+        output_queue,
+    )
+    .expect("Failed to create meta config");
+
+    // Set CPI context for execute mode
+    config.with_cpi_context = Some(cpi_context_pubkey);
+
+    let account_metas = get_mint_action_instruction_account_metas(config, &compressed_mint_inputs);
+
+    // Serialize instruction data
+    let data = instruction_data
+        .data()
+        .expect("Failed to serialize instruction data");
+
+    // Build compressed token instruction
+    let execute_instruction = Instruction {
+        program_id: Pubkey::new_from_array(COMPRESSED_TOKEN_PROGRAM_ID),
+        accounts: account_metas,
+        data: data.clone(),
     };
+
+    // Build wrapper instruction
+    let execute_wrapper_ix_data =
+        compressed_token_test::instruction::ExecuteCpiContextMintAction { inputs: data };
 
     let execute_wrapper_instruction = Instruction {
         program_id: WRAPPER_PROGRAM_ID,

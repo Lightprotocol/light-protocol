@@ -171,9 +171,10 @@ impl MintActionCompressedInstructionData {
             ctx.set_context = false;
         } else {
             // Create default CPI context with first_set_context enabled
-            let mut ctx = CpiContext::default();
-            ctx.first_set_context = true;
-            self.cpi_context = Some(ctx);
+            self.cpi_context = Some(CpiContext {
+                first_set_context: true,
+                ..Default::default()
+            });
         }
         self
     }
@@ -187,9 +188,10 @@ impl MintActionCompressedInstructionData {
             ctx.first_set_context = false;
         } else {
             // Create default CPI context with set_context enabled
-            let mut ctx = CpiContext::default();
-            ctx.set_context = true;
-            self.cpi_context = Some(ctx);
+            self.cpi_context = Some(CpiContext {
+                set_context: true,
+                ..Default::default()
+            });
         }
         self
     }

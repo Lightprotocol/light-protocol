@@ -5,12 +5,9 @@ use solana_pubkey::Pubkey;
 use crate::instructions::CTokenDefaultAccounts;
 
 /// Account metadata configuration for mint action instruction
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct MintActionMetaConfig {
-    // TODO: Change fee_payer from Option<Pubkey> to Pubkey to match on-chain requirements.
-    // The on-chain program always requires fee_payer in both LightSystemAccounts and
-    // CpiContextLightSystemAccounts. The Option is misleading - it must always be Some(...).
-    pub fee_payer: Option<Pubkey>,
+    pub fee_payer: Pubkey,
     pub mint_signer: Option<Pubkey>,
     pub authority: Pubkey,
     pub tree_pubkey: Pubkey, // address tree when create_mint, input state tree when not
@@ -47,7 +44,7 @@ impl MintActionMetaConfig {
         let spl_mint_initialized = instruction_data.mint.metadata.spl_mint_initialized;
 
         Ok(Self {
-            fee_payer: Some(fee_payer), // Regular mode still requires fee_payer
+            fee_payer,
             mint_signer: Some(mint_signer),
             authority,
             tree_pubkey: address_tree,
@@ -94,7 +91,7 @@ impl MintActionMetaConfig {
         });
 
         Ok(Self {
-            fee_payer: Some(fee_payer), // Regular mode still requires fee_payer
+            fee_payer,
             mint_signer: None, // Will be set with chainable method if has CreateSplMint
             authority,
             tree_pubkey: state_tree,
@@ -116,46 +113,6 @@ impl MintActionMetaConfig {
         })
     }
 
-    /// Create config for creating a new compressed mint via CPI
-    pub fn new_cpi_create_mint(
-        instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
-        authority: Pubkey,
-        fee_payer: Pubkey,
-        mint_signer: Pubkey,
-        address_tree: Pubkey,
-        output_queue: Pubkey,
-    ) -> crate::error::Result<Self> {
-        // CPI mode uses same account structure as regular mode
-        Self::new_create_mint(
-            instruction_data,
-            authority,
-            mint_signer,
-            fee_payer,
-            address_tree,
-            output_queue,
-        )
-    }
-
-    /// Create config for working with existing mint via CPI
-    pub fn new_cpi(
-        instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
-        authority: Pubkey,
-        fee_payer: Pubkey,
-        state_tree: Pubkey,
-        input_queue: Pubkey,
-        output_queue: Pubkey,
-    ) -> crate::error::Result<Self> {
-        // CPI mode uses same account structure as regular mode
-        Self::new(
-            instruction_data,
-            authority,
-            fee_payer,
-            state_tree,
-            input_queue,
-            output_queue,
-        )
-    }
-
     /// Create config for CPI context mode
     pub fn new_cpi_context(
         instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
@@ -172,15 +129,9 @@ impl MintActionMetaConfig {
             Self::analyze_actions(&instruction_data.actions);
         let spl_mint_initialized = instruction_data.mint.metadata.spl_mint_initialized;
         let create_mint = instruction_data.create_mint.is_some();
-        let has_create_spl_mint = instruction_data.actions.iter().any(|a| {
-            matches!(
-                a,
-                light_ctoken_types::instructions::mint_action::Action::CreateSplMint(_)
-            )
-        });
 
         Ok(Self {
-            fee_payer: Some(fee_payer),
+            fee_payer,
             mint_signer: None, // Set with chainable method if needed
             authority,
             tree_pubkey: Pubkey::default(), // Must be set with chainable method
@@ -192,7 +143,7 @@ impl MintActionMetaConfig {
             has_mint_to_actions,
             with_cpi_context: Some(cpi_context_pubkey),
             create_mint,
-            with_mint_signer: create_mint || has_create_spl_mint,
+            with_mint_signer: create_mint,
             mint_needs_to_sign: create_mint,
             ctoken_accounts,
         })
@@ -303,9 +254,7 @@ pub fn get_mint_action_instruction_account_metas(
     // LightSystemAccounts in exact order expected by validate_and_parse:
 
     // fee_payer (signer, mutable) - only add if provided
-    if let Some(fee_payer) = config.fee_payer {
-        metas.push(AccountMeta::new(fee_payer, true));
-    }
+    metas.push(AccountMeta::new(config.fee_payer, true));
 
     // cpi_authority_pda
     metas.push(AccountMeta::new_readonly(

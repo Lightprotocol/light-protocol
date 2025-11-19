@@ -2,9 +2,7 @@ use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::indexer::Indexer;
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
 use light_compressed_token_sdk::{
-    instructions::{
-        create_compressed_mint::find_spl_mint_address, derive_compressed_mint_address,
-    },
+    instructions::{create_compressed_mint::find_spl_mint_address, derive_compressed_mint_address},
     CPI_AUTHORITY_PDA,
 };
 use light_ctoken_types::{
