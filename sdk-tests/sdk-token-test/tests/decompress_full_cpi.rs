@@ -5,7 +5,7 @@ use anchor_lang::{AnchorDeserialize, InstructionData};
 const TEST_INPUT_RANGE: [usize; 4] = [1, 2, 3, 4];
 
 use light_compressed_token_sdk::instructions::{
-    decompress_full::DecompressFullAccounts, find_spl_mint_address, MintToRecipient,
+    decompress_full::DecompressFullAccounts, find_spl_mint_address,
 };
 use light_ctoken_types::instructions::mint_action::{CompressedMintWithContext, Recipient};
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
@@ -331,8 +331,8 @@ async fn test_decompress_full_cpi_with_context() {
         let mut remaining_accounts = PackedAccounts::default();
         // let output_tree_info = rpc.get_random_state_tree_info().unwrap();
 
-        let mint_recipients = vec![MintToRecipient {
-            recipient: ctx.owner.pubkey(),
+        let mint_recipients = vec![Recipient {
+            recipient: ctx.owner.pubkey().into(),
             amount: 500, // Mint some additional tokens
         }];
 

@@ -1,7 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_compressed_token_sdk::{
-    ctoken_instruction::CTokenInstruction,
-    instructions::mint_action::MintActionCpiAccounts,
+    ctoken_instruction::CTokenInstruction, instructions::mint_action::MintActionCpiAccounts,
 };
 use light_ctoken_types::instructions::mint_action::{
     MintActionCompressedInstructionData, MintToCTokenAction, MintToCompressedAction,
@@ -19,43 +18,35 @@ pub fn process_mint_action<'a, 'info>(
     // Build instruction data using builder pattern
     // ValidityProof is a wrapper around Option<CompressedProof>
     let compressed_proof = input.pda_creation.proof.0.unwrap();
-    let mut instruction_data = MintActionCompressedInstructionData::new_mint(
+    let instruction_data = MintActionCompressedInstructionData::new_mint(
         input.compressed_mint_with_context.address,
         input.compressed_mint_with_context.root_index,
         compressed_proof,
         input.compressed_mint_with_context.mint.clone(),
-    );
-
-    // Add MintToCompressed action
-    instruction_data = instruction_data.with_mint_to_compressed(MintToCompressedAction {
+    )
+    .with_mint_to_compressed(MintToCompressedAction {
         token_account_version: 2,
         recipients: input.token_recipients.clone(),
-    });
-
-    // Add MintToCToken action (mint to decompressed token account)
-    instruction_data = instruction_data.with_mint_to_ctoken(MintToCTokenAction {
+    })
+    .with_mint_to_ctoken(MintToCTokenAction {
         account_index: 0, // Index in remaining accounts
         amount: input.token_recipients[0].amount,
+    })
+    .with_update_mint_authority(UpdateAuthority {
+        new_authority: input
+            .final_mint_authority
+            .map(|auth| auth.to_bytes().into()),
+    })
+    .with_cpi_context(light_ctoken_types::instructions::mint_action::CpiContext {
+        set_context: false,
+        first_set_context: false,
+        in_tree_index: 1,
+        in_queue_index: 0,
+        out_queue_index: 0,
+        token_out_queue_index: 0,
+        assigned_account_index: 1,
+        ..Default::default()
     });
-
-    // Add UpdateMintAuthority action
-    instruction_data = instruction_data.with_update_mint_authority(UpdateAuthority {
-        new_authority: input.final_mint_authority.map(|auth| auth.to_bytes().into()),
-    });
-
-    // Add CPI context
-    instruction_data = instruction_data.with_cpi_context(
-        light_ctoken_types::instructions::mint_action::CpiContext {
-            set_context: false,
-            first_set_context: false,
-            in_tree_index: 1,
-            in_queue_index: 0,
-            out_queue_index: 0,
-            token_out_queue_index: 0,
-            assigned_account_index: 1,
-            ..Default::default()
-        },
-    );
 
     // Build account structure for CPI - manually construct from CpiAccounts
     let tree_accounts = cpi_accounts.tree_accounts().unwrap();
@@ -76,11 +67,11 @@ pub fn process_mint_action<'a, 'info>(
         system_program: cpi_accounts.system_program().unwrap(),
         sol_pool_pda: None,
         cpi_context: cpi_accounts.cpi_context().ok(),
-        out_output_queue: &tree_accounts[0], // output queue
-        in_merkle_tree: &tree_accounts[1],    // address tree
-        in_output_queue: None,               // Not needed for create
+        out_output_queue: &tree_accounts[1],       // output queue
+        in_merkle_tree: &tree_accounts[0],         // address tree
+        in_output_queue: None,                     // Not needed for create
         tokens_out_queue: Some(&tree_accounts[0]), // Same as output queue for mint_to
-        ctoken_accounts: &ctoken_accounts_vec, // For MintToCToken
+        ctoken_accounts: &ctoken_accounts_vec,     // For MintToCToken
     };
 
     // Build instruction using trait method

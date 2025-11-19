@@ -41,7 +41,8 @@ pub use ctoken_accounts::*;
 pub use decompress_full::{decompress_full_ctoken_accounts_with_indices, DecompressFullIndices};
 pub use mint_action::{
     get_mint_action_instruction_account_metas, get_mint_action_instruction_account_metas_cpi_write,
-    MintActionCpiAccounts, MintActionMetaConfig, MintActionMetaConfigCpiWrite,
+    MintActionCpiAccounts, MintActionMetaConfig, MintActionMetaConfigCpiWrite, MintActionType,
+    MintToRecipient,
 };
 pub use mint_to_compressed::{
     create_mint_to_compressed_instruction, get_mint_to_compressed_instruction_account_metas,

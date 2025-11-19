@@ -464,7 +464,6 @@ async fn test_compress_and_close_cpi_with_context() {
 
     // Import required types for minting
     use anchor_lang::AnchorDeserialize;
-    use light_compressed_token_sdk::instructions::MintToRecipient;
     use light_ctoken_types::instructions::mint_action::CompressedMintWithContext;
     use sdk_token_test::mint_compressed_tokens_cpi_write::MintCompressedTokensCpiWriteParams;
 
@@ -507,8 +506,8 @@ async fn test_compress_and_close_cpi_with_context() {
         .unwrap();
 
     // Create mint params to populate CPI context
-    let mint_recipients = vec![MintToRecipient {
-        recipient: ctx.owners[0].pubkey(),
+    let mint_recipients = vec![Recipient {
+        recipient: ctx.owners[0].pubkey().to_bytes().into(),
         amount: 500, // Mint some additional tokens
     }];
 

@@ -12,14 +12,13 @@ use light_compressed_token_sdk::{
         },
         create_compressed_mint::find_spl_mint_address,
         derive_compressed_mint_address,
-        mint_action::MintToRecipient,
     },
     CPI_AUTHORITY_PDA,
 };
 use light_ctoken_types::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
-        mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
+        mint_action::{CompressedMintInstructionData, CompressedMintWithContext, Recipient},
     },
     state::{extensions::AdditionalMetadata, CompressedMintMetadata},
     COMPRESSED_TOKEN_PROGRAM_ID,
@@ -284,8 +283,8 @@ pub async fn create_mint(
         },
     };
 
-    let token_recipients = vec![MintToRecipient {
-        recipient: payer.pubkey(),
+    let token_recipients = vec![Recipient {
+        recipient: payer.pubkey().to_bytes().into(),
         amount: 1000u64, // Mint 1000 tokens
     }];
 

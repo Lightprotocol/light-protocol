@@ -142,6 +142,6 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
         actions,
         new_mint,
     };
-
+    println!("params {:?}", params);
     mint_action(rpc, params, authority, payer, mint_signer).await
 }

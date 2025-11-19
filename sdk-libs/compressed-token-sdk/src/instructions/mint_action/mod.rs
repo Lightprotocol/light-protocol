@@ -21,9 +21,6 @@ pub struct MintToRecipient {
 /// High-level action types for the mint action instruction (backwards compatibility)
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
 pub enum MintActionType {
-    CreateSplMint {
-        mint_bump: u8,
-    },
     MintTo {
         recipients: Vec<MintToRecipient>,
         token_account_version: u8,
@@ -47,6 +44,11 @@ pub enum MintActionType {
     UpdateMetadataAuthority {
         extension_index: u8,
         new_authority: Option<Pubkey>,
+        idempotent: u8,
+    },
+    RemoveMetadataKey {
+        extension_index: u8,
+        key: Vec<u8>,
         idempotent: u8,
     },
 }

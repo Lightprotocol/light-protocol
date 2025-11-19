@@ -7,6 +7,9 @@ use crate::instructions::CTokenDefaultAccounts;
 /// Account metadata configuration for mint action instruction
 #[derive(Debug, Clone, Default)]
 pub struct MintActionMetaConfig {
+    // TODO: Change fee_payer from Option<Pubkey> to Pubkey to match on-chain requirements.
+    // The on-chain program always requires fee_payer in both LightSystemAccounts and
+    // CpiContextLightSystemAccounts. The Option is misleading - it must always be Some(...).
     pub fee_payer: Option<Pubkey>,
     pub mint_signer: Option<Pubkey>,
     pub authority: Pubkey,
@@ -25,11 +28,12 @@ pub struct MintActionMetaConfig {
 }
 
 impl MintActionMetaConfig {
-    /// Create config for creating a new compressed mint (no CPI, no CPI context)
+    /// Create config for creating a new compressed mint (regular mode with fee_payer)
     pub fn new_create_mint(
         instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
         authority: Pubkey,
         mint_signer: Pubkey,
+        fee_payer: Pubkey,
         address_tree: Pubkey,
         output_queue: Pubkey,
     ) -> crate::error::Result<Self> {
@@ -43,7 +47,7 @@ impl MintActionMetaConfig {
         let spl_mint_initialized = instruction_data.mint.metadata.spl_mint_initialized;
 
         Ok(Self {
-            fee_payer: None,
+            fee_payer: Some(fee_payer), // Regular mode still requires fee_payer
             mint_signer: Some(mint_signer),
             authority,
             tree_pubkey: address_tree,
@@ -65,10 +69,11 @@ impl MintActionMetaConfig {
         })
     }
 
-    /// Create config for working with existing mint (no CPI, no CPI context)
+    /// Create config for working with existing mint (regular mode with fee_payer)
     pub fn new(
         instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
         authority: Pubkey,
+        fee_payer: Pubkey,
         state_tree: Pubkey,
         input_queue: Pubkey,
         output_queue: Pubkey,
@@ -89,7 +94,7 @@ impl MintActionMetaConfig {
         });
 
         Ok(Self {
-            fee_payer: None,
+            fee_payer: Some(fee_payer), // Regular mode still requires fee_payer
             mint_signer: None, // Will be set with chainable method if has CreateSplMint
             authority,
             tree_pubkey: state_tree,
@@ -120,15 +125,15 @@ impl MintActionMetaConfig {
         address_tree: Pubkey,
         output_queue: Pubkey,
     ) -> crate::error::Result<Self> {
-        let mut config = Self::new_create_mint(
+        // CPI mode uses same account structure as regular mode
+        Self::new_create_mint(
             instruction_data,
             authority,
             mint_signer,
+            fee_payer,
             address_tree,
             output_queue,
-        )?;
-        config.fee_payer = Some(fee_payer);
-        Ok(config)
+        )
     }
 
     /// Create config for working with existing mint via CPI
@@ -140,15 +145,15 @@ impl MintActionMetaConfig {
         input_queue: Pubkey,
         output_queue: Pubkey,
     ) -> crate::error::Result<Self> {
-        let mut config = Self::new(
+        // CPI mode uses same account structure as regular mode
+        Self::new(
             instruction_data,
             authority,
+            fee_payer,
             state_tree,
             input_queue,
             output_queue,
-        )?;
-        config.fee_payer = Some(fee_payer);
-        Ok(config)
+        )
     }
 
     /// Create config for CPI context mode
@@ -205,6 +210,12 @@ impl MintActionMetaConfig {
         self
     }
 
+    /// Chainable method to set ctoken_accounts (for MintToCToken actions)
+    pub fn with_ctoken_accounts(mut self, accounts: Vec<Pubkey>) -> Self {
+        self.ctoken_accounts = accounts;
+        self
+    }
+
     /// Helper to analyze actions and extract info
     fn analyze_actions(
         actions: &[light_ctoken_types::instructions::mint_action::Action],
@@ -218,9 +229,10 @@ impl MintActionMetaConfig {
                     has_mint_to_actions = true;
                 }
                 light_ctoken_types::instructions::mint_action::Action::MintToCToken(_) => {
+                    // MintToCToken also requires tokens_out_queue (matches on-chain logic)
+                    has_mint_to_actions = true;
                     // Extract account from action - but we can't because it's an index
                     // So ctoken_accounts must be provided separately by user
-                    // Leave this empty for now
                 }
                 _ => {}
             }
