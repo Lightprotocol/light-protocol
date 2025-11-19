@@ -64,42 +64,6 @@ async fn stream_instruction_data<'a, R: Rpc>(
 
             let elements_for_chunk = chunk_hash_chains.len() * zkp_batch_size as usize;
 
-            // Wait for indexer to sync FIRST, then fetch fresh on-chain root
-            {
-                debug!("Waiting for indexer to sync before fetching chunk {} data", chunk_idx);
-                let connection = rpc_pool.get_connection().await?;
-                wait_for_indexer(&*connection).await?;
-                debug!("Indexer synced, proceeding with chunk {} fetch", chunk_idx);
-            }
-
-            // For first chunk, update current_root from fresh on-chain state after indexer sync
-            let mut address_queue_zkp_batch_size = Some(zkp_batch_size);
-            let root_history: Vec<[u8; 32]> = if chunk_idx == 0 {
-                let connection = rpc_pool.get_connection().await?;
-                let mut account = connection.get_account(merkle_tree_pubkey).await?.ok_or_else(|| {
-                    ForesterUtilsError::Indexer("Address merkle tree account not found".into())
-                })?;
-
-                use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
-                use light_compressed_account::Pubkey as LightPubkey;
-                let light_pubkey = LightPubkey::from(merkle_tree_pubkey.to_bytes());
-                let tree_data = BatchedMerkleTreeAccount::address_from_bytes(
-                    account.data.as_mut_slice(),
-                    &light_pubkey,
-                ).map_err(|e| ForesterUtilsError::Parse(format!("Failed to parse address tree: {}", e)))?;
-
-                current_root = tree_data.root_history.last().copied().ok_or_else(|| {
-                    ForesterUtilsError::Indexer("No root in tree history".into())
-                })?;
-
-                address_queue_zkp_batch_size =
-                    Some(tree_data.queue_batches.zkp_batch_size as u16);
-                debug!("Updated current_root from fresh on-chain state: {:?}", &current_root[..8]);
-                tree_data.root_history.to_vec()
-            } else {
-                Vec::new()
-            };
-
             let queue_elements_response = {
                 let mut connection = rpc_pool.get_connection().await?;
                 let indexer = connection.indexer_mut()?;
@@ -107,7 +71,7 @@ async fn stream_instruction_data<'a, R: Rpc>(
                     next_queue_index,
                     Some(elements_for_chunk as u16),
                 );
-                options.address_queue_zkp_batch_size = address_queue_zkp_batch_size;
+                options.address_queue_zkp_batch_size =  Some(zkp_batch_size);
                 debug!(
                     "Requesting {} addresses from Photon for chunk {} with start_queue_index={:?}",
                     elements_for_chunk, chunk_idx, next_queue_index,
@@ -156,23 +120,6 @@ async fn stream_instruction_data<'a, R: Rpc>(
 
             if chunk_idx == 0 {
                 if address_queue.initial_root != current_root {
-                    // Verify if Photon's root exists in on-chain root history
-                    let root_in_history = root_history.contains(&address_queue.initial_root);
-                    if root_in_history {
-                        warn!(
-                            "Photon root exists in history but is stale (photon={:?}, current={:?}, history_len={})",
-                            &address_queue.initial_root[..8],
-                            &current_root[..8],
-                            root_history.len()
-                        );
-                    } else {
-                        error!(
-                            "Photon root NOT found in on-chain history! This indicates data corruption or wrong tree (photon={:?}, current={:?}, history_len={})",
-                            &address_queue.initial_root[..8],
-                            &current_root[..8],
-                            root_history.len()
-                        );
-                    }
                     yield Err(ForesterUtilsError::Indexer(
                         "Indexer root does not match on-chain root".into(),
                     ));
