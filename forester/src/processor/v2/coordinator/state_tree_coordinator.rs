@@ -27,7 +27,10 @@ use tracing::{debug, error, info, trace, warn};
 
 use super::{
     batch_preparation, batch_submission,
-    batch_utils::{self, MAX_JOB_NOT_FOUND_RESUBMITS},
+    batch_utils::{
+        self, extract_current_root, validate_photon_root, validate_root,
+        MAX_COORDINATOR_RETRIES, MAX_JOB_NOT_FOUND_RESUBMITS,
+    },
     error::CoordinatorError,
     proof_generation::ProofConfig,
     shared_state::{
@@ -269,7 +272,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     pub async fn process(&mut self) -> Result<usize> {
         let mut total_items_processed = 0;
         let mut retries = 0;
-        const MAX_RETRIES: usize = 10;
 
         loop {
             let light_slot = self.calculate_light_slot();
@@ -310,10 +312,10 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                         if coord_err.is_retryable() {
                             retries += 1;
 
-                            if retries >= MAX_RETRIES {
+                            if retries >= MAX_COORDINATOR_RETRIES {
                                 warn!(
                                     "Max retries ({}) reached for error: {}",
-                                    MAX_RETRIES, coord_err
+                                    MAX_COORDINATOR_RETRIES, coord_err
                                 );
                                 self.record_cache_event("invalidate", "max_retries");
                                 self.cached_staging = None;
@@ -323,7 +325,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                             if coord_err.requires_resync() {
                                 debug!(
                                     "Invalidating cache and resyncing due to: {} (retry {}/{})",
-                                    coord_err, retries, MAX_RETRIES
+                                    coord_err, retries, MAX_COORDINATOR_RETRIES
                                 );
                                 self.record_cache_event("invalidate", "retryable_resync");
                                 self.cached_staging = None;
@@ -460,8 +462,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         )
         .await;
 
-        self.validate_root(final_root, "pipelined execution")
-            .await?;
+        let current_root = self.get_current_onchain_root().await?;
+        validate_root(current_root, final_root, "pipelined execution")?;
 
         let append_processed_items =
             num_append_batches.saturating_mul(append_zkp_batch_size as usize);
@@ -556,6 +558,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             .fetch_queues_with_accounts(
                 num_append_batches,
                 num_nullify_batches,
+                merkle_tree_account,
+                output_queue_account,
             )
             .await?;
 
@@ -723,10 +727,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             self.mark_batches_processed(job.append_batch_ids, job.nullify_batch_ids)
                 .await;
 
-            if let Err(e) = self
-                .validate_root(job.final_root, "speculative submission")
-                .await
-            {
+            let current_root = self.get_current_onchain_root().await?;
+            if let Err(e) = validate_root(current_root, job.final_root, "speculative submission") {
                 self.record_speculative_event("failed", "root_validation");
                 return Err(e);
             }
@@ -916,6 +918,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         &self,
         num_append_batches: usize,
         num_nullify_batches: usize,
+        merkle_tree_account: Account,
+        output_queue_account: Option<Account>,
     ) -> Result<QueueFetchResult> {
         let connection = self.context.rpc_pool.get_connection().await?;
         forester_utils::utils::wait_for_indexer(&*connection)
@@ -923,22 +927,12 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             .map_err(|e| anyhow::anyhow!("Indexer failed to catch up before fetch: {}", e))?;
         drop(connection);
 
-        let rpc = self.context.rpc_pool.get_connection().await?;
-        let mut fresh_accounts = rpc
-            .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
-            .await?;
-        let fresh_merkle_tree_account = fresh_accounts[0]
-            .take()
-            .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
-        let fresh_output_queue_account = fresh_accounts[1].take();
-        drop(rpc);
-
         let parsed_state = self
             .parse_onchain_accounts(
                 num_append_batches,
                 num_nullify_batches,
-                fresh_merkle_tree_account,
-                fresh_output_queue_account,
+                merkle_tree_account,
+                output_queue_account,
             )
             .await?;
 
@@ -1753,30 +1747,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         pattern
     }
 
-    async fn validate_root(&self, expected_root: [u8; 32], phase: &str) -> Result<()> {
-        let current_root = self.get_current_onchain_root().await?;
-        if current_root != expected_root {
-            let mut expected = [0u8; 8];
-            let mut actual = [0u8; 8];
-            expected.copy_from_slice(&expected_root[..8]);
-            actual.copy_from_slice(&current_root[..8]);
-
-            warn!(
-                "Root changed during {} (multi-forester race): expected {:?}, now {:?}",
-                phase, expected, actual
-            );
-
-            return Err(CoordinatorError::RootChanged {
-                phase: phase.to_string(),
-                expected,
-                actual,
-            }
-            .into());
-        }
-
-        info!("Root validation passed: {:?}", &expected_root[..8]);
-        Ok(())
-    }
 
     async fn mark_batches_processed(
         &self,
