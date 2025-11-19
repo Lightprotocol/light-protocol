@@ -44,6 +44,7 @@ static PERSISTENT_TREE_STATES: Lazy<PersistentTreeStatesCache> =
 /// Stores (staging_tree, last_known_root) for each tree.
 static PERSISTENT_STAGING_TREES: Lazy<StagingTreeCache> =
     Lazy::new(|| Arc::new(TokioMutex::new(HashMap::new())));
+const MAX_JOB_NOT_FOUND_RESUBMITS: usize = 2;
 
 struct QueueFetchResult {
     staging: super::tree_state::StagingTree,
@@ -58,6 +59,7 @@ struct QueueFetchResult {
 
 struct ParsedOnchainState {
     current_onchain_root: [u8; 32],
+    root_history: Vec<[u8; 32]>,
     append_metadata: Option<(ParsedMerkleTreeData, ParsedQueueData)>,
     nullify_metadata: Option<ParsedMerkleTreeData>,
     append_batch_ids: Vec<ProcessedBatchId>,
@@ -452,6 +454,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let proof_config = ProofConfig {
             append_url: self.context.prover_append_url.clone(),
             update_url: self.context.prover_update_url.clone(),
+            address_append_url: String::new(),
             polling_interval: self.context.prover_polling_interval,
             max_wait_time: self.context.prover_max_wait_time,
             api_key: self.context.prover_api_key.clone(),
@@ -535,6 +538,20 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let nullify_processed_items =
             num_nullify_batches.saturating_mul(nullify_zkp_batch_size as usize);
         self.consume_processed_items(append_processed_items, nullify_processed_items);
+        if num_append_batches > 0 {
+            metrics::increment_batches_processed(
+                &self.context.merkle_tree,
+                "append",
+                num_append_batches,
+            );
+        }
+        if num_nullify_batches > 0 {
+            metrics::increment_batches_processed(
+                &self.context.merkle_tree,
+                "nullify",
+                num_nullify_batches,
+            );
+        }
 
         debug!(
             "Iteration complete. Processed {} items with final root: {:?}",
@@ -652,6 +669,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             let proof_config = ProofConfig {
                 append_url: self.context.prover_append_url.clone(),
                 update_url: self.context.prover_update_url.clone(),
+                address_append_url: String::new(),
                 polling_interval: self.context.prover_polling_interval,
                 max_wait_time: self.context.prover_max_wait_time,
                 api_key: self.context.prover_api_key.clone(),
@@ -919,6 +937,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         Ok(ParsedOnchainState {
             current_onchain_root,
+            root_history: merkle_tree_parsed.root_history.to_vec(),
             append_metadata,
             nullify_metadata,
             append_batch_ids,
@@ -937,10 +956,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             num_nullify_batches,
         );
 
+        // Note: wait_for_indexer is now called before fetching accounts in fetch_queues_with_accounts
         let mut connection = self.context.rpc_pool.get_connection().await?;
-        forester_utils::utils::wait_for_indexer(&*connection)
-            .await
-            .map_err(|e| anyhow::anyhow!("Indexer failed to catch up before fetch: {}", e))?;
         let indexer = connection.indexer_mut()?;
 
         let options = light_client::indexer::QueueElementsV2Options {
@@ -950,6 +967,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             input_queue_limit,
             address_queue_start_index: None,
             address_queue_limit: None,
+            address_queue_zkp_batch_size: None,
         };
 
         let queue_elements_response = indexer
@@ -1015,15 +1033,33 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         &self,
         num_append_batches: usize,
         num_nullify_batches: usize,
-        merkle_tree_account: Account,
-        output_queue_account: Option<Account>,
+        _merkle_tree_account: Account,
+        _output_queue_account: Option<Account>,
     ) -> Result<QueueFetchResult> {
+        // Wait for indexer to sync FIRST, before fetching fresh on-chain state
+        let connection = self.context.rpc_pool.get_connection().await?;
+        forester_utils::utils::wait_for_indexer(&*connection)
+            .await
+            .map_err(|e| anyhow::anyhow!("Indexer failed to catch up before fetch: {}", e))?;
+        drop(connection);
+
+        // Now fetch fresh on-chain accounts AFTER indexer is synced
+        let rpc = self.context.rpc_pool.get_connection().await?;
+        let mut fresh_accounts = rpc
+            .get_multiple_accounts(&[self.context.merkle_tree, self.context.output_queue])
+            .await?;
+        let fresh_merkle_tree_account = fresh_accounts[0]
+            .take()
+            .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
+        let fresh_output_queue_account = fresh_accounts[1].take();
+        drop(rpc);
+
         let parsed_state = self
             .parse_onchain_accounts(
                 num_append_batches,
                 num_nullify_batches,
-                merkle_tree_account,
-                output_queue_account,
+                fresh_merkle_tree_account,
+                fresh_output_queue_account,
             )
             .await?;
 
@@ -1034,6 +1070,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let (output_queue_v2, input_queue_v2) = Self::validate_queue_responses(
             indexed_queues,
             parsed_state.current_onchain_root,
+            &parsed_state.root_history,
             &parsed_state.append_metadata,
             &parsed_state.nullify_metadata,
         )?;
@@ -1064,6 +1101,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     fn validate_queue_responses(
         response: light_client::indexer::QueueElementsV2Result,
         current_onchain_root: [u8; 32],
+        root_history: &[[u8; 32]],
         append_metadata: &Option<(ParsedMerkleTreeData, ParsedQueueData)>,
         nullify_metadata: &Option<ParsedMerkleTreeData>,
     ) -> Result<(
@@ -1077,6 +1115,24 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     let mut onchain_root = [0u8; 8];
                     photon_root.copy_from_slice(&oq.initial_root[..8]);
                     onchain_root.copy_from_slice(&current_onchain_root[..8]);
+
+                    // Verify if Photon's root exists in on-chain root history
+                    let root_in_history = root_history.contains(&oq.initial_root);
+                    if root_in_history {
+                        warn!(
+                            "Photon output queue root exists in history but is stale (photon={:?}, current={:?}, history_len={})",
+                            photon_root,
+                            onchain_root,
+                            root_history.len()
+                        );
+                    } else {
+                        error!(
+                            "Photon output queue root NOT found in on-chain history! This indicates data corruption or wrong tree (photon={:?}, current={:?}, history_len={})",
+                            photon_root,
+                            onchain_root,
+                            root_history.len()
+                        );
+                    }
 
                     return Err(CoordinatorError::PhotonStale {
                         queue_type: "output".to_string(),
@@ -1112,6 +1168,24 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     let mut onchain_root = [0u8; 8];
                     photon_root.copy_from_slice(&iq.initial_root[..8]);
                     onchain_root.copy_from_slice(&current_onchain_root[..8]);
+
+                    // Verify if Photon's root exists in on-chain root history
+                    let root_in_history = root_history.contains(&iq.initial_root);
+                    if root_in_history {
+                        warn!(
+                            "Photon input queue root exists in history but is stale (photon={:?}, current={:?}, history_len={})",
+                            photon_root,
+                            onchain_root,
+                            root_history.len()
+                        );
+                    } else {
+                        error!(
+                            "Photon input queue root NOT found in on-chain history! This indicates data corruption or wrong tree (photon={:?}, current={:?}, history_len={})",
+                            photon_root,
+                            onchain_root,
+                            root_history.len()
+                        );
+                    }
 
                     return Err(CoordinatorError::PhotonStale {
                         queue_type: "input".to_string(),
@@ -1340,6 +1414,11 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
                     PreparedBatch::Nullify(circuit_inputs)
                 }
+                BatchType::Address => {
+                    return Err(anyhow::anyhow!(
+                        "Address batch type not supported in state tree coordinator"
+                    ))
+                }
             };
 
             // DIAGNOSTIC: Log staging root after each batch
@@ -1401,7 +1480,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     let inputs_json =
                         BatchAppendInputsJson::from_inputs(circuit_inputs).to_string();
                     match append_client
-                        .submit_proof_async(inputs_json, "append")
+                        .submit_proof_async(inputs_json.clone(), "append")
                         .await
                     {
                         Ok(job_id) => {
@@ -1410,41 +1489,105 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
                             let client = append_client.clone();
                             let circuit_inputs = circuit_inputs.clone();
+                            let inputs_json_clone = inputs_json.clone();
                             let handle = tokio::spawn(async move {
                                 debug!(
                                     "Polling for append proof completion: batch {}, job {}",
                                     idx, job_id
                                 );
-                                let result = client.poll_proof_completion(job_id).await;
-                                debug!("Append proof polling complete for batch {}", idx);
+                                let mut current_job = job_id;
+                                let mut resubmits = 0usize;
 
-                                let proof_result = result.and_then(|proof| {
-                                    let big_uint = circuit_inputs.new_root.to_biguint()
-                                        .ok_or_else(|| light_prover_client::errors::ProverClientError::GenericError(
-                                            "Failed to convert new_root to BigUint".to_string()
-                                        ))?;
-                                    let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(&big_uint)
-                                        .map_err(|e| light_prover_client::errors::ProverClientError::GenericError(
-                                            format!("Failed to convert new_root to bytes: {}", e)
-                                        ))?;
+                                loop {
+                                    let result =
+                                        client.poll_proof_completion(current_job.clone()).await;
+                                    debug!(
+                                        "Append proof polling complete for batch {} (job {})",
+                                        idx, current_job
+                                    );
 
-                                    Ok(ProofResult::Append(InstructionDataBatchAppendInputs {
-                                        new_root,
-                                        compressed_proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof {
-                                            a: proof.a,
-                                            b: proof.b,
-                                            c: proof.c,
-                                        },
-                                    }))
-                                });
+                                    match result {
+                                        Ok(proof) => {
+                                            let proof_result = (|| {
+                                                let big_uint = circuit_inputs.new_root.to_biguint()
+                                                    .ok_or_else(|| light_prover_client::errors::ProverClientError::GenericError(
+                                                        "Failed to convert new_root to BigUint".to_string()
+                                                    ))?;
+                                                let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(&big_uint)
+                                                    .map_err(|e| light_prover_client::errors::ProverClientError::GenericError(
+                                                        format!("Failed to convert new_root to bytes: {}", e)
+                                                    ))?;
 
-                                let _ = proof_tx_clone
-                                    .send((
-                                        idx,
-                                        PreparedBatch::Append(circuit_inputs),
-                                        proof_result.map_err(|e| anyhow::anyhow!("{}", e)),
-                                    ))
-                                    .await;
+                                                Ok(ProofResult::Append(InstructionDataBatchAppendInputs {
+                                                    new_root,
+                                                    compressed_proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof {
+                                                        a: proof.a,
+                                                        b: proof.b,
+                                                        c: proof.c,
+                                                    },
+                                                }))
+                                            })(
+                                            );
+
+                                            let _ = proof_tx_clone
+                                                .send((
+                                                    idx,
+                                                    PreparedBatch::Append(circuit_inputs.clone()),
+                                                    proof_result.map_err(|e: light_prover_client::errors::ProverClientError| anyhow::anyhow!("{}", e)),
+                                                ))
+                                                .await;
+                                            break;
+                                        }
+                                        Err(e)
+                                            if e.to_string().contains("job_not_found")
+                                                && resubmits < MAX_JOB_NOT_FOUND_RESUBMITS =>
+                                        {
+                                            resubmits += 1;
+                                            warn!(
+                                                "Append proof job {} not found (batch {}), resubmitting attempt {}/{}",
+                                                current_job, idx, resubmits, MAX_JOB_NOT_FOUND_RESUBMITS
+                                            );
+                                            match client
+                                                .submit_proof_async(
+                                                    inputs_json_clone.clone(),
+                                                    "append",
+                                                )
+                                                .await
+                                            {
+                                                Ok(new_job_id) => {
+                                                    info!(
+                                                        "Batch {} (append) resubmitted with job_id {}",
+                                                        idx, new_job_id
+                                                    );
+                                                    current_job = new_job_id;
+                                                    continue;
+                                                }
+                                                Err(submit_err) => {
+                                                    let _ = proof_tx_clone
+                                                        .send((
+                                                            idx,
+                                                            PreparedBatch::Append(
+                                                                circuit_inputs.clone(),
+                                                            ),
+                                                            Err(anyhow::anyhow!("{}", submit_err)),
+                                                        ))
+                                                        .await;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            let _ = proof_tx_clone
+                                                .send((
+                                                    idx,
+                                                    PreparedBatch::Append(circuit_inputs.clone()),
+                                                    Err(anyhow::anyhow!("{}", e)),
+                                                ))
+                                                .await;
+                                            break;
+                                        }
+                                    }
+                                }
                             });
                             poll_handles.push(handle);
                         }
@@ -1460,7 +1603,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     debug!("Submitting nullify proof request for batch {}", idx);
                     let inputs_json = update_inputs_string(circuit_inputs);
                     match nullify_client
-                        .submit_proof_async(inputs_json, "update")
+                        .submit_proof_async(inputs_json.clone(), "update")
                         .await
                     {
                         Ok(job_id) => {
@@ -1469,41 +1612,105 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
                             let client = nullify_client.clone();
                             let circuit_inputs = circuit_inputs.clone();
+                            let inputs_json_clone = inputs_json.clone();
                             let handle = tokio::spawn(async move {
                                 debug!(
                                     "Polling for nullify proof completion: batch {}, job {}",
                                     idx, job_id
                                 );
-                                let result = client.poll_proof_completion(job_id).await;
-                                debug!("Nullify proof polling complete for batch {}", idx);
+                                let mut current_job = job_id;
+                                let mut resubmits = 0usize;
 
-                                let proof_result = result.and_then(|proof| {
-                                    let big_uint = circuit_inputs.new_root.to_biguint()
-                                        .ok_or_else(|| light_prover_client::errors::ProverClientError::GenericError(
-                                            "Failed to convert new_root to BigUint".to_string()
-                                        ))?;
-                                    let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(&big_uint)
-                                        .map_err(|e| light_prover_client::errors::ProverClientError::GenericError(
-                                            format!("Failed to convert new_root to bytes: {}", e)
-                                        ))?;
+                                loop {
+                                    let result =
+                                        client.poll_proof_completion(current_job.clone()).await;
+                                    debug!(
+                                        "Nullify proof polling complete for batch {} (job {})",
+                                        idx, current_job
+                                    );
 
-                                    Ok(ProofResult::Nullify(InstructionDataBatchNullifyInputs {
-                                        new_root,
-                                        compressed_proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof {
-                                            a: proof.a,
-                                            b: proof.b,
-                                            c: proof.c,
-                                        },
-                                    }))
-                                });
+                                    match result {
+                                        Ok(proof) => {
+                                            let proof_result = (|| {
+                                                let big_uint = circuit_inputs.new_root.to_biguint()
+                                                    .ok_or_else(|| light_prover_client::errors::ProverClientError::GenericError(
+                                                        "Failed to convert new_root to BigUint".to_string()
+                                                    ))?;
+                                                let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(&big_uint)
+                                                    .map_err(|e| light_prover_client::errors::ProverClientError::GenericError(
+                                                        format!("Failed to convert new_root to bytes: {}", e)
+                                                    ))?;
 
-                                let _ = proof_tx_clone
-                                    .send((
-                                        idx,
-                                        PreparedBatch::Nullify(circuit_inputs),
-                                        proof_result.map_err(|e| anyhow::anyhow!("{}", e)),
-                                    ))
-                                    .await;
+                                                Ok(ProofResult::Nullify(InstructionDataBatchNullifyInputs {
+                                                    new_root,
+                                                    compressed_proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof {
+                                                        a: proof.a,
+                                                        b: proof.b,
+                                                        c: proof.c,
+                                                    },
+                                                }))
+                                            })(
+                                            );
+
+                                            let _ = proof_tx_clone
+                                                .send((
+                                                    idx,
+                                                    PreparedBatch::Nullify(circuit_inputs.clone()),
+                                                    proof_result.map_err(|e: light_prover_client::errors::ProverClientError| anyhow::anyhow!("{}", e)),
+                                                ))
+                                                .await;
+                                            break;
+                                        }
+                                        Err(e)
+                                            if e.to_string().contains("job_not_found")
+                                                && resubmits < MAX_JOB_NOT_FOUND_RESUBMITS =>
+                                        {
+                                            resubmits += 1;
+                                            warn!(
+                                                "Nullify proof job {} not found (batch {}), resubmitting attempt {}/{}",
+                                                current_job, idx, resubmits, MAX_JOB_NOT_FOUND_RESUBMITS
+                                            );
+                                            match client
+                                                .submit_proof_async(
+                                                    inputs_json_clone.clone(),
+                                                    "update",
+                                                )
+                                                .await
+                                            {
+                                                Ok(new_job_id) => {
+                                                    info!(
+                                                        "Batch {} (nullify) resubmitted with job_id {}",
+                                                        idx, new_job_id
+                                                    );
+                                                    current_job = new_job_id;
+                                                    continue;
+                                                }
+                                                Err(submit_err) => {
+                                                    let _ = proof_tx_clone
+                                                        .send((
+                                                            idx,
+                                                            PreparedBatch::Nullify(
+                                                                circuit_inputs.clone(),
+                                                            ),
+                                                            Err(anyhow::anyhow!("{}", submit_err)),
+                                                        ))
+                                                        .await;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        Err(e) => {
+                                            let _ = proof_tx_clone
+                                                .send((
+                                                    idx,
+                                                    PreparedBatch::Nullify(circuit_inputs.clone()),
+                                                    Err(anyhow::anyhow!("{}", e)),
+                                                ))
+                                                .await;
+                                            break;
+                                        }
+                                    }
+                                }
                             });
                             poll_handles.push(handle);
                         }
@@ -1514,6 +1721,11 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                                 .await;
                         }
                     }
+                }
+                PreparedBatch::Address(_) => {
+                    unreachable!(
+                        "Address batches should not be processed by state tree coordinator"
+                    );
                 }
             }
         }
@@ -1590,6 +1802,9 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                                     &old_root_bytes[old_root_bytes.len().saturating_sub(8)..],
                                     &new_root_bytes[new_root_bytes.len().saturating_sub(8)..]
                                 );
+                            }
+                            PreparedBatch::Address(_) => {
+                                unreachable!("Address batches should not be processed by state tree coordinator");
                             }
                         }
                         warn!(
@@ -1685,6 +1900,11 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let batch_items = match &batch {
                     PreparedBatch::Append(inputs) => inputs.batch_size as usize,
                     PreparedBatch::Nullify(inputs) => inputs.batch_size as usize,
+                    PreparedBatch::Address(_) => {
+                        unreachable!(
+                            "Address batches should not be processed by state tree coordinator"
+                        )
+                    }
                 };
                 let proof = proof_result.map_err(|e| anyhow::anyhow!(e))?;
                 match proof {

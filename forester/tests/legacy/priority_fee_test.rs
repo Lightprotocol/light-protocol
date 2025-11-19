@@ -38,6 +38,10 @@ async fn test_priority_fee_request() {
             std::env::var("FORESTER_PROVER_URL")
                 .expect("FORESTER_PROVER_URL must be set in environment"),
         ),
+        prover_append_url: None,
+        prover_update_url: None,
+        prover_address_append_url: None,
+        prover_api_key: None,
         payer: Some(
             std::env::var("FORESTER_PAYER").expect("FORESTER_PAYER must be set in environment"),
         ),
@@ -48,10 +52,12 @@ async fn test_priority_fee_request() {
         photon_api_key: Some(
             std::env::var("PHOTON_API_KEY").expect("PHOTON_API_KEY must be set in environment"),
         ),
+        photon_grpc_url: None,
         indexer_batch_size: 50,
         indexer_max_concurrent_batches: 10,
         legacy_ixs_per_tx: 1,
         transaction_max_concurrent_batches: 20,
+        max_concurrent_sends: 50,
         tx_cache_ttl_seconds: 15,
         ops_cache_ttl_seconds: 180,
         cu_limit: 1_000_000,
@@ -80,6 +86,7 @@ async fn test_priority_fee_request() {
         speculative_min_queue_items: 32,
         speculative_min_append_queue_items: None,
         speculative_min_nullify_queue_items: None,
+        enable_new_address_pipeline: false,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");

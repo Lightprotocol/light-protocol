@@ -2,11 +2,13 @@
 use anyhow::Result;
 use borsh::BorshSerialize;
 use light_batched_merkle_tree::merkle_tree::{
-    InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
+    InstructionDataAddressAppendInputs, InstructionDataBatchAppendInputs,
+    InstructionDataBatchNullifyInputs,
 };
 use light_client::rpc::Rpc;
 use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
+    create_batch_update_address_tree_instruction,
 };
 use solana_sdk::signer::Signer;
 use tracing::info;
@@ -230,6 +232,82 @@ pub async fn submit_interleaved_batches<R: Rpc>(
 
     let total_elements = submitted_append_batches * append_zkp_batch_size as usize
         + submitted_nullify_batches * nullify_zkp_batch_size as usize;
+
+    Ok(total_elements)
+}
+
+/// Submits address append batches to the blockchain.
+///
+/// Returns the total number of elements processed (not batches).
+pub async fn submit_address_batches<R: Rpc>(
+    context: &BatchContext<R>,
+    proofs: Vec<InstructionDataAddressAppendInputs>,
+    zkp_batch_size: u16,
+) -> Result<usize> {
+    if proofs.is_empty() {
+        return Ok(0);
+    }
+
+    let total_batches = proofs.len();
+    info!("Submitting {} address append batches", total_batches);
+
+    let mut total_batches_submitted = 0;
+
+    for (chunk_idx, batch_chunk) in proofs.chunks(MAX_INSTRUCTIONS_PER_TX).enumerate() {
+        let start_batch_idx = chunk_idx * MAX_INSTRUCTIONS_PER_TX;
+
+        let mut instructions = Vec::new();
+        for batch_data in batch_chunk {
+            let serialized = batch_data
+                .try_to_vec()
+                .map_err(|e| anyhow::anyhow!("Failed to serialize address append proof: {}", e))?;
+            instructions.push(create_batch_update_address_tree_instruction(
+                context.authority.pubkey(),
+                context.derivation,
+                context.merkle_tree,
+                context.epoch,
+                serialized,
+            ));
+        }
+
+        info!(
+            "Submitting address append transaction {} with {} batches (tree={}, batches {}-{})",
+            chunk_idx,
+            instructions.len(),
+            context.merkle_tree,
+            start_batch_idx,
+            start_batch_idx + instructions.len() - 1
+        );
+
+        let signature = send_transaction_batch(context, instructions).await?;
+        let final_root = batch_chunk
+            .last()
+            .map(|proof| {
+                let mut root = [0u8; 8];
+                root.copy_from_slice(&proof.new_root[..8]);
+                root
+            })
+            .unwrap_or([0u8; 8]);
+
+        info!(
+            "Address append transaction {} confirmed for tree {}: {} ({} batches, final new_root={:?})",
+            chunk_idx,
+            context.merkle_tree,
+            signature,
+            batch_chunk.len(),
+            final_root
+        );
+
+        total_batches_submitted += batch_chunk.len();
+    }
+
+    let total_elements = total_batches_submitted * zkp_batch_size as usize;
+    let num_transactions = total_batches.div_ceil(MAX_INSTRUCTIONS_PER_TX);
+
+    info!(
+        "Submitted {} address append batches ({} elements) in {} transactions",
+        total_batches, total_elements, num_transactions
+    );
 
     Ok(total_elements)
 }

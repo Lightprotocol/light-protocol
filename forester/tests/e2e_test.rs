@@ -234,6 +234,7 @@ async fn e2e_test() {
             skip_v2_state_trees: false,
             skip_v1_address_trees: false,
             skip_v2_address_trees: false,
+            enable_new_address_pipeline: true,
             tree_id: None,
             speculative_lead_time_seconds: 40,
             speculative_min_queue_items: 32,
@@ -1667,47 +1668,49 @@ async fn log_queue_state<R: Rpc>(rpc: &R, tree_or_queue_pubkey: Pubkey, label: &
     };
 
     if let Ok(queue_data) = BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice()) {
-        print_queue_info(tree_or_queue_pubkey, &queue_data);
+        print_state_queue_info(tree_or_queue_pubkey, &queue_data);
         return;
     }
 
-    let tree_data = match BatchedMerkleTreeAccount::state_from_bytes(
+    if let Ok(tree_data) = BatchedMerkleTreeAccount::state_from_bytes(
         account.data.as_mut_slice(),
         &tree_or_queue_pubkey.into(),
     ) {
-        Ok(data) => data,
-        Err(_) => {
-            return;
-        }
-    };
+        let queue_pubkey = tree_data.metadata.associated_queue;
+        let mut queue_account = match rpc.get_account(queue_pubkey.into()).await {
+            Ok(Some(account)) => account,
+            Ok(None) => {
+                println!("  ERROR: Queue account not found");
+                return;
+            }
+            Err(e) => {
+                println!("  ERROR: Failed to fetch queue account: {:?}", e);
+                return;
+            }
+        };
 
-    let queue_pubkey = tree_data.metadata.associated_queue;
-
-    let mut queue_account = match rpc.get_account(queue_pubkey.into()).await {
-        Ok(Some(account)) => account,
-        Ok(None) => {
-            println!("  ERROR: Queue account not found");
-            return;
+        if let Ok(queue_data) =
+            BatchedQueueAccount::output_from_bytes(queue_account.data.as_mut_slice())
+        {
+            print_state_queue_info(queue_pubkey.into(), &queue_data);
+        } else {
+            println!("  ERROR: Failed to parse queue data for state tree");
         }
-        Err(e) => {
-            println!("  ERROR: Failed to fetch queue account: {:?}", e);
-            return;
-        }
-    };
+        return;
+    }
 
-    let queue_data = match BatchedQueueAccount::output_from_bytes(queue_account.data.as_mut_slice())
-    {
-        Ok(data) => data,
-        Err(e) => {
-            println!("  ERROR: Failed to parse queue data: {:?}", e);
-            return;
-        }
-    };
+    if let Ok(tree_data) = BatchedMerkleTreeAccount::address_from_bytes(
+        account.data.as_mut_slice(),
+        &tree_or_queue_pubkey.into(),
+    ) {
+        print_address_queue_info(tree_or_queue_pubkey, &tree_data);
+        return;
+    }
 
-    print_queue_info(queue_pubkey.into(), &queue_data);
+    println!("  ERROR: Unsupported account type for queue inspection");
 }
 
-fn print_queue_info(
+fn print_state_queue_info(
     queue_pubkey: Pubkey,
     queue_data: &light_batched_merkle_tree::queue::BatchedQueueMetadata,
 ) {
@@ -1717,7 +1720,7 @@ fn print_queue_info(
         "  Currently processing batch: {}",
         queue_data.batch_metadata.currently_processing_batch_index
     );
-    println!("");
+    println!();
 
     for (batch_idx, batch) in queue_data.batch_metadata.batches.iter().enumerate() {
         let batch_state = batch.get_state();
@@ -1726,6 +1729,30 @@ fn print_queue_info(
         let ready_count = current_index.saturating_sub(num_inserted);
 
         println!("  Batch {}: (start_index={})", batch_idx, batch.start_index);
+        println!("    State: {:?}", batch_state);
+        println!("    num_full_zkp_batches: {}", current_index);
+        println!("    num_inserted_zkp_batches: {}", num_inserted);
+        println!("    READY TO PROCESS: {} zkp batches", ready_count);
+    }
+
+    println!("========================================\n");
+}
+
+fn print_address_queue_info(tree_pubkey: Pubkey, tree_data: &BatchedMerkleTreeAccount) {
+    println!("  Address Tree: {:?}", tree_pubkey);
+    println!("  Next index: {}", tree_data.next_index);
+    println!();
+
+    for (batch_idx, batch) in tree_data.queue_batches.batches.iter().enumerate() {
+        let batch_state = batch.get_state();
+        let num_inserted = batch.get_num_inserted_zkps();
+        let current_index = batch.get_current_zkp_batch_index();
+        let ready_count = current_index.saturating_sub(num_inserted);
+
+        println!(
+            "  Address batch {}: (start_index={})",
+            batch_idx, batch.start_index
+        );
         println!("    State: {:?}", batch_state);
         println!("    num_full_zkp_batches: {}", current_index);
         println!("    num_inserted_zkp_batches: {}", num_inserted);

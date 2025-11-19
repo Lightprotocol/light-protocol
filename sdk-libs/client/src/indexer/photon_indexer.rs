@@ -1752,6 +1752,7 @@ impl Indexer for PhotonIndexer {
             let input_queue_limit = _options.input_queue_limit;
             let address_queue_start_index = _options.address_queue_start_index;
             let address_queue_limit = _options.address_queue_limit;
+            let address_queue_zkp_batch_size = _options.address_queue_zkp_batch_size;
             let config = _config.unwrap_or_default();
 
             self.retry(config.retry_config, || async {
@@ -1763,6 +1764,7 @@ impl Indexer for PhotonIndexer {
                     input_queue_limit,
                     address_queue_start_index,
                     address_queue_limit,
+                    address_queue_zkp_batch_size,
                 };
 
                 let request = photon_api::models::GetQueueElementsV2PostRequest {

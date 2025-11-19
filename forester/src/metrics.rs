@@ -96,6 +96,14 @@ lazy_static! {
         &["tree"]
     )
     .expect("metric can be created");
+    pub static ref CONTROLLER_BATCHES_PROCESSED: IntCounterVec = IntCounterVec::new(
+        prometheus::opts!(
+            "forester_controller_batches_processed_total",
+            "Number of ZKP batches processed per controller"
+        ),
+        &["tree", "batch_type"]
+    )
+    .expect("metric can be created");
     static ref METRIC_UPDATES: Mutex<Vec<(u64, usize, std::time::Duration)>> =
         Mutex::new(Vec::new());
 }
@@ -135,6 +143,9 @@ pub fn register_metrics() {
             .expect("collector can be registered");
         REGISTRY
             .register(Box::new(CONTROLLER_ITERATION_SECONDS.clone()))
+            .expect("collector can be registered");
+        REGISTRY
+            .register(Box::new(CONTROLLER_BATCHES_PROCESSED.clone()))
             .expect("collector can be registered");
     });
 }
@@ -221,6 +232,12 @@ pub fn observe_iteration_duration(tree: &Pubkey, duration: Duration) {
     CONTROLLER_ITERATION_SECONDS
         .with_label_values(&[&tree.to_string()])
         .observe(duration.as_secs_f64());
+}
+
+pub fn increment_batches_processed(tree: &Pubkey, batch_type: &str, count: usize) {
+    CONTROLLER_BATCHES_PROCESSED
+        .with_label_values(&[&tree.to_string(), batch_type])
+        .inc_by(count as u64);
 }
 
 pub async fn push_metrics(url: &Option<String>) -> Result<()> {

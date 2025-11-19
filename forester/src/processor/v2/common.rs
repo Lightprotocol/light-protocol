@@ -14,7 +14,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
 };
 use tokio::sync::Mutex;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::{
     errors::ForesterError, processor::tx_cache::ProcessedHashCache, slot_tracker::SlotTracker,
@@ -44,6 +44,7 @@ pub struct BatchContext<R: Rpc> {
     pub speculative_lead_time: Duration,
     pub speculative_min_append_queue_items: usize,
     pub speculative_min_nullify_queue_items: usize,
+    pub enable_new_address_pipeline: bool,
 }
 
 pub(crate) async fn process_stream<R, S, D, FutC>(
@@ -143,7 +144,20 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
     context: &BatchContext<R>,
     instructions: Vec<Instruction>,
 ) -> Result<String> {
-    let current_slot = context.slot_tracker.estimated_current_slot();
+    let mut rpc = context.rpc_pool.get_connection().await?;
+    let current_slot = match rpc.get_slot().await {
+        Ok(slot) => {
+            context.slot_tracker.update(slot);
+            slot
+        }
+        Err(err) => {
+            warn!(
+                "Failed to refresh slot before sending transaction (tree={}): {}. Falling back to estimate.",
+                context.merkle_tree, err
+            );
+            context.slot_tracker.estimated_current_slot()
+        }
+    };
     let current_phase_state = context.epoch_phases.get_current_epoch_state(current_slot);
 
     if current_phase_state != EpochState::Active {
@@ -160,7 +174,6 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         instructions.len(),
         context.merkle_tree
     );
-    let mut rpc = context.rpc_pool.get_connection().await?;
     // create_and_send_transaction already includes confirmation via send_and_confirm_transaction
     // No need to confirm again - this saves ~50-200ms per transaction
     let signature = rpc

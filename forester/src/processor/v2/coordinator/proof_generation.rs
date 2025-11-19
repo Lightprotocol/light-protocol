@@ -18,6 +18,7 @@ use tracing::{debug, info};
 pub struct ProofConfig {
     pub append_url: String,
     pub update_url: String,
+    pub address_append_url: String,
     pub polling_interval: std::time::Duration,
     pub max_wait_time: std::time::Duration,
     pub api_key: Option<String>,
@@ -145,6 +146,7 @@ mod tests {
         let config = ProofConfig {
             append_url: "http://localhost:8080".to_string(),
             update_url: "http://localhost:8081".to_string(),
+            address_append_url: "http://localhost:3000".to_string(),
             polling_interval: std::time::Duration::from_millis(100),
             max_wait_time: std::time::Duration::from_secs(30),
             api_key: None,

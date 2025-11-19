@@ -82,6 +82,7 @@ pub struct GeneralConfig {
     pub skip_v1_address_trees: bool,
     pub skip_v2_state_trees: bool,
     pub skip_v2_address_trees: bool,
+    pub enable_new_address_pipeline: bool,
     pub tree_id: Option<Pubkey>,
     pub speculative_lead_time_seconds: u64,
     pub speculative_min_queue_items: usize,
@@ -99,6 +100,7 @@ impl Default for GeneralConfig {
             skip_v1_address_trees: false,
             skip_v2_state_trees: false,
             skip_v2_address_trees: false,
+            enable_new_address_pipeline: false,
             tree_id: None,
             speculative_lead_time_seconds: 40,
             speculative_min_queue_items: 32,
@@ -118,6 +120,7 @@ impl GeneralConfig {
             skip_v1_address_trees: true,
             skip_v2_state_trees: true,
             skip_v2_address_trees: false,
+            enable_new_address_pipeline: false,
             tree_id: None,
             speculative_lead_time_seconds: 40,
             speculative_min_queue_items: 32,
@@ -135,6 +138,7 @@ impl GeneralConfig {
             skip_v1_address_trees: true,
             skip_v2_state_trees: false,
             skip_v2_address_trees: true,
+            enable_new_address_pipeline: false,
             tree_id: None,
             speculative_lead_time_seconds: 40,
             speculative_min_queue_items: 32,
@@ -295,6 +299,7 @@ impl ForesterConfig {
                 skip_v2_state_trees: args.processor_mode == ProcessorMode::V1,
                 skip_v1_address_trees: args.processor_mode == ProcessorMode::V2,
                 skip_v2_address_trees: args.processor_mode == ProcessorMode::V1,
+                enable_new_address_pipeline: args.enable_new_address_pipeline,
                 tree_id: args
                     .tree_id
                     .as_ref()
@@ -358,6 +363,7 @@ impl ForesterConfig {
                 skip_v2_state_trees: false,
                 skip_v1_address_trees: false,
                 skip_v2_address_trees: false,
+                enable_new_address_pipeline: false,
                 tree_id: None,
                 speculative_lead_time_seconds: 40,
                 speculative_min_queue_items: 32,

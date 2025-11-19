@@ -250,6 +250,14 @@ pub struct StartArgs {
         help = "Optional override for nullify queue backlog threshold; defaults to FORESTER_SPECULATIVE_MIN_QUEUE_ITEMS"
     )]
     pub speculative_min_nullify_queue_items: Option<usize>,
+
+    #[arg(
+        long,
+        env = "FORESTER_ENABLE_NEW_ADDRESS_PIPELINE",
+        default_value = "false",
+        help = "Enable the new AddressTreeCoordinator pipeline (defaults to the legacy pipeline)"
+    )]
+    pub enable_new_address_pipeline: bool,
 }
 
 #[derive(Parser, Clone, Debug)]

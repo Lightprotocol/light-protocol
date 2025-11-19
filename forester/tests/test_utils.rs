@@ -108,6 +108,7 @@ pub fn forester_config() -> ForesterConfig {
             skip_v2_state_trees: false,
             skip_v1_address_trees: false,
             skip_v2_address_trees: false,
+            enable_new_address_pipeline: true,
             tree_id: None,
             speculative_lead_time_seconds: 40,
             speculative_min_queue_items: 32,

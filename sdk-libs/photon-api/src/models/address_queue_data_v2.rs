@@ -28,6 +28,10 @@ pub struct AddressQueueDataV2 {
     pub low_element_next_indices: Vec<u64>,
     #[serde(rename = "lowElementNextValues")]
     pub low_element_next_values: Vec<String>,
+    #[serde(rename = "lowElementProofs", default)]
+    pub low_element_proofs: Vec<Vec<String>>,
+    #[serde(rename = "leavesHashChains", default)]
+    pub leaves_hash_chains: Vec<String>,
     #[serde(rename = "initialRoot")]
     pub initial_root: String,
     #[serde(rename = "startIndex")]
@@ -46,6 +50,8 @@ impl AddressQueueDataV2 {
         low_element_values: Vec<String>,
         low_element_next_indices: Vec<u64>,
         low_element_next_values: Vec<String>,
+        low_element_proofs: Vec<Vec<String>>,
+        leaves_hash_chains: Vec<String>,
         initial_root: String,
         start_index: u64,
         subtrees: Vec<String>,
@@ -59,6 +65,8 @@ impl AddressQueueDataV2 {
             low_element_values,
             low_element_next_indices,
             low_element_next_values,
+            low_element_proofs,
+            leaves_hash_chains,
             initial_root,
             start_index,
             subtrees,

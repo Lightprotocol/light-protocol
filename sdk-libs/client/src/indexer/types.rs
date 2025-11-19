@@ -156,6 +156,8 @@ pub struct AddressQueueDataV2 {
     pub low_element_values: Vec<[u8; 32]>,
     pub low_element_next_indices: Vec<u64>,
     pub low_element_next_values: Vec<[u8; 32]>,
+    pub low_element_proofs: Vec<Vec<[u8; 32]>>,
+    pub leaves_hash_chains: Vec<[u8; 32]>,
     pub initial_root: [u8; 32],
     pub start_index: u64,
     pub subtrees: Vec<[u8; 32]>,
@@ -196,6 +198,21 @@ impl TryFrom<&photon_api::models::AddressQueueDataV2> for AddressQueueDataV2 {
             .iter()
             .map(|s| decode_base58_to_fixed_array(s))
             .collect::<Result<Vec<_>, _>>()?;
+        let low_element_proofs = value
+            .low_element_proofs
+            .iter()
+            .map(|proof| {
+                proof
+                    .iter()
+                    .map(|node| decode_base58_to_fixed_array(node))
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let leaves_hash_chains = value
+            .leaves_hash_chains
+            .iter()
+            .map(|s| decode_base58_to_fixed_array(s))
+            .collect::<Result<Vec<_>, _>>()?;
 
         Ok(AddressQueueDataV2 {
             addresses,
@@ -206,6 +223,8 @@ impl TryFrom<&photon_api::models::AddressQueueDataV2> for AddressQueueDataV2 {
             low_element_values,
             low_element_next_indices: value.low_element_next_indices.clone(),
             low_element_next_values,
+            low_element_proofs,
+            leaves_hash_chains,
             initial_root,
             start_index: value.start_index,
             subtrees,

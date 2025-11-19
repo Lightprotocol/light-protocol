@@ -36,6 +36,7 @@ pub struct QueueUpdateMessage {
 pub struct QueueEventRouter {
     grpc_client: RwLock<QueueServiceClient<Channel>>,
     tree_notifiers: Arc<RwLock<HashMap<Pubkey, mpsc::Sender<QueueUpdateMessage>>>>,
+    last_updates: Arc<RwLock<HashMap<Pubkey, QueueUpdateMessage>>>,
     connection_healthy: Arc<AtomicBool>,
     photon_grpc_url: String,
 }
@@ -53,6 +54,7 @@ impl QueueEventRouter {
         Ok(Self {
             grpc_client: RwLock::new(grpc_client),
             tree_notifiers: Arc::new(RwLock::new(HashMap::new())),
+            last_updates: Arc::new(RwLock::new(HashMap::new())),
             // Initialize as healthy since connection just succeeded
             // Will be set to false if subscription fails in run_dispatcher
             connection_healthy: Arc::new(AtomicBool::new(true)),
@@ -62,8 +64,24 @@ impl QueueEventRouter {
 
     pub async fn register_tree(&self, tree_pubkey: Pubkey) -> mpsc::Receiver<QueueUpdateMessage> {
         let (tx, rx) = mpsc::channel(100);
-        self.tree_notifiers.write().await.insert(tree_pubkey, tx);
+        self.tree_notifiers
+            .write()
+            .await
+            .insert(tree_pubkey, tx.clone());
         debug!("Registered tree {} for queue updates", tree_pubkey);
+        if let Some(last_update) = self.last_updates.read().await.get(&tree_pubkey).cloned() {
+            if let Err(err) = tx.try_send(last_update) {
+                warn!(
+                    "Failed to send cached queue state to tree {} on registration: {}",
+                    tree_pubkey, err
+                );
+            } else {
+                info!(
+                    "Sent cached queue state to tree {} immediately after registration",
+                    tree_pubkey
+                );
+            }
+        }
         rx
     }
 
@@ -168,15 +186,18 @@ impl QueueEventRouter {
                 update_type,
             };
 
+            {
+                let mut cache = self.last_updates.write().await;
+                cache.insert(tree_pubkey, message.clone());
+            }
+
             let notifiers = self.tree_notifiers.read().await;
             if let Some(tx) = notifiers.get(&tree_pubkey) {
                 match tx.try_send(message.clone()) {
                     Ok(()) => {
-                        trace!(
-                            "Routed update to tree {}: {} items (type: {:?})",
-                            tree_pubkey,
-                            message.queue_size,
-                            queue_type
+                        info!(
+                            "Routed update to tree {}: {} items (type: {:?}, queue_type={})",
+                            tree_pubkey, message.queue_size, queue_type, queue_info.queue_type
                         );
                     }
                     Err(mpsc::error::TrySendError::Full(_)) => {

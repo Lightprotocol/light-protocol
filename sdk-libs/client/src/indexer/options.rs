@@ -69,6 +69,7 @@ pub struct QueueElementsV2Options {
     pub input_queue_limit: Option<u16>,
     pub address_queue_start_index: Option<u64>,
     pub address_queue_limit: Option<u16>,
+    pub address_queue_zkp_batch_size: Option<u16>,
 }
 
 impl QueueElementsV2Options {
@@ -91,6 +92,11 @@ impl QueueElementsV2Options {
     pub fn with_address_queue(mut self, start_index: Option<u64>, limit: Option<u16>) -> Self {
         self.address_queue_start_index = start_index;
         self.address_queue_limit = limit;
+        self
+    }
+
+    pub fn with_address_queue_batch_size(mut self, batch_size: Option<u16>) -> Self {
+        self.address_queue_zkp_batch_size = batch_size;
         self
     }
 }

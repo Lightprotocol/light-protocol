@@ -8,6 +8,8 @@ pub enum BatchType {
     Append,
     /// Nullify operation (input queue).
     Nullify,
+    /// Address append operation (address queue).
+    Address,
 }
 
 impl BatchType {
@@ -16,6 +18,7 @@ impl BatchType {
         match self {
             BatchType::Append => "append",
             BatchType::Nullify => "nullify",
+            BatchType::Address => "address",
         }
     }
 }
@@ -25,6 +28,7 @@ impl BatchType {
 pub enum PreparedBatch {
     Append(light_prover_client::proof_types::batch_append::BatchAppendsCircuitInputs),
     Nullify(light_prover_client::proof_types::batch_update::BatchUpdateCircuitInputs),
+    Address(light_prover_client::proof_types::batch_address_append::BatchAddressAppendInputs),
 }
 
 impl PreparedBatch {
@@ -33,6 +37,7 @@ impl PreparedBatch {
         match self {
             PreparedBatch::Append(_) => BatchType::Append,
             PreparedBatch::Nullify(_) => BatchType::Nullify,
+            PreparedBatch::Address(_) => BatchType::Address,
         }
     }
 }
@@ -70,6 +75,43 @@ impl NullifyQueueData {
     /// Total number of elements across all batches.
     pub fn total_elements(&self) -> usize {
         self.queue_elements.len()
+    }
+
+    /// Number of batches.
+    pub fn num_batches(&self) -> usize {
+        self.leaves_hash_chains.len()
+    }
+}
+
+/// Data for address append batches from the address queue.
+#[derive(Debug)]
+pub struct AddressQueueData {
+    /// Addresses to be inserted.
+    pub addresses: Vec<[u8; 32]>,
+    /// Low element values for non-inclusion proofs.
+    pub low_element_values: Vec<[u8; 32]>,
+    /// Next values for low elements.
+    pub low_element_next_values: Vec<[u8; 32]>,
+    /// Indices of low elements in the tree.
+    pub low_element_indices: Vec<u64>,
+    /// Next indices for low elements.
+    pub low_element_next_indices: Vec<u64>,
+    /// Merkle proofs for low elements.
+    pub low_element_proofs: Vec<Vec<[u8; 32]>>,
+    /// Hash chains for batches.
+    pub leaves_hash_chains: Vec<[u8; 32]>,
+    /// ZKP batch size.
+    pub zkp_batch_size: u16,
+    /// Subtrees for the sparse merkle tree.
+    pub subtrees: Vec<[u8; 32]>,
+    /// Start index for the first batch.
+    pub start_index: u64,
+}
+
+impl AddressQueueData {
+    /// Total number of elements across all batches.
+    pub fn total_elements(&self) -> usize {
+        self.addresses.len()
     }
 
     /// Number of batches.

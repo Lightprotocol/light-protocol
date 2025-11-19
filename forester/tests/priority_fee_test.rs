@@ -86,6 +86,7 @@ async fn test_priority_fee_request() {
         speculative_min_queue_items: 32,
         speculative_min_append_queue_items: None,
         speculative_min_nullify_queue_items: None,
+        enable_new_address_pipeline: false,
     };
 
     let config = ForesterConfig::new_for_start(&args).expect("Failed to create config");
