@@ -67,7 +67,7 @@ pub fn parse_output_queue_batch(
         pending_batch_index: batch_index as u32,
         num_inserted_zkps,
         current_zkp_batch_index,
-        batch_start_index: batch.start_index + (num_inserted_zkps * batch.zkp_batch_size),
+        batch_start_index: batch.start_index,
         leaves_hash_chains,
     };
 
@@ -144,7 +144,7 @@ where
             let current_index = batch.get_current_zkp_batch_index();
 
             if queue_leaves_hash_chains.is_empty() {
-                batch_start_index = batch.start_index + (num_inserted * batch.zkp_batch_size);
+                batch_start_index = batch.start_index;
             }
 
             for i in num_inserted..current_index {
