@@ -39,6 +39,14 @@ use super::{
 };
 use crate::{grpc::QueueUpdateMessage, metrics, processor::v2::common::BatchContext};
 
+/// Channel buffer size for proof generation pipeline.
+/// Balances memory usage vs throughput for concurrent batch processing.
+const PROOF_CHANNEL_BUFFER_SIZE: usize = 50;
+
+/// Maximum number of batches that can be submitted in a single transaction.
+/// Constrained by Solana transaction size limits.
+const MAX_BATCHES_PER_TRANSACTION: usize = 4;
+
 type PersistentTreeStatesCache = Arc<TokioMutex<HashMap<Pubkey, SharedState>>>;
 type StagingTreeCache =
     Arc<TokioMutex<HashMap<Pubkey, (super::tree_state::StagingTree, [u8; 32])>>>;
@@ -371,8 +379,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         let pattern = Self::create_interleaving_pattern(num_append_batches, num_nullify_batches);
 
-        let (prep_tx, prep_rx) = tokio::sync::mpsc::channel(50);
-        let (proof_tx, proof_rx) = tokio::sync::mpsc::channel(50);
+        let (prep_tx, prep_rx) = tokio::sync::mpsc::channel(PROOF_CHANNEL_BUFFER_SIZE);
+        let (proof_tx, proof_rx) = tokio::sync::mpsc::channel(PROOF_CHANNEL_BUFFER_SIZE);
 
         let proof_config = ProofConfig {
             append_url: self.context.prover_append_url.clone(),
@@ -971,19 +979,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     )> {
         let output_queue = if let Some(ref metadata) = append_metadata {
             if let Some(oq) = response.output_queue {
-                if oq.initial_root != current_onchain_root {
-                    let mut photon_root = [0u8; 8];
-                    let mut onchain_root = [0u8; 8];
-                    photon_root.copy_from_slice(&oq.initial_root[..8]);
-                    onchain_root.copy_from_slice(&current_onchain_root[..8]);
-
-                    return Err(CoordinatorError::PhotonStale {
-                        queue_type: "output".to_string(),
-                        photon_root,
-                        onchain_root,
-                    }
-                    .into());
-                }
+                batch_utils::validate_photon_root(oq.initial_root, current_onchain_root, "output")?;
 
                 let (_, queue_data) = metadata;
                 let expected_total =
@@ -1006,18 +1002,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         let input_queue = if nullify_metadata.is_some() {
             if let Some(iq) = response.input_queue {
-                if iq.initial_root != current_onchain_root {
-                    let mut photon_root = [0u8; 8];
-                    let mut onchain_root = [0u8; 8];
-                    photon_root.copy_from_slice(&iq.initial_root[..8]);
-                    onchain_root.copy_from_slice(&current_onchain_root[..8]);
-                    return Err(CoordinatorError::PhotonStale {
-                        queue_type: "input".to_string(),
-                        photon_root,
-                        onchain_root,
-                    }
-                    .into());
-                }
+                batch_utils::validate_photon_root(iq.initial_root, current_onchain_root, "input")?;
 
                 let tree_data = nullify_metadata.as_ref().ok_or_else(|| {
                     anyhow::anyhow!("nullify_metadata unexpectedly None despite being checked")
@@ -1523,7 +1508,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     ) -> Result<(usize, Duration)> {
         use std::collections::BTreeMap;
 
-        const MAX_BATCH_SIZE: usize = 4;
 
         let mut buffer: BTreeMap<usize, (PreparedBatch, Result<ProofResult>)> = BTreeMap::new();
         let mut next_to_submit = 0;
@@ -1602,7 +1586,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
                 next_to_submit += 1;
 
-                if ready_pattern.len() >= MAX_BATCH_SIZE {
+                if ready_pattern.len() >= MAX_BATCHES_PER_TRANSACTION {
                     let submit_start = Instant::now();
                     total_items += batch_submission::submit_interleaved_batches(
                         &self.context,

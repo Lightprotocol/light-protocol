@@ -38,6 +38,14 @@ use super::{
 use crate::{errors::ForesterError, metrics, processor::v2::common::BatchContext};
 use light_prover_client::proof_types::batch_address_append::BatchAddressAppendInputsJson;
 
+/// Channel buffer size for proof generation pipeline.
+/// Balances memory usage vs throughput for concurrent batch processing.
+const PROOF_CHANNEL_BUFFER_SIZE: usize = 50;
+
+/// Timeout in seconds for batch submission when waiting for additional proofs.
+/// Prevents indefinite waiting while allowing time for proof generation to complete.
+const BATCH_SUBMIT_TIMEOUT_SECS: u64 = 2;
+
 type PersistentAddressTreeStatesCache = Arc<TokioMutex<HashMap<Pubkey, SharedState>>>;
 static PERSISTENT_ADDRESS_TREE_STATES: Lazy<PersistentAddressTreeStatesCache> =
     Lazy::new(|| Arc::new(TokioMutex::new(HashMap::new())));
@@ -221,8 +229,8 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         let iteration_start = Instant::now();
         let total_batches = address_data.leaves_hash_chains.len();
 
-        let (prep_tx, prep_rx) = tokio::sync::mpsc::channel(50);
-        let (proof_tx, proof_rx) = tokio::sync::mpsc::channel(50);
+        let (prep_tx, prep_rx) = tokio::sync::mpsc::channel(PROOF_CHANNEL_BUFFER_SIZE);
+        let (proof_tx, proof_rx) = tokio::sync::mpsc::channel(PROOF_CHANNEL_BUFFER_SIZE);
 
         let proof_config = ProofConfig {
             append_url: String::new(),
@@ -577,19 +585,11 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             address_queue_v2.queue_indices.last()
         );
 
-        if address_queue_v2.initial_root != parsed_state.current_onchain_root {
-            let mut photon_root = [0u8; 8];
-            let mut onchain_root = [0u8; 8];
-            photon_root.copy_from_slice(&address_queue_v2.initial_root[..8]);
-            onchain_root.copy_from_slice(&parsed_state.current_onchain_root[..8]);
-
-            return Err(CoordinatorError::PhotonStale {
-                queue_type: "address".to_string(),
-                photon_root,
-                onchain_root,
-            }
-            .into());
-        }
+        batch_utils::validate_photon_root(
+            address_queue_v2.initial_root,
+            parsed_state.current_onchain_root,
+            "address",
+        )?;
 
         if address_queue_v2.low_element_proofs.len() != address_queue_v2.low_element_indices.len() {
             return Err(anyhow::anyhow!(
@@ -910,7 +910,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
     ) -> Result<(usize, Duration)> {
         use std::collections::BTreeMap;
 
-        const BATCH_SUBMIT_TIMEOUT_SECS: u64 = 2;
 
         let mut buffer: BTreeMap<usize, Result<InstructionDataAddressAppendInputs>> =
             BTreeMap::new();
