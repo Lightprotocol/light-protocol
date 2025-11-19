@@ -27,6 +27,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use super::{
     batch_preparation, batch_submission,
+    batch_utils::{self, MAX_JOB_NOT_FOUND_RESUBMITS},
     error::CoordinatorError,
     proof_generation::ProofConfig,
     shared_state::{
@@ -47,7 +48,6 @@ static PERSISTENT_TREE_STATES: Lazy<PersistentTreeStatesCache> =
 /// Stores (staging_tree, last_known_root) for each tree.
 static PERSISTENT_STAGING_TREES: Lazy<StagingTreeCache> =
     Lazy::new(|| Arc::new(TokioMutex::new(HashMap::new())));
-const MAX_JOB_NOT_FOUND_RESUBMITS: usize = 2;
 
 struct QueueFetchResult {
     staging: super::tree_state::StagingTree,
@@ -62,7 +62,6 @@ struct QueueFetchResult {
 
 struct OnchainState {
     current_onchain_root: [u8; 32],
-    root_history: Vec<[u8; 32]>,
     append_metadata: Option<(ParsedMerkleTreeData, ParsedQueueData)>,
     nullify_metadata: Option<ParsedMerkleTreeData>,
     append_batch_ids: Vec<ProcessedBatchId>,
@@ -269,13 +268,10 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
     pub async fn process(&mut self) -> Result<usize> {
         let mut total_items_processed = 0;
-        let mut loop_iteration = 0;
         let mut retries = 0;
         const MAX_RETRIES: usize = 10;
 
         loop {
-            loop_iteration += 1;
-
             let light_slot = self.calculate_light_slot();
             if let Some(cached_slot) = self.current_light_slot {
                 if light_slot != cached_slot {
@@ -301,7 +297,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 .process_single_iteration_pipelined_with_cache(
                     num_append_batches,
                     num_nullify_batches,
-                    loop_iteration,
                     queue_result,
                 )
                 .await
@@ -561,8 +556,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             .fetch_queues_with_accounts(
                 num_append_batches,
                 num_nullify_batches,
-                merkle_tree_account,
-                output_queue_account,
             )
             .await?;
 
@@ -771,13 +764,22 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let shared_state = self.shared_state.read().await;
         let processed_batches = &shared_state.processed_batches;
 
-        let num_nullify_batches =
-            Self::count_ready_batches(&tree_data.queue_batches.batches, processed_batches, false);
+        let num_nullify_batches = batch_utils::count_ready_batches(
+            &tree_data.queue_batches.batches,
+            processed_batches,
+            false, // is_append
+            false, // calculate_start_index (not needed for state trees)
+        );
 
         let num_append_batches = if let Some(queue_account) = output_queue_account {
             let mut queue_account_data = queue_account.data.clone();
             let queue_data = BatchedQueueAccount::output_from_bytes(&mut queue_account_data)?;
-            Self::count_ready_batches(&queue_data.batch_metadata.batches, processed_batches, true)
+            batch_utils::count_ready_batches(
+                &queue_data.batch_metadata.batches,
+                processed_batches,
+                true,  // is_append
+                false, // calculate_start_index (not needed for state trees)
+            )
         } else {
             0
         };
@@ -786,37 +788,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         Ok((num_append_batches, num_nullify_batches))
     }
 
-    fn count_ready_batches(
-        batches: &[light_batched_merkle_tree::batch::Batch; 2],
-        processed_batches: &std::collections::HashSet<ProcessedBatchId>,
-        is_append: bool,
-    ) -> usize {
-        let mut total_ready = 0;
-
-        for (batch_idx, batch) in batches.iter().enumerate() {
-            let batch_state = batch.get_state();
-            if batch_state == light_batched_merkle_tree::batch::BatchState::Inserted {
-                continue;
-            }
-
-            let num_full_zkp_batches = batch.get_current_zkp_batch_index() as usize;
-            let num_inserted_zkps = batch.get_num_inserted_zkps() as usize;
-
-            for zkp_idx in num_inserted_zkps..num_full_zkp_batches {
-                let batch_id = ProcessedBatchId {
-                    batch_index: batch_idx,
-                    zkp_batch_index: zkp_idx as u64,
-                    is_append,
-                    start_leaf_index: None,
-                };
-                if !processed_batches.contains(&batch_id) {
-                    total_ready += 1;
-                }
-            }
-        }
-
-        total_ready
-    }
 
     async fn parse_onchain_accounts(
         &self,
@@ -867,7 +838,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         Ok(OnchainState {
             current_onchain_root,
-            root_history: merkle_tree_parsed.root_history.to_vec(),
             append_metadata,
             nullify_metadata,
             append_batch_ids,
@@ -979,7 +949,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let (output_queue_v2, input_queue_v2) = Self::validate_queue_responses(
             indexed_queues,
             parsed_state.current_onchain_root,
-            &parsed_state.root_history,
             &parsed_state.append_metadata,
             &parsed_state.nullify_metadata,
         )?;
@@ -1010,7 +979,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     fn validate_queue_responses(
         response: light_client::indexer::QueueElementsV2Result,
         current_onchain_root: [u8; 32],
-        root_history: &[[u8; 32]],
         append_metadata: &Option<(ParsedMerkleTreeData, ParsedQueueData)>,
         nullify_metadata: &Option<ParsedMerkleTreeData>,
     ) -> Result<(

@@ -1,6 +1,7 @@
 pub mod address_tree_coordinator;
 pub mod batch_preparation;
 pub mod batch_submission;
+pub mod batch_utils;
 pub mod error;
 pub mod proof_generation;
 pub mod shared_state;

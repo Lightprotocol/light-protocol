@@ -23,6 +23,7 @@ use tokio::{sync::Mutex as TokioMutex, time::sleep};
 use tracing::{debug, error, info, warn};
 
 use super::{
+    batch_utils::{self, MAX_JOB_NOT_FOUND_RESUBMITS},
     error::CoordinatorError,
     proof_generation::ProofConfig,
     shared_state::{
@@ -37,16 +38,15 @@ type PersistentAddressTreeStatesCache = Arc<TokioMutex<HashMap<Pubkey, SharedSta
 static PERSISTENT_ADDRESS_TREE_STATES: Lazy<PersistentAddressTreeStatesCache> =
     Lazy::new(|| Arc::new(TokioMutex::new(HashMap::new())));
 
-const MAX_JOB_NOT_FOUND_RESUBMITS: usize = 2;
 const PHOTON_STALE_MAX_RETRIES: usize = 5;
 const PHOTON_STALE_RETRY_DELAY_MS: u64 = 1500;
 
 struct OnchainState {
     current_onchain_root: [u8; 32],
-    root_history: Vec<[u8; 32]>,
     zkp_batch_size: u16,
     start_index: u64,
     batch_ids: VecDeque<ProcessedBatchId>,
+    batches: [light_batched_merkle_tree::batch::Batch; 2],
 }
 
 pub struct AddressTreeCoordinator<R: Rpc> {
@@ -134,8 +134,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         );
 
         loop {
-            loop_iteration += 1;
-
             let iteration_inputs = self.prepare_iteration_inputs().await?;
             let (num_batches, address_data) = if let Some(inputs) = iteration_inputs {
                 inputs
@@ -306,8 +304,8 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         }
 
         if submitted_batches > 0 {
-            self.validate_root(final_root, "address tree execution")
-                .await?;
+            let current_root = self.get_current_onchain_root().await?;
+            Self::validate_root(current_root, final_root, "address tree execution")?;
             self.consume_processed_items(total_items);
             metrics::increment_batches_processed(
                 &self.context.merkle_tree,
@@ -333,9 +331,11 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         let shared_state = self.shared_state.read().await;
         let processed_batches = &shared_state.processed_batches;
 
-        let num_batches = Self::count_ready_batches(
+        let num_batches = batch_utils::count_ready_batches(
             &tree_data.queue_batches.batches,
             processed_batches,
+            false, // is_append (address trees are not append)
+            true,  // calculate_start_index (needed for address trees)
         )
             .min(1);
 
@@ -343,37 +343,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         Ok(num_batches)
     }
 
-    fn count_ready_batches(
-        batches: &[light_batched_merkle_tree::batch::Batch; 2],
-        processed_batches: &std::collections::HashSet<ProcessedBatchId>,
-    ) -> usize {
-        let mut total_ready = 0;
-
-        for (batch_idx, batch) in batches.iter().enumerate() {
-            let batch_state = batch.get_state();
-            if batch_state == light_batched_merkle_tree::batch::BatchState::Inserted {
-                continue;
-            }
-
-            let num_full_zkp_batches = batch.get_current_zkp_batch_index() as usize;
-            let num_inserted_zkps = batch.get_num_inserted_zkps() as usize;
-
-            for zkp_idx in num_inserted_zkps..num_full_zkp_batches {
-                let start_leaf_index = batch.start_index + (zkp_idx as u64 * batch.zkp_batch_size);
-                let batch_id = ProcessedBatchId {
-                    batch_index: batch_idx,
-                    zkp_batch_index: zkp_idx as u64,
-                    is_append: false,
-                    start_leaf_index: Some(start_leaf_index),
-                };
-                if !processed_batches.contains(&batch_id) {
-                    total_ready += 1;
-                }
-            }
-        }
-
-        total_ready
-    }
 
     async fn parse_onchain_account(
         &self,
@@ -475,7 +444,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
 
         Ok(OnchainState {
             current_onchain_root,
-            root_history: merkle_tree_parsed.root_history.to_vec(),
             zkp_batch_size,
             start_index: if start_index_set {
                 start_index
@@ -483,6 +451,7 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
                 merkle_tree_parsed.next_index
             },
             batch_ids: VecDeque::from(batch_ids),
+            batches: merkle_tree_parsed.queue_batches.batches.clone(),
         })
     }
 
@@ -534,28 +503,25 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         &mut self,
     ) -> Result<AddressQueueData> {
         let rpc = self.context.rpc_pool.get_connection().await?;
-        let mut account = rpc
+        let account = rpc
             .get_account(self.context.merkle_tree)
             .await?
             .ok_or_else(|| anyhow::anyhow!("Address merkle tree account not found"))?;
         drop(rpc);
 
         let mut parsed_state = self
-            .parse_onchain_account(account.clone())
+            .parse_onchain_account(account)
             .await?;
-
-        let merkle_tree = BatchedMerkleTreeAccount::address_from_bytes(
-            account.data.as_mut_slice(),
-            &self.context.merkle_tree.into(),
-        )?;
 
         let num_batches = {
             let shared_state = self.shared_state.read().await;
             let processed_batches = &shared_state.processed_batches;
 
-            let num_batches = Self::count_ready_batches(
-                &merkle_tree.queue_batches.batches,
+            let num_batches = batch_utils::count_ready_batches(
+                &parsed_state.batches,
                 processed_batches,
+                false, // is_append (address trees are not append)
+                true,  // calculate_start_index (needed for address trees)
             )
                 .min(1);
 
@@ -659,7 +625,7 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         let batch_count = leaves_hash_chains.len();
 
         let mut batch_ids = Vec::with_capacity(batch_count);
-        for i in 0..batch_count {
+        for _ in 0..batch_count {
             if let Some(id) = parsed_state.batch_ids.pop_front() {
                 batch_ids.push(id);
             } else {
@@ -1103,9 +1069,13 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         Ok((total_items, total_submit_duration))
     }
 
-    async fn validate_root(&self, expected_root: [u8; 32], phase: &str) -> Result<()> {
-        let current_root = self.get_current_onchain_root().await?;
+    fn validate_root(current_root: [u8; 32], expected_root: [u8; 32], phase: &str) -> Result<()> {
         if current_root != expected_root {
+            let mut expected = [0u8; 8];
+            let mut actual = [0u8; 8];
+            expected.copy_from_slice(&expected_root[..8]);
+            actual.copy_from_slice(&current_root[..8]);
+
             return Err(CoordinatorError::RootChanged {
                 phase: phase.to_string(),
                 expected,
