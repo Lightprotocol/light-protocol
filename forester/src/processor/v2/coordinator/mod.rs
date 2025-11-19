@@ -4,6 +4,7 @@ pub mod batch_submission;
 pub mod batch_utils;
 pub mod error;
 pub mod proof_generation;
+pub mod proof_utils;
 pub mod shared_state;
 pub mod state_tree_coordinator;
 pub mod tree_state;

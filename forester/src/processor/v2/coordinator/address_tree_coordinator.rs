@@ -29,6 +29,7 @@ use super::{
     },
     error::CoordinatorError,
     proof_generation::ProofConfig,
+    proof_utils,
     shared_state::{
         create_shared_state, CumulativeMetrics, IterationMetrics, ProcessedBatchId, SharedState,
     },
@@ -820,30 +821,13 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
 
                                 match result {
                                     Ok(proof) => {
-                                        let proof_result = (|| {
-                                            let new_root = bigint_to_be_bytes_array::<32>(
-                                                &circuit_inputs.new_root,
-                                            )
-                                            .map_err(|e| light_prover_client::errors::ProverClientError::GenericError(
-                                                format!("Failed to convert new_root to bytes: {}", e)
-                                            ))?;
-
-                                            Ok(InstructionDataAddressAppendInputs {
-                                                new_root,
-                                                compressed_proof: light_compressed_account::instruction_data::compressed_proof::CompressedProof {
-                                                    a: proof.a,
-                                                    b: proof.b,
-                                                    c: proof.c,
-                                                },
-                                            })
-                                        })(
+                                        let proof_result = proof_utils::create_address_proof_result(
+                                            &circuit_inputs,
+                                            proof,
                                         );
 
                                         let _ = proof_tx_clone
-                                            .send((
-                                                idx,
-                                                proof_result.map_err(|e: light_prover_client::errors::ProverClientError| anyhow::anyhow!("{}", e)),
-                                            ))
+                                            .send((idx, proof_result))
                                             .await;
                                         break;
                                     }
