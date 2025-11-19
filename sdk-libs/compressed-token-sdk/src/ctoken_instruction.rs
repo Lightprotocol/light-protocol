@@ -1,6 +1,5 @@
 use solana_instruction::Instruction;
-
-use crate::error::Result;
+use solana_program_error::ProgramError;
 
 /// Trait for compressed token instruction types.
 ///
@@ -31,7 +30,7 @@ pub trait CTokenInstruction: Sized {
     fn instruction<A: light_account_checks::AccountInfoTrait + Clone>(
         self,
         accounts: &Self::ExecuteAccounts<'_, A>,
-    ) -> Result<Instruction>;
+    ) -> Result<Instruction, ProgramError>;
 
     /// Build the instruction in CPI write mode as the first operation in a batch.
     ///
@@ -46,7 +45,7 @@ pub trait CTokenInstruction: Sized {
     fn instruction_write_to_cpi_context_first<A: light_account_checks::AccountInfoTrait + Clone>(
         self,
         accounts: &Self::CpiWriteAccounts<'_, A>,
-    ) -> Result<Instruction>;
+    ) -> Result<Instruction, ProgramError>;
 
     /// Build the instruction in CPI write mode as a subsequent operation in a batch.
     ///
@@ -60,5 +59,5 @@ pub trait CTokenInstruction: Sized {
     fn instruction_write_to_cpi_context_set<A: light_account_checks::AccountInfoTrait + Clone>(
         self,
         accounts: &Self::CpiWriteAccounts<'_, A>,
-    ) -> Result<Instruction>;
+    ) -> Result<Instruction, ProgramError>;
 }

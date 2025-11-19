@@ -117,10 +117,7 @@ async fn setup_compress_and_close_test(
 
     let decompressed_recipients = owners
         .iter()
-        .map(|owner| Recipient {
-            recipient: owner.pubkey().into(),
-            amount: mint_amount,
-        })
+        .map(|owner| Recipient::new(owner.pubkey(), mint_amount))
         .collect::<Vec<_>>();
     println!("decompressed_recipients {:?}", decompressed_recipients);
     // Create the mint and mint to the existing ATAs
@@ -506,10 +503,7 @@ async fn test_compress_and_close_cpi_with_context() {
         .unwrap();
 
     // Create mint params to populate CPI context
-    let mint_recipients = vec![Recipient {
-        recipient: ctx.owners[0].pubkey().to_bytes().into(),
-        amount: 500, // Mint some additional tokens
-    }];
+    let mint_recipients = vec![Recipient::new(ctx.owners[0].pubkey(), 500)];
 
     // Deserialize the mint data
     use light_ctoken_types::state::CompressedMint;

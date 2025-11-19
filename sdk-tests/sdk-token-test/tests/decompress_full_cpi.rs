@@ -102,10 +102,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
     let compressed_amount_per_account = total_compressed_amount / num_inputs as u64;
 
     let compressed_recipients: Vec<Recipient> = (0..num_inputs)
-        .map(|_| Recipient {
-            recipient: owner.pubkey().into(),
-            amount: compressed_amount_per_account,
-        })
+        .map(|_| Recipient::new(owner.pubkey(), compressed_amount_per_account))
         .collect();
 
     println!(
@@ -331,10 +328,7 @@ async fn test_decompress_full_cpi_with_context() {
         let mut remaining_accounts = PackedAccounts::default();
         // let output_tree_info = rpc.get_random_state_tree_info().unwrap();
 
-        let mint_recipients = vec![Recipient {
-            recipient: ctx.owner.pubkey().into(),
-            amount: 500, // Mint some additional tokens
-        }];
+        let mint_recipients = vec![Recipient::new(ctx.owner.pubkey(), 500)];
 
         let address_tree_info = rpc.get_address_tree_v2();
         let compressed_mint_address =

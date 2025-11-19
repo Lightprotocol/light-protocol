@@ -180,10 +180,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                 // Convert MintToRecipient (solana_sdk::Pubkey) to Recipient ([u8; 32])
                 let ctoken_recipients: Vec<Recipient> = recipients
                     .into_iter()
-                    .map(|r| Recipient {
-                        recipient: r.recipient.to_bytes().into(),
-                        amount: r.amount,
-                    })
+                    .map(|r| Recipient::new(r.recipient, r.amount))
                     .collect();
                 instruction_data.with_mint_to_compressed(MintToCompressedAction {
                     token_account_version,

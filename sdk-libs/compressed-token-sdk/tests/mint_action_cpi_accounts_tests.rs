@@ -1,12 +1,14 @@
 #![cfg(test)]
 
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
-use light_compressed_token_sdk::instructions::mint_action::MintActionCpiAccounts;
+use light_compressed_token_sdk::instructions::mint_action::{
+    cpi_accounts::MintActionCpiAccountsConfig, MintActionCpiAccounts,
+};
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
 use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
 use light_sdk_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
-    REGISTERED_PROGRAM_PDA, SOL_POOL_PDA,
+    REGISTERED_PROGRAM_PDA,
 };
 use pinocchio::account_info::AccountInfo;
 
@@ -119,15 +121,18 @@ fn test_successful_parsing_minimal() {
             false,
             vec![],
         ), // in_merkle_tree
+        create_test_account(
+            pubkey_unique(),
+            ACCOUNT_COMPRESSION_PROGRAM_ID,
+            false,
+            true,
+            false,
+            vec![],
+        ), // in_output_queue
     ];
 
-    // Use create_mint variant which doesn't require in_output_queue
-    let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_create_mint(
-        &accounts, false, // with_mint_signer
-        false, // spl_mint_initialized
-        false, // with_lamports
-        false, // has_mint_to_actions
-    );
+    // Use default config (no special options)
+    let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos(&accounts);
     assert!(result.is_ok());
 
     let parsed = result.unwrap();
@@ -138,21 +143,14 @@ fn test_successful_parsing_minimal() {
     assert_eq!(*parsed.light_system_program.key(), LIGHT_SYSTEM_PROGRAM_ID);
     assert!(parsed.mint_signer.is_none());
     assert!(parsed.authority.is_signer());
-    assert!(parsed.mint.is_none());
-    assert!(parsed.token_pool_pda.is_none());
-    assert!(parsed.token_program.is_none());
-    assert!(parsed.sol_pool_pda.is_none());
     assert!(parsed.cpi_context.is_none());
-    assert!(parsed.in_output_queue.is_none());
+    assert!(parsed.in_output_queue.is_some()); // Required for default config
     assert!(parsed.tokens_out_queue.is_none());
     assert_eq!(parsed.ctoken_accounts.len(), 0);
 }
 
 #[test]
 fn test_successful_parsing_with_all_options() {
-    let mint_signer = pubkey_unique();
-    let mint = pubkey_unique();
-    let token_pool = pubkey_unique();
     let cpi_context = pubkey_unique();
 
     let accounts = vec![
@@ -173,21 +171,8 @@ fn test_successful_parsing_with_all_options() {
             true,
             vec![],
         ),
-        // Mint signer (optional)
-        create_test_account(mint_signer, [0u8; 32], true, false, false, vec![]),
         // Authority
         create_test_account(pubkey_unique(), [0u8; 32], true, false, false, vec![]),
-        // Decompressed mint accounts
-        create_test_account(mint, [0u8; 32], false, true, false, vec![]),
-        create_test_account(token_pool, [0u8; 32], false, true, false, vec![]),
-        create_test_account(
-            spl_token_2022::ID.to_bytes(),
-            [0u8; 32],
-            false,
-            false,
-            true,
-            vec![],
-        ),
         // Fee payer
         create_test_account(pubkey_unique(), [0u8; 32], true, true, false, vec![]),
         // Core system accounts
@@ -217,8 +202,6 @@ fn test_successful_parsing_with_all_options() {
             vec![],
         ),
         create_test_account([0u8; 32], [0u8; 32], false, false, true, vec![]),
-        // SOL pool (optional)
-        create_test_account(SOL_POOL_PDA, [0u8; 32], false, true, false, vec![]),
         // CPI context (optional)
         create_test_account(cpi_context, [0u8; 32], false, true, false, vec![]),
         // Tree/Queue accounts
@@ -260,28 +243,17 @@ fn test_successful_parsing_with_all_options() {
     ];
 
     let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_full(
-        &accounts, true,  // with_mint_signer
-        true,  // spl_mint_initialized
-        true,  // with_lamports
-        true,  // with_cpi_context
-        false, // create_mint
-        true,  // has_mint_to_actions
+        &accounts,
+        MintActionCpiAccountsConfig {
+            with_cpi_context: true,
+            create_mint: false,
+            mint_to_compressed: true,
+        },
     );
     assert!(result.is_ok());
 
     let parsed = result.unwrap();
-    assert!(parsed.mint_signer.is_some());
-    assert_eq!(*parsed.mint_signer.unwrap().key(), mint_signer);
-    assert!(parsed.mint.is_some());
-    assert_eq!(*parsed.mint.unwrap().key(), mint);
-    assert!(parsed.token_pool_pda.is_some());
-    assert_eq!(*parsed.token_pool_pda.unwrap().key(), token_pool);
-    assert!(parsed.token_program.is_some());
-    assert_eq!(
-        *parsed.token_program.unwrap().key(),
-        spl_token_2022::ID.to_bytes()
-    );
-    assert!(parsed.sol_pool_pda.is_some());
+    assert!(parsed.mint_signer.is_none()); // Not needed when updating mint
     assert!(parsed.cpi_context.is_some());
     assert!(parsed.in_output_queue.is_some());
     assert!(parsed.tokens_out_queue.is_some());
@@ -362,11 +334,9 @@ fn test_successful_create_mint() {
         ), // address tree (for create_mint)
     ];
 
-    let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_create_mint(
-        &accounts, true,  // with_mint_signer
-        false, // spl_mint_initialized
-        false, // with_lamports
-        false, // has_mint_to_actions
+    let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_full(
+        &accounts,
+        MintActionCpiAccountsConfig::create_mint(),
     );
     assert!(result.is_ok());
 
@@ -453,10 +423,13 @@ fn test_successful_update_mint() {
         ), // in_output_queue (required for update)
     ];
 
-    let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_update_mint(
-        &accounts, false, // spl_mint_initialized
-        false, // with_lamports
-        false, // has_mint_to_actions
+    let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_full(
+        &accounts,
+        MintActionCpiAccountsConfig {
+            with_cpi_context: false,
+            create_mint: false,
+            mint_to_compressed: false,
+        },
     );
     assert!(result.is_ok());
 
@@ -744,90 +717,6 @@ fn test_fee_payer_not_signer() {
 }
 
 #[test]
-fn test_invalid_spl_token_program() {
-    let wrong_token_program = pubkey_unique();
-
-    let accounts = vec![
-        create_test_account(
-            COMPRESSED_TOKEN_PROGRAM_ID,
-            [0u8; 32],
-            false,
-            false,
-            true,
-            vec![],
-        ),
-        create_test_account(
-            LIGHT_SYSTEM_PROGRAM_ID,
-            [0u8; 32],
-            false,
-            false,
-            true,
-            vec![],
-        ),
-        // Mint signer
-        create_test_account(pubkey_unique(), [0u8; 32], true, false, false, vec![]),
-        // Authority
-        create_test_account(pubkey_unique(), [0u8; 32], true, false, false, vec![]),
-        // Decompressed mint accounts (with wrong token program)
-        create_test_account(pubkey_unique(), [0u8; 32], false, true, false, vec![]),
-        create_test_account(pubkey_unique(), [0u8; 32], false, true, false, vec![]),
-        create_test_account(wrong_token_program, [0u8; 32], false, false, true, vec![]), // Wrong!
-        // Rest of accounts...
-        create_test_account(pubkey_unique(), [0u8; 32], true, true, false, vec![]),
-        create_test_account(CPI_AUTHORITY_PDA, [0u8; 32], false, false, false, vec![]),
-        create_test_account(
-            REGISTERED_PROGRAM_PDA,
-            [0u8; 32],
-            false,
-            false,
-            false,
-            vec![],
-        ),
-        create_test_account(
-            ACCOUNT_COMPRESSION_AUTHORITY_PDA,
-            [0u8; 32],
-            false,
-            false,
-            false,
-            vec![],
-        ),
-        create_test_account(
-            ACCOUNT_COMPRESSION_PROGRAM_ID,
-            [0u8; 32],
-            false,
-            false,
-            true,
-            vec![],
-        ),
-        create_test_account([0u8; 32], [0u8; 32], false, false, true, vec![]),
-        create_test_account(
-            pubkey_unique(),
-            ACCOUNT_COMPRESSION_PROGRAM_ID,
-            false,
-            true,
-            false,
-            vec![],
-        ),
-        create_test_account(
-            pubkey_unique(),
-            ACCOUNT_COMPRESSION_PROGRAM_ID,
-            false,
-            true,
-            false,
-            vec![],
-        ),
-    ];
-
-    let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_full(
-        &accounts, true, // with_mint_signer
-        true, // spl_mint_initialized
-        false, false, false, false,
-    );
-    assert!(result.is_err());
-    assert!(result.is_err());
-}
-
-#[test]
 fn test_invalid_tree_ownership() {
     let wrong_owner = pubkey_unique();
 
@@ -962,8 +851,13 @@ fn test_invalid_queue_ownership() {
         create_test_account(pubkey_unique(), wrong_owner, false, true, false, vec![]),
     ];
 
-    let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_update_mint(
-        &accounts, false, false, false,
+    let result = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_full(
+        &accounts,
+        MintActionCpiAccountsConfig {
+            with_cpi_context: false,
+            create_mint: false,
+            mint_to_compressed: false,
+        },
     );
     assert!(result.is_err());
     assert!(result.is_err());
@@ -1033,33 +927,28 @@ fn test_helper_methods() {
             false,
             vec![],
         ),
+        create_test_account(
+            pubkey_unique(),
+            ACCOUNT_COMPRESSION_PROGRAM_ID,
+            false,
+            true,
+            false,
+            vec![],
+        ), // in_output_queue
     ];
 
-    let parsed = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos_create_mint(
-        &accounts, false, // with_mint_signer
-        false, // spl_mint_initialized
-        false, // with_lamports
-        false, // has_mint_to_actions
-    )
-    .unwrap();
+    let parsed = MintActionCpiAccounts::<AccountInfo>::try_from_account_infos(&accounts).unwrap();
 
     // Test tree_queue_pubkeys()
     let tree_pubkeys = parsed.tree_queue_pubkeys();
-    assert_eq!(tree_pubkeys.len(), 2); // out_output_queue and in_merkle_tree
+    assert_eq!(tree_pubkeys.len(), 3); // out_output_queue, in_merkle_tree, and in_output_queue
 
     // Test to_account_infos()
     let account_infos = parsed.to_account_infos();
     assert!(!account_infos.is_empty());
     assert_eq!(*account_infos[0].key(), LIGHT_SYSTEM_PROGRAM_ID); // First should be light_system_program
 
-    // Test to_account_metas()
-    let metas_with_program = parsed.to_account_metas(true);
-    assert_eq!(
-        metas_with_program[0].pubkey,
-        COMPRESSED_TOKEN_PROGRAM_ID.into()
-    );
-
-    let metas_without_program = parsed.to_account_metas(false);
+    let metas_without_program = parsed.to_account_metas();
     assert_eq!(
         metas_without_program[0].pubkey,
         LIGHT_SYSTEM_PROGRAM_ID.into()

@@ -141,10 +141,7 @@ async fn test_compress_full_and_close() {
             cpi_context_pubkey: None,
             proof: None,
             compressed_mint_inputs,
-            recipients: vec![Recipient {
-                recipient: recipient.into(),
-                amount: mint_amount,
-            }],
+            recipients: vec![Recipient::new(recipient, mint_amount)],
             mint_authority,
             payer: payer.pubkey(),
             state_merkle_tree: compressed_mint_account.tree_info.tree,

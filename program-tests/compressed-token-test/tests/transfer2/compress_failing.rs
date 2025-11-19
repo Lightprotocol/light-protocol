@@ -110,10 +110,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
         .await?;
 
     // Use mint_action_comprehensive to create mint AND mint to decompressed CToken ATA
-    let decompressed_recipients = vec![Recipient {
-        recipient: owner.pubkey().to_bytes().into(),
-        amount: token_amount,
-    }];
+    let decompressed_recipients = vec![Recipient::new(owner.pubkey(), token_amount)];
 
     light_token_client::actions::mint_action_comprehensive(
         &mut rpc,

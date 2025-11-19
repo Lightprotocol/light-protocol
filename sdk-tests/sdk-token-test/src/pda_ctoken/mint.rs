@@ -56,16 +56,12 @@ pub fn process_mint_action<'a, 'info>(
         light_system_program: cpi_accounts.system_program().unwrap(),
         mint_signer: Some(ctx.accounts.mint_seed.as_ref()),
         authority: ctx.accounts.mint_authority.as_ref(),
-        mint: None, // Not using decompressed mint in this test
-        token_pool_pda: None,
-        token_program: None,
         fee_payer: ctx.accounts.payer.as_ref(),
         compressed_token_cpi_authority: ctx.accounts.ctoken_cpi_authority.as_ref(),
         registered_program_pda: cpi_accounts.registered_program_pda().unwrap(),
         account_compression_authority: cpi_accounts.account_compression_authority().unwrap(),
         account_compression_program: cpi_accounts.account_compression_program().unwrap(),
         system_program: cpi_accounts.system_program().unwrap(),
-        sol_pool_pda: None,
         cpi_context: cpi_accounts.cpi_context().ok(),
         out_output_queue: &tree_accounts[1],       // output queue
         in_merkle_tree: &tree_accounts[0],         // address tree

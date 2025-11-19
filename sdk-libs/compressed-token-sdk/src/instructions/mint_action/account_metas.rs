@@ -82,13 +82,6 @@ impl MintActionMetaConfig {
 
         let (has_mint_to_actions, ctoken_accounts) =
             Self::analyze_actions(&instruction_data.actions);
-        let spl_mint_initialized = instruction_data.mint.metadata.spl_mint_initialized;
-        let has_create_spl_mint = instruction_data.actions.iter().any(|a| {
-            matches!(
-                a,
-                light_ctoken_types::instructions::mint_action::Action::CreateSplMint(_)
-            )
-        });
 
         Ok(Self {
             fee_payer,
@@ -103,11 +96,11 @@ impl MintActionMetaConfig {
                 None
             },
             with_lamports: false,
-            spl_mint_initialized,
+            spl_mint_initialized: false,
             has_mint_to_actions,
             with_cpi_context: None,
             create_mint: false,
-            with_mint_signer: has_create_spl_mint,
+            with_mint_signer: false,
             mint_needs_to_sign: false, // Never sign for existing mint
             ctoken_accounts,
         })
@@ -152,12 +145,6 @@ impl MintActionMetaConfig {
     /// Chainable method to override tokens_out_queue
     pub fn with_tokens_out_queue(mut self, queue: Pubkey) -> Self {
         self.tokens_out_queue = Some(queue);
-        self
-    }
-
-    /// Chainable method to set mint_signer (for CreateSplMint action with existing mint)
-    pub fn with_mint_signer_for_spl_mint(mut self, signer: Pubkey) -> Self {
-        self.mint_signer = Some(signer);
         self
     }
 

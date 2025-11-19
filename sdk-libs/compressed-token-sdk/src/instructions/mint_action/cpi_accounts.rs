@@ -4,12 +4,37 @@ use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
 use light_program_profiler::profile;
 use light_sdk_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, LIGHT_SYSTEM_PROGRAM_ID,
-    REGISTERED_PROGRAM_PDA, SOL_POOL_PDA,
+    REGISTERED_PROGRAM_PDA,
 };
 use solana_instruction::AccountMeta;
 use solana_msg::msg;
 
 use crate::error::TokenSdkError;
+
+#[derive(Debug, Clone, Default, Copy)]
+pub struct MintActionCpiAccountsConfig {
+    pub with_cpi_context: bool,
+    pub create_mint: bool,        // true = address tree, false = state tree
+    pub mint_to_compressed: bool, // true = tokens_out_queue required
+}
+
+impl MintActionCpiAccountsConfig {
+    pub fn create_mint() -> Self {
+        Self {
+            with_cpi_context: false,
+            create_mint: true,
+            mint_to_compressed: false,
+        }
+    }
+
+    pub fn mint_to_compressed(self) -> Self {
+        Self {
+            with_cpi_context: self.with_cpi_context,
+            create_mint: self.create_mint,
+            mint_to_compressed: true,
+        }
+    }
+}
 
 /// Parsed MintAction CPI accounts for structured access
 #[derive(Debug)]
@@ -22,11 +47,6 @@ pub struct MintActionCpiAccounts<'a, A: AccountInfoTrait + Clone> {
     pub mint_signer: Option<&'a A>, // Required when creating mint or SPL mint
     pub authority: &'a A,           // Always required to sign
 
-    // Decompressed mint accounts (conditional group - all or none)
-    pub mint: Option<&'a A>,           // SPL mint account (when decompressed)
-    pub token_pool_pda: Option<&'a A>, // Token pool PDA (when decompressed)
-    pub token_program: Option<&'a A>,  // SPL Token 2022 (when decompressed)
-
     // Core Light system accounts
     pub fee_payer: &'a A,
     pub compressed_token_cpi_authority: &'a A,
@@ -36,8 +56,7 @@ pub struct MintActionCpiAccounts<'a, A: AccountInfoTrait + Clone> {
     pub system_program: &'a A,
 
     // Optional system accounts
-    pub sol_pool_pda: Option<&'a A>, // For lamports operations
-    pub cpi_context: Option<&'a A>,  // For CPI context
+    pub cpi_context: Option<&'a A>, // For CPI context
 
     // Tree/Queue accounts (always present in execute mode)
     pub out_output_queue: &'a A,
@@ -58,12 +77,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
     #[track_caller]
     pub fn try_from_account_infos_full(
         accounts: &'a [A],
-        with_mint_signer: bool,
-        spl_mint_initialized: bool,
-        with_lamports: bool,
-        with_cpi_context: bool,
-        create_mint: bool,         // true = address tree, false = state tree
-        has_mint_to_actions: bool, // true = tokens_out_queue required
+        config: MintActionCpiAccountsConfig,
     ) -> Result<Self, TokenSdkError> {
         let mut iter = AccountIterator::new(accounts);
 
@@ -76,7 +90,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             iter.next_checked_pubkey("light_system_program", LIGHT_SYSTEM_PROGRAM_ID)?;
 
         // 3. Mint signer (conditional - when creating mint or SPL mint)
-        let mint_signer = iter.next_option("mint_signer", with_mint_signer)?;
+        let mint_signer = iter.next_option("mint_signer", config.create_mint)?;
 
         // 4. Authority (always required, must be signer)
         let authority = iter.next_account("authority")?;
@@ -84,29 +98,6 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             msg!("Authority must be a signer");
             return Err(AccountError::InvalidSigner.into());
         }
-
-        // 5-7. Decompressed mint accounts (conditional group)
-        let (mint, token_pool_pda, token_program) = if spl_mint_initialized {
-            let mint = Some(iter.next_account("mint")?);
-            let pool = Some(iter.next_account("token_pool_pda")?);
-            let program = Some(iter.next_account("token_program")?);
-
-            // Validate SPL Token 2022 program
-            if let Some(prog) = program {
-                if prog.key() != spl_token_2022::ID.to_bytes() {
-                    msg!(
-                        "Invalid token program. Expected SPL Token 2022 ({:?}), got {:?}",
-                        spl_token_2022::ID,
-                        prog.pubkey()
-                    );
-                    return Err(AccountError::InvalidProgramId.into());
-                }
-            }
-
-            (mint, pool, program)
-        } else {
-            (None, None, None)
-        };
 
         // 8. Fee payer (always required, must be signer and mutable)
         let fee_payer = iter.next_account("fee_payer")?;
@@ -138,15 +129,8 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         // 13. System program
         let system_program = iter.next_checked_pubkey("system_program", [0u8; 32])?;
 
-        // 14. SOL pool PDA (optional - for lamports operations)
-        let sol_pool_pda = if with_lamports {
-            Some(iter.next_checked_pubkey("sol_pool_pda", SOL_POOL_PDA)?)
-        } else {
-            None
-        };
-
         // 15. CPI context (optional)
-        let cpi_context = iter.next_option_mut("cpi_context", with_cpi_context)?;
+        let cpi_context = iter.next_option_mut("cpi_context", config.with_cpi_context)?;
 
         // 16. Out output queue (always required)
         let out_output_queue = iter.next_account("out_output_queue")?;
@@ -171,7 +155,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         }
 
         // 18. In output queue (conditional - when mint exists, not creating)
-        let in_output_queue = iter.next_option_mut("in_output_queue", !create_mint)?;
+        let in_output_queue = iter.next_option_mut("in_output_queue", !config.create_mint)?;
         if let Some(queue) = in_output_queue {
             if !queue.is_owned_by(&ACCOUNT_COMPRESSION_PROGRAM_ID) {
                 msg!("In output queue must be owned by account compression program");
@@ -180,7 +164,8 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         }
 
         // 19. Tokens out queue (conditional - for MintTo actions)
-        let tokens_out_queue = iter.next_option_mut("tokens_out_queue", has_mint_to_actions)?;
+        let tokens_out_queue =
+            iter.next_option_mut("tokens_out_queue", config.mint_to_compressed)?;
         if let Some(queue) = tokens_out_queue {
             if !queue.is_owned_by(&ACCOUNT_COMPRESSION_PROGRAM_ID) {
                 msg!("Tokens out queue must be owned by account compression program");
@@ -196,16 +181,12 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             light_system_program,
             mint_signer,
             authority,
-            mint,
-            token_pool_pda,
-            token_program,
             fee_payer,
             compressed_token_cpi_authority,
             registered_program_pda,
             account_compression_authority,
             account_compression_program,
             system_program,
-            sol_pool_pda,
             cpi_context,
             out_output_queue,
             in_merkle_tree,
@@ -219,55 +200,7 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
     #[inline(always)]
     #[track_caller]
     pub fn try_from_account_infos(accounts: &'a [A]) -> Result<Self, TokenSdkError> {
-        Self::try_from_account_infos_full(
-            accounts, false, // with_mint_signer
-            false, // spl_mint_initialized
-            false, // with_lamports
-            false, // with_cpi_context
-            false, // create_mint
-            false, // has_mint_to_actions
-        )
-    }
-
-    /// Parse for creating a new mint
-    #[inline(always)]
-    #[track_caller]
-    pub fn try_from_account_infos_create_mint(
-        accounts: &'a [A],
-        with_mint_signer: bool,
-        spl_mint_initialized: bool,
-        with_lamports: bool,
-        has_mint_to_actions: bool,
-    ) -> Result<Self, TokenSdkError> {
-        Self::try_from_account_infos_full(
-            accounts,
-            with_mint_signer,
-            spl_mint_initialized,
-            with_lamports,
-            false, // with_cpi_context
-            true,  // create_mint
-            has_mint_to_actions,
-        )
-    }
-
-    /// Parse for updating an existing mint
-    #[inline(always)]
-    #[track_caller]
-    pub fn try_from_account_infos_update_mint(
-        accounts: &'a [A],
-        spl_mint_initialized: bool,
-        with_lamports: bool,
-        has_mint_to_actions: bool,
-    ) -> Result<Self, TokenSdkError> {
-        Self::try_from_account_infos_full(
-            accounts,
-            false, // with_mint_signer
-            spl_mint_initialized,
-            with_lamports,
-            false, // with_cpi_context
-            false, // create_mint
-            has_mint_to_actions,
-        )
+        Self::try_from_account_infos_full(accounts, MintActionCpiAccountsConfig::default())
     }
 
     /// Get tree/queue pubkeys
@@ -304,17 +237,6 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         // Authority
         accounts.push(self.authority.clone());
 
-        // Decompressed mint accounts
-        if let Some(mint) = self.mint {
-            accounts.push(mint.clone());
-        }
-        if let Some(pool) = self.token_pool_pda {
-            accounts.push(pool.clone());
-        }
-        if let Some(program) = self.token_program {
-            accounts.push(program.clone());
-        }
-
         // Core Light system accounts
         accounts.extend_from_slice(
             &[
@@ -327,10 +249,6 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             ][..],
         );
 
-        // Optional system accounts
-        if let Some(pool) = self.sol_pool_pda {
-            accounts.push(pool.clone());
-        }
         if let Some(context) = self.cpi_context {
             accounts.push(context.clone());
         }
@@ -357,17 +275,8 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
     /// Convert to AccountMeta vector for instruction building
     #[profile]
     #[inline(always)]
-    pub fn to_account_metas(&self, include_compressed_token_program: bool) -> Vec<AccountMeta> {
-        let mut metas = Vec::with_capacity(21 + self.ctoken_accounts.len());
-
-        // Optionally include compressed_token_program
-        if include_compressed_token_program {
-            metas.push(AccountMeta {
-                pubkey: self.compressed_token_program.key().into(),
-                is_writable: false,
-                is_signer: false,
-            });
-        }
+    pub fn to_account_metas(&self) -> Vec<AccountMeta> {
+        let mut metas = Vec::with_capacity(15 + self.ctoken_accounts.len());
 
         // Light system program
         metas.push(AccountMeta {
@@ -391,29 +300,6 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             is_writable: false,
             is_signer: true,
         });
-
-        // Decompressed mint accounts
-        if let Some(mint) = self.mint {
-            metas.push(AccountMeta {
-                pubkey: mint.key().into(),
-                is_writable: true,
-                is_signer: false,
-            });
-        }
-        if let Some(pool) = self.token_pool_pda {
-            metas.push(AccountMeta {
-                pubkey: pool.key().into(),
-                is_writable: true,
-                is_signer: false,
-            });
-        }
-        if let Some(program) = self.token_program {
-            metas.push(AccountMeta {
-                pubkey: program.key().into(),
-                is_writable: false,
-                is_signer: false,
-            });
-        }
 
         // Core Light system accounts
         metas.push(AccountMeta {
@@ -447,14 +333,6 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             is_signer: false,
         });
 
-        // Optional system accounts
-        if let Some(pool) = self.sol_pool_pda {
-            metas.push(AccountMeta {
-                pubkey: pool.key().into(),
-                is_writable: true,
-                is_signer: false,
-            });
-        }
         if let Some(context) = self.cpi_context {
             metas.push(AccountMeta {
                 pubkey: context.key().into(),
@@ -498,7 +376,6 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
                 is_signer: false,
             });
         }
-
         metas
     }
 }

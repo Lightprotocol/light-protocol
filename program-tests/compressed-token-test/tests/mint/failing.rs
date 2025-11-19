@@ -182,10 +182,12 @@ async fn functional_and_failing_tests() {
         let result = light_token_client::actions::mint_to_compressed(
             &mut rpc,
             spl_mint_pda,
-            vec![light_ctoken_types::instructions::mint_action::Recipient {
-                recipient: Keypair::new().pubkey().to_bytes().into(),
-                amount: 1000u64,
-            }],
+            vec![
+                light_ctoken_types::instructions::mint_action::Recipient::new(
+                    Keypair::new().pubkey(),
+                    1000u64,
+                ),
+            ],
             light_ctoken_types::state::TokenDataVersion::V2,
             &invalid_mint_authority, // Invalid authority
             &payer,
@@ -214,14 +216,11 @@ async fn functional_and_failing_tests() {
         )
         .unwrap();
 
-        let recipient = Keypair::new().pubkey().to_bytes().into();
+        let recipient = Keypair::new().pubkey();
         let result = light_token_client::actions::mint_to_compressed(
             &mut rpc,
             spl_mint_pda,
-            vec![light_ctoken_types::instructions::mint_action::Recipient {
-                recipient,
-                amount: 1000u64,
-            }],
+            vec![light_ctoken_types::instructions::mint_action::Recipient::new(recipient, 1000u64)],
             light_ctoken_types::state::TokenDataVersion::V2,
             &mint_authority, // Valid authority
             &payer,
@@ -239,7 +238,7 @@ async fn functional_and_failing_tests() {
                 light_compressed_token_sdk::instructions::mint_action::MintActionType::MintTo {
                     recipients: vec![
                         light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
-                            recipient: recipient.into(),
+                            recipient,
                             amount: 1000u64,
                         },
                     ],
@@ -417,10 +416,12 @@ async fn functional_and_failing_tests() {
             &invalid_mint_authority, // Invalid authority
             &payer,
             vec![], // No compressed recipients
-            vec![light_ctoken_types::instructions::mint_action::Recipient {
-                recipient: recipient.pubkey().to_bytes().into(),
-                amount: 1000u64,
-            }], // Mint to decompressed
+            vec![
+                light_ctoken_types::instructions::mint_action::Recipient::new(
+                    recipient.pubkey(),
+                    1000u64,
+                ),
+            ], // Mint to decompressed
             None,   // No mint authority update
             None,   // No freeze authority update
             None,   // Not creating new mint
@@ -478,10 +479,12 @@ async fn functional_and_failing_tests() {
             &new_mint_authority, // Valid NEW authority after update
             &payer,
             vec![], // No compressed recipients
-            vec![light_ctoken_types::instructions::mint_action::Recipient {
-                recipient: recipient2.pubkey().to_bytes().into(),
-                amount: 2000u64,
-            }], // Mint to decompressed
+            vec![
+                light_ctoken_types::instructions::mint_action::Recipient::new(
+                    recipient2.pubkey(),
+                    2000u64,
+                ),
+            ], // Mint to decompressed
             None,   // No mint authority update
             None,   // No freeze authority update
             None,   // Not creating new mint

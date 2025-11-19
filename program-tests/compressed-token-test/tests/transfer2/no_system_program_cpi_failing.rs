@@ -130,10 +130,7 @@ async fn setup_no_system_program_cpi_test(
 
     // Create mint and mint tokens to source CToken ATA
     let decompressed_recipients = if source_token_amount > 0 {
-        vec![Recipient {
-            recipient: owner.pubkey().to_bytes().into(),
-            amount: source_token_amount,
-        }]
+        vec![Recipient::new(owner.pubkey(), source_token_amount)]
     } else {
         vec![]
     };
@@ -744,10 +741,7 @@ async fn test_too_many_mints() {
             .unwrap();
 
         // Create mint and mint tokens to source CToken ATA
-        let decompressed_recipients = vec![Recipient {
-            recipient: context.owner.pubkey().to_bytes().into(),
-            amount: 1000,
-        }];
+        let decompressed_recipients = vec![Recipient::new(context.owner.pubkey(), 1000)];
 
         light_token_client::actions::mint_action_comprehensive(
             &mut context.rpc,

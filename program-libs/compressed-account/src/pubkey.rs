@@ -246,6 +246,9 @@ impl AsPubkey for solana_pubkey::Pubkey {
     fn to_pubkey_bytes(&self) -> [u8; 32] {
         self.to_bytes()
     }
+    fn to_light_pubkey(&self) -> Pubkey {
+        self.to_bytes().into()
+    }
 }
 
 impl AsPubkey for [u8; 32] {

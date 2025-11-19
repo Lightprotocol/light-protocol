@@ -283,10 +283,10 @@ pub async fn create_mint(
         },
     };
 
-    let token_recipients = vec![Recipient {
-        recipient: payer.pubkey().to_bytes().into(),
-        amount: 1000u64, // Mint 1000 tokens
-    }];
+    let token_recipients = vec![Recipient::new(
+        payer.pubkey(),
+        1000u64, // Mint 1000 tokens
+    )];
 
     let pda_creation = PdaCreationData {
         amount: pda_amount,
