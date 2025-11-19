@@ -62,6 +62,27 @@ impl MintActionCompressedInstructionData {
         }
     }
 
+    pub fn new_mint_write_to_cpi_context(
+        compressed_address: [u8; 32],
+        root_index: u16,
+        mint: CompressedMintInstructionData,
+        cpi_context: CpiContext,
+    ) -> Self {
+        Self {
+            leaf_index: 0,
+            prove_by_index: false,
+            root_index,
+            compressed_address,
+            token_pool_bump: 0,
+            token_pool_index: 0,
+            create_mint: Some(CreateMint::default()),
+            actions: Vec::new(),
+            proof: None, // Proof is verified with execution not write
+            cpi_context: Some(cpi_context),
+            mint,
+        }
+    }
+
     #[must_use = "with_mint_to_compressed returns a new value"]
     pub fn with_mint_to_compressed(mut self, action: MintToCompressedAction) -> Self {
         self.actions.push(Action::MintToCompressed(action));

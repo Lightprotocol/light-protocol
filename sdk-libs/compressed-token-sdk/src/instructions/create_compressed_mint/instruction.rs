@@ -48,7 +48,6 @@ pub fn create_compressed_mint_cpi(
     cpi_context: Option<CpiContext>,
     cpi_context_pubkey: Option<Pubkey>,
 ) -> Result<Instruction> {
-    // Build CompressedMintInstructionData from the input parameters
     let compressed_mint_instruction_data = CompressedMintInstructionData {
         supply: 0,
         decimals: input.decimals,
@@ -65,7 +64,6 @@ pub fn create_compressed_mint_cpi(
         extensions: input.extensions,
     };
 
-    // Build CompressedMintWithContext
     let compressed_mint_with_context = CompressedMintWithContext {
         address: mint_address,
         mint: compressed_mint_instruction_data,
@@ -86,7 +84,6 @@ pub fn create_compressed_mint_cpi(
     }
 
     let meta_config = if cpi_context_pubkey.is_some() {
-        // CPI context mode
         MintActionMetaConfig::new_cpi_context(
             &instruction_data,
             input.mint_authority,
@@ -94,7 +91,6 @@ pub fn create_compressed_mint_cpi(
             cpi_context_pubkey.unwrap(),
         )?
     } else {
-        // Regular CPI mode
         MintActionMetaConfig::new_create_mint(
             &instruction_data,
             input.mint_authority,
@@ -121,7 +117,6 @@ pub fn create_compressed_mint_cpi(
     })
 }
 
-/// Input struct for creating a compressed mint instruction in CPI write mode
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct CreateCompressedMintInputsCpiWrite {
     pub decimals: u8,
@@ -148,7 +143,6 @@ pub fn create_compressed_mint_cpi_write(
         return Err(TokenSdkError::InvalidAccountData);
     }
 
-    // Build CompressedMintInstructionData
     let compressed_mint_instruction_data = CompressedMintInstructionData {
         supply: 0,
         decimals: input.decimals,
@@ -165,12 +159,11 @@ pub fn create_compressed_mint_cpi_write(
         extensions: input.extensions,
     };
 
-    let instruction_data = light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
+    let instruction_data = light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new_mint_write_to_cpi_context(
         input.mint_address,
         input.address_merkle_tree_root_index,
-        light_compressed_account::instruction_data::compressed_proof::CompressedProof::default(), // Dummy proof for CPI write
-        compressed_mint_instruction_data,
-    ).with_cpi_context(input.cpi_context);
+        compressed_mint_instruction_data,input.cpi_context
+    );
 
     let meta_config = MintActionMetaConfigCpiWrite {
         fee_payer: input.payer,

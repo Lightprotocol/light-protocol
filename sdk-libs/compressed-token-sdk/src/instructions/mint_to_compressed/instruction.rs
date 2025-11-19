@@ -73,7 +73,6 @@ pub fn create_mint_to_compressed_instruction(
     }
 
     let meta_config = if cpi_context_pubkey.is_some() {
-        // CPI context mode
         MintActionMetaConfig::new_cpi_context(
             &instruction_data,
             mint_authority,
@@ -81,7 +80,6 @@ pub fn create_mint_to_compressed_instruction(
             cpi_context_pubkey.unwrap(),
         )?
     } else {
-        // Regular CPI mode
         MintActionMetaConfig::new(
             &instruction_data,
             mint_authority,

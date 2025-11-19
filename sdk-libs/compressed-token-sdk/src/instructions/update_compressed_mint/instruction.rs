@@ -133,7 +133,6 @@ pub fn create_update_compressed_mint_cpi_write(
         }
     };
 
-    // Add CPI context
     instruction_data = instruction_data.with_cpi_context(inputs.cpi_context);
 
     let meta_config = MintActionMetaConfigCpiWrite {

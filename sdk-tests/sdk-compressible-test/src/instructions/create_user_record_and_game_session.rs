@@ -155,7 +155,6 @@ pub fn create_user_record_and_game_session<'info>(
             ),
         ]));
 
-    // Add CPI context
     instruction_data = instruction_data.with_cpi_context(
         light_ctoken_types::instructions::mint_action::CpiContext {
             address_tree_pubkey: address_tree_pubkey.to_bytes(),

@@ -36,7 +36,6 @@ pub fn process_mint_action<'a, 'info>(
             .map(|auth| auth.to_bytes().into()),
     });
 
-    // Add CPI context
     instruction_data = instruction_data.with_cpi_context(
         light_ctoken_types::instructions::mint_action::CpiContext {
             set_context: false,
