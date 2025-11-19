@@ -87,15 +87,12 @@ pub async fn assert_mint_action(
             MintActionType::UpdateMetadataAuthority {
                 extension_index,
                 new_authority,
-                idempotent: _,
             } => {
                 if let Some(ref mut extensions) = expected_mint.extensions {
                     if let Some(ExtensionStruct::TokenMetadata(ref mut metadata)) =
                         extensions.get_mut(*extension_index as usize)
                     {
-                        metadata.update_authority = new_authority
-                            .map(|a| a.to_bytes().into())
-                            .unwrap_or([0u8; 32].into());
+                        metadata.update_authority = new_authority.into();
                     }
                 }
             }

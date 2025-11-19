@@ -43,8 +43,7 @@ pub enum MintActionType {
     },
     UpdateMetadataAuthority {
         extension_index: u8,
-        new_authority: Option<Pubkey>,
-        idempotent: u8,
+        new_authority: Pubkey,
     },
     RemoveMetadataKey {
         extension_index: u8,

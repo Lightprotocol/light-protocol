@@ -223,14 +223,10 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
             MintActionType::UpdateMetadataAuthority {
                 extension_index,
                 new_authority,
-                idempotent: _,
             } => {
-                let authority_bytes = new_authority
-                    .map(|a| a.to_bytes().into())
-                    .unwrap_or([0u8; 32].into());
                 instruction_data.with_update_metadata_authority(UpdateMetadataAuthorityAction {
                     extension_index,
-                    new_authority: authority_bytes,
+                    new_authority: new_authority.to_bytes().into(),
                 })
             }
             MintActionType::RemoveMetadataKey {
