@@ -141,8 +141,13 @@ pub fn prepare_nullify_batch(
         merkle_proofs.push(state.staging.get_proof(element.leaf_index)?);
         old_leaves.push(state.staging.get_leaf(element.leaf_index));
 
-        // Update tree with nullified leaf so next proof will be adjusted
-        state.staging.update_leaf(element.leaf_index, leaves[i])?;
+        // Compute nullifier: hash(account_hash, path_index, tx_hash)
+        let index_bytes = path_indices[i].to_be_bytes();
+        let nullifier = Poseidon::hashv(&[&leaves[i], &index_bytes[..], &tx_hashes[i]])
+            .map_err(|e| anyhow::anyhow!("Failed to compute nullifier: {}", e))?;
+
+        // Update tree with nullifier so next proof will be adjusted
+        state.staging.update_leaf(element.leaf_index, nullifier)?;
     }
     let proof_time = proof_start.elapsed();
     let new_root = state.staging.current_root();
