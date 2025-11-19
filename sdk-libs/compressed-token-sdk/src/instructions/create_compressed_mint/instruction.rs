@@ -23,8 +23,6 @@ use crate::{
     AnchorDeserialize, AnchorSerialize,
 };
 
-pub const CREATE_COMPRESSED_MINT_DISCRIMINATOR: u8 = 100;
-
 /// Input struct for creating a compressed mint instruction
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct CreateCompressedMintInputs {

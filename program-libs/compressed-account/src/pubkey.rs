@@ -210,7 +210,9 @@ pub trait AsPubkey {
     fn to_pubkey_bytes(&self) -> [u8; 32];
     #[cfg(feature = "anchor")]
     fn to_anchor_pubkey(&self) -> anchor_lang::prelude::Pubkey;
-    fn to_light_pubkey(&self) -> Pubkey;
+    fn to_light_pubkey(&self) -> Pubkey {
+        self.to_pubkey_bytes().into()
+    }
 }
 
 impl AsPubkey for Pubkey {
@@ -236,18 +238,12 @@ impl AsPubkey for anchor_lang::prelude::Pubkey {
     fn to_anchor_pubkey(&self) -> Self {
         *self
     }
-    fn to_light_pubkey(&self) -> Pubkey {
-        self.to_bytes().into()
-    }
 }
 
 #[cfg(all(feature = "solana", not(feature = "anchor")))]
 impl AsPubkey for solana_pubkey::Pubkey {
     fn to_pubkey_bytes(&self) -> [u8; 32] {
         self.to_bytes()
-    }
-    fn to_light_pubkey(&self) -> Pubkey {
-        self.to_bytes().into()
     }
 }
 
@@ -258,8 +254,5 @@ impl AsPubkey for [u8; 32] {
     #[cfg(feature = "anchor")]
     fn to_anchor_pubkey(&self) -> anchor_lang::prelude::Pubkey {
         (*self).into()
-    }
-    fn to_light_pubkey(&self) -> Pubkey {
-        self.into()
     }
 }
