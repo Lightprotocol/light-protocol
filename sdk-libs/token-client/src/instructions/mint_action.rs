@@ -6,8 +6,7 @@ use light_client::{
 use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_compressed_token_sdk::instructions::{
     derive_compressed_mint_address, find_spl_mint_address,
-    get_mint_action_instruction_account_metas,
-    mint_action::{MintActionMetaConfig, MintActionType, MintToRecipient},
+    get_mint_action_instruction_account_metas, mint_action::MintActionMetaConfig,
 };
 use light_ctoken_types::{
     instructions::{
@@ -25,6 +24,47 @@ use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
+
+// Backwards compatibility types for token-client
+#[derive(Debug, Clone, PartialEq)]
+pub struct MintToRecipient {
+    pub recipient: Pubkey,
+    pub amount: u64,
+}
+
+/// High-level action types for the mint action instruction (backwards compatibility)
+#[derive(Debug, Clone, PartialEq)]
+pub enum MintActionType {
+    MintTo {
+        recipients: Vec<MintToRecipient>,
+        token_account_version: u8,
+    },
+    UpdateMintAuthority {
+        new_authority: Option<Pubkey>,
+    },
+    UpdateFreezeAuthority {
+        new_authority: Option<Pubkey>,
+    },
+    MintToCToken {
+        account: Pubkey,
+        amount: u64,
+    },
+    UpdateMetadataField {
+        extension_index: u8,
+        field_type: u8,
+        key: Vec<u8>,
+        value: Vec<u8>,
+    },
+    UpdateMetadataAuthority {
+        extension_index: u8,
+        new_authority: Pubkey,
+    },
+    RemoveMetadataKey {
+        extension_index: u8,
+        key: Vec<u8>,
+        idempotent: u8,
+    },
+}
 
 /// Parameters for creating a new mint
 #[derive(Debug)]

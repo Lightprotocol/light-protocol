@@ -12,7 +12,10 @@ use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
 };
-use light_token_client::actions::create_mint;
+use light_token_client::{
+    actions::create_mint,
+    instructions::mint_action::{MintActionType, MintToRecipient},
+};
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
 
@@ -169,65 +172,66 @@ async fn functional_all_in_one_instruction() {
     // Build all actions for a single instruction
     let actions = vec![
         // 1. MintToCompressed - mint to compressed account
-        light_compressed_token_sdk::instructions::mint_action::MintActionType::MintTo {
-            recipients: vec![light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
+        MintActionType::MintTo {
+            recipients: vec![MintToRecipient {
                 recipient: Keypair::new().pubkey(),
                 amount: 1000u64,
             }],
             token_account_version: 2,
         },
         // 2. MintToCToken - mint to decompressed account
-        light_compressed_token_sdk::instructions::mint_action::MintActionType::MintToCToken {
+        MintActionType::MintToCToken {
             account: light_compressed_token_sdk::instructions::derive_ctoken_ata(
                 &recipient.pubkey(),
                 &spl_mint_pda,
-            ).0,
+            )
+            .0,
             amount: 2000u64,
         },
         // 3. UpdateMintAuthority
-        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMintAuthority {
+        MintActionType::UpdateMintAuthority {
             new_authority: Some(new_mint_authority.pubkey()),
         },
         // 4. UpdateFreezeAuthority
-        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateFreezeAuthority {
+        MintActionType::UpdateFreezeAuthority {
             new_authority: Some(new_freeze_authority.pubkey()),
         },
         // 5. UpdateMetadataField - update the name
-        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
+        MintActionType::UpdateMetadataField {
             extension_index: 0,
             field_type: 0, // Name field
             key: vec![],
             value: "Updated Token Name".as_bytes().to_vec(),
         },
         // 6. UpdateMetadataField - update the symbol
-        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
+        MintActionType::UpdateMetadataField {
             extension_index: 0,
             field_type: 1, // Symbol field
             key: vec![],
             value: "UPDATED".as_bytes().to_vec(),
         },
         // 7. UpdateMetadataField - update the URI
-        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
+        MintActionType::UpdateMetadataField {
             extension_index: 0,
             field_type: 2, // URI field
             key: vec![],
             value: "https://updated.example.com/token.json".as_bytes().to_vec(),
         },
         // 8. UpdateMetadataField - update the first additional metadata field
-        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
+        MintActionType::UpdateMetadataField {
             extension_index: 0,
             field_type: 3, // Custom key field
             key: vec![1, 2, 3, 4],
             value: "updated_value".as_bytes().to_vec(),
         },
         // 9. RemoveMetadataKey - remove the second additional metadata key
-        light_compressed_token_sdk::instructions::mint_action::MintActionType::RemoveMetadataKey {
+        MintActionType::RemoveMetadataKey {
             extension_index: 0,
             key: vec![4, 5, 6, 7],
             idempotent: 0,
         },
         // 10. UpdateMetadataAuthority
-        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataAuthority {
+        MintActionType::UpdateMetadataAuthority {
             extension_index: 0,
             new_authority: new_metadata_authority.pubkey(),
         },

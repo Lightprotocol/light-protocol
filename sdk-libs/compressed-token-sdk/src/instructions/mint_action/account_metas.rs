@@ -36,7 +36,7 @@ impl MintActionMetaConfig {
     ) -> crate::error::Result<Self> {
         // Sanity check: must be creating a mint
         if instruction_data.create_mint.is_none() {
-            return Err(crate::error::TokenSdkError::InvalidAccountData);
+            return Err(crate::error::TokenSdkError::CreateMintDataRequired);
         }
 
         let (has_mint_to_actions, ctoken_accounts) =
@@ -77,7 +77,7 @@ impl MintActionMetaConfig {
     ) -> crate::error::Result<Self> {
         // Sanity check: must NOT be creating a mint
         if instruction_data.create_mint.is_some() {
-            return Err(crate::error::TokenSdkError::InvalidAccountData);
+            return Err(crate::error::TokenSdkError::CreateMintMustBeNone);
         }
 
         let (has_mint_to_actions, ctoken_accounts) =

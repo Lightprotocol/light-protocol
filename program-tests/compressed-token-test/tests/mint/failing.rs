@@ -10,7 +10,10 @@ use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, Prog
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
 };
-use light_token_client::actions::create_mint;
+use light_token_client::{
+    actions::create_mint,
+    instructions::mint_action::{MintActionType, MintToRecipient},
+};
 use serial_test::serial;
 use solana_sdk::{
     instruction::AccountMeta, signature::Keypair, signer::Signer, transaction::Transaction,
@@ -234,17 +237,13 @@ async fn functional_and_failing_tests() {
             &mut rpc,
             compressed_mint_address,
             pre_compressed_mint,
-            vec![
-                light_compressed_token_sdk::instructions::mint_action::MintActionType::MintTo {
-                    recipients: vec![
-                        light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
-                            recipient,
-                            amount: 1000u64,
-                        },
-                    ],
-                    token_account_version: light_ctoken_types::state::TokenDataVersion::V2 as u8,
-                },
-            ],
+            vec![MintActionType::MintTo {
+                recipients: vec![MintToRecipient {
+                    recipient,
+                    amount: 1000u64,
+                }],
+                token_account_version: light_ctoken_types::state::TokenDataVersion::V2 as u8,
+            }],
         )
         .await;
     }
@@ -312,7 +311,7 @@ async fn functional_and_failing_tests() {
             &mut rpc,
             compressed_mint_address,
             pre_compressed_mint,
-            vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMintAuthority {
+            vec![MintActionType::UpdateMintAuthority {
                 new_authority: Some(new_mint_authority.pubkey()),
             }],
         )
@@ -385,7 +384,7 @@ async fn functional_and_failing_tests() {
             &mut rpc,
             compressed_mint_address,
             pre_compressed_mint,
-            vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateFreezeAuthority {
+            vec![MintActionType::UpdateFreezeAuthority {
                 new_authority: Some(new_freeze_authority.pubkey()),
             }],
         )
@@ -498,7 +497,7 @@ async fn functional_and_failing_tests() {
             &mut rpc,
             compressed_mint_address,
             pre_compressed_mint,
-            vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::MintToCToken {
+            vec![MintActionType::MintToCToken {
                 account: recipient_ata,
                 amount: 2000u64,
             }],
@@ -515,7 +514,7 @@ async fn functional_and_failing_tests() {
                 mint_seed: mint_seed.pubkey(),
                 authority: invalid_metadata_authority.pubkey(), // Invalid authority
                 payer: payer.pubkey(),
-                actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
+                actions: vec![MintActionType::UpdateMetadataField {
                     extension_index: 0,
                     field_type: 0, // 0 = Name field
                     key: vec![],   // Empty for Name field
@@ -551,7 +550,7 @@ async fn functional_and_failing_tests() {
         )
         .unwrap();
 
-        let actions = vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
+        let actions = vec![MintActionType::UpdateMetadataField {
             extension_index: 0,
             field_type: 0, // 0 = Name field
             key: vec![],   // Empty for Name field
@@ -598,7 +597,7 @@ async fn functional_and_failing_tests() {
                 mint_seed: mint_seed.pubkey(),
                 authority: invalid_metadata_authority.pubkey(), // Invalid authority
                 payer: payer.pubkey(),
-                actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataAuthority {
+                actions: vec![MintActionType::UpdateMetadataAuthority {
                     extension_index: 0,
                     new_authority: Keypair::new().pubkey(),
                 }],
@@ -632,7 +631,7 @@ async fn functional_and_failing_tests() {
         )
         .unwrap();
 
-        let actions = vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataAuthority {
+        let actions = vec![MintActionType::UpdateMetadataAuthority {
             extension_index: 0,
             new_authority: new_metadata_authority.pubkey(),
         }];
@@ -677,10 +676,10 @@ async fn functional_and_failing_tests() {
                 mint_seed: mint_seed.pubkey(),
                 authority: invalid_metadata_authority.pubkey(), // Invalid authority
                 payer: payer.pubkey(),
-                actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::RemoveMetadataKey {
+                actions: vec![MintActionType::RemoveMetadataKey {
                     extension_index: 0,
-                    key: vec![1,2,3,4], // The key we added in additional_metadata
-                    idempotent: 0, // 0 = false
+                    key: vec![1, 2, 3, 4], // The key we added in additional_metadata
+                    idempotent: 0,         // 0 = false
                 }],
                 new_mint: None,
             },
@@ -712,10 +711,10 @@ async fn functional_and_failing_tests() {
         )
         .unwrap();
 
-        let actions = vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::RemoveMetadataKey {
+        let actions = vec![MintActionType::RemoveMetadataKey {
             extension_index: 0,
-            key: vec![1,2,3,4], // The key we added in additional_metadata
-            idempotent: 0, // 0 = false
+            key: vec![1, 2, 3, 4], // The key we added in additional_metadata
+            idempotent: 0,         // 0 = false
         }];
 
         let result = light_token_client::actions::mint_action(
@@ -765,10 +764,10 @@ async fn functional_and_failing_tests() {
         )
         .unwrap();
 
-        let actions = vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::RemoveMetadataKey {
+        let actions = vec![MintActionType::RemoveMetadataKey {
             extension_index: 0,
-            key: vec![1,2,3,4], // Same key, already removed
-            idempotent: 1, // 1 = true (won't error if key doesn't exist)
+            key: vec![1, 2, 3, 4], // Same key, already removed
+            idempotent: 1,         // 1 = true (won't error if key doesn't exist)
         }];
 
         let result = light_token_client::actions::mint_action(

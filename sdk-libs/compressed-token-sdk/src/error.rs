@@ -57,6 +57,10 @@ pub enum TokenSdkError {
     UseRegularSplTransfer,
     #[error("Cannot determine account type")]
     CannotDetermineAccountType,
+    #[error("MintActionMetaConfig::new_create_mint requires create_mint data")]
+    CreateMintDataRequired,
+    #[error("MintActionMetaConfig::new requires existing mint (create_mint must be None)")]
+    CreateMintMustBeNone,
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
     #[error(transparent)]
@@ -109,6 +113,8 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::IncompleteSplBridgeConfig => 17021,
             TokenSdkError::UseRegularSplTransfer => 17022,
             TokenSdkError::CannotDetermineAccountType => 17023,
+            TokenSdkError::CreateMintDataRequired => 17024,
+            TokenSdkError::CreateMintMustBeNone => 17025,
             TokenSdkError::CompressedTokenTypes(e) => e.into(),
             TokenSdkError::CTokenError(e) => e.into(),
             TokenSdkError::LightSdkTypesError(e) => e.into(),
