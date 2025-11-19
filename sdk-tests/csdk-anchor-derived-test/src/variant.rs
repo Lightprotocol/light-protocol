@@ -84,11 +84,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::UserRecord(data) => data.compression_info(),
             Self::GameSession(data) => data.compression_info(),
             Self::PlaceholderRecord(data) => data.compression_info(),
-            Self::PackedUserRecord(_)
-            | Self::PackedGameSession(_)
-            | Self::PackedPlaceholderRecord(_)
-            | Self::PackedCTokenData(_)
-            | Self::CTokenData(_) => unreachable!(),
+            _ => unreachable!(),
         }
     }
 
@@ -97,11 +93,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::UserRecord(data) => data.compression_info_mut(),
             Self::GameSession(data) => data.compression_info_mut(),
             Self::PlaceholderRecord(data) => data.compression_info_mut(),
-            Self::PackedUserRecord(_)
-            | Self::PackedGameSession(_)
-            | Self::PackedPlaceholderRecord(_)
-            | Self::PackedCTokenData(_)
-            | Self::CTokenData(_) => unreachable!(),
+            _ => unreachable!(),
         }
     }
 
@@ -110,11 +102,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::UserRecord(data) => data.compression_info_mut_opt(),
             Self::GameSession(data) => data.compression_info_mut_opt(),
             Self::PlaceholderRecord(data) => data.compression_info_mut_opt(),
-            Self::PackedUserRecord(_)
-            | Self::PackedGameSession(_)
-            | Self::PackedPlaceholderRecord(_)
-            | Self::PackedCTokenData(_)
-            | Self::CTokenData(_) => unreachable!(),
+            _ => unreachable!(),
         }
     }
 
@@ -123,11 +111,7 @@ impl HasCompressionInfo for CompressedAccountVariant {
             Self::UserRecord(data) => data.set_compression_info_none(),
             Self::GameSession(data) => data.set_compression_info_none(),
             Self::PlaceholderRecord(data) => data.set_compression_info_none(),
-            Self::PackedUserRecord(_)
-            | Self::PackedGameSession(_)
-            | Self::PackedPlaceholderRecord(_)
-            | Self::PackedCTokenData(_)
-            | Self::CTokenData(_) => unreachable!(),
+            _ => unreachable!(),
         }
     }
 }
@@ -138,11 +122,7 @@ impl Size for CompressedAccountVariant {
             Self::UserRecord(data) => data.size(),
             Self::GameSession(data) => data.size(),
             Self::PlaceholderRecord(data) => data.size(),
-            Self::PackedUserRecord(_)
-            | Self::PackedGameSession(_)
-            | Self::PackedPlaceholderRecord(_)
-            | Self::PackedCTokenData(_)
-            | Self::CTokenData(_) => unreachable!(),
+            _ => unreachable!(),
         }
     }
 }
@@ -160,10 +140,7 @@ impl SdkPack for CompressedAccountVariant {
             Self::CTokenData(data) => {
                 Self::PackedCTokenData(TokenPack::pack(data, remaining_accounts))
             }
-            Self::PackedUserRecord(_)
-            | Self::PackedGameSession(_)
-            | Self::PackedPlaceholderRecord(_)
-            | Self::PackedCTokenData(_) => unreachable!(),
+            _ => unreachable!(),
         }
     }
 }
@@ -184,10 +161,7 @@ impl SdkUnpack for CompressedAccountVariant {
                 Ok(Self::PlaceholderRecord(data.unpack(remaining_accounts)?))
             }
             Self::PackedCTokenData(data) => Ok(Self::PackedCTokenData(data.clone())),
-            Self::UserRecord(_)
-            | Self::GameSession(_)
-            | Self::PlaceholderRecord(_)
-            | Self::CTokenData(_) => unreachable!(),
+            _ => unreachable!(),
         }
     }
 }

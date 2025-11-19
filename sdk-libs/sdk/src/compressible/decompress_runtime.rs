@@ -237,7 +237,6 @@ where
         crate::compressible::CompressibleConfig::load_checked(ctx.config(), program_id)?;
     let address_space = compression_config.address_space[0];
 
-    // Use standardized runtime helper (full rust-analyzer support!)
     let (has_tokens, has_pdas) = check_account_types(&compressed_accounts);
     if !has_tokens && !has_pdas {
         return Ok(());
@@ -306,6 +305,7 @@ where
             .invoke(cpi_accounts.clone())?;
     }
 
+    // TODO: fix this
     #[cfg(not(feature = "cpi-context"))]
     if has_pdas {
         LightSystemProgramCpi::new_cpi(cpi_accounts.config().cpi_signer, proof)
