@@ -4,7 +4,6 @@ use solana_pubkey::Pubkey;
 
 use crate::instructions::CTokenDefaultAccounts;
 
-/// Account metadata configuration for mint action instruction
 #[derive(Debug, Clone)]
 pub struct MintActionMetaConfig {
     pub fee_payer: Pubkey,
@@ -25,7 +24,6 @@ pub struct MintActionMetaConfig {
 }
 
 impl MintActionMetaConfig {
-    /// Create config for creating a new compressed mint (regular mode with fee_payer)
     pub fn new_create_mint(
         instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
         authority: Pubkey,
@@ -65,7 +63,6 @@ impl MintActionMetaConfig {
         })
     }
 
-    /// Create config for working with existing mint (regular mode with fee_payer)
     pub fn new(
         instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
         authority: Pubkey,
@@ -104,7 +101,6 @@ impl MintActionMetaConfig {
         })
     }
 
-    /// Create config for CPI context mode
     pub fn new_cpi_context(
         instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
         authority: Pubkey,
@@ -139,19 +135,16 @@ impl MintActionMetaConfig {
         })
     }
 
-    /// Chainable method to override tokens_out_queue
     pub fn with_tokens_out_queue(mut self, queue: Pubkey) -> Self {
         self.tokens_out_queue = Some(queue);
         self
     }
 
-    /// Chainable method to set ctoken_accounts (for MintToCToken actions)
     pub fn with_ctoken_accounts(mut self, accounts: Vec<Pubkey>) -> Self {
         self.ctoken_accounts = accounts;
         self
     }
 
-    /// Helper to analyze actions and extract info
     fn analyze_actions(
         actions: &[light_ctoken_types::instructions::mint_action::Action],
     ) -> (bool, Vec<Pubkey>) {

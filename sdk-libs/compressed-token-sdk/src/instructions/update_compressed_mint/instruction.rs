@@ -41,14 +41,12 @@ pub fn update_compressed_mint_cpi(
     input: UpdateCompressedMintInputs,
     cpi_context: Option<CpiContext>,
 ) -> Result<Instruction> {
-    // Build instruction data using builder pattern
     let mut instruction_data =
         light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new(
             input.compressed_mint_inputs.clone(),
             input.proof,
         );
 
-    // Add the appropriate action based on authority type
     let update_authority = light_ctoken_types::instructions::mint_action::UpdateAuthority {
         new_authority: input.new_authority.map(|auth| auth.to_bytes().into()),
     };
@@ -62,12 +60,10 @@ pub fn update_compressed_mint_cpi(
         }
     };
 
-    // Add CPI context if provided
     if let Some(ctx) = cpi_context {
         instruction_data = instruction_data.with_cpi_context(ctx);
     }
 
-    // Build account meta config
     let meta_config = MintActionMetaConfig::new(
         &instruction_data,
         input.authority,
@@ -77,16 +73,13 @@ pub fn update_compressed_mint_cpi(
         input.out_output_queue,
     )?;
 
-    // Get account metas
     let account_metas =
         get_mint_action_instruction_account_metas(meta_config, &input.compressed_mint_inputs);
 
-    // Serialize instruction data with discriminator
     let data = instruction_data
         .data()
         .map_err(|_| TokenSdkError::SerializationError)?;
 
-    // Build instruction directly
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
             light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
@@ -121,14 +114,12 @@ pub fn create_update_compressed_mint_cpi_write(
         return Err(TokenSdkError::InvalidAccountData);
     }
 
-    // Build instruction data using builder pattern
     let mut instruction_data =
         light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new(
             inputs.compressed_mint_inputs.clone(),
             None, // No proof for CPI write
         );
 
-    // Add the appropriate action based on authority type
     let update_authority = light_ctoken_types::instructions::mint_action::UpdateAuthority {
         new_authority: inputs.new_authority.map(|auth| auth.to_bytes().into()),
     };
@@ -145,24 +136,20 @@ pub fn create_update_compressed_mint_cpi_write(
     // Add CPI context
     instruction_data = instruction_data.with_cpi_context(inputs.cpi_context);
 
-    // Build account meta config for CPI write
     let meta_config = MintActionMetaConfigCpiWrite {
         fee_payer: inputs.payer,
         mint_signer: None, // Not needed for authority updates
         authority: inputs.authority,
         cpi_context: inputs.cpi_context_pubkey,
-        mint_needs_to_sign: false, // Never sign for authority updates
+        mint_needs_to_sign: false,
     };
 
-    // Get account metas for CPI write
     let account_metas = get_mint_action_instruction_account_metas_cpi_write(meta_config);
 
-    // Serialize instruction data with discriminator
     let data = instruction_data
         .data()
         .map_err(|_| TokenSdkError::SerializationError)?;
 
-    // Build instruction directly
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
             light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,

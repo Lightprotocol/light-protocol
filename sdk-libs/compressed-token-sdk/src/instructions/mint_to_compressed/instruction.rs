@@ -56,13 +56,11 @@ pub fn create_mint_to_compressed_instruction(
         token_pool: _,
     } = inputs;
 
-    // Build the MintToCompressed action
     let mint_to_action = light_ctoken_types::instructions::mint_action::MintToCompressedAction {
         token_account_version,
         recipients,
     };
 
-    // Build instruction data using builder pattern
     let mut instruction_data =
         light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new(
             compressed_mint_inputs.clone(),
@@ -70,12 +68,10 @@ pub fn create_mint_to_compressed_instruction(
         )
         .with_mint_to_compressed(mint_to_action);
 
-    // Add CPI context if provided
     if let Some(ctx) = cpi_context {
         instruction_data = instruction_data.with_cpi_context(ctx);
     }
 
-    // Build account meta config
     let meta_config = if cpi_context_pubkey.is_some() {
         // CPI context mode
         MintActionMetaConfig::new_cpi_context(
@@ -97,16 +93,13 @@ pub fn create_mint_to_compressed_instruction(
         .with_tokens_out_queue(output_queue_tokens)
     };
 
-    // Get account metas
     let account_metas =
         get_mint_action_instruction_account_metas(meta_config, &compressed_mint_inputs);
 
-    // Serialize instruction data with discriminator
     let data = instruction_data
         .data()
         .map_err(|_| TokenSdkError::SerializationError)?;
 
-    // Build instruction directly
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
             light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,

@@ -74,7 +74,6 @@ pub fn create_compressed_mint_cpi(
         root_index: input.address_merkle_tree_root_index,
     };
 
-    // Build instruction data using builder pattern
     let mut instruction_data = light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
         mint_address,
         input.address_merkle_tree_root_index,
@@ -82,12 +81,10 @@ pub fn create_compressed_mint_cpi(
         compressed_mint_with_context.mint.clone(),
     );
 
-    // Add CPI context if provided
     if let Some(ctx) = cpi_context {
         instruction_data = instruction_data.with_cpi_context(ctx);
     }
 
-    // Build account meta config
     let meta_config = if cpi_context_pubkey.is_some() {
         // CPI context mode
         MintActionMetaConfig::new_cpi_context(
@@ -108,16 +105,13 @@ pub fn create_compressed_mint_cpi(
         )?
     };
 
-    // Get account metas
     let account_metas =
         get_mint_action_instruction_account_metas(meta_config, &compressed_mint_with_context);
 
-    // Serialize instruction data with discriminator
     let data = instruction_data
         .data()
         .map_err(|_| TokenSdkError::SerializationError)?;
 
-    // Build instruction directly
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
             light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
@@ -171,7 +165,6 @@ pub fn create_compressed_mint_cpi_write(
         extensions: input.extensions,
     };
 
-    // Build instruction data using builder pattern
     let instruction_data = light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
         input.mint_address,
         input.address_merkle_tree_root_index,
@@ -179,7 +172,6 @@ pub fn create_compressed_mint_cpi_write(
         compressed_mint_instruction_data,
     ).with_cpi_context(input.cpi_context);
 
-    // Build account meta config for CPI write
     let meta_config = MintActionMetaConfigCpiWrite {
         fee_payer: input.payer,
         mint_signer: Some(input.mint_signer),
@@ -188,15 +180,12 @@ pub fn create_compressed_mint_cpi_write(
         mint_needs_to_sign: true, // Always true for create mint
     };
 
-    // Get account metas for CPI write
     let account_metas = get_mint_action_instruction_account_metas_cpi_write(meta_config);
 
-    // Serialize instruction data with discriminator
     let data = instruction_data
         .data()
         .map_err(|_| TokenSdkError::SerializationError)?;
 
-    // Build instruction directly
     Ok(Instruction {
         program_id: solana_pubkey::Pubkey::new_from_array(
             light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,

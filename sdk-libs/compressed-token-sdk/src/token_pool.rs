@@ -4,7 +4,6 @@ use solana_pubkey::Pubkey;
 
 use crate::{AnchorDeserialize, AnchorSerialize};
 
-/// Token pool information
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize, PartialEq)]
 pub struct TokenPool {
     pub pubkey: Pubkey,

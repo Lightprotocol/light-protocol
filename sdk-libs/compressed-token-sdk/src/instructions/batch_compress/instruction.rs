@@ -77,7 +77,6 @@ pub fn create_batch_compress_instruction(inputs: BatchCompressInputs) -> Result<
         sol_pool_pda: inputs.sol_pool_pda,
     };
 
-    // Get account metas that match MintToInstruction structure
     let account_metas = get_batch_compress_instruction_account_metas(meta_config);
 
     Ok(Instruction {
