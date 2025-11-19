@@ -1483,6 +1483,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             job_count
         );
 
+        drop(proof_tx);
+
         for handle in poll_handles {
             handle
                 .await
