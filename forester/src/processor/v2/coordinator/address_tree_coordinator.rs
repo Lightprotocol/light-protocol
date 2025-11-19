@@ -1057,11 +1057,7 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             &self.context.merkle_tree.into(),
         )?;
 
-        let on_chain_root = tree_data
-            .root_history
-            .last()
-            .copied()
-            .ok_or_else(|| anyhow::anyhow!("No root in tree history"))?;
+        let on_chain_root = batch_utils::extract_current_root(&tree_data)?;
 
         let mut state = self.shared_state.write().await;
         info!("Syncing: on-chain root = {:?}", &on_chain_root[..8]);
@@ -1078,21 +1074,7 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
 
     async fn get_current_onchain_root(&self) -> Result<[u8; 32]> {
         let rpc = self.context.rpc_pool.get_connection().await?;
-        let mut account = rpc
-            .get_account(self.context.merkle_tree)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Address merkle tree account not found"))?;
-
-        let tree_data = BatchedMerkleTreeAccount::address_from_bytes(
-            account.data.as_mut_slice(),
-            &self.context.merkle_tree.into(),
-        )?;
-
-        tree_data
-            .root_history
-            .last()
-            .copied()
-            .ok_or_else(|| anyhow::anyhow!("No root in tree history"))
+        batch_utils::fetch_address_tree_root(&*rpc, self.context.merkle_tree).await
     }
 }
 

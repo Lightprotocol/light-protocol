@@ -3,6 +3,8 @@ use crate::processor::v2::coordinator::shared_state::ProcessedBatchId;
 use anyhow::Result;
 use light_batched_merkle_tree::batch::{Batch, BatchState};
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
+use light_client::rpc::Rpc;
+use solana_sdk::pubkey::Pubkey;
 use std::collections::HashSet;
 use tracing::{info, warn};
 
@@ -115,4 +117,40 @@ pub fn extract_current_root(tree_data: &BatchedMerkleTreeAccount) -> Result<[u8;
         .last()
         .copied()
         .ok_or_else(|| anyhow::anyhow!("No root in tree history"))
+}
+
+/// Fetches the current on-chain root for a state tree.
+pub async fn fetch_state_tree_root<R: RpcConnection>(
+    rpc: &R,
+    tree_pubkey: Pubkey,
+) -> Result<[u8; 32]> {
+    let mut account = rpc
+        .get_account(tree_pubkey)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
+
+    let tree_data = BatchedMerkleTreeAccount::state_from_bytes(
+        account.data.as_mut_slice(),
+        &tree_pubkey.into(),
+    )?;
+
+    extract_current_root(&tree_data)
+}
+
+/// Fetches the current on-chain root for an address tree.
+pub async fn fetch_address_tree_root<R: RpcConnection>(
+    rpc: &R,
+    tree_pubkey: Pubkey,
+) -> Result<[u8; 32]> {
+    let mut account = rpc
+        .get_account(tree_pubkey)
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Address merkle tree account not found"))?;
+
+    let tree_data = BatchedMerkleTreeAccount::address_from_bytes(
+        account.data.as_mut_slice(),
+        &tree_pubkey.into(),
+    )?;
+
+    extract_current_root(&tree_data)
 }

@@ -1732,11 +1732,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             &self.context.merkle_tree.into(),
         )?;
 
-        let on_chain_root = tree_data
-            .root_history
-            .last()
-            .copied()
-            .ok_or_else(|| anyhow::anyhow!("No root in tree history"))?;
+        let on_chain_root = batch_utils::extract_current_root(&tree_data)?;
 
         let output_queue_batches = if let Some(queue_account) = output_queue_account {
             let mut queue_account_data = queue_account.data.clone();
@@ -1761,21 +1757,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
     async fn get_current_onchain_root(&self) -> Result<[u8; 32]> {
         let rpc = self.context.rpc_pool.get_connection().await?;
-        let mut account = rpc
-            .get_account(self.context.merkle_tree)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Merkle tree account not found"))?;
-
-        let tree_data = BatchedMerkleTreeAccount::state_from_bytes(
-            account.data.as_mut_slice(),
-            &self.context.merkle_tree.into(),
-        )?;
-
-        tree_data
-            .root_history
-            .last()
-            .copied()
-            .ok_or_else(|| anyhow::anyhow!("No root in tree history"))
+        batch_utils::fetch_state_tree_root(&*rpc, self.context.merkle_tree).await
     }
 
     async fn parse_tree_and_queue_data(
