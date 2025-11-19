@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"light/light-prover/logging"
@@ -546,4 +548,106 @@ func (rq *RedisQueue) cleanupOldRequestsFromQueue(queueName string, cutoffTime t
 	}
 
 	return removedCount, nil
+}
+
+// ComputeInputHash computes a SHA256 hash of the proof input payload
+func ComputeInputHash(payload json.RawMessage) string {
+	hash := sha256.Sum256(payload)
+	return hex.EncodeToString(hash[:])
+}
+
+// FindCachedResult searches for a cached result by input hash in the results queue
+// Returns the proof result and job ID if found, otherwise returns nil
+func (rq *RedisQueue) FindCachedResult(inputHash string) (*common.Proof, string, error) {
+	items, err := rq.Client.LRange(rq.Ctx, "zk_results_queue", 0, -1).Result()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to search results queue: %w", err)
+	}
+
+	for _, item := range items {
+		var resultJob ProofJob
+		if json.Unmarshal([]byte(item), &resultJob) == nil && resultJob.Type == "result" {
+			// Check if this result has the same input hash
+			storedHash, err := rq.Client.Get(rq.Ctx, fmt.Sprintf("zk_input_hash_%s", resultJob.ID)).Result()
+			if err == nil && storedHash == inputHash {
+				// Found a matching result
+				var proof common.Proof
+				err = json.Unmarshal(resultJob.Payload, &proof)
+				if err != nil {
+					logging.Logger().Warn().
+						Err(err).
+						Str("input_hash", inputHash).
+						Str("job_id", resultJob.ID).
+						Str("payload", string(resultJob.Payload)).
+						Msg("Failed to unmarshal cached result payload, skipping")
+					continue
+				}
+
+				logging.Logger().Info().
+					Str("input_hash", inputHash).
+					Str("cached_job_id", resultJob.ID).
+					Msg("Found cached successful proof result")
+
+				return &proof, resultJob.ID, nil
+			}
+		}
+	}
+
+	return nil, "", nil
+}
+
+// FindCachedFailure searches for a cached failure by input hash in the failed queue
+// Returns the failure details and job ID if found, otherwise returns nil
+func (rq *RedisQueue) FindCachedFailure(inputHash string) (map[string]interface{}, string, error) {
+	items, err := rq.Client.LRange(rq.Ctx, "zk_failed_queue", 0, -1).Result()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to search failed queue: %w", err)
+	}
+
+	for _, item := range items {
+		var failedJob ProofJob
+		if json.Unmarshal([]byte(item), &failedJob) == nil && failedJob.Type == "failed" {
+			// Extract the original job ID (remove _failed suffix)
+			originalJobID := failedJob.ID
+			if len(failedJob.ID) > 7 && failedJob.ID[len(failedJob.ID)-7:] == "_failed" {
+				originalJobID = failedJob.ID[:len(failedJob.ID)-7]
+			}
+
+			// Check if this failure has the same input hash
+			storedHash, err := rq.Client.Get(rq.Ctx, fmt.Sprintf("zk_input_hash_%s", originalJobID)).Result()
+			if err == nil && storedHash == inputHash {
+				// Found a matching failure
+				var failureDetails map[string]interface{}
+				err = json.Unmarshal(failedJob.Payload, &failureDetails)
+				if err != nil {
+					continue
+				}
+
+				logging.Logger().Info().
+					Str("input_hash", inputHash).
+					Str("cached_job_id", originalJobID).
+					Msg("Found cached failed proof result")
+
+				return failureDetails, originalJobID, nil
+			}
+		}
+	}
+
+	return nil, "", nil
+}
+
+// StoreInputHash stores the input hash for a job ID to enable deduplication
+func (rq *RedisQueue) StoreInputHash(jobID string, inputHash string) error {
+	key := fmt.Sprintf("zk_input_hash_%s", jobID)
+	err := rq.Client.Set(rq.Ctx, key, inputHash, 1*time.Hour).Err()
+	if err != nil {
+		return fmt.Errorf("failed to store input hash: %w", err)
+	}
+
+	logging.Logger().Debug().
+		Str("job_id", jobID).
+		Str("input_hash", inputHash).
+		Msg("Stored input hash for deduplication")
+
+	return nil
 }

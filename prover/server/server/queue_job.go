@@ -190,6 +190,94 @@ func (w *BaseQueueWorker) processJobs() {
 		Str("queue", w.queueName).
 		Msg("Dequeued proof job")
 
+	// Check for duplicate inputs before processing
+	inputHash := ComputeInputHash(job.Payload)
+
+	// Check if we already have a successful result for this input
+	cachedProof, cachedJobID, err := w.queue.FindCachedResult(inputHash)
+	if err != nil {
+		logging.Logger().Warn().
+			Err(err).
+			Str("job_id", job.ID).
+			Str("input_hash", inputHash).
+			Msg("Error searching for cached result, continuing with processing")
+	} else if cachedProof != nil {
+		// Found a cached successful result, return it immediately
+		logging.Logger().Info().
+			Str("job_id", job.ID).
+			Str("cached_job_id", cachedJobID).
+			Str("input_hash", inputHash).
+			Msg("Returning cached successful proof result without re-processing")
+
+		// Store result for new job ID
+		resultData, _ := json.Marshal(cachedProof)
+		resultJob := &ProofJob{
+			ID:        job.ID,
+			Type:      "result",
+			Payload:   json.RawMessage(resultData),
+			CreatedAt: time.Now(),
+		}
+		err = w.queue.EnqueueProof("zk_results_queue", resultJob)
+		if err != nil {
+			logging.Logger().Error().Err(err).Str("job_id", job.ID).Msg("Failed to enqueue cached result")
+		}
+		w.queue.StoreResult(job.ID, cachedProof)
+		w.queue.StoreInputHash(job.ID, inputHash)
+		return
+	}
+
+	// Check if we already have a failure for this input
+	cachedFailure, cachedFailedJobID, err := w.queue.FindCachedFailure(inputHash)
+	if err != nil {
+		logging.Logger().Warn().
+			Err(err).
+			Str("job_id", job.ID).
+			Str("input_hash", inputHash).
+			Msg("Error searching for cached failure, continuing with processing")
+	} else if cachedFailure != nil {
+		// Found a cached failure, return it immediately
+		logging.Logger().Info().
+			Str("job_id", job.ID).
+			Str("cached_job_id", cachedFailedJobID).
+			Str("input_hash", inputHash).
+			Msg("Returning cached failure without re-processing")
+
+		// Extract error message from cached failure
+		var errorMsg string
+		if errMsg, ok := cachedFailure["error"].(string); ok {
+			errorMsg = errMsg
+		} else {
+			errorMsg = "Proof generation failed (cached failure)"
+		}
+
+		// Add to failed queue with new job ID
+		failedJob := map[string]interface{}{
+			"original_job": job,
+			"error":        errorMsg,
+			"failed_at":    time.Now(),
+			"cached_from":  cachedFailedJobID,
+		}
+
+		failedData, _ := json.Marshal(failedJob)
+		failedJobStruct := &ProofJob{
+			ID:        job.ID + "_failed",
+			Type:      "failed",
+			Payload:   json.RawMessage(failedData),
+			CreatedAt: time.Now(),
+		}
+
+		err = w.queue.EnqueueProof("zk_failed_queue", failedJobStruct)
+		if err != nil {
+			logging.Logger().Error().Err(err).Str("job_id", job.ID).Msg("Failed to enqueue cached failure")
+		}
+		w.queue.StoreInputHash(job.ID, inputHash)
+		return
+	}
+
+	// No cached result found, proceed with normal processing
+	// Store the input hash for this job to enable future deduplication
+	w.queue.StoreInputHash(job.ID, inputHash)
+
 	w.semaphore <- struct{}{}
 
 	go func(job *ProofJob) {

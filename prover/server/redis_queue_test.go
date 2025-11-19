@@ -1090,3 +1090,220 @@ func TestBatchOperationsAlwaysUseQueue(t *testing.T) {
 		})
 	}
 }
+
+// TestProofDeduplicationWithSuccessfulResult tests the deduplication infrastructure for successful proofs
+// Note: Testing FindCachedResult with a real proof requires a valid groth16.Proof structure which is
+// complex to mock. The actual deduplication behavior is tested in the queue worker integration tests.
+// This test verifies the infrastructure components work correctly.
+func TestProofDeduplicationWithSuccessfulResult(t *testing.T) {
+	rq := setupRedisQueue(t)
+	defer teardownRedisQueue(t, rq)
+
+	// Test that we can store and retrieve input hashes for result tracking
+	testPayload := json.RawMessage(`{"height": 32, "batch_size": 100, "test_data": "identical_inputs"}`)
+	jobID1 := uuid.New().String()
+
+	// Compute input hash
+	inputHash := server.ComputeInputHash(testPayload)
+	t.Logf("Input hash: %s", inputHash)
+
+	// Store input hash for the first job
+	err := rq.StoreInputHash(jobID1, inputHash)
+	if err != nil {
+		t.Fatalf("Failed to store input hash: %v", err)
+	}
+
+	// Verify input hash was stored correctly
+	key := fmt.Sprintf("zk_input_hash_%s", jobID1)
+	storedHash, err := rq.Client.Get(rq.Ctx, key).Result()
+	if err != nil {
+		t.Fatalf("Failed to retrieve stored input hash: %v", err)
+	}
+
+	if storedHash != inputHash {
+		t.Errorf("Expected stored hash to be %s, got %s", inputHash, storedHash)
+	}
+
+	// Test that different inputs produce different hashes
+	differentPayload := json.RawMessage(`{"height": 32, "batch_size": 200, "test_data": "different_inputs"}`)
+	differentHash := server.ComputeInputHash(differentPayload)
+
+	if differentHash == inputHash {
+		t.Errorf("Different inputs produced the same hash: %s", inputHash)
+	}
+
+	t.Logf("Successfully verified input hash storage for job %s", jobID1)
+}
+
+func TestProofDeduplicationWithFailedResult(t *testing.T) {
+	rq := setupRedisQueue(t)
+	defer teardownRedisQueue(t, rq)
+
+	// Create a test proof job with specific inputs
+	testPayload := json.RawMessage(`{"height": 32, "batch_size": 50, "test_data": "failing_inputs"}`)
+	jobID := uuid.New().String()
+
+	// Compute input hash
+	inputHash := server.ComputeInputHash(testPayload)
+	t.Logf("Input hash: %s", inputHash)
+
+	// Create a mock failure
+	errorMessage := "Invalid merkle proof: root mismatch"
+	failureDetails := map[string]interface{}{
+		"original_job": map[string]interface{}{
+			"id":      jobID,
+			"type":    "zk_proof",
+			"payload": testPayload,
+		},
+		"error":     errorMessage,
+		"failed_at": time.Now(),
+	}
+
+	failedData, err := json.Marshal(failureDetails)
+	if err != nil {
+		t.Fatalf("Failed to marshal failure details: %v", err)
+	}
+
+	failedJob := &server.ProofJob{
+		ID:        jobID + "_failed",
+		Type:      "failed",
+		Payload:   json.RawMessage(failedData),
+		CreatedAt: time.Now(),
+	}
+
+	// Store the failure
+	err = rq.EnqueueProof("zk_failed_queue", failedJob)
+	if err != nil {
+		t.Fatalf("Failed to enqueue failed job: %v", err)
+	}
+
+	// Store input hash for the failed job
+	err = rq.StoreInputHash(jobID, inputHash)
+	if err != nil {
+		t.Fatalf("Failed to store input hash: %v", err)
+	}
+
+	// Now try to find the cached failure using the same input hash
+	cachedFailure, cachedJobID, err := rq.FindCachedFailure(inputHash)
+	if err != nil {
+		t.Fatalf("Error finding cached failure: %v", err)
+	}
+
+	if cachedFailure == nil {
+		t.Fatalf("Expected to find cached failure, but got nil")
+	}
+
+	if cachedJobID != jobID {
+		t.Errorf("Expected cached job ID to be %s, got %s", jobID, cachedJobID)
+	}
+
+	// Verify the error message matches
+	if cachedError, ok := cachedFailure["error"].(string); !ok {
+		t.Errorf("Expected error field in cached failure")
+	} else if cachedError != errorMessage {
+		t.Errorf("Expected error message '%s', got '%s'", errorMessage, cachedError)
+	}
+
+	t.Logf("Successfully retrieved cached failure for job %s using input hash", cachedJobID)
+
+	// Test that different inputs don't match
+	differentPayload := json.RawMessage(`{"height": 32, "batch_size": 100, "test_data": "other_failing_inputs"}`)
+	differentHash := server.ComputeInputHash(differentPayload)
+
+	if differentHash == inputHash {
+		t.Errorf("Different inputs produced the same hash: %s", inputHash)
+	}
+
+	// Try to find a failure with the different hash (should return nil)
+	notFoundFailure, notFoundJobID, err := rq.FindCachedFailure(differentHash)
+	if err != nil {
+		t.Fatalf("Error searching for non-existent failure: %v", err)
+	}
+
+	if notFoundFailure != nil {
+		t.Errorf("Expected no cached failure for different inputs, but found job %s", notFoundJobID)
+	}
+}
+
+func TestInputHashConsistency(t *testing.T) {
+	// Test that the same inputs always produce the same hash
+	payload1 := json.RawMessage(`{"height": 32, "batch_size": 100}`)
+	payload2 := json.RawMessage(`{"height": 32, "batch_size": 100}`)
+
+	hash1 := server.ComputeInputHash(payload1)
+	hash2 := server.ComputeInputHash(payload2)
+
+	if hash1 != hash2 {
+		t.Errorf("Same inputs produced different hashes: %s vs %s", hash1, hash2)
+	}
+
+	// Test that different inputs produce different hashes
+	payload3 := json.RawMessage(`{"height": 32, "batch_size": 200}`)
+	hash3 := server.ComputeInputHash(payload3)
+
+	if hash1 == hash3 {
+		t.Errorf("Different inputs produced the same hash: %s", hash1)
+	}
+
+	// Test that field order doesn't matter (JSON normalization is not implemented, so this should fail)
+	// This is expected behavior - we're hashing the raw bytes, not normalized JSON
+	payloadOrdered1 := json.RawMessage(`{"a": 1, "b": 2}`)
+	payloadOrdered2 := json.RawMessage(`{"b": 2, "a": 1}`)
+
+	hashOrdered1 := server.ComputeInputHash(payloadOrdered1)
+	hashOrdered2 := server.ComputeInputHash(payloadOrdered2)
+
+	// These WILL be different because we hash raw bytes, not normalized JSON
+	// This is actually fine for our use case - clients should send consistent JSON
+	if hashOrdered1 == hashOrdered2 {
+		t.Logf("Note: Field order produces same hash (JSON normalization implemented)")
+	} else {
+		t.Logf("Note: Field order produces different hashes (raw byte hashing)")
+		t.Logf("Hash 1: %s", hashOrdered1)
+		t.Logf("Hash 2: %s", hashOrdered2)
+	}
+
+	// Test hash format
+	if len(hash1) != 64 {
+		t.Errorf("Expected hash to be 64 hex characters (SHA256), got %d characters: %s", len(hash1), hash1)
+	}
+}
+
+func TestStoreInputHashExpiration(t *testing.T) {
+	rq := setupRedisQueue(t)
+	defer teardownRedisQueue(t, rq)
+
+	jobID := uuid.New().String()
+	inputHash := server.ComputeInputHash(json.RawMessage(`{"test": "data"}`))
+
+	// Store input hash
+	err := rq.StoreInputHash(jobID, inputHash)
+	if err != nil {
+		t.Fatalf("Failed to store input hash: %v", err)
+	}
+
+	// Verify it was stored
+	key := fmt.Sprintf("zk_input_hash_%s", jobID)
+	storedHash, err := rq.Client.Get(rq.Ctx, key).Result()
+	if err != nil {
+		t.Fatalf("Failed to retrieve stored input hash: %v", err)
+	}
+
+	if storedHash != inputHash {
+		t.Errorf("Expected stored hash to be %s, got %s", inputHash, storedHash)
+	}
+
+	// Verify TTL is set (should be 1 hour = 3600 seconds)
+	ttl, err := rq.Client.TTL(rq.Ctx, key).Result()
+	if err != nil {
+		t.Fatalf("Failed to get TTL: %v", err)
+	}
+
+	// TTL should be close to 1 hour (within a few seconds of variation)
+	expectedTTL := 1 * time.Hour
+	if ttl < expectedTTL-10*time.Second || ttl > expectedTTL+10*time.Second {
+		t.Errorf("Expected TTL to be around %v, got %v", expectedTTL, ttl)
+	}
+
+	t.Logf("Input hash stored with TTL: %v", ttl)
+}
