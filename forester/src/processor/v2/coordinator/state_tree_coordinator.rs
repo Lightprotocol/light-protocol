@@ -1,11 +1,11 @@
+use light_prover_client::proof_types::{
+    batch_append::BatchAppendInputsJson, batch_update::update_inputs_string,
+};
 use std::{
     collections::{BTreeMap, HashMap, VecDeque},
     fmt,
     sync::Arc,
     time::{Duration, Instant},
-};
-use light_prover_client::proof_types::{
-    batch_append::BatchAppendInputsJson, batch_update::update_inputs_string,
 };
 
 use anyhow::Result;
@@ -32,7 +32,8 @@ use super::{
     proof_generation::ProofConfig,
     proof_utils,
     shared_state::{
-        get_or_create_shared_state, CumulativeMetrics, IterationMetrics, ProcessedBatchId, SharedState,
+        get_or_create_shared_state, CumulativeMetrics, IterationMetrics, ProcessedBatchId,
+        SharedState,
     },
     types::{AppendQueueData, BatchType, NullifyQueueData, PreparationState, PreparedBatch},
 };
@@ -780,7 +781,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         Ok((num_append_batches, num_nullify_batches))
     }
 
-
     async fn parse_onchain_accounts(
         &self,
         num_append_batches: usize,
@@ -1147,7 +1147,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         let mut state = if let Some((cached_staging, cached_root)) = self.cached_staging.take() {
             if cached_root == on_chain_root {
-               self.record_cache_event("hit", "prep_root_match");
+                self.record_cache_event("hit", "prep_root_match");
 
                 PreparationState::with_cached_staging(
                     append_leaf_indices,
@@ -1244,7 +1244,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         proof_tx: tokio::sync::mpsc::Sender<(usize, PreparedBatch, Result<ProofResult>)>,
         config: ProofConfig,
     ) -> Result<Duration> {
-
         let append_client = Arc::new(ProofClient::with_config(
             config.append_url.clone(),
             config.polling_interval,
@@ -1300,10 +1299,12 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
                                     match result {
                                         Ok(proof) => {
-                                            let proof_result = proof_utils::create_append_proof_result(
-                                                &circuit_inputs,
-                                                proof,
-                                            ).map(ProofResult::Append);
+                                            let proof_result =
+                                                proof_utils::create_append_proof_result(
+                                                    &circuit_inputs,
+                                                    proof,
+                                                )
+                                                .map(ProofResult::Append);
 
                                             let _ = proof_tx_clone
                                                 .send((
@@ -1407,10 +1408,12 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
                                     match result {
                                         Ok(proof) => {
-                                            let proof_result = proof_utils::create_nullify_proof_result(
-                                                &circuit_inputs,
-                                                proof,
-                                            ).map(ProofResult::Nullify);
+                                            let proof_result =
+                                                proof_utils::create_nullify_proof_result(
+                                                    &circuit_inputs,
+                                                    proof,
+                                                )
+                                                .map(ProofResult::Nullify);
 
                                             let _ = proof_tx_clone
                                                 .send((
@@ -1704,7 +1707,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         pattern
     }
-
 
     async fn mark_batches_processed(
         &self,

@@ -10,27 +10,35 @@ use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
     create_batch_update_address_tree_instruction,
 };
-use solana_sdk::signer::Signer;
+use solana_sdk::{instruction::Instruction, signer::Signer};
 use tracing::info;
 
 use crate::processor::v2::common::{send_transaction_batch, BatchContext};
 
 const MAX_INSTRUCTIONS_PER_TX: usize = 4;
 
-/// Submits append batches to the blockchain.
+/// Generic batch submission helper that eliminates code duplication across different batch types.
 ///
-/// Returns the total number of elements processed (not batches).
-pub async fn submit_append_batches<R: Rpc>(
+/// Takes a closure that creates instructions from serialized proof data, allowing this function
+/// to work with append, nullify, and address batches without duplication.
+async fn submit_batches<R, P, F>(
     context: &BatchContext<R>,
-    proofs: Vec<InstructionDataBatchAppendInputs>,
+    proofs: Vec<P>,
     zkp_batch_size: u16,
-) -> Result<usize> {
+    operation_name: &str,
+    create_instruction: F,
+) -> Result<usize>
+where
+    R: Rpc,
+    P: BorshSerialize,
+    F: Fn(Vec<u8>) -> Instruction,
+{
     if proofs.is_empty() {
         return Ok(0);
     }
 
     let total_batches = proofs.len();
-    info!("Submitting {} append batches", total_batches);
+    info!("Submitting {} {} batches", total_batches, operation_name);
 
     let mut total_batches_submitted = 0;
 
@@ -41,19 +49,13 @@ pub async fn submit_append_batches<R: Rpc>(
         for batch_data in batch_chunk {
             let serialized = batch_data
                 .try_to_vec()
-                .map_err(|e| anyhow::anyhow!("Failed to serialize append proof: {}", e))?;
-            instructions.push(create_batch_append_instruction(
-                context.authority.pubkey(),
-                context.derivation,
-                context.merkle_tree,
-                context.output_queue,
-                context.epoch,
-                serialized,
-            ));
+                .map_err(|e| anyhow::anyhow!("Failed to serialize {} proof: {}", operation_name, e))?;
+            instructions.push(create_instruction(serialized));
         }
 
         info!(
-            "Submitting append transaction {} with {} batches (batches {}-{})",
+            "Submitting {} transaction {} with {} batches (batches {}-{})",
+            operation_name,
             chunk_idx,
             instructions.len(),
             start_batch_idx,
@@ -63,7 +65,8 @@ pub async fn submit_append_batches<R: Rpc>(
         let signature = send_transaction_batch(context, instructions).await?;
 
         info!(
-            "Append transaction {} submitted: {} ({} batches)",
+            "{} transaction {} submitted: {} ({} batches)",
+            operation_name,
             chunk_idx,
             signature,
             batch_chunk.len()
@@ -76,11 +79,44 @@ pub async fn submit_append_batches<R: Rpc>(
     let num_transactions = total_batches.div_ceil(MAX_INSTRUCTIONS_PER_TX);
 
     info!(
-        "Submitted {} append batches ({} elements) in {} transactions",
-        total_batches, total_elements, num_transactions
+        "Submitted {} {} batches ({} elements) in {} transactions",
+        total_batches, operation_name, total_elements, num_transactions
     );
 
     Ok(total_elements)
+}
+
+/// Submits append batches to the blockchain.
+///
+/// Returns the total number of elements processed (not batches).
+pub async fn submit_append_batches<R: Rpc>(
+    context: &BatchContext<R>,
+    proofs: Vec<InstructionDataBatchAppendInputs>,
+    zkp_batch_size: u16,
+) -> Result<usize> {
+    let authority = context.authority.pubkey();
+    let derivation = context.derivation;
+    let merkle_tree = context.merkle_tree;
+    let output_queue = context.output_queue;
+    let epoch = context.epoch;
+
+    submit_batches(
+        context,
+        proofs,
+        zkp_batch_size,
+        "append",
+        move |serialized| {
+            create_batch_append_instruction(
+                authority,
+                derivation,
+                merkle_tree,
+                output_queue,
+                epoch,
+                serialized,
+            )
+        },
+    )
+    .await
 }
 
 /// Submits nullify batches to the blockchain.
@@ -91,61 +127,21 @@ pub async fn submit_nullify_batches<R: Rpc>(
     proofs: Vec<InstructionDataBatchNullifyInputs>,
     zkp_batch_size: u16,
 ) -> Result<usize> {
-    if proofs.is_empty() {
-        return Ok(0);
-    }
+    let authority = context.authority.pubkey();
+    let derivation = context.derivation;
+    let merkle_tree = context.merkle_tree;
+    let epoch = context.epoch;
 
-    let total_batches = proofs.len();
-    info!("Submitting {} nullify batches", total_batches);
-
-    let mut total_batches_submitted = 0;
-
-    for (chunk_idx, batch_chunk) in proofs.chunks(MAX_INSTRUCTIONS_PER_TX).enumerate() {
-        let start_batch_idx = chunk_idx * MAX_INSTRUCTIONS_PER_TX;
-
-        let mut instructions = Vec::new();
-        for batch_data in batch_chunk {
-            let serialized = batch_data
-                .try_to_vec()
-                .map_err(|e| anyhow::anyhow!("Failed to serialize nullify proof: {}", e))?;
-            instructions.push(create_batch_nullify_instruction(
-                context.authority.pubkey(),
-                context.derivation,
-                context.merkle_tree,
-                context.epoch,
-                serialized,
-            ));
-        }
-
-        info!(
-            "Submitting nullify transaction {} with {} batches (batches {}-{})",
-            chunk_idx,
-            instructions.len(),
-            start_batch_idx,
-            start_batch_idx + instructions.len() - 1
-        );
-
-        let signature = send_transaction_batch(context, instructions).await?;
-
-        info!(
-            "Nullify transaction {} submitted: {} ({} batches)",
-            chunk_idx,
-            signature,
-            batch_chunk.len()
-        );
-
-        total_batches_submitted += batch_chunk.len();
-    }
-
-    let total_elements = total_batches_submitted * zkp_batch_size as usize;
-    let num_transactions = total_batches.div_ceil(MAX_INSTRUCTIONS_PER_TX);
-
-    info!(
-        "Submitted {} nullify batches ({} elements) in {} transactions",
-        total_batches, total_elements, num_transactions
-    );
-
-    Ok(total_elements)
+    submit_batches(
+        context,
+        proofs,
+        zkp_batch_size,
+        "nullify",
+        move |serialized| {
+            create_batch_nullify_instruction(authority, derivation, merkle_tree, epoch, serialized)
+        },
+    )
+    .await
 }
 
 pub async fn submit_interleaved_batches<R: Rpc>(
@@ -244,80 +240,25 @@ pub async fn submit_address_batches<R: Rpc>(
     proofs: Vec<InstructionDataAddressAppendInputs>,
     zkp_batch_size: u16,
 ) -> Result<usize> {
-    if proofs.is_empty() {
-        return Ok(0);
-    }
+    let authority = context.authority.pubkey();
+    let derivation = context.derivation;
+    let merkle_tree = context.merkle_tree;
+    let epoch = context.epoch;
 
-    let total_batches = proofs.len();
-    info!("Submitting {} address append batches", total_batches);
-
-    let mut total_batches_submitted = 0;
-
-    for (chunk_idx, batch_chunk) in proofs.chunks(MAX_INSTRUCTIONS_PER_TX).enumerate() {
-        let start_batch_idx = chunk_idx * MAX_INSTRUCTIONS_PER_TX;
-
-        let mut instructions = Vec::new();
-        for (i, batch_data) in batch_chunk.iter().enumerate() {
-            let batch_idx = start_batch_idx + i;
-            info!(
-                "Address batch {} circuit inputs: new_root={:?}, proof_a={:?}, proof_b_len={}, proof_c={:?}",
-                batch_idx,
-                &batch_data.new_root[..8],
-                &batch_data.compressed_proof.a[..8],
-                batch_data.compressed_proof.b.len(),
-                &batch_data.compressed_proof.c[..8]
-            );
-
-            let serialized = batch_data
-                .try_to_vec()
-                .map_err(|e| anyhow::anyhow!("Failed to serialize address append proof: {}", e))?;
-            instructions.push(create_batch_update_address_tree_instruction(
-                context.authority.pubkey(),
-                context.derivation,
-                context.merkle_tree,
-                context.epoch,
+    submit_batches(
+        context,
+        proofs,
+        zkp_batch_size,
+        "address append",
+        move |serialized| {
+            create_batch_update_address_tree_instruction(
+                authority,
+                derivation,
+                merkle_tree,
+                epoch,
                 serialized,
-            ));
-        }
-
-        info!(
-            "Submitting address append transaction {} with {} batches (tree={}, batches {}-{})",
-            chunk_idx,
-            instructions.len(),
-            context.merkle_tree,
-            start_batch_idx,
-            start_batch_idx + instructions.len() - 1
-        );
-
-        let signature = send_transaction_batch(context, instructions).await?;
-        let final_root = batch_chunk
-            .last()
-            .map(|proof| {
-                let mut root = [0u8; 8];
-                root.copy_from_slice(&proof.new_root[..8]);
-                root
-            })
-            .unwrap_or([0u8; 8]);
-
-        info!(
-            "Address append transaction {} confirmed for tree {}: {} ({} batches, final new_root={:?})",
-            chunk_idx,
-            context.merkle_tree,
-            signature,
-            batch_chunk.len(),
-            final_root
-        );
-
-        total_batches_submitted += batch_chunk.len();
-    }
-
-    let total_elements = total_batches_submitted * zkp_batch_size as usize;
-    let num_transactions = total_batches.div_ceil(MAX_INSTRUCTIONS_PER_TX);
-
-    info!(
-        "Submitted {} address append batches ({} elements) in {} transactions",
-        total_batches, total_elements, num_transactions
-    );
-
-    Ok(total_elements)
+            )
+        },
+    )
+    .await
 }

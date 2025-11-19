@@ -1,4 +1,8 @@
-use std::{collections::{HashMap, HashSet}, sync::Arc, time::Duration};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+    time::Duration,
+};
 
 use solana_sdk::pubkey::Pubkey;
 use tokio::sync::{Mutex as TokioMutex, RwLock};
@@ -199,8 +203,6 @@ pub fn create_shared_state(initial_root: [u8; 32]) -> SharedState {
     Arc::new(RwLock::new(SharedTreeState::new(initial_root)))
 }
 
-/// Gets or creates a shared state from a persistent cache.
-/// This is a helper to avoid duplicating the get-or-create pattern across coordinators.
 pub async fn get_or_create_shared_state(
     cache: &Arc<TokioMutex<HashMap<Pubkey, SharedState>>>,
     key: Pubkey,
