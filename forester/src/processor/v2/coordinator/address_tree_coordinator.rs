@@ -23,7 +23,10 @@ use tokio::{sync::Mutex as TokioMutex, time::sleep};
 use tracing::{debug, error, info, warn};
 
 use super::{
-    batch_utils::{self, MAX_JOB_NOT_FOUND_RESUBMITS},
+    batch_utils::{
+        self, validate_root, MAX_COORDINATOR_RETRIES, MAX_JOB_NOT_FOUND_RESUBMITS,
+        PHOTON_STALE_MAX_RETRIES, PHOTON_STALE_RETRY_DELAY_MS,
+    },
     error::CoordinatorError,
     proof_generation::ProofConfig,
     shared_state::{
@@ -37,9 +40,6 @@ use light_prover_client::proof_types::batch_address_append::BatchAddressAppendIn
 type PersistentAddressTreeStatesCache = Arc<TokioMutex<HashMap<Pubkey, SharedState>>>;
 static PERSISTENT_ADDRESS_TREE_STATES: Lazy<PersistentAddressTreeStatesCache> =
     Lazy::new(|| Arc::new(TokioMutex::new(HashMap::new())));
-
-const PHOTON_STALE_MAX_RETRIES: usize = 5;
-const PHOTON_STALE_RETRY_DELAY_MS: u64 = 1500;
 
 struct OnchainState {
     current_onchain_root: [u8; 32],
@@ -126,7 +126,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
     pub async fn process(&mut self) -> Result<usize> {
         let mut total_items_processed = 0;
         let mut consecutive_retries = 0;
-        const MAX_CONSECUTIVE_RETRIES: usize = 10;
 
         debug!(
             "AddressTreeCoordinator::process() called for tree={}, epoch={}",
@@ -168,10 +167,10 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
                         if coord_err.is_retryable() {
                             consecutive_retries += 1;
 
-                            if consecutive_retries >= MAX_CONSECUTIVE_RETRIES {
+                            if consecutive_retries >= MAX_COORDINATOR_RETRIES {
                                 warn!(
                                     "Max consecutive retries ({}) reached for error: {}. Giving up on this batch.",
-                                    MAX_CONSECUTIVE_RETRIES, coord_err
+                                    MAX_COORDINATOR_RETRIES, coord_err
                                 );
                                 break;
                             }
@@ -305,7 +304,7 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
 
         if submitted_batches > 0 {
             let current_root = self.get_current_onchain_root().await?;
-            Self::validate_root(current_root, final_root, "address tree execution")?;
+            validate_root(current_root, final_root, "address tree execution")?;
             self.consume_processed_items(total_items);
             metrics::increment_batches_processed(
                 &self.context.merkle_tree,
@@ -1067,25 +1066,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             total_submit_duration
         );
         Ok((total_items, total_submit_duration))
-    }
-
-    fn validate_root(current_root: [u8; 32], expected_root: [u8; 32], phase: &str) -> Result<()> {
-        if current_root != expected_root {
-            let mut expected = [0u8; 8];
-            let mut actual = [0u8; 8];
-            expected.copy_from_slice(&expected_root[..8]);
-            actual.copy_from_slice(&current_root[..8]);
-
-            return Err(CoordinatorError::RootChanged {
-                phase: phase.to_string(),
-                expected,
-                actual,
-            }
-            .into());
-        }
-
-        info!("Root validation passed: {:?}", &expected_root[..8]);
-        Ok(())
     }
 
     fn is_inactive_phase_error(err: &anyhow::Error) -> bool {

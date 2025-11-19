@@ -27,10 +27,7 @@ use tracing::{debug, error, info, trace, warn};
 
 use super::{
     batch_preparation, batch_submission,
-    batch_utils::{
-        self, extract_current_root, validate_photon_root, validate_root,
-        MAX_COORDINATOR_RETRIES, MAX_JOB_NOT_FOUND_RESUBMITS,
-    },
+    batch_utils::{self, validate_root, MAX_COORDINATOR_RETRIES, MAX_JOB_NOT_FOUND_RESUBMITS},
     error::CoordinatorError,
     proof_generation::ProofConfig,
     shared_state::{
