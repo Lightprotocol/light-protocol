@@ -39,15 +39,12 @@ impl MintActionCpiAccountsConfig {
 /// Parsed MintAction CPI accounts for structured access
 #[derive(Debug)]
 pub struct MintActionCpiAccounts<'a, A: AccountInfoTrait + Clone> {
-    // Programs (in order)
     pub compressed_token_program: &'a A,
     pub light_system_program: &'a A,
 
-    // Mint-specific accounts
-    pub mint_signer: Option<&'a A>, // Required when creating mint or SPL mint
-    pub authority: &'a A,           // Always required to sign
+    pub mint_signer: Option<&'a A>,
+    pub authority: &'a A,
 
-    // Core Light system accounts
     pub fee_payer: &'a A,
     pub compressed_token_cpi_authority: &'a A,
     pub registered_program_pda: &'a A,
@@ -55,23 +52,17 @@ pub struct MintActionCpiAccounts<'a, A: AccountInfoTrait + Clone> {
     pub account_compression_program: &'a A,
     pub system_program: &'a A,
 
-    // Optional system accounts
-    pub cpi_context: Option<&'a A>, // For CPI context
+    pub cpi_context: Option<&'a A>,
 
-    // Tree/Queue accounts (always present in execute mode)
     pub out_output_queue: &'a A,
-    pub in_merkle_tree: &'a A, // Address tree when creating, state tree otherwise
-    pub in_output_queue: Option<&'a A>, // When mint exists (not creating)
-    pub tokens_out_queue: Option<&'a A>, // For MintTo actions
+    pub in_merkle_tree: &'a A,
+    pub in_output_queue: Option<&'a A>,
+    pub tokens_out_queue: Option<&'a A>,
 
-    // Remaining accounts for MintToCToken actions
     pub ctoken_accounts: &'a [A],
 }
 
 impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
-    // TODO: add a config and derive config from instruction data
-    /// Parse accounts for mint_action CPI with full configuration
-    /// Following the exact order expected by the on-chain program
     #[profile]
     #[inline(always)]
     #[track_caller]
@@ -81,80 +72,63 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
     ) -> Result<Self, TokenSdkError> {
         let mut iter = AccountIterator::new(accounts);
 
-        // 1. Compressed token program (always required)
         let compressed_token_program =
             iter.next_checked_pubkey("compressed_token_program", COMPRESSED_TOKEN_PROGRAM_ID)?;
 
-        // 2. Light system program (always required)
         let light_system_program =
             iter.next_checked_pubkey("light_system_program", LIGHT_SYSTEM_PROGRAM_ID)?;
 
-        // 3. Mint signer (conditional - when creating mint or SPL mint)
         let mint_signer = iter.next_option("mint_signer", config.create_mint)?;
 
-        // 4. Authority (always required, must be signer)
         let authority = iter.next_account("authority")?;
         if !authority.is_signer() {
             msg!("Authority must be a signer");
             return Err(AccountError::InvalidSigner.into());
         }
 
-        // 8. Fee payer (always required, must be signer and mutable)
         let fee_payer = iter.next_account("fee_payer")?;
         if !fee_payer.is_signer() || !fee_payer.is_writable() {
             msg!("Fee payer must be a signer and mutable");
             return Err(AccountError::InvalidSigner.into());
         }
 
-        // 9. CPI authority PDA
         let compressed_token_cpi_authority =
             iter.next_checked_pubkey("compressed_token_cpi_authority", CPI_AUTHORITY_PDA)?;
 
-        // 10. Registered program PDA
         let registered_program_pda =
             iter.next_checked_pubkey("registered_program_pda", REGISTERED_PROGRAM_PDA)?;
 
-        // 11. Account compression authority
         let account_compression_authority = iter.next_checked_pubkey(
             "account_compression_authority",
             ACCOUNT_COMPRESSION_AUTHORITY_PDA,
         )?;
 
-        // 12. Account compression program
         let account_compression_program = iter.next_checked_pubkey(
             "account_compression_program",
             ACCOUNT_COMPRESSION_PROGRAM_ID,
         )?;
 
-        // 13. System program
         let system_program = iter.next_checked_pubkey("system_program", [0u8; 32])?;
 
-        // 15. CPI context (optional)
         let cpi_context = iter.next_option_mut("cpi_context", config.with_cpi_context)?;
 
-        // 16. Out output queue (always required)
         let out_output_queue = iter.next_account("out_output_queue")?;
         if !out_output_queue.is_writable() {
             msg!("Out output queue must be mutable");
             return Err(AccountError::AccountMutable.into());
         }
 
-        // 17. In merkle tree (always required)
-        // When create_mint=true: this is the address tree for creating new mint addresses
-        // When create_mint=false: this is the state tree containing the existing compressed mint
         let in_merkle_tree = iter.next_account("in_merkle_tree")?;
         if !in_merkle_tree.is_writable() {
             msg!("In merkle tree must be mutable");
             return Err(AccountError::AccountMutable.into());
         }
 
-        // Validate tree ownership
         if !in_merkle_tree.is_owned_by(&ACCOUNT_COMPRESSION_PROGRAM_ID) {
             msg!("In merkle tree must be owned by account compression program");
             return Err(AccountError::AccountOwnedByWrongProgram.into());
         }
 
-        // 18. In output queue (conditional - when mint exists, not creating)
         let in_output_queue = iter.next_option_mut("in_output_queue", !config.create_mint)?;
         if let Some(queue) = in_output_queue {
             if !queue.is_owned_by(&ACCOUNT_COMPRESSION_PROGRAM_ID) {
@@ -163,7 +137,6 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             }
         }
 
-        // 19. Tokens out queue (conditional - for MintTo actions)
         let tokens_out_queue =
             iter.next_option_mut("tokens_out_queue", config.mint_to_compressed)?;
         if let Some(queue) = tokens_out_queue {
@@ -173,7 +146,6 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             }
         }
 
-        // 20+. Decompressed token accounts (remaining accounts for MintToCToken)
         let ctoken_accounts = iter.remaining_unchecked()?;
 
         Ok(Self {
@@ -203,7 +175,6 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         Self::try_from_account_infos_full(accounts, MintActionCpiAccountsConfig::default())
     }
 
-    /// Get tree/queue pubkeys
     #[profile]
     #[inline(always)]
     pub fn tree_queue_pubkeys(&self) -> Vec<[u8; 32]> {
@@ -220,24 +191,19 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         pubkeys
     }
 
-    /// Convert to account infos for CPI (excludes compressed_token_program)
     #[profile]
     #[inline(always)]
     pub fn to_account_infos(&self) -> Vec<A> {
         let mut accounts = Vec::with_capacity(20 + self.ctoken_accounts.len());
 
-        // Start with light_system_program
         accounts.push(self.light_system_program.clone());
 
-        // Add mint_signer if present
         if let Some(signer) = self.mint_signer {
             accounts.push(signer.clone());
         }
 
-        // Authority
         accounts.push(self.authority.clone());
 
-        // Core Light system accounts
         accounts.extend_from_slice(
             &[
                 self.fee_payer.clone(),
@@ -253,7 +219,6 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             accounts.push(context.clone());
         }
 
-        // Tree/Queue accounts
         accounts.push(self.out_output_queue.clone());
         accounts.push(self.in_merkle_tree.clone());
 
@@ -264,7 +229,6 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             accounts.push(queue.clone());
         }
 
-        // Decompressed token accounts
         for account in self.ctoken_accounts {
             accounts.push(account.clone());
         }
@@ -272,20 +236,17 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
         accounts
     }
 
-    /// Convert to AccountMeta vector for instruction building
     #[profile]
     #[inline(always)]
     pub fn to_account_metas(&self) -> Vec<AccountMeta> {
         let mut metas = Vec::with_capacity(15 + self.ctoken_accounts.len());
 
-        // Light system program
         metas.push(AccountMeta {
             pubkey: self.light_system_program.key().into(),
             is_writable: false,
             is_signer: false,
         });
 
-        // Mint signer if present
         if let Some(signer) = self.mint_signer {
             metas.push(AccountMeta {
                 pubkey: signer.key().into(),
@@ -294,14 +255,12 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             });
         }
 
-        // Authority
         metas.push(AccountMeta {
             pubkey: self.authority.key().into(),
             is_writable: false,
             is_signer: true,
         });
 
-        // Core Light system accounts
         metas.push(AccountMeta {
             pubkey: self.fee_payer.key().into(),
             is_writable: true,
@@ -341,7 +300,6 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             });
         }
 
-        // Tree/Queue accounts
         metas.push(AccountMeta {
             pubkey: self.out_output_queue.key().into(),
             is_writable: true,
@@ -368,7 +326,6 @@ impl<'a, A: AccountInfoTrait + Clone> MintActionCpiAccounts<'a, A> {
             });
         }
 
-        // Decompressed token accounts
         for account in self.ctoken_accounts {
             metas.push(AccountMeta {
                 pubkey: account.key().into(),

@@ -61,6 +61,8 @@ pub enum TokenSdkError {
     CreateMintDataRequired,
     #[error("MintActionMetaConfig::new requires existing mint (create_mint must be None)")]
     CreateMintMustBeNone,
+    #[error("MintActionMetaConfig::new_cpi_context requires cpi_context data")]
+    CpiContextRequired,
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
     #[error(transparent)]
@@ -115,6 +117,7 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::CannotDetermineAccountType => 17023,
             TokenSdkError::CreateMintDataRequired => 17024,
             TokenSdkError::CreateMintMustBeNone => 17025,
+            TokenSdkError::CpiContextRequired => 17026,
             TokenSdkError::CompressedTokenTypes(e) => e.into(),
             TokenSdkError::CTokenError(e) => e.into(),
             TokenSdkError::LightSdkTypesError(e) => e.into(),

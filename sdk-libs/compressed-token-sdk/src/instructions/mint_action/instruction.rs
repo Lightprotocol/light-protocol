@@ -12,7 +12,6 @@ use crate::{
     instructions::mint_action::{cpi_accounts::MintActionCpiAccounts, MintActionCpiWriteAccounts},
 };
 
-// Implement the general CTokenInstruction trait for MintActionCompressedInstructionData
 impl CTokenInstruction for MintActionCompressedInstructionData {
     type ExecuteAccounts<'info, A: light_account_checks::AccountInfoTrait + Clone + 'info> =
         MintActionCpiAccounts<'info, A>;
@@ -23,7 +22,6 @@ impl CTokenInstruction for MintActionCompressedInstructionData {
         self,
         accounts: &Self::ExecuteAccounts<'_, A>,
     ) -> Result<Instruction, ProgramError> {
-        // Validate that this is not a CPI write operation
         if let Some(ref cpi_ctx) = self.cpi_context {
             if cpi_ctx.set_context || cpi_ctx.first_set_context {
                 msg!(
@@ -33,13 +31,11 @@ impl CTokenInstruction for MintActionCompressedInstructionData {
             }
         }
 
-        // Serialize instruction data with discriminator using LightInstructionData trait
         let data = self.data().map_err(ProgramError::from)?;
 
-        // Build instruction
         Ok(Instruction {
             program_id: COMPRESSED_TOKEN_PROGRAM_ID.into(),
-            accounts: accounts.to_account_metas(), // Don't include compressed_token_program in accounts
+            accounts: accounts.to_account_metas(),
             data,
         })
     }
@@ -48,7 +44,6 @@ impl CTokenInstruction for MintActionCompressedInstructionData {
         self,
         accounts: &Self::CpiWriteAccounts<'_, A>,
     ) -> Result<Instruction, ProgramError> {
-        // Set CPI context to first mode
         let mut instruction_data = self;
         if let Some(ref mut cpi_ctx) = instruction_data.cpi_context {
             cpi_ctx.first_set_context = true;
@@ -68,7 +63,6 @@ impl CTokenInstruction for MintActionCompressedInstructionData {
         self,
         accounts: &Self::CpiWriteAccounts<'_, A>,
     ) -> Result<Instruction, ProgramError> {
-        // Set CPI context to set mode
         let mut instruction_data = self;
         if let Some(ref mut cpi_ctx) = instruction_data.cpi_context {
             cpi_ctx.set_context = true;
