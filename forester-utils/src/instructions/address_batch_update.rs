@@ -72,10 +72,7 @@ async fn stream_instruction_data<'a, R: Rpc>(
                     Some(elements_for_chunk as u16),
                 );
                 options.address_queue_zkp_batch_size =  Some(zkp_batch_size);
-                debug!(
-                    "Requesting {} addresses from Photon for chunk {} with start_queue_index={:?}",
-                    elements_for_chunk, chunk_idx, next_queue_index,
-                );
+
                 match indexer
                     .get_queue_elements_v2(merkle_tree_pubkey.to_bytes(), options, None)
                     .await
@@ -101,7 +98,7 @@ async fn stream_instruction_data<'a, R: Rpc>(
                 })?;
 
             debug!(
-                "Photon response for chunk {}: received {} addresses, batch_start_index={}, first_queue_index={:?}, last_queue_index={:?}",
+                "chunk {}: received {} addresses, batch_start_index={}, first_queue_index={:?}, last_queue_index={:?}",
                 chunk_idx,
                 address_queue.addresses.len(),
                 address_queue.start_index,
@@ -142,8 +139,6 @@ async fn stream_instruction_data<'a, R: Rpc>(
                 }
             };
             current_root = new_current_root;
-
-            info!("Generating {} ZK proofs with hybrid approach for chunk {}", all_inputs.len(), chunk_idx + 1);
 
             let mut futures_ordered = FuturesOrdered::new();
             let mut proof_buffer = Vec::new();

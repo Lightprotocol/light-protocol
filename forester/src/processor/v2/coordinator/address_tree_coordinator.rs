@@ -31,6 +31,7 @@ use super::{
     types::{AddressQueueData, PreparedBatch},
 };
 use crate::{errors::ForesterError, metrics, processor::v2::common::BatchContext};
+use light_prover_client::proof_types::batch_address_append::BatchAddressAppendInputsJson;
 
 type PersistentAddressTreeStatesCache = Arc<TokioMutex<HashMap<Pubkey, SharedState>>>;
 static PERSISTENT_ADDRESS_TREE_STATES: Lazy<PersistentAddressTreeStatesCache> =
@@ -589,11 +590,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             None
         };
 
-        debug!(
-            "Photon options: address_queue_start_index={:?}, limit={}, zkp_batch_size={}",
-            address_queue_start_idx, total_elements, parsed_state.zkp_batch_size
-        );
-
         let options = light_client::indexer::QueueElementsV2Options {
             output_queue_start_index: None,
             output_queue_limit: None,
@@ -623,34 +619,11 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             address_queue_v2.queue_indices.last()
         );
 
-        // Validate root
         if address_queue_v2.initial_root != parsed_state.current_onchain_root {
             let mut photon_root = [0u8; 8];
             let mut onchain_root = [0u8; 8];
             photon_root.copy_from_slice(&address_queue_v2.initial_root[..8]);
             onchain_root.copy_from_slice(&parsed_state.current_onchain_root[..8]);
-
-            // Verify if Photon's root exists in on-chain root history
-            let root_in_history = parsed_state
-                .root_history
-                .contains(&address_queue_v2.initial_root);
-            if root_in_history {
-                warn!(
-                    "Photon root exists in history but is stale (tree={}, photon={:?}, current={:?}, history_len={})",
-                    self.context.merkle_tree,
-                    photon_root,
-                    onchain_root,
-                    parsed_state.root_history.len()
-                );
-            } else {
-                error!(
-                    "Photon root NOT found in on-chain history! This indicates data corruption or wrong tree (tree={}, photon={:?}, current={:?}, history_len={})",
-                    self.context.merkle_tree,
-                    photon_root,
-                    onchain_root,
-                    parsed_state.root_history.len()
-                );
-            }
 
             return Err(CoordinatorError::PhotonStale {
                 queue_type: "address".to_string(),
@@ -676,60 +649,24 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             .map(|h| h.to_bytes())
             .collect();
 
-        // Calculate offset: Photon returns addresses starting from address_queue_v2.start_index,
-        // but we need addresses starting from parsed_state.start_index
         let offset_addresses = parsed_state.start_index.saturating_sub(address_queue_v2.start_index);
         let offset_batches = (offset_addresses / parsed_state.zkp_batch_size as u64) as usize;
 
-        debug!(
-            "Photon returned {} hash chains starting at tree index {}, but we need starting at {}. Skipping {} batches (offset={} addresses)",
-            all_leaves_hash_chains.len(),
-            address_queue_v2.start_index,
-            parsed_state.start_index,
-            offset_batches,
-            offset_addresses
-        );
-
-        // Skip already-processed batches
         let leaves_hash_chains: Vec<[u8; 32]> = all_leaves_hash_chains
             .into_iter()
             .skip(offset_batches)
             .collect();
         let batch_count = leaves_hash_chains.len();
 
-        info!(
-            "After applying offset (skipping {} batches), we have {} hash chains and {} batch_ids in VecDeque (tree={})",
-            offset_batches,
-            batch_count,
-            parsed_state.batch_ids.len(),
-            self.context.merkle_tree
-        );
-
         let mut batch_ids = Vec::with_capacity(batch_count);
         for i in 0..batch_count {
             if let Some(id) = parsed_state.batch_ids.pop_front() {
-                debug!(
-                    "  Popped batch_id[{}] from VecDeque: batch_index={}, zkp_batch_index={}, start_leaf_index={:?}",
-                    i, id.batch_index, id.zkp_batch_index, id.start_leaf_index
-                );
                 batch_ids.push(id);
             } else {
-                warn!(
-                    "  VecDeque exhausted at index {}/{} (tree={})",
-                    i, batch_count, self.context.merkle_tree
-                );
                 break;
             }
         }
 
-        info!(
-            "Popped {} batch_ids from VecDeque (tree={}), {} remaining in VecDeque",
-            batch_ids.len(),
-            self.context.merkle_tree,
-            parsed_state.batch_ids.len()
-        );
-
-        // Also need to skip the corresponding addresses and proofs
         let skip_addresses = offset_batches * parsed_state.zkp_batch_size as usize;
         let addresses: Vec<[u8; 32]> = address_queue_v2.addresses.into_iter().skip(skip_addresses).collect();
         let low_element_values: Vec<[u8; 32]> = address_queue_v2.low_element_values.into_iter().skip(skip_addresses).collect();
@@ -792,13 +729,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         > = Vec::new();
         let batch_size = address_data.zkp_batch_size as usize;
 
-        tracing::debug!(
-            "Address iteration context: start_index={}, addresses={}, zkp_batch_size={}",
-            address_data.start_index,
-            address_data.addresses.len(),
-            batch_size
-        );
-
         for (batch_idx, leaves_hash_chain) in address_data.leaves_hash_chains.iter().enumerate() {
             let start_idx = batch_idx * batch_size;
             let end_idx = start_idx + batch_size;
@@ -850,17 +780,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             let new_root_bytes = bigint_to_be_bytes_array::<32>(&inputs.new_root)
                 .map_err(|e| anyhow::anyhow!("Failed to convert new_root to bytes: {}", e))?;
 
-            tracing::info!(
-                "Prepared address batch {}: start_index={}, current_root={:?}, new_root={:?}, addresses={}, low_indices_sample={:?}, leaves_hash_chain={:?}",
-                batch_idx,
-                adjusted_start_index,
-                &current_root[..8],
-                &new_root_bytes[..8],
-                batch_addresses.len(),
-                &low_element_indices[..low_element_indices.len().min(2)],
-                &leaves_hash_chain[..8]
-            );
-
             current_root = new_root_bytes;
             next_index = next_index
                 .checked_add(batch_len)
@@ -888,7 +807,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         proof_tx: tokio::sync::mpsc::Sender<(usize, Result<InstructionDataAddressAppendInputs>)>,
         config: ProofConfig,
     ) -> Result<Duration> {
-        use light_prover_client::proof_types::batch_address_append::BatchAddressAppendInputsJson;
 
         let client = Arc::new(ProofClient::with_config(
             config.address_append_url.clone(),
@@ -1051,7 +969,7 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
     ) -> Result<(usize, Duration)> {
         use std::collections::BTreeMap;
 
-        const BATCH_SUBMIT_TIMEOUT_SECS: u64 = 2; // Submit whatever we have after this timeout
+        const BATCH_SUBMIT_TIMEOUT_SECS: u64 = 2;
 
         let mut buffer: BTreeMap<usize, Result<InstructionDataAddressAppendInputs>> =
             BTreeMap::new();
@@ -1067,7 +985,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             let remaining_timeout = timeout_duration.saturating_sub(time_since_last_submit);
 
             let recv_result = if remaining_timeout.is_zero() {
-                // Timeout reached, force submit what we have
                 None
             } else {
                 // Wait for next proof or timeout
@@ -1189,16 +1106,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
     async fn validate_root(&self, expected_root: [u8; 32], phase: &str) -> Result<()> {
         let current_root = self.get_current_onchain_root().await?;
         if current_root != expected_root {
-            let mut expected = [0u8; 8];
-            let mut actual = [0u8; 8];
-            expected.copy_from_slice(&expected_root[..8]);
-            actual.copy_from_slice(&current_root[..8]);
-
-            warn!(
-                "Root changed during {} (multi-forester race): expected {:?}, now {:?}",
-                phase, expected, actual
-            );
-
             return Err(CoordinatorError::RootChanged {
                 phase: phase.to_string(),
                 expected,
@@ -1234,8 +1141,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         info!("Syncing: on-chain root = {:?}", &on_chain_root[..8]);
         let root_changed = state.current_root != on_chain_root;
 
-        // Address trees store their batches in queue_batches (input queue for nullify, output queue for append)
-        // For address trees, we use queue_batches.batches as "input" since they represent the address insertion batches
         state.reset(
             on_chain_root,
             &tree_data.queue_batches.batches,
@@ -1265,7 +1170,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
     }
 }
 
-/// Print cumulative performance summary across all address trees.
 pub async fn print_cumulative_performance_summary(label: &str) {
     let states = PERSISTENT_ADDRESS_TREE_STATES.lock().await;
 
