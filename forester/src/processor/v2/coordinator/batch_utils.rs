@@ -120,7 +120,7 @@ pub fn extract_current_root(tree_data: &BatchedMerkleTreeAccount) -> Result<[u8;
 }
 
 /// Fetches the current on-chain root for a state tree.
-pub async fn fetch_state_tree_root<R: RpcConnection>(
+pub async fn fetch_state_tree_root<R: Rpc>(
     rpc: &R,
     tree_pubkey: Pubkey,
 ) -> Result<[u8; 32]> {
@@ -138,7 +138,7 @@ pub async fn fetch_state_tree_root<R: RpcConnection>(
 }
 
 /// Fetches the current on-chain root for an address tree.
-pub async fn fetch_address_tree_root<R: RpcConnection>(
+pub async fn fetch_address_tree_root<R: Rpc>(
     rpc: &R,
     tree_pubkey: Pubkey,
 ) -> Result<[u8; 32]> {
