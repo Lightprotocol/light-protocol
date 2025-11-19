@@ -1786,12 +1786,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let num_inserted = batch.get_num_inserted_zkps();
                 let current_index = batch.get_current_zkp_batch_index();
 
-                // Capture start index of first unprocessed zkp batch (not batch start!)
-                if tree_leaves_hash_chains.is_empty() {
-                    zkp_batch_size = batch.zkp_batch_size as u16;
-                    batch_start_index = batch.start_index + (num_inserted * batch.zkp_batch_size);
-                }
-
                 for i in num_inserted..current_index {
                     let batch_id = ProcessedBatchId {
                         batch_index: batch_idx,
@@ -1801,6 +1795,11 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     };
 
                     if !shared_state.is_batch_processed(&batch_id) {
+                        if tree_leaves_hash_chains.is_empty() {
+                            zkp_batch_size = batch.zkp_batch_size as u16;
+                            batch_start_index = batch.start_index + (i * batch.zkp_batch_size);
+                        }
+
                         tree_leaves_hash_chains
                             .push(merkle_tree.hash_chain_stores[batch_idx][i as usize]);
                         if collect_nullify_ids {
@@ -1899,12 +1898,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let num_inserted = batch.get_num_inserted_zkps();
                 let current_index = batch.get_current_zkp_batch_index();
 
-                // Capture start index of first unprocessed zkp batch (not batch start!)
-                if leaves_hash_chains.is_empty() {
-                    zkp_batch_size = batch.zkp_batch_size as u16;
-                    batch_start_index = batch.start_index + (num_inserted * batch.zkp_batch_size);
-                }
-
                 for i in num_inserted..current_index {
                     let batch_id = ProcessedBatchId {
                         batch_index: batch_idx,
@@ -1914,6 +1907,11 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     };
 
                     if !shared_state.is_batch_processed(&batch_id) {
+                        if leaves_hash_chains.is_empty() {
+                            zkp_batch_size = batch.zkp_batch_size as u16;
+                            batch_start_index = batch.start_index + (i * batch.zkp_batch_size);
+                        }
+
                         leaves_hash_chains
                             .push(merkle_tree.hash_chain_stores[batch_idx][i as usize]);
                         if collect_batch_ids {
