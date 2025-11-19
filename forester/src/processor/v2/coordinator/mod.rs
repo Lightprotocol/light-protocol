@@ -8,6 +8,7 @@ pub mod proof_pipeline;
 pub mod proof_utils;
 pub mod shared_state;
 pub mod state_tree_coordinator;
+pub mod sync_utils;
 pub mod tree_state;
 pub mod types;
 
