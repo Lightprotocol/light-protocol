@@ -856,13 +856,23 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             num_nullify_batches,
         );
 
+        let output_queue_start_index = parsed_state
+            .append_metadata
+            .as_ref()
+            .map(|(_, queue_data)| queue_data.batch_start_index);
+
+        let input_queue_start_index = parsed_state
+            .nullify_metadata
+            .as_ref()
+            .map(|tree_data| tree_data.batch_start_index);
+
         let mut connection = self.context.rpc_pool.get_connection().await?;
         let indexer = connection.indexer_mut()?;
 
         let options = light_client::indexer::QueueElementsV2Options {
-            output_queue_start_index: None,
+            output_queue_start_index,
             output_queue_limit,
-            input_queue_start_index: None,
+            input_queue_start_index,
             input_queue_limit,
             address_queue_start_index: None,
             address_queue_limit: None,
@@ -1776,9 +1786,10 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let num_inserted = batch.get_num_inserted_zkps();
                 let current_index = batch.get_current_zkp_batch_index();
 
-                if batch_idx == 0 || zkp_batch_size == 0 {
+                // Capture start index of first unprocessed zkp batch (not batch start!)
+                if tree_leaves_hash_chains.is_empty() {
                     zkp_batch_size = batch.zkp_batch_size as u16;
-                    batch_start_index = batch.start_index;
+                    batch_start_index = batch.start_index + (num_inserted * batch.zkp_batch_size);
                 }
 
                 for i in num_inserted..current_index {
@@ -1819,6 +1830,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         let mut queue_leaves_hash_chains = Vec::new();
         let mut append_batch_ids = Vec::new();
+        let mut queue_batch_start_index = 0u64;
 
         for (batch_idx, batch) in output_queue.batch_metadata.batches.iter().enumerate() {
             let batch_state = batch.get_state();
@@ -1828,6 +1840,11 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             if not_inserted {
                 let num_inserted = batch.get_num_inserted_zkps();
                 let current_index = batch.get_current_zkp_batch_index();
+
+                // Capture start index of first unprocessed zkp batch (not batch start!)
+                if queue_leaves_hash_chains.is_empty() {
+                    queue_batch_start_index = batch.start_index + (num_inserted * batch.zkp_batch_size);
+                }
 
                 for i in num_inserted..current_index {
                     let batch_id = ProcessedBatchId {
@@ -1854,6 +1871,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             pending_batch_index: output_queue.batch_metadata.pending_batch_index as u32,
             num_inserted_zkps: 0,
             current_zkp_batch_index: 0,
+            batch_start_index: queue_batch_start_index,
             leaves_hash_chains: queue_leaves_hash_chains,
         };
 
@@ -1881,9 +1899,10 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let num_inserted = batch.get_num_inserted_zkps();
                 let current_index = batch.get_current_zkp_batch_index();
 
-                if batch_idx == 0 || zkp_batch_size == 0 {
+                // Capture start index of first unprocessed zkp batch (not batch start!)
+                if leaves_hash_chains.is_empty() {
                     zkp_batch_size = batch.zkp_batch_size as u16;
-                    batch_start_index = batch.start_index;
+                    batch_start_index = batch.start_index + (num_inserted * batch.zkp_batch_size);
                 }
 
                 for i in num_inserted..current_index {

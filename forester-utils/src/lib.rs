@@ -34,5 +34,6 @@ pub struct ParsedQueueData {
     pub pending_batch_index: u32,
     pub num_inserted_zkps: u64,
     pub current_zkp_batch_index: u64,
+    pub batch_start_index: u64,
     pub leaves_hash_chains: Vec<[u8; 32]>,
 }

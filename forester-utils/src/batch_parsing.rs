@@ -67,6 +67,7 @@ pub fn parse_output_queue_batch(
         pending_batch_index: batch_index as u32,
         num_inserted_zkps,
         current_zkp_batch_index,
+        batch_start_index: batch.start_index + (num_inserted_zkps * batch.zkp_batch_size),
         leaves_hash_chains,
     };
 
@@ -132,6 +133,7 @@ where
     F: Fn(usize, u64) -> bool,
 {
     let mut queue_leaves_hash_chains = Vec::new();
+    let mut batch_start_index = 0u64;
 
     for (batch_idx, batch) in output_queue.batch_metadata.batches.iter().enumerate() {
         let batch_state = batch.get_state();
@@ -140,6 +142,10 @@ where
         if not_inserted {
             let num_inserted = batch.get_num_inserted_zkps();
             let current_index = batch.get_current_zkp_batch_index();
+
+            if queue_leaves_hash_chains.is_empty() {
+                batch_start_index = batch.start_index + (num_inserted * batch.zkp_batch_size);
+            }
 
             for i in num_inserted..current_index {
                 if filter(batch_idx, i) {
@@ -155,6 +161,7 @@ where
         pending_batch_index: output_queue.batch_metadata.pending_batch_index as u32,
         num_inserted_zkps: 0,
         current_zkp_batch_index: 0,
+        batch_start_index,
         leaves_hash_chains: queue_leaves_hash_chains,
     })
 }
