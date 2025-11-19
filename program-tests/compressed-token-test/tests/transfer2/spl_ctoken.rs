@@ -185,3 +185,163 @@ async fn test_spl_to_ctoken_transfer() {
 
     println!("Successfully completed round-trip transfer: SPL -> CToken -> SPL");
 }
+
+#[tokio::test]
+async fn test_ctoken_to_spl_with_compress_and_close() {
+    use light_compressed_token_sdk::{
+        instructions::create_ctoken_to_spl_transfer_and_close_instruction,
+        token_pool::find_token_pool_pda_with_index,
+    };
+
+    let mut rpc = LightProgramTest::new(ProgramTestConfig::new(true, None))
+        .await
+        .unwrap();
+    let payer = rpc.get_payer().insecure_clone();
+    let sender = Keypair::new();
+    airdrop_lamports(&mut rpc, &sender.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+    let mint = create_mint_helper(&mut rpc, &payer).await;
+    let amount = 10000u64;
+    let transfer_amount = 5000u64;
+
+    // Create SPL token account and mint tokens
+    let spl_token_account_keypair = Keypair::new();
+    create_token_2022_account(&mut rpc, &mint, &spl_token_account_keypair, &sender, false)
+        .await
+        .unwrap();
+    mint_spl_tokens(
+        &mut rpc,
+        &mint,
+        &spl_token_account_keypair.pubkey(),
+        &payer.pubkey(),
+        &payer,
+        amount,
+        false,
+    )
+    .await
+    .unwrap();
+
+    // Create recipient for compressed tokens
+    let recipient = Keypair::new();
+    airdrop_lamports(&mut rpc, &recipient.pubkey(), 1_000_000_000)
+        .await
+        .unwrap();
+
+    // Create compressed token ATA for recipient
+    let instruction = light_compressed_token_sdk::instructions::create_associated_token_account(
+        payer.pubkey(),
+        recipient.pubkey(),
+        mint,
+    )
+    .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e)))
+    .unwrap();
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
+        .await
+        .unwrap();
+    let associated_token_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
+
+    // Transfer SPL to CToken
+    transfer2::spl_to_ctoken_transfer(
+        &mut rpc,
+        spl_token_account_keypair.pubkey(),
+        associated_token_account,
+        transfer_amount,
+        &sender,
+        &payer,
+    )
+    .await
+    .unwrap();
+
+    // Verify compressed token balance after initial transfer
+    {
+        let ctoken_account_data = rpc
+            .get_account(associated_token_account)
+            .await
+            .unwrap()
+            .unwrap();
+        let ctoken_account =
+            spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&ctoken_account_data.data[..165])
+                .map_err(|e| {
+                    RpcError::AssertRpcError(format!("Failed to parse CToken account: {}", e))
+                })
+                .unwrap();
+        assert_eq!(
+            u64::from(ctoken_account.amount),
+            transfer_amount,
+            "Recipient should have {} compressed tokens",
+            transfer_amount
+        );
+    }
+
+    // Now transfer back using CompressAndClose instead of regular transfer
+    println!("Testing reverse transfer with CompressAndClose: ctoken to SPL");
+
+    // Get token pool PDA
+    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
+
+    // Create instruction using compress_and_close variant
+    // Note: Using spl_token::ID because create_mint_helper creates Token (not Token-2022) mints
+    let transfer_ix = create_ctoken_to_spl_transfer_and_close_instruction(
+        associated_token_account,
+        spl_token_account_keypair.pubkey(),
+        transfer_amount,
+        recipient.pubkey(),
+        mint,
+        payer.pubkey(),
+        token_pool_pda,
+        token_pool_pda_bump,
+        anchor_spl::token::ID,
+    )
+    .unwrap();
+
+    // Execute transaction
+    rpc.create_and_send_transaction(&[transfer_ix], &payer.pubkey(), &[&payer, &recipient])
+        .await
+        .unwrap();
+
+    // Verify final balances
+    {
+        // Verify SPL token balance is restored
+        let spl_account_data = rpc
+            .get_account(spl_token_account_keypair.pubkey())
+            .await
+            .unwrap()
+            .unwrap();
+        let spl_account = spl_pod::bytemuck::pod_from_bytes::<PodAccount>(&spl_account_data.data)
+            .map_err(|e| {
+                RpcError::AssertRpcError(format!("Failed to parse SPL token account: {}", e))
+            })
+            .unwrap();
+        let restored_spl_balance: u64 = spl_account.amount.into();
+        assert_eq!(
+            restored_spl_balance, amount,
+            "SPL token balance should be restored to original amount"
+        );
+    }
+
+    {
+        // Verify CToken account is CLOSED (not just balance = 0)
+        let ctoken_account_result = rpc.get_account(associated_token_account).await.unwrap();
+        match ctoken_account_result {
+            None => {
+                println!("✓ CToken account successfully closed (account does not exist)");
+            }
+            Some(account_data) => {
+                assert_eq!(
+                    account_data.data.len(),
+                    0,
+                    "CToken account data should be empty after CompressAndClose"
+                );
+                assert_eq!(
+                    account_data.lamports, 0,
+                    "CToken account lamports should be 0 after CompressAndClose"
+                );
+                println!("✓ CToken account successfully closed (zeroed out)");
+            }
+        }
+    }
+
+    println!("✓ Successfully completed CToken -> SPL transfer with CompressAndClose");
+    println!("  This validates owner can use CompressAndClose without explicit compressed_token_account validation");
+}
