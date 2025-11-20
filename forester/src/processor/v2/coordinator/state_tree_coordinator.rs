@@ -280,7 +280,9 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 self.current_light_slot = Some(light_slot);
             }
 
-            let iteration_inputs = self.prepare_iteration_inputs().await?;
+            // Skip staleness check if we're retrying (retries > 0)
+            let skip_staleness_check = retries > 0;
+            let iteration_inputs = self.prepare_iteration_inputs(skip_staleness_check).await?;
             let (num_append_batches, num_nullify_batches, queue_result) =
                 if let Some(inputs) = iteration_inputs {
                     inputs
@@ -480,6 +482,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
     async fn prepare_iteration_inputs(
         &mut self,
+        skip_staleness_check: bool,
     ) -> Result<Option<(usize, usize, QueueFetchResult)>> {
         let had_cache = self.cached_staging.is_some();
         if !had_cache {
@@ -508,21 +511,25 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             .copied()
             .ok_or_else(|| anyhow::anyhow!("No root in tree history"))?;
 
-        // Check if cache is valid
+        // Check if cache is valid (skip during retries - our staging tree is correct)
         let mut needs_sync = !had_cache;
-        if let Some((_, cached_root)) = &self.cached_staging {
-            if *cached_root != on_chain_root {
-                info!(
-                    "Cache is STALE: cached_root={:?}, on_chain_root={:?}",
-                    &cached_root[..8],
-                    &on_chain_root[..8]
-                );
-                self.cached_staging = None;
-                let mut staging_cache = PERSISTENT_STAGING_TREES.lock().await;
-                staging_cache.remove(&self.context.merkle_tree);
-                self.record_cache_event("invalidate", "root_mismatch");
-                needs_sync = true;
+        if !skip_staleness_check {
+            if let Some((_, cached_root)) = &self.cached_staging {
+                if *cached_root != on_chain_root {
+                    info!(
+                        "Cache is STALE: cached_root={:?}, on_chain_root={:?}",
+                        &cached_root[..8],
+                        &on_chain_root[..8]
+                    );
+                    self.cached_staging = None;
+                    let mut staging_cache = PERSISTENT_STAGING_TREES.lock().await;
+                    staging_cache.remove(&self.context.merkle_tree);
+                    self.record_cache_event("invalidate", "root_mismatch");
+                    needs_sync = true;
+                }
             }
+        } else if had_cache {
+            debug!("Skipping cache staleness check during retry - preserving staging tree");
         }
 
         if needs_sync {
@@ -562,7 +569,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         let job_result = async {
             let (num_append_batches, num_nullify_batches, queue_result) =
-                match self.prepare_iteration_inputs().await? {
+                match self.prepare_iteration_inputs(false).await? {
                     Some(data) => data,
                     None => return Ok(None),
                 };
@@ -1397,15 +1404,17 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
                     if i < 3 {
                         let old_root_bytes = circuit_inputs.old_root.to_bytes_be().1;
-                        let new_root = state.staging.current_root();
+                        let new_root_bytes = circuit_inputs.new_root.to_bytes_be().1;
+                        let current_root = state.staging.current_root();
                         debug!(
-                            "Prepared append batch {} at position {}: start_index={}, batch_size={}, old_root={:?}, new_root={:?}",
+                            "Prepared append batch {} at position {}: start_index={}, batch_size={}, circuit_old_root={:?}, circuit_new_root={:?}, staging_current_root={:?}",
                             state.append_batch_index - 1,
                             i,
                             circuit_inputs.start_index,
                             circuit_inputs.batch_size,
-                            &old_root_bytes[old_root_bytes.len().saturating_sub(8)..],
-                            &new_root[..8]
+                            &old_root_bytes[..8.min(old_root_bytes.len())],
+                            &new_root_bytes[..8.min(new_root_bytes.len())],
+                            &current_root[..8]
                         );
                     }
 

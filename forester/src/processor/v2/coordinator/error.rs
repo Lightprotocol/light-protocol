@@ -74,8 +74,6 @@ impl CoordinatorError {
             self,
             CoordinatorError::RootChanged { .. }
                 | CoordinatorError::PhotonIndexMismatch { .. }
-                | CoordinatorError::HashChainMismatch { .. }
-                | CoordinatorError::ConstraintError { .. }
-        )
+                | CoordinatorError::HashChainMismatch { .. }        )
     }
 }

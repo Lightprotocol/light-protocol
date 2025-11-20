@@ -64,6 +64,12 @@ pub fn prepare_append_batch(
     let new_root = state.staging.current_root();
 
     let circuit_start = std::time::Instant::now();
+    tracing::debug!(
+        "prepare_append_batch (batch {}): Calling get_batch_append_inputs_v2 with old_root={:?}, new_root={:?}",
+        batch_idx,
+        &old_root[..8],
+        &new_root[..8]
+    );
     let circuit_inputs =
         get_batch_append_inputs_v2::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
             old_root,
