@@ -326,6 +326,10 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                                 );
                                 self.record_cache_event("invalidate", "retryable_resync");
                                 self.cached_staging = None;
+                                {
+                                    let mut staging_cache = PERSISTENT_STAGING_TREES.lock().await;
+                                    staging_cache.remove(&self.context.merkle_tree);
+                                }
                             } else {
                                 debug!("Retrying without resync for: {}", coord_err);
                             }
@@ -1288,15 +1292,37 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         let mut state = if let Some((cached_staging, cached_root)) = self.cached_staging.take() {
             if cached_root == on_chain_root {
-                self.record_cache_event("hit", "prep_root_match");
+                // Validate that the cached staging tree's base root matches the fresh Photon data
+                let fresh_photon_root = output_queue_v2
+                    .map(|q| q.initial_root)
+                    .or_else(|| input_queue_v2.map(|q| q.initial_root));
 
-                PreparationState::with_cached_staging(
-                    append_leaf_indices,
-                    cached_staging,
-                    output_queue_v2,
-                    input_queue_v2,
-                    on_chain_root,
-                )
+                let cached_base_root = cached_staging.base_root();
+                let photon_root_matches = fresh_photon_root
+                    .map(|fresh_root| fresh_root == cached_base_root)
+                    .unwrap_or(true); // If no photon data, allow reuse
+
+                if photon_root_matches {
+                    self.record_cache_event("hit", "prep_root_match");
+
+                    PreparationState::with_cached_staging(
+                        append_leaf_indices,
+                        cached_staging,
+                        output_queue_v2,
+                        input_queue_v2,
+                        on_chain_root,
+                    )
+                } else {
+                    if let Some(photon_root) = fresh_photon_root {
+                        debug!(
+                            "Invalidating cache: photon initial_root {:?} != cached base_root {:?}",
+                            &photon_root[..8],
+                            &cached_base_root[..8]
+                        );
+                    }
+                    self.record_cache_event("invalidate", "prep_photon_root_mismatch");
+                    PreparationState::new(staging, append_leaf_indices)
+                }
             } else {
                 self.record_cache_event("invalidate", "prep_root_mismatch");
                 PreparationState::new(staging, append_leaf_indices)
