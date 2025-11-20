@@ -2,9 +2,7 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
-    create_compressed_mint, derive_compressed_mint_address, CreateCompressedMintInputs,
-};
+use light_compressed_token_sdk::ctoken::{derive_compressed_mint_address, CreateCMint};
 use light_ctoken_types::instructions::extensions::{
     token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
 };
@@ -61,21 +59,27 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
 
     let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
 
-    // Create instruction using the existing SDK function
-    let inputs = CreateCompressedMintInputs {
+    // Create instruction using the builder pattern
+    let mut builder = CreateCMint::new(
         decimals,
         mint_authority,
-        freeze_authority,
-        proof: rpc_result.proof.0.unwrap(),
-        address_merkle_tree_root_index,
-        mint_signer: mint_seed.pubkey(),
+        mint_seed.pubkey(),
         payer,
         address_tree_pubkey,
         output_queue,
-        extensions,
-        version: 3,
-    };
+        rpc_result.proof.0.unwrap(),
+        address_merkle_tree_root_index,
+    );
 
-    create_compressed_mint(inputs)
+    if let Some(freeze_auth) = freeze_authority {
+        builder = builder.with_freeze_authority(freeze_auth);
+    }
+
+    if let Some(exts) = extensions {
+        builder = builder.with_extensions(exts);
+    }
+
+    builder
+        .instruction()
         .map_err(|e| RpcError::CustomError(format!("Token SDK error: {:?}", e)))
 }

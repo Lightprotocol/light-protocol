@@ -2,6 +2,7 @@ mod close;
 mod compressible;
 mod create;
 mod create_ata;
+mod create_cmint;
 mod transfer_ctoken;
 mod transfer_interface;
 
@@ -9,6 +10,7 @@ pub use close::*;
 pub use compressible::{CompressibleParams, CompressibleParamsInfos};
 pub use create::*;
 pub use create_ata::*;
+pub use create_cmint::*;
 use light_compressed_token_types::POOL_SEED;
 use light_compressible::config::CompressibleConfig;
 pub use light_ctoken_types::{
@@ -52,10 +54,6 @@ pub fn get_associated_ctoken_address_and_bump(owner: &Pubkey, mint: &Pubkey) -> 
         &id(),
     )
 }
-
-pub use crate::compressed_token::create_compressed_mint::{
-    derive_cmint_from_spl_mint, find_spl_mint_address,
-};
 
 pub fn config_pda() -> Pubkey {
     COMPRESSIBLE_CONFIG_V1
