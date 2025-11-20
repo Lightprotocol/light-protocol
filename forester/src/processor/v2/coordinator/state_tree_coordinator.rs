@@ -902,6 +902,17 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             &self.context,
         )?;
 
+        let append_batch_ids = Self::filter_batch_ids_by_photon_data(
+            parsed_state.append_batch_ids,
+            output_queue_v2.as_ref(),
+            &parsed_state.append_metadata,
+        );
+        let nullify_batch_ids = Self::filter_batch_ids_by_photon_data_input(
+            parsed_state.nullify_batch_ids,
+            input_queue_v2.as_ref(),
+            &parsed_state.nullify_metadata,
+        );
+
         Ok(QueueFetchResult {
             staging,
             output_queue_v2,
@@ -909,8 +920,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             on_chain_root: parsed_state.current_onchain_root,
             append_data,
             nullify_data,
-            append_batch_ids: parsed_state.append_batch_ids,
-            nullify_batch_ids: parsed_state.nullify_batch_ids,
+            append_batch_ids,
+            nullify_batch_ids,
         })
     }
 
@@ -993,30 +1004,44 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     )> {
         let output_queue = if let Some(ref metadata) = append_metadata {
             if let Some(oq) = response.output_queue {
-                batch_utils::validate_photon_root(oq.initial_root, current_onchain_root, "output")?;
+                let (tree_data, queue_data) = metadata;
+                batch_utils::validate_photon_root(
+                    oq.initial_root,
+                    current_onchain_root,
+                    &tree_data.root_history,
+                    "output",
+                )?;
 
-                let (_, queue_data) = metadata;
 
-                if oq.first_queue_index != queue_data.batch_start_index {
-                    return Err(CoordinatorError::PhotonIndexMismatch {
+                if oq.first_queue_index < queue_data.batch_start_index {
+                    let photon_root: [u8; 8] = oq.initial_root[..8].try_into().unwrap();
+                    let onchain_root: [u8; 8] = current_onchain_root[..8].try_into().unwrap();
+                    return Err(CoordinatorError::PhotonStale {
                         queue_type: "output".to_string(),
-                        expected_start: queue_data.batch_start_index,
-                        actual_start: oq.first_queue_index,
+                        photon_root,
+                        onchain_root,
                     }
                     .into());
                 }
 
-                let expected_total =
+                // Photon may have pruned some batches already - validate we got at least what's available
+                let max_expected_total =
                     queue_data.zkp_batch_size as usize * queue_data.leaves_hash_chains.len();
-                if oq.leaf_indices.len() != expected_total {
+                if oq.leaf_indices.len() > max_expected_total {
                     anyhow::bail!(
-                        "Expected {} output elements, got {}",
-                        expected_total,
-                        oq.leaf_indices.len()
+                        "Got more output elements ({}) than expected (max {})",
+                        oq.leaf_indices.len(),
+                        max_expected_total
                     );
                 }
 
-                Some(oq)
+                // If Photon has no elements, skip processing (batches were already done)
+                if oq.leaf_indices.is_empty() {
+                    debug!("Photon output queue has no elements - skipping append processing");
+                    None
+                } else {
+                    Some(oq)
+                }
             } else {
                 None
             }
@@ -1026,32 +1051,44 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         let input_queue = if nullify_metadata.is_some() {
             if let Some(iq) = response.input_queue {
-                batch_utils::validate_photon_root(iq.initial_root, current_onchain_root, "input")?;
-
                 let tree_data = nullify_metadata.as_ref().ok_or_else(|| {
                     anyhow::anyhow!("nullify_metadata unexpectedly None despite being checked")
                 })?;
+                batch_utils::validate_photon_root(
+                    iq.initial_root,
+                    current_onchain_root,
+                    &tree_data.root_history,
+                    "input",
+                )?;
 
-                if iq.first_queue_index != tree_data.batch_start_index {
-                    return Err(CoordinatorError::PhotonIndexMismatch {
+                if iq.first_queue_index < tree_data.batch_start_index {
+                    let photon_root: [u8; 8] = iq.initial_root[..8].try_into().unwrap();
+                    let onchain_root: [u8; 8] = current_onchain_root[..8].try_into().unwrap();
+                    return Err(CoordinatorError::PhotonStale {
                         queue_type: "input".to_string(),
-                        expected_start: tree_data.batch_start_index,
-                        actual_start: iq.first_queue_index,
+                        photon_root,
+                        onchain_root,
                     }
                     .into());
                 }
 
-                let expected_total =
+                let max_expected_total =
                     tree_data.zkp_batch_size as usize * tree_data.leaves_hash_chains.len();
-                if iq.leaf_indices.len() != expected_total {
+                if iq.leaf_indices.len() > max_expected_total {
                     anyhow::bail!(
-                        "Expected {} input elements, got {}",
-                        expected_total,
-                        iq.leaf_indices.len()
+                        "Got more input elements ({}) than expected (max {})",
+                        iq.leaf_indices.len(),
+                        max_expected_total
                     );
                 }
 
-                Some(iq)
+                // If Photon has no elements, skip processing (batches were already done)
+                if iq.leaf_indices.is_empty() {
+                    debug!("Photon input queue has no elements - skipping nullify processing");
+                    None
+                } else {
+                    Some(iq)
+                }
             } else {
                 None
             }
@@ -1060,6 +1097,57 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         };
 
         Ok((output_queue, input_queue))
+    }
+
+    fn filter_batch_ids_by_photon_data(
+        batch_ids: Vec<ProcessedBatchId>,
+        output_queue: Option<&light_client::indexer::OutputQueueDataV2>,
+        metadata: &Option<(ParsedMerkleTreeData, ParsedQueueData)>,
+    ) -> Vec<ProcessedBatchId> {
+        if let (Some(oq), Some((_, queue_data))) = (output_queue, metadata) {
+            let zkp_batches_available = (oq.leaf_indices.len() + queue_data.zkp_batch_size as usize - 1)
+                / queue_data.zkp_batch_size as usize;
+            let zkp_batches_expected = queue_data.leaves_hash_chains.len();
+
+            if zkp_batches_available < zkp_batches_expected {
+                let skip_count = zkp_batches_expected - zkp_batches_available;
+                debug!(
+                    "Filtering append batch_ids: keeping last {} of {} batches (first {} already processed by Photon)",
+                    zkp_batches_available, zkp_batches_expected, skip_count
+                );
+                batch_ids.into_iter().skip(skip_count).collect()
+            } else {
+                batch_ids
+            }
+        } else {
+            batch_ids
+        }
+    }
+
+    fn filter_batch_ids_by_photon_data_input(
+        batch_ids: Vec<ProcessedBatchId>,
+        input_queue: Option<&light_client::indexer::InputQueueDataV2>,
+        metadata: &Option<ParsedMerkleTreeData>,
+    ) -> Vec<ProcessedBatchId> {
+        if let (Some(iq), Some(tree_data)) = (input_queue, metadata) {
+            // Calculate how many zkp batches Photon has vs what on-chain expects
+            let zkp_batches_available = (iq.leaf_indices.len() + tree_data.zkp_batch_size as usize - 1)
+                / tree_data.zkp_batch_size as usize;
+            let zkp_batches_expected = tree_data.leaves_hash_chains.len();
+
+            if zkp_batches_available < zkp_batches_expected {
+                let skip_count = zkp_batches_expected - zkp_batches_available;
+                debug!(
+                    "Filtering nullify batch_ids: keeping last {} of {} batches (first {} already processed by Photon)",
+                    zkp_batches_available, zkp_batches_expected, skip_count
+                );
+                batch_ids.into_iter().skip(skip_count).collect()
+            } else {
+                batch_ids
+            }
+        } else {
+            batch_ids
+        }
     }
 
     fn build_append_data(
@@ -1091,9 +1179,23 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 })
                 .collect();
 
+            let zkp_batches_count = (oq.leaf_indices.len() + queue_data.zkp_batch_size as usize - 1)
+                / queue_data.zkp_batch_size as usize;
+
+            let (hash_chains, _skip_batches) = if zkp_batches_count < queue_data.leaves_hash_chains.len() {
+                let skip_count = queue_data.leaves_hash_chains.len() - zkp_batches_count;
+                debug!(
+                    "Photon has {} zkp batches, on-chain expects {}. Skipping first {} batches (already processed).",
+                    zkp_batches_count, queue_data.leaves_hash_chains.len(), skip_count
+                );
+                (queue_data.leaves_hash_chains[skip_count..].to_vec(), skip_count)
+            } else {
+                (queue_data.leaves_hash_chains.clone(), 0)
+            };
+
             Ok(Some(AppendQueueData {
                 queue_elements,
-                leaves_hash_chains: queue_data.leaves_hash_chains.clone(),
+                leaves_hash_chains: hash_chains,
                 zkp_batch_size: queue_data.zkp_batch_size,
             }))
         } else {
@@ -1133,9 +1235,18 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 )
                 .collect();
 
+            let zkp_batches_count = (iq.leaf_indices.len() + tree_data.zkp_batch_size as usize - 1)
+                / tree_data.zkp_batch_size as usize;
+            let hash_chains = if zkp_batches_count < tree_data.leaves_hash_chains.len() {
+                let skip_count = tree_data.leaves_hash_chains.len() - zkp_batches_count;
+                tree_data.leaves_hash_chains[skip_count..].to_vec()
+            } else {
+                tree_data.leaves_hash_chains.clone()
+            };
+
             Ok(Some(NullifyQueueData {
                 queue_elements,
-                leaves_hash_chains: tree_data.leaves_hash_chains.clone(),
+                leaves_hash_chains: hash_chains,
                 zkp_batch_size: tree_data.zkp_batch_size,
                 num_inserted_zkps: tree_data.num_inserted_zkps,
             }))
@@ -1688,7 +1799,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let mut tree_leaves_hash_chains = Vec::new();
         let mut nullify_batch_ids = Vec::new();
         let mut zkp_batch_size = 0u16;
-        let mut batch_start_index = 0u64;
+        let mut batch_start_index = u64::MAX;
 
         for (batch_idx, batch) in merkle_tree.queue_batches.batches.iter().enumerate() {
             let batch_state = batch.get_state();
@@ -1699,11 +1810,10 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let num_inserted = batch.get_num_inserted_zkps();
                 let current_index = batch.get_current_zkp_batch_index();
 
-                // Capture start index of first batch with work (for fetching full batch from Photon)
-                // Account for already-inserted zkp batches by adding offset
-                if tree_leaves_hash_chains.is_empty() {
+                let adjusted_start = batch.start_index + (num_inserted * batch.zkp_batch_size as u64);
+                if adjusted_start < batch_start_index {
                     zkp_batch_size = batch.zkp_batch_size as u16;
-                    batch_start_index = batch.start_index + (num_inserted * zkp_batch_size as u64);
+                    batch_start_index = adjusted_start;
                 }
 
                 for i in num_inserted..current_index {
@@ -1745,7 +1855,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         let mut queue_leaves_hash_chains = Vec::new();
         let mut append_batch_ids = Vec::new();
-        let mut queue_batch_start_index = 0u64;
+        let mut queue_batch_start_index = u64::MAX;
 
         for (batch_idx, batch) in output_queue.batch_metadata.batches.iter().enumerate() {
             let batch_state = batch.get_state();
@@ -1756,9 +1866,9 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let num_inserted = batch.get_num_inserted_zkps();
                 let current_index = batch.get_current_zkp_batch_index();
 
-                if queue_leaves_hash_chains.is_empty() {
-                    let zkp_size = batch.zkp_batch_size as u64;
-                    queue_batch_start_index = batch.start_index + (num_inserted * zkp_size);
+                let adjusted_start = batch.start_index + (num_inserted * batch.zkp_batch_size as u64);
+                if adjusted_start < queue_batch_start_index {
+                    queue_batch_start_index = adjusted_start;
                 }
 
                 for i in num_inserted..current_index {

@@ -51,6 +51,7 @@ static PERSISTENT_ADDRESS_TREE_STATES: Lazy<PersistentAddressTreeStatesCache> =
 
 struct OnchainState {
     current_onchain_root: [u8; 32],
+    root_history: Vec<[u8; 32]>,
     zkp_batch_size: u16,
     start_index: u64,
     batch_ids: VecDeque<ProcessedBatchId>,
@@ -431,6 +432,7 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
 
         Ok(OnchainState {
             current_onchain_root,
+            root_history: merkle_tree_parsed.root_history.to_vec(),
             zkp_batch_size,
             start_index: if start_index_set {
                 start_index
@@ -575,6 +577,7 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         batch_utils::validate_photon_root(
             address_queue_v2.initial_root,
             parsed_state.current_onchain_root,
+            &parsed_state.root_history,
             "address",
         )?;
 
