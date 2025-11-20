@@ -3,8 +3,8 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::{
-    instructions::create_transfer_spl_to_ctoken_instruction,
-    token_pool::find_token_pool_pda_with_index, SPL_TOKEN_PROGRAM_ID,
+    instructions::TransferSplToCtoken, token_pool::find_token_pool_pda_with_index,
+    SPL_TOKEN_PROGRAM_ID,
 };
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -32,19 +32,20 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
 
     let mint = pod_account.mint;
 
-    let (token_pool_pda, bump) = find_token_pool_pda_with_index(&mint, 0);
+    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
 
-    let ix = create_transfer_spl_to_ctoken_instruction(
+    let ix = TransferSplToCtoken {
+        amount,
+        token_pool_pda_bump,
         source_spl_token_account,
         to,
-        amount,
-        authority.pubkey(),
+        authority: authority.pubkey(),
         mint,
-        payer.pubkey(),
+        payer: payer.pubkey(),
         token_pool_pda,
-        bump,
-        Pubkey::new_from_array(SPL_TOKEN_PROGRAM_ID), // TODO: make dynamic
-    )
+        spl_token_program: Pubkey::new_from_array(SPL_TOKEN_PROGRAM_ID), // TODO: make dynamic
+    }
+    .instruction()
     .map_err(|e| RpcError::CustomError(e.to_string()))?;
 
     let mut signers = vec![payer];
