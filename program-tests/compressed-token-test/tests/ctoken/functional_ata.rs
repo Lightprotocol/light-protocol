@@ -1,4 +1,6 @@
-use light_compressed_token_sdk::ctoken::create_associated_token_account_idempotent;
+use light_compressed_token_sdk::ctoken::{
+    CloseAccount, CompressibleParams, CreateAssociatedTokenAccount,
+};
 use light_test_utils::assert_create_token_account::assert_create_associated_token_account;
 
 use super::shared::*;
@@ -18,11 +20,13 @@ async fn test_associated_token_account_operations() {
     let owner_pubkey = context.owner_keypair.pubkey();
 
     // Create basic ATA using SDK function
-    let instruction = light_compressed_token_sdk::ctoken::create_associated_token_account(
+    let instruction = CreateAssociatedTokenAccount::new(
         payer_pubkey,
         owner_pubkey,
         context.mint_pubkey,
+        CompressibleParams::default(),
     )
+    .instruction()
     .unwrap();
 
     context
@@ -47,20 +51,23 @@ async fn test_associated_token_account_operations() {
     let num_prepaid_epochs = 0;
     let lamports_per_write = Some(150);
     // Create compressible ATA
-    let compressible_instruction =
-        light_compressed_token_sdk::ctoken::create_compressible_associated_token_account(
-            light_compressed_token_sdk::ctoken::CreateCompressibleAssociatedTokenAccountInputs {
-                payer: payer_pubkey,
-                owner: compressible_owner_pubkey,
-                mint: context.mint_pubkey,
-                compressible_config: context.compressible_config,
-                rent_sponsor: context.rent_sponsor,
-                pre_pay_num_epochs: num_prepaid_epochs,
-                lamports_per_write,
-                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-            },
-        )
-        .unwrap();
+    let compressible_params = CompressibleParams {
+        compressible_config: context.compressible_config,
+        rent_sponsor: context.rent_sponsor,
+        pre_pay_num_epochs: num_prepaid_epochs,
+        lamports_per_write,
+        compress_to_account_pubkey: None,
+        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+    };
+
+    let compressible_instruction = CreateAssociatedTokenAccount::new(
+        payer_pubkey,
+        compressible_owner_pubkey,
+        context.mint_pubkey,
+        compressible_params,
+    )
+    .instruction()
+    .unwrap();
 
     context
         .rpc
@@ -102,13 +109,14 @@ async fn test_associated_token_account_operations() {
         .unwrap();
 
     // Close compressible ATA
-    let close_account_ix = close_compressible_account(
-        &light_compressed_token::ID,
-        &compressible_ata_pubkey,
-        &destination.pubkey(),                // destination for user funds
-        &compressible_owner_keypair.pubkey(), // authority
-        &context.rent_sponsor,                // rent_sponsor
-    );
+    let close_account_ix = CloseAccount::new(
+        light_compressed_token::ID,
+        compressible_ata_pubkey,
+        destination.pubkey(),                // destination for user funds
+        compressible_owner_keypair.pubkey(), // authority
+    )
+    .instruction()
+    .unwrap();
 
     context
         .rpc
@@ -141,11 +149,13 @@ async fn test_create_ata_idempotent() {
     let payer_pubkey = context.payer.pubkey();
     let owner_pubkey = context.owner_keypair.pubkey();
     // Create ATA using non-idempotent instruction (first creation)
-    let instruction = light_compressed_token_sdk::ctoken::create_associated_token_account(
+    let instruction = CreateAssociatedTokenAccount::new(
         payer_pubkey,
         owner_pubkey,
         context.mint_pubkey,
+        CompressibleParams::default(),
     )
+    .instruction()
     .unwrap();
 
     context
@@ -164,11 +174,13 @@ async fn test_create_ata_idempotent() {
     .await;
 
     // Attempt to create the same ATA again using non-idempotent instruction (should fail)
-    let instruction = light_compressed_token_sdk::ctoken::create_associated_token_account(
+    let instruction = CreateAssociatedTokenAccount::new(
         payer_pubkey,
         owner_pubkey,
         context.mint_pubkey,
+        CompressibleParams::default(),
     )
+    .instruction()
     .unwrap();
 
     let result = context
@@ -183,9 +195,15 @@ async fn test_create_ata_idempotent() {
     );
 
     // Now try with idempotent instruction (should succeed)
-    let instruction =
-        create_associated_token_account_idempotent(payer_pubkey, owner_pubkey, context.mint_pubkey)
-            .unwrap();
+    let instruction = CreateAssociatedTokenAccount::new(
+        payer_pubkey,
+        owner_pubkey,
+        context.mint_pubkey,
+        CompressibleParams::default(),
+    )
+    .idempotent()
+    .instruction()
+    .unwrap();
 
     context
         .rpc

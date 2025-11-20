@@ -439,22 +439,24 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
     let lamports_per_write = Some(100);
 
     // Initialize compressible token account
-    let create_token_account_ix =
-        light_compressed_token_sdk::ctoken::create_compressible_token_account_instruction(
-            light_compressed_token_sdk::ctoken::CreateCompressibleTokenAccount {
-                account_pubkey: token_account_pubkey,
-                mint_pubkey: context.mint_pubkey,
-                owner_pubkey: context.owner_keypair.pubkey(),
-                compressible_config: context.compressible_config,
-                rent_sponsor: payer_pubkey,
-                pre_pay_num_epochs: num_prepaid_epochs,
-                lamports_per_write,
-                payer: payer_pubkey,
-                compress_to_account_pubkey: None,
-                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-            },
-        )
-        .unwrap();
+    let compressible_params = CompressibleParams {
+        compressible_config: context.compressible_config,
+        rent_sponsor: payer_pubkey,
+        pre_pay_num_epochs: num_prepaid_epochs,
+        lamports_per_write,
+        compress_to_account_pubkey: None,
+        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+    };
+
+    let create_token_account_ix = CreateCTokenAccount::new(
+        payer_pubkey,
+        token_account_pubkey,
+        context.mint_pubkey,
+        context.owner_keypair.pubkey(),
+        compressible_params,
+    )
+    .instruction()
+    .unwrap();
     // Verify pool PDA balance decreased by only the rent-exempt amount (not the additional rent)
     let pool_balance_before = context
         .rpc

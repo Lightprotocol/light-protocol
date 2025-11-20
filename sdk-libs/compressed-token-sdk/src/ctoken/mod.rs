@@ -14,7 +14,8 @@ pub use create_cmint::*;
 use light_compressed_token_types::POOL_SEED;
 use light_compressible::config::CompressibleConfig;
 pub use light_ctoken_types::{
-    instructions::extensions::compressible::CompressToPubkey, state::TokenDataVersion,
+    instructions::extensions::{compressible::CompressToPubkey, ExtensionInstructionData},
+    state::TokenDataVersion,
 };
 use solana_pubkey::{pubkey, Pubkey};
 pub use transfer_ctoken::*;

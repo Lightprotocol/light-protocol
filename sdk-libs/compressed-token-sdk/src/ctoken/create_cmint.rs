@@ -36,6 +36,66 @@ pub struct CreateCMintParams {
     pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
 
+impl CreateCMintParams {
+    pub fn new(
+        decimals: u8,
+        version: u8,
+        address_merkle_tree_root_index: u16,
+        mint_authority: Pubkey,
+        proof: CompressedProof,
+        mint_signer: Pubkey,
+        address_tree_pubkey: Pubkey,
+    ) -> Self {
+        let compression_address =
+            derive_compressed_mint_address(&mint_signer, &address_tree_pubkey);
+        let mint = find_spl_mint_address(&mint_signer).0;
+
+        Self {
+            decimals,
+            version,
+            address_merkle_tree_root_index,
+            mint_authority,
+            proof,
+            compression_address,
+            mint,
+            freeze_authority: None,
+            extensions: None,
+        }
+    }
+
+    pub fn new_with_address(
+        decimals: u8,
+        version: u8,
+        address_merkle_tree_root_index: u16,
+        mint_authority: Pubkey,
+        proof: CompressedProof,
+        compression_address: [u8; 32],
+        mint: Pubkey,
+    ) -> Self {
+        Self {
+            decimals,
+            version,
+            address_merkle_tree_root_index,
+            mint_authority,
+            proof,
+            compression_address,
+            mint,
+            freeze_authority: None,
+            extensions: None,
+        }
+    }
+
+    pub fn with_freeze_authority(mut self, freeze_authority: Pubkey) -> Self {
+        self.freeze_authority = Some(freeze_authority);
+        self
+    }
+
+    pub fn with_extensions(mut self, extensions: Vec<ExtensionInstructionData>) -> Self {
+        self.extensions = Some(extensions);
+        self
+    }
+}
+
 // ============================================================================
 // Builder Struct: CreateCMint
 // ============================================================================
@@ -52,54 +112,12 @@ pub struct CreateCMint {
 }
 
 impl CreateCMint {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        decimals: u8,
-        mint_authority: Pubkey,
+        params: CreateCMintParams,
         mint_signer: Pubkey,
         payer: Pubkey,
         address_tree_pubkey: Pubkey,
         output_queue: Pubkey,
-        proof: CompressedProof,
-        address_merkle_tree_root_index: u16,
-    ) -> Self {
-        let compression_address =
-            derive_compressed_mint_address(&mint_signer, &address_tree_pubkey);
-        let mint = find_spl_mint_address(&mint_signer).0;
-
-        Self {
-            mint_signer,
-            payer,
-            address_tree_pubkey,
-            output_queue,
-            cpi_context: None,
-            cpi_context_pubkey: None,
-            params: CreateCMintParams {
-                decimals,
-                mint_authority,
-                freeze_authority: None,
-                proof,
-                address_merkle_tree_root_index,
-                extensions: None,
-                version: 3,
-                compression_address,
-                mint,
-            },
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    pub fn new_with_address(
-        decimals: u8,
-        mint_authority: Pubkey,
-        mint_signer: Pubkey,
-        payer: Pubkey,
-        address_tree_pubkey: Pubkey,
-        output_queue: Pubkey,
-        proof: CompressedProof,
-        address_merkle_tree_root_index: u16,
-        compression_address: [u8; 32],
-        mint: Pubkey,
     ) -> Self {
         Self {
             mint_signer,
@@ -108,28 +126,8 @@ impl CreateCMint {
             output_queue,
             cpi_context: None,
             cpi_context_pubkey: None,
-            params: CreateCMintParams {
-                decimals,
-                mint_authority,
-                freeze_authority: None,
-                proof,
-                address_merkle_tree_root_index,
-                extensions: None,
-                version: 3,
-                compression_address,
-                mint,
-            },
+            params,
         }
-    }
-
-    pub fn with_freeze_authority(mut self, freeze_authority: Pubkey) -> Self {
-        self.params.freeze_authority = Some(freeze_authority);
-        self
-    }
-
-    pub fn with_extensions(mut self, extensions: Vec<ExtensionInstructionData>) -> Self {
-        self.params.extensions = Some(extensions);
-        self
     }
 
     pub fn with_cpi_context(mut self, cpi_context: CpiContext, cpi_context_pubkey: Pubkey) -> Self {
@@ -221,9 +219,44 @@ pub struct CreateCMintCpiWriteParams {
     pub freeze_authority: Option<Pubkey>,
     pub address_merkle_tree_root_index: u16,
     pub compression_address: [u8; 32],
+    pub mint: Pubkey,
     pub cpi_context: CpiContext,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
     pub version: u8,
+}
+
+impl CreateCMintCpiWriteParams {
+    pub fn new(
+        decimals: u8,
+        version: u8,
+        address_merkle_tree_root_index: u16,
+        mint_authority: Pubkey,
+        compression_address: [u8; 32],
+        mint: Pubkey,
+        cpi_context: CpiContext,
+    ) -> Self {
+        Self {
+            decimals,
+            version,
+            address_merkle_tree_root_index,
+            mint_authority,
+            compression_address,
+            mint,
+            cpi_context,
+            freeze_authority: None,
+            extensions: None,
+        }
+    }
+
+    pub fn with_freeze_authority(mut self, freeze_authority: Pubkey) -> Self {
+        self.freeze_authority = Some(freeze_authority);
+        self
+    }
+
+    pub fn with_extensions(mut self, extensions: Vec<ExtensionInstructionData>) -> Self {
+        self.extensions = Some(extensions);
+        self
+    }
 }
 
 // ============================================================================
@@ -239,42 +272,18 @@ pub struct CreateCompressedMintCpiWrite {
 }
 
 impl CreateCompressedMintCpiWrite {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        decimals: u8,
-        mint_authority: Pubkey,
         mint_signer: Pubkey,
         payer: Pubkey,
-        compression_address: [u8; 32],
-        cpi_context: CpiContext,
         cpi_context_pubkey: Pubkey,
-        address_merkle_tree_root_index: u16,
+        params: CreateCMintCpiWriteParams,
     ) -> Self {
         Self {
             mint_signer,
             payer,
             cpi_context_pubkey,
-            params: CreateCMintCpiWriteParams {
-                decimals,
-                mint_authority,
-                freeze_authority: None,
-                address_merkle_tree_root_index,
-                compression_address,
-                cpi_context,
-                extensions: None,
-                version: 3,
-            },
+            params,
         }
-    }
-
-    pub fn with_freeze_authority(mut self, freeze_authority: Pubkey) -> Self {
-        self.params.freeze_authority = Some(freeze_authority);
-        self
-    }
-
-    pub fn with_extensions(mut self, extensions: Vec<ExtensionInstructionData>) -> Self {
-        self.params.extensions = Some(extensions);
-        self
     }
 
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
@@ -291,7 +300,7 @@ impl CreateCompressedMintCpiWrite {
             decimals: self.params.decimals,
             metadata: light_ctoken_types::state::CompressedMintMetadata {
                 version: self.params.version,
-                mint: find_spl_mint_address(&self.mint_signer).0.to_bytes().into(),
+                mint: self.params.mint.to_bytes().into(),
                 spl_mint_initialized: false,
             },
             mint_authority: Some(self.params.mint_authority.to_bytes().into()),
@@ -335,7 +344,6 @@ impl CreateCompressedMintCpiWrite {
 // ============================================================================
 // AccountInfos Struct: CreateCompressedMintInfos (for CPI usage)
 // ============================================================================
-
 pub struct CreateCompressedMintInfos<'info> {
     pub mint_signer: AccountInfo<'info>,
     pub payer: AccountInfo<'info>,
@@ -347,6 +355,24 @@ pub struct CreateCompressedMintInfos<'info> {
 }
 
 impl<'info> CreateCompressedMintInfos<'info> {
+    pub fn new_with_address(
+        mint_signer: AccountInfo<'info>,
+        payer: AccountInfo<'info>,
+        address_tree: AccountInfo<'info>,
+        output_queue: AccountInfo<'info>,
+        params: CreateCMintParams,
+    ) -> Self {
+        Self {
+            mint_signer,
+            payer,
+            address_tree,
+            output_queue,
+            cpi_context: None,
+            cpi_context_account: None,
+            params,
+        }
+    }
+
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
         CreateCMint::from(self).instruction()
     }

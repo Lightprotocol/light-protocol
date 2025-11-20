@@ -1,8 +1,11 @@
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_batched_merkle_tree::initialize_state_tree::InitStateTreeAccountsInstructionData;
 use light_client::indexer::Indexer;
-use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
-    derive_compressed_mint_address, find_spl_mint_address,
+use light_compressed_token_sdk::{
+    compressed_token::create_compressed_mint::{
+        derive_compressed_mint_address, find_spl_mint_address,
+    },
+    ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use light_ctoken_types::state::{extensions::AdditionalMetadata, CompressedMint};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
@@ -127,11 +130,13 @@ async fn test_random_mint_action() {
 
     for _ in 0..5 {
         let recipient = Keypair::new();
-        let create_ata_ix = light_compressed_token_sdk::ctoken::create_associated_token_account(
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
             payer.pubkey(),
             recipient.pubkey(),
             spl_mint_pda,
+            CompressibleParams::default(),
         )
+        .instruction()
         .unwrap();
 
         rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])

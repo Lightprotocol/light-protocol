@@ -2,8 +2,11 @@
 
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
-    derive_compressed_mint_address, find_spl_mint_address,
+use light_compressed_token_sdk::{
+    compressed_token::create_compressed_mint::{
+        derive_compressed_mint_address, find_spl_mint_address,
+    },
+    ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use light_ctoken_types::state::{extensions::AdditionalMetadata, CompressedMint};
 use light_program_test::{utils::assert::assert_rpc_error, LightProgramTest, ProgramTestConfig};
@@ -396,11 +399,13 @@ async fn functional_and_failing_tests() {
         // Create a ctoken account first
         let recipient = Keypair::new();
 
-        let create_ata_ix = light_compressed_token_sdk::ctoken::create_associated_token_account(
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
             payer.pubkey(),
             recipient.pubkey(),
             spl_mint_pda,
+            CompressibleParams::default(),
         )
+        .instruction()
         .unwrap();
 
         rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
@@ -452,11 +457,13 @@ async fn functional_and_failing_tests() {
         // Create a new recipient for successful mint
         let recipient2 = Keypair::new();
 
-        let create_ata_ix2 = light_compressed_token_sdk::ctoken::create_associated_token_account(
+        let create_ata_ix2 = CreateAssociatedTokenAccount::new(
             payer.pubkey(),
             recipient2.pubkey(),
             spl_mint_pda,
+            CompressibleParams::default(),
         )
+        .instruction()
         .unwrap();
 
         rpc.create_and_send_transaction(&[create_ata_ix2], &payer.pubkey(), &[&payer])

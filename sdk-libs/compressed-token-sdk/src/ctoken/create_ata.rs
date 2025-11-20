@@ -152,6 +152,32 @@ pub struct CreateAssociatedTokenAccountInfos<'info> {
 }
 
 impl<'info> CreateAssociatedTokenAccountInfos<'info> {
+    pub fn new(
+        bump: u8,
+        owner: Pubkey,
+        mint: Pubkey,
+        payer: AccountInfo<'info>,
+        associated_token_account: AccountInfo<'info>,
+        system_program: AccountInfo<'info>,
+        compressible: CompressibleParamsInfos<'info>,
+    ) -> Self {
+        Self {
+            bump,
+            idempotent: false,
+            owner,
+            mint,
+            payer,
+            associated_token_account,
+            system_program,
+            compressible: Some(compressible),
+        }
+    }
+
+    pub fn with_idempotent(mut self) -> Self {
+        self.idempotent = true;
+        self
+    }
+
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
         CreateAssociatedTokenAccount::from(self).instruction()
     }

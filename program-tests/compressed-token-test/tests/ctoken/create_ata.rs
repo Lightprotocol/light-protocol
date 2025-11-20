@@ -275,18 +275,22 @@ async fn test_create_ata_failing() {
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
         let new_owner = solana_sdk::signature::Keypair::new();
 
-        let create_ata_ix = light_compressed_token_sdk::ctoken::create_compressible_associated_token_account(
-            light_compressed_token_sdk::ctoken::CreateCompressibleAssociatedTokenAccountInputs {
-                payer: poor_payer_pubkey,
-                owner: new_owner.pubkey(),
-                mint: context.mint_pubkey,
-                compressible_config: context.compressible_config,
-                rent_sponsor: context.rent_sponsor,
-                pre_pay_num_epochs: 10, // High number to require more lamports
-                lamports_per_write: Some(1000),
-                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-            },
+        let compressible_params = CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor: context.rent_sponsor,
+            pre_pay_num_epochs: 10, // High number to require more lamports
+            lamports_per_write: Some(1000),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        };
+
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
+            poor_payer_pubkey,
+            new_owner.pubkey(),
+            context.mint_pubkey,
+            compressible_params,
         )
+        .instruction()
         .unwrap();
 
         let result = context
@@ -442,26 +446,28 @@ async fn test_create_ata_failing() {
     // Compressible config must be owned by the compressed-token program
     // Error: 14 (InvalidAccountOwner)
     {
-        use light_compressed_token_sdk::ctoken::create_compressible_associated_token_account;
-
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
 
         // Use system program pubkey as fake config (wrong owner)
         let fake_config = solana_sdk::system_program::ID;
 
-        let create_ata_ix = create_compressible_associated_token_account(
-            light_compressed_token_sdk::ctoken::CreateCompressibleAssociatedTokenAccountInputs {
-                payer: payer_pubkey,
-                owner: context.owner_keypair.pubkey(),
-                mint: context.mint_pubkey,
-                compressible_config: fake_config, // Wrong owner!
-                rent_sponsor: context.rent_sponsor,
-                pre_pay_num_epochs: 2,
-                lamports_per_write: Some(100),
-                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-            },
+        let compressible_params = CompressibleParams {
+            compressible_config: fake_config, // Wrong owner!
+            rent_sponsor: context.rent_sponsor,
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        };
+
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
+            payer_pubkey,
+            context.owner_keypair.pubkey(),
+            context.mint_pubkey,
+            compressible_params,
         )
+        .instruction()
         .unwrap();
 
         let result = context
@@ -478,26 +484,28 @@ async fn test_create_ata_failing() {
     // Using the protocol config account which has a different discriminator.
     // Error: 20000 (InvalidDiscriminator from account-checks)
     {
-        use light_compressed_token_sdk::ctoken::create_compressible_associated_token_account;
-
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
 
         // Use protocol config account - owned by registry but wrong type
         let wrong_account_type = context.rpc.test_accounts.protocol.governance_authority_pda;
 
-        let create_ata_ix = create_compressible_associated_token_account(
-            light_compressed_token_sdk::ctoken::CreateCompressibleAssociatedTokenAccountInputs {
-                payer: payer_pubkey,
-                owner: context.owner_keypair.pubkey(),
-                mint: context.mint_pubkey,
-                compressible_config: wrong_account_type, // Wrong account type
-                rent_sponsor: context.rent_sponsor,
-                pre_pay_num_epochs: 2,
-                lamports_per_write: Some(100),
-                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-            },
+        let compressible_params = CompressibleParams {
+            compressible_config: wrong_account_type, // Wrong account type
+            rent_sponsor: context.rent_sponsor,
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        };
+
+        let create_ata_ix = CreateAssociatedTokenAccount::new(
+            payer_pubkey,
+            context.owner_keypair.pubkey(),
+            context.mint_pubkey,
+            compressible_params,
         )
+        .instruction()
         .unwrap();
 
         let result = context
@@ -601,20 +609,19 @@ async fn test_ata_multiple_owners_same_mint() {
     };
 
     // Create ATAs for each owner with the same mint
+    let compressible_params = CompressibleParams {
+        compressible_config: context.compressible_config,
+        rent_sponsor: context.rent_sponsor,
+        pre_pay_num_epochs: 2,
+        lamports_per_write: Some(100),
+        compress_to_account_pubkey: None,
+        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+    };
+
     let create_ata_ix1 =
-        light_compressed_token_sdk::ctoken::create_compressible_associated_token_account(
-            light_compressed_token_sdk::ctoken::CreateCompressibleAssociatedTokenAccountInputs {
-                payer: payer_pubkey,
-                owner: owner1,
-                mint,
-                compressible_config: context.compressible_config,
-                rent_sponsor: context.rent_sponsor,
-                pre_pay_num_epochs: 2,
-                lamports_per_write: Some(100),
-                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-            },
-        )
-        .unwrap();
+        CreateAssociatedTokenAccount::new(payer_pubkey, owner1, mint, compressible_params.clone())
+            .instruction()
+            .unwrap();
 
     context
         .rpc
@@ -634,19 +641,9 @@ async fn test_ata_multiple_owners_same_mint() {
     .await;
 
     let create_ata_ix2 =
-        light_compressed_token_sdk::ctoken::create_compressible_associated_token_account(
-            light_compressed_token_sdk::ctoken::CreateCompressibleAssociatedTokenAccountInputs {
-                payer: payer_pubkey,
-                owner: owner2,
-                mint,
-                compressible_config: context.compressible_config,
-                rent_sponsor: context.rent_sponsor,
-                pre_pay_num_epochs: 2,
-                lamports_per_write: Some(100),
-                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-            },
-        )
-        .unwrap();
+        CreateAssociatedTokenAccount::new(payer_pubkey, owner2, mint, compressible_params.clone())
+            .instruction()
+            .unwrap();
 
     context
         .rpc
@@ -666,19 +663,9 @@ async fn test_ata_multiple_owners_same_mint() {
     .await;
 
     let create_ata_ix3 =
-        light_compressed_token_sdk::ctoken::create_compressible_associated_token_account(
-            light_compressed_token_sdk::ctoken::CreateCompressibleAssociatedTokenAccountInputs {
-                payer: payer_pubkey,
-                owner: owner3,
-                mint,
-                compressible_config: context.compressible_config,
-                rent_sponsor: context.rent_sponsor,
-                pre_pay_num_epochs: 2,
-                lamports_per_write: Some(100),
-                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-            },
-        )
-        .unwrap();
+        CreateAssociatedTokenAccount::new(payer_pubkey, owner3, mint, compressible_params)
+            .instruction()
+            .unwrap();
 
     context
         .rpc

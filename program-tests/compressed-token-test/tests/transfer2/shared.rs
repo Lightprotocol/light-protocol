@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use anchor_lang::AnchorDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_compressed_token_sdk::compressed_token::create_compressed_mint::find_spl_mint_address;
+use light_compressed_token_sdk::{
+    compressed_token::create_compressed_mint::find_spl_mint_address,
+    ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
+};
 use light_ctoken_types::{
     instructions::{mint_action::Recipient, transfer2::CompressedTokenInstructionDataTransfer2},
     state::TokenDataVersion,

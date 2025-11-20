@@ -99,6 +99,22 @@ pub struct CreateCTokenAccountInfos<'info> {
 }
 
 impl<'info> CreateCTokenAccountInfos<'info> {
+    pub fn new(
+        payer: AccountInfo<'info>,
+        account: AccountInfo<'info>,
+        mint: AccountInfo<'info>,
+        owner: Pubkey,
+        compressible: CompressibleParamsInfos<'info>,
+    ) -> Self {
+        Self {
+            payer,
+            account,
+            mint,
+            owner,
+            compressible: Some(compressible),
+        }
+    }
+
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
         CreateCTokenAccount::from(self).instruction()
     }

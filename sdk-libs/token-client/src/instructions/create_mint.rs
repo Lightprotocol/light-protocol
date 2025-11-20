@@ -2,7 +2,9 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_compressed_token_sdk::ctoken::{derive_compressed_mint_address, CreateCMint};
+use light_compressed_token_sdk::ctoken::{
+    derive_compressed_mint_address, CreateCMint, CreateCMintParams,
+};
 use light_ctoken_types::instructions::extensions::{
     token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
 };
@@ -59,25 +61,33 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
 
     let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
 
-    // Create instruction using the builder pattern
-    let mut builder = CreateCMint::new(
+    // Create params using the builder pattern
+    let mut params = CreateCMintParams::new(
         decimals,
+        3, // version
+        address_merkle_tree_root_index,
         mint_authority,
+        rpc_result.proof.0.unwrap(),
+        mint_seed.pubkey(),
+        address_tree_pubkey,
+    );
+
+    if let Some(freeze_auth) = freeze_authority {
+        params = params.with_freeze_authority(freeze_auth);
+    }
+
+    if let Some(exts) = extensions {
+        params = params.with_extensions(exts);
+    }
+
+    // Create instruction builder
+    let builder = CreateCMint::new(
+        params,
         mint_seed.pubkey(),
         payer,
         address_tree_pubkey,
         output_queue,
-        rpc_result.proof.0.unwrap(),
-        address_merkle_tree_root_index,
     );
-
-    if let Some(freeze_auth) = freeze_authority {
-        builder = builder.with_freeze_authority(freeze_auth);
-    }
-
-    if let Some(exts) = extensions {
-        builder = builder.with_extensions(exts);
-    }
 
     builder
         .instruction()

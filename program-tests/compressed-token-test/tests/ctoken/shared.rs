@@ -1,9 +1,7 @@
 // Re-export all necessary imports for test modules
 pub use light_compressed_token_sdk::ctoken::{
-    close::CloseAccount,
-    create::CreateCTokenAccount,
-    create_ata::{derive_ctoken_ata, CreateAssociatedTokenAccount},
-    CompressibleParams,
+    derive_ctoken_ata, CloseAccount, CompressibleParams, CreateAssociatedTokenAccount,
+    CreateCTokenAccount,
 };
 pub use light_compressible::rent::{RentConfig, SLOTS_PER_EPOCH};
 pub use light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
@@ -310,7 +308,7 @@ pub async fn close_and_assert_token_account(
         use light_zero_copy::traits::ZeroCopyAt;
 
         let (ctoken, _) = CToken::zero_copy_at(&account_info.data).unwrap();
-        let rent_sponsor = if let Some(extensions) = ctoken.extensions.as_ref() {
+        let _rent_sponsor = if let Some(extensions) = ctoken.extensions.as_ref() {
             extensions
                 .iter()
                 .find_map(|ext| match ext {
@@ -322,20 +320,23 @@ pub async fn close_and_assert_token_account(
             panic!("Compressible account must have compressible extension");
         };
 
-        close_compressible_account(
-            &light_compressed_token::ID,
-            &token_account_pubkey,
-            &destination,
-            &context.owner_keypair.pubkey(),
-            &rent_sponsor,
+        CloseAccount::new(
+            light_compressed_token::ID,
+            token_account_pubkey,
+            destination,
+            context.owner_keypair.pubkey(),
         )
+        .instruction()
+        .unwrap()
     } else {
-        close_account(
-            &light_compressed_token::ID,
-            &token_account_pubkey,
-            &destination,
-            &context.owner_keypair.pubkey(),
+        CloseAccount::new(
+            light_compressed_token::ID,
+            token_account_pubkey,
+            destination,
+            context.owner_keypair.pubkey(),
         )
+        .instruction()
+        .unwrap()
     };
 
     context
@@ -375,22 +376,15 @@ pub async fn close_and_assert_token_account_fails(
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
-    let close_ix = if let Some(sponsor) = rent_sponsor {
-        close_compressible_account(
-            &light_compressed_token::ID,
-            &token_account_pubkey,
-            &destination,
-            &authority.pubkey(),
-            &sponsor,
-        )
-    } else {
-        close_account(
-            &light_compressed_token::ID,
-            &token_account_pubkey,
-            &destination,
-            &authority.pubkey(),
-        )
-    };
+    let close_ix = CloseAccount {
+        token_program: light_compressed_token::ID,
+        account: token_account_pubkey,
+        destination,
+        owner: authority.pubkey(),
+        rent_sponsor,
+    }
+    .instruction()
+    .unwrap();
 
     let result = context
         .rpc
