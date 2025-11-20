@@ -481,7 +481,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     async fn prepare_iteration_inputs(
         &mut self,
     ) -> Result<Option<(usize, usize, QueueFetchResult)>> {
-        if self.cached_staging.is_none() {
+        let had_cache = self.cached_staging.is_some();
+        if !had_cache {
             self.record_cache_event("miss", "not_present");
         }
 
@@ -496,9 +497,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let output_queue_account = accounts[1].take();
         drop(rpc);
 
-        self.sync_with_chain_with_accounts(&mut merkle_tree_account, output_queue_account.as_ref())
-            .await?;
-
+        // Extract on-chain root FIRST to check if sync is needed
         let tree_data = BatchedMerkleTreeAccount::state_from_bytes(
             merkle_tree_account.data.as_mut_slice(),
             &self.context.merkle_tree.into(),
@@ -509,10 +508,12 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             .copied()
             .ok_or_else(|| anyhow::anyhow!("No root in tree history"))?;
 
+        // Check if cache is valid
+        let mut needs_sync = !had_cache;
         if let Some((_, cached_root)) = &self.cached_staging {
             if *cached_root != on_chain_root {
                 info!(
-                    "Cache is STALE for speculation prep: cached_root={:?}, on_chain_root={:?}",
+                    "Cache is STALE: cached_root={:?}, on_chain_root={:?}",
                     &cached_root[..8],
                     &on_chain_root[..8]
                 );
@@ -520,7 +521,13 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let mut staging_cache = PERSISTENT_STAGING_TREES.lock().await;
                 staging_cache.remove(&self.context.merkle_tree);
                 self.record_cache_event("invalidate", "root_mismatch");
+                needs_sync = true;
             }
+        }
+
+        if needs_sync {
+            self.sync_with_chain_with_accounts(&mut merkle_tree_account, output_queue_account.as_ref())
+                .await?;
         }
 
         let (num_append_batches, num_nullify_batches) = self
@@ -1171,6 +1178,20 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             let (hash_chains, skip_elements) = if zkp_batches_count < zkp_batches_expected {
                 let skip_batches = zkp_batches_expected - zkp_batches_count;
                 let skip_elem_count = skip_batches * queue_data.zkp_batch_size as usize;
+
+                // Check if skipping would leave no elements
+                if skip_elem_count >= oq.leaf_indices.len() {
+                    warn!(
+                        "Photon data too stale: has {} append zkp batches ({} elements), on-chain expects {} batches. Skipping {} batches would leave no elements. Aborting.",
+                        zkp_batches_count, oq.leaf_indices.len(), zkp_batches_expected, skip_batches
+                    );
+                    return Err(CoordinatorError::PhotonIndexMismatch {
+                        queue_type: "output".to_string(),
+                        expected_start: queue_data.batch_start_index,
+                        actual_start: oq.leaf_indices.first().copied().unwrap_or(0),
+                    }.into());
+                }
+
                 debug!(
                     "Photon has {} append zkp batches, on-chain expects {}. Skipping first {} batches ({} elements)",
                     zkp_batches_count, zkp_batches_expected, skip_batches, skip_elem_count
@@ -1185,7 +1206,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 .iter()
                 .zip(oq.account_hashes.iter())
                 .zip(oq.old_leaves.iter())
-                .skip(skip_elements)  
+                .skip(skip_elements)
                 .map(|((&leaf_index, &account_hash), &old_leaf)| {
                     light_client::indexer::MerkleProofWithContext {
                         proof: vec![],
@@ -1235,6 +1256,38 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             } else {
                 (tree_data.leaves_hash_chains.clone(), 0)
             };
+
+            // Debug: Check array lengths
+            debug!(
+                "Photon input queue lengths: leaf_indices={}, account_hashes={}, current_leaves={}, tx_hashes={}",
+                iq.leaf_indices.len(),
+                iq.account_hashes.len(),
+                iq.current_leaves.len(),
+                iq.tx_hashes.len()
+            );
+
+            // Validate that all arrays have the same length
+            if iq.tx_hashes.len() != iq.leaf_indices.len() {
+                warn!(
+                    "Photon input queue data mismatch: tx_hashes.len()={} != leaf_indices.len()={}. Photon data is incomplete.",
+                    iq.tx_hashes.len(),
+                    iq.leaf_indices.len()
+                );
+                return Err(CoordinatorError::PhotonStale {
+                    queue_type: "input".to_string(),
+                    photon_root: {
+                        let mut root = [0u8; 8];
+                        root.copy_from_slice(&iq.initial_root[..8]);
+                        root
+                    },
+                    onchain_root: {
+                        let mut root = [0u8; 8];
+                        root.copy_from_slice(&iq.initial_root[..8]);
+                        root
+                    },
+                }
+                .into());
+            }
 
             let queue_elements = iq
                 .leaf_indices
@@ -1297,9 +1350,11 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     .map(|q| q.initial_root)
                     .or_else(|| input_queue_v2.map(|q| q.initial_root));
 
-                let cached_base_root = cached_staging.base_root();
+                // Compare against current_root (computed from sparse tree) NOT base_root (Photon's initial_root)
+                // because we use computed_root for actual proof generation
+                let cached_current_root = cached_staging.current_root();
                 let photon_root_matches = fresh_photon_root
-                    .map(|fresh_root| fresh_root == cached_base_root)
+                    .map(|fresh_root| fresh_root == cached_current_root)
                     .unwrap_or(true); // If no photon data, allow reuse
 
                 if photon_root_matches {
@@ -1315,9 +1370,9 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 } else {
                     if let Some(photon_root) = fresh_photon_root {
                         debug!(
-                            "Invalidating cache: photon initial_root {:?} != cached base_root {:?}",
+                            "Invalidating cache: photon initial_root {:?} != cached current_root {:?}",
                             &photon_root[..8],
-                            &cached_base_root[..8]
+                            &cached_current_root[..8]
                         );
                     }
                     self.record_cache_event("invalidate", "prep_photon_root_mismatch");

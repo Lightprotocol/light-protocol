@@ -41,6 +41,11 @@ pub fn prepare_append_batch(
         .collect();
 
     let old_root = state.staging.current_root();
+    tracing::debug!(
+        "prepare_append_batch (batch {}): Retrieved old_root={:?} from staging.current_root()",
+        batch_idx,
+        &old_root[..8]
+    );
 
     // For v2: Get proofs and update tree iteratively (each proof depends on previous updates)
     let proof_start = std::time::Instant::now();

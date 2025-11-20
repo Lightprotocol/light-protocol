@@ -137,29 +137,26 @@ impl StagingTree {
             }
         }
 
-        // NOTE: We do NOT verify the tree root here because the tree is loaded with
-        // deduplicated nodes from the indexer. The tree structure is sparse but sufficient
-        // for incremental proof generation via the staging tree mechanism.
         let total_nodes = tree.layers.iter().map(|l| l.len()).sum::<usize>();
+        let computed_root = tree.root();
+
         debug!(
-            "StagingTree loaded: base_root={:?}, nodes={} total (sparse, deduplicated)",
+            "StagingTree loaded: base_root={:?}, computed_root={:?}, nodes={} total (sparse, deduplicated)",
             &base_root[..8],
+            &computed_root[..8],
             total_nodes
         );
 
-        let computed_root = tree.root();
-        if computed_root != base_root {
-            debug!(
-                "StagingTree root mismatch after load: computed={:?}, expected(base)={:?}",
-                &computed_root[..8],
-                &base_root[..8]
-            );
-        }
+
+        debug!(
+            "StagingTree: Setting current_root={:?} (computed_root)",
+            &computed_root[..8]
+        );
 
         Ok(Self {
             tree,
             base_root,
-            current_root: base_root,
+            current_root: computed_root,
             updates: Vec::new(),
         })
     }
@@ -225,6 +222,12 @@ impl StagingTree {
                 Self::set_node_in_tree(&mut self.tree, 0, *leaf_idx as usize, *leaf_hash)?;
             }
         }
+
+        self.current_root = self.tree.root();
+        debug!(
+            "merge_fresh_nodes_from_indexer: Updated current_root={:?} after merging fresh nodes",
+            &self.current_root[..8]
+        );
 
         Ok(())
     }
