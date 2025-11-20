@@ -1,8 +1,11 @@
 pub mod close;
-pub mod create_associated_token_account;
-pub mod create_token_account;
+mod compressible;
+pub mod create;
+pub mod create_ata;
 pub mod transfer_ctoken;
 pub mod transfer_interface;
+
+pub use compressible::CompressibleParams;
 
 use light_compressed_token_types::POOL_SEED;
 use light_compressible::config::CompressibleConfig;
@@ -11,6 +14,10 @@ use solana_pubkey::{pubkey, Pubkey};
 pub const CTOKEN_PROGRAM_ID: Pubkey = pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
 pub const CTOKEN_CPI_AUTHORITY: Pubkey = pubkey!("GXtd2izAiMJPwMEjfgTRH3d7k9mjn4Jq3JrWFv9gySYy");
+
+pub const COMPRESSIBLE_CONFIG_V1: Pubkey = pubkey!("ACXg8a7VaqecBWrSbdu73W4Pg9gsqXJ3EXAqkHyhvVXg");
+
+pub const RENT_SPONSOR: Pubkey = pubkey!("r18WwUxfG8kQ69bQPAB2jV6zGNKy3GosFGctjQoV4ti");
 
 /// Returns the program ID for the Compressed Token Program
 pub fn id() -> Pubkey {
@@ -44,11 +51,11 @@ pub use crate::compressed_token::create_compressed_mint::{
 };
 
 pub fn config_pda() -> Pubkey {
-    CompressibleConfig::ctoken_v1_config_pda()
+    COMPRESSIBLE_CONFIG_V1
 }
 
 pub fn rent_sponsor_pda() -> Pubkey {
-    CompressibleConfig::ctoken_v1_rent_sponsor_pda()
+    RENT_SPONSOR
 }
 
 pub fn compression_authority_pda() -> Pubkey {
