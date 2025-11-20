@@ -1160,11 +1160,28 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 anyhow::anyhow!("metadata unexpectedly None when output_queue is Some")
             })?;
 
+            let zkp_batches_count = (oq.leaf_indices.len() + queue_data.zkp_batch_size as usize - 1)
+                / queue_data.zkp_batch_size as usize;
+            let zkp_batches_expected = queue_data.leaves_hash_chains.len();
+
+            let (hash_chains, skip_elements) = if zkp_batches_count < zkp_batches_expected {
+                let skip_batches = zkp_batches_expected - zkp_batches_count;
+                let skip_elem_count = skip_batches * queue_data.zkp_batch_size as usize;
+                debug!(
+                    "Photon has {} append zkp batches, on-chain expects {}. Skipping first {} batches ({} elements)",
+                    zkp_batches_count, zkp_batches_expected, skip_batches, skip_elem_count
+                );
+                (queue_data.leaves_hash_chains[skip_batches..].to_vec(), skip_elem_count)
+            } else {
+                (queue_data.leaves_hash_chains.clone(), 0)
+            };
+
             let queue_elements = oq
                 .leaf_indices
                 .iter()
                 .zip(oq.account_hashes.iter())
                 .zip(oq.old_leaves.iter())
+                .skip(skip_elements)  
                 .map(|((&leaf_index, &account_hash), &old_leaf)| {
                     light_client::indexer::MerkleProofWithContext {
                         proof: vec![],
@@ -1178,20 +1195,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     }
                 })
                 .collect();
-
-            let zkp_batches_count = (oq.leaf_indices.len() + queue_data.zkp_batch_size as usize - 1)
-                / queue_data.zkp_batch_size as usize;
-
-            let (hash_chains, _skip_batches) = if zkp_batches_count < queue_data.leaves_hash_chains.len() {
-                let skip_count = queue_data.leaves_hash_chains.len() - zkp_batches_count;
-                debug!(
-                    "Photon has {} zkp batches, on-chain expects {}. Skipping first {} batches (already processed).",
-                    zkp_batches_count, queue_data.leaves_hash_chains.len(), skip_count
-                );
-                (queue_data.leaves_hash_chains[skip_count..].to_vec(), skip_count)
-            } else {
-                (queue_data.leaves_hash_chains.clone(), 0)
-            };
 
             Ok(Some(AppendQueueData {
                 queue_elements,
@@ -1213,12 +1216,29 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 anyhow::anyhow!("metadata unexpectedly None when input_queue is Some")
             })?;
 
+            let zkp_batches_count = (iq.leaf_indices.len() + tree_data.zkp_batch_size as usize - 1)
+                / tree_data.zkp_batch_size as usize;
+            let zkp_batches_expected = tree_data.leaves_hash_chains.len();
+
+            let (hash_chains, skip_elements) = if zkp_batches_count < zkp_batches_expected {
+                let skip_batches = zkp_batches_expected - zkp_batches_count;
+                let skip_elem_count = skip_batches * tree_data.zkp_batch_size as usize;
+                debug!(
+                    "Photon has {} nullify zkp batches, on-chain expects {}. Skipping first {} batches ({} elements)",
+                    zkp_batches_count, zkp_batches_expected, skip_batches, skip_elem_count
+                );
+                (tree_data.leaves_hash_chains[skip_batches..].to_vec(), skip_elem_count)
+            } else {
+                (tree_data.leaves_hash_chains.clone(), 0)
+            };
+
             let queue_elements = iq
                 .leaf_indices
                 .iter()
                 .zip(iq.account_hashes.iter())
                 .zip(iq.current_leaves.iter())
                 .zip(iq.tx_hashes.iter())
+                .skip(skip_elements)  // CRITICAL FIX: Skip elements from already-processed batches
                 .map(
                     |(((&leaf_index, &account_hash), &current_leaf), &tx_hash)| {
                         light_client::indexer::MerkleProofWithContext {
@@ -1234,15 +1254,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     },
                 )
                 .collect();
-
-            let zkp_batches_count = (iq.leaf_indices.len() + tree_data.zkp_batch_size as usize - 1)
-                / tree_data.zkp_batch_size as usize;
-            let hash_chains = if zkp_batches_count < tree_data.leaves_hash_chains.len() {
-                let skip_count = tree_data.leaves_hash_chains.len() - zkp_batches_count;
-                tree_data.leaves_hash_chains[skip_count..].to_vec()
-            } else {
-                tree_data.leaves_hash_chains.clone()
-            };
 
             Ok(Some(NullifyQueueData {
                 queue_elements,
@@ -1800,6 +1811,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let mut nullify_batch_ids = Vec::new();
         let mut zkp_batch_size = 0u16;
         let mut batch_start_index = u64::MAX;
+        let mut first_unprocessed_set = false;
 
         for (batch_idx, batch) in merkle_tree.queue_batches.batches.iter().enumerate() {
             let batch_state = batch.get_state();
@@ -1810,18 +1822,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let num_inserted = batch.get_num_inserted_zkps();
                 let current_index = batch.get_current_zkp_batch_index();
 
-                let adjusted_start = batch.start_index + (num_inserted * batch.zkp_batch_size as u64);
-                if adjusted_start < batch_start_index {
-                    zkp_batch_size = batch.zkp_batch_size as u16;
-                    batch_start_index = adjusted_start;
-                }
-
                 for i in num_inserted..current_index {
-                    // Always collect hash chains for limit calculation (Photon needs total count)
-                    tree_leaves_hash_chains
-                        .push(merkle_tree.hash_chain_stores[batch_idx][i as usize]);
-
-                    // Only track batch_ids for unprocessed batches (for actual work)
                     let batch_id = ProcessedBatchId {
                         batch_index: batch_idx,
                         zkp_batch_index: i,
@@ -1829,8 +1830,19 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                         start_leaf_index: None,
                     };
 
-                    if !shared_state.is_batch_processed(&batch_id) && collect_nullify_ids {
-                        nullify_batch_ids.push(batch_id);
+                    tree_leaves_hash_chains
+                        .push(merkle_tree.hash_chain_stores[batch_idx][i as usize]);
+
+                    if !shared_state.is_batch_processed(&batch_id) {
+                        if !first_unprocessed_set {
+                            zkp_batch_size = batch.zkp_batch_size as u16;
+                            batch_start_index = batch.start_index + (i * batch.zkp_batch_size as u64);
+                            first_unprocessed_set = true;
+                        }
+
+                        if collect_nullify_ids {
+                            nullify_batch_ids.push(batch_id);
+                        }
                     }
                 }
             }
@@ -1841,6 +1853,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             .last()
             .ok_or_else(|| anyhow::anyhow!("Merkle tree has no root history"))?;
 
+        let tree_hash_chains_len = tree_leaves_hash_chains.len();
         let tree_data = ParsedMerkleTreeData {
             next_index: merkle_tree.next_index,
             current_root: *current_root,
@@ -1848,7 +1861,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             zkp_batch_size,
             pending_batch_index: merkle_tree.queue_batches.pending_batch_index as u32,
             num_inserted_zkps: 0,
-            current_zkp_batch_index: tree_leaves_hash_chains.len() as u64,
+            current_zkp_batch_index: tree_hash_chains_len as u64,
             batch_start_index,
             leaves_hash_chains: tree_leaves_hash_chains,
         };
@@ -1856,6 +1869,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let mut queue_leaves_hash_chains = Vec::new();
         let mut append_batch_ids = Vec::new();
         let mut queue_batch_start_index = u64::MAX;
+        let mut first_append_unprocessed_set = false;
 
         for (batch_idx, batch) in output_queue.batch_metadata.batches.iter().enumerate() {
             let batch_state = batch.get_state();
@@ -1866,15 +1880,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let num_inserted = batch.get_num_inserted_zkps();
                 let current_index = batch.get_current_zkp_batch_index();
 
-                let adjusted_start = batch.start_index + (num_inserted * batch.zkp_batch_size as u64);
-                if adjusted_start < queue_batch_start_index {
-                    queue_batch_start_index = adjusted_start;
-                }
-
                 for i in num_inserted..current_index {
-                    queue_leaves_hash_chains
-                        .push(output_queue.hash_chain_stores[batch_idx][i as usize]);
-
                     let batch_id = ProcessedBatchId {
                         batch_index: batch_idx,
                         zkp_batch_index: i,
@@ -1882,13 +1888,28 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                         start_leaf_index: None,
                     };
 
-                    if !shared_state.is_batch_processed(&batch_id) && collect_append_ids {
-                        append_batch_ids.push(batch_id);
+                    queue_leaves_hash_chains
+                        .push(output_queue.hash_chain_stores[batch_idx][i as usize]);
+
+                    if !shared_state.is_batch_processed(&batch_id) {
+                        if !first_append_unprocessed_set {
+                            queue_batch_start_index = batch.start_index + (i * batch.zkp_batch_size as u64);
+                            first_append_unprocessed_set = true;
+                        }
+
+                        if collect_append_ids {
+                            append_batch_ids.push(batch_id);
+                        }
                     }
                 }
             }
         }
         drop(shared_state);
+
+        info!(
+            "parse_tree_and_queue_data: tree batch_start_index={}, tree_hash_chains={}, queue batch_start_index={}, queue_hash_chains={}",
+            batch_start_index, tree_hash_chains_len, queue_batch_start_index, queue_leaves_hash_chains.len()
+        );
 
         let queue_data = ParsedQueueData {
             zkp_batch_size: output_queue.batch_metadata.zkp_batch_size as u16,
@@ -1912,7 +1933,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let mut leaves_hash_chains = Vec::new();
         let mut batch_ids = Vec::new();
         let mut zkp_batch_size = 0u16;
-        let mut batch_start_index = 0u64;
+        let mut batch_start_index = u64::MAX;
+        let mut first_unprocessed_set = false;
 
         for (batch_idx, batch) in merkle_tree.queue_batches.batches.iter().enumerate() {
             let batch_state = batch.get_state();
@@ -1923,15 +1945,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let num_inserted = batch.get_num_inserted_zkps();
                 let current_index = batch.get_current_zkp_batch_index();
 
-                if leaves_hash_chains.is_empty() {
-                    zkp_batch_size = batch.zkp_batch_size as u16;
-                    batch_start_index = batch.start_index;
-                }
-
                 for i in num_inserted..current_index {
-                    leaves_hash_chains
-                        .push(merkle_tree.hash_chain_stores[batch_idx][i as usize]);
-
                     let batch_id = ProcessedBatchId {
                         batch_index: batch_idx,
                         zkp_batch_index: i,
@@ -1939,8 +1953,19 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                         start_leaf_index: None,
                     };
 
-                    if !shared_state.is_batch_processed(&batch_id) && collect_batch_ids {
-                        batch_ids.push(batch_id);
+                    leaves_hash_chains
+                        .push(merkle_tree.hash_chain_stores[batch_idx][i as usize]);
+
+                    if !shared_state.is_batch_processed(&batch_id) {
+                        if !first_unprocessed_set {
+                            zkp_batch_size = batch.zkp_batch_size as u16;
+                            batch_start_index = batch.start_index + (i * batch.zkp_batch_size as u64);
+                            first_unprocessed_set = true;
+                        }
+
+                        if collect_batch_ids {
+                            batch_ids.push(batch_id);
+                        }
                     }
                 }
             }
@@ -1954,8 +1979,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
 
         let current_zkp_batch_index = leaves_hash_chains.len() as u64;
         info!(
-            "parse_tree_data: zkp_batch_size={}, leaves_hash_chains.len()={}, current_zkp_batch_index={}",
-            zkp_batch_size, leaves_hash_chains.len(), current_zkp_batch_index
+            "parse_tree_data: zkp_batch_size={}, leaves_hash_chains.len()={}, current_zkp_batch_index={}, batch_start_index={}",
+            zkp_batch_size, leaves_hash_chains.len(), current_zkp_batch_index, batch_start_index
         );
 
         Ok((

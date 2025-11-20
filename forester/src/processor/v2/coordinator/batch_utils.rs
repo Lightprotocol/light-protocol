@@ -6,7 +6,7 @@ use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::rpc::Rpc;
 use solana_sdk::pubkey::Pubkey;
 use std::collections::HashSet;
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 /// Maximum number of times to resubmit a proof job when the prover returns "job_not_found".
 /// This handles transient race conditions where the prover hasn't yet registered the job.
@@ -89,34 +89,24 @@ pub fn validate_root(current_root: [u8; 32], expected_root: [u8; 32], phase: &st
 pub fn validate_photon_root(
     photon_root: [u8; 32],
     onchain_root: [u8; 32],
-    root_history: &[[u8; 32]],
+    _root_history: &[[u8; 32]],
     queue_type: &str,
 ) -> Result<()> {
-    if photon_root == onchain_root {
-        return Ok(());
+    if photon_root != onchain_root {
+        let mut photon = [0u8; 8];
+        let mut onchain = [0u8; 8];
+        photon.copy_from_slice(&photon_root[..8]);
+        onchain.copy_from_slice(&onchain_root[..8]);
+
+        return Err(CoordinatorError::PhotonStale {
+            queue_type: queue_type.to_string(),
+            photon_root: photon,
+            onchain_root: onchain,
+        }
+        .into());
     }
 
-    if root_history.contains(&photon_root) {
-        debug!(
-            "Photon {} queue root {:?} != on-chain root {:?} but found in root history",
-            queue_type,
-            &photon_root[..8],
-            &onchain_root[..8]
-        );
-        return Ok(());
-    }
-
-    let mut photon = [0u8; 8];
-    let mut onchain = [0u8; 8];
-    photon.copy_from_slice(&photon_root[..8]);
-    onchain.copy_from_slice(&onchain_root[..8]);
-
-    Err(CoordinatorError::PhotonStale {
-        queue_type: queue_type.to_string(),
-        photon_root: photon,
-        onchain_root: onchain,
-    }
-    .into())
+    Ok(())
 }
 
 /// Extracts the current root from a batched merkle tree account.

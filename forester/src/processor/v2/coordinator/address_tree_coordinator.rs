@@ -19,13 +19,12 @@ use light_prover_client::proof_client::ProofClient;
 use light_sparse_merkle_tree::SparseMerkleTree;
 use once_cell::sync::Lazy;
 use solana_sdk::{account::Account, pubkey::Pubkey};
-use tokio::{sync::Mutex as TokioMutex, time::sleep};
+use tokio::sync::Mutex as TokioMutex;
 use tracing::{debug, error, info, warn};
 
 use super::{
     batch_utils::{
         self, validate_root, MAX_COORDINATOR_RETRIES,
-        PHOTON_STALE_MAX_RETRIES, PHOTON_STALE_RETRY_DELAY_MS,
     },
     error::CoordinatorError,
     proof_generation::ProofConfig,
@@ -447,51 +446,12 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
     async fn fetch_address_queue(
         &mut self,
     ) -> Result<AddressQueueData> {
-        for attempt in 0..=PHOTON_STALE_MAX_RETRIES {
-            return match self
-                .fetch_address_queue_inner()
-                .await
-            {
-                Ok(data) => Ok(data),
-                Err(err) => {
-                    if let Some(coord_err) = err.downcast_ref::<CoordinatorError>() {
-                        if let CoordinatorError::PhotonStale {
-                            queue_type,
-                            photon_root,
-                            onchain_root,
-                        } = coord_err
-                        {
-                            if attempt < PHOTON_STALE_MAX_RETRIES {
-                                warn!(
-                                    "Photon staleness detected for {} queue (tree={}, attempt {}/{}): photon_root={:?}, on_chain_root={:?}. Retrying in {}ms",
-                                    queue_type,
-                                    self.context.merkle_tree,
-                                    attempt + 1,
-                                    PHOTON_STALE_MAX_RETRIES,
-                                    photon_root,
-                                    onchain_root,
-                                    PHOTON_STALE_RETRY_DELAY_MS
-                                );
-                                sleep(Duration::from_millis(PHOTON_STALE_RETRY_DELAY_MS)).await;
-                                continue;
-                            }
-                        }
-                    }
-                    Err(err)
-                }
-            }
-        }
-
-        Err(anyhow::anyhow!(
-            "Exceeded Photon staleness retries for tree {}",
-            self.context.merkle_tree
-        ))
-    }
-
-    async fn fetch_address_queue_inner(
-        &mut self,
-    ) -> Result<AddressQueueData> {
         let rpc = self.context.rpc_pool.get_connection().await?;
+
+        forester_utils::utils::wait_for_indexer(&*rpc)
+            .await
+            .map_err(|e| anyhow::anyhow!("Indexer failed to catch up before fetch: {}", e))?;
+
         let account = rpc
             .get_account(self.context.merkle_tree)
             .await?
@@ -528,9 +488,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         let mut connection = self.context.rpc_pool.get_connection().await?;
         let indexer = connection.indexer_mut()?;
 
-        // Calculate the queue start index: for address trees, queue_index = leaf_index - 1
-        // (first address in queue goes to leaf position 1)
-        // Use the first batch_id's start_leaf_index to get the correct starting position
         let address_queue_start_idx = if let Some(first_batch_id) = parsed_state.batch_ids.front() {
             if let Some(start_leaf) = first_batch_id.start_leaf_index {
                 if start_leaf > 1 {
