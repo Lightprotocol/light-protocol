@@ -28,6 +28,7 @@ pub trait LightInstructionData: InstructionDiscriminator + AnchorSerialize {
             .map_err(|_| CompressedAccountError::InvalidArgument)?;
         let mut data = crate::Vec::with_capacity(8 + inputs.len());
         data.extend_from_slice(self.discriminator());
+
         data.extend_from_slice(inputs.as_slice());
         Ok(data)
     }

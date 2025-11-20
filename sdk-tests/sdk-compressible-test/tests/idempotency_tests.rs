@@ -110,6 +110,7 @@ async fn test_double_decompression_attack() {
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
                 some_mint: payer.pubkey(),
+                system_program: Pubkey::default(),
             }
             .to_account_metas(None),
             rpc_result,

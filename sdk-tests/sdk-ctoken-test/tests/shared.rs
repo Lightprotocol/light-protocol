@@ -1,0 +1,192 @@
+// Shared test utilities for sdk-ctoken-test
+
+use borsh::BorshDeserialize;
+use light_client::{indexer::Indexer, rpc::Rpc};
+use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+
+/// Setup helper: Creates a compressed mint directly using the ctoken SDK (not via wrapper program)
+/// Optionally creates ATAs and mints tokens for each recipient.
+/// Returns (mint_pda, compression_address, ata_pubkeys)
+#[allow(unused)]
+pub async fn setup_create_compressed_mint(
+    rpc: &mut (impl Rpc + Indexer),
+    payer: &Keypair,
+    mint_authority: Pubkey,
+    decimals: u8,
+    recipients: Vec<(u64, Pubkey)>,
+) -> (Pubkey, [u8; 32], Vec<Pubkey>) {
+    use light_compressed_token_sdk::ctoken::{
+        CompressibleParams, CreateAssociatedTokenAccount, CreateCMint, CreateCMintParams,
+        MintToCToken, MintToCTokenParams,
+    };
+
+    let mint_signer = Keypair::new();
+    let address_tree = rpc.get_address_tree_v2();
+    let output_queue = rpc.get_random_state_tree_info().unwrap().queue;
+
+    // Derive compression address using SDK helpers
+    let compression_address = light_compressed_token_sdk::ctoken::derive_compressed_mint_address(
+        &mint_signer.pubkey(),
+        &address_tree.tree,
+    );
+
+    let mint_pda =
+        light_compressed_token_sdk::ctoken::find_spl_mint_address(&mint_signer.pubkey()).0;
+
+    // Get validity proof for the address
+    let rpc_result = rpc
+        .get_validity_proof(
+            vec![],
+            vec![light_client::indexer::AddressWithTree {
+                address: compression_address,
+                tree: address_tree.tree,
+            }],
+            None,
+        )
+        .await
+        .unwrap()
+        .value;
+
+    // Build params for the SDK
+    let params = CreateCMintParams {
+        decimals,
+        version: 3,
+        address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
+        mint_authority,
+        proof: rpc_result.proof.0.unwrap(),
+        compression_address,
+        mint: mint_pda,
+        freeze_authority: None,
+        extensions: None,
+    };
+
+    // Create instruction directly using SDK
+    let create_cmint_builder = CreateCMint::new(
+        params,
+        mint_signer.pubkey(),
+        payer.pubkey(),
+        address_tree.tree,
+        output_queue,
+    );
+    let instruction = create_cmint_builder.instruction().unwrap();
+
+    // Send transaction
+    rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer, &mint_signer])
+        .await
+        .unwrap();
+
+    // Verify the compressed mint was created
+    let compressed_account = rpc
+        .get_compressed_account(compression_address, None)
+        .await
+        .unwrap()
+        .value;
+
+    assert!(
+        compressed_account.is_some(),
+        "Compressed mint should exist after setup"
+    );
+
+    // If no recipients, return early
+    if recipients.is_empty() {
+        return (mint_pda, compression_address, vec![]);
+    }
+
+    // Create ATAs for each recipient
+    use light_compressed_token_sdk::ctoken::derive_ctoken_ata;
+    let compressible_params = CompressibleParams::default();
+
+    let mut ata_pubkeys = Vec::with_capacity(recipients.len());
+
+    for (_amount, owner) in &recipients {
+        let (ata_address, _bump) = derive_ctoken_ata(owner, &mint_pda);
+        ata_pubkeys.push(ata_address);
+
+        let create_ata = CreateAssociatedTokenAccount::new(
+            payer.pubkey(),
+            *owner,
+            mint_pda,
+            compressible_params.clone(),
+        );
+        let ata_instruction = create_ata.instruction().unwrap();
+
+        rpc.create_and_send_transaction(&[ata_instruction], &payer.pubkey(), &[payer])
+            .await
+            .unwrap();
+    }
+
+    // Mint tokens to recipients with amount > 0
+    let recipients_with_amount: Vec<_> = recipients
+        .iter()
+        .enumerate()
+        .filter(|(_, (amount, _))| *amount > 0)
+        .collect();
+
+    if !recipients_with_amount.is_empty() {
+        // Get the compressed mint account for minting
+        let compressed_mint_account = rpc
+            .get_compressed_account(compression_address, None)
+            .await
+            .unwrap()
+            .value
+            .expect("Compressed mint should exist");
+
+        use light_ctoken_types::state::CompressedMint;
+        let compressed_mint =
+            CompressedMint::deserialize(&mut compressed_mint_account.data.unwrap().data.as_slice())
+                .unwrap();
+
+        // Get validity proof for the mint operation
+        let rpc_result = rpc
+            .get_validity_proof(vec![compressed_mint_account.hash], vec![], None)
+            .await
+            .unwrap()
+            .value;
+
+        // Build CompressedMintWithContext
+        use light_ctoken_types::instructions::mint_action::CompressedMintWithContext;
+        let compressed_mint_with_context = CompressedMintWithContext {
+            address: compression_address,
+            leaf_index: compressed_mint_account.leaf_index,
+            prove_by_index: true,
+            root_index: rpc_result.accounts[0]
+                .root_index
+                .root_index()
+                .unwrap_or_default(),
+            mint: compressed_mint.try_into().unwrap(),
+        };
+
+        // Build mint params with first recipient
+        let (first_idx, (first_amount, _)) = recipients_with_amount[0];
+        let mut mint_params = MintToCTokenParams::new(
+            compressed_mint_with_context,
+            *first_amount,
+            mint_authority,
+            rpc_result.proof,
+        );
+        // Override the account_index for the first action
+        mint_params.mint_to_actions[0].account_index = first_idx as u8;
+
+        // Add remaining recipients
+        for (idx, (amount, _)) in recipients_with_amount.iter().skip(1) {
+            mint_params = mint_params.add_mint_to_action(*idx as u8, *amount);
+        }
+
+        // Build MintToCToken instruction
+        let mint_to_ctoken = MintToCToken::new(
+            mint_params,
+            payer.pubkey(),
+            compressed_mint_account.tree_info.tree,
+            compressed_mint_account.tree_info.queue,
+            compressed_mint_account.tree_info.queue,
+            ata_pubkeys.clone(),
+        );
+        let mint_instruction = mint_to_ctoken.instruction().unwrap();
+
+        rpc.create_and_send_transaction(&[mint_instruction], &payer.pubkey(), &[payer])
+            .await
+            .unwrap();
+    }
+
+    (mint_pda, compression_address, ata_pubkeys)
+}
