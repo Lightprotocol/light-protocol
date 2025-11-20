@@ -107,6 +107,16 @@ func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 		"status": jobStatus,
 	}
 
+	// Handle completed jobs - include result if available
+	if jobStatus == "completed" && jobInfo != nil {
+		if result, ok := jobInfo["result"]; ok {
+			response["result"] = result
+			logging.Logger().Info().
+				Str("job_id", jobID).
+				Msg("Returning result from checkJobExistsDetailed")
+		}
+	}
+
 	// Handle failed jobs specially - extract actual error details
 	if jobStatus == "failed" && jobInfo != nil {
 		if payloadRaw, ok := jobInfo["payload"]; ok {
@@ -149,7 +159,18 @@ func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusAccepted)
+
+	// Return 200 OK if job is completed with result, otherwise 202 Accepted
+	if jobStatus == "completed" {
+		if _, hasResult := response["result"]; hasResult {
+			w.WriteHeader(http.StatusOK)
+		} else {
+			w.WriteHeader(http.StatusAccepted)
+		}
+	} else {
+		w.WriteHeader(http.StatusAccepted)
+	}
+
 	err = json.NewEncoder(w).Encode(response)
 	if err != nil {
 		return
@@ -207,6 +228,17 @@ func (handler proofStatusHandler) checkJobExistsDetailed(jobID string) (bool, st
 
 	// Check zk_results_queue for completed jobs
 	if job, found := handler.findJobInQueue("zk_results_queue", jobID); found {
+		// Try to extract the result from the job payload
+		if payloadRaw, ok := job["payload"]; ok {
+			if payloadStr, ok := payloadRaw.(string); ok {
+				var payloadData map[string]interface{}
+				if json.Unmarshal([]byte(payloadStr), &payloadData) == nil {
+					if result, ok := payloadData["result"]; ok {
+						job["result"] = result
+					}
+				}
+			}
+		}
 		return true, "completed", job
 	}
 
@@ -218,6 +250,7 @@ func (handler proofStatusHandler) checkJobExistsDetailed(jobID string) (bool, st
 			Msg("Job found in result cache")
 
 		jobInfo := map[string]interface{}{
+			"result":        result,
 			"result_cached": true,
 		}
 		return true, "completed", jobInfo
