@@ -2262,6 +2262,7 @@ name = "forester"
 version = "1.1.0"
 dependencies = [
  "account-compression",
+ "ahash",
  "anchor-lang",
  "anyhow",
  "async-stream",
@@ -2295,6 +2296,7 @@ dependencies = [
  "light-system-program-anchor",
  "light-test-utils",
  "num-bigint 0.4.6",
+ "num-traits",
  "once_cell",
  "photon-api",
  "prometheus",
@@ -2344,6 +2346,7 @@ dependencies = [
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-merkle-tree-metadata",
+ "light-merkle-tree-reference",
  "light-prover-client",
  "light-registry",
  "light-sdk",
