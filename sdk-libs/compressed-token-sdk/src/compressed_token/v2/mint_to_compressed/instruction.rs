@@ -8,8 +8,10 @@ use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
 use crate::{
+    compressed_token::mint_action::{
+        get_mint_action_instruction_account_metas, MintActionMetaConfig,
+    },
     error::{Result, TokenSdkError},
-    instructions::mint_action::{get_mint_action_instruction_account_metas, MintActionMetaConfig},
     TokenPool,
 };
 

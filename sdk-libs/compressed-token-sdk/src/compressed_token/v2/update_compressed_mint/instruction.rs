@@ -10,12 +10,12 @@ use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
 use crate::{
-    error::{Result, TokenSdkError},
-    instructions::mint_action::{
+    compressed_token::mint_action::{
         get_mint_action_instruction_account_metas,
         get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
         MintActionMetaConfigCpiWrite,
     },
+    error::{Result, TokenSdkError},
     AnchorDeserialize, AnchorSerialize,
 };
 

@@ -4,9 +4,11 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::{
-    instructions::{
-        create_mint_to_compressed_instruction, derive_cmint_from_spl_mint, DecompressedMintConfig,
-        MintToCompressedInputs,
+    compressed_token::{
+        create_compressed_mint::derive_cmint_from_spl_mint,
+        mint_to_compressed::{
+            create_mint_to_compressed_instruction, DecompressedMintConfig, MintToCompressedInputs,
+        },
     },
     token_pool::{derive_token_pool, find_token_pool_pda_with_index},
 };

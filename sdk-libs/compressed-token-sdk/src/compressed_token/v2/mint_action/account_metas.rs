@@ -2,7 +2,7 @@ use light_program_profiler::profile;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
-use crate::instructions::CTokenDefaultAccounts;
+use crate::utils::CTokenDefaultAccounts;
 
 #[derive(Debug, Clone)]
 pub struct MintActionMetaConfig {
@@ -194,7 +194,10 @@ pub fn get_mint_action_instruction_account_metas(
 
     if config.spl_mint_initialized {
         if let Some(mint_signer) = config.mint_signer {
-            let (spl_mint_pda, _) = crate::instructions::find_spl_mint_address(&mint_signer);
+            let (spl_mint_pda, _) =
+                crate::compressed_token::create_compressed_mint::find_spl_mint_address(
+                    &mint_signer,
+                );
             metas.push(AccountMeta::new(spl_mint_pda, false));
 
             let (token_pool_pda, _) =

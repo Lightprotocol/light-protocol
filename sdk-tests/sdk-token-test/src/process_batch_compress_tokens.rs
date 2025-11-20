@@ -1,9 +1,8 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_compressed_token_sdk::{
     account_infos::BatchCompressAccountInfos,
-    instructions::{
-        batch_compress::{create_batch_compress_instruction, BatchCompressInputs},
-        Recipient,
+    compressed_token::batch_compress::{
+        create_batch_compress_instruction, BatchCompressInputs, Recipient,
     },
 };
 
@@ -21,16 +20,13 @@ pub fn process_batch_compress_tokens<'info>(
         ctx.remaining_accounts,
     );
 
-    let sdk_recipients: Vec<light_compressed_token_sdk::instructions::batch_compress::Recipient> =
-        recipients
-            .into_iter()
-            .map(
-                |r| light_compressed_token_sdk::instructions::batch_compress::Recipient {
-                    pubkey: r.pubkey,
-                    amount: r.amount,
-                },
-            )
-            .collect();
+    let sdk_recipients: Vec<Recipient> = recipients
+        .into_iter()
+        .map(|r| Recipient {
+            pubkey: r.pubkey,
+            amount: r.amount,
+        })
+        .collect();
 
     let batch_compress_inputs = BatchCompressInputs {
         fee_payer: *ctx.accounts.signer.key,

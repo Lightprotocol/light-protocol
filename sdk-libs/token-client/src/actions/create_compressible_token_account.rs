@@ -1,5 +1,5 @@
 use light_client::rpc::{Rpc, RpcError};
-use light_compressed_token_sdk::instructions::{
+use light_compressed_token_sdk::ctoken::create_token_account::{
     create_compressible_token_account_instruction as create_instruction,
     CreateCompressibleTokenAccount,
 };

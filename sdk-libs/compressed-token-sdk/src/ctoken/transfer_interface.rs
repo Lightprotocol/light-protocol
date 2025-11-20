@@ -9,12 +9,14 @@ use solana_pubkey::Pubkey;
 
 use super::transfer_ctoken::TransferCtokenAccountInfos;
 use crate::{
-    account2::CTokenAccount2,
-    error::TokenSdkError,
-    instructions::transfer2::{
-        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
-        Transfer2Inputs,
+    compressed_token::{
+        transfer2::{
+            create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
+            Transfer2Inputs,
+        },
+        CTokenAccount2,
     },
+    error::TokenSdkError,
     utils::is_ctoken_account,
 };
 

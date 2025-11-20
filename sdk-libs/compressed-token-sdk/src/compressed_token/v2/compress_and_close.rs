@@ -14,18 +14,14 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_msg::msg;
 use solana_pubkey::Pubkey;
 
-use crate::{
+use super::{
     account2::CTokenAccount2,
-    error::TokenSdkError,
-    instructions::{
-        transfer2::{
-            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
-            Transfer2Config, Transfer2Inputs,
-        },
-        CTokenDefaultAccounts,
+    transfer2::{
+        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
+        Transfer2Inputs,
     },
-    AccountInfoToCompress,
 };
+use crate::{error::TokenSdkError, utils::CTokenDefaultAccounts, AccountInfoToCompress};
 
 /// Struct to hold all the indices needed for CompressAndClose operation
 #[derive(Debug, Copy, Clone, crate::AnchorSerialize, crate::AnchorDeserialize)]

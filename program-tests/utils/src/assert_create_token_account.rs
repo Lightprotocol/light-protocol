@@ -1,6 +1,6 @@
 use anchor_spl::token_2022::spl_token_2022;
 use light_client::rpc::Rpc;
-use light_compressed_token_sdk::instructions::create_associated_token_account::derive_ctoken_ata;
+use light_compressed_token_sdk::ctoken::create_associated_token_account::derive_ctoken_ata;
 use light_compressible::rent::RentConfig;
 use light_ctoken_types::{
     state::{ctoken::CToken, extensions::CompressionInfo, AccountState},

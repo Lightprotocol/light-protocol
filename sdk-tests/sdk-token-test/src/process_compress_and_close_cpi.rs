@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_compressed_token_sdk::instructions::compress_and_close_ctoken_accounts;
+use light_compressed_token_sdk::compressed_token::compress_and_close::compress_and_close_ctoken_accounts;
 use light_sdk_types::cpi_accounts::{v2::CpiAccounts as CpiAccountsSmall, CpiAccountsConfig};
 
 use crate::OneCTokenAccount;

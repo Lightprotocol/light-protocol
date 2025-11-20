@@ -6,12 +6,10 @@ use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
+use super::account_metas::{get_approve_instruction_account_metas, ApproveMetaConfig};
 use crate::{
-    account::CTokenAccount,
+    compressed_token::v1::CTokenAccount,
     error::{Result, TokenSdkError},
-    instructions::approve::account_metas::{
-        get_approve_instruction_account_metas, ApproveMetaConfig,
-    },
 };
 
 #[derive(Debug, Clone)]

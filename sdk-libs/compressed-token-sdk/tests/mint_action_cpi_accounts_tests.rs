@@ -1,7 +1,7 @@
 #![cfg(test)]
 
 use light_account_checks::account_info::test_account_info::pinocchio::get_account_info;
-use light_compressed_token_sdk::instructions::mint_action::{
+use light_compressed_token_sdk::compressed_token::mint_action::{
     cpi_accounts::MintActionCpiAccountsConfig, MintActionCpiAccounts,
 };
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
