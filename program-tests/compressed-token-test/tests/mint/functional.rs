@@ -4,9 +4,9 @@ use light_compressed_token_sdk::{
     compressed_token::create_compressed_mint::{
         derive_compressed_mint_address, find_spl_mint_address,
     },
-    ctoken::create_associated_token_account::{
-        create_associated_token_account, create_compressible_associated_token_account,
-        derive_ctoken_ata, CreateCompressibleAssociatedTokenAccountInputs,
+    ctoken::{
+        create_ata::{derive_ctoken_ata, CreateAssociatedTokenAccount},
+        CompressibleParams,
     },
 };
 use light_ctoken_types::{

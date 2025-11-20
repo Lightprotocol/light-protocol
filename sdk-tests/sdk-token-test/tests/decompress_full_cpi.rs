@@ -54,9 +54,8 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
         .await
         .unwrap();
 
-    use light_compressed_token_sdk::ctoken::create_associated_token_account::{
-        create_compressible_associated_token_account, derive_ctoken_ata,
-        CreateCompressibleAssociatedTokenAccountInputs,
+    use light_compressed_token_sdk::ctoken::{
+        derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount,
     };
 
     let mut destination_accounts = Vec::with_capacity(num_inputs);
@@ -74,21 +73,25 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
 
         let (destination_account, _) = derive_ctoken_ata(&destination_owner, &mint_pubkey);
 
-        let create_token_account_ix = create_compressible_associated_token_account(
-            CreateCompressibleAssociatedTokenAccountInputs {
-                payer: payer.pubkey(),
-                mint: mint_pubkey,
-                owner: destination_owner,
-                rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-                pre_pay_num_epochs: 0,
-                lamports_per_write: None,
-                compressible_config: rpc
-                    .test_accounts
-                    .funding_pool_config
-                    .compressible_config_pda,
-                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-            },
+        let compressible_params = CompressibleParams {
+            compressible_config: rpc
+                .test_accounts
+                .funding_pool_config
+                .compressible_config_pda,
+            rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+            pre_pay_num_epochs: 0,
+            lamports_per_write: None,
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        };
+
+        let create_token_account_ix = CreateAssociatedTokenAccount::new(
+            payer.pubkey(),
+            destination_owner,
+            mint_pubkey,
+            compressible_params,
         )
+        .instruction()
         .unwrap();
 
         rpc.create_and_send_transaction(&[create_token_account_ix], &payer.pubkey(), &[&payer])

@@ -1,10 +1,7 @@
 use borsh::BorshSerialize;
-use light_ctoken_types::{
-    instructions::{
-        create_ctoken_account::CreateTokenAccountInstructionData,
-        extensions::compressible::{CompressToPubkey, CompressibleExtensionInstructionData},
-    },
-    state::TokenDataVersion,
+use light_ctoken_types::instructions::{
+    create_ctoken_account::CreateTokenAccountInstructionData,
+    extensions::compressible::CompressibleExtensionInstructionData,
 };
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
@@ -12,7 +9,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::ctoken::CompressibleParams;
+use crate::ctoken::{compressible::CompressibleParamsInfos, CompressibleParams};
 
 #[derive(Debug, Clone)]
 pub struct CreateCTokenAccount {
@@ -99,15 +96,6 @@ pub struct CreateCTokenAccountInfos<'info> {
     pub mint: AccountInfo<'info>,
     pub owner: Pubkey,
     pub compressible: Option<CompressibleParamsInfos<'info>>,
-}
-
-pub struct CompressibleParamsInfos<'info> {
-    pub compressible_config: AccountInfo<'info>,
-    pub rent_sponsor: AccountInfo<'info>,
-    pub pre_pay_num_epochs: u8,
-    pub lamports_per_write: Option<u32>,
-    pub compress_to_account_pubkey: Option<CompressToPubkey>,
-    pub token_account_version: TokenDataVersion,
 }
 
 impl<'info> CreateCTokenAccountInfos<'info> {

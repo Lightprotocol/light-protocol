@@ -1,6 +1,7 @@
 use light_ctoken_types::{
     instructions::extensions::compressible::CompressToPubkey, state::TokenDataVersion,
 };
+use solana_account_info::AccountInfo;
 use solana_pubkey::Pubkey;
 
 use crate::ctoken::{COMPRESSIBLE_CONFIG_V1, RENT_SPONSOR};
@@ -41,4 +42,13 @@ impl CompressibleParams {
         self.compress_to_account_pubkey = Some(compress_to);
         self
     }
+}
+
+pub struct CompressibleParamsInfos<'info> {
+    pub compressible_config: AccountInfo<'info>,
+    pub rent_sponsor: AccountInfo<'info>,
+    pub pre_pay_num_epochs: u8,
+    pub lamports_per_write: Option<u32>,
+    pub compress_to_account_pubkey: Option<CompressToPubkey>,
+    pub token_account_version: TokenDataVersion,
 }

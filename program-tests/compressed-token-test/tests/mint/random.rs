@@ -127,24 +127,22 @@ async fn test_random_mint_action() {
 
     for _ in 0..5 {
         let recipient = Keypair::new();
-        let create_ata_ix =
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
-                payer.pubkey(),
-                recipient.pubkey(),
-                spl_mint_pda,
-            )
-            .unwrap();
+        let create_ata_ix = light_compressed_token_sdk::ctoken::create_associated_token_account(
+            payer.pubkey(),
+            recipient.pubkey(),
+            spl_mint_pda,
+        )
+        .unwrap();
 
         rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
             .await
             .unwrap();
 
-        let ata =
-            light_compressed_token_sdk::ctoken::create_associated_token_account::derive_ctoken_ata(
-                &recipient.pubkey(),
-                &spl_mint_pda,
-            )
-            .0;
+        let ata = light_compressed_token_sdk::ctoken::derive_ctoken_ata(
+            &recipient.pubkey(),
+            &spl_mint_pda,
+        )
+        .0;
 
         ctoken_atas.push(ata);
     }

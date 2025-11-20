@@ -110,7 +110,7 @@ async fn test_compress_and_close_owner_scenarios() {
         .await;
 
         // Set token balance on ATA
-        use light_compressed_token_sdk::ctoken::create_associated_token_account::derive_ctoken_ata;
+        use light_compressed_token_sdk::ctoken::derive_ctoken_ata;
         let (ata_pubkey, _bump) =
             derive_ctoken_ata(&context.owner_keypair.pubkey(), &context.mint_pubkey);
 
@@ -440,8 +440,8 @@ async fn test_compressible_account_with_custom_rent_payer_close_with_compression
 
     // Initialize compressible token account
     let create_token_account_ix =
-        light_compressed_token_sdk::ctoken::create_token_account::create_compressible_token_account_instruction(
-            light_compressed_token_sdk::ctoken::create_token_account::CreateCompressibleTokenAccount {
+        light_compressed_token_sdk::ctoken::create_compressible_token_account_instruction(
+            light_compressed_token_sdk::ctoken::CreateCompressibleTokenAccount {
                 account_pubkey: token_account_pubkey,
                 mint_pubkey: context.mint_pubkey,
                 owner_pubkey: context.owner_keypair.pubkey(),

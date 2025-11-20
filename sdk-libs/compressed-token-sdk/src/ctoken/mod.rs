@@ -1,15 +1,22 @@
-pub mod close;
+mod close;
 mod compressible;
-pub mod create;
-pub mod create_ata;
-pub mod transfer_ctoken;
-pub mod transfer_interface;
+mod create;
+mod create_ata;
+mod transfer_ctoken;
+mod transfer_interface;
 
-pub use compressible::CompressibleParams;
-
+pub use close::*;
+pub use compressible::{CompressibleParams, CompressibleParamsInfos};
+pub use create::*;
+pub use create_ata::*;
 use light_compressed_token_types::POOL_SEED;
 use light_compressible::config::CompressibleConfig;
+pub use light_ctoken_types::{
+    instructions::extensions::compressible::CompressToPubkey, state::TokenDataVersion,
+};
 use solana_pubkey::{pubkey, Pubkey};
+pub use transfer_ctoken::*;
+pub use transfer_interface::*;
 
 pub const CTOKEN_PROGRAM_ID: Pubkey = pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 

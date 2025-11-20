@@ -1,8 +1,9 @@
 // Re-export all necessary imports for test modules
 pub use light_compressed_token_sdk::ctoken::{
-    close::{close_account, close_compressible_account},
-    create_associated_token_account::derive_ctoken_ata,
-    create_token_account::create_token_account,
+    close::CloseAccount,
+    create::CreateCTokenAccount,
+    create_ata::{derive_ctoken_ata, CreateAssociatedTokenAccount},
+    CompressibleParams,
 };
 pub use light_compressible::rent::{RentConfig, SLOTS_PER_EPOCH};
 pub use light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
@@ -90,22 +91,24 @@ pub async fn create_and_assert_token_account(
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
-    let create_token_account_ix =
-        light_compressed_token_sdk::ctoken::create_token_account::create_compressible_token_account_instruction(
-            light_compressed_token_sdk::ctoken::create_token_account::CreateCompressibleTokenAccount {
-                account_pubkey: token_account_pubkey,
-                mint_pubkey: context.mint_pubkey,
-                owner_pubkey: context.owner_keypair.pubkey(),
-                compressible_config: context.compressible_config,
-                rent_sponsor: compressible_data.rent_sponsor,
-                pre_pay_num_epochs: compressible_data.num_prepaid_epochs,
-                lamports_per_write: compressible_data.lamports_per_write,
-                payer: payer_pubkey,
-                compress_to_account_pubkey: None,
-                token_account_version: compressible_data.account_version,
-            },
-        )
-        .unwrap();
+    let compressible_params = CompressibleParams {
+        compressible_config: context.compressible_config,
+        rent_sponsor: compressible_data.rent_sponsor,
+        pre_pay_num_epochs: compressible_data.num_prepaid_epochs,
+        lamports_per_write: compressible_data.lamports_per_write,
+        compress_to_account_pubkey: None,
+        token_account_version: compressible_data.account_version,
+    };
+
+    let create_token_account_ix = CreateCTokenAccount::new(
+        payer_pubkey,
+        token_account_pubkey,
+        context.mint_pubkey,
+        context.owner_keypair.pubkey(),
+        compressible_params,
+    )
+    .instruction()
+    .unwrap();
 
     context
         .rpc
@@ -142,22 +145,24 @@ pub async fn create_and_assert_token_account_fails(
     let payer_pubkey = context.payer.pubkey();
     let token_account_pubkey = context.token_account_keypair.pubkey();
 
-    let create_token_account_ix =
-        light_compressed_token_sdk::ctoken::create_token_account::create_compressible_token_account_instruction(
-            light_compressed_token_sdk::ctoken::create_token_account::CreateCompressibleTokenAccount {
-                account_pubkey: token_account_pubkey,
-                mint_pubkey: context.mint_pubkey,
-                owner_pubkey: context.owner_keypair.pubkey(),
-                compressible_config: context.compressible_config,
-                rent_sponsor: compressible_data.rent_sponsor,
-                pre_pay_num_epochs: compressible_data.num_prepaid_epochs,
-                lamports_per_write: compressible_data.lamports_per_write,
-                payer: payer_pubkey,
-                compress_to_account_pubkey: None,
-                token_account_version: compressible_data.account_version,
-            },
-        )
-        .unwrap();
+    let compressible_params = CompressibleParams {
+        compressible_config: context.compressible_config,
+        rent_sponsor: compressible_data.rent_sponsor,
+        pre_pay_num_epochs: compressible_data.num_prepaid_epochs,
+        lamports_per_write: compressible_data.lamports_per_write,
+        compress_to_account_pubkey: None,
+        token_account_version: compressible_data.account_version,
+    };
+
+    let create_token_account_ix = CreateCTokenAccount::new(
+        payer_pubkey,
+        token_account_pubkey,
+        context.mint_pubkey,
+        context.owner_keypair.pubkey(),
+        compressible_params,
+    )
+    .instruction()
+    .unwrap();
 
     let result = context
         .rpc
@@ -413,35 +418,31 @@ pub async fn create_and_assert_ata(
     let (ata_pubkey, _bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
 
     // Build instruction based on whether it's compressible
-    let create_ata_ix = if let Some(compressible) = compressible_data.as_ref() {
-        let create_fn = if idempotent {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account_idempotent
-        } else {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account
-        };
-
-        create_fn(
-            light_compressed_token_sdk::ctoken::create_associated_token_account::CreateCompressibleAssociatedTokenAccountInputs {
-                payer: payer_pubkey,
-                owner: owner_pubkey,
-                mint: context.mint_pubkey,
-                compressible_config: context.compressible_config,
-                rent_sponsor: compressible.rent_sponsor,
-                pre_pay_num_epochs: compressible.num_prepaid_epochs,
-                lamports_per_write: compressible.lamports_per_write,
-                token_account_version: compressible.account_version,
-            },
-        )
-        .unwrap()
+    let compressible_params = if let Some(compressible) = compressible_data.as_ref() {
+        CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor: compressible.rent_sponsor,
+            pre_pay_num_epochs: compressible.num_prepaid_epochs,
+            lamports_per_write: compressible.lamports_per_write,
+            compress_to_account_pubkey: None,
+            token_account_version: compressible.account_version,
+        }
     } else {
-        let create_fn = if idempotent {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account_idempotent
-        } else {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account
-        };
-
-        create_fn(payer_pubkey, owner_pubkey, context.mint_pubkey).unwrap()
+        CompressibleParams::default()
     };
+
+    let mut builder = CreateAssociatedTokenAccount::new(
+        payer_pubkey,
+        owner_pubkey,
+        context.mint_pubkey,
+        compressible_params,
+    );
+
+    if idempotent {
+        builder = builder.idempotent();
+    }
+
+    let create_ata_ix = builder.instruction().unwrap();
 
     context
         .rpc
@@ -475,35 +476,31 @@ pub async fn create_and_assert_ata_fails(
     let owner_pubkey = context.owner_keypair.pubkey();
 
     // Build instruction based on whether it's compressible
-    let create_ata_ix = if let Some(compressible) = compressible_data.as_ref() {
-        let create_fn = if idempotent {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account_idempotent
-        } else {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account
-        };
-
-        create_fn(
-            light_compressed_token_sdk::ctoken::create_associated_token_account::CreateCompressibleAssociatedTokenAccountInputs {
-                payer: payer_pubkey,
-                owner: owner_pubkey,
-                mint: context.mint_pubkey,
-                compressible_config: context.compressible_config,
-                rent_sponsor: compressible.rent_sponsor,
-                pre_pay_num_epochs: compressible.num_prepaid_epochs,
-                lamports_per_write: compressible.lamports_per_write,
-                token_account_version: compressible.account_version,
-            },
-        )
-        .unwrap()
+    let compressible_params = if let Some(compressible) = compressible_data.as_ref() {
+        CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor: compressible.rent_sponsor,
+            pre_pay_num_epochs: compressible.num_prepaid_epochs,
+            lamports_per_write: compressible.lamports_per_write,
+            compress_to_account_pubkey: None,
+            token_account_version: compressible.account_version,
+        }
     } else {
-        let create_fn = if idempotent {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account_idempotent
-        } else {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account
-        };
-
-        create_fn(payer_pubkey, owner_pubkey, context.mint_pubkey).unwrap()
+        CompressibleParams::default()
     };
+
+    let mut builder = CreateAssociatedTokenAccount::new(
+        payer_pubkey,
+        owner_pubkey,
+        context.mint_pubkey,
+        compressible_params,
+    );
+
+    if idempotent {
+        builder = builder.idempotent();
+    }
+
+    let create_ata_ix = builder.instruction().unwrap();
 
     let result = context
         .rpc

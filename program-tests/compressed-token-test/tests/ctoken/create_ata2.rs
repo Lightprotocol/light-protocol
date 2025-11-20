@@ -15,13 +15,13 @@ async fn create_and_assert_ata2(
 
     let create_ata_ix = if let Some(compressible) = compressible_data.as_ref() {
         let create_fn = if idempotent {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account2_idempotent
+            light_compressed_token_sdk::ctoken::create_compressible_associated_token_account2_idempotent
         } else {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account2
+            light_compressed_token_sdk::ctoken::create_compressible_associated_token_account2
         };
 
         create_fn(
-            light_compressed_token_sdk::ctoken::create_associated_token_account::CreateCompressibleAssociatedTokenAccountInputs {
+            light_compressed_token_sdk::ctoken::CreateCompressibleAssociatedTokenAccountInputs {
                 payer: payer_pubkey,
                 owner: owner_pubkey,
                 mint: context.mint_pubkey,
@@ -35,9 +35,9 @@ async fn create_and_assert_ata2(
         .unwrap()
     } else {
         let create_fn = if idempotent {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account2_idempotent
+            light_compressed_token_sdk::ctoken::create_associated_token_account2_idempotent
         } else {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account2
+            light_compressed_token_sdk::ctoken::create_associated_token_account2
         };
 
         create_fn(payer_pubkey, owner_pubkey, context.mint_pubkey).unwrap()

@@ -1,11 +1,8 @@
 use borsh::BorshSerialize;
-use light_ctoken_types::{
-    instructions::{
-        create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
-        create_associated_token_account2::CreateAssociatedTokenAccount2InstructionData,
-        extensions::compressible::CompressibleExtensionInstructionData,
-    },
-    state::TokenDataVersion,
+use light_ctoken_types::instructions::{
+    create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
+    create_associated_token_account2::CreateAssociatedTokenAccount2InstructionData,
+    extensions::compressible::CompressibleExtensionInstructionData,
 };
 use solana_account_info::AccountInfo;
 use solana_cpi::{invoke, invoke_signed};
@@ -13,7 +10,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::ctoken::CompressibleParams;
+use crate::ctoken::{compressible::CompressibleParamsInfos, CompressibleParams};
 
 const CREATE_ATA_DISCRIMINATOR: u8 = 100;
 const CREATE_ATA_IDEMPOTENT_DISCRIMINATOR: u8 = 102;
@@ -152,14 +149,6 @@ pub struct CreateAssociatedTokenAccountInfos<'info> {
     pub associated_token_account: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
     pub compressible: Option<CompressibleParamsInfos<'info>>,
-}
-
-pub struct CompressibleParamsInfos<'info> {
-    pub pre_pay_num_epochs: u8,
-    pub token_account_version: TokenDataVersion,
-    pub lamports_per_write: Option<u32>,
-    pub compressible_config: AccountInfo<'info>,
-    pub rent_sponsor: AccountInfo<'info>,
 }
 
 impl<'info> CreateAssociatedTokenAccountInfos<'info> {

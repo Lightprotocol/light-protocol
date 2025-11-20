@@ -396,13 +396,12 @@ async fn functional_and_failing_tests() {
         // Create a ctoken account first
         let recipient = Keypair::new();
 
-        let create_ata_ix =
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
-                payer.pubkey(),
-                recipient.pubkey(),
-                spl_mint_pda,
-            )
-            .unwrap();
+        let create_ata_ix = light_compressed_token_sdk::ctoken::create_associated_token_account(
+            payer.pubkey(),
+            recipient.pubkey(),
+            spl_mint_pda,
+        )
+        .unwrap();
 
         rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
             .await
@@ -453,24 +452,22 @@ async fn functional_and_failing_tests() {
         // Create a new recipient for successful mint
         let recipient2 = Keypair::new();
 
-        let create_ata_ix2 =
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
-                payer.pubkey(),
-                recipient2.pubkey(),
-                spl_mint_pda,
-            )
-            .unwrap();
+        let create_ata_ix2 = light_compressed_token_sdk::ctoken::create_associated_token_account(
+            payer.pubkey(),
+            recipient2.pubkey(),
+            spl_mint_pda,
+        )
+        .unwrap();
 
         rpc.create_and_send_transaction(&[create_ata_ix2], &payer.pubkey(), &[&payer])
             .await
             .unwrap();
 
-        let recipient_ata =
-            light_compressed_token_sdk::ctoken::create_associated_token_account::derive_ctoken_ata(
-                &recipient2.pubkey(),
-                &spl_mint_pda,
-            )
-            .0;
+        let recipient_ata = light_compressed_token_sdk::ctoken::derive_ctoken_ata(
+            &recipient2.pubkey(),
+            &spl_mint_pda,
+        )
+        .0;
 
         // Try to mint with valid NEW authority (since we updated it)
         let result = light_token_client::actions::mint_action_comprehensive(

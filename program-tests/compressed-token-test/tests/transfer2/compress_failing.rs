@@ -44,7 +44,7 @@ use light_compressed_token_sdk::{
         },
         CTokenAccount2,
     },
-    ctoken::create_associated_token_account::{
+    ctoken::{
         create_compressible_associated_token_account, derive_ctoken_ata,
         CreateCompressibleAssociatedTokenAccountInputs,
     },
