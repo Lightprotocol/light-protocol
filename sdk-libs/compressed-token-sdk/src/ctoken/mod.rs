@@ -3,6 +3,7 @@ mod compressible;
 mod create;
 mod create_ata;
 mod create_cmint;
+mod mint_to;
 mod transfer_ctoken;
 mod transfer_interface;
 
@@ -17,6 +18,7 @@ pub use light_ctoken_types::{
     instructions::extensions::{compressible::CompressToPubkey, ExtensionInstructionData},
     state::TokenDataVersion,
 };
+pub use mint_to::*;
 use solana_pubkey::{pubkey, Pubkey};
 pub use transfer_ctoken::*;
 pub use transfer_interface::*;
