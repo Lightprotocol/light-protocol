@@ -659,7 +659,13 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             .subtrees
             .clone()
             .try_into()
-            .map_err(|_| anyhow::anyhow!("Failed to convert subtrees to array"))?;
+            .map_err(|v: Vec<[u8; 32]>| {
+                anyhow::anyhow!(
+                    "Failed to convert subtrees to array: expected {} elements, got {}",
+                    DEFAULT_BATCH_ADDRESS_TREE_HEIGHT,
+                    v.len()
+                )
+            })?;
 
         let mut sparse_merkle_tree =
             SparseMerkleTree::<Poseidon, { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize }>::new(
@@ -691,6 +697,23 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             let start_idx = batch_idx * batch_size;
             let end_idx = start_idx + batch_size;
 
+            if end_idx > address_data.addresses.len()
+                || end_idx > address_data.low_element_values.len()
+                || end_idx > address_data.low_element_next_values.len()
+                || end_idx > address_data.low_element_indices.len()
+                || end_idx > address_data.low_element_next_indices.len()
+                || end_idx > address_data.low_element_proofs.len()
+            {
+                return Err(anyhow::anyhow!(
+                    "Batch index {} out of bounds (start={}, end={}, data_len={})",
+                    batch_idx,
+                    start_idx,
+                    end_idx,
+                    address_data.addresses.len()
+                ));
+            }
+
+            // Convert to owned vectors once (moved into circuit inputs, not cloned)
             let batch_addresses = address_data.addresses[start_idx..end_idx].to_vec();
             let low_element_values = address_data.low_element_values[start_idx..end_idx].to_vec();
             let low_element_next_values =
@@ -721,12 +744,12 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
             let inputs = light_prover_client::proof_types::batch_address_append::get_batch_address_append_circuit_inputs(
                 adjusted_start_index,
                 current_root,
-                low_element_values.clone(),
-                low_element_next_values.clone(),
-                low_element_indices.clone(),
-                low_element_next_indices.clone(),
-                low_element_proofs.clone(),
-                batch_addresses.clone(),
+                low_element_values,
+                low_element_next_values,
+                low_element_indices,
+                low_element_next_indices,
+                low_element_proofs,
+                batch_addresses,
                 &mut sparse_merkle_tree,
                 *leaves_hash_chain,
                 batch_size,
@@ -749,14 +772,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         }
 
         let sparse_tree_final_root = sparse_merkle_tree.root();
-        if sparse_tree_final_root != current_root {
-            debug!(
-                "Sparse tree root {:?} differs from patched circuit root {:?} (expected when changelog rewrites earlier leaves)",
-                &sparse_tree_final_root[..8],
-                &current_root[..8]
-            );
-        }
-
         Ok((current_root, prepare_start.elapsed()))
     }
 

@@ -1383,9 +1383,16 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     }
                 }
                 PreparedBatch::Address(_) => {
-                    unreachable!(
-                        "Address batches should not be processed by state tree coordinator"
-                    );
+                    error!("Address batch submitted to state tree coordinator - this is a bug");
+                    let _ = proof_tx_clone
+                        .send((
+                            idx,
+                            prepared_batch,
+                            Err(anyhow::anyhow!(
+                                "Address batches should not be processed by state tree coordinator"
+                            )),
+                        ))
+                        .await;
                 }
             }
         }
@@ -1434,6 +1441,13 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             buffer.insert(idx, (batch, proof_result));
 
             while let Some((batch, proof_result)) = buffer.remove(&next_to_submit) {
+                if matches!(batch, PreparedBatch::Address(_)) {
+                    error!("Address batch in state tree coordinator - this is a bug");
+                    return Err(anyhow::anyhow!(
+                        "Address batches should not be processed by state tree coordinator"
+                    ));
+                }
+
                 let proof = proof_result.map_err(|e| {
                     let err_msg = e.to_string();
                     // Detect constraint errors which indicate stale tree state
@@ -1464,7 +1478,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                                 );
                             }
                             PreparedBatch::Address(_) => {
-                                unreachable!("Address batches should not be processed by state tree coordinator");
+                                // Already checked above, unreachable
                             }
                         }
                         warn!(
@@ -1477,15 +1491,20 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                         }
                         .into()
                     } else {
-                        anyhow::anyhow!(
-                            "Proof generation failed for batch {}: {}",
-                            next_to_submit,
-                            e
-                        )
+                        e
                     }
                 })?;
 
-                let batch_type = pattern[next_to_submit];
+                let batch_type = pattern
+                    .get(next_to_submit)
+                    .copied()
+                    .ok_or_else(|| {
+                        anyhow::anyhow!(
+                            "Pattern index {} out of bounds (pattern len={})",
+                            next_to_submit,
+                            pattern.len()
+                        )
+                    })?;
                 ready_pattern.push(batch_type);
 
                 match proof {
@@ -1561,9 +1580,10 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                     PreparedBatch::Append(inputs) => inputs.batch_size as usize,
                     PreparedBatch::Nullify(inputs) => inputs.batch_size as usize,
                     PreparedBatch::Address(_) => {
-                        unreachable!(
+                        error!("Address batch in proof collection - this is a bug");
+                        return Err(anyhow::anyhow!(
                             "Address batches should not be processed by state tree coordinator"
-                        )
+                        ));
                     }
                 };
                 let proof = proof_result.map_err(|e| anyhow::anyhow!(e))?;
