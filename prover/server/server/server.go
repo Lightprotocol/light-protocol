@@ -228,14 +228,11 @@ func (handler proofStatusHandler) checkJobExistsDetailed(jobID string) (bool, st
 
 	// Check zk_results_queue for completed jobs
 	if job, found := handler.findJobInQueue("zk_results_queue", jobID); found {
-		// Try to extract the result from the job payload
 		if payloadRaw, ok := job["payload"]; ok {
 			if payloadStr, ok := payloadRaw.(string); ok {
 				var payloadData map[string]interface{}
 				if json.Unmarshal([]byte(payloadStr), &payloadData) == nil {
-					if result, ok := payloadData["result"]; ok {
-						job["result"] = result
-					}
+					job["result"] = payloadData
 				}
 			}
 		}
