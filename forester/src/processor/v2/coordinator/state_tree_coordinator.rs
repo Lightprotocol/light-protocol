@@ -31,10 +31,8 @@ use super::{
     error::CoordinatorError,
     proof_generation::ProofConfig,
     proof_utils,
-    shared_state::{
-        get_or_create_shared_state, CumulativeMetrics, IterationMetrics, ProcessedBatchId,
-        SharedState,
-    },
+    shared_state::{get_or_create_shared_state, ProcessedBatchId, SharedState},
+    telemetry::IterationTelemetry,
     types::{AppendQueueData, BatchType, NullifyQueueData, PreparationState, PreparedBatch},
 };
 use crate::{grpc::QueueUpdateMessage, metrics, processor::v2::common::BatchContext};
@@ -346,14 +344,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             }
         }
 
-        {
-            let state = self.shared_state.read().await;
-            state.print_performance_summary(&format!(
-                "Tree: {}, Epoch: {}",
-                self.context.merkle_tree, self.context.epoch
-            ));
-        }
-
         Ok(total_items_processed)
     }
 
@@ -440,20 +430,22 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let phase2_duration = proof_gen_handle.await??;
         let total_duration = iteration_start.elapsed();
 
-        let metrics = IterationMetrics {
-            phase1_duration,
-            phase2_duration,
-            phase3_duration,
+        let append_processed_items =
+            num_append_batches.saturating_mul(append_zkp_batch_size as usize);
+        let nullify_processed_items =
+            num_nullify_batches.saturating_mul(nullify_zkp_batch_size as usize);
+
+        let telemetry = IterationTelemetry {
+            tree: self.context.merkle_tree,
+            prepare_duration: phase1_duration,
+            prove_duration: phase2_duration,
+            submit_duration: phase3_duration,
             total_duration,
             append_batches: num_append_batches,
             nullify_batches: num_nullify_batches,
+            items_processed: append_processed_items + nullify_processed_items,
         };
-        metrics::observe_iteration_duration(&self.context.merkle_tree, total_duration);
-
-        {
-            let mut state = self.shared_state.write().await;
-            state.add_iteration_metrics(metrics);
-        }
+        telemetry.report();
 
         self.mark_batches_processed(
             queue_result.append_batch_ids,
@@ -464,25 +456,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         let current_root = self.get_current_onchain_root().await?;
         validate_root(current_root, final_root, "pipelined execution")?;
 
-        let append_processed_items =
-            num_append_batches.saturating_mul(append_zkp_batch_size as usize);
-        let nullify_processed_items =
-            num_nullify_batches.saturating_mul(nullify_zkp_batch_size as usize);
         self.consume_processed_items(append_processed_items, nullify_processed_items);
-        if num_append_batches > 0 {
-            metrics::increment_batches_processed(
-                &self.context.merkle_tree,
-                "append",
-                num_append_batches,
-            );
-        }
-        if num_nullify_batches > 0 {
-            metrics::increment_batches_processed(
-                &self.context.merkle_tree,
-                "nullify",
-                num_nullify_batches,
-            );
-        }
 
         Ok(total_items)
     }
@@ -585,7 +559,7 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             let pattern =
                 Self::create_interleaving_pattern(num_append_batches, num_nullify_batches);
 
-            let iteration_start = Instant::now();
+            let _iteration_start = Instant::now();
             let phase1_start = Instant::now();
 
             let (prep_tx, prep_rx) = tokio::sync::mpsc::channel(50);
@@ -623,17 +597,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 Self::collect_proofs_streaming(proof_rx).await?;
 
             let phase2_duration = proof_gen_handle.await??;
-            let total_duration = iteration_start.elapsed();
-
-            let metrics = IterationMetrics {
-                phase1_duration,
-                phase2_duration,
-                phase3_duration: Duration::ZERO,
-                total_duration,
-                append_batches: num_append_batches,
-                nullify_batches: num_nullify_batches,
-            };
-
             let job = SpeculativeJob {
                 pattern,
                 append_proofs,
@@ -653,7 +616,10 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 staging: staging_after,
                 final_root,
                 total_items,
-                metrics,
+                phase1_duration,
+                phase2_duration,
+                append_batches: num_append_batches,
+                nullify_batches: num_nullify_batches,
             };
 
             Ok(Some((job, total_items)))
@@ -708,11 +674,23 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             };
             let phase3_duration = submit_start.elapsed();
 
-            let append_batches_count = job.metrics.append_batches;
-            let nullify_batches_count = job.metrics.nullify_batches;
-            let mut metrics = job.metrics;
-            metrics.phase3_duration = phase3_duration;
-            metrics.total_duration += phase3_duration;
+            let append_processed_items =
+                job.append_batches.saturating_mul(job.append_zkp_batch_size as usize);
+            let nullify_processed_items =
+                job.nullify_batches.saturating_mul(job.nullify_zkp_batch_size as usize);
+
+            // Report telemetry
+            let telemetry = IterationTelemetry {
+                tree: self.context.merkle_tree,
+                prepare_duration: job.phase1_duration,
+                prove_duration: job.phase2_duration,
+                submit_duration: phase3_duration,
+                total_duration: job.phase1_duration + job.phase2_duration + phase3_duration,
+                append_batches: job.append_batches,
+                nullify_batches: job.nullify_batches,
+                items_processed: append_processed_items + nullify_processed_items,
+            };
+            telemetry.report();
 
             self.cache_staging_tree(job.staging.clone(), job.final_root)
                 .await;
@@ -720,7 +698,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             {
                 let mut state = self.shared_state.write().await;
                 state.update_root(job.final_root);
-                state.add_iteration_metrics(metrics);
             }
 
             self.mark_batches_processed(job.append_batch_ids, job.nullify_batch_ids)
@@ -732,10 +709,6 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 return Err(e);
             }
 
-            let append_processed_items =
-                append_batches_count.saturating_mul(job.append_zkp_batch_size as usize);
-            let nullify_processed_items =
-                nullify_batches_count.saturating_mul(job.nullify_zkp_batch_size as usize);
             self.consume_processed_items(append_processed_items, nullify_processed_items);
             self.record_speculative_event("executed", "ok");
 
@@ -1871,51 +1844,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
     }
 }
 
-pub async fn print_cumulative_performance_summary(label: &str) {
-    let states = PERSISTENT_TREE_STATES.lock().await;
-
-    let mut total_metrics = CumulativeMetrics::default();
-    let mut tree_count = 0;
-
-    for (tree, shared_state) in states.iter() {
-        let state = shared_state.read().await;
-        let metrics = state.get_metrics();
-        total_metrics.iterations += metrics.iterations;
-        total_metrics.total_duration += metrics.total_duration;
-        total_metrics.phase1_total += metrics.phase1_total;
-        total_metrics.phase2_total += metrics.phase2_total;
-        total_metrics.phase3_total += metrics.phase3_total;
-        total_metrics.total_append_batches += metrics.total_append_batches;
-        total_metrics.total_nullify_batches += metrics.total_nullify_batches;
-
-        if let Some(min) = metrics.min_iteration {
-            total_metrics.min_iteration = Some(
-                total_metrics
-                    .min_iteration
-                    .map(|m| m.min(min))
-                    .unwrap_or(min),
-            );
-        }
-        if let Some(max) = metrics.max_iteration {
-            total_metrics.max_iteration = Some(
-                total_metrics
-                    .max_iteration
-                    .map(|m| m.max(max))
-                    .unwrap_or(max),
-            );
-        }
-
-        tree_count += 1;
-
-        debug!("Tree {}: {} iterations", tree, metrics.iterations);
-    }
-
-    println!("\n========================================");
-    println!("  {}", label.to_uppercase());
-    println!("========================================");
-    println!("Trees processed:         {}", tree_count);
-    total_metrics.print_summary("");
-}
+// Performance metrics are now available via Prometheus metrics endpoint.
+// See telemetry module for IterationTelemetry reporting.
 
 #[derive(Default)]
 struct SpeculativeEngine {
@@ -1985,5 +1915,9 @@ struct SpeculativeJob {
     staging: super::tree_state::StagingTree,
     final_root: [u8; 32],
     total_items: usize,
-    metrics: IterationMetrics,
+    // Timing for phases 1+2 (phase 3 happens during execute_speculative)
+    phase1_duration: Duration,
+    phase2_duration: Duration,
+    append_batches: usize,
+    nullify_batches: usize,
 }

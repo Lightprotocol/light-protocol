@@ -1,8 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-    time::Duration,
-};
+use std::{collections::{HashMap, HashSet}, sync::Arc};
 
 use solana_sdk::pubkey::Pubkey;
 use tokio::sync::{Mutex as TokioMutex, RwLock};
@@ -47,7 +43,6 @@ impl ProcessedBatchId {
 pub struct SharedTreeState {
     pub current_root: [u8; 32],
     pub processed_batches: HashSet<ProcessedBatchId>,
-    pub metrics: CumulativeMetrics,
 }
 
 impl SharedTreeState {
@@ -59,7 +54,6 @@ impl SharedTreeState {
         Self {
             current_root: initial_root,
             processed_batches: HashSet::new(),
-            metrics: CumulativeMetrics::default(),
         }
     }
 
@@ -156,45 +150,6 @@ impl SharedTreeState {
             self.processed_batches.clear();
         }
     }
-
-    pub fn add_iteration_metrics(&mut self, metrics: IterationMetrics) {
-        self.metrics.add_iteration(&metrics);
-    }
-
-    pub fn get_metrics(&self) -> &CumulativeMetrics {
-        &self.metrics
-    }
-
-    pub fn merge_metrics(&mut self, other: CumulativeMetrics) {
-        self.metrics.iterations += other.iterations;
-        self.metrics.total_duration += other.total_duration;
-        self.metrics.phase1_total += other.phase1_total;
-        self.metrics.phase2_total += other.phase2_total;
-        self.metrics.phase3_total += other.phase3_total;
-        self.metrics.total_append_batches += other.total_append_batches;
-        self.metrics.total_nullify_batches += other.total_nullify_batches;
-
-        if let Some(min) = other.min_iteration {
-            self.metrics.min_iteration = Some(
-                self.metrics
-                    .min_iteration
-                    .map(|m| m.min(min))
-                    .unwrap_or(min),
-            );
-        }
-        if let Some(max) = other.max_iteration {
-            self.metrics.max_iteration = Some(
-                self.metrics
-                    .max_iteration
-                    .map(|m| m.max(max))
-                    .unwrap_or(max),
-            );
-        }
-    }
-
-    pub fn print_performance_summary(&self, label: &str) {
-        self.metrics.print_summary(label);
-    }
 }
 
 pub type SharedState = Arc<RwLock<SharedTreeState>>;
@@ -215,138 +170,5 @@ pub async fn get_or_create_shared_state(
         let new_state = create_shared_state(initial_root);
         states.insert(key, new_state.clone());
         new_state
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct IterationMetrics {
-    pub phase1_duration: Duration,
-    pub phase2_duration: Duration,
-    pub phase3_duration: Duration,
-    pub total_duration: Duration,
-    pub append_batches: usize,
-    pub nullify_batches: usize,
-}
-
-impl IterationMetrics {
-    pub fn total_batches(&self) -> usize {
-        self.append_batches + self.nullify_batches
-    }
-}
-
-#[derive(Debug, Clone, Default)]
-pub struct CumulativeMetrics {
-    pub iterations: usize,
-    pub total_duration: Duration,
-    pub phase1_total: Duration,
-    pub phase2_total: Duration,
-    pub phase3_total: Duration,
-    pub total_append_batches: usize,
-    pub total_nullify_batches: usize,
-    pub min_iteration: Option<Duration>,
-    pub max_iteration: Option<Duration>,
-}
-
-impl CumulativeMetrics {
-    pub fn add_iteration(&mut self, metrics: &IterationMetrics) {
-        self.iterations += 1;
-        self.total_duration += metrics.total_duration;
-        self.phase1_total += metrics.phase1_duration;
-        self.phase2_total += metrics.phase2_duration;
-        self.phase3_total += metrics.phase3_duration;
-        self.total_append_batches += metrics.append_batches;
-        self.total_nullify_batches += metrics.nullify_batches;
-
-        self.min_iteration = Some(
-            self.min_iteration
-                .map(|min| min.min(metrics.total_duration))
-                .unwrap_or(metrics.total_duration),
-        );
-
-        self.max_iteration = Some(
-            self.max_iteration
-                .map(|max| max.max(metrics.total_duration))
-                .unwrap_or(metrics.total_duration),
-        );
-    }
-
-    pub fn avg_iteration_duration(&self) -> Duration {
-        if self.iterations > 0 {
-            self.total_duration / self.iterations as u32
-        } else {
-            Duration::ZERO
-        }
-    }
-
-    pub fn avg_speedup(&self) -> f64 {
-        let sequential_estimate = self.phase1_total + self.phase2_total + self.phase3_total;
-        if self.total_duration.as_secs_f64() > 0.0 {
-            sequential_estimate.as_secs_f64() / self.total_duration.as_secs_f64()
-        } else {
-            1.0
-        }
-    }
-
-    pub fn total_batches(&self) -> usize {
-        self.total_append_batches + self.total_nullify_batches
-    }
-
-    pub fn print_summary(&self, label: &str) {
-        println!("\n========================================");
-        if !label.is_empty() {
-            println!("  {}  ", label.to_uppercase());
-            println!("========================================");
-        }
-        println!("Total iterations:        {}", self.iterations);
-        println!("Total duration:          {:?}", self.total_duration);
-        println!(
-            "Avg iteration:           {:?}",
-            self.avg_iteration_duration()
-        );
-
-        if let Some(min) = self.min_iteration {
-            println!("Min iteration:           {:?}", min);
-        }
-        if let Some(max) = self.max_iteration {
-            println!("Max iteration:           {:?}", max);
-        }
-
-        println!();
-        println!("Total batches processed:");
-        println!("  Append:                {}", self.total_append_batches);
-        println!("  Nullify:               {}", self.total_nullify_batches);
-        println!("  Total:                 {}", self.total_batches());
-
-        if self.iterations > 0 {
-            let avg_phase1 = self.phase1_total / self.iterations as u32;
-            let avg_phase2 = self.phase2_total / self.iterations as u32;
-            let avg_phase3 = self.phase3_total / self.iterations as u32;
-
-            println!();
-            println!("Phase timing breakdown (total / avg per iteration):");
-            println!(
-                "  Phase 1 (prep):        {:?} / {:?}",
-                self.phase1_total, avg_phase1
-            );
-            println!(
-                "  Phase 2 (proof):       {:?} / {:?}",
-                self.phase2_total, avg_phase2
-            );
-            println!(
-                "  Phase 3 (submit):      {:?} / {:?}",
-                self.phase3_total, avg_phase3
-            );
-            println!("  ─────────────────────────────────────────────────────");
-            println!(
-                "  Total (actual):        {:?} / {:?}",
-                self.total_duration,
-                self.avg_iteration_duration()
-            );
-            println!();
-            println!("Note: Phase 2 and Phase 3 run concurrently (pipelined),");
-            println!("      so total < sum of individual phases.");
-        }
-
-        println!("========================================\n");
     }
 }

@@ -30,12 +30,11 @@ use super::{
     error::CoordinatorError,
     proof_generation::ProofConfig,
     proof_utils,
-    shared_state::{
-        get_or_create_shared_state, CumulativeMetrics, IterationMetrics, ProcessedBatchId, SharedState,
-    },
+    shared_state::{get_or_create_shared_state, ProcessedBatchId, SharedState},
+    telemetry::{IterationTelemetry, QueueTelemetry},
     types::{AddressQueueData, PreparedBatch},
 };
-use crate::{errors::ForesterError, metrics, processor::v2::common::BatchContext};
+use crate::{errors::ForesterError, processor::v2::common::BatchContext};
 use light_prover_client::proof_types::batch_address_append::BatchAddressAppendInputsJson;
 
 /// Channel buffer size for proof generation pipeline.
@@ -73,8 +72,12 @@ impl<R: Rpc> fmt::Debug for AddressTreeCoordinator<R> {
 }
 
 impl<R: Rpc> AddressTreeCoordinator<R> {
-    fn update_pending_queue_metric(&self) {
-        metrics::update_pending_queue_items(&self.context.merkle_tree, self.pending_queue_items);
+    fn report_queue_telemetry(&self) {
+        let telemetry = QueueTelemetry {
+            tree: self.context.merkle_tree,
+            pending_items: self.pending_queue_items,
+        };
+        telemetry.report();
     }
 
     pub fn refresh_epoch_context(&mut self, epoch: u64, epoch_phases: forester_utils::forester_epoch::EpochPhases) {
@@ -84,7 +87,7 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
 
     pub fn on_queue_update(&mut self, queue_size: u64) {
         self.pending_queue_items = queue_size.min(usize::MAX as u64) as usize;
-        self.update_pending_queue_metric();
+        self.report_queue_telemetry();
     }
 
     fn consume_processed_items(&mut self, processed: usize) {
@@ -96,7 +99,7 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
                 before, self.pending_queue_items, processed
             );
         }
-        self.update_pending_queue_metric();
+        self.report_queue_telemetry();
         if self.pending_queue_items == 0 {
             debug!(
                 "Address queue drained for tree {}",
@@ -186,14 +189,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
                     return Err(e);
                 }
             }
-        }
-
-        {
-            let state = self.shared_state.read().await;
-            state.print_performance_summary(&format!(
-                "Address Tree: {}, Epoch: {}",
-                self.context.merkle_tree, self.context.epoch
-            ));
         }
 
         Ok(total_items_processed)
@@ -288,30 +283,22 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         let phase2_duration = proof_gen_handle.await??;
         let total_duration = iteration_start.elapsed();
 
-        let metrics = IterationMetrics {
-            phase1_duration,
-            phase2_duration,
-            phase3_duration,
+        let telemetry = IterationTelemetry {
+            tree: self.context.merkle_tree,
+            prepare_duration: phase1_duration,
+            prove_duration: phase2_duration,
+            submit_duration: phase3_duration,
             total_duration,
             append_batches: submitted_batches,
             nullify_batches: 0,
+            items_processed: total_items,
         };
-        metrics::observe_iteration_duration(&self.context.merkle_tree, total_duration);
-
-        {
-            let mut state = self.shared_state.write().await;
-            state.add_iteration_metrics(metrics);
-        }
+        telemetry.report();
 
         if submitted_batches > 0 {
             let current_root = self.get_current_onchain_root().await?;
             validate_root(current_root, final_root, "address tree execution")?;
             self.consume_processed_items(total_items);
-            metrics::increment_batches_processed(
-                &self.context.merkle_tree,
-                "address",
-                submitted_batches,
-            );
         }
 
         debug!(
@@ -763,7 +750,6 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
                 .map_err(|e| anyhow::anyhow!("Failed to send prepared batch: {}", e))?;
         }
 
-        let sparse_tree_final_root = sparse_merkle_tree.root();
         Ok((current_root, prepare_start.elapsed()))
     }
 
@@ -1020,103 +1006,4 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         let rpc = self.context.rpc_pool.get_connection().await?;
         batch_utils::fetch_address_tree_root(&*rpc, self.context.merkle_tree).await
     }
-}
-
-pub async fn print_cumulative_performance_summary(label: &str) {
-    let states = PERSISTENT_ADDRESS_TREE_STATES.lock().await;
-
-    let mut total_metrics = CumulativeMetrics::default();
-    let mut tree_count = 0;
-
-    for (tree, shared_state) in states.iter() {
-        let state = shared_state.read().await;
-        let metrics = state.get_metrics();
-        total_metrics.iterations += metrics.iterations;
-        total_metrics.total_duration += metrics.total_duration;
-        total_metrics.phase1_total += metrics.phase1_total;
-        total_metrics.phase2_total += metrics.phase2_total;
-        total_metrics.phase3_total += metrics.phase3_total;
-        total_metrics.total_append_batches += metrics.total_append_batches;
-        total_metrics.total_nullify_batches += metrics.total_nullify_batches;
-
-        if let Some(min) = metrics.min_iteration {
-            total_metrics.min_iteration = Some(
-                total_metrics
-                    .min_iteration
-                    .map(|m| m.min(min))
-                    .unwrap_or(min),
-            );
-        }
-        if let Some(max) = metrics.max_iteration {
-            total_metrics.max_iteration = Some(
-                total_metrics
-                    .max_iteration
-                    .map(|m| m.max(max))
-                    .unwrap_or(max),
-            );
-        }
-
-        tree_count += 1;
-
-        debug!("Address Tree {}: {} iterations", tree, metrics.iterations);
-    }
-
-    println!("\n========================================");
-    println!("  {}", label.to_uppercase());
-    println!("========================================");
-    println!("Address trees processed: {}", tree_count);
-    println!("Total iterations:        {}", total_metrics.iterations);
-    println!(
-        "Total duration:          {:?}",
-        total_metrics.total_duration
-    );
-    println!(
-        "Avg iteration:           {:?}",
-        total_metrics.avg_iteration_duration()
-    );
-
-    if let Some(min) = total_metrics.min_iteration {
-        println!("Min iteration:           {:?}", min);
-    }
-    if let Some(max) = total_metrics.max_iteration {
-        println!("Max iteration:           {:?}", max);
-    }
-
-    println!();
-    println!(
-        "Total address batches processed: {}",
-        total_metrics.total_append_batches
-    );
-
-    if total_metrics.iterations > 0 {
-        let avg_phase1 = total_metrics.phase1_total / total_metrics.iterations as u32;
-        let avg_phase2 = total_metrics.phase2_total / total_metrics.iterations as u32;
-        let avg_phase3 = total_metrics.phase3_total / total_metrics.iterations as u32;
-
-        println!();
-        println!("Phase timing breakdown (total / avg per iteration):");
-        println!(
-            "  Phase 1 (prep):        {:?} / {:?}",
-            total_metrics.phase1_total, avg_phase1
-        );
-        println!(
-            "  Phase 2 (proof):       {:?} / {:?}",
-            total_metrics.phase2_total, avg_phase2
-        );
-        println!(
-            "  Phase 3 (submit):      {:?} / {:?}",
-            total_metrics.phase3_total, avg_phase3
-        );
-        println!("  ─────────────────────────────────────────────────────");
-        println!(
-            "  Total (actual):        {:?} / {:?}",
-            total_metrics.total_duration,
-            total_metrics.avg_iteration_duration()
-        );
-        println!();
-        println!("Note: Phase 2 and Phase 3 run concurrently (pipelined),");
-        println!("      so total < sum of individual phases.");
-    }
-
-    println!("========================================\n");
 }

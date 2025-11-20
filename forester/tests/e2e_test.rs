@@ -8,7 +8,6 @@ use forester::{
     config::{ExternalServicesConfig, GeneralConfig, RpcPoolConfig, TransactionConfig},
     epoch_manager::WorkReport,
     metrics::{process_queued_metrics, register_metrics, REGISTRY},
-    processor::v2::coordinator::print_cumulative_performance_summary,
     run_pipeline,
     utils::get_protocol_config,
     ForesterConfig,
@@ -479,8 +478,6 @@ async fn e2e_test() {
     service_handle.await.unwrap().unwrap();
 
     assert_metrics_recorded().await;
-
-    print_cumulative_performance_summary("Performance").await;
 }
 
 async fn setup_rpc_connection(forester: &Keypair) -> LightClient {
