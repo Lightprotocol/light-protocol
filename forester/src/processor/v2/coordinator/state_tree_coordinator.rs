@@ -829,10 +829,15 @@ impl<R: Rpc> StateTreeCoordinator<R> {
             num_nullify_batches,
         );
 
-        // Don't use start_index filtering - we need all elements from index 0 to properly reconstruct the tree.
-        // The `limit` parameter (calculated from current_zkp_batch_index) already ensures we get the right range.
-        let output_queue_start_index = None;
-        let input_queue_start_index = None;
+        let output_queue_start_index = parsed_state
+            .append_metadata
+            .as_ref()
+            .map(|(_, queue_data)| queue_data.batch_start_index);
+        let input_queue_start_index = parsed_state
+            .nullify_metadata
+            .as_ref()
+            .filter(|_| num_nullify_batches > 0)
+            .map(|tree_data| tree_data.batch_start_index);
 
         let mut connection = self.context.rpc_pool.get_connection().await?;
         let indexer = connection.indexer_mut()?;
@@ -848,8 +853,8 @@ impl<R: Rpc> StateTreeCoordinator<R> {
         };
 
         info!(
-            "Photon request: tree={}, output_queue_limit={:?}, input_queue_limit={:?}",
-            self.context.merkle_tree, output_queue_limit, input_queue_limit
+            "Photon request: tree={}, output_queue_start_index={:?}, output_queue_limit={:?}, input_queue_start_index={:?}, input_queue_limit={:?}",
+            self.context.merkle_tree, output_queue_start_index, output_queue_limit, input_queue_start_index, input_queue_limit
         );
 
         let queue_elements_response = indexer
@@ -991,6 +996,16 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 batch_utils::validate_photon_root(oq.initial_root, current_onchain_root, "output")?;
 
                 let (_, queue_data) = metadata;
+
+                if oq.first_queue_index != queue_data.batch_start_index {
+                    return Err(CoordinatorError::PhotonIndexMismatch {
+                        queue_type: "output".to_string(),
+                        expected_start: queue_data.batch_start_index,
+                        actual_start: oq.first_queue_index,
+                    }
+                    .into());
+                }
+
                 let expected_total =
                     queue_data.zkp_batch_size as usize * queue_data.leaves_hash_chains.len();
                 if oq.leaf_indices.len() != expected_total {
@@ -1016,6 +1031,16 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let tree_data = nullify_metadata.as_ref().ok_or_else(|| {
                     anyhow::anyhow!("nullify_metadata unexpectedly None despite being checked")
                 })?;
+
+                if iq.first_queue_index != tree_data.batch_start_index {
+                    return Err(CoordinatorError::PhotonIndexMismatch {
+                        queue_type: "input".to_string(),
+                        expected_start: tree_data.batch_start_index,
+                        actual_start: iq.first_queue_index,
+                    }
+                    .into());
+                }
+
                 let expected_total =
                     tree_data.zkp_batch_size as usize * tree_data.leaves_hash_chains.len();
                 if iq.leaf_indices.len() != expected_total {
@@ -1675,9 +1700,10 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let current_index = batch.get_current_zkp_batch_index();
 
                 // Capture start index of first batch with work (for fetching full batch from Photon)
+                // Account for already-inserted zkp batches by adding offset
                 if tree_leaves_hash_chains.is_empty() {
                     zkp_batch_size = batch.zkp_batch_size as u16;
-                    batch_start_index = batch.start_index;
+                    batch_start_index = batch.start_index + (num_inserted * zkp_batch_size as u64);
                 }
 
                 for i in num_inserted..current_index {
@@ -1730,17 +1756,15 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let num_inserted = batch.get_num_inserted_zkps();
                 let current_index = batch.get_current_zkp_batch_index();
 
-                // Capture start index of first batch with pending work
                 if queue_leaves_hash_chains.is_empty() {
-                    queue_batch_start_index = batch.start_index;
+                    let zkp_size = batch.zkp_batch_size as u64;
+                    queue_batch_start_index = batch.start_index + (num_inserted * zkp_size);
                 }
 
                 for i in num_inserted..current_index {
-                    // Always collect hash chains for limit calculation (Photon needs total count)
                     queue_leaves_hash_chains
                         .push(output_queue.hash_chain_stores[batch_idx][i as usize]);
 
-                    // Only track batch_ids for unprocessed batches (for actual work)
                     let batch_id = ProcessedBatchId {
                         batch_index: batch_idx,
                         zkp_batch_index: i,
@@ -1789,18 +1813,15 @@ impl<R: Rpc> StateTreeCoordinator<R> {
                 let num_inserted = batch.get_num_inserted_zkps();
                 let current_index = batch.get_current_zkp_batch_index();
 
-                // Capture start index of first batch with work (for fetching full batch from Photon)
                 if leaves_hash_chains.is_empty() {
                     zkp_batch_size = batch.zkp_batch_size as u16;
                     batch_start_index = batch.start_index;
                 }
 
                 for i in num_inserted..current_index {
-                    // Always collect hash chains for limit calculation (Photon needs total count)
                     leaves_hash_chains
                         .push(merkle_tree.hash_chain_stores[batch_idx][i as usize]);
 
-                    // Only track batch_ids for unprocessed batches (for actual work)
                     let batch_id = ProcessedBatchId {
                         batch_index: batch_idx,
                         zkp_batch_index: i,

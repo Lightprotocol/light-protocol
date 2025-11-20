@@ -20,6 +20,14 @@ pub enum CoordinatorError {
         onchain_root: [u8; 8],
     },
 
+    /// Photon indexer data doesn't start at the expected batch index.
+    #[error("Photon {queue_type} queue data mismatch: expected start_index={expected_start}, got first_queue_index={actual_start}.")]
+    PhotonIndexMismatch {
+        queue_type: String,
+        expected_start: u64,
+        actual_start: u64,
+    },
+
     /// Hash chain validation failed for nullify batch.
     #[error(
         "Hash chain mismatch in batch {batch_index}: expected {expected:?}, computed {computed:?}"
@@ -55,6 +63,7 @@ impl CoordinatorError {
             self,
             CoordinatorError::RootChanged { .. }
                 | CoordinatorError::PhotonStale { .. }
+                | CoordinatorError::PhotonIndexMismatch { .. }
                 | CoordinatorError::HashChainMismatch { .. }
                 | CoordinatorError::ConstraintError { .. }
         )
@@ -64,6 +73,7 @@ impl CoordinatorError {
         matches!(
             self,
             CoordinatorError::RootChanged { .. }
+                | CoordinatorError::PhotonIndexMismatch { .. }
                 | CoordinatorError::HashChainMismatch { .. }
                 | CoordinatorError::ConstraintError { .. }
         )
