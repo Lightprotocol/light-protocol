@@ -6,12 +6,10 @@ use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
+use super::account_metas::{get_transfer_instruction_account_metas, TokenAccountsMetaConfig};
 use crate::{
-    account::CTokenAccount,
+    compressed_token::v1::account::CTokenAccount,
     error::{Result, TokenSdkError},
-    instructions::transfer::account_metas::{
-        get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
-    },
     AnchorSerialize,
 };
 // CTokenAccount abstraction to bundle inputs and create outputs.
@@ -172,8 +170,7 @@ pub fn compress(inputs: CompressInputs) -> Result<Instruction> {
         output_tree_index,
         tree_accounts,
     } = inputs;
-    let mut token_account =
-        crate::account::CTokenAccount::new_empty(mint, recipient, output_tree_index);
+    let mut token_account = CTokenAccount::new_empty(mint, recipient, output_tree_index);
     token_account.compress(amount).unwrap();
     solana_msg::msg!("spl_token_program {:?}", spl_token_program);
     let config = transfer_config.unwrap_or_default();

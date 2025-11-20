@@ -3,7 +3,7 @@ use std::{str::FromStr, sync::Arc};
 use anchor_lang::{InstructionData, ToAccountMetas};
 use forester_utils::rpc_pool::SolanaRpcPool;
 use light_client::rpc::Rpc;
-use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseAccounts as CTokenAccounts;
+use light_compressed_token_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts as CTokenAccounts;
 use light_compressible::config::CompressibleConfig;
 use light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID;
 use light_registry::{

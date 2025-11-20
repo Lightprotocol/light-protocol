@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke_signed};
-use light_compressed_token_sdk::instructions::create_token_account::{
+use light_compressed_token_sdk::ctoken::create_token_account::{
     create_compressible_token_account_instruction, CreateCompressibleTokenAccount,
 };
 use light_ctoken_types::instructions::extensions::compressible::CompressToPubkey;

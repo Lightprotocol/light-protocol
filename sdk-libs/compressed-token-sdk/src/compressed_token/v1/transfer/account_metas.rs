@@ -1,7 +1,7 @@
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
-use crate::instructions::CTokenDefaultAccounts;
+use crate::utils::CTokenDefaultAccounts;
 
 /// Account metadata configuration for compressed token instructions
 #[derive(Debug, Default, Copy, Clone)]

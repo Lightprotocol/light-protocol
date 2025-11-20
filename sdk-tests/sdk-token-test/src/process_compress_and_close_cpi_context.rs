@@ -1,5 +1,5 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_compressed_token_sdk::instructions::{
+use light_compressed_token_sdk::compressed_token::{
     compress_and_close::{
         compress_and_close_ctoken_accounts_with_indices, CompressAndCloseIndices,
     },

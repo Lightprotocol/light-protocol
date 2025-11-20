@@ -7,12 +7,10 @@ use light_program_profiler::profile;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
+use super::account_metas::{get_transfer2_instruction_account_metas, Transfer2AccountsMetaConfig};
 use crate::{
-    account2::CTokenAccount2,
+    compressed_token::CTokenAccount2,
     error::{Result, TokenSdkError},
-    instructions::transfer2::account_metas::{
-        get_transfer2_instruction_account_metas, Transfer2AccountsMetaConfig,
-    },
     AnchorSerialize,
 };
 

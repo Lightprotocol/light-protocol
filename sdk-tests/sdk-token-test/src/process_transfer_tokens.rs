@@ -1,9 +1,11 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_compressed_token_sdk::{
-    account::CTokenAccount,
-    instructions::transfer::{
-        instruction::{transfer, TransferInputs},
-        TransferAccountInfos,
+    compressed_token::{
+        transfer::{
+            instruction::{transfer, TransferInputs},
+            TransferAccountInfos,
+        },
+        CTokenAccount,
     },
     TokenAccountMeta, ValidityProof,
 };

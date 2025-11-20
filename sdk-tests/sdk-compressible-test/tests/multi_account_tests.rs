@@ -4,8 +4,10 @@ use anchor_lang::{
 use light_client::indexer::CompressedAccount;
 use light_compressed_account::address::derive_address;
 use light_compressed_token_sdk::{
+    compressed_token::create_compressed_mint::{
+        derive_compressed_mint_address, find_spl_mint_address,
+    },
     ctoken,
-    instructions::{create_compressed_mint::find_spl_mint_address, derive_compressed_mint_address},
     pack::compat::CTokenDataWithVariant,
 };
 use light_compressed_token_types::CPI_AUTHORITY_PDA;

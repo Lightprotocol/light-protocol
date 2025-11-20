@@ -3,7 +3,9 @@
 #![allow(deprecated)]
 
 use anchor_lang::prelude::*;
-use light_compressed_token_sdk::{instructions::Recipient, TokenAccountMeta, ValidityProof};
+use light_compressed_token_sdk::{
+    compressed_token::batch_compress::Recipient, TokenAccountMeta, ValidityProof,
+};
 use light_sdk::instruction::{PackedAddressTreeInfo, ValidityProof as LightValidityProof};
 
 mod ctoken_pda;
@@ -140,7 +142,7 @@ pub mod sdk_token_test {
     pub fn compress_and_close_cpi_with_cpi_context<'info>(
         ctx: Context<'_, '_, 'info, 'info, Generic<'info>>,
         indices: Vec<
-            light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseIndices,
+            light_compressed_token_sdk::compressed_token::compress_and_close::CompressAndCloseIndices,
         >,
         params: MintCompressedTokensCpiWriteParams,
     ) -> Result<()> {
@@ -152,7 +154,7 @@ pub mod sdk_token_test {
     pub fn compress_and_close_cpi_indices<'info>(
         ctx: Context<'_, '_, 'info, 'info, Generic<'info>>,
         indices: Vec<
-            light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseIndices,
+            light_compressed_token_sdk::compressed_token::compress_and_close::CompressAndCloseIndices,
         >,
         system_accounts_offset: u8,
     ) -> Result<()> {
@@ -164,7 +166,7 @@ pub mod sdk_token_test {
     pub fn decompress_full_cpi<'info>(
         ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
         indices: Vec<
-            light_compressed_token_sdk::instructions::decompress_full::DecompressFullIndices,
+            light_compressed_token_sdk::compressed_token::decompress_full::DecompressFullIndices,
         >,
         validity_proof: light_compressed_token_sdk::ValidityProof,
     ) -> Result<()> {
@@ -176,7 +178,7 @@ pub mod sdk_token_test {
     pub fn decompress_full_cpi_with_cpi_context<'info>(
         ctx: Context<'_, '_, '_, 'info, Generic<'info>>,
         indices: Vec<
-            light_compressed_token_sdk::instructions::decompress_full::DecompressFullIndices,
+            light_compressed_token_sdk::compressed_token::decompress_full::DecompressFullIndices,
         >,
         validity_proof: light_compressed_token_sdk::ValidityProof,
         params: Option<MintCompressedTokensCpiWriteParams>,

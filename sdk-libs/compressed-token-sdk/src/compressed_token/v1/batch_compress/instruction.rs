@@ -5,11 +5,9 @@ use light_ctoken_types;
 use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
+use super::account_metas::{get_batch_compress_instruction_account_metas, BatchCompressMetaConfig};
 use crate::{
     error::{Result, TokenSdkError},
-    instructions::batch_compress::account_metas::{
-        get_batch_compress_instruction_account_metas, BatchCompressMetaConfig,
-    },
     AnchorDeserialize, AnchorSerialize,
 };
 

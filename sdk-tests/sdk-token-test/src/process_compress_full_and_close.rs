@@ -1,13 +1,13 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_compressed_token_sdk::{
-    account2::CTokenAccount2,
-    instructions::{
-        close::close_account,
+    compressed_token::{
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
             Transfer2Inputs,
         },
+        CTokenAccount2,
     },
+    ctoken::close::close_account,
 };
 use light_sdk_types::cpi_accounts::{v2::CpiAccounts, CpiAccountsConfig};
 

@@ -3,7 +3,7 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::{
-    instructions::TransferSplToCtoken, token_pool::find_token_pool_pda_with_index,
+    ctoken::transfer_interface::TransferSplToCtoken, token_pool::find_token_pool_pda_with_index,
     SPL_TOKEN_PROGRAM_ID,
 };
 use solana_keypair::Keypair;

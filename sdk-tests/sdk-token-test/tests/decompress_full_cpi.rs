@@ -4,8 +4,8 @@ use anchor_lang::{AnchorDeserialize, InstructionData};
 /// Test input range for multi-input tests
 const TEST_INPUT_RANGE: [usize; 4] = [1, 2, 3, 4];
 
-use light_compressed_token_sdk::instructions::{
-    decompress_full::DecompressFullAccounts, find_spl_mint_address,
+use light_compressed_token_sdk::compressed_token::{
+    create_compressed_mint::find_spl_mint_address, decompress_full::DecompressFullAccounts,
 };
 use light_ctoken_types::instructions::mint_action::{CompressedMintWithContext, Recipient};
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
@@ -54,7 +54,7 @@ async fn setup_decompress_full_test(num_inputs: usize) -> (LightProgramTest, Tes
         .await
         .unwrap();
 
-    use light_compressed_token_sdk::instructions::{
+    use light_compressed_token_sdk::ctoken::create_associated_token_account::{
         create_compressible_associated_token_account, derive_ctoken_ata,
         CreateCompressibleAssociatedTokenAccountInputs,
     };
@@ -226,7 +226,7 @@ async fn test_decompress_full_cpi() {
             )
             .zip(ctx.destination_accounts.iter())
             .map(|((token, tree_info), &dest_pubkey)| {
-                light_compressed_token_sdk::instructions::decompress_full::pack_for_decompress_full(
+                light_compressed_token_sdk::compressed_token::decompress_full::pack_for_decompress_full(
                     token,
                     tree_info,
                     dest_pubkey,
@@ -332,7 +332,7 @@ async fn test_decompress_full_cpi_with_context() {
 
         let address_tree_info = rpc.get_address_tree_v2();
         let compressed_mint_address =
-            light_compressed_token_sdk::instructions::derive_compressed_mint_address(
+            light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_compressed_mint_address(
                 &ctx.mint_seed.pubkey(),
                 &address_tree_info.tree,
             );
@@ -419,7 +419,7 @@ async fn test_decompress_full_cpi_with_context() {
             )
             .zip(ctx.destination_accounts.iter())
             .map(|((token, tree_info), &dest_pubkey)| {
-                light_compressed_token_sdk::instructions::decompress_full::pack_for_decompress_full(
+                light_compressed_token_sdk::compressed_token::decompress_full::pack_for_decompress_full(
                     token,
                     tree_info,
                     dest_pubkey,

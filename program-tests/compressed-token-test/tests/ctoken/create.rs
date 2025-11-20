@@ -227,8 +227,8 @@ async fn test_create_compressible_token_account_failing() {
         let token_account_pubkey = Keypair::new();
 
         let create_token_account_ix =
-            light_compressed_token_sdk::instructions::create_compressible_token_account_instruction(
-                light_compressed_token_sdk::instructions::CreateCompressibleTokenAccount {
+            light_compressed_token_sdk::ctoken::create_token_account::create_compressible_token_account_instruction(
+                light_compressed_token_sdk::ctoken::create_token_account::CreateCompressibleTokenAccount {
                     account_pubkey: token_account_pubkey.pubkey(),
                     mint_pubkey: context.mint_pubkey,
                     owner_pubkey: context.owner_keypair.pubkey(),
@@ -364,8 +364,8 @@ async fn test_create_compressible_token_account_failing() {
         };
 
         let create_token_account_ix =
-            light_compressed_token_sdk::instructions::create_compressible_token_account_instruction(
-                light_compressed_token_sdk::instructions::CreateCompressibleTokenAccount {
+            light_compressed_token_sdk::ctoken::create_token_account::create_compressible_token_account_instruction(
+                light_compressed_token_sdk::ctoken::create_token_account::CreateCompressibleTokenAccount {
                     account_pubkey: token_account_pubkey,
                     mint_pubkey: context.mint_pubkey,
                     owner_pubkey: context.owner_keypair.pubkey(),
@@ -412,8 +412,8 @@ async fn test_create_compressible_token_account_failing() {
             .unwrap();
 
         let create_token_account_ix =
-            light_compressed_token_sdk::instructions::create_compressible_token_account_instruction(
-                light_compressed_token_sdk::instructions::CreateCompressibleTokenAccount {
+            light_compressed_token_sdk::ctoken::create_token_account::create_compressible_token_account_instruction(
+                light_compressed_token_sdk::ctoken::create_token_account::CreateCompressibleTokenAccount {
                     account_pubkey: context.token_account_keypair.pubkey(),
                     mint_pubkey: context.mint_pubkey,
                     owner_pubkey: context.owner_keypair.pubkey(),
@@ -452,8 +452,8 @@ async fn test_create_compressible_token_account_failing() {
         let wrong_account_type = context.rpc.test_accounts.protocol.governance_authority_pda;
 
         let create_token_account_ix =
-            light_compressed_token_sdk::instructions::create_compressible_token_account_instruction(
-                light_compressed_token_sdk::instructions::CreateCompressibleTokenAccount {
+            light_compressed_token_sdk::ctoken::create_token_account::create_compressible_token_account_instruction(
+                light_compressed_token_sdk::ctoken::create_token_account::CreateCompressibleTokenAccount {
                     account_pubkey: context.token_account_keypair.pubkey(),
                     mint_pubkey: context.mint_pubkey,
                     owner_pubkey: context.owner_keypair.pubkey(),

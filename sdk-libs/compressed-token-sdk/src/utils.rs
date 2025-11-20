@@ -62,8 +62,7 @@ use light_compressed_token_types::{
     ACCOUNT_COMPRESSION_AUTHORITY_PDA, ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA,
     LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID, PROGRAM_ID as LIGHT_COMPRESSED_TOKEN_PROGRAM_ID,
 };
-use light_sdk::constants::{C_TOKEN_PROGRAM_ID, REGISTERED_PROGRAM_PDA};
-use solana_pubkey::Pubkey;
+use light_sdk::constants::REGISTERED_PROGRAM_PDA;
 
 /// Standard pubkeys for compressed token instructions
 #[derive(Debug, Copy, Clone)]

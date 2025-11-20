@@ -11,19 +11,14 @@ use solana_account_info::AccountInfo;
 use solana_instruction::{AccountMeta, Instruction};
 use solana_pubkey::Pubkey;
 
-use crate::{
+use super::{
     account2::CTokenAccount2,
-    compat::TokenData,
-    error::TokenSdkError,
-    instructions::{
-        transfer2::{
-            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
-            Transfer2Config, Transfer2Inputs,
-        },
-        CTokenDefaultAccounts,
+    transfer2::{
+        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
+        Transfer2Inputs,
     },
-    ValidityProof,
 };
+use crate::{compat::TokenData, error::TokenSdkError, utils::CTokenDefaultAccounts, ValidityProof};
 
 /// Struct to hold all the data needed for DecompressFull operation
 /// Contains the complete compressed account data and destination index

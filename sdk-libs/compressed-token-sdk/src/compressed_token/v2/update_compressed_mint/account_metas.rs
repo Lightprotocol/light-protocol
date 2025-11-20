@@ -1,7 +1,7 @@
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
-use crate::instructions::CTokenDefaultAccounts;
+use crate::utils::CTokenDefaultAccounts;
 
 /// Configuration for generating account metas for update compressed mint instruction
 #[derive(Debug, Clone)]

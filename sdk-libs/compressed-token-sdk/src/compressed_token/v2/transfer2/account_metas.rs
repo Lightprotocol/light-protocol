@@ -3,7 +3,7 @@ use light_sdk::constants::LIGHT_SYSTEM_PROGRAM_ID;
 use solana_instruction::AccountMeta;
 use solana_pubkey::Pubkey;
 
-use crate::instructions::CTokenDefaultAccounts;
+use crate::utils::CTokenDefaultAccounts;
 
 /// Account metadata configuration for compressed token multi-transfer instructions
 #[derive(Debug, Default, Clone, PartialEq)]

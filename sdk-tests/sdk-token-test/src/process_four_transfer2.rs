@@ -1,10 +1,10 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_compressed_token_sdk::{
-    account2::CTokenAccount2,
-    instructions::transfer2::{
+use light_compressed_token_sdk::compressed_token::{
+    transfer2::{
         account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
         Transfer2Inputs,
     },
+    CTokenAccount2,
 };
 use light_ctoken_types::instructions::transfer2::MultiInputTokenDataWithContext;
 use light_sdk::{

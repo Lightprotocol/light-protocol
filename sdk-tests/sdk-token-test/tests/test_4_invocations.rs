@@ -1,12 +1,10 @@
 use anchor_lang::{prelude::AccountMeta, AccountDeserialize, InstructionData};
 use light_compressed_token_sdk::{
-    instructions::{
-        transfer::account_metas::{
-            get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
-        },
-        CTokenDefaultAccounts,
+    compressed_token::transfer::account_metas::{
+        get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
     },
     token_pool::get_token_pool_pda,
+    utils::CTokenDefaultAccounts,
     SPL_TOKEN_PROGRAM_ID,
 };
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};

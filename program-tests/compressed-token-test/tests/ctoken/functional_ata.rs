@@ -1,4 +1,4 @@
-use light_compressed_token_sdk::instructions::create_associated_token_account_idempotent;
+use light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account_idempotent;
 use light_test_utils::assert_create_token_account::assert_create_associated_token_account;
 
 use super::shared::*;
@@ -18,7 +18,7 @@ async fn test_associated_token_account_operations() {
     let owner_pubkey = context.owner_keypair.pubkey();
 
     // Create basic ATA using SDK function
-    let instruction = light_compressed_token_sdk::instructions::create_associated_token_account(
+    let instruction = light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
         payer_pubkey,
         owner_pubkey,
         context.mint_pubkey,
@@ -47,8 +47,8 @@ async fn test_associated_token_account_operations() {
     let num_prepaid_epochs = 0;
     let lamports_per_write = Some(150);
     // Create compressible ATA
-    let compressible_instruction = light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
-        light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
+    let compressible_instruction = light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account(
+        light_compressed_token_sdk::ctoken::create_associated_token_account::CreateCompressibleAssociatedTokenAccountInputs {
             payer: payer_pubkey,
             owner: compressible_owner_pubkey,
             mint: context.mint_pubkey,
@@ -139,7 +139,7 @@ async fn test_create_ata_idempotent() {
     let payer_pubkey = context.payer.pubkey();
     let owner_pubkey = context.owner_keypair.pubkey();
     // Create ATA using non-idempotent instruction (first creation)
-    let instruction = light_compressed_token_sdk::instructions::create_associated_token_account::create_associated_token_account(
+    let instruction = light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
         payer_pubkey,
         owner_pubkey,
         context.mint_pubkey,
@@ -162,7 +162,7 @@ async fn test_create_ata_idempotent() {
     .await;
 
     // Attempt to create the same ATA again using non-idempotent instruction (should fail)
-    let instruction = light_compressed_token_sdk::instructions::create_associated_token_account::create_associated_token_account(
+    let instruction = light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
         payer_pubkey,
         owner_pubkey,
         context.mint_pubkey,

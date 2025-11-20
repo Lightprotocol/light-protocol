@@ -2,9 +2,12 @@ use anchor_lang::{
     prelude::{AccountMeta, Pubkey},
     InstructionData,
 };
-use light_compressed_token_sdk::instructions::{
-    create_associated_token_account, create_compressed_mint, create_mint_to_compressed_instruction,
-    derive_ctoken_ata, CreateCompressedMintInputs, MintToCompressedInputs,
+use light_compressed_token_sdk::{
+    compressed_token::{
+        create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
+        mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
+    },
+    ctoken::create_associated_token_account::{create_associated_token_account, derive_ctoken_ata},
 };
 use light_ctoken_types::{
     instructions::mint_action::{CompressedMintWithContext, Recipient},

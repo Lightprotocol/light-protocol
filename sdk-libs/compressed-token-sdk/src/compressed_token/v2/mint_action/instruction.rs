@@ -6,11 +6,8 @@ use solana_instruction::Instruction;
 use solana_msg::msg;
 use solana_program_error::ProgramError;
 
-use crate::{
-    ctoken_instruction::CTokenInstruction,
-    error::TokenSdkError,
-    instructions::mint_action::{cpi_accounts::MintActionCpiAccounts, MintActionCpiWriteAccounts},
-};
+use super::{cpi_accounts::MintActionCpiAccounts, MintActionCpiWriteAccounts};
+use crate::{compressed_token::ctoken_instruction::CTokenInstruction, error::TokenSdkError};
 
 impl CTokenInstruction for MintActionCompressedInstructionData {
     type ExecuteAccounts<'info, A: light_account_checks::AccountInfoTrait + Clone + 'info> =

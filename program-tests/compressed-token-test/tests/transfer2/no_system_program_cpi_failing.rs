@@ -44,8 +44,8 @@
 // ============================================================================
 
 use light_compressed_token_sdk::{
-    instructions::{derive_ctoken_ata, find_spl_mint_address},
-    ValidityProof,
+    compressed_token::create_compressed_mint::find_spl_mint_address,
+    ctoken::create_associated_token_account::derive_ctoken_ata, ValidityProof,
 };
 use light_ctoken_types::instructions::{mint_action::Recipient, transfer2::Compression};
 use light_program_test::{
@@ -105,7 +105,7 @@ async fn setup_no_system_program_cpi_test(
     let (recipient_ata, _) = derive_ctoken_ata(&recipient.pubkey(), &mint);
 
     // Create CToken ATA for owner (source)
-    let instruction = light_compressed_token_sdk::instructions::create_associated_token_account(
+    let instruction = light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
         payer.pubkey(),
         owner.pubkey(),
         mint,
@@ -117,7 +117,7 @@ async fn setup_no_system_program_cpi_test(
         .unwrap();
 
     // Create CToken ATA for recipient
-    let instruction = light_compressed_token_sdk::instructions::create_associated_token_account(
+    let instruction = light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
         payer.pubkey(),
         recipient.pubkey(),
         mint,
@@ -714,7 +714,7 @@ async fn test_too_many_mints() {
 
         // Create source ATA
         let instruction =
-            light_compressed_token_sdk::instructions::create_associated_token_account(
+            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
                 context.payer.pubkey(),
                 context.owner.pubkey(),
                 mint,
@@ -728,7 +728,7 @@ async fn test_too_many_mints() {
 
         // Create recipient ATA
         let instruction =
-            light_compressed_token_sdk::instructions::create_associated_token_account(
+            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
                 context.payer.pubkey(),
                 context.recipient.pubkey(),
                 mint,
