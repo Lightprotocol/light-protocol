@@ -205,6 +205,24 @@ func (handler proofStatusHandler) checkJobExistsDetailed(jobID string) (bool, st
 		return true, "failed", job
 	}
 
+	// Check zk_results_queue for completed jobs
+	if job, found := handler.findJobInQueue("zk_results_queue", jobID); found {
+		return true, "completed", job
+	}
+
+	// Check zk_result_* Redis keys for cached results
+	result, err := handler.redisQueue.GetResult(jobID)
+	if err == nil && result != nil {
+		logging.Logger().Info().
+			Str("job_id", jobID).
+			Msg("Job found in result cache")
+
+		jobInfo := map[string]interface{}{
+			"result_cached": true,
+		}
+		return true, "completed", jobInfo
+	}
+
 	return false, "", nil
 }
 
