@@ -20,7 +20,7 @@ use light_prover_client::{
     proof_types::batch_address_append::get_batch_address_append_circuit_inputs,
 };
 use light_sparse_merkle_tree::SparseMerkleTree;
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 use crate::{error::ForesterUtilsError, rpc_pool::SolanaRpcPool};
 

@@ -679,19 +679,11 @@ impl<R: Rpc> AddressTreeCoordinator<R> {
         };
 
         let mut next_index = address_data.start_index as usize;
-
-        let mut changelog: Vec<
-            light_sparse_merkle_tree::changelog::ChangelogEntry<
-                { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
-            >,
-        > = Vec::new();
-        let mut indexed_changelog: Vec<
-            light_sparse_merkle_tree::indexed_changelog::IndexedChangelogEntry<
-                usize,
-                { DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize },
-            >,
-        > = Vec::new();
         let batch_size = address_data.zkp_batch_size as usize;
+
+        let total_elements = address_data.leaves_hash_chains.len() * batch_size;
+        let mut changelog = Vec::with_capacity(total_elements * 2); // *2 for low+new elements
+        let mut indexed_changelog = Vec::with_capacity(total_elements * 2);
 
         for (batch_idx, leaves_hash_chain) in address_data.leaves_hash_chains.iter().enumerate() {
             let start_idx = batch_idx * batch_size;
