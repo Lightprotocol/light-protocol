@@ -47,7 +47,7 @@ pub use mint_to_compressed::{
     create_mint_to_compressed_instruction, get_mint_to_compressed_instruction_account_metas,
     DecompressedMintConfig, MintToCompressedInputs, MintToCompressedMetaConfig,
 };
-pub use transfer_ctoken::{transfer_ctoken, transfer_ctoken_signed};
+pub use transfer_ctoken::{TransferCtoken, TransferCtokenAccountInfos};
 pub use transfer_interface::{
     CtokenToSplTransferAndClose, CtokenToSplTransferAndCloseAccountInfos, SplBridgeConfig,
     TransferCtokenToSpl, TransferCtokenToSplAccountInfos, TransferInterface, TransferSplToCtoken,

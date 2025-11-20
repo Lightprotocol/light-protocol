@@ -7,7 +7,7 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use super::transfer_ctoken::{transfer_ctoken, transfer_ctoken_signed};
+use super::transfer_ctoken::TransferCtokenAccountInfos;
 use crate::{
     account2::CTokenAccount2,
     error::TokenSdkError,
@@ -51,7 +51,7 @@ impl<'info> TransferSplToCtokenAccountInfos<'info> {
 
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = TransferSplToCtoken::from(&self).instruction()?;
-        let account_infos = vec![
+        let account_infos = [
             self.payer,
             self.compressed_token_program_authority,
             self.mint,                       // Index 0: Mint
@@ -66,7 +66,7 @@ impl<'info> TransferSplToCtokenAccountInfos<'info> {
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = TransferSplToCtoken::from(&self).instruction()?;
-        let account_infos = vec![
+        let account_infos = [
             self.payer,
             self.compressed_token_program_authority,
             self.mint,                       // Index 0: Mint
@@ -186,7 +186,7 @@ impl<'info> TransferCtokenToSplAccountInfos<'info> {
 
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = TransferCtokenToSpl::from(&self).instruction()?;
-        let account_infos = vec![
+        let account_infos = [
             self.payer,
             self.compressed_token_program_authority,
             self.mint,                          // Index 0: Mint
@@ -201,7 +201,7 @@ impl<'info> TransferCtokenToSplAccountInfos<'info> {
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = TransferCtokenToSpl::from(&self).instruction()?;
-        let account_infos = vec![
+        let account_infos = [
             self.payer,
             self.compressed_token_program_authority,
             self.mint,                          // Index 0: Mint
@@ -328,7 +328,7 @@ impl<'info> CtokenToSplTransferAndCloseAccountInfos<'info> {
 
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = CtokenToSplTransferAndClose::from(&self).instruction()?;
-        let account_infos = vec![
+        let account_infos = [
             self.payer,
             self.compressed_token_program_authority,
             self.mint,                          // Index 0: Mint
@@ -343,7 +343,7 @@ impl<'info> CtokenToSplTransferAndCloseAccountInfos<'info> {
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = CtokenToSplTransferAndClose::from(&self).instruction()?;
-        let account_infos = vec![
+        let account_infos = [
             self.payer,
             self.compressed_token_program_authority,
             self.mint,                          // Index 0: Mint
@@ -526,12 +526,13 @@ impl<'info> TransferInterface<'info> {
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         match (source_is_ctoken, dest_is_ctoken) {
-            (true, true) => transfer_ctoken(
-                &self.source_account,
-                &self.destination_account,
-                &self.authority,
-                self.amount,
-            ),
+            (true, true) => TransferCtokenAccountInfos {
+                source: self.source_account.clone(),
+                destination: self.destination_account.clone(),
+                amount: self.amount,
+                authority: self.authority.clone(),
+            }
+            .invoke(),
 
             (true, false) => {
                 let config = self.spl_bridge_config.ok_or_else(|| {
@@ -595,13 +596,13 @@ impl<'info> TransferInterface<'info> {
             .map_err(|_| ProgramError::InvalidAccountData)?;
 
         match (source_is_ctoken, dest_is_ctoken) {
-            (true, true) => transfer_ctoken_signed(
-                &self.source_account,
-                &self.destination_account,
-                &self.authority,
-                self.amount,
-                signer_seeds,
-            ),
+            (true, true) => TransferCtokenAccountInfos {
+                source: self.source_account.clone(),
+                destination: self.destination_account.clone(),
+                amount: self.amount,
+                authority: self.authority.clone(),
+            }
+            .invoke_signed(signer_seeds),
 
             (true, false) => {
                 let config = self.spl_bridge_config.ok_or_else(|| {
