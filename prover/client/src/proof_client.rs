@@ -24,6 +24,9 @@ const DEFAULT_POLLING_INTERVAL_MS: u64 = 100;
 const DEFAULT_MAX_WAIT_TIME_SECS: u64 = 600;
 const DEFAULT_LOCAL_SERVER: &str = "http://localhost:3001";
 
+const INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS: u64 = 1000;
+const INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS: u64 = 10000;
+
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum ProofResponse {
@@ -52,6 +55,7 @@ pub struct ProofClient {
     polling_interval: Duration,
     max_wait_time: Duration,
     api_key: Option<String>,
+    initial_poll_delay: Duration,
 }
 
 impl ProofClient {
@@ -62,6 +66,7 @@ impl ProofClient {
             polling_interval: Duration::from_millis(DEFAULT_POLLING_INTERVAL_MS),
             max_wait_time: Duration::from_secs(DEFAULT_MAX_WAIT_TIME_SECS),
             api_key: None,
+            initial_poll_delay: Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS),
         }
     }
 
@@ -72,12 +77,37 @@ impl ProofClient {
         max_wait_time: Duration,
         api_key: Option<String>,
     ) -> Self {
+        let initial_poll_delay = if api_key.is_some() {
+            Duration::from_millis(INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS)
+        } else {
+            Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS)
+        };
+
         Self {
             client: Client::new(),
             server_address,
             polling_interval,
             max_wait_time,
             api_key,
+            initial_poll_delay,
+        }
+    }
+
+    #[allow(unused)]
+    pub fn with_full_config(
+        server_address: String,
+        polling_interval: Duration,
+        max_wait_time: Duration,
+        api_key: Option<String>,
+        initial_poll_delay: Duration,
+    ) -> Self {
+        Self {
+            client: Client::new(),
+            server_address,
+            polling_interval,
+            max_wait_time,
+            api_key,
+            initial_poll_delay,
         }
     }
 
@@ -340,6 +370,9 @@ impl ProofClient {
 
         info!("Starting to poll for job {} at URL: {}", job_id, status_url);
 
+        debug!("Waiting {:?} before first poll to allow prover to persist job {}", self.initial_poll_delay, job_id);
+        sleep(self.initial_poll_delay).await;
+
         let mut poll_count = 0;
         let mut transient_error_count = 0;
 
@@ -500,6 +533,20 @@ impl ProofClient {
                     "Job {} completed successfully after {:?} and {} polls",
                     job_id, elapsed, poll_count
                 );
+
+               if poll_count > 1 {
+                    let wasted_polls = poll_count - 1;
+                    let suggested_delay_ms = self.initial_poll_delay.as_millis() as u64
+                        + (wasted_polls as u64 * self.polling_interval.as_millis() as u64);
+
+                    warn!(
+                        "Job {} required {} polls (wasted {} polls before completion). \
+                         Consider increasing initial_poll_delay from {}ms to ~{}ms for better efficiency.",
+                        job_id, poll_count, wasted_polls,
+                        self.initial_poll_delay.as_millis(), suggested_delay_ms
+                    );
+                }
+
                 self.extract_proof_from_result(status_response.result, job_id)
                     .map(Some)
             }
