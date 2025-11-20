@@ -75,10 +75,7 @@ async fn setup_transfer_test(
 
     // Mint tokens to owner if amount > 0
     if token_amount > 0 {
-        let recipients = vec![Recipient {
-            recipient: owner.pubkey().into(),
-            amount: token_amount,
-        }];
+        let recipients = vec![Recipient::new(owner.pubkey(), token_amount)];
 
         mint_to_compressed(
             &mut rpc,
@@ -686,10 +683,7 @@ async fn setup_transfer_test_with_delegate(
 
     // Mint tokens to owner if amount > 0
     if token_amount > 0 {
-        let recipients = vec![Recipient {
-            recipient: owner.pubkey().into(),
-            amount: token_amount,
-        }];
+        let recipients = vec![Recipient::new(owner.pubkey(), token_amount)];
 
         mint_to_compressed(
             &mut rpc,

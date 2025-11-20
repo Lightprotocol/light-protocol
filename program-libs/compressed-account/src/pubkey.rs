@@ -210,6 +210,9 @@ pub trait AsPubkey {
     fn to_pubkey_bytes(&self) -> [u8; 32];
     #[cfg(feature = "anchor")]
     fn to_anchor_pubkey(&self) -> anchor_lang::prelude::Pubkey;
+    fn to_light_pubkey(&self) -> Pubkey {
+        self.to_pubkey_bytes().into()
+    }
 }
 
 impl AsPubkey for Pubkey {
@@ -219,6 +222,9 @@ impl AsPubkey for Pubkey {
     #[cfg(feature = "anchor")]
     fn to_anchor_pubkey(&self) -> anchor_lang::prelude::Pubkey {
         self.into()
+    }
+    fn to_light_pubkey(&self) -> Pubkey {
+        *self
     }
 }
 

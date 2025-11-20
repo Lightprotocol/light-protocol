@@ -2,17 +2,16 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_compressed_token_sdk::instructions::{
-    derive_compressed_mint_address,
-    mint_action::{MintActionType, MintToRecipient},
-};
+use light_compressed_token_sdk::instructions::derive_compressed_mint_address;
 use light_ctoken_types::instructions::mint_action::Recipient;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signature::Signature;
 use solana_signer::Signer;
 
-use crate::instructions::mint_action::{create_mint_action_instruction, MintActionParams};
+use crate::instructions::mint_action::{
+    create_mint_action_instruction, MintActionParams, MintActionType, MintToRecipient,
+};
 
 /// Executes a mint action that can perform multiple operations in a single instruction
 ///
@@ -142,6 +141,6 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
         actions,
         new_mint,
     };
-
+    println!("params {:?}", params);
     mint_action(rpc, params, authority, payer, mint_signer).await
 }

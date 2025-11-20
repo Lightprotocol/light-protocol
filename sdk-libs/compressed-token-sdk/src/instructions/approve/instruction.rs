@@ -75,7 +75,6 @@ pub fn create_approve_instruction(inputs: ApproveInputs) -> Result<Instruction> 
         inputs.change_compressed_account_merkle_tree,
     );
 
-    // Get account metas using the dedicated function
     let account_metas = get_approve_instruction_account_metas(meta_config);
 
     Ok(Instruction {

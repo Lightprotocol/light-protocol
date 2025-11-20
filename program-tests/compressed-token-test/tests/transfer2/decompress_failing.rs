@@ -114,14 +114,8 @@ async fn setup_decompression_test(
         .await?;
 
     // Mint compressed tokens to owner and 1 token to decompressed CToken ATA
-    let compressed_recipients = vec![Recipient {
-        recipient: owner.pubkey().to_bytes().into(),
-        amount: compressed_amount,
-    }];
-    let decompressed_recipients = vec![Recipient {
-        recipient: owner.pubkey().to_bytes().into(),
-        amount: 0, // Mint minimal amount to initialize the CToken ATA
-    }];
+    let compressed_recipients = vec![Recipient::new(owner.pubkey(), compressed_amount)];
+    let decompressed_recipients = vec![Recipient::new(owner.pubkey(), 0)];
 
     light_token_client::actions::mint_action_comprehensive(
         &mut rpc,

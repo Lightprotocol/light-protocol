@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
-use light_compressed_token_sdk::{instructions::mint_action::MintToRecipient, ValidityProof};
-use light_ctoken_types::instructions::mint_action::CompressedMintWithContext;
+use light_compressed_token_sdk::ValidityProof;
+use light_ctoken_types::instructions::mint_action::{CompressedMintWithContext, Recipient};
 
 use super::{
     create_pda::process_create_escrow_pda_with_cpi_context, mint::process_mint_action, PdaCToken,
@@ -8,7 +8,7 @@ use super::{
 #[derive(Debug, Clone, AnchorDeserialize, AnchorSerialize)]
 pub struct ChainedCtokenInstructionData {
     pub compressed_mint_with_context: CompressedMintWithContext,
-    pub token_recipients: Vec<MintToRecipient>,
+    pub token_recipients: Vec<Recipient>,
     pub final_mint_authority: Option<Pubkey>,
     pub pda_creation: PdaCreationData,
     pub output_tree_index: u8,

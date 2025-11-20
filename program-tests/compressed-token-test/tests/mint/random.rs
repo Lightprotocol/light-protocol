@@ -9,7 +9,10 @@ use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{
     assert_mint_action::assert_mint_action, mint_assert::assert_compressed_mint_account, Rpc,
 };
-use light_token_client::actions::create_mint;
+use light_token_client::{
+    actions::create_mint,
+    instructions::mint_action::{MintActionType, MintToRecipient},
+};
 use serial_test::serial;
 use solana_sdk::{signature::Keypair, signer::Signer};
 
@@ -190,70 +193,58 @@ async fn test_random_mint_action() {
                         let mut recipients = Vec::new();
 
                         for _ in 0..num_recipients {
-                            recipients.push(
-                                light_compressed_token_sdk::instructions::mint_action::MintToRecipient {
-                                    recipient: Keypair::new().pubkey(),
-                                    amount: rng.gen_range(1..=100000),
-                                }
-                            );
+                            recipients.push(MintToRecipient {
+                                recipient: Keypair::new().pubkey(),
+                                amount: rng.gen_range(1..=100000),
+                            });
                         }
 
                         total_recipients += num_recipients;
 
-                        actions.push(
-                            light_compressed_token_sdk::instructions::mint_action::MintActionType::MintTo {
-                                recipients,
-                                token_account_version: rng.gen_range(1..=3),
-                            }
-                        );
+                        actions.push(MintActionType::MintTo {
+                            recipients,
+                            token_account_version: rng.gen_range(1..=3),
+                        });
                     }
                 }
                 // 30% chance: MintToCToken
                 300..=599 => {
                     // Randomly select one of the 5 pre-created ATAs
                     let ata_index = rng.gen_range(0..ctoken_atas.len());
-                    actions.push(
-                        light_compressed_token_sdk::instructions::mint_action::MintActionType::MintToCToken {
-                            account: ctoken_atas[ata_index],
-                            amount: rng.gen_range(1..=100000),
-                        }
-                    );
+                    actions.push(MintActionType::MintToCToken {
+                        account: ctoken_atas[ata_index],
+                        amount: rng.gen_range(1..=100000),
+                    });
                 }
                 // 10% chance: Update Name
                 600..=699 => {
                     let name = random_string(&mut rng, 1, 32);
-                    actions.push(
-                        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
-                            extension_index: 0,
-                            field_type: 0, // Name field
-                            key: vec![],
-                            value: name,
-                        }
-                    );
+                    actions.push(MintActionType::UpdateMetadataField {
+                        extension_index: 0,
+                        field_type: 0, // Name field
+                        key: vec![],
+                        value: name,
+                    });
                 }
                 // 10% chance: Update Symbol
                 700..=799 => {
                     let symbol = random_string(&mut rng, 1, 10);
-                    actions.push(
-                        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
-                            extension_index: 0,
-                            field_type: 1, // Symbol field
-                            key: vec![],
-                            value: symbol,
-                        }
-                    );
+                    actions.push(MintActionType::UpdateMetadataField {
+                        extension_index: 0,
+                        field_type: 1, // Symbol field
+                        key: vec![],
+                        value: symbol,
+                    });
                 }
                 // 10% chance: Update URI
                 800..=899 => {
                     let uri = random_string(&mut rng, 10, 200);
-                    actions.push(
-                        light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
-                            extension_index: 0,
-                            field_type: 2, // URI field
-                            key: vec![],
-                            value: uri,
-                        }
-                    );
+                    actions.push(MintActionType::UpdateMetadataField {
+                        extension_index: 0,
+                        field_type: 2, // URI field
+                        key: vec![],
+                        value: uri,
+                    });
                 }
                 // 9.9% chance: Update Custom Metadata
                 900..=998 => {
@@ -263,14 +254,12 @@ async fn test_random_mint_action() {
                         let key = available_keys[key_index].clone();
                         let value = random_bytes(&mut rng, 1, 64);
 
-                        actions.push(
-                            light_compressed_token_sdk::instructions::mint_action::MintActionType::UpdateMetadataField {
-                                extension_index: 0,
-                                field_type: 3, // Custom field
-                                key,
-                                value,
-                            }
-                        );
+                        actions.push(MintActionType::UpdateMetadataField {
+                            extension_index: 0,
+                            field_type: 3, // Custom field
+                            key,
+                            value,
+                        });
                     }
                 }
                 // 0.1% chance: Remove Custom Metadata Key
@@ -280,24 +269,24 @@ async fn test_random_mint_action() {
                         let key_index = rng.gen_range(0..available_keys.len());
                         let key = available_keys.remove(key_index);
 
-                        actions.push(
-                            light_compressed_token_sdk::instructions::mint_action::MintActionType::RemoveMetadataKey {
-                                extension_index: 0,
-                                key,
-                                idempotent: if available_keys.is_empty() { 1 } else { rng.gen_bool(0.5) as u8 }, // 50% chance idempotent when keys exist, always when none left
-                            }
-                        );
+                        actions.push(MintActionType::RemoveMetadataKey {
+                            extension_index: 0,
+                            key,
+                            idempotent: if available_keys.is_empty() {
+                                1
+                            } else {
+                                rng.gen_bool(0.5) as u8
+                            }, // 50% chance idempotent when keys exist, always when none left
+                        });
                     } else {
                         // No keys left, try to remove a random key (always idempotent)
                         let random_key = vec![rng.gen::<u8>(), rng.gen::<u8>()];
 
-                        actions.push(
-                            light_compressed_token_sdk::instructions::mint_action::MintActionType::RemoveMetadataKey {
-                                extension_index: 0, // Only TokenMetadata extension exists (index 0)
-                                key: random_key,
-                                idempotent: 1, // Always idempotent when no keys exist
-                            }
-                        );
+                        actions.push(MintActionType::RemoveMetadataKey {
+                            extension_index: 0, // Only TokenMetadata extension exists (index 0)
+                            key: random_key,
+                            idempotent: 1, // Always idempotent when no keys exist
+                        });
                     }
                 }
                 // This should never happen since we generate 0..1000, but added for completeness
@@ -319,8 +308,6 @@ async fn test_random_mint_action() {
 
         // Fix action ordering: remove any UpdateMetadataField actions that come after RemoveMetadataKey for the same key
         use std::collections::HashSet;
-
-        use light_compressed_token_sdk::instructions::mint_action::MintActionType;
 
         let mut removed_keys: HashSet<Vec<u8>> = HashSet::new();
         let mut i = 0;

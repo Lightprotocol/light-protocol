@@ -7,5 +7,5 @@ pub use account_metas::{
 pub use instruction::{
     create_compressed_mint, create_compressed_mint_cpi, create_compressed_mint_cpi_write,
     derive_cmint_from_spl_mint, derive_compressed_mint_address, find_spl_mint_address,
-    CreateCompressedMintInputs, CREATE_COMPRESSED_MINT_DISCRIMINATOR,
+    CreateCompressedMintInputs,
 };

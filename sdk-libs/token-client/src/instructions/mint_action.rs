@@ -3,24 +3,68 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_compressed_token_sdk::{
-    instructions::{
-        create_mint_action, derive_compressed_mint_address, find_spl_mint_address,
-        mint_action::{MintActionInputs, MintActionType, MintToRecipient},
-    },
-    token_pool::derive_token_pool,
+use light_compressed_account::instruction_data::traits::LightInstructionData;
+use light_compressed_token_sdk::instructions::{
+    derive_compressed_mint_address, find_spl_mint_address,
+    get_mint_action_instruction_account_metas, mint_action::MintActionMetaConfig,
 };
 use light_ctoken_types::{
     instructions::{
         extensions::{token_metadata::TokenMetadataInstructionData, ExtensionInstructionData},
-        mint_action::CompressedMintWithContext,
+        mint_action::{
+            CompressedMintWithContext, MintActionCompressedInstructionData, MintToCTokenAction,
+            MintToCompressedAction, Recipient, RemoveMetadataKeyAction, UpdateAuthority,
+            UpdateMetadataAuthorityAction, UpdateMetadataFieldAction,
+        },
     },
     state::CompressedMint,
+    COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
+
+// Backwards compatibility types for token-client
+#[derive(Debug, Clone, PartialEq)]
+pub struct MintToRecipient {
+    pub recipient: Pubkey,
+    pub amount: u64,
+}
+
+/// High-level action types for the mint action instruction (backwards compatibility)
+#[derive(Debug, Clone, PartialEq)]
+pub enum MintActionType {
+    MintTo {
+        recipients: Vec<MintToRecipient>,
+        token_account_version: u8,
+    },
+    UpdateMintAuthority {
+        new_authority: Option<Pubkey>,
+    },
+    UpdateFreezeAuthority {
+        new_authority: Option<Pubkey>,
+    },
+    MintToCToken {
+        account: Pubkey,
+        amount: u64,
+    },
+    UpdateMetadataField {
+        extension_index: u8,
+        field_type: u8,
+        key: Vec<u8>,
+        value: Vec<u8>,
+    },
+    UpdateMetadataAuthority {
+        extension_index: u8,
+        new_authority: Pubkey,
+    },
+    RemoveMetadataKey {
+        extension_index: u8,
+        key: Vec<u8>,
+        idempotent: u8,
+    },
+}
 
 /// Parameters for creating a new mint
 #[derive(Debug)]
@@ -41,7 +85,7 @@ pub struct MintActionParams {
     pub authority: Pubkey,
     pub payer: Pubkey,
     pub actions: Vec<MintActionType>,
-    /// Required if any action is CreateSplMint
+    /// Required if any action is creating a mint
     pub new_mint: Option<NewMint>,
 }
 
@@ -147,62 +191,133 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
             rpc_proof_result.accounts[0].tree_info,
         )
     };
-    println!("compressed_mint_inputs {:?}", compressed_mint_inputs);
-    // Get mint bump from find_spl_mint_address if we're creating a compressed mint
-    let mint_bump = if is_creating_mint {
-        Some(find_spl_mint_address(&params.mint_seed).1)
-    } else {
-        None
-    };
 
-    // Check if we need token_pool (for SPL operations)
-    let needs_token_pool = params.actions.iter().any(|action| {
-        matches!(
-            action,
-            MintActionType::CreateSplMint { .. } | MintActionType::MintToCToken { .. }
+    // Build instruction data using builder pattern
+    let mut instruction_data = if is_creating_mint {
+        MintActionCompressedInstructionData::new_mint(
+            params.compressed_mint_address,
+            compressed_mint_inputs.root_index,
+            proof.ok_or_else(|| {
+                RpcError::CustomError("Proof is required for mint creation".to_string())
+            })?,
+            compressed_mint_inputs.mint.clone(),
         )
-    }) || compressed_mint_inputs.mint.metadata.spl_mint_initialized;
-
-    let token_pool = if needs_token_pool {
-        let mint = find_spl_mint_address(&params.mint_seed).0;
-        Some(derive_token_pool(&mint, 0))
     } else {
-        None
+        MintActionCompressedInstructionData::new(compressed_mint_inputs.clone(), proof)
     };
 
-    // Create the mint action instruction inputs
-    let instruction_inputs = MintActionInputs {
-        compressed_mint_inputs,
-        mint_seed: params.mint_seed,
-        create_mint: is_creating_mint,
-        mint_bump,
-        authority: params.authority,
-        payer: params.payer,
-        proof,
-        actions: params.actions,
-        // address_tree when create_mint, input state tree when not
-        address_tree_pubkey: if is_creating_mint {
-            address_tree_pubkey
-        } else {
-            state_tree_info.tree
-        },
-        // input_queue only needed when operating on existing mint
-        input_queue: if is_creating_mint {
-            None
-        } else {
-            Some(state_tree_info.queue)
-        },
-        output_queue: state_tree_info.queue,
-        tokens_out_queue: Some(state_tree_info.queue), // Output queue for tokens
-        token_pool,
+    // Convert and add actions using builder pattern
+    // Collect decompressed token accounts for MintToCToken actions
+    let mut ctoken_accounts = Vec::new();
+    let mut ctoken_account_index = 0u8;
+
+    for action in params.actions {
+        instruction_data = match action {
+            MintActionType::MintTo {
+                recipients,
+                token_account_version,
+            } => {
+                // Convert MintToRecipient (solana_sdk::Pubkey) to Recipient ([u8; 32])
+                let ctoken_recipients: Vec<Recipient> = recipients
+                    .into_iter()
+                    .map(|r| Recipient::new(r.recipient, r.amount))
+                    .collect();
+                instruction_data.with_mint_to_compressed(MintToCompressedAction {
+                    token_account_version,
+                    recipients: ctoken_recipients,
+                })
+            }
+            MintActionType::MintToCToken { account, amount } => {
+                // Add account to the list and use its index
+                ctoken_accounts.push(account);
+                let current_index = ctoken_account_index;
+                ctoken_account_index += 1;
+
+                instruction_data.with_mint_to_ctoken(MintToCTokenAction {
+                    account_index: current_index,
+                    amount,
+                })
+            }
+            MintActionType::UpdateMintAuthority { new_authority } => instruction_data
+                .with_update_mint_authority(UpdateAuthority {
+                    new_authority: new_authority.map(|a| a.to_bytes().into()),
+                }),
+            MintActionType::UpdateFreezeAuthority { new_authority } => instruction_data
+                .with_update_freeze_authority(UpdateAuthority {
+                    new_authority: new_authority.map(|a| a.to_bytes().into()),
+                }),
+            MintActionType::UpdateMetadataField {
+                extension_index,
+                field_type,
+                key,
+                value,
+            } => instruction_data.with_update_metadata_field(UpdateMetadataFieldAction {
+                extension_index,
+                field_type,
+                key,
+                value,
+            }),
+            MintActionType::UpdateMetadataAuthority {
+                extension_index,
+                new_authority,
+            } => instruction_data.with_update_metadata_authority(UpdateMetadataAuthorityAction {
+                extension_index,
+                new_authority: new_authority.to_bytes().into(),
+            }),
+            MintActionType::RemoveMetadataKey {
+                extension_index,
+                key,
+                idempotent,
+            } => instruction_data.with_remove_metadata_key(RemoveMetadataKeyAction {
+                extension_index,
+                key,
+                idempotent,
+            }),
+        };
+    }
+
+    // Build account metas configuration
+    let mut config = if is_creating_mint {
+        MintActionMetaConfig::new_create_mint(
+            &instruction_data,
+            params.authority,
+            params.mint_seed,
+            params.payer, // fee_payer
+            address_tree_pubkey,
+            state_tree_info.queue,
+        )
+        .map_err(|e| RpcError::CustomError(format!("Failed to create meta config: {:?}", e)))?
+    } else {
+        MintActionMetaConfig::new(
+            &instruction_data,
+            params.authority,
+            params.payer, // fee_payer
+            state_tree_info.tree,
+            state_tree_info.queue,
+            state_tree_info.queue,
+        )
+        .map_err(|e| RpcError::CustomError(format!("Failed to create meta config: {:?}", e)))?
     };
 
-    // Create the instruction using the SDK
-    let instruction = create_mint_action(instruction_inputs).map_err(|e| {
-        RpcError::CustomError(format!("Failed to create mint action instruction: {:?}", e))
-    })?;
+    // Add ctoken accounts if any MintToCToken actions were present
+    if !ctoken_accounts.is_empty() {
+        config = config.with_ctoken_accounts(ctoken_accounts);
+    }
 
-    Ok(instruction)
+    // Get account metas
+    let account_metas = get_mint_action_instruction_account_metas(config, &compressed_mint_inputs);
+
+    // Serialize instruction data
+    let data = instruction_data
+        .data()
+        .map_err(|e| RpcError::CustomError(format!("Failed to serialize instruction: {:?}", e)))?;
+
+    // Build final instruction
+    Ok(Instruction {
+        program_id: COMPRESSED_TOKEN_PROGRAM_ID.into(),
+        accounts: account_metas,
+        data,
+    })
 }
 
 /// Helper function to create a comprehensive mint action instruction
@@ -223,13 +338,14 @@ pub async fn create_comprehensive_mint_action_instruction<R: Rpc + Indexer>(
     let address_tree_pubkey = rpc.get_address_tree_v2().tree;
     let compressed_mint_address =
         derive_compressed_mint_address(&mint_seed.pubkey(), &address_tree_pubkey);
-    let (_, mint_bump) = find_spl_mint_address(&mint_seed.pubkey());
 
     // Build actions
     let mut actions = Vec::new();
 
     if create_spl_mint {
-        actions.push(MintActionType::CreateSplMint { mint_bump });
+        return Err(RpcError::CustomError(
+            "CreateSplMint is no longer supported".to_string(),
+        ));
     }
 
     if !mint_to_recipients.is_empty() {

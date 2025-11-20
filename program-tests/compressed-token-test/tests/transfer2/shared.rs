@@ -19,9 +19,12 @@ use light_test_utils::{
 };
 use light_token_client::{
     actions::{create_mint, mint_to_compressed},
-    instructions::transfer2::{
-        create_generic_transfer2_instruction, ApproveInput, CompressAndCloseInput, CompressInput,
-        DecompressInput, Transfer2InstructionType, TransferInput,
+    instructions::{
+        mint_action::MintActionType,
+        transfer2::{
+            create_generic_transfer2_instruction, ApproveInput, CompressAndCloseInput,
+            CompressInput, DecompressInput, Transfer2InstructionType, TransferInput,
+        },
     },
 };
 use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction};
@@ -499,7 +502,7 @@ impl TestContext {
                         mint_seed: mint_seed.pubkey(),
                         authority: mint_authority.pubkey(),
                         payer: payer.pubkey(),
-                        actions: vec![light_compressed_token_sdk::instructions::mint_action::MintActionType::MintToCToken {
+                        actions: vec![MintActionType::MintToCToken {
                             account: ata,
                             amount,
                         }],
@@ -508,7 +511,9 @@ impl TestContext {
                     mint_authority,
                     &payer,
                     None,
-                ).await.unwrap();
+                )
+                .await
+                .unwrap();
             }
 
             ctoken_atas.insert((*signer_index, *mint_index), ata);

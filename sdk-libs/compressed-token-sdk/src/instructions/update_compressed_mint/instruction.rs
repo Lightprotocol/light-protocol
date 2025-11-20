@@ -1,4 +1,6 @@
-use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
+use light_compressed_account::instruction_data::{
+    compressed_proof::CompressedProof, traits::LightInstructionData,
+};
 use light_compressed_token_types::CompressedMintAuthorityType;
 use light_ctoken_types::{
     self,
@@ -9,9 +11,10 @@ use solana_pubkey::Pubkey;
 
 use crate::{
     error::{Result, TokenSdkError},
-    instructions::mint_action::instruction::{
-        create_mint_action_cpi, mint_action_cpi_write, MintActionInputs, MintActionInputsCpiWrite,
-        MintActionType,
+    instructions::mint_action::{
+        get_mint_action_instruction_account_metas,
+        get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
+        MintActionMetaConfigCpiWrite,
     },
     AnchorDeserialize, AnchorSerialize,
 };
@@ -38,52 +41,52 @@ pub fn update_compressed_mint_cpi(
     input: UpdateCompressedMintInputs,
     cpi_context: Option<CpiContext>,
 ) -> Result<Instruction> {
-    // Convert UpdateMintCpiContext to mint_action CpiContext if needed
-    let mint_action_cpi_context = cpi_context.map(|update_cpi_ctx| {
-        CpiContext {
-            set_context: update_cpi_ctx.set_context,
-            first_set_context: update_cpi_ctx.first_set_context,
-            in_tree_index: update_cpi_ctx.in_tree_index,
-            in_queue_index: update_cpi_ctx.in_queue_index,
-            out_queue_index: update_cpi_ctx.out_queue_index,
-            token_out_queue_index: 0, // Default value - not used for authority updates
-            assigned_account_index: 0, // Default value - mint account index for authority updates
-            ..Default::default()
-        }
-    });
+    let mut instruction_data =
+        light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new(
+            input.compressed_mint_inputs.clone(),
+            input.proof,
+        );
 
-    // Create the appropriate action based on authority type
-    let actions = match input.authority_type {
+    let update_authority = light_ctoken_types::instructions::mint_action::UpdateAuthority {
+        new_authority: input.new_authority.map(|auth| auth.to_bytes().into()),
+    };
+
+    instruction_data = match input.authority_type {
         CompressedMintAuthorityType::MintTokens => {
-            vec![MintActionType::UpdateMintAuthority {
-                new_authority: input.new_authority,
-            }]
+            instruction_data.with_update_mint_authority(update_authority)
         }
         CompressedMintAuthorityType::FreezeAccount => {
-            vec![MintActionType::UpdateFreezeAuthority {
-                new_authority: input.new_authority,
-            }]
+            instruction_data.with_update_freeze_authority(update_authority)
         }
     };
 
-    // Create mint action inputs for authority update
-    let mint_action_inputs = MintActionInputs {
-        compressed_mint_inputs: input.compressed_mint_inputs,
-        mint_seed: Pubkey::default(), // Not needed for authority updates
-        create_mint: false,           // We're updating an existing mint
-        mint_bump: None,
-        authority: input.authority,
-        payer: input.payer,
-        proof: input.proof,
-        actions,
-        address_tree_pubkey: input.in_merkle_tree, // Use in_merkle_tree as the state tree
-        input_queue: Some(input.in_output_queue),
-        output_queue: input.out_output_queue,
-        tokens_out_queue: None, // Not needed for authority updates
-        token_pool: None,       // Not needed for authority updates
-    };
+    if let Some(ctx) = cpi_context {
+        instruction_data = instruction_data.with_cpi_context(ctx);
+    }
 
-    create_mint_action_cpi(mint_action_inputs, mint_action_cpi_context, None)
+    let meta_config = MintActionMetaConfig::new(
+        &instruction_data,
+        input.authority,
+        input.payer,
+        input.in_merkle_tree,
+        input.in_output_queue,
+        input.out_output_queue,
+    )?;
+
+    let account_metas =
+        get_mint_action_instruction_account_metas(meta_config, &input.compressed_mint_inputs);
+
+    let data = instruction_data
+        .data()
+        .map_err(|_| TokenSdkError::SerializationError)?;
+
+    Ok(Instruction {
+        program_id: solana_pubkey::Pubkey::new_from_array(
+            light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
+        ),
+        accounts: account_metas,
+        data,
+    })
 }
 
 /// Creates an update compressed mint instruction without CPI context
@@ -111,44 +114,46 @@ pub fn create_update_compressed_mint_cpi_write(
         return Err(TokenSdkError::InvalidAccountData);
     }
 
-    // Convert UpdateMintCpiContext to mint_action CpiContext
-    let mint_action_cpi_context = light_ctoken_types::instructions::mint_action::CpiContext {
-        set_context: inputs.cpi_context.set_context,
-        first_set_context: inputs.cpi_context.first_set_context,
-        in_tree_index: inputs.cpi_context.in_tree_index,
-        in_queue_index: inputs.cpi_context.in_queue_index,
-        out_queue_index: inputs.cpi_context.out_queue_index,
-        token_out_queue_index: 0, // Default value - not used for authority updates
-        assigned_account_index: 0, // Default value - mint account index for authority updates
-        ..Default::default()
+    let mut instruction_data =
+        light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new(
+            inputs.compressed_mint_inputs.clone(),
+            None, // No proof for CPI write
+        );
+
+    let update_authority = light_ctoken_types::instructions::mint_action::UpdateAuthority {
+        new_authority: inputs.new_authority.map(|auth| auth.to_bytes().into()),
     };
 
-    // Create the appropriate action based on authority type
-    let actions = match inputs.authority_type {
+    instruction_data = match inputs.authority_type {
         CompressedMintAuthorityType::MintTokens => {
-            vec![MintActionType::UpdateMintAuthority {
-                new_authority: inputs.new_authority,
-            }]
+            instruction_data.with_update_mint_authority(update_authority)
         }
         CompressedMintAuthorityType::FreezeAccount => {
-            vec![MintActionType::UpdateFreezeAuthority {
-                new_authority: inputs.new_authority,
-            }]
+            instruction_data.with_update_freeze_authority(update_authority)
         }
     };
 
-    // Create mint action inputs for CPI write
-    let mint_action_inputs = MintActionInputsCpiWrite {
-        compressed_mint_inputs: inputs.compressed_mint_inputs,
-        mint_seed: None, // Not needed for authority updates
-        mint_bump: None,
-        create_mint: false, // We're updating an existing mint
+    instruction_data = instruction_data.with_cpi_context(inputs.cpi_context);
+
+    let meta_config = MintActionMetaConfigCpiWrite {
+        fee_payer: inputs.payer,
+        mint_signer: None, // Not needed for authority updates
         authority: inputs.authority,
-        payer: inputs.payer,
-        actions,
-        cpi_context: mint_action_cpi_context,
-        cpi_context_pubkey: inputs.cpi_context_pubkey,
+        cpi_context: inputs.cpi_context_pubkey,
+        mint_needs_to_sign: false,
     };
 
-    mint_action_cpi_write(mint_action_inputs)
+    let account_metas = get_mint_action_instruction_account_metas_cpi_write(meta_config);
+
+    let data = instruction_data
+        .data()
+        .map_err(|_| TokenSdkError::SerializationError)?;
+
+    Ok(Instruction {
+        program_id: solana_pubkey::Pubkey::new_from_array(
+            light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID,
+        ),
+        accounts: account_metas,
+        data,
+    })
 }

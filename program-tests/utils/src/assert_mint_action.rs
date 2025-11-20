@@ -2,12 +2,12 @@ use std::collections::HashMap;
 
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_compressed_token_sdk::instructions::mint_action::MintActionType;
 use light_ctoken_types::state::{
     extensions::{AdditionalMetadata, ExtensionStruct},
     CToken, CompressedMint,
 };
 use light_program_test::{LightProgramTest, Rpc};
+use light_token_client::instructions::mint_action::MintActionType;
 use solana_sdk::pubkey::Pubkey;
 
 /// Assert that mint actions produce the expected state changes
@@ -49,9 +49,6 @@ pub async fn assert_mint_action(
             }
             MintActionType::UpdateFreezeAuthority { new_authority } => {
                 expected_mint.base.freeze_authority = new_authority.map(Into::into);
-            }
-            MintActionType::CreateSplMint { .. } => {
-                expected_mint.metadata.spl_mint_initialized = true;
             }
             MintActionType::UpdateMetadataField {
                 extension_index,
@@ -95,14 +92,14 @@ pub async fn assert_mint_action(
                     if let Some(ExtensionStruct::TokenMetadata(ref mut metadata)) =
                         extensions.get_mut(*extension_index as usize)
                     {
-                        metadata.update_authority = (*new_authority).into();
+                        metadata.update_authority = new_authority.into();
                     }
                 }
             }
             MintActionType::RemoveMetadataKey {
                 extension_index,
                 key,
-                ..
+                idempotent: _,
             } => {
                 if let Some(ref mut extensions) = expected_mint.extensions {
                     if let Some(ExtensionStruct::TokenMetadata(ref mut metadata)) =

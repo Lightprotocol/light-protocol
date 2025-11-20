@@ -1,6 +1,7 @@
 pub mod account;
 pub mod account2;
 pub mod ctoken;
+pub mod ctoken_instruction;
 pub mod error;
 pub mod instructions;
 pub mod pack;
@@ -14,8 +15,10 @@ use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
 // Re-export
+pub use ctoken_instruction::CTokenInstruction;
 pub use light_compressed_token_types::*;
 pub use pack::{compat, Pack, Unpack};
+pub use token_pool::TokenPool;
 pub use utils::{
     account_meta_from_account_info, is_ctoken_account, AccountInfoToCompress,
     PackedCompressedTokenDataWithContext,

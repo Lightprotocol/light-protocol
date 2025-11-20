@@ -52,7 +52,7 @@ spl-pod = { workspace = true }
 light-zero-copy = { workspace = true, features = ["mut", "std", "derive"] }
 zerocopy = { workspace = true }
 anchor-compressed-token = { path = "../anchor", features = ["cpi"] }
-light-account-checks = { workspace = true, features = ["solana", "pinocchio"] }
+light-account-checks = { workspace = true, features = ["solana", "pinocchio", "msg"] }
 light-sdk = { workspace = true }
 borsh = { workspace = true }
 light-sdk-types = { workspace = true }

@@ -7,11 +7,6 @@ pub use account_metas::{
     MintActionMetaConfig, MintActionMetaConfigCpiWrite,
 };
 pub use cpi_accounts::MintActionCpiAccounts;
-pub use instruction::{
-    create_mint_action, create_mint_action_cpi, mint_action_cpi_write, CreateMintCpiWriteInputs,
-    CreateMintInputs, MintActionInputs, MintActionInputsCpiWrite, MintActionType, MintToRecipient,
-    TokenPool, WithMintCpiWriteInputs, WithMintInputs, MINT_ACTION_DISCRIMINATOR,
-};
 use light_account_checks::AccountInfoTrait;
 use light_sdk::cpi::CpiSigner;
 
@@ -38,8 +33,6 @@ impl<T: AccountInfoTrait + Clone> MintActionCpiWriteAccounts<'_, T> {
     }
 
     pub fn to_account_infos(&self) -> Vec<T> {
-        // The order must match mint_action on-chain program expectations:
-        // [light_system_program, mint_signer, authority, fee_payer, cpi_authority_pda, cpi_context, ...recipient_token_accounts]
         let mut accounts = Vec::new();
 
         accounts.push(self.light_system_program.clone());
@@ -53,7 +46,6 @@ impl<T: AccountInfoTrait + Clone> MintActionCpiWriteAccounts<'_, T> {
         accounts.push(self.cpi_authority_pda.clone());
         accounts.push(self.cpi_context.clone());
 
-        // Add recipient token accounts as remaining accounts
         for token_account in &self.recipient_token_accounts {
             accounts.push((*token_account).clone());
         }

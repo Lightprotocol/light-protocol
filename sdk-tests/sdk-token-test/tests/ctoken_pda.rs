@@ -2,16 +2,13 @@ use anchor_lang::{AnchorDeserialize, InstructionData, ToAccountMetas};
 use light_client::indexer::Indexer;
 use light_compressed_account::{address::derive_address, hash_to_bn254_field_size_be};
 use light_compressed_token_sdk::{
-    instructions::{
-        create_compressed_mint::find_spl_mint_address, derive_compressed_mint_address,
-        mint_action::MintToRecipient,
-    },
+    instructions::{create_compressed_mint::find_spl_mint_address, derive_compressed_mint_address},
     CPI_AUTHORITY_PDA,
 };
 use light_ctoken_types::{
     instructions::{
         extensions::token_metadata::TokenMetadataInstructionData,
-        mint_action::{CompressedMintInstructionData, CompressedMintWithContext},
+        mint_action::{CompressedMintInstructionData, CompressedMintWithContext, Recipient},
     },
     state::{extensions::AdditionalMetadata, CompressedMintMetadata},
     COMPRESSED_TOKEN_PROGRAM_ID,
@@ -212,10 +209,10 @@ pub async fn create_mint<R: Rpc + Indexer>(
         },
     };
 
-    let token_recipients = vec![MintToRecipient {
-        recipient: payer.pubkey(),
-        amount: 1000u64, // Mint 1000 tokens
-    }];
+    let token_recipients = vec![Recipient::new(
+        payer.pubkey(),
+        1000u64, // Mint 1000 tokens
+    )];
 
     let pda_creation = PdaCreationData {
         amount: pda_amount,

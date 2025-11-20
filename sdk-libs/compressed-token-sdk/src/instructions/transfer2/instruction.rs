@@ -130,7 +130,6 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
     data.push(TRANSFER2);
     data.extend(serialized);
 
-    // Get account metas
     let account_metas = get_transfer2_instruction_account_metas(meta_config);
 
     Ok(Instruction {
