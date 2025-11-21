@@ -22,10 +22,6 @@ use crate::{
     ctoken::SystemAccountInfos,
 };
 
-// ============================================================================
-// Params Struct: CreateCMintParams
-// ============================================================================
-
 #[derive(Debug, Clone)]
 pub struct CreateCMintParams {
     pub decimals: u8,
@@ -54,69 +50,6 @@ impl Default for CreateCMintParams {
         }
     }
 }
-
-// Doesnt seem that useful
-// impl CreateCMintParams {
-//     pub fn new(
-//         decimals: u8,
-//         address_merkle_tree_root_index: u16,
-//         mint_authority: Pubkey,
-//         proof: CompressedProof,
-//         mint_signer: Pubkey,
-//         address_tree_pubkey: Pubkey,
-//     ) -> Self {
-//         let compression_address =
-//             derive_compressed_mint_address(&mint_signer, &address_tree_pubkey);
-//         let mint = find_spl_mint_address(&mint_signer).0;
-
-//         Self {
-//             decimals,
-//             version: 3,
-//             address_merkle_tree_root_index,
-//             mint_authority,
-//             proof,
-//             compression_address,
-//             mint,
-//             freeze_authority: None,
-//             extensions: None,
-//         }
-//     }
-
-//     pub fn new_with_address(
-//         decimals: u8,
-//         address_merkle_tree_root_index: u16,
-//         mint_authority: Pubkey,
-//         proof: CompressedProof,
-//         compression_address: [u8; 32],
-//         mint: Pubkey,
-//     ) -> Self {
-//         Self {
-//             decimals,
-//             version: 3,
-//             address_merkle_tree_root_index,
-//             mint_authority,
-//             proof,
-//             compression_address,
-//             mint,
-//             freeze_authority: None,
-//             extensions: None,
-//         }
-//     }
-
-//     pub fn with_freeze_authority(mut self, freeze_authority: Pubkey) -> Self {
-//         self.freeze_authority = Some(freeze_authority);
-//         self
-//     }
-
-//     pub fn with_extensions(mut self, extensions: Vec<ExtensionInstructionData>) -> Self {
-//         self.extensions = Some(extensions);
-//         self
-//     }
-// }
-
-// ============================================================================
-// Builder Struct: CreateCMint
-// ============================================================================
 
 #[derive(Debug, Clone)]
 pub struct CreateCMint {
@@ -236,7 +169,6 @@ pub struct CreateCMintCpiWriteParams {
 impl CreateCMintCpiWriteParams {
     pub fn new(
         decimals: u8,
-        version: u8,
         address_merkle_tree_root_index: u16,
         mint_authority: Pubkey,
         compression_address: [u8; 32],
@@ -245,7 +177,7 @@ impl CreateCMintCpiWriteParams {
     ) -> Self {
         Self {
             decimals,
-            version,
+            version: 3,
             address_merkle_tree_root_index,
             mint_authority,
             compression_address,
@@ -349,10 +281,13 @@ impl CreateCompressedMintCpiWrite {
 }
 
 // ============================================================================
-// AccountInfos Struct: CreateCompressedMintInfos (for CPI usage)
+// AccountInfos Struct: CreateCMintAccountInfos (for CPI usage)
 // ============================================================================
-pub struct CreateCompressedMintInfos<'info> {
+pub struct CreateCMintAccountInfos<'info> {
     pub mint_signer: AccountInfo<'info>,
+    /// The authority for the mint (will be stored as mint_authority).
+    pub authority: AccountInfo<'info>,
+    /// The fee payer for the transaction.
     pub payer: AccountInfo<'info>,
     pub address_tree: AccountInfo<'info>,
     pub output_queue: AccountInfo<'info>,
@@ -362,9 +297,10 @@ pub struct CreateCompressedMintInfos<'info> {
     pub params: CreateCMintParams,
 }
 
-impl<'info> CreateCompressedMintInfos<'info> {
+impl<'info> CreateCMintAccountInfos<'info> {
     pub fn new_with_address(
         mint_signer: AccountInfo<'info>,
+        authority: AccountInfo<'info>,
         payer: AccountInfo<'info>,
         address_tree: AccountInfo<'info>,
         output_queue: AccountInfo<'info>,
@@ -373,6 +309,7 @@ impl<'info> CreateCompressedMintInfos<'info> {
     ) -> Self {
         Self {
             mint_signer,
+            authority,
             payer,
             address_tree,
             output_queue,
@@ -384,7 +321,7 @@ impl<'info> CreateCompressedMintInfos<'info> {
     }
 
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        CreateCMint::from(self).instruction()
+        CreateCMint::try_from(self)?.instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
@@ -394,8 +331,8 @@ impl<'info> CreateCompressedMintInfos<'info> {
         let mut account_infos = vec![
             self.system_accounts.light_system_program, // Index 0
             self.mint_signer,                          // Index 1
-            self.payer.clone(),                        // Index 2 (authority)
-            self.payer,                                // Index 3 (fee_payer, same as payer)
+            self.authority,                            // Index 2 (authority)
+            self.payer,                                // Index 3 (fee_payer)
             self.system_accounts.cpi_authority_pda,
             self.system_accounts.registered_program_pda,
             self.system_accounts.account_compression_authority,
@@ -419,8 +356,8 @@ impl<'info> CreateCompressedMintInfos<'info> {
         let mut account_infos = vec![
             self.system_accounts.light_system_program, // Index 0
             self.mint_signer,                          // Index 1
-            self.payer.clone(),                        // Index 2 (authority)
-            self.payer,                                // Index 3 (fee_payer, same as payer)
+            self.authority,                            // Index 2 (authority)
+            self.payer,                                // Index 3 (fee_payer)
             self.system_accounts.cpi_authority_pda,
             self.system_accounts.registered_program_pda,
             self.system_accounts.account_compression_authority,
@@ -438,9 +375,19 @@ impl<'info> CreateCompressedMintInfos<'info> {
     }
 }
 
-impl<'info> From<&CreateCompressedMintInfos<'info>> for CreateCMint {
-    fn from(account_infos: &CreateCompressedMintInfos<'info>) -> Self {
-        Self {
+impl<'info> TryFrom<&CreateCMintAccountInfos<'info>> for CreateCMint {
+    type Error = ProgramError;
+
+    fn try_from(account_infos: &CreateCMintAccountInfos<'info>) -> Result<Self, Self::Error> {
+        if account_infos.params.mint_authority != *account_infos.authority.key {
+            solana_msg::msg!(
+                "CreateCMintAccountInfos: params.mint_authority ({}) does not match authority account ({})",
+                account_infos.params.mint_authority,
+                account_infos.authority.key
+            );
+            return Err(ProgramError::InvalidAccountData);
+        }
+        Ok(Self {
             mint_signer: *account_infos.mint_signer.key,
             payer: *account_infos.payer.key,
             address_tree_pubkey: *account_infos.address_tree.key,
@@ -451,7 +398,7 @@ impl<'info> From<&CreateCompressedMintInfos<'info>> for CreateCMint {
                 .as_ref()
                 .map(|acc| *acc.key),
             params: account_infos.params.clone(),
-        }
+        })
     }
 }
 

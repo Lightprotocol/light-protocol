@@ -261,6 +261,9 @@ impl MintToCTokenCpiWrite {
 // ============================================================================
 
 pub struct MintToCTokenInfos<'info> {
+    /// The authority for the mint operation (mint_authority).
+    pub authority: AccountInfo<'info>,
+    /// The fee payer for the transaction.
     pub payer: AccountInfo<'info>,
     pub state_tree: AccountInfo<'info>,
     pub input_queue: AccountInfo<'info>,
@@ -274,7 +277,7 @@ pub struct MintToCTokenInfos<'info> {
 
 impl<'info> MintToCTokenInfos<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        MintToCToken::from(self).instruction()
+        MintToCToken::try_from(self)?.instruction()
     }
 
     pub fn invoke(self) -> Result<(), ProgramError> {
@@ -283,16 +286,16 @@ impl<'info> MintToCTokenInfos<'info> {
         // Account order must match the instruction's account metas order (from get_mint_action_instruction_account_metas)
         let mut account_infos = vec![
             self.system_accounts.light_system_program,
-            self.payer.clone(), // authority
-            self.payer,         // fee_payer
+            self.authority, // authority
+            self.payer,     // fee_payer
             self.system_accounts.cpi_authority_pda,
             self.system_accounts.registered_program_pda,
             self.system_accounts.account_compression_authority,
             self.system_accounts.account_compression_program,
             self.system_accounts.system_program,
+            self.output_queue,
             self.state_tree,
             self.input_queue,
-            self.output_queue, // TODO: add pubkey / account meta builder
         ];
 
         account_infos.extend(self.ctoken_accounts);
@@ -310,16 +313,16 @@ impl<'info> MintToCTokenInfos<'info> {
         // Account order must match the instruction's account metas order (from get_mint_action_instruction_account_metas)
         let mut account_infos = vec![
             self.system_accounts.light_system_program,
-            self.payer.clone(), // authority
-            self.payer,         // fee_payer
+            self.authority, // authority
+            self.payer,     // fee_payer
             self.system_accounts.cpi_authority_pda,
             self.system_accounts.registered_program_pda,
             self.system_accounts.account_compression_authority,
             self.system_accounts.account_compression_program,
             self.system_accounts.system_program,
+            self.output_queue,
             self.state_tree,
             self.input_queue,
-            self.output_queue,
         ];
 
         account_infos.extend(self.ctoken_accounts);
@@ -332,9 +335,19 @@ impl<'info> MintToCTokenInfos<'info> {
     }
 }
 
-impl<'info> From<&MintToCTokenInfos<'info>> for MintToCToken {
-    fn from(account_infos: &MintToCTokenInfos<'info>) -> Self {
-        Self {
+impl<'info> TryFrom<&MintToCTokenInfos<'info>> for MintToCToken {
+    type Error = ProgramError;
+
+    fn try_from(account_infos: &MintToCTokenInfos<'info>) -> Result<Self, Self::Error> {
+        if account_infos.params.mint_authority != *account_infos.authority.key {
+            solana_msg::msg!(
+                "MintToCTokenInfos: params.mint_authority ({}) does not match authority account ({})",
+                account_infos.params.mint_authority,
+                account_infos.authority.key
+            );
+            return Err(ProgramError::InvalidAccountData);
+        }
+        Ok(Self {
             payer: *account_infos.payer.key,
             state_tree_pubkey: *account_infos.state_tree.key,
             input_queue: *account_infos.input_queue.key,
@@ -350,7 +363,7 @@ impl<'info> From<&MintToCTokenInfos<'info>> for MintToCToken {
                 .as_ref()
                 .map(|acc| *acc.key),
             params: account_infos.params.clone(),
-        }
+        })
     }
 }
 

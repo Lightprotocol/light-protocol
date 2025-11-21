@@ -68,7 +68,7 @@ transfer_accounts.invoke_signed(&[signer_seeds])?;
 
 All instructions use the **builder pattern** from `light-compressed-token-sdk::ctoken`:
 
-- **create_cmint** (Instruction 0): Create compressed mint using `CreateCompressedMintInfos::invoke()`
+- **create_cmint** (Instruction 0): Create compressed mint using `CreateCMintAccountInfos::invoke()`
 - **mint_to_ctoken** (Instruction 1): Mint tokens to compressed accounts using `MintToCTokenInfos::invoke()`
 - **create_token_account_invoke** (Instruction 2): Create compressible token account using `CreateCTokenAccountInfos`
 - **create_token_account_invoke_signed** (Instruction 3): Create with PDA ownership using `invoke_signed()`
