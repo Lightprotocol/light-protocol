@@ -8,9 +8,7 @@ use solana_instruction::Instruction;
 use solana_pubkey::Pubkey;
 
 use crate::{
-    compressed_token::mint_action::{
-        get_mint_action_instruction_account_metas, MintActionMetaConfig,
-    },
+    compressed_token::mint_action::MintActionMetaConfig,
     error::{Result, TokenSdkError},
     TokenPool,
 };
@@ -50,7 +48,7 @@ pub fn create_mint_to_compressed_instruction(
         state_merkle_tree,
         input_queue,
         output_queue_cmint,
-        output_queue_tokens,
+        output_queue_tokens: _,
         decompressed_mint_config: _,
         proof,
         token_account_version,
@@ -77,24 +75,22 @@ pub fn create_mint_to_compressed_instruction(
     let meta_config = if cpi_context_pubkey.is_some() {
         MintActionMetaConfig::new_cpi_context(
             &instruction_data,
-            mint_authority,
             payer,
+            mint_authority,
             cpi_context_pubkey.unwrap(),
         )?
     } else {
         MintActionMetaConfig::new(
-            &instruction_data,
-            mint_authority,
             payer,
+            mint_authority,
             state_merkle_tree,
             input_queue,
             output_queue_cmint,
-        )?
-        .with_tokens_out_queue(output_queue_tokens)
+        )
+        .with_mint_compressed_tokens()
     };
 
-    let account_metas =
-        get_mint_action_instruction_account_metas(meta_config, &compressed_mint_inputs);
+    let account_metas = meta_config.to_account_metas();
 
     let data = instruction_data
         .data()

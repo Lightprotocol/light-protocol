@@ -452,9 +452,10 @@ impl AccountsConfig {
             // For MintToCompressed actions
             // - needed for tokens_out_queue (only MintToCompressed creates new compressed outputs)
             // - MintToCToken mints to existing decompressed accounts, doesn't need tokens_out_queue
-            let has_mint_to_actions = parsed_instruction_data.actions.iter().any(|action| {
-                matches!(action, ZAction::MintToCompressed(_))
-            });
+            let has_mint_to_actions = parsed_instruction_data
+                .actions
+                .iter()
+                .any(|action| matches!(action, ZAction::MintToCompressed(_)));
 
             Ok(AccountsConfig {
                 with_cpi_context,

@@ -3,7 +3,7 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::ctoken::{
-    derive_compressed_mint_address, CreateCMint, CreateCMintParams,
+    derive_compressed_mint_address, find_spl_mint_address, CreateCMint, CreateCMintParams,
 };
 use light_ctoken_types::instructions::extensions::{
     token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
@@ -61,24 +61,18 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
 
     let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
 
-    // Create params using the builder pattern
-    let mut params = CreateCMintParams::new(
+    // Build params struct manually
+    let params = CreateCMintParams {
         decimals,
-        3, // version
+        version: 3,
         address_merkle_tree_root_index,
         mint_authority,
-        rpc_result.proof.0.unwrap(),
-        mint_seed.pubkey(),
-        address_tree_pubkey,
-    );
-
-    if let Some(freeze_auth) = freeze_authority {
-        params = params.with_freeze_authority(freeze_auth);
-    }
-
-    if let Some(exts) = extensions {
-        params = params.with_extensions(exts);
-    }
+        proof: rpc_result.proof.0.unwrap(),
+        compression_address: compressed_mint_address,
+        mint: find_spl_mint_address(&mint_seed.pubkey()).0,
+        freeze_authority,
+        extensions,
+    };
 
     // Create instruction builder
     let builder = CreateCMint::new(

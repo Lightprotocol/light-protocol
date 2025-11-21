@@ -4,7 +4,7 @@ use light_compressed_account::instruction_data::{
 use light_ctoken_types::{
     instructions::{
         extensions::ExtensionInstructionData,
-        mint_action::{CompressedMintInstructionData, CompressedMintWithContext, CpiContext},
+        mint_action::{CompressedMintInstructionData, CpiContext},
     },
     COMPRESSED_MINT_SEED,
 };
@@ -16,7 +16,6 @@ use solana_pubkey::Pubkey;
 
 use crate::{
     compressed_token::mint_action::{
-        get_mint_action_instruction_account_metas,
         get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
         MintActionMetaConfigCpiWrite,
     },
@@ -174,14 +173,6 @@ impl CreateCMint {
             extensions: self.params.extensions,
         };
 
-        let compressed_mint_with_context = CompressedMintWithContext {
-            address: compression_address,
-            mint: compressed_mint_instruction_data.clone(),
-            leaf_index: 0,
-            prove_by_index: false,
-            root_index: self.params.address_merkle_tree_root_index,
-        };
-
         let mut instruction_data =
             light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData::new_mint(
                 compression_address,
@@ -197,24 +188,21 @@ impl CreateCMint {
         let meta_config = if let Some(cpi_context_pubkey) = self.cpi_context_pubkey {
             MintActionMetaConfig::new_cpi_context(
                 &instruction_data,
-                self.params.mint_authority,
                 self.payer,
+                self.params.mint_authority,
                 cpi_context_pubkey,
             )?
         } else {
             MintActionMetaConfig::new_create_mint(
-                &instruction_data,
+                self.payer,
                 self.params.mint_authority,
                 self.mint_signer,
-                self.payer,
                 self.address_tree_pubkey,
                 self.output_queue,
-            )?
+            )
         };
-        use solana_msg::msg;
-        msg!("instruction_data {:?}", instruction_data);
-        let account_metas =
-            get_mint_action_instruction_account_metas(meta_config, &compressed_mint_with_context);
+
+        let account_metas = meta_config.to_account_metas();
 
         let data = instruction_data
             .data()
@@ -344,7 +332,6 @@ impl CreateCompressedMintCpiWrite {
             mint_signer: Some(self.mint_signer),
             authority: self.params.mint_authority,
             cpi_context: self.cpi_context_pubkey,
-            mint_needs_to_sign: true,
         };
 
         let account_metas = get_mint_action_instruction_account_metas_cpi_write(meta_config);

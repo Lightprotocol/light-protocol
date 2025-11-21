@@ -6,7 +6,7 @@ use light_client::{
 use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_compressed_token_sdk::compressed_token::{
     create_compressed_mint::{derive_compressed_mint_address, find_spl_mint_address},
-    mint_action::{get_mint_action_instruction_account_metas, MintActionMetaConfig},
+    mint_action::MintActionMetaConfig,
 };
 use light_ctoken_types::{
     instructions::{
@@ -210,6 +210,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
     // Collect decompressed token accounts for MintToCToken actions
     let mut ctoken_accounts = Vec::new();
     let mut ctoken_account_index = 0u8;
+    let mut has_mint_to_compressed = false;
 
     for action in params.actions {
         instruction_data = match action {
@@ -217,6 +218,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
                 recipients,
                 token_account_version,
             } => {
+                has_mint_to_compressed = true;
                 // Convert MintToRecipient (solana_sdk::Pubkey) to Recipient ([u8; 32])
                 let ctoken_recipients: Vec<Recipient> = recipients
                     .into_iter()
@@ -279,25 +281,26 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
     // Build account metas configuration
     let mut config = if is_creating_mint {
         MintActionMetaConfig::new_create_mint(
-            &instruction_data,
+            params.payer,
             params.authority,
             params.mint_seed,
-            params.payer, // fee_payer
             address_tree_pubkey,
             state_tree_info.queue,
         )
-        .map_err(|e| RpcError::CustomError(format!("Failed to create meta config: {:?}", e)))?
     } else {
         MintActionMetaConfig::new(
-            &instruction_data,
+            params.payer,
             params.authority,
-            params.payer, // fee_payer
             state_tree_info.tree,
             state_tree_info.queue,
             state_tree_info.queue,
         )
-        .map_err(|e| RpcError::CustomError(format!("Failed to create meta config: {:?}", e)))?
     };
+
+    // Add tokens_out_queue if there are MintToCompressed actions
+    if has_mint_to_compressed {
+        config = config.with_mint_compressed_tokens();
+    }
 
     // Add ctoken accounts if any MintToCToken actions were present
     if !ctoken_accounts.is_empty() {
@@ -305,7 +308,7 @@ pub async fn create_mint_action_instruction<R: Rpc + Indexer>(
     }
 
     // Get account metas
-    let account_metas = get_mint_action_instruction_account_metas(config, &compressed_mint_inputs);
+    let account_metas = config.to_account_metas();
 
     // Serialize instruction data
     let data = instruction_data

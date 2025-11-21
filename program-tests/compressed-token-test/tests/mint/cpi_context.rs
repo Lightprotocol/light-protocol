@@ -5,7 +5,6 @@ use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_compressed_token_sdk::compressed_token::{
     create_compressed_mint::{derive_compressed_mint_address, find_spl_mint_address},
     mint_action::{
-        get_mint_action_instruction_account_metas,
         get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
         MintActionMetaConfigCpiWrite,
     },
@@ -448,19 +447,17 @@ async fn test_execute_cpi_context_invalid_tree_index() {
 
     // Build account metas using regular MintActionMetaConfig for execute mode
     let mut config = MintActionMetaConfig::new_create_mint(
-        &instruction_data,
+        payer.pubkey(),
         mint_authority.pubkey(),
         mint_seed.pubkey(),
-        payer.pubkey(),
         Pubkey::new_from_array(CMINT_ADDRESS_TREE),
         output_queue,
-    )
-    .expect("Failed to create meta config");
+    );
 
     // Set CPI context for execute mode
     config.cpi_context = Some(cpi_context_pubkey);
 
-    let account_metas = get_mint_action_instruction_account_metas(config, &compressed_mint_inputs);
+    let account_metas = config.to_account_metas();
 
     // Serialize instruction data
     let data = instruction_data

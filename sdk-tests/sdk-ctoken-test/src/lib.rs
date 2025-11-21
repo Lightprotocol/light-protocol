@@ -1,16 +1,16 @@
 #![allow(unexpected_cfgs)]
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use light_sdk::instruction::ValidityProof;
 use light_compressed_token_sdk::{
     ctoken::{
         CompressibleParamsInfos, CreateAssociatedTokenAccountInfos, CreateCMintParams,
-        CreateCompressedMintInfos, CreateCTokenAccountInfos, ExtensionInstructionData,
+        CreateCTokenAccountInfos, CreateCompressedMintInfos, ExtensionInstructionData,
         MintToCTokenInfos, MintToCTokenParams, SystemAccountInfos, TransferCtokenAccountInfos,
     },
     CompressedProof,
 };
 use light_ctoken_types::instructions::mint_action::CompressedMintWithContext;
+use light_sdk::instruction::ValidityProof;
 use solana_program::{
     account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey, pubkey::Pubkey,
 };
@@ -64,7 +64,6 @@ impl TryFrom<u8> for InstructionType {
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct CreateCmintData {
     pub decimals: u8,
-    pub version: u8,
     pub address_merkle_tree_root_index: u16,
     pub mint_authority: Pubkey,
     pub proof: CompressedProof,
@@ -203,7 +202,7 @@ fn process_create_cmint(
     // Build the params
     let params = CreateCMintParams {
         decimals: data.decimals,
-        version: data.version,
+        version: 3, // Only version 3 is supported.
         address_merkle_tree_root_index: data.address_merkle_tree_root_index,
         mint_authority: data.mint_authority,
         proof: data.proof,
@@ -292,7 +291,7 @@ fn process_mint_to_ctoken(
     // Build the account infos struct and invoke
     // SDK account order: output_queue (9), tree (10), input_queue (11), ctoken_accounts (12+)
     MintToCTokenInfos {
-        payer: accounts[3].clone(), // fee_payer from SDK accounts
+        payer: accounts[3].clone(),        // fee_payer from SDK accounts
         state_tree: accounts[10].clone(),  // tree at index 10
         input_queue: accounts[11].clone(), // input_queue at index 11
         output_queue: accounts[9].clone(), // output_queue at index 9

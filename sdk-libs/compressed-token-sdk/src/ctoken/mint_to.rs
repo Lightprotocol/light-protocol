@@ -11,8 +11,8 @@ use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
 use crate::compressed_token::mint_action::{
-    get_mint_action_instruction_account_metas, get_mint_action_instruction_account_metas_cpi_write,
-    MintActionMetaConfig, MintActionMetaConfigCpiWrite,
+    get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
+    MintActionMetaConfigCpiWrite,
 };
 
 // ============================================================================
@@ -117,26 +117,22 @@ impl MintToCToken {
         let meta_config = if let Some(cpi_context_pubkey) = self.cpi_context_pubkey {
             MintActionMetaConfig::new_cpi_context(
                 &instruction_data,
-                self.params.mint_authority,
                 self.payer,
+                self.params.mint_authority,
                 cpi_context_pubkey,
             )?
         } else {
             MintActionMetaConfig::new(
-                &instruction_data,
-                self.params.mint_authority,
                 self.payer,
+                self.params.mint_authority,
                 self.state_tree_pubkey,
                 self.input_queue,
                 self.output_queue,
-            )?
+            )
             .with_ctoken_accounts(self.ctoken_accounts)
         };
 
-        let account_metas = get_mint_action_instruction_account_metas(
-            meta_config,
-            &self.params.compressed_mint_inputs,
-        );
+        let account_metas = meta_config.to_account_metas();
 
         let data = instruction_data
             .data()
@@ -244,7 +240,6 @@ impl MintToCTokenCpiWrite {
             mint_signer: None,
             authority: self.params.mint_authority,
             cpi_context: self.cpi_context_pubkey,
-            mint_needs_to_sign: false,
         };
 
         let account_metas = get_mint_action_instruction_account_metas_cpi_write(meta_config);

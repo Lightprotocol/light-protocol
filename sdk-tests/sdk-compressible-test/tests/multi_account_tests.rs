@@ -646,6 +646,7 @@ pub async fn decompress_multiple_pdas_with_ctoken(
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
                 some_mint: ctoken_account.token.mint,
+                system_program: Pubkey::default(),
             }
             .to_account_metas(None),
             rpc_result,
@@ -863,6 +864,7 @@ pub async fn decompress_multiple_pdas(
                 ctoken_program: ctoken::id(),
                 ctoken_cpi_authority: ctoken::cpi_authority(),
                 some_mint: payer.pubkey(),
+                system_program: Pubkey::default(),
             }
             .to_account_metas(None),
             rpc_result,

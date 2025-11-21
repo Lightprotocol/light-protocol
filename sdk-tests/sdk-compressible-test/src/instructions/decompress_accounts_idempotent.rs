@@ -212,6 +212,7 @@ pub fn decompress_accounts_idempotent<'info>(
                     compressible: Some(CompressibleParamsInfos {
                         compressible_config: ctoken_config.to_account_info(),
                         rent_sponsor: ctoken_rent_sponsor.clone().to_account_info(),
+                        system_program: accounts.system_program.to_account_info(),
                         pre_pay_num_epochs: 2,
                         lamports_per_write: None,
                         compress_to_account_pubkey: None,
