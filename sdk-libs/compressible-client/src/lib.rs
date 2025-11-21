@@ -1,4 +1,8 @@
 pub mod get_compressible_account;
+pub mod load;
+
+// Re-export key types for convenience
+pub use load::{load, load_simple, AccountToLoad, LoadError, LoadResult};
 
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};

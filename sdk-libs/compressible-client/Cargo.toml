@@ -16,6 +16,7 @@ solana-account = { workspace = true }
 
 light-client = { workspace = true, features = ["v2"] }
 light-sdk = { workspace = true, features = ["v2", "cpi-context"] }
+light-compressed-account = { workspace = true, features = ["std"] }
 
 anchor-lang = { workspace = true, features = ["idl-build"], optional = true }
 borsh = { workspace = true }
