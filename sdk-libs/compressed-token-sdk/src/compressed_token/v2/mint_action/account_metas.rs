@@ -13,17 +13,18 @@ pub struct MintActionMetaConfig {
     pub input_queue: Option<Pubkey>, // Input queue for existing compressed mint operations
     pub output_queue: Pubkey,
     pub tokens_out_queue: Option<Pubkey>, // Output queue for new token accounts
-    pub with_lamports: bool,
-    pub spl_mint_initialized: bool,
-    pub has_mint_to_compressed_actions: bool, // Whether we have MintToCompressed actions (not MintToCToken)
+    pub with_lamports: bool,              // TODO: remove is not used
+    pub spl_mint_initialized: bool,       // TODO: remove is always false
+    pub has_mint_to_compressed_actions: bool, // TODO: remove infer from tokens out queue is some
     pub with_cpi_context: Option<Pubkey>,
-    pub create_mint: bool,
-    pub with_mint_signer: bool,
-    pub mint_needs_to_sign: bool, // Only true when creating new compressed mint
+    pub create_mint: bool,      // TODO: remove infer from mint_signer.is_some()
+    pub with_mint_signer: bool, // TODO: remove just infer from mint signer is some
+    pub mint_needs_to_sign: bool, // TODO: remove mint signer always needs to sign
     pub ctoken_accounts: Vec<Pubkey>, // For mint_to_ctoken actions
 }
 
 impl MintActionMetaConfig {
+    // TODO: remove, and add new mint builder instead
     pub fn new_create_mint(
         instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
         authority: Pubkey,
@@ -38,7 +39,6 @@ impl MintActionMetaConfig {
 
         let (has_mint_to_compressed_actions, ctoken_accounts) =
             Self::analyze_actions(&instruction_data.actions);
-        let spl_mint_initialized = instruction_data.mint.metadata.spl_mint_initialized;
 
         Ok(Self {
             fee_payer,
@@ -53,7 +53,7 @@ impl MintActionMetaConfig {
                 None
             },
             with_lamports: false,
-            spl_mint_initialized,
+            spl_mint_initialized: false,
             has_mint_to_compressed_actions,
             with_cpi_context: None,
             create_mint: true,
@@ -63,6 +63,7 @@ impl MintActionMetaConfig {
         })
     }
 
+    // TODO: remove instruction_data, and add tokens out queue with mint to compressed builder instead, and reuse an existing queue under the hood
     pub fn new(
         instruction_data: &light_ctoken_types::instructions::mint_action::MintActionCompressedInstructionData,
         authority: Pubkey,

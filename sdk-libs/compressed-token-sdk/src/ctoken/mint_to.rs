@@ -297,7 +297,7 @@ impl<'info> MintToCTokenInfos<'info> {
             self.system_accounts.system_program,
             self.state_tree,
             self.input_queue,
-            self.output_queue,
+            self.output_queue, // TODO: add pubkey / account meta builder
         ];
 
         account_infos.extend(self.ctoken_accounts);

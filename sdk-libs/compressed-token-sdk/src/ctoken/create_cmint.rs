@@ -40,65 +40,80 @@ pub struct CreateCMintParams {
     pub extensions: Option<Vec<ExtensionInstructionData>>,
 }
 
-impl CreateCMintParams {
-    pub fn new(
-        decimals: u8,
-        version: u8,
-        address_merkle_tree_root_index: u16,
-        mint_authority: Pubkey,
-        proof: CompressedProof,
-        mint_signer: Pubkey,
-        address_tree_pubkey: Pubkey,
-    ) -> Self {
-        let compression_address =
-            derive_compressed_mint_address(&mint_signer, &address_tree_pubkey);
-        let mint = find_spl_mint_address(&mint_signer).0;
-
+impl Default for CreateCMintParams {
+    fn default() -> Self {
         Self {
-            decimals,
-            version,
-            address_merkle_tree_root_index,
-            mint_authority,
-            proof,
-            compression_address,
-            mint,
+            decimals: 0,
+            version: 3, // Only version 3 is supported.
+            address_merkle_tree_root_index: 0,
+            mint_authority: Pubkey::default(),
+            proof: CompressedProof::default(),
+            compression_address: [0; 32],
+            mint: Pubkey::default(),
             freeze_authority: None,
             extensions: None,
         }
-    }
-
-    pub fn new_with_address(
-        decimals: u8,
-        version: u8,
-        address_merkle_tree_root_index: u16,
-        mint_authority: Pubkey,
-        proof: CompressedProof,
-        compression_address: [u8; 32],
-        mint: Pubkey,
-    ) -> Self {
-        Self {
-            decimals,
-            version,
-            address_merkle_tree_root_index,
-            mint_authority,
-            proof,
-            compression_address,
-            mint,
-            freeze_authority: None,
-            extensions: None,
-        }
-    }
-
-    pub fn with_freeze_authority(mut self, freeze_authority: Pubkey) -> Self {
-        self.freeze_authority = Some(freeze_authority);
-        self
-    }
-
-    pub fn with_extensions(mut self, extensions: Vec<ExtensionInstructionData>) -> Self {
-        self.extensions = Some(extensions);
-        self
     }
 }
+
+// Doesnt seem that useful
+// impl CreateCMintParams {
+//     pub fn new(
+//         decimals: u8,
+//         address_merkle_tree_root_index: u16,
+//         mint_authority: Pubkey,
+//         proof: CompressedProof,
+//         mint_signer: Pubkey,
+//         address_tree_pubkey: Pubkey,
+//     ) -> Self {
+//         let compression_address =
+//             derive_compressed_mint_address(&mint_signer, &address_tree_pubkey);
+//         let mint = find_spl_mint_address(&mint_signer).0;
+
+//         Self {
+//             decimals,
+//             version: 3,
+//             address_merkle_tree_root_index,
+//             mint_authority,
+//             proof,
+//             compression_address,
+//             mint,
+//             freeze_authority: None,
+//             extensions: None,
+//         }
+//     }
+
+//     pub fn new_with_address(
+//         decimals: u8,
+//         address_merkle_tree_root_index: u16,
+//         mint_authority: Pubkey,
+//         proof: CompressedProof,
+//         compression_address: [u8; 32],
+//         mint: Pubkey,
+//     ) -> Self {
+//         Self {
+//             decimals,
+//             version: 3,
+//             address_merkle_tree_root_index,
+//             mint_authority,
+//             proof,
+//             compression_address,
+//             mint,
+//             freeze_authority: None,
+//             extensions: None,
+//         }
+//     }
+
+//     pub fn with_freeze_authority(mut self, freeze_authority: Pubkey) -> Self {
+//         self.freeze_authority = Some(freeze_authority);
+//         self
+//     }
+
+//     pub fn with_extensions(mut self, extensions: Vec<ExtensionInstructionData>) -> Self {
+//         self.extensions = Some(extensions);
+//         self
+//     }
+// }
 
 // ============================================================================
 // Builder Struct: CreateCMint
