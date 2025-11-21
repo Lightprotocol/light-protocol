@@ -148,7 +148,6 @@ async fn test_write_to_cpi_context_create_mint() {
         mint_signer: Some(mint_seed.pubkey()),
         authority: mint_authority.pubkey(),
         cpi_context: cpi_context_pubkey,
-        mint_needs_to_sign: true,
     };
 
     let account_metas = get_mint_action_instruction_account_metas_cpi_write(config);
@@ -270,7 +269,6 @@ async fn test_write_to_cpi_context_invalid_address_tree() {
         mint_signer: Some(mint_seed.pubkey()),
         authority: mint_authority.pubkey(),
         cpi_context: cpi_context_pubkey,
-        mint_needs_to_sign: true,
     };
 
     let account_metas = get_mint_action_instruction_account_metas_cpi_write(config);
@@ -363,7 +361,6 @@ async fn test_write_to_cpi_context_invalid_compressed_address() {
         mint_signer: Some(mint_seed.pubkey()),
         authority: mint_authority.pubkey(),
         cpi_context: cpi_context_pubkey,
-        mint_needs_to_sign: true,
     };
 
     let account_metas = get_mint_action_instruction_account_metas_cpi_write(config);
@@ -461,7 +458,7 @@ async fn test_execute_cpi_context_invalid_tree_index() {
     .expect("Failed to create meta config");
 
     // Set CPI context for execute mode
-    config.with_cpi_context = Some(cpi_context_pubkey);
+    config.cpi_context = Some(cpi_context_pubkey);
 
     let account_metas = get_mint_action_instruction_account_metas(config, &compressed_mint_inputs);
 

@@ -231,20 +231,23 @@ async fn test_ctoken_to_spl_with_compress_and_close() {
         .await
         .unwrap();
 
-    // Create compressed token ATA for recipient
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer.pubkey(),
-        recipient.pubkey(),
+    // Create non-compressible token ATA for recipient (required for CompressAndClose without rent_sponsor)
+    let (associated_token_account, bump) = derive_ctoken_ata(&recipient.pubkey(), &mint);
+    let instruction = CreateAssociatedTokenAccount {
+        idempotent: false,
+        bump,
+        payer: payer.pubkey(),
+        owner: recipient.pubkey(),
         mint,
-        CompressibleParams::default(),
-    )
+        associated_token_account,
+        compressible: None,
+    }
     .instruction()
     .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e)))
     .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let associated_token_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
 
     // Transfer SPL to CToken
     transfer2::spl_to_ctoken_transfer(

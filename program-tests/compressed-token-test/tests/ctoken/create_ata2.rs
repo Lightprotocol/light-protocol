@@ -11,7 +11,7 @@ async fn create_and_assert_ata2(
     let payer_pubkey = context.payer.pubkey();
     let owner_pubkey = context.owner_keypair.pubkey();
 
-    let (ata_pubkey, _bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
+    let (ata_pubkey, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
 
     let create_ata_ix = if let Some(compressible) = compressible_data.as_ref() {
         let compressible_params = CompressibleParams {
@@ -36,12 +36,16 @@ async fn create_and_assert_ata2(
 
         builder.instruction().unwrap()
     } else {
-        let mut builder = CreateAssociatedTokenAccount::new(
-            payer_pubkey,
-            owner_pubkey,
-            context.mint_pubkey,
-            CompressibleParams::default(),
-        );
+        // Create non-compressible account
+        let mut builder = CreateAssociatedTokenAccount {
+            idempotent: false,
+            bump,
+            payer: payer_pubkey,
+            owner: owner_pubkey,
+            mint: context.mint_pubkey,
+            associated_token_account: ata_pubkey,
+            compressible: None,
+        };
 
         if idempotent {
             builder = builder.idempotent();

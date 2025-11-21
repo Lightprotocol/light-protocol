@@ -308,7 +308,7 @@ pub async fn close_and_assert_token_account(
         use light_zero_copy::traits::ZeroCopyAt;
 
         let (ctoken, _) = CToken::zero_copy_at(&account_info.data).unwrap();
-        let _rent_sponsor = if let Some(extensions) = ctoken.extensions.as_ref() {
+        let rent_sponsor = if let Some(extensions) = ctoken.extensions.as_ref() {
             extensions
                 .iter()
                 .find_map(|ext| match ext {
@@ -320,21 +320,23 @@ pub async fn close_and_assert_token_account(
             panic!("Compressible account must have compressible extension");
         };
 
-        CloseAccount::new(
-            light_compressed_token::ID,
-            token_account_pubkey,
+        CloseAccount {
+            token_program: light_compressed_token::ID,
+            account: token_account_pubkey,
             destination,
-            context.owner_keypair.pubkey(),
-        )
+            owner: context.owner_keypair.pubkey(),
+            rent_sponsor: Some(rent_sponsor),
+        }
         .instruction()
         .unwrap()
     } else {
-        CloseAccount::new(
-            light_compressed_token::ID,
-            token_account_pubkey,
+        CloseAccount {
+            token_program: light_compressed_token::ID,
+            account: token_account_pubkey,
             destination,
-            context.owner_keypair.pubkey(),
-        )
+            owner: context.owner_keypair.pubkey(),
+            rent_sponsor: None,
+        }
         .instruction()
         .unwrap()
     };
@@ -409,34 +411,49 @@ pub async fn create_and_assert_ata(
     let owner_pubkey = context.owner_keypair.pubkey();
 
     // Derive ATA address
-    let (ata_pubkey, _bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
+    let (ata_pubkey, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
 
     // Build instruction based on whether it's compressible
-    let compressible_params = if let Some(compressible) = compressible_data.as_ref() {
-        CompressibleParams {
+    let create_ata_ix = if let Some(compressible) = compressible_data.as_ref() {
+        let compressible_params = CompressibleParams {
             compressible_config: context.compressible_config,
             rent_sponsor: compressible.rent_sponsor,
             pre_pay_num_epochs: compressible.num_prepaid_epochs,
             lamports_per_write: compressible.lamports_per_write,
             compress_to_account_pubkey: None,
             token_account_version: compressible.account_version,
+        };
+
+        let mut builder = CreateAssociatedTokenAccount::new(
+            payer_pubkey,
+            owner_pubkey,
+            context.mint_pubkey,
+            compressible_params,
+        );
+
+        if idempotent {
+            builder = builder.idempotent();
         }
+
+        builder.instruction().unwrap()
     } else {
-        CompressibleParams::default()
+        // Create non-compressible account
+        let mut builder = CreateAssociatedTokenAccount {
+            idempotent: false,
+            bump,
+            payer: payer_pubkey,
+            owner: owner_pubkey,
+            mint: context.mint_pubkey,
+            associated_token_account: ata_pubkey,
+            compressible: None,
+        };
+
+        if idempotent {
+            builder = builder.idempotent();
+        }
+
+        builder.instruction().unwrap()
     };
-
-    let mut builder = CreateAssociatedTokenAccount::new(
-        payer_pubkey,
-        owner_pubkey,
-        context.mint_pubkey,
-        compressible_params,
-    );
-
-    if idempotent {
-        builder = builder.idempotent();
-    }
-
-    let create_ata_ix = builder.instruction().unwrap();
 
     context
         .rpc

@@ -26,14 +26,14 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
         &light_compressed_token::ID,
     );
 
-    // Initialize token account using SPL SDK compatible instruction
-    let mut initialize_account_ix = CreateCTokenAccount::new(
-        payer_pubkey,
-        token_account_pubkey,
-        context.mint_pubkey,
-        context.owner_keypair.pubkey(),
-        CompressibleParams::default(),
-    )
+    // Initialize token account using SPL SDK compatible instruction (non-compressible)
+    let mut initialize_account_ix = CreateCTokenAccount {
+        payer: payer_pubkey,
+        account: token_account_pubkey,
+        mint: context.mint_pubkey,
+        owner: context.owner_keypair.pubkey(),
+        compressible: None,
+    }
     .instruction()
     .map_err(|e| {
         RpcError::AssertRpcError(format!("Failed to create token account instruction: {}", e))

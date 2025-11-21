@@ -19,13 +19,17 @@ async fn test_associated_token_account_operations() {
     let payer_pubkey = context.payer.pubkey();
     let owner_pubkey = context.owner_keypair.pubkey();
 
-    // Create basic ATA using SDK function
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer_pubkey,
-        owner_pubkey,
-        context.mint_pubkey,
-        CompressibleParams::default(),
-    )
+    // Create basic (non-compressible) ATA using SDK function
+    let (ata, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
+    let instruction = CreateAssociatedTokenAccount {
+        idempotent: false,
+        bump,
+        payer: payer_pubkey,
+        owner: owner_pubkey,
+        mint: context.mint_pubkey,
+        associated_token_account: ata,
+        compressible: None,
+    }
     .instruction()
     .unwrap();
 
@@ -148,13 +152,17 @@ async fn test_create_ata_idempotent() {
     let mut context = setup_account_test().await.unwrap();
     let payer_pubkey = context.payer.pubkey();
     let owner_pubkey = context.owner_keypair.pubkey();
+    let (ata, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
     // Create ATA using non-idempotent instruction (first creation)
-    let instruction = CreateAssociatedTokenAccount::new(
-        payer_pubkey,
-        owner_pubkey,
-        context.mint_pubkey,
-        CompressibleParams::default(),
-    )
+    let instruction = CreateAssociatedTokenAccount {
+        idempotent: false,
+        bump,
+        payer: payer_pubkey,
+        owner: owner_pubkey,
+        mint: context.mint_pubkey,
+        associated_token_account: ata,
+        compressible: None,
+    }
     .instruction()
     .unwrap();
 

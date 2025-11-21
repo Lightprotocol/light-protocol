@@ -443,38 +443,48 @@ impl TestContext {
                 .unwrap_or(&false);
 
             // Create CToken ATA (compressible or regular based on requirements)
-            let compressible_params = if is_compressible {
+            let (ata, bump) =
+                light_compressed_token_sdk::ctoken::derive_ctoken_ata(&signer.pubkey(), &mint);
+
+            let create_ata_ix = if is_compressible {
                 println!(
                     "Creating compressible CToken ATA for signer {} mint {}",
                     signer_index, mint_index
                 );
-                CompressibleParams {
+                let compressible_params = CompressibleParams {
                     compressible_config: funding_pool_config.compressible_config_pda,
                     rent_sponsor: funding_pool_config.rent_sponsor_pda,
                     pre_pay_num_epochs: 10, // Prepay 10 epochs of rent
                     lamports_per_write: None,
                     compress_to_account_pubkey: None,
                     token_account_version: TokenDataVersion::ShaFlat, // CompressAndClose requires ShaFlat
-                }
+                };
+                CreateAssociatedTokenAccount::new(
+                    payer.pubkey(),
+                    signer.pubkey(),
+                    mint,
+                    compressible_params,
+                )
+                .instruction()
+                .unwrap()
             } else {
-                CompressibleParams::default()
+                // Create non-compressible CToken ATA
+                CreateAssociatedTokenAccount {
+                    idempotent: false,
+                    bump,
+                    payer: payer.pubkey(),
+                    owner: signer.pubkey(),
+                    mint,
+                    associated_token_account: ata,
+                    compressible: None,
+                }
+                .instruction()
+                .unwrap()
             };
-
-            let create_ata_ix = CreateAssociatedTokenAccount::new(
-                payer.pubkey(),
-                signer.pubkey(),
-                mint,
-                compressible_params,
-            )
-            .instruction()
-            .unwrap();
 
             rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
                 .await
                 .unwrap();
-
-            let ata =
-                light_compressed_token_sdk::ctoken::derive_ctoken_ata(&signer.pubkey(), &mint).0;
 
             // Mint tokens to the CToken ATA if amount > 0
             if amount > 0 {
