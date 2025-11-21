@@ -14,9 +14,13 @@ use solana_instruction::Instruction;
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-use crate::compressed_token::mint_action::{
-    get_mint_action_instruction_account_metas, get_mint_action_instruction_account_metas_cpi_write,
-    MintActionMetaConfig, MintActionMetaConfigCpiWrite,
+use crate::{
+    compressed_token::mint_action::{
+        get_mint_action_instruction_account_metas,
+        get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
+        MintActionMetaConfigCpiWrite,
+    },
+    ctoken::SystemAccountInfos,
 };
 
 // ============================================================================
@@ -192,7 +196,8 @@ impl CreateCMint {
                 self.output_queue,
             )?
         };
-
+        use solana_msg::msg;
+        msg!("instruction_data {:?}", instruction_data);
         let account_metas =
             get_mint_action_instruction_account_metas(meta_config, &compressed_mint_with_context);
 
@@ -349,6 +354,7 @@ pub struct CreateCompressedMintInfos<'info> {
     pub payer: AccountInfo<'info>,
     pub address_tree: AccountInfo<'info>,
     pub output_queue: AccountInfo<'info>,
+    pub system_accounts: SystemAccountInfos<'info>,
     pub cpi_context: Option<CpiContext>,
     pub cpi_context_account: Option<AccountInfo<'info>>,
     pub params: CreateCMintParams,
@@ -360,6 +366,7 @@ impl<'info> CreateCompressedMintInfos<'info> {
         payer: AccountInfo<'info>,
         address_tree: AccountInfo<'info>,
         output_queue: AccountInfo<'info>,
+        system_accounts: SystemAccountInfos<'info>,
         params: CreateCMintParams,
     ) -> Self {
         Self {
@@ -367,6 +374,7 @@ impl<'info> CreateCompressedMintInfos<'info> {
             payer,
             address_tree,
             output_queue,
+            system_accounts,
             cpi_context: None,
             cpi_context_account: None,
             params,
@@ -380,11 +388,19 @@ impl<'info> CreateCompressedMintInfos<'info> {
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
 
+        // Account order must match the instruction's account metas order (from get_mint_action_instruction_account_metas)
         let mut account_infos = vec![
-            self.mint_signer,
-            self.payer,
-            self.address_tree,
+            self.system_accounts.light_system_program, // Index 0
+            self.mint_signer,                          // Index 1
+            self.payer.clone(),                        // Index 2 (authority)
+            self.payer,                                // Index 3 (fee_payer, same as payer)
+            self.system_accounts.cpi_authority_pda,
+            self.system_accounts.registered_program_pda,
+            self.system_accounts.account_compression_authority,
+            self.system_accounts.account_compression_program,
+            self.system_accounts.system_program,
             self.output_queue,
+            self.address_tree,
         ];
 
         if let Some(cpi_context_account) = self.cpi_context_account {
@@ -397,11 +413,19 @@ impl<'info> CreateCompressedMintInfos<'info> {
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
 
+        // Account order must match the instruction's account metas order (from get_mint_action_instruction_account_metas)
         let mut account_infos = vec![
-            self.mint_signer,
-            self.payer,
-            self.address_tree,
+            self.system_accounts.light_system_program, // Index 0
+            self.mint_signer,                          // Index 1
+            self.payer.clone(),                        // Index 2 (authority)
+            self.payer,                                // Index 3 (fee_payer, same as payer)
+            self.system_accounts.cpi_authority_pda,
+            self.system_accounts.registered_program_pda,
+            self.system_accounts.account_compression_authority,
+            self.system_accounts.account_compression_program,
+            self.system_accounts.system_program,
             self.output_queue,
+            self.address_tree,
         ];
 
         if let Some(cpi_context_account) = self.cpi_context_account {

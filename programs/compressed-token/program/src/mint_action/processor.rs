@@ -8,6 +8,7 @@ use light_ctoken_types::{
 use light_sdk::instruction::PackedMerkleContext;
 use light_zero_copy::{traits::ZeroCopyAt, ZeroCopyNew};
 use pinocchio::account_info::AccountInfo;
+use spl_pod::solana_msg::msg;
 
 use crate::{
     mint_action::{
@@ -30,7 +31,7 @@ pub fn process_mint_action(
     let (mut parsed_instruction_data, _) =
         MintActionCompressedInstructionData::zero_copy_at(instruction_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
-
+    msg!("parsed_instruction_data {:?}", parsed_instruction_data);
     // 112 CU write to cpi contex
     let accounts_config = AccountsConfig::new(&parsed_instruction_data)?;
     // Validate and parse

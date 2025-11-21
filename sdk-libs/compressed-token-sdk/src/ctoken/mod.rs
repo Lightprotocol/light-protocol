@@ -19,9 +19,21 @@ pub use light_ctoken_types::{
     state::TokenDataVersion,
 };
 pub use mint_to::*;
+use solana_account_info::AccountInfo;
 use solana_pubkey::{pubkey, Pubkey};
 pub use transfer_ctoken::*;
 pub use transfer_interface::*;
+
+/// System account infos required for CPI operations to the Light Protocol.
+/// These accounts are always required when executing compressed token operations (not for CPI write mode).
+pub struct SystemAccountInfos<'info> {
+    pub light_system_program: AccountInfo<'info>,
+    pub cpi_authority_pda: AccountInfo<'info>,
+    pub registered_program_pda: AccountInfo<'info>,
+    pub account_compression_authority: AccountInfo<'info>,
+    pub account_compression_program: AccountInfo<'info>,
+    pub system_program: AccountInfo<'info>,
+}
 
 pub const CTOKEN_PROGRAM_ID: Pubkey = pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");
 
