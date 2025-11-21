@@ -865,6 +865,13 @@ impl Indexer for TestIndexer {
         }
     }
 
+    async fn get_queue_info(
+        &self,
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<light_client::indexer::QueueInfoResult>, IndexerError> {
+        unimplemented!("get_queue_info")
+    }
+
     async fn get_subtrees(
         &self,
         _merkle_tree_pubkey: [u8; 32],

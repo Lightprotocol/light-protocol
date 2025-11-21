@@ -1737,6 +1737,66 @@ impl Indexer for PhotonIndexer {
         }
     }
 
+    async fn get_queue_info(
+        &self,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<super::QueueInfoResult>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let request = photon_api::models::GetQueueInfoPostRequest {
+                ..Default::default()
+            };
+
+            let result =
+                photon_api::apis::default_api::get_queue_info_post(&self.configuration, request)
+                    .await?;
+
+            let api_response = Self::extract_result_with_error_check(
+                "get_queue_info",
+                result.error.map(|e| {
+                    Box::new(
+                        photon_api::models::GetBatchAddressUpdateInfoPost200ResponseError {
+                            code: Some(e.code),
+                            message: Some(e.message),
+                        },
+                    )
+                }),
+                result.result,
+            )?;
+
+            if api_response.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+
+            let queues = api_response
+                .queues
+                .iter()
+                .map(|q| -> Result<_, IndexerError> {
+                    let tree_bytes = super::base58::decode_base58_to_fixed_array(&q.tree)?;
+                    let queue_bytes = super::base58::decode_base58_to_fixed_array(&q.queue)?;
+
+                    Ok(super::QueueInfo {
+                        tree: Pubkey::new_from_array(tree_bytes),
+                        queue: Pubkey::new_from_array(queue_bytes),
+                        queue_type: q.queue_type,
+                        queue_size: q.queue_size,
+                    })
+                })
+                .collect::<Result<Vec<_>, _>>()?;
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.slot,
+                },
+                value: super::QueueInfoResult {
+                    queues,
+                    slot: api_response.slot,
+                },
+            })
+        })
+        .await
+    }
+
     async fn get_subtrees(
         &self,
         _merkle_tree_pubkey: [u8; 32],

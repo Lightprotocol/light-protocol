@@ -269,7 +269,6 @@ async fn e2e_test() {
                 "../target/deploy/create_address_test_program.so".to_string(),
             )],
             limit_ledger_size: None,
-            grpc_port: Some(50051),
         }))
         .await;
         spawn_prover().await;
@@ -1352,25 +1351,6 @@ async fn create_v1_address<R: Rpc>(
     let index = proof_for_addresses.value.addresses[0].root_index;
 
     println!("indexer root: {:?}, index: {}", root, index);
-
-    {
-        let account = rpc
-            .get_anchor_account::<AddressMerkleTreeAccount>(merkle_tree_pubkey)
-            .await
-            .unwrap();
-        println!("address merkle tree account: {:?}", account);
-        let merkle_tree =
-            get_indexed_merkle_tree::<AddressMerkleTreeAccount, R, Poseidon, usize, 26, 16>(
-                rpc,
-                *merkle_tree_pubkey,
-            )
-            .await;
-
-        for (idx, root) in merkle_tree.roots.iter().enumerate() {
-            println!("root[{}]: {:?}", idx, root);
-        }
-        println!("root index: {}", merkle_tree.root_index());
-    }
 
     let instruction = create_invoke_instruction(
         &payer.pubkey(),
