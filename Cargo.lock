@@ -6120,6 +6120,7 @@ dependencies = [
 name = "sdk-ctoken-test"
 version = "0.1.0"
 dependencies = [
+ "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "borsh 0.10.4",
  "light-client",
  "light-compressed-account",
@@ -6130,8 +6131,11 @@ dependencies = [
  "light-program-test",
  "light-sdk",
  "light-sdk-types",
+ "light-test-utils",
  "solana-program",
  "solana-sdk",
+ "spl-pod",
+ "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "tokio",
 ]
 

@@ -7,6 +7,7 @@ mod create_cmint;
 mod create_token_account;
 mod mint_to_ctoken;
 mod transfer;
+mod transfer_spl_ctoken;
 
 // Re-export all instruction data types
 pub use close::{process_close_account_invoke, process_close_account_invoke_signed};
@@ -27,6 +28,11 @@ pub use mint_to_ctoken::{
     MINT_AUTHORITY_SEED,
 };
 pub use transfer::{process_transfer_invoke, process_transfer_invoke_signed, TransferData};
+pub use transfer_spl_ctoken::{
+    process_ctoken_to_spl_invoke, process_ctoken_to_spl_invoke_signed,
+    process_spl_to_ctoken_invoke, process_spl_to_ctoken_invoke_signed, TransferCtokenToSplData,
+    TransferSplToCtokenData, TRANSFER_AUTHORITY_SEED,
+};
 
 use solana_program::{
     account_info::AccountInfo, entrypoint, program_error::ProgramError, pubkey, pubkey::Pubkey,
@@ -75,6 +81,14 @@ pub enum InstructionType {
     MintToCtokenInvokeSigned = 13,
     /// Create a compressed mint with PDA mint signer AND PDA authority (invoke_signed)
     CreateCmintWithPdaAuthority = 14,
+    /// Transfer SPL tokens to CToken account (invoke)
+    SplToCtokenInvoke = 15,
+    /// Transfer SPL tokens to CToken account with PDA authority (invoke_signed)
+    SplToCtokenInvokeSigned = 16,
+    /// Transfer CToken to SPL token account (invoke)
+    CtokenToSplInvoke = 17,
+    /// Transfer CToken to SPL token account with PDA authority (invoke_signed)
+    CtokenToSplInvokeSigned = 18,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -97,6 +111,10 @@ impl TryFrom<u8> for InstructionType {
             12 => Ok(InstructionType::CreateCmintInvokeSigned),
             13 => Ok(InstructionType::MintToCtokenInvokeSigned),
             14 => Ok(InstructionType::CreateCmintWithPdaAuthority),
+            15 => Ok(InstructionType::SplToCtokenInvoke),
+            16 => Ok(InstructionType::SplToCtokenInvokeSigned),
+            17 => Ok(InstructionType::CtokenToSplInvoke),
+            18 => Ok(InstructionType::CtokenToSplInvokeSigned),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -188,6 +206,26 @@ pub fn process_instruction(
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_create_cmint_with_pda_authority(accounts, data)
         }
+        InstructionType::SplToCtokenInvoke => {
+            let data = TransferSplToCtokenData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_spl_to_ctoken_invoke(accounts, data)
+        }
+        InstructionType::SplToCtokenInvokeSigned => {
+            let data = TransferSplToCtokenData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_spl_to_ctoken_invoke_signed(accounts, data)
+        }
+        InstructionType::CtokenToSplInvoke => {
+            let data = TransferCtokenToSplData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_ctoken_to_spl_invoke(accounts, data)
+        }
+        InstructionType::CtokenToSplInvokeSigned => {
+            let data = TransferCtokenToSplData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_ctoken_to_spl_invoke_signed(accounts, data)
+        }
     }
 }
 
@@ -212,6 +250,10 @@ mod tests {
         assert_eq!(InstructionType::CreateCmintInvokeSigned as u8, 12);
         assert_eq!(InstructionType::MintToCtokenInvokeSigned as u8, 13);
         assert_eq!(InstructionType::CreateCmintWithPdaAuthority as u8, 14);
+        assert_eq!(InstructionType::SplToCtokenInvoke as u8, 15);
+        assert_eq!(InstructionType::SplToCtokenInvokeSigned as u8, 16);
+        assert_eq!(InstructionType::CtokenToSplInvoke as u8, 17);
+        assert_eq!(InstructionType::CtokenToSplInvokeSigned as u8, 18);
     }
 
     #[test]
@@ -276,6 +318,22 @@ mod tests {
             InstructionType::try_from(14).unwrap(),
             InstructionType::CreateCmintWithPdaAuthority
         );
-        assert!(InstructionType::try_from(15).is_err());
+        assert_eq!(
+            InstructionType::try_from(15).unwrap(),
+            InstructionType::SplToCtokenInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(16).unwrap(),
+            InstructionType::SplToCtokenInvokeSigned
+        );
+        assert_eq!(
+            InstructionType::try_from(17).unwrap(),
+            InstructionType::CtokenToSplInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(18).unwrap(),
+            InstructionType::CtokenToSplInvokeSigned
+        );
+        assert!(InstructionType::try_from(19).is_err());
     }
 }
