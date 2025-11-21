@@ -4,7 +4,7 @@ use anchor_lang::{AccountDeserialize, InstructionData};
 use anchor_spl::token::TokenAccount;
 use light_client::indexer::CompressedTokenAccount;
 use light_compressed_token_sdk::{
-    instructions::{
+    compressed_token::{
         batch_compress::{
             get_batch_compress_instruction_account_metas, BatchCompressMetaConfig, Recipient,
         },

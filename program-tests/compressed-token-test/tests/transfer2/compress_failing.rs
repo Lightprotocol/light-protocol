@@ -36,14 +36,16 @@
 //
 
 use light_compressed_token_sdk::{
-    account2::CTokenAccount2,
-    instructions::{
-        create_associated_token_account::create_compressible_associated_token_account,
-        derive_ctoken_ata, find_spl_mint_address,
+    compressed_token::{
+        create_compressed_mint::find_spl_mint_address,
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
             Transfer2Config, Transfer2Inputs,
         },
+        CTokenAccount2,
+    },
+    ctoken::create_associated_token_account::{
+        create_compressible_associated_token_account, derive_ctoken_ata,
         CreateCompressibleAssociatedTokenAccountInputs,
     },
     ValidityProof,

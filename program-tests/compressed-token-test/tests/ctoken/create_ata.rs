@@ -275,8 +275,8 @@ async fn test_create_ata_failing() {
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
         let new_owner = solana_sdk::signature::Keypair::new();
 
-        let create_ata_ix = light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
-            light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
+        let create_ata_ix = light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account(
+            light_compressed_token_sdk::ctoken::create_associated_token_account::CreateCompressibleAssociatedTokenAccountInputs {
                 payer: poor_payer_pubkey,
                 owner: new_owner.pubkey(),
                 mint: context.mint_pubkey,
@@ -442,7 +442,7 @@ async fn test_create_ata_failing() {
     // Compressible config must be owned by the compressed-token program
     // Error: 14 (InvalidAccountOwner)
     {
-        use light_compressed_token_sdk::instructions::create_compressible_associated_token_account;
+        use light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account;
 
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
@@ -451,7 +451,7 @@ async fn test_create_ata_failing() {
         let fake_config = solana_sdk::system_program::ID;
 
         let create_ata_ix = create_compressible_associated_token_account(
-            light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
+            light_compressed_token_sdk::ctoken::create_associated_token_account::CreateCompressibleAssociatedTokenAccountInputs {
                 payer: payer_pubkey,
                 owner: context.owner_keypair.pubkey(),
                 mint: context.mint_pubkey,
@@ -478,7 +478,7 @@ async fn test_create_ata_failing() {
     // Using the protocol config account which has a different discriminator.
     // Error: 20000 (InvalidDiscriminator from account-checks)
     {
-        use light_compressed_token_sdk::instructions::create_compressible_associated_token_account;
+        use light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account;
 
         // Use different mint for this test
         context.mint_pubkey = solana_sdk::pubkey::Pubkey::new_unique();
@@ -487,7 +487,7 @@ async fn test_create_ata_failing() {
         let wrong_account_type = context.rpc.test_accounts.protocol.governance_authority_pda;
 
         let create_ata_ix = create_compressible_associated_token_account(
-            light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
+            light_compressed_token_sdk::ctoken::create_associated_token_account::CreateCompressibleAssociatedTokenAccountInputs {
                 payer: payer_pubkey,
                 owner: context.owner_keypair.pubkey(),
                 mint: context.mint_pubkey,
@@ -601,8 +601,8 @@ async fn test_ata_multiple_owners_same_mint() {
     };
 
     // Create ATAs for each owner with the same mint
-    let create_ata_ix1 = light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
-        light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
+    let create_ata_ix1 = light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account(
+        light_compressed_token_sdk::ctoken::create_associated_token_account::CreateCompressibleAssociatedTokenAccountInputs {
             payer: payer_pubkey,
             owner: owner1,
             mint,
@@ -632,8 +632,8 @@ async fn test_ata_multiple_owners_same_mint() {
     )
     .await;
 
-    let create_ata_ix2 = light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
-        light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
+    let create_ata_ix2 = light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account(
+        light_compressed_token_sdk::ctoken::create_associated_token_account::CreateCompressibleAssociatedTokenAccountInputs {
             payer: payer_pubkey,
             owner: owner2,
             mint,
@@ -663,8 +663,8 @@ async fn test_ata_multiple_owners_same_mint() {
     )
     .await;
 
-    let create_ata_ix3 = light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
-        light_compressed_token_sdk::instructions::CreateCompressibleAssociatedTokenAccountInputs {
+    let create_ata_ix3 = light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account(
+        light_compressed_token_sdk::ctoken::create_associated_token_account::CreateCompressibleAssociatedTokenAccountInputs {
             payer: payer_pubkey,
             owner: owner3,
             mint,

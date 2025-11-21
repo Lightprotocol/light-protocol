@@ -1,6 +1,6 @@
 // Re-export all necessary imports for test modules
 pub use anchor_spl::token_2022::spl_token_2022;
-pub use light_compressed_token_sdk::instructions::create_associated_token_account::derive_ctoken_ata;
+pub use light_compressed_token_sdk::ctoken::create_associated_token_account::derive_ctoken_ata;
 pub use light_program_test::{LightProgramTest, ProgramTestConfig};
 pub use light_test_utils::{
     airdrop_lamports,
@@ -52,7 +52,7 @@ async fn test_spl_to_ctoken_transfer() {
         .unwrap();
 
     // Create compressed token ATA for recipient
-    let instruction = light_compressed_token_sdk::instructions::create_associated_token_account(
+    let instruction = light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
         payer.pubkey(),
         recipient.pubkey(),
         mint,
@@ -189,7 +189,8 @@ async fn test_spl_to_ctoken_transfer() {
 #[tokio::test]
 async fn test_ctoken_to_spl_with_compress_and_close() {
     use light_compressed_token_sdk::{
-        instructions::CtokenToSplTransferAndClose, token_pool::find_token_pool_pda_with_index,
+        ctoken::transfer_interface::CtokenToSplTransferAndClose,
+        token_pool::find_token_pool_pda_with_index,
     };
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new(true, None))
@@ -228,7 +229,7 @@ async fn test_ctoken_to_spl_with_compress_and_close() {
         .unwrap();
 
     // Create compressed token ATA for recipient
-    let instruction = light_compressed_token_sdk::instructions::create_associated_token_account(
+    let instruction = light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
         payer.pubkey(),
         recipient.pubkey(),
         mint,

@@ -3,12 +3,14 @@ use light_client::{
     rpc::Rpc,
 };
 use light_compressed_token_sdk::{
-    account2::CTokenAccount2,
-    error::TokenSdkError,
-    instructions::transfer2::{
-        account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction, Transfer2Config,
-        Transfer2Inputs,
+    compressed_token::{
+        transfer2::{
+            account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
+            Transfer2Config, Transfer2Inputs,
+        },
+        CTokenAccount2,
     },
+    error::TokenSdkError,
     token_pool::find_token_pool_pda_with_index,
 };
 use light_ctoken_types::{

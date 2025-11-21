@@ -1,8 +1,11 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
 use light_compressed_token_sdk::{
-    instructions::transfer::{
-        instruction::{decompress, DecompressInputs},
-        TransferAccountInfos,
+    compressed_token::{
+        transfer::{
+            instruction::{decompress, DecompressInputs},
+            TransferAccountInfos,
+        },
+        CTokenAccount,
     },
     TokenAccountMeta, ValidityProof,
 };
@@ -16,7 +19,7 @@ pub fn process_decompress_tokens<'info>(
     output_tree_index: u8,
     mint: Pubkey,
 ) -> Result<()> {
-    let sender_account = light_compressed_token_sdk::account::CTokenAccount::new(
+    let sender_account = CTokenAccount::new(
         mint,
         ctx.accounts.signer.key(),
         token_data,

@@ -1,8 +1,10 @@
 use anchor_lang::{prelude::*, solana_program::log::sol_log_compute_units};
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_compressed_token_sdk::{
-    account::CTokenAccount,
-    instructions::transfer::instruction::{TransferConfig, TransferInputs},
+    compressed_token::{
+        transfer::instruction::{TransferConfig, TransferInputs},
+        CTokenAccount,
+    },
     TokenAccountMeta,
 };
 use light_sdk::{
@@ -97,8 +99,10 @@ pub fn deposit_tokens<'a, 'info>(
         amount,
     };
     let instruction =
-        light_compressed_token_sdk::instructions::transfer::instruction::transfer(transfer_inputs)
-            .unwrap();
+        light_compressed_token_sdk::compressed_token::transfer::instruction::transfer(
+            transfer_inputs,
+        )
+        .unwrap();
     // msg!("instruction {:?}", instruction);
     // We can use the property that account infos don't have to be in order if you use
     // solana program invoke.

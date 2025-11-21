@@ -1,6 +1,6 @@
 use anchor_lang::{prelude::*, solana_program::program::invoke};
-use light_compressed_token_sdk::{
-    ctoken_instruction::CTokenInstruction, instructions::mint_action::MintActionCpiAccounts,
+use light_compressed_token_sdk::compressed_token::{
+    ctoken_instruction::CTokenInstruction, mint_action::MintActionCpiAccounts,
 };
 use light_ctoken_types::instructions::mint_action::{
     MintActionCompressedInstructionData, MintToCTokenAction, MintToCompressedAction,

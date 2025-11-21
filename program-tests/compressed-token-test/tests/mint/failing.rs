@@ -2,7 +2,7 @@
 
 use anchor_lang::prelude::borsh::BorshDeserialize;
 use light_client::indexer::Indexer;
-use light_compressed_token_sdk::instructions::{
+use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
     derive_compressed_mint_address, find_spl_mint_address,
 };
 use light_ctoken_types::state::{extensions::AdditionalMetadata, CompressedMint};
@@ -397,7 +397,7 @@ async fn functional_and_failing_tests() {
         let recipient = Keypair::new();
 
         let create_ata_ix =
-            light_compressed_token_sdk::instructions::create_associated_token_account(
+            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
                 payer.pubkey(),
                 recipient.pubkey(),
                 spl_mint_pda,
@@ -454,7 +454,7 @@ async fn functional_and_failing_tests() {
         let recipient2 = Keypair::new();
 
         let create_ata_ix2 =
-            light_compressed_token_sdk::instructions::create_associated_token_account(
+            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
                 payer.pubkey(),
                 recipient2.pubkey(),
                 spl_mint_pda,
@@ -465,11 +465,12 @@ async fn functional_and_failing_tests() {
             .await
             .unwrap();
 
-        let recipient_ata = light_compressed_token_sdk::instructions::derive_ctoken_ata(
-            &recipient2.pubkey(),
-            &spl_mint_pda,
-        )
-        .0;
+        let recipient_ata =
+            light_compressed_token_sdk::ctoken::create_associated_token_account::derive_ctoken_ata(
+                &recipient2.pubkey(),
+                &spl_mint_pda,
+            )
+            .0;
 
         // Try to mint with valid NEW authority (since we updated it)
         let result = light_token_client::actions::mint_action_comprehensive(

@@ -1,13 +1,11 @@
 use anchor_lang::InstructionData;
 use light_client::indexer::{CompressedAccount, CompressedTokenAccount, IndexerRpcConfig};
 use light_compressed_token_sdk::{
-    instructions::{
-        batch_compress::{
-            get_batch_compress_instruction_account_metas, BatchCompressMetaConfig, Recipient,
-        },
-        CTokenDefaultAccounts,
+    compressed_token::batch_compress::{
+        get_batch_compress_instruction_account_metas, BatchCompressMetaConfig, Recipient,
     },
     token_pool::find_token_pool_pda_with_index,
+    utils::CTokenDefaultAccounts,
     TokenAccountMeta, SPL_TOKEN_PROGRAM_ID,
 };
 use light_program_test::{AddressWithTree, Indexer, LightProgramTest, ProgramTestConfig, Rpc};

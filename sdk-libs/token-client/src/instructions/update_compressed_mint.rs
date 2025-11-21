@@ -4,7 +4,9 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::{
-    instructions::update_compressed_mint::{update_compressed_mint, UpdateCompressedMintInputs},
+    compressed_token::update_compressed_mint::{
+        update_compressed_mint, UpdateCompressedMintInputs,
+    },
     CompressedMintAuthorityType,
 };
 use light_ctoken_types::{

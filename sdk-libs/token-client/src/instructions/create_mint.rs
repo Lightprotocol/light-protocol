@@ -2,7 +2,7 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_compressed_token_sdk::instructions::create_compressed_mint::{
+use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
     create_compressed_mint, derive_compressed_mint_address, CreateCompressedMintInputs,
 };
 use light_ctoken_types::instructions::extensions::{

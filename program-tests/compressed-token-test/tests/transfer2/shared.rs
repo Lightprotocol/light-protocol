@@ -2,8 +2,9 @@ use std::collections::HashMap;
 
 use anchor_lang::AnchorDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_compressed_token_sdk::instructions::{
-    find_spl_mint_address, CreateCompressibleAssociatedTokenAccountInputs,
+use light_compressed_token_sdk::{
+    compressed_token::create_compressed_mint::find_spl_mint_address,
+    ctoken::create_associated_token_account::CreateCompressibleAssociatedTokenAccountInputs,
 };
 use light_ctoken_types::{
     instructions::{mint_action::Recipient, transfer2::CompressedTokenInstructionDataTransfer2},
@@ -447,7 +448,7 @@ impl TestContext {
                     "Creating compressible CToken ATA for signer {} mint {}",
                     signer_index, mint_index
                 );
-                light_compressed_token_sdk::instructions::create_compressible_associated_token_account(
+                light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account(
                     CreateCompressibleAssociatedTokenAccountInputs {
                         payer: payer.pubkey(),
                         owner: signer.pubkey(),
@@ -461,7 +462,7 @@ impl TestContext {
                 )
                 .unwrap()
             } else {
-                light_compressed_token_sdk::instructions::create_associated_token_account(
+                light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
                     payer.pubkey(),
                     signer.pubkey(),
                     mint,
@@ -473,7 +474,7 @@ impl TestContext {
                 .await
                 .unwrap();
 
-            let ata = light_compressed_token_sdk::instructions::derive_ctoken_ata(
+            let ata = light_compressed_token_sdk::ctoken::create_associated_token_account::derive_ctoken_ata(
                 &signer.pubkey(),
                 &mint,
             )
@@ -490,7 +491,7 @@ impl TestContext {
                 // Get the compressed mint address
                 let address_tree_pubkey = rpc.get_address_tree_v2().tree;
                 let compressed_mint_address =
-                    light_compressed_token_sdk::instructions::derive_compressed_mint_address(
+                    light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_compressed_mint_address(
                         &mint_seed.pubkey(),
                         &address_tree_pubkey,
                     );

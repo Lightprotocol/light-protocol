@@ -1,7 +1,10 @@
 use anchor_lang::{prelude::AccountMeta, InstructionData};
-use light_compressed_token_sdk::instructions::{
-    create_compressed_mint, create_mint_to_compressed_instruction, CTokenDefaultAccounts,
-    CreateCompressedMintInputs, MintToCompressedInputs,
+use light_compressed_token_sdk::{
+    compressed_token::{
+        create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
+        mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
+    },
+    utils::CTokenDefaultAccounts,
 };
 use light_ctoken_types::{
     instructions::{
@@ -91,9 +94,12 @@ async fn create_compressed_mints_and_tokens(
 
     // Create associated token account for mint1 decompression
     let (token_account1_pubkey, _bump) =
-        light_compressed_token_sdk::instructions::derive_ctoken_ata(&payer.pubkey(), &mint1_pda);
+        light_compressed_token_sdk::ctoken::create_associated_token_account::derive_ctoken_ata(
+            &payer.pubkey(),
+            &mint1_pda,
+        );
     let create_ata_instruction =
-        light_compressed_token_sdk::instructions::create_associated_token_account(
+        light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
             payer.pubkey(),
             payer.pubkey(),
             mint1_pda,

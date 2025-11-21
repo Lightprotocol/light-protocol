@@ -1,9 +1,9 @@
 //#![cfg(feature = "test-sbf")]
 
 use anchor_lang::InstructionData;
-use light_compressed_token_sdk::instructions::{
+use light_compressed_token_sdk::compressed_token::{
     compress_and_close::{pack_for_compress_and_close, CompressAndCloseAccounts},
-    find_spl_mint_address,
+    create_compressed_mint::find_spl_mint_address,
 };
 use light_ctoken_types::instructions::mint_action::Recipient;
 use light_program_test::{Indexer, LightProgramTest, ProgramTestConfig, Rpc};
@@ -74,7 +74,7 @@ async fn setup_compress_and_close_test(
     // Create ATA accounts for each owner
     let mut token_account_pubkeys = Vec::with_capacity(num_ctoken_accounts);
 
-    use light_compressed_token_sdk::instructions::{
+    use light_compressed_token_sdk::ctoken::create_associated_token_account::{
         create_associated_token_account, create_compressible_associated_token_account,
         derive_ctoken_ata, CreateCompressibleAssociatedTokenAccountInputs,
     };
@@ -477,7 +477,7 @@ async fn test_compress_and_close_cpi_with_context() {
     // Derive compressed mint address using utility function
     let address_tree_info = rpc.get_address_tree_v2();
     let compressed_mint_address =
-        light_compressed_token_sdk::instructions::derive_compressed_mint_address(
+        light_compressed_token_sdk::compressed_token::create_compressed_mint::derive_compressed_mint_address(
             &ctx.mint_seed.pubkey(),
             &address_tree_info.tree,
         );
@@ -496,7 +496,7 @@ async fn test_compress_and_close_cpi_with_context() {
         .cpi_context
         .expect("CPI context required for this test");
     // Add light system program accounts (following the pattern from other tests)
-    use light_compressed_token_sdk::instructions::compress_and_close::CompressAndCloseAccounts;
+    use light_compressed_token_sdk::compressed_token::compress_and_close::CompressAndCloseAccounts;
     let config = CompressAndCloseAccounts::new_with_cpi_context(Some(cpi_context_pubkey), None);
     remaining_accounts
         .add_custom_system_accounts(config)

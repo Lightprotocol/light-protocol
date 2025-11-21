@@ -1,4 +1,4 @@
-use light_compressed_token_sdk::instructions::create_associated_token_account::*;
+use light_compressed_token_sdk::ctoken::create_associated_token_account::*;
 use solana_pubkey::Pubkey;
 
 /// Discriminators for create ATA instructions

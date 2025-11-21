@@ -1,8 +1,12 @@
 use anchor_lang::ToAccountMetas;
-use light_compressed_token_sdk::instructions::{
-    batch_compress::{get_batch_compress_instruction_account_metas, BatchCompressMetaConfig},
-    transfer::account_metas::{get_transfer_instruction_account_metas, TokenAccountsMetaConfig},
-    CTokenDefaultAccounts,
+use light_compressed_token_sdk::{
+    compressed_token::{
+        batch_compress::{get_batch_compress_instruction_account_metas, BatchCompressMetaConfig},
+        transfer::account_metas::{
+            get_transfer_instruction_account_metas, TokenAccountsMetaConfig,
+        },
+    },
+    utils::CTokenDefaultAccounts,
 };
 use light_compressed_token_types::constants::{
     ACCOUNT_COMPRESSION_PROGRAM_ID, CPI_AUTHORITY_PDA, LIGHT_SYSTEM_PROGRAM_ID, NOOP_PROGRAM_ID,
