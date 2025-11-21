@@ -449,13 +449,11 @@ impl AccountsConfig {
                 create_mint: parsed_instruction_data.create_mint.is_some(),
             })
         } else {
-            // For MintTo or MintToCToken actions
-            // - needed for tokens_out_queue and authority validation
+            // For MintToCompressed actions
+            // - needed for tokens_out_queue (only MintToCompressed creates new compressed outputs)
+            // - MintToCToken mints to existing decompressed accounts, doesn't need tokens_out_queue
             let has_mint_to_actions = parsed_instruction_data.actions.iter().any(|action| {
-                matches!(
-                    action,
-                    ZAction::MintToCompressed(_) | ZAction::MintToCToken(_)
-                )
+                matches!(action, ZAction::MintToCompressed(_))
             });
 
             Ok(AccountsConfig {

@@ -15,7 +15,7 @@ pub struct MintActionMetaConfig {
     pub tokens_out_queue: Option<Pubkey>, // Output queue for new token accounts
     pub with_lamports: bool,
     pub spl_mint_initialized: bool,
-    pub has_mint_to_actions: bool, // Whether we have MintTo actions
+    pub has_mint_to_compressed_actions: bool, // Whether we have MintToCompressed actions (not MintToCToken)
     pub with_cpi_context: Option<Pubkey>,
     pub create_mint: bool,
     pub with_mint_signer: bool,
@@ -36,7 +36,7 @@ impl MintActionMetaConfig {
             return Err(crate::error::TokenSdkError::CreateMintDataRequired);
         }
 
-        let (has_mint_to_actions, ctoken_accounts) =
+        let (has_mint_to_compressed_actions, ctoken_accounts) =
             Self::analyze_actions(&instruction_data.actions);
         let spl_mint_initialized = instruction_data.mint.metadata.spl_mint_initialized;
 
@@ -47,14 +47,14 @@ impl MintActionMetaConfig {
             tree_pubkey: address_tree,
             input_queue: None,
             output_queue,
-            tokens_out_queue: if has_mint_to_actions {
+            tokens_out_queue: if has_mint_to_compressed_actions {
                 Some(output_queue)
             } else {
                 None
             },
             with_lamports: false,
             spl_mint_initialized,
-            has_mint_to_actions,
+            has_mint_to_compressed_actions,
             with_cpi_context: None,
             create_mint: true,
             with_mint_signer: true,
@@ -75,7 +75,7 @@ impl MintActionMetaConfig {
             return Err(crate::error::TokenSdkError::CreateMintMustBeNone);
         }
 
-        let (has_mint_to_actions, ctoken_accounts) =
+        let (has_mint_to_compressed_actions, ctoken_accounts) =
             Self::analyze_actions(&instruction_data.actions);
 
         Ok(Self {
@@ -85,14 +85,14 @@ impl MintActionMetaConfig {
             tree_pubkey: state_tree,
             input_queue: Some(input_queue),
             output_queue,
-            tokens_out_queue: if has_mint_to_actions {
+            tokens_out_queue: if has_mint_to_compressed_actions {
                 Some(output_queue)
             } else {
                 None
             },
             with_lamports: false,
             spl_mint_initialized: false,
-            has_mint_to_actions,
+            has_mint_to_compressed_actions,
             with_cpi_context: None,
             create_mint: false,
             with_mint_signer: false,
@@ -111,7 +111,7 @@ impl MintActionMetaConfig {
             return Err(crate::error::TokenSdkError::CpiContextRequired);
         }
 
-        let (has_mint_to_actions, ctoken_accounts) =
+        let (has_mint_to_compressed_actions, ctoken_accounts) =
             Self::analyze_actions(&instruction_data.actions);
         let spl_mint_initialized = instruction_data.mint.metadata.spl_mint_initialized;
         let create_mint = instruction_data.create_mint.is_some();
@@ -126,7 +126,7 @@ impl MintActionMetaConfig {
             tokens_out_queue: None,
             with_lamports: false,
             spl_mint_initialized,
-            has_mint_to_actions,
+            has_mint_to_compressed_actions,
             with_cpi_context: Some(cpi_context_pubkey),
             create_mint,
             with_mint_signer: create_mint,
@@ -148,22 +148,22 @@ impl MintActionMetaConfig {
     fn analyze_actions(
         actions: &[light_ctoken_types::instructions::mint_action::Action],
     ) -> (bool, Vec<Pubkey>) {
-        let mut has_mint_to_actions = false;
+        let mut has_mint_to_compressed_actions = false;
         let ctoken_accounts = Vec::new();
 
         for action in actions {
             match action {
                 light_ctoken_types::instructions::mint_action::Action::MintToCompressed(_) => {
-                    has_mint_to_actions = true;
+                    has_mint_to_compressed_actions = true;
                 }
                 light_ctoken_types::instructions::mint_action::Action::MintToCToken(_) => {
-                    has_mint_to_actions = true;
+                    // MintToCToken doesn't need tokens_out_queue - it mints to existing decompressed accounts
                 }
                 _ => {}
             }
         }
 
-        (has_mint_to_actions, ctoken_accounts)
+        (has_mint_to_compressed_actions, ctoken_accounts)
     }
 }
 
@@ -264,7 +264,7 @@ pub fn get_mint_action_instruction_account_metas(
         }
     }
 
-    if config.has_mint_to_actions {
+    if config.has_mint_to_compressed_actions {
         let tokens_out_queue = config.tokens_out_queue.unwrap_or(config.output_queue);
         metas.push(AccountMeta::new(tokens_out_queue, false));
     }

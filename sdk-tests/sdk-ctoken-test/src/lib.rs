@@ -95,7 +95,6 @@ pub struct CreateTokenAccountData {
     pub owner: Pubkey,
     pub pre_pay_num_epochs: u8,
     pub lamports_per_write: u32,
-    pub token_account_version: u8,
 }
 
 /// Instruction data for create ATA
@@ -247,17 +246,25 @@ fn process_create_cmint(
 /// 2. Build MintToCTokenInfos with accounts and params
 /// 3. Call invoke() which handles instruction building and CPI
 ///
-/// Account order:
-/// - accounts[0]: payer (signer)
-/// - accounts[1]: state_tree
-/// - accounts[2]: input_queue
-/// - accounts[3]: output_queue
-/// - accounts[4..]: ctoken_accounts (variable length - destination accounts)
+/// Account order (all accounts from SDK-generated instruction):
+/// - accounts[0]: compressed_token_program (for CPI)
+/// - accounts[1]: light_system_program
+/// - accounts[2]: authority (mint_authority)
+/// - accounts[3]: fee_payer
+/// - accounts[4]: cpi_authority_pda
+/// - accounts[5]: registered_program_pda
+/// - accounts[6]: account_compression_authority
+/// - accounts[7]: account_compression_program
+/// - accounts[8]: system_program
+/// - accounts[9]: output_queue
+/// - accounts[10]: state_tree
+/// - accounts[11]: input_queue
+/// - accounts[12..]: ctoken_accounts (variable length - destination accounts)
 fn process_mint_to_ctoken(
     accounts: &[AccountInfo],
     data: MintToCTokenData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 5 {
+    if accounts.len() < 13 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -269,16 +276,28 @@ fn process_mint_to_ctoken(
         data.proof,
     );
 
-    // Collect ctoken accounts from remaining accounts (index 4 onwards)
-    let ctoken_accounts: Vec<AccountInfo> = accounts[4..].to_vec();
+    // Build system accounts struct
+    let system_accounts = SystemAccountInfos {
+        light_system_program: accounts[1].clone(),
+        cpi_authority_pda: accounts[4].clone(),
+        registered_program_pda: accounts[5].clone(),
+        account_compression_authority: accounts[6].clone(),
+        account_compression_program: accounts[7].clone(),
+        system_program: accounts[8].clone(),
+    };
+
+    // Collect ctoken accounts from remaining accounts (index 12 onwards)
+    let ctoken_accounts: Vec<AccountInfo> = accounts[12..].to_vec();
 
     // Build the account infos struct and invoke
+    // SDK account order: output_queue (9), tree (10), input_queue (11), ctoken_accounts (12+)
     MintToCTokenInfos {
-        payer: accounts[0].clone(),
-        state_tree: accounts[1].clone(),
-        input_queue: accounts[2].clone(),
-        output_queue: accounts[3].clone(),
+        payer: accounts[3].clone(), // fee_payer from SDK accounts
+        state_tree: accounts[10].clone(),  // tree at index 10
+        input_queue: accounts[11].clone(), // input_queue at index 11
+        output_queue: accounts[9].clone(), // output_queue at index 9
         ctoken_accounts,
+        system_accounts,
         cpi_context: None,
         cpi_context_account: None,
         params,
@@ -299,12 +318,13 @@ fn process_mint_to_ctoken(
 /// - accounts[1]: account to create (signer)
 /// - accounts[2]: mint
 /// - accounts[3]: compressible_config
-/// - accounts[4]: rent_sponsor
+/// - accounts[4]: system_program
+/// - accounts[5]: rent_sponsor
 fn process_create_token_account_invoke(
     accounts: &[AccountInfo],
     data: CreateTokenAccountData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 5 {
+    if accounts.len() < 6 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -313,6 +333,7 @@ fn process_create_token_account_invoke(
         data.pre_pay_num_epochs,
         data.lamports_per_write,
         accounts[3].clone(),
+        accounts[5].clone(),
         accounts[4].clone(),
     );
 
@@ -336,12 +357,13 @@ fn process_create_token_account_invoke(
 /// - accounts[1]: account to create (PDA, will be derived and verified)
 /// - accounts[2]: mint
 /// - accounts[3]: compressible_config
-/// - accounts[4]: rent_sponsor
+/// - accounts[4]: system_program
+/// - accounts[5]: rent_sponsor
 fn process_create_token_account_invoke_signed(
     accounts: &[AccountInfo],
     data: CreateTokenAccountData,
 ) -> Result<(), ProgramError> {
-    if accounts.len() < 5 {
+    if accounts.len() < 6 {
         return Err(ProgramError::NotEnoughAccountKeys);
     }
 
@@ -358,6 +380,7 @@ fn process_create_token_account_invoke_signed(
         data.pre_pay_num_epochs,
         data.lamports_per_write,
         accounts[3].clone(),
+        accounts[5].clone(),
         accounts[4].clone(),
     );
 
@@ -399,6 +422,7 @@ fn process_create_ata_invoke(
         data.lamports_per_write,
         accounts[3].clone(),
         accounts[4].clone(),
+        accounts[2].clone(),
     );
 
     // Use the CreateAssociatedTokenAccountInfos constructor
@@ -446,6 +470,7 @@ fn process_create_ata_invoke_signed(
         data.lamports_per_write,
         accounts[3].clone(),
         accounts[4].clone(),
+        accounts[2].clone(),
     );
 
     // Use the CreateAssociatedTokenAccountInfos constructor

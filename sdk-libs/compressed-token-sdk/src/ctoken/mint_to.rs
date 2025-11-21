@@ -37,7 +37,7 @@ impl MintToCTokenParams {
         Self {
             compressed_mint_inputs,
             mint_to_actions: vec![MintToCTokenAction {
-                account_index: 0,
+                account_index: 0, // TODO: make dynamic
                 amount,
             }],
             mint_authority,
@@ -172,7 +172,7 @@ impl MintToCTokenCpiWriteParams {
         Self {
             compressed_mint_inputs,
             mint_to_actions: vec![MintToCTokenAction {
-                account_index: 0,
+                account_index: 0, // TODO: make dynamic
                 amount,
             }],
             mint_authority,
@@ -271,6 +271,7 @@ pub struct MintToCTokenInfos<'info> {
     pub input_queue: AccountInfo<'info>,
     pub output_queue: AccountInfo<'info>,
     pub ctoken_accounts: Vec<AccountInfo<'info>>,
+    pub system_accounts: crate::ctoken::SystemAccountInfos<'info>,
     pub cpi_context: Option<CpiContext>,
     pub cpi_context_account: Option<AccountInfo<'info>>,
     pub params: MintToCTokenParams,
@@ -284,8 +285,16 @@ impl<'info> MintToCTokenInfos<'info> {
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
 
+        // Account order must match the instruction's account metas order (from get_mint_action_instruction_account_metas)
         let mut account_infos = vec![
-            self.payer,
+            self.system_accounts.light_system_program,
+            self.payer.clone(), // authority
+            self.payer,         // fee_payer
+            self.system_accounts.cpi_authority_pda,
+            self.system_accounts.registered_program_pda,
+            self.system_accounts.account_compression_authority,
+            self.system_accounts.account_compression_program,
+            self.system_accounts.system_program,
             self.state_tree,
             self.input_queue,
             self.output_queue,
@@ -303,8 +312,16 @@ impl<'info> MintToCTokenInfos<'info> {
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
 
+        // Account order must match the instruction's account metas order (from get_mint_action_instruction_account_metas)
         let mut account_infos = vec![
-            self.payer,
+            self.system_accounts.light_system_program,
+            self.payer.clone(), // authority
+            self.payer,         // fee_payer
+            self.system_accounts.cpi_authority_pda,
+            self.system_accounts.registered_program_pda,
+            self.system_accounts.account_compression_authority,
+            self.system_accounts.account_compression_program,
+            self.system_accounts.system_program,
             self.state_tree,
             self.input_queue,
             self.output_queue,

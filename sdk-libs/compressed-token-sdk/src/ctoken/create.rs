@@ -123,10 +123,11 @@ impl<'info> CreateCTokenAccountInfos<'info> {
         let instruction = self.instruction()?;
         if let Some(compressible) = self.compressible {
             let account_infos = [
-                self.payer,
                 self.account,
                 self.mint,
+                self.payer,
                 compressible.compressible_config,
+                compressible.system_program,
                 compressible.rent_sponsor,
             ];
             invoke(&instruction, &account_infos)
@@ -140,10 +141,11 @@ impl<'info> CreateCTokenAccountInfos<'info> {
         let instruction = self.instruction()?;
         if let Some(compressible) = self.compressible {
             let account_infos = [
-                self.payer,
                 self.account,
                 self.mint,
+                self.payer,
                 compressible.compressible_config,
+                compressible.system_program,
                 compressible.rent_sponsor,
             ];
             invoke_signed(&instruction, &account_infos, signer_seeds)

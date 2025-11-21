@@ -46,6 +46,7 @@ impl CompressibleParams {
 pub struct CompressibleParamsInfos<'info> {
     pub compressible_config: AccountInfo<'info>,
     pub rent_sponsor: AccountInfo<'info>,
+    pub system_program: AccountInfo<'info>,
     pub pre_pay_num_epochs: u8,
     pub lamports_per_write: Option<u32>,
     pub compress_to_account_pubkey: Option<CompressToPubkey>,
@@ -58,10 +59,12 @@ impl<'info> CompressibleParamsInfos<'info> {
         lamports_per_write: u32,
         compressible_config: AccountInfo<'info>,
         rent_sponsor: AccountInfo<'info>,
+        system_program: AccountInfo<'info>,
     ) -> Self {
         Self {
             compressible_config,
             rent_sponsor,
+            system_program,
             pre_pay_num_epochs,
             lamports_per_write: Some(lamports_per_write),
             compress_to_account_pubkey: None,
