@@ -7,6 +7,7 @@ mod create_cmint;
 mod create_token_account;
 mod mint_to_ctoken;
 mod transfer;
+mod transfer_interface;
 mod transfer_spl_ctoken;
 
 // Re-export all instruction data types
@@ -16,8 +17,8 @@ pub use create_ata2::{
     process_create_ata2_invoke, process_create_ata2_invoke_signed, CreateAta2Data,
 };
 pub use create_cmint::{
-    process_create_cmint, process_create_cmint_invoke_signed, process_create_cmint_with_pda_authority,
-    CreateCmintData, MINT_SIGNER_SEED,
+    process_create_cmint, process_create_cmint_invoke_signed,
+    process_create_cmint_with_pda_authority, CreateCmintData, MINT_SIGNER_SEED,
 };
 pub use create_token_account::{
     process_create_token_account_invoke, process_create_token_account_invoke_signed,
@@ -28,6 +29,10 @@ pub use mint_to_ctoken::{
     MINT_AUTHORITY_SEED,
 };
 pub use transfer::{process_transfer_invoke, process_transfer_invoke_signed, TransferData};
+pub use transfer_interface::{
+    process_transfer_interface_invoke, process_transfer_interface_invoke_signed,
+    TransferInterfaceData, TRANSFER_INTERFACE_AUTHORITY_SEED,
+};
 pub use transfer_spl_ctoken::{
     process_ctoken_to_spl_invoke, process_ctoken_to_spl_invoke_signed,
     process_spl_to_ctoken_invoke, process_spl_to_ctoken_invoke_signed, TransferCtokenToSplData,
@@ -63,10 +68,10 @@ pub enum InstructionType {
     CreateAtaInvoke = 4,
     /// Create compressible associated token account with PDA ownership (invoke_signed)
     CreateAtaInvokeSigned = 5,
-    /// Transfer compressed tokens (invoke)
-    TransferInterfaceInvoke = 6,
-    /// Transfer compressed tokens from PDA-owned account (invoke_signed)
-    TransferInterfaceInvokeSigned = 7,
+    /// Transfer compressed tokens CToken->CToken (invoke)
+    CTokenTransferInvoke = 6,
+    /// Transfer compressed tokens CToken->CToken from PDA-owned account (invoke_signed)
+    CTokenTransferInvokeSigned = 7,
     /// Close compressed token account (invoke)
     CloseAccountInvoke = 8,
     /// Close PDA-owned compressed token account (invoke_signed)
@@ -89,6 +94,10 @@ pub enum InstructionType {
     CtokenToSplInvoke = 17,
     /// Transfer CToken to SPL token account with PDA authority (invoke_signed)
     CtokenToSplInvokeSigned = 18,
+    /// Unified transfer interface - auto-detects account types (invoke)
+    TransferInterfaceInvoke = 19,
+    /// Unified transfer interface with PDA authority (invoke_signed)
+    TransferInterfaceInvokeSigned = 20,
 }
 
 impl TryFrom<u8> for InstructionType {
@@ -102,8 +111,8 @@ impl TryFrom<u8> for InstructionType {
             3 => Ok(InstructionType::CreateTokenAccountInvokeSigned),
             4 => Ok(InstructionType::CreateAtaInvoke),
             5 => Ok(InstructionType::CreateAtaInvokeSigned),
-            6 => Ok(InstructionType::TransferInterfaceInvoke),
-            7 => Ok(InstructionType::TransferInterfaceInvokeSigned),
+            6 => Ok(InstructionType::CTokenTransferInvoke),
+            7 => Ok(InstructionType::CTokenTransferInvokeSigned),
             8 => Ok(InstructionType::CloseAccountInvoke),
             9 => Ok(InstructionType::CloseAccountInvokeSigned),
             10 => Ok(InstructionType::CreateAta2Invoke),
@@ -115,6 +124,8 @@ impl TryFrom<u8> for InstructionType {
             16 => Ok(InstructionType::SplToCtokenInvokeSigned),
             17 => Ok(InstructionType::CtokenToSplInvoke),
             18 => Ok(InstructionType::CtokenToSplInvokeSigned),
+            19 => Ok(InstructionType::TransferInterfaceInvoke),
+            20 => Ok(InstructionType::TransferInterfaceInvokeSigned),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -169,12 +180,12 @@ pub fn process_instruction(
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_create_ata_invoke_signed(accounts, data)
         }
-        InstructionType::TransferInterfaceInvoke => {
+        InstructionType::CTokenTransferInvoke => {
             let data = TransferData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_transfer_invoke(accounts, data)
         }
-        InstructionType::TransferInterfaceInvokeSigned => {
+        InstructionType::CTokenTransferInvokeSigned => {
             let data = TransferData::try_from_slice(&instruction_data[1..])
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_transfer_invoke_signed(accounts, data)
@@ -226,6 +237,16 @@ pub fn process_instruction(
                 .map_err(|_| ProgramError::InvalidInstructionData)?;
             process_ctoken_to_spl_invoke_signed(accounts, data)
         }
+        InstructionType::TransferInterfaceInvoke => {
+            let data = TransferInterfaceData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_transfer_interface_invoke(accounts, data)
+        }
+        InstructionType::TransferInterfaceInvokeSigned => {
+            let data = TransferInterfaceData::try_from_slice(&instruction_data[1..])
+                .map_err(|_| ProgramError::InvalidInstructionData)?;
+            process_transfer_interface_invoke_signed(accounts, data)
+        }
     }
 }
 
@@ -241,8 +262,8 @@ mod tests {
         assert_eq!(InstructionType::CreateTokenAccountInvokeSigned as u8, 3);
         assert_eq!(InstructionType::CreateAtaInvoke as u8, 4);
         assert_eq!(InstructionType::CreateAtaInvokeSigned as u8, 5);
-        assert_eq!(InstructionType::TransferInterfaceInvoke as u8, 6);
-        assert_eq!(InstructionType::TransferInterfaceInvokeSigned as u8, 7);
+        assert_eq!(InstructionType::CTokenTransferInvoke as u8, 6);
+        assert_eq!(InstructionType::CTokenTransferInvokeSigned as u8, 7);
         assert_eq!(InstructionType::CloseAccountInvoke as u8, 8);
         assert_eq!(InstructionType::CloseAccountInvokeSigned as u8, 9);
         assert_eq!(InstructionType::CreateAta2Invoke as u8, 10);
@@ -254,6 +275,8 @@ mod tests {
         assert_eq!(InstructionType::SplToCtokenInvokeSigned as u8, 16);
         assert_eq!(InstructionType::CtokenToSplInvoke as u8, 17);
         assert_eq!(InstructionType::CtokenToSplInvokeSigned as u8, 18);
+        assert_eq!(InstructionType::TransferInterfaceInvoke as u8, 19);
+        assert_eq!(InstructionType::TransferInterfaceInvokeSigned as u8, 20);
     }
 
     #[test]
@@ -284,11 +307,11 @@ mod tests {
         );
         assert_eq!(
             InstructionType::try_from(6).unwrap(),
-            InstructionType::TransferInterfaceInvoke
+            InstructionType::CTokenTransferInvoke
         );
         assert_eq!(
             InstructionType::try_from(7).unwrap(),
-            InstructionType::TransferInterfaceInvokeSigned
+            InstructionType::CTokenTransferInvokeSigned
         );
         assert_eq!(
             InstructionType::try_from(8).unwrap(),
@@ -334,6 +357,14 @@ mod tests {
             InstructionType::try_from(18).unwrap(),
             InstructionType::CtokenToSplInvokeSigned
         );
-        assert!(InstructionType::try_from(19).is_err());
+        assert_eq!(
+            InstructionType::try_from(19).unwrap(),
+            InstructionType::TransferInterfaceInvoke
+        );
+        assert_eq!(
+            InstructionType::try_from(20).unwrap(),
+            InstructionType::TransferInterfaceInvokeSigned
+        );
+        assert!(InstructionType::try_from(21).is_err());
     }
 }
