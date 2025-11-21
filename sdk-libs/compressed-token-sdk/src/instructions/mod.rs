@@ -47,10 +47,11 @@ pub use mint_to_compressed::{
     create_mint_to_compressed_instruction, get_mint_to_compressed_instruction_account_metas,
     DecompressedMintConfig, MintToCompressedInputs, MintToCompressedMetaConfig,
 };
-pub use transfer_ctoken::{transfer_ctoken, transfer_ctoken_signed};
+pub use transfer_ctoken::{TransferCtoken, TransferCtokenAccountInfos};
 pub use transfer_interface::{
-    create_ctoken_to_spl_transfer_and_close_instruction, create_transfer_ctoken_to_spl_instruction,
-    create_transfer_spl_to_ctoken_instruction, transfer_interface, transfer_interface_signed,
+    CtokenToSplTransferAndClose, CtokenToSplTransferAndCloseAccountInfos, SplBridgeConfig,
+    TransferCtokenToSpl, TransferCtokenToSplAccountInfos, TransferInterface, TransferSplToCtoken,
+    TransferSplToCtokenAccountInfos,
 };
 pub use update_compressed_mint::{
     update_compressed_mint, update_compressed_mint_cpi, UpdateCompressedMintInputs,

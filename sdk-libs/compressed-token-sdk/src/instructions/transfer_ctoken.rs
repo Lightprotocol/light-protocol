@@ -5,64 +5,64 @@ use solana_instruction::{AccountMeta, Instruction};
 use solana_program_error::ProgramError;
 use solana_pubkey::Pubkey;
 
-/// Create a c-token transfer instruction.
-///
-/// # Arguments
-/// * `source` - Source token account
-/// * `destination` - Destination token account
-/// * `amount` - Amount to transfer
-/// * `authority` - Authority pubkey
-///
-/// # Returns
-/// `Instruction`
-fn create_transfer_ctoken_instruction(
-    source: Pubkey,
-    destination: Pubkey,
-    amount: u64,
-    authority: Pubkey,
-) -> Instruction {
-    Instruction {
-        program_id: Pubkey::from(C_TOKEN_PROGRAM_ID),
-        accounts: vec![
-            AccountMeta::new(source, false),
-            AccountMeta::new(destination, false),
-            AccountMeta::new_readonly(authority, true),
-        ],
-        data: {
-            // TODO: check why we have 2 discriminators
-            let mut data = vec![3u8];
-            data.push(3u8);
-            data.extend_from_slice(&amount.to_le_bytes());
-            data
-        },
+pub struct TransferCtoken {
+    pub source: Pubkey,
+    pub destination: Pubkey,
+    pub amount: u64,
+    pub authority: Pubkey,
+}
+
+pub struct TransferCtokenAccountInfos<'info> {
+    pub source: AccountInfo<'info>,
+    pub destination: AccountInfo<'info>,
+    pub amount: u64,
+    pub authority: AccountInfo<'info>,
+}
+
+impl<'info> TransferCtokenAccountInfos<'info> {
+    pub fn instruction(&self) -> Result<Instruction, ProgramError> {
+        TransferCtoken::from(self).instruction()
+    }
+
+    pub fn invoke(self) -> Result<(), ProgramError> {
+        let instruction = TransferCtoken::from(&self).instruction()?;
+        let account_infos = [self.source, self.destination, self.authority];
+        invoke(&instruction, &account_infos)
+    }
+
+    pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
+        let instruction = TransferCtoken::from(&self).instruction()?;
+        let account_infos = [self.source, self.destination, self.authority];
+        invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
 
-/// Transfer c-tokens
-pub fn transfer_ctoken<'info>(
-    from: &AccountInfo<'info>,
-    to: &AccountInfo<'info>,
-    authority: &AccountInfo<'info>,
-    amount: u64,
-) -> Result<(), ProgramError> {
-    let ix = create_transfer_ctoken_instruction(*from.key, *to.key, amount, *authority.key);
-
-    invoke(&ix, &[from.clone(), to.clone(), authority.clone()])
+impl<'info> From<&TransferCtokenAccountInfos<'info>> for TransferCtoken {
+    fn from(account_infos: &TransferCtokenAccountInfos<'info>) -> Self {
+        Self {
+            source: *account_infos.source.key,
+            destination: *account_infos.destination.key,
+            amount: account_infos.amount,
+            authority: *account_infos.authority.key,
+        }
+    }
 }
 
-/// Transfer c-tokens CPI
-pub fn transfer_ctoken_signed<'info>(
-    from: &AccountInfo<'info>,
-    to: &AccountInfo<'info>,
-    authority: &AccountInfo<'info>,
-    amount: u64,
-    signer_seeds: &[&[&[u8]]],
-) -> Result<(), ProgramError> {
-    let ix = create_transfer_ctoken_instruction(*from.key, *to.key, amount, *authority.key);
-
-    invoke_signed(
-        &ix,
-        &[from.clone(), to.clone(), authority.clone()],
-        signer_seeds,
-    )
+impl TransferCtoken {
+    pub fn instruction(self) -> Result<Instruction, ProgramError> {
+        Ok(Instruction {
+            program_id: Pubkey::from(C_TOKEN_PROGRAM_ID),
+            accounts: vec![
+                AccountMeta::new(self.source, false),
+                AccountMeta::new(self.destination, false),
+                AccountMeta::new_readonly(self.authority, true),
+            ],
+            data: {
+                let mut data = vec![3u8];
+                data.push(3u8);
+                data.extend_from_slice(&self.amount.to_le_bytes());
+                data
+            },
+        })
+    }
 }
