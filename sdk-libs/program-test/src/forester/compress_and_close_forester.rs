@@ -127,14 +127,14 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
         if let Some(extensions) = &ctoken_account.extensions {
             for extension in extensions {
                 if let ZExtensionStruct::Compressible(e) = extension {
-                    let current_authority = Pubkey::from(e.compression_authority);
-                    rent_sponsor_pubkey = Pubkey::from(e.rent_sponsor);
+                    let current_authority = Pubkey::from(e.info.compression_authority);
+                    rent_sponsor_pubkey = Pubkey::from(e.info.rent_sponsor);
 
                     if compression_authority_pubkey.is_none() {
                         compression_authority_pubkey = Some(current_authority);
                     }
 
-                    if e.compress_to_pubkey() {
+                    if e.info.compress_to_pubkey() {
                         compressed_token_owner = *solana_ctoken_account_pubkey;
                     }
                     break;
@@ -145,11 +145,20 @@ pub async fn compress_and_close_forester<R: Rpc + Indexer>(
         let owner_index = packed_accounts.insert_or_get(compressed_token_owner);
         let rent_sponsor_index = packed_accounts.insert_or_get(rent_sponsor_pubkey);
 
+        // Get delegate if present
+        let delegate_index = if let Some(delegate_bytes) = ctoken_account.delegate.as_ref() {
+            let delegate_pubkey = Pubkey::from(delegate_bytes.to_bytes());
+            packed_accounts.insert_or_get(delegate_pubkey)
+        } else {
+            0 // 0 means no delegate
+        };
+
         let indices = CompressAndCloseIndices {
             source_index,
             mint_index,
             owner_index,
             rent_sponsor_index,
+            delegate_index,
         };
 
         indices_vec.push(indices);

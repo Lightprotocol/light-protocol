@@ -2,7 +2,7 @@ use light_compressed_account::Pubkey;
 use light_program_profiler::profile;
 use light_zero_copy::{num_trait::ZeroCopyNumTrait, ZeroCopy, ZeroCopyMut};
 
-use crate::{AnchorDeserialize, AnchorSerialize, CTokenError};
+use crate::{state::extensions::ExtensionStruct, AnchorDeserialize, AnchorSerialize, CTokenError};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, AnchorSerialize, AnchorDeserialize)]
 #[repr(u8)]
@@ -41,8 +41,8 @@ pub struct TokenData {
     pub delegate: Option<Pubkey>,
     /// The account's state
     pub state: u8,
-    /// Placeholder for TokenExtension tlv data (unimplemented)
-    pub tlv: Option<Vec<u8>>,
+    /// Extensions for the compressed token account
+    pub tlv: Option<Vec<ExtensionStruct>>,
 }
 
 impl TokenData {
@@ -76,9 +76,8 @@ impl ZTokenDataMut<'_> {
 
         *self.state = state as u8;
 
-        if self.tlv.is_some() {
-            return Err(CTokenError::TokenDataTlvUnimplemented);
-        }
+        // TLV is already written via zero-copy config during allocation in new_zero_copy.
+        // No action needed here - tlv field is set during allocation.
         Ok(())
     }
 }

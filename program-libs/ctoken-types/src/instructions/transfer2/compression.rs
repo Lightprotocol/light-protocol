@@ -68,6 +68,9 @@ pub struct Compression {
     /// compressed account index for CompressAndClose
     pub pool_index: u8, // This account is not necessary to decompress ctokens because there are no token pools
     pub bump: u8, // This account is not necessary to decompress ctokens because there are no token pools
+    /// decimals for spl token Compression/Decompression (used in transfer_checked)
+    /// rent_sponsor_is_signer flag for CompressAndClose (non-zero = true)
+    pub decimals: u8,
 }
 
 impl ZCompression<'_> {
@@ -89,9 +92,14 @@ impl ZCompression<'_> {
             _ => Err(CTokenError::InvalidCompressionMode),
         }
     }
+    /// For CompressAndClose: returns true if rent sponsor is the signer (skip mint checks)
+    pub fn rent_sponsor_is_signer(&self) -> bool {
+        self.mode == ZCompressionMode::CompressAndClose && self.decimals != 0
+    }
 }
 
 impl Compression {
+    #[allow(clippy::too_many_arguments)]
     pub fn compress_and_close_ctoken(
         amount: u64,
         mint: u8,
@@ -100,6 +108,7 @@ impl Compression {
         rent_sponsor_index: u8,
         compressed_account_index: u8,
         destination_index: u8,
+        rent_sponsor_is_signer: bool,
     ) -> Self {
         Compression {
             amount, // the full balance of the ctoken account to be compressed
@@ -110,9 +119,11 @@ impl Compression {
             pool_account_index: rent_sponsor_index,
             pool_index: compressed_account_index,
             bump: destination_index,
+            decimals: rent_sponsor_is_signer as u8,
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn compress_spl(
         amount: u64,
         mint: u8,
@@ -121,6 +132,7 @@ impl Compression {
         pool_account_index: u8,
         pool_index: u8,
         bump: u8,
+        decimals: u8,
     ) -> Self {
         Compression {
             amount,
@@ -131,6 +143,7 @@ impl Compression {
             pool_account_index,
             pool_index,
             bump,
+            decimals,
         }
     }
     pub fn compress_ctoken(amount: u64, mint: u8, source: u8, authority: u8) -> Self {
@@ -143,6 +156,7 @@ impl Compression {
             pool_account_index: 0,
             pool_index: 0,
             bump: 0,
+            decimals: 0,
         }
     }
 
@@ -153,6 +167,7 @@ impl Compression {
         pool_account_index: u8,
         pool_index: u8,
         bump: u8,
+        decimals: u8,
     ) -> Self {
         Compression {
             amount,
@@ -163,6 +178,7 @@ impl Compression {
             pool_account_index,
             pool_index,
             bump,
+            decimals,
         }
     }
 
@@ -176,6 +192,7 @@ impl Compression {
             pool_account_index: 0,
             pool_index: 0,
             bump: 0,
+            decimals: 0,
         }
     }
 }

@@ -234,6 +234,7 @@ async fn test_decompress_full_cpi() {
                     tree_info,
                     dest_pubkey,
                     &mut remaining_accounts,
+                    None, // No TLV extensions
                 )
             })
             .collect();
@@ -427,6 +428,7 @@ async fn test_decompress_full_cpi_with_context() {
                     tree_info,
                     dest_pubkey,
                     &mut remaining_accounts,
+                    None, // No TLV extensions
                 )
             })
             .collect();

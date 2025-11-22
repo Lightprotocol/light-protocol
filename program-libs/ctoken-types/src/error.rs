@@ -129,6 +129,12 @@ pub enum CTokenError {
 
     #[error("Too many PDA seeds. Maximum {0} seeds allowed")]
     TooManySeeds(usize),
+
+    #[error("CompressedOnly tokens cannot have compressed outputs - must decompress only")]
+    CompressedOnlyBlocksTransfer,
+
+    #[error("out_tlv output count must match compressions count")]
+    OutTlvOutputCountMismatch,
 }
 
 impl From<CTokenError> for u32 {
@@ -175,6 +181,8 @@ impl From<CTokenError> for u32 {
             CTokenError::TooManyAdditionalMetadata => 18039,
             CTokenError::DuplicateMetadataKey => 18040,
             CTokenError::TooManySeeds(_) => 18041,
+            CTokenError::CompressedOnlyBlocksTransfer => 18042,
+            CTokenError::OutTlvOutputCountMismatch => 18043,
             CTokenError::HasherError(e) => u32::from(e),
             CTokenError::ZeroCopyError(e) => u32::from(e),
             CTokenError::CompressedAccountError(e) => u32::from(e),

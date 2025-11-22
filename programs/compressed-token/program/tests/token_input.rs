@@ -14,7 +14,7 @@ use light_compressed_token::{
         cpi_bytes_size::{
             allocate_invoke_with_read_only_cpi_bytes, cpi_bytes_config, CpiConfigInput,
         },
-        token_input::{set_input_compressed_account, set_input_compressed_account_frozen},
+        token_input::set_input_compressed_account,
     },
 };
 use light_ctoken_types::{
@@ -111,23 +111,15 @@ fn test_rnd_create_input_compressed_account() {
             let mut hash_cache = HashCache::new();
 
             // Call the function under test
-            let result = if is_frozen {
-                set_input_compressed_account_frozen(
-                    input_account,
-                    &mut hash_cache,
-                    &z_input_data,
-                    remaining_accounts.as_slice(),
-                    lamports,
-                )
-            } else {
-                set_input_compressed_account(
-                    input_account,
-                    &mut hash_cache,
-                    &z_input_data,
-                    remaining_accounts.as_slice(),
-                    lamports,
-                )
-            };
+            let result = set_input_compressed_account(
+                input_account,
+                &mut hash_cache,
+                &z_input_data,
+                remaining_accounts.as_slice(),
+                lamports,
+                None, // No TLV data in test
+                is_frozen,
+            );
 
             assert!(result.is_ok(), "Function failed: {:?}", result.err());
 

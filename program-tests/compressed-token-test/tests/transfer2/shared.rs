@@ -661,6 +661,7 @@ impl TestContext {
                                 authority: signer.pubkey(),
                                 output_queue,
                                 pool_index: None,
+                                decimals: 9,
                             };
 
                             // Create and execute the compress instruction
@@ -718,6 +719,7 @@ impl TestContext {
                             authority: signer.pubkey(),
                             output_queue,
                             pool_index: None,
+                            decimals: 9,
                         };
 
                         let ix = create_generic_transfer2_instruction(
@@ -1209,6 +1211,7 @@ impl TestContext {
             authority: self.keypairs[meta.signer_index].pubkey(),
             output_queue,
             pool_index: meta.pool_index,
+            decimals: 9,
         })
     }
 
@@ -1262,6 +1265,8 @@ impl TestContext {
             solana_token_account: recipient_account,
             amount: meta.amount,
             pool_index: meta.pool_index,
+            decimals: 9,
+            in_tlv: None,
         })
     }
 

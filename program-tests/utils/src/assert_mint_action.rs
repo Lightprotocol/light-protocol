@@ -182,11 +182,12 @@ pub async fn assert_mint_action(
                 let account_size = pre_account.data.len() as u64;
 
                 let expected_top_up = compressible
+                    .info
                     .calculate_top_up_lamports(
                         account_size,
                         current_slot,
                         pre_lamports,
-                        compressible.lamports_per_write,
+                        compressible.info.lamports_per_write,
                         light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
                     .unwrap();

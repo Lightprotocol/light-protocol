@@ -267,6 +267,7 @@ async fn create_decompression_inputs(
         in_lamports: None,
         out_lamports: None,
         output_queue: queue_index,
+        in_tlv: None,
     })
 }
 

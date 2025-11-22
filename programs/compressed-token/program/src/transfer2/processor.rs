@@ -4,8 +4,11 @@ use light_array_map::ArrayMap;
 use light_compressed_account::instruction_data::with_readonly::InstructionDataInvokeCpiWithReadOnly;
 use light_ctoken_types::{
     hash_cache::HashCache,
-    instructions::transfer2::{
-        CompressedTokenInstructionDataTransfer2, ZCompressedTokenInstructionDataTransfer2,
+    instructions::{
+        extensions::ZExtensionInstructionData,
+        transfer2::{
+            CompressedTokenInstructionDataTransfer2, ZCompressedTokenInstructionDataTransfer2,
+        },
     },
     CTokenError,
 };
@@ -52,7 +55,6 @@ pub fn process_transfer2(
     let transfer_config = Transfer2Config::from_instruction_data(&inputs)?;
 
     let validated_accounts = Transfer2Accounts::validate_and_parse(accounts, &transfer_config)?;
-
     if transfer_config.no_compressed_accounts {
         // No compressed accounts are invalidated or created in this transaction
         //  -> no need to invoke the light system program.
@@ -86,11 +88,58 @@ pub fn validate_instruction_data(
         msg!("outlamports are unimplemented",);
         return Err(CTokenError::TokenDataTlvUnimplemented);
     }
-    if inputs.in_tlv.is_some() {
-        return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
+    // Validate in_tlv length matches in_token_data if provided
+    if let Some(in_tlv) = inputs.in_tlv.as_ref() {
+        if in_tlv.len() != inputs.in_token_data.len() {
+            msg!(
+                "in_tlv length {} does not match in_token_data length {}",
+                in_tlv.len(),
+                inputs.in_token_data.len()
+            );
+            return Err(CTokenError::InvalidInstructionData);
+        }
     }
-    if inputs.out_tlv.is_some() {
-        return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
+    // out_tlv is only allowed for CompressAndClose when rent authority is signer
+    // (forester compressing accounts with marker extensions)
+    if let Some(out_tlv) = inputs.out_tlv.as_ref() {
+        // Length check (mirrors in_tlv check above)
+        if out_tlv.len() != inputs.out_token_data.len() {
+            msg!(
+                "out_tlv length {} does not match out_token_data length {}",
+                out_tlv.len(),
+                inputs.out_token_data.len()
+            );
+            return Err(CTokenError::InvalidInstructionData);
+        }
+
+        // All compressions must be CompressAndClose with rent_sponsor_is_signer
+        let allowed = inputs
+            .compressions
+            .as_ref()
+            .is_some_and(|compressions| compressions.iter().all(|c| c.rent_sponsor_is_signer()));
+        if !allowed {
+            return Err(CTokenError::CompressedTokenAccountTlvUnimplemented);
+        }
+
+        // Output count must match compressions count (no extra outputs)
+        let compressions_len = inputs.compressions.as_ref().map(|c| c.len()).unwrap_or(0);
+        if inputs.out_token_data.len() != compressions_len {
+            msg!("out_tlv requires out_token_data.len() == compressions.len()");
+            return Err(CTokenError::OutTlvOutputCountMismatch);
+        }
+    }
+
+    // CompressedOnly inputs can only decompress - no compressed outputs allowed
+    if inputs.in_tlv.as_ref().is_some_and(|tlvs| {
+        tlvs.iter().any(|tlv_vec| {
+            tlv_vec
+                .iter()
+                .any(|ext| matches!(ext, ZExtensionInstructionData::CompressedOnly(_)))
+        })
+    }) && !inputs.out_token_data.is_empty()
+    {
+        msg!("CompressedOnly inputs cannot have compressed outputs");
+        return Err(CTokenError::CompressedOnlyBlocksTransfer);
     }
 
     // Check CPI context write mode doesn't have compressions.
@@ -110,9 +159,9 @@ pub fn validate_instruction_data(
 
 #[profile]
 #[inline(always)]
-fn process_no_system_program_cpi(
-    inputs: &ZCompressedTokenInstructionDataTransfer2,
-    validated_accounts: &Transfer2Accounts,
+fn process_no_system_program_cpi<'a>(
+    inputs: &'a ZCompressedTokenInstructionDataTransfer2<'a>,
+    validated_accounts: &'a Transfer2Accounts<'a>,
 ) -> Result<(), ProgramError> {
     let fee_payer = validated_accounts
         .compressions_only_fee_payer
@@ -134,11 +183,15 @@ fn process_no_system_program_cpi(
     validate_mint_uniqueness(&mint_map, &validated_accounts.packed_accounts)
         .map_err(|e| ProgramError::Custom(e as u32 + 6000))?;
 
+    // This is the compression-only hot path (no compressed inputs/outputs).
+    // Extension checks are skipped because balance must be restored immediately
+    // (compress + decompress in same tx) or sum check will fail.
     process_token_compression(
         fee_payer,
         inputs,
         &validated_accounts.packed_accounts,
         cpi_authority_pda,
+        true, // is_compression_only_hot_path
     )?;
 
     close_for_compress_and_close(compressions.as_slice(), validated_accounts)?;
@@ -148,10 +201,10 @@ fn process_no_system_program_cpi(
 
 #[profile]
 #[inline(always)]
-fn process_with_system_program_cpi(
+fn process_with_system_program_cpi<'a>(
     accounts: &[AccountInfo],
-    inputs: &ZCompressedTokenInstructionDataTransfer2,
-    validated_accounts: &Transfer2Accounts,
+    inputs: &'a ZCompressedTokenInstructionDataTransfer2<'a>,
+    validated_accounts: &'a Transfer2Accounts<'a>,
     transfer_config: Transfer2Config,
 ) -> Result<(), ProgramError> {
     // Allocate CPI bytes for zero-copy structure
@@ -179,6 +232,7 @@ fn process_with_system_program_cpi(
         &mut hash_cache,
         inputs,
         &validated_accounts.packed_accounts,
+        accounts,
     )?;
 
     // Process output compressed accounts.
@@ -203,11 +257,13 @@ fn process_with_system_program_cpi(
 
     if let Some(system_accounts) = validated_accounts.system.as_ref() {
         // Process token compressions/decompressions/close_and_compress
+        // Hot path when no output compressed accounts (decompress only) - relaxes mint extension checks.
         process_token_compression(
             system_accounts.fee_payer,
             inputs,
             &validated_accounts.packed_accounts,
             system_accounts.cpi_authority_pda,
+            transfer_config.no_output_compressed_accounts,
         )?;
 
         // Get CPI accounts slice and tree accounts for light-system-program invocation

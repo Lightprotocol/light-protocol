@@ -235,6 +235,7 @@ fn create_compression_inputs(
         in_lamports: None,
         out_lamports: None,
         output_queue: output_merkle_tree_index,
+        in_tlv: None,
     })
 }
 

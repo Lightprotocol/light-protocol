@@ -1,6 +1,13 @@
+pub mod compressed_only;
 pub mod compressible;
+pub mod pausable;
+pub mod permanent_delegate;
 pub mod token_metadata;
+
+pub use compressed_only::CompressedOnlyExtensionInstructionData;
 use light_zero_copy::ZeroCopy;
+pub use pausable::PausableExtensionInstructionData;
+pub use permanent_delegate::PermanentDelegateExtensionInstructionData;
 pub use token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData};
 
 use crate::{AnchorDeserialize, AnchorSerialize};
@@ -28,4 +35,17 @@ pub enum ExtensionInstructionData {
     Placeholder17,
     Placeholder18,
     TokenMetadata(TokenMetadataInstructionData),
+    Placeholder20,
+    Placeholder21,
+    Placeholder22,
+    Placeholder23,
+    Placeholder24,
+    Placeholder25,
+    Placeholder26,
+    PausableAccount(PausableExtensionInstructionData),
+    PermanentDelegateAccount(PermanentDelegateExtensionInstructionData),
+    Placeholder29,
+    Placeholder30,
+    /// CompressedOnly extension for compressed token accounts
+    CompressedOnly(CompressedOnlyExtensionInstructionData),
 }

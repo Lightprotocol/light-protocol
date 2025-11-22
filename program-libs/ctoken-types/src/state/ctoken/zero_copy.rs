@@ -10,8 +10,8 @@ use spl_pod::solana_msg::msg;
 
 use crate::{
     state::{
-        CToken, CompressionInfoConfig, ExtensionStruct, ExtensionStructConfig, ZExtensionStruct,
-        ZExtensionStructMut,
+        CToken, CompressibleExtensionConfig, CompressionInfoConfig, ExtensionStruct,
+        ExtensionStructConfig, ZExtensionStruct, ZExtensionStructMut,
     },
     AnchorDeserialize, AnchorSerialize,
 };
@@ -288,53 +288,61 @@ impl PartialEq<CToken> for ZCToken<'_> {
                             crate::state::extensions::ZExtensionStruct::Compressible(zc_comp),
                             crate::state::extensions::ExtensionStruct::Compressible(regular_comp),
                         ) => {
+                            // Compare compression_only
+                            if (zc_comp.compression_only != 0) != regular_comp.compression_only {
+                                return false;
+                            }
+
                             // Compare config_account_version
-                            if zc_comp.config_account_version != regular_comp.config_account_version
+                            if zc_comp.info.config_account_version
+                                != regular_comp.info.config_account_version
                             {
                                 return false;
                             }
 
                             // Compare last_claimed_slot
-                            if u64::from(zc_comp.last_claimed_slot)
-                                != regular_comp.last_claimed_slot
+                            if u64::from(zc_comp.info.last_claimed_slot)
+                                != regular_comp.info.last_claimed_slot
                             {
                                 return false;
                             }
 
                             // Compare rent_config fields
-                            if u16::from(zc_comp.rent_config.base_rent)
-                                != regular_comp.rent_config.base_rent
+                            if u16::from(zc_comp.info.rent_config.base_rent)
+                                != regular_comp.info.rent_config.base_rent
                             {
                                 return false;
                             }
-                            if u16::from(zc_comp.rent_config.compression_cost)
-                                != regular_comp.rent_config.compression_cost
+                            if u16::from(zc_comp.info.rent_config.compression_cost)
+                                != regular_comp.info.rent_config.compression_cost
                             {
                                 return false;
                             }
-                            if zc_comp.rent_config.lamports_per_byte_per_epoch
-                                != regular_comp.rent_config.lamports_per_byte_per_epoch
+                            if zc_comp.info.rent_config.lamports_per_byte_per_epoch
+                                != regular_comp.info.rent_config.lamports_per_byte_per_epoch
                             {
                                 return false;
                             }
-                            if zc_comp.rent_config.max_funded_epochs
-                                != regular_comp.rent_config.max_funded_epochs
+                            if zc_comp.info.rent_config.max_funded_epochs
+                                != regular_comp.info.rent_config.max_funded_epochs
                             {
                                 return false;
                             }
                             // Compare compression_authority ([u8; 32])
-                            if zc_comp.compression_authority != regular_comp.compression_authority {
+                            if zc_comp.info.compression_authority
+                                != regular_comp.info.compression_authority
+                            {
                                 return false;
                             }
 
                             // Compare rent_sponsor ([u8; 32])
-                            if zc_comp.rent_sponsor != regular_comp.rent_sponsor {
+                            if zc_comp.info.rent_sponsor != regular_comp.info.rent_sponsor {
                                 return false;
                             }
 
                             // Compare lamports_per_write (u32)
-                            if u32::from(zc_comp.lamports_per_write)
-                                != regular_comp.lamports_per_write
+                            if u32::from(zc_comp.info.lamports_per_write)
+                                != regular_comp.info.lamports_per_write
                             {
                                 return false;
                             }
@@ -614,9 +622,11 @@ impl CompressedTokenConfig {
             delegate,
             is_native,
             close_authority,
-            extensions: vec![ExtensionStructConfig::Compressible(CompressionInfoConfig {
-                rent_config: (),
-            })],
+            extensions: vec![ExtensionStructConfig::Compressible(
+                CompressibleExtensionConfig {
+                    info: CompressionInfoConfig { rent_config: () },
+                },
+            )],
         }
     }
 }

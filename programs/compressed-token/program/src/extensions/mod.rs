@@ -1,6 +1,12 @@
+pub mod check_mint_extensions;
 pub mod processor;
 pub mod token_metadata;
 
+// Re-export extension checking functions
+pub use check_mint_extensions::{
+    check_mint_extensions, check_mint_not_paused, has_mint_extensions, mint_has_pausable_extension,
+    mint_has_permanent_delegate_extension, MintExtensionChecks, MintExtensionFlags,
+};
 // Import from ctoken-types instead of local modules
 use light_ctoken_types::{
     instructions::{

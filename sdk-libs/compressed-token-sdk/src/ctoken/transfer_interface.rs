@@ -14,6 +14,7 @@ pub struct SplInterface<'info> {
     pub spl_token_program: AccountInfo<'info>,
     pub token_pool_pda: AccountInfo<'info>,
     pub token_pool_pda_bump: u8,
+    pub decimals: u8,
 }
 
 pub struct TransferInterface<'info> {
@@ -82,6 +83,7 @@ impl<'info> TransferInterface<'info> {
             spl_token_program,
             token_pool_pda,
             token_pool_pda_bump,
+            decimals,
         });
         Ok(self)
     }
@@ -123,6 +125,7 @@ impl<'info> TransferInterface<'info> {
                     compressed_token_program_authority: self
                         .compressed_token_program_authority
                         .clone(),
+                    decimals: config.decimals,
                 }
                 .invoke()
             }
@@ -145,6 +148,7 @@ impl<'info> TransferInterface<'info> {
                     compressed_token_program_authority: self
                         .compressed_token_program_authority
                         .clone(),
+                    decimals: config.decimals,
                 }
                 .invoke()
             }
@@ -192,6 +196,7 @@ impl<'info> TransferInterface<'info> {
                     compressed_token_program_authority: self
                         .compressed_token_program_authority
                         .clone(),
+                    decimals: config.decimals,
                 }
                 .invoke_signed(signer_seeds)
             }

@@ -31,6 +31,7 @@ fn calculate_compressible_slot(account: &CToken, lamports: u64) -> Result<u64> {
 
     // Calculate last funded epoch
     let last_funded_epoch = compressible_ext
+        .info
         .get_last_funded_epoch(
             COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
             lamports,
