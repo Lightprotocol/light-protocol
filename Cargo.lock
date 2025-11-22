@@ -4187,6 +4187,7 @@ dependencies = [
  "reqwest 0.12.24",
  "solana-banks-client",
  "solana-sdk",
+ "spl-pod",
  "spl-token 7.0.0",
  "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror 2.0.17",

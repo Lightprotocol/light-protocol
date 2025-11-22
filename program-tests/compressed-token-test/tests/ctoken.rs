@@ -31,3 +31,6 @@ mod create_ata2;
 
 #[path = "ctoken/spl_instruction_compat.rs"]
 mod spl_instruction_compat;
+
+#[path = "ctoken/extensions.rs"]
+mod extensions;
