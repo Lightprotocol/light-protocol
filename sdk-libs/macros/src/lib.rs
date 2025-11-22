@@ -10,7 +10,6 @@ use utils::into_token_stream;
 mod account;
 mod accounts;
 mod compressible;
-mod cpi_signer;
 mod discriminator;
 mod hasher;
 mod program;
@@ -564,39 +563,6 @@ pub fn derive_decompress_context(input: TokenStream) -> TokenStream {
     into_token_stream(compressible::decompress_context::derive_decompress_context(
         input,
     ))
-}
-
-/// Derives a Light Protocol CPI signer PDA at compile time.
-///
-/// ## Example
-///
-/// ```ignore
-/// use light_sdk_macros::derive_light_cpi_signer_pda;
-///
-/// let (cpi_signer, bump) = derive_light_cpi_signer_pda!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B");
-/// ```
-///
-/// Returns a tuple `([u8; 32], u8)` containing the PDA address and bump seed.
-#[proc_macro]
-pub fn derive_light_cpi_signer_pda(input: TokenStream) -> TokenStream {
-    cpi_signer::derive_light_cpi_signer_pda(input)
-}
-
-/// Derive the CPI signer from the program ID. The program ID must be a string
-/// literal.
-///
-/// ## Example
-///
-/// ```ignore
-/// use light_sdk_macros::derive_light_cpi_signer;
-/// use light_sdk::CpiSigner;
-///
-/// pub const LIGHT_CPI_SIGNER: CpiSigner =
-///     derive_light_cpi_signer!("8Ld9pGkCNfU6A7KdKe1YrTNYJWKMCFqVHqmUvjNmER7B");
-/// ```
-#[proc_macro]
-pub fn derive_light_cpi_signer(input: TokenStream) -> TokenStream {
-    cpi_signer::derive_light_cpi_signer(input)
 }
 
 /// Derives a Rent Sponsor PDA for a program at compile time.
