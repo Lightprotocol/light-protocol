@@ -44,10 +44,7 @@ use light_compressed_token_sdk::{
         },
         CTokenAccount2,
     },
-    ctoken::create_associated_token_account::{
-        create_compressible_associated_token_account, derive_ctoken_ata,
-        CreateCompressibleAssociatedTokenAccountInputs,
-    },
+    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
     ValidityProof,
 };
 use light_ctoken_types::{instructions::mint_action::Recipient, state::TokenDataVersion};
@@ -91,21 +88,25 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
     let (ctoken_ata, _) = derive_ctoken_ata(&owner.pubkey(), &mint);
 
     // Create compressible CToken ATA for owner
-    let create_ata_instruction = create_compressible_associated_token_account(
-        CreateCompressibleAssociatedTokenAccountInputs {
-            payer: payer.pubkey(),
-            owner: owner.pubkey(),
-            mint,
-            rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-            pre_pay_num_epochs: 2,
-            lamports_per_write: Some(1000),
-            compressible_config: rpc
-                .test_accounts
-                .funding_pool_config
-                .compressible_config_pda,
-            token_account_version: TokenDataVersion::ShaFlat,
-        },
+    let compressible_params = CompressibleParams {
+        compressible_config: rpc
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
+        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+        pre_pay_num_epochs: 2,
+        lamports_per_write: Some(1000),
+        compress_to_account_pubkey: None,
+        token_account_version: TokenDataVersion::ShaFlat,
+    };
+
+    let create_ata_instruction = CreateAssociatedTokenAccount::new(
+        payer.pubkey(),
+        owner.pubkey(),
+        mint,
+        compressible_params,
     )
+    .instruction()
     .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA: {:?}", e)))?;
 
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])

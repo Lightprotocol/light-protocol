@@ -3,8 +3,8 @@ pub mod cpi_accounts;
 pub mod instruction;
 
 pub use account_metas::{
-    get_mint_action_instruction_account_metas, get_mint_action_instruction_account_metas_cpi_write,
-    MintActionMetaConfig, MintActionMetaConfigCpiWrite,
+    get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
+    MintActionMetaConfigCpiWrite,
 };
 pub use cpi_accounts::MintActionCpiAccounts;
 use light_account_checks::AccountInfoTrait;

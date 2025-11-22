@@ -226,22 +226,24 @@ async fn test_create_compressible_token_account_failing() {
         let poor_payer_pubkey = poor_payer.pubkey();
         let token_account_pubkey = Keypair::new();
 
-        let create_token_account_ix =
-            light_compressed_token_sdk::ctoken::create_token_account::create_compressible_token_account_instruction(
-                light_compressed_token_sdk::ctoken::create_token_account::CreateCompressibleTokenAccount {
-                    account_pubkey: token_account_pubkey.pubkey(),
-                    mint_pubkey: context.mint_pubkey,
-                    owner_pubkey: context.owner_keypair.pubkey(),
-                    compressible_config: context.compressible_config,
-                    rent_sponsor: context.rent_sponsor,
-                    pre_pay_num_epochs: 10, // High number to require more lamports
-                    lamports_per_write: Some(1000),
-                    payer: poor_payer_pubkey,
-                    compress_to_account_pubkey: None,
-                    token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-                },
-            )
-            .unwrap();
+        let compressible_params = CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor: context.rent_sponsor,
+            pre_pay_num_epochs: 10, // High number to require more lamports
+            lamports_per_write: Some(1000),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        };
+
+        let create_token_account_ix = CreateCTokenAccount::new(
+            poor_payer_pubkey,
+            token_account_pubkey.pubkey(),
+            context.mint_pubkey,
+            context.owner_keypair.pubkey(),
+            compressible_params,
+        )
+        .instruction()
+        .unwrap();
 
         let result = context
             .rpc
@@ -363,22 +365,24 @@ async fn test_create_compressible_token_account_failing() {
             seeds: vec![b"invalid_seed".to_vec(), b"wrong".to_vec()],
         };
 
-        let create_token_account_ix =
-            light_compressed_token_sdk::ctoken::create_token_account::create_compressible_token_account_instruction(
-                light_compressed_token_sdk::ctoken::create_token_account::CreateCompressibleTokenAccount {
-                    account_pubkey: token_account_pubkey,
-                    mint_pubkey: context.mint_pubkey,
-                    owner_pubkey: context.owner_keypair.pubkey(),
-                    compressible_config: context.compressible_config,
-                    rent_sponsor: context.rent_sponsor,
-                    pre_pay_num_epochs: 2,
-                    lamports_per_write: Some(100),
-                    payer: payer_pubkey,
-                    compress_to_account_pubkey: Some(invalid_compress_to_pubkey),
-                    token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-                },
-            )
-            .unwrap();
+        let compressible_params = CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor: context.rent_sponsor,
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: Some(invalid_compress_to_pubkey),
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        };
+
+        let create_token_account_ix = CreateCTokenAccount::new(
+            payer_pubkey,
+            token_account_pubkey,
+            context.mint_pubkey,
+            context.owner_keypair.pubkey(),
+            compressible_params,
+        )
+        .instruction()
+        .unwrap();
 
         let result = context
             .rpc
@@ -411,22 +415,24 @@ async fn test_create_compressible_token_account_failing() {
             .await
             .unwrap();
 
-        let create_token_account_ix =
-            light_compressed_token_sdk::ctoken::create_token_account::create_compressible_token_account_instruction(
-                light_compressed_token_sdk::ctoken::create_token_account::CreateCompressibleTokenAccount {
-                    account_pubkey: context.token_account_keypair.pubkey(),
-                    mint_pubkey: context.mint_pubkey,
-                    owner_pubkey: context.owner_keypair.pubkey(),
-                    compressible_config: fake_config_pubkey, // Wrong owner
-                    rent_sponsor: context.rent_sponsor,
-                    pre_pay_num_epochs: 2,
-                    lamports_per_write: Some(100),
-                    payer: payer_pubkey,
-                    compress_to_account_pubkey: None,
-                    token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-                },
-            )
-            .unwrap();
+        let compressible_params = CompressibleParams {
+            compressible_config: fake_config_pubkey, // Wrong owner
+            rent_sponsor: context.rent_sponsor,
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        };
+
+        let create_token_account_ix = CreateCTokenAccount::new(
+            payer_pubkey,
+            context.token_account_keypair.pubkey(),
+            context.mint_pubkey,
+            context.owner_keypair.pubkey(),
+            compressible_params,
+        )
+        .instruction()
+        .unwrap();
 
         let result = context
             .rpc
@@ -451,22 +457,24 @@ async fn test_create_compressible_token_account_failing() {
         // Use protocol config account - owned by registry but wrong type
         let wrong_account_type = context.rpc.test_accounts.protocol.governance_authority_pda;
 
-        let create_token_account_ix =
-            light_compressed_token_sdk::ctoken::create_token_account::create_compressible_token_account_instruction(
-                light_compressed_token_sdk::ctoken::create_token_account::CreateCompressibleTokenAccount {
-                    account_pubkey: context.token_account_keypair.pubkey(),
-                    mint_pubkey: context.mint_pubkey,
-                    owner_pubkey: context.owner_keypair.pubkey(),
-                    compressible_config: wrong_account_type, // Wrong account type
-                    rent_sponsor: context.rent_sponsor,
-                    pre_pay_num_epochs: 2,
-                    lamports_per_write: Some(100),
-                    payer: payer_pubkey,
-                    compress_to_account_pubkey: None,
-                    token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-                },
-            )
-            .unwrap();
+        let compressible_params = CompressibleParams {
+            compressible_config: wrong_account_type, // Wrong account type
+            rent_sponsor: context.rent_sponsor,
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        };
+
+        let create_token_account_ix = CreateCTokenAccount::new(
+            payer_pubkey,
+            context.token_account_keypair.pubkey(),
+            context.mint_pubkey,
+            context.owner_keypair.pubkey(),
+            compressible_params,
+        )
+        .instruction()
+        .unwrap();
 
         let result = context
             .rpc

@@ -3,8 +3,7 @@ use light_client::{
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::{
-    ctoken::transfer_interface::TransferSplToCtoken, token_pool::find_token_pool_pda_with_index,
-    SPL_TOKEN_PROGRAM_ID,
+    ctoken::TransferSplToCtoken, token_pool::find_token_pool_pda_with_index, SPL_TOKEN_PROGRAM_ID,
 };
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
@@ -17,7 +16,7 @@ use spl_token_2022::pod::PodAccount;
 pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
     rpc: &mut R,
     source_spl_token_account: Pubkey,
-    to: Pubkey,
+    destination_ctoken_account: Pubkey,
     amount: u64,
     authority: &Keypair,
     payer: &Keypair,
@@ -38,7 +37,7 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
         amount,
         token_pool_pda_bump,
         source_spl_token_account,
-        to,
+        destination_ctoken_account,
         authority: authority.pubkey(),
         mint,
         payer: payer.pubkey(),

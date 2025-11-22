@@ -59,7 +59,6 @@ impl TransferCtoken {
             ],
             data: {
                 let mut data = vec![3u8];
-                data.push(3u8);
                 data.extend_from_slice(&self.amount.to_le_bytes());
                 data
             },

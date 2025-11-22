@@ -7,7 +7,7 @@ use light_compressed_token_sdk::{
         create_compressed_mint::{create_compressed_mint, CreateCompressedMintInputs},
         mint_to_compressed::{create_mint_to_compressed_instruction, MintToCompressedInputs},
     },
-    ctoken::create_associated_token_account::{create_associated_token_account, derive_ctoken_ata},
+    ctoken::{derive_ctoken_ata, CreateAssociatedTokenAccount},
 };
 use light_ctoken_types::{
     instructions::mint_action::{CompressedMintWithContext, Recipient},
@@ -170,9 +170,19 @@ async fn test_compress_full_and_close() {
     println!("✅ Minted {} compressed tokens to recipient", mint_amount);
 
     // Step 4: Create associated token account for decompression
-    let (ctoken_ata_pubkey, _bump) = derive_ctoken_ata(&recipient, &mint_pda);
-    let create_ata_instruction =
-        create_associated_token_account(payer.pubkey(), recipient, mint_pda).unwrap();
+    let (ctoken_ata_pubkey, bump) = derive_ctoken_ata(&recipient, &mint_pda);
+    // Create a non-compressible token account by setting compressible to None
+    let create_ata_instruction = CreateAssociatedTokenAccount {
+        idempotent: false,
+        bump,
+        payer: payer.pubkey(),
+        owner: recipient,
+        mint: mint_pda,
+        associated_token_account: ctoken_ata_pubkey,
+        compressible: None,
+    }
+    .instruction()
+    .unwrap();
 
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await

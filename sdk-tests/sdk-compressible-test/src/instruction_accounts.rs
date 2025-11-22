@@ -195,6 +195,7 @@ pub struct DecompressAccountsIdempotent<'info> {
     pub ctoken_cpi_authority: UncheckedAccount<'info>,
     /// CHECK: unchecked.
     pub some_mint: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
