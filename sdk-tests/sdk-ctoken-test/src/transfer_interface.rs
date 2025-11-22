@@ -29,7 +29,7 @@ pub struct TransferInterfaceData {
 /// - accounts[3]: authority (signer)
 /// - accounts[4]: payer (signer)
 /// - accounts[5]: compressed_token_program_authority
-/// For SPL bridge (optional, required for SPL<->CToken):
+///   For SPL bridge (optional, required for SPL<->CToken):
 /// - accounts[6]: mint
 /// - accounts[7]: token_pool_pda
 /// - accounts[8]: spl_token_program
@@ -76,7 +76,7 @@ pub fn process_transfer_interface_invoke(
 /// - accounts[3]: authority (PDA, not signer - program signs)
 /// - accounts[4]: payer (signer)
 /// - accounts[5]: compressed_token_program_authority
-/// For SPL bridge (optional, required for SPL<->CToken):
+///   For SPL bridge (optional, required for SPL<->CToken):
 /// - accounts[6]: mint
 /// - accounts[7]: token_pool_pda
 /// - accounts[8]: spl_token_program

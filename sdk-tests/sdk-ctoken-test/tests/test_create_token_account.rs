@@ -56,7 +56,7 @@ async fn test_create_token_account_invoke() {
             AccountMeta::new_readonly(config, false),
             AccountMeta::new_readonly(Pubkey::default(), false), // system_program
             AccountMeta::new(rent_sponsor, false),
-            AccountMeta::new_readonly(CTOKEN_PROGRAM_ID.into(), false),
+            AccountMeta::new_readonly(CTOKEN_PROGRAM_ID, false),
         ],
         data: instruction_data,
     };
@@ -132,7 +132,7 @@ async fn test_create_token_account_invoke_signed() {
             AccountMeta::new_readonly(config, false),
             AccountMeta::new_readonly(Pubkey::default(), false), // system_program
             AccountMeta::new(rent_sponsor, false),
-            AccountMeta::new_readonly(CTOKEN_PROGRAM_ID.into(), false),
+            AccountMeta::new_readonly(CTOKEN_PROGRAM_ID, false),
         ],
         data: instruction_data,
     };

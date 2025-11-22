@@ -21,9 +21,14 @@ async fn test_close_invoke() {
     let payer = rpc.get_payer().insecure_clone();
 
     // Create a compressed mint with an ATA for the payer
-    let (_mint_pda, _compression_address, ata_pubkeys) =
-        setup_create_compressed_mint(&mut rpc, &payer, payer.pubkey(), 9, vec![(0, payer.pubkey())])
-            .await;
+    let (_mint_pda, _compression_address, ata_pubkeys) = setup_create_compressed_mint(
+        &mut rpc,
+        &payer,
+        payer.pubkey(),
+        9,
+        vec![(0, payer.pubkey())],
+    )
+    .await;
 
     let ata = ata_pubkeys[0];
 
@@ -101,7 +106,7 @@ async fn test_close_invoke_signed() {
             AccountMeta::new(ata, false),                        // account to close
             AccountMeta::new(payer.pubkey(), false),             // destination
             AccountMeta::new(pda_owner, false), // owner (PDA, mutable for write_top_up)
-            AccountMeta::new(rent_sponsor, false),       // rent_sponsor
+            AccountMeta::new(rent_sponsor, false), // rent_sponsor
         ],
         data: instruction_data,
     };

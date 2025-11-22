@@ -4,7 +4,6 @@ pub use anchor_spl::token_2022::spl_token_2022;
 pub use light_compressed_token_sdk::ctoken::{
     derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount,
 };
-use light_compressed_token_sdk::token_pool::find_token_pool_pda_with_index;
 use light_compressed_token_sdk::{
     compressed_token::{
         transfer2::{
@@ -13,6 +12,7 @@ use light_compressed_token_sdk::{
         },
         CTokenAccount2,
     },
+    token_pool::find_token_pool_pda_with_index,
     ValidityProof,
 };
 use light_ctoken_types::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
@@ -372,73 +372,6 @@ pub struct CtokenToSplTransferAndClose {
     pub token_pool_pda: Pubkey,
     pub token_pool_pda_bump: u8,
     pub spl_token_program: Pubkey,
-}
-
-// pub struct CtokenToSplTransferAndCloseAccountInfos<'info> {
-//     pub source_ctoken_account: AccountInfo<'info>,
-//     pub destination_spl_token_account: AccountInfo<'info>,
-//     pub amount: u64,
-//     pub authority: AccountInfo<'info>,
-//     pub mint: AccountInfo<'info>,
-//     pub payer: AccountInfo<'info>,
-//     pub token_pool_pda: AccountInfo<'info>,
-//     pub token_pool_pda_bump: u8,
-//     pub spl_token_program: AccountInfo<'info>,
-//     pub compressed_token_program_authority: AccountInfo<'info>,
-// }
-
-// impl<'info> CtokenToSplTransferAndCloseAccountInfos<'info> {
-//     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-//         CtokenToSplTransferAndClose::from(self).instruction()
-//     }
-
-//     pub fn invoke(self) -> Result<(), ProgramError> {
-//         let instruction = CtokenToSplTransferAndClose::from(&self).instruction()?;
-//         // Account order must match instruction metas: cpi_authority_pda, fee_payer, packed_accounts...
-//         let account_infos = [
-//             self.compressed_token_program_authority, // CPI authority PDA (first)
-//             self.payer,                              // Fee payer (second)
-//             self.mint,                               // Index 0: Mint
-//             self.source_ctoken_account,              // Index 1: Source ctoken account
-//             self.destination_spl_token_account,      // Index 2: Destination SPL token account
-//             self.authority,                          // Index 3: Authority (signer)
-//             self.token_pool_pda,                     // Index 4: Token pool PDA
-//             self.spl_token_program,                  // Index 5: SPL Token program
-//         ];
-//         invoke(&instruction, &account_infos)
-//     }
-
-//     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
-//         let instruction = CtokenToSplTransferAndClose::from(&self).instruction()?;
-//         // Account order must match instruction metas: cpi_authority_pda, fee_payer, packed_accounts...
-//         let account_infos = [
-//             self.compressed_token_program_authority, // CPI authority PDA (first)
-//             self.payer,                              // Fee payer (second)
-//             self.mint,                               // Index 0: Mint
-//             self.source_ctoken_account,              // Index 1: Source ctoken account
-//             self.destination_spl_token_account,      // Index 2: Destination SPL token account
-//             self.authority,                          // Index 3: Authority (signer)
-//             self.token_pool_pda,                     // Index 4: Token pool PDA
-//             self.spl_token_program,                  // Index 5: SPL Token program
-//         ];
-//         invoke_signed(&instruction, &account_infos, signer_seeds)
-//     }
-// }
-
-impl<'info> From<&CtokenToSplTransferAndCloseAccountInfos<'info>> for CtokenToSplTransferAndClose {
-    fn from(account_infos: &CtokenToSplTransferAndCloseAccountInfos<'info>) -> Self {
-        Self {
-            source_ctoken_account: *account_infos.source_ctoken_account.key,
-            destination_spl_token_account: *account_infos.destination_spl_token_account.key,
-            amount: account_infos.amount,
-            authority: *account_infos.authority.key,
-            mint: *account_infos.mint.key,
-            payer: *account_infos.payer.key,
-            token_pool_pda: *account_infos.token_pool_pda.key,
-            token_pool_pda_bump: account_infos.token_pool_pda_bump,
-            spl_token_program: *account_infos.spl_token_program.key,
-        }
-    }
 }
 
 impl CtokenToSplTransferAndClose {

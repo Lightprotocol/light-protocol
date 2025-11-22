@@ -4,8 +4,9 @@ mod shared;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use light_client::{indexer::Indexer, rpc::Rpc};
-use light_compressed_token_sdk::compressed_token::mint_action::MintActionMetaConfig;
-use light_compressed_token_sdk::ctoken::CTOKEN_PROGRAM_ID;
+use light_compressed_token_sdk::{
+    compressed_token::mint_action::MintActionMetaConfig, ctoken::CTOKEN_PROGRAM_ID,
+};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use native_ctoken_examples::{
     CreateCmintData, CreateTokenAccountData, MintToCTokenData, ID, MINT_AUTHORITY_SEED,
@@ -61,7 +62,7 @@ async fn test_mint_to_ctoken() {
                 AccountMeta::new_readonly(config, false),
                 AccountMeta::new_readonly(Pubkey::default(), false), // system_program
                 AccountMeta::new(rent_sponsor, false),
-                AccountMeta::new_readonly(CTOKEN_PROGRAM_ID.into(), false), // token_program
+                AccountMeta::new_readonly(CTOKEN_PROGRAM_ID, false), // token_program
             ],
             data: instruction_data,
         };
@@ -296,7 +297,7 @@ async fn test_mint_to_ctoken_invoke_signed() {
                 AccountMeta::new_readonly(config, false),
                 AccountMeta::new_readonly(Pubkey::default(), false), // system_program
                 AccountMeta::new(rent_sponsor, false),
-                AccountMeta::new_readonly(CTOKEN_PROGRAM_ID.into(), false),
+                AccountMeta::new_readonly(CTOKEN_PROGRAM_ID, false),
             ],
             data: instruction_data,
         };
