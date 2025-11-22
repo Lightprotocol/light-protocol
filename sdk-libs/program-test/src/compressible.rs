@@ -8,14 +8,18 @@ use borsh::BorshDeserialize;
 #[cfg(feature = "devenv")]
 use light_client::rpc::{Rpc, RpcError};
 #[cfg(feature = "devenv")]
-use light_compressible::rent::SLOTS_PER_EPOCH;
+use light_compressible::config::CompressibleConfig as CtokenCompressibleConfig;
 #[cfg(feature = "devenv")]
-use light_compressible::{config::CompressibleConfig, rent::RentConfig};
+use light_compressible::rent::RentConfig;
+#[cfg(feature = "devenv")]
+use light_compressible::rent::SLOTS_PER_EPOCH;
 #[cfg(feature = "devenv")]
 use light_ctoken_types::{
     state::{CToken, ExtensionStruct},
     COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
+#[cfg(feature = "devenv")]
+use light_sdk::compressible::CompressibleConfig as CpdaCompressibleConfig;
 #[cfg(feature = "devenv")]
 use solana_pubkey::Pubkey;
 
@@ -47,14 +51,14 @@ pub struct FundingPoolConfig {
 #[cfg(feature = "devenv")]
 impl FundingPoolConfig {
     pub fn new(version: u16) -> Self {
-        let config = CompressibleConfig::new_ctoken(
+        let config = CtokenCompressibleConfig::new_ctoken(
             version,
             true,
             Pubkey::default(),
             Pubkey::default(),
             RentConfig::default(),
         );
-        let compressible_config = CompressibleConfig::derive_pda(
+        let compressible_config = CtokenCompressibleConfig::derive_pda(
             &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX"),
             version,
         )
@@ -204,29 +208,30 @@ pub async fn auto_compress_program_pdas(
 
     let payer = rpc.get_payer().insecure_clone();
 
-    let config_pda = CompressibleConfig::derive_pda(&program_id, 0).0;
-    let cfg_acc = rpc
-        .get_account(config_pda)
-        .await?
-        .ok_or_else(|| RpcError::CustomError("compressible config not found".into()))?;
-    let cfg = CompressibleConfig::deserialize(&mut &cfg_acc.data[..])
+    let config_pda = CpdaCompressibleConfig::derive_pda(&program_id, 0).0;
+
+    let cfg_acc_opt = rpc.get_account(config_pda).await?;
+    let Some(cfg_acc) = cfg_acc_opt else {
+        return Ok(());
+    };
+    let cfg = CpdaCompressibleConfig::try_from_slice(&cfg_acc.data)
         .map_err(|e| RpcError::CustomError(format!("config deserialize: {e:?}")))?;
     let rent_sponsor = cfg.rent_sponsor;
+    // TODO: add coverage for external compression_authority
+    let compression_authority = payer.pubkey();
     let address_tree = cfg.address_space[0];
 
     let program_accounts = rpc.context.get_program_accounts(&program_id);
+
     if program_accounts.is_empty() {
         return Ok(());
     }
-
-    let output_state_tree_info = rpc
-        .get_random_state_tree_info()
-        .map_err(|e| RpcError::CustomError(format!("no state tree: {e:?}")))?;
 
     let program_metas = vec![
         AccountMeta::new(payer.pubkey(), true),
         AccountMeta::new_readonly(config_pda, false),
         AccountMeta::new(rent_sponsor, false),
+        AccountMeta::new_readonly(compression_authority, false),
     ];
 
     const BATCH_SIZE: usize = 5;
@@ -237,29 +242,13 @@ pub async fn auto_compress_program_pdas(
     {
         chunk.push((pubkey, account));
         if chunk.len() == BATCH_SIZE {
-            try_compress_chunk(
-                rpc,
-                &program_id,
-                &chunk,
-                &program_metas,
-                &address_tree,
-                output_state_tree_info,
-            )
-            .await;
+            try_compress_chunk(rpc, &program_id, &chunk, &program_metas, &address_tree).await;
             chunk.clear();
         }
     }
 
     if !chunk.is_empty() {
-        try_compress_chunk(
-            rpc,
-            &program_id,
-            &chunk,
-            &program_metas,
-            &address_tree,
-            output_state_tree_info,
-        )
-        .await;
+        try_compress_chunk(rpc, &program_id, &chunk, &program_metas, &address_tree).await;
     }
 
     Ok(())
@@ -272,57 +261,56 @@ async fn try_compress_chunk(
     chunk: &[(Pubkey, solana_sdk::account::Account)],
     program_metas: &[solana_instruction::AccountMeta],
     address_tree: &Pubkey,
-    output_state_tree_info: light_client::indexer::TreeInfo,
 ) {
     use light_client::indexer::Indexer;
     use light_compressed_account::address::derive_address;
-    use light_compressible_client::CompressibleInstruction;
+    use light_compressible_client::compressible_instruction;
     use solana_sdk::signature::Signer;
 
-    let mut pdas = Vec::with_capacity(chunk.len());
-    let mut accounts_to_compress = Vec::with_capacity(chunk.len());
-    let mut hashes = Vec::with_capacity(chunk.len());
+    // Attempt compression per-account idempotently.
     for (pda, acc) in chunk.iter() {
         let addr = derive_address(
             &pda.to_bytes(),
             &address_tree.to_bytes(),
             &program_id.to_bytes(),
         );
-        if let Ok(resp) = rpc.get_compressed_account(addr, None).await {
-            if let Some(cacc) = resp.value {
-                pdas.push(*pda);
-                accounts_to_compress.push(acc.clone());
-                hashes.push(cacc.hash);
-            }
-        }
-    }
-    if pdas.is_empty() {
-        return;
-    }
 
-    let proof_with_context = match rpc.get_validity_proof(hashes, vec![], None).await {
-        Ok(r) => r.value,
-        Err(_) => return,
-    };
+        // Only proceed if a compressed account exists
+        let Ok(resp) = rpc.get_compressed_account(addr, None).await else {
+            continue;
+        };
+        let Some(cacc) = resp.value else {
+            continue;
+        };
 
-    let signer_seeds: Vec<Vec<Vec<u8>>> = (0..pdas.len()).map(|_| Vec::new()).collect();
+        // Fetch proof for this single account hash
+        let Ok(proof_with_context) = rpc
+            .get_validity_proof(vec![cacc.hash], vec![], None)
+            .await
+            .map(|r| r.value)
+        else {
+            continue;
+        };
 
-    let ix_res = CompressibleInstruction::compress_accounts_idempotent(
-        program_id,
-        &CompressibleInstruction::COMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
-        &pdas,
-        &accounts_to_compress,
-        program_metas,
-        signer_seeds,
-        proof_with_context,
-        output_state_tree_info,
-    )
-    .map_err(|e| e.to_string());
-    if let Ok(ix) = ix_res {
+        // Build single-PDA compress instruction
+        let Ok(ix) = compressible_instruction::compress_accounts_idempotent(
+            program_id,
+            &compressible_instruction::COMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
+            &[*pda],
+            std::slice::from_ref(acc),
+            program_metas,
+            proof_with_context,
+        )
+        .map_err(|e| e.to_string()) else {
+            continue;
+        };
+
         let payer = rpc.get_payer().insecure_clone();
         let payer_pubkey = payer.pubkey();
+
+        // Ignore errors to continue compressing other PDAs
         let _ = rpc
-            .create_and_send_transaction(&[ix], &payer_pubkey, &[&payer])
+            .create_and_send_transaction(std::slice::from_ref(&ix), &payer_pubkey, &[&payer])
             .await;
     }
 }

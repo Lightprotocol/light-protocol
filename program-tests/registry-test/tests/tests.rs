@@ -191,7 +191,7 @@ async fn test_initialize_protocol_config() {
         config: ProgramTestConfig::default(),
         transaction_counter: 0,
         pre_context: None,
-        auto_compress_programs: Vec::new(),
+        auto_mine_cold_state_programs: Vec::new(),
     };
 
     let payer = rpc.get_payer().insecure_clone();

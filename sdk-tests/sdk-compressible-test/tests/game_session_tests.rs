@@ -1,7 +1,6 @@
 use anchor_lang::{AccountDeserialize, AnchorDeserialize, Discriminator, ToAccountMetas};
 use light_compressed_account::address::derive_address;
-use light_compressed_token_sdk::ctoken;
-use light_compressible_client::CompressibleInstruction;
+use light_compressible_client::compressible_instruction;
 use light_program_test::{
     program_test::{
         initialize_compression_config, setup_mock_program_data, LightProgramTest, TestRpc,
@@ -33,10 +32,9 @@ async fn test_custom_compression_game_session() {
         &payer,
         &program_id,
         &payer,
-        100,
         RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
-        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
+        &compressible_instruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
     )
     .await;
@@ -122,12 +120,10 @@ pub async fn decompress_single_game_session(
         .unwrap()
         .value;
 
-    let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
-
     let instruction =
-        light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
+        light_compressible_client::compressible_instruction::decompress_accounts_idempotent(
             program_id,
-            &CompressibleInstruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
+            &compressible_instruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
             &[*game_session_pda],
             &[(
                 c_game_pda,
@@ -136,16 +132,15 @@ pub async fn decompress_single_game_session(
             &sdk_compressible_test::accounts::DecompressAccountsIdempotent {
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
-                rent_payer: payer.pubkey(),
-                ctoken_rent_sponsor: ctoken::rent_sponsor_pda(),
-                ctoken_config: ctoken::config_pda(),
-                ctoken_program: ctoken::id(),
-                ctoken_cpi_authority: ctoken::cpi_authority(),
+                rent_sponsor: payer.pubkey(),
+                ctoken_rent_sponsor: None,
+                ctoken_config: None,
+                ctoken_program: None,
+                ctoken_cpi_authority: None,
                 some_mint: payer.pubkey(),
             }
             .to_account_metas(None),
             rpc_result,
-            output_state_tree_info,
         )
         .unwrap();
 
@@ -183,7 +178,7 @@ pub async fn decompress_single_game_session(
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         expected_slot
     );
 }

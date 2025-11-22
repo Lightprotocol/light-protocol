@@ -16,7 +16,7 @@ name = "client_test"
 
 [dev-dependencies]
 light-client = { workspace = true, features = ["devenv"] }
-light-program-test = { workspace = true, features = ["devenv", "v2"] }
+light-program-test = { workspace = true, features = ["devenv"] }
 light-prover-client = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true }
 light-sdk = { workspace = true }

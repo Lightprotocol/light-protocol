@@ -1,6 +1,6 @@
 use anchor_lang::{AccountDeserialize, Discriminator, InstructionData, ToAccountMetas};
 use light_compressed_account::address::derive_address;
-use light_compressible_client::CompressibleInstruction;
+use light_compressible_client::compressible_instruction;
 use light_program_test::{
     program_test::{
         initialize_compression_config, setup_mock_program_data, LightProgramTest, TestRpc,
@@ -38,10 +38,9 @@ async fn test_create_empty_compressed_account() {
         &payer,
         &program_id,
         &payer,
-        100,
         RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
-        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
+        &compressible_instruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
     )
     .await;
@@ -150,10 +149,9 @@ async fn test_double_compression_attack() {
         &payer,
         &program_id,
         &payer,
-        100,
         RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
-        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
+        &compressible_instruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
     )
     .await;
@@ -416,17 +414,16 @@ pub async fn compress_placeholder_record(
         .unwrap()
         .value;
 
-    let placeholder_seeds = sdk_compressible_test::get_placeholderrecord_seeds(placeholder_id);
+    let _placeholder_seeds = sdk_compressible_test::get_placeholderrecord_seeds(placeholder_id);
 
     let account = rpc
         .get_account(*placeholder_record_pda)
         .await
         .unwrap()
         .unwrap();
-    let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
     let instruction =
-        light_compressible_client::CompressibleInstruction::compress_accounts_idempotent(
+        light_compressible_client::compressible_instruction::compress_accounts_idempotent(
             program_id,
             sdk_compressible_test::instruction::CompressAccountsIdempotent::DISCRIMINATOR,
             &[*placeholder_record_pda],
@@ -437,9 +434,7 @@ pub async fn compress_placeholder_record(
                 rent_sponsor: RENT_SPONSOR,
             }
             .to_account_metas(None),
-            vec![placeholder_seeds.0],
             rpc_result,
-            output_state_tree_info,
         )
         .unwrap();
 
@@ -504,9 +499,7 @@ pub async fn compress_placeholder_record_for_double_test(
         .unwrap()
         .value;
 
-    let placeholder_seeds = sdk_compressible_test::get_placeholderrecord_seeds(placeholder_id);
-
-    let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
+    let _placeholder_seeds = sdk_compressible_test::get_placeholderrecord_seeds(placeholder_id);
 
     let accounts_to_compress = if let Some(account) = previous_account {
         vec![account]
@@ -514,7 +507,7 @@ pub async fn compress_placeholder_record_for_double_test(
         panic!("Previous account should be provided");
     };
     let instruction =
-        light_compressible_client::CompressibleInstruction::compress_accounts_idempotent(
+        light_compressible_client::compressible_instruction::compress_accounts_idempotent(
             program_id,
             sdk_compressible_test::instruction::CompressAccountsIdempotent::DISCRIMINATOR,
             &[*placeholder_record_pda],
@@ -525,9 +518,7 @@ pub async fn compress_placeholder_record_for_double_test(
                 rent_sponsor: RENT_SPONSOR,
             }
             .to_account_metas(None),
-            vec![placeholder_seeds.0],
             rpc_result,
-            output_state_tree_info,
         )
         .unwrap();
 

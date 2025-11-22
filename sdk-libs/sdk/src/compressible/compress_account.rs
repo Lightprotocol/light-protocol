@@ -1,11 +1,12 @@
 use light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo;
+use light_compressible::rent::AccountRentState;
 use light_hasher::DataHasher;
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 use solana_account_info::AccountInfo;
 use solana_clock::Clock;
 use solana_msg::msg;
 use solana_pubkey::Pubkey;
-use solana_sysvar::Sysvar;
+use solana_sysvar::{rent::Rent, Sysvar};
 
 use crate::{
     account::sha::LightAccount,
@@ -15,7 +16,6 @@ use crate::{
     instruction::account_meta::CompressedAccountMeta,
     AnchorDeserialize, AnchorSerialize, LightDiscriminator, ProgramError,
 };
-
 /// Prepare account for compression.
 ///
 /// # Arguments
@@ -24,7 +24,6 @@ use crate::{
 /// * `account_data` - Mutable reference to the deserialized account data
 /// * `compressed_account_meta` - Metadata for the compressed account
 /// * `cpi_accounts` - Accounts for CPI to light system program
-/// * `compression_delay` - Minimum slots before compression allowed
 /// * `address_space` - Address space for validation
 #[cfg(feature = "v2")]
 pub fn prepare_account_for_compression<'info, A>(
@@ -33,7 +32,6 @@ pub fn prepare_account_for_compression<'info, A>(
     account_data: &mut A,
     compressed_account_meta: &CompressedAccountMetaNoLamportsNoAddress,
     cpi_accounts: &CpiAccounts<'_, 'info>,
-    compression_delay: &u32,
     address_space: &[Pubkey],
 ) -> std::result::Result<CompressedAccountInfo, ProgramError>
 where
@@ -68,12 +66,35 @@ where
     };
 
     let current_slot = Clock::get()?.slot;
-    let last_written_slot = account_data.compression_info().last_written_slot();
-
-    if current_slot < last_written_slot + *compression_delay as u64 {
+    // Rent-function gating: account must be compressible w.r.t. rent function (current+next epoch)
+    let bytes = account_info.data_len() as u64;
+    let current_lamports = account_info.lamports();
+    let rent_exemption_lamports = Rent::get()
+        .map_err(|_| LightSdkError::ConstraintViolation)?
+        .minimum_balance(bytes as usize);
+    let ci = account_data.compression_info();
+    let last_claimed_slot = ci.last_claimed_slot();
+    let rent_cfg = ci.rent_config;
+    let state = AccountRentState {
+        num_bytes: bytes,
+        current_slot,
+        current_lamports,
+        last_claimed_slot,
+    };
+    if state
+        .is_compressible(&rent_cfg, rent_exemption_lamports)
+        .is_none()
+    {
         msg!(
-            "prepare_account_for_compression failed: Cannot compress yet. {} slots remaining",
-            (last_written_slot + *compression_delay as u64).saturating_sub(current_slot)
+            "prepare_account_for_compression failed: \
+            Account is not compressible by rent function. \
+            slot: {}, lamports: {}, bytes: {}, rent_exemption_lamports: {}, last_claimed_slot: {}, rent_config: {:?}",
+            current_slot,
+            current_lamports,
+            bytes,
+            rent_exemption_lamports,
+            last_claimed_slot,
+            rent_cfg
         );
         return Err(LightSdkError::ConstraintViolation.into());
     }

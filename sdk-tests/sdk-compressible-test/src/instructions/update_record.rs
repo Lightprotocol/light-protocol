@@ -9,10 +9,11 @@ pub fn update_record(ctx: Context<UpdateRecord>, name: String, score: u64) -> Re
     user_record.name = name;
     user_record.score = score;
 
-    // 1. Must manually set compression info
-    user_record
-        .compression_info_mut()
-        .bump_last_written_slot()?;
+    user_record.compression_info().top_up_rent(
+        &user_record.to_account_info(),
+        &ctx.accounts.user.to_account_info(),
+        &ctx.accounts.system_program.to_account_info(),
+    )?;
 
     Ok(())
 }

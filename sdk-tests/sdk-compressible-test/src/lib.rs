@@ -94,13 +94,11 @@ pub mod sdk_compressible_test {
 
     pub fn initialize_compression_config(
         ctx: Context<InitializeCompressionConfig>,
-        compression_delay: u32,
         rent_sponsor: Pubkey,
         address_space: Vec<Pubkey>,
     ) -> Result<()> {
         instructions::initialize_compression_config::initialize_compression_config(
             ctx,
-            compression_delay,
             rent_sponsor,
             address_space,
         )
@@ -148,29 +146,31 @@ pub mod sdk_compressible_test {
         ctx: Context<'_, '_, 'info, 'info, CompressAccountsIdempotent<'info>>,
         proof: ValidityProof,
         compressed_accounts: Vec<CompressedAccountMetaNoLamportsNoAddress>,
-        signer_seeds: Vec<Vec<Vec<u8>>>,
         system_accounts_offset: u8,
     ) -> Result<()> {
         instructions::compress_accounts_idempotent::compress_accounts_idempotent(
             ctx,
             proof,
             compressed_accounts,
-            signer_seeds,
             system_accounts_offset,
         )
     }
 
     pub fn update_compression_config(
         ctx: Context<UpdateCompressionConfig>,
-        new_compression_delay: Option<u32>,
         new_rent_sponsor: Option<Pubkey>,
+        new_compression_authority: Option<Pubkey>,
+        new_rent_config: Option<light_compressible::rent::RentConfig>,
+        new_write_top_up: Option<u32>,
         new_address_space: Option<Vec<Pubkey>>,
         new_update_authority: Option<Pubkey>,
     ) -> Result<()> {
         instructions::update_compression_config::update_compression_config(
             ctx,
-            new_compression_delay,
             new_rent_sponsor,
+            new_compression_authority,
+            new_rent_config,
+            new_write_top_up,
             new_address_space,
             new_update_authority,
         )

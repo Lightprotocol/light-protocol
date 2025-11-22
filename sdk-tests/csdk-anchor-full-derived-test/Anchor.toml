@@ -1,0 +1,17 @@
+[features]
+resolution = true
+skip-lint = false
+
+[programs.localnet]
+csdk_anchor_full_derived_test = "FAMipfVEhN4hjCLpKCvjDXXfzLsoVTqQccXzePz1L1ah"
+
+[registry]
+url = "https://api.apr.dev"
+
+[provider]
+cluster = "Localnet"
+wallet = "~/.config/solana/id.json"
+
+[scripts]
+test = "cargo test-sbf -p csdk-anchor-full-derived-test -- --nocapture"
+

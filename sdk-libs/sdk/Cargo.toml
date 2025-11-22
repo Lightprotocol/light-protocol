@@ -12,11 +12,12 @@ name = "light_sdk"
 
 [features]
 default = []
-idl-build = ["anchor-lang/idl-build"]
+idl-build = ["anchor-lang/idl-build", "anchor"]
 anchor = [
     "anchor-lang",
     "light-compressed-account/anchor",
     "light-sdk-types/anchor",
+    "light-compressible/anchor",
 ]
 v2 = ["light-sdk-types/v2"]
 cpi-context = ["light-sdk-types/cpi-context"]
@@ -54,7 +55,7 @@ light-hasher = { workspace = true, features = ["std"] }
 light-account-checks = { workspace = true, features = ["solana"] }
 light-zero-copy = { workspace = true }
 light-concurrent-merkle-tree = { workspace = true, optional = true }
-light-ctoken-types = { workspace = true }
+light-compressible = { workspace = true }
 
 [dev-dependencies]
 num-bigint = { workspace = true }

@@ -2,7 +2,8 @@ use anchor_lang::{
     AccountDeserialize, AnchorDeserialize, Discriminator, InstructionData, ToAccountMetas,
 };
 use light_compressed_account::address::derive_address;
-use light_compressible_client::CompressibleInstruction;
+use light_compressible::rent::{RentConfig, SLOTS_PER_EPOCH};
+use light_compressible_client::compressible_instruction;
 use light_program_test::{
     program_test::{
         initialize_compression_config, setup_mock_program_data, LightProgramTest, TestRpc,
@@ -18,6 +19,7 @@ use solana_instruction::Instruction;
 use solana_keypair::Keypair;
 use solana_pubkey::Pubkey;
 use solana_signer::Signer;
+use solana_system_interface::instruction as system_instruction;
 
 mod helpers;
 use helpers::{create_record, decompress_single_user_record, ADDRESS_SPACE, RENT_SPONSOR};
@@ -38,10 +40,9 @@ async fn test_create_decompress_compress_single_account() {
         &payer,
         &program_id,
         &payer,
-        100,
         RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
-        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
+        &compressible_instruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
     )
     .await;
@@ -65,21 +66,37 @@ async fn test_create_decompress_compress_single_account() {
     )
     .await;
 
-    rpc.warp_to_slot(101).unwrap();
+    // Top up PDA so it's initially NOT compressible (sufficiently funded)
+    // Fund exactly one epoch of rent plus compression_cost, so after one epoch passes it becomes compressible.
+    let pda_account = rpc.get_account(user_record_pda).await.unwrap().unwrap();
+    let bytes = pda_account.data.len() as u64;
+    let rent_cfg = RentConfig::default();
+    let rent_per_epoch = rent_cfg.rent_curve_per_epoch(bytes);
+    let compression_cost = rent_cfg.compression_cost as u64;
+    let top_up = rent_per_epoch + compression_cost;
 
+    let transfer_ix = system_instruction::transfer(&payer.pubkey(), &user_record_pda, top_up);
+    let res = rpc
+        .create_and_send_transaction(&[transfer_ix], &payer.pubkey(), &[&payer])
+        .await;
+    assert!(res.is_ok(), "Top-up transfer should succeed");
+
+    // Immediately try to compress – should FAIL because not compressible yet (sufficiently funded)
     let result = compress_record(&mut rpc, &payer, &program_id, &user_record_pda, true).await;
-    assert!(result.is_err(), "Compression should fail due to slot delay");
-    if let Err(err) = result {
-        let err_msg = format!("{:?}", err);
-        assert!(
-            err_msg.contains("Custom(16001)"),
-            "Expected error message about slot delay, got: {}",
-            err_msg
-        );
-    }
-    rpc.warp_to_slot(200).unwrap();
+    assert!(
+        result.is_err(),
+        "Compression should fail while sufficiently funded"
+    );
+
+    // Advance one full epoch so required_epochs increases and the account becomes compressible
+    rpc.warp_to_slot(SLOTS_PER_EPOCH * 2).unwrap();
+
+    // Now compression should SUCCEED (account no longer sufficiently funded for current+next epoch)
     let result = compress_record(&mut rpc, &payer, &program_id, &user_record_pda, false).await;
-    assert!(result.is_ok(), "Compression should succeed");
+    assert!(
+        result.is_ok(),
+        "Compression should succeed after epochs advance"
+    );
 }
 
 #[tokio::test]
@@ -96,10 +113,9 @@ async fn test_update_record_compression_info() {
         &payer,
         &program_id,
         &payer,
-        100,
         RENT_SPONSOR,
         vec![ADDRESS_SPACE[0]],
-        &CompressibleInstruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
+        &compressible_instruction::INITIALIZE_COMPRESSION_CONFIG_DISCRIMINATOR,
         None,
     )
     .await;
@@ -127,6 +143,7 @@ async fn test_update_record_compression_info() {
     let accounts = sdk_compressible_test::accounts::UpdateRecord {
         user: payer.pubkey(),
         user_record: user_record_pda,
+        system_program: solana_sdk::system_program::id(),
     };
 
     let instruction_data = sdk_compressible_test::instruction::UpdateRecord {
@@ -165,8 +182,8 @@ async fn test_update_record_compression_info() {
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
-        150
+            .last_claimed_slot(),
+        100
     );
     assert!(!updated_user_record
         .compression_info
@@ -223,9 +240,7 @@ pub async fn compress_record(
         .unwrap()
         .value;
 
-    let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
-
-    let instruction = CompressibleInstruction::compress_accounts_idempotent(
+    let instruction = compressible_instruction::compress_accounts_idempotent(
         program_id,
         sdk_compressible_test::instruction::CompressAccountsIdempotent::DISCRIMINATOR,
         &[*user_record_pda],
@@ -236,9 +251,7 @@ pub async fn compress_record(
             rent_sponsor: RENT_SPONSOR,
         }
         .to_account_metas(None),
-        vec![sdk_compressible_test::get_userrecord_seeds(&payer.pubkey()).0],
         rpc_result,
-        output_state_tree_info,
     )
     .unwrap();
 
