@@ -17,6 +17,10 @@ pub const EXTENSION_METADATA: u64 = 7;
 pub const COMPRESSIBLE_TOKEN_ACCOUNT_SIZE: u64 =
     BASE_TOKEN_ACCOUNT_SIZE + CompressionInfo::LEN as u64 + EXTENSION_METADATA;
 
+/// Size of a token account with compressible + pausable extensions (261 bytes).
+/// Adds 1 byte for PausableAccount discriminator (marker extension with 0 data bytes).
+pub const COMPRESSIBLE_PAUSABLE_TOKEN_ACCOUNT_SIZE: u64 = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE + 1;
+
 /// Rent exemption threshold for compressible token accounts (in lamports)
 /// This value determines when an account has sufficient rent to be considered not compressible
 pub const COMPRESSIBLE_TOKEN_RENT_EXEMPTION: u64 = 2700480;

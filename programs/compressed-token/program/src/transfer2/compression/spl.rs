@@ -11,7 +11,7 @@ use pinocchio::{
 };
 
 use super::validate_compression_mode_fields;
-use crate::constants::BUMP_CPI_AUTHORITY;
+use crate::{constants::BUMP_CPI_AUTHORITY, shared::check_mint_not_paused};
 
 /// Process compression/decompression for SPL token accounts
 #[profile]
@@ -26,9 +26,13 @@ pub(super) fn process_spl_compressions(
 
     validate_compression_mode_fields(compression)?;
 
-    let mint_account = *packed_accounts
-        .get_u8(compression.mint, "process_spl_compression: token mint")?
-        .key();
+    let mint_account_info =
+        packed_accounts.get_u8(compression.mint, "process_spl_compression: token mint")?;
+    let mint_account = *mint_account_info.key();
+
+    // Check if mint is paused (for SPL Token 2022 mints with Pausable extension)
+    check_mint_not_paused(mint_account_info)?;
+
     let token_pool_account_info = packed_accounts.get_u8(
         compression.pool_account_index,
         "process_spl_compression: token pool account",

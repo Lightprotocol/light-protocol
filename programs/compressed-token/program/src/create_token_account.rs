@@ -8,7 +8,7 @@ use light_compressed_account::Pubkey;
 use light_compressible::config::CompressibleConfig;
 use light_ctoken_types::{
     instructions::create_ctoken_account::CreateTokenAccountInstructionData,
-    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+    COMPRESSIBLE_PAUSABLE_TOKEN_ACCOUNT_SIZE, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_program_profiler::profile;
 use pinocchio::{
@@ -21,7 +21,8 @@ use spl_pod::{bytemuck, solana_msg::msg};
 
 use crate::shared::{
     convert_program_error, create_pda_account,
-    initialize_ctoken_account::initialize_ctoken_account, transfer_lamports_via_cpi,
+    initialize_ctoken_account::initialize_ctoken_account, mint_has_pausable_extension,
+    transfer_lamports_via_cpi,
 };
 
 /// Validated accounts for the create token account instruction
@@ -153,9 +154,8 @@ pub fn process_create_token_account(
     let accounts = CreateCTokenAccounts::parse(account_infos, &inputs)?;
 
     // Create account via cpi
-    let (compressible_config_account, custom_rent_payer) = if let Some(compressible) =
-        accounts.compressible.as_ref()
-    {
+    let (compressible_config_account, custom_rent_payer, mint_has_pausable) =
+        if let Some(compressible) = accounts.compressible.as_ref() {
         let compressible_config = inputs
             .compressible_config
             .as_ref()
@@ -176,15 +176,22 @@ pub fn process_create_token_account(
             compress_to_pubkey.check_seeds(accounts.token_account.key())?;
         }
 
+        // Check if mint has pausable extension
+        let mint_has_pausable = mint_has_pausable_extension(accounts.mint)?;
+
+        // Use larger account size if mint has pausable extension
+        let account_size = if mint_has_pausable {
+            COMPRESSIBLE_PAUSABLE_TOKEN_ACCOUNT_SIZE
+        } else {
+            COMPRESSIBLE_TOKEN_ACCOUNT_SIZE
+        };
+
         let config_account = &compressible.parsed_config;
         let rent = compressible
             .parsed_config
             .rent_config
-            .get_rent_with_compression_cost(
-                COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
-                compressible_config.rent_payment as u64,
-            );
-        let account_size = COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize;
+            .get_rent_with_compression_cost(account_size, compressible_config.rent_payment as u64);
+        let account_size = account_size as usize;
 
         let custom_rent_payer =
             *compressible.rent_payer.key() != config_account.rent_sponsor.to_bytes();
@@ -199,7 +206,11 @@ pub fn process_create_token_account(
             )
             .map_err(convert_program_error)?;
 
-            (Some(*config_account), Some(*compressible.rent_payer.key()))
+            (
+                Some(*config_account),
+                Some(*compressible.rent_payer.key()),
+                mint_has_pausable,
+            )
         } else {
             // Rent recipient is fee payer for account creation -> pays rent exemption
             let version_bytes = config_account.version.to_le_bytes();
@@ -224,10 +235,10 @@ pub fn process_create_token_account(
             // Payer transfers the additional rent (compression incentive)
             transfer_lamports_via_cpi(rent, compressible.payer, accounts.token_account)
                 .map_err(convert_program_error)?;
-            (Some(*config_account), None)
+            (Some(*config_account), None, mint_has_pausable)
         }
     } else {
-        (None, None)
+        (None, None, false)
     };
 
     // Initialize the token account (assumes account already exists and is owned by our program)
@@ -238,6 +249,7 @@ pub fn process_create_token_account(
         inputs.compressible_config,
         compressible_config_account,
         custom_rent_payer,
+        mint_has_pausable,
     )
 }
 

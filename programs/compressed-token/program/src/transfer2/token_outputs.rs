@@ -7,7 +7,7 @@ use light_ctoken_types::{
 use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
-use crate::shared::token_output::set_output_compressed_account;
+use crate::shared::{check_mint_not_paused, token_output::set_output_compressed_account};
 
 /// Process output compressed accounts and return total output lamports
 #[profile]
@@ -18,6 +18,10 @@ pub fn set_output_compressed_accounts(
     inputs: &ZCompressedTokenInstructionDataTransfer2,
     packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
 ) -> Result<(), ProgramError> {
+    // Cache for mint pausable checks to avoid redundant deserializations
+    // Index corresponds to mint_index, value indicates if already checked
+    let mut checked_mints = [false; 30];
+
     for (i, output_data) in inputs.out_token_data.iter().enumerate() {
         let output_lamports = if let Some(lamports) = inputs.out_lamports.as_ref() {
             if let Some(lamports) = lamports.get(i) {
@@ -31,6 +35,13 @@ pub fn set_output_compressed_accounts(
 
         let mint_index = output_data.mint;
         let mint_account = packed_accounts.get_u8(mint_index, "out token mint")?;
+
+        // Check if mint is paused (for SPL Token 2022 mints with Pausable extension)
+        // Only check each mint once to avoid redundant deserializations
+        if !checked_mints[mint_index as usize] {
+            check_mint_not_paused(mint_account)?;
+            checked_mints[mint_index as usize] = true;
+        }
 
         // Get owner account using owner index
         let owner_account = packed_accounts.get_u8(output_data.owner, "out token owner")?;

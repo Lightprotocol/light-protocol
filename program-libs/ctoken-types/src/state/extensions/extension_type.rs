@@ -33,6 +33,9 @@ pub enum ExtensionType {
     Placeholder25,
     /// Account contains compressible timing data and rent authority
     Compressible = 26,
+    /// Marker extension indicating the account belongs to a pausable mint.
+    /// When the SPL mint has PausableConfig and is paused, token operations are blocked.
+    PausableAccount = 27,
 }
 
 impl TryFrom<u8> for ExtensionType {
@@ -42,6 +45,7 @@ impl TryFrom<u8> for ExtensionType {
         match value {
             19 => Ok(ExtensionType::TokenMetadata),
             26 => Ok(ExtensionType::Compressible),
+            27 => Ok(ExtensionType::PausableAccount),
             _ => Err(crate::CTokenError::UnsupportedExtension),
         }
     }

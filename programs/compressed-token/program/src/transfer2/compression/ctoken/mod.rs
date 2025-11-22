@@ -6,6 +6,7 @@ use light_program_profiler::profile;
 use pinocchio::account_info::AccountInfo;
 
 use super::validate_compression_mode_fields;
+use crate::shared::check_mint_not_paused;
 
 mod compress_and_close;
 mod compress_or_decompress_ctokens;
@@ -25,6 +26,10 @@ pub(super) fn process_ctoken_compressions(
 ) -> Result<Option<(u8, u64)>, anchor_lang::prelude::ProgramError> {
     // Validate compression fields for the given mode
     validate_compression_mode_fields(compression)?;
+
+    // Check if mint is paused (for SPL Token 2022 mints with Pausable extension)
+    let mint_account = packed_accounts.get_u8(compression.mint, "ctoken compression: mint")?;
+    check_mint_not_paused(mint_account)?;
 
     // Create inputs struct with all required accounts extracted
     let compression_inputs = CTokenCompressionInputs::from_compression(

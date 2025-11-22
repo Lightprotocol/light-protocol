@@ -1,6 +1,9 @@
 pub mod compressible;
+pub mod pausable;
 pub mod token_metadata;
+
 use light_zero_copy::ZeroCopy;
+pub use pausable::PausableExtensionInstructionData;
 pub use token_metadata::{TokenMetadataInstructionData, ZTokenMetadataInstructionData};
 
 use crate::{AnchorDeserialize, AnchorSerialize};
@@ -28,4 +31,12 @@ pub enum ExtensionInstructionData {
     Placeholder17,
     Placeholder18,
     TokenMetadata(TokenMetadataInstructionData),
+    Placeholder20,
+    Placeholder21,
+    Placeholder22,
+    Placeholder23,
+    Placeholder24,
+    Placeholder25,
+    Placeholder26,
+    PausableAccount(PausableExtensionInstructionData),
 }

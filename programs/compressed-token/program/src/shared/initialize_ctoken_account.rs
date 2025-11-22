@@ -3,7 +3,8 @@ use light_account_checks::AccountInfoTrait;
 use light_compressible::{compression_info::ZCompressionInfoMut, config::CompressibleConfig};
 use light_ctoken_types::{
     instructions::extensions::compressible::CompressibleExtensionInstructionData,
-    state::CompressionInfo, COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
+    state::CompressionInfo, COMPRESSIBLE_PAUSABLE_TOKEN_ACCOUNT_SIZE,
+    COMPRESSIBLE_TOKEN_ACCOUNT_SIZE,
 };
 use light_program_profiler::profile;
 use light_zero_copy::traits::ZeroCopyAtMut;
@@ -23,9 +24,13 @@ pub fn initialize_ctoken_account(
     compressible_config_account: Option<&CompressibleConfig>,
     // account is compressible but with custom fee payer -> rent recipient is fee payer
     custom_rent_payer: Option<Pubkey>,
+    // Whether the mint has pausable extension
+    mint_has_pausable: bool,
 ) -> Result<(), ProgramError> {
     let required_size = if compressible_config.is_none() {
         165
+    } else if mint_has_pausable {
+        COMPRESSIBLE_PAUSABLE_TOKEN_ACCOUNT_SIZE as usize
     } else {
         COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
     };
@@ -80,15 +85,16 @@ pub fn initialize_ctoken_account(
         // Byte 1: Option::Some = 1 (for Option<Vec<ExtensionStruct>>)
         extension_bytes[1] = 1;
 
-        // Bytes 2-5: Vec length = 1 (little-endian u32)
-        extension_bytes[2..6].copy_from_slice(&[1, 0, 0, 0]);
+        // Bytes 2-5: Vec length (1 for compressible only, 2 for compressible + pausable)
+        let extension_count = if mint_has_pausable { 2u32 } else { 1u32 };
+        extension_bytes[2..6].copy_from_slice(&extension_count.to_le_bytes());
 
         // Byte 6: Compressible enum discriminator = 26
         extension_bytes[6] = 26;
 
         // Create zero-copy mutable reference to CompressionInfo
-        let (mut compressible_extension, _) = CompressionInfo::zero_copy_at_mut(compressible_data)
-            .map_err(|e| {
+        let (mut compressible_extension, remaining) =
+            CompressionInfo::zero_copy_at_mut(compressible_data).map_err(|e| {
                 msg!(
                     "Failed to create CompressionInfo zero-copy reference: {:?}",
                     e
@@ -102,6 +108,16 @@ pub fn initialize_ctoken_account(
             compressible_config_account,
             custom_rent_payer,
         )?;
+
+        // Add PausableAccount extension if mint has pausable
+        if mint_has_pausable {
+            if remaining.is_empty() {
+                msg!("Not enough space for PausableAccount extension");
+                return Err(ErrorCode::InsufficientAccountSize.into());
+            }
+            // Write PausableAccount discriminator (27)
+            remaining[0] = 27;
+        }
     }
 
     Ok(())

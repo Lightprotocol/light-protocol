@@ -1,3 +1,4 @@
+use anchor_compressed_token::ErrorCode;
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
 use light_ctoken_types::{
     state::{CToken, ZExtensionStruct},
@@ -8,7 +9,7 @@ use pinocchio::account_info::AccountInfo;
 use pinocchio_token_program::processor::transfer::process_transfer;
 
 use crate::shared::{
-    convert_program_error,
+    check_mint_not_paused, convert_program_error,
     transfer_lamports::{multi_transfer_lamports, Transfer},
 };
 
@@ -29,16 +30,17 @@ pub fn process_ctoken_transfer<'a>(
 
     process_transfer(accounts, instruction_data)
         .map_err(|e| ProgramError::Custom(u64::from(e) as u32))?;
-    calculate_and_execute_top_up_transfers(accounts)
+    process_extensions_and_top_up(accounts)
 }
 
-/// Calculate and execute top-up transfers for compressible accounts
+/// Process extensions (pausable check) and calculate/execute top-up transfers.
+/// This function deserializes accounts once to handle both pausable checks
+/// and compressible top-up calculations.
 #[inline(always)]
 #[profile]
-fn calculate_and_execute_top_up_transfers(
+fn process_extensions_and_top_up(
     accounts: &[pinocchio::account_info::AccountInfo],
 ) -> Result<(), ProgramError> {
-    // Initialize transfers array with account references, amounts will be updated
     let account0 = accounts.first().ok_or(ProgramError::NotEnoughAccountKeys)?;
     let account1 = accounts.get(1).ok_or(ProgramError::NotEnoughAccountKeys)?;
     let mut transfers = [
@@ -52,7 +54,9 @@ fn calculate_and_execute_top_up_transfers(
         },
     ];
     let mut current_slot = 0;
-    // Calculate transfer amounts for accounts with compressible extensions
+    let mut has_pausable = false;
+
+    // Process both accounts: check for pausable and calculate compressible top-ups
     for transfer in transfers.iter_mut() {
         if transfer.account.data_len() > light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize {
             let account_data = transfer
@@ -62,32 +66,48 @@ fn calculate_and_execute_top_up_transfers(
             let (token, _) = CToken::zero_copy_at_checked(&account_data)?;
             if let Some(extensions) = token.extensions.as_ref() {
                 for extension in extensions.iter() {
-                    if let ZExtensionStruct::Compressible(compressible_extension) = extension {
-                        if current_slot == 0 {
-                            use pinocchio::sysvars::{clock::Clock, Sysvar};
-                            current_slot = Clock::get()
-                                .map_err(|_| CTokenError::SysvarAccessError)?
-                                .slot;
-                        }
+                    match extension {
+                        ZExtensionStruct::Compressible(compressible_extension) => {
+                            if current_slot == 0 {
+                                use pinocchio::sysvars::{clock::Clock, Sysvar};
+                                current_slot = Clock::get()
+                                    .map_err(|_| CTokenError::SysvarAccessError)?
+                                    .slot;
+                            }
 
-                        transfer.amount = compressible_extension
-                            .calculate_top_up_lamports(
-                                transfer.account.data_len() as u64,
-                                current_slot,
-                                transfer.account.lamports(),
-                                compressible_extension.lamports_per_write.into(),
-                                light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
-                            )
-                            .map_err(|_| CTokenError::InvalidAccountData)?;
+                            transfer.amount = compressible_extension
+                                .calculate_top_up_lamports(
+                                    transfer.account.data_len() as u64,
+                                    current_slot,
+                                    transfer.account.lamports(),
+                                    compressible_extension.lamports_per_write.into(),
+                                    light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                                )
+                                .map_err(|_| CTokenError::InvalidAccountData)?;
+                        }
+                        ZExtensionStruct::PausableAccount(_) => {
+                            has_pausable = true;
+                        }
+                        // Placeholder and TokenMetadata variants are not valid for CToken accounts
+                        _ => {
+                            return Err(CTokenError::InvalidAccountData.into());
+                        }
                     }
                 }
             } else {
-                // Only Compressible extensions are implemented for ctoken accounts.
+                // Accounts with extensions must have at least one extension.
                 return Err(CTokenError::InvalidAccountData.into());
             }
         }
     }
-    // Exit early in case none of the accounts is compressible.
+
+    // Check pausable status if any account has PausableAccount extension
+    if has_pausable {
+        let mint_account = accounts.get(3).ok_or(ErrorCode::MintRequiredForTransfer)?;
+        check_mint_not_paused(mint_account)?;
+    }
+
+    // Exit early if no compressible accounts found
     if current_slot == 0 {
         return Ok(());
     }

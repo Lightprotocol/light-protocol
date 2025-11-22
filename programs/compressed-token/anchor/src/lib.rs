@@ -428,6 +428,10 @@ pub enum ErrorCode {
         "CompressAndClose by compression authority requires compressed token account in outputs"
     )]
     CompressAndCloseOutputMissing,
+    #[msg("Token operations blocked - mint is paused")]
+    MintPaused,
+    #[msg("Mint account required for transfer when account has PausableAccount extension")]
+    MintRequiredForTransfer,
 }
 
 impl From<ErrorCode> for ProgramError {

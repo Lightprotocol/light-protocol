@@ -3,7 +3,10 @@ use spl_pod::solana_msg::msg;
 
 use crate::{
     state::{
-        extensions::{CompressionInfo, TokenMetadata, TokenMetadataConfig, ZTokenMetadataMut},
+        extensions::{
+            CompressionInfo, PausableAccountExtension, PausableAccountExtensionConfig,
+            TokenMetadata, TokenMetadataConfig, ZPausableAccountExtensionMut, ZTokenMetadataMut,
+        },
         CompressionInfoConfig,
     },
     AnchorDeserialize, AnchorSerialize,
@@ -40,6 +43,8 @@ pub enum ExtensionStruct {
     Placeholder25,
     /// Account contains compressible timing data and rent authority
     Compressible(CompressionInfo),
+    /// Marker extension indicating the account belongs to a pausable mint
+    PausableAccount(PausableAccountExtension),
 }
 
 #[derive(Debug)]
@@ -72,6 +77,8 @@ pub enum ZExtensionStructMut<'a> {
     Placeholder25,
     /// Account contains compressible timing data and rent authority
     Compressible(<CompressionInfo as light_zero_copy::traits::ZeroCopyAtMut<'a>>::ZeroCopyAtMut),
+    /// Marker extension indicating the account belongs to a pausable mint
+    PausableAccount(ZPausableAccountExtensionMut),
 }
 
 impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
@@ -108,6 +115,15 @@ impl<'a> light_zero_copy::traits::ZeroCopyAtMut<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
+            27 => {
+                // PausableAccount variant (marker extension, no data)
+                let (pausable_ext, remaining_bytes) =
+                    PausableAccountExtension::zero_copy_at_mut(remaining_data)?;
+                Ok((
+                    ZExtensionStructMut::PausableAccount(pausable_ext),
+                    remaining_bytes,
+                ))
+            }
             _ => Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion),
         }
     }
@@ -128,6 +144,10 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
             ExtensionStructConfig::Compressible(config) => {
                 // 1 byte for discriminant + CompressionInfo size
                 1 + CompressionInfo::byte_len(config)?
+            }
+            ExtensionStructConfig::PausableAccount(config) => {
+                // 1 byte for discriminant + 0 bytes for marker extension
+                1 + PausableAccountExtension::byte_len(config)?
             }
             _ => {
                 msg!("Invalid extension type returning");
@@ -175,6 +195,23 @@ impl<'a> light_zero_copy::ZeroCopyNew<'a> for ExtensionStruct {
                     remaining_bytes,
                 ))
             }
+            ExtensionStructConfig::PausableAccount(config) => {
+                // Write discriminant (27 for PausableAccount)
+                if bytes.is_empty() {
+                    return Err(light_zero_copy::errors::ZeroCopyError::ArraySize(
+                        1,
+                        bytes.len(),
+                    ));
+                }
+                bytes[0] = 27u8;
+
+                let (pausable_ext, remaining_bytes) =
+                    PausableAccountExtension::new_zero_copy(&mut bytes[1..], config)?;
+                Ok((
+                    ZExtensionStructMut::PausableAccount(pausable_ext),
+                    remaining_bytes,
+                ))
+            }
             _ => Err(light_zero_copy::errors::ZeroCopyError::InvalidConversion),
         }
     }
@@ -209,4 +246,5 @@ pub enum ExtensionStructConfig {
     Placeholder24,
     Placeholder25,
     Compressible(CompressionInfoConfig),
+    PausableAccount(PausableAccountExtensionConfig),
 }
