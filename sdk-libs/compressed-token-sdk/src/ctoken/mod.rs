@@ -5,7 +5,9 @@ mod create_ata;
 mod create_cmint;
 mod mint_to;
 mod transfer_ctoken;
+mod transfer_ctoken_spl;
 mod transfer_interface;
+mod transfer_spl_ctoken;
 
 pub use close::*;
 pub use compressible::{CompressibleParams, CompressibleParamsInfos};
@@ -22,7 +24,13 @@ pub use mint_to::*;
 use solana_account_info::AccountInfo;
 use solana_pubkey::{pubkey, Pubkey};
 pub use transfer_ctoken::*;
-pub use transfer_interface::*;
+pub use transfer_ctoken_spl::{
+    TransferCtokenToSpl, TransferCtokenToSplAccountInfos,
+};
+pub use transfer_interface::{SplBridgeConfig, TransferInterface};
+pub use transfer_spl_ctoken::{
+    TransferSplToCtoken, TransferSplToCtokenAccountInfos,
+};
 
 /// System account infos required for CPI operations to the Light Protocol.
 /// These accounts are always required when executing compressed token operations (not for CPI write mode).
