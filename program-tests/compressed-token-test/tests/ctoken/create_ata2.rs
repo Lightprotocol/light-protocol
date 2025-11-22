@@ -11,36 +11,47 @@ async fn create_and_assert_ata2(
     let payer_pubkey = context.payer.pubkey();
     let owner_pubkey = context.owner_keypair.pubkey();
 
-    let (ata_pubkey, _bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
+    let (ata_pubkey, bump) = derive_ctoken_ata(&owner_pubkey, &context.mint_pubkey);
 
     let create_ata_ix = if let Some(compressible) = compressible_data.as_ref() {
-        let create_fn = if idempotent {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account2_idempotent
-        } else {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account2
+        let compressible_params = CompressibleParams {
+            compressible_config: context.compressible_config,
+            rent_sponsor: compressible.rent_sponsor,
+            pre_pay_num_epochs: compressible.num_prepaid_epochs,
+            lamports_per_write: compressible.lamports_per_write,
+            compress_to_account_pubkey: None,
+            token_account_version: compressible.account_version,
         };
 
-        create_fn(
-            light_compressed_token_sdk::ctoken::create_associated_token_account::CreateCompressibleAssociatedTokenAccountInputs {
-                payer: payer_pubkey,
-                owner: owner_pubkey,
-                mint: context.mint_pubkey,
-                compressible_config: context.compressible_config,
-                rent_sponsor: compressible.rent_sponsor,
-                pre_pay_num_epochs: compressible.num_prepaid_epochs,
-                lamports_per_write: compressible.lamports_per_write,
-                token_account_version: compressible.account_version,
-            },
-        )
-        .unwrap()
+        let mut builder = CreateAssociatedTokenAccount::new(
+            payer_pubkey,
+            owner_pubkey,
+            context.mint_pubkey,
+            compressible_params,
+        );
+
+        if idempotent {
+            builder = builder.idempotent();
+        }
+
+        builder.instruction().unwrap()
     } else {
-        let create_fn = if idempotent {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account2_idempotent
-        } else {
-            light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account2
+        // Create non-compressible account
+        let mut builder = CreateAssociatedTokenAccount {
+            idempotent: false,
+            bump,
+            payer: payer_pubkey,
+            owner: owner_pubkey,
+            mint: context.mint_pubkey,
+            associated_token_account: ata_pubkey,
+            compressible: None,
         };
 
-        create_fn(payer_pubkey, owner_pubkey, context.mint_pubkey).unwrap()
+        if idempotent {
+            builder = builder.idempotent();
+        }
+
+        builder.instruction().unwrap()
     };
 
     context

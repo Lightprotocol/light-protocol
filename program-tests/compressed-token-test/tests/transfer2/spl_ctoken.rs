@@ -1,6 +1,21 @@
+use anchor_lang::prelude::{AccountMeta, ProgramError};
 // Re-export all necessary imports for test modules
 pub use anchor_spl::token_2022::spl_token_2022;
-pub use light_compressed_token_sdk::ctoken::create_associated_token_account::derive_ctoken_ata;
+pub use light_compressed_token_sdk::ctoken::{
+    derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount,
+};
+use light_compressed_token_sdk::{
+    compressed_token::{
+        transfer2::{
+            create_transfer2_instruction, Transfer2AccountsMetaConfig, Transfer2Config,
+            Transfer2Inputs,
+        },
+        CTokenAccount2,
+    },
+    token_pool::find_token_pool_pda_with_index,
+    ValidityProof,
+};
+use light_ctoken_types::instructions::transfer2::{Compression, MultiTokenTransferOutputData};
 pub use light_program_test::{LightProgramTest, ProgramTestConfig};
 pub use light_test_utils::{
     airdrop_lamports,
@@ -8,7 +23,8 @@ pub use light_test_utils::{
     Rpc, RpcError,
 };
 pub use light_token_client::actions::transfer2::{self};
-pub use solana_sdk::{signature::Keypair, signer::Signer};
+use solana_sdk::pubkey::Pubkey;
+pub use solana_sdk::{instruction::Instruction, signature::Keypair, signer::Signer};
 pub use spl_token_2022::pod::PodAccount;
 
 #[tokio::test]
@@ -52,11 +68,13 @@ async fn test_spl_to_ctoken_transfer() {
         .unwrap();
 
     // Create compressed token ATA for recipient
-    let instruction = light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
+    let instruction = CreateAssociatedTokenAccount::new(
         payer.pubkey(),
         recipient.pubkey(),
         mint,
+        CompressibleParams::default(),
     )
+    .instruction()
     .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e)))
     .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
@@ -188,11 +206,6 @@ async fn test_spl_to_ctoken_transfer() {
 
 #[tokio::test]
 async fn test_ctoken_to_spl_with_compress_and_close() {
-    use light_compressed_token_sdk::{
-        ctoken::transfer_interface::CtokenToSplTransferAndClose,
-        token_pool::find_token_pool_pda_with_index,
-    };
-
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new(true, None))
         .await
         .unwrap();
@@ -228,18 +241,23 @@ async fn test_ctoken_to_spl_with_compress_and_close() {
         .await
         .unwrap();
 
-    // Create compressed token ATA for recipient
-    let instruction = light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
-        payer.pubkey(),
-        recipient.pubkey(),
+    // Create non-compressible token ATA for recipient (required for CompressAndClose without rent_sponsor)
+    let (associated_token_account, bump) = derive_ctoken_ata(&recipient.pubkey(), &mint);
+    let instruction = CreateAssociatedTokenAccount {
+        idempotent: false,
+        bump,
+        payer: payer.pubkey(),
+        owner: recipient.pubkey(),
         mint,
-    )
+        associated_token_account,
+        compressible: None,
+    }
+    .instruction()
     .map_err(|e| RpcError::AssertRpcError(format!("Failed to create ATA instruction: {}", e)))
     .unwrap();
     rpc.create_and_send_transaction(&[instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
-    let associated_token_account = derive_ctoken_ata(&recipient.pubkey(), &mint).0;
 
     // Transfer SPL to CToken
     transfer2::spl_to_ctoken_transfer(
@@ -342,4 +360,83 @@ async fn test_ctoken_to_spl_with_compress_and_close() {
 
     println!("✓ Successfully completed CToken -> SPL transfer with CompressAndClose");
     println!("  This validates owner can use CompressAndClose without explicit compressed_token_account validation");
+}
+
+pub struct CtokenToSplTransferAndClose {
+    pub source_ctoken_account: Pubkey,
+    pub destination_spl_token_account: Pubkey,
+    pub amount: u64,
+    pub authority: Pubkey,
+    pub mint: Pubkey,
+    pub payer: Pubkey,
+    pub token_pool_pda: Pubkey,
+    pub token_pool_pda_bump: u8,
+    pub spl_token_program: Pubkey,
+}
+
+impl CtokenToSplTransferAndClose {
+    pub fn instruction(self) -> Result<Instruction, ProgramError> {
+        let packed_accounts = vec![
+            // Mint (index 0)
+            AccountMeta::new_readonly(self.mint, false),
+            // Source ctoken account (index 1) - writable
+            AccountMeta::new(self.source_ctoken_account, false),
+            // Destination SPL token account (index 2) - writable
+            AccountMeta::new(self.destination_spl_token_account, false),
+            // Authority (index 3) - signer
+            AccountMeta::new(self.authority, true),
+            // Token pool PDA (index 4) - writable
+            AccountMeta::new(self.token_pool_pda, false),
+            // SPL Token program (index 5) - needed for CPI
+            AccountMeta::new_readonly(self.spl_token_program, false),
+        ];
+
+        // First operation: compress from ctoken account to pool using compress_and_close
+        let compress_to_pool = CTokenAccount2 {
+            inputs: vec![],
+            output: MultiTokenTransferOutputData::default(),
+            compression: Some(Compression::compress_and_close_ctoken(
+                self.amount,
+                0, // mint index
+                1, // source ctoken account index
+                3, // authority index
+                0, // no rent sponsor
+                0, // no compressed account
+                3, // destination is authority
+            )),
+            delegate_is_set: false,
+            method_used: true,
+        };
+
+        // Second operation: decompress from pool to SPL token account using decompress_spl
+        let decompress_to_spl = CTokenAccount2 {
+            inputs: vec![],
+            output: MultiTokenTransferOutputData::default(),
+            compression: Some(Compression::decompress_spl(
+                self.amount,
+                0, // mint index
+                2, // destination SPL token account index
+                4, // pool_account_index
+                0, // pool_index (TODO: make dynamic)
+                self.token_pool_pda_bump,
+            )),
+            delegate_is_set: false,
+            method_used: true,
+        };
+
+        let inputs = Transfer2Inputs {
+            validity_proof: ValidityProof::new(None),
+            transfer_config: Transfer2Config::default().filter_zero_amount_outputs(),
+            meta_config: Transfer2AccountsMetaConfig::new_decompressed_accounts_only(
+                self.payer,
+                packed_accounts,
+            ),
+            in_lamports: None,
+            out_lamports: None,
+            token_accounts: vec![compress_to_pool, decompress_to_spl],
+            output_queue: 0, // Decompressed accounts only, no output queue needed
+        };
+
+        create_transfer2_instruction(inputs).map_err(ProgramError::from)
+    }
 }

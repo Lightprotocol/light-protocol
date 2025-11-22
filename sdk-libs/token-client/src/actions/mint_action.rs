@@ -101,7 +101,7 @@ pub async fn mint_action_comprehensive<R: Rpc + Indexer>(
     if !mint_to_decompressed_recipients.is_empty() {
         use light_compressed_token_sdk::{
             compressed_token::create_compressed_mint::find_spl_mint_address,
-            ctoken::create_associated_token_account::derive_ctoken_ata,
+            ctoken::derive_ctoken_ata,
         };
 
         let (spl_mint_pda, _) = find_spl_mint_address(&mint_seed.pubkey());

@@ -74,36 +74,38 @@ async fn setup_compress_and_close_test(
     // Create ATA accounts for each owner
     let mut token_account_pubkeys = Vec::with_capacity(num_ctoken_accounts);
 
-    use light_compressed_token_sdk::ctoken::create_associated_token_account::{
-        create_associated_token_account, create_compressible_associated_token_account,
-        derive_ctoken_ata, CreateCompressibleAssociatedTokenAccountInputs,
+    use light_compressed_token_sdk::ctoken::{
+        derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount,
     };
 
     for owner in &owners {
         let (token_account_pubkey, _) = derive_ctoken_ata(&owner.pubkey(), &mint_pubkey);
 
         // Create the ATA account with compressible extension if needed
-        let create_token_account_ix = if with_compressible_extension {
-            create_compressible_associated_token_account(
-                CreateCompressibleAssociatedTokenAccountInputs {
-                    payer: payer.pubkey(),
-                    mint: mint_pubkey,
-                    owner: owner.pubkey(),
-                    rent_sponsor,
-                    pre_pay_num_epochs,
-                    lamports_per_write: None,
-                    compressible_config: rpc
-                        .test_accounts
-                        .funding_pool_config
-                        .compressible_config_pda,
-                    token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-                },
-            )
-            .unwrap()
+        let compressible_params = if with_compressible_extension {
+            CompressibleParams {
+                compressible_config: rpc
+                    .test_accounts
+                    .funding_pool_config
+                    .compressible_config_pda,
+                rent_sponsor,
+                pre_pay_num_epochs,
+                lamports_per_write: None,
+                compress_to_account_pubkey: None,
+                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            }
         } else {
-            // Create regular ATA without compressible extension
-            create_associated_token_account(payer.pubkey(), owner.pubkey(), mint_pubkey).unwrap()
+            CompressibleParams::default()
         };
+
+        let create_token_account_ix = CreateAssociatedTokenAccount::new(
+            payer.pubkey(),
+            owner.pubkey(),
+            mint_pubkey,
+            compressible_params,
+        )
+        .instruction()
+        .unwrap();
 
         rpc.create_and_send_transaction(&[create_token_account_ix], &payer.pubkey(), &[&payer])
             .await

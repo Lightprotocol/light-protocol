@@ -4,10 +4,7 @@ use light_compressed_token_sdk::{
     compressed_token::create_compressed_mint::{
         derive_compressed_mint_address, find_spl_mint_address,
     },
-    ctoken::create_associated_token_account::{
-        create_associated_token_account, create_compressible_associated_token_account,
-        derive_ctoken_ata, CreateCompressibleAssociatedTokenAccountInputs,
-    },
+    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
 };
 use light_ctoken_types::{
     instructions::{
@@ -242,10 +239,19 @@ async fn test_create_compressed_mint() {
     let decompress_amount = 300u64;
 
     // 5. Decompress compressed tokens to ctokens
-    // Create compressed token associated token account for decompression
-    let (ctoken_ata_pubkey, _bump) = derive_ctoken_ata(&new_recipient, &spl_mint_pda);
-    let create_ata_instruction =
-        create_associated_token_account(payer.pubkey(), new_recipient, spl_mint_pda).unwrap();
+    // Create non-compressible token associated token account for decompression
+    let (ctoken_ata_pubkey, bump) = derive_ctoken_ata(&new_recipient, &spl_mint_pda);
+    let create_ata_instruction = CreateAssociatedTokenAccount {
+        idempotent: false,
+        bump,
+        payer: payer.pubkey(),
+        owner: new_recipient,
+        mint: spl_mint_pda,
+        associated_token_account: ctoken_ata_pubkey,
+        compressible: None,
+    }
+    .instruction()
+    .unwrap();
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await
         .unwrap();
@@ -428,13 +434,19 @@ async fn test_create_compressed_mint() {
     let (compress_source_ata, _) = derive_ctoken_ata(&new_recipient, &spl_mint_pda);
     // This already exists from our previous test
 
-    // Create SPL token account for decompression destination
-    let (decompress_dest_ata, _) = derive_ctoken_ata(&decompress_recipient.pubkey(), &spl_mint_pda);
-    let create_decompress_ata_instruction = create_associated_token_account(
-        payer.pubkey(),
-        decompress_recipient.pubkey(),
-        spl_mint_pda,
-    )
+    // Create non-compressible SPL token account for decompression destination
+    let (decompress_dest_ata, decompress_bump) =
+        derive_ctoken_ata(&decompress_recipient.pubkey(), &spl_mint_pda);
+    let create_decompress_ata_instruction = CreateAssociatedTokenAccount {
+        idempotent: false,
+        bump: decompress_bump,
+        payer: payer.pubkey(),
+        owner: decompress_recipient.pubkey(),
+        mint: spl_mint_pda,
+        associated_token_account: decompress_dest_ata,
+        compressible: None,
+    }
+    .instruction()
     .unwrap();
 
     rpc.create_and_send_transaction(
@@ -688,21 +700,25 @@ async fn test_ctoken_transfer() {
 
     // Create compressed token ATA for recipient
     let (recipient_ata, _) = derive_ctoken_ata(&recipient_keypair.pubkey(), &spl_mint_pda);
-    let create_ata_instruction = create_compressible_associated_token_account(
-        CreateCompressibleAssociatedTokenAccountInputs {
-            payer: payer.pubkey(),
-            owner: recipient_keypair.pubkey(),
-            mint: spl_mint_pda,
-            rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-            pre_pay_num_epochs: 10,
-            lamports_per_write: Some(1000),
-            compressible_config: rpc
-                .test_accounts
-                .funding_pool_config
-                .compressible_config_pda,
-            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-        },
+    let compressible_params = CompressibleParams {
+        compressible_config: rpc
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
+        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+        pre_pay_num_epochs: 10,
+        lamports_per_write: Some(1000),
+        compress_to_account_pubkey: None,
+        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+    };
+
+    let create_ata_instruction = CreateAssociatedTokenAccount::new(
+        payer.pubkey(),
+        recipient_keypair.pubkey(),
+        spl_mint_pda,
+        compressible_params,
     )
+    .instruction()
     .unwrap();
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[&payer])
         .await
@@ -754,18 +770,23 @@ async fn test_ctoken_transfer() {
 
     // === CREATE SECOND RECIPIENT FOR TRANSFER TEST ===
     let second_recipient_keypair = Keypair::new();
-    let (second_recipient_ata, _) =
+    let (second_recipient_ata, second_recipient_ata_bump) =
         derive_ctoken_ata(&second_recipient_keypair.pubkey(), &spl_mint_pda);
 
     rpc.airdrop_lamports(&second_recipient_keypair.pubkey(), 10_000_000_000)
         .await
         .unwrap();
 
-    let create_second_ata_instruction = create_associated_token_account(
-        payer.pubkey(),
-        second_recipient_keypair.pubkey(),
-        spl_mint_pda,
-    )
+    let create_second_ata_instruction = CreateAssociatedTokenAccount {
+        idempotent: false,
+        bump: second_recipient_ata_bump,
+        payer: payer.pubkey(),
+        owner: second_recipient_keypair.pubkey(),
+        mint: spl_mint_pda,
+        associated_token_account: second_recipient_ata,
+        compressible: None,
+    }
+    .instruction()
     .unwrap();
     rpc.create_and_send_transaction(&[create_second_ata_instruction], &payer.pubkey(), &[&payer])
         .await

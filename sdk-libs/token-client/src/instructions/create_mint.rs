@@ -2,8 +2,8 @@ use light_client::{
     indexer::Indexer,
     rpc::{Rpc, RpcError},
 };
-use light_compressed_token_sdk::compressed_token::create_compressed_mint::{
-    create_compressed_mint, derive_compressed_mint_address, CreateCompressedMintInputs,
+use light_compressed_token_sdk::ctoken::{
+    derive_compressed_mint_address, find_spl_mint_address, CreateCMint, CreateCMintParams,
 };
 use light_ctoken_types::instructions::extensions::{
     token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
@@ -61,21 +61,29 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
 
     let address_merkle_tree_root_index = rpc_result.addresses[0].root_index;
 
-    // Create instruction using the existing SDK function
-    let inputs = CreateCompressedMintInputs {
+    // Build params struct manually
+    let params = CreateCMintParams {
         decimals,
-        mint_authority,
-        freeze_authority,
-        proof: rpc_result.proof.0.unwrap(),
+        version: 3,
         address_merkle_tree_root_index,
-        mint_signer: mint_seed.pubkey(),
+        mint_authority,
+        proof: rpc_result.proof.0.unwrap(),
+        compression_address: compressed_mint_address,
+        mint: find_spl_mint_address(&mint_seed.pubkey()).0,
+        freeze_authority,
+        extensions,
+    };
+
+    // Create instruction builder
+    let builder = CreateCMint::new(
+        params,
+        mint_seed.pubkey(),
         payer,
         address_tree_pubkey,
         output_queue,
-        extensions,
-        version: 3,
-    };
+    );
 
-    create_compressed_mint(inputs)
+    builder
+        .instruction()
         .map_err(|e| RpcError::CustomError(format!("Token SDK error: {:?}", e)))
 }
