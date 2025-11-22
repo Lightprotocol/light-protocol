@@ -154,8 +154,11 @@ pub fn process_create_token_account(
     let accounts = CreateCTokenAccounts::parse(account_infos, &inputs)?;
 
     // Create account via cpi
-    let (compressible_config_account, custom_rent_payer, mint_has_pausable) =
-        if let Some(compressible) = accounts.compressible.as_ref() {
+    let (compressible_config_account, custom_rent_payer, mint_has_pausable) = if let Some(
+        compressible,
+    ) =
+        accounts.compressible.as_ref()
+    {
         let compressible_config = inputs
             .compressible_config
             .as_ref()

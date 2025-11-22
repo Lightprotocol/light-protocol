@@ -51,6 +51,13 @@ pub mod light_compressed_token {
     ) -> Result<()> {
         instructions::create_token_pool::assert_mint_extensions(
             &ctx.accounts.mint.to_account_info().try_borrow_data()?,
+        )?;
+        // Initialize the token account via CPI (Anchor's init constraint only allocated space)
+        instructions::create_token_pool::initialize_token_account(
+            &ctx.accounts.token_pool_pda,
+            &ctx.accounts.mint,
+            &ctx.accounts.cpi_authority_pda,
+            &ctx.accounts.token_program.to_account_info(),
         )
     }
 
@@ -68,6 +75,13 @@ pub mod light_compressed_token {
             &ctx.accounts.mint.key().to_bytes(),
             &ctx.accounts.existing_token_pool_pda.key(),
             &[token_pool_index.saturating_sub(1)],
+        )?;
+        // Initialize the token account via CPI (Anchor's init constraint only allocated space)
+        instructions::create_token_pool::initialize_token_account(
+            &ctx.accounts.token_pool_pda,
+            &ctx.accounts.mint,
+            &ctx.accounts.cpi_authority_pda,
+            &ctx.accounts.token_program.to_account_info(),
         )
     }
 
@@ -286,6 +300,8 @@ pub enum ErrorCode {
     #[msg("Cpi context set and set first is not usable with burn, compression(transfer ix) or decompress(transfer).")]
     CpiContextSetNotUsable,
     MintIsNone,
+    #[msg("Invalid mint account data")]
+    InvalidMint,
     InvalidMintPda,
     #[msg("Sum inputs mint indices not in ascending order.")]
     InputsOutOfOrder,
