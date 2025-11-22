@@ -67,7 +67,10 @@ pub fn generate_ctoken_seed_provider_implementation(
                     if let syn::Expr::Path(path_expr) = &**expr {
                         if let Some(ident) = path_expr.path.get_ident() {
                             let ident_str = ident.to_string();
-                            if ident_str.chars().all(|c| c.is_uppercase() || c == '_') {
+                            if ident_str
+                                .chars()
+                                .all(|c| c.is_uppercase() || c == '_' || c.is_ascii_digit())
+                            {
                                 if ident_str == "LIGHT_CPI_SIGNER" {
                                     token_seed_refs.push(quote! { #ident.cpi_signer.as_ref() });
                                 } else {

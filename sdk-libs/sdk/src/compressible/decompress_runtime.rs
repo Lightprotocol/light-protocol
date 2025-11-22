@@ -178,10 +178,10 @@ where
 
     // CHECK: pda match
     // Call the method with account context and seed params
+    // Note: Some implementations may use S::default() when seed_params is None for static seeds
     let (seeds_vec, derived_pda) = if let Some(params) = seed_params {
         data.derive_pda_seeds_with_accounts(program_id, seed_accounts, params)?
     } else {
-        // For implementations without seed params, create a default one
         let default_params = S::default();
         data.derive_pda_seeds_with_accounts(program_id, seed_accounts, &default_params)?
     };
@@ -245,16 +245,21 @@ where
         return Ok(());
     }
 
+    let system_accounts_offset_usize = system_accounts_offset as usize;
+    if system_accounts_offset_usize > remaining_accounts.len() {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
     let cpi_accounts = if has_tokens {
         CpiAccounts::new_with_config(
             ctx.fee_payer(),
-            &remaining_accounts[system_accounts_offset as usize..],
+            &remaining_accounts[system_accounts_offset_usize..],
             CpiAccountsConfig::new_with_cpi_context(cpi_signer),
         )
     } else {
         CpiAccounts::new(
             ctx.fee_payer(),
-            &remaining_accounts[system_accounts_offset as usize..],
+            &remaining_accounts[system_accounts_offset_usize..],
             cpi_signer,
         )
     };

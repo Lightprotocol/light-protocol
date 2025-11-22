@@ -55,7 +55,7 @@ pub fn generate_decompress_context_trait_impl(
                         &mut compressed_pda_infos,
                         &program_id,
                         self,  // Pass the context itself as seed_accounts
-                        std::option::Option::Some(seed_params_ref), // TODO: remove
+                        seed_params,
                     ) {
                         std::result::Result::Ok(()) => {},
                         std::result::Result::Err(e) => return std::result::Result::Err(e),
@@ -121,13 +121,6 @@ pub fn generate_decompress_context_trait_impl(
 
                 let mut compressed_pda_infos = Vec::with_capacity(compressed_accounts.len());
                 let mut compressed_token_accounts = Vec::with_capacity(compressed_accounts.len());
-
-                // TODO: remove
-                // Get seed_params or use default
-                let seed_params_ref = match seed_params {
-                    std::option::Option::Some(params) => params,
-                    std::option::Option::None => &SeedParams::default(),
-                };
 
                 for (i, compressed_data) in compressed_accounts.into_iter().enumerate() {
                     let meta = compressed_data.meta;

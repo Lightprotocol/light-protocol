@@ -36,7 +36,7 @@ light-compressible = { workspace = true, features = ["anchor"] }
 
 [dev-dependencies]
 light-token-client = { workspace = true }
-light-program-test = { workspace = true, features = ["devenv"] }
+light-program-test = { workspace = true, features = ["devenv", "v2"] }
 light-client = { workspace = true, features = ["v2"] }
 light-compressible-client = { workspace = true, features = ["anchor"] }
 light-test-utils = { workspace = true }

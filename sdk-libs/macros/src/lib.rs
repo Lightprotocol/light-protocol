@@ -149,34 +149,6 @@ pub fn light_discriminator(input: TokenStream) -> TokenStream {
     into_token_stream(discriminator(input))
 }
 
-// /// SHA256 variant of the LightDiscriminator derive macro.
-// ///
-// /// This derive macro provides the same discriminator functionality as LightDiscriminator
-// /// but is designed to be used with SHA256-based hashing for consistency.
-// ///
-// /// ## Example
-// ///
-// /// ```ignore
-// /// use light_sdk::sha::{LightHasher, LightDiscriminator};
-// ///
-// /// #[derive(LightHasher, LightDiscriminator)]
-// /// pub struct LargeGameState {
-// ///     pub field1: u64, pub field2: u64, pub field3: u64, pub field4: u64,
-// ///     pub field5: u64, pub field6: u64, pub field7: u64, pub field8: u64,
-// ///     pub field9: u64, pub field10: u64, pub field11: u64, pub field12: u64,
-// ///     pub field13: u64, pub field14: u64, pub field15: u64,
-// ///     pub owner: Pubkey,
-// ///     pub authority: Pubkey,
-// /// }
-// /// ```
-// #[proc_macro_derive(LightDiscriminatorSha)]
-// pub fn light_discriminator_sha(input: TokenStream) -> TokenStream {
-//     let input = parse_macro_input!(input as ItemStruct);
-//     discriminator_sha(input)
-//         .unwrap_or_else(|err| err.to_compile_error())
-//         .into()
-// }
-
 /// Makes the annotated struct hashable by implementing the following traits:
 ///
 /// - [`ToByteArray`](light_hasher::to_byte_array::ToByteArray), which makes the struct
@@ -370,30 +342,6 @@ pub fn add_compressible_instructions(args: TokenStream, input: TokenStream) -> T
     ))
 }
 
-// /// Adds native compressible instructions for the specified account types
-// ///
-// /// This macro generates thin wrapper processor functions that you dispatch manually.
-// ///
-// /// ## Usage
-// /// ```
-// /// #[add_native_compressible_instructions(MyPdaAccount, AnotherAccount)]
-// /// pub mod compression {}
-// /// ```
-// ///
-// /// This generates:
-// /// - Unified data structures (CompressedAccountVariant enum, etc.)
-// /// - Instruction data structs (CreateCompressionConfigData, etc.)
-// /// - Processor functions (create_compression_config, compress_my_pda_account, etc.)
-// ///
-// /// You then dispatch these in your process_instruction function.
-// #[proc_macro_attribute]
-// pub fn add_native_compressible_instructions(args: TokenStream, input: TokenStream) -> TokenStream {
-//     let input = syn::parse_macro_input!(input as syn::ItemMod);
-
-//     native_compressible::add_native_compressible_instructions(args.into(), input)
-//         .unwrap_or_else(|err| err.to_compile_error())
-//         .into()
-// }
 #[proc_macro_attribute]
 pub fn account(_: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);

@@ -53,9 +53,16 @@ where
         return Err(ProgramError::Custom(0));
     }
 
+    let system_accounts_offset_usize = system_accounts_offset as usize;
+    if system_accounts_offset_usize > remaining_accounts.len() {
+        return Err(ProgramError::from(
+            crate::error::LightSdkError::ConstraintViolation,
+        ));
+    }
+
     let cpi_accounts = CpiAccounts::new(
         ctx.fee_payer(),
-        &remaining_accounts[system_accounts_offset as usize..],
+        &remaining_accounts[system_accounts_offset_usize..],
         cpi_signer,
     );
 
