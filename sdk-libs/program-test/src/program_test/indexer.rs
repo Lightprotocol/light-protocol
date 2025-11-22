@@ -221,6 +221,18 @@ impl Indexer for LightProgramTest {
             .await?)
     }
 
+    async fn get_queue_info(
+        &self,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<light_client::indexer::QueueInfoResult>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_queue_info(config)
+            .await?)
+    }
+
     async fn get_subtrees(
         &self,
         merkle_tree_pubkey: [u8; 32],

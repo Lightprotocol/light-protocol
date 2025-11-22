@@ -27,8 +27,6 @@ solana-clock = { workspace = true }
 solana-signature = { workspace = true }
 solana-commitment-config = { workspace = true }
 solana-account = { workspace = true }
-solana-signer = { workspace = true }
-solana-epoch-info = { workspace = true }
 solana-keypair = { workspace = true }
 solana-compute-budget-interface = { workspace = true }
 solana-banks-client = { workspace = true, optional = true }
@@ -57,15 +55,12 @@ borsh = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 num-bigint = { workspace = true }
-num-traits = { workspace = true }
 base64 = { workspace = true }
 bs58 = { workspace = true }
 tokio = { workspace = true, features = ["rt", "time"] }
-bytemuck = { workspace = true }
 
 tracing = { workspace = true }
 lazy_static = { workspace = true }
 rand = { workspace = true }
 
 # Tests are in program-tests/client-test/tests/light-client.rs
-# [dev-dependencies]

@@ -29,6 +29,20 @@ pub struct ProofOfLeaf {
 pub type Address = [u8; 32];
 pub type Hash = [u8; 32];
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct QueueInfo {
+    pub tree: Pubkey,
+    pub queue: Pubkey,
+    pub queue_type: u8,
+    pub queue_size: u64,
+}
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct QueueInfoResult {
+    pub queues: Vec<QueueInfo>,
+    pub slot: u64,
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct QueueElementsResult {
     pub output_queue_elements: Option<Vec<MerkleProofWithContext>>,

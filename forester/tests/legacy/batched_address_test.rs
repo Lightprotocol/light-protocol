@@ -40,7 +40,6 @@ async fn test_address_batched() {
             "../target/deploy/create_address_test_program.so".to_string(),
         )],
         limit_ledger_size: None,
-        grpc_port: None,
     }))
     .await;
     let tree_params = InitAddressTreeAccountsInstructionData::test_default();

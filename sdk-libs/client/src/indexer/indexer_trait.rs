@@ -5,7 +5,7 @@ use super::{
     response::{Items, ItemsWithCursor, Response},
     types::{
         CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsResult,
-        SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
+        QueueInfoResult, SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
     },
     Address, AddressWithTree, BatchAddressUpdateIndexerResponse,
     GetCompressedAccountsByOwnerConfig, GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash,
@@ -200,6 +200,13 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         input_queue_limit: Option<u16>,
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<QueueElementsResult>, IndexerError>;
+
+    /// Returns information about all queues in the system.
+    /// Includes tree pubkey, queue pubkey, queue type, and queue size for each queue.
+    async fn get_queue_info(
+        &self,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<QueueInfoResult>, IndexerError>;
 
     async fn get_subtrees(
         &self,
