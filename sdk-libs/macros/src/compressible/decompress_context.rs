@@ -163,7 +163,7 @@ pub fn generate_decompress_context_trait_impl(
                 post_system_accounts: &[solana_account_info::AccountInfo<#lifetime>],
                 has_pdas: bool,
             ) -> std::result::Result<(), solana_program_error::ProgramError> {
-                light_compressed_token_sdk::decompress_runtime::process_decompress_tokens_runtime(
+                light_compressed_token_sdk::compressible::decompress_runtime::process_decompress_tokens_runtime(
                     self,
                     remaining_accounts,
                     fee_payer,
