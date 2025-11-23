@@ -58,7 +58,7 @@ export async function startIndexer(
       indexerPort.toString(),
       "--rpc-url",
       rpcUrl,
-      "--grpc-port",
+      "--grpc-url",
       grpcPort.toString(),
     ];
     if (photonDatabaseUrl) {

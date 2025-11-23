@@ -49,7 +49,7 @@ pub async fn spawn_validator(config: LightValidatorConfig) {
         }
 
         if let Some(grpc_port) = config.grpc_port {
-            path.push_str(&format!(" --grpc-port {}", grpc_port));
+            path.push_str(&format!(" --grpc-url {}", grpc_port));
         }
 
         println!("Starting validator with command: {}", path);
