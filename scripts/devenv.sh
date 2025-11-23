@@ -67,7 +67,7 @@ PATH="${LIGHT_PROTOCOL_TOPLEVEL}/.local/go/bin:${PATH}"
 PATH="${LIGHT_PROTOCOL_TOPLEVEL}/.local/npm-global/bin:${PATH}"
 
 # Remove the original Rust-related PATH entries
-PATH=$(echo "$PATH" | tr ':' '\n' | grep -vE "/.rustup/|/.cargo/" | tr '\n' ':' | sed 's/:$//')
+PATH=$(echo "$PATH" | tr ':' '\n' | grep -vE "/.rustup/|/.cargo/|/.local/share/solana/" | tr '\n' ':' | sed 's/:$//')
 
 # Define alias of `light` to use the CLI built from source (only if not in CI)
 if [ -z "${CI:-}" ]; then

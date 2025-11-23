@@ -16,12 +16,42 @@ where
     H: Hasher,
 {
     pub fn new(subtrees: [[u8; 32]; HEIGHT], next_index: usize) -> Self {
+        let root = Self::compute_root_from_subtrees(&subtrees, next_index);
         Self {
             subtrees,
             next_index,
-            root: [0u8; 32],
+            root,
             _hasher: PhantomData,
         }
+    }
+
+    pub fn new_with_root(subtrees: [[u8; 32]; HEIGHT], next_index: usize, root: [u8; 32]) -> Self {
+        Self {
+            subtrees,
+            next_index,
+            root,
+            _hasher: PhantomData,
+        }
+    }
+
+    pub fn compute_root_from_subtrees(
+        subtrees: &[[u8; 32]; HEIGHT],
+        next_index: usize,
+    ) -> [u8; 32] {
+        let mut current_index = next_index;
+        let mut current_hash = H::zero_bytes()[0];
+
+        for (subtree, zero_byte) in subtrees.iter().zip(H::zero_bytes().iter()) {
+            let (left, right) = if current_index % 2 == 0 {
+                (current_hash, *zero_byte)
+            } else {
+                (*subtree, current_hash)
+            };
+            current_hash = H::hashv(&[&left, &right]).unwrap();
+            current_index /= 2;
+        }
+
+        current_hash
     }
 
     pub fn new_empty() -> Self {

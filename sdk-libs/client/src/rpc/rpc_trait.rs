@@ -53,7 +53,7 @@ impl LightClientConfig {
     pub fn local() -> Self {
         Self {
             url: RpcUrl::Localnet.to_string(),
-            commitment_config: Some(CommitmentConfig::confirmed()),
+            commitment_config: Some(CommitmentConfig::processed()),
             photon_url: Some("http://127.0.0.1:8784".to_string()),
             api_key: None,
             fetch_active_tree: false,

@@ -103,10 +103,6 @@ func ProveCombined(ps *common.MerkleProofSystem, params *CombinedParameters) (*c
 	circuit := InitializeCombinedCircuit(ps.InclusionTreeHeight, ps.InclusionNumberOfCompressedAccounts, ps.NonInclusionTreeHeight, ps.NonInclusionNumberOfCompressedAccounts)
 
 	for i := 0; i < int(ps.InclusionNumberOfCompressedAccounts); i++ {
-		logging.Logger().Debug().Msgf("v1.ProveCombined: Inclusion[%d] Root=%v Leaf=%v PathIndex=%v",
-			i, params.InclusionParameters.Inputs[i].Root,
-			params.InclusionParameters.Inputs[i].Leaf,
-			params.InclusionParameters.Inputs[i].PathIndex)
 		circuit.Inclusion.Roots[i] = params.InclusionParameters.Inputs[i].Root
 		circuit.Inclusion.Leaves[i] = params.InclusionParameters.Inputs[i].Leaf
 		circuit.Inclusion.InPathIndices[i] = params.InclusionParameters.Inputs[i].PathIndex
@@ -117,14 +113,6 @@ func ProveCombined(ps *common.MerkleProofSystem, params *CombinedParameters) (*c
 	}
 
 	for i := 0; i < int(ps.NonInclusionNumberOfCompressedAccounts); i++ {
-		logging.Logger().Debug().Msgf("v1.ProveCombined: NonInclusion[%d] Root=%v Value=%v",
-			i, params.NonInclusionParameters.Inputs[i].Root,
-			params.NonInclusionParameters.Inputs[i].Value)
-		logging.Logger().Debug().Msgf("v1.ProveCombined: NonInclusion[%d] LeafLowerRangeValue=%v LeafHigherRangeValue=%v PathIndex=%v",
-			i, params.NonInclusionParameters.Inputs[i].LeafLowerRangeValue,
-			params.NonInclusionParameters.Inputs[i].LeafHigherRangeValue,
-			params.NonInclusionParameters.Inputs[i].PathIndex)
-
 		circuit.NonInclusion.Roots[i] = params.NonInclusionParameters.Inputs[i].Root
 		circuit.NonInclusion.Values[i] = params.NonInclusionParameters.Inputs[i].Value
 		circuit.NonInclusion.LeafLowerRangeValues[i] = params.NonInclusionParameters.Inputs[i].LeafLowerRangeValue

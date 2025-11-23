@@ -4,6 +4,7 @@
 
 pub mod account_zero_copy;
 pub mod address_merkle_tree_config;
+pub mod address_staging_tree;
 pub mod error;
 pub mod forester_epoch;
 pub mod instructions;
@@ -12,6 +13,9 @@ pub mod registry;
 pub mod rpc_pool;
 pub mod staging_tree;
 pub mod utils;
+
+#[cfg(test)]
+mod bench_circuit_inputs;
 
 /// Parsed merkle tree data extracted from account
 #[derive(Debug, Clone)]

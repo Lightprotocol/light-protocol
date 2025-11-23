@@ -103,10 +103,11 @@ fn create_tree_accounts(
     );
 
     trace!(
-        "{:?} Merkle Tree account found. Pubkey: {}. Queue pubkey: {}",
+        "{:?} Merkle Tree account found. Pubkey: {}. Queue pubkey: {}. Rolledover: {}",
         tree_type,
         pubkey,
-        tree_accounts.queue
+        tree_accounts.queue,
+        tree_accounts.is_rolledover
     );
     tree_accounts
 }

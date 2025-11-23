@@ -1,10 +1,12 @@
 use async_trait::async_trait;
 use solana_pubkey::Pubkey;
 
+use crate::indexer::QueueElementsResult;
+
 use super::{
     response::{Items, ItemsWithCursor, Response},
     types::{
-        CompressedAccount, CompressedTokenAccount, OwnerBalance, QueueElementsResult,
+        CompressedAccount, CompressedTokenAccount, OwnerBalance,
         QueueInfoResult, SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
     },
     Address, AddressWithTree, GetCompressedAccountsByOwnerConfig,
@@ -171,12 +173,9 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<ValidityProofWithContext>, IndexerError>;
 
-    /// Returns queue elements from the queue with the given merkle tree pubkey.
-    /// Can fetch from output queue (append), input queue (nullify), address queue, or combinations.
-    /// For input queues account compression program does not store queue elements in the
-    /// account data but only emits these in the public transaction event. The
-    /// indexer needs the queue elements to create batch update proofs.
+  
     /// Returns queue elements with deduplicated nodes for efficient staging tree construction.
+    /// Supports output queue, input queue, and address queue.
     async fn get_queue_elements(
         &mut self,
         merkle_tree_pubkey: [u8; 32],

@@ -4,12 +4,12 @@ use reqwest::Client;
 use serde::Deserialize;
 use tokio::time::sleep;
 use tracing::{debug, error, info, trace, warn};
-
 use crate::{
     constants::PROVE_PATH,
     errors::ProverClientError,
     proof::{
         compress_proof, deserialize_gnark_proof_json, proof_from_json_struct, ProofCompressed,
+        ProofCompressedWithTiming,
     },
     proof_types::{
         batch_address_append::{to_json, BatchAddressAppendInputs},
@@ -20,9 +20,12 @@ use crate::{
 
 const MAX_RETRIES: u32 = 10;
 const BASE_RETRY_DELAY_SECS: u64 = 1;
-const DEFAULT_POLLING_INTERVAL_SECS: u64 = 1;
+const DEFAULT_POLLING_INTERVAL_MS: u64 = 100;
 const DEFAULT_MAX_WAIT_TIME_SECS: u64 = 600;
 const DEFAULT_LOCAL_SERVER: &str = "http://localhost:3001";
+
+const INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS: u64 = 200;
+const INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS: u64 = 200;
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -31,6 +34,14 @@ pub enum ProofResponse {
         job_id: String,
         estimated_time: Option<String>,
     },
+}
+
+#[derive(Debug)]
+pub enum SubmitProofResult {
+    /// Job was queued, poll with this ID
+    Queued(String),
+    /// Proof was returned immediately (sync response)
+    Immediate(ProofCompressedWithTiming),
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,6 +63,7 @@ pub struct ProofClient {
     polling_interval: Duration,
     max_wait_time: Duration,
     api_key: Option<String>,
+    initial_poll_delay: Duration,
 }
 
 impl ProofClient {
@@ -59,9 +71,10 @@ impl ProofClient {
         Self {
             client: Client::new(),
             server_address: DEFAULT_LOCAL_SERVER.to_string(),
-            polling_interval: Duration::from_secs(DEFAULT_POLLING_INTERVAL_SECS),
+            polling_interval: Duration::from_millis(DEFAULT_POLLING_INTERVAL_MS),
             max_wait_time: Duration::from_secs(DEFAULT_MAX_WAIT_TIME_SECS),
             api_key: None,
+            initial_poll_delay: Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS),
         }
     }
 
@@ -72,19 +85,91 @@ impl ProofClient {
         max_wait_time: Duration,
         api_key: Option<String>,
     ) -> Self {
+        let initial_poll_delay = if api_key.is_some() {
+            Duration::from_millis(INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS)
+        } else {
+            Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS)
+        };
+
         Self {
             client: Client::new(),
             server_address,
             polling_interval,
             max_wait_time,
             api_key,
+            initial_poll_delay,
         }
+    }
+
+    #[allow(unused)]
+    pub fn with_full_config(
+        server_address: String,
+        polling_interval: Duration,
+        max_wait_time: Duration,
+        api_key: Option<String>,
+        initial_poll_delay: Duration,
+    ) -> Self {
+        Self {
+            client: Client::new(),
+            server_address,
+            polling_interval,
+            max_wait_time,
+            api_key,
+            initial_poll_delay,
+        }
+    }
+
+    pub async fn submit_proof_async(
+        &self,
+        inputs_json: String,
+        circuit_type: &str,
+    ) -> Result<SubmitProofResult, ProverClientError> {
+        debug!(
+            "Submitting async proof request for circuit type: {}",
+            circuit_type
+        );
+
+        let response = self.send_proof_request(&inputs_json).await?;
+        let status_code = response.status();
+        let response_text = response.text().await.map_err(|e| {
+            ProverClientError::ProverServerError(format!("Failed to read response body: {}", e))
+        })?;
+
+        self.log_response(status_code, &response_text);
+
+        match status_code {
+            reqwest::StatusCode::ACCEPTED => {
+                debug!("Received asynchronous job response");
+                let job_response = self.parse_job_response(&response_text)?;
+                match job_response {
+                    ProofResponse::Async { job_id, .. } => {
+                        info!("Proof job queued with ID: {}", job_id);
+                        Ok(SubmitProofResult::Queued(job_id))
+                    }
+                }
+            }
+            reqwest::StatusCode::OK => {
+                // Synchronous response - proof returned immediately
+                debug!("Received synchronous proof response");
+                let proof = self.parse_proof_from_json(&response_text)?;
+                Ok(SubmitProofResult::Immediate(proof))
+            }
+            _ => self
+                .handle_error_response::<SubmitProofResult>(&response_text),
+        }
+    }
+
+    pub async fn poll_proof_completion(
+        &self,
+        job_id: String,
+    ) -> Result<ProofCompressedWithTiming, ProverClientError> {
+        self.poll_for_result(&job_id, Duration::ZERO).await
     }
 
     pub async fn generate_proof(
         &self,
         inputs_json: String,
-    ) -> Result<ProofCompressed, ProverClientError> {
+    ) -> Result<ProofCompressedWithTiming, ProverClientError> {
         let start_time = Instant::now();
         let mut retries = 0;
 
@@ -132,7 +217,7 @@ impl ProofClient {
         &self,
         inputs_json: &str,
         elapsed: Duration,
-    ) -> Result<ProofCompressed, ProverClientError> {
+    ) -> Result<ProofCompressedWithTiming, ProverClientError> {
         let response = self.send_proof_request(inputs_json).await?;
         let status_code = response.status();
         let response_text = response.text().await.map_err(|e| {
@@ -173,7 +258,8 @@ impl ProofClient {
 
     fn log_response(&self, status_code: reqwest::StatusCode, response_text: &str) {
         if !status_code.is_success() {
-            error!("HTTP error: status={}, body={}", status_code, response_text);
+            error!("HTTP error: status={}, body={}, url={}", status_code, response_text,
+                   self.server_address);
         }
     }
 
@@ -182,7 +268,7 @@ impl ProofClient {
         status_code: reqwest::StatusCode,
         response_text: &str,
         start_elapsed: Duration,
-    ) -> Result<ProofCompressed, ProverClientError> {
+    ) -> Result<ProofCompressedWithTiming, ProverClientError> {
         match status_code {
             reqwest::StatusCode::OK => self.parse_proof_from_json(response_text),
             reqwest::StatusCode::ACCEPTED => {
@@ -204,7 +290,7 @@ impl ProofClient {
         &self,
         job_response: ProofResponse,
         start_elapsed: Duration,
-    ) -> Result<ProofCompressed, ProverClientError> {
+    ) -> Result<ProofCompressedWithTiming, ProverClientError> {
         match job_response {
             ProofResponse::Async { job_id, .. } => {
                 info!("Proof job queued with ID: {}", job_id);
@@ -213,10 +299,10 @@ impl ProofClient {
         }
     }
 
-    fn handle_error_response(
+    fn handle_error_response<T>(
         &self,
         response_text: &str,
-    ) -> Result<ProofCompressed, ProverClientError> {
+    ) -> Result<T, ProverClientError> {
         if let Ok(error_response) = serde_json::from_str::<ErrorResponse>(response_text) {
             error!(
                 "Prover server error: {} - {}",
@@ -237,6 +323,13 @@ impl ProofClient {
 
     fn should_retry(&self, error: &ProverClientError, retries: u32, elapsed: Duration) -> bool {
         let error_str = error.to_string();
+
+        let is_constraint_error =
+            error_str.contains("constraint") || error_str.contains("is not satisfied");
+        if is_constraint_error {
+            return false;
+        }
+
 
         let is_constraint_error =
             error_str.contains("constraint") || error_str.contains("is not satisfied");
@@ -265,14 +358,36 @@ impl ProofClient {
         &self,
         job_id: &str,
         start_elapsed: Duration,
-    ) -> Result<ProofCompressed, ProverClientError> {
+    ) -> Result<ProofCompressedWithTiming, ProverClientError> {
         let poll_start_time = Instant::now();
         let status_url = format!("{}/prove/status?job_id={}", self.server_address, job_id);
 
         info!("Starting to poll for job {} at URL: {}", job_id, status_url);
 
+        debug!(
+            "Waiting {:?} before first poll to allow prover to persist job {}",
+            self.initial_poll_delay, job_id
+        );
+        sleep(self.initial_poll_delay).await;
+
         let mut poll_count = 0;
         let mut transient_error_count = 0;
+
+        if poll_count > 1 {
+            let wasted_polls = poll_count - 1;
+            let suggested_delay_ms = self.initial_poll_delay.as_millis() as u64
+                + (wasted_polls as u64 * self.polling_interval.as_millis() as u64);
+
+            warn!(
+                "Job {} required {} polls (wasted {} polls before completion). \
+                  Consider increasing initial_poll_delay from {}ms to ~{}ms for better efficiency.",
+                job_id,
+                poll_count,
+                wasted_polls,
+                self.initial_poll_delay.as_millis(),
+                suggested_delay_ms
+            );
+        }
 
         loop {
             poll_count += 1;
@@ -422,7 +537,7 @@ impl ProofClient {
         job_id: &str,
         elapsed: Duration,
         poll_count: u32,
-    ) -> Result<Option<ProofCompressed>, ProverClientError> {
+    ) -> Result<Option<ProofCompressedWithTiming>, ProverClientError> {
         trace!(
             "Poll #{} for job {}: status='{}', message='{}'",
             poll_count,
@@ -460,7 +575,7 @@ impl ProofClient {
                     status_response.status,
                     elapsed,
                     poll_count,
-                    self.polling_interval
+                    self.polling_interval                    
                 );
                 Ok(None)
             }
@@ -478,9 +593,10 @@ impl ProofClient {
         &self,
         result: Option<serde_json::Value>,
         job_id: &str,
-    ) -> Result<ProofCompressed, ProverClientError> {
+    ) -> Result<ProofCompressedWithTiming, ProverClientError> {
         match result {
             Some(result) => {
+                trace!("Job {} has result, parsing proof JSON", job_id);
                 trace!("Job {} has result, parsing proof JSON", job_id);
                 let proof_json = serde_json::to_string(&result).map_err(|e| {
                     error!("Failed to serialize result for job {}: {}", job_id, e);
@@ -506,25 +622,63 @@ impl ProofClient {
         error_str.contains("503") || error_str.contains("502") || error_str.contains("500")
     }
 
-    fn parse_proof_from_json(&self, json_str: &str) -> Result<ProofCompressed, ProverClientError> {
-        let proof_json = deserialize_gnark_proof_json(json_str).map_err(|e| {
+    fn parse_proof_from_json(
+        &self,
+        json_str: &str,
+    ) -> Result<ProofCompressedWithTiming, ProverClientError> {
+        // Try parsing as ProofWithTiming format (new format with timing)
+        #[derive(Deserialize)]
+        struct ProofWithTimingJson {
+            proof: serde_json::Value,
+            proof_duration_ms: u64,
+        }
+
+        let (proof_json_value, proof_duration_ms) =
+            if let Ok(proof_with_timing) = serde_json::from_str::<ProofWithTimingJson>(json_str) {
+                (proof_with_timing.proof, proof_with_timing.proof_duration_ms)
+            } else {
+                // Fall back to plain proof format (old format without timing)
+                let proof_value: serde_json::Value = serde_json::from_str(json_str).map_err(|e| {
+                    ProverClientError::ProverServerError(format!(
+                        "Failed to parse proof JSON: {}",
+                        e
+                    ))
+                })?;
+                (proof_value, 0)
+            };
+
+        // Check if proof is null - this indicates the prover failed to generate a proof
+        if proof_json_value.is_null() {
+            return Err(ProverClientError::ProverServerError(
+                "Prover returned null proof - proof generation failed on server side".to_string(),
+            ));
+        }
+
+        let proof_json_str = serde_json::to_string(&proof_json_value).map_err(|e| {
+            ProverClientError::ProverServerError(format!("Failed to serialize proof JSON: {}", e))
+        })?;
+
+        let proof_json = deserialize_gnark_proof_json(&proof_json_str).map_err(|e| {
             ProverClientError::ProverServerError(format!("Failed to deserialize proof JSON: {}", e))
         })?;
 
         let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
         let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
 
-        Ok(ProofCompressed {
-            a: proof_a,
-            b: proof_b,
-            c: proof_c,
+        Ok(ProofCompressedWithTiming {
+            proof: ProofCompressed {
+                a: proof_a,
+                b: proof_b,
+                c: proof_c,
+            },
+            proof_duration_ms,
         })
     }
 
     pub async fn generate_batch_address_append_proof(
         &self,
         inputs: BatchAddressAppendInputs,
-    ) -> Result<(ProofCompressed, [u8; 32]), ProverClientError> {
+    ) -> Result<(ProofCompressedWithTiming, [u8; 32]), ProverClientError> {
         let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(&inputs.new_root)?;
         let inputs_json = to_json(&inputs);
         let proof = self.generate_proof(inputs_json).await?;
@@ -534,7 +688,7 @@ impl ProofClient {
     pub async fn generate_batch_append_proof(
         &self,
         circuit_inputs: BatchAppendsCircuitInputs,
-    ) -> Result<(ProofCompressed, [u8; 32]), ProverClientError> {
+    ) -> Result<(ProofCompressedWithTiming, [u8; 32]), ProverClientError> {
         let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(
             &circuit_inputs.new_root.to_biguint().unwrap(),
         )?;
@@ -546,7 +700,7 @@ impl ProofClient {
     pub async fn generate_batch_update_proof(
         &self,
         circuit_inputs: BatchUpdateCircuitInputs,
-    ) -> Result<(ProofCompressed, [u8; 32]), ProverClientError> {
+    ) -> Result<(ProofCompressedWithTiming, [u8; 32]), ProverClientError> {
         let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(
             &circuit_inputs.new_root.to_biguint().unwrap(),
         )?;

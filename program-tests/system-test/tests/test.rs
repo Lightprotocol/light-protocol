@@ -2,7 +2,11 @@
 
 use account_compression::errors::AccountCompressionErrorCode;
 use anchor_lang::{AnchorSerialize, InstructionData, ToAccountMetas};
-use light_batched_merkle_tree::{errors::BatchedMerkleTreeError, queue::BatchedQueueAccount};
+use light_batched_merkle_tree::{
+    errors::BatchedMerkleTreeError,
+    initialize_address_tree::InitAddressTreeAccountsInstructionData,
+    initialize_state_tree::InitStateTreeAccountsInstructionData, queue::BatchedQueueAccount,
+};
 use light_client::indexer::{AddressWithTree, Indexer};
 use light_compressed_account::{
     address::{derive_address, derive_address_legacy},
@@ -1644,7 +1648,7 @@ async fn test_with_compression() {
 // #[serial]
 #[tokio::test]
 async fn regenerate_accounts() {
-    let output_dir = "../../cli/accounts/";
+    let output_dir = "../../cli/mainnet_accounts/";
 
     let protocol_config = ProtocolConfig {
         genesis_slot: 0,
@@ -1656,6 +1660,11 @@ async fn regenerate_accounts() {
     };
     let mut config = ProgramTestConfig::default_with_batched_trees(false);
     config.protocol_config = protocol_config;
+
+    // Use testnet/devnet/mainnet tree configs (batch_size=15000, zkp_batch_size=500/250)
+    config.v2_state_tree_config = Some(InitStateTreeAccountsInstructionData::default());
+    config.v2_address_tree_config = Some(InitAddressTreeAccountsInstructionData::default());
+
     let mut rpc = LightProgramTest::new(config).await.unwrap();
     let env = rpc.test_accounts.clone();
     let keypairs = for_regenerate_accounts();

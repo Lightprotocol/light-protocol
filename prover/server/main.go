@@ -9,7 +9,7 @@ import (
 	"light/light-prover/logging"
 	"light/light-prover/prover/common"
 	v1 "light/light-prover/prover/v1"
-	"light/light-prover/prover/v2"
+	v2 "light/light-prover/prover/v2"
 	"light/light-prover/server"
 	"os"
 	"os/signal"
@@ -600,7 +600,7 @@ func runCli() {
 					&cli.BoolFlag{
 						Name:  "auto-download",
 						Usage: "Automatically download missing key files",
-						Value: true,
+						Value: false,
 					},
 					&cli.StringFlag{
 						Name:  "download-url",
@@ -640,33 +640,37 @@ func runCli() {
 						Str("keys_dir", keysDirPath).
 						Msg("Initializing lazy key manager")
 
-					if preloadKeys == "all" {
-						logging.Logger().Info().Msg("Preloading all keys")
-						if err := keyManager.PreloadAll(); err != nil {
-							return fmt.Errorf("failed to preload all keys: %w", err)
+					// Preload keys asynchronously to allow health checks to pass during startup
+					preloadAsync := func() {
+						if preloadKeys == "all" {
+							logging.Logger().Info().Msg("Preloading all keys (async)")
+							if err := keyManager.PreloadAll(); err != nil {
+								logging.Logger().Error().Err(err).Msg("Failed to preload all keys")
+							}
+						} else if preloadKeys != "none" {
+							preloadRunMode, err := parseRunMode(preloadKeys)
+							if err != nil {
+								logging.Logger().Error().Err(err).Str("value", preloadKeys).Msg("Invalid --preload-keys value")
+							} else {
+								logging.Logger().Info().Str("run_mode", string(preloadRunMode)).Msg("Preloading keys for run mode (async)")
+								if err := keyManager.PreloadForRunMode(preloadRunMode); err != nil {
+									logging.Logger().Error().Err(err).Msg("Failed to preload keys for run mode")
+								}
+							}
 						}
-					} else if preloadKeys != "none" {
-						preloadRunMode, err := parseRunMode(preloadKeys)
-						if err != nil {
-							return fmt.Errorf("invalid --preload-keys value: %s (must be none, all, or a valid run mode: rpc, forester, forester-test, full, full-test, local-rpc)", preloadKeys)
-						}
-						logging.Logger().Info().Str("run_mode", string(preloadRunMode)).Msg("Preloading keys for run mode")
-						if err := keyManager.PreloadForRunMode(preloadRunMode); err != nil {
-							return fmt.Errorf("failed to preload keys for run mode: %w", err)
-						}
-					}
 
-					if len(preloadCircuits) > 0 {
-						logging.Logger().Info().Strs("circuits", preloadCircuits).Msg("Preloading specific circuits")
-						if err := keyManager.PreloadCircuits(preloadCircuits); err != nil {
-							return fmt.Errorf("failed to preload circuits: %w", err)
+						if len(preloadCircuits) > 0 {
+							logging.Logger().Info().Strs("circuits", preloadCircuits).Msg("Preloading specific circuits (async)")
+							if err := keyManager.PreloadCircuits(preloadCircuits); err != nil {
+								logging.Logger().Error().Err(err).Msg("Failed to preload circuits")
+							}
 						}
-					}
 
-					stats := keyManager.GetStats()
-					logging.Logger().Info().
-						Interface("stats", stats).
-						Msg("Key manager initialized")
+						stats := keyManager.GetStats()
+						logging.Logger().Info().
+							Interface("stats", stats).
+							Msg("Key preloading completed")
+					}
 
 					redisURL := context.String("redis-url")
 					if redisURL == "" {
@@ -715,20 +719,38 @@ func runCli() {
 
 						logging.Logger().Info().Msg("Starting queue workers")
 
-						updateWorker := server.NewUpdateQueueWorker(redisQueue, keyManager)
-						workers = append(workers, updateWorker)
-						go updateWorker.Start()
+						enabledCircuits := context.StringSlice("circuit")
+						enabledCircuitsMap := make(map[string]bool)
+						for _, c := range enabledCircuits {
+							enabledCircuitsMap[c] = true
+						}
 
-						appendWorker := server.NewAppendQueueWorker(redisQueue, keyManager)
-						workers = append(workers, appendWorker)
-						go appendWorker.Start()
+						startAll := len(enabledCircuits) == 0
+						var workersStarted []string
 
-						addressAppendWorker := server.NewAddressAppendQueueWorker(redisQueue, keyManager)
-						workers = append(workers, addressAppendWorker)
-						go addressAppendWorker.Start()
+						if startAll || enabledCircuitsMap["update"] || enabledCircuitsMap["update-test"] {
+							updateWorker := server.NewUpdateQueueWorker(redisQueue, keyManager)
+							workers = append(workers, updateWorker)
+							go updateWorker.Start()
+							workersStarted = append(workersStarted, "update")
+						}
+
+						if startAll || enabledCircuitsMap["append"] || enabledCircuitsMap["append-test"] {
+							appendWorker := server.NewAppendQueueWorker(redisQueue, keyManager)
+							workers = append(workers, appendWorker)
+							go appendWorker.Start()
+							workersStarted = append(workersStarted, "append")
+						}
+
+						if startAll || enabledCircuitsMap["address-append"] || enabledCircuitsMap["address-append-test"] {
+							addressAppendWorker := server.NewAddressAppendQueueWorker(redisQueue, keyManager)
+							workers = append(workers, addressAppendWorker)
+							go addressAppendWorker.Start()
+							workersStarted = append(workersStarted, "address-append")
+						}
 
 						logging.Logger().Info().
-							Strs("workers_started", []string{"update", "append", "address-append"}).
+							Strs("workers_started", workersStarted).
 							Msg("Queue workers started")
 					}
 
@@ -756,6 +778,8 @@ func runCli() {
 					if !enableServer && !enableQueue {
 						return fmt.Errorf("at least one of server or queue mode must be enabled")
 					}
+
+					go preloadAsync()
 
 					sigint := make(chan os.Signal, 1)
 					signal.Notify(sigint, os.Interrupt)

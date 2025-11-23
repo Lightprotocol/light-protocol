@@ -229,17 +229,18 @@ pub struct StartArgs {
     pub processor_mode: ProcessorMode,
 
     #[arg(
-        long,
-        env = "FORESTER_TREE_ID",
-        help = "Process only the specified tree (Pubkey). If specified, forester will process only this tree and ignore all others"
+        long = "tree-id",
+        env = "FORESTER_TREE_IDS",
+        help = "Process only the specified trees (Pubkeys). Can be specified multiple times. If specified, forester will process only these trees and ignore all others",
+        value_delimiter = ','
     )]
-    pub tree_id: Option<String>,
+    pub tree_ids: Vec<String>,
 
     #[arg(
         long,
         env = "FORESTER_ENABLE_COMPRESSIBLE",
         help = "Enable compressible account tracking and compression using ws_rpc_url",
-        default_value = "false"
+        default_value = "true"
     )]
     pub enable_compressible: bool,
 }

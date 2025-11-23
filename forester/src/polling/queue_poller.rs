@@ -33,7 +33,7 @@ pub struct QueueUpdateMessage {
 
 pub struct QueueInfoPoller {
     indexer: PhotonIndexer,
-    tree_notifiers: HashMap<Pubkey, mpsc::Sender<QueueUpdateMessage>>,
+    tree_notifiers: HashMap<Pubkey, Vec<mpsc::Sender<QueueUpdateMessage>>>,
     polling_active: Arc<AtomicBool>,
 }
 
@@ -42,8 +42,6 @@ impl Actor for QueueInfoPoller {
     type Error = anyhow::Error;
 
     async fn on_start(state: Self::Args, actor_ref: ActorRef<Self>) -> Result<Self> {
-        info!("QueueInfoPoller actor starting");
-
         let polling_active = state.polling_active.clone();
         tokio::spawn(async move {
             polling_loop(actor_ref, polling_active).await;
@@ -57,8 +55,6 @@ impl Actor for QueueInfoPoller {
         _actor_ref: WeakActorRef<Self>,
         _reason: ActorStopReason,
     ) -> Result<()> {
-        info!("QueueInfoPoller actor stopping");
-        // Use Release ordering to synchronize with Acquire loads in polling_loop
         self.polling_active.store(false, Ordering::Release);
         Ok(())
     }
@@ -66,7 +62,7 @@ impl Actor for QueueInfoPoller {
 
 impl QueueInfoPoller {
     pub fn new(indexer_url: String, api_key: Option<String>) -> Self {
-        let indexer = PhotonIndexer::new(format!("{}/v1", indexer_url), api_key);
+        let indexer = PhotonIndexer::new(indexer_url, api_key);
 
         Self {
             indexer,
@@ -81,7 +77,7 @@ impl QueueInfoPoller {
                 let result = response.value;
                 let slot = result.slot;
 
-                let queue_infos = result
+                let queue_infos: Vec<QueueInfo> = result
                     .queues
                     .into_iter()
                     .map(|queue| QueueInfo {
@@ -93,6 +89,16 @@ impl QueueInfoPoller {
                     })
                     .collect();
 
+                debug!(
+                    "Indexer returned {} queues at slot {} (trees: {:?})",
+                    queue_infos.len(),
+                    slot,
+                    queue_infos
+                        .iter()
+                        .map(|q| format!("{}:{}", q.tree, q.queue_size))
+                        .collect::<Vec<_>>()
+                );
+
                 Ok(queue_infos)
             }
             Err(e) => {
@@ -102,9 +108,14 @@ impl QueueInfoPoller {
         }
     }
 
-    fn distribute_updates(&self, queue_infos: Vec<QueueInfo>) {
+    fn distribute_updates(&mut self, queue_infos: Vec<QueueInfo>) {
+        let registered_trees: Vec<Pubkey> = self.tree_notifiers.keys().cloned().collect();
+        let mut matched_count = 0;
+        let mut unmatched_trees = Vec::new();
+
         for info in queue_infos {
-            if let Some(tx) = self.tree_notifiers.get(&info.tree) {
+            if let Some(senders) = self.tree_notifiers.get_mut(&info.tree) {
+                matched_count += 1;
                 let message = QueueUpdateMessage {
                     tree: info.tree,
                     queue: info.queue,
@@ -113,26 +124,54 @@ impl QueueInfoPoller {
                     slot: info.slot,
                 };
 
-                match tx.try_send(message.clone()) {
-                    Ok(()) => {
-                        trace!(
-                            "Routed update to tree {}: {} items (type: {:?})",
-                            info.tree,
-                            message.queue_size,
-                            info.queue_type
-                        );
-                    }
-                    Err(mpsc::error::TrySendError::Full(_)) => {
-                        debug!(
-                            "Tree {} channel full, dropping update (tree processing slower than updates)",
-                            info.tree
-                        );
-                    }
-                    Err(mpsc::error::TrySendError::Closed(_)) => {
-                        trace!("Tree {} channel closed (task likely finished)", info.tree);
+                // Track which senders to remove (closed channels)
+                let mut closed_indices = Vec::new();
+
+                for (idx, tx) in senders.iter().enumerate() {
+                    match tx.try_send(message.clone()) {
+                        Ok(()) => {
+                            debug!(
+                                "Routed update to tree {}: {} items (type: {:?})",
+                                info.tree,
+                                message.queue_size,
+                                info.queue_type
+                            );
+                        }
+                        Err(mpsc::error::TrySendError::Full(_)) => {
+                            debug!(
+                                "Tree {} channel full, dropping update",
+                                info.tree
+                            );
+                        }
+                        Err(mpsc::error::TrySendError::Closed(_)) => {
+                            trace!("Tree {} channel {} closed", info.tree, idx);
+                            closed_indices.push(idx);
+                        }
                     }
                 }
+
+                for idx in closed_indices.into_iter().rev() {
+                    senders.swap_remove(idx);
+                }
+            } else {
+                unmatched_trees.push((info.tree, info.queue_size));
             }
+        }
+
+        if !unmatched_trees.is_empty() {
+            debug!(
+                "Indexer returned {} trees not registered with poller: {:?}. Registered trees: {:?}",
+                unmatched_trees.len(),
+                unmatched_trees,
+                registered_trees
+            );
+        }
+
+        if matched_count == 0 && !registered_trees.is_empty() {
+            warn!(
+                "No queue updates matched registered trees! Registered: {:?}",
+                registered_trees
+            );
         }
     }
 }
@@ -159,16 +198,18 @@ impl Message<RegisterTree> for QueueInfoPoller {
         msg: RegisterTree,
         _ctx: &mut kameo::message::Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let (tx, rx) = mpsc::channel(100);
+        let (tx, rx) = mpsc::channel(1000);
 
-        // Check if there's already a sender registered for this tree
-        if let Some(old_sender) = self.tree_notifiers.insert(msg.tree_pubkey, tx) {
-            warn!(
-                "Double registration detected for tree {}. Replacing existing sender (previous receiver will be closed).",
-                msg.tree_pubkey
+        let senders = self.tree_notifiers.entry(msg.tree_pubkey).or_default();
+        let sender_count = senders.len();
+        senders.push(tx);
+
+        if sender_count > 0 {
+            debug!(
+                "Added concurrent registration for tree {} (now {} receivers)",
+                msg.tree_pubkey,
+                sender_count + 1
             );
-            // The old sender is dropped here, which will close the old receiver
-            drop(old_sender);
         } else {
             debug!("Registered tree {} for queue updates", msg.tree_pubkey);
         }
@@ -190,14 +231,16 @@ impl Message<UnregisterTree> for QueueInfoPoller {
         msg: UnregisterTree,
         _ctx: &mut kameo::message::Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        // Check if the tree was actually registered before removing
-        if let Some(sender) = self.tree_notifiers.remove(&msg.tree_pubkey) {
-            debug!("Unregistered tree {}", msg.tree_pubkey);
-            // Drop the sender to close the receiver
-            drop(sender);
+        if let Some(senders) = self.tree_notifiers.remove(&msg.tree_pubkey) {
+            debug!(
+                "Unregistered tree {} ({} senders removed)",
+                msg.tree_pubkey,
+                senders.len()
+            );
+            drop(senders);
         } else {
             warn!(
-                "Attempted to unregister non-existent tree {}. This may indicate a mismatch between receiver drops and explicit unregistration.",
+                "Attempted to unregister non-existent tree {}",
                 msg.tree_pubkey
             );
         }
@@ -215,7 +258,10 @@ impl Message<RegisteredTreeCount> for QueueInfoPoller {
         _msg: RegisteredTreeCount,
         _ctx: &mut kameo::message::Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        self.tree_notifiers.len()
+        self.tree_notifiers
+            .values()
+            .filter(|senders| !senders.is_empty())
+            .count()
     }
 }
 
@@ -230,13 +276,26 @@ impl Message<PollNow> for QueueInfoPoller {
         _msg: PollNow,
         _ctx: &mut kameo::message::Context<Self, Self::Reply>,
     ) -> Self::Reply {
+        self.tree_notifiers.retain(|_, senders| !senders.is_empty());
+
         if self.tree_notifiers.is_empty() {
-            debug!("No trees registered; skipping queue info poll");
             return;
         }
 
+        let num_registered = self.tree_notifiers.len();
+        debug!(
+            "Polling queue info for {} registered trees",
+            num_registered
+        );
+
         match self.poll_queue_info().await {
             Ok(queue_infos) => {
+                if queue_infos.is_empty() {
+                    debug!(
+                        "Indexer returned empty queue list (0 queues) for {} registered trees",
+                        num_registered
+                    );
+                }
                 self.distribute_updates(queue_infos);
             }
             Err(e) => {
@@ -247,23 +306,11 @@ impl Message<PollNow> for QueueInfoPoller {
 }
 
 async fn polling_loop(actor_ref: ActorRef<QueueInfoPoller>, polling_active: Arc<AtomicBool>) {
-    info!("Starting queue info polling loop (1 second interval)");
-
     let mut interval = tokio::time::interval(Duration::from_secs(POLLING_INTERVAL_SECS));
     interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
     loop {
-        // Check if polling should continue
         if !polling_active.load(Ordering::Acquire) {
-            info!("Polling loop shutting down (polling_active=false)");
-            break;
-        }
-
-        interval.tick().await;
-
-        // Check again after the tick in case shutdown was signaled during sleep
-        if !polling_active.load(Ordering::Acquire) {
-            info!("Polling loop shutting down (polling_active=false)");
             break;
         }
 
@@ -278,7 +325,11 @@ async fn polling_loop(actor_ref: ActorRef<QueueInfoPoller>, polling_active: Arc<
                 break;
             }
         }
-    }
 
-    info!("Polling loop stopped");
+        interval.tick().await;
+
+        if !polling_active.load(Ordering::Acquire) {
+            break;
+        }
+    }
 }

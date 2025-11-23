@@ -218,7 +218,6 @@ pub async fn run_pipeline<R: Rpc>(
         config.transaction_config.ops_cache_ttl_seconds,
     )));
 
-    // Start compressible subscriber if enabled and get tracker
     let compressible_tracker = if let Some(compressible_config) = &config.compressible_config {
         if let Some(shutdown_rx) = shutdown_compressible {
             let tracker = Arc::new(compressible::CompressibleAccountTracker::new());

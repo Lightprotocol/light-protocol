@@ -13,11 +13,12 @@ solana-account-decoder = { workspace = true }
 solana-program = { workspace = true }
 account-compression = { workspace = true }
 light-account-checks = { workspace = true }
-light-batched-merkle-tree = { workspace = true }
+light-batched-merkle-tree = { workspace = true, default-features = false }
 light-compressed-account = { workspace = true, features = ["std"] }
 light-system-program-anchor = { workspace = true, features = ["cpi"] }
 light-hash-set = { workspace = true, features = ["solana"] }
 light-hasher = { workspace = true, features = ["poseidon"] }
+light-indexed-array = { workspace = true }
 light-merkle-tree-reference = { workspace = true }
 light-prover-client = { workspace = true }
 light-registry = { workspace = true }
@@ -69,10 +70,8 @@ serial_test = { workspace = true }
 light-prover-client = { workspace = true, features = ["devenv"] }
 light-test-utils = { workspace = true }
 light-program-test = { workspace = true, features = ["devenv"] }
-light-batched-merkle-tree = { workspace = true, features = ["test-only"] }
 light-token-client = { workspace = true }
 dotenvy = "0.15"
 light-compressed-token = { workspace = true }
-light-ctoken-sdk = { workspace = true }
 rand = { workspace = true }
 create-address-test-program = { workspace = true }

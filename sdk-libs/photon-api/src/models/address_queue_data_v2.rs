@@ -23,7 +23,6 @@ pub struct AddressQueueDataV2 {
     pub low_element_values: Vec<String>,
     pub low_element_next_indices: Vec<u64>,
     pub low_element_next_values: Vec<String>,
-    #[serde(default)]
     pub low_element_proofs: Vec<Vec<String>>,
     #[serde(default)]
     pub leaves_hash_chains: Vec<String>,
