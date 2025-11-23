@@ -18,6 +18,7 @@ light-hash-set = { workspace = true }
 light-hasher = { workspace = true, features = ["poseidon"] }
 light-concurrent-merkle-tree = { workspace = true }
 light-indexed-merkle-tree = { workspace = true }
+light-indexed-array = { workspace = true }
 light-compressed-account = { workspace = true, features = ["std"] }
 light-batched-merkle-tree = { workspace = true }
 light-merkle-tree-metadata = { workspace = true }
@@ -49,6 +50,7 @@ anyhow = { workspace = true }
 tracing = { workspace = true }
 
 num-traits = { workspace = true }
+num-bigint = { workspace = true }
 
 bb8 = { workspace = true }
 async-trait = { workspace = true }

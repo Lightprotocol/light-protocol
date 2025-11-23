@@ -1,3 +1,4 @@
+use base64::{engine::general_purpose::STANDARD_NO_PAD, Engine};
 use light_compressed_account::{
     compressed_account::{
         CompressedAccount as ProgramCompressedAccount, CompressedAccountData,
@@ -91,11 +92,12 @@ pub struct StateQueueData {
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct AddressQueueData {
     pub addresses: Vec<[u8; 32]>,
-    pub queue_indices: Vec<u64>,
+    // pub queue_indices: Vec<u64>,
     pub low_element_values: Vec<[u8; 32]>,
     pub low_element_next_values: Vec<[u8; 32]>,
     pub low_element_indices: Vec<u64>,
     pub low_element_next_indices: Vec<u64>,
+    // pub low_element_proofs: Vec<Vec<[u8; 32]>>,
     /// Deduplicated node indices - encoding: (level << 56) | position
     pub nodes: Vec<u64>,
     /// Hashes corresponding to each node index
@@ -105,8 +107,6 @@ pub struct AddressQueueData {
     pub subtrees: Vec<[u8; 32]>,
     pub start_index: u64,
     pub root_seq: u64,
-    /// Original low element proofs from indexer (for debugging/validation)
-    pub low_element_proofs: Vec<Vec<[u8; 32]>>,
 }
 
 impl AddressQueueData {
@@ -721,7 +721,8 @@ impl TryFrom<&photon_api::models::AccountV2> for CompressedAccount {
         let data = if let Some(data) = &account.data {
             Ok::<Option<CompressedAccountData>, IndexerError>(Some(CompressedAccountData {
                 discriminator: data.discriminator.to_le_bytes(),
-                data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
+                data: STANDARD_NO_PAD
+                    .decode(&data.data)
                     .map_err(|_| IndexerError::InvalidResponseData)?,
                 data_hash: decode_base58_to_fixed_array(&data.data_hash)?,
             }))
@@ -776,7 +777,8 @@ impl TryFrom<&photon_api::models::Account> for CompressedAccount {
         let data = if let Some(data) = &account.data {
             Ok::<Option<CompressedAccountData>, IndexerError>(Some(CompressedAccountData {
                 discriminator: data.discriminator.to_le_bytes(),
-                data: base64::decode_config(&data.data, base64::STANDARD_NO_PAD)
+                data: STANDARD_NO_PAD
+                    .decode(&data.data)
                     .map_err(|_| IndexerError::InvalidResponseData)?,
                 data_hash: decode_base58_to_fixed_array(&data.data_hash)?,
             }))
@@ -885,7 +887,7 @@ impl TryFrom<&photon_api::models::TokenAccount> for CompressedTokenAccount {
                 .token_data
                 .tlv
                 .as_ref()
-                .map(|tlv| base64::decode_config(tlv, base64::STANDARD_NO_PAD))
+                .map(|tlv| STANDARD_NO_PAD.decode(tlv))
                 .transpose()
                 .map_err(|_| IndexerError::InvalidResponseData)?,
         };
@@ -922,7 +924,7 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for CompressedTokenAccount {
                 .token_data
                 .tlv
                 .as_ref()
-                .map(|tlv| base64::decode_config(tlv, base64::STANDARD_NO_PAD))
+                .map(|tlv| STANDARD_NO_PAD.decode(tlv))
                 .transpose()
                 .map_err(|_| IndexerError::InvalidResponseData)?,
         };

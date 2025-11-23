@@ -2,6 +2,7 @@ package v2
 
 import (
 	"encoding/json"
+	"fmt"
 	"light/light-prover/prover/common"
 	"math/big"
 )
@@ -88,6 +89,12 @@ func (p *BatchAppendParameters) updateWithJSON(params BatchAppendInputsJSON) err
 	err = common.FromHex(p.LeavesHashchainHash, params.LeavesHashchainHash)
 	if err != nil {
 		return err
+	}
+
+	// Validate array lengths match to prevent index out of range panic
+	if len(params.Leaves) != len(params.OldLeaves) {
+		return fmt.Errorf("array length mismatch: leaves=%d, oldLeaves=%d",
+			len(params.Leaves), len(params.OldLeaves))
 	}
 
 	p.OldLeaves = make([]*big.Int, len(params.OldLeaves))

@@ -399,11 +399,10 @@ impl Epoch {
         if self.phases.active.end < current_solana_slot
             || self.phases.active.start > current_solana_slot
         {
-            println!("current_solana_slot {:?}", current_solana_slot);
-            println!("registration phase {:?}", self.phases.registration);
-            println!("active phase {:?}", self.phases.active);
-            // return Err(RpcError::EpochNotActive);
-            panic!("TODO: throw epoch not active error");
+            return Err(RpcError::AssertRpcError(format!(
+                "Epoch not active: current_slot={}, active_phase={}..{}",
+                current_solana_slot, self.phases.active.start, self.phases.active.end
+            )));
         }
         let epoch_pda = rpc
             .get_anchor_account::<EpochPda>(&self.epoch_pda)

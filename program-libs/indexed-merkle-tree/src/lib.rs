@@ -5,6 +5,7 @@ use std::{
     ops::{Deref, DerefMut},
 };
 
+pub use array::HashSchema;
 use array::{IndexedArray, IndexedElement};
 use changelog::IndexedChangelogEntry;
 use light_bounded_vec::{BoundedVec, CyclicBoundedVec, CyclicBoundedVecMetadata};

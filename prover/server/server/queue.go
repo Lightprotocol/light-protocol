@@ -2,6 +2,8 @@ package server
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"light/light-prover/logging"
@@ -22,15 +24,34 @@ func NewRedisQueue(redisURL string) (*RedisQueue, error) {
 		return nil, fmt.Errorf("failed to parse Redis URL: %w", err)
 	}
 
+	// Configure connection pool and timeouts for Cloud Run + VPC connector reliability
+	opts.PoolSize = 500                    // Connection pool size per instance (increased for high load)
+	opts.MinIdleConns = 10                 // Keep some connections warm
+	opts.DialTimeout = 10 * time.Second    // Timeout for establishing new connections
+	opts.ReadTimeout = 30 * time.Second    // Timeout for read operations (BLPOP can be slow)
+	opts.WriteTimeout = 10 * time.Second   // Timeout for write operations
+	opts.PoolTimeout = 15 * time.Second    // Timeout for getting connection from pool
+	opts.ConnMaxIdleTime = 5 * time.Minute // Close idle connections after this time
+	opts.MaxRetries = 3                    // Retry failed commands
+
 	client := redis.NewClient(opts)
 	ctx := context.Background()
 
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
 		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
+
+	logging.Logger().Info().
+		Int("pool_size", opts.PoolSize).
+		Int("min_idle_conns", opts.MinIdleConns).
+		Dur("dial_timeout", opts.DialTimeout).
+		Dur("read_timeout", opts.ReadTimeout).
+		Dur("write_timeout", opts.WriteTimeout).
+		Int("max_retries", opts.MaxRetries).
+		Msg("Redis client configured with connection pool")
 
 	return &RedisQueue{Client: client, Ctx: context.Background()}, nil
 }
@@ -41,19 +62,100 @@ func (rq *RedisQueue) EnqueueProof(queueName string, job *ProofJob) error {
 		return fmt.Errorf("failed to marshal job: %w", err)
 	}
 
-	err = rq.Client.RPush(rq.Ctx, queueName, data).Err()
+	// Use tree-specific sub-queue for fair queuing if TreeID is set
+	actualQueueName := queueName
+	if job.TreeID != "" && isFairQueueEnabled(queueName) {
+		actualQueueName = fmt.Sprintf("%s:%s", queueName, job.TreeID)
+		// Track this tree in the trees set for round-robin
+		treesSetKey := fmt.Sprintf("%s:trees", queueName)
+		rq.Client.SAdd(rq.Ctx, treesSetKey, job.TreeID)
+	}
+
+	err = rq.Client.RPush(rq.Ctx, actualQueueName, data).Err()
 	if err != nil {
 		return fmt.Errorf("failed to enqueue job: %w", err)
 	}
 
 	logging.Logger().Info().
 		Str("job_id", job.ID).
-		Str("queue", queueName).
+		Str("queue", actualQueueName).
+		Str("tree_id", job.TreeID).
+		Str("redis_addr", rq.Client.Options().Addr).
 		Msg("Job enqueued successfully")
 	return nil
 }
 
+// isFairQueueEnabled returns true for queues that support fair queuing per tree
+func isFairQueueEnabled(queueName string) bool {
+	return queueName == "zk_update_queue" ||
+		queueName == "zk_append_queue" ||
+		queueName == "zk_address_append_queue"
+}
+
+// StoreJobMeta stores job metadata when a job is submitted to enable reliable status lookups.
+// This ensures the status endpoint can find the job even before a worker picks it up.
+// TTL is set to 1 hour to match result TTL.
+func (rq *RedisQueue) StoreJobMeta(jobID string, queueName string, circuitType string) error {
+	key := fmt.Sprintf("zk_job_meta_%s", jobID)
+	meta := map[string]interface{}{
+		"queue":        queueName,
+		"circuit_type": circuitType,
+		"submitted_at": time.Now(),
+		"status":       "queued",
+	}
+	data, err := json.Marshal(meta)
+	if err != nil {
+		return fmt.Errorf("failed to marshal job meta: %w", err)
+	}
+
+	err = rq.Client.Set(rq.Ctx, key, data, 1*time.Hour).Err()
+	if err != nil {
+		return fmt.Errorf("failed to store job meta: %w", err)
+	}
+
+	logging.Logger().Debug().
+		Str("job_id", jobID).
+		Str("queue", queueName).
+		Str("circuit_type", circuitType).
+		Str("redis_addr", rq.Client.Options().Addr).
+		Msg("Stored job metadata for status tracking")
+
+	return nil
+}
+
+// GetJobMeta retrieves job metadata by job ID.
+// Returns nil if the job metadata doesn't exist.
+func (rq *RedisQueue) GetJobMeta(jobID string) (map[string]interface{}, error) {
+	key := fmt.Sprintf("zk_job_meta_%s", jobID)
+	result, err := rq.Client.Get(rq.Ctx, key).Result()
+	if err == redis.Nil {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get job meta: %w", err)
+	}
+
+	var meta map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &meta); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal job meta: %w", err)
+	}
+
+	return meta, nil
+}
+
+// DeleteJobMeta removes job metadata when a job completes or fails.
+func (rq *RedisQueue) DeleteJobMeta(jobID string) error {
+	key := fmt.Sprintf("zk_job_meta_%s", jobID)
+	return rq.Client.Del(rq.Ctx, key).Err()
+}
+
 func (rq *RedisQueue) DequeueProof(queueName string, timeout time.Duration) (*ProofJob, error) {
+	// Check if this queue supports fair queuing
+	if isFairQueueEnabled(queueName) {
+		return rq.dequeueWithFairQueuing(queueName, timeout)
+	}
+
+	// Standard dequeue for non-fair queues
 	result, err := rq.Client.BLPop(rq.Ctx, timeout, queueName).Result()
 	if err != nil {
 		if err == redis.Nil {
@@ -75,6 +177,201 @@ func (rq *RedisQueue) DequeueProof(queueName string, timeout time.Duration) (*Pr
 	return &job, nil
 }
 
+// dequeueWithFairQueuing implements round-robin dequeuing across tree-specific sub-queues
+// Within each tree's queue, it prioritizes jobs with lower batch_index to ensure sequential processing
+func (rq *RedisQueue) dequeueWithFairQueuing(queueName string, timeout time.Duration) (*ProofJob, error) {
+	treesSetKey := fmt.Sprintf("%s:trees", queueName)
+	lastTreeKey := fmt.Sprintf("%s:last_tree", queueName)
+
+	// Get all trees with pending jobs
+	trees, err := rq.Client.SMembers(rq.Ctx, treesSetKey).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get trees set: %w", err)
+	}
+
+	// If no trees with jobs, fall back to main queue (for jobs without tree_id)
+	if len(trees) == 0 {
+		result, err := rq.Client.BLPop(rq.Ctx, timeout, queueName).Result()
+		if err != nil {
+			if err == redis.Nil {
+				return nil, nil
+			}
+			return nil, fmt.Errorf("failed to dequeue job: %w", err)
+		}
+		if len(result) < 2 {
+			return nil, fmt.Errorf("invalid result from Redis")
+		}
+		var job ProofJob
+		err = json.Unmarshal([]byte(result[1]), &job)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal job: %w", err)
+		}
+		return &job, nil
+	}
+
+	// Get the last processed tree to start round-robin from next
+	lastTree, _ := rq.Client.Get(rq.Ctx, lastTreeKey).Result()
+
+	// Find starting index for round-robin
+	startIdx := 0
+	for i, tree := range trees {
+		if tree == lastTree {
+			startIdx = (i + 1) % len(trees)
+			break
+		}
+	}
+
+	// Try each tree in round-robin order
+	for i := range len(trees) {
+		idx := (startIdx + i) % len(trees)
+		tree := trees[idx]
+		subQueueName := fmt.Sprintf("%s:%s", queueName, tree)
+
+		// Get job with lowest batch_index from this tree's queue
+		job, err := rq.dequeueLowestBatchIndex(subQueueName)
+		if err == redis.Nil || job == nil {
+			// Queue empty, remove tree from set
+			rq.Client.SRem(rq.Ctx, treesSetKey, tree)
+			continue
+		}
+		if err != nil {
+			logging.Logger().Warn().
+				Err(err).
+				Str("queue", subQueueName).
+				Msg("Error getting lowest batch_index job from tree sub-queue")
+			continue
+		}
+
+		// Update last processed tree for next round-robin
+		rq.Client.Set(rq.Ctx, lastTreeKey, tree, 1*time.Hour)
+
+		// Check if queue is now empty and remove from trees set
+		queueLen, _ := rq.Client.LLen(rq.Ctx, subQueueName).Result()
+		if queueLen == 0 {
+			rq.Client.SRem(rq.Ctx, treesSetKey, tree)
+		}
+
+		logging.Logger().Debug().
+			Str("job_id", job.ID).
+			Str("tree_id", tree).
+			Int64("batch_index", job.BatchIndex).
+			Str("queue", subQueueName).
+			Int("trees_count", len(trees)).
+			Msg("Dequeued job with fair queuing and batch_index priority")
+
+		return job, nil
+	}
+
+	// All tree queues were empty, try main queue as fallback
+	result, err := rq.Client.BLPop(rq.Ctx, timeout, queueName).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to dequeue job: %w", err)
+	}
+	if len(result) < 2 {
+		return nil, fmt.Errorf("invalid result from Redis")
+	}
+	var job ProofJob
+	err = json.Unmarshal([]byte(result[1]), &job)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal job: %w", err)
+	}
+	return &job, nil
+}
+
+// dequeueLowestBatchIndex finds and removes the job with the lowest batch_index from the queue.
+// This ensures that batches are processed in order within each tree, enabling the forester
+// to send transactions sequentially as proofs complete.
+// Jobs with batch_index -1 (legacy) are treated as having the highest priority among themselves
+// but after jobs with explicit batch indices.
+func (rq *RedisQueue) dequeueLowestBatchIndex(queueName string) (*ProofJob, error) {
+	// Get all items from the queue
+	items, err := rq.Client.LRange(rq.Ctx, queueName, 0, -1).Result()
+	if err != nil {
+		return nil, err
+	}
+
+	if len(items) == 0 {
+		return nil, redis.Nil
+	}
+
+	if len(items) == 1 {
+		result, err := rq.Client.LPop(rq.Ctx, queueName).Result()
+		if err != nil {
+			return nil, err
+		}
+		var job ProofJob
+		if err := json.Unmarshal([]byte(result), &job); err != nil {
+			return nil, err
+		}
+		return &job, nil
+	}
+
+	// Find job with lowest batch_index
+	var lowestJob *ProofJob
+	lowestIdx := -1
+	lowestBatchIndex := int64(^uint64(0) >> 1)
+
+	for i, item := range items {
+		var job ProofJob
+		if err := json.Unmarshal([]byte(item), &job); err != nil {
+			logging.Logger().Warn().
+				Err(err).
+				Str("queue", queueName).
+				Int("index", i).
+				Msg("Failed to unmarshal job while searching for lowest batch_index")
+			continue
+		}
+
+		// Jobs with batch_index >= 0 have priority over legacy jobs (batch_index -1)
+		// Among jobs with batch_index >= 0, lower index wins
+		// Among legacy jobs, first in queue wins (FIFO)
+		if job.BatchIndex >= 0 {
+			if lowestJob == nil || lowestJob.BatchIndex < 0 || job.BatchIndex < lowestBatchIndex {
+				lowestJob = &job
+				lowestIdx = i
+				lowestBatchIndex = job.BatchIndex
+			}
+		} else if lowestJob == nil || (lowestJob.BatchIndex < 0 && lowestIdx > i) {
+			// Legacy job, only take if no better candidate or this is earlier in queue
+			lowestJob = &job
+			lowestIdx = i
+			lowestBatchIndex = job.BatchIndex
+		}
+	}
+
+	if lowestJob == nil {
+		return nil, redis.Nil
+	}
+
+	// Remove the selected job from the queue
+	itemToRemove := items[lowestIdx]
+	removed, err := rq.Client.LRem(rq.Ctx, queueName, 1, itemToRemove).Result()
+	if err != nil {
+		return nil, fmt.Errorf("failed to remove job from queue: %w", err)
+	}
+
+	if removed == 0 {
+		logging.Logger().Warn().
+			Str("job_id", lowestJob.ID).
+			Str("queue", queueName).
+			Msg("Job was already removed from queue, retrying")
+		return rq.dequeueLowestBatchIndex(queueName)
+	}
+
+	logging.Logger().Debug().
+		Str("job_id", lowestJob.ID).
+		Int64("batch_index", lowestJob.BatchIndex).
+		Int("queue_position", lowestIdx).
+		Int("queue_length", len(items)).
+		Str("queue", queueName).
+		Msg("Dequeued job with lowest batch_index")
+
+	return lowestJob, nil
+}
+
 func (rq *RedisQueue) GetQueueStats() (map[string]int64, error) {
 	stats := make(map[string]int64)
 
@@ -87,6 +384,22 @@ func (rq *RedisQueue) GetQueueStats() (map[string]int64, error) {
 			length = 0
 		}
 		stats[queue] = length
+
+		// For fair-queued queues, also count tree sub-queues
+		if isFairQueueEnabled(queue) {
+			treesSetKey := fmt.Sprintf("%s:trees", queue)
+			trees, err := rq.Client.SMembers(rq.Ctx, treesSetKey).Result()
+			if err == nil {
+				var totalTreeQueueLen int64
+				for _, tree := range trees {
+					subQueueName := fmt.Sprintf("%s:%s", queue, tree)
+					subLen, _ := rq.Client.LLen(rq.Ctx, subQueueName).Result()
+					totalTreeQueueLen += subLen
+				}
+				stats[queue+"_tree_subqueues"] = totalTreeQueueLen
+				stats[queue+"_tree_count"] = int64(len(trees))
+			}
+		}
 	}
 
 	return stats, nil
@@ -155,8 +468,8 @@ func (rq *RedisQueue) GetResult(jobID string) (interface{}, error) {
 	key := fmt.Sprintf("zk_result_%s", jobID)
 	result, err := rq.Client.Get(rq.Ctx, key).Result()
 	if err == nil {
-		var proof common.Proof
-		err = json.Unmarshal([]byte(result), &proof)
+		var proofWithTiming common.ProofWithTiming
+		err = json.Unmarshal([]byte(result), &proofWithTiming)
 		if err != nil {
 			logging.Logger().Error().
 				Str("job_id", jobID).
@@ -166,7 +479,7 @@ func (rq *RedisQueue) GetResult(jobID string) (interface{}, error) {
 
 			return nil, fmt.Errorf("failed to unmarshal direct result: %w", err)
 		}
-		return &proof, nil
+		return &proofWithTiming, nil
 	}
 
 	if err != redis.Nil {
@@ -186,14 +499,14 @@ func (rq *RedisQueue) searchResultInQueue(jobID string) (interface{}, error) {
 		var resultJob ProofJob
 		if json.Unmarshal([]byte(item), &resultJob) == nil {
 			if resultJob.ID == jobID && resultJob.Type == "result" {
-				var proof common.Proof
-				err = json.Unmarshal(resultJob.Payload, &proof)
+				var proofWithTiming common.ProofWithTiming
+				err = json.Unmarshal(resultJob.Payload, &proofWithTiming)
 				if err != nil {
 					return nil, fmt.Errorf("failed to unmarshal queued result: %w", err)
 				}
-				rq.StoreResult(jobID, &proof)
+				rq.StoreResult(jobID, &proofWithTiming)
 
-				return &proof, nil
+				return &proofWithTiming, nil
 			}
 		}
 	}
@@ -234,6 +547,7 @@ func (rq *RedisQueue) CleanupOldResults() error {
 		logging.Logger().Error().
 			Err(err).
 			Msg("Failed to cleanup old results by time")
+		return err
 	}
 
 	if removed > 0 {
@@ -241,23 +555,6 @@ func (rq *RedisQueue) CleanupOldResults() error {
 			Int64("removed_results", removed).
 			Time("cutoff_time", cutoffTime).
 			Msg("Cleaned up old results by time")
-	}
-
-	ctx := context.Background()
-	length, err := rq.Client.LLen(ctx, "zk_results_queue").Result()
-	if err != nil {
-		return err
-	}
-
-	if length > 1000 {
-		toRemove := length - 1000
-		for i := int64(0); i < toRemove; i++ {
-			rq.Client.LPop(ctx, "zk_results_queue")
-		}
-
-		logging.Logger().Info().
-			Int64("removed_items", toRemove).
-			Msg("Cleaned up old results from queue (length-based safety)")
 	}
 
 	return nil
@@ -276,15 +573,42 @@ func (rq *RedisQueue) CleanupOldRequests() error {
 	totalRemoved := int64(0)
 
 	for _, queueName := range queuesToClean {
+		// Clean main queue
 		removed, err := rq.cleanupOldRequestsFromQueue(queueName, cutoffTime)
 		if err != nil {
 			logging.Logger().Error().
 				Err(err).
 				Str("queue", queueName).
 				Msg("Failed to cleanup old requests from queue")
-			continue
+		} else {
+			totalRemoved += removed
 		}
-		totalRemoved += removed
+
+		// Clean tree sub-queues for fair-queued queues
+		if isFairQueueEnabled(queueName) {
+			treesSetKey := fmt.Sprintf("%s:trees", queueName)
+			trees, err := rq.Client.SMembers(rq.Ctx, treesSetKey).Result()
+			if err == nil {
+				for _, tree := range trees {
+					subQueueName := fmt.Sprintf("%s:%s", queueName, tree)
+					subRemoved, err := rq.cleanupOldRequestsFromQueue(subQueueName, cutoffTime)
+					if err != nil {
+						logging.Logger().Error().
+							Err(err).
+							Str("queue", subQueueName).
+							Msg("Failed to cleanup old requests from tree sub-queue")
+						continue
+					}
+					totalRemoved += subRemoved
+
+					// If tree queue is now empty, remove from trees set
+					queueLen, _ := rq.Client.LLen(rq.Ctx, subQueueName).Result()
+					if queueLen == 0 {
+						rq.Client.SRem(rq.Ctx, treesSetKey, tree)
+					}
+				}
+			}
+		}
 	}
 
 	if totalRemoved > 0 {
@@ -340,8 +664,9 @@ func (rq *RedisQueue) CleanupOldResultKeys() error {
 }
 
 func (rq *RedisQueue) CleanupStuckProcessingJobs() error {
-	// Jobs stuck in processing for more than 2 minutes are considered stuck
-	processingTimeout := time.Now().Add(-2 * time.Minute)
+	// Jobs stuck in processing for more than 10 minutes are considered stuck
+	// (proof generation can take 3-4 minutes under load)
+	processingTimeout := time.Now().Add(-10 * time.Minute)
 
 	processingQueues := []string{
 		"zk_update_processing_queue",
@@ -428,12 +753,23 @@ func (rq *RedisQueue) recoverStuckJobsFromQueue(queueName string, timeoutCutoff 
 
 					fiveMinutesAgo := time.Now().Add(-5 * time.Minute)
 					if job.CreatedAt.Before(fiveMinutesAgo) {
+						// Extract circuit type from payload for debugging, but don't store full payload
+						// to prevent memory issues (payloads can be hundreds of KB)
+						var circuitType string
+						var payloadMeta map[string]interface{}
+						if json.Unmarshal(job.Payload, &payloadMeta) == nil {
+							if ct, ok := payloadMeta["circuitType"].(string); ok {
+								circuitType = ct
+							}
+						}
+
 						failureDetails := map[string]interface{}{
 							"original_job": map[string]interface{}{
-								"id":         originalJobID,
-								"type":       "zk_proof",
-								"payload":    job.Payload,
-								"created_at": job.CreatedAt,
+								"id":           originalJobID,
+								"type":         "zk_proof",
+								"circuit_type": circuitType,
+								"payload_size": len(job.Payload),
+								"created_at":   job.CreatedAt,
 							},
 							"error":     "Job timed out in processing queue (stuck for >5 minutes)",
 							"failed_at": time.Now(),
@@ -546,4 +882,215 @@ func (rq *RedisQueue) cleanupOldRequestsFromQueue(queueName string, cutoffTime t
 	}
 
 	return removedCount, nil
+}
+
+// ComputeInputHash computes a SHA256 hash of the proof input payload
+func ComputeInputHash(payload json.RawMessage) string {
+	hash := sha256.Sum256(payload)
+	return hex.EncodeToString(hash[:])
+}
+
+// FindCachedResult searches for a cached result by input hash in the results queue
+// Returns the proof result (as ProofWithTiming) and job ID if found, otherwise returns nil
+func (rq *RedisQueue) FindCachedResult(inputHash string) (*common.ProofWithTiming, string, error) {
+	items, err := rq.Client.LRange(rq.Ctx, "zk_results_queue", 0, -1).Result()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to search results queue: %w", err)
+	}
+
+	for _, item := range items {
+		var resultJob ProofJob
+		if json.Unmarshal([]byte(item), &resultJob) == nil && resultJob.Type == "result" {
+			// Check if this result has the same input hash
+			storedHash, err := rq.Client.Get(rq.Ctx, fmt.Sprintf("zk_input_hash_%s", resultJob.ID)).Result()
+			if err == nil && storedHash == inputHash {
+				var proofWithTiming common.ProofWithTiming
+				err = json.Unmarshal(resultJob.Payload, &proofWithTiming)
+				if err != nil {
+					logging.Logger().Warn().
+						Err(err).
+						Str("input_hash", inputHash).
+						Str("job_id", resultJob.ID).
+						Msg("Failed to unmarshal cached result payload, skipping")
+					continue
+				}
+
+				logging.Logger().Info().
+					Str("input_hash", inputHash).
+					Str("cached_job_id", resultJob.ID).
+					Int64("proof_duration_ms", proofWithTiming.ProofDurationMs).
+					Msg("Found cached successful proof result")
+
+				return &proofWithTiming, resultJob.ID, nil
+			}
+		}
+	}
+
+	return nil, "", nil
+}
+
+// FindCachedFailure searches for a cached failure by input hash in the failed queue
+// Returns the failure details and job ID if found, otherwise returns nil
+func (rq *RedisQueue) FindCachedFailure(inputHash string) (map[string]interface{}, string, error) {
+	items, err := rq.Client.LRange(rq.Ctx, "zk_failed_queue", 0, -1).Result()
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to search failed queue: %w", err)
+	}
+
+	for _, item := range items {
+		var failedJob ProofJob
+		if json.Unmarshal([]byte(item), &failedJob) == nil && failedJob.Type == "failed" {
+			// Extract the original job ID (remove _failed suffix)
+			originalJobID := failedJob.ID
+			if len(failedJob.ID) > 7 && failedJob.ID[len(failedJob.ID)-7:] == "_failed" {
+				originalJobID = failedJob.ID[:len(failedJob.ID)-7]
+			}
+
+			// Check if this failure has the same input hash
+			storedHash, err := rq.Client.Get(rq.Ctx, fmt.Sprintf("zk_input_hash_%s", originalJobID)).Result()
+			if err == nil && storedHash == inputHash {
+				// Found a matching failure
+				var failureDetails map[string]interface{}
+				err = json.Unmarshal(failedJob.Payload, &failureDetails)
+				if err != nil {
+					continue
+				}
+
+				logging.Logger().Info().
+					Str("input_hash", inputHash).
+					Str("cached_job_id", originalJobID).
+					Msg("Found cached failed proof result")
+
+				return failureDetails, originalJobID, nil
+			}
+		}
+	}
+
+	return nil, "", nil
+}
+
+// StoreInputHash stores the input hash for a job ID to enable deduplication
+func (rq *RedisQueue) StoreInputHash(jobID string, inputHash string) error {
+	key := fmt.Sprintf("zk_input_hash_%s", jobID)
+	err := rq.Client.Set(rq.Ctx, key, inputHash, 1*time.Hour).Err()
+	if err != nil {
+		return fmt.Errorf("failed to store input hash: %w", err)
+	}
+
+	logging.Logger().Debug().
+		Str("job_id", jobID).
+		Str("input_hash", inputHash).
+		Msg("Stored input hash for deduplication")
+
+	return nil
+}
+
+// GetOrSetInFlightJob atomically checks if a job with the given input hash is already in-flight.
+// If not, it registers the new job ID. Returns the existing job ID if found, or the new job ID if set.
+// The isNew return value indicates whether this is a new job (true) or an existing one (false).
+// TTL is set to 10 minutes to match the forester's max wait time.
+func (rq *RedisQueue) GetOrSetInFlightJob(inputHash, jobID string) (existingJobID string, isNew bool, err error) {
+	key := fmt.Sprintf("zk_inflight_%s", inputHash)
+
+	// Try to set the key atomically - only succeeds if key doesn't exist
+	set, err := rq.Client.SetNX(rq.Ctx, key, jobID, 10*time.Minute).Result()
+	if err != nil {
+		return "", false, fmt.Errorf("failed to check/set in-flight job: %w", err)
+	}
+
+	if set {
+		// Key was set - this is a new job
+		// Also store reverse mapping so we can find the input hash from job ID
+		// This is needed for CleanupStaleInFlightMarker when job_not_found
+		reverseKey := fmt.Sprintf("zk_input_hash_%s", jobID)
+		rq.Client.Set(rq.Ctx, reverseKey, inputHash, 10*time.Minute)
+
+		logging.Logger().Debug().
+			Str("job_id", jobID).
+			Str("input_hash", inputHash).
+			Msg("Registered new in-flight job")
+		return jobID, true, nil
+	}
+
+	// Key already exists - get the existing job ID
+	existing, err := rq.Client.Get(rq.Ctx, key).Result()
+	if err != nil {
+		// Key might have expired between SetNX and Get - treat as new
+		if err == redis.Nil {
+			// Retry setting the key
+			_, err = rq.Client.SetNX(rq.Ctx, key, jobID, 10*time.Minute).Result()
+			if err != nil {
+				return "", false, fmt.Errorf("failed to set in-flight job on retry: %w", err)
+			}
+			// Store reverse mapping for cleanup
+			reverseKey := fmt.Sprintf("zk_input_hash_%s", jobID)
+			rq.Client.Set(rq.Ctx, reverseKey, inputHash, 10*time.Minute)
+			return jobID, true, nil
+		}
+		return "", false, fmt.Errorf("failed to get existing in-flight job: %w", err)
+	}
+
+	logging.Logger().Info().
+		Str("existing_job_id", existing).
+		Str("input_hash", inputHash).
+		Msg("Found existing in-flight job with same input")
+
+	return existing, false, nil
+}
+
+// DeleteInFlightJob removes the in-flight marker for a job when it completes.
+// This should be called when a job finishes (success or failure) to allow
+// new jobs with the same input to be queued.
+func (rq *RedisQueue) DeleteInFlightJob(inputHash, jobID string) error {
+	key := fmt.Sprintf("zk_inflight_%s", inputHash)
+	err := rq.Client.Del(rq.Ctx, key).Err()
+	if err != nil {
+		return fmt.Errorf("failed to delete in-flight job marker: %w", err)
+	}
+
+	// Also clean up the reverse mapping
+	reverseKey := fmt.Sprintf("zk_input_hash_%s", jobID)
+	rq.Client.Del(rq.Ctx, reverseKey)
+
+	logging.Logger().Debug().
+		Str("input_hash", inputHash).
+		Str("job_id", jobID).
+		Msg("Deleted in-flight job marker")
+
+	return nil
+}
+
+// CleanupStaleInFlightMarker removes a stale in-flight marker for a job that no longer exists.
+// This is called when a status check returns job_not_found, indicating the job was lost
+// (e.g., due to prover restart) but the in-flight marker still exists.
+// This allows new requests with the same input to create a new job instead of being
+// deduplicated to the stale job ID.
+func (rq *RedisQueue) CleanupStaleInFlightMarker(jobID string) {
+	// Get the input hash associated with this job ID
+	inputHashKey := fmt.Sprintf("zk_input_hash_%s", jobID)
+	inputHash, err := rq.Client.Get(rq.Ctx, inputHashKey).Result()
+	if err != nil {
+		// No input hash found - nothing to clean up
+		return
+	}
+
+	// Check if the in-flight marker points to this job ID
+	inFlightKey := fmt.Sprintf("zk_inflight_%s", inputHash)
+	storedJobID, err := rq.Client.Get(rq.Ctx, inFlightKey).Result()
+	if err != nil {
+		// No in-flight marker - nothing to clean up
+		return
+	}
+
+	// Only delete if this marker points to the stale job
+	if storedJobID == jobID {
+		rq.Client.Del(rq.Ctx, inFlightKey)
+		logging.Logger().Info().
+			Str("job_id", jobID).
+			Str("input_hash", inputHash).
+			Msg("Cleaned up stale in-flight marker for lost job")
+	}
+
+	// Also clean up the input hash mapping
+	rq.Client.Del(rq.Ctx, inputHashKey)
 }

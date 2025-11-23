@@ -17,11 +17,12 @@ use solana_commitment_config::CommitmentConfig;
 use solana_hash::Hash;
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
+use solana_message::{v0, AddressLookupTableAccount, VersionedMessage};
 use solana_pubkey::{pubkey, Pubkey};
 use solana_rpc_client::rpc_client::RpcClient;
 use solana_rpc_client_api::config::{RpcSendTransactionConfig, RpcTransactionConfig};
 use solana_signature::Signature;
-use solana_transaction::Transaction;
+use solana_transaction::{versioned::VersionedTransaction, Transaction};
 use solana_transaction_status_client_types::{
     option_serializer::OptionSerializer, TransactionStatus, UiInstruction, UiTransactionEncoding,
 };
@@ -679,6 +680,34 @@ impl Rpc for LightClient {
     ) -> Result<Option<(Vec<BatchPublicTransactionEvent>, Signature, Slot)>, RpcError> {
         self._create_and_send_transaction_with_batched_event(instructions, payer, signers)
             .await
+    }
+
+    async fn create_and_send_versioned_transaction<'a>(
+        &'a mut self,
+        instructions: &'a [Instruction],
+        payer: &'a Pubkey,
+        signers: &'a [&'a Keypair],
+        address_lookup_tables: &'a [AddressLookupTableAccount],
+    ) -> Result<Signature, RpcError> {
+        let blockhash = self.get_latest_blockhash().await?.0;
+
+        let message =
+            v0::Message::try_compile(payer, instructions, address_lookup_tables, blockhash)
+                .map_err(|e| {
+                    RpcError::CustomError(format!("Failed to compile v0 message: {}", e))
+                })?;
+
+        let versioned_message = VersionedMessage::V0(message);
+
+        let transaction = VersionedTransaction::try_new(versioned_message, signers)
+            .map_err(|e| RpcError::SigningError(e.to_string()))?;
+
+        self.retry(|| async {
+            self.client
+                .send_and_confirm_transaction(&transaction)
+                .map_err(RpcError::from)
+        })
+        .await
     }
 
     fn indexer(&self) -> Result<&impl Indexer, RpcError> {

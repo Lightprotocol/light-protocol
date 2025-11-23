@@ -7,9 +7,6 @@ use crate::{
     helpers::{bigint_to_u8_32, compute_root_from_merkle_proof},
 };
 
-/// Result of batch tree updates, containing proofs and root transitions.
-/// This mirrors `forester_utils::staging_tree::BatchUpdateResult` but is defined
-/// here to avoid a dependency cycle.
 #[derive(Clone, Debug)]
 pub struct BatchTreeUpdateResult {
     pub old_leaves: Vec<[u8; 32]>,
@@ -40,10 +37,10 @@ impl BatchUpdateCircuitInputs {
 
     pub fn new<const HEIGHT: usize>(
         tree_result: BatchTreeUpdateResult,
-        tx_hashes: Vec<[u8; 32]>,
-        leaves: Vec<[u8; 32]>,
+        tx_hashes: &[[u8; 32]],
+        leaves: &[[u8; 32]],
         leaves_hashchain: [u8; 32],
-        path_indices: Vec<u32>,
+        path_indices: &[u32],
         batch_size: u32,
     ) -> Result<Self, ProverClientError> {
         let batch_size_usize = batch_size as usize;
@@ -104,7 +101,7 @@ impl BatchUpdateCircuitInputs {
                 .map(|leaf| BigInt::from_bytes_be(Sign::Plus, leaf))
                 .collect(),
             merkle_proofs: circuit_merkle_proofs,
-            path_indices,
+            path_indices: path_indices.to_vec(),
             height: HEIGHT as u32,
             batch_size,
         })

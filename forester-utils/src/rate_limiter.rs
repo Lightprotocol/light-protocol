@@ -46,8 +46,7 @@ impl RateLimiter {
     }
 
     pub async fn acquire_with_wait(&self) {
-        let _start = self.governor.until_ready().await;
-        tokio::time::sleep(Duration::from_millis(1)).await;
+        self.governor.until_ready().await;
     }
 }
 

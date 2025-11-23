@@ -14,6 +14,11 @@ type ProofRequestMeta struct {
 	TreeHeight        uint32
 	NumInputs         uint32
 	NumAddresses      uint32
+	// TreeID is the merkle tree pubkey - used for fair queuing across trees
+	TreeID string
+	// BatchIndex is the batch sequence number within a tree - used to process batches in order
+	// Lower batch indices should be processed first to enable sequential transaction submission
+	BatchIndex int64
 }
 
 // ParseProofRequestMeta parses a JSON input and extracts CircuitType, tree heights, and additional metrics.
@@ -73,6 +78,19 @@ func ParseProofRequestMeta(data []byte) (ProofRequestMeta, error) {
 		numAddresses = len(nonInclusionInputs)
 	}
 
+	// Extract TreeID for fair queuing
+	treeID := ""
+	if id, ok := rawInput["treeId"].(string); ok {
+		treeID = id
+	}
+
+	// Extract BatchIndex for ordering proofs within a tree
+	// Default to -1 to indicate no batch index (legacy requests)
+	batchIndex := int64(-1)
+	if idx, ok := rawInput["batchIndex"].(float64); ok {
+		batchIndex = int64(idx)
+	}
+
 	return ProofRequestMeta{
 		Version:           version,
 		CircuitType:       CircuitType(circuitType),
@@ -80,5 +98,7 @@ func ParseProofRequestMeta(data []byte) (ProofRequestMeta, error) {
 		AddressTreeHeight: addressTreeHeight,
 		NumInputs:         uint32(numInputs),
 		NumAddresses:      uint32(numAddresses),
+		TreeID:            treeID,
+		BatchIndex:        batchIndex,
 	}, nil
 }

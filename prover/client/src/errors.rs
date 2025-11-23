@@ -30,6 +30,25 @@ pub enum ProverClientError {
 
     #[error("AltBn128Error error: {0}")]
     AltBn128CompressionError(String),
+
+    #[error("Invalid hex string: {0}")]
+    InvalidHexString(String),
+
+    #[error("Invalid proof data: {0}")]
+    InvalidProofData(String),
+
+    #[error(
+        "Hashchain mismatch: computed {computed:?}[..4] != expected {expected:?}[..4] (batch_size={batch_size}, next_index={next_index})"
+    )]
+    HashchainMismatch {
+        computed: [u8; 32],
+        expected: [u8; 32],
+        batch_size: usize,
+        next_index: usize,
+    },
+
+    #[error("Proof patch failed: {0}")]
+    ProofPatchFailed(String),
 }
 
 impl From<AltBn128CompressionError> for ProverClientError {

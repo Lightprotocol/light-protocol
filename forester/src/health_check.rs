@@ -122,7 +122,7 @@ pub async fn run_health_check(args: &HealthArgs) -> Result<bool, ForesterError> 
             }
 
             if !all_passed {
-                println!("\nHealth check FAILED");
+                println!("\nHealth check failed");
             } else {
                 println!("\nHealth check PASSED");
             }
@@ -245,7 +245,18 @@ async fn check_epoch_registration<R: Rpc>(
             );
         }
 
-        Pubkey::new_from_array(bytes.try_into().unwrap())
+        let bytes: [u8; 32] = match bytes.try_into() {
+            Ok(b) => b,
+            Err(_) => {
+                return HealthCheckResult::new(
+                    "registration",
+                    false,
+                    "Derivation pubkey must be 32 bytes".to_string(),
+                    start.elapsed().as_millis() as u64,
+                );
+            }
+        };
+        Pubkey::new_from_array(bytes)
     } else {
         match Pubkey::from_str(derivation) {
             Ok(pk) => pk,
@@ -287,7 +298,17 @@ async fn check_epoch_registration<R: Rpc>(
         }
     };
 
-    let protocol_config = get_protocol_config(&mut *rpc).await;
+    let protocol_config = match get_protocol_config(&mut *rpc).await {
+        Ok(cfg) => cfg,
+        Err(e) => {
+            return HealthCheckResult::new(
+                "registration",
+                false,
+                format!("Failed to fetch protocol config: {}", e),
+                start.elapsed().as_millis() as u64,
+            );
+        }
+    };
     let current_epoch = protocol_config.get_current_epoch(slot);
     let forester_epoch_pda_pubkey =
         get_forester_epoch_pda_from_authority(&derivation_pubkey, current_epoch).0;
@@ -297,14 +318,13 @@ async fn check_epoch_registration<R: Rpc>(
 
     match registration_result {
         Ok(Some(pda)) => {
-            if pda.total_epoch_weight.is_some() {
+            if let Some(weight) = pda.total_epoch_weight {
                 HealthCheckResult::new(
                     "registration",
                     true,
                     format!(
                         "Forester registered for epoch {} with weight {}",
-                        current_epoch,
-                        pda.total_epoch_weight.unwrap()
+                        current_epoch, weight
                     ),
                     start.elapsed().as_millis() as u64,
                 )

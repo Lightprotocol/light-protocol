@@ -57,7 +57,7 @@ func BuildTestNonInclusionTree(depth int, numberOfCompressedAccounts int, random
 	var values = make([]*big.Int, numberOfCompressedAccounts)
 	var roots = make([]*big.Int, numberOfCompressedAccounts)
 
-	for i := 0; i < numberOfCompressedAccounts; i++ {
+	for i := range numberOfCompressedAccounts {
 		var value = big.NewInt(0)
 		var leafLower = big.NewInt(0)
 		var leafUpper = big.NewInt(2)
