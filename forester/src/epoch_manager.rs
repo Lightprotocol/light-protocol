@@ -1240,10 +1240,11 @@ impl<R: Rpc> EpochManager<R> {
         forester_slot_details: &ForesterSlot,
     ) -> Result<()> {
         info!(
-            "Processing slot {} ({}-{})",
+            "Processing slot {} ({}-{}) epoch {}",
             forester_slot_details.slot,
             forester_slot_details.start_solana_slot,
-            forester_slot_details.end_solana_slot
+            forester_slot_details.end_solana_slot,
+            epoch_info.epoch
         );
         let mut rpc = self.rpc_pool.get_connection().await?;
         wait_until_slot_reached(

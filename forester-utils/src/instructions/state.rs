@@ -379,23 +379,17 @@ pub async fn get_state_update_instruction_stream<'a, R: Rpc>(
 
             let staging = staging_tree.as_mut().unwrap();
 
-            let leaves = batch_data.account_hashes.clone();
+            let account_hashes = batch_data.account_hashes.clone();
             let tx_hashes = batch_data.tx_hashes.clone();
-
             let path_indices: Vec<u32> = batch_data.leaf_indices.iter().map(|&idx| idx as u32).collect();
 
-            let mut nullifiers = Vec::with_capacity(leaves.len());
-            for i in 0..leaves.len() {
+            // Compute nullifiers: Hash(account_hash, leaf_index, tx_hash)
+            let mut nullifiers = Vec::with_capacity(account_hashes.len());
+            for (i, account_hash) in account_hashes.iter().enumerate() {
                 let mut leaf_index_bytes = [0u8; 32];
-                leaf_index_bytes[24..].copy_from_slice(batch_data.leaf_indices[i].to_be_bytes().as_slice());
-
-                let nullifier = match Poseidon::hashv(&[&leaves[i], &leaf_index_bytes, &tx_hashes[i]]) {
-                    Ok(hash) => hash,
-                    Err(e) => {
-                        yield Err(ForesterUtilsError::StagingTree(format!("Failed to compute nullifier for index {}: {}", i, e)));
-                        return;
-                    }
-                };
+                leaf_index_bytes[24..].copy_from_slice(&batch_data.leaf_indices[i].to_be_bytes());
+                let nullifier = Poseidon::hashv(&[account_hash.as_slice(), &leaf_index_bytes, &tx_hashes[i]])
+                    .map_err(|e| ForesterUtilsError::Prover(format!("Failed to compute nullifier {}: {}", i, e)))?;
                 nullifiers.push(nullifier);
             }
 
@@ -412,11 +406,22 @@ pub async fn get_state_update_instruction_stream<'a, R: Rpc>(
                 }
             };
 
+            debug!("📍 NULLIFY batch {} old_leaves[0]={:?}[..4] nullifiers[0]={:?}[..4]",
+                batch_idx, &old_leaves[0][..4], &nullifiers[0][..4]);
+
+            // Compute hash_chain(nullifiers) - the on-chain leaves_hash_chain is computed from nullifiers
+            use light_hasher::hash_chain::create_hash_chain_from_slice;
+            let nullifiers_hashchain = create_hash_chain_from_slice(&nullifiers)
+                .map_err(|e| ForesterUtilsError::Prover(format!("Failed to calculate nullifiers hashchain: {}", e)))?;
+
+            debug!("📍 NULLIFY batch {} on-chain={:?}[..4] computed={:?}[..4]",
+                batch_idx, &leaves_hash_chain[..4], &nullifiers_hashchain[..4]);
+
             let circuit_inputs = match get_batch_update_inputs_v2::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
                 old_root,
                 tx_hashes.clone(),
-                nullifiers.clone(),
-                *leaves_hash_chain,
+                account_hashes.clone(),
+                nullifiers_hashchain,
                 old_leaves.clone(),
                 merkle_proofs.clone(),
                 path_indices.clone(),
