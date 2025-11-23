@@ -318,6 +318,104 @@ pub async fn verify_mint_extensions<R: Rpc>(rpc: &mut R, mint: &Pubkey) -> Resul
     }
 }
 
+/// Creates a Token 2022 token account for the given mint.
+///
+/// # Arguments
+/// * `rpc` - RPC client
+/// * `payer` - Transaction fee payer
+/// * `mint` - The mint pubkey
+/// * `owner` - The owner of the new token account
+///
+/// # Returns
+/// The pubkey of the created token account
+pub async fn create_token_22_account<R: Rpc>(
+    rpc: &mut R,
+    payer: &Keypair,
+    mint: &Pubkey,
+    owner: &Pubkey,
+) -> Pubkey {
+    use solana_sdk::system_instruction;
+
+    let token_account = Keypair::new();
+
+    // Get mint account to determine extensions needed for token account
+    let mint_account = rpc.get_account(*mint).await.unwrap().unwrap();
+    let mint_state = StateWithExtensions::<Mint>::unpack(&mint_account.data).unwrap();
+    let mint_extensions = mint_state.get_extension_types().unwrap();
+
+    // Calculate token account size with required extensions
+    let account_len =
+        ExtensionType::try_calculate_account_len::<spl_token_2022::state::Account>(&mint_extensions)
+            .unwrap();
+
+    let rent = rpc
+        .get_minimum_balance_for_rent_exemption(account_len)
+        .await
+        .unwrap();
+
+    // Create account instruction
+    let create_account_ix = system_instruction::create_account(
+        &payer.pubkey(),
+        &token_account.pubkey(),
+        rent,
+        account_len as u64,
+        &spl_token_2022::ID,
+    );
+
+    // Initialize token account
+    let init_account_ix = spl_token_2022::instruction::initialize_account3(
+        &spl_token_2022::ID,
+        &token_account.pubkey(),
+        mint,
+        owner,
+    )
+    .unwrap();
+
+    rpc.create_and_send_transaction(
+        &[create_account_ix, init_account_ix],
+        &payer.pubkey(),
+        &[payer, &token_account],
+    )
+    .await
+    .unwrap();
+
+    token_account.pubkey()
+}
+
+/// Mints Token 2022 tokens to a token account.
+///
+/// # Arguments
+/// * `rpc` - RPC client
+/// * `mint_authority` - The mint authority keypair (must sign)
+/// * `mint` - The mint pubkey
+/// * `token_account` - The destination token account
+/// * `amount` - Amount to mint
+pub async fn mint_spl_tokens_22<R: Rpc>(
+    rpc: &mut R,
+    mint_authority: &Keypair,
+    mint: &Pubkey,
+    token_account: &Pubkey,
+    amount: u64,
+) {
+    let mint_to_ix = spl_token_2022::instruction::mint_to(
+        &spl_token_2022::ID,
+        mint,
+        token_account,
+        &mint_authority.pubkey(),
+        &[],
+        amount,
+    )
+    .unwrap();
+
+    rpc.create_and_send_transaction(
+        &[mint_to_ix],
+        &mint_authority.pubkey(),
+        &[mint_authority],
+    )
+    .await
+    .unwrap();
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
