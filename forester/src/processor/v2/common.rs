@@ -256,16 +256,12 @@ impl<R: Rpc> BatchProcessor<R> {
                 merkle_tree_data,
                 output_queue_data,
             } => {
-                trace!(
-                    "Processing unified state update for tree: {}",
-                    self.context.merkle_tree
-                );
                 let result = self
                     .process_state(merkle_tree_data, output_queue_data)
                     .await;
                 if let Err(ref e) = result {
                     error!(
-                        "Unified state update failed for tree {}: {:?}",
+                        "📍 Unified state update failed for tree {}: {:?}",
                         self.context.merkle_tree, e
                     );
                 }

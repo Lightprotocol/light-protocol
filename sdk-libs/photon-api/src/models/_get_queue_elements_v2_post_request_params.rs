@@ -38,7 +38,10 @@ pub struct GetQueueElementsV2PostRequestParams {
     #[serde(rename = "inputQueueLimit", skip_serializing_if = "Option::is_none")]
     pub input_queue_limit: Option<u16>,
     /// Optional override for the input queue ZKP batch size
-    #[serde(rename = "inputQueueZkpBatchSize", skip_serializing_if = "Option::is_none")]
+    #[serde(
+        rename = "inputQueueZkpBatchSize",
+        skip_serializing_if = "Option::is_none"
+    )]
     pub input_queue_zkp_batch_size: Option<u16>,
     /// Starting index for the address queue
     #[serde(

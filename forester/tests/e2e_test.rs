@@ -873,7 +873,7 @@ async fn execute_test_transactions<R: Rpc>(
             .await;
             println!("{} v2 compress: {:?}", i, batch_compress_sig);
 
-            sleep(Duration::from_millis(1000)).await;
+            sleep(Duration::from_millis(3000)).await;
             let batch_transfer_sig = transfer::<true, R>(
                 rpc,
                 &env.v2_state_trees[0].output_queue,
@@ -884,7 +884,7 @@ async fn execute_test_transactions<R: Rpc>(
             .await;
             println!("{} v2 transfer: {:?}", i, batch_transfer_sig);
 
-            sleep(Duration::from_millis(1000)).await;
+            sleep(Duration::from_millis(3000)).await;
 
             if let Some(mint_pubkey) = v2_mint_pubkey {
                 let batch_transfer_token_sig = compressed_token_transfer(

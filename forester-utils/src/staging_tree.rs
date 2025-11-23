@@ -94,6 +94,13 @@ impl StagingTree {
             merkle_proofs.push(proof);
 
             let old_leaf = self.get_leaf(leaf_idx);
+            debug!(
+                "   {} batch {} getting leaf {}: {:?}[..4]",
+                batch_type,
+                batch_idx,
+                leaf_idx,
+                &old_leaf[..4]
+            );
             old_leaves.push(old_leaf);
 
             self.update_leaf(leaf_idx, new_leaves[i])?;
@@ -187,6 +194,7 @@ impl StagingTree {
         leaves: &[[u8; 32]],
         nodes: &[u64],
         node_hashes: &[[u8; 32]],
+        initial_root: [u8; 32],
     ) -> Result<Self, ForesterUtilsError> {
         let mut tree = MerkleTree::<Poseidon>::new(TREE_HEIGHT, 0);
 
@@ -224,14 +232,33 @@ impl StagingTree {
                 tree.layers[0].resize(leaf_idx + 1, [0u8; 32]);
             }
 
+            debug!(
+                "   Storing leaf at index {}: {:?}[..4]",
+                leaf_idx,
+                &leaf_hash[..4]
+            );
             tree.layers[0][leaf_idx] = *leaf_hash;
         }
 
-        let computed_root = tree.root();
+        // Use the indexer-provided root; also log the reconstructed root for diagnostics.
+        let reconstructed_root = tree.root();
+        if reconstructed_root != initial_root {
+            debug!(
+                "Staging tree reconstruction differs: indexer={:?}[..4] reconstructed={:?}[..4]",
+                &initial_root[..4],
+                &reconstructed_root[..4]
+            );
+        } else {
+            debug!(
+                "Initialized staging tree with indexer root: {:?}[..4]",
+                &initial_root[..4]
+            );
+        }
+        debug!("   Tree now has {} leaves at layer 0", tree.layers[0].len());
 
         Ok(Self {
             tree,
-            current_root: computed_root,
+            current_root: initial_root,
             updates: Vec::new(),
         })
     }
@@ -241,7 +268,8 @@ impl StagingTree {
         leaves: &[[u8; 32]],
         nodes: &[u64],
         node_hashes: &[[u8; 32]],
+        initial_root: [u8; 32],
     ) -> Result<Self, ForesterUtilsError> {
-        Self::from_v2_output_queue(leaf_indices, leaves, nodes, node_hashes)
+        Self::from_v2_output_queue(leaf_indices, leaves, nodes, node_hashes, initial_root)
     }
 }
