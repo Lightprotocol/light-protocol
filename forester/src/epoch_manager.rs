@@ -12,6 +12,7 @@ use dashmap::DashMap;
 use forester_utils::{
     forester_epoch::{get_epoch_phases, Epoch, ForesterSlot, TreeAccounts, TreeForesterSchedule},
     rpc_pool::SolanaRpcPool,
+    staging_tree::StagingTree,
 };
 use futures::future::join_all;
 use light_client::{
@@ -108,6 +109,7 @@ pub struct EpochManager<R: Rpc> {
     new_tree_sender: broadcast::Sender<TreeAccounts>,
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
+    staging_tree_caches: Arc<DashMap<Pubkey, Arc<Mutex<Option<StagingTree>>>>>,
     coordinator: Option<Arc<QueueEventRouter>>,
     compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
 }
@@ -126,6 +128,7 @@ impl<R: Rpc> Clone for EpochManager<R> {
             new_tree_sender: self.new_tree_sender.clone(),
             tx_cache: self.tx_cache.clone(),
             ops_cache: self.ops_cache.clone(),
+            staging_tree_caches: self.staging_tree_caches.clone(),
             coordinator: self.coordinator.clone(),
             compressible_tracker: self.compressible_tracker.clone(),
         }
@@ -184,6 +187,7 @@ impl<R: Rpc> EpochManager<R> {
             new_tree_sender,
             tx_cache,
             ops_cache,
+            staging_tree_caches: Arc::new(DashMap::new()),
             coordinator,
             compressible_tracker,
         })
@@ -234,6 +238,7 @@ impl<R: Rpc> EpochManager<R> {
 
         while let Some(epoch) = rx.recv().await {
             debug!("Received new epoch: {}", epoch);
+
             let self_clone = Arc::clone(&self);
             tokio::spawn(async move {
                 if let Err(e) = self_clone.process_epoch(epoch).await {
@@ -1462,7 +1467,6 @@ impl<R: Rpc> EpochManager<R> {
         Ok(())
     }
 
-    /// V2 polling fallback (when gRPC unavailable)
     #[instrument(
         level = "debug",
         skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details),
@@ -1872,6 +1876,11 @@ impl<R: Rpc> EpochManager<R> {
             slot_tracker: self.slot_tracker.clone(),
             input_queue_hint,
             output_queue_hint,
+            staging_tree_cache: self
+                .staging_tree_caches
+                .entry(tree_accounts.merkle_tree)
+                .or_insert_with(|| Arc::new(Mutex::new(None)))
+                .clone(),
         };
 
         process_batched_operations(batch_context, tree_accounts.tree_type)

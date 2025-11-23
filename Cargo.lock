@@ -2358,6 +2358,7 @@ version = "2.0.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
+ "anyhow",
  "async-stream",
  "async-trait",
  "bb8",
@@ -2373,6 +2374,7 @@ dependencies = [
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-merkle-tree-metadata",
+ "light-merkle-tree-reference",
  "light-prover-client",
  "light-registry",
  "light-sdk",

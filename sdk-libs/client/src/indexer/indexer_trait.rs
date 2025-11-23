@@ -201,6 +201,15 @@ pub trait Indexer: std::marker::Send + std::marker::Sync {
         config: Option<IndexerRpcConfig>,
     ) -> Result<Response<QueueElementsResult>, IndexerError>;
 
+    /// V2: Returns queue elements with deduplicated nodes for efficient staging tree construction.
+    /// Supports output queue, input queue, and address queue.
+    async fn get_queue_elements_v2(
+        &mut self,
+        merkle_tree_pubkey: [u8; 32],
+        options: super::QueueElementsV2Options,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<super::QueueElementsV2Result>, IndexerError>;
+
     async fn get_subtrees(
         &self,
         merkle_tree_pubkey: [u8; 32],

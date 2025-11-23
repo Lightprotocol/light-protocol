@@ -1054,6 +1054,15 @@ impl Indexer for TestIndexer {
     async fn get_indexer_health(&self, _config: Option<RetryConfig>) -> Result<bool, IndexerError> {
         todo!("get_indexer_health not implemented")
     }
+
+    async fn get_queue_elements_v2(
+        &mut self,
+        _merkle_tree_pubkey: [u8; 32],
+        _options: light_client::indexer::QueueElementsV2Options,
+        _config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<light_client::indexer::QueueElementsV2Result>, IndexerError> {
+        unimplemented!("get_queue_elements_v2 not implemented for TestIndexer")
+    }
 }
 
 #[async_trait]

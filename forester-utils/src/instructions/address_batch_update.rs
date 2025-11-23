@@ -143,7 +143,7 @@ async fn stream_instruction_data<'a, R: Rpc>(
             };
             current_root = new_current_root;
 
-            info!("Generating {} zk proofs for batch_address chunk {} (parallel)", all_inputs.len(), chunk_idx + 1);
+            info!("Generating {} zk proofs for batch_address chunk {}", all_inputs.len(), chunk_idx + 1);
 
             // Generate ALL proofs in parallel using join_all
             let proof_futures: Vec<_> = all_inputs.into_iter().enumerate().map(|(i, inputs)| {

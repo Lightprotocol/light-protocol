@@ -326,4 +326,18 @@ impl Indexer for LightProgramTest {
             .get_indexer_health(config)
             .await?)
     }
+
+    async fn get_queue_elements_v2(
+        &mut self,
+        merkle_tree_pubkey: [u8; 32],
+        options: light_client::indexer::QueueElementsV2Options,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<light_client::indexer::QueueElementsV2Result>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_mut()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_queue_elements_v2(merkle_tree_pubkey, options, config)
+            .await?)
+    }
 }

@@ -1365,11 +1365,6 @@ async fn create_v1_address<R: Rpc>(
                 *merkle_tree_pubkey,
             )
             .await;
-
-        for (idx, root) in merkle_tree.roots.iter().enumerate() {
-            println!("root[{}]: {:?}", idx, root);
-        }
-        println!("root index: {}", merkle_tree.root_index());
     }
 
     let instruction = create_invoke_instruction(
