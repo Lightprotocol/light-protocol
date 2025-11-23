@@ -28,4 +28,7 @@ pub enum ForesterUtilsError {
 
     #[error("pool error: {0}")]
     Pool(#[from] PoolError),
+
+    #[error("error: {0}")]
+    StagingTree(String),
 }

@@ -330,3 +330,17 @@ pub mod _get_queue_info_post_200_response_result;
 pub use self::_get_queue_info_post_200_response_result::{
     GetQueueInfoPost200ResponseResult, QueueInfo,
 };
+pub mod address_queue_data_v2;
+pub use self::address_queue_data_v2::AddressQueueDataV2;
+pub mod _get_queue_elements_v2_post_200_response;
+pub use self::_get_queue_elements_v2_post_200_response::GetQueueElementsV2Post200Response;
+pub mod _get_queue_elements_v2_post_200_response_result;
+pub use self::_get_queue_elements_v2_post_200_response_result::GetQueueElementsV2Post200ResponseResult;
+pub mod _get_queue_elements_v2_post_request;
+pub use self::_get_queue_elements_v2_post_request::GetQueueElementsV2PostRequest;
+pub mod _get_queue_elements_v2_post_request_params;
+pub use self::_get_queue_elements_v2_post_request_params::GetQueueElementsV2PostRequestParams;
+pub mod input_queue_data_v2;
+pub use self::input_queue_data_v2::InputQueueDataV2;
+pub mod output_queue_data_v2;
+pub use self::output_queue_data_v2::OutputQueueDataV2;

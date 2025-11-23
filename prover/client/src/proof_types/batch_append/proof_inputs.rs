@@ -148,3 +148,60 @@ pub fn get_batch_append_inputs<const HEIGHT: usize>(
         changelog,
     ))
 }
+
+#[allow(clippy::too_many_arguments)]
+pub fn get_batch_append_inputs_v2<const HEIGHT: usize>(
+    current_root: [u8; 32],
+    start_index: u32,
+    leaves: Vec<[u8; 32]>,
+    leaves_hashchain: [u8; 32],
+    old_leaves: Vec<[u8; 32]>,
+    merkle_proofs: Vec<Vec<[u8; 32]>>,
+    batch_size: u32,
+    new_root: [u8; 32],
+) -> Result<BatchAppendsCircuitInputs, ProverClientError> {
+    let mut circuit_merkle_proofs = Vec::with_capacity(batch_size as usize);
+
+    for merkle_proof in merkle_proofs.into_iter() {
+        let merkle_proof_array: [[u8; 32]; HEIGHT] =
+            merkle_proof.as_slice().try_into().map_err(|_| {
+                ProverClientError::GenericError("Invalid merkle proof length".to_string())
+            })?;
+
+        circuit_merkle_proofs.push(
+            merkle_proof_array
+                .iter()
+                .map(|proof_elem| BigInt::from_bytes_be(Sign::Plus, proof_elem))
+                .collect(),
+        );
+    }
+
+    let mut start_index_bytes = [0u8; 32];
+    start_index_bytes[28..].copy_from_slice(start_index.to_be_bytes().as_slice());
+
+    let public_input_hash = create_hash_chain_from_array([
+        current_root,
+        new_root,
+        leaves_hashchain,
+        start_index_bytes,
+    ])?;
+
+    Ok(BatchAppendsCircuitInputs {
+        public_input_hash: BigInt::from_bytes_be(Sign::Plus, &public_input_hash),
+        old_root: BigInt::from_bytes_be(Sign::Plus, &current_root),
+        new_root: BigInt::from_bytes_be(Sign::Plus, &new_root),
+        leaves_hashchain_hash: BigInt::from_bytes_be(Sign::Plus, &leaves_hashchain),
+        start_index,
+        old_leaves: old_leaves
+            .iter()
+            .map(|leaf| BigInt::from_bytes_be(Sign::Plus, leaf))
+            .collect(),
+        leaves: leaves
+            .iter()
+            .map(|leaf| BigInt::from_bytes_be(Sign::Plus, leaf))
+            .collect(),
+        merkle_proofs: circuit_merkle_proofs,
+        height: HEIGHT as u32,
+        batch_size,
+    })
+}

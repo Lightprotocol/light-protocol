@@ -2,7 +2,8 @@ use std::{future::Future, sync::Arc, time::Duration};
 
 use borsh::BorshSerialize;
 use forester_utils::{
-    forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool, utils::wait_for_indexer,
+    forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool, staging_tree::StagingTree,
+    utils::wait_for_indexer,
 };
 pub use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
 use futures::{pin_mut, stream::StreamExt, Stream};
@@ -25,15 +26,12 @@ use crate::{
 #[derive(Debug)]
 pub enum BatchReadyState {
     NotReady,
-    AddressReadyForAppend {
+    AddressReady {
         merkle_tree_data: ParsedMerkleTreeData,
     },
-    StateReadyForAppend {
+    StateReady {
         merkle_tree_data: ParsedMerkleTreeData,
-        output_queue_data: ParsedQueueData,
-    },
-    StateReadyForNullify {
-        merkle_tree_data: ParsedMerkleTreeData,
+        output_queue_data: Option<ParsedQueueData>,
     },
 }
 
@@ -54,10 +52,9 @@ pub struct BatchContext<R: Rpc> {
     pub ops_cache: Arc<Mutex<ProcessedHashCache>>,
     pub epoch_phases: EpochPhases,
     pub slot_tracker: Arc<SlotTracker>,
-    /// input queue size from gRPC
     pub input_queue_hint: Option<u64>,
-    /// output queue size from gRPC
     pub output_queue_hint: Option<u64>,
+    pub staging_tree_cache: Arc<Mutex<Option<StagingTree>>>,
 }
 
 #[derive(Debug)]
@@ -66,7 +63,6 @@ pub struct BatchProcessor<R: Rpc> {
     tree_type: TreeType,
 }
 
-/// Processes a stream of batched instruction data into transactions.
 pub(crate) async fn process_stream<R, S, D, FutC>(
     context: &BatchContext<R>,
     stream_creator_future: FutC,
@@ -164,7 +160,6 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
     context: &BatchContext<R>,
     instructions: Vec<Instruction>,
 ) -> Result<String> {
-    // Check if we're still in the active phase before sending the transaction
     let current_slot = context.slot_tracker.estimated_current_slot();
     let current_phase_state = context.epoch_phases.get_current_epoch_state(current_slot);
 
@@ -223,7 +218,7 @@ impl<R: Rpc> BatchProcessor<R> {
         let state = self.verify_batch_ready().await;
 
         match state {
-            BatchReadyState::AddressReadyForAppend { merkle_tree_data } => {
+            BatchReadyState::AddressReady { merkle_tree_data } => {
                 trace!(
                     "Processing address append for tree: {}",
                     self.context.merkle_tree
@@ -257,34 +252,20 @@ impl<R: Rpc> BatchProcessor<R> {
 
                 result
             }
-            BatchReadyState::StateReadyForAppend {
+            BatchReadyState::StateReady {
                 merkle_tree_data,
                 output_queue_data,
             } => {
                 trace!(
-                    "Process state append for tree: {}",
+                    "Processing unified state update for tree: {}",
                     self.context.merkle_tree
                 );
                 let result = self
-                    .process_state_append_hybrid(merkle_tree_data, output_queue_data)
+                    .process_state(merkle_tree_data, output_queue_data)
                     .await;
                 if let Err(ref e) = result {
                     error!(
-                        "State append failed for tree {}: {:?}",
-                        self.context.merkle_tree, e
-                    );
-                }
-                result
-            }
-            BatchReadyState::StateReadyForNullify { merkle_tree_data } => {
-                trace!(
-                    "Processing batch for nullify, tree: {}",
-                    self.context.merkle_tree
-                );
-                let result = self.process_state_nullify_hybrid(merkle_tree_data).await;
-                if let Err(ref e) = result {
-                    error!(
-                        "State nullify failed for tree {}: {:?}",
+                        "Unified state update failed for tree {}: {:?}",
                         self.context.merkle_tree, e
                     );
                 }
@@ -342,17 +323,10 @@ impl<R: Rpc> BatchProcessor<R> {
             (None, false)
         };
 
-        trace!(
-            "self.tree_type: {}, input_ready: {}, output_ready: {}",
-            self.tree_type,
-            input_ready,
-            output_ready
-        );
-
         if self.tree_type == TreeType::AddressV2 {
             return if input_ready {
                 if let Some(mt_data) = merkle_tree_data {
-                    BatchReadyState::AddressReadyForAppend {
+                    BatchReadyState::AddressReady {
                         merkle_tree_data: mt_data,
                     }
                 } else {
@@ -363,134 +337,43 @@ impl<R: Rpc> BatchProcessor<R> {
             };
         }
 
-        // For State tree type, balance appends and nullifies operations
-        // based on the queue states
-        match (input_ready, output_ready) {
-            (true, true) => {
-                if let (Some(mt_data), Some(oq_data)) = (merkle_tree_data, output_queue_data) {
-                    // If both queues are ready, check their fill levels
-                    let input_fill = Self::calculate_completion_from_parsed(
-                        mt_data.num_inserted_zkps,
-                        mt_data.current_zkp_batch_index,
-                    );
-                    let output_fill = Self::calculate_completion_from_parsed(
-                        oq_data.num_inserted_zkps,
-                        oq_data.current_zkp_batch_index,
-                    );
-
-                    trace!(
-                        "Input queue fill: {:.2}, Output queue fill: {:.2}",
-                        input_fill,
-                        output_fill
-                    );
-                    if input_fill > output_fill {
-                        BatchReadyState::StateReadyForNullify {
-                            merkle_tree_data: mt_data,
-                        }
-                    } else {
-                        BatchReadyState::StateReadyForAppend {
-                            merkle_tree_data: mt_data,
-                            output_queue_data: oq_data,
-                        }
-                    }
-                } else {
-                    BatchReadyState::NotReady
-                }
-            }
-            (true, false) => {
-                if let Some(mt_data) = merkle_tree_data {
-                    BatchReadyState::StateReadyForNullify {
-                        merkle_tree_data: mt_data,
-                    }
-                } else {
-                    BatchReadyState::NotReady
-                }
-            }
-            (false, true) => {
-                if let (Some(mt_data), Some(oq_data)) = (merkle_tree_data, output_queue_data) {
-                    BatchReadyState::StateReadyForAppend {
-                        merkle_tree_data: mt_data,
-                        output_queue_data: oq_data,
-                    }
-                } else {
-                    BatchReadyState::NotReady
-                }
-            }
-            (false, false) => BatchReadyState::NotReady,
+        if !input_ready && !output_ready {
+            return BatchReadyState::NotReady;
         }
+
+        if let Some(merkle_tree_data) = merkle_tree_data {
+            return BatchReadyState::StateReady {
+                merkle_tree_data: merkle_tree_data,
+                output_queue_data: output_queue_data,
+            };
+        }
+
+        return BatchReadyState::NotReady;
     }
 
-    async fn process_state_nullify_hybrid(
+    async fn process_state(
         &self,
         merkle_tree_data: ParsedMerkleTreeData,
+        output_queue_data: Option<ParsedQueueData>,
     ) -> Result<usize> {
-        let zkp_batch_size = merkle_tree_data.zkp_batch_size as usize;
-
-        let batch_hash = format!(
-            "state_nullify_hybrid_{}_{}",
-            self.context.merkle_tree, self.context.epoch
-        );
+        let batch_hash = format!("state_{}_{}", self.context.merkle_tree, self.context.epoch);
 
         {
             let mut cache = self.context.ops_cache.lock().await;
             if cache.contains(&batch_hash) {
-                trace!(
-                    "Skipping already processed state nullify batch (hybrid): {}",
-                    batch_hash
-                );
                 return Ok(0);
             }
             cache.add(&batch_hash);
         }
 
-        state::perform_nullify(&self.context, merkle_tree_data).await?;
-
-        trace!(
-            "State nullify operation (hybrid) completed for tree: {}",
-            self.context.merkle_tree
-        );
-        let mut cache = self.context.ops_cache.lock().await;
-        cache.cleanup_by_key(&batch_hash);
-        trace!("Cache cleaned up for batch: {}", batch_hash);
-
-        Ok(zkp_batch_size)
-    }
-
-    async fn process_state_append_hybrid(
-        &self,
-        merkle_tree_data: ParsedMerkleTreeData,
-        output_queue_data: ParsedQueueData,
-    ) -> Result<usize> {
-        let zkp_batch_size = output_queue_data.zkp_batch_size as usize;
-
-        let batch_hash = format!(
-            "state_append_hybrid_{}_{}",
-            self.context.merkle_tree, self.context.epoch
-        );
-        {
-            let mut cache = self.context.ops_cache.lock().await;
-            if cache.contains(&batch_hash) {
-                trace!(
-                    "Skipping already processed state append batch (hybrid): {}",
-                    batch_hash
-                );
-                return Ok(0);
-            }
-            cache.add(&batch_hash);
-        }
-        state::perform_append(&self.context, merkle_tree_data, output_queue_data).await?;
-        trace!(
-            "State append operation (hybrid) completed for tree: {}",
-            self.context.merkle_tree
-        );
+        state::perform_state_update(&self.context, merkle_tree_data, output_queue_data).await?;
 
         let mut cache = self.context.ops_cache.lock().await;
         cache.cleanup_by_key(&batch_hash);
 
-        Ok(zkp_batch_size)
+        Ok(1)
     }
 
-    /// Parse merkle tree account and check if batch is ready
     fn parse_merkle_tree_account(
         &self,
         account: &mut solana_sdk::account::Account,
@@ -523,21 +406,11 @@ impl<R: Rpc> BatchProcessor<R> {
                 .push(merkle_tree.hash_chain_stores[batch_index as usize][i as usize]);
         }
 
-        debug!(
-            "Extracted {} hash chains from on-chain merkle tree. batch_index={}, num_inserted_zkps={}, current_zkp_batch_index={}",
-            leaves_hash_chains.len(),
-            batch_index,
-            num_inserted_zkps,
-            current_zkp_batch_index
-        );
-        if !leaves_hash_chains.is_empty() {
-            debug!("First hash chain: {:?}", leaves_hash_chains.first());
-            debug!("Last hash chain: {:?}", leaves_hash_chains.last());
-        }
+        let onchain_root = *merkle_tree.root_history.last().unwrap();
 
         let parsed_data = ParsedMerkleTreeData {
             next_index: merkle_tree.next_index,
-            current_root: *merkle_tree.root_history.last().unwrap(),
+            current_root: onchain_root,
             root_history: merkle_tree.root_history.to_vec(),
             zkp_batch_size: batch.zkp_batch_size as u16,
             pending_batch_index: batch_index as u32,
@@ -553,7 +426,6 @@ impl<R: Rpc> BatchProcessor<R> {
         Ok((parsed_data, is_ready))
     }
 
-    /// Parse output queue account and check if batch is ready
     fn parse_output_queue_account(
         &self,
         account: &mut solana_sdk::account::Account,
@@ -588,18 +460,5 @@ impl<R: Rpc> BatchProcessor<R> {
             && batch.get_current_zkp_batch_index() > batch.get_num_inserted_zkps();
 
         Ok((parsed_data, is_ready))
-    }
-
-    /// Calculate completion percentage from parsed data
-    fn calculate_completion_from_parsed(
-        num_inserted_zkps: u64,
-        current_zkp_batch_index: u64,
-    ) -> f64 {
-        let total = current_zkp_batch_index;
-        if total == 0 {
-            return 0.0;
-        }
-        let remaining = total - num_inserted_zkps;
-        remaining as f64 / total as f64
     }
 }

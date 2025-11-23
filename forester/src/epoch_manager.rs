@@ -12,6 +12,7 @@ use dashmap::DashMap;
 use forester_utils::{
     forester_epoch::{get_epoch_phases, Epoch, ForesterSlot, TreeAccounts, TreeForesterSchedule},
     rpc_pool::SolanaRpcPool,
+    staging_tree::StagingTree,
 };
 use futures::future::join_all;
 use kameo::actor::{ActorRef, Spawn};
@@ -110,6 +111,7 @@ pub struct EpochManager<R: Rpc> {
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
     queue_poller: Option<ActorRef<QueueInfoPoller>>,
+    staging_tree_caches: Arc<DashMap<Pubkey, Arc<Mutex<Option<StagingTree>>>>>,
     compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
 }
 
@@ -128,6 +130,7 @@ impl<R: Rpc> Clone for EpochManager<R> {
             tx_cache: self.tx_cache.clone(),
             ops_cache: self.ops_cache.clone(),
             queue_poller: self.queue_poller.clone(),
+            staging_tree_caches: self.staging_tree_caches.clone(),
             compressible_tracker: self.compressible_tracker.clone(),
         }
     }
@@ -179,6 +182,7 @@ impl<R: Rpc> EpochManager<R> {
             tx_cache,
             ops_cache,
             queue_poller,
+            staging_tree_caches: Arc::new(DashMap::new()),
             compressible_tracker,
         })
     }
@@ -228,6 +232,7 @@ impl<R: Rpc> EpochManager<R> {
 
         while let Some(epoch) = rx.recv().await {
             debug!("Received new epoch: {}", epoch);
+
             let self_clone = Arc::clone(&self);
             tokio::spawn(async move {
                 if let Err(e) = self_clone.process_epoch(epoch).await {
@@ -1404,11 +1409,11 @@ impl<R: Rpc> EpochManager<R> {
                         let processing_start_time = Instant::now();
                         match self
                             .dispatch_tree_processing(
-                                epoch_info,
-                                epoch_pda,
-                                tree_accounts,
-                                forester_slot_details,
-                                estimated_slot,
+                            epoch_info,
+                            epoch_pda,
+                            tree_accounts,
+                            forester_slot_details,
+                            estimated_slot,
                                 Some(&update),
                             )
                             .await
@@ -1777,6 +1782,11 @@ impl<R: Rpc> EpochManager<R> {
             slot_tracker: self.slot_tracker.clone(),
             input_queue_hint,
             output_queue_hint,
+            staging_tree_cache: self
+                .staging_tree_caches
+                .entry(tree_accounts.merkle_tree)
+                .or_insert_with(|| Arc::new(Mutex::new(None)))
+                .clone(),
         };
 
         process_batched_operations(batch_context, tree_accounts.tree_type)

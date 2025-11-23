@@ -10,6 +10,7 @@ pub mod instructions;
 pub mod rate_limiter;
 pub mod registry;
 pub mod rpc_pool;
+pub mod staging_tree;
 pub mod utils;
 
 /// Parsed merkle tree data extracted from account

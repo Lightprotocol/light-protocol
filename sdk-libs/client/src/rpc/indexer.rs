@@ -237,6 +237,20 @@ impl Indexer for LightClient {
             .await?)
     }
 
+
+    async fn get_queue_elements_v2(
+        &mut self,
+        merkle_tree_pubkey: [u8; 32],
+        options: crate::indexer::QueueElementsV2Options,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<crate::indexer::QueueElementsV2Result>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_mut()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_queue_elements_v2(merkle_tree_pubkey, options, config)
+            .await?)
+    }
     async fn get_subtrees(
         &self,
         merkle_tree_pubkey: [u8; 32],
