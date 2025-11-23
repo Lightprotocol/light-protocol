@@ -117,6 +117,16 @@ export interface AddressWithTreeInfo {
     treeInfo: AddressTreeInfo;
 }
 
+export interface AddressWithTreeInfoV2 {
+    address: Uint8Array;
+    treeInfo: TreeInfo;
+}
+
+export enum DerivationMode {
+    compressible = 'compressible',
+    standard = 'standard',
+}
+
 export interface CompressedTransaction {
     compressionInfo: {
         closedAccounts: {

@@ -7,7 +7,7 @@ import {
 } from '@solana/web3.js';
 import BN from 'bn.js';
 import {
-    createMint,
+    createMintSPL,
     createTokenProgramLookupTable,
     mintTo,
 } from '../../src/actions';
@@ -79,10 +79,11 @@ describe('mintTo', () => {
         const mintKeypair = Keypair.generate();
 
         mint = (
-            await createMint(
+            await createMintSPL(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )

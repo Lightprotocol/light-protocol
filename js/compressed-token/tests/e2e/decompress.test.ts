@@ -12,7 +12,7 @@ import {
     TreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { createMint, mintTo, decompress } from '../../src/actions';
+import { createMintSPL, mintTo, decompress } from '../../src/actions';
 import { createAssociatedTokenAccount } from '@solana/spl-token';
 import {
     getTokenPoolInfos,
@@ -86,10 +86,11 @@ describe('decompress', () => {
         const mintKeypair = Keypair.generate();
 
         mint = (
-            await createMint(
+            await createMintSPL(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )

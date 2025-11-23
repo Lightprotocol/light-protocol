@@ -12,7 +12,7 @@ import {
     InputTokenDataWithContext,
     PackedMerkleContextLegacy,
     ValidityProof,
-    COMPRESSED_TOKEN_PROGRAM_ID,
+    CTOKEN_PROGRAM_ID,
     defaultStaticAccountsStruct,
     LightSystemProgram,
 } from '@lightprotocol/stateless.js';
@@ -50,7 +50,7 @@ const getTestProgram = (): Program<LightCompressedToken> => {
         },
     );
     setProvider(mockProvider);
-    return new Program(IDL, COMPRESSED_TOKEN_PROGRAM_ID, mockProvider);
+    return new Program(IDL, CTOKEN_PROGRAM_ID, mockProvider);
 };
 function deepEqual(ref: any, val: any) {
     if (ref === null && val === null) return true;
