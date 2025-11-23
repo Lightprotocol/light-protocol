@@ -7,7 +7,7 @@ use photon_api::{
     models::GetCompressedAccountsByOwnerPostRequestParams,
 };
 use solana_pubkey::Pubkey;
-use tracing::{debug, error, trace, warn};
+use tracing::{error, trace, warn};
 
 use super::{
     types::{
@@ -1839,30 +1839,15 @@ impl Indexer for PhotonIndexer {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
 
-            // Transform OutputQueueDataV2
             let output_queue = if let Some(output) = api_response.output_queue {
-                // Log first few raw strings from API to debug format issue
-                debug!("🔍 Raw API response - output.leaves (first 3):");
-                for (i, leaf_str) in output.leaves.iter().take(3).enumerate() {
-                    debug!("  API leaves[{}]: \"{}\"", i, &leaf_str[..leaf_str.len().min(120)]);
-                }
-
                 let account_hashes: Result<Vec<[u8; 32]>, IndexerError> = output
                     .account_hashes
                     .iter()
                     .map(|h| Hash::from_base58(h))
                     .collect();
 
-                let old_leaves: Result<Vec<[u8; 32]>, IndexerError> = output
-                    .leaves
-                    .iter()
-                    .map(|h| Hash::from_base58(h))
-                    .collect();
-
-                debug!("🔍 Raw API response - output.node_hashes (first 3):");
-                for (i, hash_str) in output.node_hashes.iter().take(3).enumerate() {
-                    debug!("  API node_hashes[{}]: \"{}\"", i, &hash_str[..hash_str.len().min(120)]);
-                }
+                let old_leaves: Result<Vec<[u8; 32]>, IndexerError> =
+                    output.leaves.iter().map(|h| Hash::from_base58(h)).collect();
 
                 let node_hashes: Result<Vec<[u8; 32]>, IndexerError> = output
                     .node_hashes
@@ -1893,11 +1878,8 @@ impl Indexer for PhotonIndexer {
                     .map(|h| Hash::from_base58(h))
                     .collect();
 
-                let current_leaves: Result<Vec<[u8; 32]>, IndexerError> = input
-                    .leaves
-                    .iter()
-                    .map(|h| Hash::from_base58(h))
-                    .collect();
+                let current_leaves: Result<Vec<[u8; 32]>, IndexerError> =
+                    input.leaves.iter().map(|h| Hash::from_base58(h)).collect();
 
                 let tx_hashes: Result<Vec<[u8; 32]>, IndexerError> = input
                     .tx_hashes
