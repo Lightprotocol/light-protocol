@@ -30,3 +30,7 @@ export const REVOKE_DISCRIMINATOR = Buffer.from([
 export const ADD_TOKEN_POOL_DISCRIMINATOR = Buffer.from([
     114, 143, 210, 73, 96, 115, 1, 228,
 ]);
+
+export const DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR = Buffer.from([
+    107,
+]);

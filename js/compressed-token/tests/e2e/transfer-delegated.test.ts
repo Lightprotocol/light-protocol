@@ -12,7 +12,7 @@ import {
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 import {
-    createMint,
+    createMintSPL,
     mintTo,
     approve,
     transferDelegated,
@@ -186,10 +186,11 @@ describe('transferDelegated', () => {
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
 
         mint = (
-            await createMint(
+            await createMintSPL(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 mintKeypair,
             )
@@ -247,10 +248,11 @@ describe('transferDelegated', () => {
     it('should transfer using two delegated accounts', async () => {
         const newMintKeypair = Keypair.generate();
         const newMint = (
-            await createMint(
+            await createMintSPL(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 newMintKeypair,
             )
@@ -321,10 +323,11 @@ describe('transferDelegated', () => {
     it('should transfer a partial amount leaving a remainder', async () => {
         const newMintKeypair = Keypair.generate();
         newMint = (
-            await createMint(
+            await createMintSPL(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
+                null,
                 TEST_TOKEN_DECIMALS,
                 newMintKeypair,
             )
