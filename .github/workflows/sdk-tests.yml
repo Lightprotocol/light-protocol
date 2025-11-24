@@ -48,7 +48,7 @@ jobs:
       matrix:
         include:
           - program: native
-            sub-tests: '["cargo-test-sbf -p sdk-native-test", "cargo-test-sbf -p sdk-v1-native-test", "cargo-test-sbf -p client-test"]'
+            sub-tests: '["cargo-test-sbf -p sdk-native-test", "cargo-test-sbf -p sdk-v1-native-test", "cargo-test-sbf -p sdk-ctoken-test", "cargo-test-sbf -p client-test"]'
           - program: anchor & pinocchio
             sub-tests: '["cargo-test-sbf -p sdk-anchor-test", "cargo-test-sbf -p sdk-compressible-test", "cargo-test-sbf -p csdk-anchor-derived-test", "cargo-test-sbf -p csdk-anchor-full-derived-test", "cargo-test-sbf -p sdk-pinocchio-v1-test", "cargo-test-sbf -p sdk-pinocchio-v2-test", "cargo-test-sbf -p pinocchio-nostd-test"]'
           - program: token test

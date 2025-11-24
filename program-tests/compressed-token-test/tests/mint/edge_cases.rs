@@ -4,10 +4,7 @@ use light_compressed_token_sdk::{
     compressed_token::create_compressed_mint::{
         derive_compressed_mint_address, find_spl_mint_address,
     },
-    ctoken::create_associated_token_account::{
-        create_compressible_associated_token_account,
-        CreateCompressibleAssociatedTokenAccountInputs,
-    },
+    ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use light_ctoken_types::state::{extensions::AdditionalMetadata, CompressedMint, TokenDataVersion};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
@@ -150,21 +147,25 @@ async fn functional_all_in_one_instruction() {
 
     // Create a compressible ctoken account for MintToCToken
     let recipient = Keypair::new();
-    let create_compressible_ata_ix = create_compressible_associated_token_account(
-        CreateCompressibleAssociatedTokenAccountInputs {
-            payer: payer.pubkey(),
-            owner: recipient.pubkey(),
-            mint: spl_mint_pda,
-            rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-            pre_pay_num_epochs: 0,
-            lamports_per_write: Some(1000),
-            compressible_config: rpc
-                .test_accounts
-                .funding_pool_config
-                .compressible_config_pda,
-            token_account_version: TokenDataVersion::ShaFlat,
-        },
+    let compressible_params = CompressibleParams {
+        compressible_config: rpc
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
+        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+        pre_pay_num_epochs: 0,
+        lamports_per_write: Some(1000),
+        compress_to_account_pubkey: None,
+        token_account_version: TokenDataVersion::ShaFlat,
+    };
+
+    let create_compressible_ata_ix = CreateAssociatedTokenAccount::new(
+        payer.pubkey(),
+        recipient.pubkey(),
+        spl_mint_pda,
+        compressible_params,
     )
+    .instruction()
     .unwrap();
 
     rpc.create_and_send_transaction(&[create_compressible_ata_ix], &payer.pubkey(), &[&payer])
@@ -183,7 +184,7 @@ async fn functional_all_in_one_instruction() {
         },
         // 2. MintToCToken - mint to decompressed account
         MintActionType::MintToCToken {
-            account: light_compressed_token_sdk::ctoken::create_associated_token_account::derive_ctoken_ata(
+            account: light_compressed_token_sdk::ctoken::derive_ctoken_ata(
                 &recipient.pubkey(),
                 &spl_mint_pda,
             )

@@ -121,18 +121,42 @@ where
         let seed_refs: Vec<&[u8]> = ctoken_signer_seeds.iter().map(|s| s.as_slice()).collect();
         let seeds_slice: &[&[u8]] = &seed_refs;
 
-        crate::ctoken::create_token_account::create_ctoken_account_signed(
-            *program_id,
-            fee_payer.clone(),
-            (*owner_info).clone(),
-            (*mint_info).clone(),
-            *authority.key,
-            seeds_slice,
-            ctoken_rent_sponsor.clone(),
-            ctoken_config.clone(),
-            Some(2),
-            None,
-        )?;
+        // Build CompressToPubkey from the signer seeds if bump is present
+        let compress_to_pubkey = ctoken_signer_seeds
+            .last()
+            .and_then(|b| b.first().copied())
+            .map(|bump| {
+                let seeds_without_bump: Vec<Vec<u8>> = ctoken_signer_seeds
+                    .iter()
+                    .take(ctoken_signer_seeds.len().saturating_sub(1))
+                    .cloned()
+                    .collect();
+                light_ctoken_types::instructions::extensions::compressible::CompressToPubkey {
+                    bump,
+                    program_id: program_id.to_bytes(),
+                    seeds: seeds_without_bump,
+                }
+            });
+
+        crate::ctoken::CreateCTokenAccountInfos {
+            payer: fee_payer.clone(),
+            account: (*owner_info).clone(),
+            mint: (*mint_info).clone(),
+            owner: *authority.key,
+            compressible: Some(crate::ctoken::CompressibleParamsInfos {
+                compressible_config: ctoken_config.clone(),
+                rent_sponsor: ctoken_rent_sponsor.clone(),
+                system_program: cpi_accounts
+                    .system_program()
+                    .map_err(|_| ProgramError::InvalidAccountData)?
+                    .clone(),
+                pre_pay_num_epochs: 2,
+                lamports_per_write: None,
+                compress_to_account_pubkey: compress_to_pubkey,
+                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            }),
+        }
+        .invoke_signed(&[seeds_slice])?;
 
         let source = MultiInputTokenDataWithContext {
             owner: token_data.token_data.owner,

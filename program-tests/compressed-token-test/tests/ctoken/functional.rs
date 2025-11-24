@@ -26,12 +26,15 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
         &light_compressed_token::ID,
     );
 
-    // Initialize token account using SPL SDK compatible instruction
-    let mut initialize_account_ix = create_token_account(
-        token_account_pubkey,
-        context.mint_pubkey,
-        context.owner_keypair.pubkey(),
-    )
+    // Initialize token account using SPL SDK compatible instruction (non-compressible)
+    let mut initialize_account_ix = CreateCTokenAccount {
+        payer: payer_pubkey,
+        account: token_account_pubkey,
+        mint: context.mint_pubkey,
+        owner: context.owner_keypair.pubkey(),
+        compressible: None,
+    }
+    .instruction()
     .map_err(|e| {
         RpcError::AssertRpcError(format!("Failed to create token account instruction: {}", e))
     })?;
@@ -62,12 +65,14 @@ async fn test_spl_sdk_compatible_account_lifecycle() -> Result<(), RpcError> {
     let destination_pubkey = destination_keypair.pubkey();
 
     // Close account using SPL SDK compatible instruction
-    let close_account_ix = close_account(
-        &light_compressed_token::ID,
-        &token_account_pubkey,
-        &destination_pubkey,
-        &context.owner_keypair.pubkey(),
-    );
+    let close_account_ix = CloseAccount::new(
+        light_compressed_token::ID,
+        token_account_pubkey,
+        destination_pubkey,
+        context.owner_keypair.pubkey(),
+    )
+    .instruction()
+    .unwrap();
 
     context
         .rpc
@@ -122,28 +127,30 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
     let lamports_per_write = Some(100);
 
     // Initialize compressible token account
-    let create_token_account_ix =
-        light_compressed_token_sdk::ctoken::create_token_account::create_compressible_token_account_instruction(
-            light_compressed_token_sdk::ctoken::create_token_account::CreateCompressibleTokenAccount {
-                account_pubkey: token_account_pubkey,
-                mint_pubkey: context.mint_pubkey,
-                owner_pubkey: context.owner_keypair.pubkey(),
-                compressible_config: context.compressible_config,
-                rent_sponsor: context.rent_sponsor,
-                pre_pay_num_epochs: num_prepaid_epochs,
-                lamports_per_write,
-                payer: payer_pubkey,
-                compress_to_account_pubkey: None,
-                token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-            },
-        )
-        .map_err(|e| {
-            RpcError::AssertRpcError(format!(
-                "Failed to create compressible token account instruction: {}",
-                e
-            ))
-        })
-        .unwrap();
+    let compressible_params = CompressibleParams {
+        compressible_config: context.compressible_config,
+        rent_sponsor: context.rent_sponsor,
+        pre_pay_num_epochs: num_prepaid_epochs,
+        lamports_per_write,
+        compress_to_account_pubkey: None,
+        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+    };
+
+    let create_token_account_ix = CreateCTokenAccount::new(
+        payer_pubkey,
+        token_account_pubkey,
+        context.mint_pubkey,
+        context.owner_keypair.pubkey(),
+        compressible_params,
+    )
+    .instruction()
+    .map_err(|e| {
+        RpcError::AssertRpcError(format!(
+            "Failed to create compressible token account instruction: {}",
+            e
+        ))
+    })
+    .unwrap();
     // Verify pool PDA balance decreased by only the rent-exempt amount (not the additional rent)
     let pool_balance_before = context
         .rpc
@@ -264,13 +271,14 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         .unwrap();
 
     // Close compressible account using owner
-    let close_account_ix = close_compressible_account(
-        &light_compressed_token::ID,
-        &token_account_pubkey,
-        &destination.pubkey(),           // destination for user funds
-        &context.owner_keypair.pubkey(), // authority
-        &context.rent_sponsor,           // rent_sponsor
-    );
+    let close_account_ix = CloseAccount::new(
+        light_compressed_token::ID,
+        token_account_pubkey,
+        destination.pubkey(),           // destination for user funds
+        context.owner_keypair.pubkey(), // authority
+    )
+    .instruction()
+    .unwrap();
 
     context
         .rpc

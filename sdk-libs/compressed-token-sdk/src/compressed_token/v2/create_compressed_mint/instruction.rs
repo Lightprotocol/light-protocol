@@ -15,7 +15,6 @@ use solana_pubkey::Pubkey;
 
 use crate::{
     compressed_token::mint_action::{
-        get_mint_action_instruction_account_metas,
         get_mint_action_instruction_account_metas_cpi_write, MintActionMetaConfig,
         MintActionMetaConfigCpiWrite,
     },
@@ -84,23 +83,21 @@ pub fn create_compressed_mint_cpi(
     let meta_config = if cpi_context_pubkey.is_some() {
         MintActionMetaConfig::new_cpi_context(
             &instruction_data,
-            input.mint_authority,
             input.payer,
+            input.mint_authority,
             cpi_context_pubkey.unwrap(),
         )?
     } else {
         MintActionMetaConfig::new_create_mint(
-            &instruction_data,
+            input.payer,
             input.mint_authority,
             input.mint_signer,
-            input.payer,
             input.address_tree_pubkey,
             input.output_queue,
-        )?
+        )
     };
 
-    let account_metas =
-        get_mint_action_instruction_account_metas(meta_config, &compressed_mint_with_context);
+    let account_metas = meta_config.to_account_metas();
 
     let data = instruction_data
         .data()
@@ -168,7 +165,6 @@ pub fn create_compressed_mint_cpi_write(
         mint_signer: Some(input.mint_signer),
         authority: input.mint_authority,
         cpi_context: input.cpi_context_pubkey,
-        mint_needs_to_sign: true, // Always true for create mint
     };
 
     let account_metas = get_mint_action_instruction_account_metas_cpi_write(meta_config);

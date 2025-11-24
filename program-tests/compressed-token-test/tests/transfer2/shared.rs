@@ -4,7 +4,7 @@ use anchor_lang::AnchorDeserialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_token_sdk::{
     compressed_token::create_compressed_mint::find_spl_mint_address,
-    ctoken::create_associated_token_account::CreateCompressibleAssociatedTokenAccountInputs,
+    ctoken::{CompressibleParams, CreateAssociatedTokenAccount},
 };
 use light_ctoken_types::{
     instructions::{mint_action::Recipient, transfer2::CompressedTokenInstructionDataTransfer2},
@@ -443,42 +443,48 @@ impl TestContext {
                 .unwrap_or(&false);
 
             // Create CToken ATA (compressible or regular based on requirements)
+            let (ata, bump) =
+                light_compressed_token_sdk::ctoken::derive_ctoken_ata(&signer.pubkey(), &mint);
+
             let create_ata_ix = if is_compressible {
                 println!(
                     "Creating compressible CToken ATA for signer {} mint {}",
                     signer_index, mint_index
                 );
-                light_compressed_token_sdk::ctoken::create_associated_token_account::create_compressible_associated_token_account(
-                    CreateCompressibleAssociatedTokenAccountInputs {
-                        payer: payer.pubkey(),
-                        owner: signer.pubkey(),
-                        mint,
-                        compressible_config: funding_pool_config.compressible_config_pda,
-                        rent_sponsor: funding_pool_config.rent_sponsor_pda,
-                        pre_pay_num_epochs: 10, // Prepay 10 epochs of rent
-                        lamports_per_write: None,
-                        token_account_version: TokenDataVersion::ShaFlat, // CompressAndClose requires ShaFlat
-                    },
-                )
-                .unwrap()
-            } else {
-                light_compressed_token_sdk::ctoken::create_associated_token_account::create_associated_token_account(
+                let compressible_params = CompressibleParams {
+                    compressible_config: funding_pool_config.compressible_config_pda,
+                    rent_sponsor: funding_pool_config.rent_sponsor_pda,
+                    pre_pay_num_epochs: 10, // Prepay 10 epochs of rent
+                    lamports_per_write: None,
+                    compress_to_account_pubkey: None,
+                    token_account_version: TokenDataVersion::ShaFlat, // CompressAndClose requires ShaFlat
+                };
+                CreateAssociatedTokenAccount::new(
                     payer.pubkey(),
                     signer.pubkey(),
                     mint,
+                    compressible_params,
                 )
+                .instruction()
+                .unwrap()
+            } else {
+                // Create non-compressible CToken ATA
+                CreateAssociatedTokenAccount {
+                    idempotent: false,
+                    bump,
+                    payer: payer.pubkey(),
+                    owner: signer.pubkey(),
+                    mint,
+                    associated_token_account: ata,
+                    compressible: None,
+                }
+                .instruction()
                 .unwrap()
             };
 
             rpc.create_and_send_transaction(&[create_ata_ix], &payer.pubkey(), &[&payer])
                 .await
                 .unwrap();
-
-            let ata = light_compressed_token_sdk::ctoken::create_associated_token_account::derive_ctoken_ata(
-                &signer.pubkey(),
-                &mint,
-            )
-            .0;
 
             // Mint tokens to the CToken ATA if amount > 0
             if amount > 0 {

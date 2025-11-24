@@ -7,7 +7,7 @@ use light_compressed_token_sdk::{
         },
         CTokenAccount2,
     },
-    ctoken::close::close_account,
+    ctoken::CloseAccount,
 };
 use light_sdk_types::cpi_accounts::{v2::CpiAccounts, CpiAccountsConfig};
 
@@ -88,12 +88,15 @@ pub fn process_compress_full_and_close<'info>(
 
     let compressed_token_program_id =
         Pubkey::new_from_array(light_ctoken_types::COMPRESSED_TOKEN_PROGRAM_ID);
-    let close_instruction = close_account(
-        &compressed_token_program_id,
-        token_account_info.key,
-        close_recipient_info.key,
-        ctx.accounts.signer.key,
-    );
+    // Create close instruction without rent_sponsor for non-compressible accounts
+    let close_instruction = CloseAccount {
+        token_program: compressed_token_program_id,
+        account: *token_account_info.key,
+        destination: *close_recipient_info.key,
+        owner: *ctx.accounts.signer.key,
+        rent_sponsor: None,
+    }
+    .instruction()?;
 
     invoke(
         &close_instruction,

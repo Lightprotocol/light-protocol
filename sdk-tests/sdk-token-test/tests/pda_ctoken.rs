@@ -8,10 +8,7 @@ use light_compressed_token_sdk::{
     compressed_token::create_compressed_mint::{
         derive_compressed_mint_address, find_spl_mint_address,
     },
-    ctoken::create_associated_token_account::{
-        create_compressible_associated_token_account, derive_ctoken_ata,
-        CreateCompressibleAssociatedTokenAccountInputs,
-    },
+    ctoken::{derive_ctoken_ata, CompressibleParams, CreateAssociatedTokenAccount},
     CPI_AUTHORITY_PDA,
 };
 use light_ctoken_types::{
@@ -205,21 +202,26 @@ pub async fn create_mint(
     // Create compressed token associated token account for the mint authority
     let (token_account, _) = derive_ctoken_ata(&mint_authority.pubkey(), &mint);
     println!("Created token_account (ATA): {:?}", token_account);
-    let create_ata_instruction = create_compressible_associated_token_account(
-        CreateCompressibleAssociatedTokenAccountInputs {
-            payer: payer.pubkey(),
-            owner: mint_authority.pubkey(),
-            mint,
-            rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-            pre_pay_num_epochs: 2,
-            lamports_per_write: Some(1000),
-            compressible_config: rpc
-                .test_accounts
-                .funding_pool_config
-                .compressible_config_pda,
-            token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
-        },
+
+    let compressible_params = CompressibleParams {
+        compressible_config: rpc
+            .test_accounts
+            .funding_pool_config
+            .compressible_config_pda,
+        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+        pre_pay_num_epochs: 2,
+        lamports_per_write: Some(1000),
+        compress_to_account_pubkey: None,
+        token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+    };
+
+    let create_ata_instruction = CreateAssociatedTokenAccount::new(
+        payer.pubkey(),
+        mint_authority.pubkey(),
+        mint,
+        compressible_params,
     )
+    .instruction()
     .unwrap();
     rpc.create_and_send_transaction(&[create_ata_instruction], &payer.pubkey(), &[payer])
         .await

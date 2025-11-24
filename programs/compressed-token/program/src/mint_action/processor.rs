@@ -30,7 +30,6 @@ pub fn process_mint_action(
     let (mut parsed_instruction_data, _) =
         MintActionCompressedInstructionData::zero_copy_at(instruction_data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
-
     // 112 CU write to cpi contex
     let accounts_config = AccountsConfig::new(&parsed_instruction_data)?;
     // Validate and parse

@@ -4,8 +4,7 @@ use anchor_lang::{
 };
 use light_compressed_account::instruction_data::traits::LightInstructionData;
 use light_compressed_token_sdk::compressed_token::{
-    create_compressed_mint::find_spl_mint_address,
-    mint_action::{get_mint_action_instruction_account_metas, MintActionMetaConfig},
+    create_compressed_mint::find_spl_mint_address, mint_action::MintActionMetaConfig,
 };
 use light_ctoken_types::instructions::mint_action::{MintToCompressedAction, Recipient};
 use light_sdk::{
@@ -173,21 +172,19 @@ pub fn create_user_record_and_game_session<'info>(
 
     // Build account meta config
     let mut config = MintActionMetaConfig::new_create_mint(
-        &instruction_data,
+        ctx.accounts.user.key(), // fee_payer
         ctx.accounts.mint_authority.key(),
         ctx.accounts.mint_signer.key(),
-        ctx.accounts.user.key(), // fee_payer
         address_tree_pubkey,
         output_queue,
     )
-    .unwrap();
+    .with_mint_compressed_tokens();
 
     // Set CPI context
-    config.with_cpi_context = Some(cpi_context_pubkey);
+    config.cpi_context = Some(cpi_context_pubkey);
 
     // Get account metas
-    let account_metas =
-        get_mint_action_instruction_account_metas(config, &compression_params.mint_with_context);
+    let account_metas = config.to_account_metas();
 
     // Serialize instruction data
     let data = instruction_data.data().unwrap();
