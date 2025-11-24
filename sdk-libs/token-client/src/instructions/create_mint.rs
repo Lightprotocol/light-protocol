@@ -64,7 +64,6 @@ pub async fn create_compressed_mint_instruction<R: Rpc + Indexer>(
     // Build params struct manually
     let params = CreateCMintParams {
         decimals,
-        version: 3,
         address_merkle_tree_root_index,
         mint_authority,
         proof: rpc_result.proof.0.unwrap(),

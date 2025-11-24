@@ -57,7 +57,6 @@ pub fn process_create_cmint(
     // Build the params
     let params = CreateCMintParams {
         decimals: data.decimals,
-        version: 3, // Only version 3 is supported.
         address_merkle_tree_root_index: data.address_merkle_tree_root_index,
         mint_authority: data.mint_authority,
         proof: data.proof,
@@ -133,7 +132,6 @@ pub fn process_create_cmint_invoke_signed(
     // Build the params
     let params = CreateCMintParams {
         decimals: data.decimals,
-        version: 3, // Only version 3 is supported.
         address_merkle_tree_root_index: data.address_merkle_tree_root_index,
         mint_authority: data.mint_authority,
         proof: data.proof,
@@ -223,7 +221,6 @@ pub fn process_create_cmint_with_pda_authority(
     // Build the params - authority is the PDA
     let params = CreateCMintParams {
         decimals: data.decimals,
-        version: 3, // Only version 3 is supported.
         address_merkle_tree_root_index: data.address_merkle_tree_root_index,
         mint_authority: authority_pda, // Use the derived PDA as authority
         proof: data.proof,

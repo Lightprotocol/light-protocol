@@ -49,9 +49,9 @@ pub enum TokenSdkError {
     CannotMintWithDecompressedInCpiWrite,
     #[error("RentAuthorityIsNone")]
     RentAuthorityIsNone,
-    #[error("Incomplete SPL bridge config")]
+    #[error("Incomplete SPL interface")]
     IncompleteSplInterface,
-    #[error("SPL bridge config required")]
+    #[error("SPL interface required")]
     SplInterfaceRequired,
     #[error("Use regular SPL transfer")]
     UseRegularSplTransfer,

@@ -50,7 +50,6 @@ pub async fn setup_create_compressed_mint(
     // Build params for the SDK
     let params = CreateCMintParams {
         decimals,
-        version: 3,
         address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
         mint_authority,
         proof: rpc_result.proof.0.unwrap(),

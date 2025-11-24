@@ -25,7 +25,6 @@ use crate::{
 #[derive(Debug, Clone)]
 pub struct CreateCMintParams {
     pub decimals: u8,
-    pub version: u8,
     pub address_merkle_tree_root_index: u16,
     pub mint_authority: Pubkey,
     pub proof: CompressedProof,
@@ -33,22 +32,6 @@ pub struct CreateCMintParams {
     pub mint: Pubkey,
     pub freeze_authority: Option<Pubkey>,
     pub extensions: Option<Vec<ExtensionInstructionData>>,
-}
-
-impl Default for CreateCMintParams {
-    fn default() -> Self {
-        Self {
-            decimals: 0,
-            version: 3, // Only version 3 is supported.
-            address_merkle_tree_root_index: 0,
-            mint_authority: Pubkey::default(),
-            proof: CompressedProof::default(),
-            compression_address: [0; 32],
-            mint: Pubkey::default(),
-            freeze_authority: None,
-            extensions: None,
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -94,7 +77,7 @@ impl CreateCMint {
             supply: 0,
             decimals: self.params.decimals,
             metadata: light_ctoken_types::state::CompressedMintMetadata {
-                version: self.params.version,
+                version: 3,
                 mint: self.params.mint.to_bytes().into(),
                 spl_mint_initialized: false,
             },
@@ -221,9 +204,11 @@ impl CreateCompressedMintCpiWrite {
     }
 
     pub fn instruction(self) -> Result<Instruction, ProgramError> {
-        if !self.params.cpi_context.first_set_context && !self.params.cpi_context.set_context {
+        let has_valid_context =
+            self.params.cpi_context.first_set_context || self.params.cpi_context.set_context;
+        if !has_valid_context {
             solana_msg::msg!(
-                "Invalid CPI context first cpi set or set context must be true {:?}",
+                "CPI context invalid: neither first_set_context nor set_context is set: {:?}",
                 self.params.cpi_context
             );
             return Err(ProgramError::InvalidAccountData);
