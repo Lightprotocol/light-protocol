@@ -313,51 +313,48 @@ impl<R: Rpc> StateSupervisor<R> {
         max_batches: usize,
         job_tx: mpsc::Sender<ProofJob>,
     ) -> Result<()> {
-        let mut next_output_queue_index: Option<u64> = None;
-        let mut next_input_queue_index: Option<u64> = None;
+        // Determine how many elements to fetch in a single indexer call
+        let zkp_batch_size = self.zkp_batch_size() as usize;
+        let total_needed = max_batches.saturating_mul(zkp_batch_size);
+        let fetch_len: u16 = total_needed
+            .min(u16::MAX as usize)
+            .try_into()
+            .unwrap_or(u16::MAX);
 
-        for batch_idx in 0..max_batches {
-            let (output_batch, input_batch) = fetch_batches(&self.context, next_output_queue_index, next_input_queue_index, self.zkp_batch_size()).await?;
-            match phase {
-                Phase::Append => {
-                    let Some(batch) = output_batch
-                    else {
-                        break;
-                    };
+        let (output_batch, input_batch) = fetch_batches(
+            &self.context,
+            None,
+            None,
+            fetch_len,
+            self.zkp_batch_size(),
+        )
+        .await?;
 
-                    if batch.leaf_indices.is_empty() {
-                        break;
-                    }
+        match phase {
+            Phase::Append => {
+                let Some(batch) = output_batch else { return Ok(()); };
+                if batch.leaf_indices.is_empty() { return Ok(()); }
 
-                    next_output_queue_index = Some(
-                        batch
-                            .first_queue_index
-                            .saturating_add(self.zkp_batch_size() as u64),
-                    );
-
-                    if let Some(job) = self.build_append_job(batch_idx, &batch).await? {
+                let available = batch.leaf_indices.len();
+                let num_slices = (available / zkp_batch_size).min(max_batches);
+                for batch_idx in 0..num_slices {
+                    let start = batch_idx * zkp_batch_size;
+                    if let Some(job) = self.build_append_job(batch_idx, &batch, start).await? {
                         job_tx.send(job).await?;
                     } else {
                         break;
                     }
                 }
-                Phase::Nullify => {
-                    let Some(batch) = input_batch
-                    else {
-                        break;
-                    };
+            }
+            Phase::Nullify => {
+                let Some(batch) = input_batch else { return Ok(()); };
+                if batch.leaf_indices.is_empty() { return Ok(()); }
 
-                    if batch.leaf_indices.is_empty() {
-                        break;
-                    }
-
-                    next_input_queue_index = Some(
-                        batch
-                            .first_queue_index
-                            .saturating_add(self.zkp_batch_size() as u64),
-                    );
-
-                    if let Some(job) = self.build_nullify_job(batch_idx, &batch).await? {
+                let available = batch.leaf_indices.len();
+                let num_slices = (available / zkp_batch_size).min(max_batches);
+                for batch_idx in 0..num_slices {
+                    let start = batch_idx * zkp_batch_size;
+                    if let Some(job) = self.build_nullify_job(batch_idx, &batch, start).await? {
                         job_tx.send(job).await?;
                     } else {
                         break;
@@ -373,18 +370,22 @@ impl<R: Rpc> StateSupervisor<R> {
         &mut self,
         batch_idx: usize,
         batch: &light_client::indexer::OutputQueueDataV2,
+        start: usize,
     ) -> Result<Option<ProofJob>> {
-        if let Some(onchain_root) = current_onchain_root(&self.context).await? {
-            if onchain_root != batch.initial_root {
-                warn!(
-                    "ACTOR INDEXER ISSUE: on-chain root {:?}[..4] != batch.initial_root {:?}[..4]. Indexer returned incorrect data!",
-                    &onchain_root[..4],
-                    &batch.initial_root[..4]
-                );
-                self.staging_tree = None;
-                let mut cache = self.context.staging_tree_cache.lock().await;
-                *cache = None;
-                return Ok(None);
+        // Verify indexer snapshot only for the first slice to avoid unnecessary resets
+        if batch_idx == 0 {
+            if let Some(onchain_root) = current_onchain_root(&self.context).await? {
+                if onchain_root != batch.initial_root {
+                    warn!(
+                        "ACTOR INDEXER ISSUE: on-chain root {:?}[..4] != batch.initial_root {:?}[..4]. Indexer returned incorrect data!",
+                        &onchain_root[..4],
+                        &batch.initial_root[..4]
+                    );
+                    self.staging_tree = None;
+                    let mut cache = self.context.staging_tree_cache.lock().await;
+                    *cache = None;
+                    return Ok(None);
+                }
             }
         }
 
@@ -428,46 +429,50 @@ impl<R: Rpc> StateSupervisor<R> {
         }
 
         let zkp_batch_size = self.zkp_batch_size() as usize;
-        if self
-            .staging_tree
-            .as_ref()
-            .map(|t| t.current_root() != batch.initial_root)
-            .unwrap_or(true)
-        {
-            let prev = self
+        // Only allow staging reset from snapshot on the very first slice
+        if batch_idx == 0 {
+            if self
                 .staging_tree
                 .as_ref()
-                .map(|t| t.current_root())
-                .unwrap_or([0u8; 32]);
-            warn!(
-                "ACTOR Staging root {:?}[..4] != batch initial {:?}[..4], resetting staging from batch snapshot",
-                &prev[..4],
-                &batch.initial_root[..4]
-            );
-            match StagingTree::from_v2_output_queue(
-                &batch.leaf_indices,
-                &batch.old_leaves,
-                &batch.nodes,
-                &batch.node_hashes,
-                batch.initial_root,
-            ) {
-                Ok(tree) => {
-                    self.staging_tree = Some(tree);
-                }
-                Err(e) => {
-                    warn!(
-                        "ACTOR Failed  to reset staging from batch snapshot: {}. Skipping batch.",
-                        e
-                    );
-                    self.staging_tree = None;
-                    return Ok(None);
+                .map(|t| t.current_root() != batch.initial_root)
+                .unwrap_or(true)
+            {
+                let prev = self
+                    .staging_tree
+                    .as_ref()
+                    .map(|t| t.current_root())
+                    .unwrap_or([0u8; 32]);
+                warn!(
+                    "ACTOR Staging root {:?}[..4] != batch initial {:?}[..4], resetting staging from batch snapshot",
+                    &prev[..4],
+                    &batch.initial_root[..4]
+                );
+                match StagingTree::from_v2_output_queue(
+                    &batch.leaf_indices,
+                    &batch.old_leaves,
+                    &batch.nodes,
+                    &batch.node_hashes,
+                    batch.initial_root,
+                ) {
+                    Ok(tree) => {
+                        self.staging_tree = Some(tree);
+                    }
+                    Err(e) => {
+                        warn!(
+                            "ACTOR Failed  to reset staging from batch snapshot: {}. Skipping batch.",
+                            e
+                        );
+                        self.staging_tree = None;
+                        return Ok(None);
+                    }
                 }
             }
         }
 
         let staging = self.staging_tree.as_mut().unwrap();
-        let leaves = batch.account_hashes[..zkp_batch_size].to_vec();
-        let leaf_indices = batch.leaf_indices[..zkp_batch_size].to_vec();
+        let end = (start + zkp_batch_size).min(batch.account_hashes.len());
+        let leaves = batch.account_hashes[start..end].to_vec();
+        let leaf_indices = batch.leaf_indices[start..end].to_vec();
 
         let (old_leaves, merkle_proofs, old_root, new_root) =
             staging.process_batch_updates(&leaf_indices, &leaves, "APPEND", batch_idx)?;
@@ -570,18 +575,22 @@ impl<R: Rpc> StateSupervisor<R> {
         &mut self,
         batch_idx: usize,
         batch: &light_client::indexer::InputQueueDataV2,
+        start: usize,
     ) -> Result<Option<ProofJob>> {
-        if let Some(onchain_root) = current_onchain_root(&self.context).await? {
-            if onchain_root != batch.initial_root {
-                warn!(
-                    "ACTOR INDEXER ISSUE: on-chain root {:?}[..4] != batch.initial_root {:?}[..4]. Indexer returned incorrect data!",
-                    &onchain_root[..4],
-                    &batch.initial_root[..4]
-                );
-                self.staging_tree = None;
-                let mut cache = self.context.staging_tree_cache.lock().await;
-                *cache = None;
-                return Ok(None);
+        // Verify indexer snapshot only for the first slice
+        if batch_idx == 0 {
+            if let Some(onchain_root) = current_onchain_root(&self.context).await? {
+                if onchain_root != batch.initial_root {
+                    warn!(
+                        "ACTOR INDEXER ISSUE: on-chain root {:?}[..4] != batch.initial_root {:?}[..4]. Indexer returned incorrect data!",
+                        &onchain_root[..4],
+                        &batch.initial_root[..4]
+                    );
+                    self.staging_tree = None;
+                    let mut cache = self.context.staging_tree_cache.lock().await;
+                    *cache = None;
+                    return Ok(None);
+                }
             }
         }
 
@@ -618,47 +627,51 @@ impl<R: Rpc> StateSupervisor<R> {
         }
 
         let zkp_batch_size = self.zkp_batch_size() as usize;
-        if self
-            .staging_tree
-            .as_ref()
-            .map(|t| t.current_root() != batch.initial_root)
-            .unwrap_or(true)
-        {
-            let prev = self
+        // Only allow reset for the first slice
+        if batch_idx == 0 {
+            if self
                 .staging_tree
                 .as_ref()
-                .map(|t| t.current_root())
-                .unwrap_or([0u8; 32]);
-            warn!(
-                "ACTOR Staging root {:?}[..4] != batch initial {:?}[..4], resetting staging from batch snapshot",
-                &prev[..4],
-                &batch.initial_root[..4]
-            );
-            match StagingTree::from_v2_input_queue(
-                &batch.leaf_indices,
-                &batch.current_leaves,
-                &batch.nodes,
-                &batch.node_hashes,
-                batch.initial_root,
-            ) {
-                Ok(tree) => {
-                    self.staging_tree = Some(tree);
-                }
-                Err(e) => {
-                    warn!(
-                        "ACTOR Failed to reset nullify staging from batch snapshot: {}. Skipping batch.",
-                        e
-                    );
-                    self.staging_tree = None;
-                    return Ok(None);
+                .map(|t| t.current_root() != batch.initial_root)
+                .unwrap_or(true)
+            {
+                let prev = self
+                    .staging_tree
+                    .as_ref()
+                    .map(|t| t.current_root())
+                    .unwrap_or([0u8; 32]);
+                warn!(
+                    "ACTOR Staging root {:?}[..4] != batch initial {:?}[..4], resetting staging from batch snapshot",
+                    &prev[..4],
+                    &batch.initial_root[..4]
+                );
+                match StagingTree::from_v2_input_queue(
+                    &batch.leaf_indices,
+                    &batch.current_leaves,
+                    &batch.nodes,
+                    &batch.node_hashes,
+                    batch.initial_root,
+                ) {
+                    Ok(tree) => {
+                        self.staging_tree = Some(tree);
+                    }
+                    Err(e) => {
+                        warn!(
+                            "ACTOR Failed to reset nullify staging from batch snapshot: {}. Skipping batch.",
+                            e
+                        );
+                        self.staging_tree = None;
+                        return Ok(None);
+                    }
                 }
             }
         }
 
         let staging = self.staging_tree.as_mut().unwrap();
-        let account_hashes = batch.account_hashes[..zkp_batch_size].to_vec();
-        let tx_hashes = batch.tx_hashes[..zkp_batch_size].to_vec();
-        let leaf_indices = batch.leaf_indices[..zkp_batch_size].to_vec();
+        let end = (start + zkp_batch_size).min(batch.account_hashes.len());
+        let account_hashes = batch.account_hashes[start..end].to_vec();
+        let tx_hashes = batch.tx_hashes[start..end].to_vec();
+        let leaf_indices = batch.leaf_indices[start..end].to_vec();
 
         let mut nullifiers = Vec::with_capacity(zkp_batch_size);
         for (idx, account_hash) in account_hashes.iter().enumerate() {
@@ -1016,14 +1029,18 @@ async fn fetch_batches<R: Rpc>(
     context: &BatchContext<R>,
     output_start_index: Option<u64>,
     input_start_index: Option<u64>,
+    fetch_len: u16,
     zkp_batch_size: u16,
-) -> Result<(Option<light_client::indexer::OutputQueueDataV2>, Option<light_client::indexer::InputQueueDataV2>)> {
+) -> Result<(
+    Option<light_client::indexer::OutputQueueDataV2>,
+    Option<light_client::indexer::InputQueueDataV2>,
+)> {
     let mut rpc = context.rpc_pool.get_connection().await?;
     let indexer = rpc.indexer_mut()?;
     let options = QueueElementsV2Options::default()
-        .with_output_queue(output_start_index, Some(zkp_batch_size))
+        .with_output_queue(output_start_index, Some(fetch_len))
         .with_output_queue_batch_size(Some(zkp_batch_size))
-        .with_input_queue(input_start_index, Some(zkp_batch_size))
+        .with_input_queue(input_start_index, Some(fetch_len))
         .with_input_queue_batch_size(Some(zkp_batch_size));
 
     let res = indexer
