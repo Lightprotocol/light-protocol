@@ -164,19 +164,19 @@ async fn test_create_compressed_mint_invoke_signed() {
 
     // Build accounts manually since SDK marks mint_signer as signer, but we need it as non-signer
     // for invoke_signed (the wrapper program signs via CPI)
-    let default_pubkeys = light_compressed_token_sdk::utils::CTokenDefaultAccounts::default();
+    let system_accounts = light_compressed_token_sdk::ctoken::SystemAccounts::default();
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
-        AccountMeta::new_readonly(default_pubkeys.light_system_program, false),
+        AccountMeta::new_readonly(system_accounts.light_system_program, false),
         // mint_signer NOT marked as signer - program will sign via invoke_signed
         AccountMeta::new_readonly(mint_signer_pda, false),
         AccountMeta::new_readonly(mint_authority, true),
         AccountMeta::new(payer.pubkey(), true),
-        AccountMeta::new_readonly(default_pubkeys.cpi_authority_pda, false),
-        AccountMeta::new_readonly(default_pubkeys.registered_program_pda, false),
-        AccountMeta::new_readonly(default_pubkeys.account_compression_authority, false),
-        AccountMeta::new_readonly(default_pubkeys.account_compression_program, false),
-        AccountMeta::new_readonly(default_pubkeys.system_program, false),
+        AccountMeta::new_readonly(system_accounts.cpi_authority_pda, false),
+        AccountMeta::new_readonly(system_accounts.registered_program_pda, false),
+        AccountMeta::new_readonly(system_accounts.account_compression_authority, false),
+        AccountMeta::new_readonly(system_accounts.account_compression_program, false),
+        AccountMeta::new_readonly(system_accounts.system_program, false),
         AccountMeta::new(output_queue, false),
         AccountMeta::new(address_tree.tree, false),
     ];

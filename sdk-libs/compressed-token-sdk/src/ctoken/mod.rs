@@ -25,7 +25,7 @@ use solana_account_info::AccountInfo;
 use solana_pubkey::{pubkey, Pubkey};
 pub use transfer_ctoken::*;
 pub use transfer_ctoken_spl::{TransferCtokenToSpl, TransferCtokenToSplAccountInfos};
-pub use transfer_interface::{SplBridgeConfig, TransferInterface};
+pub use transfer_interface::{SplInterface, TransferInterface};
 pub use transfer_spl_ctoken::{TransferSplToCtoken, TransferSplToCtokenAccountInfos};
 
 /// System account infos required for CPI operations to the Light Protocol.
@@ -37,6 +37,43 @@ pub struct SystemAccountInfos<'info> {
     pub account_compression_authority: AccountInfo<'info>,
     pub account_compression_program: AccountInfo<'info>,
     pub system_program: AccountInfo<'info>,
+}
+
+/// System accounts with Pubkey references for instruction building.
+///
+/// ```rust
+/// # use light_compressed_token_sdk::ctoken::SystemAccounts;
+/// # use solana_instruction::AccountMeta;
+/// let system_accounts = SystemAccounts::default();
+/// let accounts = vec![
+///     AccountMeta::new_readonly(system_accounts.light_system_program, false),
+///     AccountMeta::new_readonly(system_accounts.cpi_authority_pda, false),
+///     // ...
+/// ];
+/// ```
+#[derive(Debug, Clone, Copy)]
+pub struct SystemAccounts {
+    pub light_system_program: Pubkey,
+    pub cpi_authority_pda: Pubkey,
+    pub registered_program_pda: Pubkey,
+    pub account_compression_authority: Pubkey,
+    pub account_compression_program: Pubkey,
+    pub system_program: Pubkey,
+}
+
+impl Default for SystemAccounts {
+    fn default() -> Self {
+        use crate::utils::CTokenDefaultAccounts;
+        let defaults = CTokenDefaultAccounts::default();
+        Self {
+            light_system_program: defaults.light_system_program,
+            cpi_authority_pda: defaults.cpi_authority_pda,
+            registered_program_pda: defaults.registered_program_pda,
+            account_compression_authority: defaults.account_compression_authority,
+            account_compression_program: defaults.account_compression_program,
+            system_program: defaults.system_program,
+        }
+    }
 }
 
 pub const CTOKEN_PROGRAM_ID: Pubkey = pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m");

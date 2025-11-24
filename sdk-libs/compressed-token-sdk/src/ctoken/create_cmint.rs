@@ -118,22 +118,16 @@ impl CreateCMint {
             instruction_data = instruction_data.with_cpi_context(ctx);
         }
 
-        let meta_config = if let Some(cpi_context_pubkey) = self.cpi_context_pubkey {
-            MintActionMetaConfig::new_cpi_context(
-                &instruction_data,
-                self.payer,
-                self.params.mint_authority,
-                cpi_context_pubkey,
-            )?
-        } else {
-            MintActionMetaConfig::new_create_mint(
-                self.payer,
-                self.params.mint_authority,
-                self.mint_signer,
-                self.address_tree_pubkey,
-                self.output_queue,
-            )
-        };
+        let mut meta_config = MintActionMetaConfig::new_create_mint(
+            self.payer,
+            self.params.mint_authority,
+            self.mint_signer,
+            self.address_tree_pubkey,
+            self.output_queue,
+        );
+        if let Some(cpi_context_pubkey) = self.cpi_context_pubkey {
+            meta_config.cpi_context = Some(cpi_context_pubkey);
+        }
 
         let account_metas = meta_config.to_account_metas();
 
@@ -408,31 +402,55 @@ impl<'info> TryFrom<&CreateCMintAccountInfos<'info>> for CreateCMint {
 
 pub struct CreateCompressedMintCpiWriteInfos<'info> {
     pub mint_signer: AccountInfo<'info>,
+    pub authority: AccountInfo<'info>,
     pub payer: AccountInfo<'info>,
     pub cpi_context_account: AccountInfo<'info>,
+    pub system_accounts: SystemAccountInfos<'info>,
     pub params: CreateCMintCpiWriteParams,
 }
 
 impl<'info> CreateCompressedMintCpiWriteInfos<'info> {
     pub fn instruction(&self) -> Result<Instruction, ProgramError> {
-        CreateCompressedMintCpiWrite::from(self).instruction()
+        CreateCompressedMintCpiWrite::try_from(self)?.instruction()
     }
 
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
-        let account_infos = [self.mint_signer, self.payer, self.cpi_context_account];
+        // Account order must match get_mint_action_instruction_account_metas_cpi_write:
+        // light_system_program, mint_signer, authority, fee_payer, cpi_authority_pda, cpi_context
+        let account_infos = [
+            self.system_accounts.light_system_program,
+            self.mint_signer,
+            self.authority,
+            self.payer,
+            self.system_accounts.cpi_authority_pda,
+            self.cpi_context_account,
+        ];
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
 }
 
-impl<'info> From<&CreateCompressedMintCpiWriteInfos<'info>> for CreateCompressedMintCpiWrite {
-    fn from(account_infos: &CreateCompressedMintCpiWriteInfos<'info>) -> Self {
-        Self {
+impl<'info> TryFrom<&CreateCompressedMintCpiWriteInfos<'info>> for CreateCompressedMintCpiWrite {
+    type Error = ProgramError;
+
+    fn try_from(
+        account_infos: &CreateCompressedMintCpiWriteInfos<'info>,
+    ) -> Result<Self, Self::Error> {
+        // Validate that authority account matches params.mint_authority
+        if account_infos.params.mint_authority != *account_infos.authority.key {
+            solana_msg::msg!(
+                "CreateCompressedMintCpiWriteInfos: params.mint_authority ({}) does not match authority account ({})",
+                account_infos.params.mint_authority,
+                account_infos.authority.key
+            );
+            return Err(ProgramError::InvalidAccountData);
+        }
+        Ok(Self {
             mint_signer: *account_infos.mint_signer.key,
             payer: *account_infos.payer.key,
             cpi_context_pubkey: *account_infos.cpi_context_account.key,
             params: account_infos.params.clone(),
-        }
+        })
     }
 }
 

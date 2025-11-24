@@ -8,7 +8,8 @@ use super::{
 };
 use crate::{error::TokenSdkError, utils::is_ctoken_account};
 
-pub struct SplBridgeConfig<'info> {
+/// Required accounts to interface between ctoken and SPL token accounts.
+pub struct SplInterface<'info> {
     pub mint: AccountInfo<'info>,
     pub spl_token_program: AccountInfo<'info>,
     pub token_pool_pda: AccountInfo<'info>,
@@ -16,32 +17,28 @@ pub struct SplBridgeConfig<'info> {
 }
 
 pub struct TransferInterface<'info> {
+    pub amount: u64,
     pub source_account: AccountInfo<'info>,
     pub destination_account: AccountInfo<'info>,
     pub authority: AccountInfo<'info>,
     pub payer: AccountInfo<'info>,
     pub compressed_token_program_authority: AccountInfo<'info>,
-    pub amount: u64,
-    pub spl_bridge_config: Option<SplBridgeConfig<'info>>,
+    pub spl_interface: Option<SplInterface<'info>>,
 }
 
 impl<'info> TransferInterface<'info> {
     /// # Arguments
+    /// * `amount` - Amount to transfer
     /// * `source_account` - Source token account (can be ctoken or SPL)
     /// * `destination_account` - Destination token account (can be ctoken or SPL)
     /// * `authority` - Authority for the transfer (must be signer)
-    /// * `amount` - Amount to transfer
     /// * `payer` - Payer for the transaction
     /// * `compressed_token_program_authority` - Compressed token program authority
-    /// * `mint` - Optional mint account (required for SPL<->ctoken transfers)
-    /// * `spl_token_program` - Optional SPL token program (required for SPL<->ctoken transfers)
-    /// * `compressed_token_pool_pda` - Optional token pool PDA (required for SPL<->ctoken transfers)
-    /// * `compressed_token_pool_pda_bump` - Optional bump seed for token pool PDA
     pub fn new(
+        amount: u64,
         source_account: AccountInfo<'info>,
         destination_account: AccountInfo<'info>,
         authority: AccountInfo<'info>,
-        amount: u64,
         payer: AccountInfo<'info>,
         compressed_token_program_authority: AccountInfo<'info>,
     ) -> Self {
@@ -52,67 +49,45 @@ impl<'info> TransferInterface<'info> {
             amount,
             payer,
             compressed_token_program_authority,
-            spl_bridge_config: None,
+            spl_interface: None,
         }
     }
 
     /// # Arguments
-    /// * `mint` - mint account (required for SPL<->ctoken transfers)
-    /// * `spl_token_program` - SPL token program (required for SPL<->ctoken transfers)
-    /// * `compressed_token_pool_pda` - token pool PDA (required for SPL<->ctoken transfers)
-    /// * `compressed_token_pool_pda_bump` - bump seed for token pool PDA
-    pub fn with_spl_bridge(
+    /// * `mint` - Optional mint account (required for SPL<->ctoken transfers)
+    /// * `spl_token_program` - Optional SPL token program (required for SPL<->ctoken transfers)
+    /// * `compressed_token_pool_pda` - Optional token pool PDA (required for SPL<->ctoken transfers)
+    /// * `compressed_token_pool_pda_bump` - Optional bump seed for token pool PDA
+    pub fn with_spl_interface(
         mut self,
-        mint: AccountInfo<'info>,
-        spl_token_program: AccountInfo<'info>,
-        token_pool_pda: AccountInfo<'info>,
-        token_pool_pda_bump: u8,
-    ) -> Self {
-        self.spl_bridge_config = Some(SplBridgeConfig {
+        mint: Option<AccountInfo<'info>>,
+        spl_token_program: Option<AccountInfo<'info>>,
+        token_pool_pda: Option<AccountInfo<'info>>,
+        token_pool_pda_bump: Option<u8>,
+    ) -> Result<Self, ProgramError> {
+        let mint =
+            mint.ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingMintAccount.into()))?;
+
+        let spl_token_program = spl_token_program
+            .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingSplTokenProgram.into()))?;
+
+        let token_pool_pda = token_pool_pda
+            .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingTokenPoolPda.into()))?;
+
+        let token_pool_pda_bump = token_pool_pda_bump
+            .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingTokenPoolPdaBump.into()))?;
+
+        self.spl_interface = Some(SplInterface {
             mint,
             spl_token_program,
             token_pool_pda,
             token_pool_pda_bump,
         });
-        self
+        Ok(self)
     }
 
-    // pub fn with_spl_source_optional(
-    //     mut self,
-    //     mint: Option<AccountInfo<'info>>,
-    //     spl_token_program: Option<AccountInfo<'info>>,
-    //     token_pool_pda: Option<AccountInfo<'info>>,
-    //     token_pool_pda_bump: Option<u8>,
-    // ) -> Self {
-    // TODO: add errors
-    // TODO: check that source is owned by the program
-    //     let mint = mint
-    //         .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingMintAccount.into()))
-    //         .unwrap();
-
-    //     let spl_token_program = spl_token_program
-    //         .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingSplTokenProgram.into()))
-    //         .unwrap();
-
-    //     let token_pool_pda = token_pool_pda
-    //         .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingTokenPoolPda.into()))
-    //         .unwrap();
-
-    //     let token_pool_pda_bump = token_pool_pda_bump
-    //         .ok_or_else(|| ProgramError::Custom(TokenSdkError::MissingTokenPoolPdaBump.into()))
-    //         .unwrap();
-
-    //     self.spl_bridge_config = Some(SplBridgeConfig {
-    //         mint,
-    //         spl_token_program,
-    //         token_pool_pda,
-    //         token_pool_pda_bump,
-    //     });
-    //     self
-    // }
-
     /// # Errors
-    /// * `SplBridgeConfigRequired` - If transferring to/from SPL without required accounts
+    /// * `SplInterfaceRequired` - If transferring to/from SPL without required accounts
     /// * `UseRegularSplTransfer` - If both source and destination are SPL accounts
     /// * `CannotDetermineAccountType` - If account type cannot be determined
     pub fn invoke(self) -> Result<(), ProgramError> {
@@ -131,8 +106,8 @@ impl<'info> TransferInterface<'info> {
             .invoke(),
 
             (true, false) => {
-                let config = self.spl_bridge_config.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::IncompleteSplBridgeConfig.into())
+                let config = self.spl_interface.ok_or_else(|| {
+                    ProgramError::Custom(TokenSdkError::IncompleteSplInterface.into())
                 })?;
 
                 TransferCtokenToSplAccountInfos {
@@ -153,8 +128,8 @@ impl<'info> TransferInterface<'info> {
             }
 
             (false, true) => {
-                let config = self.spl_bridge_config.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::IncompleteSplBridgeConfig.into())
+                let config = self.spl_interface.ok_or_else(|| {
+                    ProgramError::Custom(TokenSdkError::IncompleteSplInterface.into())
                 })?;
 
                 TransferSplToCtokenAccountInfos {
@@ -181,7 +156,7 @@ impl<'info> TransferInterface<'info> {
     }
 
     /// # Errors
-    /// * `SplBridgeConfigRequired` - If transferring to/from SPL without required accounts
+    /// * `SplInterfaceRequired` - If transferring to/from SPL without required accounts
     /// * `UseRegularSplTransfer` - If both source and destination are SPL accounts
     /// * `CannotDetermineAccountType` - If account type cannot be determined
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
@@ -200,8 +175,8 @@ impl<'info> TransferInterface<'info> {
             .invoke_signed(signer_seeds),
 
             (true, false) => {
-                let config = self.spl_bridge_config.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::IncompleteSplBridgeConfig.into())
+                let config = self.spl_interface.ok_or_else(|| {
+                    ProgramError::Custom(TokenSdkError::IncompleteSplInterface.into())
                 })?;
 
                 TransferCtokenToSplAccountInfos {
@@ -222,8 +197,8 @@ impl<'info> TransferInterface<'info> {
             }
 
             (false, true) => {
-                let config = self.spl_bridge_config.ok_or_else(|| {
-                    ProgramError::Custom(TokenSdkError::IncompleteSplBridgeConfig.into())
+                let config = self.spl_interface.ok_or_else(|| {
+                    ProgramError::Custom(TokenSdkError::IncompleteSplInterface.into())
                 })?;
 
                 TransferSplToCtokenAccountInfos {

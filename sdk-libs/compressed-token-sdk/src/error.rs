@@ -50,15 +50,23 @@ pub enum TokenSdkError {
     #[error("RentAuthorityIsNone")]
     RentAuthorityIsNone,
     #[error("Incomplete SPL bridge config")]
-    IncompleteSplBridgeConfig,
+    IncompleteSplInterface,
     #[error("SPL bridge config required")]
-    SplBridgeConfigRequired,
+    SplInterfaceRequired,
     #[error("Use regular SPL transfer")]
     UseRegularSplTransfer,
     #[error("Cannot determine account type")]
     CannotDetermineAccountType,
     #[error("MintActionMetaConfig::new_cpi_context requires cpi_context data")]
     CpiContextRequired,
+    #[error("Missing mint account")]
+    MissingMintAccount,
+    #[error("Missing SPL token program")]
+    MissingSplTokenProgram,
+    #[error("Missing token pool PDA")]
+    MissingTokenPoolPda,
+    #[error("Missing token pool PDA bump")]
+    MissingTokenPoolPdaBump,
     #[error(transparent)]
     CompressedTokenTypes(#[from] LightTokenSdkTypeError),
     #[error(transparent)]
@@ -107,11 +115,15 @@ impl From<TokenSdkError> for u32 {
             TokenSdkError::PackedAccountIndexOutOfBounds => 17017,
             TokenSdkError::CannotMintWithDecompressedInCpiWrite => 17018,
             TokenSdkError::RentAuthorityIsNone => 17019,
-            TokenSdkError::SplBridgeConfigRequired => 17020,
-            TokenSdkError::IncompleteSplBridgeConfig => 17021,
+            TokenSdkError::SplInterfaceRequired => 17020,
+            TokenSdkError::IncompleteSplInterface => 17021,
             TokenSdkError::UseRegularSplTransfer => 17022,
             TokenSdkError::CannotDetermineAccountType => 17023,
             TokenSdkError::CpiContextRequired => 17024,
+            TokenSdkError::MissingMintAccount => 17025,
+            TokenSdkError::MissingSplTokenProgram => 17026,
+            TokenSdkError::MissingTokenPoolPda => 17027,
+            TokenSdkError::MissingTokenPoolPdaBump => 17028,
             TokenSdkError::CompressedTokenTypes(e) => e.into(),
             TokenSdkError::CTokenError(e) => e.into(),
             TokenSdkError::LightSdkTypesError(e) => e.into(),

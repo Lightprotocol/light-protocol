@@ -42,22 +42,22 @@ pub fn process_transfer_interface_invoke(
     }
 
     let mut transfer = TransferInterface::new(
+        data.amount,
         accounts[1].clone(), // source_account
         accounts[2].clone(), // destination_account
         accounts[3].clone(), // authority
-        data.amount,
         accounts[4].clone(), // payer
         accounts[5].clone(), // compressed_token_program_authority
     );
 
     // Add SPL bridge config if provided
     if accounts.len() >= 9 && data.token_pool_pda_bump.is_some() {
-        transfer = transfer.with_spl_bridge(
-            accounts[6].clone(), // mint
-            accounts[8].clone(), // spl_token_program
-            accounts[7].clone(), // token_pool_pda
-            data.token_pool_pda_bump.unwrap(),
-        );
+        transfer = transfer.with_spl_interface(
+            Some(accounts[6].clone()), // mint
+            Some(accounts[8].clone()), // spl_token_program
+            Some(accounts[7].clone()), // token_pool_pda
+            data.token_pool_pda_bump,
+        )?;
     }
 
     transfer.invoke()?;
@@ -98,22 +98,22 @@ pub fn process_transfer_interface_invoke_signed(
     }
 
     let mut transfer = TransferInterface::new(
+        data.amount,
         accounts[1].clone(), // source_account
         accounts[2].clone(), // destination_account
         accounts[3].clone(), // authority (PDA)
-        data.amount,
         accounts[4].clone(), // payer
         accounts[5].clone(), // compressed_token_program_authority
     );
 
     // Add SPL bridge config if provided
     if accounts.len() >= 9 && data.token_pool_pda_bump.is_some() {
-        transfer = transfer.with_spl_bridge(
-            accounts[6].clone(), // mint
-            accounts[8].clone(), // spl_token_program
-            accounts[7].clone(), // token_pool_pda
-            data.token_pool_pda_bump.unwrap(),
-        );
+        transfer = transfer.with_spl_interface(
+            Some(accounts[6].clone()), // mint
+            Some(accounts[8].clone()), // spl_token_program
+            Some(accounts[7].clone()), // token_pool_pda
+            data.token_pool_pda_bump,
+        )?;
     }
 
     // Invoke with PDA signing

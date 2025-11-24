@@ -283,7 +283,7 @@ impl<'info> MintToCTokenInfos<'info> {
     pub fn invoke(self) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
 
-        // Account order must match the instruction's account metas order (from get_mint_action_instruction_account_metas)
+        // Account order must match the instruction's account metas order (from to_account_metas)
         let mut account_infos = vec![
             self.system_accounts.light_system_program,
             self.authority, // authority
@@ -293,16 +293,16 @@ impl<'info> MintToCTokenInfos<'info> {
             self.system_accounts.account_compression_authority,
             self.system_accounts.account_compression_program,
             self.system_accounts.system_program,
-            self.output_queue,
-            self.state_tree,
-            self.input_queue,
         ];
-
-        account_infos.extend(self.ctoken_accounts);
 
         if let Some(cpi_context_account) = self.cpi_context_account {
             account_infos.push(cpi_context_account);
         }
+
+        account_infos.push(self.output_queue);
+        account_infos.push(self.state_tree);
+        account_infos.push(self.input_queue);
+        account_infos.extend(self.ctoken_accounts);
 
         invoke(&instruction, &account_infos)
     }
@@ -310,7 +310,7 @@ impl<'info> MintToCTokenInfos<'info> {
     pub fn invoke_signed(self, signer_seeds: &[&[&[u8]]]) -> Result<(), ProgramError> {
         let instruction = self.instruction()?;
 
-        // Account order must match the instruction's account metas order (from get_mint_action_instruction_account_metas)
+        // Account order must match the instruction's account metas order (from to_account_metas)
         let mut account_infos = vec![
             self.system_accounts.light_system_program,
             self.authority, // authority
@@ -320,16 +320,16 @@ impl<'info> MintToCTokenInfos<'info> {
             self.system_accounts.account_compression_authority,
             self.system_accounts.account_compression_program,
             self.system_accounts.system_program,
-            self.output_queue,
-            self.state_tree,
-            self.input_queue,
         ];
-
-        account_infos.extend(self.ctoken_accounts);
 
         if let Some(cpi_context_account) = self.cpi_context_account {
             account_infos.push(cpi_context_account);
         }
+
+        account_infos.push(self.output_queue);
+        account_infos.push(self.state_tree);
+        account_infos.push(self.input_queue);
+        account_infos.extend(self.ctoken_accounts);
 
         invoke_signed(&instruction, &account_infos, signer_seeds)
     }
