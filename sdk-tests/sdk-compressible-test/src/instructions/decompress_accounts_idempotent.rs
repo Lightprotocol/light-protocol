@@ -204,6 +204,24 @@ pub fn decompress_accounts_idempotent<'info>(
                     ctoken_signer_seeds.iter().map(|s| s.as_slice()).collect();
                 let seeds_slice: &[&[u8]] = &seed_refs;
 
+                // Build CompressToPubkey from the signer seeds
+                // The last element is the bump, all preceding elements are the seeds
+                let bump = ctoken_signer_seeds
+                    .last()
+                    .and_then(|b| b.first().copied())
+                    .unwrap_or(0);
+                let seeds_without_bump: Vec<Vec<u8>> = ctoken_signer_seeds
+                    .iter()
+                    .take(ctoken_signer_seeds.len().saturating_sub(1))
+                    .cloned()
+                    .collect();
+                let compress_to_pubkey =
+                    light_ctoken_types::instructions::extensions::compressible::CompressToPubkey {
+                        bump,
+                        program_id: crate::ID.to_bytes(),
+                        seeds: seeds_without_bump,
+                    };
+
                 CreateCTokenAccountInfos {
                     payer: fee_payer.clone().to_account_info(),
                     account: owner_info.clone(),
@@ -215,7 +233,7 @@ pub fn decompress_accounts_idempotent<'info>(
                         system_program: accounts.system_program.to_account_info(),
                         pre_pay_num_epochs: 2,
                         lamports_per_write: None,
-                        compress_to_account_pubkey: None,
+                        compress_to_account_pubkey: Some(compress_to_pubkey),
                         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
                     }),
                 }

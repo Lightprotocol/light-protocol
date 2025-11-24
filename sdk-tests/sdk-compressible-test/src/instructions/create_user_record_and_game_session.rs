@@ -175,7 +175,8 @@ pub fn create_user_record_and_game_session<'info>(
         ctx.accounts.mint_signer.key(),
         address_tree_pubkey,
         output_queue,
-    );
+    )
+    .with_mint_compressed_tokens();
 
     // Set CPI context
     config.cpi_context = Some(cpi_context_pubkey);
