@@ -2332,6 +2332,8 @@ dependencies = [
  "light-sdk",
  "light-sparse-merkle-tree",
  "num-traits",
+ "serde",
+ "serde_json",
  "solana-sdk",
  "thiserror 2.0.17",
  "tokio",

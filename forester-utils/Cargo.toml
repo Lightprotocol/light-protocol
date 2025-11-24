@@ -53,3 +53,5 @@ governor = { workspace = true }
 [dev-dependencies]
 tokio-postgres = "0.7"
 bs58 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

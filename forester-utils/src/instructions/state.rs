@@ -2,7 +2,8 @@ use std::{pin::Pin, sync::Arc, time::Duration};
 
 use account_compression::processor::initialize_address_merkle_tree::Pubkey;
 use async_stream::stream;
-use futures::stream::Stream;
+use futures::stream::{FuturesUnordered, Stream};
+use futures::{FutureExt, StreamExt};
 use light_batched_merkle_tree::{
     constants::DEFAULT_BATCH_STATE_TREE_HEIGHT,
     merkle_tree::{
@@ -149,14 +150,13 @@ pub async fn get_state_update_instruction_stream<'a, R: Rpc>(
             }
         };
 
-        let mut proofs_buffer = Vec::new();
+        // Concurrent proof generation with ordered emission.
+        let mut proof_tasks: FuturesUnordered<_> = FuturesUnordered::new();
+        let mut buffered_results = std::collections::BTreeMap::new();
+        let mut expected_seq: usize = 0;
+        let total_batches = append_hash_chains.len() + nullify_hash_chains.len();
 
         for (batch_idx, leaves_hash_chain) in append_hash_chains.iter().enumerate() {
-            if !proofs_buffer.is_empty() && batch_idx > 0 {
-                yield Ok(BatchInstruction::Append(proofs_buffer.clone()));
-                proofs_buffer.clear();
-            }
-
             let batch_data = match prefetched_output_queue.as_ref() {
                 Some(data) => {
                     let expected_len = append_hash_chains.len() * zkp_batch_size as usize;
@@ -392,49 +392,29 @@ pub async fn get_state_update_instruction_stream<'a, R: Rpc>(
                 *cache = staging_tree.clone();
             }
 
+            let seq = batch_idx;
             let client = Arc::clone(&append_proof_client);
-            let (proof, new_root) = match client.generate_batch_append_proof(circuit_inputs).await {
-                Ok(result) => {
-                    result
-                },
-                Err(e) => {
-                    yield Err(ForesterUtilsError::Prover(e.to_string()));
-                    return;
-                }
+            let fut = async move {
+                let res = client.generate_batch_append_proof(circuit_inputs).await
+                    .map_err(|e| ForesterUtilsError::Prover(e.to_string()))?;
+                let (proof, new_root) = res;
+                let instruction_data = InstructionDataBatchAppendInputs {
+                    new_root,
+                    compressed_proof: CompressedProof {
+                        a: proof.a,
+                        b: proof.b,
+                        c: proof.c,
+                    },
+                };
+                debug!("📍 Generated APPEND instruction data for batch {}", batch_idx);
+                Ok::<_, ForesterUtilsError>((seq, BatchInstruction::Append(vec![instruction_data])))
             };
-
-            let instruction_data = InstructionDataBatchAppendInputs {
-                new_root,
-                compressed_proof: CompressedProof {
-                    a: proof.a,
-                    b: proof.b,
-                    c: proof.c,
-                },
-            };
-
-            debug!("📍 Generated APPEND instruction data for batch {}", batch_idx);
-            proofs_buffer.push(instruction_data);
+            proof_tasks.push(fut.boxed());
 
             last_processed_root = Some(new_root);
-
-            if proofs_buffer.len() >= MAX_PROOFS_PER_TX {
-                yield Ok(BatchInstruction::Append(proofs_buffer.clone()));
-                proofs_buffer.clear();
-            }
         }
-
-        if !proofs_buffer.is_empty() {
-            yield Ok(BatchInstruction::Append(proofs_buffer));
-        }
-
-        let mut proofs_buffer = Vec::new();
 
         for (batch_idx, leaves_hash_chain) in nullify_hash_chains.iter().enumerate() {
-            if !proofs_buffer.is_empty() && batch_idx > 0 {
-                yield Ok(BatchInstruction::Nullify(proofs_buffer.clone()));
-                proofs_buffer.clear();
-            }
-
             let batch_data = match prefetched_input_queue.as_ref() {
                 Some(data) => {
                     let expected_len = nullify_hash_chains.len() * zkp_batch_size as usize;
@@ -677,38 +657,43 @@ pub async fn get_state_update_instruction_stream<'a, R: Rpc>(
                 *cache = staging_tree.clone();
             }
 
+            let seq = append_hash_chains.len() + batch_idx;
             let client = Arc::clone(&nullify_proof_client);
-            let (proof, new_root) = match client.generate_batch_update_proof(circuit_inputs).await {
-                Ok(result) => {
-                    result
-                },
-                Err(e) => {
-                    yield Err(ForesterUtilsError::Prover(e.to_string()));
-                    return;
-                }
+            let fut = async move {
+                let res = client.generate_batch_update_proof(circuit_inputs).await
+                    .map_err(|e| ForesterUtilsError::Prover(e.to_string()))?;
+                let (proof, new_root) = res;
+                let instruction_data = InstructionDataBatchNullifyInputs {
+                    new_root,
+                    compressed_proof: CompressedProof {
+                        a: proof.a,
+                        b: proof.b,
+                        c: proof.c,
+                    },
+                };
+                Ok::<_, ForesterUtilsError>((seq, BatchInstruction::Nullify(vec![instruction_data])))
             };
-
-            let instruction_data = InstructionDataBatchNullifyInputs {
-                new_root,
-                compressed_proof: CompressedProof {
-                    a: proof.a,
-                    b: proof.b,
-                    c: proof.c,
-                },
-            };
-
-            proofs_buffer.push(instruction_data);
+            proof_tasks.push(fut.boxed());
 
             last_processed_root = Some(new_root);
-
-            if proofs_buffer.len() >= MAX_PROOFS_PER_TX {
-                yield Ok(BatchInstruction::Nullify(proofs_buffer.clone()));
-                proofs_buffer.clear();
-            }
         }
 
-        if !proofs_buffer.is_empty() {
-            yield Ok(BatchInstruction::Nullify(proofs_buffer));
+        // Drain proofs as they complete, but emit in order.
+        while expected_seq < total_batches {
+            match proof_tasks.next().await {
+                Some(Ok((seq, instr))) => {
+                    buffered_results.insert(seq, instr);
+                    while let Some(instr) = buffered_results.remove(&expected_seq) {
+                        yield Ok(instr);
+                        expected_seq += 1;
+                    }
+                }
+                Some(Err(e)) => {
+                    yield Err(e);
+                    return;
+                }
+                None => break,
+            }
         }
     };
 

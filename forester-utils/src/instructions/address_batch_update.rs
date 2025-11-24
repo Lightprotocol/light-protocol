@@ -94,7 +94,6 @@ async fn stream_instruction_data<'a, R: Rpc>(
                 }
             };
 
-            // Log Photon response details
             debug!(
                 "Photon response for chunk {}: received {} addresses, batch_start_index={}, first_queue_index={:?}, last_queue_index={:?}",
                 chunk_idx,
@@ -104,7 +103,6 @@ async fn stream_instruction_data<'a, R: Rpc>(
                 indexer_update_info.value.addresses.last().map(|a| a.queue_index)
             );
 
-            // Update next_queue_index for the next chunk based on the last address returned
             if let Some(last_address) = indexer_update_info.value.addresses.last() {
                 next_queue_index = Some(last_address.queue_index + 1);
                 debug!(
@@ -145,7 +143,6 @@ async fn stream_instruction_data<'a, R: Rpc>(
 
             info!("Generating {} zk proofs for batch_address chunk {}", all_inputs.len(), chunk_idx + 1);
 
-            // Generate ALL proofs in parallel using join_all
             let proof_futures: Vec<_> = all_inputs.into_iter().enumerate().map(|(i, inputs)| {
                 let client = Arc::clone(&proof_client);
                 async move {
@@ -154,10 +151,8 @@ async fn stream_instruction_data<'a, R: Rpc>(
                 }
             }).collect();
 
-            // Wait for all proofs to complete in parallel
             let proof_results = futures::future::join_all(proof_futures).await;
 
-            // Process results and batch them into groups of MAX_PROOFS_PER_TX
             let mut proof_buffer = Vec::new();
             for (idx, result) in proof_results {
                 match result {
@@ -172,7 +167,6 @@ async fn stream_instruction_data<'a, R: Rpc>(
                         };
                         proof_buffer.push(instruction_data);
 
-                        // Yield when we have MAX_PROOFS_PER_TX proofs ready
                         if proof_buffer.len() >= MAX_PROOFS_PER_TX {
                             yield Ok(proof_buffer.clone());
                             proof_buffer.clear();

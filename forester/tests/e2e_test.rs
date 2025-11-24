@@ -261,7 +261,7 @@ async fn e2e_test() {
 
     if test_mode == TestMode::Local {
         init(Some(LightValidatorConfig {
-            enable_indexer: true,
+            enable_indexer: false,
             enable_prover: false,
             wait_time: 60,
             sbf_programs: vec![(

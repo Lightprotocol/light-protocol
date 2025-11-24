@@ -56,7 +56,7 @@ use crate::{
             send_transaction::send_batched_transactions,
             tx_builder::EpochManagerTransactions,
         },
-        v2::{process_batched_operations, BatchContext},
+        v2::{self, process_batched_operations, BatchContext},
     },
     queue_helpers::QueueItemData,
     rollover::{
@@ -112,6 +112,7 @@ pub struct EpochManager<R: Rpc> {
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
     queue_poller: Option<ActorRef<QueueInfoPoller>>,
     staging_tree_caches: Arc<DashMap<Pubkey, Arc<Mutex<Option<StagingTree>>>>>,
+    state_supervisors: Arc<DashMap<Pubkey, (u64, ActorRef<v2::state::StateSupervisor<R>>)>>,
     compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
 }
 
@@ -131,6 +132,7 @@ impl<R: Rpc> Clone for EpochManager<R> {
             ops_cache: self.ops_cache.clone(),
             queue_poller: self.queue_poller.clone(),
             staging_tree_caches: self.staging_tree_caches.clone(),
+            state_supervisors: self.state_supervisors.clone(),
             compressible_tracker: self.compressible_tracker.clone(),
         }
     }
@@ -183,6 +185,7 @@ impl<R: Rpc> EpochManager<R> {
             ops_cache,
             queue_poller,
             staging_tree_caches: Arc::new(DashMap::new()),
+            state_supervisors: Arc::new(DashMap::new()),
             compressible_tracker,
         })
     }
@@ -379,6 +382,17 @@ impl<R: Rpc> EpochManager<R> {
 
             if last_epoch.is_none_or(|last| current_epoch > last) {
                 debug!("New epoch detected: {}", current_epoch);
+                // Drop staging tree caches and state supervisors when a new epoch is detected
+                // to avoid stale roots across epochs.
+                let supervisor_count = self.state_supervisors.len();
+                self.staging_tree_caches.clear();
+                self.state_supervisors.clear();
+                if supervisor_count > 0 {
+                    info!(
+                        "Cleared {} state supervisor actors for new epoch {}",
+                        supervisor_count, current_epoch
+                    );
+                }
                 let phases = get_epoch_phases(&self.protocol_config, current_epoch);
                 if slot < phases.registration.end {
                     debug!("Sending current epoch {} for processing", current_epoch);
@@ -1410,11 +1424,11 @@ impl<R: Rpc> EpochManager<R> {
                         let processing_start_time = Instant::now();
                         match self
                             .dispatch_tree_processing(
-                            epoch_info,
-                            epoch_pda,
-                            tree_accounts,
-                            forester_slot_details,
-                            estimated_slot,
+                                epoch_info,
+                                epoch_pda,
+                                tree_accounts,
+                                forester_slot_details,
+                                estimated_slot,
                                 Some(&update),
                             )
                             .await
@@ -1728,28 +1742,42 @@ impl<R: Rpc> EpochManager<R> {
         }
     }
 
-    async fn process_v2(
+    async fn get_or_create_state_supervisor(
         &self,
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
-        queue_update: Option<&QueueUpdateMessage>,
-    ) -> Result<usize> {
-        let default_prover_url = "http://127.0.0.1:3001".to_string();
-
-        let (input_queue_hint, output_queue_hint) = if let Some(update) = queue_update {
-            match update.queue_type {
-                light_compressed_account::QueueType::InputStateV2 => {
-                    (Some(update.queue_size), None)
-                }
-                light_compressed_account::QueueType::OutputStateV2 => {
-                    (None, Some(update.queue_size))
-                }
-                _ => (None, None),
+    ) -> Result<ActorRef<v2::state::StateSupervisor<R>>> {
+        // Check if supervisor exists and has matching epoch
+        let supervisor_status = if let Some(entry) = self.state_supervisors.get(&tree_accounts.merkle_tree) {
+            let (stored_epoch, supervisor_ref) = entry.value();
+            if *stored_epoch == epoch_info.epoch {
+                // Supervisor exists and has correct epoch
+                Some(Ok(supervisor_ref.clone()))
+            } else {
+                // Supervisor exists but has stale epoch
+                Some(Err(*stored_epoch))
             }
         } else {
-            (None, None)
+            None
         };
 
+        // Handle the result after borrow is released
+        match supervisor_status {
+            Some(Ok(supervisor_ref)) => return Ok(supervisor_ref),
+            Some(Err(stored_epoch)) => {
+                // Remove stale supervisor
+                info!(
+                    "Removing stale StateSupervisor for tree {} (epoch {} -> {})",
+                    tree_accounts.merkle_tree, stored_epoch, epoch_info.epoch
+                );
+                self.state_supervisors.remove(&tree_accounts.merkle_tree);
+            }
+            None => {
+                // No supervisor exists, will create below
+            }
+        }
+
+        let default_prover_url = "http://127.0.0.1:3001".to_string();
         let batch_context = BatchContext {
             rpc_pool: self.rpc_pool.clone(),
             authority: self.config.payer_keypair.insecure_clone(),
@@ -1781,8 +1809,8 @@ impl<R: Rpc> EpochManager<R> {
             ops_cache: self.ops_cache.clone(),
             epoch_phases: epoch_info.phases.clone(),
             slot_tracker: self.slot_tracker.clone(),
-            input_queue_hint,
-            output_queue_hint,
+            input_queue_hint: None,
+            output_queue_hint: None,
             staging_tree_cache: self
                 .staging_tree_caches
                 .entry(tree_accounts.merkle_tree)
@@ -1790,9 +1818,104 @@ impl<R: Rpc> EpochManager<R> {
                 .clone(),
         };
 
-        process_batched_operations(batch_context, tree_accounts.tree_type)
-            .await
-            .map_err(|e| anyhow!("Failed to process V2 operations: {}", e))
+        let supervisor = v2::state::StateSupervisor::spawn(batch_context);
+        info!(
+            "Created StateSupervisor actor for tree {} (epoch {})",
+            tree_accounts.merkle_tree,
+            epoch_info.epoch
+        );
+
+        self.state_supervisors
+            .insert(tree_accounts.merkle_tree, (epoch_info.epoch, supervisor.clone()));
+
+        Ok(supervisor)
+    }
+
+    async fn process_v2(
+        &self,
+        epoch_info: &Epoch,
+        tree_accounts: &TreeAccounts,
+        queue_update: Option<&QueueUpdateMessage>,
+    ) -> Result<usize> {
+        match tree_accounts.tree_type {
+            TreeType::StateV2 => {
+                if let Some(update) = queue_update {
+                    let supervisor = self
+                        .get_or_create_state_supervisor(epoch_info, tree_accounts)
+                        .await?;
+
+                    let work = v2::state::QueueWork {
+                        queue_type: update.queue_type,
+                        queue_size: update.queue_size,
+                    };
+
+                    Ok(supervisor
+                        .ask(v2::state::ProcessQueueUpdate { queue_work: work })
+                        .send()
+                        .await
+                        .map_err(|e| anyhow!("Failed to send message to StateSupervisor: {}", e))?)
+                } else {
+                    Ok(0)
+                }
+            }
+            TreeType::AddressV2 => {
+                let default_prover_url = "http://127.0.0.1:3001".to_string();
+                let batch_context = BatchContext {
+                    rpc_pool: self.rpc_pool.clone(),
+                    authority: self.config.payer_keypair.insecure_clone(),
+                    derivation: self.config.derivation_pubkey,
+                    epoch: epoch_info.epoch,
+                    merkle_tree: tree_accounts.merkle_tree,
+                    output_queue: tree_accounts.queue,
+                    prover_append_url: self
+                        .config
+                        .external_services
+                        .prover_append_url
+                        .clone()
+                        .unwrap_or_else(|| default_prover_url.clone()),
+                    prover_update_url: self
+                        .config
+                        .external_services
+                        .prover_update_url
+                        .clone()
+                        .unwrap_or_else(|| default_prover_url.clone()),
+                    prover_address_append_url: self
+                        .config
+                        .external_services
+                        .prover_address_append_url
+                        .clone()
+                        .unwrap_or_else(|| default_prover_url.clone()),
+                    prover_api_key: self.config.external_services.prover_api_key.clone(),
+                    prover_polling_interval: Duration::from_secs(1),
+                    prover_max_wait_time: Duration::from_secs(600),
+                    ops_cache: self.ops_cache.clone(),
+                    epoch_phases: epoch_info.phases.clone(),
+                    slot_tracker: self.slot_tracker.clone(),
+                    input_queue_hint: queue_update.map(|u| u.queue_size),
+                    output_queue_hint: None,
+                    staging_tree_cache: self
+                        .staging_tree_caches
+                        .entry(tree_accounts.merkle_tree)
+                        .or_insert_with(|| Arc::new(Mutex::new(None)))
+                        .clone(),
+                };
+
+                process_batched_operations(
+                    batch_context,
+                    tree_accounts.tree_type,
+                    queue_update.cloned(),
+                )
+                .await
+                .map_err(|e| anyhow!("Failed to process V2 operations: {}", e))
+            }
+            _ => {
+                warn!(
+                    "Unsupported tree type for V2 processing: {:?}",
+                    tree_accounts.tree_type
+                );
+                Ok(0)
+            }
+        }
     }
 
     async fn update_metrics_and_counts(

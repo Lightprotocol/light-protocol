@@ -1,12 +1,12 @@
 mod address;
 mod common;
-mod state;
+pub mod state;
 
 use common::BatchProcessor;
 use light_client::rpc::Rpc;
 use tracing::{instrument, trace};
 
-use crate::Result;
+use crate::{polling::QueueUpdateMessage, Result};
 
 #[instrument(
     level = "debug",
@@ -20,10 +20,20 @@ use crate::Result;
 pub async fn process_batched_operations<R: Rpc>(
     context: BatchContext<R>,
     tree_type: TreeType,
+    queue_update: Option<QueueUpdateMessage>,
 ) -> Result<usize> {
     trace!("process_batched_operations");
-    let processor = BatchProcessor::new(context, tree_type);
-    processor.process().await
+    match tree_type {
+        TreeType::AddressV2 => {
+            let processor = BatchProcessor::new(context, tree_type);
+            processor.process().await
+        }
+        TreeType::StateV2 => {
+            trace!("StateV2 processing should be handled through StateSupervisor actor");
+            Ok(0)
+        }
+        _ => Ok(0),
+    }
 }
 
 pub use common::BatchContext;

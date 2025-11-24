@@ -536,6 +536,7 @@ impl ProofClient {
         &self,
         circuit_inputs: BatchAppendsCircuitInputs,
     ) -> Result<(ProofCompressed, [u8; 32]), ProverClientError> {
+        debug!("!! generate_batch_append_proof {:?}", circuit_inputs);
         let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(
             &circuit_inputs.new_root.to_biguint().unwrap(),
         )?;
@@ -546,12 +547,13 @@ impl ProofClient {
 
     pub async fn generate_batch_update_proof(
         &self,
-        inputs: BatchUpdateCircuitInputs,
+        circuit_inputs: BatchUpdateCircuitInputs,
     ) -> Result<(ProofCompressed, [u8; 32]), ProverClientError> {
+        debug!("!! generate_batch_update_proof {:?}", circuit_inputs);
         let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(
-            &inputs.new_root.to_biguint().unwrap(),
+            &circuit_inputs.new_root.to_biguint().unwrap(),
         )?;
-        let json_str = update_inputs_string(&inputs);
+        let json_str = update_inputs_string(&circuit_inputs);
         let proof = self.generate_proof(json_str, "update").await?;
         Ok((proof, new_root))
     }

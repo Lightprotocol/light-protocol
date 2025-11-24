@@ -17,7 +17,7 @@ use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, s
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
-use super::{address, state};
+use super::address;
 use crate::{
     errors::ForesterError, processor::tx_cache::ProcessedHashCache, slot_tracker::SlotTracker,
     Result,
@@ -30,7 +30,9 @@ pub enum BatchReadyState {
         merkle_tree_data: ParsedMerkleTreeData,
     },
     StateReady {
+        #[allow(dead_code)]
         merkle_tree_data: ParsedMerkleTreeData,
+        #[allow(dead_code)]
         output_queue_data: Option<ParsedQueueData>,
     },
 }
@@ -55,6 +57,31 @@ pub struct BatchContext<R: Rpc> {
     pub input_queue_hint: Option<u64>,
     pub output_queue_hint: Option<u64>,
     pub staging_tree_cache: Arc<Mutex<Option<StagingTree>>>,
+}
+
+impl<R: Rpc> Clone for BatchContext<R> {
+    fn clone(&self) -> Self {
+        Self {
+            rpc_pool: self.rpc_pool.clone(),
+            authority: self.authority.insecure_clone(),
+            derivation: self.derivation,
+            epoch: self.epoch,
+            merkle_tree: self.merkle_tree,
+            output_queue: self.output_queue,
+            prover_append_url: self.prover_append_url.clone(),
+            prover_update_url: self.prover_update_url.clone(),
+            prover_address_append_url: self.prover_address_append_url.clone(),
+            prover_api_key: self.prover_api_key.clone(),
+            prover_polling_interval: self.prover_polling_interval,
+            prover_max_wait_time: self.prover_max_wait_time,
+            ops_cache: self.ops_cache.clone(),
+            epoch_phases: self.epoch_phases.clone(),
+            slot_tracker: self.slot_tracker.clone(),
+            input_queue_hint: self.input_queue_hint,
+            output_queue_hint: self.output_queue_hint,
+            staging_tree_cache: self.staging_tree_cache.clone(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -164,10 +191,9 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
     let current_phase_state = context.epoch_phases.get_current_epoch_state(current_slot);
 
     if current_phase_state != EpochState::Active {
-        trace!(
-            "Skipping transaction send: not in active phase (current phase: {:?}, slot: {})",
-            current_phase_state,
-            current_slot
+        debug!(
+            "!! Skipping transaction send: not in active phase (current phase: {:?}, slot: {})",
+            current_phase_state, current_slot
         );
         return Err(ForesterError::NotInActivePhase.into());
     }
@@ -252,20 +278,12 @@ impl<R: Rpc> BatchProcessor<R> {
 
                 result
             }
-            BatchReadyState::StateReady {
-                merkle_tree_data,
-                output_queue_data,
-            } => {
-                let result = self
-                    .process_state(merkle_tree_data, output_queue_data)
-                    .await;
-                if let Err(ref e) = result {
-                    error!(
-                        "📍 Unified state update failed for tree {}: {:?}",
-                        self.context.merkle_tree, e
-                    );
-                }
-                result
+            BatchReadyState::StateReady { .. } => {
+                trace!(
+                    "State processing handled by supervisor pipeline; skipping legacy processor for tree {}",
+                    self.context.merkle_tree
+                );
+                Ok(0)
             }
             BatchReadyState::NotReady => {
                 trace!(
@@ -345,29 +363,6 @@ impl<R: Rpc> BatchProcessor<R> {
         }
 
         return BatchReadyState::NotReady;
-    }
-
-    async fn process_state(
-        &self,
-        merkle_tree_data: ParsedMerkleTreeData,
-        output_queue_data: Option<ParsedQueueData>,
-    ) -> Result<usize> {
-        let batch_hash = format!("state_{}_{}", self.context.merkle_tree, self.context.epoch);
-
-        {
-            let mut cache = self.context.ops_cache.lock().await;
-            if cache.contains(&batch_hash) {
-                return Ok(0);
-            }
-            cache.add(&batch_hash);
-        }
-
-        state::perform_state_update(&self.context, merkle_tree_data, output_queue_data).await?;
-
-        let mut cache = self.context.ops_cache.lock().await;
-        cache.cleanup_by_key(&batch_hash);
-
-        Ok(1)
     }
 
     fn parse_merkle_tree_account(
