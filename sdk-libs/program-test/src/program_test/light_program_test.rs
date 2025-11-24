@@ -34,7 +34,7 @@ pub struct LightProgramTest {
     pub payer: Keypair,
     pub transaction_counter: usize,
     #[cfg(feature = "devenv")]
-    pub auto_compress_programs: Vec<solana_sdk::pubkey::Pubkey>,
+    pub auto_mine_cold_state_programs: Vec<solana_sdk::pubkey::Pubkey>,
 }
 
 impl LightProgramTest {
@@ -80,7 +80,7 @@ impl LightProgramTest {
             config: config.clone(),
             transaction_counter: 0,
             #[cfg(feature = "devenv")]
-            auto_compress_programs: Vec::new(),
+            auto_mine_cold_state_programs: Vec::new(),
         };
         let keypairs = TestKeypairs::program_test_default();
 
@@ -164,7 +164,9 @@ impl LightProgramTest {
             if auto_register {
                 if let Some(programs) = additional_programs {
                     for (_, pid) in programs.into_iter() {
-                        context.register_auto_compression(pid);
+                        if !context.auto_mine_cold_state_programs.contains(&pid) {
+                            context.auto_mine_cold_state_programs.push(pid);
+                        }
                     }
                 }
             }
@@ -424,10 +426,9 @@ impl LightProgramTest {
     }
 
     #[cfg(feature = "devenv")]
-    pub fn register_auto_compression(&mut self, program_id: solana_sdk::pubkey::Pubkey) {
-        if !self.auto_compress_programs.contains(&program_id) {
-            self.auto_compress_programs.push(program_id);
-        }
+    pub fn disable_cold_state_mining(&mut self, program_id: solana_sdk::pubkey::Pubkey) {
+        self.auto_mine_cold_state_programs
+            .retain(|&pid| pid != program_id);
     }
 }
 

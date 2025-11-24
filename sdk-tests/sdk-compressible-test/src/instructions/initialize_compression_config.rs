@@ -7,17 +7,24 @@ use crate::instruction_accounts::*;
 
 pub fn initialize_compression_config(
     ctx: Context<InitializeCompressionConfig>,
-    compression_delay: u32,
     rent_sponsor: Pubkey,
     address_space: Vec<Pubkey>,
 ) -> Result<()> {
+    // For tests, set compression_authority to the program's authority (can be a PDA in real apps)
+    let compression_authority = ctx.accounts.authority.key();
+    // Use default rent config for tests
+    let rent_config = light_compressible::rent::RentConfig::default();
+    // Default write_top_up for tests
+    let write_top_up: u32 = 5_000;
     process_initialize_compression_config_checked(
         &ctx.accounts.config.to_account_info(),
         &ctx.accounts.authority.to_account_info(),
         &ctx.accounts.program_data.to_account_info(),
         &rent_sponsor,
+        &compression_authority,
+        rent_config,
+        write_top_up,
         address_space,
-        compression_delay,
         0, // one global config for now, so bump is 0.
         &ctx.accounts.payer.to_account_info(),
         &ctx.accounts.system_program.to_account_info(),

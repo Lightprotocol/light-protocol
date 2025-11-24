@@ -17,6 +17,8 @@ pub const C_TOKEN_PROGRAM_ID: [u8; 32] =
 
 /// Seed of the CPI authority.
 pub const CPI_AUTHORITY_PDA_SEED: &[u8] = b"cpi_authority";
+/// Seed of the rent sponsor PDA.
+pub const RENT_SPONSOR_SEED: &[u8] = b"rent_sponsor";
 pub const NOOP_PROGRAM_ID: [u8; 32] = pubkey_array!("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV");
 
 pub const STATE_MERKLE_TREE_HEIGHT: usize = 26;

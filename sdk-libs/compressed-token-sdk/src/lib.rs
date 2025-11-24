@@ -1,6 +1,7 @@
 pub mod compressed_token;
 pub mod compressible;
 pub mod ctoken;
+
 pub mod error;
 pub mod pack;
 pub mod token_pool;
@@ -11,6 +12,7 @@ pub mod utils;
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+pub use compressible::decompress_runtime::{process_decompress_tokens_runtime, CTokenSeedProvider};
 pub use light_compressed_token_types::*;
 pub use pack::{compat, Pack, Unpack};
 pub use token_pool::TokenPool;

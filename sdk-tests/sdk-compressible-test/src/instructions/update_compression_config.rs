@@ -6,8 +6,10 @@ use crate::instruction_accounts::*;
 
 pub fn update_compression_config(
     ctx: Context<UpdateCompressionConfig>,
-    new_compression_delay: Option<u32>,
     new_rent_sponsor: Option<Pubkey>,
+    new_compression_authority: Option<Pubkey>,
+    new_rent_config: Option<light_compressible::rent::RentConfig>,
+    new_write_top_up: Option<u32>,
     new_address_space: Option<Vec<Pubkey>>,
     new_update_authority: Option<Pubkey>,
 ) -> Result<()> {
@@ -16,8 +18,10 @@ pub fn update_compression_config(
         &ctx.accounts.authority.to_account_info(),
         new_update_authority.as_ref(),
         new_rent_sponsor.as_ref(),
+        new_compression_authority.as_ref(),
+        new_rent_config,
+        new_write_top_up,
         new_address_space,
-        new_compression_delay,
         &crate::ID,
     )?;
 

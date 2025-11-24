@@ -173,7 +173,8 @@ pub use light_hasher;
 use light_hasher::DataHasher;
 pub use light_macros::{derive_light_cpi_signer, derive_light_cpi_signer_pda};
 pub use light_sdk_macros::{
-    light_system_accounts, LightDiscriminator, LightHasher, LightHasherSha, LightTraits,
+    derive_light_rent_sponsor, derive_light_rent_sponsor_pda, light_system_accounts,
+    LightDiscriminator, LightHasher, LightHasherSha, LightTraits,
 };
 pub use light_sdk_types::{constants, CpiSigner};
 use solana_account_info::AccountInfo;

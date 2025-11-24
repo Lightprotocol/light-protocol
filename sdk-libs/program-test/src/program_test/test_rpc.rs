@@ -149,7 +149,7 @@ impl TestRpc for LightProgramTest {
     }
 
     /// Warps current slot forward by slots.
-    /// Claims and compresses compressible ctoken accounts.
+    /// Claims and compresses compressible ctoken accounts and program PDAs (auto compress).
     #[cfg(feature = "devenv")]
     async fn warp_slot_forward(&mut self, slot: Slot) -> Result<(), RpcError> {
         let mut current_slot = self.context.get_sysvar::<Clock>().slot;
@@ -157,7 +157,7 @@ impl TestRpc for LightProgramTest {
         self.context.warp_to_slot(current_slot);
         let mut store = CompressibleAccountStore::new();
         crate::compressible::claim_and_compress(self, &mut store).await?;
-        for program_id in self.auto_compress_programs.clone() {
+        for program_id in self.auto_mine_cold_state_programs.clone() {
             crate::compressible::auto_compress_program_pdas(self, program_id).await?;
         }
         Ok(())

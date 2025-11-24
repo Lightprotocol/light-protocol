@@ -4,7 +4,7 @@
 //! including mock program data setup and configuration management.
 
 use light_client::rpc::{Rpc, RpcError};
-use light_compressible_client::CompressibleInstruction;
+use light_compressible_client::compressible_instruction;
 use solana_sdk::{
     bpf_loader_upgradeable,
     pubkey::Pubkey,
@@ -65,7 +65,6 @@ pub fn setup_mock_program_data<T: TestRpc>(
 /// * `payer` - The transaction fee payer
 /// * `program_id` - The program to initialize config for
 /// * `authority` - The config authority (can be same as payer)
-/// * `compression_delay` - Number of slots to wait before compression
 /// * `rent_sponsor` - Where to send rent from compressed accounts
 /// * `address_space` - List of address trees for this program
 ///
@@ -77,7 +76,6 @@ pub async fn initialize_compression_config<T: Rpc>(
     payer: &Keypair,
     program_id: &Pubkey,
     authority: &Keypair,
-    compression_delay: u32,
     rent_sponsor: Pubkey,
     address_space: Vec<Pubkey>,
     discriminator: &[u8],
@@ -89,12 +87,11 @@ pub async fn initialize_compression_config<T: Rpc>(
         ));
     }
 
-    let instruction = CompressibleInstruction::initialize_compression_config(
+    let instruction = compressible_instruction::initialize_compression_config(
         program_id,
         discriminator,
         &payer.pubkey(),
         &authority.pubkey(),
-        compression_delay,
         rent_sponsor,
         address_space,
         config_bump,
@@ -117,7 +114,6 @@ pub async fn initialize_compression_config<T: Rpc>(
 /// * `payer` - The transaction fee payer
 /// * `program_id` - The program to update config for
 /// * `authority` - The current config authority
-/// * `new_compression_delay` - New compression delay (optional)
 /// * `new_rent_sponsor` - New rent recipient (optional)
 /// * `new_address_space` - New address space list (optional)
 /// * `new_update_authority` - New authority (optional)
@@ -130,17 +126,15 @@ pub async fn update_compression_config<T: Rpc>(
     payer: &Keypair,
     program_id: &Pubkey,
     authority: &Keypair,
-    new_compression_delay: Option<u32>,
     new_rent_sponsor: Option<Pubkey>,
     new_address_space: Option<Vec<Pubkey>>,
     new_update_authority: Option<Pubkey>,
     discriminator: &[u8],
 ) -> Result<solana_sdk::signature::Signature, RpcError> {
-    let instruction = CompressibleInstruction::update_compression_config(
+    let instruction = compressible_instruction::update_compression_config(
         program_id,
         discriminator,
         &authority.pubkey(),
-        new_compression_delay,
         new_rent_sponsor,
         new_address_space,
         new_update_authority,
