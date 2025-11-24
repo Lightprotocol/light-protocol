@@ -14,6 +14,7 @@ use light_sdk::{
     },
 };
 use light_sdk_types::cpi_accounts::CpiAccountsConfig;
+use solana_program::program_error::ProgramError;
 
 use crate::{constants::*, errors::ErrorCode, instruction_accounts::*, state::*, LIGHT_CPI_SIGNER};
 pub fn decompress_accounts_idempotent<'info>(
@@ -32,7 +33,7 @@ pub fn decompress_accounts_idempotent<'info>(
         i: usize,
         address_space: Pubkey,
         cpi_accounts: &CpiAccounts<'b, 'info>,
-        rent_payer: &Signer<'info>,
+        rent_sponsor: &AccountInfo<'info>,
         out: &mut Vec<
             light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo,
         >,
@@ -48,7 +49,7 @@ pub fn decompress_accounts_idempotent<'info>(
             data,
             into_compressed_meta_with_address(meta, &solana_accounts[i], address_space, &crate::ID),
             &solana_accounts[i],
-            rent_payer,
+            rent_sponsor,
             cpi_accounts,
             seed_refs.as_slice(),
         )
@@ -66,7 +67,7 @@ pub fn decompress_accounts_idempotent<'info>(
         i: usize,
         address_space: Pubkey,
         cpi_accounts: &CpiAccounts<'b, 'info>,
-        rent_payer: &Signer<'info>,
+        rent_sponsor: &AccountInfo<'info>,
         out: &mut Vec<
             light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo,
         >,
@@ -83,7 +84,7 @@ pub fn decompress_accounts_idempotent<'info>(
             data,
             into_compressed_meta_with_address(meta, &solana_accounts[i], address_space, &crate::ID),
             &solana_accounts[i],
-            rent_payer,
+            rent_sponsor,
             cpi_accounts,
             seed_refs.as_slice(),
         )
@@ -101,7 +102,7 @@ pub fn decompress_accounts_idempotent<'info>(
         i: usize,
         address_space: Pubkey,
         cpi_accounts: &CpiAccounts<'b, 'info>,
-        rent_payer: &Signer<'info>,
+        rent_sponsor: &AccountInfo<'info>,
         out: &mut Vec<
             light_compressed_account::instruction_data::with_account_info::CompressedAccountInfo,
         >,
@@ -118,7 +119,7 @@ pub fn decompress_accounts_idempotent<'info>(
             data,
             into_compressed_meta_with_address(meta, &solana_accounts[i], address_space, &crate::ID),
             &solana_accounts[i],
-            rent_payer,
+            rent_sponsor,
             cpi_accounts,
             seed_refs.as_slice(),
         )
@@ -354,7 +355,7 @@ pub fn decompress_accounts_idempotent<'info>(
                     i,
                     address_space,
                     &cpi_accounts,
-                    &ctx.accounts.rent_payer,
+                    &ctx.accounts.rent_sponsor,
                     &mut compressed_pda_infos,
                 )?;
             }
@@ -366,7 +367,7 @@ pub fn decompress_accounts_idempotent<'info>(
                     i,
                     address_space,
                     &cpi_accounts,
-                    &ctx.accounts.rent_payer,
+                    &ctx.accounts.rent_sponsor,
                     &mut compressed_pda_infos,
                 )?;
             }
@@ -378,7 +379,7 @@ pub fn decompress_accounts_idempotent<'info>(
                     i,
                     address_space,
                     &cpi_accounts,
-                    &ctx.accounts.rent_payer,
+                    &ctx.accounts.rent_sponsor,
                     &mut compressed_pda_infos,
                 )?;
             }
@@ -427,14 +428,35 @@ pub fn decompress_accounts_idempotent<'info>(
 
     // init tokens.
     if has_tokens {
+        let ctoken_program = ctx
+            .accounts
+            .ctoken_program
+            .as_ref()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        let ctoken_rent_sponsor = ctx
+            .accounts
+            .ctoken_rent_sponsor
+            .as_ref()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        let ctoken_cpi_authority = ctx
+            .accounts
+            .ctoken_cpi_authority
+            .as_ref()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+        let ctoken_config = ctx
+            .accounts
+            .ctoken_config
+            .as_ref()
+            .ok_or(ProgramError::NotEnoughAccountKeys)?;
+
         process_tokens(
             ctx.accounts,
             ctx.remaining_accounts,
             fee_payer,
-            &ctx.accounts.ctoken_program,
-            &ctx.accounts.ctoken_rent_sponsor,
-            &ctx.accounts.ctoken_cpi_authority,
-            &ctx.accounts.ctoken_config,
+            ctoken_program,
+            ctoken_rent_sponsor,
+            ctoken_cpi_authority,
+            ctoken_config,
             &ctx.accounts.config,
             ctoken_accounts,
             proof,

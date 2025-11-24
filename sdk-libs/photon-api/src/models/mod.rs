@@ -322,3 +322,11 @@ pub mod token_data;
 pub use self::token_data::TokenData;
 pub mod tree_context_info;
 pub use self::tree_context_info::TreeContextInfo;
+pub mod _get_queue_info_post_request;
+pub use self::_get_queue_info_post_request::GetQueueInfoPostRequest;
+pub mod _get_queue_info_post_200_response;
+pub use self::_get_queue_info_post_200_response::GetQueueInfoPost200Response;
+pub mod _get_queue_info_post_200_response_result;
+pub use self::_get_queue_info_post_200_response_result::{
+    GetQueueInfoPost200ResponseResult, QueueInfo,
+};

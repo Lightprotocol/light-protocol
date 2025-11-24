@@ -7,8 +7,8 @@ use crate::indexer::{
     CompressedTokenAccount, GetCompressedAccountsByOwnerConfig,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
     IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
-    OwnerBalance, PaginatedOptions, Response, RetryConfig, SignatureWithMetadata, TokenBalance,
-    ValidityProofWithContext,
+    OwnerBalance, PaginatedOptions, QueueElementsResult, QueueInfoResult, Response, RetryConfig,
+    SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
 };
 
 #[async_trait]
@@ -209,7 +209,7 @@ impl Indexer for LightClient {
         input_queue_start_index: Option<u64>,
         input_queue_limit: Option<u16>,
         config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<crate::indexer::QueueElementsResult>, IndexerError> {
+    ) -> Result<Response<QueueElementsResult>, IndexerError> {
         Ok(self
             .indexer
             .as_mut()
@@ -222,6 +222,18 @@ impl Indexer for LightClient {
                 input_queue_limit,
                 config,
             )
+            .await?)
+    }
+
+    async fn get_queue_info(
+        &self,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<QueueInfoResult>, IndexerError> {
+        Ok(self
+            .indexer
+            .as_ref()
+            .ok_or(IndexerError::NotInitialized)?
+            .get_queue_info(config)
             .await?)
     }
 

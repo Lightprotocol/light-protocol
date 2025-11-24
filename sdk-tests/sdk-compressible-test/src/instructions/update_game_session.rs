@@ -12,10 +12,12 @@ pub fn update_game_session(
     game_session.score = new_score;
     game_session.end_time = Some(Clock::get()?.unix_timestamp as u64);
 
-    // Must manually set compression info
-    game_session
-        .compression_info_mut()
-        .bump_last_written_slot()?;
+    // Rent top-up on write using the abstracted method
+    game_session.compression_info().top_up_rent(
+        &game_session.to_account_info(),
+        &ctx.accounts.player.to_account_info(),
+        &ctx.accounts.system_program.to_account_info(),
+    )?;
 
     Ok(())
 }

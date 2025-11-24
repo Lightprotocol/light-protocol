@@ -6,11 +6,11 @@ pub mod config;
 pub mod epoch_manager;
 pub mod errors;
 pub mod forester_status;
-pub mod grpc;
 pub mod health_check;
 pub mod helius_priority_fee_types;
 pub mod metrics;
 pub mod pagerduty;
+pub mod polling;
 pub mod processor;
 pub mod pubsub_client;
 pub mod queue_helpers;
@@ -21,7 +21,6 @@ pub mod telemetry;
 pub mod tree_data_sync;
 pub mod tree_finder;
 pub mod utils;
-pub mod work_coordinator;
 
 use std::{sync::Arc, time::Duration};
 

@@ -59,16 +59,8 @@ dashmap = "6.1.0"
 scopeguard = "1.2.0"
 itertools = "0.14.0"
 num-bigint = { workspace = true }
-
-tonic = "0.14.2"
-prost = "0.14.1"
-prost-types = "0.14.1"
-tonic-prost = "0.14.2"
-tokio-stream = { version = "0.1", features = ["sync"] }
+kameo = "0.19"
 once_cell = "1.21.3"
-
-[build-dependencies]
-tonic-prost-build = "0.14.2"
 
 [dev-dependencies]
 serial_test = { workspace = true }

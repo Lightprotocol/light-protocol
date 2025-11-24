@@ -47,6 +47,7 @@ pub fn create_record<'info>(
     let compressed_info = prepare_compressed_account_on_init::<UserRecord>(
         &user_record_info,
         user_record_data_mut,
+        &config,
         compressed_address,
         new_address_params,
         output_state_tree_index,

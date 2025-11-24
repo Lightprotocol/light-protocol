@@ -5,8 +5,7 @@ use anchor_lang::{
     AccountDeserialize, AnchorDeserialize, Discriminator, InstructionData, ToAccountMetas,
 };
 use light_compressed_account::address::derive_address;
-use light_compressed_token_sdk::ctoken;
-use light_compressible_client::CompressibleInstruction;
+use light_compressible_client::compressible_instruction;
 use light_macros::pubkey;
 use light_program_test::{program_test::LightProgramTest, AddressWithTree, Indexer, Rpc};
 use light_sdk::{
@@ -156,11 +155,10 @@ pub async fn decompress_single_user_record(
         .unwrap()
         .value;
 
-    let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
     let instruction =
-        light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
+        light_compressible_client::compressible_instruction::decompress_accounts_idempotent(
             program_id,
-            &CompressibleInstruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
+            &compressible_instruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
             &[*user_record_pda],
             &[(
                 c_user_pda,
@@ -169,17 +167,16 @@ pub async fn decompress_single_user_record(
             &sdk_compressible_test::accounts::DecompressAccountsIdempotent {
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(program_id, 0).0,
-                rent_payer: payer.pubkey(),
-                ctoken_rent_sponsor: ctoken::rent_sponsor_pda(),
-                ctoken_config: ctoken::config_pda(),
-                ctoken_program: ctoken::id(),
-                ctoken_cpi_authority: ctoken::cpi_authority(),
+                rent_sponsor: payer.pubkey(),
+                ctoken_rent_sponsor: None,
+                ctoken_config: None,
+                ctoken_program: None,
+                ctoken_cpi_authority: None,
                 some_mint: payer.pubkey(),
                 system_program: Pubkey::default(),
             }
             .to_account_metas(None),
             rpc_result,
-            output_state_tree_info,
         )
         .unwrap();
 
@@ -231,7 +228,7 @@ pub async fn decompress_single_user_record(
             .compression_info
             .as_ref()
             .unwrap()
-            .last_written_slot(),
+            .last_claimed_slot(),
         expected_slot
     );
 }

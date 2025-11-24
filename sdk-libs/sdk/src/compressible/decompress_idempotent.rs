@@ -12,9 +12,11 @@ use solana_system_interface::instruction as system_instruction;
 use solana_sysvar::{rent::Rent, Sysvar};
 
 use crate::{
-    account::sha::LightAccount, compressible::compression_info::HasCompressionInfo,
-    cpi::v2::CpiAccounts, error::LightSdkError, AnchorDeserialize, AnchorSerialize,
-    LightDiscriminator,
+    account::sha::LightAccount,
+    compressible::compression_info::{CompressionInfo, HasCompressionInfo},
+    cpi::v2::CpiAccounts,
+    error::LightSdkError,
+    AnchorDeserialize, AnchorSerialize, LightDiscriminator,
 };
 
 /// Convert a `CompressedAccountMetaNoLamportsNoAddress` to a
@@ -45,7 +47,7 @@ pub fn into_compressed_meta_with_address<'info>(
 /// Helper to invoke create_account on heap.
 #[inline(never)]
 fn invoke_create_account_with_heap<'info>(
-    rent_payer: &AccountInfo<'info>,
+    rent_sponsor: &AccountInfo<'info>,
     solana_account: &AccountInfo<'info>,
     rent_minimum_balance: u64,
     space: u64,
@@ -54,7 +56,7 @@ fn invoke_create_account_with_heap<'info>(
     system_program: &AccountInfo<'info>,
 ) -> Result<(), LightSdkError> {
     let create_account_ix = system_instruction::create_account(
-        rent_payer.key,
+        rent_sponsor.key,
         solana_account.key,
         rent_minimum_balance,
         space,
@@ -64,7 +66,7 @@ fn invoke_create_account_with_heap<'info>(
     invoke_signed(
         &create_account_ix,
         &[
-            rent_payer.clone(),
+            rent_sponsor.clone(),
             solana_account.clone(),
             system_program.clone(),
         ],
@@ -82,7 +84,7 @@ pub fn prepare_account_for_decompression_idempotent<'a, 'info, T>(
     data: T,
     compressed_meta: CompressedAccountMeta,
     solana_account: &AccountInfo<'info>,
-    rent_payer: &AccountInfo<'info>,
+    rent_sponsor: &AccountInfo<'info>,
     cpi_accounts: &CpiAccounts<'a, 'info>,
     signer_seeds: &[&[u8]],
 ) -> Result<
@@ -110,11 +112,14 @@ where
 
     let light_account = LightAccount::<T>::new_close(program_id, &compressed_meta, data)?;
 
-    let space = T::size(&light_account.account);
+    // Account space needs to include discriminator + serialized data
+    // T::size() already includes the full Option<CompressionInfo> footprint
+    let discriminator_len = T::LIGHT_DISCRIMINATOR.len();
+    let space = discriminator_len + T::size(&light_account.account);
     let rent_minimum_balance = rent.minimum_balance(space);
 
     invoke_create_account_with_heap(
-        rent_payer,
+        rent_sponsor,
         solana_account,
         rent_minimum_balance,
         space as u64,
@@ -124,8 +129,7 @@ where
     )?;
 
     let mut decompressed_pda = light_account.account.clone();
-    *decompressed_pda.compression_info_mut_opt() =
-        Some(super::compression_info::CompressionInfo::new_decompressed()?);
+    *decompressed_pda.compression_info_mut_opt() = Some(CompressionInfo::new_decompressed()?);
 
     let mut account_data = solana_account.try_borrow_mut_data()?;
     let discriminator_len = T::LIGHT_DISCRIMINATOR.len();

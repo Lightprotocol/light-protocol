@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use light_sdk::compressible::OPTION_COMPRESSION_INFO_SPACE;
 
 /// CompressAccountsIdempotent, DecompressAccountsIdempotent,
 /// InitializeCompressionConfig, UpdateCompressionConfig accounts are all
@@ -15,7 +16,7 @@ pub struct CreateRecord<'info> {
         // discriminator + owner + string len + name + score +
         // option<compression_info>. Note that in the onchain space
         // CompressionInfo is always Some.
-        space = 8 + 32 + 4 + 32 + 8 + 10,
+        space = 8 + 32 + 4 + 32 + 8 + OPTION_COMPRESSION_INFO_SPACE,
         seeds = [b"user_record", user.key().as_ref()],
         bump,
     )]
@@ -40,7 +41,7 @@ pub struct CreatePlaceholderRecord<'info> {
         init,
         payer = user,
         // discriminator + compression_info + owner + string len + name + placeholder_id
-        space = 8 + 10 + 32 + 4 + 32 + 8,
+        space = 8 + OPTION_COMPRESSION_INFO_SPACE + 32 + 4 + 32 + 8,
         seeds = [b"placeholder_record", placeholder_id.to_le_bytes().as_ref()],
         bump,
     )]
@@ -67,7 +68,7 @@ pub struct CreateUserRecordAndGameSession<'info> {
         // discriminator + owner + string len + name + score +
         // option<compression_info>. Note that in the onchain space
         // CompressionInfo is always Some.
-        space = 8 + 32 + 4 + 32 + 8 + 10,
+        space = 8 + 32 + 4 + 32 + 8 + OPTION_COMPRESSION_INFO_SPACE,
         seeds = [b"user_record", user.key().as_ref()],
         bump,
     )]
@@ -77,7 +78,7 @@ pub struct CreateUserRecordAndGameSession<'info> {
         payer = user,
         // discriminator + option<compression_info> + session_id + player +
         // string len + game_type + start_time + end_time(Option) + score
-        space = 8 + 10 + 8 + 32 + 4 + 32 + 8 + 9 + 8,
+        space = 8 + OPTION_COMPRESSION_INFO_SPACE + 8 + 32 + 4 + 32 + 8 + 9 + 8,
         seeds = [b"game_session", account_data.session_id.to_le_bytes().as_ref()],
         bump,
     )]
@@ -116,7 +117,7 @@ pub struct CreateGameSession<'info> {
     #[account(
         init,
         payer = player,
-        space = 8 + 9 + 8 + 32 + 4 + 32 + 8 + 9 + 8, // discriminator + compression_info + session_id + player + string len + game_type + start_time + end_time(Option) + score
+        space = 8 + 24 + 8 + 32 + 4 + 32 + 8 + 9 + 8, // discriminator + compression_info + session_id + player + string len + game_type + start_time + end_time(Option) + score
         seeds = [b"game_session", session_id.to_le_bytes().as_ref()],
         bump,
     )]
@@ -142,6 +143,7 @@ pub struct UpdateRecord<'info> {
         constraint = user_record.owner == user.key()
     )]
     pub user_record: Account<'info, UserRecord>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -156,6 +158,7 @@ pub struct UpdateGameSession<'info> {
         constraint = game_session.player == player.key()
     )]
     pub game_session: Account<'info, GameSession>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
@@ -171,7 +174,6 @@ pub struct CompressAccountsIdempotent<'info> {
     pub rent_sponsor: AccountInfo<'info>,
 }
 
-// TODO: split into one ix with ctoken and one without.
 #[derive(Accounts)]
 pub struct DecompressAccountsIdempotent<'info> {
     #[account(mut)]
@@ -181,18 +183,16 @@ pub struct DecompressAccountsIdempotent<'info> {
     pub config: AccountInfo<'info>,
     /// UNCHECKED: Anyone can pay to init PDAs.
     #[account(mut)]
-    pub rent_payer: Signer<'info>,
-    /// CHECK: Checked in protocol.
+    pub rent_sponsor: AccountInfo<'info>,
+    /// CHECK: anyone can pay (optional - only needed if decompressing tokens)
     #[account(mut)]
-    pub ctoken_rent_sponsor: UncheckedAccount<'info>,
-    /// CHECK: Checked in protocol.
-    pub ctoken_config: UncheckedAccount<'info>,
-    /// ctoken program (always required in mixed variant)
-    /// CHECK: Checked by Protocol.
-    pub ctoken_program: UncheckedAccount<'info>,
-    /// CPI authority PDA of the compressed token program (always required in mixed variant)
-    /// CHECK: Checked by Protocol.
-    pub ctoken_cpi_authority: UncheckedAccount<'info>,
+    pub ctoken_rent_sponsor: Option<AccountInfo<'info>>,
+    /// CHECK: checked by SDK
+    pub ctoken_config: Option<UncheckedAccount<'info>>,
+    /// CHECK:
+    pub ctoken_program: Option<UncheckedAccount<'info>>,
+    /// CHECK:
+    pub ctoken_cpi_authority: Option<UncheckedAccount<'info>>,
     /// CHECK: unchecked.
     pub some_mint: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,

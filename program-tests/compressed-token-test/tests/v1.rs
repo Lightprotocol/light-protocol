@@ -5404,7 +5404,6 @@ async fn test_transfer_with_photon_and_batched_tree() {
         wait_time: 15,
         sbf_programs: vec![],
         limit_ledger_size: None,
-        grpc_port: None,
     })
     .await;
 

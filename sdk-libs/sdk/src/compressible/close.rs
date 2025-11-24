@@ -7,16 +7,20 @@ pub fn close<'info>(
     info: &mut AccountInfo<'info>,
     sol_destination: AccountInfo<'info>,
 ) -> Result<()> {
+    let system_program_id = solana_pubkey::pubkey!("11111111111111111111111111111111");
+
+    if info.key == sol_destination.key {
+        info.assign(&system_program_id);
+        info.resize(0)?;
+        return Ok(());
+    }
+
     let lamports_to_transfer = info.lamports();
 
     let new_destination_lamports = sol_destination
         .lamports()
         .checked_add(lamports_to_transfer)
         .ok_or(LightSdkError::ConstraintViolation)?;
-
-    if info.lamports() != lamports_to_transfer {
-        return Err(LightSdkError::ConstraintViolation);
-    }
 
     {
         let mut destination_lamports = sol_destination
@@ -32,7 +36,6 @@ pub fn close<'info>(
         **source_lamports = 0;
     }
 
-    let system_program_id = solana_pubkey::pubkey!("11111111111111111111111111111111");
     info.assign(&system_program_id);
     info.resize(0)?;
 
