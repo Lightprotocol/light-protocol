@@ -72,7 +72,6 @@ impl StagingTree {
 
         let old_root = self.current_root();
 
-        // Pre-expand tree to accommodate all leaf indices
         if let Some(&max_leaf_idx) = leaf_indices.iter().max() {
             let max_idx = max_leaf_idx as usize;
             if self.tree.layers[0].len() <= max_idx {
@@ -276,7 +275,6 @@ impl StagingTree {
                 tree.layers[0].resize(leaf_idx + 1, [0u8; 32]);
             }
 
-            // Store the leaf
             tree.layers[0][leaf_idx] = *leaf_hash;
         }
         tree.roots.push(initial_root);
