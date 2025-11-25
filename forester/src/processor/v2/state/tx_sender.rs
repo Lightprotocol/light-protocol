@@ -4,13 +4,25 @@ use solana_sdk::signature::Signer;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
-use forester_utils::instructions::state::BatchInstruction;
 use light_client::rpc::Rpc;
 use light_registry::account_compression_cpi::sdk::{create_batch_append_instruction, create_batch_nullify_instruction};
 use crate::errors::ForesterError;
 use crate::processor::v2::BatchContext;
 use crate::processor::v2::common::send_transaction_batch;
 use crate::processor::v2::state::proof_worker::ProofResult;
+
+use light_batched_merkle_tree::{
+    merkle_tree::{
+        InstructionDataBatchAppendInputs,
+        InstructionDataBatchNullifyInputs,
+    },
+};
+
+#[derive(Debug)]
+pub enum BatchInstruction {
+    Append(Vec<InstructionDataBatchAppendInputs>),
+    Nullify(Vec<InstructionDataBatchNullifyInputs>),
+}
 
 pub struct TxSender<R: Rpc> {
     context: BatchContext<R>,

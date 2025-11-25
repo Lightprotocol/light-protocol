@@ -2,7 +2,7 @@ use std::time::Duration;
 use anyhow::anyhow;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
-use forester_utils::instructions::state::BatchInstruction;
+use crate::processor::v2::state::tx_sender::BatchInstruction;
 use light_batched_merkle_tree::merkle_tree::{InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs};
 use light_client::rpc::Rpc;
 use light_prover_client::proof_client::ProofClient;
