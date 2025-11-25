@@ -6,7 +6,7 @@ use common::BatchProcessor;
 use light_client::rpc::Rpc;
 use tracing::{instrument, trace};
 
-use crate::{polling::QueueUpdateMessage, Result};
+use crate::Result;
 
 #[instrument(
     level = "debug",
@@ -20,7 +20,6 @@ use crate::{polling::QueueUpdateMessage, Result};
 pub async fn process_batched_operations<R: Rpc>(
     context: BatchContext<R>,
     tree_type: TreeType,
-    queue_update: Option<QueueUpdateMessage>,
 ) -> Result<usize> {
     trace!("process_batched_operations");
     match tree_type {
