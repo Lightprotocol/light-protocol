@@ -1,11 +1,11 @@
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::BTreeMap;
 use std::time::Duration;
 
 use anyhow::anyhow;
 use borsh::BorshSerialize;
 use forester_utils::instructions::state::BatchInstruction;
 use forester_utils::staging_tree::StagingTree;
-use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
+use forester_utils::utils::wait_for_indexer;
 use kameo::{
     actor::{ActorRef, WeakActorRef},
     error::ActorStopReason,
@@ -18,14 +18,13 @@ use light_batched_merkle_tree::{
         BatchedMerkleTreeAccount, InstructionDataBatchAppendInputs,
         InstructionDataBatchNullifyInputs,
     },
-    queue::BatchedQueueAccount,
 };
 use light_client::{
     indexer::{Indexer, QueueElementsV2Options},
     rpc::Rpc,
 };
 use light_compressed_account::QueueType;
-use light_hasher::{hash_chain::create_hash_chain_from_slice, Hasher, Poseidon};
+use light_hasher::{Hasher, Poseidon};
 use light_prover_client::{
     proof_client::ProofClient,
     proof_types::{
@@ -39,13 +38,12 @@ use light_registry::{
     },
     protocol_config::state::EpochState,
 };
-use solana_sdk::{account::Account, signer::Signer};
+use solana_sdk::signer::Signer;
 use tokio::{sync::mpsc, task::JoinHandle};
 use tracing::{debug, info, trace, warn};
 
 use super::common::{send_transaction_batch, BatchContext};
 use crate::{errors::ForesterError, Result};
-use forester_utils::utils::wait_for_indexer;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Phase {
@@ -86,11 +84,13 @@ pub struct ProcessQueueUpdate {
 // Actor implementation
 pub struct StateSupervisor<R: Rpc> {
     context: BatchContext<R>,
-    tree_state: ParsedMerkleTreeData,
-    output_queue_state: Option<ParsedQueueData>,
     staging_tree: Option<StagingTree>,
-    append_hash_chains: VecDeque<[u8; 32]>,
-    nullify_hash_chains: VecDeque<[u8; 32]>,
+    /// Current root from indexer (updated after each batch)
+    current_root: [u8; 32],
+    /// Tree's next_index for appends (updated after each append batch)
+    next_index: u64,
+    /// ZKP batch size fetched once from on-chain at startup
+    zkp_batch_size: u16,
     seq: u64,
 }
 
@@ -108,33 +108,25 @@ impl<R: Rpc> Actor for StateSupervisor<R> {
             context.merkle_tree
         );
 
-        let tree_state = fetch_state_tree(&context).await?;
-        let output_queue_state = fetch_output_queue(&context).await?;
+        // Fetch zkp_batch_size once from on-chain (this is static per tree)
+        let zkp_batch_size = fetch_zkp_batch_size(&context).await?;
+        info!(
+            "StateSupervisor fetched zkp_batch_size={} for tree {}",
+            zkp_batch_size, context.merkle_tree
+        );
 
+        // Try to restore staging tree from cache (will be validated against indexer data later)
         let staging_tree = {
-            let mut cache = context.staging_tree_cache.lock().await;
-            if let Some(cached) = cache.as_ref() {
-                if cached.current_root() == tree_state.current_root {
-                    Some(cached.clone())
-                } else {
-                    *cache = None;
-                    None
-                }
-            } else {
-                None
-            }
+            let cache = context.staging_tree_cache.lock().await;
+            cache.clone()
         };
 
         Ok(Self {
             context,
             staging_tree,
-            append_hash_chains: output_queue_state
-                .as_ref()
-                .map(|q| VecDeque::from(q.leaves_hash_chains.clone()))
-                .unwrap_or_default(),
-            nullify_hash_chains: VecDeque::from(tree_state.leaves_hash_chains.clone()),
-            tree_state,
-            output_queue_state,
+            current_root: [0u8; 32],
+            next_index: 0,
+            zkp_batch_size,
             seq: 0,
         })
     }
@@ -172,10 +164,7 @@ impl<R: Rpc> Message<ProcessQueueUpdate> for StateSupervisor<R> {
 
 impl<R: Rpc> StateSupervisor<R> {
     fn zkp_batch_size(&self) -> u16 {
-        self.output_queue_state
-            .as_ref()
-            .map(|q| q.zkp_batch_size)
-            .unwrap_or(self.tree_state.zkp_batch_size)
+        self.zkp_batch_size
     }
 
     async fn process_queue_update(&mut self, queue_work: QueueWork) -> Result<usize> {
@@ -239,7 +228,7 @@ impl<R: Rpc> StateSupervisor<R> {
             self.context.clone(),
             proof_rx,
             self.zkp_batch_size(),
-            self.tree_state.current_root,
+            self.current_root,
         );
 
         self.enqueue_batches(phase, max_batches, job_tx).await?;
@@ -271,37 +260,19 @@ impl<R: Rpc> StateSupervisor<R> {
         let rpc = self.context.rpc_pool.get_connection().await?;
         wait_for_indexer(&*rpc).await?;
 
-        let tree_state = fetch_state_tree(&self.context).await?;
-        let output_queue_state = fetch_output_queue(&self.context).await?;
-
-        let onchain_root = tree_state.current_root;
         let prev_staging_root = self.staging_tree.as_ref().map(|t| t.current_root());
 
         info!(
-            "ACTOR Reanchoring: on-chain root {:?}[..4], prev staging root {:?}",
-            &onchain_root[..4],
+            "ACTOR Reanchoring: prev staging root {:?}",
             prev_staging_root.as_ref().map(|r| format!("{:?}", &r[..4]))
         );
 
-        // Always invalidate staging tree and cache on reanchor to get fresh indexer data
-        // This helps diagnose if indexer is returning incorrect data
+        // Invalidate staging tree on reanchor to get fresh indexer data
+        // The staging tree will be rebuilt from indexer data in build_append_job/build_nullify_job
         self.staging_tree = None;
         let mut cache = self.context.staging_tree_cache.lock().await;
         *cache = None;
 
-        self.tree_state = tree_state;
-        self.output_queue_state = output_queue_state;
-        self.append_hash_chains = self
-            .output_queue_state
-            .as_ref()
-            .map(|q| VecDeque::from(q.leaves_hash_chains.clone()))
-            .unwrap_or_default();
-        debug!(
-            "ACTOR Reanchored with {} append hash chains, first: {:?}[..4]",
-            self.append_hash_chains.len(),
-            self.append_hash_chains.get(0).map(|h| &h[..4])
-        );
-        self.nullify_hash_chains = VecDeque::from(self.tree_state.leaves_hash_chains.clone());
         self.seq = 0;
 
         Ok(())
@@ -313,7 +284,6 @@ impl<R: Rpc> StateSupervisor<R> {
         max_batches: usize,
         job_tx: mpsc::Sender<ProofJob>,
     ) -> Result<()> {
-        // Determine how many elements to fetch in a single indexer call
         let zkp_batch_size = self.zkp_batch_size() as usize;
         let total_needed = max_batches.saturating_mul(zkp_batch_size);
         let fetch_len: u16 = total_needed
@@ -335,6 +305,15 @@ impl<R: Rpc> StateSupervisor<R> {
                 let Some(batch) = output_batch else { return Ok(()); };
                 if batch.leaf_indices.is_empty() { return Ok(()); }
 
+                // Initialize state from indexer response
+                self.current_root = batch.initial_root;
+                self.next_index = batch.next_index;
+                info!(
+                    "ACTOR Initialized from indexer: root {:?}[..4], next_index {}",
+                    &self.current_root[..4],
+                    self.next_index
+                );
+
                 let available = batch.leaf_indices.len();
                 let num_slices = (available / zkp_batch_size).min(max_batches);
                 for batch_idx in 0..num_slices {
@@ -349,6 +328,13 @@ impl<R: Rpc> StateSupervisor<R> {
             Phase::Nullify => {
                 let Some(batch) = input_batch else { return Ok(()); };
                 if batch.leaf_indices.is_empty() { return Ok(()); }
+
+                // Initialize state from indexer response
+                self.current_root = batch.initial_root;
+                info!(
+                    "ACTOR Initialized from indexer: root {:?}[..4]",
+                    &self.current_root[..4]
+                );
 
                 let available = batch.leaf_indices.len();
                 let num_slices = (available / zkp_batch_size).min(max_batches);
@@ -372,36 +358,17 @@ impl<R: Rpc> StateSupervisor<R> {
         batch: &light_client::indexer::OutputQueueDataV2,
         start: usize,
     ) -> Result<Option<ProofJob>> {
-        // Verify indexer snapshot only for the first slice to avoid unnecessary resets
-        if batch_idx == 0 {
-            if let Some(onchain_root) = current_onchain_root(&self.context).await? {
-                if onchain_root != batch.initial_root {
-                    warn!(
-                        "ACTOR INDEXER ISSUE: on-chain root {:?}[..4] != batch.initial_root {:?}[..4]. Indexer returned incorrect data!",
-                        &onchain_root[..4],
-                        &batch.initial_root[..4]
-                    );
-                    self.staging_tree = None;
-                    let mut cache = self.context.staging_tree_cache.lock().await;
-                    *cache = None;
-                    return Ok(None);
-                }
-            }
-        }
-
+        // Initialize or reset staging tree from indexer data
         if self.staging_tree.is_none() {
             info!(
                 "ACTOR Rebuilding staging tree from indexer batch data (initial_root {:?}[..4])",
                 &batch.initial_root[..4]
             );
             debug!(
-                "ACTOR OutputQueueDataV2: {} account_hashes, {} leaf_indices, {} old_leaves, first 3 account_hashes: {:?}, {:?}, {:?}",
+                "ACTOR OutputQueueDataV2: {} account_hashes, {} leaf_indices, {} old_leaves",
                 batch.account_hashes.len(),
                 batch.leaf_indices.len(),
-                batch.old_leaves.len(),
-                if batch.account_hashes.len() > 0 { &batch.account_hashes[0][..4] } else { &[0u8; 4] },
-                if batch.account_hashes.len() > 1 { &batch.account_hashes[1][..4] } else { &[0u8; 4] },
-                if batch.account_hashes.len() > 2 { &batch.account_hashes[2][..4] } else { &[0u8; 4] }
+                batch.old_leaves.len()
             );
             match StagingTree::from_v2_output_queue(
                 &batch.leaf_indices,
@@ -419,17 +386,17 @@ impl<R: Rpc> StateSupervisor<R> {
                 }
                 Err(e) => {
                     warn!(
-                        "ACTOR Failed to initialize staging tree from indexer data: {}. Dropping cache and retrying later.",
+                        "ACTOR Failed to initialize staging tree from indexer data: {}. Retrying later.",
                         e
                     );
-                    self.staging_tree = None;
                     return Ok(None);
                 }
             }
         }
 
         let zkp_batch_size = self.zkp_batch_size() as usize;
-        // Only allow staging reset from snapshot on the very first slice
+
+        // Validate staging tree root matches indexer data for first batch
         if batch_idx == 0 {
             if self
                 .staging_tree
@@ -443,7 +410,7 @@ impl<R: Rpc> StateSupervisor<R> {
                     .map(|t| t.current_root())
                     .unwrap_or([0u8; 32]);
                 warn!(
-                    "ACTOR Staging root {:?}[..4] != batch initial {:?}[..4], resetting staging from batch snapshot",
+                    "ACTOR Staging root {:?}[..4] != batch initial {:?}[..4], resetting from indexer snapshot",
                     &prev[..4],
                     &batch.initial_root[..4]
                 );
@@ -459,7 +426,7 @@ impl<R: Rpc> StateSupervisor<R> {
                     }
                     Err(e) => {
                         warn!(
-                            "ACTOR Failed  to reset staging from batch snapshot: {}. Skipping batch.",
+                            "ACTOR Failed to reset staging from indexer snapshot: {}. Skipping batch.",
                             e
                         );
                         self.staging_tree = None;
@@ -483,38 +450,20 @@ impl<R: Rpc> StateSupervisor<R> {
             &new_root[..4]
         );
 
-        if let Some(expected_hash) = self.append_hash_chains.get(batch_idx).copied() {
-            debug!(
-                "ACTOR APPEND hashchain check batch {}: {} leaves from Photon, first 3: {:?}, {:?}, {:?}",
-                batch_idx,
-                leaves.len(),
-                if leaves.len() > 0 { &leaves[0][..4] } else { &[0u8; 4] },
-                if leaves.len() > 1 { &leaves[1][..4] } else { &[0u8; 4] },
-                if leaves.len() > 2 { &leaves[2][..4] } else { &[0u8; 4] }
-            );
-            let computed_hash = create_hash_chain_from_slice(&leaves)
-                .map_err(|e| anyhow!("Failed to recompute append hashchain: {}", e))?;
-            if expected_hash != computed_hash {
-                warn!(
-                    "ACTOR Append hashchain MISMATCH at batch {}:\n  expected: {:?}\n  computed: {:?}\n  leaves: {:?}",
+        // Use hash chain from indexer (pre-computed to match on-chain)
+        let leaves_hashchain = batch
+            .leaves_hash_chains
+            .get(batch_idx)
+            .copied()
+            .ok_or_else(|| {
+                anyhow!(
+                    "Missing leaves_hash_chain for batch {} (available: {})",
                     batch_idx,
-                    expected_hash,
-                    computed_hash,
-                    leaves.iter().take(3).collect::<Vec<_>>()
-                );
-                return Err(anyhow!(
-                    "ACTOR Append hashchain mismatch at batch {} expected {:?}[..4] got {:?}[..4]",
-                    batch_idx,
-                    &expected_hash[..4],
-                    &computed_hash[..4]
-                ));
-            } else {
-                debug!("ACTOR APPEND hashchain matches for batch {}", batch_idx);
-            }
-        }
+                    batch.leaves_hash_chains.len()
+                )
+            })?;
 
         let start_index = self
-            .tree_state
             .next_index
             .saturating_add((batch_idx as u64) * self.zkp_batch_size() as u64)
             as u32;
@@ -525,7 +474,7 @@ impl<R: Rpc> StateSupervisor<R> {
                 "old_root": old_root,
                 "start_index": start_index,
                 "leaves": leaves,
-                "leaves_hashchain": self.append_hash_chains.get(batch_idx).unwrap_or(&[0u8; 32]),
+                "leaves_hashchain": leaves_hashchain,
                 "old_leaves": old_leaves,
                 "merkle_proofs": merkle_proofs,
                 "batch_size": self.zkp_batch_size(),
@@ -545,7 +494,7 @@ impl<R: Rpc> StateSupervisor<R> {
                 old_root,
                 start_index,
                 leaves.clone(),
-                *self.append_hash_chains.get(batch_idx).unwrap_or(&[0u8; 32]),
+                leaves_hashchain,
                 old_leaves,
                 merkle_proofs,
                 self.zkp_batch_size() as u32,
@@ -553,9 +502,8 @@ impl<R: Rpc> StateSupervisor<R> {
             )
             .map_err(|e| anyhow!("ACTOR Failed to build append inputs: {}", e))?;
 
-        self.tree_state.current_root = new_root;
-        self.tree_state.next_index = self
-            .tree_state
+        self.current_root = new_root;
+        self.next_index = self
             .next_index
             .saturating_add(self.zkp_batch_size() as u64);
         self.seq += 1;
@@ -577,23 +525,7 @@ impl<R: Rpc> StateSupervisor<R> {
         batch: &light_client::indexer::InputQueueDataV2,
         start: usize,
     ) -> Result<Option<ProofJob>> {
-        // Verify indexer snapshot only for the first slice
-        if batch_idx == 0 {
-            if let Some(onchain_root) = current_onchain_root(&self.context).await? {
-                if onchain_root != batch.initial_root {
-                    warn!(
-                        "ACTOR INDEXER ISSUE: on-chain root {:?}[..4] != batch.initial_root {:?}[..4]. Indexer returned incorrect data!",
-                        &onchain_root[..4],
-                        &batch.initial_root[..4]
-                    );
-                    self.staging_tree = None;
-                    let mut cache = self.context.staging_tree_cache.lock().await;
-                    *cache = None;
-                    return Ok(None);
-                }
-            }
-        }
-
+        // Initialize or reset staging tree from indexer data
         if self.staging_tree.is_none() {
             info!(
                 "ACTOR Rebuilding staging tree from indexer input queue (initial_root {:?}[..4])",
@@ -615,19 +547,17 @@ impl<R: Rpc> StateSupervisor<R> {
                 }
                 Err(e) => {
                     warn!(
-                        "ACTOR Failed to initialize nullify staging tree from indexer data: {}. Dropping cache and waiting for indexer sync.",
+                        "ACTOR Failed to initialize nullify staging tree from indexer data: {}. Retrying later.",
                         e
                     );
-                    self.staging_tree = None;
-                    let rpc = self.context.rpc_pool.get_connection().await?;
-                    let _ = wait_for_indexer(&*rpc).await;
                     return Ok(None);
                 }
             }
         }
 
         let zkp_batch_size = self.zkp_batch_size() as usize;
-        // Only allow reset for the first slice
+
+        // Validate staging tree root matches indexer data for first batch
         if batch_idx == 0 {
             if self
                 .staging_tree
@@ -641,7 +571,7 @@ impl<R: Rpc> StateSupervisor<R> {
                     .map(|t| t.current_root())
                     .unwrap_or([0u8; 32]);
                 warn!(
-                    "ACTOR Staging root {:?}[..4] != batch initial {:?}[..4], resetting staging from batch snapshot",
+                    "ACTOR Staging root {:?}[..4] != batch initial {:?}[..4], resetting from indexer snapshot",
                     &prev[..4],
                     &batch.initial_root[..4]
                 );
@@ -657,7 +587,7 @@ impl<R: Rpc> StateSupervisor<R> {
                     }
                     Err(e) => {
                         warn!(
-                            "ACTOR Failed to reset nullify staging from batch snapshot: {}. Skipping batch.",
+                            "ACTOR Failed to reset nullify staging from indexer snapshot: {}. Skipping batch.",
                             e
                         );
                         self.staging_tree = None;
@@ -692,21 +622,18 @@ impl<R: Rpc> StateSupervisor<R> {
             &new_root[..4]
         );
 
-        if let Some(expected_hash) = self.nullify_hash_chains.get(batch_idx).copied() {
-            let computed_hash =
-                create_hash_chain_from_slice(&nullifiers).map_err(|e| anyhow!(e.to_string()))?;
-            if expected_hash != computed_hash {
-                return Err(anyhow!(
-                    "ACTOR Nullify hashchain mismatch at batch {} expected {:?}[..4] got {:?}[..4]",
+        // Use hash chain from indexer (pre-computed to match on-chain)
+        let leaves_hashchain = batch
+            .leaves_hash_chains
+            .get(batch_idx)
+            .copied()
+            .ok_or_else(|| {
+                anyhow!(
+                    "Missing leaves_hash_chain for batch {} (available: {})",
                     batch_idx,
-                    &expected_hash[..4],
-                    &computed_hash[..4]
-                ));
-            }
-            else {
-                debug!("ACTOR NULLIFY hashchain matches for batch {}", batch_idx);
-            }
-        }
+                    batch.leaves_hash_chains.len()
+                )
+            })?;
 
         let path_indices: Vec<u32> = leaf_indices.iter().map(|idx| *idx as u32).collect();
 
@@ -716,7 +643,7 @@ impl<R: Rpc> StateSupervisor<R> {
                 "old_root": old_root,
                 "tx_hashes": tx_hashes,
                 "account_hashes": account_hashes,
-                "leaves_hashchain": self.nullify_hash_chains.get(batch_idx).unwrap_or(&[0u8; 32]),
+                "leaves_hashchain": leaves_hashchain,
                 "old_leaves": old_leaves,
                 "merkle_proofs": merkle_proofs,
                 "path_indices": path_indices,
@@ -737,10 +664,7 @@ impl<R: Rpc> StateSupervisor<R> {
                 old_root,
                 tx_hashes,
                 account_hashes,
-                *self
-                    .nullify_hash_chains
-                    .get(batch_idx)
-                    .unwrap_or(&[0u8; 32]),
+                leaves_hashchain,
                 old_leaves,
                 merkle_proofs,
                 path_indices,
@@ -749,7 +673,7 @@ impl<R: Rpc> StateSupervisor<R> {
             )
             .map_err(|e| anyhow!("ACTOR Failed to build nullify inputs: {}", e))?;
 
-        self.tree_state.current_root = new_root;
+        self.current_root = new_root;
         self.seq += 1;
 
         {
@@ -926,32 +850,17 @@ impl<R: Rpc> TxSender<R> {
     }
 }
 
-async fn fetch_state_tree<R: Rpc>(context: &BatchContext<R>) -> Result<ParsedMerkleTreeData> {
+/// Fetches zkp_batch_size from on-chain merkle tree account (called once at startup)
+async fn fetch_zkp_batch_size<R: Rpc>(context: &BatchContext<R>) -> Result<u16> {
     let rpc = context.rpc_pool.get_connection().await?;
     let mut account = rpc
         .get_account(context.merkle_tree)
         .await?
-        .ok_or_else(|| anyhow!("Merkle tree account missing"))?;
+        .ok_or_else(|| anyhow!("Merkle tree account not found"))?;
 
-    parse_state_tree(&mut account, context.merkle_tree)
-}
-
-async fn fetch_output_queue<R: Rpc>(context: &BatchContext<R>) -> Result<Option<ParsedQueueData>> {
-    let rpc = context.rpc_pool.get_connection().await?;
-    let Some(mut account) = rpc.get_account(context.output_queue).await? else {
-        return Ok(None);
-    };
-
-    parse_output_queue(&mut account)
-}
-
-fn parse_state_tree(
-    account: &mut Account,
-    merkle_tree: solana_sdk::pubkey::Pubkey,
-) -> Result<ParsedMerkleTreeData> {
     let tree = BatchedMerkleTreeAccount::state_from_bytes(
         account.data.as_mut_slice(),
-        &merkle_tree.into(),
+        &context.merkle_tree.into(),
     )?;
 
     let batch_index = tree.queue_batches.pending_batch_index;
@@ -961,68 +870,7 @@ fn parse_state_tree(
         .get(batch_index as usize)
         .ok_or_else(|| anyhow!("Batch not found"))?;
 
-    let num_inserted_zkps = batch.get_num_inserted_zkps();
-    let current_zkp_batch_index = batch.get_current_zkp_batch_index();
-
-    let mut leaves_hash_chains = Vec::new();
-    for i in num_inserted_zkps..current_zkp_batch_index {
-        leaves_hash_chains.push(tree.hash_chain_stores[batch_index as usize][i as usize]);
-    }
-
-    let onchain_root = *tree.root_history.last().unwrap();
-
-    Ok(ParsedMerkleTreeData {
-        next_index: tree.next_index,
-        current_root: onchain_root,
-        root_history: tree.root_history.to_vec(),
-        zkp_batch_size: batch.zkp_batch_size as u16,
-        pending_batch_index: batch_index as u32,
-        num_inserted_zkps,
-        current_zkp_batch_index,
-        batch_start_index: batch.start_index,
-        leaves_hash_chains,
-    })
-}
-
-fn parse_output_queue(account: &mut Account) -> Result<Option<ParsedQueueData>> {
-    let output_queue = BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice())?;
-
-    let batch_index = output_queue.batch_metadata.pending_batch_index;
-    let batch = output_queue
-        .batch_metadata
-        .batches
-        .get(batch_index as usize)
-        .ok_or_else(|| anyhow!("Batch not found"))?;
-
-    let num_inserted_zkps = batch.get_num_inserted_zkps();
-    let current_zkp_batch_index = batch.get_current_zkp_batch_index();
-
-    let mut leaves_hash_chains = Vec::new();
-    for i in num_inserted_zkps..current_zkp_batch_index {
-        leaves_hash_chains.push(output_queue.hash_chain_stores[batch_index as usize][i as usize]);
-    }
-
-    let parsed = ParsedQueueData {
-        zkp_batch_size: output_queue.batch_metadata.zkp_batch_size as u16,
-        pending_batch_index: batch_index as u32,
-        num_inserted_zkps,
-        current_zkp_batch_index,
-        leaves_hash_chains,
-    };
-
-    Ok(Some(parsed))
-}
-
-async fn current_onchain_root<R: Rpc>(context: &BatchContext<R>) -> Result<Option<[u8; 32]>> {
-    let rpc = context.rpc_pool.get_connection().await?;
-    let Some(mut account) = rpc.get_account(context.merkle_tree).await? else {
-        return Ok(None);
-    };
-    let tree = BatchedMerkleTreeAccount::state_from_bytes(
-        account.data.as_mut_slice(),
-        &context.merkle_tree.into(),
-    )?;
-    Ok(tree.get_root())
+    Ok(batch.zkp_batch_size as u16)
 }
 
 async fn fetch_batches<R: Rpc>(

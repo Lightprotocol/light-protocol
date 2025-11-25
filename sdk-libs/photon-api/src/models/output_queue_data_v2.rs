@@ -24,6 +24,10 @@ pub struct OutputQueueDataV2 {
     pub initial_root: String,
     #[serde(rename = "firstQueueIndex")]
     pub first_queue_index: u64,
+    #[serde(rename = "nextIndex")]
+    pub next_index: u64,
+    #[serde(rename = "leavesHashChains")]
+    pub leaves_hash_chains: Vec<String>,
 }
 
 impl OutputQueueDataV2 {
@@ -35,6 +39,8 @@ impl OutputQueueDataV2 {
         node_hashes: Vec<String>,
         initial_root: String,
         first_queue_index: u64,
+        next_index: u64,
+        leaves_hash_chains: Vec<String>,
     ) -> OutputQueueDataV2 {
         OutputQueueDataV2 {
             leaf_indices,
@@ -44,6 +50,8 @@ impl OutputQueueDataV2 {
             node_hashes,
             initial_root,
             first_queue_index,
+            next_index,
+            leaves_hash_chains,
         }
     }
 }

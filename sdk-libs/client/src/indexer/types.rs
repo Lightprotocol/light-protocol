@@ -61,6 +61,10 @@ pub struct OutputQueueDataV2 {
     pub node_hashes: Vec<[u8; 32]>,
     pub initial_root: [u8; 32],
     pub first_queue_index: u64,
+    /// The tree's next_index - where new leaves will be appended
+    pub next_index: u64,
+    /// Pre-computed hash chains per ZKP batch (from on-chain)
+    pub leaves_hash_chains: Vec<[u8; 32]>,
 }
 
 /// V2 Input Queue Data with deduplicated nodes for efficient staging tree construction
@@ -74,6 +78,8 @@ pub struct InputQueueDataV2 {
     pub node_hashes: Vec<[u8; 32]>,
     pub initial_root: [u8; 32],
     pub first_queue_index: u64,
+    /// Pre-computed hash chains per ZKP batch (from on-chain)
+    pub leaves_hash_chains: Vec<[u8; 32]>,
 }
 
 /// V2 Address Queue Data with deduplicated nodes

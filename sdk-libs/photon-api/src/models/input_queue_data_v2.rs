@@ -26,6 +26,8 @@ pub struct InputQueueDataV2 {
     pub initial_root: String,
     #[serde(rename = "firstQueueIndex")]
     pub first_queue_index: u64,
+    #[serde(rename = "leavesHashChains")]
+    pub leaves_hash_chains: Vec<String>,
 }
 
 impl InputQueueDataV2 {
@@ -38,6 +40,7 @@ impl InputQueueDataV2 {
         node_hashes: Vec<String>,
         initial_root: String,
         first_queue_index: u64,
+        leaves_hash_chains: Vec<String>,
     ) -> InputQueueDataV2 {
         InputQueueDataV2 {
             leaf_indices,
@@ -48,6 +51,7 @@ impl InputQueueDataV2 {
             node_hashes,
             initial_root,
             first_queue_index,
+            leaves_hash_chains,
         }
     }
 }

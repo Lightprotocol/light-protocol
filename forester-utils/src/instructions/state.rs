@@ -29,9 +29,6 @@ use crate::{
     ParsedMerkleTreeData, ParsedQueueData,
 };
 
-// Emit one proof per stream item to preserve strict ordering.
-const MAX_PROOFS_PER_TX: usize = 1;
-
 #[derive(Debug)]
 pub enum BatchInstruction {
     Append(Vec<InstructionDataBatchAppendInputs>),

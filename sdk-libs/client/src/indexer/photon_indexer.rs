@@ -1855,6 +1855,12 @@ impl Indexer for PhotonIndexer {
                     .map(|h| Hash::from_base58(h))
                     .collect();
 
+                let leaves_hash_chains: Result<Vec<[u8; 32]>, IndexerError> = output
+                    .leaves_hash_chains
+                    .iter()
+                    .map(|h| Hash::from_base58(h))
+                    .collect();
+
                 let initial_root = Hash::from_base58(&output.initial_root)?;
 
                 Some(super::OutputQueueDataV2 {
@@ -1865,6 +1871,8 @@ impl Indexer for PhotonIndexer {
                     node_hashes: node_hashes?,
                     initial_root,
                     first_queue_index: output.first_queue_index,
+                    next_index: output.next_index,
+                    leaves_hash_chains: leaves_hash_chains?,
                 })
             } else {
                 None
@@ -1893,6 +1901,12 @@ impl Indexer for PhotonIndexer {
                     .map(|h| Hash::from_base58(h))
                     .collect();
 
+                let leaves_hash_chains: Result<Vec<[u8; 32]>, IndexerError> = input
+                    .leaves_hash_chains
+                    .iter()
+                    .map(|h| Hash::from_base58(h))
+                    .collect();
+
                 let initial_root = Hash::from_base58(&input.initial_root)?;
 
                 Some(super::InputQueueDataV2 {
@@ -1904,6 +1918,7 @@ impl Indexer for PhotonIndexer {
                     node_hashes: node_hashes?,
                     initial_root,
                     first_queue_index: input.first_queue_index,
+                    leaves_hash_chains: leaves_hash_chains?,
                 })
             } else {
                 None
