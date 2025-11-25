@@ -32,6 +32,8 @@ pub struct OutputQueueDataV2 {
 }
 
 impl OutputQueueDataV2 {
+
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         leaf_indices: Vec<u64>,
         account_hashes: Vec<String>,

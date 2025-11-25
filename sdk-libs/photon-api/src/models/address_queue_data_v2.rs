@@ -42,6 +42,8 @@ pub struct AddressQueueDataV2 {
 }
 
 impl AddressQueueDataV2 {
+
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         addresses: Vec<String>,
         queue_indices: Vec<u64>,
