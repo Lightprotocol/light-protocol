@@ -1,5 +1,6 @@
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::MerkleTree;
+use light_prover_client::proof_types::batch_update::BatchTreeUpdateResult;
 use tracing::debug;
 
 use crate::error::ForesterUtilsError;
@@ -15,16 +16,51 @@ pub struct BatchUpdateResult {
     pub new_root: [u8; 32],
 }
 
+impl From<BatchUpdateResult> for BatchTreeUpdateResult {
+    fn from(result: BatchUpdateResult) -> Self {
+        BatchTreeUpdateResult {
+            old_leaves: result.old_leaves,
+            merkle_proofs: result.merkle_proofs,
+            old_root: result.old_root,
+            new_root: result.new_root,
+        }
+    }
+}
+
+/// Type of batch update operation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum BatchType {
+    /// Appending new leaves - only update if old leaf is zero
+    Append,
+    /// Nullifying existing leaves - always overwrite with new value
+    Nullify,
+}
+
+impl std::fmt::Display for BatchType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BatchType::Append => write!(f, "APPEND"),
+            BatchType::Nullify => write!(f, "NULLIFY"),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct StagingTree {
     tree: MerkleTree<Poseidon>,
     current_root: [u8; 32],
     updates: Vec<(u64, [u8; 32])>,
+    /// Sequence number of the root when this tree was built from indexer
+    base_seq: u64,
 }
 
 impl StagingTree {
     pub fn current_root(&self) -> [u8; 32] {
         self.current_root
+    }
+
+    pub fn base_seq(&self) -> u64 {
+        self.base_seq
     }
 
     pub fn get_leaf(&self, leaf_index: u64) -> [u8; 32] {
@@ -80,7 +116,7 @@ impl StagingTree {
         &mut self,
         leaf_indices: &[u64],
         new_leaves: &[[u8; 32]],
-        batch_type: &str,
+        batch_type: BatchType,
         batch_idx: usize,
     ) -> Result<BatchUpdateResult, ForesterUtilsError> {
         if leaf_indices.len() != new_leaves.len() {
@@ -112,14 +148,15 @@ impl StagingTree {
             let proof = self.get_proof(leaf_idx)?;
             old_leaves.push(old_leaf);
 
-            let final_leaf = if batch_type == "NULLIFY" {
-                new_leaf
-            } else {
-                let is_old_leaf_zero = old_leaf.iter().all(|&byte| byte == 0);
-                if is_old_leaf_zero {
-                    new_leaf
-                } else {
-                    old_leaf
+            let final_leaf = match batch_type {
+                BatchType::Nullify => new_leaf,
+                BatchType::Append => {
+                    let is_old_leaf_zero = old_leaf.iter().all(|&byte| byte == 0);
+                    if is_old_leaf_zero {
+                        new_leaf
+                    } else {
+                        old_leaf
+                    }
                 }
             };
 
@@ -166,21 +203,28 @@ impl StagingTree {
         self.updates
     }
 
-    pub fn from_v2_output_queue(
+    pub fn new(
         leaf_indices: &[u64],
         leaves: &[[u8; 32]],
         nodes: &[u64],
         node_hashes: &[[u8; 32]],
         initial_root: [u8; 32],
+        root_seq: u64,
     ) -> Result<Self, ForesterUtilsError> {
         debug!(
-            "from_v2_output_queue: {} leaves, {} deduplicated nodes, initial_root={:?}",
+            "StagingTree::new: {} leaves, {} deduplicated nodes, initial_root={:?}, root_seq={}",
             leaves.len(),
             nodes.len(),
-            &initial_root
+            &initial_root,
+            root_seq
         );
         let mut tree = MerkleTree::<Poseidon>::new(TREE_HEIGHT, 0);
         for (&node_index, &node_hash) in nodes.iter().zip(node_hashes.iter()) {
+            // Skip nodes at root level - root is stored separately in tree.roots
+            let level = (node_index >> 56) as usize;
+            if level >= TREE_HEIGHT {
+                continue;
+            }
             tree.insert_node(node_index, node_hash).map_err(|e| {
                 ForesterUtilsError::StagingTree(format!("Failed to insert node: {}", e))
             })?;
@@ -195,16 +239,28 @@ impl StagingTree {
             tree,
             current_root: initial_root,
             updates: Vec::new(),
+            base_seq: root_seq,
         })
     }
 
-    pub fn from_v2_input_queue(
-        leaf_indices: &[u64],
-        leaves: &[[u8; 32]],
-        nodes: &[u64],
-        node_hashes: &[[u8; 32]],
-        initial_root: [u8; 32],
-    ) -> Result<Self, ForesterUtilsError> {
-        Self::from_v2_output_queue(leaf_indices, leaves, nodes, node_hashes, initial_root)
+    /// Replays pending updates from a previous staging tree onto this one.
+    /// Returns the number of updates successfully replayed.
+    pub fn replay_pending_updates(&mut self, pending_updates: &[(u64, [u8; 32])]) -> usize {
+        let mut replayed = 0;
+        for &(leaf_idx, new_leaf) in pending_updates {
+            let current_leaf = self.get_leaf(leaf_idx);
+            let is_zero = current_leaf.iter().all(|&b| b == 0);
+
+            if is_zero {
+                let leaf_idx_usize = leaf_idx as usize;
+                self.ensure_layer_capacity(0, leaf_idx_usize, "replay pending");
+                if self.do_tree_update(leaf_idx, new_leaf).is_ok() {
+                    self.updates.push((leaf_idx, new_leaf));
+                    replayed += 1;
+                }
+            }
+        }
+
+        replayed
     }
 }

@@ -121,12 +121,7 @@ async fn run_proof_worker(
                     seq: job.seq,
                     instruction: BatchInstruction::Append(vec![InstructionDataBatchAppendInputs {
                         new_root,
-                        compressed_proof:
-                            light_compressed_account::instruction_data::compressed_proof::CompressedProof {
-                                a: proof.a,
-                                b: proof.b,
-                                c: proof.c,
-                            },
+                        compressed_proof: proof.into(),
                     }]),
                 }
             }
@@ -140,15 +135,12 @@ async fn run_proof_worker(
 
                 ProofResult {
                     seq: job.seq,
-                    instruction: BatchInstruction::Nullify(vec![InstructionDataBatchNullifyInputs {
-                        new_root,
-                        compressed_proof:
-                            light_compressed_account::instruction_data::compressed_proof::CompressedProof {
-                                a: proof.a,
-                                b: proof.b,
-                                c: proof.c,
-                            },
-                    }]),
+                    instruction: BatchInstruction::Nullify(vec![
+                        InstructionDataBatchNullifyInputs {
+                            new_root,
+                            compressed_proof: proof.into(),
+                        },
+                    ]),
                 }
             }
         };

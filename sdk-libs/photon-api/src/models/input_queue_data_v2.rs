@@ -9,7 +9,6 @@
  */
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-#[allow(clippy::too_many_arguments)]
 pub struct InputQueueDataV2 {
     #[serde(rename = "leafIndices")]
     pub leaf_indices: Vec<u64>,
@@ -19,12 +18,8 @@ pub struct InputQueueDataV2 {
     pub leaves: Vec<String>,
     #[serde(rename = "txHashes")]
     pub tx_hashes: Vec<String>,
-    #[serde(rename = "nodes")]
-    pub nodes: Vec<u64>,
-    #[serde(rename = "nodeHashes")]
-    pub node_hashes: Vec<String>,
-    #[serde(rename = "initialRoot")]
-    pub initial_root: String,
+    #[serde(rename = "nullifiers")]
+    pub nullifiers: Vec<String>,
     #[serde(rename = "firstQueueIndex")]
     pub first_queue_index: u64,
     #[serde(rename = "leavesHashChains")]
@@ -32,26 +27,21 @@ pub struct InputQueueDataV2 {
 }
 
 impl InputQueueDataV2 {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         leaf_indices: Vec<u64>,
         account_hashes: Vec<String>,
-        current_leaves: Vec<String>,
+        leaves: Vec<String>,
         tx_hashes: Vec<String>,
-        nodes: Vec<u64>,
-        node_hashes: Vec<String>,
-        initial_root: String,
+        nullifiers: Vec<String>,
         first_queue_index: u64,
         leaves_hash_chains: Vec<String>,
     ) -> InputQueueDataV2 {
         InputQueueDataV2 {
             leaf_indices,
             account_hashes,
-            leaves: current_leaves,
+            leaves,
             tx_hashes,
-            nodes,
-            node_hashes,
-            initial_root,
+            nullifiers,
             first_queue_index,
             leaves_hash_chains,
         }

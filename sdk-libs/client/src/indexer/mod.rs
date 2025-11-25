@@ -19,7 +19,7 @@ pub use types::{
     CompressedTokenAccount, Hash, InputQueueDataV2, MerkleProof, MerkleProofWithContext,
     NewAddressProofWithContext, NextTreeInfo, OutputQueueDataV2, OwnerBalance, ProofOfLeaf,
     QueueElementsResult, QueueElementsV2Result, QueueInfo, QueueInfoResult, RootIndex,
-    SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance, TreeInfo,
+    SignatureWithMetadata, StateMerkleTreeAccounts, StateQueueDataV2, TokenBalance, TreeInfo,
     ValidityProofWithContext,
 };
 mod options;

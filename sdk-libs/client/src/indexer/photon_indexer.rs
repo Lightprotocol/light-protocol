@@ -1839,86 +1839,84 @@ impl Indexer for PhotonIndexer {
                 return Err(IndexerError::IndexerNotSyncedToSlot);
             }
 
-            let output_queue = if let Some(output) = api_response.output_queue {
-                let account_hashes: Result<Vec<[u8; 32]>, IndexerError> = output
-                    .account_hashes
-                    .iter()
-                    .map(|h| Hash::from_base58(h))
-                    .collect();
-
-                let old_leaves: Result<Vec<[u8; 32]>, IndexerError> =
-                    output.leaves.iter().map(|h| Hash::from_base58(h)).collect();
-
-                let node_hashes: Result<Vec<[u8; 32]>, IndexerError> = output
+            let state_queue = if let Some(state) = api_response.state_queue {
+                let node_hashes: Result<Vec<[u8; 32]>, IndexerError> = state
                     .node_hashes
                     .iter()
                     .map(|h| Hash::from_base58(h))
                     .collect();
+                let initial_root = Hash::from_base58(&state.initial_root)?;
 
-                let leaves_hash_chains: Result<Vec<[u8; 32]>, IndexerError> = output
-                    .leaves_hash_chains
-                    .iter()
-                    .map(|h| Hash::from_base58(h))
-                    .collect();
+                let output_queue = if let Some(output) = state.output_queue {
+                    let account_hashes: Result<Vec<[u8; 32]>, IndexerError> = output
+                        .account_hashes
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
+                    let old_leaves: Result<Vec<[u8; 32]>, IndexerError> =
+                        output.leaves.iter().map(|h| Hash::from_base58(h)).collect();
+                    let leaves_hash_chains: Result<Vec<[u8; 32]>, IndexerError> = output
+                        .leaves_hash_chains
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
 
-                let initial_root = Hash::from_base58(&output.initial_root)?;
+                    Some(super::OutputQueueDataV2 {
+                        leaf_indices: output.leaf_indices,
+                        account_hashes: account_hashes?,
+                        old_leaves: old_leaves?,
+                        first_queue_index: output.first_queue_index,
+                        next_index: output.next_index,
+                        leaves_hash_chains: leaves_hash_chains?,
+                    })
+                } else {
+                    None
+                };
 
-                Some(super::OutputQueueDataV2 {
-                    leaf_indices: output.leaf_indices,
-                    account_hashes: account_hashes?,
-                    old_leaves: old_leaves?,
-                    nodes: output.nodes,
+                let input_queue = if let Some(input) = state.input_queue {
+                    let account_hashes: Result<Vec<[u8; 32]>, IndexerError> = input
+                        .account_hashes
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
+                    let current_leaves: Result<Vec<[u8; 32]>, IndexerError> =
+                        input.leaves.iter().map(|h| Hash::from_base58(h)).collect();
+                    let tx_hashes: Result<Vec<[u8; 32]>, IndexerError> = input
+                        .tx_hashes
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
+                    let nullifiers: Result<Vec<[u8; 32]>, IndexerError> = input
+                        .nullifiers
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
+                    let leaves_hash_chains: Result<Vec<[u8; 32]>, IndexerError> = input
+                        .leaves_hash_chains
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
+
+                    Some(super::InputQueueDataV2 {
+                        leaf_indices: input.leaf_indices,
+                        account_hashes: account_hashes?,
+                        current_leaves: current_leaves?,
+                        tx_hashes: tx_hashes?,
+                        nullifiers: nullifiers?,
+                        first_queue_index: input.first_queue_index,
+                        leaves_hash_chains: leaves_hash_chains?,
+                    })
+                } else {
+                    None
+                };
+
+                Some(super::StateQueueDataV2 {
+                    nodes: state.nodes,
                     node_hashes: node_hashes?,
                     initial_root,
-                    first_queue_index: output.first_queue_index,
-                    next_index: output.next_index,
-                    leaves_hash_chains: leaves_hash_chains?,
-                })
-            } else {
-                None
-            };
-
-            // Transform InputQueueDataV2
-            let input_queue = if let Some(input) = api_response.input_queue {
-                let account_hashes: Result<Vec<[u8; 32]>, IndexerError> = input
-                    .account_hashes
-                    .iter()
-                    .map(|h| Hash::from_base58(h))
-                    .collect();
-
-                let current_leaves: Result<Vec<[u8; 32]>, IndexerError> =
-                    input.leaves.iter().map(|h| Hash::from_base58(h)).collect();
-
-                let tx_hashes: Result<Vec<[u8; 32]>, IndexerError> = input
-                    .tx_hashes
-                    .iter()
-                    .map(|h| Hash::from_base58(h))
-                    .collect();
-
-                let node_hashes: Result<Vec<[u8; 32]>, IndexerError> = input
-                    .node_hashes
-                    .iter()
-                    .map(|h| Hash::from_base58(h))
-                    .collect();
-
-                let leaves_hash_chains: Result<Vec<[u8; 32]>, IndexerError> = input
-                    .leaves_hash_chains
-                    .iter()
-                    .map(|h| Hash::from_base58(h))
-                    .collect();
-
-                let initial_root = Hash::from_base58(&input.initial_root)?;
-
-                Some(super::InputQueueDataV2 {
-                    leaf_indices: input.leaf_indices,
-                    account_hashes: account_hashes?,
-                    current_leaves: current_leaves?,
-                    tx_hashes: tx_hashes?,
-                    nodes: input.nodes,
-                    node_hashes: node_hashes?,
-                    initial_root,
-                    first_queue_index: input.first_queue_index,
-                    leaves_hash_chains: leaves_hash_chains?,
+                    root_seq: state.root_seq,
+                    output_queue,
+                    input_queue,
                 })
             } else {
                 None
@@ -1984,8 +1982,7 @@ impl Indexer for PhotonIndexer {
                     slot: api_response.context.slot,
                 },
                 value: super::QueueElementsV2Result {
-                    output_queue,
-                    input_queue,
+                    state_queue,
                     address_queue,
                 },
             })

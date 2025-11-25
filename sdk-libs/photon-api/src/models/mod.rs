@@ -344,3 +344,5 @@ pub mod input_queue_data_v2;
 pub use self::input_queue_data_v2::InputQueueDataV2;
 pub mod output_queue_data_v2;
 pub use self::output_queue_data_v2::OutputQueueDataV2;
+pub mod state_queue_data_v2;
+pub use self::state_queue_data_v2::StateQueueDataV2;

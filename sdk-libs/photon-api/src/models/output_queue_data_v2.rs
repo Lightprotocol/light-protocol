@@ -9,7 +9,6 @@
  */
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
-#[allow(clippy::too_many_arguments)]
 pub struct OutputQueueDataV2 {
     #[serde(rename = "leafIndices")]
     pub leaf_indices: Vec<u64>,
@@ -17,12 +16,6 @@ pub struct OutputQueueDataV2 {
     pub account_hashes: Vec<String>,
     #[serde(rename = "leaves")]
     pub leaves: Vec<String>,
-    #[serde(rename = "nodes")]
-    pub nodes: Vec<u64>,
-    #[serde(rename = "nodeHashes")]
-    pub node_hashes: Vec<String>,
-    #[serde(rename = "initialRoot")]
-    pub initial_root: String,
     #[serde(rename = "firstQueueIndex")]
     pub first_queue_index: u64,
     #[serde(rename = "nextIndex")]
@@ -32,14 +25,10 @@ pub struct OutputQueueDataV2 {
 }
 
 impl OutputQueueDataV2 {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         leaf_indices: Vec<u64>,
         account_hashes: Vec<String>,
         leaves: Vec<String>,
-        nodes: Vec<u64>,
-        node_hashes: Vec<String>,
-        initial_root: String,
         first_queue_index: u64,
         next_index: u64,
         leaves_hash_chains: Vec<String>,
@@ -48,9 +37,6 @@ impl OutputQueueDataV2 {
             leaf_indices,
             account_hashes,
             leaves,
-            nodes,
-            node_hashes,
-            initial_root,
             first_queue_index,
             next_index,
             leaves_hash_chains,

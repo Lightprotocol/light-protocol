@@ -5,6 +5,7 @@ type G1 = ark_bn254::g1::G1Affine;
 use std::ops::Neg;
 
 use ark_serialize::{CanonicalDeserialize, CanonicalSerialize, Compress, Validate};
+use light_compressed_account::instruction_data::compressed_proof::CompressedProof;
 use num_traits::Num;
 use solana_bn254::compression::prelude::{
     alt_bn128_g1_compress, alt_bn128_g1_decompress, alt_bn128_g2_compress, alt_bn128_g2_decompress,
@@ -21,6 +22,26 @@ pub struct ProofCompressed {
     pub a: [u8; 32],
     pub b: [u8; 64],
     pub c: [u8; 32],
+}
+
+impl From<ProofCompressed> for CompressedProof {
+    fn from(proof: ProofCompressed) -> Self {
+        CompressedProof {
+            a: proof.a,
+            b: proof.b,
+            c: proof.c,
+        }
+    }
+}
+
+impl From<&ProofCompressed> for CompressedProof {
+    fn from(proof: &ProofCompressed) -> Self {
+        CompressedProof {
+            a: proof.a,
+            b: proof.b,
+            c: proof.c,
+        }
+    }
 }
 
 impl ProofCompressed {
