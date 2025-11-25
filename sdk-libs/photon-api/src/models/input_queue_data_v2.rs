@@ -9,6 +9,7 @@
  */
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[allow(clippy::too_many_arguments)]
 pub struct InputQueueDataV2 {
     #[serde(rename = "leafIndices")]
     pub leaf_indices: Vec<u64>,

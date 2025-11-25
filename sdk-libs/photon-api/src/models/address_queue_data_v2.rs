@@ -9,6 +9,7 @@
  */
 
 #[derive(Clone, Default, Debug, PartialEq, Serialize, Deserialize)]
+#[allow(clippy::too_many_arguments)]
 pub struct AddressQueueDataV2 {
     #[serde(rename = "addresses")]
     pub addresses: Vec<String>,
