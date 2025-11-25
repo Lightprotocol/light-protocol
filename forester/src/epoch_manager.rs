@@ -1745,44 +1745,15 @@ impl<R: Rpc> EpochManager<R> {
         }
     }
 
-    async fn get_or_create_state_supervisor(
+    fn build_batch_context(
         &self,
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
-    ) -> Result<ActorRef<v2::state::StateSupervisor<R>>> {
-        // Check if supervisor exists and has matching epoch
-        let supervisor_status =
-            if let Some(entry) = self.state_supervisors.get(&tree_accounts.merkle_tree) {
-                let (stored_epoch, supervisor_ref) = entry.value();
-                if *stored_epoch == epoch_info.epoch {
-                    // Supervisor exists and has correct epoch
-                    Some(Ok(supervisor_ref.clone()))
-                } else {
-                    // Supervisor exists but has stale epoch
-                    Some(Err(*stored_epoch))
-                }
-            } else {
-                None
-            };
-
-        // Handle the result after borrow is released
-        match supervisor_status {
-            Some(Ok(supervisor_ref)) => return Ok(supervisor_ref),
-            Some(Err(stored_epoch)) => {
-                // Remove stale supervisor
-                info!(
-                    "Removing stale StateSupervisor for tree {} (epoch {} -> {})",
-                    tree_accounts.merkle_tree, stored_epoch, epoch_info.epoch
-                );
-                self.state_supervisors.remove(&tree_accounts.merkle_tree);
-            }
-            None => {
-                // No supervisor exists, will create below
-            }
-        }
-
+        input_queue_hint: Option<u64>,
+        output_queue_hint: Option<u64>,
+    ) -> BatchContext<R> {
         let default_prover_url = "http://127.0.0.1:3001".to_string();
-        let batch_context = BatchContext {
+        BatchContext {
             rpc_pool: self.rpc_pool.clone(),
             authority: self.config.payer_keypair.insecure_clone(),
             derivation: self.config.derivation_pubkey,
@@ -1813,15 +1784,47 @@ impl<R: Rpc> EpochManager<R> {
             ops_cache: self.ops_cache.clone(),
             epoch_phases: epoch_info.phases.clone(),
             slot_tracker: self.slot_tracker.clone(),
-            input_queue_hint: None,
-            output_queue_hint: None,
+            input_queue_hint,
+            output_queue_hint,
             staging_tree_cache: self
                 .staging_tree_caches
                 .entry(tree_accounts.merkle_tree)
                 .or_insert_with(|| Arc::new(Mutex::new(None)))
                 .clone(),
-        };
+        }
+    }
 
+    async fn get_or_create_state_supervisor(
+        &self,
+        epoch_info: &Epoch,
+        tree_accounts: &TreeAccounts,
+    ) -> Result<ActorRef<v2::state::StateSupervisor<R>>> {
+        let supervisor_status =
+            if let Some(entry) = self.state_supervisors.get(&tree_accounts.merkle_tree) {
+                let (stored_epoch, supervisor_ref) = entry.value();
+                if *stored_epoch == epoch_info.epoch {
+                    Some(Ok(supervisor_ref.clone()))
+                } else {
+                    Some(Err(*stored_epoch))
+                }
+            } else {
+                None
+            };
+
+        match supervisor_status {
+            Some(Ok(supervisor_ref)) => return Ok(supervisor_ref),
+            Some(Err(stored_epoch)) => {
+                info!(
+                    "Removing stale StateSupervisor for tree {} (epoch {} -> {})",
+                    tree_accounts.merkle_tree, stored_epoch, epoch_info.epoch
+                );
+                self.state_supervisors.remove(&tree_accounts.merkle_tree);
+            }
+            None => {
+            }
+        }
+
+        let batch_context = self.build_batch_context(epoch_info, tree_accounts, None, None);
         let supervisor = v2::state::StateSupervisor::spawn(batch_context);
         info!(
             "Created StateSupervisor actor for tree {} (epoch {})",
@@ -1858,52 +1861,21 @@ impl<R: Rpc> EpochManager<R> {
                         .ask(v2::state::ProcessQueueUpdate { queue_work: work })
                         .send()
                         .await
-                        .map_err(|e| anyhow!("Failed to send message to StateSupervisor: {}", e))?)
+                        .map_err(|e| {
+                            anyhow!(
+                                "Failed to send message to StateSupervisor for tree {}: {}",
+                                tree_accounts.merkle_tree,
+                                e
+                            )
+                        })?)
                 } else {
                     Ok(0)
                 }
             }
             TreeType::AddressV2 => {
-                let default_prover_url = "http://127.0.0.1:3001".to_string();
-                let batch_context = BatchContext {
-                    rpc_pool: self.rpc_pool.clone(),
-                    authority: self.config.payer_keypair.insecure_clone(),
-                    derivation: self.config.derivation_pubkey,
-                    epoch: epoch_info.epoch,
-                    merkle_tree: tree_accounts.merkle_tree,
-                    output_queue: tree_accounts.queue,
-                    prover_append_url: self
-                        .config
-                        .external_services
-                        .prover_append_url
-                        .clone()
-                        .unwrap_or_else(|| default_prover_url.clone()),
-                    prover_update_url: self
-                        .config
-                        .external_services
-                        .prover_update_url
-                        .clone()
-                        .unwrap_or_else(|| default_prover_url.clone()),
-                    prover_address_append_url: self
-                        .config
-                        .external_services
-                        .prover_address_append_url
-                        .clone()
-                        .unwrap_or_else(|| default_prover_url.clone()),
-                    prover_api_key: self.config.external_services.prover_api_key.clone(),
-                    prover_polling_interval: Duration::from_secs(1),
-                    prover_max_wait_time: Duration::from_secs(600),
-                    ops_cache: self.ops_cache.clone(),
-                    epoch_phases: epoch_info.phases.clone(),
-                    slot_tracker: self.slot_tracker.clone(),
-                    input_queue_hint: queue_update.map(|u| u.queue_size),
-                    output_queue_hint: None,
-                    staging_tree_cache: self
-                        .staging_tree_caches
-                        .entry(tree_accounts.merkle_tree)
-                        .or_insert_with(|| Arc::new(Mutex::new(None)))
-                        .clone(),
-                };
+                let input_queue_hint = queue_update.map(|u| u.queue_size);
+                let batch_context =
+                    self.build_batch_context(epoch_info, tree_accounts, input_queue_hint, None);
 
                 process_batched_operations(batch_context, tree_accounts.tree_type)
                     .await
