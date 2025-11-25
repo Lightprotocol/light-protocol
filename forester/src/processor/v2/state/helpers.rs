@@ -40,7 +40,6 @@ pub async fn fetch_batches<R: Rpc>(
     Option<light_client::indexer::OutputQueueDataV2>,
     Option<light_client::indexer::InputQueueDataV2>,
 )> {
-    // Safe casts to u16 for API boundary (values are guaranteed to fit)
     let fetch_len_u16: u16 = fetch_len.try_into().unwrap_or(u16::MAX);
     let zkp_batch_size_u16: u16 = zkp_batch_size.try_into().unwrap_or(u16::MAX);
 
