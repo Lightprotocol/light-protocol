@@ -53,6 +53,7 @@ pub struct BatchContext<R: Rpc> {
     pub input_queue_hint: Option<u64>,
     pub output_queue_hint: Option<u64>,
     pub staging_tree_cache: Arc<Mutex<Option<StagingTree>>>,
+    pub num_proof_workers: usize,
 }
 
 impl<R: Rpc> Clone for BatchContext<R> {
@@ -76,6 +77,7 @@ impl<R: Rpc> Clone for BatchContext<R> {
             input_queue_hint: self.input_queue_hint,
             output_queue_hint: self.output_queue_hint,
             staging_tree_cache: self.staging_tree_cache.clone(),
+            num_proof_workers: self.num_proof_workers,
         }
     }
 }

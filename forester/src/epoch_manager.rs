@@ -1791,6 +1791,7 @@ impl<R: Rpc> EpochManager<R> {
                 .entry(tree_accounts.merkle_tree)
                 .or_insert_with(|| Arc::new(Mutex::new(None)))
                 .clone(),
+            num_proof_workers: self.config.transaction_config.max_concurrent_batches,
         }
     }
 

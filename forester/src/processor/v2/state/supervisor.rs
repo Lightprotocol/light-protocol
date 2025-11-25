@@ -173,16 +173,19 @@ impl<R: Rpc> StateSupervisor<R> {
             return Ok(0);
         }
 
-        let (job_tx, job_rx) = mpsc::channel(8);
-        let (proof_tx, proof_rx) = mpsc::channel(8);
+        let num_workers = self.context.num_proof_workers.max(1);
 
-        let worker_handles = spawn_proof_workers(
-            &self.context,
-            job_rx,
-            proof_tx,
+        let (proof_tx, proof_rx) = mpsc::channel(num_workers * 2);
+        let (job_tx, worker_handles) = spawn_proof_workers(
+            num_workers,
+            self.context.prover_append_url.clone(),
+            self.context.prover_update_url.clone(),
+            self.context.prover_api_key.clone(),
             self.context.prover_polling_interval,
             self.context.prover_max_wait_time,
+            proof_tx,
         );
+
         let tx_sender_handle = TxSender::spawn(
             self.context.clone(),
             proof_rx,
@@ -192,19 +195,12 @@ impl<R: Rpc> StateSupervisor<R> {
 
         self.enqueue_batches(phase, max_batches, job_tx).await?;
 
-        let mut worker_errors = Vec::new();
         for handle in worker_handles {
             match handle.await {
                 Ok(Ok(())) => {}
-                Ok(Err(e)) => worker_errors.push(e),
-                Err(join_err) => {
-                    worker_errors.push(anyhow!("Proof worker task join error: {}", join_err))
-                }
+                Ok(Err(e)) => warn!("Proof worker error: {}", e),
+                Err(e) => warn!("Proof worker join error: {}", e),
             }
-        }
-
-        if let Some(err) = worker_errors.into_iter().next() {
-            return Err(err);
         }
 
         let tx_processed = match tx_sender_handle.await {
@@ -241,7 +237,7 @@ impl<R: Rpc> StateSupervisor<R> {
         &mut self,
         phase: Phase,
         max_batches: usize,
-        job_tx: mpsc::Sender<ProofJob>,
+        job_tx: async_channel::Sender<ProofJob>,
     ) -> crate::Result<()> {
         let zkp_batch_size = self.zkp_batch_size() as usize;
         let total_needed = max_batches.saturating_mul(zkp_batch_size);
@@ -249,6 +245,8 @@ impl<R: Rpc> StateSupervisor<R> {
 
         let (output_batch, input_batch) =
             fetch_batches(&self.context, None, None, fetch_len, self.zkp_batch_size()).await?;
+
+        let mut jobs_sent = 0usize;
 
         match phase {
             Phase::Append => {
@@ -274,6 +272,7 @@ impl<R: Rpc> StateSupervisor<R> {
                     let start = batch_idx * zkp_batch_size;
                     if let Some(job) = self.build_append_job(batch_idx, &batch, start).await? {
                         job_tx.send(job).await?;
+                        jobs_sent += 1;
                     } else {
                         break;
                     }
@@ -299,6 +298,7 @@ impl<R: Rpc> StateSupervisor<R> {
                     let start = batch_idx * zkp_batch_size;
                     if let Some(job) = self.build_nullify_job(batch_idx, &batch, start).await? {
                         job_tx.send(job).await?;
+                        jobs_sent += 1;
                     } else {
                         break;
                     }
@@ -306,6 +306,9 @@ impl<R: Rpc> StateSupervisor<R> {
             }
         }
 
+        job_tx.close();
+
+        info!("Enqueued {} jobs for proof generation", jobs_sent);
         Ok(())
     }
 
