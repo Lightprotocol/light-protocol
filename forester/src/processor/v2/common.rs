@@ -24,18 +24,13 @@ use crate::{
 };
 
 #[derive(Debug)]
-
+#[allow(clippy::enum_variant_names)]
 pub enum BatchReadyState {
     NotReady,
     AddressReady {
         merkle_tree_data: ParsedMerkleTreeData,
     },
-    StateReady {
-        #[allow(dead_code)]
-        merkle_tree_data: ParsedMerkleTreeData,
-        #[allow(dead_code)]
-        output_queue_data: Option<ParsedQueueData>,
-    },
+    StateReady,
 }
 
 #[derive(Debug)]
@@ -279,7 +274,7 @@ impl<R: Rpc> BatchProcessor<R> {
 
                 result
             }
-            BatchReadyState::StateReady { .. } => {
+            BatchReadyState::StateReady => {
                 trace!(
                     "State processing handled by supervisor pipeline; skipping legacy processor for tree {}",
                     self.context.merkle_tree
@@ -325,25 +320,10 @@ impl<R: Rpc> BatchProcessor<R> {
             (None, false)
         };
 
-        let (output_queue_data, output_ready) = if self.tree_type == TreeType::StateV2 {
-            if let Some(mut account) = output_queue_account {
-                match self.parse_output_queue_account(&mut account) {
-                    Ok((data, ready)) => (Some(data), ready),
-                    Err(_) => (None, false),
-                }
-            } else {
-                (None, false)
-            }
-        } else {
-            (None, false)
-        };
-
         if self.tree_type == TreeType::AddressV2 {
             return if input_ready {
-                if let Some(mt_data) = merkle_tree_data {
-                    BatchReadyState::AddressReady {
-                        merkle_tree_data: mt_data,
-                    }
+                if let Some(merkle_tree_data) = merkle_tree_data {
+                    BatchReadyState::AddressReady { merkle_tree_data }
                 } else {
                     BatchReadyState::NotReady
                 }
@@ -352,18 +332,21 @@ impl<R: Rpc> BatchProcessor<R> {
             };
         }
 
+        // StateV2: check output queue readiness
+        let output_ready = if let Some(mut account) = output_queue_account {
+            self.parse_output_queue_account(&mut account)
+                .map(|(_, ready)| ready)
+                .unwrap_or(false)
+        } else {
+            false
+        };
+
         if !input_ready && !output_ready {
             return BatchReadyState::NotReady;
         }
 
-        if let Some(merkle_tree_data) = merkle_tree_data {
-            return BatchReadyState::StateReady {
-                merkle_tree_data,
-                output_queue_data,
-            };
-        }
-
-        BatchReadyState::NotReady
+        // State batch is ready; StateSupervisor will handle the actual processing
+        BatchReadyState::StateReady
     }
 
     fn parse_merkle_tree_account(

@@ -1905,8 +1905,9 @@ impl<R: Rpc> EpochManager<R> {
                         .clone(),
                 };
 
-                process_batched_operations(batch_context, tree_accounts.tree_type).await
-                .map_err(|e| anyhow!("Failed to process V2 operations: {}", e))
+                process_batched_operations(batch_context, tree_accounts.tree_type)
+                    .await
+                    .map_err(|e| anyhow!("Failed to process V2 operations: {}", e))
             }
             _ => {
                 warn!(

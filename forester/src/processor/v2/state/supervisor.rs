@@ -384,10 +384,9 @@ impl<R: Rpc> StateSupervisor<R> {
                 )
             })?;
 
-        let start_index = self
-            .next_index
-            .saturating_add((batch_idx as u64) * self.zkp_batch_size())
-            as u32;
+        let start_index =
+            self.next_index
+                .saturating_add((batch_idx as u64) * self.zkp_batch_size()) as u32;
 
         let circuit_inputs =
             get_batch_append_inputs_v2::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
