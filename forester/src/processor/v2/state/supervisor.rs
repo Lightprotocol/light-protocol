@@ -50,7 +50,7 @@ pub struct StateSupervisor<R: Rpc> {
     /// Tree's next_index for appends (updated after each append batch)
     next_index: u64,
     /// ZKP batch size fetched once from on-chain at startup
-    zkp_batch_size: u16,
+    zkp_batch_size: u64,
     seq: u64,
 }
 
@@ -121,7 +121,7 @@ impl<R: Rpc> Message<ProcessQueueUpdate> for StateSupervisor<R> {
 }
 
 impl<R: Rpc> StateSupervisor<R> {
-    fn zkp_batch_size(&self) -> u16 {
+    fn zkp_batch_size(&self) -> u64 {
         self.zkp_batch_size
     }
 
@@ -146,7 +146,7 @@ impl<R: Rpc> StateSupervisor<R> {
             return Ok(0);
         }
 
-        let zkp_batch_size = self.zkp_batch_size() as u64;
+        let zkp_batch_size = self.zkp_batch_size();
         if queue_work.queue_size < zkp_batch_size {
             trace!(
                 "Queue size {} below zkp_batch_size {}, skipping",
@@ -245,10 +245,7 @@ impl<R: Rpc> StateSupervisor<R> {
     ) -> crate::Result<()> {
         let zkp_batch_size = self.zkp_batch_size() as usize;
         let total_needed = max_batches.saturating_mul(zkp_batch_size);
-        let fetch_len: u16 = total_needed
-            .min(u16::MAX as usize)
-            .try_into()
-            .unwrap_or(u16::MAX);
+        let fetch_len = total_needed as u64;
 
         let (output_batch, input_batch) =
             fetch_batches(&self.context, None, None, fetch_len, self.zkp_batch_size()).await?;
@@ -389,7 +386,7 @@ impl<R: Rpc> StateSupervisor<R> {
 
         let start_index = self
             .next_index
-            .saturating_add((batch_idx as u64) * self.zkp_batch_size() as u64)
+            .saturating_add((batch_idx as u64) * self.zkp_batch_size())
             as u32;
 
         let circuit_inputs =
@@ -406,7 +403,7 @@ impl<R: Rpc> StateSupervisor<R> {
             .map_err(|e| anyhow!("Failed to build append inputs: {}", e))?;
 
         self.current_root = new_root;
-        self.next_index = self.next_index.saturating_add(self.zkp_batch_size() as u64);
+        self.next_index = self.next_index.saturating_add(self.zkp_batch_size());
         self.seq += 1;
 
         {

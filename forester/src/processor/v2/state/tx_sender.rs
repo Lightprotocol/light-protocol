@@ -29,7 +29,7 @@ pub struct TxSender<R: Rpc> {
     context: BatchContext<R>,
     expected_seq: u64,
     buffer: BTreeMap<u64, BatchInstruction>,
-    zkp_batch_size: u16,
+    zkp_batch_size: u64,
     last_seen_root: [u8; 32],
 }
 
@@ -37,7 +37,7 @@ impl<R: Rpc> TxSender<R> {
     pub(crate) fn spawn(
         context: BatchContext<R>,
         proof_rx: mpsc::Receiver<ProofResult>,
-        zkp_batch_size: u16,
+        zkp_batch_size: u64,
         last_seen_root: [u8; 32],
     ) -> JoinHandle<crate::Result<usize>> {
         let sender = Self {
