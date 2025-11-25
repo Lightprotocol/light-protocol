@@ -1820,8 +1820,7 @@ impl<R: Rpc> EpochManager<R> {
                 );
                 self.state_supervisors.remove(&tree_accounts.merkle_tree);
             }
-            None => {
-            }
+            None => {}
         }
 
         let batch_context = self.build_batch_context(epoch_info, tree_accounts, None, None);
