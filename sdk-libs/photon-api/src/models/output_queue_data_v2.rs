@@ -34,7 +34,7 @@ impl OutputQueueDataV2 {
     pub fn new(
         leaf_indices: Vec<u64>,
         account_hashes: Vec<String>,
-        old_leaves: Vec<String>,
+        leaves: Vec<String>,
         nodes: Vec<u64>,
         node_hashes: Vec<String>,
         initial_root: String,
@@ -45,7 +45,7 @@ impl OutputQueueDataV2 {
         OutputQueueDataV2 {
             leaf_indices,
             account_hashes,
-            leaves: old_leaves,
+            leaves,
             nodes,
             node_hashes,
             initial_root,
