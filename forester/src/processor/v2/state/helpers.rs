@@ -1,9 +1,11 @@
 use anyhow::anyhow;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
-use light_client::indexer::QueueElementsV2Options;
-use light_client::rpc::Rpc;
+use light_client::{
+    indexer::{Indexer, QueueElementsV2Options},
+    rpc::Rpc,
+};
+
 use crate::processor::v2::BatchContext;
-use light_client::indexer::Indexer;
 
 /// Fetches zkp_batch_size from on-chain merkle tree account (called once at startup)
 pub async fn fetch_zkp_batch_size<R: Rpc>(context: &BatchContext<R>) -> crate::Result<u16> {

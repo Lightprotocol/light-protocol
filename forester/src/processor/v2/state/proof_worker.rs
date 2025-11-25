@@ -1,14 +1,19 @@
 use std::time::Duration;
+
 use anyhow::anyhow;
-use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
-use crate::processor::v2::state::tx_sender::BatchInstruction;
-use light_batched_merkle_tree::merkle_tree::{InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs};
+use light_batched_merkle_tree::merkle_tree::{
+    InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
+};
 use light_client::rpc::Rpc;
-use light_prover_client::proof_client::ProofClient;
-use light_prover_client::proof_types::batch_append::BatchAppendsCircuitInputs;
-use light_prover_client::proof_types::batch_update::BatchUpdateCircuitInputs;
-use crate::processor::v2::BatchContext;
+use light_prover_client::{
+    proof_client::ProofClient,
+    proof_types::{
+        batch_append::BatchAppendsCircuitInputs, batch_update::BatchUpdateCircuitInputs,
+    },
+};
+use tokio::{sync::mpsc, task::JoinHandle};
+
+use crate::processor::v2::{state::tx_sender::BatchInstruction, BatchContext};
 
 #[derive(Debug)]
 pub enum ProofInput {

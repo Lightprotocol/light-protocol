@@ -1,7 +1,11 @@
-use crate::error::ForesterUtilsError;
 use light_hasher::Poseidon;
 use light_merkle_tree_reference::MerkleTree;
-use tracing::{debug, warn};
+use tracing::debug;
+
+use crate::error::ForesterUtilsError;
+
+/// Result type for batch updates: (old_leaves, merkle_proofs, old_root, new_root)
+pub type BatchUpdateResult = (Vec<[u8; 32]>, Vec<Vec<[u8; 32]>>, [u8; 32], [u8; 32]);
 
 pub const TREE_HEIGHT: usize = 32;
 
@@ -59,9 +63,7 @@ impl StagingTree {
         new_leaves: &[[u8; 32]],
         batch_type: &str,
         batch_idx: usize,
-    ) -> Result<(Vec<[u8; 32]>, Vec<Vec<[u8; 32]>>, [u8; 32], [u8; 32]), ForesterUtilsError> {
-        use light_hasher::Hasher;
-
+    ) -> Result<BatchUpdateResult, ForesterUtilsError> {
         if leaf_indices.len() != new_leaves.len() {
             return Err(ForesterUtilsError::StagingTree(format!(
                 "Mismatch: {} leaf indices but {} new leaves",
@@ -91,7 +93,7 @@ impl StagingTree {
         let mut old_leaves = Vec::with_capacity(leaf_indices.len());
         let mut merkle_proofs = Vec::with_capacity(leaf_indices.len());
 
-        for (i, (&leaf_idx, &new_leaf)) in leaf_indices.iter().zip(new_leaves.iter()).enumerate() {
+        for (&leaf_idx, &new_leaf) in leaf_indices.iter().zip(new_leaves.iter()) {
             let old_leaf = self.get_leaf(leaf_idx);
             let proof = self.get_proof(leaf_idx)?;
             old_leaves.push(old_leaf);
@@ -107,12 +109,14 @@ impl StagingTree {
                 }
             };
 
-            self.tree.update(&final_leaf, leaf_idx as usize).map_err(|e| {
-                ForesterUtilsError::StagingTree(format!(
-                    "Failed to update leaf {}: {:?}",
-                    leaf_idx, e
-                ))
-            })?;
+            self.tree
+                .update(&final_leaf, leaf_idx as usize)
+                .map_err(|e| {
+                    ForesterUtilsError::StagingTree(format!(
+                        "Failed to update leaf {}: {:?}",
+                        leaf_idx, e
+                    ))
+                })?;
             self.updates.push((leaf_idx, final_leaf));
 
             merkle_proofs.push(proof);
@@ -139,7 +143,7 @@ impl StagingTree {
         for level in 0..(TREE_HEIGHT as u8) {
             let level_usize = level as usize;
 
-            let sibling_position = if current_index % 2 == 0 {
+            let sibling_position = if current_index.is_multiple_of(2) {
                 current_index + 1
             } else {
                 current_index - 1
@@ -153,7 +157,11 @@ impl StagingTree {
                 if leaf_index == 0 && level < 3 {
                     debug!(
                         "get_proof leaf={} level={} sibling_pos={} layer_size={} value={:?}",
-                        leaf_index, level, sibling_position, self.tree.layers[level_usize].len(), &layer_val[..8]
+                        leaf_index,
+                        level,
+                        sibling_position,
+                        self.tree.layers[level_usize].len(),
+                        &layer_val[..8]
                     );
                 }
                 layer_val

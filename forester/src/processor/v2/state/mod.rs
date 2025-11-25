@@ -1,6 +1,6 @@
-mod supervisor;
-mod proof_worker;
-mod tx_sender;
 mod helpers;
+mod proof_worker;
+mod supervisor;
+mod tx_sender;
 
-pub use supervisor::{StateSupervisor, QueueWork, ProcessQueueUpdate};
+pub use supervisor::{ProcessQueueUpdate, QueueWork, StateSupervisor};

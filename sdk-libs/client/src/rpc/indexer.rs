@@ -237,7 +237,6 @@ impl Indexer for LightClient {
             .await?)
     }
 
-
     async fn get_queue_elements_v2(
         &mut self,
         merkle_tree_pubkey: [u8; 32],

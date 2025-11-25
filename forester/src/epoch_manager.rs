@@ -69,6 +69,9 @@ use crate::{
     ForesterConfig, ForesterEpochInfo, Result,
 };
 
+/// Map of tree pubkey to (epoch, supervisor actor reference)
+type StateSupervisorMap<R> = Arc<DashMap<Pubkey, (u64, ActorRef<v2::state::StateSupervisor<R>>)>>;
+
 #[derive(Copy, Clone, Debug)]
 pub struct WorkReport {
     pub epoch: u64,
@@ -112,7 +115,7 @@ pub struct EpochManager<R: Rpc> {
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
     queue_poller: Option<ActorRef<QueueInfoPoller>>,
     staging_tree_caches: Arc<DashMap<Pubkey, Arc<Mutex<Option<StagingTree>>>>>,
-    state_supervisors: Arc<DashMap<Pubkey, (u64, ActorRef<v2::state::StateSupervisor<R>>)>>,
+    state_supervisors: StateSupervisorMap<R>,
     compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
 }
 
@@ -1748,18 +1751,19 @@ impl<R: Rpc> EpochManager<R> {
         tree_accounts: &TreeAccounts,
     ) -> Result<ActorRef<v2::state::StateSupervisor<R>>> {
         // Check if supervisor exists and has matching epoch
-        let supervisor_status = if let Some(entry) = self.state_supervisors.get(&tree_accounts.merkle_tree) {
-            let (stored_epoch, supervisor_ref) = entry.value();
-            if *stored_epoch == epoch_info.epoch {
-                // Supervisor exists and has correct epoch
-                Some(Ok(supervisor_ref.clone()))
+        let supervisor_status =
+            if let Some(entry) = self.state_supervisors.get(&tree_accounts.merkle_tree) {
+                let (stored_epoch, supervisor_ref) = entry.value();
+                if *stored_epoch == epoch_info.epoch {
+                    // Supervisor exists and has correct epoch
+                    Some(Ok(supervisor_ref.clone()))
+                } else {
+                    // Supervisor exists but has stale epoch
+                    Some(Err(*stored_epoch))
+                }
             } else {
-                // Supervisor exists but has stale epoch
-                Some(Err(*stored_epoch))
-            }
-        } else {
-            None
-        };
+                None
+            };
 
         // Handle the result after borrow is released
         match supervisor_status {
@@ -1821,12 +1825,13 @@ impl<R: Rpc> EpochManager<R> {
         let supervisor = v2::state::StateSupervisor::spawn(batch_context);
         info!(
             "Created StateSupervisor actor for tree {} (epoch {})",
-            tree_accounts.merkle_tree,
-            epoch_info.epoch
+            tree_accounts.merkle_tree, epoch_info.epoch
         );
 
-        self.state_supervisors
-            .insert(tree_accounts.merkle_tree, (epoch_info.epoch, supervisor.clone()));
+        self.state_supervisors.insert(
+            tree_accounts.merkle_tree,
+            (epoch_info.epoch, supervisor.clone()),
+        );
 
         Ok(supervisor)
     }

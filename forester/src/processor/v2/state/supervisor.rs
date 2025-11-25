@@ -1,23 +1,30 @@
 use anyhow::anyhow;
-use kameo::Actor;
-use kameo::actor::{ActorRef, WeakActorRef};
-use kameo::error::ActorStopReason;
-use kameo::message::Message;
-use tokio::sync::mpsc;
-use tracing::{debug, info, trace, warn};
-use forester_utils::staging_tree::StagingTree;
-use forester_utils::utils::wait_for_indexer;
+use forester_utils::{staging_tree::StagingTree, utils::wait_for_indexer};
+use kameo::{
+    actor::{ActorRef, WeakActorRef},
+    error::ActorStopReason,
+    message::Message,
+    Actor,
+};
 use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_TREE_HEIGHT;
 use light_client::rpc::Rpc;
 use light_compressed_account::QueueType;
 use light_hasher::{Hasher, Poseidon};
-use light_prover_client::proof_types::batch_append::get_batch_append_inputs_v2;
-use light_prover_client::proof_types::batch_update::get_batch_update_inputs_v2;
+use light_prover_client::proof_types::{
+    batch_append::get_batch_append_inputs_v2, batch_update::get_batch_update_inputs_v2,
+};
 use light_registry::protocol_config::state::EpochState;
-use crate::processor::v2::BatchContext;
-use crate::processor::v2::state::helpers::{fetch_batches, fetch_zkp_batch_size};
-use crate::processor::v2::state::proof_worker::{spawn_proof_workers, ProofInput, ProofJob};
-use crate::processor::v2::state::tx_sender::TxSender;
+use tokio::sync::mpsc;
+use tracing::{debug, info, trace, warn};
+
+use crate::processor::v2::{
+    state::{
+        helpers::{fetch_batches, fetch_zkp_batch_size},
+        proof_worker::{spawn_proof_workers, ProofInput, ProofJob},
+        tx_sender::TxSender,
+    },
+    BatchContext,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Phase {
@@ -126,14 +133,15 @@ impl<R: Rpc> StateSupervisor<R> {
 
         // Check if we're still in the active phase before processing
         let current_slot = self.context.slot_tracker.estimated_current_slot();
-        let current_phase = self.context.epoch_phases.get_current_epoch_state(current_slot);
+        let current_phase = self
+            .context
+            .epoch_phases
+            .get_current_epoch_state(current_slot);
 
         if current_phase != EpochState::Active {
             debug!(
                 "Skipping queue update: not in active phase (current: {:?}, slot: {}, epoch: {})",
-                current_phase,
-                current_slot,
-                self.context.epoch
+                current_phase, current_slot, self.context.epoch
             );
             return Ok(0);
         }
@@ -242,19 +250,17 @@ impl<R: Rpc> StateSupervisor<R> {
             .try_into()
             .unwrap_or(u16::MAX);
 
-        let (output_batch, input_batch) = fetch_batches(
-            &self.context,
-            None,
-            None,
-            fetch_len,
-            self.zkp_batch_size(),
-        )
-            .await?;
+        let (output_batch, input_batch) =
+            fetch_batches(&self.context, None, None, fetch_len, self.zkp_batch_size()).await?;
 
         match phase {
             Phase::Append => {
-                let Some(batch) = output_batch else { return Ok(()); };
-                if batch.leaf_indices.is_empty() { return Ok(()); }
+                let Some(batch) = output_batch else {
+                    return Ok(());
+                };
+                if batch.leaf_indices.is_empty() {
+                    return Ok(());
+                }
 
                 // Initialize state from indexer response
                 self.current_root = batch.initial_root;
@@ -277,8 +283,12 @@ impl<R: Rpc> StateSupervisor<R> {
                 }
             }
             Phase::Nullify => {
-                let Some(batch) = input_batch else { return Ok(()); };
-                if batch.leaf_indices.is_empty() { return Ok(()); }
+                let Some(batch) = input_batch else {
+                    return Ok(());
+                };
+                if batch.leaf_indices.is_empty() {
+                    return Ok(());
+                }
 
                 self.current_root = batch.initial_root;
                 info!(
@@ -333,27 +343,26 @@ impl<R: Rpc> StateSupervisor<R> {
         let zkp_batch_size = self.zkp_batch_size() as usize;
 
         // Validate staging tree root matches indexer data for first batch
-        if batch_idx == 0 {
-            if self
+        if batch_idx == 0
+            && self
                 .staging_tree
                 .as_ref()
                 .map(|t| t.current_root() != batch.initial_root)
                 .unwrap_or(true)
-            {
-                match StagingTree::from_v2_output_queue(
-                    &batch.leaf_indices,
-                    &batch.old_leaves,
-                    &batch.nodes,
-                    &batch.node_hashes,
-                    batch.initial_root,
-                ) {
-                    Ok(tree) => {
-                        self.staging_tree = Some(tree);
-                    }
-                    Err(_) => {
-                        self.staging_tree = None;
-                        return Ok(None);
-                    }
+        {
+            match StagingTree::from_v2_output_queue(
+                &batch.leaf_indices,
+                &batch.old_leaves,
+                &batch.nodes,
+                &batch.node_hashes,
+                batch.initial_root,
+            ) {
+                Ok(tree) => {
+                    self.staging_tree = Some(tree);
+                }
+                Err(_) => {
+                    self.staging_tree = None;
+                    return Ok(None);
                 }
             }
         }
@@ -394,12 +403,10 @@ impl<R: Rpc> StateSupervisor<R> {
                 self.zkp_batch_size() as u32,
                 new_root,
             )
-                .map_err(|e| anyhow!("Failed to build append inputs: {}", e))?;
+            .map_err(|e| anyhow!("Failed to build append inputs: {}", e))?;
 
         self.current_root = new_root;
-        self.next_index = self
-            .next_index
-            .saturating_add(self.zkp_batch_size() as u64);
+        self.next_index = self.next_index.saturating_add(self.zkp_batch_size() as u64);
         self.seq += 1;
 
         {
@@ -442,41 +449,40 @@ impl<R: Rpc> StateSupervisor<R> {
 
         let zkp_batch_size = self.zkp_batch_size() as usize;
 
-        if batch_idx == 0 {
-            if self
+        if batch_idx == 0
+            && self
                 .staging_tree
                 .as_ref()
                 .map(|t| t.current_root() != batch.initial_root)
                 .unwrap_or(true)
-            {
-                let prev = self
-                    .staging_tree
-                    .as_ref()
-                    .map(|t| t.current_root())
-                    .unwrap_or([0u8; 32]);
-                warn!(
-                    "Staging root {:?}[..4] != batch initial {:?}[..4], resetting from indexer snapshot",
-                    &prev[..4],
-                    &batch.initial_root[..4]
-                );
-                match StagingTree::from_v2_input_queue(
-                    &batch.leaf_indices,
-                    &batch.current_leaves,
-                    &batch.nodes,
-                    &batch.node_hashes,
-                    batch.initial_root,
-                ) {
-                    Ok(tree) => {
-                        self.staging_tree = Some(tree);
-                    }
-                    Err(e) => {
-                        warn!(
-                            "Failed to reset nullify staging from indexer snapshot: {}. Skipping batch.",
-                            e
-                        );
-                        self.staging_tree = None;
-                        return Ok(None);
-                    }
+        {
+            let prev = self
+                .staging_tree
+                .as_ref()
+                .map(|t| t.current_root())
+                .unwrap_or([0u8; 32]);
+            warn!(
+                "Staging root {:?}[..4] != batch initial {:?}[..4], resetting from indexer snapshot",
+                &prev[..4],
+                &batch.initial_root[..4]
+            );
+            match StagingTree::from_v2_input_queue(
+                &batch.leaf_indices,
+                &batch.current_leaves,
+                &batch.nodes,
+                &batch.node_hashes,
+                batch.initial_root,
+            ) {
+                Ok(tree) => {
+                    self.staging_tree = Some(tree);
+                }
+                Err(e) => {
+                    warn!(
+                        "Failed to reset nullify staging from indexer snapshot: {}. Skipping batch.",
+                        e
+                    );
+                    self.staging_tree = None;
+                    return Ok(None);
                 }
             }
         }
@@ -532,7 +538,7 @@ impl<R: Rpc> StateSupervisor<R> {
                 self.zkp_batch_size() as u32,
                 new_root,
             )
-                .map_err(|e| anyhow!("Failed to build nullify inputs: {}", e))?;
+            .map_err(|e| anyhow!("Failed to build nullify inputs: {}", e))?;
 
         self.current_root = new_root;
         self.seq += 1;

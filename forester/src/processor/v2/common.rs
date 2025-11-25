@@ -24,6 +24,7 @@ use crate::{
 };
 
 #[derive(Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum BatchReadyState {
     NotReady,
     AddressReady {
@@ -357,12 +358,12 @@ impl<R: Rpc> BatchProcessor<R> {
 
         if let Some(merkle_tree_data) = merkle_tree_data {
             return BatchReadyState::StateReady {
-                merkle_tree_data: merkle_tree_data,
-                output_queue_data: output_queue_data,
+                merkle_tree_data,
+                output_queue_data,
             };
         }
 
-        return BatchReadyState::NotReady;
+        BatchReadyState::NotReady
     }
 
     fn parse_merkle_tree_account(

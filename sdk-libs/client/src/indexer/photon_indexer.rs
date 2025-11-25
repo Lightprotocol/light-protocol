@@ -1797,7 +1797,7 @@ impl Indexer for PhotonIndexer {
         .await
     }
 
- async fn get_queue_elements_v2(
+    async fn get_queue_elements_v2(
         &mut self,
         merkle_tree_pubkey: [u8; 32],
         options: super::QueueElementsV2Options,
@@ -1992,7 +1992,6 @@ impl Indexer for PhotonIndexer {
         })
         .await
     }
-
 
     async fn get_subtrees(
         &self,

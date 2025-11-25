@@ -1,12 +1,15 @@
+use std::fs;
+
+use forester_utils::staging_tree::StagingTree;
 /// Test to compare circuit inputs between old (v2 changelog) and new (v3 staging tree) approaches
 /// Run forester with DUMP_PHOTON_DATA=1 to capture real data, then run this test
 use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_TREE_HEIGHT;
 use light_hasher::{hash_chain::create_hash_chain_from_slice, Hasher, Poseidon};
-use light_prover_client::proof_types::batch_append::{get_batch_append_inputs_v2, BatchAppendsCircuitInputs};
-use light_prover_client::proof_types::batch_update::{get_batch_update_inputs, get_batch_update_inputs_v2};
-use forester_utils::staging_tree::StagingTree;
+use light_prover_client::proof_types::{
+    batch_append::{get_batch_append_inputs_v2, BatchAppendsCircuitInputs},
+    batch_update::{get_batch_update_inputs, get_batch_update_inputs_v2},
+};
 use serde::{Deserialize, Serialize};
-use std::fs;
 
 #[derive(Debug, Serialize, Deserialize)]
 struct PhotonNullifyData {
@@ -63,7 +66,7 @@ fn compare_nullify_old_vs_new() {
     let old_result = get_batch_update_inputs::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
         data.old_root,
         data.tx_hashes.clone(),
-        data.account_hashes.clone(),  // OLD also expects account_hashes!
+        data.account_hashes.clone(), // OLD also expects account_hashes!
         data.leaves_hashchain,
         data.old_leaves.clone(),
         data.merkle_proofs.clone(),
@@ -78,24 +81,28 @@ fn compare_nullify_old_vs_new() {
             println!("✅ OLD succeeded");
             println!("   Old root: {}", old_inputs.old_root);
             println!("   New root: {}", old_inputs.new_root);
-            println!("   New root bytes: {:?}[..4]", &old_new_root_bytes[..4.min(old_new_root_bytes.len())]);
+            println!(
+                "   New root bytes: {:?}[..4]",
+                &old_new_root_bytes[..4.min(old_new_root_bytes.len())]
+            );
             println!("   Changelog entries: {}", old_changelog.len());
 
             // === NEW METHOD (v3 with staging tree) ===
             println!("\n🔧 NEW METHOD: staging tree + get_batch_update_inputs_v2");
 
             // NEW method passes the staging tree's computed new_root
-            let new_inputs_result = get_batch_update_inputs_v2::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
-                data.old_root,
-                data.tx_hashes.clone(),
-                data.account_hashes.clone(),
-                data.leaves_hashchain,
-                data.old_leaves.clone(),
-                data.merkle_proofs.clone(),
-                data.path_indices.clone(),
-                data.batch_size,
-                data.new_root,  // Using staging tree's new_root
-            );
+            let new_inputs_result =
+                get_batch_update_inputs_v2::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
+                    data.old_root,
+                    data.tx_hashes.clone(),
+                    data.account_hashes.clone(),
+                    data.leaves_hashchain,
+                    data.old_leaves.clone(),
+                    data.merkle_proofs.clone(),
+                    data.path_indices.clone(),
+                    data.batch_size,
+                    data.new_root, // Using staging tree's new_root
+                );
 
             match new_inputs_result {
                 Ok(new_inputs) => {
@@ -103,7 +110,10 @@ fn compare_nullify_old_vs_new() {
                     println!("✅ NEW succeeded");
                     println!("   Old root: {}", new_inputs.old_root);
                     println!("   New root: {}", new_inputs.new_root);
-                    println!("   New root bytes: {:?}[..4]", &new_new_root_bytes[..4.min(new_new_root_bytes.len())]);
+                    println!(
+                        "   New root bytes: {:?}[..4]",
+                        &new_new_root_bytes[..4.min(new_new_root_bytes.len())]
+                    );
 
                     // === COMPARISON ===
                     println!("\n📋 COMPARISON:");
@@ -121,11 +131,16 @@ fn compare_nullify_old_vs_new() {
                     for i in 0..3.min(data.batch_size as usize) {
                         let old_leaf_bytes = old_inputs.leaves[i].to_bytes_be().1;
                         let new_leaf_bytes = new_inputs.leaves[i].to_bytes_be().1;
-                        println!("     [{}] OLD: {:?}[..4] vs NEW: {:?}[..4] {}",
+                        println!(
+                            "     [{}] OLD: {:?}[..4] vs NEW: {:?}[..4] {}",
                             i,
                             &old_leaf_bytes[..4.min(old_leaf_bytes.len())],
                             &new_leaf_bytes[..4.min(new_leaf_bytes.len())],
-                            if old_inputs.leaves[i] == new_inputs.leaves[i] { "✓" } else { "✗" }
+                            if old_inputs.leaves[i] == new_inputs.leaves[i] {
+                                "✓"
+                            } else {
+                                "✗"
+                            }
                         );
                     }
                 }
@@ -190,8 +205,14 @@ fn test_compare_v2_vs_v3_circuit_inputs() {
             println!("✓ V3 inputs created successfully");
             let old_root_bytes = v3_inputs.old_root.to_bytes_be().1;
             let new_root_bytes = v3_inputs.new_root.to_bytes_be().1;
-            println!("  Old root: {:?}[..4]", &old_root_bytes[..4.min(old_root_bytes.len())]);
-            println!("  New root: {:?}[..4]", &new_root_bytes[..4.min(new_root_bytes.len())]);
+            println!(
+                "  Old root: {:?}[..4]",
+                &old_root_bytes[..4.min(old_root_bytes.len())]
+            );
+            println!(
+                "  New root: {:?}[..4]",
+                &new_root_bytes[..4.min(new_root_bytes.len())]
+            );
             println!("  Start index: {}", v3_inputs.start_index);
             println!("  Batch size: {}", v3_inputs.batch_size);
 
@@ -230,7 +251,8 @@ fn build_v3_circuit_inputs(
         &nodes,
         &node_hashes,
         initial_root,
-    ).map_err(|e| format!("Failed to build staging tree: {}", e))?;
+    )
+    .map_err(|e| format!("Failed to build staging tree: {}", e))?;
 
     // Process batch to get old_leaves and proofs
     let (computed_old_leaves, computed_proofs, old_root, new_root) = staging_tree
@@ -279,17 +301,13 @@ fn test_staging_tree_proof_consistency() {
         &nodes,
         &node_hashes,
         initial_root,
-    ).expect("Failed to build staging tree");
+    )
+    .expect("Failed to build staging tree");
 
     println!("Initial root: {:?}[..8]", &staging_tree.current_root()[..8]);
 
     // Update leaves
-    let result = staging_tree.process_batch_updates(
-        &leaf_indices,
-        &new_leaves,
-        "TEST",
-        0,
-    );
+    let result = staging_tree.process_batch_updates(&leaf_indices, &new_leaves, "TEST", 0);
 
     match result {
         Ok((computed_old_leaves, proofs, old_root, new_root)) => {
@@ -322,8 +340,14 @@ fn test_staging_tree_proof_consistency() {
                 current_index /= 2;
             }
 
-            println!("  Proof validation: computed root {:?}[..8]", &current_hash[..8]);
-            assert_eq!(current_hash, old_root, "Proof should validate against old root");
+            println!(
+                "  Proof validation: computed root {:?}[..8]",
+                &current_hash[..8]
+            );
+            assert_eq!(
+                current_hash, old_root,
+                "Proof should validate against old root"
+            );
 
             println!("✓ All checks passed");
         }

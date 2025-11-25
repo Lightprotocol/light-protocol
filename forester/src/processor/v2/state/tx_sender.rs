@@ -1,20 +1,21 @@
 use std::collections::BTreeMap;
-use borsh::BorshSerialize;
-use solana_sdk::signature::Signer;
-use tokio::sync::mpsc;
-use tokio::task::JoinHandle;
-use tracing::{info, warn};
-use light_client::rpc::Rpc;
-use light_registry::account_compression_cpi::sdk::{create_batch_append_instruction, create_batch_nullify_instruction};
-use crate::errors::ForesterError;
-use crate::processor::v2::BatchContext;
-use crate::processor::v2::common::send_transaction_batch;
-use crate::processor::v2::state::proof_worker::ProofResult;
 
-use light_batched_merkle_tree::{
-    merkle_tree::{
-        InstructionDataBatchAppendInputs,
-        InstructionDataBatchNullifyInputs,
+use borsh::BorshSerialize;
+use light_batched_merkle_tree::merkle_tree::{
+    InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
+};
+use light_client::rpc::Rpc;
+use light_registry::account_compression_cpi::sdk::{
+    create_batch_append_instruction, create_batch_nullify_instruction,
+};
+use solana_sdk::signature::Signer;
+use tokio::{sync::mpsc, task::JoinHandle};
+use tracing::{info, warn};
+
+use crate::{
+    errors::ForesterError,
+    processor::v2::{
+        common::send_transaction_batch, state::proof_worker::ProofResult, BatchContext,
     },
 };
 
@@ -112,7 +113,7 @@ impl<R: Rpc> TxSender<R> {
                             Ok(processed)
                         } else {
                             Err(e)
-                        }
+                        };
                     }
                 }
             }
