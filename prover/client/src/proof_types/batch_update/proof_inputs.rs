@@ -163,9 +163,13 @@ pub fn get_batch_update_inputs_v2<const HEIGHT: usize>(
     let mut circuit_merkle_proofs = Vec::with_capacity(batch_size_usize);
 
     for merkle_proof in merkle_proofs.into_iter() {
+        let proof_len = merkle_proof.len();
         let merkle_proof_array: [[u8; 32]; HEIGHT] =
             merkle_proof.as_slice().try_into().map_err(|_| {
-                ProverClientError::GenericError("Invalid merkle proof length".to_string())
+                ProverClientError::GenericError(format!(
+                    "Invalid merkle proof length: got {}, expected {}",
+                    proof_len, HEIGHT
+                ))
             })?;
 
         circuit_merkle_proofs.push(

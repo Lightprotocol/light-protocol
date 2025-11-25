@@ -84,7 +84,6 @@ impl ProofClient {
     pub async fn generate_proof(
         &self,
         inputs_json: String,
-        circuit_type: &str,
     ) -> Result<ProofCompressed, ProverClientError> {
         let start_time = Instant::now();
         let mut retries = 0;
@@ -98,10 +97,7 @@ impl ProofClient {
                 )));
             }
 
-            match self
-                .try_generate_proof(&inputs_json, circuit_type, retries + 1, elapsed)
-                .await
-            {
+            match self.try_generate_proof(&inputs_json, elapsed).await {
                 Ok(proof) => return Ok(proof),
                 Err(err) if self.should_retry(&err, retries, elapsed) => {
                     retries += 1;
@@ -135,8 +131,6 @@ impl ProofClient {
     async fn try_generate_proof(
         &self,
         inputs_json: &str,
-        circuit_type: &str,
-        attempt: u32,
         elapsed: Duration,
     ) -> Result<ProofCompressed, ProverClientError> {
         let response = self.send_proof_request(inputs_json).await?;
@@ -190,9 +184,7 @@ impl ProofClient {
         start_elapsed: Duration,
     ) -> Result<ProofCompressed, ProverClientError> {
         match status_code {
-            reqwest::StatusCode::OK => {
-                self.parse_proof_from_json(response_text)
-            }
+            reqwest::StatusCode::OK => self.parse_proof_from_json(response_text),
             reqwest::StatusCode::ACCEPTED => {
                 let job_response = self.parse_job_response(response_text)?;
                 self.handle_async_job(job_response, start_elapsed).await
@@ -289,7 +281,10 @@ impl ProofClient {
 
             trace!(
                 "Poll #{} for job {} at total elapsed time {:?} (polling: {:?})",
-                poll_count, job_id, total_elapsed, poll_elapsed
+                poll_count,
+                job_id,
+                total_elapsed,
+                poll_elapsed
             );
 
             match self.poll_job_status(&status_url, job_id, poll_count).await {
@@ -328,7 +323,10 @@ impl ProofClient {
 
                     trace!(
                         "Transient polling error for job {}: attempt {}/{}, error: {}",
-                        job_id, transient_error_count, MAX_RETRIES, err
+                        job_id,
+                        transient_error_count,
+                        MAX_RETRIES,
+                        err
                     );
 
                     if transient_error_count >= MAX_RETRIES {
@@ -451,7 +449,11 @@ impl ProofClient {
             "processing" | "queued" => {
                 trace!(
                     "Job {} still {} after {:?} (poll #{}), waiting {:?} before next check",
-                    job_id, status_response.status, elapsed, poll_count, self.polling_interval
+                    job_id,
+                    status_response.status,
+                    elapsed,
+                    poll_count,
+                    self.polling_interval
                 );
                 Ok(None)
             }
@@ -518,7 +520,7 @@ impl ProofClient {
     ) -> Result<(ProofCompressed, [u8; 32]), ProverClientError> {
         let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(&inputs.new_root)?;
         let inputs_json = to_json(&inputs);
-        let proof = self.generate_proof(inputs_json, "address-append").await?;
+        let proof = self.generate_proof(inputs_json).await?;
         Ok((proof, new_root))
     }
 
@@ -530,7 +532,7 @@ impl ProofClient {
             &circuit_inputs.new_root.to_biguint().unwrap(),
         )?;
         let inputs_json = BatchAppendInputsJson::from_inputs(&circuit_inputs).to_string();
-        let proof = self.generate_proof(inputs_json, "append").await?;
+        let proof = self.generate_proof(inputs_json).await?;
         Ok((proof, new_root))
     }
 
@@ -542,7 +544,7 @@ impl ProofClient {
             &circuit_inputs.new_root.to_biguint().unwrap(),
         )?;
         let json_str = update_inputs_string(&circuit_inputs);
-        let proof = self.generate_proof(json_str, "update").await?;
+        let proof = self.generate_proof(json_str).await?;
         Ok((proof, new_root))
     }
 }

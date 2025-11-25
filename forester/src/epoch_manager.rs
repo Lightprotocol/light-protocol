@@ -1800,43 +1800,42 @@ impl<R: Rpc> EpochManager<R> {
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
     ) -> Result<ActorRef<v2::state::StateSupervisor<R>>> {
-        let supervisor_status =
-            if let Some(entry) = self.state_supervisors.get(&tree_accounts.merkle_tree) {
-                let (stored_epoch, supervisor_ref) = entry.value();
+        use dashmap::mapref::entry::Entry;
+
+        let entry = self.state_supervisors.entry(tree_accounts.merkle_tree);
+
+        match entry {
+            Entry::Occupied(mut occupied) => {
+                let (stored_epoch, supervisor_ref) = occupied.get();
                 if *stored_epoch == epoch_info.epoch {
-                    Some(Ok(supervisor_ref.clone()))
+                    Ok(supervisor_ref.clone())
                 } else {
-                    Some(Err(*stored_epoch))
+                    info!(
+                        "Removing stale StateSupervisor for tree {} (epoch {} -> {})",
+                        tree_accounts.merkle_tree, *stored_epoch, epoch_info.epoch
+                    );
+                    let batch_context =
+                        self.build_batch_context(epoch_info, tree_accounts, None, None);
+                    let supervisor = v2::state::StateSupervisor::spawn(batch_context);
+                    info!(
+                        "Created StateSupervisor actor for tree {} (epoch {})",
+                        tree_accounts.merkle_tree, epoch_info.epoch
+                    );
+                    occupied.insert((epoch_info.epoch, supervisor.clone()));
+                    Ok(supervisor)
                 }
-            } else {
-                None
-            };
-
-        match supervisor_status {
-            Some(Ok(supervisor_ref)) => return Ok(supervisor_ref),
-            Some(Err(stored_epoch)) => {
-                info!(
-                    "Removing stale StateSupervisor for tree {} (epoch {} -> {})",
-                    tree_accounts.merkle_tree, stored_epoch, epoch_info.epoch
-                );
-                self.state_supervisors.remove(&tree_accounts.merkle_tree);
             }
-            None => {}
+            Entry::Vacant(vacant) => {
+                let batch_context = self.build_batch_context(epoch_info, tree_accounts, None, None);
+                let supervisor = v2::state::StateSupervisor::spawn(batch_context);
+                info!(
+                    "Created StateSupervisor actor for tree {} (epoch {})",
+                    tree_accounts.merkle_tree, epoch_info.epoch
+                );
+                vacant.insert((epoch_info.epoch, supervisor.clone()));
+                Ok(supervisor)
+            }
         }
-
-        let batch_context = self.build_batch_context(epoch_info, tree_accounts, None, None);
-        let supervisor = v2::state::StateSupervisor::spawn(batch_context);
-        info!(
-            "Created StateSupervisor actor for tree {} (epoch {})",
-            tree_accounts.merkle_tree, epoch_info.epoch
-        );
-
-        self.state_supervisors.insert(
-            tree_accounts.merkle_tree,
-            (epoch_info.epoch, supervisor.clone()),
-        );
-
-        Ok(supervisor)
     }
 
     async fn process_v2(
