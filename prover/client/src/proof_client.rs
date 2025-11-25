@@ -3,7 +3,7 @@ use std::time::{Duration, Instant};
 use reqwest::Client;
 use serde::Deserialize;
 use tokio::time::sleep;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 
 use crate::{
     constants::PROVE_PATH,
@@ -139,11 +139,6 @@ impl ProofClient {
         attempt: u32,
         elapsed: Duration,
     ) -> Result<ProofCompressed, ProverClientError> {
-        debug!(
-            "Generating proof for circuit type: {} (attempt {}, elapsed: {:?})",
-            circuit_type, attempt, elapsed
-        );
-
         let response = self.send_proof_request(inputs_json).await?;
         let status_code = response.status();
         let response_text = response.text().await.map_err(|e| {
@@ -196,11 +191,9 @@ impl ProofClient {
     ) -> Result<ProofCompressed, ProverClientError> {
         match status_code {
             reqwest::StatusCode::OK => {
-                debug!("Received synchronous proof response");
                 self.parse_proof_from_json(response_text)
             }
             reqwest::StatusCode::ACCEPTED => {
-                debug!("Received asynchronous job response");
                 let job_response = self.parse_job_response(response_text)?;
                 self.handle_async_job(job_response, start_elapsed).await
             }
@@ -261,7 +254,7 @@ impl ProofClient {
         let should_retry =
             retries < MAX_RETRIES && is_retryable_error && elapsed < self.max_wait_time;
 
-        debug!(
+        trace!(
             "Retry check: retries={}/{}, is_retryable_error={}, elapsed={:?}/{:?}, should_retry={}, error={}",
             retries, MAX_RETRIES, is_retryable_error, elapsed, self.max_wait_time, should_retry, error_str
         );
@@ -294,7 +287,7 @@ impl ProofClient {
                 )));
             }
 
-            debug!(
+            trace!(
                 "Poll #{} for job {} at total elapsed time {:?} (polling: {:?})",
                 poll_count, job_id, total_elapsed, poll_elapsed
             );
@@ -333,7 +326,7 @@ impl ProofClient {
                 Err(err) if self.is_transient_polling_error(&err) => {
                     transient_error_count += 1;
 
-                    debug!(
+                    trace!(
                         "Transient polling error for job {}: attempt {}/{}, error: {}",
                         job_id, transient_error_count, MAX_RETRIES, err
                     );
@@ -391,7 +384,7 @@ impl ProofClient {
         let status_code = response.status();
         let response_text = response.text().await.unwrap_or_default();
 
-        debug!(
+        trace!(
             "Poll #{} for job {}: status={}, body_len={}",
             poll_count,
             job_id,
@@ -425,7 +418,7 @@ impl ProofClient {
         elapsed: Duration,
         poll_count: u32,
     ) -> Result<Option<ProofCompressed>, ProverClientError> {
-        info!(
+        trace!(
             "Poll #{} for job {}: status='{}', message='{}'",
             poll_count,
             job_id,
@@ -456,7 +449,7 @@ impl ProofClient {
                 )))
             }
             "processing" | "queued" => {
-                debug!(
+                trace!(
                     "Job {} still {} after {:?} (poll #{}), waiting {:?} before next check",
                     job_id, status_response.status, elapsed, poll_count, self.polling_interval
                 );
@@ -479,7 +472,7 @@ impl ProofClient {
     ) -> Result<ProofCompressed, ProverClientError> {
         match result {
             Some(result) => {
-                debug!("Job {} has result, parsing proof JSON", job_id);
+                trace!("Job {} has result, parsing proof JSON", job_id);
                 let proof_json = serde_json::to_string(&result).map_err(|e| {
                     error!("Failed to serialize result for job {}: {}", job_id, e);
                     ProverClientError::ProverServerError("Cannot serialize result".to_string())
@@ -533,7 +526,6 @@ impl ProofClient {
         &self,
         circuit_inputs: BatchAppendsCircuitInputs,
     ) -> Result<(ProofCompressed, [u8; 32]), ProverClientError> {
-        debug!("!! generate_batch_append_proof {:?}", circuit_inputs);
         let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(
             &circuit_inputs.new_root.to_biguint().unwrap(),
         )?;
@@ -546,7 +538,6 @@ impl ProofClient {
         &self,
         circuit_inputs: BatchUpdateCircuitInputs,
     ) -> Result<(ProofCompressed, [u8; 32]), ProverClientError> {
-        debug!("!! generate_batch_update_proof {:?}", circuit_inputs);
         let new_root = light_hasher::bigint::bigint_to_be_bytes_array::<32>(
             &circuit_inputs.new_root.to_biguint().unwrap(),
         )?;

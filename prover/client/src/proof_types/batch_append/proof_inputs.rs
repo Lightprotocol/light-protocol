@@ -160,6 +160,29 @@ pub fn get_batch_append_inputs_v2<const HEIGHT: usize>(
     batch_size: u32,
     new_root: [u8; 32],
 ) -> Result<BatchAppendsCircuitInputs, ProverClientError> {
+    let expected_len = batch_size as usize;
+    if leaves.len() != expected_len {
+        return Err(ProverClientError::GenericError(format!(
+            "leaves length mismatch: expected {}, got {}",
+            expected_len,
+            leaves.len()
+        )));
+    }
+    if old_leaves.len() != expected_len {
+        return Err(ProverClientError::GenericError(format!(
+            "old_leaves length mismatch: expected {}, got {}",
+            expected_len,
+            old_leaves.len()
+        )));
+    }
+    if merkle_proofs.len() != expected_len {
+        return Err(ProverClientError::GenericError(format!(
+            "merkle_proofs length mismatch: expected {}, got {}",
+            expected_len,
+            merkle_proofs.len()
+        )));
+    }
+
     let mut circuit_merkle_proofs = Vec::with_capacity(batch_size as usize);
 
     for merkle_proof in merkle_proofs.into_iter() {

@@ -63,31 +63,31 @@ impl<R: Rpc> TxSender<R> {
                         let ix = proofs
                             .iter()
                             .map(|data| {
-                                create_batch_append_instruction(
+                                Ok(create_batch_append_instruction(
                                     self.context.authority.pubkey(),
                                     self.context.derivation,
                                     self.context.merkle_tree,
                                     self.context.output_queue,
                                     self.context.epoch,
-                                    data.try_to_vec().unwrap(),
-                                )
+                                    data.try_to_vec()?,
+                                ))
                             })
-                            .collect::<Vec<_>>();
+                            .collect::<anyhow::Result<Vec<_>>>()?;
                         (ix, proofs.last().map(|p| p.new_root))
                     }
                     BatchInstruction::Nullify(proofs) => {
                         let ix = proofs
                             .iter()
                             .map(|data| {
-                                create_batch_nullify_instruction(
+                                Ok(create_batch_nullify_instruction(
                                     self.context.authority.pubkey(),
                                     self.context.derivation,
                                     self.context.merkle_tree,
                                     self.context.epoch,
-                                    data.try_to_vec().unwrap(),
-                                )
+                                    data.try_to_vec()?,
+                                ))
                             })
-                            .collect::<Vec<_>>();
+                            .collect::<anyhow::Result<Vec<_>>>()?;
                         (ix, proofs.last().map(|p| p.new_root))
                     }
                 };
@@ -105,7 +105,7 @@ impl<R: Rpc> TxSender<R> {
                         );
                     }
                     Err(e) => {
-                        info!("tx error {} epoch {}", e, self.context.epoch);
+                        warn!("tx error {} epoch {}", e, self.context.epoch);
                         return if let Some(ForesterError::NotInActivePhase) =
                             e.downcast_ref::<ForesterError>()
                         {
