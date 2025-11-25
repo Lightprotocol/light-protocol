@@ -44,7 +44,10 @@ pub fn spawn_proof_workers(
     polling_interval: Duration,
     max_wait_time: Duration,
     result_tx: mpsc::Sender<ProofResult>,
-) -> (async_channel::Sender<ProofJob>, Vec<JoinHandle<crate::Result<()>>>) {
+) -> (
+    async_channel::Sender<ProofJob>,
+    Vec<JoinHandle<crate::Result<()>>>,
+) {
     let (job_tx, job_rx) = async_channel::unbounded::<ProofJob>();
 
     let mut handles = Vec::with_capacity(num_workers);
@@ -110,9 +113,7 @@ async fn run_proof_worker(
                 let (proof, new_root) = append_client
                     .generate_batch_append_proof(inputs)
                     .await
-                    .map_err(|e| {
-                        anyhow!("ProofWorker {} append proof failed: {}", worker_id, e)
-                    })?;
+                    .map_err(|e| anyhow!("ProofWorker {} append proof failed: {}", worker_id, e))?;
 
                 ProofResult {
                     seq: job.seq,
