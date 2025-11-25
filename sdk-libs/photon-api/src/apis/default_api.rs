@@ -1997,8 +1997,12 @@ pub async fn get_validity_proof_v2_post(
     }
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+/// struct for typed errors of method [`get_queue_elements_v2_post`]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(untagged)]
 pub enum GetQueueElementsV2PostError {
+    Status429(models::GetBatchAddressUpdateInfoPost429Response),
+    Status500(models::GetBatchAddressUpdateInfoPost429Response),
     UnknownValue(serde_json::Value),
 }
 
