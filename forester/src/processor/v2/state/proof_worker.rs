@@ -34,6 +34,15 @@ pub struct ProofResult {
     pub(crate) instruction: BatchInstruction,
 }
 
+#[derive(Clone)]
+struct ProverConfig {
+    append_url: String,
+    update_url: String,
+    api_key: Option<String>,
+    polling_interval: Duration,
+    max_wait_time: Duration,
+}
+
 /// Spawns N proof workers that pull jobs from a shared async_channel.
 /// Returns the job sender and worker handles.
 pub fn spawn_proof_workers(
@@ -50,28 +59,25 @@ pub fn spawn_proof_workers(
 ) {
     let (job_tx, job_rx) = async_channel::unbounded::<ProofJob>();
 
+    let config = ProverConfig {
+        append_url: prover_append_url,
+        update_url: prover_update_url,
+        api_key: prover_api_key,
+        polling_interval,
+        max_wait_time,
+    };
+
     let mut handles = Vec::with_capacity(num_workers);
 
     for worker_id in 0..num_workers {
         let job_rx = job_rx.clone();
         let result_tx = result_tx.clone();
-        let append_url = prover_append_url.clone();
-        let update_url = prover_update_url.clone();
-        let api_key = prover_api_key.clone();
+        let config = config.clone();
 
-        let handle = tokio::spawn(async move {
-            run_proof_worker(
-                worker_id,
-                job_rx,
-                result_tx,
-                append_url,
-                update_url,
-                api_key,
-                polling_interval,
-                max_wait_time,
-            )
-            .await
-        });
+        let handle =
+            tokio::spawn(
+                async move { run_proof_worker(worker_id, job_rx, result_tx, config).await },
+            );
 
         handles.push(handle);
     }
@@ -84,23 +90,19 @@ async fn run_proof_worker(
     worker_id: usize,
     job_rx: Receiver<ProofJob>,
     result_tx: mpsc::Sender<ProofResult>,
-    prover_append_url: String,
-    prover_update_url: String,
-    prover_api_key: Option<String>,
-    polling_interval: Duration,
-    max_wait_time: Duration,
+    config: ProverConfig,
 ) -> crate::Result<()> {
     let append_client = ProofClient::with_config(
-        prover_append_url,
-        polling_interval,
-        max_wait_time,
-        prover_api_key.clone(),
+        config.append_url,
+        config.polling_interval,
+        config.max_wait_time,
+        config.api_key.clone(),
     );
     let nullify_client = ProofClient::with_config(
-        prover_update_url,
-        polling_interval,
-        max_wait_time,
-        prover_api_key,
+        config.update_url,
+        config.polling_interval,
+        config.max_wait_time,
+        config.api_key,
     );
 
     debug!("ProofWorker {} started", worker_id);
