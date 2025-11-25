@@ -12,7 +12,7 @@ use light_prover_client::{
     },
 };
 use tokio::{sync::mpsc, task::JoinHandle};
-use tracing::{debug, info, warn};
+use tracing::{debug, info, trace, warn};
 
 use crate::processor::v2::state::tx_sender::BatchInstruction;
 
@@ -105,7 +105,7 @@ async fn run_proof_worker(
         config.api_key,
     );
 
-    debug!("ProofWorker {} started", worker_id);
+    trace!("ProofWorker {} started", worker_id);
 
     while let Ok(job) = job_rx.recv().await {
         debug!("ProofWorker {} processing job seq={}", worker_id, job.seq);
@@ -161,6 +161,6 @@ async fn run_proof_worker(
         debug!("ProofWorker {} completed job seq={}", worker_id, job.seq);
     }
 
-    debug!("ProofWorker {} shutting down", worker_id);
+    trace!("ProofWorker {} shutting down", worker_id);
     Ok(())
 }

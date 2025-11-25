@@ -372,7 +372,7 @@ impl<R: Rpc> StateSupervisor<R> {
         let leaves = batch.account_hashes[start..end].to_vec();
         let leaf_indices = batch.leaf_indices[start..end].to_vec();
 
-        let (old_leaves, merkle_proofs, old_root, new_root) =
+        let result =
             staging.process_batch_updates(&leaf_indices, &leaves, "APPEND", batch_idx)?;
 
         let leaves_hashchain = batch
@@ -393,18 +393,18 @@ impl<R: Rpc> StateSupervisor<R> {
 
         let circuit_inputs =
             get_batch_append_inputs_v2::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
-                old_root,
+                result.old_root,
                 start_index,
                 leaves.clone(),
                 leaves_hashchain,
-                old_leaves,
-                merkle_proofs,
+                result.old_leaves,
+                result.merkle_proofs,
                 self.zkp_batch_size() as u32,
-                new_root,
+                result.new_root,
             )
             .map_err(|e| anyhow!("Failed to build append inputs: {}", e))?;
 
-        self.current_root = new_root;
+        self.current_root = result.new_root;
         self.next_index = self.next_index.saturating_add(self.zkp_batch_size());
         self.seq += 1;
 
@@ -502,13 +502,13 @@ impl<R: Rpc> StateSupervisor<R> {
             nullifiers.push(nullifier);
         }
 
-        let (old_leaves, merkle_proofs, old_root, new_root) =
+        let result =
             staging.process_batch_updates(&leaf_indices, &nullifiers, "NULLIFY", batch_idx)?;
         info!(
             "nullify batch {} root {:?}[..4] => {:?}[..4]",
             batch_idx,
-            &old_root[..4],
-            &new_root[..4]
+            &result.old_root[..4],
+            &result.new_root[..4]
         );
 
         let leaves_hashchain = batch
@@ -527,19 +527,19 @@ impl<R: Rpc> StateSupervisor<R> {
 
         let circuit_inputs =
             get_batch_update_inputs_v2::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
-                old_root,
+                result.old_root,
                 tx_hashes,
                 account_hashes,
                 leaves_hashchain,
-                old_leaves,
-                merkle_proofs,
+                result.old_leaves,
+                result.merkle_proofs,
                 path_indices,
                 self.zkp_batch_size() as u32,
-                new_root,
+                result.new_root,
             )
             .map_err(|e| anyhow!("Failed to build nullify inputs: {}", e))?;
 
-        self.current_root = new_root;
+        self.current_root = result.new_root;
         self.seq += 1;
 
         {

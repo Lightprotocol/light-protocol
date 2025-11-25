@@ -4,10 +4,16 @@ use tracing::debug;
 
 use crate::error::ForesterUtilsError;
 
-/// Result type for batch updates: (old_leaves, merkle_proofs, old_root, new_root)
-pub type BatchUpdateResult = (Vec<[u8; 32]>, Vec<Vec<[u8; 32]>>, [u8; 32], [u8; 32]);
-
 pub const TREE_HEIGHT: usize = 32;
+
+/// Result of a batch update operation on a staging tree.
+#[derive(Clone, Debug)]
+pub struct BatchUpdateResult {
+    pub old_leaves: Vec<[u8; 32]>,
+    pub merkle_proofs: Vec<Vec<[u8; 32]>>,
+    pub old_root: [u8; 32],
+    pub new_root: [u8; 32],
+}
 
 #[derive(Clone, Debug)]
 pub struct StagingTree {
@@ -134,47 +140,18 @@ impl StagingTree {
             &new_root[..4]
         );
 
-        Ok((old_leaves, merkle_proofs, old_root, new_root))
+        Ok(BatchUpdateResult {
+            old_leaves,
+            merkle_proofs,
+            old_root,
+            new_root,
+        })
     }
 
     pub fn get_proof(&self, leaf_index: u64) -> Result<Vec<[u8; 32]>, ForesterUtilsError> {
-        let mut proof = Vec::with_capacity(TREE_HEIGHT);
-        let mut current_index = leaf_index;
-
-        for level in 0..(TREE_HEIGHT as u8) {
-            let level_usize = level as usize;
-
-            let sibling_position = if current_index.is_multiple_of(2) {
-                current_index + 1
-            } else {
-                current_index - 1
-            };
-
-            let sibling = if level_usize < self.tree.layers.len() {
-                let layer_val = self.tree.layers[level_usize]
-                    .get(sibling_position as usize)
-                    .copied()
-                    .unwrap_or([0u8; 32]);
-                if leaf_index == 0 && level < 3 {
-                    debug!(
-                        "get_proof leaf={} level={} sibling_pos={} layer_size={} value={:?}",
-                        leaf_index,
-                        level,
-                        sibling_position,
-                        self.tree.layers[level_usize].len(),
-                        &layer_val[..8]
-                    );
-                }
-                layer_val
-            } else {
-                [0u8; 32]
-            };
-
-            proof.push(sibling);
-            current_index /= 2;
-        }
-
-        Ok(proof)
+        self.tree
+            .get_proof_of_leaf(leaf_index as usize, true)
+            .map_err(|e| ForesterUtilsError::StagingTree(format!("Failed to get proof: {}", e)))
     }
 
     pub fn get_updates(&self) -> &[(u64, [u8; 32])] {
