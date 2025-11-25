@@ -381,7 +381,10 @@ impl<R: Rpc> BatchProcessor<R> {
                 .push(merkle_tree.hash_chain_stores[batch_index as usize][i as usize]);
         }
 
-        let onchain_root = *merkle_tree.root_history.last().unwrap();
+        let onchain_root = *merkle_tree
+            .root_history
+            .last()
+            .ok_or_else(|| anyhow::anyhow!("Merkle tree root history is empty"))?;
 
         let parsed_data = ParsedMerkleTreeData {
             next_index: merkle_tree.next_index,
