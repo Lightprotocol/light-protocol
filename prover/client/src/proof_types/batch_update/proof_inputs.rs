@@ -147,7 +147,20 @@ pub fn get_batch_update_inputs_v2<const HEIGHT: usize>(
     batch_size: u32,
     new_root: [u8; 32],
 ) -> Result<BatchUpdateCircuitInputs, ProverClientError> {
-    let mut circuit_merkle_proofs = Vec::with_capacity(batch_size as usize);
+    let batch_size_usize = batch_size as usize;
+    if leaves.len() != batch_size_usize
+        || old_leaves.len() != batch_size_usize
+        || merkle_proofs.len() != batch_size_usize
+        || tx_hashes.len() != batch_size_usize
+        || path_indices.len() != batch_size_usize
+    {
+        return Err(ProverClientError::GenericError(format!(
+            "Input vector length mismatch: leaves={}, old_leaves={}, merkle_proofs={}, tx_hashes={}, path_indices={}, expected batch_size={}",
+            leaves.len(), old_leaves.len(), merkle_proofs.len(), tx_hashes.len(), path_indices.len(), batch_size
+        )));
+    }
+
+    let mut circuit_merkle_proofs = Vec::with_capacity(batch_size_usize);
 
     for merkle_proof in merkle_proofs.into_iter() {
         let merkle_proof_array: [[u8; 32]; HEIGHT] =
