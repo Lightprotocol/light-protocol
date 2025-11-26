@@ -2340,6 +2340,8 @@ mod tests {
                 rpc_rate_limit: None,
                 photon_rate_limit: None,
                 send_tx_rate_limit: None,
+                prover_polling_interval: None,
+                prover_max_wait_time: None,
             },
             retry_config: RetryConfig::default(),
             queue_config: Default::default(),
