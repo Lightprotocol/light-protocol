@@ -385,17 +385,20 @@ impl<R: Rpc> EpochManager<R> {
 
             if last_epoch.is_none_or(|last| current_epoch > last) {
                 debug!("New epoch detected: {}", current_epoch);
-                // Drop staging tree caches and state supervisors when a new epoch is detected
-                // to avoid stale roots across epochs.
+                // Kill state supervisors and clear caches when a new epoch is detected
                 let supervisor_count = self.state_supervisors.len();
-                self.staging_tree_caches.clear();
-                self.state_supervisors.clear();
                 if supervisor_count > 0 {
+                    for entry in self.state_supervisors.iter() {
+                        let (_, actor_ref) = entry.value();
+                        actor_ref.kill();
+                    }
+                    self.state_supervisors.clear();
                     info!(
-                        "Cleared {} state supervisor actors for new epoch {}",
+                        "Killed and cleared {} state supervisor actors for new epoch {}",
                         supervisor_count, current_epoch
                     );
                 }
+                self.staging_tree_caches.clear();
                 let phases = get_epoch_phases(&self.protocol_config, current_epoch);
                 if slot < phases.registration.end {
                     debug!("Sending current epoch {} for processing", current_epoch);

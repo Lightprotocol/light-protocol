@@ -62,10 +62,14 @@ impl BatchAppendsCircuitInputs {
         let mut circuit_merkle_proofs = Vec::with_capacity(batch_size as usize);
 
         for merkle_proof in tree_result.merkle_proofs.into_iter() {
-            let merkle_proof_array: [[u8; 32]; HEIGHT] =
-                merkle_proof.as_slice().try_into().map_err(|_| {
-                    ProverClientError::GenericError("Invalid merkle proof length".to_string())
-                })?;
+            let proof_slice = merkle_proof.as_slice();
+            let proof_len = proof_slice.len();
+            let merkle_proof_array: [[u8; 32]; HEIGHT] = proof_slice.try_into().map_err(|_| {
+                ProverClientError::GenericError(format!(
+                    "Invalid merkle proof length: got {}, expected {}",
+                    proof_len, HEIGHT
+                ))
+            })?;
 
             circuit_merkle_proofs.push(
                 merkle_proof_array

@@ -4,6 +4,7 @@ use light_client::{
     indexer::{Indexer, QueueElementsV2Options},
     rpc::Rpc,
 };
+use tracing::warn;
 
 use crate::processor::v2::BatchContext;
 
@@ -37,8 +38,28 @@ pub async fn fetch_batches<R: Rpc>(
     fetch_len: u64,
     zkp_batch_size: u64,
 ) -> crate::Result<Option<light_client::indexer::StateQueueDataV2>> {
-    let fetch_len_u16: u16 = fetch_len.try_into().unwrap_or(u16::MAX);
-    let zkp_batch_size_u16: u16 = zkp_batch_size.try_into().unwrap_or(u16::MAX);
+    let fetch_len_u16: u16 = match fetch_len.try_into() {
+        Ok(v) => v,
+        Err(_) => {
+            warn!(
+                "fetch_len {} exceeds u16::MAX, clamping to {}",
+                fetch_len,
+                u16::MAX
+            );
+            u16::MAX
+        }
+    };
+    let zkp_batch_size_u16: u16 = match zkp_batch_size.try_into() {
+        Ok(v) => v,
+        Err(_) => {
+            warn!(
+                "zkp_batch_size {} exceeds u16::MAX, clamping to {}",
+                zkp_batch_size,
+                u16::MAX
+            );
+            u16::MAX
+        }
+    };
 
     let mut rpc = context.rpc_pool.get_connection().await?;
     let indexer = rpc.indexer_mut()?;
