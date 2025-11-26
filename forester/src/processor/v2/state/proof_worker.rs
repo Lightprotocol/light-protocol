@@ -79,7 +79,8 @@ pub fn spawn_proof_workers(
     CancellationFlag,
     Vec<JoinHandle<crate::Result<()>>>,
 ) {
-    let (job_tx, job_rx) = async_channel::unbounded::<ProofJob>();
+    let channel_capacity = num_workers * 2;
+    let (job_tx, job_rx) = async_channel::bounded::<ProofJob>(channel_capacity);
     let cancel_flag = CancellationFlag::new();
 
     let config = ProverConfig {
