@@ -29,7 +29,7 @@ use crate::{
     Result,
 };
 
-const SLOTS_STOP_THRESHOLD: u64 = 2;
+const SLOTS_STOP_THRESHOLD: u64 = 1;
 
 #[derive(Debug, Clone)]
 pub struct ProverConfig {
