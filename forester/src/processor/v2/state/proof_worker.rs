@@ -1,9 +1,6 @@
-use std::{
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::Duration,
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
 };
 
 use anyhow::anyhow;
@@ -20,7 +17,7 @@ use light_prover_client::{
 use tokio::{sync::mpsc, task::JoinHandle};
 use tracing::{debug, info, trace, warn};
 
-use crate::processor::v2::state::tx_sender::BatchInstruction;
+use crate::processor::v2::{state::tx_sender::BatchInstruction, ProverConfig};
 
 #[derive(Clone, Default)]
 pub struct CancellationFlag(Arc<AtomicBool>);
@@ -57,39 +54,26 @@ pub struct ProofResult {
     pub(crate) instruction: BatchInstruction,
 }
 
-#[derive(Clone)]
-struct ProverConfig {
-    append_url: String,
-    update_url: String,
-    api_key: Option<String>,
-    polling_interval: Duration,
-    max_wait_time: Duration,
-}
-
 pub fn spawn_proof_workers(
     num_workers: usize,
-    prover_append_url: String,
-    prover_update_url: String,
-    prover_api_key: Option<String>,
-    polling_interval: Duration,
-    max_wait_time: Duration,
+    config: ProverConfig,
     result_tx: mpsc::Sender<ProofResult>,
 ) -> (
     async_channel::Sender<ProofJob>,
     CancellationFlag,
     Vec<JoinHandle<crate::Result<()>>>,
 ) {
+    // Enforce minimum of 1 worker to prevent zero-capacity channels and no workers
+    let num_workers = if num_workers == 0 {
+        warn!("spawn_proof_workers called with num_workers=0, using 1 instead");
+        1
+    } else {
+        num_workers
+    };
+
     let channel_capacity = num_workers * 2;
     let (job_tx, job_rx) = async_channel::bounded::<ProofJob>(channel_capacity);
     let cancel_flag = CancellationFlag::new();
-
-    let config = ProverConfig {
-        append_url: prover_append_url,
-        update_url: prover_update_url,
-        api_key: prover_api_key,
-        polling_interval,
-        max_wait_time,
-    };
 
     let mut handles = Vec::with_capacity(num_workers);
 
@@ -147,7 +131,6 @@ async fn run_proof_worker(
             ProofInput::Append(inputs) => {
                 match append_client.generate_batch_append_proof(inputs).await {
                     Ok((proof, new_root)) => {
-                        // Check cancellation after proof generation
                         if cancel_flag.is_cancelled() {
                             debug!(
                                 "ProofWorker {} stopping due to cancellation (after job seq={})",
@@ -182,7 +165,6 @@ async fn run_proof_worker(
             ProofInput::Nullify(inputs) => {
                 match nullify_client.generate_batch_update_proof(inputs).await {
                     Ok((proof, new_root)) => {
-                        // Check cancellation after proof generation
                         if cancel_flag.is_cancelled() {
                             debug!(
                                 "ProofWorker {} stopping due to cancellation (after job seq={})",

@@ -29,6 +29,18 @@ use crate::{
     Result,
 };
 
+const SLOTS_STOP_THRESHOLD: u64 = 2;
+
+#[derive(Debug, Clone)]
+pub struct ProverConfig {
+    pub append_url: String,
+    pub update_url: String,
+    pub address_append_url: String,
+    pub api_key: Option<String>,
+    pub polling_interval: Duration,
+    pub max_wait_time: Duration,
+}
+
 #[derive(Debug)]
 #[allow(clippy::enum_variant_names)]
 pub enum BatchReadyState {
@@ -42,17 +54,12 @@ pub enum BatchReadyState {
 #[derive(Debug)]
 pub struct BatchContext<R: Rpc> {
     pub rpc_pool: Arc<SolanaRpcPool<R>>,
-    pub authority: Keypair,
+    pub authority: Arc<Keypair>,
     pub derivation: Pubkey,
     pub epoch: u64,
     pub merkle_tree: Pubkey,
     pub output_queue: Pubkey,
-    pub prover_append_url: String,
-    pub prover_update_url: String,
-    pub prover_address_append_url: String,
-    pub prover_api_key: Option<String>,
-    pub prover_polling_interval: Duration,
-    pub prover_max_wait_time: Duration,
+    pub prover_config: ProverConfig,
     pub ops_cache: Arc<Mutex<ProcessedHashCache>>,
     pub epoch_phases: EpochPhases,
     pub slot_tracker: Arc<SlotTracker>,
@@ -66,17 +73,12 @@ impl<R: Rpc> Clone for BatchContext<R> {
     fn clone(&self) -> Self {
         Self {
             rpc_pool: self.rpc_pool.clone(),
-            authority: self.authority.insecure_clone(),
+            authority: self.authority.clone(),
             derivation: self.derivation,
             epoch: self.epoch,
             merkle_tree: self.merkle_tree,
             output_queue: self.output_queue,
-            prover_append_url: self.prover_append_url.clone(),
-            prover_update_url: self.prover_update_url.clone(),
-            prover_address_append_url: self.prover_address_append_url.clone(),
-            prover_api_key: self.prover_api_key.clone(),
-            prover_polling_interval: self.prover_polling_interval,
-            prover_max_wait_time: self.prover_max_wait_time,
+            prover_config: self.prover_config.clone(),
             ops_cache: self.ops_cache.clone(),
             epoch_phases: self.epoch_phases.clone(),
             slot_tracker: self.slot_tracker.clone(),
@@ -135,11 +137,10 @@ where
         };
         let slots_remaining = eligibility_end_slot.saturating_sub(current_slot);
 
-        const MIN_SLOTS_FOR_TRANSACTION: u64 = 2;
-        if slots_remaining < MIN_SLOTS_FOR_TRANSACTION {
+        if slots_remaining < SLOTS_STOP_THRESHOLD {
             info!(
-                "Only {} slots remaining until eligibility ends (need at least {}), stopping batch processing",
-                slots_remaining, MIN_SLOTS_FOR_TRANSACTION
+                "Only {} slots remaining until eligibility ends (threshold {}), stopping batch processing",
+                slots_remaining, SLOTS_STOP_THRESHOLD
             );
             if !instruction_batch.is_empty() {
                 let instructions: Vec<Instruction> =
@@ -194,8 +195,6 @@ where
     Ok(total_items_processed)
 }
 
-const MIN_SLOTS_SAFETY_MARGIN: u64 = 2;
-
 pub(crate) async fn send_transaction_batch<R: Rpc>(
     context: &BatchContext<R>,
     instructions: Vec<Instruction>,
@@ -220,10 +219,10 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         context.epoch_phases.active.end
     };
     let slots_remaining = eligibility_end_slot.saturating_sub(current_slot);
-    if slots_remaining < MIN_SLOTS_SAFETY_MARGIN {
+    if slots_remaining < SLOTS_STOP_THRESHOLD {
         debug!(
-            "!! Skipping transaction send: only {} slots remaining until eligibility ends (need at least {})",
-            slots_remaining, MIN_SLOTS_SAFETY_MARGIN
+            "Skipping transaction send: only {} slots remaining until eligibility ends",
+            slots_remaining
         );
         return Err(ForesterError::NotInActivePhase.into());
     }
@@ -238,7 +237,7 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         .create_and_send_transaction(
             &instructions,
             &context.authority.pubkey(),
-            &[&context.authority],
+            &[context.authority.as_ref()],
         )
         .await?;
 

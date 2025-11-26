@@ -35,5 +35,5 @@ pub async fn process_batched_operations<R: Rpc>(
     }
 }
 
-pub use common::BatchContext;
+pub use common::{BatchContext, ProverConfig};
 use light_compressed_account::TreeType;

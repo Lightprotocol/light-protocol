@@ -212,15 +212,8 @@ impl<R: Rpc> StateSupervisor<R> {
         let num_workers = self.context.num_proof_workers.max(1);
 
         let (proof_tx, proof_rx) = mpsc::channel(num_workers * 2);
-        let (job_tx, cancel_flag, worker_handles) = spawn_proof_workers(
-            num_workers,
-            self.context.prover_append_url.clone(),
-            self.context.prover_update_url.clone(),
-            self.context.prover_api_key.clone(),
-            self.context.prover_polling_interval,
-            self.context.prover_max_wait_time,
-            proof_tx,
-        );
+        let (job_tx, cancel_flag, worker_handles) =
+            spawn_proof_workers(num_workers, self.context.prover_config.clone(), proof_tx);
 
         // Reset seq counter - TxSender always expects seq to start at 0
         self.seq = 0;

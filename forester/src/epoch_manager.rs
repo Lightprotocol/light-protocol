@@ -55,7 +55,7 @@ use crate::{
             send_transaction::send_batched_transactions,
             tx_builder::EpochManagerTransactions,
         },
-        v2::{self, process_batched_operations, BatchContext},
+        v2::{self, process_batched_operations, BatchContext, ProverConfig},
     },
     queue_helpers::QueueItemData,
     rollover::{
@@ -104,6 +104,7 @@ pub struct EpochManager<R: Rpc> {
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
+    authority: Arc<Keypair>,
     work_report_sender: mpsc::Sender<WorkReport>,
     processed_items_per_epoch_count: Arc<Mutex<HashMap<u64, AtomicUsize>>>,
     trees: Arc<Mutex<Vec<TreeAccounts>>>,
@@ -123,6 +124,7 @@ impl<R: Rpc> Clone for EpochManager<R> {
             config: self.config.clone(),
             protocol_config: self.protocol_config.clone(),
             rpc_pool: self.rpc_pool.clone(),
+            authority: self.authority.clone(),
             work_report_sender: self.work_report_sender.clone(),
             processed_items_per_epoch_count: self.processed_items_per_epoch_count.clone(),
             trees: self.trees.clone(),
@@ -171,10 +173,12 @@ impl<R: Rpc> EpochManager<R> {
             None
         };
 
+        let authority = Arc::new(config.payer_keypair.insecure_clone());
         Ok(Self {
             config,
             protocol_config,
             rpc_pool,
+            authority,
             work_report_sender,
             processed_items_per_epoch_count: Arc::new(Mutex::new(HashMap::new())),
             trees: Arc::new(Mutex::new(trees)),
@@ -1760,32 +1764,34 @@ impl<R: Rpc> EpochManager<R> {
         let eligibility_end = forester_slot.map(|s| s.end_solana_slot).unwrap_or(0);
         BatchContext {
             rpc_pool: self.rpc_pool.clone(),
-            authority: self.config.payer_keypair.insecure_clone(),
+            authority: self.authority.clone(),
             derivation: self.config.derivation_pubkey,
             epoch: epoch_info.epoch,
             merkle_tree: tree_accounts.merkle_tree,
             output_queue: tree_accounts.queue,
-            prover_append_url: self
-                .config
-                .external_services
-                .prover_append_url
-                .clone()
-                .unwrap_or_else(|| default_prover_url.clone()),
-            prover_update_url: self
-                .config
-                .external_services
-                .prover_update_url
-                .clone()
-                .unwrap_or_else(|| default_prover_url.clone()),
-            prover_address_append_url: self
-                .config
-                .external_services
-                .prover_address_append_url
-                .clone()
-                .unwrap_or_else(|| default_prover_url.clone()),
-            prover_api_key: self.config.external_services.prover_api_key.clone(),
-            prover_polling_interval: Duration::from_secs(1),
-            prover_max_wait_time: Duration::from_secs(600),
+            prover_config: ProverConfig {
+                append_url: self
+                    .config
+                    .external_services
+                    .prover_append_url
+                    .clone()
+                    .unwrap_or_else(|| default_prover_url.clone()),
+                update_url: self
+                    .config
+                    .external_services
+                    .prover_update_url
+                    .clone()
+                    .unwrap_or_else(|| default_prover_url.clone()),
+                address_append_url: self
+                    .config
+                    .external_services
+                    .prover_address_append_url
+                    .clone()
+                    .unwrap_or_else(|| default_prover_url.clone()),
+                api_key: self.config.external_services.prover_api_key.clone(),
+                polling_interval: Duration::from_secs(1),
+                max_wait_time: Duration::from_secs(600),
+            },
             ops_cache: self.ops_cache.clone(),
             epoch_phases: epoch_info.phases.clone(),
             slot_tracker: self.slot_tracker.clone(),
