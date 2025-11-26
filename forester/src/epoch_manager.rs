@@ -1789,8 +1789,16 @@ impl<R: Rpc> EpochManager<R> {
                     .clone()
                     .unwrap_or_else(|| default_prover_url.clone()),
                 api_key: self.config.external_services.prover_api_key.clone(),
-                polling_interval: Duration::from_secs(1),
-                max_wait_time: Duration::from_secs(600),
+                polling_interval: self
+                    .config
+                    .external_services
+                    .prover_polling_interval
+                    .unwrap_or(Duration::from_secs(1)),
+                max_wait_time: self
+                    .config
+                    .external_services
+                    .prover_max_wait_time
+                    .unwrap_or(Duration::from_secs(600)),
             },
             ops_cache: self.ops_cache.clone(),
             epoch_phases: epoch_info.phases.clone(),

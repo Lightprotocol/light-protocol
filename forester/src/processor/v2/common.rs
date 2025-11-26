@@ -129,7 +129,7 @@ where
         let current_slot = context.slot_tracker.estimated_current_slot();
         let forester_end = context
             .forester_eligibility_end_slot
-            .load(Ordering::Relaxed);
+            .load(Ordering::Acquire);
         let eligibility_end_slot = if forester_end > 0 {
             forester_end
         } else {
@@ -212,7 +212,7 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
 
     let forester_end = context
         .forester_eligibility_end_slot
-        .load(Ordering::Relaxed);
+        .load(Ordering::Acquire);
     let eligibility_end_slot = if forester_end > 0 {
         forester_end
     } else {
