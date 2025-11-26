@@ -425,7 +425,12 @@ impl<R: Rpc> StateSupervisor<R> {
         let hashchain_idx = start / self.zkp_batch_size as usize;
         let batch_seq = state_queue.root_seq + (batch_idx as u64) + 1;
 
-        let staging = self.staging_tree.as_mut().unwrap();
+        let staging = self.staging_tree.as_mut().ok_or_else(|| {
+            anyhow!(
+                "Staging tree not initialized for append job (batch_idx={})",
+                batch_idx
+            )
+        })?;
         let result = staging.process_batch_updates(
             &leaf_indices,
             &leaves,
@@ -472,7 +477,12 @@ impl<R: Rpc> StateSupervisor<R> {
         let hashchain_idx = start / self.zkp_batch_size as usize;
         let batch_seq = state_queue.root_seq + (batch_idx as u64) + 1;
 
-        let staging = self.staging_tree.as_mut().unwrap();
+        let staging = self.staging_tree.as_mut().ok_or_else(|| {
+            anyhow!(
+                "Staging tree not initialized for nullify job (batch_idx={})",
+                batch_idx
+            )
+        })?;
         let result = staging.process_batch_updates(
             &leaf_indices,
             &nullifiers,
