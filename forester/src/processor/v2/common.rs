@@ -1,9 +1,15 @@
-use std::{future::Future, sync::Arc, time::Duration};
+use std::{
+    future::Future,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use borsh::BorshSerialize;
 use forester_utils::{
-    forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool, staging_tree::StagingTree,
-    utils::wait_for_indexer,
+    forester_epoch::EpochPhases, rpc_pool::SolanaRpcPool, utils::wait_for_indexer,
 };
 pub use forester_utils::{ParsedMerkleTreeData, ParsedQueueData};
 use futures::{pin_mut, stream::StreamExt, Stream};
@@ -52,8 +58,8 @@ pub struct BatchContext<R: Rpc> {
     pub slot_tracker: Arc<SlotTracker>,
     pub input_queue_hint: Option<u64>,
     pub output_queue_hint: Option<u64>,
-    pub staging_tree_cache: Arc<Mutex<Option<StagingTree>>>,
     pub num_proof_workers: usize,
+    pub forester_eligibility_end_slot: Arc<AtomicU64>,
 }
 
 impl<R: Rpc> Clone for BatchContext<R> {
@@ -76,8 +82,8 @@ impl<R: Rpc> Clone for BatchContext<R> {
             slot_tracker: self.slot_tracker.clone(),
             input_queue_hint: self.input_queue_hint,
             output_queue_hint: self.output_queue_hint,
-            staging_tree_cache: self.staging_tree_cache.clone(),
             num_proof_workers: self.num_proof_workers,
+            forester_eligibility_end_slot: self.forester_eligibility_end_slot.clone(),
         }
     }
 }
@@ -119,13 +125,18 @@ where
         }
 
         let current_slot = context.slot_tracker.estimated_current_slot();
-        let phase_end_slot = context.epoch_phases.active.end;
-        let slots_remaining = phase_end_slot.saturating_sub(current_slot);
+        let forester_end = context.forester_eligibility_end_slot.load(Ordering::Relaxed);
+        let eligibility_end_slot = if forester_end > 0 {
+            forester_end
+        } else {
+            context.epoch_phases.active.end
+        };
+        let slots_remaining = eligibility_end_slot.saturating_sub(current_slot);
 
-        const MIN_SLOTS_FOR_TRANSACTION: u64 = 30;
+        const MIN_SLOTS_FOR_TRANSACTION: u64 = 2;
         if slots_remaining < MIN_SLOTS_FOR_TRANSACTION {
             info!(
-                "Only {} slots remaining in active phase (need at least {}), stopping batch processing",
+                "Only {} slots remaining until eligibility ends (need at least {}), stopping batch processing",
                 slots_remaining, MIN_SLOTS_FOR_TRANSACTION
             );
             if !instruction_batch.is_empty() {
@@ -181,6 +192,8 @@ where
     Ok(total_items_processed)
 }
 
+const MIN_SLOTS_SAFETY_MARGIN: u64 = 2;
+
 pub(crate) async fn send_transaction_batch<R: Rpc>(
     context: &BatchContext<R>,
     instructions: Vec<Instruction>,
@@ -192,6 +205,21 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         debug!(
             "!! Skipping transaction send: not in active phase (current phase: {:?}, slot: {})",
             current_phase_state, current_slot
+        );
+        return Err(ForesterError::NotInActivePhase.into());
+    }
+
+    let forester_end = context.forester_eligibility_end_slot.load(Ordering::Relaxed);
+    let eligibility_end_slot = if forester_end > 0 {
+        forester_end
+    } else {
+        context.epoch_phases.active.end
+    };
+    let slots_remaining = eligibility_end_slot.saturating_sub(current_slot);
+    if slots_remaining < MIN_SLOTS_SAFETY_MARGIN {
+        debug!(
+            "!! Skipping transaction send: only {} slots remaining until eligibility ends (need at least {})",
+            slots_remaining, MIN_SLOTS_SAFETY_MARGIN
         );
         return Err(ForesterError::NotInActivePhase.into());
     }

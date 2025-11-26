@@ -1,4 +1,10 @@
-use std::time::Duration;
+use std::{
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use anyhow::anyhow;
 use async_channel::Receiver;
@@ -15,6 +21,23 @@ use tokio::{sync::mpsc, task::JoinHandle};
 use tracing::{debug, info, trace, warn};
 
 use crate::processor::v2::state::tx_sender::BatchInstruction;
+
+#[derive(Clone, Default)]
+pub struct CancellationFlag(Arc<AtomicBool>);
+
+impl CancellationFlag {
+    pub fn new() -> Self {
+        Self(Arc::new(AtomicBool::new(false)))
+    }
+
+    pub fn cancel(&self) {
+        self.0.store(true, Ordering::SeqCst);
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.0.load(Ordering::SeqCst)
+    }
+}
 
 #[derive(Debug)]
 pub enum ProofInput {
@@ -43,8 +66,6 @@ struct ProverConfig {
     max_wait_time: Duration,
 }
 
-/// Spawns N proof workers that pull jobs from a shared async_channel.
-/// Returns the job sender and worker handles.
 pub fn spawn_proof_workers(
     num_workers: usize,
     prover_append_url: String,
@@ -55,9 +76,11 @@ pub fn spawn_proof_workers(
     result_tx: mpsc::Sender<ProofResult>,
 ) -> (
     async_channel::Sender<ProofJob>,
+    CancellationFlag,
     Vec<JoinHandle<crate::Result<()>>>,
 ) {
     let (job_tx, job_rx) = async_channel::unbounded::<ProofJob>();
+    let cancel_flag = CancellationFlag::new();
 
     let config = ProverConfig {
         append_url: prover_append_url,
@@ -73,17 +96,17 @@ pub fn spawn_proof_workers(
         let job_rx = job_rx.clone();
         let result_tx = result_tx.clone();
         let config = config.clone();
+        let cancel_flag = cancel_flag.clone();
 
-        let handle =
-            tokio::spawn(
-                async move { run_proof_worker(worker_id, job_rx, result_tx, config).await },
-            );
+        let handle = tokio::spawn(async move {
+            run_proof_worker(worker_id, job_rx, result_tx, config, cancel_flag).await
+        });
 
         handles.push(handle);
     }
 
     info!("Spawned {} proof workers", num_workers);
-    (job_tx, handles)
+    (job_tx, cancel_flag, handles)
 }
 
 async fn run_proof_worker(
@@ -91,6 +114,7 @@ async fn run_proof_worker(
     job_rx: Receiver<ProofJob>,
     result_tx: mpsc::Sender<ProofResult>,
     config: ProverConfig,
+    cancel_flag: CancellationFlag,
 ) -> crate::Result<()> {
     let append_client = ProofClient::with_config(
         config.append_url,
@@ -108,39 +132,85 @@ async fn run_proof_worker(
     trace!("ProofWorker {} started", worker_id);
 
     while let Ok(job) = job_rx.recv().await {
+        if cancel_flag.is_cancelled() {
+            debug!(
+                "ProofWorker {} stopping due to cancellation (before job seq={})",
+                worker_id, job.seq
+            );
+            break;
+        }
+
         debug!("ProofWorker {} processing job seq={}", worker_id, job.seq);
 
         let result = match job.inputs {
             ProofInput::Append(inputs) => {
-                let (proof, new_root) = append_client
-                    .generate_batch_append_proof(inputs)
-                    .await
-                    .map_err(|e| anyhow!("ProofWorker {} append proof failed: {}", worker_id, e))?;
-
-                ProofResult {
-                    seq: job.seq,
-                    instruction: BatchInstruction::Append(vec![InstructionDataBatchAppendInputs {
-                        new_root,
-                        compressed_proof: proof.into(),
-                    }]),
+                match append_client.generate_batch_append_proof(inputs).await {
+                    Ok((proof, new_root)) => {
+                        // Check cancellation after proof generation
+                        if cancel_flag.is_cancelled() {
+                            debug!(
+                                "ProofWorker {} stopping due to cancellation (after job seq={})",
+                                worker_id, job.seq
+                            );
+                            break;
+                        }
+                        ProofResult {
+                            seq: job.seq,
+                            instruction: BatchInstruction::Append(vec![
+                                InstructionDataBatchAppendInputs {
+                                    new_root,
+                                    compressed_proof: proof.into(),
+                                },
+                            ]),
+                        }
+                    }
+                    Err(e) => {
+                        cancel_flag.cancel();
+                        warn!(
+                            "ProofWorker {} append proof failed, cancelling all workers: {}",
+                            worker_id, e
+                        );
+                        return Err(anyhow!(
+                            "ProofWorker {} append proof failed: {}",
+                            worker_id,
+                            e
+                        ));
+                    }
                 }
             }
             ProofInput::Nullify(inputs) => {
-                let (proof, new_root) = nullify_client
-                    .generate_batch_update_proof(inputs)
-                    .await
-                    .map_err(|e| {
-                        anyhow!("ProofWorker {} nullify proof failed: {}", worker_id, e)
-                    })?;
-
-                ProofResult {
-                    seq: job.seq,
-                    instruction: BatchInstruction::Nullify(vec![
-                        InstructionDataBatchNullifyInputs {
-                            new_root,
-                            compressed_proof: proof.into(),
-                        },
-                    ]),
+                match nullify_client.generate_batch_update_proof(inputs).await {
+                    Ok((proof, new_root)) => {
+                        // Check cancellation after proof generation
+                        if cancel_flag.is_cancelled() {
+                            debug!(
+                                "ProofWorker {} stopping due to cancellation (after job seq={})",
+                                worker_id, job.seq
+                            );
+                            break;
+                        }
+                        ProofResult {
+                            seq: job.seq,
+                            instruction: BatchInstruction::Nullify(vec![
+                                InstructionDataBatchNullifyInputs {
+                                    new_root,
+                                    compressed_proof: proof.into(),
+                                },
+                            ]),
+                        }
+                    }
+                    Err(e) => {
+                        cancel_flag.cancel();
+                        warn!(
+                            "ProofWorker {} nullify proof failed, cancelling all workers: {}",
+                            worker_id, e
+                        );
+                        return Err(anyhow!(
+                            "ProofWorker {} nullify proof failed: {}",
+                            worker_id,
+                            e
+                        ));
+                    }
                 }
             }
         };

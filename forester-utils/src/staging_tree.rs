@@ -27,12 +27,9 @@ impl From<BatchUpdateResult> for BatchTreeUpdateResult {
     }
 }
 
-/// Type of batch update operation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BatchType {
-    /// Appending new leaves - only update if old leaf is zero
     Append,
-    /// Nullifying existing leaves - always overwrite with new value
     Nullify,
 }
 
@@ -49,8 +46,8 @@ impl std::fmt::Display for BatchType {
 pub struct StagingTree {
     tree: MerkleTree<Poseidon>,
     current_root: [u8; 32],
-    updates: Vec<(u64, [u8; 32])>,
-    /// Sequence number of the root when this tree was built from indexer
+    /// Updates tracked as (leaf_index, new_leaf, batch_seq)
+    updates: Vec<(u64, [u8; 32], u64)>,
     base_seq: u64,
 }
 
@@ -103,11 +100,12 @@ impl StagingTree {
         &mut self,
         leaf_index: u64,
         new_leaf: [u8; 32],
+        batch_seq: u64,
     ) -> Result<(), ForesterUtilsError> {
         let leaf_idx = leaf_index as usize;
         self.ensure_layer_capacity(0, leaf_idx, &format!("for index {}", leaf_idx));
         self.do_tree_update(leaf_index, new_leaf)?;
-        self.updates.push((leaf_index, new_leaf));
+        self.updates.push((leaf_index, new_leaf, batch_seq));
         self.current_root = self.tree.root();
         Ok(())
     }
@@ -118,6 +116,7 @@ impl StagingTree {
         new_leaves: &[[u8; 32]],
         batch_type: BatchType,
         batch_idx: usize,
+        batch_seq: u64,
     ) -> Result<BatchUpdateResult, ForesterUtilsError> {
         if leaf_indices.len() != new_leaves.len() {
             return Err(ForesterUtilsError::StagingTree(format!(
@@ -161,7 +160,7 @@ impl StagingTree {
             };
 
             self.do_tree_update(leaf_idx, final_leaf)?;
-            self.updates.push((leaf_idx, final_leaf));
+            self.updates.push((leaf_idx, final_leaf, batch_seq));
 
             merkle_proofs.push(proof);
         }
@@ -170,7 +169,7 @@ impl StagingTree {
         self.current_root = new_root;
 
         debug!(
-            "   {} batch {} root transition: {:?}[..4] -> {:?}[..4]",
+            "{} batch {} root transition: {:?}[..4] -> {:?}[..4]",
             batch_type,
             batch_idx,
             &old_root[..4],
@@ -191,16 +190,12 @@ impl StagingTree {
             .map_err(|e| ForesterUtilsError::StagingTree(format!("Failed to get proof: {}", e)))
     }
 
-    pub fn get_updates(&self) -> &[(u64, [u8; 32])] {
+    pub fn get_updates(&self) -> &[(u64, [u8; 32], u64)] {
         &self.updates
     }
 
     pub fn clear_updates(&mut self) {
         self.updates.clear();
-    }
-
-    pub fn into_updates(self) -> Vec<(u64, [u8; 32])> {
-        self.updates
     }
 
     pub fn new(
@@ -243,11 +238,22 @@ impl StagingTree {
         })
     }
 
-    /// Replays pending updates from a previous staging tree onto this one.
-    /// Returns the number of updates successfully replayed.
-    pub fn replay_pending_updates(&mut self, pending_updates: &[(u64, [u8; 32])]) -> usize {
+    pub fn replay_pending_updates(
+        &mut self,
+        pending_updates: &[(u64, [u8; 32], u64)],
+        indexer_seq: u64,
+    ) -> (usize, usize, usize) {
+        let total = pending_updates.len();
         let mut replayed = 0;
-        for &(leaf_idx, new_leaf) in pending_updates {
+        let mut skipped_confirmed = 0;
+
+        for &(leaf_idx, new_leaf, update_seq) in pending_updates {
+            // Skip updates from batches that have already been confirmed on-chain
+            if update_seq <= indexer_seq {
+                skipped_confirmed += 1;
+                continue;
+            }
+
             let current_leaf = self.get_leaf(leaf_idx);
             let is_zero = current_leaf.iter().all(|&b| b == 0);
 
@@ -255,12 +261,16 @@ impl StagingTree {
                 let leaf_idx_usize = leaf_idx as usize;
                 self.ensure_layer_capacity(0, leaf_idx_usize, "replay pending");
                 if self.do_tree_update(leaf_idx, new_leaf).is_ok() {
-                    self.updates.push((leaf_idx, new_leaf));
+                    self.updates.push((leaf_idx, new_leaf, update_seq));
                     replayed += 1;
                 }
             }
         }
 
-        replayed
+        if replayed > 0 {
+            self.current_root = self.tree.root();
+        }
+
+        (total, replayed, skipped_confirmed)
     }
 }

@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc,
     },
     time::Duration,
@@ -12,7 +12,6 @@ use dashmap::DashMap;
 use forester_utils::{
     forester_epoch::{get_epoch_phases, Epoch, ForesterSlot, TreeAccounts, TreeForesterSchedule},
     rpc_pool::SolanaRpcPool,
-    staging_tree::StagingTree,
 };
 use futures::future::join_all;
 use kameo::actor::{ActorRef, Spawn};
@@ -114,7 +113,6 @@ pub struct EpochManager<R: Rpc> {
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
     queue_poller: Option<ActorRef<QueueInfoPoller>>,
-    staging_tree_caches: Arc<DashMap<Pubkey, Arc<Mutex<Option<StagingTree>>>>>,
     state_supervisors: StateSupervisorMap<R>,
     compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
 }
@@ -134,7 +132,6 @@ impl<R: Rpc> Clone for EpochManager<R> {
             tx_cache: self.tx_cache.clone(),
             ops_cache: self.ops_cache.clone(),
             queue_poller: self.queue_poller.clone(),
-            staging_tree_caches: self.staging_tree_caches.clone(),
             state_supervisors: self.state_supervisors.clone(),
             compressible_tracker: self.compressible_tracker.clone(),
         }
@@ -187,7 +184,6 @@ impl<R: Rpc> EpochManager<R> {
             tx_cache,
             ops_cache,
             queue_poller,
-            staging_tree_caches: Arc::new(DashMap::new()),
             state_supervisors: Arc::new(DashMap::new()),
             compressible_tracker,
         })
@@ -398,7 +394,6 @@ impl<R: Rpc> EpochManager<R> {
                         supervisor_count, current_epoch
                     );
                 }
-                self.staging_tree_caches.clear();
                 let phases = get_epoch_phases(&self.protocol_config, current_epoch);
                 if slot < phases.registration.end {
                     debug!("Sending current epoch {} for processing", current_epoch);
@@ -1566,8 +1561,13 @@ impl<R: Rpc> EpochManager<R> {
                 .await
             }
             TreeType::StateV2 | TreeType::AddressV2 => {
-                self.process_v2(epoch_info, tree_accounts, queue_update)
-                    .await
+                self.process_v2(
+                    epoch_info,
+                    tree_accounts,
+                    queue_update,
+                    forester_slot_details,
+                )
+                .await
             }
         }
     }
@@ -1754,8 +1754,10 @@ impl<R: Rpc> EpochManager<R> {
         tree_accounts: &TreeAccounts,
         input_queue_hint: Option<u64>,
         output_queue_hint: Option<u64>,
+        forester_slot: Option<&ForesterSlot>,
     ) -> BatchContext<R> {
         let default_prover_url = "http://127.0.0.1:3001".to_string();
+        let eligibility_end = forester_slot.map(|s| s.end_solana_slot).unwrap_or(0);
         BatchContext {
             rpc_pool: self.rpc_pool.clone(),
             authority: self.config.payer_keypair.insecure_clone(),
@@ -1789,12 +1791,8 @@ impl<R: Rpc> EpochManager<R> {
             slot_tracker: self.slot_tracker.clone(),
             input_queue_hint,
             output_queue_hint,
-            staging_tree_cache: self
-                .staging_tree_caches
-                .entry(tree_accounts.merkle_tree)
-                .or_insert_with(|| Arc::new(Mutex::new(None)))
-                .clone(),
             num_proof_workers: self.config.transaction_config.max_concurrent_batches,
+            forester_eligibility_end_slot: Arc::new(AtomicU64::new(eligibility_end)),
         }
     }
 
@@ -1817,8 +1815,10 @@ impl<R: Rpc> EpochManager<R> {
                         "Removing stale StateSupervisor for tree {} (epoch {} -> {})",
                         tree_accounts.merkle_tree, *stored_epoch, epoch_info.epoch
                     );
+                    // Don't pass forester_slot - StateSupervisor is long-lived across forester slots,
+                    // so it should use the global active phase end for safety checks
                     let batch_context =
-                        self.build_batch_context(epoch_info, tree_accounts, None, None);
+                        self.build_batch_context(epoch_info, tree_accounts, None, None, None);
                     let supervisor = v2::state::StateSupervisor::spawn(batch_context);
                     info!(
                         "Created StateSupervisor actor for tree {} (epoch {})",
@@ -1829,7 +1829,10 @@ impl<R: Rpc> EpochManager<R> {
                 }
             }
             Entry::Vacant(vacant) => {
-                let batch_context = self.build_batch_context(epoch_info, tree_accounts, None, None);
+                // Don't pass forester_slot - StateSupervisor is long-lived across forester slots,
+                // so it should use the global active phase end for safety checks
+                let batch_context =
+                    self.build_batch_context(epoch_info, tree_accounts, None, None, None);
                 let supervisor = v2::state::StateSupervisor::spawn(batch_context);
                 info!(
                     "Created StateSupervisor actor for tree {} (epoch {})",
@@ -1846,6 +1849,7 @@ impl<R: Rpc> EpochManager<R> {
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
         queue_update: Option<&QueueUpdateMessage>,
+        forester_slot_details: &ForesterSlot,
     ) -> Result<usize> {
         match tree_accounts.tree_type {
             TreeType::StateV2 => {
@@ -1853,6 +1857,20 @@ impl<R: Rpc> EpochManager<R> {
                     let supervisor = self
                         .get_or_create_state_supervisor(epoch_info, tree_accounts)
                         .await?;
+
+                    supervisor
+                        .ask(v2::state::UpdateEligibility {
+                            end_slot: forester_slot_details.end_solana_slot,
+                        })
+                        .send()
+                        .await
+                        .map_err(|e| {
+                            anyhow!(
+                                "Failed to send UpdateEligibility to StateSupervisor for tree {}: {}",
+                                tree_accounts.merkle_tree,
+                                e
+                            )
+                        })?;
 
                     let work = v2::state::QueueWork {
                         queue_type: update.queue_type,
@@ -1876,8 +1894,13 @@ impl<R: Rpc> EpochManager<R> {
             }
             TreeType::AddressV2 => {
                 let input_queue_hint = queue_update.map(|u| u.queue_size);
-                let batch_context =
-                    self.build_batch_context(epoch_info, tree_accounts, input_queue_hint, None);
+                let batch_context = self.build_batch_context(
+                    epoch_info,
+                    tree_accounts,
+                    input_queue_hint,
+                    None,
+                    Some(forester_slot_details),
+                );
 
                 process_batched_operations(batch_context, tree_accounts.tree_type)
                     .await

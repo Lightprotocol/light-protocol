@@ -1,8 +1,5 @@
 use anyhow::anyhow;
-use forester_utils::{
-    staging_tree::{BatchType, StagingTree},
-    utils::wait_for_indexer,
-};
+use forester_utils::staging_tree::{BatchType, StagingTree};
 use kameo::{
     actor::{ActorRef, WeakActorRef},
     error::ActorStopReason,
@@ -45,13 +42,16 @@ pub struct ProcessQueueUpdate {
     pub queue_work: QueueWork,
 }
 
+#[derive(Debug, Clone)]
+pub struct UpdateEligibility {
+    pub end_slot: u64,
+}
+
 pub struct StateSupervisor<R: Rpc> {
     context: BatchContext<R>,
     staging_tree: Option<StagingTree>,
     current_root: [u8; 32],
-    /// Tree's next_index for appends (updated after each append batch)
     next_index: u64,
-    /// ZKP batch size fetched once from on-chain at startup
     zkp_batch_size: u64,
     seq: u64,
 }
@@ -76,15 +76,9 @@ impl<R: Rpc> Actor for StateSupervisor<R> {
             zkp_batch_size, context.merkle_tree
         );
 
-        // Try to restore staging tree from cache (will be validated against indexer data later)
-        let staging_tree = {
-            let cache = context.staging_tree_cache.lock().await;
-            cache.clone()
-        };
-
         Ok(Self {
             context,
-            staging_tree,
+            staging_tree: None,
             current_root: [0u8; 32],
             next_index: 0,
             zkp_batch_size,
@@ -101,11 +95,6 @@ impl<R: Rpc> Actor for StateSupervisor<R> {
             "StateSupervisor actor stopping for tree {}",
             self.context.merkle_tree
         );
-        // Save staging tree to cache before stopping
-        if let Some(ref tree) = self.staging_tree {
-            let mut cache = self.context.staging_tree_cache.lock().await;
-            *cache = Some(tree.clone());
-        }
         Ok(())
     }
 }
@@ -122,25 +111,27 @@ impl<R: Rpc> Message<ProcessQueueUpdate> for StateSupervisor<R> {
     }
 }
 
-/// Common batch data needed for staging tree reconciliation.
-struct StagingTreeBatchData<'a> {
-    leaf_indices: &'a [u64],
-    leaves: &'a [[u8; 32]],
-    nodes: &'a [u64],
-    node_hashes: &'a [[u8; 32]],
-    initial_root: [u8; 32],
-    root_seq: u64,
+impl<R: Rpc> Message<UpdateEligibility> for StateSupervisor<R> {
+    type Reply = ();
+
+    async fn handle(
+        &mut self,
+        msg: UpdateEligibility,
+        _ctx: &mut kameo::message::Context<Self, Self::Reply>,
+    ) -> Self::Reply {
+        debug!(
+            "Updating eligibility end slot to {} for tree {}",
+            msg.end_slot, self.context.merkle_tree
+        );
+        self.context
+            .forester_eligibility_end_slot
+            .store(msg.end_slot, std::sync::atomic::Ordering::Relaxed);
+    }
 }
 
 impl<R: Rpc> StateSupervisor<R> {
     fn zkp_batch_size(&self) -> u64 {
         self.zkp_batch_size
-    }
-
-    /// Saves the current staging tree to the cache.
-    async fn save_staging_tree_cache(&self) {
-        let mut cache = self.context.staging_tree_cache.lock().await;
-        *cache = self.staging_tree.clone();
     }
 
     /// Gets the leaves hashchain for a batch, returning an error if not found.
@@ -164,134 +155,13 @@ impl<R: Rpc> StateSupervisor<R> {
     }
 
     /// Finalizes a proof job by updating state and returning the job.
-    async fn finish_job(&mut self, new_root: [u8; 32], inputs: ProofInput) -> Option<ProofJob> {
+    fn finish_job(&mut self, new_root: [u8; 32], inputs: ProofInput) -> Option<ProofJob> {
         self.current_root = new_root;
         self.seq += 1;
-        self.save_staging_tree_cache().await;
         Some(ProofJob {
             seq: self.seq - 1,
             inputs,
         })
-    }
-
-    /// Reconciles staging tree with indexer data.
-    /// Returns true if staging tree is ready for use, false if we should skip this batch.
-    fn reconcile_staging_tree(
-        &mut self,
-        batch_idx: usize,
-        batch_data: &StagingTreeBatchData<'_>,
-        batch_type: &str,
-    ) -> bool {
-        // Initialize staging tree from indexer data if none exists
-        if self.staging_tree.is_none() {
-            match StagingTree::new(
-                batch_data.leaf_indices,
-                batch_data.leaves,
-                batch_data.nodes,
-                batch_data.node_hashes,
-                batch_data.initial_root,
-                batch_data.root_seq,
-            ) {
-                Ok(tree) => {
-                    self.staging_tree = Some(tree);
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to initialize {} staging tree from indexer data: {}. Retrying later.",
-                        batch_type, e
-                    );
-                    return false;
-                }
-            }
-        }
-
-        // Validate staging tree root matches indexer data for first batch
-        if batch_idx == 0
-            && self
-                .staging_tree
-                .as_ref()
-                .map(|t| t.current_root() != batch_data.initial_root)
-                .unwrap_or(true)
-        {
-            let staging = self.staging_tree.as_ref();
-            let staging_seq = staging.map(|t| t.base_seq()).unwrap_or(0);
-            let indexer_seq = batch_data.root_seq;
-            let pending_updates = staging
-                .map(|t| t.get_updates().to_vec())
-                .unwrap_or_default();
-
-            let rebuild_result = if indexer_seq > staging_seq {
-                // Indexer is ahead - we're behind, rebuild entirely from indexer
-                info!(
-                    "{} staging tree behind indexer (staging_seq={}, indexer_seq={}), rebuilding",
-                    batch_type, staging_seq, indexer_seq
-                );
-                StagingTree::new(
-                    batch_data.leaf_indices,
-                    batch_data.leaves,
-                    batch_data.nodes,
-                    batch_data.node_hashes,
-                    batch_data.initial_root,
-                    batch_data.root_seq,
-                )
-            } else if !pending_updates.is_empty() {
-                // We're ahead with pending updates - rebuild and replay
-                info!(
-                    "{} staging tree ahead (staging_seq={}, indexer_seq={}, {} pending), rebuilding and replaying",
-                    batch_type, staging_seq, indexer_seq, pending_updates.len()
-                );
-                match StagingTree::new(
-                    batch_data.leaf_indices,
-                    batch_data.leaves,
-                    batch_data.nodes,
-                    batch_data.node_hashes,
-                    batch_data.initial_root,
-                    batch_data.root_seq,
-                ) {
-                    Ok(mut tree) => {
-                        let replayed = tree.replay_pending_updates(&pending_updates);
-                        info!(
-                            "Replayed {}/{} pending {} updates",
-                            replayed,
-                            pending_updates.len(),
-                            batch_type.to_lowercase()
-                        );
-                        Ok(tree)
-                    }
-                    Err(e) => Err(e),
-                }
-            } else {
-                // No pending updates, just rebuild
-                info!(
-                    "{} staging tree stale (staging_seq={}, indexer_seq={}), rebuilding",
-                    batch_type, staging_seq, indexer_seq
-                );
-                StagingTree::new(
-                    batch_data.leaf_indices,
-                    batch_data.leaves,
-                    batch_data.nodes,
-                    batch_data.node_hashes,
-                    batch_data.initial_root,
-                    batch_data.root_seq,
-                )
-            };
-
-            match rebuild_result {
-                Ok(tree) => {
-                    self.staging_tree = Some(tree);
-                }
-                Err(e) => {
-                    warn!(
-                        "Failed to rebuild {} staging tree: {}. Skipping batch.",
-                        batch_type, e
-                    );
-                    self.staging_tree = None;
-                    return false;
-                }
-            }
-        }
-
-        true
     }
 
     async fn process_queue_update(&mut self, queue_work: QueueWork) -> crate::Result<usize> {
@@ -334,9 +204,6 @@ impl<R: Rpc> StateSupervisor<R> {
             }
         };
 
-        // Re-anchor to get fresh indexer data and verify consistency
-        self.reanchor().await?;
-
         let max_batches = (queue_work.queue_size / zkp_batch_size) as usize;
         if max_batches == 0 {
             return Ok(0);
@@ -345,7 +212,7 @@ impl<R: Rpc> StateSupervisor<R> {
         let num_workers = self.context.num_proof_workers.max(1);
 
         let (proof_tx, proof_rx) = mpsc::channel(num_workers * 2);
-        let (job_tx, worker_handles) = spawn_proof_workers(
+        let (job_tx, cancel_flag, worker_handles) = spawn_proof_workers(
             num_workers,
             self.context.prover_append_url.clone(),
             self.context.prover_update_url.clone(),
@@ -354,6 +221,9 @@ impl<R: Rpc> StateSupervisor<R> {
             self.context.prover_max_wait_time,
             proof_tx,
         );
+
+        // Reset seq counter - TxSender always expects seq to start at 0
+        self.seq = 0;
 
         let tx_sender_handle = TxSender::spawn(
             self.context.clone(),
@@ -364,41 +234,75 @@ impl<R: Rpc> StateSupervisor<R> {
 
         self.enqueue_batches(phase, max_batches, job_tx).await?;
 
+        let mut had_errors = false;
         for handle in worker_handles {
             match handle.await {
                 Ok(Ok(())) => {}
-                Ok(Err(e)) => warn!("Proof worker error: {}", e),
-                Err(e) => warn!("Proof worker join error: {}", e),
+                Ok(Err(e)) => {
+                    warn!("Proof worker error: {}", e);
+                    had_errors = true;
+                }
+                Err(e) => {
+                    warn!("Proof worker join error: {}", e);
+                    had_errors = true;
+                }
             }
         }
 
         let tx_processed = match tx_sender_handle.await {
-            Ok(res) => res?,
-            Err(e) => return Err(anyhow!("Tx sender join error: {}", e)),
+            Ok(res) => match res {
+                Ok(processed) => processed,
+                Err(e) => {
+                    warn!("Tx sender error, resetting staging tree: {}", e);
+                    self.reset_staging_tree();
+                    return Err(e);
+                }
+            },
+            Err(e) => {
+                warn!("Tx sender join error, resetting staging tree: {}", e);
+                self.reset_staging_tree();
+                return Err(anyhow!("Tx sender join error: {}", e));
+            }
         };
+
+        if had_errors || cancel_flag.is_cancelled() {
+            warn!(
+                "Errors detected (had_errors={}, cancelled={}), resetting staging tree",
+                had_errors,
+                cancel_flag.is_cancelled()
+            );
+            self.reset_staging_tree();
+        }
 
         Ok(tx_processed)
     }
 
-    async fn reanchor(&mut self) -> crate::Result<()> {
-        let rpc = self.context.rpc_pool.get_connection().await?;
-        wait_for_indexer(&*rpc).await?;
-
-        let prev_staging_root = self.staging_tree.as_ref().map(|t| t.current_root());
-
+    fn reset_staging_tree(&mut self) {
         info!(
-            "Reanchoring: prev staging root {:?}",
-            prev_staging_root.as_ref().map(|r| format!("{:?}", &r[..4]))
+            "Resetting staging tree for tree {}",
+            self.context.merkle_tree
         );
-
-        // Invalidate staging tree on reanchor to get fresh indexer data
-        // The staging tree will be rebuilt from indexer data in build_append_job/build_nullify_job
         self.staging_tree = None;
-        let mut cache = self.context.staging_tree_cache.lock().await;
-        *cache = None;
+    }
 
-        self.seq = 0;
-
+    fn build_staging_tree(
+        &mut self,
+        leaf_indices: &[u64],
+        leaves: &[[u8; 32]],
+        nodes: &[u64],
+        node_hashes: &[[u8; 32]],
+        initial_root: [u8; 32],
+        root_seq: u64,
+    ) -> crate::Result<()> {
+        self.staging_tree = Some(StagingTree::new(
+            leaf_indices,
+            leaves,
+            nodes,
+            node_hashes,
+            initial_root,
+            root_seq,
+        )?);
+        debug!("Built staging tree from indexer (seq={})", root_seq);
         Ok(())
     }
 
@@ -430,17 +334,26 @@ impl<R: Rpc> StateSupervisor<R> {
                     return Ok(());
                 }
 
-                // Initialize state from indexer response (shared root/seq at state_queue level)
                 self.current_root = state_queue.initial_root;
                 self.next_index = output_batch.next_index;
                 info!(
-                    "Initialized from indexer: root {:?}[..4], next_index {}",
+                    "Synced from indexer: root {:?}[..4], next_index {}",
                     &self.current_root[..4],
                     self.next_index
                 );
 
+                self.build_staging_tree(
+                    &output_batch.leaf_indices,
+                    &output_batch.old_leaves,
+                    &state_queue.nodes,
+                    &state_queue.node_hashes,
+                    state_queue.initial_root,
+                    state_queue.root_seq,
+                )?;
+
                 let available = output_batch.leaf_indices.len();
                 let num_slices = (available / zkp_batch_size).min(max_batches);
+
                 for batch_idx in 0..num_slices {
                     let start = batch_idx * zkp_batch_size;
                     if let Some(job) = self
@@ -464,12 +377,22 @@ impl<R: Rpc> StateSupervisor<R> {
 
                 self.current_root = state_queue.initial_root;
                 info!(
-                    "Initialized from indexer: root {:?}[..4]",
+                    "Synced from indexer: root {:?}[..4]",
                     &self.current_root[..4]
                 );
 
+                self.build_staging_tree(
+                    &input_batch.leaf_indices,
+                    &input_batch.current_leaves,
+                    &state_queue.nodes,
+                    &state_queue.node_hashes,
+                    state_queue.initial_root,
+                    state_queue.root_seq,
+                )?;
+
                 let available = input_batch.leaf_indices.len();
                 let num_slices = (available / zkp_batch_size).min(max_batches);
+
                 for batch_idx in 0..num_slices {
                     let start = batch_idx * zkp_batch_size;
                     if let Some(job) = self
@@ -502,32 +425,26 @@ impl<R: Rpc> StateSupervisor<R> {
             .as_ref()
             .ok_or_else(|| anyhow!("Output queue not present in state queue"))?;
 
-        let batch_data = StagingTreeBatchData {
-            leaf_indices: &batch.leaf_indices,
-            leaves: &batch.old_leaves,
-            nodes: &state_queue.nodes,
-            node_hashes: &state_queue.node_hashes,
-            initial_root: state_queue.initial_root,
-            root_seq: state_queue.root_seq,
-        };
-
-        if !self.reconcile_staging_tree(batch_idx, &batch_data, "Append") {
-            return Ok(None);
-        }
-
         let range = self.batch_range(batch.account_hashes.len(), start);
-        let staging = self.staging_tree.as_mut().unwrap();
         let leaves = batch.account_hashes[range.clone()].to_vec();
         let leaf_indices = batch.leaf_indices[range].to_vec();
 
-        let result =
-            staging.process_batch_updates(&leaf_indices, &leaves, BatchType::Append, batch_idx)?;
+        let hashchain_idx = start / self.zkp_batch_size as usize;
+        let batch_seq = state_queue.root_seq + (batch_idx as u64) + 1;
+
+        let staging = self.staging_tree.as_mut().unwrap();
+        let result = staging.process_batch_updates(
+            &leaf_indices,
+            &leaves,
+            BatchType::Append,
+            batch_idx,
+            batch_seq,
+        )?;
         let new_root = result.new_root;
 
-        let leaves_hashchain = Self::get_leaves_hashchain(&batch.leaves_hash_chains, batch_idx)?;
-        let start_index =
-            self.next_index
-                .saturating_add((batch_idx as u64) * self.zkp_batch_size) as u32;
+        let leaves_hashchain =
+            Self::get_leaves_hashchain(&batch.leaves_hash_chains, hashchain_idx)?;
+        let start_index = leaf_indices.first().copied().unwrap_or(0) as u32;
 
         let circuit_inputs =
             BatchAppendsCircuitInputs::new::<{ DEFAULT_BATCH_STATE_TREE_HEIGHT as usize }>(
@@ -540,9 +457,7 @@ impl<R: Rpc> StateSupervisor<R> {
             .map_err(|e| anyhow!("Failed to build append inputs: {}", e))?;
 
         self.next_index = self.next_index.saturating_add(self.zkp_batch_size);
-        Ok(self
-            .finish_job(new_root, ProofInput::Append(circuit_inputs))
-            .await)
+        Ok(self.finish_job(new_root, ProofInput::Append(circuit_inputs)))
     }
 
     async fn build_nullify_job(
@@ -556,31 +471,21 @@ impl<R: Rpc> StateSupervisor<R> {
             .as_ref()
             .ok_or_else(|| anyhow!("Input queue not present in state queue"))?;
 
-        let batch_data = StagingTreeBatchData {
-            leaf_indices: &batch.leaf_indices,
-            leaves: &batch.current_leaves,
-            nodes: &state_queue.nodes,
-            node_hashes: &state_queue.node_hashes,
-            initial_root: state_queue.initial_root,
-            root_seq: state_queue.root_seq,
-        };
-
-        if !self.reconcile_staging_tree(batch_idx, &batch_data, "Nullify") {
-            return Ok(None);
-        }
-
         let range = self.batch_range(batch.account_hashes.len(), start);
-        let staging = self.staging_tree.as_mut().unwrap();
         let account_hashes = batch.account_hashes[range.clone()].to_vec();
         let tx_hashes = batch.tx_hashes[range.clone()].to_vec();
         let nullifiers = batch.nullifiers[range.clone()].to_vec();
         let leaf_indices = batch.leaf_indices[range].to_vec();
+        let hashchain_idx = start / self.zkp_batch_size as usize;
+        let batch_seq = state_queue.root_seq + (batch_idx as u64) + 1;
 
+        let staging = self.staging_tree.as_mut().unwrap();
         let result = staging.process_batch_updates(
             &leaf_indices,
             &nullifiers,
             BatchType::Nullify,
             batch_idx,
+            batch_seq,
         )?;
         info!(
             "nullify batch {} root {:?}[..4] => {:?}[..4]",
@@ -590,7 +495,8 @@ impl<R: Rpc> StateSupervisor<R> {
         );
 
         let new_root = result.new_root;
-        let leaves_hashchain = Self::get_leaves_hashchain(&batch.leaves_hash_chains, batch_idx)?;
+        let leaves_hashchain =
+            Self::get_leaves_hashchain(&batch.leaves_hash_chains, hashchain_idx)?;
         let path_indices: Vec<u32> = leaf_indices.iter().map(|idx| *idx as u32).collect();
 
         let circuit_inputs =
@@ -604,8 +510,6 @@ impl<R: Rpc> StateSupervisor<R> {
             )
             .map_err(|e| anyhow!("Failed to build nullify inputs: {}", e))?;
 
-        Ok(self
-            .finish_job(new_root, ProofInput::Nullify(circuit_inputs))
-            .await)
+        Ok(self.finish_job(new_root, ProofInput::Nullify(circuit_inputs)))
     }
 }
