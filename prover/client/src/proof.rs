@@ -17,7 +17,7 @@ pub struct ProofResult {
     pub public_inputs: Vec<[u8; 32]>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct ProofCompressed {
     pub a: [u8; 32],
     pub b: [u8; 64],
@@ -26,16 +26,6 @@ pub struct ProofCompressed {
 
 impl From<ProofCompressed> for CompressedProof {
     fn from(proof: ProofCompressed) -> Self {
-        CompressedProof {
-            a: proof.a,
-            b: proof.b,
-            c: proof.c,
-        }
-    }
-}
-
-impl From<&ProofCompressed> for CompressedProof {
-    fn from(proof: &ProofCompressed) -> Self {
         CompressedProof {
             a: proof.a,
             b: proof.b,
