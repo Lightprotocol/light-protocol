@@ -166,8 +166,8 @@ impl<R: Rpc> StateSupervisor<R> {
 
     async fn process_queue_update(&mut self, queue_work: QueueWork) -> crate::Result<usize> {
         debug!(
-            "StateSupervisor processing queue update for tree {}",
-            self.context.merkle_tree
+            "StateSupervisor processing queue update for tree {} (hint: {} items)",
+            self.context.merkle_tree, queue_work.queue_size
         );
 
         // Check if we're still in the active phase before processing
@@ -185,16 +185,6 @@ impl<R: Rpc> StateSupervisor<R> {
             return Ok(0);
         }
 
-        let zkp_batch_size = self.zkp_batch_size();
-        if queue_work.queue_size < zkp_batch_size {
-            trace!(
-                "Queue size {} below zkp_batch_size {}, skipping",
-                queue_work.queue_size,
-                zkp_batch_size
-            );
-            return Ok(0);
-        }
-
         let phase = match queue_work.queue_type {
             QueueType::OutputStateV2 => Phase::Append,
             QueueType::InputStateV2 => Phase::Nullify,
@@ -204,10 +194,11 @@ impl<R: Rpc> StateSupervisor<R> {
             }
         };
 
-        let max_batches = (queue_work.queue_size / zkp_batch_size) as usize;
-        if max_batches == 0 {
-            return Ok(0);
-        }
+        // Ignore the hint and fetch maximum available batches.
+        // The hint can be stale/small while the actual queue has more items.
+        // We fetch up to num_proof_workers batches to maximize parallelism.
+        let zkp_batch_size = self.zkp_batch_size();
+        let max_batches = self.context.num_proof_workers.max(1);
 
         let num_workers = self.context.num_proof_workers.max(1);
 

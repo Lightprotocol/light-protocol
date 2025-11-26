@@ -4,7 +4,7 @@
   "license": "GPL-3.0",
   "scripts": {
     "build": "cargo build",
-    "test": "redis-start && TEST_MODE=local DUMP_PHOTON_DATA=1 TEST_V1_STATE=false TEST_V2_STATE=true TEST_V1_ADDRESS=false TEST_V2_ADDRESS=false RUST_LOG=forester=debug,forester_utils=debug,light_prover_client=debug cargo test --package forester e2e_test -- --nocapture",
+    "test": "redis-start && TEST_MODE=local DUMP_PHOTON_DATA=1 TEST_V1_STATE=true TEST_V2_STATE=true TEST_V1_ADDRESS=true TEST_V2_ADDRESS=true RUST_LOG=forester=debug,forester_utils=debug,light_prover_client=debug cargo test --package forester e2e_test -- --nocapture",
     "docker:build": "docker build --tag forester -f Dockerfile .."
   },
   "devDependencies": {
