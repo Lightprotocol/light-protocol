@@ -14,7 +14,7 @@ use light_prover_client::proof_types::{
 };
 use light_registry::protocol_config::state::EpochState;
 use tokio::sync::mpsc;
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, info, warn};
 
 use crate::processor::v2::{
     state::{
