@@ -194,19 +194,12 @@ impl<R: Rpc> StateSupervisor<R> {
             }
         };
 
-        // Ignore the hint and fetch maximum available batches.
-        // The hint can be stale/small while the actual queue has more items.
-        // We fetch up to num_proof_workers batches to maximize parallelism.
-        let zkp_batch_size = self.zkp_batch_size();
-        let max_batches = self.context.num_proof_workers.max(1);
-
-        let num_workers = self.context.num_proof_workers.max(1);
+        let num_workers = self.context.num_proof_workers.max(60);
 
         let (proof_tx, proof_rx) = mpsc::channel(num_workers * 2);
         let (job_tx, cancel_flag, worker_handles) =
             spawn_proof_workers(num_workers, self.context.prover_config.clone(), proof_tx);
 
-        // Reset seq counter - TxSender always expects seq to start at 0
         self.seq = 0;
 
         let tx_sender_handle = TxSender::spawn(
@@ -216,7 +209,7 @@ impl<R: Rpc> StateSupervisor<R> {
             self.current_root,
         );
 
-        self.enqueue_batches(phase, max_batches, job_tx).await?;
+        self.enqueue_batches(phase, num_workers, job_tx).await?;
 
         let mut had_errors = false;
         for handle in worker_handles {
