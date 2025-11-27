@@ -31,4 +31,7 @@ pub enum ForesterUtilsError {
 
     #[error("error: {0}")]
     StagingTree(String),
+
+    #[error("address staging tree error: {0}")]
+    AddressStagingTree(String),
 }

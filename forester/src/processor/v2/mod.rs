@@ -1,8 +1,7 @@
-mod address;
-mod common;
+pub mod address;
+pub mod common;
 pub mod state;
 
-use common::BatchProcessor;
 use light_client::rpc::Rpc;
 use tracing::{instrument, trace};
 
@@ -24,8 +23,8 @@ pub async fn process_batched_operations<R: Rpc>(
     trace!("process_batched_operations");
     match tree_type {
         TreeType::AddressV2 => {
-            let processor = BatchProcessor::new(context, tree_type);
-            processor.process().await
+            trace!("AddressV2 processing should be handled through AddressSupervisor actor");
+            Ok(0)
         }
         TreeType::StateV2 => {
             trace!("StateV2 processing should be handled through StateSupervisor actor");

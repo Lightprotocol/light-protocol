@@ -7,6 +7,7 @@ use light_batched_merkle_tree::merkle_tree::{
 use light_client::rpc::Rpc;
 use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
+    create_batch_update_address_tree_instruction,
 };
 use solana_sdk::signature::Signer;
 use tokio::{sync::mpsc, task::JoinHandle};
@@ -23,6 +24,7 @@ use crate::{
 pub enum BatchInstruction {
     Append(Vec<InstructionDataBatchAppendInputs>),
     Nullify(Vec<InstructionDataBatchNullifyInputs>),
+    AddressAppend(Vec<light_batched_merkle_tree::merkle_tree::InstructionDataAddressAppendInputs>),
 }
 
 pub struct TxSender<R: Rpc> {
@@ -90,6 +92,27 @@ impl<R: Rpc> TxSender<R> {
                             .collect::<anyhow::Result<Vec<_>>>()?;
                         (ix, proofs.last().map(|p| p.new_root))
                     }
+                    BatchInstruction::AddressAppend(proofs) => {
+                        let ix = proofs
+                            .iter()
+                            .map(|data| {
+                                Ok(create_batch_update_address_tree_instruction(
+                                    self.context.authority.pubkey(),
+                                    self.context.derivation,
+                                    self.context.merkle_tree,
+                                    self.context.epoch,
+                                    data.try_to_vec()?,
+                                ))
+                            })
+                            .collect::<anyhow::Result<Vec<_>>>()?;
+                        (ix, proofs.last().map(|p| p.new_root))
+                    }
+                };
+
+                let instr_type = match &instr {
+                    BatchInstruction::Append(_) => "Append",
+                    BatchInstruction::Nullify(_) => "Nullify",
+                    BatchInstruction::AddressAppend(_) => "AddressAppend",
                 };
 
                 match send_transaction_batch(&self.context, instructions).await {
@@ -100,8 +123,12 @@ impl<R: Rpc> TxSender<R> {
                         processed += self.zkp_batch_size as usize;
                         self.expected_seq += 1;
                         info!(
-                            "tx sent {} root {:?} seq {} epoch {}",
-                            sig, self.last_seen_root, self.expected_seq, self.context.epoch
+                            "tx sent: {} type={} root={:?} seq={} epoch={}",
+                            sig,
+                            instr_type,
+                            self.last_seen_root,
+                            self.expected_seq,
+                            self.context.epoch
                         );
                     }
                     Err(e) => {

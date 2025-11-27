@@ -2283,6 +2283,7 @@ dependencies = [
  "light-ctoken-types",
  "light-hash-set",
  "light-hasher",
+ "light-indexed-array",
  "light-merkle-tree-metadata",
  "light-merkle-tree-reference",
  "light-program-test",

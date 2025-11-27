@@ -5,8 +5,6 @@ use tracing::debug;
 
 use crate::error::ForesterUtilsError;
 
-pub const TREE_HEIGHT: usize = 32;
-
 /// Result of a batch update operation on a staging tree.
 #[derive(Clone, Debug)]
 pub struct BatchUpdateResult {
@@ -205,19 +203,21 @@ impl StagingTree {
         node_hashes: &[[u8; 32]],
         initial_root: [u8; 32],
         root_seq: u64,
+        height: usize,
     ) -> Result<Self, ForesterUtilsError> {
         debug!(
-            "StagingTree::new: {} leaves, {} deduplicated nodes, initial_root={:?}, root_seq={}",
+            "StagingTree::new: {} leaves, {} deduplicated nodes, initial_root={:?}, root_seq={}, height={}",
             leaves.len(),
             nodes.len(),
             &initial_root,
-            root_seq
+            root_seq,
+            height
         );
-        let mut tree = MerkleTree::<Poseidon>::new(TREE_HEIGHT, 0);
+        let mut tree = MerkleTree::<Poseidon>::new(height, 0);
         for (&node_index, &node_hash) in nodes.iter().zip(node_hashes.iter()) {
             // Skip nodes at root level - root is stored separately in tree.roots
             let level = (node_index >> 56) as usize;
-            if level >= TREE_HEIGHT {
+            if level >= height {
                 continue;
             }
             tree.insert_node(node_index, node_hash).map_err(|e| {

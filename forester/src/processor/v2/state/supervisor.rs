@@ -21,6 +21,7 @@ use crate::processor::v2::{
         helpers::{fetch_batches, fetch_zkp_batch_size},
         proof_worker::{spawn_proof_workers, ProofInput, ProofJob, ProofResult},
         tx_sender::TxSender,
+        UpdateEligibility,
     },
     BatchContext,
 };
@@ -37,14 +38,8 @@ pub struct QueueWork {
     pub queue_size: u64,
 }
 
-#[derive(Debug, Clone)]
 pub struct ProcessQueueUpdate {
     pub queue_work: QueueWork,
-}
-
-#[derive(Debug, Clone)]
-pub struct UpdateEligibility {
-    pub end_slot: u64,
 }
 
 struct WorkerPool {
@@ -314,6 +309,7 @@ impl<R: Rpc> StateSupervisor<R> {
             node_hashes,
             initial_root,
             root_seq,
+            DEFAULT_BATCH_STATE_TREE_HEIGHT as usize,
         )?);
         debug!("Built staging tree from indexer (seq={})", root_seq);
         Ok(())

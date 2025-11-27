@@ -5,7 +5,8 @@ use light_batched_merkle_tree::merkle_tree::{
 use light_prover_client::{
     proof_client::ProofClient,
     proof_types::{
-        batch_append::BatchAppendsCircuitInputs, batch_update::BatchUpdateCircuitInputs,
+        batch_address_append::BatchAddressAppendInputs, batch_append::BatchAppendsCircuitInputs,
+        batch_update::BatchUpdateCircuitInputs,
     },
 };
 use tokio::sync::mpsc;
@@ -17,6 +18,7 @@ use crate::processor::v2::{state::tx_sender::BatchInstruction, ProverConfig};
 pub enum ProofInput {
     Append(BatchAppendsCircuitInputs),
     Nullify(BatchUpdateCircuitInputs),
+    AddressAppend(BatchAddressAppendInputs),
 }
 
 pub struct ProofJob {
@@ -110,6 +112,26 @@ async fn run_proof_worker(
                     },
                     Err(e) => {
                         warn!("ProofWorker {} nullify proof failed: {}", worker_id, e);
+                        continue;
+                    }
+                }
+            }
+            ProofInput::AddressAppend(inputs) => {
+                match append_client.generate_batch_address_append_proof(inputs).await {
+                    Ok((proof, new_root)) => ProofResult {
+                        seq: job.seq,
+                        instruction: BatchInstruction::AddressAppend(vec![
+                            light_batched_merkle_tree::merkle_tree::InstructionDataAddressAppendInputs {
+                                new_root,
+                                compressed_proof: proof.into(),
+                            },
+                        ]),
+                    },
+                    Err(e) => {
+                        warn!(
+                            "ProofWorker {} address append proof failed: {}",
+                            worker_id, e
+                        );
                         continue;
                     }
                 }

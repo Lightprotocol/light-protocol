@@ -55,7 +55,7 @@ use crate::{
             send_transaction::send_batched_transactions,
             tx_builder::EpochManagerTransactions,
         },
-        v2::{self, process_batched_operations, BatchContext, ProverConfig},
+        v2::{self, BatchContext, ProverConfig},
     },
     queue_helpers::QueueItemData,
     rollover::{
@@ -70,6 +70,8 @@ use crate::{
 
 /// Map of tree pubkey to (epoch, supervisor actor reference)
 type StateSupervisorMap<R> = Arc<DashMap<Pubkey, (u64, ActorRef<v2::state::StateSupervisor<R>>)>>;
+type AddressSupervisorMap<R> =
+    Arc<DashMap<Pubkey, (u64, ActorRef<v2::address::supervisor::AddressSupervisor<R>>)>>;
 
 #[derive(Copy, Clone, Debug)]
 pub struct WorkReport {
@@ -115,6 +117,7 @@ pub struct EpochManager<R: Rpc> {
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
     queue_poller: Option<ActorRef<QueueInfoPoller>>,
     state_supervisors: StateSupervisorMap<R>,
+    address_supervisors: AddressSupervisorMap<R>,
     compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
 }
 
@@ -135,6 +138,7 @@ impl<R: Rpc> Clone for EpochManager<R> {
             ops_cache: self.ops_cache.clone(),
             queue_poller: self.queue_poller.clone(),
             state_supervisors: self.state_supervisors.clone(),
+            address_supervisors: self.address_supervisors.clone(),
             compressible_tracker: self.compressible_tracker.clone(),
         }
     }
@@ -189,6 +193,7 @@ impl<R: Rpc> EpochManager<R> {
             ops_cache,
             queue_poller,
             state_supervisors: Arc::new(DashMap::new()),
+            address_supervisors: Arc::new(DashMap::new()),
             compressible_tracker,
         })
     }
@@ -396,6 +401,18 @@ impl<R: Rpc> EpochManager<R> {
                     info!(
                         "Killed and cleared {} state supervisor actors for new epoch {}",
                         supervisor_count, current_epoch
+                    );
+                }
+                let address_supervisor_count = self.address_supervisors.len();
+                if address_supervisor_count > 0 {
+                    for entry in self.address_supervisors.iter() {
+                        let (_, actor_ref) = entry.value();
+                        actor_ref.kill();
+                    }
+                    self.address_supervisors.clear();
+                    info!(
+                        "Killed and cleared {} address supervisor actors for new epoch {}",
+                        address_supervisor_count, current_epoch
                     );
                 }
                 let phases = get_epoch_phases(&self.protocol_config, current_epoch);
@@ -1868,6 +1885,51 @@ impl<R: Rpc> EpochManager<R> {
         }
     }
 
+    async fn get_or_create_address_supervisor(
+        &self,
+        epoch_info: &Epoch,
+        tree_accounts: &TreeAccounts,
+    ) -> Result<ActorRef<v2::address::supervisor::AddressSupervisor<R>>> {
+        use dashmap::mapref::entry::Entry;
+
+        let entry = self.address_supervisors.entry(tree_accounts.merkle_tree);
+
+        match entry {
+            Entry::Occupied(mut occupied) => {
+                let (stored_epoch, supervisor_ref) = occupied.get();
+                if *stored_epoch == epoch_info.epoch {
+                    Ok(supervisor_ref.clone())
+                } else {
+                    info!(
+                        "Removing stale AddressSupervisor for tree {} (epoch {} -> {})",
+                        tree_accounts.merkle_tree, *stored_epoch, epoch_info.epoch
+                    );
+                    let batch_context =
+                        self.build_batch_context(epoch_info, tree_accounts, None, None, None);
+                    let supervisor =
+                        v2::address::supervisor::AddressSupervisor::spawn(batch_context);
+                    info!(
+                        "Created AddressSupervisor actor for tree {} (epoch {})",
+                        tree_accounts.merkle_tree, epoch_info.epoch
+                    );
+                    occupied.insert((epoch_info.epoch, supervisor.clone()));
+                    Ok(supervisor)
+                }
+            }
+            Entry::Vacant(vacant) => {
+                let batch_context =
+                    self.build_batch_context(epoch_info, tree_accounts, None, None, None);
+                let supervisor = v2::address::supervisor::AddressSupervisor::spawn(batch_context);
+                info!(
+                    "Created AddressSupervisor actor for tree {} (epoch {})",
+                    tree_accounts.merkle_tree, epoch_info.epoch
+                );
+                vacant.insert((epoch_info.epoch, supervisor.clone()));
+                Ok(supervisor)
+            }
+        }
+    }
+
     async fn process_v2(
         &self,
         epoch_info: &Epoch,
@@ -1917,18 +1979,48 @@ impl<R: Rpc> EpochManager<R> {
                 }
             }
             TreeType::AddressV2 => {
-                let input_queue_hint = queue_update.map(|u| u.queue_size);
-                let batch_context = self.build_batch_context(
-                    epoch_info,
-                    tree_accounts,
-                    input_queue_hint,
-                    None,
-                    Some(consecutive_eligibility_end),
-                );
+                if let Some(update) = queue_update {
+                    let supervisor = self
+                        .get_or_create_address_supervisor(epoch_info, tree_accounts)
+                        .await?;
 
-                process_batched_operations(batch_context, tree_accounts.tree_type)
-                    .await
-                    .map_err(|e| anyhow!("Failed to process V2 operations: {}", e))
+                    if let Err(e) = supervisor
+                        .ask(v2::common::UpdateEligibility {
+                            end_slot: consecutive_eligibility_end,
+                        })
+                        .send()
+                        .await
+                    {
+                        warn!(
+                            "Failed to send UpdateEligibility to AddressSupervisor for tree {}: {}. Removing supervisor.",
+                            tree_accounts.merkle_tree, e
+                        );
+                        self.address_supervisors.remove(&tree_accounts.merkle_tree);
+                        return Err(anyhow!("Failed to send UpdateEligibility: {}", e));
+                    }
+
+                    let work = v2::address::supervisor::AddressQueueWork {
+                        queue_size: update.queue_size,
+                    };
+
+                    match supervisor
+                        .ask(v2::address::supervisor::ProcessAddressQueueUpdate { work })
+                        .send()
+                        .await
+                    {
+                        Ok(res) => Ok(res),
+                        Err(e) => {
+                            warn!(
+                                "Failed to send ProcessAddressQueueUpdate to AddressSupervisor for tree {}: {}. Removing supervisor.",
+                                tree_accounts.merkle_tree, e
+                            );
+                            self.address_supervisors.remove(&tree_accounts.merkle_tree);
+                            Err(anyhow!("Failed to send ProcessAddressQueueUpdate: {}", e))
+                        }
+                    }
+                } else {
+                    Ok(0)
+                }
             }
             _ => {
                 warn!(

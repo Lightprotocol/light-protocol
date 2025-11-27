@@ -1,6 +1,8 @@
-mod helpers;
-mod proof_worker;
+pub mod helpers;
+pub mod proof_worker;
 mod supervisor;
-mod tx_sender;
+pub mod tx_sender;
 
-pub use supervisor::{ProcessQueueUpdate, QueueWork, StateSupervisor, UpdateEligibility};
+pub use supervisor::{ProcessQueueUpdate, QueueWork, StateSupervisor};
+
+pub use crate::processor::v2::common::UpdateEligibility;

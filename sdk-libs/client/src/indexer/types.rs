@@ -108,6 +108,10 @@ pub struct AddressQueueDataV2 {
     pub node_hashes: Vec<[u8; 32]>,
     pub initial_root: [u8; 32],
     pub first_queue_index: u64,
+    pub leaves_hash_chains: Vec<[u8; 32]>,
+    pub subtrees: Vec<[u8; 32]>,
+    pub start_index: u64,
+    pub root_seq: u64,
 }
 
 /// V2 Queue Elements Result with deduplicated node data

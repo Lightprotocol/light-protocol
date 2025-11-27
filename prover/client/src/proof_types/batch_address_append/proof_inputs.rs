@@ -29,6 +29,84 @@ pub struct BatchAddressAppendInputs {
     pub tree_height: usize,
 }
 
+impl BatchAddressAppendInputs {
+    #[allow(clippy::too_many_arguments)]
+    pub fn new<const HEIGHT: usize>(
+        batch_size: usize,
+        leaves_hashchain: [u8; 32],
+        low_element_values: Vec<[u8; 32]>,
+        low_element_indices: Vec<usize>,
+        low_element_next_indices: Vec<usize>,
+        low_element_next_values: Vec<[u8; 32]>,
+        low_element_proofs: Vec<Vec<[u8; 32]>>,
+        new_element_values: Vec<[u8; 32]>,
+        new_element_proofs: Vec<Vec<[u8; 32]>>,
+        new_root: [u8; 32],
+        old_root: [u8; 32],
+        start_index: usize,
+    ) -> Result<Self, ProverClientError> {
+        let hash_chain_inputs = [
+            old_root,
+            new_root,
+            leaves_hashchain,
+            bigint_to_be_bytes_array::<32>(&start_index.into()).unwrap(),
+        ];
+        let public_input_hash = create_hash_chain_from_array(hash_chain_inputs)?;
+
+        let low_element_proofs_bigint: Vec<Vec<BigUint>> = low_element_proofs
+            .into_iter()
+            .map(|proof| {
+                proof
+                    .into_iter()
+                    .map(|p| BigUint::from_bytes_be(&p))
+                    .collect()
+            })
+            .collect();
+
+        let new_element_proofs_bigint: Vec<Vec<BigUint>> = new_element_proofs
+            .into_iter()
+            .map(|proof| {
+                proof
+                    .into_iter()
+                    .map(|p| BigUint::from_bytes_be(&p))
+                    .collect()
+            })
+            .collect();
+
+        Ok(Self {
+            batch_size,
+            hashchain_hash: BigUint::from_bytes_be(&leaves_hashchain),
+            low_element_values: low_element_values
+                .iter()
+                .map(|v| BigUint::from_bytes_be(v))
+                .collect(),
+            low_element_indices: low_element_indices
+                .iter()
+                .map(|&i| BigUint::from(i))
+                .collect(),
+            low_element_next_indices: low_element_next_indices
+                .iter()
+                .map(|&i| BigUint::from(i))
+                .collect(),
+            low_element_next_values: low_element_next_values
+                .iter()
+                .map(|v| BigUint::from_bytes_be(v))
+                .collect(),
+            low_element_proofs: low_element_proofs_bigint,
+            new_element_values: new_element_values
+                .iter()
+                .map(|v| BigUint::from_bytes_be(v))
+                .collect(),
+            new_element_proofs: new_element_proofs_bigint,
+            new_root: BigUint::from_bytes_be(&new_root),
+            old_root: BigUint::from_bytes_be(&old_root),
+            public_input_hash: BigUint::from_bytes_be(&public_input_hash),
+            start_index,
+            tree_height: HEIGHT,
+        })
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     next_index: usize,

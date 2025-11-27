@@ -39,6 +39,8 @@ pub struct AddressQueueDataV2 {
     pub start_index: u64,
     #[serde(rename = "subtrees", default)]
     pub subtrees: Vec<String>,
+    #[serde(rename = "rootSeq", default)]
+    pub root_seq: u64,
 }
 
 impl AddressQueueDataV2 {
@@ -57,6 +59,7 @@ impl AddressQueueDataV2 {
         initial_root: String,
         start_index: u64,
         subtrees: Vec<String>,
+        root_seq: u64,
     ) -> AddressQueueDataV2 {
         AddressQueueDataV2 {
             addresses,
@@ -72,6 +75,7 @@ impl AddressQueueDataV2 {
             initial_root,
             start_index,
             subtrees,
+            root_seq,
         }
     }
 }
