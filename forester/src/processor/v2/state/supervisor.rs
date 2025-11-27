@@ -14,12 +14,12 @@ use light_prover_client::proof_types::{
 };
 use light_registry::protocol_config::state::EpochState;
 use tokio::sync::mpsc;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, trace, warn};
 
 use crate::processor::v2::{
     state::{
         helpers::{fetch_batches, fetch_zkp_batch_size},
-        proof_worker::{spawn_proof_workers, ProofInput, ProofJob},
+        proof_worker::{spawn_proof_workers, ProofInput, ProofJob, ProofResult},
         tx_sender::TxSender,
     },
     BatchContext,
@@ -47,6 +47,10 @@ pub struct UpdateEligibility {
     pub end_slot: u64,
 }
 
+struct WorkerPool {
+    job_tx: async_channel::Sender<ProofJob>,
+}
+
 pub struct StateSupervisor<R: Rpc> {
     context: BatchContext<R>,
     staging_tree: Option<StagingTree>,
@@ -54,6 +58,7 @@ pub struct StateSupervisor<R: Rpc> {
     next_index: u64,
     zkp_batch_size: u64,
     seq: u64,
+    worker_pool: Option<WorkerPool>,
 }
 
 impl<R: Rpc> Actor for StateSupervisor<R> {
@@ -83,6 +88,7 @@ impl<R: Rpc> Actor for StateSupervisor<R> {
             next_index: 0,
             zkp_batch_size,
             seq: 0,
+            worker_pool: None,
         })
     }
 
@@ -155,13 +161,33 @@ impl<R: Rpc> StateSupervisor<R> {
     }
 
     /// Finalizes a proof job by updating state and returning the job.
-    fn finish_job(&mut self, new_root: [u8; 32], inputs: ProofInput) -> Option<ProofJob> {
+    fn finish_job(
+        &mut self,
+        new_root: [u8; 32],
+        inputs: ProofInput,
+        result_tx: mpsc::Sender<ProofResult>,
+    ) -> Option<ProofJob> {
         self.current_root = new_root;
         self.seq += 1;
         Some(ProofJob {
             seq: self.seq - 1,
             inputs,
+            result_tx,
         })
+    }
+
+    fn ensure_worker_pool(&mut self) {
+        if self.worker_pool.is_none() {
+            let num_workers = self.context.num_proof_workers.max(1);
+            let job_tx = spawn_proof_workers(num_workers, self.context.prover_config.clone());
+
+            info!(
+                "StateSupervisor spawned {} persistent proof workers for tree {}",
+                num_workers, self.context.merkle_tree
+            );
+
+            self.worker_pool = Some(WorkerPool { job_tx });
+        }
     }
 
     async fn process_queue_update(&mut self, queue_work: QueueWork) -> crate::Result<usize> {
@@ -185,6 +211,16 @@ impl<R: Rpc> StateSupervisor<R> {
             return Ok(0);
         }
 
+        let zkp_batch_size = self.zkp_batch_size();
+        if queue_work.queue_size < zkp_batch_size {
+            trace!(
+                "Queue size {} below zkp_batch_size {}, skipping",
+                queue_work.queue_size,
+                zkp_batch_size
+            );
+            return Ok(0);
+        }
+
         let phase = match queue_work.queue_type {
             QueueType::OutputStateV2 => Phase::Append,
             QueueType::InputStateV2 => Phase::Nullify,
@@ -194,12 +230,18 @@ impl<R: Rpc> StateSupervisor<R> {
             }
         };
 
-        let num_workers = self.context.num_proof_workers.max(60);
+        let max_batches = (queue_work.queue_size / zkp_batch_size) as usize;
+        if max_batches == 0 {
+            return Ok(0);
+        }
+
+        self.ensure_worker_pool();
+
+        let num_workers = self.context.num_proof_workers.max(1);
 
         let (proof_tx, proof_rx) = mpsc::channel(num_workers * 2);
-        let (job_tx, cancel_flag, worker_handles) =
-            spawn_proof_workers(num_workers, self.context.prover_config.clone(), proof_tx);
 
+        // Reset seq counter - TxSender always expects seq to start at 0
         self.seq = 0;
 
         let tx_sender_handle = TxSender::spawn(
@@ -209,22 +251,15 @@ impl<R: Rpc> StateSupervisor<R> {
             self.current_root,
         );
 
-        self.enqueue_batches(phase, num_workers, job_tx).await?;
-
-        let mut had_errors = false;
-        for handle in worker_handles {
-            match handle.await {
-                Ok(Ok(())) => {}
-                Ok(Err(e)) => {
-                    warn!("Proof worker error: {}", e);
-                    had_errors = true;
-                }
-                Err(e) => {
-                    warn!("Proof worker join error: {}", e);
-                    had_errors = true;
-                }
-            }
-        }
+        let job_tx = self
+            .worker_pool
+            .as_ref()
+            .expect("worker pool should be initialized")
+            .job_tx
+            .clone();
+        let jobs_sent = self
+            .enqueue_batches(phase, max_batches, job_tx, proof_tx)
+            .await?;
 
         let tx_processed = match tx_sender_handle.await {
             Ok(res) => match res {
@@ -242,13 +277,13 @@ impl<R: Rpc> StateSupervisor<R> {
             }
         };
 
-        if had_errors || cancel_flag.is_cancelled() {
-            warn!(
-                "Errors detected (had_errors={}, cancelled={}), resetting staging tree",
-                had_errors,
-                cancel_flag.is_cancelled()
+        if tx_processed < jobs_sent * self.zkp_batch_size as usize {
+            debug!(
+                "Processed {} items but sent {} jobs (expected {}), some proofs may have failed",
+                tx_processed,
+                jobs_sent,
+                jobs_sent * self.zkp_batch_size as usize
             );
-            self.reset_staging_tree();
         }
 
         Ok(tx_processed)
@@ -288,7 +323,8 @@ impl<R: Rpc> StateSupervisor<R> {
         phase: Phase,
         max_batches: usize,
         job_tx: async_channel::Sender<ProofJob>,
-    ) -> crate::Result<()> {
+        result_tx: mpsc::Sender<ProofResult>,
+    ) -> crate::Result<usize> {
         let zkp_batch_size = self.zkp_batch_size() as usize;
         let total_needed = max_batches.saturating_mul(zkp_batch_size);
         let fetch_len = total_needed as u64;
@@ -297,7 +333,7 @@ impl<R: Rpc> StateSupervisor<R> {
             fetch_batches(&self.context, None, None, fetch_len, self.zkp_batch_size()).await?;
 
         let Some(state_queue) = state_queue else {
-            return Ok(());
+            return Ok(0);
         };
 
         let mut jobs_sent = 0usize;
@@ -305,10 +341,10 @@ impl<R: Rpc> StateSupervisor<R> {
         match phase {
             Phase::Append => {
                 let Some(output_batch) = state_queue.output_queue.as_ref() else {
-                    return Ok(());
+                    return Ok(0);
                 };
                 if output_batch.leaf_indices.is_empty() {
-                    return Ok(());
+                    return Ok(0);
                 }
 
                 self.current_root = state_queue.initial_root;
@@ -334,7 +370,7 @@ impl<R: Rpc> StateSupervisor<R> {
                 for batch_idx in 0..num_slices {
                     let start = batch_idx * zkp_batch_size;
                     if let Some(job) = self
-                        .build_append_job(batch_idx, &state_queue, start)
+                        .build_append_job(batch_idx, &state_queue, start, result_tx.clone())
                         .await?
                     {
                         job_tx.send(job).await?;
@@ -346,10 +382,10 @@ impl<R: Rpc> StateSupervisor<R> {
             }
             Phase::Nullify => {
                 let Some(input_batch) = state_queue.input_queue.as_ref() else {
-                    return Ok(());
+                    return Ok(0);
                 };
                 if input_batch.leaf_indices.is_empty() {
-                    return Ok(());
+                    return Ok(0);
                 }
 
                 self.current_root = state_queue.initial_root;
@@ -373,7 +409,7 @@ impl<R: Rpc> StateSupervisor<R> {
                 for batch_idx in 0..num_slices {
                     let start = batch_idx * zkp_batch_size;
                     if let Some(job) = self
-                        .build_nullify_job(batch_idx, &state_queue, start)
+                        .build_nullify_job(batch_idx, &state_queue, start, result_tx.clone())
                         .await?
                     {
                         job_tx.send(job).await?;
@@ -385,10 +421,10 @@ impl<R: Rpc> StateSupervisor<R> {
             }
         }
 
-        job_tx.close();
+        drop(result_tx);
 
         info!("Enqueued {} jobs for proof generation", jobs_sent);
-        Ok(())
+        Ok(jobs_sent)
     }
 
     async fn build_append_job(
@@ -396,6 +432,7 @@ impl<R: Rpc> StateSupervisor<R> {
         batch_idx: usize,
         state_queue: &light_client::indexer::StateQueueDataV2,
         start: usize,
+        result_tx: mpsc::Sender<ProofResult>,
     ) -> crate::Result<Option<ProofJob>> {
         let batch = state_queue
             .output_queue
@@ -439,7 +476,7 @@ impl<R: Rpc> StateSupervisor<R> {
             .map_err(|e| anyhow!("Failed to build append inputs: {}", e))?;
 
         self.next_index = self.next_index.saturating_add(self.zkp_batch_size);
-        Ok(self.finish_job(new_root, ProofInput::Append(circuit_inputs)))
+        Ok(self.finish_job(new_root, ProofInput::Append(circuit_inputs), result_tx))
     }
 
     async fn build_nullify_job(
@@ -447,6 +484,7 @@ impl<R: Rpc> StateSupervisor<R> {
         batch_idx: usize,
         state_queue: &light_client::indexer::StateQueueDataV2,
         start: usize,
+        result_tx: mpsc::Sender<ProofResult>,
     ) -> crate::Result<Option<ProofJob>> {
         let batch = state_queue
             .input_queue
@@ -497,6 +535,6 @@ impl<R: Rpc> StateSupervisor<R> {
             )
             .map_err(|e| anyhow!("Failed to build nullify inputs: {}", e))?;
 
-        Ok(self.finish_job(new_root, ProofInput::Nullify(circuit_inputs)))
+        Ok(self.finish_job(new_root, ProofInput::Nullify(circuit_inputs), result_tx))
     }
 }

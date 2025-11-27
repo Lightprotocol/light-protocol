@@ -1,6 +1,6 @@
 module light/light-prover
 
-go 1.25.1
+go 1.25.4
 
 require (
 	github.com/consensys/gnark v0.14.0
