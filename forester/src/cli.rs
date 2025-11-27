@@ -59,6 +59,20 @@ pub struct StartArgs {
     #[arg(long, env = "FORESTER_PROVER_API_KEY")]
     pub prover_api_key: Option<String>,
 
+    #[arg(
+        long,
+        env = "FORESTER_PROVER_POLLING_INTERVAL_MS",
+        help = "Prover polling interval in milliseconds (default: 1000)"
+    )]
+    pub prover_polling_interval_ms: Option<u64>,
+
+    #[arg(
+        long,
+        env = "FORESTER_PROVER_MAX_WAIT_TIME_SECS",
+        help = "Maximum time to wait for prover response in seconds (default: 600)"
+    )]
+    pub prover_max_wait_time_secs: Option<u64>,
+
     #[arg(long, env = "FORESTER_PAYER")]
     pub payer: Option<String>,
 

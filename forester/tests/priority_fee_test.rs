@@ -42,6 +42,8 @@ async fn test_priority_fee_request() {
         prover_update_url: None,
         prover_address_append_url: None,
         prover_api_key: None,
+        prover_polling_interval_ms: None,
+        prover_max_wait_time_secs: None,
         payer: Some(
             std::env::var("FORESTER_PAYER").expect("FORESTER_PAYER must be set in environment"),
         ),

@@ -14,11 +14,12 @@ pub use error::IndexerError;
 pub use indexer_trait::Indexer;
 pub use response::{Context, Items, ItemsWithCursor, Response};
 pub use types::{
-    AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs, AddressQueueIndex,
-    AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount, CompressedTokenAccount,
-    Hash, MerkleProof, MerkleProofWithContext, NewAddressProofWithContext, NextTreeInfo,
-    OwnerBalance, ProofOfLeaf, QueueElementsResult, QueueInfo, QueueInfoResult, RootIndex,
-    SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance, TreeInfo,
+    AccountProofInputs, Address, AddressMerkleTreeAccounts, AddressProofInputs, AddressQueueDataV2,
+    AddressQueueIndex, AddressWithTree, BatchAddressUpdateIndexerResponse, CompressedAccount,
+    CompressedTokenAccount, Hash, InputQueueDataV2, MerkleProof, MerkleProofWithContext,
+    NewAddressProofWithContext, NextTreeInfo, OutputQueueDataV2, OwnerBalance, ProofOfLeaf,
+    QueueElementsResult, QueueElementsV2Result, QueueInfo, QueueInfoResult, RootIndex,
+    SignatureWithMetadata, StateMerkleTreeAccounts, StateQueueDataV2, TokenBalance, TreeInfo,
     ValidityProofWithContext,
 };
 mod options;

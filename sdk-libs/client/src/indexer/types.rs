@@ -51,6 +51,76 @@ pub struct QueueElementsResult {
     pub input_queue_index: Option<u64>,
 }
 
+/// V2 Output Queue Data
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct OutputQueueDataV2 {
+    pub leaf_indices: Vec<u64>,
+    pub account_hashes: Vec<[u8; 32]>,
+    pub old_leaves: Vec<[u8; 32]>,
+    pub first_queue_index: u64,
+    /// The tree's next_index - where new leaves will be appended
+    pub next_index: u64,
+    /// Pre-computed hash chains per ZKP batch (from on-chain)
+    pub leaves_hash_chains: Vec<[u8; 32]>,
+}
+
+/// V2 Input Queue Data
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct InputQueueDataV2 {
+    pub leaf_indices: Vec<u64>,
+    pub account_hashes: Vec<[u8; 32]>,
+    pub current_leaves: Vec<[u8; 32]>,
+    pub tx_hashes: Vec<[u8; 32]>,
+    /// Pre-computed nullifiers from indexer
+    pub nullifiers: Vec<[u8; 32]>,
+    pub first_queue_index: u64,
+    /// Pre-computed hash chains per ZKP batch (from on-chain)
+    pub leaves_hash_chains: Vec<[u8; 32]>,
+}
+
+/// State queue data with shared tree nodes for output and input queues
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct StateQueueDataV2 {
+    /// Shared deduplicated tree nodes for state queues (output + input)
+    /// node_index encoding: (level << 56) | position
+    pub nodes: Vec<u64>,
+    pub node_hashes: Vec<[u8; 32]>,
+    /// Initial root for the state tree (shared by output and input queues)
+    pub initial_root: [u8; 32],
+    /// Sequence number of the root
+    pub root_seq: u64,
+    /// Output queue data (if requested)
+    pub output_queue: Option<OutputQueueDataV2>,
+    /// Input queue data (if requested)
+    pub input_queue: Option<InputQueueDataV2>,
+}
+
+/// V2 Address Queue Data with deduplicated nodes
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct AddressQueueDataV2 {
+    pub addresses: Vec<[u8; 32]>,
+    pub low_element_values: Vec<[u8; 32]>,
+    pub low_element_next_values: Vec<[u8; 32]>,
+    pub low_element_indices: Vec<u64>,
+    pub low_element_next_indices: Vec<u64>,
+    pub low_element_proofs: Vec<Vec<[u8; 32]>>,
+    pub nodes: Vec<u64>,
+    pub node_hashes: Vec<[u8; 32]>,
+    pub initial_root: [u8; 32],
+    pub first_queue_index: u64,
+    pub leaves_hash_chains: Vec<[u8; 32]>,
+    pub subtrees: Vec<[u8; 32]>,
+    pub start_index: u64,
+    pub root_seq: u64,
+}
+
+/// V2 Queue Elements Result with deduplicated node data
+#[derive(Debug, Clone, PartialEq, Default)]
+pub struct QueueElementsV2Result {
+    pub state_queue: Option<StateQueueDataV2>,
+    pub address_queue: Option<AddressQueueDataV2>,
+}
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub struct MerkleProofWithContext {
     pub proof: Vec<[u8; 32]>,

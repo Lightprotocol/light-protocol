@@ -7,6 +7,7 @@ use tracing::{error, info};
 use crate::{
     errors::ProverClientError,
     helpers::{bigint_to_u8_32, compute_root_from_merkle_proof},
+    proof_types::batch_update::BatchTreeUpdateResult,
 };
 
 #[derive(Debug, Clone, Serialize)]
@@ -26,6 +27,87 @@ pub struct BatchAppendsCircuitInputs {
 impl BatchAppendsCircuitInputs {
     pub fn public_inputs_arr(&self) -> [u8; 32] {
         bigint_to_u8_32(&self.public_input_hash).unwrap()
+    }
+
+    pub fn new<const HEIGHT: usize>(
+        tree_result: BatchTreeUpdateResult,
+        start_index: u32,
+        leaves: Vec<[u8; 32]>,
+        leaves_hashchain: [u8; 32],
+        batch_size: u32,
+    ) -> Result<Self, ProverClientError> {
+        let expected_len = batch_size as usize;
+        if leaves.len() != expected_len {
+            return Err(ProverClientError::GenericError(format!(
+                "leaves length mismatch: expected {}, got {}",
+                expected_len,
+                leaves.len()
+            )));
+        }
+        if tree_result.old_leaves.len() != expected_len {
+            return Err(ProverClientError::GenericError(format!(
+                "old_leaves length mismatch: expected {}, got {}",
+                expected_len,
+                tree_result.old_leaves.len()
+            )));
+        }
+        if tree_result.merkle_proofs.len() != expected_len {
+            return Err(ProverClientError::GenericError(format!(
+                "merkle_proofs length mismatch: expected {}, got {}",
+                expected_len,
+                tree_result.merkle_proofs.len()
+            )));
+        }
+
+        let mut circuit_merkle_proofs = Vec::with_capacity(batch_size as usize);
+
+        for merkle_proof in tree_result.merkle_proofs.into_iter() {
+            let proof_slice = merkle_proof.as_slice();
+            let proof_len = proof_slice.len();
+            let merkle_proof_array: [[u8; 32]; HEIGHT] = proof_slice.try_into().map_err(|_| {
+                ProverClientError::GenericError(format!(
+                    "Invalid merkle proof length: got {}, expected {}",
+                    proof_len, HEIGHT
+                ))
+            })?;
+
+            circuit_merkle_proofs.push(
+                merkle_proof_array
+                    .iter()
+                    .map(|proof_elem| BigInt::from_bytes_be(Sign::Plus, proof_elem))
+                    .collect(),
+            );
+        }
+
+        let mut start_index_bytes = [0u8; 32];
+        start_index_bytes[28..].copy_from_slice(start_index.to_be_bytes().as_slice());
+
+        let public_input_hash = create_hash_chain_from_array([
+            tree_result.old_root,
+            tree_result.new_root,
+            leaves_hashchain,
+            start_index_bytes,
+        ])?;
+
+        Ok(Self {
+            public_input_hash: BigInt::from_bytes_be(Sign::Plus, &public_input_hash),
+            old_root: BigInt::from_bytes_be(Sign::Plus, &tree_result.old_root),
+            new_root: BigInt::from_bytes_be(Sign::Plus, &tree_result.new_root),
+            leaves_hashchain_hash: BigInt::from_bytes_be(Sign::Plus, &leaves_hashchain),
+            start_index,
+            old_leaves: tree_result
+                .old_leaves
+                .iter()
+                .map(|leaf| BigInt::from_bytes_be(Sign::Plus, leaf))
+                .collect(),
+            leaves: leaves
+                .iter()
+                .map(|leaf| BigInt::from_bytes_be(Sign::Plus, leaf))
+                .collect(),
+            merkle_proofs: circuit_merkle_proofs,
+            height: HEIGHT as u32,
+            batch_size,
+        })
     }
 }
 

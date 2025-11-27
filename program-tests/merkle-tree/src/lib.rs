@@ -18,6 +18,8 @@ pub enum ReferenceMerkleTreeError {
     IndexedArray(#[from] IndexedArrayError),
     #[error("RootHistoryArrayLenNotSet")]
     RootHistoryArrayLenNotSet,
+    #[error("Level {level} exceeds tree height {height}")]
+    InvalidLevel { level: usize, height: usize },
 }
 
 #[derive(Debug, Clone)]
@@ -372,6 +374,52 @@ where
             .get(index)
             .cloned()
             .ok_or(ReferenceMerkleTreeError::LeafDoesNotExist(index))
+    }
+
+    /// Insert a node at a specific level and position without recomputing the tree.
+    /// Used for reconstructing tree state from stored nodes.
+    ///
+    /// The `node_index` encodes both level and position:
+    /// - Upper 8 bits (>> 56): level in the tree
+    /// - Lower 56 bits (& 0x00FFFFFFFFFFFFFF): position within that level
+    pub fn insert_node(
+        &mut self,
+        node_index: u64,
+        hash: [u8; 32],
+    ) -> Result<(), ReferenceMerkleTreeError> {
+        let level = (node_index >> 56) as usize;
+        let position = (node_index & 0x00FFFFFFFFFFFFFF) as usize;
+
+        if level >= self.layers.len() {
+            return Err(ReferenceMerkleTreeError::InvalidLevel {
+                level,
+                height: self.layers.len(),
+            });
+        }
+
+        if self.layers[level].len() <= position {
+            self.layers[level].resize(position + 1, H::zero_bytes()[level]);
+        }
+
+        self.layers[level][position] = hash;
+        Ok(())
+    }
+
+    /// Insert a leaf at a specific index without recomputing the tree.
+    /// Used for reconstructing tree state from stored leaves.
+    pub fn insert_leaf(&mut self, leaf_index: usize, hash: [u8; 32]) {
+        if self.layers[0].len() <= leaf_index {
+            self.layers[0].resize(leaf_index + 1, H::zero_bytes()[0]);
+        }
+        self.layers[0][leaf_index] = hash;
+    }
+
+    /// Ensure a layer has capacity for at least `min_index + 1` elements.
+    /// Resizes with zero bytes if needed.
+    pub fn ensure_layer_capacity(&mut self, level: usize, min_index: usize) {
+        if level < self.layers.len() && self.layers[level].len() <= min_index {
+            self.layers[level].resize(min_index + 1, H::zero_bytes()[level]);
+        }
     }
 }
 

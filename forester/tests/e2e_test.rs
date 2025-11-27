@@ -212,6 +212,8 @@ async fn e2e_test() {
             prover_update_url: None,
             prover_address_append_url: None,
             prover_api_key: get_prover_api_key(),
+            prover_polling_interval: None,
+            prover_max_wait_time: None,
             photon_api_key: get_photon_api_key(),
             photon_grpc_url: get_photon_grpc_url(),
             pushgateway_url: None,
@@ -852,7 +854,7 @@ async fn execute_test_transactions<R: Rpc>(
     address_v1_counter: &mut u64,
     address_v2_counter: &mut u64,
 ) {
-    let mut iterations = 4;
+    let mut iterations = 20;
     if is_v2_state_test_enabled() {
         let batch_size =
             get_state_v2_batch_size(rpc, &env.v2_state_trees[0].merkle_tree).await as usize;
