@@ -1797,6 +1797,199 @@ impl Indexer for PhotonIndexer {
         .await
     }
 
+    async fn get_queue_elements_v2(
+        &mut self,
+        merkle_tree_pubkey: [u8; 32],
+        options: super::QueueElementsV2Options,
+        config: Option<IndexerRpcConfig>,
+    ) -> Result<Response<super::QueueElementsV2Result>, IndexerError> {
+        let config = config.unwrap_or_default();
+        self.retry(config.retry_config, || async {
+            let params = photon_api::models::GetQueueElementsV2PostRequestParams {
+                tree: bs58::encode(merkle_tree_pubkey).into_string(),
+                output_queue_start_index: options.output_queue_start_index,
+                output_queue_limit: options.output_queue_limit,
+                output_queue_zkp_batch_size: options.output_queue_zkp_batch_size,
+                input_queue_start_index: options.input_queue_start_index,
+                input_queue_limit: options.input_queue_limit,
+                input_queue_zkp_batch_size: options.input_queue_zkp_batch_size,
+                address_queue_start_index: options.address_queue_start_index,
+                address_queue_limit: options.address_queue_limit,
+                address_queue_zkp_batch_size: options.address_queue_zkp_batch_size,
+            };
+
+            let request = photon_api::models::GetQueueElementsV2PostRequest {
+                params: Box::new(params),
+                ..Default::default()
+            };
+
+            let result = photon_api::apis::default_api::get_queue_elements_v2_post(
+                &self.configuration,
+                request,
+            )
+            .await?;
+
+            let api_response = Self::extract_result_with_error_check(
+                "get_queue_elements_v2",
+                result.error,
+                result.result.map(|r| *r),
+            )?;
+
+            if api_response.context.slot < config.slot {
+                return Err(IndexerError::IndexerNotSyncedToSlot);
+            }
+
+            let state_queue = if let Some(state) = api_response.state_queue {
+                let node_hashes: Result<Vec<[u8; 32]>, IndexerError> = state
+                    .node_hashes
+                    .iter()
+                    .map(|h| Hash::from_base58(h))
+                    .collect();
+                let initial_root = Hash::from_base58(&state.initial_root)?;
+
+                let output_queue = if let Some(output) = state.output_queue {
+                    let account_hashes: Result<Vec<[u8; 32]>, IndexerError> = output
+                        .account_hashes
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
+                    let old_leaves: Result<Vec<[u8; 32]>, IndexerError> =
+                        output.leaves.iter().map(|h| Hash::from_base58(h)).collect();
+                    let leaves_hash_chains: Result<Vec<[u8; 32]>, IndexerError> = output
+                        .leaves_hash_chains
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
+
+                    Some(super::OutputQueueDataV2 {
+                        leaf_indices: output.leaf_indices,
+                        account_hashes: account_hashes?,
+                        old_leaves: old_leaves?,
+                        first_queue_index: output.first_queue_index,
+                        next_index: output.next_index,
+                        leaves_hash_chains: leaves_hash_chains?,
+                    })
+                } else {
+                    None
+                };
+
+                let input_queue = if let Some(input) = state.input_queue {
+                    let account_hashes: Result<Vec<[u8; 32]>, IndexerError> = input
+                        .account_hashes
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
+                    let current_leaves: Result<Vec<[u8; 32]>, IndexerError> =
+                        input.leaves.iter().map(|h| Hash::from_base58(h)).collect();
+                    let tx_hashes: Result<Vec<[u8; 32]>, IndexerError> = input
+                        .tx_hashes
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
+                    let nullifiers: Result<Vec<[u8; 32]>, IndexerError> = input
+                        .nullifiers
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
+                    let leaves_hash_chains: Result<Vec<[u8; 32]>, IndexerError> = input
+                        .leaves_hash_chains
+                        .iter()
+                        .map(|h| Hash::from_base58(h))
+                        .collect();
+
+                    Some(super::InputQueueDataV2 {
+                        leaf_indices: input.leaf_indices,
+                        account_hashes: account_hashes?,
+                        current_leaves: current_leaves?,
+                        tx_hashes: tx_hashes?,
+                        nullifiers: nullifiers?,
+                        first_queue_index: input.first_queue_index,
+                        leaves_hash_chains: leaves_hash_chains?,
+                    })
+                } else {
+                    None
+                };
+
+                Some(super::StateQueueDataV2 {
+                    nodes: state.nodes,
+                    node_hashes: node_hashes?,
+                    initial_root,
+                    root_seq: state.root_seq,
+                    output_queue,
+                    input_queue,
+                })
+            } else {
+                None
+            };
+
+            // Transform AddressQueueDataV2
+            let address_queue = if let Some(address) = api_response.address_queue {
+                let addresses: Result<Vec<[u8; 32]>, IndexerError> = address
+                    .addresses
+                    .iter()
+                    .map(|h| Hash::from_base58(h))
+                    .collect();
+
+                let low_element_values: Result<Vec<[u8; 32]>, IndexerError> = address
+                    .low_element_values
+                    .iter()
+                    .map(|h| Hash::from_base58(h))
+                    .collect();
+
+                let low_element_next_values: Result<Vec<[u8; 32]>, IndexerError> = address
+                    .low_element_next_values
+                    .iter()
+                    .map(|h| Hash::from_base58(h))
+                    .collect();
+
+                let low_element_proofs: Result<Vec<Vec<[u8; 32]>>, IndexerError> = address
+                    .low_element_proofs
+                    .iter()
+                    .map(|proof_vec| {
+                        proof_vec
+                            .iter()
+                            .map(|h| Hash::from_base58(h))
+                            .collect::<Result<Vec<[u8; 32]>, IndexerError>>()
+                    })
+                    .collect();
+
+                let node_hashes: Result<Vec<[u8; 32]>, IndexerError> = address
+                    .node_hashes
+                    .iter()
+                    .map(|h| Hash::from_base58(h))
+                    .collect();
+
+                let initial_root = Hash::from_base58(&address.initial_root)?;
+
+                Some(super::AddressQueueDataV2 {
+                    addresses: addresses?,
+                    low_element_values: low_element_values?,
+                    low_element_next_values: low_element_next_values?,
+                    low_element_indices: address.low_element_indices,
+                    low_element_next_indices: address.low_element_next_indices,
+                    low_element_proofs: low_element_proofs?,
+                    nodes: address.nodes,
+                    node_hashes: node_hashes?,
+                    initial_root,
+                    first_queue_index: address.start_index,
+                })
+            } else {
+                None
+            };
+
+            Ok(Response {
+                context: Context {
+                    slot: api_response.context.slot,
+                },
+                value: super::QueueElementsV2Result {
+                    state_queue,
+                    address_queue,
+                },
+            })
+        })
+        .await
+    }
+
     async fn get_subtrees(
         &self,
         _merkle_tree_pubkey: [u8; 32],

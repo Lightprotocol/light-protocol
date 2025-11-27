@@ -830,6 +830,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-channel"
+version = "2.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "924ed96dd52d1b75e9c1a3e6275715fd320f5f9439fb5a4a11fa51f4221158d2"
+dependencies = [
+ "concurrent-queue",
+ "event-listener-strategy",
+ "futures-core",
+ "pin-project-lite",
+]
+
+[[package]]
 name = "async-compression"
 version = "0.4.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2316,6 +2328,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anyhow",
+ "async-channel 2.5.0",
  "async-stream",
  "async-trait",
  "base64 0.22.1",
@@ -2382,6 +2395,7 @@ version = "2.0.0"
 dependencies = [
  "account-compression",
  "anchor-lang",
+ "anyhow",
  "async-stream",
  "async-trait",
  "bb8",
@@ -2397,11 +2411,14 @@ dependencies = [
  "light-hasher",
  "light-indexed-merkle-tree",
  "light-merkle-tree-metadata",
+ "light-merkle-tree-reference",
  "light-prover-client",
  "light-registry",
  "light-sdk",
  "light-sparse-merkle-tree",
  "num-traits",
+ "serde",
+ "serde_json",
  "solana-sdk",
  "thiserror 2.0.17",
  "tokio",
@@ -4043,6 +4060,7 @@ dependencies = [
  "ark-bn254 0.5.0",
  "ark-serialize 0.5.0",
  "ark-std 0.5.0",
+ "light-compressed-account",
  "light-hasher",
  "light-indexed-array",
  "light-indexed-merkle-tree",
@@ -8714,7 +8732,7 @@ version = "2.3.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5643516e5206b89dd4bdf67c39815606d835a51a13260e43349abdb92d241b1d"
 dependencies = [
- "async-channel",
+ "async-channel 1.9.0",
  "bytes",
  "crossbeam-channel",
  "dashmap 5.5.3",

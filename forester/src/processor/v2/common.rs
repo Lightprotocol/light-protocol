@@ -1,4 +1,11 @@
-use std::{future::Future, sync::Arc, time::Duration};
+use std::{
+    future::Future,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use borsh::BorshSerialize;
 use forester_utils::{
@@ -16,48 +23,71 @@ use solana_sdk::{instruction::Instruction, pubkey::Pubkey, signature::Keypair, s
 use tokio::sync::Mutex;
 use tracing::{debug, error, info, trace};
 
-use super::{address, state};
+use super::address;
 use crate::{
     errors::ForesterError, processor::tx_cache::ProcessedHashCache, slot_tracker::SlotTracker,
     Result,
 };
 
+const SLOTS_STOP_THRESHOLD: u64 = 1;
+
+#[derive(Debug, Clone)]
+pub struct ProverConfig {
+    pub append_url: String,
+    pub update_url: String,
+    pub address_append_url: String,
+    pub api_key: Option<String>,
+    pub polling_interval: Duration,
+    pub max_wait_time: Duration,
+}
+
 #[derive(Debug)]
+#[allow(clippy::enum_variant_names)]
 pub enum BatchReadyState {
     NotReady,
-    AddressReadyForAppend {
+    AddressReady {
         merkle_tree_data: ParsedMerkleTreeData,
     },
-    StateReadyForAppend {
-        merkle_tree_data: ParsedMerkleTreeData,
-        output_queue_data: ParsedQueueData,
-    },
-    StateReadyForNullify {
-        merkle_tree_data: ParsedMerkleTreeData,
-    },
+    StateReady,
 }
 
 #[derive(Debug)]
 pub struct BatchContext<R: Rpc> {
     pub rpc_pool: Arc<SolanaRpcPool<R>>,
-    pub authority: Keypair,
+    pub authority: Arc<Keypair>,
     pub derivation: Pubkey,
     pub epoch: u64,
     pub merkle_tree: Pubkey,
     pub output_queue: Pubkey,
-    pub prover_append_url: String,
-    pub prover_update_url: String,
-    pub prover_address_append_url: String,
-    pub prover_api_key: Option<String>,
-    pub prover_polling_interval: Duration,
-    pub prover_max_wait_time: Duration,
+    pub prover_config: ProverConfig,
     pub ops_cache: Arc<Mutex<ProcessedHashCache>>,
     pub epoch_phases: EpochPhases,
     pub slot_tracker: Arc<SlotTracker>,
-    /// input queue size from gRPC
     pub input_queue_hint: Option<u64>,
-    /// output queue size from gRPC
     pub output_queue_hint: Option<u64>,
+    pub num_proof_workers: usize,
+    pub forester_eligibility_end_slot: Arc<AtomicU64>,
+}
+
+impl<R: Rpc> Clone for BatchContext<R> {
+    fn clone(&self) -> Self {
+        Self {
+            rpc_pool: self.rpc_pool.clone(),
+            authority: self.authority.clone(),
+            derivation: self.derivation,
+            epoch: self.epoch,
+            merkle_tree: self.merkle_tree,
+            output_queue: self.output_queue,
+            prover_config: self.prover_config.clone(),
+            ops_cache: self.ops_cache.clone(),
+            epoch_phases: self.epoch_phases.clone(),
+            slot_tracker: self.slot_tracker.clone(),
+            input_queue_hint: self.input_queue_hint,
+            output_queue_hint: self.output_queue_hint,
+            num_proof_workers: self.num_proof_workers,
+            forester_eligibility_end_slot: self.forester_eligibility_end_slot.clone(),
+        }
+    }
 }
 
 #[derive(Debug)]
@@ -66,7 +96,6 @@ pub struct BatchProcessor<R: Rpc> {
     tree_type: TreeType,
 }
 
-/// Processes a stream of batched instruction data into transactions.
 pub(crate) async fn process_stream<R, S, D, FutC>(
     context: &BatchContext<R>,
     stream_creator_future: FutC,
@@ -98,14 +127,20 @@ where
         }
 
         let current_slot = context.slot_tracker.estimated_current_slot();
-        let phase_end_slot = context.epoch_phases.active.end;
-        let slots_remaining = phase_end_slot.saturating_sub(current_slot);
+        let forester_end = context
+            .forester_eligibility_end_slot
+            .load(Ordering::Acquire);
+        let eligibility_end_slot = if forester_end > 0 {
+            forester_end
+        } else {
+            context.epoch_phases.active.end
+        };
+        let slots_remaining = eligibility_end_slot.saturating_sub(current_slot);
 
-        const MIN_SLOTS_FOR_TRANSACTION: u64 = 30;
-        if slots_remaining < MIN_SLOTS_FOR_TRANSACTION {
+        if slots_remaining < SLOTS_STOP_THRESHOLD {
             info!(
-                "Only {} slots remaining in active phase (need at least {}), stopping batch processing",
-                slots_remaining, MIN_SLOTS_FOR_TRANSACTION
+                "Only {} slots remaining until eligibility ends (threshold {}), stopping batch processing",
+                slots_remaining, SLOTS_STOP_THRESHOLD
             );
             if !instruction_batch.is_empty() {
                 let instructions: Vec<Instruction> =
@@ -164,15 +199,30 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
     context: &BatchContext<R>,
     instructions: Vec<Instruction>,
 ) -> Result<String> {
-    // Check if we're still in the active phase before sending the transaction
     let current_slot = context.slot_tracker.estimated_current_slot();
     let current_phase_state = context.epoch_phases.get_current_epoch_state(current_slot);
 
     if current_phase_state != EpochState::Active {
-        trace!(
-            "Skipping transaction send: not in active phase (current phase: {:?}, slot: {})",
-            current_phase_state,
-            current_slot
+        debug!(
+            "!! Skipping transaction send: not in active phase (current phase: {:?}, slot: {})",
+            current_phase_state, current_slot
+        );
+        return Err(ForesterError::NotInActivePhase.into());
+    }
+
+    let forester_end = context
+        .forester_eligibility_end_slot
+        .load(Ordering::Acquire);
+    let eligibility_end_slot = if forester_end > 0 {
+        forester_end
+    } else {
+        context.epoch_phases.active.end
+    };
+    let slots_remaining = eligibility_end_slot.saturating_sub(current_slot);
+    if slots_remaining < SLOTS_STOP_THRESHOLD {
+        debug!(
+            "Skipping transaction send: only {} slots remaining until eligibility ends",
+            slots_remaining
         );
         return Err(ForesterError::NotInActivePhase.into());
     }
@@ -187,7 +237,7 @@ pub(crate) async fn send_transaction_batch<R: Rpc>(
         .create_and_send_transaction(
             &instructions,
             &context.authority.pubkey(),
-            &[&context.authority],
+            &[context.authority.as_ref()],
         )
         .await?;
 
@@ -223,7 +273,7 @@ impl<R: Rpc> BatchProcessor<R> {
         let state = self.verify_batch_ready().await;
 
         match state {
-            BatchReadyState::AddressReadyForAppend { merkle_tree_data } => {
+            BatchReadyState::AddressReady { merkle_tree_data } => {
                 trace!(
                     "Processing address append for tree: {}",
                     self.context.merkle_tree
@@ -257,38 +307,12 @@ impl<R: Rpc> BatchProcessor<R> {
 
                 result
             }
-            BatchReadyState::StateReadyForAppend {
-                merkle_tree_data,
-                output_queue_data,
-            } => {
+            BatchReadyState::StateReady => {
                 trace!(
-                    "Process state append for tree: {}",
+                    "State processing handled by supervisor pipeline; skipping legacy processor for tree {}",
                     self.context.merkle_tree
                 );
-                let result = self
-                    .process_state_append_hybrid(merkle_tree_data, output_queue_data)
-                    .await;
-                if let Err(ref e) = result {
-                    error!(
-                        "State append failed for tree {}: {:?}",
-                        self.context.merkle_tree, e
-                    );
-                }
-                result
-            }
-            BatchReadyState::StateReadyForNullify { merkle_tree_data } => {
-                trace!(
-                    "Processing batch for nullify, tree: {}",
-                    self.context.merkle_tree
-                );
-                let result = self.process_state_nullify_hybrid(merkle_tree_data).await;
-                if let Err(ref e) = result {
-                    error!(
-                        "State nullify failed for tree {}: {:?}",
-                        self.context.merkle_tree, e
-                    );
-                }
-                result
+                Ok(0)
             }
             BatchReadyState::NotReady => {
                 trace!(
@@ -329,32 +353,10 @@ impl<R: Rpc> BatchProcessor<R> {
             (None, false)
         };
 
-        let (output_queue_data, output_ready) = if self.tree_type == TreeType::StateV2 {
-            if let Some(mut account) = output_queue_account {
-                match self.parse_output_queue_account(&mut account) {
-                    Ok((data, ready)) => (Some(data), ready),
-                    Err(_) => (None, false),
-                }
-            } else {
-                (None, false)
-            }
-        } else {
-            (None, false)
-        };
-
-        trace!(
-            "self.tree_type: {}, input_ready: {}, output_ready: {}",
-            self.tree_type,
-            input_ready,
-            output_ready
-        );
-
         if self.tree_type == TreeType::AddressV2 {
             return if input_ready {
-                if let Some(mt_data) = merkle_tree_data {
-                    BatchReadyState::AddressReadyForAppend {
-                        merkle_tree_data: mt_data,
-                    }
+                if let Some(merkle_tree_data) = merkle_tree_data {
+                    BatchReadyState::AddressReady { merkle_tree_data }
                 } else {
                     BatchReadyState::NotReady
                 }
@@ -363,134 +365,23 @@ impl<R: Rpc> BatchProcessor<R> {
             };
         }
 
-        // For State tree type, balance appends and nullifies operations
-        // based on the queue states
-        match (input_ready, output_ready) {
-            (true, true) => {
-                if let (Some(mt_data), Some(oq_data)) = (merkle_tree_data, output_queue_data) {
-                    // If both queues are ready, check their fill levels
-                    let input_fill = Self::calculate_completion_from_parsed(
-                        mt_data.num_inserted_zkps,
-                        mt_data.current_zkp_batch_index,
-                    );
-                    let output_fill = Self::calculate_completion_from_parsed(
-                        oq_data.num_inserted_zkps,
-                        oq_data.current_zkp_batch_index,
-                    );
+        // StateV2: check output queue readiness
+        let output_ready = if let Some(mut account) = output_queue_account {
+            self.parse_output_queue_account(&mut account)
+                .map(|(_, ready)| ready)
+                .unwrap_or(false)
+        } else {
+            false
+        };
 
-                    trace!(
-                        "Input queue fill: {:.2}, Output queue fill: {:.2}",
-                        input_fill,
-                        output_fill
-                    );
-                    if input_fill > output_fill {
-                        BatchReadyState::StateReadyForNullify {
-                            merkle_tree_data: mt_data,
-                        }
-                    } else {
-                        BatchReadyState::StateReadyForAppend {
-                            merkle_tree_data: mt_data,
-                            output_queue_data: oq_data,
-                        }
-                    }
-                } else {
-                    BatchReadyState::NotReady
-                }
-            }
-            (true, false) => {
-                if let Some(mt_data) = merkle_tree_data {
-                    BatchReadyState::StateReadyForNullify {
-                        merkle_tree_data: mt_data,
-                    }
-                } else {
-                    BatchReadyState::NotReady
-                }
-            }
-            (false, true) => {
-                if let (Some(mt_data), Some(oq_data)) = (merkle_tree_data, output_queue_data) {
-                    BatchReadyState::StateReadyForAppend {
-                        merkle_tree_data: mt_data,
-                        output_queue_data: oq_data,
-                    }
-                } else {
-                    BatchReadyState::NotReady
-                }
-            }
-            (false, false) => BatchReadyState::NotReady,
-        }
-    }
-
-    async fn process_state_nullify_hybrid(
-        &self,
-        merkle_tree_data: ParsedMerkleTreeData,
-    ) -> Result<usize> {
-        let zkp_batch_size = merkle_tree_data.zkp_batch_size as usize;
-
-        let batch_hash = format!(
-            "state_nullify_hybrid_{}_{}",
-            self.context.merkle_tree, self.context.epoch
-        );
-
-        {
-            let mut cache = self.context.ops_cache.lock().await;
-            if cache.contains(&batch_hash) {
-                trace!(
-                    "Skipping already processed state nullify batch (hybrid): {}",
-                    batch_hash
-                );
-                return Ok(0);
-            }
-            cache.add(&batch_hash);
+        if !input_ready && !output_ready {
+            return BatchReadyState::NotReady;
         }
 
-        state::perform_nullify(&self.context, merkle_tree_data).await?;
-
-        trace!(
-            "State nullify operation (hybrid) completed for tree: {}",
-            self.context.merkle_tree
-        );
-        let mut cache = self.context.ops_cache.lock().await;
-        cache.cleanup_by_key(&batch_hash);
-        trace!("Cache cleaned up for batch: {}", batch_hash);
-
-        Ok(zkp_batch_size)
+        // State batch is ready; StateSupervisor will handle the actual processing
+        BatchReadyState::StateReady
     }
 
-    async fn process_state_append_hybrid(
-        &self,
-        merkle_tree_data: ParsedMerkleTreeData,
-        output_queue_data: ParsedQueueData,
-    ) -> Result<usize> {
-        let zkp_batch_size = output_queue_data.zkp_batch_size as usize;
-
-        let batch_hash = format!(
-            "state_append_hybrid_{}_{}",
-            self.context.merkle_tree, self.context.epoch
-        );
-        {
-            let mut cache = self.context.ops_cache.lock().await;
-            if cache.contains(&batch_hash) {
-                trace!(
-                    "Skipping already processed state append batch (hybrid): {}",
-                    batch_hash
-                );
-                return Ok(0);
-            }
-            cache.add(&batch_hash);
-        }
-        state::perform_append(&self.context, merkle_tree_data, output_queue_data).await?;
-        trace!(
-            "State append operation (hybrid) completed for tree: {}",
-            self.context.merkle_tree
-        );
-
-        let mut cache = self.context.ops_cache.lock().await;
-        cache.cleanup_by_key(&batch_hash);
-
-        Ok(zkp_batch_size)
-    }
-
-    /// Parse merkle tree account and check if batch is ready
     fn parse_merkle_tree_account(
         &self,
         account: &mut solana_sdk::account::Account,
@@ -523,21 +414,14 @@ impl<R: Rpc> BatchProcessor<R> {
                 .push(merkle_tree.hash_chain_stores[batch_index as usize][i as usize]);
         }
 
-        debug!(
-            "Extracted {} hash chains from on-chain merkle tree. batch_index={}, num_inserted_zkps={}, current_zkp_batch_index={}",
-            leaves_hash_chains.len(),
-            batch_index,
-            num_inserted_zkps,
-            current_zkp_batch_index
-        );
-        if !leaves_hash_chains.is_empty() {
-            debug!("First hash chain: {:?}", leaves_hash_chains.first());
-            debug!("Last hash chain: {:?}", leaves_hash_chains.last());
-        }
+        let onchain_root = *merkle_tree
+            .root_history
+            .last()
+            .ok_or_else(|| anyhow::anyhow!("Merkle tree root history is empty"))?;
 
         let parsed_data = ParsedMerkleTreeData {
             next_index: merkle_tree.next_index,
-            current_root: *merkle_tree.root_history.last().unwrap(),
+            current_root: onchain_root,
             root_history: merkle_tree.root_history.to_vec(),
             zkp_batch_size: batch.zkp_batch_size as u16,
             pending_batch_index: batch_index as u32,
@@ -553,7 +437,6 @@ impl<R: Rpc> BatchProcessor<R> {
         Ok((parsed_data, is_ready))
     }
 
-    /// Parse output queue account and check if batch is ready
     fn parse_output_queue_account(
         &self,
         account: &mut solana_sdk::account::Account,
@@ -588,18 +471,5 @@ impl<R: Rpc> BatchProcessor<R> {
             && batch.get_current_zkp_batch_index() > batch.get_num_inserted_zkps();
 
         Ok((parsed_data, is_ready))
-    }
-
-    /// Calculate completion percentage from parsed data
-    fn calculate_completion_from_parsed(
-        num_inserted_zkps: u64,
-        current_zkp_batch_index: u64,
-    ) -> f64 {
-        let total = current_zkp_batch_index;
-        if total == 0 {
-            return 0.0;
-        }
-        let remaining = total - num_inserted_zkps;
-        remaining as f64 / total as f64
     }
 }

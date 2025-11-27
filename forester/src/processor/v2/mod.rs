@@ -1,6 +1,6 @@
 mod address;
 mod common;
-mod state;
+pub mod state;
 
 use common::BatchProcessor;
 use light_client::rpc::Rpc;
@@ -22,9 +22,18 @@ pub async fn process_batched_operations<R: Rpc>(
     tree_type: TreeType,
 ) -> Result<usize> {
     trace!("process_batched_operations");
-    let processor = BatchProcessor::new(context, tree_type);
-    processor.process().await
+    match tree_type {
+        TreeType::AddressV2 => {
+            let processor = BatchProcessor::new(context, tree_type);
+            processor.process().await
+        }
+        TreeType::StateV2 => {
+            trace!("StateV2 processing should be handled through StateSupervisor actor");
+            Ok(0)
+        }
+        _ => Ok(0),
+    }
 }
 
-pub use common::BatchContext;
+pub use common::{BatchContext, ProverConfig};
 use light_compressed_account::TreeType;

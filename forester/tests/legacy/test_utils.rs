@@ -75,7 +75,14 @@ pub fn forester_config() -> ForesterConfig {
             ws_rpc_url: Some("ws://localhost:8900".to_string()),
             indexer_url: Some("http://localhost:8784".to_string()),
             prover_url: Some("http://localhost:3001".to_string()),
+            prover_append_url: None,
+            prover_update_url: None,
+            prover_address_append_url: None,
+            prover_api_key: None,
+            prover_polling_interval: None,
+            prover_max_wait_time: None,
             photon_api_key: None,
+            photon_grpc_url: None,
             pushgateway_url: None,
             pagerduty_routing_key: None,
             rpc_rate_limit: None,
@@ -111,6 +118,7 @@ pub fn forester_config() -> ForesterConfig {
         derivation_pubkey: test_accounts.protocol.forester.pubkey(),
         address_tree_data: vec![],
         state_tree_data: vec![],
+        compressible_config: None,
     }
 }
 

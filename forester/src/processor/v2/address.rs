@@ -27,10 +27,10 @@ where
     let config = AddressUpdateConfig {
         rpc_pool: ctx.rpc_pool.clone(),
         merkle_tree_pubkey: ctx.merkle_tree,
-        prover_url: ctx.prover_address_append_url.clone(),
-        prover_api_key: ctx.prover_api_key.clone(),
-        polling_interval: ctx.prover_polling_interval,
-        max_wait_time: ctx.prover_max_wait_time,
+        prover_url: ctx.prover_config.address_append_url.clone(),
+        prover_api_key: ctx.prover_config.api_key.clone(),
+        polling_interval: ctx.prover_config.polling_interval,
+        max_wait_time: ctx.prover_config.max_wait_time,
     };
     let (stream, size) = get_address_update_instruction_stream(config, merkle_tree_data)
         .await

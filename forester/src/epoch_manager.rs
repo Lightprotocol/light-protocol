@@ -1,7 +1,7 @@
 use std::{
     collections::HashMap,
     sync::{
-        atomic::{AtomicBool, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc,
     },
     time::Duration,
@@ -55,7 +55,7 @@ use crate::{
             send_transaction::send_batched_transactions,
             tx_builder::EpochManagerTransactions,
         },
-        v2::{process_batched_operations, BatchContext},
+        v2::{self, process_batched_operations, BatchContext, ProverConfig},
     },
     queue_helpers::QueueItemData,
     rollover::{
@@ -67,6 +67,9 @@ use crate::{
     tree_finder::TreeFinder,
     ForesterConfig, ForesterEpochInfo, Result,
 };
+
+/// Map of tree pubkey to (epoch, supervisor actor reference)
+type StateSupervisorMap<R> = Arc<DashMap<Pubkey, (u64, ActorRef<v2::state::StateSupervisor<R>>)>>;
 
 #[derive(Copy, Clone, Debug)]
 pub struct WorkReport {
@@ -101,6 +104,7 @@ pub struct EpochManager<R: Rpc> {
     config: Arc<ForesterConfig>,
     protocol_config: Arc<ProtocolConfig>,
     rpc_pool: Arc<SolanaRpcPool<R>>,
+    authority: Arc<Keypair>,
     work_report_sender: mpsc::Sender<WorkReport>,
     processed_items_per_epoch_count: Arc<Mutex<HashMap<u64, AtomicUsize>>>,
     trees: Arc<Mutex<Vec<TreeAccounts>>>,
@@ -110,6 +114,7 @@ pub struct EpochManager<R: Rpc> {
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
     queue_poller: Option<ActorRef<QueueInfoPoller>>,
+    state_supervisors: StateSupervisorMap<R>,
     compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
 }
 
@@ -119,6 +124,7 @@ impl<R: Rpc> Clone for EpochManager<R> {
             config: self.config.clone(),
             protocol_config: self.protocol_config.clone(),
             rpc_pool: self.rpc_pool.clone(),
+            authority: self.authority.clone(),
             work_report_sender: self.work_report_sender.clone(),
             processed_items_per_epoch_count: self.processed_items_per_epoch_count.clone(),
             trees: self.trees.clone(),
@@ -128,6 +134,7 @@ impl<R: Rpc> Clone for EpochManager<R> {
             tx_cache: self.tx_cache.clone(),
             ops_cache: self.ops_cache.clone(),
             queue_poller: self.queue_poller.clone(),
+            state_supervisors: self.state_supervisors.clone(),
             compressible_tracker: self.compressible_tracker.clone(),
         }
     }
@@ -166,10 +173,12 @@ impl<R: Rpc> EpochManager<R> {
             None
         };
 
+        let authority = Arc::new(config.payer_keypair.insecure_clone());
         Ok(Self {
             config,
             protocol_config,
             rpc_pool,
+            authority,
             work_report_sender,
             processed_items_per_epoch_count: Arc::new(Mutex::new(HashMap::new())),
             trees: Arc::new(Mutex::new(trees)),
@@ -179,6 +188,7 @@ impl<R: Rpc> EpochManager<R> {
             tx_cache,
             ops_cache,
             queue_poller,
+            state_supervisors: Arc::new(DashMap::new()),
             compressible_tracker,
         })
     }
@@ -228,6 +238,7 @@ impl<R: Rpc> EpochManager<R> {
 
         while let Some(epoch) = rx.recv().await {
             debug!("Received new epoch: {}", epoch);
+
             let self_clone = Arc::clone(&self);
             tokio::spawn(async move {
                 if let Err(e) = self_clone.process_epoch(epoch).await {
@@ -374,6 +385,19 @@ impl<R: Rpc> EpochManager<R> {
 
             if last_epoch.is_none_or(|last| current_epoch > last) {
                 debug!("New epoch detected: {}", current_epoch);
+                // Kill state supervisors and clear caches when a new epoch is detected
+                let supervisor_count = self.state_supervisors.len();
+                if supervisor_count > 0 {
+                    for entry in self.state_supervisors.iter() {
+                        let (_, actor_ref) = entry.value();
+                        actor_ref.kill();
+                    }
+                    self.state_supervisors.clear();
+                    info!(
+                        "Killed and cleared {} state supervisor actors for new epoch {}",
+                        supervisor_count, current_epoch
+                    );
+                }
                 let phases = get_epoch_phases(&self.protocol_config, current_epoch);
                 if slot < phases.registration.end {
                     debug!("Sending current epoch {} for processing", current_epoch);
@@ -1160,11 +1184,15 @@ impl<R: Rpc> EpochManager<R> {
                     }
                     TreeType::StateV2 | TreeType::AddressV2 => {
                         if let Some(ref mut rx) = queue_update_rx {
+                            let consecutive_end = tree_schedule
+                                .get_consecutive_eligibility_end(slot_idx)
+                                .unwrap_or(light_slot_details.end_solana_slot);
                             self.process_light_slot_v2(
                                 epoch_info,
                                 epoch_pda,
                                 &tree_schedule.tree_accounts,
                                 &light_slot_details,
+                                consecutive_end,
                                 rx,
                             )
                             .await
@@ -1235,10 +1263,11 @@ impl<R: Rpc> EpochManager<R> {
         forester_slot_details: &ForesterSlot,
     ) -> Result<()> {
         info!(
-            "Processing slot {} ({}-{})",
+            "Processing slot {} ({}-{}) epoch {}",
             forester_slot_details.slot,
             forester_slot_details.start_solana_slot,
-            forester_slot_details.end_solana_slot
+            forester_slot_details.end_solana_slot,
+            epoch_info.epoch
         );
         let mut rpc = self.rpc_pool.get_connection().await?;
         wait_until_slot_reached(
@@ -1285,6 +1314,7 @@ impl<R: Rpc> EpochManager<R> {
                     epoch_pda,
                     tree_accounts,
                     forester_slot_details,
+                    forester_slot_details.end_solana_slot,
                     estimated_slot,
                     None,
                 )
@@ -1329,7 +1359,7 @@ impl<R: Rpc> EpochManager<R> {
 
     #[instrument(
         level = "debug",
-        skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details, queue_update_rx),
+        skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details, consecutive_eligibility_end, queue_update_rx),
         fields(tree = %tree_accounts.merkle_tree)
     )]
     async fn process_light_slot_v2(
@@ -1338,13 +1368,15 @@ impl<R: Rpc> EpochManager<R> {
         epoch_pda: &ForesterEpochPda,
         tree_accounts: &TreeAccounts,
         forester_slot_details: &ForesterSlot,
+        consecutive_eligibility_end: u64,
         queue_update_rx: &mut mpsc::Receiver<QueueUpdateMessage>,
     ) -> Result<()> {
         info!(
-            "Processing V2 light slot {} ({}-{})",
+            "Processing V2 light slot {} ({}-{}, consecutive_end={})",
             forester_slot_details.slot,
             forester_slot_details.start_solana_slot,
-            forester_slot_details.end_solana_slot
+            forester_slot_details.end_solana_slot,
+            consecutive_eligibility_end
         );
 
         let mut rpc = self.rpc_pool.get_connection().await?;
@@ -1408,6 +1440,7 @@ impl<R: Rpc> EpochManager<R> {
                                 epoch_pda,
                                 tree_accounts,
                                 forester_slot_details,
+                                consecutive_eligibility_end,
                                 estimated_slot,
                                 Some(&update),
                             )
@@ -1518,12 +1551,14 @@ impl<R: Rpc> EpochManager<R> {
         Ok(true)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn dispatch_tree_processing(
         &self,
         epoch_info: &Epoch,
         epoch_pda: &ForesterEpochPda,
         tree_accounts: &TreeAccounts,
         forester_slot_details: &ForesterSlot,
+        consecutive_eligibility_end: u64,
         current_solana_slot: u64,
         queue_update: Option<&QueueUpdateMessage>,
     ) -> Result<usize> {
@@ -1540,8 +1575,13 @@ impl<R: Rpc> EpochManager<R> {
                 .await
             }
             TreeType::StateV2 | TreeType::AddressV2 => {
-                self.process_v2(epoch_info, tree_accounts, queue_update)
-                    .await
+                self.process_v2(
+                    epoch_info,
+                    tree_accounts,
+                    queue_update,
+                    consecutive_eligibility_end,
+                )
+                .await
             }
         }
     }
@@ -1722,66 +1762,182 @@ impl<R: Rpc> EpochManager<R> {
         }
     }
 
-    async fn process_v2(
+    fn build_batch_context(
         &self,
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
-        queue_update: Option<&QueueUpdateMessage>,
-    ) -> Result<usize> {
+        input_queue_hint: Option<u64>,
+        output_queue_hint: Option<u64>,
+        eligibility_end: Option<u64>,
+    ) -> BatchContext<R> {
         let default_prover_url = "http://127.0.0.1:3001".to_string();
-
-        let (input_queue_hint, output_queue_hint) = if let Some(update) = queue_update {
-            match update.queue_type {
-                light_compressed_account::QueueType::InputStateV2 => {
-                    (Some(update.queue_size), None)
-                }
-                light_compressed_account::QueueType::OutputStateV2 => {
-                    (None, Some(update.queue_size))
-                }
-                _ => (None, None),
-            }
-        } else {
-            (None, None)
-        };
-
-        let batch_context = BatchContext {
+        let eligibility_end = eligibility_end.unwrap_or(0);
+        BatchContext {
             rpc_pool: self.rpc_pool.clone(),
-            authority: self.config.payer_keypair.insecure_clone(),
+            authority: self.authority.clone(),
             derivation: self.config.derivation_pubkey,
             epoch: epoch_info.epoch,
             merkle_tree: tree_accounts.merkle_tree,
             output_queue: tree_accounts.queue,
-            prover_append_url: self
-                .config
-                .external_services
-                .prover_append_url
-                .clone()
-                .unwrap_or_else(|| default_prover_url.clone()),
-            prover_update_url: self
-                .config
-                .external_services
-                .prover_update_url
-                .clone()
-                .unwrap_or_else(|| default_prover_url.clone()),
-            prover_address_append_url: self
-                .config
-                .external_services
-                .prover_address_append_url
-                .clone()
-                .unwrap_or_else(|| default_prover_url.clone()),
-            prover_api_key: self.config.external_services.prover_api_key.clone(),
-            prover_polling_interval: Duration::from_secs(1),
-            prover_max_wait_time: Duration::from_secs(600),
+            prover_config: ProverConfig {
+                append_url: self
+                    .config
+                    .external_services
+                    .prover_append_url
+                    .clone()
+                    .unwrap_or_else(|| default_prover_url.clone()),
+                update_url: self
+                    .config
+                    .external_services
+                    .prover_update_url
+                    .clone()
+                    .unwrap_or_else(|| default_prover_url.clone()),
+                address_append_url: self
+                    .config
+                    .external_services
+                    .prover_address_append_url
+                    .clone()
+                    .unwrap_or_else(|| default_prover_url.clone()),
+                api_key: self.config.external_services.prover_api_key.clone(),
+                polling_interval: self
+                    .config
+                    .external_services
+                    .prover_polling_interval
+                    .unwrap_or(Duration::from_secs(1)),
+                max_wait_time: self
+                    .config
+                    .external_services
+                    .prover_max_wait_time
+                    .unwrap_or(Duration::from_secs(600)),
+            },
             ops_cache: self.ops_cache.clone(),
             epoch_phases: epoch_info.phases.clone(),
             slot_tracker: self.slot_tracker.clone(),
             input_queue_hint,
             output_queue_hint,
-        };
+            num_proof_workers: self.config.transaction_config.max_concurrent_batches,
+            forester_eligibility_end_slot: Arc::new(AtomicU64::new(eligibility_end)),
+        }
+    }
 
-        process_batched_operations(batch_context, tree_accounts.tree_type)
-            .await
-            .map_err(|e| anyhow!("Failed to process V2 operations: {}", e))
+    async fn get_or_create_state_supervisor(
+        &self,
+        epoch_info: &Epoch,
+        tree_accounts: &TreeAccounts,
+    ) -> Result<ActorRef<v2::state::StateSupervisor<R>>> {
+        use dashmap::mapref::entry::Entry;
+
+        let entry = self.state_supervisors.entry(tree_accounts.merkle_tree);
+
+        match entry {
+            Entry::Occupied(mut occupied) => {
+                let (stored_epoch, supervisor_ref) = occupied.get();
+                if *stored_epoch == epoch_info.epoch {
+                    Ok(supervisor_ref.clone())
+                } else {
+                    info!(
+                        "Removing stale StateSupervisor for tree {} (epoch {} -> {})",
+                        tree_accounts.merkle_tree, *stored_epoch, epoch_info.epoch
+                    );
+                    // Don't pass forester_slot - StateSupervisor is long-lived across forester slots,
+                    // so it should use the global active phase end for safety checks
+                    let batch_context =
+                        self.build_batch_context(epoch_info, tree_accounts, None, None, None);
+                    let supervisor = v2::state::StateSupervisor::spawn(batch_context);
+                    info!(
+                        "Created StateSupervisor actor for tree {} (epoch {})",
+                        tree_accounts.merkle_tree, epoch_info.epoch
+                    );
+                    occupied.insert((epoch_info.epoch, supervisor.clone()));
+                    Ok(supervisor)
+                }
+            }
+            Entry::Vacant(vacant) => {
+                // Don't pass forester_slot - StateSupervisor is long-lived across forester slots,
+                // so it should use the global active phase end for safety checks
+                let batch_context =
+                    self.build_batch_context(epoch_info, tree_accounts, None, None, None);
+                let supervisor = v2::state::StateSupervisor::spawn(batch_context);
+                info!(
+                    "Created StateSupervisor actor for tree {} (epoch {})",
+                    tree_accounts.merkle_tree, epoch_info.epoch
+                );
+                vacant.insert((epoch_info.epoch, supervisor.clone()));
+                Ok(supervisor)
+            }
+        }
+    }
+
+    async fn process_v2(
+        &self,
+        epoch_info: &Epoch,
+        tree_accounts: &TreeAccounts,
+        queue_update: Option<&QueueUpdateMessage>,
+        consecutive_eligibility_end: u64,
+    ) -> Result<usize> {
+        match tree_accounts.tree_type {
+            TreeType::StateV2 => {
+                if let Some(update) = queue_update {
+                    let supervisor = self
+                        .get_or_create_state_supervisor(epoch_info, tree_accounts)
+                        .await?;
+
+                    supervisor
+                        .ask(v2::state::UpdateEligibility {
+                            end_slot: consecutive_eligibility_end,
+                        })
+                        .send()
+                        .await
+                        .map_err(|e| {
+                            anyhow!(
+                                "Failed to send UpdateEligibility to StateSupervisor for tree {}: {}",
+                                tree_accounts.merkle_tree,
+                                e
+                            )
+                        })?;
+
+                    let work = v2::state::QueueWork {
+                        queue_type: update.queue_type,
+                        queue_size: update.queue_size,
+                    };
+
+                    Ok(supervisor
+                        .ask(v2::state::ProcessQueueUpdate { queue_work: work })
+                        .send()
+                        .await
+                        .map_err(|e| {
+                            anyhow!(
+                                "Failed to send message to StateSupervisor for tree {}: {}",
+                                tree_accounts.merkle_tree,
+                                e
+                            )
+                        })?)
+                } else {
+                    Ok(0)
+                }
+            }
+            TreeType::AddressV2 => {
+                let input_queue_hint = queue_update.map(|u| u.queue_size);
+                let batch_context = self.build_batch_context(
+                    epoch_info,
+                    tree_accounts,
+                    input_queue_hint,
+                    None,
+                    Some(consecutive_eligibility_end),
+                );
+
+                process_batched_operations(batch_context, tree_accounts.tree_type)
+                    .await
+                    .map_err(|e| anyhow!("Failed to process V2 operations: {}", e))
+            }
+            _ => {
+                warn!(
+                    "Unsupported tree type for V2 processing: {:?}",
+                    tree_accounts.tree_type
+                );
+                Ok(0)
+            }
+        }
     }
 
     async fn update_metrics_and_counts(
@@ -2194,6 +2350,8 @@ mod tests {
                 rpc_rate_limit: None,
                 photon_rate_limit: None,
                 send_tx_rate_limit: None,
+                prover_polling_interval: None,
+                prover_max_wait_time: None,
             },
             retry_config: RetryConfig::default(),
             queue_config: Default::default(),

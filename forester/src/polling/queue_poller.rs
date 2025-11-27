@@ -123,7 +123,7 @@ impl QueueInfoPoller {
                         );
                     }
                     Err(mpsc::error::TrySendError::Full(_)) => {
-                        warn!(
+                        debug!(
                             "Tree {} channel full, dropping update (tree processing slower than updates)",
                             info.tree
                         );

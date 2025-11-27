@@ -40,6 +40,8 @@ pub struct ExternalServicesConfig {
     pub prover_update_url: Option<String>,
     pub prover_address_append_url: Option<String>,
     pub prover_api_key: Option<String>,
+    pub prover_polling_interval: Option<Duration>,
+    pub prover_max_wait_time: Option<Duration>,
     pub photon_api_key: Option<String>,
     pub photon_grpc_url: Option<String>,
     pub pushgateway_url: Option<String>,
@@ -171,7 +173,7 @@ impl Default for TransactionConfig {
     fn default() -> Self {
         Self {
             legacy_ixs_per_tx: 1,
-            max_concurrent_batches: 20,
+            max_concurrent_batches: 60,
             max_concurrent_sends: 50,
             cu_limit: 1_000_000,
             enable_priority_fees: false,
@@ -241,6 +243,8 @@ impl ForesterConfig {
                     .clone()
                     .or_else(|| args.prover_url.clone()),
                 prover_api_key: args.prover_api_key.clone(),
+                prover_polling_interval: args.prover_polling_interval_ms.map(Duration::from_millis),
+                prover_max_wait_time: args.prover_max_wait_time_secs.map(Duration::from_secs),
                 photon_api_key: args.photon_api_key.clone(),
                 photon_grpc_url: args.photon_grpc_url.clone(),
                 pushgateway_url: args.push_gateway_url.clone(),
@@ -329,6 +333,8 @@ impl ForesterConfig {
                 prover_update_url: None,
                 prover_address_append_url: None,
                 prover_api_key: None,
+                prover_polling_interval: None,
+                prover_max_wait_time: None,
                 photon_api_key: None,
                 photon_grpc_url: None,
                 pushgateway_url: args.push_gateway_url.clone(),
