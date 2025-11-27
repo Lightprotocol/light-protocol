@@ -218,10 +218,7 @@ impl StagingTree {
             // Skip nodes at root level - root is stored separately in tree.roots
             let level = (node_index >> 56) as usize;
             if level == TREE_HEIGHT {
-                return Err(ForesterUtilsError::StagingTree(format!(
-                    "Tree height mismatch: node index {} level {}, but tree height is {}",
-                    node_index, level, TREE_HEIGHT
-                )));
+                continue;
             }
             tree.insert_node(node_index, node_hash).map_err(|e| {
                 ForesterUtilsError::StagingTree(format!("Failed to insert node: {}", e))
