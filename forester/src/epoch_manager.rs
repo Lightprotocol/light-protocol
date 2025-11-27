@@ -1184,11 +1184,15 @@ impl<R: Rpc> EpochManager<R> {
                     }
                     TreeType::StateV2 | TreeType::AddressV2 => {
                         if let Some(ref mut rx) = queue_update_rx {
+                            let consecutive_end = tree_schedule
+                                .get_consecutive_eligibility_end(slot_idx)
+                                .unwrap_or(light_slot_details.end_solana_slot);
                             self.process_light_slot_v2(
                                 epoch_info,
                                 epoch_pda,
                                 &tree_schedule.tree_accounts,
                                 &light_slot_details,
+                                consecutive_end,
                                 rx,
                             )
                             .await
@@ -1310,6 +1314,7 @@ impl<R: Rpc> EpochManager<R> {
                     epoch_pda,
                     tree_accounts,
                     forester_slot_details,
+                    forester_slot_details.end_solana_slot,
                     estimated_slot,
                     None,
                 )
@@ -1354,7 +1359,7 @@ impl<R: Rpc> EpochManager<R> {
 
     #[instrument(
         level = "debug",
-        skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details, queue_update_rx),
+        skip(self, epoch_info, epoch_pda, tree_accounts, forester_slot_details, consecutive_eligibility_end, queue_update_rx),
         fields(tree = %tree_accounts.merkle_tree)
     )]
     async fn process_light_slot_v2(
@@ -1363,13 +1368,15 @@ impl<R: Rpc> EpochManager<R> {
         epoch_pda: &ForesterEpochPda,
         tree_accounts: &TreeAccounts,
         forester_slot_details: &ForesterSlot,
+        consecutive_eligibility_end: u64,
         queue_update_rx: &mut mpsc::Receiver<QueueUpdateMessage>,
     ) -> Result<()> {
         info!(
-            "Processing V2 light slot {} ({}-{})",
+            "Processing V2 light slot {} ({}-{}, consecutive_end={})",
             forester_slot_details.slot,
             forester_slot_details.start_solana_slot,
-            forester_slot_details.end_solana_slot
+            forester_slot_details.end_solana_slot,
+            consecutive_eligibility_end
         );
 
         let mut rpc = self.rpc_pool.get_connection().await?;
@@ -1433,6 +1440,7 @@ impl<R: Rpc> EpochManager<R> {
                                 epoch_pda,
                                 tree_accounts,
                                 forester_slot_details,
+                                consecutive_eligibility_end,
                                 estimated_slot,
                                 Some(&update),
                             )
@@ -1543,12 +1551,14 @@ impl<R: Rpc> EpochManager<R> {
         Ok(true)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn dispatch_tree_processing(
         &self,
         epoch_info: &Epoch,
         epoch_pda: &ForesterEpochPda,
         tree_accounts: &TreeAccounts,
         forester_slot_details: &ForesterSlot,
+        consecutive_eligibility_end: u64,
         current_solana_slot: u64,
         queue_update: Option<&QueueUpdateMessage>,
     ) -> Result<usize> {
@@ -1569,7 +1579,7 @@ impl<R: Rpc> EpochManager<R> {
                     epoch_info,
                     tree_accounts,
                     queue_update,
-                    forester_slot_details,
+                    consecutive_eligibility_end,
                 )
                 .await
             }
@@ -1758,10 +1768,10 @@ impl<R: Rpc> EpochManager<R> {
         tree_accounts: &TreeAccounts,
         input_queue_hint: Option<u64>,
         output_queue_hint: Option<u64>,
-        forester_slot: Option<&ForesterSlot>,
+        eligibility_end: Option<u64>,
     ) -> BatchContext<R> {
         let default_prover_url = "http://127.0.0.1:3001".to_string();
-        let eligibility_end = forester_slot.map(|s| s.end_solana_slot).unwrap_or(0);
+        let eligibility_end = eligibility_end.unwrap_or(0);
         BatchContext {
             rpc_pool: self.rpc_pool.clone(),
             authority: self.authority.clone(),
@@ -1863,7 +1873,7 @@ impl<R: Rpc> EpochManager<R> {
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
         queue_update: Option<&QueueUpdateMessage>,
-        forester_slot_details: &ForesterSlot,
+        consecutive_eligibility_end: u64,
     ) -> Result<usize> {
         match tree_accounts.tree_type {
             TreeType::StateV2 => {
@@ -1874,7 +1884,7 @@ impl<R: Rpc> EpochManager<R> {
 
                     supervisor
                         .ask(v2::state::UpdateEligibility {
-                            end_slot: forester_slot_details.end_solana_slot,
+                            end_slot: consecutive_eligibility_end,
                         })
                         .send()
                         .await
@@ -1913,7 +1923,7 @@ impl<R: Rpc> EpochManager<R> {
                     tree_accounts,
                     input_queue_hint,
                     None,
-                    Some(forester_slot_details),
+                    Some(consecutive_eligibility_end),
                 );
 
                 process_batched_operations(batch_context, tree_accounts.tree_type)

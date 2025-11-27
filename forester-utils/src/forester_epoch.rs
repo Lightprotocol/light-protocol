@@ -182,6 +182,23 @@ impl TreeForesterSchedule {
     pub fn is_eligible(&self, forester_slot: u64) -> bool {
         self.slots[forester_slot as usize].is_some()
     }
+
+    /// Returns the end solana slot of the last consecutive eligible slot
+    /// starting from the given light slot index.
+    pub fn get_consecutive_eligibility_end(&self, from_slot_idx: usize) -> Option<u64> {
+        let mut last_eligible_end = None;
+
+        for slot_opt in self.slots.iter().skip(from_slot_idx) {
+            match slot_opt {
+                Some(slot) => {
+                    last_eligible_end = Some(slot.end_solana_slot);
+                }
+                None => break,
+            }
+        }
+
+        last_eligible_end
+    }
 }
 
 #[derive(Debug, Clone, AnchorSerialize, AnchorDeserialize, Default, PartialEq, Eq)]
