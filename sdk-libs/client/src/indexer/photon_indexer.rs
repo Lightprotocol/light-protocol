@@ -1961,6 +1961,18 @@ impl Indexer for PhotonIndexer {
 
                 let initial_root = Hash::from_base58(&address.initial_root)?;
 
+                let leaves_hash_chains: Result<Vec<[u8; 32]>, IndexerError> = address
+                    .leaves_hash_chains
+                    .iter()
+                    .map(|h| Hash::from_base58(h))
+                    .collect();
+
+                let subtrees: Result<Vec<[u8; 32]>, IndexerError> = address
+                    .subtrees
+                    .iter()
+                    .map(|h| Hash::from_base58(h))
+                    .collect();
+
                 Some(super::AddressQueueDataV2 {
                     addresses: addresses?,
                     low_element_values: low_element_values?,
@@ -1972,6 +1984,10 @@ impl Indexer for PhotonIndexer {
                     node_hashes: node_hashes?,
                     initial_root,
                     first_queue_index: address.start_index,
+                    leaves_hash_chains: leaves_hash_chains?,
+                    subtrees: subtrees?,
+                    start_index: address.start_index,
+                    root_seq: address.root_seq,
                 })
             } else {
                 None

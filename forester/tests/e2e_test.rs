@@ -854,7 +854,7 @@ async fn execute_test_transactions<R: Rpc>(
     address_v1_counter: &mut u64,
     address_v2_counter: &mut u64,
 ) {
-    let mut iterations = 4;
+    let mut iterations = 20;
     if is_v2_state_test_enabled() {
         let batch_size =
             get_state_v2_batch_size(rpc, &env.v2_state_trees[0].merkle_tree).await as usize;
