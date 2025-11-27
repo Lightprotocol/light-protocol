@@ -17,8 +17,6 @@ use async_trait::async_trait;
 use borsh::BorshDeserialize;
 #[cfg(feature = "devenv")]
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
-#[cfg(feature = "v2")]
-use light_client::indexer::MerkleProofWithContext;
 #[cfg(feature = "devenv")]
 use light_client::rpc::{Rpc, RpcError};
 use light_client::{
@@ -29,8 +27,8 @@ use light_client::{
         CompressedTokenAccount, Context, GetCompressedAccountsByOwnerConfig,
         GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer, IndexerError,
         IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
-        OwnerBalance, PaginatedOptions, QueueElementsResult, Response, RetryConfig, RootIndex,
-        SignatureWithMetadata, StateMerkleTreeAccounts, TokenBalance, ValidityProofWithContext,
+        OwnerBalance, PaginatedOptions, Response, RetryConfig, RootIndex, SignatureWithMetadata,
+        StateMerkleTreeAccounts, TokenBalance, ValidityProofWithContext,
     },
 };
 use light_compressed_account::{
@@ -613,258 +611,6 @@ impl Indexer for TestIndexer {
         }
     }
 
-    async fn get_queue_elements(
-        &mut self,
-        _merkle_tree_pubkey: [u8; 32],
-        _output_queue_start_index: Option<u64>,
-        _output_queue_limit: Option<u16>,
-        _input_queue_start_index: Option<u64>,
-        _input_queue_limit: Option<u16>,
-        _config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<QueueElementsResult>, IndexerError> {
-        #[cfg(not(feature = "v2"))]
-        unimplemented!("get_queue_elements");
-        #[cfg(feature = "v2")]
-        {
-            let merkle_tree_pubkey = _merkle_tree_pubkey;
-            let output_queue_start_index = _output_queue_start_index.unwrap_or(0);
-            let output_queue_limit = _output_queue_limit;
-            let input_queue_start_index = _input_queue_start_index.unwrap_or(0);
-            let input_queue_limit = _input_queue_limit;
-            let pubkey = Pubkey::new_from_array(merkle_tree_pubkey);
-
-            // Check if this is an address tree
-            let address_tree_bundle = self
-                .address_merkle_trees
-                .iter()
-                .find(|x| x.accounts.merkle_tree == pubkey);
-            if let Some(address_tree_bundle) = address_tree_bundle {
-                // For address trees, return output queue only
-                let output_queue_elements = if let Some(limit) = output_queue_limit {
-                    let start = output_queue_start_index as usize;
-                    let end = std::cmp::min(
-                        start + limit as usize,
-                        address_tree_bundle.queue_elements.len(),
-                    );
-                    let queue_elements = address_tree_bundle.queue_elements[start..end].to_vec();
-
-                    let merkle_proofs_with_context = queue_elements
-                        .iter()
-                        .map(|element| MerkleProofWithContext {
-                            proof: Vec::new(),
-                            leaf: [0u8; 32],
-                            leaf_index: 0,
-                            merkle_tree: address_tree_bundle.accounts.merkle_tree.to_bytes(),
-                            root: address_tree_bundle.root(),
-                            tx_hash: None,
-                            root_seq: output_queue_start_index,
-                            account_hash: *element,
-                        })
-                        .collect();
-                    Some(merkle_proofs_with_context)
-                } else {
-                    None
-                };
-
-                let output_queue_index = if output_queue_elements.is_some() {
-                    Some(output_queue_start_index)
-                } else {
-                    None
-                };
-
-                return Ok(Response {
-                    context: Context {
-                        slot: self.get_current_slot(),
-                    },
-                    value: QueueElementsResult {
-                        output_queue_elements,
-                        output_queue_index,
-                        input_queue_elements: None,
-                        input_queue_index: None,
-                    },
-                });
-            }
-
-            // Check if this is a state tree
-            let state_tree_bundle = self
-                .state_merkle_trees
-                .iter_mut()
-                .find(|x| x.accounts.merkle_tree == pubkey);
-
-            if let Some(state_tree_bundle) = state_tree_bundle {
-                // For state trees, return both input and output queues
-
-                // Build input queue elements if requested
-                let input_queue_elements = if let Some(limit) = input_queue_limit {
-                    let start = input_queue_start_index as usize;
-                    let end = std::cmp::min(
-                        start + limit as usize,
-                        state_tree_bundle.input_leaf_indices.len(),
-                    );
-                    let queue_elements = state_tree_bundle.input_leaf_indices[start..end].to_vec();
-
-                    let merkle_proofs = queue_elements
-                        .iter()
-                        .map(|leaf_info| {
-                            match state_tree_bundle
-                                .merkle_tree
-                                .get_proof_of_leaf(leaf_info.leaf_index as usize, true)
-                            {
-                                Ok(proof) => proof.to_vec(),
-                                Err(_) => {
-                                    let mut next_index =
-                                        state_tree_bundle.merkle_tree.get_next_index() as u64;
-                                    while next_index < leaf_info.leaf_index as u64 {
-                                        state_tree_bundle.merkle_tree.append(&[0u8; 32]).unwrap();
-                                        next_index =
-                                            state_tree_bundle.merkle_tree.get_next_index() as u64;
-                                    }
-                                    state_tree_bundle
-                                        .merkle_tree
-                                        .get_proof_of_leaf(leaf_info.leaf_index as usize, true)
-                                        .unwrap()
-                                        .to_vec();
-                                    Vec::new()
-                                }
-                            }
-                        })
-                        .collect::<Vec<_>>();
-
-                    let leaves = queue_elements
-                        .iter()
-                        .map(|leaf_info| {
-                            state_tree_bundle
-                                .merkle_tree
-                                .get_leaf(leaf_info.leaf_index as usize)
-                                .unwrap_or_default()
-                        })
-                        .collect::<Vec<_>>();
-
-                    let merkle_proofs_with_context = merkle_proofs
-                        .iter()
-                        .zip(queue_elements.iter())
-                        .zip(leaves.iter())
-                        .map(|((proof, element), leaf)| MerkleProofWithContext {
-                            proof: proof.clone(),
-                            leaf: *leaf,
-                            leaf_index: element.leaf_index as u64,
-                            merkle_tree: state_tree_bundle.accounts.merkle_tree.to_bytes(),
-                            root: state_tree_bundle.merkle_tree.root(),
-                            tx_hash: Some(element.tx_hash),
-                            root_seq: 0,
-                            account_hash: element.leaf,
-                        })
-                        .collect();
-
-                    Some(merkle_proofs_with_context)
-                } else {
-                    None
-                };
-
-                // Build output queue elements if requested
-                let output_queue_elements = if let Some(limit) = output_queue_limit {
-                    let start = output_queue_start_index as usize;
-                    let end = std::cmp::min(
-                        start + limit as usize,
-                        state_tree_bundle.output_queue_elements.len(),
-                    );
-                    let queue_elements =
-                        state_tree_bundle.output_queue_elements[start..end].to_vec();
-
-                    let indices = queue_elements
-                        .iter()
-                        .map(|(_, index)| index)
-                        .collect::<Vec<_>>();
-
-                    let merkle_proofs = indices
-                        .iter()
-                        .map(|index| {
-                            match state_tree_bundle
-                                .merkle_tree
-                                .get_proof_of_leaf(**index as usize, true)
-                            {
-                                Ok(proof) => proof.to_vec(),
-                                Err(_) => {
-                                    let mut next_index =
-                                        state_tree_bundle.merkle_tree.get_next_index() as u64;
-                                    while next_index < **index {
-                                        state_tree_bundle.merkle_tree.append(&[0u8; 32]).unwrap();
-                                        next_index =
-                                            state_tree_bundle.merkle_tree.get_next_index() as u64;
-                                    }
-                                    state_tree_bundle
-                                        .merkle_tree
-                                        .get_proof_of_leaf(**index as usize, true)
-                                        .unwrap()
-                                        .to_vec();
-                                    Vec::new()
-                                }
-                            }
-                        })
-                        .collect::<Vec<_>>();
-
-                    let leaves = indices
-                        .iter()
-                        .map(|index| {
-                            state_tree_bundle
-                                .merkle_tree
-                                .get_leaf(**index as usize)
-                                .unwrap_or_default()
-                        })
-                        .collect::<Vec<_>>();
-
-                    let merkle_proofs_with_context = merkle_proofs
-                        .iter()
-                        .zip(queue_elements.iter())
-                        .zip(leaves.iter())
-                        .map(|((proof, (element, index)), leaf)| MerkleProofWithContext {
-                            proof: proof.clone(),
-                            leaf: *leaf,
-                            leaf_index: *index,
-                            merkle_tree: state_tree_bundle.accounts.merkle_tree.to_bytes(),
-                            root: state_tree_bundle.merkle_tree.root(),
-                            tx_hash: None,
-                            root_seq: 0,
-                            account_hash: *element,
-                        })
-                        .collect();
-
-                    Some(merkle_proofs_with_context)
-                } else {
-                    None
-                };
-
-                let output_queue_index = if output_queue_elements.is_some() {
-                    Some(output_queue_start_index)
-                } else {
-                    None
-                };
-
-                let input_queue_index = if input_queue_elements.is_some() {
-                    Some(input_queue_start_index)
-                } else {
-                    None
-                };
-
-                let slot = self.get_current_slot();
-
-                return Ok(Response {
-                    context: Context { slot },
-                    value: QueueElementsResult {
-                        output_queue_elements,
-                        output_queue_index,
-                        input_queue_elements,
-                        input_queue_index,
-                    },
-                });
-            }
-
-            Err(IndexerError::InvalidParameters(
-                "Merkle tree not found".to_string(),
-            ))
-        }
-    }
-
     async fn get_queue_info(
         &self,
         _config: Option<IndexerRpcConfig>,
@@ -925,83 +671,7 @@ impl Indexer for TestIndexer {
         _start_offset: Option<u64>,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<BatchAddressUpdateIndexerResponse>, IndexerError> {
-        #[cfg(not(feature = "v2"))]
-        unimplemented!("get_address_queue_with_proofs");
-        #[cfg(feature = "v2")]
-        {
-            use light_client::indexer::AddressQueueIndex;
-            let merkle_tree_pubkey = _merkle_tree_pubkey;
-            let zkp_batch_size = _zkp_batch_size;
-
-            let batch_start_index = self
-                .get_address_merkle_trees()
-                .iter()
-                .find(|x| x.accounts.merkle_tree == *merkle_tree_pubkey)
-                .unwrap()
-                .get_v2_indexed_merkle_tree()
-                .ok_or(IndexerError::Unknown(
-                    "Failed to get v2 indexed merkle tree".into(),
-                ))?
-                .merkle_tree
-                .rightmost_index;
-
-            let address_proof_items = self
-                .get_queue_elements(
-                    merkle_tree_pubkey.to_bytes(),
-                    Some(0),
-                    Some(zkp_batch_size),
-                    None,
-                    None,
-                    None,
-                )
-                .await
-                .map_err(|_| IndexerError::Unknown("Failed to get queue elements".into()))?
-                .value;
-
-            let output_elements = address_proof_items
-                .output_queue_elements
-                .ok_or(IndexerError::Unknown("No output queue elements".into()))?;
-
-            let addresses: Vec<AddressQueueIndex> = output_elements
-                .iter()
-                .enumerate()
-                .map(|(i, proof)| AddressQueueIndex {
-                    address: proof.account_hash,
-                    queue_index: proof.root_seq + i as u64,
-                })
-                .collect();
-            let non_inclusion_proofs = self
-                .get_multiple_new_address_proofs(
-                    merkle_tree_pubkey.to_bytes(),
-                    output_elements.iter().map(|x| x.account_hash).collect(),
-                    None,
-                )
-                .await
-                .map_err(|_| {
-                    IndexerError::Unknown(
-                        "Failed to get get_multiple_new_address_proofs_full".into(),
-                    )
-                })?
-                .value;
-
-            let subtrees = self
-                .get_subtrees(merkle_tree_pubkey.to_bytes(), None)
-                .await
-                .map_err(|_| IndexerError::Unknown("Failed to get subtrees".into()))?
-                .value;
-
-            Ok(Response {
-                context: Context {
-                    slot: self.get_current_slot(),
-                },
-                value: BatchAddressUpdateIndexerResponse {
-                    batch_start_index: batch_start_index as u64,
-                    addresses,
-                    non_inclusion_proofs: non_inclusion_proofs.items,
-                    subtrees: subtrees.items,
-                },
-            })
-        }
+        unimplemented!("get_address_queue_with_proofs not implemented for TestIndexer - needs to be updated to use V2 API")
     }
 
     // New required trait methods
@@ -1062,13 +732,13 @@ impl Indexer for TestIndexer {
         todo!("get_indexer_health not implemented")
     }
 
-    async fn get_queue_elements_v2(
+    async fn get_queue_elements(
         &mut self,
         _merkle_tree_pubkey: [u8; 32],
         _options: light_client::indexer::QueueElementsV2Options,
         _config: Option<IndexerRpcConfig>,
     ) -> Result<Response<light_client::indexer::QueueElementsV2Result>, IndexerError> {
-        unimplemented!("get_queue_elements_v2 not implemented for TestIndexer")
+        unimplemented!("get_queue_elements not implemented for TestIndexer")
     }
 }
 

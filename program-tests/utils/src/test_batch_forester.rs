@@ -653,21 +653,18 @@ pub async fn create_batch_update_address_tree_instruction_data_with_proof<R: Rpc
     let addresses = indexer
         .get_queue_elements(
             merkle_tree_pubkey.to_bytes(),
-            None,
-            Some(batch.zkp_batch_size as u16),
-            None,
-            None,
+            light_client::indexer::QueueElementsV2Options::default()
+                .with_address_queue(None, Some(batch.zkp_batch_size as u16)),
             None,
         )
         .await
         .unwrap();
     let addresses = addresses
         .value
-        .output_queue_elements
-        .unwrap_or_default()
-        .iter()
-        .map(|x| x.account_hash)
-        .collect::<Vec<[u8; 32]>>();
+        .address_queue
+        .as_ref()
+        .map(|aq| aq.addresses.clone())
+        .unwrap_or_default();
     // // local_leaves_hash_chain is only used for a test assertion.
     // let local_nullifier_hash_chain = create_hash_chain_from_slice(addresses.as_slice()).unwrap();
     // assert_eq!(leaves_hash_chain, local_nullifier_hash_chain);

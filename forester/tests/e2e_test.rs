@@ -751,17 +751,6 @@ async fn verify_root_changed(
     );
 }
 
-async fn get_state_v2_batch_size<R: Rpc>(rpc: &mut R, merkle_tree_pubkey: &Pubkey) -> u64 {
-    let mut merkle_tree_account = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
-    let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
-        merkle_tree_account.data.as_mut_slice(),
-        &merkle_tree_pubkey.into(),
-    )
-    .unwrap();
-
-    merkle_tree.get_metadata().queue_batches.batch_size
-}
-
 async fn setup_forester_pipeline(
     config: &ForesterConfig,
 ) -> (

@@ -4,8 +4,8 @@ use light_client::indexer::{
     CompressedTokenAccount, GetCompressedAccountsByOwnerConfig,
     GetCompressedTokenAccountsByOwnerOrDelegateOptions, Hash, Indexer, IndexerError,
     IndexerRpcConfig, Items, ItemsWithCursor, MerkleProof, NewAddressProofWithContext,
-    OwnerBalance, PaginatedOptions, QueueElementsResult, Response, RetryConfig,
-    SignatureWithMetadata, TokenBalance, ValidityProofWithContext,
+    OwnerBalance, PaginatedOptions, Response, RetryConfig, SignatureWithMetadata, TokenBalance,
+    ValidityProofWithContext,
 };
 use solana_sdk::pubkey::Pubkey;
 
@@ -197,30 +197,6 @@ impl Indexer for LightProgramTest {
             .await?)
     }
 
-    async fn get_queue_elements(
-        &mut self,
-        merkle_tree_pubkey: [u8; 32],
-        output_queue_start_index: Option<u64>,
-        output_queue_limit: Option<u16>,
-        input_queue_start_index: Option<u64>,
-        input_queue_limit: Option<u16>,
-        config: Option<IndexerRpcConfig>,
-    ) -> Result<Response<QueueElementsResult>, IndexerError> {
-        Ok(self
-            .indexer
-            .as_mut()
-            .ok_or(IndexerError::NotInitialized)?
-            .get_queue_elements(
-                merkle_tree_pubkey,
-                output_queue_start_index,
-                output_queue_limit,
-                input_queue_start_index,
-                input_queue_limit,
-                config,
-            )
-            .await?)
-    }
-
     async fn get_queue_info(
         &self,
         config: Option<IndexerRpcConfig>,
@@ -339,7 +315,7 @@ impl Indexer for LightProgramTest {
             .await?)
     }
 
-    async fn get_queue_elements_v2(
+    async fn get_queue_elements(
         &mut self,
         merkle_tree_pubkey: [u8; 32],
         options: light_client::indexer::QueueElementsV2Options,
@@ -349,7 +325,7 @@ impl Indexer for LightProgramTest {
             .indexer
             .as_mut()
             .ok_or(IndexerError::NotInitialized)?
-            .get_queue_elements_v2(merkle_tree_pubkey, options, config)
+            .get_queue_elements(merkle_tree_pubkey, options, config)
             .await?)
     }
 }
