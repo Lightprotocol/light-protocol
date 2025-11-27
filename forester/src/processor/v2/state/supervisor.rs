@@ -168,9 +168,10 @@ impl<R: Rpc> StateSupervisor<R> {
         result_tx: mpsc::Sender<ProofResult>,
     ) -> Option<ProofJob> {
         self.current_root = new_root;
+        let job_seq = self.seq;
         self.seq += 1;
         Some(ProofJob {
-            seq: self.seq - 1,
+            seq: job_seq,
             inputs,
             result_tx,
         })
