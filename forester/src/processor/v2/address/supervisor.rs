@@ -152,7 +152,10 @@ impl<R: Rpc> AddressSupervisor<R> {
             initial_root,
         )?);
         self.current_root = initial_root;
-        debug!("Built staging tree from indexer (root={:?}[..4])", &initial_root[..4]);
+        debug!(
+            "Built staging tree from indexer (root={:?}[..4])",
+            &initial_root[..4]
+        );
         Ok(())
     }
 
@@ -174,11 +177,7 @@ impl<R: Rpc> AddressSupervisor<R> {
         start..end
     }
 
-    fn create_job(
-        seq: u64,
-        inputs: ProofInput,
-        result_tx: mpsc::Sender<ProofResult>,
-    ) -> ProofJob {
+    fn create_job(seq: u64, inputs: ProofInput, result_tx: mpsc::Sender<ProofResult>) -> ProofJob {
         ProofJob {
             seq,
             inputs,

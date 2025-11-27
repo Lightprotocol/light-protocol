@@ -475,7 +475,12 @@ async fn e2e_test() {
     )
     .await;
 
-    wait_for_work_report(&mut work_report_receiver, &state_tree_params, test_iterations).await;
+    wait_for_work_report(
+        &mut work_report_receiver,
+        &state_tree_params,
+        test_iterations,
+    )
+    .await;
 
     // Verify root changes based on enabled tests
     if is_v1_state_test_enabled() {
@@ -796,7 +801,7 @@ async fn wait_for_work_report(
     expected_minimum_processed_items: usize,
 ) {
     let batch_size = tree_params.output_queue_zkp_batch_size as usize;
-    
+
     let mut total_processed_items: usize = 0;
     let timeout_duration = Duration::from_secs(DEFAULT_TIMEOUT_SECONDS);
 
@@ -859,7 +864,6 @@ async fn execute_test_transactions<R: Rpc>(
     address_v1_counter: &mut u64,
     address_v2_counter: &mut u64,
 ) -> usize {
-    
     println!("Executing {} test transactions", iterations);
     println!("===========================================");
     for i in 0..iterations {

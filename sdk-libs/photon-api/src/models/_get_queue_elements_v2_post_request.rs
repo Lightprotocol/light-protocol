@@ -67,7 +67,7 @@ impl Default for Jsonrpc {
 /// The name of the method to invoke.
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, Serialize, Deserialize)]
 pub enum Method {
-    #[serde(rename = "getQueueElementsV2")]
+    #[serde(rename = "getQueueElements")]
     GetQueueElementsV2,
 }
 

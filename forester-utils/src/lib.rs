@@ -7,6 +7,7 @@ pub mod address_merkle_tree_config;
 pub mod address_staging_tree;
 pub mod error;
 pub mod forester_epoch;
+pub mod indexed_tree_processor;
 pub mod instructions;
 pub mod rate_limiter;
 pub mod registry;

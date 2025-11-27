@@ -39,9 +39,8 @@ pub async fn fetch_address_zkp_batch_size<R: Rpc>(context: &BatchContext<R>) -> 
         .await?
         .ok_or_else(|| anyhow!("Merkle tree account not found"))?;
 
-    let mut data: &mut [u8] = &mut account.data;
     let merkle_tree_pubkey = Pubkey::from(context.merkle_tree.to_bytes());
-    let tree = BatchedMerkleTreeAccount::address_from_bytes(&mut data, &merkle_tree_pubkey)
+    let tree = BatchedMerkleTreeAccount::address_from_bytes(&mut account.data, &merkle_tree_pubkey)
         .map_err(|e| anyhow!("Failed to deserialize address tree: {}", e))?;
 
     let batch_index = tree.queue_batches.pending_batch_index;
@@ -93,7 +92,7 @@ pub async fn fetch_batches<R: Rpc>(
         .with_input_queue_batch_size(Some(zkp_batch_size_u16));
 
     let res = indexer
-        .get_queue_elements_v2(context.merkle_tree.to_bytes(), options, None)
+        .get_queue_elements(context.merkle_tree.to_bytes(), options, None)
         .await?;
 
     Ok(res.value.state_queue)
@@ -144,7 +143,7 @@ pub async fn fetch_address_batches<R: Rpc>(
     );
 
     let res = indexer
-        .get_queue_elements_v2(context.merkle_tree.to_bytes(), options, None)
+        .get_queue_elements(context.merkle_tree.to_bytes(), options, None)
         .await?;
 
     if let Some(ref aq) = res.value.address_queue {

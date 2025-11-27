@@ -2345,6 +2345,7 @@ dependencies = [
  "light-registry",
  "light-sdk",
  "light-sparse-merkle-tree",
+ "num-bigint 0.4.6",
  "num-traits",
  "serde",
  "serde_json",
