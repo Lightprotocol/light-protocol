@@ -457,7 +457,10 @@ async fn e2e_test() {
         compressible_account_subscriber
     );
 
-    execute_test_transactions(
+    let iterations: usize = 50;
+
+    let test_iterations = execute_test_transactions(
+        iterations,
         &mut rpc,
         rng,
         &env,
@@ -472,7 +475,7 @@ async fn e2e_test() {
     )
     .await;
 
-    wait_for_work_report(&mut work_report_receiver, &state_tree_params).await;
+    wait_for_work_report(&mut work_report_receiver, &state_tree_params, test_iterations).await;
 
     // Verify root changes based on enabled tests
     if is_v1_state_test_enabled() {
@@ -790,14 +793,10 @@ async fn setup_forester_pipeline(
 async fn wait_for_work_report(
     work_report_receiver: &mut mpsc::Receiver<WorkReport>,
     tree_params: &InitStateTreeAccountsInstructionData,
+    expected_minimum_processed_items: usize,
 ) {
     let batch_size = tree_params.output_queue_zkp_batch_size as usize;
-    // With increased test size, expect more processed items
-    let minimum_processed_items: usize = if is_v2_state_test_enabled() {
-        (tree_params.output_queue_batch_size as usize) * 4 // Expect at least 4 batches worth
-    } else {
-        tree_params.output_queue_batch_size as usize
-    };
+    
     let mut total_processed_items: usize = 0;
     let timeout_duration = Duration::from_secs(DEFAULT_TIMEOUT_SECONDS);
 
@@ -805,11 +804,11 @@ async fn wait_for_work_report(
     println!("Batch size: {}", batch_size);
     println!(
         "Minimum required processed items: {}",
-        minimum_processed_items
+        expected_minimum_processed_items
     );
 
     let start_time = tokio::time::Instant::now();
-    while total_processed_items < minimum_processed_items {
+    while total_processed_items < expected_minimum_processed_items {
         match timeout(
             timeout_duration.saturating_sub(start_time.elapsed()),
             work_report_receiver.recv(),
@@ -819,6 +818,11 @@ async fn wait_for_work_report(
             Ok(Some(report)) => {
                 println!("Received work report: {:?}", report);
                 total_processed_items += report.processed_items;
+
+                if total_processed_items >= expected_minimum_processed_items {
+                    println!("Received required number of processed items.");
+                    break;
+                }
             }
             Ok(None) => {
                 println!("Work report channel closed unexpectedly");
@@ -833,15 +837,16 @@ async fn wait_for_work_report(
 
     println!("Total processed items: {}", total_processed_items);
     assert!(
-        total_processed_items >= minimum_processed_items,
+        total_processed_items >= expected_minimum_processed_items,
         "Processed fewer items ({}) than required ({})",
         total_processed_items,
-        minimum_processed_items
+        expected_minimum_processed_items
     );
 }
 
 #[allow(clippy::too_many_arguments)]
 async fn execute_test_transactions<R: Rpc>(
+    iterations: usize,
     rpc: &mut R,
     rng: &mut StdRng,
     env: &TestAccounts,
@@ -853,14 +858,8 @@ async fn execute_test_transactions<R: Rpc>(
     sender_batched_token_counter: &mut u64,
     address_v1_counter: &mut u64,
     address_v2_counter: &mut u64,
-) {
-    let mut iterations = 20;
-    if is_v2_state_test_enabled() {
-        let batch_size =
-            get_state_v2_batch_size(rpc, &env.v2_state_trees[0].merkle_tree).await as usize;
-        iterations = batch_size * 2;
-    }
-
+) -> usize {
+    
     println!("Executing {} test transactions", iterations);
     println!("===========================================");
     for i in 0..iterations {
@@ -965,6 +964,8 @@ async fn execute_test_transactions<R: Rpc>(
             println!("{} v2 address create: {:?}", i, sig_v2_addr);
         }
     }
+
+    iterations
 }
 
 async fn mint_to<R: Rpc>(

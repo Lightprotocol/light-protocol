@@ -36,6 +36,8 @@ struct WorkerPool {
 
 pub struct AddressSupervisor<R: Rpc> {
     context: BatchContext<R>,
+    staging_tree: Option<AddressStagingTree>,
+    current_root: [u8; 32],
     zkp_batch_size: u64,
     worker_pool: Option<WorkerPool>,
 }
@@ -67,6 +69,8 @@ impl<R: Rpc> Actor for AddressSupervisor<R> {
 
         Ok(Self {
             context,
+            staging_tree: None,
+            current_root: [0u8; 32],
             zkp_batch_size,
             worker_pool: None,
         })
@@ -128,6 +132,30 @@ impl<R: Rpc> AddressSupervisor<R> {
         }
     }
 
+    fn reset_staging_tree(&mut self) {
+        info!(
+            "Resetting staging tree for tree {}",
+            self.context.merkle_tree
+        );
+        self.staging_tree = None;
+    }
+
+    fn build_staging_tree(
+        &mut self,
+        subtrees: &[[u8; 32]],
+        start_index: usize,
+        initial_root: [u8; 32],
+    ) -> crate::Result<()> {
+        self.staging_tree = Some(AddressStagingTree::from_subtrees_vec(
+            subtrees.to_vec(),
+            start_index,
+            initial_root,
+        )?);
+        self.current_root = initial_root;
+        debug!("Built staging tree from indexer (root={:?}[..4])", &initial_root[..4]);
+        Ok(())
+    }
+
     fn get_leaves_hashchain(
         leaves_hash_chains: &[[u8; 32]],
         batch_idx: usize,
@@ -184,23 +212,14 @@ impl<R: Rpc> AddressSupervisor<R> {
         let num_workers = self.context.num_proof_workers.max(1);
         let (proof_tx, proof_rx) = mpsc::channel(num_workers * 2);
 
-        // Fetch all data and generate all circuit inputs in one pass
-        let (jobs, initial_root, total_addresses) =
-            self.prepare_all_jobs(max_batches, proof_tx.clone()).await?;
-
-        if jobs.is_empty() {
-            return Ok(0);
-        }
-
-        // Spawn tx sender with the initial root
+        // Spawn tx sender with the current root
         let tx_sender_handle = TxSender::spawn(
             self.context.clone(),
             proof_rx,
             self.zkp_batch_size(),
-            initial_root,
+            self.current_root,
         );
 
-        // Send all jobs to proof workers immediately
         let job_tx = self
             .worker_pool
             .as_ref()
@@ -208,46 +227,48 @@ impl<R: Rpc> AddressSupervisor<R> {
             .job_tx
             .clone();
 
-        let jobs_sent = jobs.len();
-        for job in jobs {
-            job_tx.send(job).await?;
-        }
+        // Build and send jobs one at a time
+        let jobs_sent = self
+            .enqueue_batches(max_batches, job_tx, proof_tx.clone())
+            .await?;
 
-        info!(
-            "Enqueued {} jobs for {} addresses",
-            jobs_sent, total_addresses
-        );
+        // Drop proof_tx to signal no more proofs are coming
+        drop(proof_tx);
 
         // Wait for all transactions to complete
         let tx_processed = match tx_sender_handle.await {
             Ok(res) => match res {
                 Ok(processed) => processed,
                 Err(e) => {
-                    warn!("Tx sender error: {}", e);
+                    warn!("Tx sender error, resetting staging tree: {}", e);
+                    self.reset_staging_tree();
                     return Err(e);
                 }
             },
             Err(e) => {
-                warn!("Tx sender join error: {}", e);
+                warn!("Tx sender join error, resetting staging tree: {}", e);
+                self.reset_staging_tree();
                 return Err(anyhow!("Tx sender join error: {}", e));
             }
         };
 
-        if tx_processed < total_addresses {
+        if tx_processed < jobs_sent * self.zkp_batch_size as usize {
             debug!(
                 "Processed {} items but expected {}, some proofs may have failed",
-                tx_processed, total_addresses
+                tx_processed,
+                jobs_sent * self.zkp_batch_size as usize
             );
         }
 
         Ok(tx_processed)
     }
 
-    async fn prepare_all_jobs(
+    async fn enqueue_batches(
         &mut self,
         max_batches: usize,
+        job_tx: async_channel::Sender<ProofJob>,
         result_tx: mpsc::Sender<ProofResult>,
-    ) -> crate::Result<(Vec<ProofJob>, [u8; 32], usize)> {
+    ) -> crate::Result<usize> {
         let zkp_batch_size = self.zkp_batch_size() as usize;
         let total_needed = max_batches.saturating_mul(zkp_batch_size);
         let fetch_len = total_needed as u64;
@@ -262,16 +283,12 @@ impl<R: Rpc> AddressSupervisor<R> {
 
         let Some(address_queue) = address_queue else {
             debug!("fetch_address_batches returned None, no address queue data available");
-            return Ok((Vec::new(), [0u8; 32], 0));
+            return Ok(0);
         };
 
-        debug!(
-            "Address queue has {} addresses",
-            address_queue.addresses.len()
-        );
         if address_queue.addresses.is_empty() {
             debug!("Address queue is empty, returning");
-            return Ok((Vec::new(), [0u8; 32], 0));
+            return Ok(0);
         }
 
         // Validate we have required data
@@ -280,69 +297,70 @@ impl<R: Rpc> AddressSupervisor<R> {
                 "Address queue missing subtrees data (required for proof generation)"
             ));
         }
-        if address_queue.leaves_hash_chains.is_empty() {
+
+        // Calculate how many complete batches we can process
+        let available = address_queue.addresses.len();
+        let num_slices = (available / zkp_batch_size).min(max_batches);
+
+        // If we can't form any complete batches, return early
+        if num_slices == 0 {
+            debug!(
+                "Not enough addresses for a complete batch: have {}, need {}",
+                available, zkp_batch_size
+            );
+            return Ok(0);
+        }
+
+        // Validate we have hash chains for the batches we'll process
+        if address_queue.leaves_hash_chains.len() < num_slices {
             return Err(anyhow!(
-                "Address queue missing leaves_hash_chains data (required for proof generation)"
+                "Insufficient leaves_hash_chains: have {}, need {} for {} batches",
+                address_queue.leaves_hash_chains.len(),
+                num_slices,
+                num_slices
             ));
         }
 
-        let initial_root = address_queue.initial_root;
-        let start_index = address_queue.start_index;
-
+        // Build or update staging tree
+        self.current_root = address_queue.initial_root;
         info!(
             "Synced from indexer: root {:?}[..4], start_index {}, {} subtrees",
-            &initial_root[..4],
-            start_index,
+            &self.current_root[..4],
+            address_queue.start_index,
             address_queue.subtrees.len()
         );
 
-        // Create staging tree for this batch of work
-        let mut staging_tree = AddressStagingTree::from_subtrees_vec(
-            address_queue.subtrees.clone(),
+        self.build_staging_tree(
+            &address_queue.subtrees,
             address_queue.start_index as usize,
             address_queue.initial_root,
-        )
-        .map_err(|e| anyhow!("Failed to create AddressStagingTree: {}", e))?;
+        )?;
 
-        let available = address_queue.addresses.len();
-        let num_slices = (available / zkp_batch_size).min(max_batches);
-        let mut jobs = Vec::with_capacity(num_slices);
-        let mut total_addresses = 0;
+        let mut jobs_sent = 0usize;
 
-        // Generate all circuit inputs sequentially
+        // Generate circuit inputs and send jobs sequentially
         for batch_idx in 0..num_slices {
             let start = batch_idx * zkp_batch_size;
             if let Some(job) = self
-                .build_append_job(
-                    batch_idx,
-                    &address_queue,
-                    start,
-                    &mut staging_tree,
-                    result_tx.clone(),
-                )
+                .build_append_job(batch_idx, &address_queue, start, result_tx.clone())
                 .await?
             {
-                total_addresses += zkp_batch_size;
-                jobs.push(job);
+                job_tx.send(job).await?;
+                jobs_sent += 1;
             } else {
                 break;
             }
         }
 
-        info!(
-            "Prepared {} jobs for {} addresses",
-            jobs.len(),
-            total_addresses
-        );
-        Ok((jobs, initial_root, total_addresses))
+        info!("Enqueued {} jobs for proof generation", jobs_sent);
+        Ok(jobs_sent)
     }
 
     async fn build_append_job(
-        &self,
+        &mut self,
         batch_idx: usize,
         address_queue: &light_client::indexer::AddressQueueDataV2,
         start: usize,
-        staging_tree: &mut AddressStagingTree,
         result_tx: mpsc::Sender<ProofResult>,
     ) -> crate::Result<Option<ProofJob>> {
         let range = self.batch_range(address_queue.addresses.len(), start);
@@ -367,6 +385,14 @@ impl<R: Rpc> AddressSupervisor<R> {
         let leaves_hashchain =
             Self::get_leaves_hashchain(&address_queue.leaves_hash_chains, batch_idx)?;
 
+        // Get mutable reference to staging tree
+        let staging_tree = self.staging_tree.as_mut().ok_or_else(|| {
+            anyhow!(
+                "Staging tree not initialized for append job (batch_idx={})",
+                batch_idx
+            )
+        })?;
+
         // Process batch using AddressStagingTree which internally uses
         // get_batch_address_append_circuit_inputs with proper changelog management
         let result = staging_tree
@@ -382,12 +408,16 @@ impl<R: Rpc> AddressSupervisor<R> {
             )
             .map_err(|e| anyhow!("Failed to process address batch: {}", e))?;
 
+        let new_root = result.new_root;
         debug!(
             "Address batch {} root transition: {:?}[..4] -> {:?}[..4]",
             batch_idx,
             &result.old_root[..4],
-            &result.new_root[..4]
+            &new_root[..4]
         );
+
+        // Update current root
+        self.current_root = new_root;
 
         Ok(Some(Self::create_job(
             batch_idx as u64,
