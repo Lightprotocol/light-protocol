@@ -1,6 +1,10 @@
 use std::collections::BTreeMap;
 
 use borsh::BorshSerialize;
+
+// Maximum number of buffered proof results to prevent OOM
+// If we have more than this many out-of-order proofs, something is seriously wrong
+const MAX_BUFFER_SIZE: usize = 1000;
 use light_batched_merkle_tree::merkle_tree::{
     InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
 };
@@ -57,7 +61,38 @@ impl<R: Rpc> TxSender<R> {
         let mut processed = 0usize;
 
         while let Some(result) = proof_rx.recv().await {
-            self.buffer.insert(result.seq, result.instruction);
+            // Handle proof failures
+            let instruction = match result.result {
+                Ok(instr) => instr,
+                Err(e) => {
+                    warn!(
+                        "Proof generation failed for seq={}: {}. Stopping batch processing.",
+                        result.seq, e
+                    );
+                    return Err(anyhow::anyhow!(
+                        "Proof generation failed for batch {}: {}",
+                        result.seq,
+                        e
+                    ));
+                }
+            };
+
+            // Check buffer size limit to prevent OOM
+            if self.buffer.len() >= MAX_BUFFER_SIZE {
+                warn!(
+                    "Buffer overflow: {} buffered proofs (max {}). Expected seq={}, oldest buffered={}",
+                    self.buffer.len(),
+                    MAX_BUFFER_SIZE,
+                    self.expected_seq,
+                    self.buffer.keys().next().unwrap_or(&0)
+                );
+                return Err(anyhow::anyhow!(
+                    "Proof buffer overflow: possible missing proof for seq={}",
+                    self.expected_seq
+                ));
+            }
+
+            self.buffer.insert(result.seq, instruction);
 
             while let Some(instr) = self.buffer.remove(&self.expected_seq) {
                 let (instructions, expected_root) = match &instr {

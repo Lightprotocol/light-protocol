@@ -236,7 +236,7 @@ async fn e2e_test() {
             skip_v2_state_trees: false,
             skip_v1_address_trees: false,
             skip_v2_address_trees: false,
-            tree_id: None,
+            tree_ids: vec![],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
         },

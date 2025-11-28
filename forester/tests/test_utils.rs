@@ -110,7 +110,7 @@ pub fn forester_config() -> ForesterConfig {
             skip_v2_state_trees: false,
             skip_v1_address_trees: false,
             skip_v2_address_trees: false,
-            tree_id: None,
+            tree_ids: vec![],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
         },

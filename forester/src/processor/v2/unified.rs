@@ -98,6 +98,19 @@ impl<R: Rpc, S: TreeStrategy<R>> UnifiedBatchProcessor<R, S> {
         );
 
         let zkp_batch_size = strategy.fetch_zkp_batch_size(&context).await?;
+
+        // Validate zkp_batch_size to prevent division by zero and invalid batches
+        if zkp_batch_size == 0 {
+            return Err(anyhow!("Invalid zkp_batch_size: cannot be zero"));
+        }
+        if zkp_batch_size > 10000 {
+            warn!(
+                "Unusually large zkp_batch_size={}, capping at 10000",
+                zkp_batch_size
+            );
+            // Note: Consider returning error instead if this is unexpected
+        }
+
         info!(
             "UnifiedBatchProcessor[{}] initialized zkp_batch_size={} for tree {}",
             strategy.name(),
@@ -139,7 +152,18 @@ impl<R: Rpc, S: TreeStrategy<R>> UnifiedBatchProcessor<R, S> {
             return Ok(0);
         }
 
-        let max_batches = (queue_work.queue_size / self.zkp_batch_size) as usize;
+        // Calculate max_batches with upper bound to prevent resource exhaustion
+        const MAX_BATCHES_LIMIT: usize = 1000;
+        let max_batches = ((queue_work.queue_size / self.zkp_batch_size) as usize).min(MAX_BATCHES_LIMIT);
+
+        if queue_work.queue_size / self.zkp_batch_size > MAX_BATCHES_LIMIT as u64 {
+            debug!(
+                "Queue size {} would produce {} batches, limiting to {}",
+                queue_work.queue_size,
+                queue_work.queue_size / self.zkp_batch_size,
+                MAX_BATCHES_LIMIT
+            );
+        }
 
         // Ensure worker pool is ready
         ensure_worker_pool(
@@ -222,7 +246,7 @@ impl<R: Rpc, S: TreeStrategy<R>> UnifiedBatchProcessor<R, S> {
         let job_tx = self
             .worker_pool
             .as_ref()
-            .expect("worker pool should be initialized")
+            .ok_or_else(|| anyhow!("Worker pool not initialized"))?
             .job_tx
             .clone();
 

@@ -85,7 +85,7 @@ pub struct GeneralConfig {
     pub skip_v1_address_trees: bool,
     pub skip_v2_state_trees: bool,
     pub skip_v2_address_trees: bool,
-    pub tree_id: Option<Pubkey>,
+    pub tree_ids: Vec<Pubkey>,
     pub sleep_after_processing_ms: u64,
     pub sleep_when_idle_ms: u64,
 }
@@ -100,7 +100,7 @@ impl Default for GeneralConfig {
             skip_v1_address_trees: false,
             skip_v2_state_trees: false,
             skip_v2_address_trees: false,
-            tree_id: None,
+            tree_ids: vec![],
             sleep_after_processing_ms: 10_000,
             sleep_when_idle_ms: 45_000,
         }
@@ -117,7 +117,7 @@ impl GeneralConfig {
             skip_v1_address_trees: true,
             skip_v2_state_trees: true,
             skip_v2_address_trees: false,
-            tree_id: None,
+            tree_ids: vec![],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
         }
@@ -132,7 +132,7 @@ impl GeneralConfig {
             skip_v1_address_trees: true,
             skip_v2_state_trees: false,
             skip_v2_address_trees: true,
-            tree_id: None,
+            tree_ids: vec![],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
         }
@@ -285,10 +285,11 @@ impl ForesterConfig {
                 skip_v2_state_trees: args.processor_mode == ProcessorMode::V1,
                 skip_v1_address_trees: args.processor_mode == ProcessorMode::V2,
                 skip_v2_address_trees: args.processor_mode == ProcessorMode::V1,
-                tree_id: args
-                    .tree_id
-                    .as_ref()
-                    .and_then(|id| Pubkey::from_str(id).ok()),
+                tree_ids: args
+                    .tree_ids
+                    .iter()
+                    .filter_map(|id| Pubkey::from_str(id).ok())
+                    .collect(),
                 sleep_after_processing_ms: 10_000,
                 sleep_when_idle_ms: 45_000,
             },
@@ -355,7 +356,7 @@ impl ForesterConfig {
                 skip_v2_state_trees: false,
                 skip_v1_address_trees: false,
                 skip_v2_address_trees: false,
-                tree_id: None,
+                tree_ids: vec![],
                 sleep_after_processing_ms: 10_000,
                 sleep_when_idle_ms: 45_000,
             },

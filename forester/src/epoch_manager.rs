@@ -2280,13 +2280,14 @@ pub async fn run_service<R: Rpc>(
             let trees = {
                 let rpc = rpc_pool.get_connection().await?;
                 let mut fetched_trees = fetch_trees(&*rpc).await?;
-                if let Some(tree_id) = config.general_config.tree_id {
-                    fetched_trees.retain(|tree| tree.merkle_tree == tree_id);
+                if !config.general_config.tree_ids.is_empty() {
+                    let tree_ids = &config.general_config.tree_ids;
+                    fetched_trees.retain(|tree| tree_ids.contains(&tree.merkle_tree));
                     if fetched_trees.is_empty() {
-                        error!("Specified tree {} not found", tree_id);
-                        return Err(anyhow::anyhow!("Specified tree {} not found", tree_id));
+                        error!("None of the specified trees found: {:?}", tree_ids);
+                        return Err(anyhow::anyhow!("None of the specified trees found: {:?}", tree_ids));
                     }
-                    info!("Processing only tree: {}", tree_id);
+                    info!("Processing only trees: {:?}", tree_ids);
                 }
                 fetched_trees
             };
@@ -2294,8 +2295,8 @@ pub async fn run_service<R: Rpc>(
 
             let (new_tree_sender, _) = broadcast::channel(100);
 
-            // Only run tree finder if not filtering by specific tree
-            let _tree_finder_handle = if config.general_config.tree_id.is_none() {
+            // Only run tree finder if not filtering by specific trees
+            let _tree_finder_handle = if config.general_config.tree_ids.is_empty() {
                 let mut tree_finder = TreeFinder::new(
                     rpc_pool.clone(),
                     trees.clone(),
@@ -2428,7 +2429,7 @@ mod tests {
                 skip_v1_address_trees: skip_v1_address,
                 skip_v2_state_trees: skip_v2_state,
                 skip_v2_address_trees: skip_v2_address,
-                tree_id: None,
+                tree_ids: vec![],
                 sleep_after_processing_ms: 50,
                 sleep_when_idle_ms: 100,
             },

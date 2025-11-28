@@ -30,7 +30,7 @@ pub struct ProofJob {
 #[derive(Debug)]
 pub struct ProofResult {
     pub(crate) seq: u64,
-    pub(crate) instruction: BatchInstruction,
+    pub(crate) result: Result<BatchInstruction, String>,
 }
 
 pub fn spawn_proof_workers(
@@ -81,64 +81,60 @@ async fn run_proof_worker(
     while let Ok(job) = job_rx.recv().await {
         debug!("ProofWorker {} processing job seq={}", worker_id, job.seq);
 
-        let result = match job.inputs {
+        let result_data = match job.inputs {
             ProofInput::Append(inputs) => {
                 match append_client.generate_batch_append_proof(inputs).await {
-                    Ok((proof, new_root)) => ProofResult {
-                        seq: job.seq,
-                        instruction: BatchInstruction::Append(vec![
-                            InstructionDataBatchAppendInputs {
-                                new_root,
-                                compressed_proof: proof.into(),
-                            },
-                        ]),
-                    },
+                    Ok((proof, new_root)) => Ok(BatchInstruction::Append(vec![
+                        InstructionDataBatchAppendInputs {
+                            new_root,
+                            compressed_proof: proof.into(),
+                        },
+                    ])),
                     Err(e) => {
                         warn!("ProofWorker {} append proof failed: {}", worker_id, e);
-                        continue;
+                        Err(format!("Append proof failed: {}", e))
                     }
                 }
             }
             ProofInput::Nullify(inputs) => {
                 match nullify_client.generate_batch_update_proof(inputs).await {
-                    Ok((proof, new_root)) => ProofResult {
-                        seq: job.seq,
-                        instruction: BatchInstruction::Nullify(vec![
-                            InstructionDataBatchNullifyInputs {
-                                new_root,
-                                compressed_proof: proof.into(),
-                            },
-                        ]),
-                    },
+                    Ok((proof, new_root)) => Ok(BatchInstruction::Nullify(vec![
+                        InstructionDataBatchNullifyInputs {
+                            new_root,
+                            compressed_proof: proof.into(),
+                        },
+                    ])),
                     Err(e) => {
                         warn!("ProofWorker {} nullify proof failed: {}", worker_id, e);
-                        continue;
+                        Err(format!("Nullify proof failed: {}", e))
                     }
                 }
             }
             ProofInput::AddressAppend(inputs) => {
                 match append_client.generate_batch_address_append_proof(inputs).await {
-                    Ok((proof, new_root)) => ProofResult {
-                        seq: job.seq,
-                        instruction: BatchInstruction::AddressAppend(vec![
-                            light_batched_merkle_tree::merkle_tree::InstructionDataAddressAppendInputs {
-                                new_root,
-                                compressed_proof: proof.into(),
-                            },
-                        ]),
-                    },
+                    Ok((proof, new_root)) => Ok(BatchInstruction::AddressAppend(vec![
+                        light_batched_merkle_tree::merkle_tree::InstructionDataAddressAppendInputs {
+                            new_root,
+                            compressed_proof: proof.into(),
+                        },
+                    ])),
                     Err(e) => {
                         warn!(
                             "ProofWorker {} address append proof failed: {}",
                             worker_id, e
                         );
-                        continue;
+                        Err(format!("AddressAppend proof failed: {}", e))
                     }
                 }
             }
         };
 
-        // Send result via the job's own channel - if it's closed, just continue to next job
+        let result = ProofResult {
+            seq: job.seq,
+            result: result_data,
+        };
+
+        // Send result (success or failure) via the job's own channel
         if job.result_tx.send(result).await.is_err() {
             debug!(
                 "ProofWorker {} result channel closed for job seq={}, continuing",
