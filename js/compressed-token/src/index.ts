@@ -28,8 +28,8 @@ export {
     TokenMetadataInstructionData,
     CompressibleConfig,
     CreateAssociatedCTokenAccountParams,
-    // Actions - renamed to avoid conflicts
-    createMint as createCompressedMint,
+    // Actions
+    createMintInterface,
     createAssociatedCTokenAccount,
     createAssociatedCTokenAccountIdempotent,
     getOrCreateAtaInterface,

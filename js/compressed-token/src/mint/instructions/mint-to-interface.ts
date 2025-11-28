@@ -4,29 +4,37 @@ import { createMintToInstruction as createSplMintToInstruction } from '@solana/s
 import { createMintToInstruction as createCtokenMintToInstruction } from './mint-to';
 import { MintInterface } from '../helpers';
 
+export interface CreateMintToInterfaceInstructionParams {
+    mintInterface: MintInterface;
+    destination: PublicKey;
+    authority: PublicKey;
+    payer: PublicKey;
+    amount: number | bigint;
+    validityProof?: ValidityProofWithContext;
+    multiSigners?: PublicKey[];
+}
+
 /**
- * Create mint-to instruction that works with SPL, Token-2022, and compressed token mints.
+ * Create mint-to instruction for SPL, Token-2022, or compressed token mints.
  * This instruction ONLY mints to decompressed/onchain token accounts.
  *
- * @param mintInterface - Mint interface containing mint data, programId, and optional merkleContext
- * @param destination - Destination token account address (onchain token account)
- * @param authority - Mint authority pubkey
- * @param payer - Fee payer pubkey
- * @param amount - Amount to mint
- * @param validityProof - Optional: Validity proof (required if mintInterface has merkleContext)
- * @param multiSigners - Optional: Multi-signature signers (default: [])
- *
- * @returns Transaction instruction
+ * @param mintInterface   Mint interface (SPL, Token-2022, or compressed).
+ * @param destination     Destination onchain token account address.
+ * @param authority       Mint authority public key.
+ * @param payer           Fee payer public key.
+ * @param amount          Amount to mint.
+ * @param validityProof   Validity proof (required for compressed mints).
+ * @param multiSigners    Multi-signature signer public keys.
  */
-export function createMintToInterfaceInstruction(
-    mintInterface: MintInterface,
-    destination: PublicKey,
-    authority: PublicKey,
-    payer: PublicKey,
-    amount: number | bigint,
-    validityProof?: ValidityProofWithContext,
-    multiSigners: PublicKey[] = [],
-): TransactionInstruction {
+export function createMintToInterfaceInstruction({
+    mintInterface,
+    destination,
+    authority,
+    payer,
+    amount,
+    validityProof,
+    multiSigners = [],
+}: CreateMintToInterfaceInstructionParams): TransactionInstruction {
     const mint = mintInterface.mint.address;
     const programId = mintInterface.programId;
 
@@ -77,16 +85,16 @@ export function createMintToInterfaceInstruction(
             : undefined,
     };
 
-    return createCtokenMintToInstruction(
-        mint,
+    return createCtokenMintToInstruction({
+        mintSigner: mint,
         authority,
         payer,
         validityProof,
-        mintInterface.merkleContext,
+        merkleContext: mintInterface.merkleContext,
         mintData,
         outputStateTreeInfo,
-        outputStateTreeInfo.queue,
-        destination,
+        tokensOutQueue: outputStateTreeInfo.queue,
+        recipientAccount: destination,
         amount,
-    );
+    });
 }

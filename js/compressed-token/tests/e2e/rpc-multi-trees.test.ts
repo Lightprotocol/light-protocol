@@ -9,7 +9,7 @@ import {
     featureFlags,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
-import { createMintSPL, mintTo, transfer } from '../../src/actions';
+import { createMint, mintTo, transfer } from '../../src/actions';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
@@ -39,7 +39,7 @@ describe('rpc-multi-trees', () => {
         const mintKeypair = Keypair.generate();
 
         mint = (
-            await createMintSPL(
+            await createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,

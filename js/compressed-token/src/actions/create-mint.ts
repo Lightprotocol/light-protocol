@@ -21,6 +21,8 @@ import {
 /**
  * Create and initialize a new SPL token mint
  *
+ * @deprecated Use {@link createMintInterface} instead, which supports both SPL and compressed mints.
+ *
  * @param rpc               RPC connection to use
  * @param payer             Fee payer
  * @param mintAuthority     Account that will control minting
@@ -34,7 +36,7 @@ import {
  *
  * @return Object with mint address and transaction signature
  */
-export async function createMintSPL(
+export async function createMint(
     rpc: Rpc,
     payer: Signer,
     mintAuthority: PublicKey | Signer,

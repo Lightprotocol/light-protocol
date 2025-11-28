@@ -11,7 +11,7 @@ import {
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { createMintSPL, mintTo, transfer } from '../../src/actions';
+import { createMint, mintTo, transfer } from '../../src/actions';
 import {
     getTokenPoolInfos,
     selectTokenPoolInfo,
@@ -42,7 +42,7 @@ describe('rpc-interop token', () => {
         const mintKeypair = Keypair.generate();
 
         mint = (
-            await createMintSPL(
+            await createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
@@ -256,7 +256,7 @@ describe('rpc-interop token', () => {
     it('[rpc] getCompressedTokenAccountsByOwner with 2 mints should return both mints', async () => {
         // additional mint
         const mint2 = (
-            await createMintSPL(
+            await createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,

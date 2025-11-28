@@ -84,18 +84,45 @@ function encodeCompressedMintToInstructionData(
     return encodeMintActionInstructionData(instructionData);
 }
 
-export function createMintToCompressedInstruction(
-    mintSigner: PublicKey,
-    authority: PublicKey,
-    payer: PublicKey,
-    validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionData,
-    outputQueue: PublicKey,
-    tokensOutQueue: PublicKey,
-    recipients: Array<{ recipient: PublicKey; amount: number | bigint }>,
-    tokenAccountVersion: number = 3,
-): TransactionInstruction {
+export interface CreateMintToCompressedInstructionParams {
+    mintSigner: PublicKey;
+    authority: PublicKey;
+    payer: PublicKey;
+    validityProof: ValidityProofWithContext;
+    merkleContext: MerkleContext;
+    mintData: MintInstructionData;
+    outputQueue: PublicKey;
+    tokensOutQueue: PublicKey;
+    recipients: Array<{ recipient: PublicKey; amount: number | bigint }>;
+    tokenAccountVersion?: number;
+}
+
+/**
+ * Create instruction for minting compressed tokens to compressed accounts.
+ *
+ * @param mintSigner          Mint address.
+ * @param authority           Mint authority public key.
+ * @param payer               Fee payer public key.
+ * @param validityProof       Validity proof for the compressed mint.
+ * @param merkleContext       Merkle context of the compressed mint.
+ * @param mintData            Mint instruction data.
+ * @param outputQueue         Output queue for state changes.
+ * @param tokensOutQueue      Queue for token outputs.
+ * @param recipients          Array of recipients with amounts.
+ * @param tokenAccountVersion Token account version (default: 3).
+ */
+export function createMintToCompressedInstruction({
+    mintSigner,
+    authority,
+    payer,
+    validityProof,
+    merkleContext,
+    mintData,
+    outputQueue,
+    tokensOutQueue,
+    recipients,
+    tokenAccountVersion = 3,
+}: CreateMintToCompressedInstructionParams): TransactionInstruction {
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeCompressedMintToInstructionData({
         addressTree: addressTreeInfo.tree,

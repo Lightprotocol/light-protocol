@@ -11,7 +11,7 @@ import {
 import {
     addTokenPools,
     compress,
-    createMintSPL,
+    createMint,
     createTokenPool,
     decompress,
 } from '../../src/actions';
@@ -119,7 +119,7 @@ describe('multi-pool', () => {
 
         /// Mint already exists externally
         await expect(
-            createMintSPL(
+            createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,

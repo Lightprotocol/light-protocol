@@ -22,13 +22,13 @@ import {
     createMintInstruction,
     createTokenMetadata,
 } from '../../src/mint/instructions';
-import { createMint } from '../../src/mint/actions';
+import { createMintInterface } from '../../src/mint/actions';
 import { getMintInterface } from '../../src/mint/helpers';
 import { findMintAddress } from '../../src/compressible/derivation';
 
 featureFlags.version = VERSION.V2;
 
-describe('createCompressedMint', () => {
+describe('createMintInterface (compressed)', () => {
     let rpc: Rpc;
     let payer: Signer;
     let mintSigner: Keypair;
@@ -46,7 +46,7 @@ describe('createCompressedMint', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { transactionSignature: signature } = await createMint(
+        const { transactionSignature: signature } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -103,7 +103,7 @@ describe('createCompressedMint', () => {
             DerivationMode.compressible,
         );
 
-        const { transactionSignature: signature } = await createMint(
+        const { transactionSignature: signature } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -164,21 +164,21 @@ describe('createCompressedMint', () => {
             await rpc.getStateTreeInfos(),
         );
 
-        const instruction = createMintInstruction(
-            mintSigner3.publicKey,
+        const instruction = createMintInstruction({
+            mintSigner: mintSigner3.publicKey,
             decimals,
-            mintAuthority.publicKey,
-            null,
-            payer.publicKey,
+            mintAuthority: mintAuthority.publicKey,
+            freezeAuthority: null,
+            payer: payer.publicKey,
             validityProof,
-            createTokenMetadata(
+            metadata: createTokenMetadata(
                 'Some Name',
                 'SOME',
                 'https://direct.com/metadata.json',
             ),
             addressTreeInfo,
             outputStateTreeInfo,
-        );
+        });
 
         const { blockhash } = await rpc.getLatestBlockhash();
 

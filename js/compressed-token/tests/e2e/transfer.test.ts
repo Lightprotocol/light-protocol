@@ -20,7 +20,7 @@ import {
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { createMintSPL, mintTo, transfer } from '../../src/actions';
+import { createMint, mintTo, transfer } from '../../src/actions';
 import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { CompressedTokenProgram } from '../../src/program';
 import { selectMinCompressedTokenAccountsForTransfer } from '../../src/utils/select-input-accounts';
@@ -110,7 +110,7 @@ describe('transfer', () => {
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
 
         mint = (
-            await createMintSPL(
+            await createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
@@ -240,7 +240,7 @@ describe('transfer', () => {
         const mintKeypair = Keypair.generate();
 
         mint = (
-            await createMintSPL(
+            await createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
@@ -308,7 +308,7 @@ describe('e2e transfer with multiple accounts', () => {
 
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
         mint = (
-            await createMintSPL(
+            await createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,

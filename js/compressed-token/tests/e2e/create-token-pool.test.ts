@@ -10,7 +10,7 @@ import {
 } from '@solana/spl-token';
 import {
     addTokenPools,
-    createMintSPL,
+    createMint,
     createTokenPool,
 } from '../../src/actions';
 import {
@@ -126,7 +126,7 @@ describe('createTokenPool', () => {
 
         /// Mint already exists externally
         await expect(
-            createMintSPL(
+            createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
@@ -170,7 +170,7 @@ describe('createTokenPool', () => {
 
         /// Mint already exists externally
         await expect(
-            createMintSPL(
+            createMint(
                 rpc,
                 payer,
                 token22MintAuthority.publicKey,

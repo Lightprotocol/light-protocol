@@ -93,16 +93,39 @@ function encodeUpdateMintInstructionData(
     return encodeMintActionInstructionData(instructionData);
 }
 
-export function createUpdateMintAuthorityInstruction(
-    mintSigner: PublicKey,
-    currentMintAuthority: PublicKey,
-    newMintAuthority: PublicKey | null,
-    payer: PublicKey,
-    validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionData,
-    outputQueue: PublicKey,
-): TransactionInstruction {
+export interface CreateUpdateMintAuthorityInstructionParams {
+    mintSigner: PublicKey;
+    currentMintAuthority: PublicKey;
+    newMintAuthority: PublicKey | null;
+    payer: PublicKey;
+    validityProof: ValidityProofWithContext;
+    merkleContext: MerkleContext;
+    mintData: MintInstructionData;
+    outputQueue: PublicKey;
+}
+
+/**
+ * Create instruction for updating a compressed mint's mint authority.
+ *
+ * @param mintSigner           Mint signer public key.
+ * @param currentMintAuthority Current mint authority public key.
+ * @param newMintAuthority     New mint authority (or null to revoke).
+ * @param payer                Fee payer public key.
+ * @param validityProof        Validity proof for the compressed mint.
+ * @param merkleContext        Merkle context of the compressed mint.
+ * @param mintData             Mint instruction data.
+ * @param outputQueue          Output queue for state changes.
+ */
+export function createUpdateMintAuthorityInstruction({
+    mintSigner,
+    currentMintAuthority,
+    newMintAuthority,
+    payer,
+    validityProof,
+    merkleContext,
+    mintData,
+    outputQueue,
+}: CreateUpdateMintAuthorityInstructionParams): TransactionInstruction {
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMintInstructionData({
         addressTree: addressTreeInfo.tree,
@@ -165,16 +188,39 @@ export function createUpdateMintAuthorityInstruction(
     });
 }
 
-export function createUpdateFreezeAuthorityInstruction(
-    mintSigner: PublicKey,
-    currentFreezeAuthority: PublicKey,
-    newFreezeAuthority: PublicKey | null,
-    payer: PublicKey,
-    validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionData,
-    outputQueue: PublicKey,
-): TransactionInstruction {
+export interface CreateUpdateFreezeAuthorityInstructionParams {
+    mintSigner: PublicKey;
+    currentFreezeAuthority: PublicKey;
+    newFreezeAuthority: PublicKey | null;
+    payer: PublicKey;
+    validityProof: ValidityProofWithContext;
+    merkleContext: MerkleContext;
+    mintData: MintInstructionData;
+    outputQueue: PublicKey;
+}
+
+/**
+ * Create instruction for updating a compressed mint's freeze authority.
+ *
+ * @param mintSigner              Mint signer public key.
+ * @param currentFreezeAuthority  Current freeze authority public key.
+ * @param newFreezeAuthority      New freeze authority (or null to revoke).
+ * @param payer                   Fee payer public key.
+ * @param validityProof           Validity proof for the compressed mint.
+ * @param merkleContext           Merkle context of the compressed mint.
+ * @param mintData                Mint instruction data.
+ * @param outputQueue             Output queue for state changes.
+ */
+export function createUpdateFreezeAuthorityInstruction({
+    mintSigner,
+    currentFreezeAuthority,
+    newFreezeAuthority,
+    payer,
+    validityProof,
+    merkleContext,
+    mintData,
+    outputQueue,
+}: CreateUpdateFreezeAuthorityInstructionParams): TransactionInstruction {
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMintInstructionData({
         addressTree: addressTreeInfo.tree,

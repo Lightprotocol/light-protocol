@@ -82,14 +82,33 @@ function encodeCreateAssociatedCTokenAccountData(
     return Buffer.concat([discriminator, buffer.subarray(0, len)]);
 }
 
-export function createAssociatedCTokenAccountInstruction(
-    feePayer: PublicKey,
-    owner: PublicKey,
-    mint: PublicKey,
-    compressibleConfig?: CompressibleConfig,
-    configAccount?: PublicKey,
-    rentPayerPda?: PublicKey,
-): TransactionInstruction {
+export interface CreateAssociatedCTokenAccountInstructionParams {
+    feePayer: PublicKey;
+    owner: PublicKey;
+    mint: PublicKey;
+    compressibleConfig?: CompressibleConfig;
+    configAccount?: PublicKey;
+    rentPayerPda?: PublicKey;
+}
+
+/**
+ * Create instruction for creating an associated compressed token account.
+ *
+ * @param feePayer          Fee payer public key.
+ * @param owner             Owner of the associated token account.
+ * @param mint              Mint address.
+ * @param compressibleConfig Optional compressible configuration.
+ * @param configAccount     Optional config account.
+ * @param rentPayerPda      Optional rent payer PDA.
+ */
+export function createAssociatedCTokenAccountInstruction({
+    feePayer,
+    owner,
+    mint,
+    compressibleConfig,
+    configAccount,
+    rentPayerPda,
+}: CreateAssociatedCTokenAccountInstructionParams): TransactionInstruction {
     const [associatedTokenAccount, bump] = getAssociatedCTokenAddressAndBump(
         owner,
         mint,
@@ -129,14 +148,24 @@ export function createAssociatedCTokenAccountInstruction(
     });
 }
 
-export function createAssociatedCTokenAccountIdempotentInstruction(
-    feePayer: PublicKey,
-    owner: PublicKey,
-    mint: PublicKey,
-    compressibleConfig?: CompressibleConfig,
-    configAccount?: PublicKey,
-    rentPayerPda?: PublicKey,
-): TransactionInstruction {
+/**
+ * Create idempotent instruction for creating an associated compressed token account.
+ *
+ * @param feePayer          Fee payer public key.
+ * @param owner             Owner of the associated token account.
+ * @param mint              Mint address.
+ * @param compressibleConfig Optional compressible configuration.
+ * @param configAccount     Optional config account.
+ * @param rentPayerPda      Optional rent payer PDA.
+ */
+export function createAssociatedCTokenAccountIdempotentInstruction({
+    feePayer,
+    owner,
+    mint,
+    compressibleConfig,
+    configAccount,
+    rentPayerPda,
+}: CreateAssociatedCTokenAccountInstructionParams): TransactionInstruction {
     const [associatedTokenAccount, bump] = getAssociatedCTokenAddressAndBump(
         owner,
         mint,
@@ -176,29 +205,54 @@ export function createAssociatedCTokenAccountIdempotentInstruction(
     });
 }
 
-export function createAssociatedTokenAccountInterfaceInstruction(
-    payer: PublicKey,
-    associatedToken: PublicKey,
-    owner: PublicKey,
-    mint: PublicKey,
-    programId: PublicKey = TOKEN_PROGRAM_ID,
-    associatedTokenProgramId?: PublicKey,
-    compressibleConfig?: CompressibleConfig,
-    configAccount?: PublicKey,
-    rentPayerPda?: PublicKey,
-): TransactionInstruction {
+export interface CreateAssociatedTokenAccountInterfaceInstructionParams {
+    payer: PublicKey;
+    associatedToken: PublicKey;
+    owner: PublicKey;
+    mint: PublicKey;
+    programId?: PublicKey;
+    associatedTokenProgramId?: PublicKey;
+    compressibleConfig?: CompressibleConfig;
+    configAccount?: PublicKey;
+    rentPayerPda?: PublicKey;
+}
+
+/**
+ * Create instruction for creating an associated token account (SPL or compressed).
+ *
+ * @param payer                    Fee payer public key.
+ * @param associatedToken          Associated token account address.
+ * @param owner                    Owner of the associated token account.
+ * @param mint                     Mint address.
+ * @param programId                Token program ID (default: TOKEN_PROGRAM_ID).
+ * @param associatedTokenProgramId Associated token program ID.
+ * @param compressibleConfig       Optional compressible configuration.
+ * @param configAccount            Optional config account.
+ * @param rentPayerPda             Optional rent payer PDA.
+ */
+export function createAssociatedTokenAccountInterfaceInstruction({
+    payer,
+    associatedToken,
+    owner,
+    mint,
+    programId = TOKEN_PROGRAM_ID,
+    associatedTokenProgramId,
+    compressibleConfig,
+    configAccount,
+    rentPayerPda,
+}: CreateAssociatedTokenAccountInterfaceInstructionParams): TransactionInstruction {
     const effectiveAssociatedTokenProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
     if (programId.equals(CTOKEN_PROGRAM_ID)) {
-        return createAssociatedCTokenAccountInstruction(
-            payer,
+        return createAssociatedCTokenAccountInstruction({
+            feePayer: payer,
             owner,
             mint,
             compressibleConfig,
             configAccount,
             rentPayerPda,
-        );
+        });
     } else {
         return createSplAssociatedTokenAccountInstruction(
             payer,
@@ -211,29 +265,42 @@ export function createAssociatedTokenAccountInterfaceInstruction(
     }
 }
 
-export function createAssociatedTokenAccountInterfaceIdempotentInstruction(
-    payer: PublicKey,
-    associatedToken: PublicKey,
-    owner: PublicKey,
-    mint: PublicKey,
-    programId: PublicKey = TOKEN_PROGRAM_ID,
-    associatedTokenProgramId?: PublicKey,
-    compressibleConfig?: CompressibleConfig,
-    configAccount?: PublicKey,
-    rentPayerPda?: PublicKey,
-): TransactionInstruction {
+/**
+ * Create idempotent instruction for creating an associated token account (SPL or compressed).
+ *
+ * @param payer                    Fee payer public key.
+ * @param associatedToken          Associated token account address.
+ * @param owner                    Owner of the associated token account.
+ * @param mint                     Mint address.
+ * @param programId                Token program ID (default: TOKEN_PROGRAM_ID).
+ * @param associatedTokenProgramId Associated token program ID.
+ * @param compressibleConfig       Optional compressible configuration.
+ * @param configAccount            Optional config account.
+ * @param rentPayerPda             Optional rent payer PDA.
+ */
+export function createAssociatedTokenAccountInterfaceIdempotentInstruction({
+    payer,
+    associatedToken,
+    owner,
+    mint,
+    programId = TOKEN_PROGRAM_ID,
+    associatedTokenProgramId,
+    compressibleConfig,
+    configAccount,
+    rentPayerPda,
+}: CreateAssociatedTokenAccountInterfaceInstructionParams): TransactionInstruction {
     const effectiveAssociatedTokenProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
     if (programId.equals(CTOKEN_PROGRAM_ID)) {
-        return createAssociatedCTokenAccountIdempotentInstruction(
-            payer,
+        return createAssociatedCTokenAccountIdempotentInstruction({
+            feePayer: payer,
             owner,
             mint,
             compressibleConfig,
             configAccount,
             rentPayerPda,
-        );
+        });
     } else {
         return createSplAssociatedTokenAccountIdempotentInstruction(
             payer,
@@ -245,4 +312,3 @@ export function createAssociatedTokenAccountInterfaceIdempotentInstruction(
         );
     }
 }
-

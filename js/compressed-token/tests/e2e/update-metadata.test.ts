@@ -9,7 +9,10 @@ import {
     getDefaultAddressTreeInfo,
     CTOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
-import { createMint, updateMintAuthority } from '../../src/mint/actions';
+import {
+    createMintInterface,
+    updateMintAuthority,
+} from '../../src/mint/actions';
 import { createTokenMetadata } from '../../src/mint/instructions';
 import {
     updateMetadataField,
@@ -44,7 +47,7 @@ describe('updateMetadata', () => {
             mintAuthority.publicKey,
         );
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -103,7 +106,7 @@ describe('updateMetadata', () => {
             mintAuthority.publicKey,
         );
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -151,7 +154,7 @@ describe('updateMetadata', () => {
             mintAuthority.publicKey,
         );
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -202,7 +205,7 @@ describe('updateMetadata', () => {
             initialMetadataAuthority.publicKey,
         );
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -260,7 +263,7 @@ describe('updateMetadata', () => {
             mintAuthority.publicKey,
         );
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -349,7 +352,7 @@ describe('updateMetadata', () => {
             mintAuthority.publicKey,
         );
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -384,7 +387,7 @@ describe('updateMetadata', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -423,7 +426,7 @@ describe('updateMetadata', () => {
             mintAuthority.publicKey,
         );
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -470,7 +473,7 @@ describe('updateMetadata', () => {
             mintAuthority.publicKey,
         );
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,

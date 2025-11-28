@@ -63,13 +63,13 @@ export async function updateMetadataField(
         DerivationMode.compressible,
     );
 
-    const ix = createUpdateMetadataFieldInstruction(
-        mintSigner.publicKey,
-        authority.publicKey,
-        payer.publicKey,
+    const ix = createUpdateMetadataFieldInstruction({
+        mintSigner: mintSigner.publicKey,
+        authority: authority.publicKey,
+        payer: payer.publicKey,
         validityProof,
-        mintInfo.merkleContext,
-        {
+        merkleContext: mintInfo.merkleContext,
+        mintData: {
             supply: mintInfo.mint.supply,
             decimals: mintInfo.mint.decimals,
             mintAuthority: mintInfo.mint.mintAuthority,
@@ -84,12 +84,12 @@ export async function updateMetadataField(
                 uri: mintInfo.tokenMetadata.uri,
             },
         },
-        outputStateTreeInfo.queue,
+        outputQueue: outputStateTreeInfo.queue,
         fieldType,
         value,
         customKey,
         extensionIndex,
-    );
+    });
 
     const additionalSigners = authority.publicKey.equals(payer.publicKey)
         ? []
@@ -145,14 +145,14 @@ export async function updateMetadataAuthority(
         DerivationMode.compressible,
     );
 
-    const ix = createUpdateMetadataAuthorityInstruction(
-        mintSigner.publicKey,
-        currentAuthority.publicKey,
+    const ix = createUpdateMetadataAuthorityInstruction({
+        mintSigner: mintSigner.publicKey,
+        currentAuthority: currentAuthority.publicKey,
         newAuthority,
-        payer.publicKey,
+        payer: payer.publicKey,
         validityProof,
-        mintInfo.merkleContext,
-        {
+        merkleContext: mintInfo.merkleContext,
+        mintData: {
             supply: mintInfo.mint.supply,
             decimals: mintInfo.mint.decimals,
             mintAuthority: mintInfo.mint.mintAuthority,
@@ -167,9 +167,9 @@ export async function updateMetadataAuthority(
                 uri: mintInfo.tokenMetadata.uri,
             },
         },
-        outputStateTreeInfo.queue,
+        outputQueue: outputStateTreeInfo.queue,
         extensionIndex,
-    );
+    });
 
     const additionalSigners = currentAuthority.publicKey.equals(payer.publicKey)
         ? []
@@ -226,13 +226,13 @@ export async function removeMetadataKey(
         DerivationMode.compressible,
     );
 
-    const ix = createRemoveMetadataKeyInstruction(
-        mintSigner.publicKey,
-        authority.publicKey,
-        payer.publicKey,
+    const ix = createRemoveMetadataKeyInstruction({
+        mintSigner: mintSigner.publicKey,
+        authority: authority.publicKey,
+        payer: payer.publicKey,
         validityProof,
-        mintInfo.merkleContext,
-        {
+        merkleContext: mintInfo.merkleContext,
+        mintData: {
             supply: mintInfo.mint.supply,
             decimals: mintInfo.mint.decimals,
             mintAuthority: mintInfo.mint.mintAuthority,
@@ -247,11 +247,11 @@ export async function removeMetadataKey(
                 uri: mintInfo.tokenMetadata.uri,
             },
         },
-        outputStateTreeInfo.queue,
+        outputQueue: outputStateTreeInfo.queue,
         key,
         idempotent,
         extensionIndex,
-    );
+    });
 
     const additionalSigners = authority.publicKey.equals(payer.publicKey)
         ? []
@@ -267,4 +267,3 @@ export async function removeMetadataKey(
 
     return await sendAndConfirmTx(rpc, tx, confirmOptions);
 }
-

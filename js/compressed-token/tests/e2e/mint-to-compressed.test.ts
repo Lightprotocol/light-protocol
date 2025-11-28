@@ -14,7 +14,7 @@ import {
     CTOKEN_PROGRAM_ID,
     selectStateTreeInfo,
 } from '@lightprotocol/stateless.js';
-import { createMint } from '../../src/mint/actions/create-mint';
+import { createMintInterface } from '../../src/mint/actions/create-mint-interface';
 import { mintToCompressed } from '../../src/mint/actions/mint-to-compressed';
 import { getMintInterface } from '../../src/mint/helpers';
 import { findMintAddress } from '../../src/compressible/derivation';
@@ -39,7 +39,7 @@ describe('mintToCompressed', () => {
         recipient2 = Keypair.generate();
 
         const decimals = 9;
-        const result = await createMint(
+        const result = await createMintInterface(
             rpc,
             payer,
             mintAuthority,

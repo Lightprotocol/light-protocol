@@ -122,17 +122,42 @@ function encodeCreateMintInstructionData(
     return encodeMintActionInstructionData(instructionData);
 }
 
-export function createMintInstruction(
-    mintSigner: PublicKey,
-    decimals: number,
-    mintAuthority: PublicKey,
-    freezeAuthority: PublicKey | null,
-    payer: PublicKey,
-    validityProof: ValidityProofWithContext,
-    metadata: TokenMetadataInstructionData | undefined,
-    addressTreeInfo: AddressTreeInfo,
-    outputStateTreeInfo: TreeInfo,
-): TransactionInstruction {
+export interface CreateMintInstructionParams {
+    mintSigner: PublicKey;
+    decimals: number;
+    mintAuthority: PublicKey;
+    freezeAuthority: PublicKey | null;
+    payer: PublicKey;
+    validityProof: ValidityProofWithContext;
+    metadata?: TokenMetadataInstructionData;
+    addressTreeInfo: AddressTreeInfo;
+    outputStateTreeInfo: TreeInfo;
+}
+
+/**
+ * Create instruction for initializing a compressed token mint.
+ *
+ * @param mintSigner          Mint signer keypair public key.
+ * @param decimals            Number of decimals for the mint.
+ * @param mintAuthority       Mint authority public key.
+ * @param freezeAuthority     Optional freeze authority public key.
+ * @param payer               Fee payer public key.
+ * @param validityProof       Validity proof for the compressed account.
+ * @param metadata            Optional token metadata.
+ * @param addressTreeInfo     Address tree info for the mint.
+ * @param outputStateTreeInfo Output state tree info.
+ */
+export function createMintInstruction({
+    mintSigner,
+    decimals,
+    mintAuthority,
+    freezeAuthority,
+    payer,
+    validityProof,
+    metadata,
+    addressTreeInfo,
+    outputStateTreeInfo,
+}: CreateMintInstructionParams): TransactionInstruction {
     const data = encodeCreateMintInstructionData({
         mintSigner,
         mintAuthority,

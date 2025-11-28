@@ -13,7 +13,7 @@ import {
     featureFlags,
     CTOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
-import { createMint } from '../../src/mint/actions/create-mint';
+import { createMintInterface } from '../../src/mint/actions/create-mint-interface';
 import { mintTo } from '../../src/mint/actions/mint-to';
 import { getMintInterface } from '../../src/mint/helpers';
 import { createAssociatedCTokenAccount } from '../../src/mint/actions/create-associated-ctoken';
@@ -41,7 +41,7 @@ describe('mintTo (MintToCToken)', () => {
         recipient = Keypair.generate();
 
         const decimals = 9;
-        const result = await createMint(
+        const result = await createMintInterface(
             rpc,
             payer,
             mintAuthority,

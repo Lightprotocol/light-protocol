@@ -72,13 +72,13 @@ export async function mintTo(
         DerivationMode.compressible,
     );
 
-    const ix = createMintToInstruction(
-        mint,
-        authority.publicKey,
-        payer.publicKey,
+    const ix = createMintToInstruction({
+        mintSigner: mint,
+        authority: authority.publicKey,
+        payer: payer.publicKey,
         validityProof,
-        mintInfo.merkleContext,
-        {
+        merkleContext: mintInfo.merkleContext,
+        mintData: {
             supply: mintInfo.mint.supply,
             decimals: mintInfo.mint.decimals,
             mintAuthority: mintInfo.mint.mintAuthority,
@@ -100,7 +100,7 @@ export async function mintTo(
         tokensOutQueue,
         recipientAccount,
         amount,
-    );
+    });
 
     const additionalSigners = authority.publicKey.equals(payer.publicKey)
         ? []

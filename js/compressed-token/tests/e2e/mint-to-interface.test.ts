@@ -16,9 +16,9 @@ import {
     TOKEN_2022_PROGRAM_ID,
 } from '@solana/spl-token';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import { createMint } from '../../src/mint/actions/create-mint';
+import { createMintInterface } from '../../src/mint/actions/create-mint-interface';
 import { mintToInterface } from '../../src/mint/actions/mint-to-interface';
-import { createMintSPL } from '../../src/actions/create-mint';
+import { createMint } from '../../src/actions/create-mint';
 import { createAssociatedCTokenAccount } from '../../src/mint/actions/create-associated-ctoken';
 import { getAssociatedCTokenAddress } from '../../src/compressible/derivation';
 import { getAccountInterface } from '../../src/mint/get-account-interface';
@@ -41,7 +41,7 @@ describe('mintToInterface - SPL Mints', () => {
 
         const mintKeypair = Keypair.generate();
         mint = (
-            await createMintSPL(
+            await createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
@@ -187,7 +187,7 @@ describe('mintToInterface - Compressed Mints', () => {
         mintAuthority = Keypair.generate();
 
         const decimals = 9;
-        const result = await createMint(
+        const result = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -354,7 +354,7 @@ describe('mintToInterface - Edge Cases', () => {
         mintAuthority = Keypair.generate();
 
         const mintSigner = Keypair.generate();
-        const result = await createMint(
+        const result = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -405,7 +405,7 @@ describe('mintToInterface - Edge Cases', () => {
 
     it('should handle payer as authority', async () => {
         const mintSigner = Keypair.generate();
-        const result = await createMint(
+        const result = await createMintInterface(
             rpc,
             payer,
             payer as Keypair,

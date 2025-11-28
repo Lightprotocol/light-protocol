@@ -27,14 +27,14 @@ export async function createAssociatedCTokenAccount(
     rentPayerPda?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<{ address: PublicKey; transactionSignature: TransactionSignature }> {
-    const ix = createAssociatedCTokenAccountInstruction(
-        payer.publicKey,
+    const ix = createAssociatedCTokenAccountInstruction({
+        feePayer: payer.publicKey,
         owner,
         mint,
         compressibleConfig,
         configAccount,
         rentPayerPda,
-    );
+    });
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const tx = buildAndSignTx(
@@ -60,14 +60,14 @@ export async function createAssociatedCTokenAccountIdempotent(
     rentPayerPda?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<{ address: PublicKey; transactionSignature: TransactionSignature }> {
-    const ix = createAssociatedCTokenAccountIdempotentInstruction(
-        payer.publicKey,
+    const ix = createAssociatedCTokenAccountIdempotentInstruction({
+        feePayer: payer.publicKey,
         owner,
         mint,
         compressibleConfig,
         configAccount,
         rentPayerPda,
-    );
+    });
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const tx = buildAndSignTx(

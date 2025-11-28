@@ -129,16 +129,27 @@ function encodeUpdateMetadataInstructionData(
     return encodeMintActionInstructionData(instructionData);
 }
 
-function createUpdateMetadataInstruction(
-    mintSigner: PublicKey,
-    authority: PublicKey,
-    payer: PublicKey,
-    validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionDataWithMetadata,
-    outputQueue: PublicKey,
-    action: UpdateMetadataAction,
-): TransactionInstruction {
+interface CreateUpdateMetadataInstructionParams {
+    mintSigner: PublicKey;
+    authority: PublicKey;
+    payer: PublicKey;
+    validityProof: ValidityProofWithContext;
+    merkleContext: MerkleContext;
+    mintData: MintInstructionDataWithMetadata;
+    outputQueue: PublicKey;
+    action: UpdateMetadataAction;
+}
+
+function createUpdateMetadataInstruction({
+    mintSigner,
+    authority,
+    payer,
+    validityProof,
+    merkleContext,
+    mintData,
+    outputQueue,
+    action,
+}: CreateUpdateMetadataInstructionParams): TransactionInstruction {
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMetadataInstructionData({
         mintSigner,
@@ -200,19 +211,48 @@ function createUpdateMetadataInstruction(
     });
 }
 
-export function createUpdateMetadataFieldInstruction(
-    mintSigner: PublicKey,
-    authority: PublicKey,
-    payer: PublicKey,
-    validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionDataWithMetadata,
-    outputQueue: PublicKey,
-    fieldType: 'name' | 'symbol' | 'uri' | 'custom',
-    value: string,
-    customKey?: string,
-    extensionIndex: number = 0,
-): TransactionInstruction {
+export interface CreateUpdateMetadataFieldInstructionParams {
+    mintSigner: PublicKey;
+    authority: PublicKey;
+    payer: PublicKey;
+    validityProof: ValidityProofWithContext;
+    merkleContext: MerkleContext;
+    mintData: MintInstructionDataWithMetadata;
+    outputQueue: PublicKey;
+    fieldType: 'name' | 'symbol' | 'uri' | 'custom';
+    value: string;
+    customKey?: string;
+    extensionIndex?: number;
+}
+
+/**
+ * Create instruction for updating a compressed mint's metadata field.
+ *
+ * @param mintSigner     Mint signer public key.
+ * @param authority      Metadata update authority public key.
+ * @param payer          Fee payer public key.
+ * @param validityProof  Validity proof for the compressed mint.
+ * @param merkleContext  Merkle context of the compressed mint.
+ * @param mintData       Mint instruction data with metadata.
+ * @param outputQueue    Output queue for state changes.
+ * @param fieldType      Field to update: 'name', 'symbol', 'uri', or 'custom'.
+ * @param value          New value for the field.
+ * @param customKey      Custom key name (required if fieldType is 'custom').
+ * @param extensionIndex Extension index (default: 0).
+ */
+export function createUpdateMetadataFieldInstruction({
+    mintSigner,
+    authority,
+    payer,
+    validityProof,
+    merkleContext,
+    mintData,
+    outputQueue,
+    fieldType,
+    value,
+    customKey,
+    extensionIndex = 0,
+}: CreateUpdateMetadataFieldInstructionParams): TransactionInstruction {
     const action: UpdateMetadataAction = {
         type: 'updateField',
         extensionIndex,
@@ -228,7 +268,7 @@ export function createUpdateMetadataFieldInstruction(
         value,
     };
 
-    return createUpdateMetadataInstruction(
+    return createUpdateMetadataInstruction({
         mintSigner,
         authority,
         payer,
@@ -237,50 +277,102 @@ export function createUpdateMetadataFieldInstruction(
         mintData,
         outputQueue,
         action,
-    );
+    });
 }
 
-export function createUpdateMetadataAuthorityInstruction(
-    mintSigner: PublicKey,
-    currentAuthority: PublicKey,
-    newAuthority: PublicKey,
-    payer: PublicKey,
-    validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionDataWithMetadata,
-    outputQueue: PublicKey,
-    extensionIndex: number = 0,
-): TransactionInstruction {
+export interface CreateUpdateMetadataAuthorityInstructionParams {
+    mintSigner: PublicKey;
+    currentAuthority: PublicKey;
+    newAuthority: PublicKey;
+    payer: PublicKey;
+    validityProof: ValidityProofWithContext;
+    merkleContext: MerkleContext;
+    mintData: MintInstructionDataWithMetadata;
+    outputQueue: PublicKey;
+    extensionIndex?: number;
+}
+
+/**
+ * Create instruction for updating a compressed mint's metadata authority.
+ *
+ * @param mintSigner       Mint signer public key.
+ * @param currentAuthority Current metadata update authority public key.
+ * @param newAuthority     New metadata update authority public key.
+ * @param payer            Fee payer public key.
+ * @param validityProof    Validity proof for the compressed mint.
+ * @param merkleContext    Merkle context of the compressed mint.
+ * @param mintData         Mint instruction data with metadata.
+ * @param outputQueue      Output queue for state changes.
+ * @param extensionIndex   Extension index (default: 0).
+ */
+export function createUpdateMetadataAuthorityInstruction({
+    mintSigner,
+    currentAuthority,
+    newAuthority,
+    payer,
+    validityProof,
+    merkleContext,
+    mintData,
+    outputQueue,
+    extensionIndex = 0,
+}: CreateUpdateMetadataAuthorityInstructionParams): TransactionInstruction {
     const action: UpdateMetadataAction = {
         type: 'updateAuthority',
         extensionIndex,
         newAuthority,
     };
 
-    return createUpdateMetadataInstruction(
+    return createUpdateMetadataInstruction({
         mintSigner,
-        currentAuthority,
+        authority: currentAuthority,
         payer,
         validityProof,
         merkleContext,
         mintData,
         outputQueue,
         action,
-    );
+    });
 }
 
-export function createRemoveMetadataKeyInstruction(
-    mintSigner: PublicKey,
-    authority: PublicKey,
-    payer: PublicKey,
-    validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionDataWithMetadata,
-    outputQueue: PublicKey,
-    key: string,
-    idempotent: boolean = false,
-    extensionIndex: number = 0,
-): TransactionInstruction {
+export interface CreateRemoveMetadataKeyInstructionParams {
+    mintSigner: PublicKey;
+    authority: PublicKey;
+    payer: PublicKey;
+    validityProof: ValidityProofWithContext;
+    merkleContext: MerkleContext;
+    mintData: MintInstructionDataWithMetadata;
+    outputQueue: PublicKey;
+    key: string;
+    idempotent?: boolean;
+    extensionIndex?: number;
+}
+
+/**
+ * Create instruction for removing a metadata key from a compressed mint.
+ *
+ * @param mintSigner     Mint signer public key.
+ * @param authority      Metadata update authority public key.
+ * @param payer          Fee payer public key.
+ * @param validityProof  Validity proof for the compressed mint.
+ * @param merkleContext  Merkle context of the compressed mint.
+ * @param mintData       Mint instruction data with metadata.
+ * @param outputQueue    Output queue for state changes.
+ * @param key            Metadata key to remove.
+ * @param idempotent     If true, don't error if key doesn't exist (default: false).
+ * @param extensionIndex Extension index (default: 0).
+ */
+export function createRemoveMetadataKeyInstruction({
+    mintSigner,
+    authority,
+    payer,
+    validityProof,
+    merkleContext,
+    mintData,
+    outputQueue,
+    key,
+    idempotent = false,
+    extensionIndex = 0,
+}: CreateRemoveMetadataKeyInstructionParams): TransactionInstruction {
     const action: UpdateMetadataAction = {
         type: 'removeKey',
         extensionIndex,
@@ -288,7 +380,7 @@ export function createRemoveMetadataKeyInstruction(
         idempotent,
     };
 
-    return createUpdateMetadataInstruction(
+    return createUpdateMetadataInstruction({
         mintSigner,
         authority,
         payer,
@@ -297,5 +389,5 @@ export function createRemoveMetadataKeyInstruction(
         mintData,
         outputQueue,
         action,
-    );
+    });
 }

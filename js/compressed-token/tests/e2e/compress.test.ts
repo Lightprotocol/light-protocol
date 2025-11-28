@@ -20,7 +20,7 @@ import {
 } from '@lightprotocol/stateless.js';
 import {
     compress,
-    createMintSPL,
+    createMint,
     createTokenProgramLookupTable,
     decompress,
 } from '../../src/actions';
@@ -116,7 +116,7 @@ describe('compress', () => {
         const mintKeypair = Keypair.generate();
 
         mint = (
-            await createMintSPL(
+            await createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
@@ -313,7 +313,7 @@ describe('compress', () => {
         const mintKeypair = Keypair.generate();
 
         const token22Mint = (
-            await createMintSPL(
+            await createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,

@@ -11,7 +11,7 @@ import {
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
-import { createMintSPL, mintTo, mergeTokenAccounts } from '../../src/actions';
+import { createMint, mintTo, mergeTokenAccounts } from '../../src/actions';
 
 describe('mergeTokenAccounts', () => {
     let rpc: Rpc;
@@ -31,7 +31,7 @@ describe('mergeTokenAccounts', () => {
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
 
         mint = (
-            await createMintSPL(
+            await createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,

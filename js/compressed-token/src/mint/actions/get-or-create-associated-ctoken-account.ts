@@ -82,14 +82,14 @@ export async function getOrCreateAtaInterface(
             try {
                 // TODO: add one with interface!
                 const transaction = new Transaction().add(
-                    createAssociatedTokenAccountInterfaceInstruction(
-                        payer.publicKey,
+                    createAssociatedTokenAccountInterfaceInstruction({
+                        payer: payer.publicKey,
                         associatedToken,
                         owner,
                         mint,
                         programId,
                         associatedTokenProgramId,
-                    ),
+                    }),
                 );
 
                 await sendAndConfirmTransaction(

@@ -9,7 +9,7 @@ import {
     getDefaultAddressTreeInfo,
     CTOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
-import { createMint } from '../../src/mint/actions';
+import { createMintInterface } from '../../src/mint/actions';
 import {
     updateMintAuthority,
     updateFreezeAuthority,
@@ -36,7 +36,7 @@ describe('updateMint', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             initialMintAuthority,
@@ -89,7 +89,7 @@ describe('updateMint', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -131,7 +131,7 @@ describe('updateMint', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -186,7 +186,7 @@ describe('updateMint', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -231,7 +231,7 @@ describe('updateMint', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             initialMintAuthority,

@@ -82,18 +82,45 @@ function encodeMintToCTokenInstructionData(
     return encodeMintActionInstructionData(instructionData);
 }
 
-export function createMintToInstruction(
-    mintSigner: PublicKey,
-    authority: PublicKey,
-    payer: PublicKey,
-    validityProof: ValidityProofWithContext,
-    merkleContext: MerkleContext,
-    mintData: MintInstructionData,
-    outputStateTreeInfo: TreeInfo,
-    tokensOutQueue: PublicKey,
-    recipientAccount: PublicKey,
-    amount: number | bigint,
-): TransactionInstruction {
+export interface CreateMintToInstructionParams {
+    mintSigner: PublicKey;
+    authority: PublicKey;
+    payer: PublicKey;
+    validityProof: ValidityProofWithContext;
+    merkleContext: MerkleContext;
+    mintData: MintInstructionData;
+    outputStateTreeInfo: TreeInfo;
+    tokensOutQueue: PublicKey;
+    recipientAccount: PublicKey;
+    amount: number | bigint;
+}
+
+/**
+ * Create instruction for minting compressed tokens to an onchain token account.
+ *
+ * @param mintSigner          Mint address.
+ * @param authority           Mint authority public key.
+ * @param payer               Fee payer public key.
+ * @param validityProof       Validity proof for the compressed mint.
+ * @param merkleContext       Merkle context of the compressed mint.
+ * @param mintData            Mint instruction data.
+ * @param outputStateTreeInfo Output state tree info.
+ * @param tokensOutQueue      Queue for token outputs.
+ * @param recipientAccount    Recipient onchain token account address.
+ * @param amount              Amount to mint.
+ */
+export function createMintToInstruction({
+    mintSigner,
+    authority,
+    payer,
+    validityProof,
+    merkleContext,
+    mintData,
+    outputStateTreeInfo,
+    tokensOutQueue,
+    recipientAccount,
+    amount,
+}: CreateMintToInstructionParams): TransactionInstruction {
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeMintToCTokenInstructionData({
         addressTree: addressTreeInfo.tree,

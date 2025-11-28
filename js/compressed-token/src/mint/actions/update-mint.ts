@@ -59,14 +59,14 @@ export async function updateMintAuthority(
         DerivationMode.compressible,
     );
 
-    const ix = createUpdateMintAuthorityInstruction(
-        mintSigner.publicKey,
-        currentMintAuthority.publicKey,
+    const ix = createUpdateMintAuthorityInstruction({
+        mintSigner: mintSigner.publicKey,
+        currentMintAuthority: currentMintAuthority.publicKey,
         newMintAuthority,
-        payer.publicKey,
+        payer: payer.publicKey,
         validityProof,
-        mintInfo.merkleContext,
-        {
+        merkleContext: mintInfo.merkleContext,
+        mintData: {
             supply: mintInfo.mint.supply,
             decimals: mintInfo.mint.decimals,
             mintAuthority: mintInfo.mint.mintAuthority,
@@ -84,8 +84,8 @@ export async function updateMintAuthority(
                   }
                 : undefined,
         },
-        outputStateTreeInfo.queue,
-    );
+        outputQueue: outputStateTreeInfo.queue,
+    });
 
     const additionalSigners = currentMintAuthority.publicKey.equals(
         payer.publicKey,
@@ -141,14 +141,14 @@ export async function updateFreezeAuthority(
         DerivationMode.compressible,
     );
 
-    const ix = createUpdateFreezeAuthorityInstruction(
-        mintSigner.publicKey,
-        currentFreezeAuthority.publicKey,
+    const ix = createUpdateFreezeAuthorityInstruction({
+        mintSigner: mintSigner.publicKey,
+        currentFreezeAuthority: currentFreezeAuthority.publicKey,
         newFreezeAuthority,
-        payer.publicKey,
+        payer: payer.publicKey,
         validityProof,
-        mintInfo.merkleContext,
-        {
+        merkleContext: mintInfo.merkleContext,
+        mintData: {
             supply: mintInfo.mint.supply,
             decimals: mintInfo.mint.decimals,
             mintAuthority: mintInfo.mint.mintAuthority,
@@ -166,8 +166,8 @@ export async function updateFreezeAuthority(
                   }
                 : undefined,
         },
-        outputStateTreeInfo.queue,
-    );
+        outputQueue: outputStateTreeInfo.queue,
+    });
 
     const additionalSigners = currentFreezeAuthority.publicKey.equals(
         payer.publicKey,
@@ -185,4 +185,3 @@ export async function updateFreezeAuthority(
 
     return await sendAndConfirmTx(rpc, tx, confirmOptions);
 }
-

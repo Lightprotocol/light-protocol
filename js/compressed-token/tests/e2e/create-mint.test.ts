@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, assert } from 'vitest';
 import { CompressedTokenProgram } from '../../src/program';
 import { PublicKey, Signer, Keypair } from '@solana/web3.js';
 import { unpackMint, unpackAccount } from '@solana/spl-token';
-import { createMintSPL } from '../../src/actions';
+import { createMint } from '../../src/actions';
 import {
     Rpc,
     newAccountWithLamports,
@@ -11,7 +11,7 @@ import {
 import { WasmFactory } from '@lightprotocol/hasher.rs';
 
 /**
- * Asserts that createMintSPL() creates a new spl mint account + the respective
+ * Asserts that createMint() creates a new spl mint account + the respective
  * system pool account
  */
 async function assertCreateMintSPL(
@@ -45,7 +45,7 @@ async function assertCreateMintSPL(
 }
 
 const TEST_TOKEN_DECIMALS = 2;
-describe('createMintSPL', () => {
+describe('createMint (SPL)', () => {
     let rpc: Rpc;
     let payer: Signer;
     let mint: PublicKey;
@@ -62,7 +62,7 @@ describe('createMintSPL', () => {
         const mintKeypair = Keypair.generate();
 
         mint = (
-            await createMintSPL(
+            await createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
@@ -85,7 +85,7 @@ describe('createMintSPL', () => {
 
         /// Mint already exists
         await expect(
-            createMintSPL(
+            createMint(
                 rpc,
                 payer,
                 mintAuthority.publicKey,
@@ -98,7 +98,7 @@ describe('createMintSPL', () => {
 
     it('should create mint with payer as authority', async () => {
         mint = (
-            await createMintSPL(
+            await createMint(
                 rpc,
                 payer,
                 payer.publicKey,

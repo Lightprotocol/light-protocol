@@ -8,7 +8,7 @@ import {
     featureFlags,
     getDefaultAddressTreeInfo,
 } from '@lightprotocol/stateless.js';
-import { createMint } from '../../src/mint/actions';
+import { createMintInterface } from '../../src/mint/actions';
 import {
     createAssociatedCTokenAccount,
     createAssociatedCTokenAccountIdempotent,
@@ -36,7 +36,7 @@ describe('createAssociatedCTokenAccount', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { transactionSignature: createMintSig } = await createMint(
+        const { transactionSignature: createMintSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -79,7 +79,7 @@ describe('createAssociatedCTokenAccount', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { transactionSignature: createMintSig } = await createMint(
+        const { transactionSignature: createMintSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -114,7 +114,7 @@ describe('createAssociatedCTokenAccount', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { transactionSignature: createMintSig } = await createMint(
+        const { transactionSignature: createMintSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -167,7 +167,7 @@ describe('createAssociatedCTokenAccount', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { transactionSignature: createMintSig } = await createMint(
+        const { transactionSignature: createMintSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -231,7 +231,7 @@ describe('createAssociatedCTokenAccount', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { transactionSignature: createMintSig } = await createMint(
+        const { transactionSignature: createMintSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -298,7 +298,7 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
             mintAuthority.publicKey,
         );
 
-        const { mint, transactionSignature: createMintSig } = await createMint(
+        const { mint, transactionSignature: createMintSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -362,7 +362,7 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { mint, transactionSignature: createMintSig } = await createMint(
+        const { mint, transactionSignature: createMintSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -400,7 +400,7 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
         const mintAuthority1 = Keypair.generate();
         const [mintPda1] = findMintAddress(mintSigner1.publicKey);
 
-        const { transactionSignature: createMint1Sig } = await createMint(
+        const { transactionSignature: createMint1Sig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority1,
@@ -417,7 +417,7 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
         const mintAuthority2 = Keypair.generate();
         const [mintPda2] = findMintAddress(mintSigner2.publicKey);
 
-        const { transactionSignature: createMint2Sig } = await createMint(
+        const { transactionSignature: createMint2Sig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority2,
@@ -466,7 +466,7 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { transactionSignature: createMintSig } = await createMint(
+        const { transactionSignature: createMintSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -504,7 +504,7 @@ describe('createMint -> createAssociatedCTokenAccount flow', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { transactionSignature: createMintSig } = await createMint(
+        const { transactionSignature: createMintSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,

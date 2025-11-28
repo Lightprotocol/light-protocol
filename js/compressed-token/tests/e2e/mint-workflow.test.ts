@@ -9,7 +9,7 @@ import {
     getDefaultAddressTreeInfo,
     CTOKEN_PROGRAM_ID,
 } from '@lightprotocol/stateless.js';
-import { createMint } from '../../src/mint/actions';
+import { createMintInterface } from '../../src/mint/actions';
 import { createTokenMetadata } from '../../src/mint/instructions';
 import {
     updateMintAuthority,
@@ -50,17 +50,18 @@ describe('Complete Mint Workflow', () => {
             initialMintAuthority.publicKey,
         );
 
-        const { mint, transactionSignature: createSig } = await createMint(
-            rpc,
-            payer,
-            initialMintAuthority,
-            initialFreezeAuthority.publicKey,
-            decimals,
-            mintSigner,
-            initialMetadata,
-            addressTreeInfo,
-            undefined,
-        );
+        const { mint, transactionSignature: createSig } =
+            await createMintInterface(
+                rpc,
+                payer,
+                initialMintAuthority,
+                initialFreezeAuthority.publicKey,
+                decimals,
+                mintSigner,
+                initialMetadata,
+                addressTreeInfo,
+                undefined,
+            );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
         expect(mint.toString()).toBe(mintPda.toString());
@@ -252,7 +253,7 @@ describe('Complete Mint Workflow', () => {
             mintAuthority.publicKey,
         );
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -320,17 +321,18 @@ describe('Complete Mint Workflow', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { mint, transactionSignature: createSig } = await createMint(
-            rpc,
-            payer,
-            mintAuthority,
-            null,
-            decimals,
-            mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
-        );
+        const { mint, transactionSignature: createSig } =
+            await createMintInterface(
+                rpc,
+                payer,
+                mintAuthority,
+                null,
+                decimals,
+                mintSigner,
+                undefined,
+                addressTreeInfo,
+                undefined,
+            );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
         const mintInfo = await getMintInterface(
@@ -381,7 +383,7 @@ describe('Complete Mint Workflow', () => {
             mintAuthority.publicKey,
         );
 
-        const { transactionSignature: createSig } = await createMint(
+        const { transactionSignature: createSig } = await createMintInterface(
             rpc,
             payer,
             mintAuthority,
@@ -447,17 +449,18 @@ describe('Complete Mint Workflow', () => {
             mintAuthority.publicKey,
         );
 
-        const { mint, transactionSignature: createSig } = await createMint(
-            rpc,
-            payer,
-            mintAuthority,
-            freezeAuthority.publicKey,
-            decimals,
-            mintSigner,
-            metadata,
-            addressTreeInfo,
-            undefined,
-        );
+        const { mint, transactionSignature: createSig } =
+            await createMintInterface(
+                rpc,
+                payer,
+                mintAuthority,
+                freezeAuthority.publicKey,
+                decimals,
+                mintSigner,
+                metadata,
+                addressTreeInfo,
+                undefined,
+            );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
         let mintInfo = await getMintInterface(
@@ -567,17 +570,18 @@ describe('Complete Mint Workflow', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { mint, transactionSignature: createSig } = await createMint(
-            rpc,
-            payer,
-            mintAuthority,
-            null,
-            decimals,
-            mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
-        );
+        const { mint, transactionSignature: createSig } =
+            await createMintInterface(
+                rpc,
+                payer,
+                mintAuthority,
+                null,
+                decimals,
+                mintSigner,
+                undefined,
+                addressTreeInfo,
+                undefined,
+            );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
         let mintInfo = await getMintInterface(
@@ -639,17 +643,18 @@ describe('Complete Mint Workflow', () => {
         const addressTreeInfo = getDefaultAddressTreeInfo();
         const [mintPda] = findMintAddress(mintSigner.publicKey);
 
-        const { mint, transactionSignature: createSig } = await createMint(
-            rpc,
-            payer,
-            mintAuthority,
-            null,
-            decimals,
-            mintSigner,
-            undefined,
-            addressTreeInfo,
-            undefined,
-        );
+        const { mint, transactionSignature: createSig } =
+            await createMintInterface(
+                rpc,
+                payer,
+                mintAuthority,
+                null,
+                decimals,
+                mintSigner,
+                undefined,
+                addressTreeInfo,
+                undefined,
+            );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
         const derivedAddressBefore = getAssociatedCTokenAddress(
