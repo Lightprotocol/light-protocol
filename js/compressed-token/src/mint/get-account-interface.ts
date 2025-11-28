@@ -20,6 +20,10 @@ import { Buffer } from 'buffer';
 import BN from 'bn.js';
 import { getAtaProgramId } from '../utils';
 
+// Re-export types that are used in the interface
+export { Account, AccountState } from '@solana/spl-token';
+export { ParsedTokenAccount } from '@lightprotocol/stateless.js';
+
 export interface TokenAccountSource {
     type:
         | 'spl-onchain'

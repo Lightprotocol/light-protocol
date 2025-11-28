@@ -16,6 +16,7 @@ import {
     TreeInfo,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../../program';
+import { MintInstructionData } from '../serde';
 import {
     struct,
     option,
@@ -54,21 +55,7 @@ interface EncodeMintToCTokenInstructionParams {
     leafIndex: number;
     rootIndex: number;
     proof: ValidityProof | null;
-    mintData: {
-        supply: bigint;
-        decimals: number;
-        mintAuthority: PublicKey | null;
-        freezeAuthority: PublicKey | null;
-        splMint: PublicKey;
-        splMintInitialized: boolean;
-        version: number;
-        metadata?: {
-            updateAuthority: PublicKey | null;
-            name: string;
-            symbol: string;
-            uri: string;
-        };
-    };
+    mintData: MintInstructionData;
     recipientAccount: PublicKey;
     recipientAccountIndex: number;
     amount: number | bigint;
@@ -211,21 +198,7 @@ export function createMintToInstruction(
     payer: PublicKey,
     validityProof: ValidityProofWithContext,
     merkleContext: MerkleContext,
-    mintData: {
-        supply: bigint;
-        decimals: number;
-        mintAuthority: PublicKey | null;
-        freezeAuthority: PublicKey | null;
-        splMint: PublicKey;
-        splMintInitialized: boolean;
-        version: number;
-        metadata?: {
-            updateAuthority: PublicKey | null;
-            name: string;
-            symbol: string;
-            uri: string;
-        };
-    },
+    mintData: MintInstructionData,
     outputStateTreeInfo: TreeInfo,
     tokensOutQueue: PublicKey,
     recipientAccount: PublicKey,

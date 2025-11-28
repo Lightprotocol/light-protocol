@@ -16,6 +16,7 @@ import {
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../../program';
 import { findMintAddress } from '../../compressible/derivation';
+import { MintInstructionData } from '../serde';
 import {
     struct,
     option,
@@ -62,21 +63,7 @@ interface EncodeCompressedMintToInstructionParams {
     leafIndex: number;
     rootIndex: number;
     proof: ValidityProof | null;
-    mintData: {
-        supply: bigint;
-        decimals: number;
-        mintAuthority: PublicKey | null;
-        freezeAuthority: PublicKey | null;
-        splMint: PublicKey;
-        splMintInitialized: boolean;
-        version: number;
-        metadata?: {
-            updateAuthority: PublicKey | null;
-            name: string;
-            symbol: string;
-            uri: string;
-        };
-    };
+    mintData: MintInstructionData;
     recipients: Array<{ recipient: PublicKey; amount: number | bigint }>;
     tokenAccountVersion: number;
 }
@@ -221,21 +208,7 @@ export function createMintToCompressedInstruction(
     payer: PublicKey,
     validityProof: ValidityProofWithContext,
     merkleContext: MerkleContext,
-    mintData: {
-        supply: bigint;
-        decimals: number;
-        mintAuthority: PublicKey | null;
-        freezeAuthority: PublicKey | null;
-        splMint: PublicKey;
-        splMintInitialized: boolean;
-        version: number;
-        metadata?: {
-            updateAuthority: PublicKey | null;
-            name: string;
-            symbol: string;
-            uri: string;
-        };
-    },
+    mintData: MintInstructionData,
     outputQueue: PublicKey,
     tokensOutQueue: PublicKey,
     recipients: Array<{ recipient: PublicKey; amount: number | bigint }>,

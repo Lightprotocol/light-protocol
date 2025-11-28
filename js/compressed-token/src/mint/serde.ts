@@ -99,6 +99,65 @@ export const MintContextLayout = struct<RawMintContext>([
 export const MINT_CONTEXT_SIZE = MintContextLayout.span; // 34 bytes
 
 /**
+ * Calculate the byte length of a TokenMetadata extension from buffer.
+ * Format: updateAuthority (32) + mint (32) + name (4+len) + symbol (4+len) + uri (4+len) + additional (4 + items)
+ */
+function getTokenMetadataByteLength(
+    buffer: Buffer,
+    startOffset: number,
+): number {
+    let offset = startOffset;
+
+    // updateAuthority: 32 bytes
+    offset += 32;
+    // mint: 32 bytes
+    offset += 32;
+
+    // name: Vec<u8>
+    const nameLen = buffer.readUInt32LE(offset);
+    offset += 4 + nameLen;
+
+    // symbol: Vec<u8>
+    const symbolLen = buffer.readUInt32LE(offset);
+    offset += 4 + symbolLen;
+
+    // uri: Vec<u8>
+    const uriLen = buffer.readUInt32LE(offset);
+    offset += 4 + uriLen;
+
+    // additional_metadata: Vec<AdditionalMetadata>
+    const additionalCount = buffer.readUInt32LE(offset);
+    offset += 4;
+    for (let i = 0; i < additionalCount; i++) {
+        const keyLen = buffer.readUInt32LE(offset);
+        offset += 4 + keyLen;
+        const valueLen = buffer.readUInt32LE(offset);
+        offset += 4 + valueLen;
+    }
+
+    return offset - startOffset;
+}
+
+/**
+ * Get the byte length of an extension based on its type.
+ * Returns the length of the extension data (excluding the 1-byte discriminant).
+ */
+function getExtensionByteLength(
+    extensionType: number,
+    buffer: Buffer,
+    dataStartOffset: number,
+): number {
+    switch (extensionType) {
+        case ExtensionType.TokenMetadata:
+            return getTokenMetadataByteLength(buffer, dataStartOffset);
+        default:
+            // For unknown extensions, we can't determine the length
+            // Return remaining buffer length as fallback
+            return buffer.length - dataStartOffset;
+    }
+}
+
+/**
  * Deserialize a compressed mint from buffer
  * Uses SPL's MintLayout for BaseMint and buffer-layout struct for context
  *
@@ -119,7 +178,8 @@ export function deserializeMint(data: Buffer | Uint8Array): CompressedMint {
     );
     offset += MINT_CONTEXT_SIZE;
 
-    // 3. Parse extensions: Option<Vec<MintExtension>>
+    // 3. Parse extensions: Option<Vec<ExtensionStruct>>
+    // Borsh format: Option byte + Vec length + (discriminant + variant data) for each
     const hasExtensions = buffer.readUInt8(offset) === 1;
     offset += 1;
 
@@ -133,16 +193,19 @@ export function deserializeMint(data: Buffer | Uint8Array): CompressedMint {
             const extensionType = buffer.readUInt8(offset);
             offset += 1;
 
-            // NO length stored for enum variants - read all remaining data
-            const extensionData = buffer.slice(offset);
+            // Calculate extension data length based on type
+            const dataLength = getExtensionByteLength(
+                extensionType,
+                buffer,
+                offset,
+            );
+            const extensionData = buffer.slice(offset, offset + dataLength);
+            offset += dataLength;
 
             extensions.push({
                 extensionType,
                 data: extensionData,
             });
-
-            // All remaining data is this extension
-            break;
         }
     }
 
@@ -212,7 +275,9 @@ export function serializeMint(mint: CompressedMint): Buffer {
     );
     buffers.push(contextBuffer);
 
-    // 3. Encode extensions: Option<Vec<MintExtension>>
+    // 3. Encode extensions: Option<Vec<ExtensionStruct>>
+    // Borsh format: Option byte + Vec length + (discriminant + variant data) for each
+    // NOTE: No length prefix per extension - Borsh enums are discriminant + data directly
     if (mint.extensions && mint.extensions.length > 0) {
         buffers.push(Buffer.from([1])); // Some
         const vecLenBuf = Buffer.alloc(4);
@@ -220,10 +285,9 @@ export function serializeMint(mint: CompressedMint): Buffer {
         buffers.push(vecLenBuf);
 
         for (const ext of mint.extensions) {
+            // Write discriminant (1 byte)
             buffers.push(Buffer.from([ext.extensionType]));
-            const dataLenBuf = Buffer.alloc(4);
-            dataLenBuf.writeUInt32LE(ext.data.length);
-            buffers.push(dataLenBuf);
+            // Write extension data directly (no length prefix - Borsh format)
             buffers.push(Buffer.from(ext.data));
         }
     } else {
@@ -242,72 +306,47 @@ export enum ExtensionType {
 }
 
 /**
- * Decode TokenMetadata from raw extension data manually
+ * Decode TokenMetadata from raw extension data using Borsh layout
  * Extension format: updateAuthority (32) + mint (32) + name (Vec) + symbol (Vec) + uri (Vec) + additional (Vec)
  */
 export function decodeTokenMetadata(data: Uint8Array): TokenMetadata | null {
     try {
         const buffer = Buffer.from(data);
-        if (buffer.length < 36) {
+        // Minimum size: 32 (updateAuthority) + 32 (mint) + 4 (name len) + 4 (symbol len) + 4 (uri len) + 4 (additional len) = 80
+        if (buffer.length < 80) {
             return null;
         }
 
-        let offset = 0;
+        // Decode using Borsh layout
+        const decoded = TokenMetadataLayout.decode(buffer) as {
+            updateAuthority: PublicKey;
+            mint: PublicKey;
+            name: Buffer;
+            symbol: Buffer;
+            uri: Buffer;
+            additionalMetadata: { key: Buffer; value: Buffer }[];
+        };
 
-        // updateAuthority: Pubkey (32 bytes)
-        const updateAuthorityBytes = buffer.slice(offset, offset + 32);
-        const isZero = updateAuthorityBytes.every(b => b === 0);
-        const updateAuthority = isZero
-            ? undefined
-            : new PublicKey(updateAuthorityBytes);
-        offset += 32;
+        // Convert zero pubkey to undefined for updateAuthority
+        const updateAuthorityBytes = decoded.updateAuthority.toBuffer();
+        const isZero = updateAuthorityBytes.every((b: number) => b === 0);
+        const updateAuthority = isZero ? undefined : decoded.updateAuthority;
 
-        // mint: Pubkey (32 bytes) - skip it, not returned in interface
-        offset += 32;
+        // Convert Buffer fields to strings
+        const name = Buffer.from(decoded.name).toString('utf-8');
+        const symbol = Buffer.from(decoded.symbol).toString('utf-8');
+        const uri = Buffer.from(decoded.uri).toString('utf-8');
 
-        // name: Vec<u8>
-        const nameLen = buffer.readUInt32LE(offset);
-        offset += 4;
-        const name = buffer.slice(offset, offset + nameLen).toString('utf-8');
-        offset += nameLen;
-
-        // symbol: Vec<u8>
-        const symbolLen = buffer.readUInt32LE(offset);
-        offset += 4;
-        const symbol = buffer
-            .slice(offset, offset + symbolLen)
-            .toString('utf-8');
-        offset += symbolLen;
-
-        // uri: Vec<u8>
-        const uriLen = buffer.readUInt32LE(offset);
-        offset += 4;
-        const uri = buffer.slice(offset, offset + uriLen).toString('utf-8');
-        offset += uriLen;
-
-        // additional_metadata: Vec<AdditionalMetadata>
-        const additionalLen = buffer.readUInt32LE(offset);
-        offset += 4;
+        // Convert additional metadata
         let additionalMetadata: { key: string; value: string }[] | undefined;
-        if (additionalLen > 0) {
-            additionalMetadata = [];
-            for (let i = 0; i < additionalLen; i++) {
-                const keyLen = buffer.readUInt32LE(offset);
-                offset += 4;
-                const key = buffer
-                    .slice(offset, offset + keyLen)
-                    .toString('utf-8');
-                offset += keyLen;
-
-                const valueLen = buffer.readUInt32LE(offset);
-                offset += 4;
-                const value = buffer
-                    .slice(offset, offset + valueLen)
-                    .toString('utf-8');
-                offset += valueLen;
-
-                additionalMetadata.push({ key, value });
-            }
+        if (
+            decoded.additionalMetadata &&
+            decoded.additionalMetadata.length > 0
+        ) {
+            additionalMetadata = decoded.additionalMetadata.map(item => ({
+                key: Buffer.from(item.key).toString('utf-8'),
+                value: Buffer.from(item.value).toString('utf-8'),
+            }));
         }
 
         return {
@@ -370,4 +409,95 @@ export function extractTokenMetadata(
         ext => ext.extensionType === ExtensionType.TokenMetadata,
     );
     return metadataExt ? parseTokenMetadata(metadataExt.data) : null;
+}
+
+/**
+ * Metadata portion of MintInstructionData
+ * Used for instruction encoding when metadata extension is present
+ */
+export interface MintMetadataField {
+    updateAuthority: PublicKey | null;
+    name: string;
+    symbol: string;
+    uri: string;
+}
+
+/**
+ * Flattened mint data structure for instruction encoding
+ * This is the format expected by mint action instructions
+ */
+export interface MintInstructionData {
+    supply: bigint;
+    decimals: number;
+    mintAuthority: PublicKey | null;
+    freezeAuthority: PublicKey | null;
+    splMint: PublicKey;
+    splMintInitialized: boolean;
+    version: number;
+    metadata?: MintMetadataField;
+}
+
+/**
+ * MintInstructionData with required metadata field
+ * Used for metadata update instructions where metadata must be present
+ */
+export interface MintInstructionDataWithMetadata extends MintInstructionData {
+    metadata: MintMetadataField;
+}
+
+/**
+ * Convert a deserialized CompressedMint to MintInstructionData format
+ * This extracts and flattens the data structure for instruction encoding
+ *
+ * @param compressedMint - Deserialized CompressedMint from account data
+ * @returns Flattened MintInstructionData for instruction encoding
+ */
+export function toMintInstructionData(
+    compressedMint: CompressedMint,
+): MintInstructionData {
+    const { base, mintContext, extensions } = compressedMint;
+
+    // Extract metadata from extensions if present
+    const tokenMetadata = extractTokenMetadata(extensions);
+    const metadata: MintMetadataField | undefined = tokenMetadata
+        ? {
+              updateAuthority: tokenMetadata.updateAuthority ?? null,
+              name: tokenMetadata.name,
+              symbol: tokenMetadata.symbol,
+              uri: tokenMetadata.uri,
+          }
+        : undefined;
+
+    return {
+        supply: base.supply,
+        decimals: base.decimals,
+        mintAuthority: base.mintAuthority,
+        freezeAuthority: base.freezeAuthority,
+        splMint: mintContext.splMint,
+        splMintInitialized: mintContext.splMintInitialized,
+        version: mintContext.version,
+        metadata,
+    };
+}
+
+/**
+ * Convert a deserialized CompressedMint to MintInstructionDataWithMetadata
+ * Throws if the mint doesn't have metadata extension
+ *
+ * @param compressedMint - Deserialized CompressedMint from account data
+ * @returns MintInstructionDataWithMetadata for metadata update instructions
+ * @throws Error if metadata extension is not present
+ */
+export function toMintInstructionDataWithMetadata(
+    compressedMint: CompressedMint,
+): MintInstructionDataWithMetadata {
+    const data = toMintInstructionData(compressedMint);
+
+    if (!data.metadata) {
+        throw new Error(
+            'CompressedMint does not have TokenMetadata extension',
+        );
+    }
+
+    return data as MintInstructionDataWithMetadata;
 }

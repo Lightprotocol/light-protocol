@@ -15,6 +15,7 @@ import {
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../../program';
 import { findMintAddress } from '../../compressible/derivation';
+import { MintInstructionDataWithMetadata } from '../serde';
 import {
     struct,
     option,
@@ -75,21 +76,7 @@ interface EncodeUpdateMetadataInstructionParams {
     leafIndex: number;
     rootIndex: number;
     proof: ValidityProof | null;
-    mintData: {
-        supply: bigint;
-        decimals: number;
-        mintAuthority: PublicKey | null;
-        freezeAuthority: PublicKey | null;
-        splMint: PublicKey;
-        splMintInitialized: boolean;
-        version: number;
-        metadata: {
-            updateAuthority: PublicKey | null;
-            name: string;
-            symbol: string;
-            uri: string;
-        };
-    };
+    mintData: MintInstructionDataWithMetadata;
     action: UpdateMetadataAction;
 }
 
@@ -288,21 +275,7 @@ function createUpdateMetadataInstruction(
     payer: PublicKey,
     validityProof: ValidityProofWithContext,
     merkleContext: MerkleContext,
-    mintData: {
-        supply: bigint;
-        decimals: number;
-        mintAuthority: PublicKey | null;
-        freezeAuthority: PublicKey | null;
-        splMint: PublicKey;
-        splMintInitialized: boolean;
-        version: number;
-        metadata: {
-            updateAuthority: PublicKey | null;
-            name: string;
-            symbol: string;
-            uri: string;
-        };
-    },
+    mintData: MintInstructionDataWithMetadata,
     outputQueue: PublicKey,
     action: UpdateMetadataAction,
 ): TransactionInstruction {
@@ -375,21 +348,7 @@ export function createUpdateMetadataFieldInstruction(
     payer: PublicKey,
     validityProof: ValidityProofWithContext,
     merkleContext: MerkleContext,
-    mintData: {
-        supply: bigint;
-        decimals: number;
-        mintAuthority: PublicKey | null;
-        freezeAuthority: PublicKey | null;
-        splMint: PublicKey;
-        splMintInitialized: boolean;
-        version: number;
-        metadata: {
-            updateAuthority: PublicKey | null;
-            name: string;
-            symbol: string;
-            uri: string;
-        };
-    },
+    mintData: MintInstructionDataWithMetadata,
     outputQueue: PublicKey,
     fieldType: 'name' | 'symbol' | 'uri' | 'custom',
     value: string,
@@ -430,21 +389,7 @@ export function createUpdateMetadataAuthorityInstruction(
     payer: PublicKey,
     validityProof: ValidityProofWithContext,
     merkleContext: MerkleContext,
-    mintData: {
-        supply: bigint;
-        decimals: number;
-        mintAuthority: PublicKey | null;
-        freezeAuthority: PublicKey | null;
-        splMint: PublicKey;
-        splMintInitialized: boolean;
-        version: number;
-        metadata: {
-            updateAuthority: PublicKey | null;
-            name: string;
-            symbol: string;
-            uri: string;
-        };
-    },
+    mintData: MintInstructionDataWithMetadata,
     outputQueue: PublicKey,
     extensionIndex: number = 0,
 ): TransactionInstruction {
@@ -472,21 +417,7 @@ export function createRemoveMetadataKeyInstruction(
     payer: PublicKey,
     validityProof: ValidityProofWithContext,
     merkleContext: MerkleContext,
-    mintData: {
-        supply: bigint;
-        decimals: number;
-        mintAuthority: PublicKey | null;
-        freezeAuthority: PublicKey | null;
-        splMint: PublicKey;
-        splMintInitialized: boolean;
-        version: number;
-        metadata: {
-            updateAuthority: PublicKey | null;
-            name: string;
-            symbol: string;
-            uri: string;
-        };
-    },
+    mintData: MintInstructionDataWithMetadata,
     outputQueue: PublicKey,
     key: string,
     idempotent: boolean = false,

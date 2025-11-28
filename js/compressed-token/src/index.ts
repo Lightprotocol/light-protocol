@@ -33,7 +33,6 @@ export {
     createAssociatedCTokenAccount,
     createAssociatedCTokenAccountIdempotent,
     getOrCreateAtaInterface,
-    getOrCreateAssociatedTokenAccountInterface,
     mintTo as mintToCToken,
     mintToCompressed,
     mintToInterface,
