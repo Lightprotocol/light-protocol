@@ -14,205 +14,83 @@ import {
     MerkleContext,
 } from '@lightprotocol/stateless.js';
 import { CompressedTokenProgram } from '../../program';
-import { findMintAddress } from '../../compressible/derivation';
 import { MintInstructionData } from '../serde';
 import {
-    struct,
-    option,
-    vec,
-    u8,
-    publicKey,
-    array,
-    u16,
-    u32,
-    vecU8,
-} from '@coral-xyz/borsh';
-
-const MINT_ACTION_DISCRIMINATOR = Buffer.from([103]);
-
-const CompressedProofLayout = struct([
-    array(u8(), 32, 'a'),
-    array(u8(), 64, 'b'),
-    array(u8(), 32, 'c'),
-]);
-
-const CompressedMintMetadataLayout = struct([
-    u8('version'),
-    u8('splMintInitialized'),
-    publicKey('splMint'),
-]);
-
-const TokenMetadataInstructionDataLayout = struct([
-    option(publicKey(), 'updateAuthority'),
-    vecU8('name'),
-    vecU8('symbol'),
-    vecU8('uri'),
-    option(
-        vec(struct([vecU8('key'), vecU8('value')]), 'additionalMetadata'),
-        'additionalMetadata',
-    ),
-]);
-
-const UpdateAuthorityLayout = struct([option(publicKey(), 'newAuthority')]);
+    encodeMintActionInstructionData,
+    MintActionCompressedInstructionData,
+    Action,
+    ExtensionInstructionData,
+} from './mint-action-layout';
 
 interface EncodeUpdateMintInstructionParams {
-    mintSigner: PublicKey;
-    currentAuthority: PublicKey;
-    newAuthority: PublicKey | null;
-    actionType: 'mintAuthority' | 'freezeAuthority';
     addressTree: PublicKey;
-    outputQueue: PublicKey;
     leafIndex: number;
     proveByIndex: boolean;
     rootIndex: number;
-    proof: ValidityProof | null;
+    proof: { a: number[]; b: number[]; c: number[] } | null;
     mintData: MintInstructionData;
-}
-
-interface ValidityProof {
-    a: number[];
-    b: number[];
-    c: number[];
+    newAuthority: PublicKey | null;
+    actionType: 'mintAuthority' | 'freezeAuthority';
 }
 
 function encodeUpdateMintInstructionData(
     params: EncodeUpdateMintInstructionParams,
 ): Buffer {
-    const buffer = Buffer.alloc(4000);
-    let offset = 0;
-
-    // 1. leaf_index: u32
-    buffer.writeUInt32LE(params.leafIndex, offset);
-    offset += 4;
-
-    // 2. prove_by_index: bool
-    buffer[offset++] = params.proveByIndex ? 1 : 0;
-
-    // 3. root_index: u16
-    buffer.writeUInt16LE(params.rootIndex, offset);
-    offset += 2;
-
-    // 4. compressed_address: [u8; 32]
     const compressedAddress = deriveAddressV2(
         params.mintData.splMint.toBytes(),
         params.addressTree,
         CTOKEN_PROGRAM_ID,
     );
-    buffer.set(compressedAddress.toBytes(), offset);
-    offset += 32;
 
-    // 5. token_pool_bump: u8
-    buffer[offset++] = 0;
+    // Build action
+    const action: Action =
+        params.actionType === 'mintAuthority'
+            ? { updateMintAuthority: { newAuthority: params.newAuthority } }
+            : { updateFreezeAuthority: { newAuthority: params.newAuthority } };
 
-    // 6. token_pool_index: u8
-    buffer[offset++] = 0;
-
-    // 7. create_mint: Option<CreateMint> = None
-    buffer[offset++] = 0;
-
-    // 8. actions: Vec<Action>
-    buffer.writeUInt32LE(1, offset); // 1 action
-    offset += 4;
-
-    // Action enum discriminant (UpdateMintAuthority=1 or UpdateFreezeAuthority=2)
-    if (params.actionType === 'mintAuthority') {
-        buffer[offset++] = 1;
-    } else {
-        buffer[offset++] = 2;
-    }
-
-    // UpdateAuthority action data
-    const authBuf = Buffer.alloc(64);
-    const authLen = UpdateAuthorityLayout.encode(
-        { newAuthority: params.newAuthority },
-        authBuf,
-    );
-    buffer.set(authBuf.subarray(0, authLen), offset);
-    offset += authLen;
-
-    // 9. proof: Option<CompressedProof>
-    if (params.proof) {
-        buffer[offset++] = 1;
-        const prBuf = Buffer.alloc(200);
-        const prLen = CompressedProofLayout.encode(params.proof as any, prBuf);
-        buffer.set(prBuf.subarray(0, prLen), offset);
-        offset += prLen;
-    } else {
-        buffer[offset++] = 0;
-    }
-
-    // 10. cpi_context: Option<CpiContext>
-    buffer[offset++] = 0; // None
-
-    // 11. mint: CompressedMintInstructionData
-    // supply: u64
-    const supplyBytes = Buffer.alloc(8);
-    supplyBytes.writeBigUInt64LE(params.mintData.supply);
-    buffer.set(supplyBytes, offset);
-    offset += 8;
-
-    // decimals: u8
-    buffer[offset++] = params.mintData.decimals;
-
-    // metadata: CompressedMintMetadata
-    const metaBuf = Buffer.alloc(64);
-    const metaLen = CompressedMintMetadataLayout.encode(
-        {
-            version: params.mintData.version,
-            splMintInitialized: params.mintData.splMintInitialized ? 1 : 0,
-            splMint: params.mintData.splMint,
-        },
-        metaBuf,
-    );
-    buffer.set(metaBuf.subarray(0, metaLen), offset);
-    offset += metaLen;
-
-    // mint_authority: Option<Pubkey>
-    if (params.mintData.mintAuthority) {
-        buffer[offset++] = 1;
-        buffer.set(params.mintData.mintAuthority.toBytes(), offset);
-        offset += 32;
-    } else {
-        buffer[offset++] = 0;
-    }
-
-    // freeze_authority: Option<Pubkey>
-    if (params.mintData.freezeAuthority) {
-        buffer[offset++] = 1;
-        buffer.set(params.mintData.freezeAuthority.toBytes(), offset);
-        offset += 32;
-    } else {
-        buffer[offset++] = 0;
-    }
-
-    // extensions: Option<Vec<ExtensionInstructionData>>
+    // Build extensions if metadata present
+    let extensions: ExtensionInstructionData[] | null = null;
     if (params.mintData.metadata) {
-        buffer[offset++] = 1;
-        buffer.writeUInt32LE(1, offset);
-        offset += 4;
-        buffer[offset++] = 19;
-        const mdBuf = Buffer.alloc(2000);
-        const mdLen = TokenMetadataInstructionDataLayout.encode(
+        extensions = [
             {
-                updateAuthority:
-                    params.mintData.metadata.updateAuthority ?? null,
-                name: Buffer.from(params.mintData.metadata.name),
-                symbol: Buffer.from(params.mintData.metadata.symbol),
-                uri: Buffer.from(params.mintData.metadata.uri),
-                additionalMetadata: null,
+                tokenMetadata: {
+                    updateAuthority:
+                        params.mintData.metadata.updateAuthority ?? null,
+                    name: Buffer.from(params.mintData.metadata.name),
+                    symbol: Buffer.from(params.mintData.metadata.symbol),
+                    uri: Buffer.from(params.mintData.metadata.uri),
+                    additionalMetadata: null,
+                },
             },
-            mdBuf,
-        );
-        buffer.set(mdBuf.subarray(0, mdLen), offset);
-        offset += mdLen;
-    } else {
-        buffer[offset++] = 0;
+        ];
     }
 
-    return Buffer.concat([
-        MINT_ACTION_DISCRIMINATOR,
-        buffer.subarray(0, offset),
-    ]);
+    const instructionData: MintActionCompressedInstructionData = {
+        leafIndex: params.leafIndex,
+        proveByIndex: params.proveByIndex,
+        rootIndex: params.rootIndex,
+        compressedAddress: Array.from(compressedAddress.toBytes()),
+        tokenPoolBump: 0,
+        tokenPoolIndex: 0,
+        createMint: null,
+        actions: [action],
+        proof: params.proof,
+        cpiContext: null,
+        mint: {
+            supply: params.mintData.supply,
+            decimals: params.mintData.decimals,
+            metadata: {
+                version: params.mintData.version,
+                splMintInitialized: params.mintData.splMintInitialized,
+                mint: params.mintData.splMint,
+            },
+            mintAuthority: params.mintData.mintAuthority,
+            freezeAuthority: params.mintData.freezeAuthority,
+            extensions,
+        },
+    };
+
+    return encodeMintActionInstructionData(instructionData);
 }
 
 export function createUpdateMintAuthorityInstruction(
@@ -227,17 +105,14 @@ export function createUpdateMintAuthorityInstruction(
 ): TransactionInstruction {
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMintInstructionData({
-        mintSigner,
-        currentAuthority: currentMintAuthority,
-        newAuthority: newMintAuthority,
-        actionType: 'mintAuthority',
         addressTree: addressTreeInfo.tree,
-        outputQueue,
         leafIndex: merkleContext.leafIndex,
         proveByIndex: true,
         rootIndex: validityProof.rootIndices[0],
         proof: validityProof.compressedProof,
         mintData,
+        newAuthority: newMintAuthority,
+        actionType: 'mintAuthority',
     });
 
     const sys = defaultStaticAccountsStruct();
@@ -302,17 +177,14 @@ export function createUpdateFreezeAuthorityInstruction(
 ): TransactionInstruction {
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMintInstructionData({
-        mintSigner,
-        currentAuthority: currentFreezeAuthority,
-        newAuthority: newFreezeAuthority,
-        actionType: 'freezeAuthority',
         addressTree: addressTreeInfo.tree,
-        outputQueue,
         leafIndex: merkleContext.leafIndex,
         proveByIndex: true,
         rootIndex: validityProof.rootIndices[0],
         proof: validityProof.compressedProof,
         mintData,
+        newAuthority: newFreezeAuthority,
+        actionType: 'freezeAuthority',
     });
 
     const sys = defaultStaticAccountsStruct();

@@ -16,38 +16,15 @@ import {
 import { CompressedTokenProgram } from '../../program';
 import { findMintAddress } from '../../compressible/derivation';
 import {
-    struct,
-    option,
-    vec,
-    u8,
-    publicKey,
-    array,
-    u16,
-    vecU8,
-} from '@coral-xyz/borsh';
+    encodeMintActionInstructionData,
+    MintActionCompressedInstructionData,
+    TokenMetadataInstructionData as TokenMetadataBorshData,
+} from './mint-action-layout';
 
-const MINT_ACTION_DISCRIMINATOR = Buffer.from([103]);
-
-const TokenMetadataInstructionDataLayout = struct([
-    option(publicKey(), 'updateAuthority'),
-    vecU8('name'),
-    vecU8('symbol'),
-    vecU8('uri'),
-    option(vec(struct([vecU8('key'), vecU8('value')])), 'additionalMetadata'),
-]);
-
-const CompressedProofLayout = struct([
-    array(u8(), 32, 'a'),
-    array(u8(), 64, 'b'),
-    array(u8(), 32, 'c'),
-]);
-
-const CompressedMintMetadataLayout = struct([
-    u8('version'),
-    u8('splMintInitialized'),
-    publicKey('splMint'),
-]);
-
+/**
+ * Token metadata for creating a compressed mint
+ * Uses strings for user-friendly input
+ */
 export interface TokenMetadataInstructionData {
     name: string;
     symbol: string;
@@ -59,6 +36,9 @@ export interface TokenMetadataInstructionData {
     }[];
 }
 
+/** @deprecated Use TokenMetadataInstructionData instead */
+export type TokenMetadataInstructionDataInput = TokenMetadataInstructionData;
+
 interface EncodeCreateMintInstructionParams {
     mintSigner: PublicKey;
     mintAuthority: PublicKey;
@@ -67,14 +47,8 @@ interface EncodeCreateMintInstructionParams {
     addressTree: PublicKey;
     outputQueue: PublicKey;
     rootIndex: number;
-    proof: ValidityProof | null;
+    proof: { a: number[]; b: number[]; c: number[] } | null;
     metadata?: TokenMetadataInstructionData;
-}
-
-interface ValidityProof {
-    a: number[];
-    b: number[];
-    c: number[];
 }
 
 export function createTokenMetadata(
@@ -94,128 +68,58 @@ export function createTokenMetadata(
 function encodeCreateMintInstructionData(
     params: EncodeCreateMintInstructionParams,
 ): Buffer {
-    const buffer = Buffer.alloc(4000);
-    let offset = 0;
-
-    // leaf_index: u32
-    buffer.writeUInt32LE(0, offset);
-    offset += 4;
-
-    // prove_by_index: bool
-    buffer[offset++] = 0;
-
-    // root_index: u16
-    buffer.writeUInt16LE(params.rootIndex, offset);
-    offset += 2;
-
-    // compressed_address: [u8; 32]
     const [splMintPda] = findMintAddress(params.mintSigner);
     const compressedAddress = deriveAddressV2(
         splMintPda.toBytes(),
         params.addressTree,
         CTOKEN_PROGRAM_ID,
     );
-    buffer.set(compressedAddress.toBytes(), offset);
-    offset += 32;
 
-    // token_pool_bump: u8
-    buffer[offset++] = 0;
-
-    // token_pool_index: u8
-    buffer[offset++] = 0;
-
-    // create_mint: Option<CreateMint>
-    buffer[offset++] = 1; // Some
-    // CreateMint { read_only_address_trees: [u8; 4], read_only_address_tree_root_indices: [u16; 4] }
-    buffer.set(Buffer.alloc(4, 0), offset);
-    offset += 4;
-    buffer.set(Buffer.alloc(8, 0), offset);
-    offset += 8;
-
-    // actions: Vec<Action>
-    buffer.writeUInt32LE(0, offset); // Empty vec
-    offset += 4;
-
-    // proof: Option<CompressedProof>
-    if (params.proof) {
-        buffer[offset++] = 1;
-        const prBuf = Buffer.alloc(200);
-        const prLen = CompressedProofLayout.encode(params.proof as any, prBuf);
-        buffer.set(prBuf.subarray(0, prLen), offset);
-        offset += prLen;
-    } else {
-        buffer[offset++] = 0;
-    }
-
-    // cpi_context: Option<CpiContext>
-    buffer[offset++] = 0; // None
-
-    // mint: CompressedMintInstructionData
-    // supply: u64
-    buffer.set(Buffer.alloc(8, 0), offset);
-    offset += 8;
-
-    // decimals: u8
-    buffer[offset++] = params.decimals;
-
-    // metadata: CompressedMintMetadata
-    const metaBuf = Buffer.alloc(64);
-    const metaLen = CompressedMintMetadataLayout.encode(
-        {
-            version: 3,
-            splMintInitialized: 0,
-            splMint: splMintPda,
-        },
-        metaBuf,
-    );
-    buffer.set(metaBuf.subarray(0, metaLen), offset);
-    offset += metaLen;
-
-    // mint_authority: Option<Pubkey>
-    if (params.mintAuthority) {
-        buffer[offset++] = 1;
-        buffer.set(params.mintAuthority.toBytes(), offset);
-        offset += 32;
-    } else {
-        buffer[offset++] = 0;
-    }
-
-    // freeze_authority: Option<Pubkey>
-    if (params.freezeAuthority) {
-        buffer[offset++] = 1;
-        buffer.set(params.freezeAuthority.toBytes(), offset);
-        offset += 32;
-    } else {
-        buffer[offset++] = 0;
-    }
-
-    // extensions: Option<Vec<ExtensionInstructionData>>
+    // Build extensions if metadata present
+    let extensions: { tokenMetadata: TokenMetadataBorshData }[] | null = null;
     if (params.metadata) {
-        buffer[offset++] = 1; // Some
-        buffer.writeUInt32LE(1, offset); // Vec length = 1
-        offset += 4;
-        buffer[offset++] = 19; // Enum variant 19 (TokenMetadata)
-        const mdBuf = Buffer.alloc(2000);
-        const mdLen = TokenMetadataInstructionDataLayout.encode(
+        extensions = [
             {
-                updateAuthority: params.metadata.updateAuthority ?? null,
-                name: Buffer.from(params.metadata.name),
-                symbol: Buffer.from(params.metadata.symbol),
-                uri: Buffer.from(params.metadata.uri),
-                additionalMetadata: null,
+                tokenMetadata: {
+                    updateAuthority: params.metadata.updateAuthority ?? null,
+                    name: Buffer.from(params.metadata.name),
+                    symbol: Buffer.from(params.metadata.symbol),
+                    uri: Buffer.from(params.metadata.uri),
+                    additionalMetadata: null,
+                },
             },
-            mdBuf,
-        );
-        buffer.set(mdBuf.subarray(0, mdLen), offset);
-        offset += mdLen;
-    } else {
-        buffer[offset++] = 0; // None
+        ];
     }
 
-    return Buffer.concat([
-        MINT_ACTION_DISCRIMINATOR,
-        buffer.subarray(0, offset),
-    ]);
+    const instructionData: MintActionCompressedInstructionData = {
+        leafIndex: 0,
+        proveByIndex: false,
+        rootIndex: params.rootIndex,
+        compressedAddress: Array.from(compressedAddress.toBytes()),
+        tokenPoolBump: 0,
+        tokenPoolIndex: 0,
+        createMint: {
+            readOnlyAddressTrees: [0, 0, 0, 0],
+            readOnlyAddressTreeRootIndices: [0, 0, 0, 0],
+        },
+        actions: [], // No actions for create mint
+        proof: params.proof,
+        cpiContext: null,
+        mint: {
+            supply: BigInt(0),
+            decimals: params.decimals,
+            metadata: {
+                version: 3,
+                splMintInitialized: false,
+                mint: splMintPda,
+            },
+            mintAuthority: params.mintAuthority,
+            freezeAuthority: params.freezeAuthority,
+            extensions,
+        },
+    };
+
+    return encodeMintActionInstructionData(instructionData);
 }
 
 export function createMintInstruction(
