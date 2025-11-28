@@ -288,6 +288,7 @@ describe('serde', () => {
             {
                 description: 'basic metadata',
                 metadata: {
+                    mint: Keypair.generate().publicKey,
                     name: 'Test Token',
                     symbol: 'TEST',
                     uri: 'https://example.com/token.json',
@@ -296,15 +297,17 @@ describe('serde', () => {
             {
                 description: 'metadata with updateAuthority',
                 metadata: {
+                    updateAuthority: Keypair.generate().publicKey,
+                    mint: Keypair.generate().publicKey,
                     name: 'My Token',
                     symbol: 'MTK',
                     uri: 'ipfs://QmTest123',
-                    updateAuthority: Keypair.generate().publicKey,
                 },
             },
             {
                 description: 'metadata with additional metadata',
                 metadata: {
+                    mint: Keypair.generate().publicKey,
                     name: 'Rich Token',
                     symbol: 'RICH',
                     uri: 'https://arweave.net/xyz',
@@ -317,10 +320,11 @@ describe('serde', () => {
             {
                 description: 'metadata with all fields',
                 metadata: {
+                    updateAuthority: Keypair.generate().publicKey,
+                    mint: Keypair.generate().publicKey,
                     name: 'Full Token',
                     symbol: 'FULL',
                     uri: 'https://full.example.com/metadata.json',
-                    updateAuthority: Keypair.generate().publicKey,
                     additionalMetadata: [
                         { key: 'creator', value: 'Alice' },
                         { key: 'version', value: '1.0.0' },
@@ -331,6 +335,7 @@ describe('serde', () => {
             {
                 description: 'metadata with empty strings',
                 metadata: {
+                    mint: Keypair.generate().publicKey,
                     name: '',
                     symbol: '',
                     uri: '',
@@ -339,6 +344,7 @@ describe('serde', () => {
             {
                 description: 'metadata with unicode characters',
                 metadata: {
+                    mint: Keypair.generate().publicKey,
                     name: 'Token',
                     symbol: 'TKN',
                     uri: 'https://example.com',
@@ -347,6 +353,7 @@ describe('serde', () => {
             {
                 description: 'metadata with long values',
                 metadata: {
+                    mint: Keypair.generate().publicKey,
                     name: 'A'.repeat(100),
                     symbol: 'B'.repeat(10),
                     uri: 'https://example.com/' + 'c'.repeat(200),
@@ -424,10 +431,11 @@ describe('serde', () => {
 
         it('should extract and parse TokenMetadata extension', () => {
             const metadata: TokenMetadata = {
+                updateAuthority: Keypair.generate().publicKey,
+                mint: Keypair.generate().publicKey,
                 name: 'Extract Test',
                 symbol: 'EXT',
                 uri: 'https://extract.test',
-                updateAuthority: Keypair.generate().publicKey,
             };
 
             const encodedMetadata = encodeTokenMetadata(metadata);
@@ -448,6 +456,7 @@ describe('serde', () => {
 
         it('should find TokenMetadata among multiple extensions', () => {
             const metadata: TokenMetadata = {
+                mint: Keypair.generate().publicKey,
                 name: 'Multi Test',
                 symbol: 'MLT',
                 uri: 'https://multi.test',
@@ -685,10 +694,11 @@ describe('serde', () => {
     describe('deserializeMint with extensions', () => {
         it('should roundtrip serialize/deserialize with TokenMetadata extension', () => {
             const metadata: TokenMetadata = {
+                updateAuthority: Keypair.generate().publicKey,
+                mint: Keypair.generate().publicKey,
                 name: 'Test Token',
                 symbol: 'TEST',
                 uri: 'https://example.com/metadata.json',
-                updateAuthority: Keypair.generate().publicKey,
             };
 
             const encodedMetadata = encodeTokenMetadata(metadata);
@@ -762,10 +772,11 @@ describe('serde', () => {
 
         it('should correctly parse Borsh format (discriminant + data, no length prefix)', () => {
             const metadata: TokenMetadata = {
+                updateAuthority: Keypair.generate().publicKey,
+                mint: Keypair.generate().publicKey,
                 name: 'Test Token',
                 symbol: 'TEST',
                 uri: 'https://example.com/metadata.json',
-                updateAuthority: Keypair.generate().publicKey,
             };
 
             const encodedMetadata = encodeTokenMetadata(metadata);
@@ -808,11 +819,13 @@ describe('serde', () => {
 
         it('should handle multiple extensions', () => {
             const metadata1: TokenMetadata = {
+                mint: Keypair.generate().publicKey,
                 name: 'Token 1',
                 symbol: 'T1',
                 uri: 'https://example.com/1.json',
             };
             const metadata2: TokenMetadata = {
+                mint: Keypair.generate().publicKey,
                 name: 'Token 2',
                 symbol: 'T2',
                 uri: 'https://example.com/2.json',
@@ -872,6 +885,7 @@ describe('serde', () => {
         it('should return undefined for zero updateAuthority when decoding', () => {
             // Encode with no updateAuthority (uses zero pubkey)
             const metadata: TokenMetadata = {
+                mint: Keypair.generate().publicKey,
                 name: 'Test',
                 symbol: 'TST',
                 uri: 'https://test.com',
@@ -888,10 +902,11 @@ describe('serde', () => {
         it('should preserve non-zero updateAuthority', () => {
             const authority = Keypair.generate().publicKey;
             const metadata: TokenMetadata = {
+                updateAuthority: authority,
+                mint: Keypair.generate().publicKey,
                 name: 'Test',
                 symbol: 'TST',
                 uri: 'https://test.com',
-                updateAuthority: authority,
             };
 
             const encoded = encodeTokenMetadata(metadata);
@@ -906,10 +921,11 @@ describe('serde', () => {
 
         it('should handle null updateAuthority same as undefined', () => {
             const metadata: TokenMetadata = {
+                updateAuthority: null,
+                mint: Keypair.generate().publicKey,
                 name: 'Test',
                 symbol: 'TST',
                 uri: 'https://test.com',
-                updateAuthority: null,
             };
 
             const encoded = encodeTokenMetadata(metadata);
@@ -923,7 +939,9 @@ describe('serde', () => {
     describe('TokenMetadata with mint field (encoding includes mint)', () => {
         it('TokenMetadataLayout should include mint field in encoding', () => {
             // Verify the layout includes the mint field
+            const mintPubkey = Keypair.generate().publicKey;
             const metadata: TokenMetadata = {
+                mint: mintPubkey,
                 name: 'Test',
                 symbol: 'TST',
                 uri: 'https://test.com',
@@ -936,10 +954,10 @@ describe('serde', () => {
             expect(encoded.length).toBeGreaterThanOrEqual(80);
         });
 
-        it('encodeTokenMetadata should use zero pubkey for mint field', () => {
-            // The mint field in TokenMetadata extension is always zero because
-            // the actual mint address is stored separately in CompressedMint
+        it('encodeTokenMetadata should encode mint field correctly', () => {
+            const mintPubkey = Keypair.generate().publicKey;
             const metadata: TokenMetadata = {
+                mint: mintPubkey,
                 name: 'Test',
                 symbol: 'TST',
                 uri: 'https://test.com',
@@ -947,10 +965,9 @@ describe('serde', () => {
 
             const encoded = encodeTokenMetadata(metadata);
 
-            // Bytes 32-63 should be zero (the mint field after updateAuthority)
+            // Bytes 32-63 should be the mint pubkey (after updateAuthority)
             const mintBytes = encoded.slice(32, 64);
-            const isZero = mintBytes.every(b => b === 0);
-            expect(isZero).toBe(true);
+            expect(Buffer.from(mintBytes).equals(mintPubkey.toBuffer())).toBe(true);
         });
     });
 
@@ -985,6 +1002,7 @@ describe('serde', () => {
     describe('encodeTokenMetadata buffer allocation', () => {
         it('should handle metadata that fits within 2000 byte buffer', () => {
             const metadata: TokenMetadata = {
+                mint: Keypair.generate().publicKey,
                 name: 'A'.repeat(500),
                 symbol: 'B'.repeat(100),
                 uri: 'C'.repeat(500),
@@ -1045,10 +1063,11 @@ describe('serde', () => {
             const updateAuthority = Keypair.generate().publicKey;
 
             const tokenMetadata: TokenMetadata = {
+                updateAuthority,
+                mint: Keypair.generate().publicKey,
                 name: 'Test Token',
                 symbol: 'TEST',
                 uri: 'https://example.com/metadata.json',
-                updateAuthority,
             };
 
             const compressedMint: CompressedMint = {
@@ -1111,6 +1130,7 @@ describe('serde', () => {
 
         it('should handle metadata with null updateAuthority', () => {
             const tokenMetadata: TokenMetadata = {
+                mint: Keypair.generate().publicKey,
                 name: 'No Authority',
                 symbol: 'NA',
                 uri: 'https://example.com',
@@ -1146,10 +1166,11 @@ describe('serde', () => {
     describe('toMintInstructionDataWithMetadata conversion', () => {
         it('should convert CompressedMint with metadata extension', () => {
             const tokenMetadata: TokenMetadata = {
+                updateAuthority: Keypair.generate().publicKey,
+                mint: Keypair.generate().publicKey,
                 name: 'With Metadata',
                 symbol: 'WM',
                 uri: 'https://wm.com',
-                updateAuthority: Keypair.generate().publicKey,
             };
 
             const compressedMint: CompressedMint = {

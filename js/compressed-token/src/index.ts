@@ -70,10 +70,8 @@ export {
     encodeTokenMetadata,
     extractTokenMetadata,
     ExtensionType,
-    // Upload
-    uploadMetadataToAwsWithPresignedUrl,
-    uploadMetadataToAws,
-    uploadMetadataToIpfs,
-    uploadMetadataToArweave,
-    uploadMetadataToNFTStorage,
+    // Metadata formatting (for use with any uploader)
+    toOffChainMetadataJson,
+    OffChainTokenMetadata,
+    OffChainTokenMetadataJson,
 } from './mint';

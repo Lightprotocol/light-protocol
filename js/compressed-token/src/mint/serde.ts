@@ -48,14 +48,21 @@ export interface MintExtension {
 }
 
 /**
- * Parsed token metadata (name, symbol, uri, etc.)
- * Note: mint field is not in extension data (stored separately in full TokenMetadata on-chain struct)
+ * Parsed token metadata matching on-chain TokenMetadata extension.
+ * Fields: updateAuthority, mint, name, symbol, uri, additionalMetadata
  */
 export interface TokenMetadata {
-    name: string;
-    symbol: string;
-    uri: string;
+    /** Authority that can update metadata (None if zero pubkey) */
     updateAuthority?: PublicKey | null;
+    /** Associated mint pubkey */
+    mint: PublicKey;
+    /** Token name */
+    name: string;
+    /** Token symbol */
+    symbol: string;
+    /** URI pointing to off-chain metadata JSON */
+    uri: string;
+    /** Additional key-value metadata pairs */
     additionalMetadata?: { key: string; value: string }[];
 }
 
@@ -350,10 +357,11 @@ export function decodeTokenMetadata(data: Uint8Array): TokenMetadata | null {
         }
 
         return {
+            updateAuthority,
+            mint: decoded.mint,
             name,
             symbol,
             uri,
-            updateAuthority,
             additionalMetadata,
         };
     } catch (e) {
@@ -376,6 +384,7 @@ export function encodeTokenMetadata(metadata: TokenMetadata): Buffer {
     const len = TokenMetadataLayout.encode(
         {
             updateAuthority,
+            mint: metadata.mint,
             name: Buffer.from(metadata.name),
             symbol: Buffer.from(metadata.symbol),
             uri: Buffer.from(metadata.uri),
@@ -494,9 +503,7 @@ export function toMintInstructionDataWithMetadata(
     const data = toMintInstructionData(compressedMint);
 
     if (!data.metadata) {
-        throw new Error(
-            'CompressedMint does not have TokenMetadata extension',
-        );
+        throw new Error('CompressedMint does not have TokenMetadata extension');
     }
 
     return data as MintInstructionDataWithMetadata;
