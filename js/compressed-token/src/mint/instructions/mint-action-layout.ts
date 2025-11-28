@@ -23,44 +23,28 @@ import {
     publicKey,
     rustEnum,
 } from '@coral-xyz/borsh';
-
-// ============================================================================
-// Constants
-// ============================================================================
+import { bn } from '@lightprotocol/stateless.js';
 
 export const MINT_ACTION_DISCRIMINATOR = Buffer.from([103]);
 
-// ============================================================================
-// Sub-layouts for Action variants
-// ============================================================================
+export const RecipientLayout = struct([publicKey('recipient'), u64('amount')]);
 
-/** Recipient { recipient: Pubkey, amount: u64 } */
-export const RecipientLayout = struct([
-    publicKey('recipient'),
-    u64('amount'),
-]);
-
-/** MintToCompressedAction { token_account_version: u8, recipients: Vec<Recipient> } */
 export const MintToCompressedActionLayout = struct([
     u8('tokenAccountVersion'),
     vec(RecipientLayout, 'recipients'),
 ]);
 
-/** UpdateAuthority { new_authority: Option<Pubkey> } */
 export const UpdateAuthorityLayout = struct([
     option(publicKey(), 'newAuthority'),
 ]);
 
-/** CreateSplMintAction { mint_bump: u8 } */
 export const CreateSplMintActionLayout = struct([u8('mintBump')]);
 
-/** MintToCTokenAction { account_index: u8, amount: u64 } */
 export const MintToCTokenActionLayout = struct([
     u8('accountIndex'),
     u64('amount'),
 ]);
 
-/** UpdateMetadataFieldAction { extension_index: u8, field_type: u8, key: Vec<u8>, value: Vec<u8> } */
 export const UpdateMetadataFieldActionLayout = struct([
     u8('extensionIndex'),
     u8('fieldType'),
@@ -68,34 +52,17 @@ export const UpdateMetadataFieldActionLayout = struct([
     vecU8('value'),
 ]);
 
-/** UpdateMetadataAuthorityAction { extension_index: u8, new_authority: Pubkey } */
 export const UpdateMetadataAuthorityActionLayout = struct([
     u8('extensionIndex'),
     publicKey('newAuthority'),
 ]);
 
-/** RemoveMetadataKeyAction { extension_index: u8, key: Vec<u8>, idempotent: u8 } */
 export const RemoveMetadataKeyActionLayout = struct([
     u8('extensionIndex'),
     vecU8('key'),
     u8('idempotent'),
 ]);
 
-// ============================================================================
-// Action enum layout
-// ============================================================================
-
-/**
- * Action enum (Rust):
- * 0 = MintToCompressed(MintToCompressedAction)
- * 1 = UpdateMintAuthority(UpdateAuthority)
- * 2 = UpdateFreezeAuthority(UpdateAuthority)
- * 3 = CreateSplMint(CreateSplMintAction)
- * 4 = MintToCToken(MintToCTokenAction)
- * 5 = UpdateMetadataField(UpdateMetadataFieldAction)
- * 6 = UpdateMetadataAuthority(UpdateMetadataAuthorityAction)
- * 7 = RemoveMetadataKey(RemoveMetadataKeyAction)
- */
 export const ActionLayout = rustEnum([
     MintToCompressedActionLayout.replicate('mintToCompressed'),
     UpdateAuthorityLayout.replicate('updateMintAuthority'),
@@ -107,34 +74,12 @@ export const ActionLayout = rustEnum([
     RemoveMetadataKeyActionLayout.replicate('removeMetadataKey'),
 ]);
 
-// ============================================================================
-// CompressedProof layout
-// ============================================================================
-
-/** CompressedProof { a: [u8; 32], b: [u8; 64], c: [u8; 32] } */
 export const CompressedProofLayout = struct([
     array(u8(), 32, 'a'),
     array(u8(), 64, 'b'),
     array(u8(), 32, 'c'),
 ]);
 
-// ============================================================================
-// CpiContext layout
-// ============================================================================
-
-/**
- * CpiContext {
- *   set_context: bool,
- *   first_set_context: bool,
- *   in_tree_index: u8,
- *   in_queue_index: u8,
- *   out_queue_index: u8,
- *   token_out_queue_index: u8,
- *   assigned_account_index: u8,
- *   read_only_address_trees: [u8; 4],
- *   address_tree_pubkey: [u8; 32],
- * }
- */
 export const CpiContextLayout = struct([
     bool('setContext'),
     bool('firstSetContext'),
@@ -147,44 +92,13 @@ export const CpiContextLayout = struct([
     array(u8(), 32, 'addressTreePubkey'),
 ]);
 
-// ============================================================================
-// CreateMint layout
-// ============================================================================
-
-/**
- * CreateMint {
- *   read_only_address_trees: [u8; 4],
- *   read_only_address_tree_root_indices: [u16; 4],
- * }
- */
 export const CreateMintLayout = struct([
     array(u8(), 4, 'readOnlyAddressTrees'),
     array(u16(), 4, 'readOnlyAddressTreeRootIndices'),
 ]);
 
-// ============================================================================
-// AdditionalMetadata layout
-// ============================================================================
+export const AdditionalMetadataLayout = struct([vecU8('key'), vecU8('value')]);
 
-/** AdditionalMetadata { key: Vec<u8>, value: Vec<u8> } */
-export const AdditionalMetadataLayout = struct([
-    vecU8('key'),
-    vecU8('value'),
-]);
-
-// ============================================================================
-// TokenMetadataInstructionData layout
-// ============================================================================
-
-/**
- * TokenMetadataInstructionData {
- *   update_authority: Option<Pubkey>,
- *   name: Vec<u8>,
- *   symbol: Vec<u8>,
- *   uri: Vec<u8>,
- *   additional_metadata: Option<Vec<AdditionalMetadata>>,
- * }
- */
 export const TokenMetadataInstructionDataLayout = struct([
     option(publicKey(), 'updateAuthority'),
     vecU8('name'),
@@ -193,17 +107,6 @@ export const TokenMetadataInstructionDataLayout = struct([
     option(vec(AdditionalMetadataLayout), 'additionalMetadata'),
 ]);
 
-// ============================================================================
-// ExtensionInstructionData enum layout
-// ============================================================================
-
-/**
- * ExtensionInstructionData enum (Rust):
- * 0-18 = Placeholder variants
- * 19 = TokenMetadata(TokenMetadataInstructionData)
- *
- * We use rustEnum with placeholders for discriminants 0-18
- */
 const PlaceholderLayout = struct([]);
 
 export const ExtensionInstructionDataLayout = rustEnum([
@@ -229,37 +132,12 @@ export const ExtensionInstructionDataLayout = rustEnum([
     TokenMetadataInstructionDataLayout.replicate('tokenMetadata'),
 ]);
 
-// ============================================================================
-// CompressedMintMetadata layout
-// ============================================================================
-
-/**
- * CompressedMintMetadata {
- *   version: u8,
- *   spl_mint_initialized: bool,
- *   mint: Pubkey,
- * }
- */
 export const CompressedMintMetadataLayout = struct([
     u8('version'),
     bool('splMintInitialized'),
     publicKey('mint'),
 ]);
 
-// ============================================================================
-// CompressedMintInstructionData layout
-// ============================================================================
-
-/**
- * CompressedMintInstructionData {
- *   supply: u64,
- *   decimals: u8,
- *   metadata: CompressedMintMetadata,
- *   mint_authority: Option<Pubkey>,
- *   freeze_authority: Option<Pubkey>,
- *   extensions: Option<Vec<ExtensionInstructionData>>,
- * }
- */
 export const CompressedMintInstructionDataLayout = struct([
     u64('supply'),
     u8('decimals'),
@@ -269,25 +147,6 @@ export const CompressedMintInstructionDataLayout = struct([
     option(vec(ExtensionInstructionDataLayout), 'extensions'),
 ]);
 
-// ============================================================================
-// MintActionCompressedInstructionData layout
-// ============================================================================
-
-/**
- * MintActionCompressedInstructionData {
- *   leaf_index: u32,
- *   prove_by_index: bool,
- *   root_index: u16,
- *   compressed_address: [u8; 32],
- *   token_pool_bump: u8,
- *   token_pool_index: u8,
- *   create_mint: Option<CreateMint>,
- *   actions: Vec<Action>,
- *   proof: Option<CompressedProof>,
- *   cpi_context: Option<CpiContext>,
- *   mint: CompressedMintInstructionData,
- * }
- */
 export const MintActionCompressedInstructionDataLayout = struct([
     u32('leafIndex'),
     bool('proveByIndex'),
@@ -301,10 +160,6 @@ export const MintActionCompressedInstructionDataLayout = struct([
     option(CpiContextLayout, 'cpiContext'),
     CompressedMintInstructionDataLayout.replicate('mint'),
 ]);
-
-// ============================================================================
-// Types for instruction encoding
-// ============================================================================
 
 export interface ValidityProof {
     a: number[];
@@ -393,7 +248,9 @@ export interface TokenMetadataInstructionData {
     additionalMetadata: AdditionalMetadata[] | null;
 }
 
-export type ExtensionInstructionData = { tokenMetadata: TokenMetadataInstructionData };
+export type ExtensionInstructionData = {
+    tokenMetadata: TokenMetadataInstructionData;
+};
 
 export interface CompressedMintMetadata {
     version: number;
@@ -424,19 +281,6 @@ export interface MintActionCompressedInstructionData {
     mint: CompressedMintInstructionData;
 }
 
-// ============================================================================
-// Encoding function
-// ============================================================================
-
-/**
- * Convert bigint to BN for Borsh encoding
- */
-function toBN(value: bigint | BN | number): BN {
-    if (BN.isBN(value)) return value;
-    if (typeof value === 'bigint') return new BN(value.toString());
-    return new BN(value);
-}
-
 /**
  * Encode MintActionCompressedInstructionData to buffer
  *
@@ -451,7 +295,7 @@ export function encodeMintActionInstructionData(
         ...data,
         mint: {
             ...data.mint,
-            supply: toBN(data.mint.supply),
+            supply: bn(data.mint.supply.toString()),
         },
         actions: data.actions.map(action => {
             // Handle MintToCompressed action with recipients
@@ -459,10 +303,12 @@ export function encodeMintActionInstructionData(
                 return {
                     mintToCompressed: {
                         ...action.mintToCompressed,
-                        recipients: action.mintToCompressed.recipients.map(r => ({
-                            ...r,
-                            amount: toBN(r.amount),
-                        })),
+                        recipients: action.mintToCompressed.recipients.map(
+                            r => ({
+                                ...r,
+                                amount: bn(r.amount.toString()),
+                            }),
+                        ),
                     },
                 };
             }
@@ -471,7 +317,7 @@ export function encodeMintActionInstructionData(
                 return {
                     mintToCToken: {
                         ...action.mintToCToken,
-                        amount: toBN(action.mintToCToken.amount),
+                        amount: bn(action.mintToCToken.amount.toString()),
                     },
                 };
             }
@@ -485,10 +331,7 @@ export function encodeMintActionInstructionData(
         buffer,
     );
 
-    return Buffer.concat([
-        MINT_ACTION_DISCRIMINATOR,
-        buffer.subarray(0, len),
-    ]);
+    return Buffer.concat([MINT_ACTION_DISCRIMINATOR, buffer.subarray(0, len)]);
 }
 
 /**
@@ -504,4 +347,3 @@ export function decodeMintActionInstructionData(
         buffer.subarray(MINT_ACTION_DISCRIMINATOR.length),
     ) as MintActionCompressedInstructionData;
 }
-
