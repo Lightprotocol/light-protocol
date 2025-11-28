@@ -21,6 +21,149 @@ use crate::{
 
 const SLOTS_STOP_THRESHOLD: u64 = 1;
 
+// ============================================================================
+// Common Infrastructure
+// ============================================================================
+// Shared utilities for state and address batch processing.
+// Extracted to eliminate code duplication and improve maintainability.
+
+/// Queue work specification for batch processing.
+///
+/// Used by both state and address processors to specify what needs processing.
+#[derive(Debug, Clone)]
+pub struct QueueWork {
+    /// Type of queue (output/input for state, address for address trees)
+    pub queue_type: light_compressed_account::QueueType,
+    /// Number of items in the queue
+    pub queue_size: u64,
+}
+
+/// Worker pool managing persistent proof generation workers.
+///
+/// Both state and address processors use this pool to distribute
+/// proof generation jobs across multiple workers for parallel processing.
+#[derive(Debug)]
+pub struct WorkerPool {
+    /// Channel for sending proof jobs to workers
+    pub job_tx: async_channel::Sender<super::state::proof_worker::ProofJob>,
+}
+
+/// Clamps a u64 value to u16, warning if clamping occurs.
+///
+/// Used when converting batch sizes and fetch lengths for the indexer API,
+/// which requires u16 parameters.
+///
+/// # Arguments
+/// * `value` - The u64 value to clamp
+/// * `name` - Name of the parameter (for logging)
+///
+/// # Returns
+/// The clamped u16 value (u16::MAX if value exceeds u16::MAX)
+pub fn clamp_to_u16(value: u64, name: &str) -> u16 {
+    match value.try_into() {
+        Ok(v) => v,
+        Err(_) => {
+            tracing::warn!(
+                "{} {} exceeds u16::MAX, clamping to {}",
+                name,
+                value,
+                u16::MAX
+            );
+            u16::MAX
+        }
+    }
+}
+
+/// Computes the slice range for a batch given total length and start index.
+///
+/// Ensures the range doesn't exceed the available data by capping at `total_len`.
+///
+/// # Arguments
+/// * `zkp_batch_size` - Size of each ZKP batch
+/// * `total_len` - Total length of available data
+/// * `start` - Starting index for this batch
+///
+/// # Returns
+/// A range from `start` to `min(start + zkp_batch_size, total_len)`
+#[inline]
+pub fn batch_range(zkp_batch_size: u64, total_len: usize, start: usize) -> std::ops::Range<usize> {
+    let end = (start + zkp_batch_size as usize).min(total_len);
+    start..end
+}
+
+/// Gets the pre-computed leaves hashchain for a specific batch.
+///
+/// Each batch has a pre-computed hash chain of its leaves, which is used
+/// in the ZK circuit to prove batch integrity.
+///
+/// # Arguments
+/// * `leaves_hash_chains` - Array of hash chains, one per batch
+/// * `batch_idx` - Index of the batch to retrieve
+///
+/// # Returns
+/// The 32-byte hash chain for the specified batch
+///
+/// # Errors
+/// Returns an error if `batch_idx` is out of bounds
+pub fn get_leaves_hashchain(
+    leaves_hash_chains: &[[u8; 32]],
+    batch_idx: usize,
+) -> crate::Result<[u8; 32]> {
+    leaves_hash_chains.get(batch_idx).copied().ok_or_else(|| {
+        anyhow::anyhow!(
+            "Missing leaves_hash_chain for batch {} (available: {})",
+            batch_idx,
+            leaves_hash_chains.len()
+        )
+    })
+}
+
+/// Creates a worker pool with persistent proof workers.
+///
+/// Spawns the specified number of worker tasks that continuously
+/// process proof generation jobs from the returned channel.
+///
+/// # Arguments
+/// * `num_workers` - Number of worker tasks to spawn
+/// * `prover_config` - Configuration for connecting to the prover service
+///
+/// # Returns
+/// A WorkerPool with a channel for sending proof jobs
+pub fn create_worker_pool(num_workers: usize, prover_config: ProverConfig) -> WorkerPool {
+    use super::state::proof_worker::spawn_proof_workers;
+    let job_tx = spawn_proof_workers(num_workers, prover_config);
+    WorkerPool { job_tx }
+}
+
+/// Ensures worker pool is initialized, creating it if necessary.
+///
+/// Lazily initializes the worker pool on first call. Subsequent calls
+/// are no-ops if the pool is already initialized.
+///
+/// # Arguments
+/// * `pool` - Mutable reference to the optional worker pool
+/// * `num_workers` - Number of workers to spawn (minimum 1)
+/// * `prover_config` - Configuration for the prover service
+/// * `tree_name` - Name for logging (e.g., "StateSupervisor tree ABC...")
+pub fn ensure_worker_pool(
+    pool: &mut Option<WorkerPool>,
+    num_workers: usize,
+    prover_config: &ProverConfig,
+    tree_name: &str,
+) {
+    if pool.is_none() {
+        let actual_workers = num_workers.max(1);
+        *pool = Some(create_worker_pool(actual_workers, prover_config.clone()));
+        tracing::info!(
+            "Spawned {} persistent proof workers for {}",
+            actual_workers,
+            tree_name
+        );
+    }
+}
+
+
+
 #[derive(Debug, Clone)]
 pub struct ProverConfig {
     pub append_url: String,
@@ -29,11 +172,6 @@ pub struct ProverConfig {
     pub api_key: Option<String>,
     pub polling_interval: Duration,
     pub max_wait_time: Duration,
-}
-
-#[derive(Debug, Clone)]
-pub struct UpdateEligibility {
-    pub end_slot: u64,
 }
 
 #[derive(Debug)]

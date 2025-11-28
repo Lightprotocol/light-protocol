@@ -1,11 +1,17 @@
 pub mod address;
 pub mod common;
 pub mod state;
+mod strategies;
+mod unified;
 
 use light_client::rpc::Rpc;
 use tracing::{instrument, trace};
 
 use crate::Result;
+
+// Export unified architecture
+pub use strategies::{AddressTreeStrategy, StateTreeStrategy};
+pub use unified::UnifiedBatchProcessor;
 
 #[instrument(
     level = "debug",
@@ -34,5 +40,5 @@ pub async fn process_batched_operations<R: Rpc>(
     }
 }
 
-pub use common::{BatchContext, ProverConfig};
+pub use common::{BatchContext, ProverConfig, QueueWork};
 use light_compressed_account::TreeType;

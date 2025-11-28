@@ -457,7 +457,7 @@ async fn e2e_test() {
         compressible_account_subscriber
     );
 
-    let iterations: usize = 50;
+    let iterations: usize = 500;
 
     let test_iterations = execute_test_transactions(
         iterations,

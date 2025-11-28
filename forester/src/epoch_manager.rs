@@ -68,10 +68,10 @@ use crate::{
     ForesterConfig, ForesterEpochInfo, Result,
 };
 
-/// Map of tree pubkey to (epoch, supervisor actor reference)
-type StateSupervisorMap<R> = Arc<DashMap<Pubkey, (u64, ActorRef<v2::state::StateSupervisor<R>>)>>;
-type AddressSupervisorMap<R> =
-    Arc<DashMap<Pubkey, (u64, ActorRef<v2::address::supervisor::AddressSupervisor<R>>)>>;
+/// Map of tree pubkey to (epoch, processor)
+/// Using Arc<Mutex> for interior mutability since processors need &mut for processing
+type StateBatchProcessorMap<R> = Arc<DashMap<Pubkey, (u64, Arc<Mutex<v2::UnifiedBatchProcessor<R, v2::StateTreeStrategy>>>)>>;
+type AddressBatchProcessorMap<R> = Arc<DashMap<Pubkey, (u64, Arc<Mutex<v2::UnifiedBatchProcessor<R, v2::AddressTreeStrategy>>>)>>;
 
 #[derive(Copy, Clone, Debug)]
 pub struct WorkReport {
@@ -116,8 +116,8 @@ pub struct EpochManager<R: Rpc> {
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
     queue_poller: Option<ActorRef<QueueInfoPoller>>,
-    state_supervisors: StateSupervisorMap<R>,
-    address_supervisors: AddressSupervisorMap<R>,
+    state_processors: StateBatchProcessorMap<R>,
+    address_processors: AddressBatchProcessorMap<R>,
     compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
 }
 
@@ -137,8 +137,8 @@ impl<R: Rpc> Clone for EpochManager<R> {
             tx_cache: self.tx_cache.clone(),
             ops_cache: self.ops_cache.clone(),
             queue_poller: self.queue_poller.clone(),
-            state_supervisors: self.state_supervisors.clone(),
-            address_supervisors: self.address_supervisors.clone(),
+            state_processors: self.state_processors.clone(),
+            address_processors: self.address_processors.clone(),
             compressible_tracker: self.compressible_tracker.clone(),
         }
     }
@@ -192,8 +192,8 @@ impl<R: Rpc> EpochManager<R> {
             tx_cache,
             ops_cache,
             queue_poller,
-            state_supervisors: Arc::new(DashMap::new()),
-            address_supervisors: Arc::new(DashMap::new()),
+            state_processors: Arc::new(DashMap::new()),
+            address_processors: Arc::new(DashMap::new()),
             compressible_tracker,
         })
     }
@@ -390,29 +390,21 @@ impl<R: Rpc> EpochManager<R> {
 
             if last_epoch.is_none_or(|last| current_epoch > last) {
                 debug!("New epoch detected: {}", current_epoch);
-                // Kill state supervisors and clear caches when a new epoch is detected
-                let supervisor_count = self.state_supervisors.len();
-                if supervisor_count > 0 {
-                    for entry in self.state_supervisors.iter() {
-                        let (_, actor_ref) = entry.value();
-                        actor_ref.kill();
-                    }
-                    self.state_supervisors.clear();
+                // Clear processors and caches when a new epoch is detected
+                let processor_count = self.state_processors.len();
+                if processor_count > 0 {
+                    self.state_processors.clear();
                     info!(
-                        "Killed and cleared {} state supervisor actors for new epoch {}",
-                        supervisor_count, current_epoch
+                        "Cleared {} state processors for new epoch {}",
+                        processor_count, current_epoch
                     );
                 }
-                let address_supervisor_count = self.address_supervisors.len();
-                if address_supervisor_count > 0 {
-                    for entry in self.address_supervisors.iter() {
-                        let (_, actor_ref) = entry.value();
-                        actor_ref.kill();
-                    }
-                    self.address_supervisors.clear();
+                let address_processor_count = self.address_processors.len();
+                if address_processor_count > 0 {
+                    self.address_processors.clear();
                     info!(
-                        "Killed and cleared {} address supervisor actors for new epoch {}",
-                        address_supervisor_count, current_epoch
+                        "Cleared {} address processors for new epoch {}",
+                        address_processor_count, current_epoch
                     );
                 }
                 let phases = get_epoch_phases(&self.protocol_config, current_epoch);
@@ -1837,95 +1829,102 @@ impl<R: Rpc> EpochManager<R> {
         }
     }
 
-    async fn get_or_create_state_supervisor(
+    async fn get_or_create_state_processor(
         &self,
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
-    ) -> Result<ActorRef<v2::state::StateSupervisor<R>>> {
+    ) -> Result<Arc<Mutex<v2::UnifiedBatchProcessor<R, v2::StateTreeStrategy>>>> {
         use dashmap::mapref::entry::Entry;
 
-        let entry = self.state_supervisors.entry(tree_accounts.merkle_tree);
+        let entry = self.state_processors.entry(tree_accounts.merkle_tree);
 
         match entry {
             Entry::Occupied(mut occupied) => {
-                let (stored_epoch, supervisor_ref) = occupied.get();
+                let (stored_epoch, processor_ref) = occupied.get();
                 if *stored_epoch == epoch_info.epoch {
-                    Ok(supervisor_ref.clone())
+                    Ok(processor_ref.clone())
                 } else {
                     info!(
-                        "Removing stale StateSupervisor for tree {} (epoch {} -> {})",
+                        "Removing stale StateBatchProcessor for tree {} (epoch {} -> {})",
                         tree_accounts.merkle_tree, *stored_epoch, epoch_info.epoch
                     );
-                    // Don't pass forester_slot - StateSupervisor is long-lived across forester slots,
+                    // Don't pass forester_slot - processor is long-lived across forester slots,
                     // so it should use the global active phase end for safety checks
                     let batch_context =
                         self.build_batch_context(epoch_info, tree_accounts, None, None, None);
-                    let supervisor = v2::state::StateSupervisor::spawn(batch_context);
+                    let processor = Arc::new(Mutex::new(
+                        v2::UnifiedBatchProcessor::new(batch_context, v2::StateTreeStrategy).await?,
+                    ));
                     info!(
-                        "Created StateSupervisor actor for tree {} (epoch {})",
+                        "Created StateBatchProcessor for tree {} (epoch {})",
                         tree_accounts.merkle_tree, epoch_info.epoch
                     );
-                    occupied.insert((epoch_info.epoch, supervisor.clone()));
-                    Ok(supervisor)
+                    occupied.insert((epoch_info.epoch, processor.clone()));
+                    Ok(processor)
                 }
             }
             Entry::Vacant(vacant) => {
-                // Don't pass forester_slot - StateSupervisor is long-lived across forester slots,
+                // Don't pass forester_slot - processor is long-lived across forester slots,
                 // so it should use the global active phase end for safety checks
                 let batch_context =
                     self.build_batch_context(epoch_info, tree_accounts, None, None, None);
-                let supervisor = v2::state::StateSupervisor::spawn(batch_context);
+                let processor = Arc::new(Mutex::new(
+                    v2::UnifiedBatchProcessor::new(batch_context, v2::StateTreeStrategy).await?,
+                ));
                 info!(
-                    "Created StateSupervisor actor for tree {} (epoch {})",
+                    "Created StateBatchProcessor for tree {} (epoch {})",
                     tree_accounts.merkle_tree, epoch_info.epoch
                 );
-                vacant.insert((epoch_info.epoch, supervisor.clone()));
-                Ok(supervisor)
+                vacant.insert((epoch_info.epoch, processor.clone()));
+                Ok(processor)
             }
         }
     }
 
-    async fn get_or_create_address_supervisor(
+    async fn get_or_create_address_processor(
         &self,
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
-    ) -> Result<ActorRef<v2::address::supervisor::AddressSupervisor<R>>> {
+    ) -> Result<Arc<Mutex<v2::UnifiedBatchProcessor<R, v2::AddressTreeStrategy>>>> {
         use dashmap::mapref::entry::Entry;
 
-        let entry = self.address_supervisors.entry(tree_accounts.merkle_tree);
+        let entry = self.address_processors.entry(tree_accounts.merkle_tree);
 
         match entry {
             Entry::Occupied(mut occupied) => {
-                let (stored_epoch, supervisor_ref) = occupied.get();
+                let (stored_epoch, processor_ref) = occupied.get();
                 if *stored_epoch == epoch_info.epoch {
-                    Ok(supervisor_ref.clone())
+                    Ok(processor_ref.clone())
                 } else {
                     info!(
-                        "Removing stale AddressSupervisor for tree {} (epoch {} -> {})",
+                        "Removing stale AddressBatchProcessor for tree {} (epoch {} -> {})",
                         tree_accounts.merkle_tree, *stored_epoch, epoch_info.epoch
                     );
                     let batch_context =
                         self.build_batch_context(epoch_info, tree_accounts, None, None, None);
-                    let supervisor =
-                        v2::address::supervisor::AddressSupervisor::spawn(batch_context);
+                    let processor = Arc::new(Mutex::new(
+                        v2::UnifiedBatchProcessor::new(batch_context, v2::AddressTreeStrategy).await?,
+                    ));
                     info!(
-                        "Created AddressSupervisor actor for tree {} (epoch {})",
+                        "Created AddressBatchProcessor for tree {} (epoch {})",
                         tree_accounts.merkle_tree, epoch_info.epoch
                     );
-                    occupied.insert((epoch_info.epoch, supervisor.clone()));
-                    Ok(supervisor)
+                    occupied.insert((epoch_info.epoch, processor.clone()));
+                    Ok(processor)
                 }
             }
             Entry::Vacant(vacant) => {
                 let batch_context =
                     self.build_batch_context(epoch_info, tree_accounts, None, None, None);
-                let supervisor = v2::address::supervisor::AddressSupervisor::spawn(batch_context);
+                let processor = Arc::new(Mutex::new(
+                    v2::UnifiedBatchProcessor::new(batch_context, v2::AddressTreeStrategy).await?,
+                ));
                 info!(
-                    "Created AddressSupervisor actor for tree {} (epoch {})",
+                    "Created AddressBatchProcessor for tree {} (epoch {})",
                     tree_accounts.merkle_tree, epoch_info.epoch
                 );
-                vacant.insert((epoch_info.epoch, supervisor.clone()));
-                Ok(supervisor)
+                vacant.insert((epoch_info.epoch, processor.clone()));
+                Ok(processor)
             }
         }
     }
@@ -1940,82 +1939,54 @@ impl<R: Rpc> EpochManager<R> {
         match tree_accounts.tree_type {
             TreeType::StateV2 => {
                 if let Some(update) = queue_update {
-                    let supervisor = self
-                        .get_or_create_state_supervisor(epoch_info, tree_accounts)
+                    let processor = self
+                        .get_or_create_state_processor(epoch_info, tree_accounts)
                         .await?;
 
-                    supervisor
-                        .ask(v2::state::UpdateEligibility {
-                            end_slot: consecutive_eligibility_end,
-                        })
-                        .send()
-                        .await
-                        .map_err(|e| {
-                            anyhow!(
-                                "Failed to send UpdateEligibility to StateSupervisor for tree {}: {}",
-                                tree_accounts.merkle_tree,
-                                e
-                            )
-                        })?;
+                    // Direct method calls instead of actor messages
+                    {
+                        let mut proc = processor.lock().await;
+                        proc.update_eligibility(consecutive_eligibility_end);
+                    }
 
-                    let work = v2::state::QueueWork {
+                    let work = v2::QueueWork {
                         queue_type: update.queue_type,
                         queue_size: update.queue_size,
                     };
 
-                    Ok(supervisor
-                        .ask(v2::state::ProcessQueueUpdate { queue_work: work })
-                        .send()
-                        .await
-                        .map_err(|e| {
-                            anyhow!(
-                                "Failed to send message to StateSupervisor for tree {}: {}",
-                                tree_accounts.merkle_tree,
-                                e
-                            )
-                        })?)
+                    let mut proc = processor.lock().await;
+                    proc.process_queue_update(work).await
                 } else {
                     Ok(0)
                 }
             }
             TreeType::AddressV2 => {
                 if let Some(update) = queue_update {
-                    let supervisor = self
-                        .get_or_create_address_supervisor(epoch_info, tree_accounts)
+                    let processor = self
+                        .get_or_create_address_processor(epoch_info, tree_accounts)
                         .await?;
 
-                    if let Err(e) = supervisor
-                        .ask(v2::common::UpdateEligibility {
-                            end_slot: consecutive_eligibility_end,
-                        })
-                        .send()
-                        .await
+                    // Direct method calls instead of actor messages
                     {
-                        warn!(
-                            "Failed to send UpdateEligibility to AddressSupervisor for tree {}: {}. Removing supervisor.",
-                            tree_accounts.merkle_tree, e
-                        );
-                        self.address_supervisors.remove(&tree_accounts.merkle_tree);
-                        return Err(anyhow!("Failed to send UpdateEligibility: {}", e));
+                        let mut proc = processor.lock().await;
+                        proc.update_eligibility(consecutive_eligibility_end);
                     }
 
-                    let work = v2::address::supervisor::AddressQueueWork {
+                    let work = v2::QueueWork {
+                        queue_type: update.queue_type,
                         queue_size: update.queue_size,
                     };
 
-                    match supervisor
-                        .ask(v2::address::supervisor::ProcessAddressQueueUpdate { work })
-                        .send()
-                        .await
-                    {
+                    let mut proc = processor.lock().await;
+                    match proc.process_queue_update(work).await {
                         Ok(res) => Ok(res),
                         Err(e) => {
                             warn!(
-                                "Failed to send ProcessAddressQueueUpdate to AddressSupervisor for tree {}: {}. Removing supervisor.",
+                                "Failed to process address queue for tree {}: {}. Removing processor.",
                                 tree_accounts.merkle_tree, e
                             );
-                            self.address_supervisors.remove(&tree_accounts.merkle_tree);
-                            Err(anyhow!("Failed to send ProcessAddressQueueUpdate: {}", e))
+                            self.address_processors.remove(&tree_accounts.merkle_tree);
+                            Err(e)
                         }
                     }
                 } else {
