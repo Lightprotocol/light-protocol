@@ -8,7 +8,6 @@
  */
 import { PublicKey } from '@solana/web3.js';
 import { Buffer } from 'buffer';
-import BN from 'bn.js';
 import {
     struct,
     option,
