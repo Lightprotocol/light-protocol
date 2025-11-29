@@ -13,7 +13,7 @@ use forester::{
 };
 use forester_utils::utils::wait_for_indexer;
 use light_batched_merkle_tree::{
-    batch::BatchState, initialize_state_tree::InitStateTreeAccountsInstructionData,
+    initialize_state_tree::InitStateTreeAccountsInstructionData,
     merkle_tree::BatchedMerkleTreeAccount,
 };
 use light_client::{
@@ -754,37 +754,6 @@ async fn get_state_v2_batch_size<R: Rpc>(rpc: &mut R, merkle_tree_pubkey: &Pubke
     merkle_tree.get_metadata().queue_batches.batch_size
 }
 
-/// Wait until the output queue has space available for insertions.
-/// Returns when at least one batch is not in Full state.
-async fn wait_for_queue_space<R: Rpc>(rpc: &mut R, merkle_tree_pubkey: &Pubkey) {
-    let max_retries = 120; // 2 minutes with 1s intervals
-    for attempt in 0..max_retries {
-        let mut merkle_tree_account = rpc.get_account(*merkle_tree_pubkey).await.unwrap().unwrap();
-        let merkle_tree = BatchedMerkleTreeAccount::state_from_bytes(
-            merkle_tree_account.data.as_mut_slice(),
-            &merkle_tree_pubkey.into(),
-        )
-        .unwrap();
-
-        let batches = &merkle_tree.get_metadata().queue_batches.batches;
-        let has_space = batches.iter().any(|b| b.get_state() != BatchState::Full);
-
-        if has_space {
-            return;
-        }
-
-        if attempt % 10 == 0 {
-            println!(
-                "Waiting for queue space (attempt {}/{}), both batches are Full",
-                attempt + 1,
-                max_retries
-            );
-        }
-        sleep(Duration::from_secs(1)).await;
-    }
-    panic!("Timed out waiting for queue space after {} seconds", max_retries);
-}
-
 async fn setup_forester_pipeline(
     config: &ForesterConfig,
 ) -> (
@@ -896,9 +865,6 @@ async fn execute_test_transactions<R: Rpc>(
     println!("===========================================");
     for i in 0..iterations {
         if is_v2_state_test_enabled() {
-            // Wait for queue space before attempting v2 operations
-            wait_for_queue_space(rpc, &env.v2_state_trees[0].merkle_tree).await;
-
             let batch_compress_sig = compress(
                 rpc,
                 &env.v2_state_trees[0].output_queue,
