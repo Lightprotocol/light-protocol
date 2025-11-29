@@ -93,6 +93,7 @@ function encodeUpdateMintInstructionData(
     return encodeMintActionInstructionData(instructionData);
 }
 
+// Keep old interface type for backwards compatibility export
 export interface CreateUpdateMintAuthorityInstructionParams {
     mintSigner: PublicKey;
     currentMintAuthority: PublicKey;
@@ -107,7 +108,6 @@ export interface CreateUpdateMintAuthorityInstructionParams {
 /**
  * Create instruction for updating a compressed mint's mint authority.
  *
- * @param mintSigner           Mint signer public key.
  * @param currentMintAuthority Current mint authority public key.
  * @param newMintAuthority     New mint authority (or null to revoke).
  * @param payer                Fee payer public key.
@@ -116,16 +116,15 @@ export interface CreateUpdateMintAuthorityInstructionParams {
  * @param mintData             Mint instruction data.
  * @param outputQueue          Output queue for state changes.
  */
-export function createUpdateMintAuthorityInstruction({
-    mintSigner,
-    currentMintAuthority,
-    newMintAuthority,
-    payer,
-    validityProof,
-    merkleContext,
-    mintData,
-    outputQueue,
-}: CreateUpdateMintAuthorityInstructionParams): TransactionInstruction {
+export function createUpdateMintAuthorityInstruction(
+    currentMintAuthority: PublicKey,
+    newMintAuthority: PublicKey | null,
+    payer: PublicKey,
+    validityProof: ValidityProofWithContext,
+    merkleContext: MerkleContext,
+    mintData: MintInstructionData,
+    outputQueue: PublicKey,
+): TransactionInstruction {
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMintInstructionData({
         addressTree: addressTreeInfo.tree,
@@ -188,6 +187,7 @@ export function createUpdateMintAuthorityInstruction({
     });
 }
 
+// Keep old interface type for backwards compatibility export
 export interface CreateUpdateFreezeAuthorityInstructionParams {
     mintSigner: PublicKey;
     currentFreezeAuthority: PublicKey;
@@ -202,7 +202,6 @@ export interface CreateUpdateFreezeAuthorityInstructionParams {
 /**
  * Create instruction for updating a compressed mint's freeze authority.
  *
- * @param mintSigner              Mint signer public key.
  * @param currentFreezeAuthority  Current freeze authority public key.
  * @param newFreezeAuthority      New freeze authority (or null to revoke).
  * @param payer                   Fee payer public key.
@@ -211,16 +210,15 @@ export interface CreateUpdateFreezeAuthorityInstructionParams {
  * @param mintData                Mint instruction data.
  * @param outputQueue             Output queue for state changes.
  */
-export function createUpdateFreezeAuthorityInstruction({
-    mintSigner,
-    currentFreezeAuthority,
-    newFreezeAuthority,
-    payer,
-    validityProof,
-    merkleContext,
-    mintData,
-    outputQueue,
-}: CreateUpdateFreezeAuthorityInstructionParams): TransactionInstruction {
+export function createUpdateFreezeAuthorityInstruction(
+    currentFreezeAuthority: PublicKey,
+    newFreezeAuthority: PublicKey | null,
+    payer: PublicKey,
+    validityProof: ValidityProofWithContext,
+    merkleContext: MerkleContext,
+    mintData: MintInstructionData,
+    outputQueue: PublicKey,
+): TransactionInstruction {
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMintInstructionData({
         addressTree: addressTreeInfo.tree,

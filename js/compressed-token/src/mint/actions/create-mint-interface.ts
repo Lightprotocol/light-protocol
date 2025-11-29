@@ -108,17 +108,17 @@ export async function createMintInterface(
         DerivationMode.compressible,
     );
 
-    const ix = createMintInstruction({
-        mintSigner: keypair.publicKey,
+    const ix = createMintInstruction(
+        keypair.publicKey,
         decimals,
-        mintAuthority: mintAuthority.publicKey,
-        freezeAuthority: resolvedFreezeAuthority,
-        payer: payer.publicKey,
+        mintAuthority.publicKey,
+        resolvedFreezeAuthority,
+        payer.publicKey,
         validityProof,
-        metadata,
         addressTreeInfo,
         outputStateTreeInfo,
-    });
+        metadata,
+    );
 
     const additionalSigners = dedupeSigner(payer, [keypair, mintAuthority]);
     const { blockhash } = await rpc.getLatestBlockhash();

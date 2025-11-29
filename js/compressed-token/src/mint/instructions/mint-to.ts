@@ -82,6 +82,7 @@ function encodeMintToCTokenInstructionData(
     return encodeMintActionInstructionData(instructionData);
 }
 
+// Keep old interface type for backwards compatibility export
 export interface CreateMintToInstructionParams {
     mintSigner: PublicKey;
     authority: PublicKey;
@@ -98,7 +99,6 @@ export interface CreateMintToInstructionParams {
 /**
  * Create instruction for minting compressed tokens to an onchain token account.
  *
- * @param mintSigner          Mint address.
  * @param authority           Mint authority public key.
  * @param payer               Fee payer public key.
  * @param validityProof       Validity proof for the compressed mint.
@@ -109,18 +109,17 @@ export interface CreateMintToInstructionParams {
  * @param recipientAccount    Recipient onchain token account address.
  * @param amount              Amount to mint.
  */
-export function createMintToInstruction({
-    mintSigner,
-    authority,
-    payer,
-    validityProof,
-    merkleContext,
-    mintData,
-    outputStateTreeInfo,
-    tokensOutQueue,
-    recipientAccount,
-    amount,
-}: CreateMintToInstructionParams): TransactionInstruction {
+export function createMintToInstruction(
+    authority: PublicKey,
+    payer: PublicKey,
+    validityProof: ValidityProofWithContext,
+    merkleContext: MerkleContext,
+    mintData: MintInstructionData,
+    outputStateTreeInfo: TreeInfo,
+    tokensOutQueue: PublicKey,
+    recipientAccount: PublicKey,
+    amount: number | bigint,
+): TransactionInstruction {
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeMintToCTokenInstructionData({
         addressTree: addressTreeInfo.tree,

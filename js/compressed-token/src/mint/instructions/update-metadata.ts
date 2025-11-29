@@ -129,27 +129,16 @@ function encodeUpdateMetadataInstructionData(
     return encodeMintActionInstructionData(instructionData);
 }
 
-interface CreateUpdateMetadataInstructionParams {
-    mintSigner: PublicKey;
-    authority: PublicKey;
-    payer: PublicKey;
-    validityProof: ValidityProofWithContext;
-    merkleContext: MerkleContext;
-    mintData: MintInstructionDataWithMetadata;
-    outputQueue: PublicKey;
-    action: UpdateMetadataAction;
-}
-
-function createUpdateMetadataInstruction({
-    mintSigner,
-    authority,
-    payer,
-    validityProof,
-    merkleContext,
-    mintData,
-    outputQueue,
-    action,
-}: CreateUpdateMetadataInstructionParams): TransactionInstruction {
+function createUpdateMetadataInstruction(
+    mintSigner: PublicKey,
+    authority: PublicKey,
+    payer: PublicKey,
+    validityProof: ValidityProofWithContext,
+    merkleContext: MerkleContext,
+    mintData: MintInstructionDataWithMetadata,
+    outputQueue: PublicKey,
+    action: UpdateMetadataAction,
+): TransactionInstruction {
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeUpdateMetadataInstructionData({
         mintSigner,
@@ -211,6 +200,7 @@ function createUpdateMetadataInstruction({
     });
 }
 
+// Keep old interface type for backwards compatibility export
 export interface CreateUpdateMetadataFieldInstructionParams {
     mintSigner: PublicKey;
     authority: PublicKey;
@@ -240,19 +230,19 @@ export interface CreateUpdateMetadataFieldInstructionParams {
  * @param customKey      Custom key name (required if fieldType is 'custom').
  * @param extensionIndex Extension index (default: 0).
  */
-export function createUpdateMetadataFieldInstruction({
-    mintSigner,
-    authority,
-    payer,
-    validityProof,
-    merkleContext,
-    mintData,
-    outputQueue,
-    fieldType,
-    value,
-    customKey,
-    extensionIndex = 0,
-}: CreateUpdateMetadataFieldInstructionParams): TransactionInstruction {
+export function createUpdateMetadataFieldInstruction(
+    mintSigner: PublicKey,
+    authority: PublicKey,
+    payer: PublicKey,
+    validityProof: ValidityProofWithContext,
+    merkleContext: MerkleContext,
+    mintData: MintInstructionDataWithMetadata,
+    outputQueue: PublicKey,
+    fieldType: 'name' | 'symbol' | 'uri' | 'custom',
+    value: string,
+    customKey?: string,
+    extensionIndex: number = 0,
+): TransactionInstruction {
     const action: UpdateMetadataAction = {
         type: 'updateField',
         extensionIndex,
@@ -268,7 +258,7 @@ export function createUpdateMetadataFieldInstruction({
         value,
     };
 
-    return createUpdateMetadataInstruction({
+    return createUpdateMetadataInstruction(
         mintSigner,
         authority,
         payer,
@@ -277,9 +267,10 @@ export function createUpdateMetadataFieldInstruction({
         mintData,
         outputQueue,
         action,
-    });
+    );
 }
 
+// Keep old interface type for backwards compatibility export
 export interface CreateUpdateMetadataAuthorityInstructionParams {
     mintSigner: PublicKey;
     currentAuthority: PublicKey;
@@ -305,35 +296,36 @@ export interface CreateUpdateMetadataAuthorityInstructionParams {
  * @param outputQueue      Output queue for state changes.
  * @param extensionIndex   Extension index (default: 0).
  */
-export function createUpdateMetadataAuthorityInstruction({
-    mintSigner,
-    currentAuthority,
-    newAuthority,
-    payer,
-    validityProof,
-    merkleContext,
-    mintData,
-    outputQueue,
-    extensionIndex = 0,
-}: CreateUpdateMetadataAuthorityInstructionParams): TransactionInstruction {
+export function createUpdateMetadataAuthorityInstruction(
+    mintSigner: PublicKey,
+    currentAuthority: PublicKey,
+    newAuthority: PublicKey,
+    payer: PublicKey,
+    validityProof: ValidityProofWithContext,
+    merkleContext: MerkleContext,
+    mintData: MintInstructionDataWithMetadata,
+    outputQueue: PublicKey,
+    extensionIndex: number = 0,
+): TransactionInstruction {
     const action: UpdateMetadataAction = {
         type: 'updateAuthority',
         extensionIndex,
         newAuthority,
     };
 
-    return createUpdateMetadataInstruction({
+    return createUpdateMetadataInstruction(
         mintSigner,
-        authority: currentAuthority,
+        currentAuthority,
         payer,
         validityProof,
         merkleContext,
         mintData,
         outputQueue,
         action,
-    });
+    );
 }
 
+// Keep old interface type for backwards compatibility export
 export interface CreateRemoveMetadataKeyInstructionParams {
     mintSigner: PublicKey;
     authority: PublicKey;
@@ -361,18 +353,18 @@ export interface CreateRemoveMetadataKeyInstructionParams {
  * @param idempotent     If true, don't error if key doesn't exist (default: false).
  * @param extensionIndex Extension index (default: 0).
  */
-export function createRemoveMetadataKeyInstruction({
-    mintSigner,
-    authority,
-    payer,
-    validityProof,
-    merkleContext,
-    mintData,
-    outputQueue,
-    key,
-    idempotent = false,
-    extensionIndex = 0,
-}: CreateRemoveMetadataKeyInstructionParams): TransactionInstruction {
+export function createRemoveMetadataKeyInstruction(
+    mintSigner: PublicKey,
+    authority: PublicKey,
+    payer: PublicKey,
+    validityProof: ValidityProofWithContext,
+    merkleContext: MerkleContext,
+    mintData: MintInstructionDataWithMetadata,
+    outputQueue: PublicKey,
+    key: string,
+    idempotent: boolean = false,
+    extensionIndex: number = 0,
+): TransactionInstruction {
     const action: UpdateMetadataAction = {
         type: 'removeKey',
         extensionIndex,
@@ -380,7 +372,7 @@ export function createRemoveMetadataKeyInstruction({
         idempotent,
     };
 
-    return createUpdateMetadataInstruction({
+    return createUpdateMetadataInstruction(
         mintSigner,
         authority,
         payer,
@@ -389,5 +381,5 @@ export function createRemoveMetadataKeyInstruction({
         mintData,
         outputQueue,
         action,
-    });
+    );
 }

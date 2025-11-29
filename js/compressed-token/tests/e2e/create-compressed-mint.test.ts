@@ -164,21 +164,21 @@ describe('createMintInterface (compressed)', () => {
             await rpc.getStateTreeInfos(),
         );
 
-        const instruction = createMintInstruction({
-            mintSigner: mintSigner3.publicKey,
+        const instruction = createMintInstruction(
+            mintSigner3.publicKey,
             decimals,
-            mintAuthority: mintAuthority.publicKey,
-            freezeAuthority: null,
-            payer: payer.publicKey,
+            mintAuthority.publicKey,
+            null,
+            payer.publicKey,
             validityProof,
-            metadata: createTokenMetadata(
+            addressTreeInfo,
+            outputStateTreeInfo,
+            createTokenMetadata(
                 'Some Name',
                 'SOME',
                 'https://direct.com/metadata.json',
             ),
-            addressTreeInfo,
-            outputStateTreeInfo,
-        });
+        );
 
         const { blockhash } = await rpc.getLatestBlockhash();
 

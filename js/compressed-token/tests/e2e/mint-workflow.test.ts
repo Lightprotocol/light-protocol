@@ -19,10 +19,12 @@ import {
     updateMetadataField,
     updateMetadataAuthority,
 } from '../../src/mint/actions/update-metadata';
-import { createAssociatedCTokenAccountIdempotent } from '../../src/mint/actions/create-associated-ctoken';
+import {
+    createAtaInterfaceIdempotent,
+    getAtaAddressInterface,
+} from '../../src/mint/actions/create-ata-interface';
 import { getMintInterface } from '../../src/mint/helpers';
 import { findMintAddress } from '../../src/compressible/derivation';
-import { getAssociatedCTokenAddress } from '../../src/compressible';
 
 featureFlags.version = VERSION.V2;
 
@@ -188,30 +190,30 @@ describe('Complete Mint Workflow', () => {
         const owner2 = Keypair.generate();
         const owner3 = Keypair.generate();
 
-        const { address: ata1 } = await createAssociatedCTokenAccountIdempotent(
+        const { address: ata1 } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
+            mint,
             owner1.publicKey,
-            mint,
         );
 
-        const { address: ata2 } = await createAssociatedCTokenAccountIdempotent(
+        const { address: ata2 } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
+            mint,
             owner2.publicKey,
-            mint,
         );
 
-        const { address: ata3 } = await createAssociatedCTokenAccountIdempotent(
+        const { address: ata3 } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
-            owner3.publicKey,
             mint,
+            owner3.publicKey,
         );
 
-        const expectedAta1 = getAssociatedCTokenAddress(owner1.publicKey, mint);
-        const expectedAta2 = getAssociatedCTokenAddress(owner2.publicKey, mint);
-        const expectedAta3 = getAssociatedCTokenAddress(owner3.publicKey, mint);
+        const expectedAta1 = getAtaAddressInterface(mint, owner1.publicKey);
+        const expectedAta2 = getAtaAddressInterface(mint, owner2.publicKey);
+        const expectedAta3 = getAtaAddressInterface(mint, owner3.publicKey);
 
         expect(ata1.toString()).toBe(expectedAta1.toString());
         expect(ata2.toString()).toBe(expectedAta2.toString());
@@ -296,18 +298,14 @@ describe('Complete Mint Workflow', () => {
         );
 
         const owner = Keypair.generate();
-        const { address: ataAddress } =
-            await createAssociatedCTokenAccountIdempotent(
-                rpc,
-                payer,
-                owner.publicKey,
-                mintPda,
-            );
-
-        const expectedAddress = getAssociatedCTokenAddress(
-            owner.publicKey,
+        const { address: ataAddress } = await createAtaInterfaceIdempotent(
+            rpc,
+            payer,
             mintPda,
+            owner.publicKey,
         );
+
+        const expectedAddress = getAtaAddressInterface(mintPda, owner.publicKey);
         expect(ataAddress.toString()).toBe(expectedAddress.toString());
 
         const accountInfo = await rpc.getAccountInfo(ataAddress);
@@ -350,18 +348,14 @@ describe('Complete Mint Workflow', () => {
         ];
 
         for (const owner of owners) {
-            const { address: ataAddress } =
-                await createAssociatedCTokenAccountIdempotent(
-                    rpc,
-                    payer,
-                    owner.publicKey,
-                    mint,
-                );
-
-            const expectedAddress = getAssociatedCTokenAddress(
-                owner.publicKey,
+            const { address: ataAddress } = await createAtaInterfaceIdempotent(
+                rpc,
+                payer,
                 mint,
+                owner.publicKey,
             );
+
+            const expectedAddress = getAtaAddressInterface(mint, owner.publicKey);
             expect(ataAddress.toString()).toBe(expectedAddress.toString());
 
             const accountInfo = await rpc.getAccountInfo(ataAddress);
@@ -397,18 +391,14 @@ describe('Complete Mint Workflow', () => {
         await rpc.confirmTransaction(createSig, 'confirmed');
 
         const owner = Keypair.generate();
-        const { address: ataAddress } =
-            await createAssociatedCTokenAccountIdempotent(
-                rpc,
-                payer,
-                owner.publicKey,
-                mintPda,
-            );
-
-        const expectedAddress = getAssociatedCTokenAddress(
-            owner.publicKey,
+        const { address: ataAddress } = await createAtaInterfaceIdempotent(
+            rpc,
+            payer,
             mintPda,
+            owner.publicKey,
         );
+
+        const expectedAddress = getAtaAddressInterface(mintPda, owner.publicKey);
         expect(ataAddress.toString()).toBe(expectedAddress.toString());
 
         const updateNameSig = await updateMetadataField(
@@ -491,18 +481,18 @@ describe('Complete Mint Workflow', () => {
         const owner1 = Keypair.generate();
         const owner2 = Keypair.generate();
 
-        const { address: ata1 } = await createAssociatedCTokenAccountIdempotent(
+        const { address: ata1 } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
-            owner1.publicKey,
             mint,
+            owner1.publicKey,
         );
 
-        const { address: ata2 } = await createAssociatedCTokenAccountIdempotent(
+        const { address: ata2 } = await createAtaInterfaceIdempotent(
             rpc,
             payer,
-            owner2.publicKey,
             mint,
+            owner2.publicKey,
         );
 
         const account1 = await rpc.getAccountInfo(ata1);
@@ -553,13 +543,12 @@ describe('Complete Mint Workflow', () => {
             newMintAuthority.publicKey.toString(),
         );
 
-        const { address: ata1Again } =
-            await createAssociatedCTokenAccountIdempotent(
-                rpc,
-                payer,
-                owner1.publicKey,
-                mint,
-            );
+        const { address: ata1Again } = await createAtaInterfaceIdempotent(
+            rpc,
+            payer,
+            mint,
+            owner1.publicKey,
+        );
         expect(ata1Again.toString()).toBe(ata1.toString());
     });
 
@@ -594,18 +583,14 @@ describe('Complete Mint Workflow', () => {
         expect(mintInfo.tokenMetadata).toBeUndefined();
 
         const owner = Keypair.generate();
-        const { address: ataAddress } =
-            await createAssociatedCTokenAccountIdempotent(
-                rpc,
-                payer,
-                owner.publicKey,
-                mint,
-            );
-
-        const expectedAddress = getAssociatedCTokenAddress(
-            owner.publicKey,
+        const { address: ataAddress } = await createAtaInterfaceIdempotent(
+            rpc,
+            payer,
             mint,
+            owner.publicKey,
         );
+
+        const expectedAddress = getAtaAddressInterface(mint, owner.publicKey);
         expect(ataAddress.toString()).toBe(expectedAddress.toString());
 
         const accountInfo = await rpc.getAccountInfo(ataAddress);
@@ -657,23 +642,16 @@ describe('Complete Mint Workflow', () => {
             );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
-        const derivedAddressBefore = getAssociatedCTokenAddress(
-            owner.publicKey,
+        const derivedAddressBefore = getAtaAddressInterface(mint, owner.publicKey);
+
+        const { address: ataAddress } = await createAtaInterfaceIdempotent(
+            rpc,
+            payer,
             mint,
+            owner.publicKey,
         );
 
-        const { address: ataAddress } =
-            await createAssociatedCTokenAccountIdempotent(
-                rpc,
-                payer,
-                owner.publicKey,
-                mint,
-            );
-
-        const derivedAddressAfter = getAssociatedCTokenAddress(
-            owner.publicKey,
-            mint,
-        );
+        const derivedAddressAfter = getAtaAddressInterface(mint, owner.publicKey);
 
         expect(ataAddress.toString()).toBe(derivedAddressBefore.toString());
         expect(ataAddress.toString()).toBe(derivedAddressAfter.toString());

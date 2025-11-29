@@ -62,13 +62,12 @@ export async function mintToCompressed(
         DerivationMode.compressible,
     );
 
-    const ix = createMintToCompressedInstruction({
-        mintSigner: mint,
-        authority: authority.publicKey,
-        payer: payer.publicKey,
+    const ix = createMintToCompressedInstruction(
+        authority.publicKey,
+        payer.publicKey,
         validityProof,
-        merkleContext: mintInfo.merkleContext,
-        mintData: {
+        mintInfo.merkleContext,
+        {
             supply: mintInfo.mint.supply,
             decimals: mintInfo.mint.decimals,
             mintAuthority: mintInfo.mint.mintAuthority,
@@ -90,7 +89,7 @@ export async function mintToCompressed(
         tokensOutQueue,
         recipients,
         tokenAccountVersion,
-    });
+    );
 
     const additionalSigners = authority.publicKey.equals(payer.publicKey)
         ? []

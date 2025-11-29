@@ -17,6 +17,18 @@ import {
 } from '../instructions/create-associated-ctoken';
 import { getAssociatedCTokenAddress } from '../../compressible';
 
+/**
+ * Create an associated compressed token account.
+ *
+ * @param rpc                RPC connection
+ * @param payer              Fee payer
+ * @param owner              Owner of the associated token account
+ * @param mint               Mint address
+ * @param compressibleConfig Optional compressible configuration
+ * @param configAccount      Optional config account
+ * @param rentPayerPda       Optional rent payer PDA
+ * @param confirmOptions     Optional confirm options
+ */
 export async function createAssociatedCTokenAccount(
     rpc: Rpc,
     payer: Signer,
@@ -27,14 +39,14 @@ export async function createAssociatedCTokenAccount(
     rentPayerPda?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<{ address: PublicKey; transactionSignature: TransactionSignature }> {
-    const ix = createAssociatedCTokenAccountInstruction({
-        feePayer: payer.publicKey,
+    const ix = createAssociatedCTokenAccountInstruction(
+        payer.publicKey,
         owner,
         mint,
         compressibleConfig,
         configAccount,
         rentPayerPda,
-    });
+    );
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const tx = buildAndSignTx(
@@ -50,6 +62,18 @@ export async function createAssociatedCTokenAccount(
     return { address, transactionSignature: txId };
 }
 
+/**
+ * Create an associated compressed token account idempotently.
+ *
+ * @param rpc                RPC connection
+ * @param payer              Fee payer
+ * @param owner              Owner of the associated token account
+ * @param mint               Mint address
+ * @param compressibleConfig Optional compressible configuration
+ * @param configAccount      Optional config account
+ * @param rentPayerPda       Optional rent payer PDA
+ * @param confirmOptions     Optional confirm options
+ */
 export async function createAssociatedCTokenAccountIdempotent(
     rpc: Rpc,
     payer: Signer,
@@ -60,14 +84,14 @@ export async function createAssociatedCTokenAccountIdempotent(
     rentPayerPda?: PublicKey,
     confirmOptions?: ConfirmOptions,
 ): Promise<{ address: PublicKey; transactionSignature: TransactionSignature }> {
-    const ix = createAssociatedCTokenAccountIdempotentInstruction({
-        feePayer: payer.publicKey,
+    const ix = createAssociatedCTokenAccountIdempotentInstruction(
+        payer.publicKey,
         owner,
         mint,
         compressibleConfig,
         configAccount,
         rentPayerPda,
-    });
+    );
 
     const { blockhash } = await rpc.getLatestBlockhash();
     const tx = buildAndSignTx(

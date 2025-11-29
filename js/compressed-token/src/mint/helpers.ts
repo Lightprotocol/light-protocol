@@ -229,7 +229,7 @@ export function unpackMintInterface(
  * @param data - The raw account data
  * @returns Object with mintContext, tokenMetadata, and extensions
  */
-export function unpackCompressedMintData(data: Buffer | Uint8Array): {
+export function unpackMintData(data: Buffer | Uint8Array): {
     mintContext: MintContext;
     tokenMetadata?: TokenMetadata;
     extensions?: MintExtension[];
@@ -244,4 +244,3 @@ export function unpackCompressedMintData(data: Buffer | Uint8Array): {
         extensions: compressedMint.extensions || undefined,
     };
 }
-

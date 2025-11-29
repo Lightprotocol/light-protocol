@@ -122,6 +122,7 @@ function encodeCreateMintInstructionData(
     return encodeMintActionInstructionData(instructionData);
 }
 
+// Keep old interface type for backwards compatibility export
 export interface CreateMintInstructionParams {
     mintSigner: PublicKey;
     decimals: number;
@@ -143,21 +144,21 @@ export interface CreateMintInstructionParams {
  * @param freezeAuthority     Optional freeze authority public key.
  * @param payer               Fee payer public key.
  * @param validityProof       Validity proof for the compressed account.
- * @param metadata            Optional token metadata.
  * @param addressTreeInfo     Address tree info for the mint.
  * @param outputStateTreeInfo Output state tree info.
+ * @param metadata            Optional token metadata.
  */
-export function createMintInstruction({
-    mintSigner,
-    decimals,
-    mintAuthority,
-    freezeAuthority,
-    payer,
-    validityProof,
-    metadata,
-    addressTreeInfo,
-    outputStateTreeInfo,
-}: CreateMintInstructionParams): TransactionInstruction {
+export function createMintInstruction(
+    mintSigner: PublicKey,
+    decimals: number,
+    mintAuthority: PublicKey,
+    freezeAuthority: PublicKey | null,
+    payer: PublicKey,
+    validityProof: ValidityProofWithContext,
+    addressTreeInfo: AddressTreeInfo,
+    outputStateTreeInfo: TreeInfo,
+    metadata?: TokenMetadataInstructionData,
+): TransactionInstruction {
     const data = encodeCreateMintInstructionData({
         mintSigner,
         mintAuthority,

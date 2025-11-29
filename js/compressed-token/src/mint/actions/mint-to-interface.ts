@@ -75,15 +75,15 @@ export async function mintToInterface(
         authority instanceof PublicKey ? authority : authority.publicKey;
     const multiSignerPubkeys = multiSigners.map(s => s.publicKey);
 
-    const ix = createMintToInterfaceInstruction({
+    const ix = createMintToInterfaceInstruction(
         mintInterface,
         destination,
-        authority: authorityPubkey,
-        payer: payer.publicKey,
+        authorityPubkey,
+        payer.publicKey,
         amount,
         validityProof,
-        multiSigners: multiSignerPubkeys,
-    });
+        multiSignerPubkeys,
+    );
 
     // Build signers list
     const signers: Signer[] = [];

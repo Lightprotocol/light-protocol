@@ -50,6 +50,15 @@ export interface CreateAssociatedCTokenAccountParams {
     compressibleConfig?: CompressibleConfig;
 }
 
+/**
+ * CToken-specific config for createAssociatedTokenAccountInterfaceInstruction
+ */
+export interface CTokenConfig {
+    compressibleConfig?: CompressibleConfig;
+    configAccount?: PublicKey;
+    rentPayerPda?: PublicKey;
+}
+
 function getAssociatedCTokenAddressAndBump(
     owner: PublicKey,
     mint: PublicKey,
@@ -101,14 +110,14 @@ export interface CreateAssociatedCTokenAccountInstructionParams {
  * @param configAccount     Optional config account.
  * @param rentPayerPda      Optional rent payer PDA.
  */
-export function createAssociatedCTokenAccountInstruction({
-    feePayer,
-    owner,
-    mint,
-    compressibleConfig,
-    configAccount,
-    rentPayerPda,
-}: CreateAssociatedCTokenAccountInstructionParams): TransactionInstruction {
+export function createAssociatedCTokenAccountInstruction(
+    feePayer: PublicKey,
+    owner: PublicKey,
+    mint: PublicKey,
+    compressibleConfig?: CompressibleConfig,
+    configAccount?: PublicKey,
+    rentPayerPda?: PublicKey,
+): TransactionInstruction {
     const [associatedTokenAccount, bump] = getAssociatedCTokenAddressAndBump(
         owner,
         mint,
@@ -158,14 +167,14 @@ export function createAssociatedCTokenAccountInstruction({
  * @param configAccount     Optional config account.
  * @param rentPayerPda      Optional rent payer PDA.
  */
-export function createAssociatedCTokenAccountIdempotentInstruction({
-    feePayer,
-    owner,
-    mint,
-    compressibleConfig,
-    configAccount,
-    rentPayerPda,
-}: CreateAssociatedCTokenAccountInstructionParams): TransactionInstruction {
+export function createAssociatedCTokenAccountIdempotentInstruction(
+    feePayer: PublicKey,
+    owner: PublicKey,
+    mint: PublicKey,
+    compressibleConfig?: CompressibleConfig,
+    configAccount?: PublicKey,
+    rentPayerPda?: PublicKey,
+): TransactionInstruction {
     const [associatedTokenAccount, bump] = getAssociatedCTokenAddressAndBump(
         owner,
         mint,
@@ -205,6 +214,7 @@ export function createAssociatedCTokenAccountIdempotentInstruction({
     });
 }
 
+// Keep old interface type for backwards compatibility export
 export interface CreateAssociatedTokenAccountInterfaceInstructionParams {
     payer: PublicKey;
     associatedToken: PublicKey;
@@ -218,7 +228,8 @@ export interface CreateAssociatedTokenAccountInterfaceInstructionParams {
 }
 
 /**
- * Create instruction for creating an associated token account (SPL or compressed).
+ * Create instruction for creating an associated token account (SPL, Token-2022, or CToken).
+ * Follows SPL Token API signature with optional CToken config at the end.
  *
  * @param payer                    Fee payer public key.
  * @param associatedToken          Associated token account address.
@@ -226,33 +237,29 @@ export interface CreateAssociatedTokenAccountInterfaceInstructionParams {
  * @param mint                     Mint address.
  * @param programId                Token program ID (default: TOKEN_PROGRAM_ID).
  * @param associatedTokenProgramId Associated token program ID.
- * @param compressibleConfig       Optional compressible configuration.
- * @param configAccount            Optional config account.
- * @param rentPayerPda             Optional rent payer PDA.
+ * @param ctokenConfig             Optional CToken-specific configuration.
  */
-export function createAssociatedTokenAccountInterfaceInstruction({
-    payer,
-    associatedToken,
-    owner,
-    mint,
-    programId = TOKEN_PROGRAM_ID,
-    associatedTokenProgramId,
-    compressibleConfig,
-    configAccount,
-    rentPayerPda,
-}: CreateAssociatedTokenAccountInterfaceInstructionParams): TransactionInstruction {
+export function createAssociatedTokenAccountInterfaceInstruction(
+    payer: PublicKey,
+    associatedToken: PublicKey,
+    owner: PublicKey,
+    mint: PublicKey,
+    programId: PublicKey = TOKEN_PROGRAM_ID,
+    associatedTokenProgramId?: PublicKey,
+    ctokenConfig?: CTokenConfig,
+): TransactionInstruction {
     const effectiveAssociatedTokenProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
     if (programId.equals(CTOKEN_PROGRAM_ID)) {
-        return createAssociatedCTokenAccountInstruction({
-            feePayer: payer,
+        return createAssociatedCTokenAccountInstruction(
+            payer,
             owner,
             mint,
-            compressibleConfig,
-            configAccount,
-            rentPayerPda,
-        });
+            ctokenConfig?.compressibleConfig,
+            ctokenConfig?.configAccount,
+            ctokenConfig?.rentPayerPda,
+        );
     } else {
         return createSplAssociatedTokenAccountInstruction(
             payer,
@@ -266,7 +273,8 @@ export function createAssociatedTokenAccountInterfaceInstruction({
 }
 
 /**
- * Create idempotent instruction for creating an associated token account (SPL or compressed).
+ * Create idempotent instruction for creating an associated token account (SPL, Token-2022, or CToken).
+ * Follows SPL Token API signature with optional CToken config at the end.
  *
  * @param payer                    Fee payer public key.
  * @param associatedToken          Associated token account address.
@@ -274,33 +282,29 @@ export function createAssociatedTokenAccountInterfaceInstruction({
  * @param mint                     Mint address.
  * @param programId                Token program ID (default: TOKEN_PROGRAM_ID).
  * @param associatedTokenProgramId Associated token program ID.
- * @param compressibleConfig       Optional compressible configuration.
- * @param configAccount            Optional config account.
- * @param rentPayerPda             Optional rent payer PDA.
+ * @param ctokenConfig             Optional CToken-specific configuration.
  */
-export function createAssociatedTokenAccountInterfaceIdempotentInstruction({
-    payer,
-    associatedToken,
-    owner,
-    mint,
-    programId = TOKEN_PROGRAM_ID,
-    associatedTokenProgramId,
-    compressibleConfig,
-    configAccount,
-    rentPayerPda,
-}: CreateAssociatedTokenAccountInterfaceInstructionParams): TransactionInstruction {
+export function createAssociatedTokenAccountInterfaceIdempotentInstruction(
+    payer: PublicKey,
+    associatedToken: PublicKey,
+    owner: PublicKey,
+    mint: PublicKey,
+    programId: PublicKey = TOKEN_PROGRAM_ID,
+    associatedTokenProgramId?: PublicKey,
+    ctokenConfig?: CTokenConfig,
+): TransactionInstruction {
     const effectiveAssociatedTokenProgramId =
         associatedTokenProgramId ?? getAtaProgramId(programId);
 
     if (programId.equals(CTOKEN_PROGRAM_ID)) {
-        return createAssociatedCTokenAccountIdempotentInstruction({
-            feePayer: payer,
+        return createAssociatedCTokenAccountIdempotentInstruction(
+            payer,
             owner,
             mint,
-            compressibleConfig,
-            configAccount,
-            rentPayerPda,
-        });
+            ctokenConfig?.compressibleConfig,
+            ctokenConfig?.configAccount,
+            ctokenConfig?.rentPayerPda,
+        );
     } else {
         return createSplAssociatedTokenAccountIdempotentInstruction(
             payer,

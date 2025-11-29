@@ -17,15 +17,13 @@ import type {
     Signer,
 } from '@solana/web3.js';
 import { sendAndConfirmTransaction, Transaction } from '@solana/web3.js';
-import {
-    createAssociatedCTokenAccountInstruction,
-    createAssociatedTokenAccountInterfaceInstruction,
-} from '../instructions/create-associated-ctoken';
+import { createAssociatedTokenAccountInterfaceInstruction } from '../instructions/create-associated-ctoken';
 import { getAccountInterface } from '../get-account-interface';
 import { getAtaProgramId } from '../../utils';
 
 /**
- * Retrieve the associated token account, or create it if it doesn't exist
+ * Retrieve the associated token account, or create it if it doesn't exist.
+ * Follows SPL Token getOrCreateAssociatedTokenAccount signature.
  *
  * @param rpc                      Connection to use
  * @param payer                    Payer of the transaction and initialization fees
@@ -80,16 +78,15 @@ export async function getOrCreateAtaInterface(
         ) {
             // As this isn't atomic, it's possible others can create associated accounts meanwhile.
             try {
-                // TODO: add one with interface!
                 const transaction = new Transaction().add(
-                    createAssociatedTokenAccountInterfaceInstruction({
-                        payer: payer.publicKey,
+                    createAssociatedTokenAccountInterfaceInstruction(
+                        payer.publicKey,
                         associatedToken,
                         owner,
                         mint,
                         programId,
                         associatedTokenProgramId,
-                    }),
+                    ),
                 );
 
                 await sendAndConfirmTransaction(

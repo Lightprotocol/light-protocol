@@ -4,6 +4,7 @@ import { createMintToInstruction as createSplMintToInstruction } from '@solana/s
 import { createMintToInstruction as createCtokenMintToInstruction } from './mint-to';
 import { MintInterface } from '../helpers';
 
+// Keep old interface type for backwards compatibility export
 export interface CreateMintToInterfaceInstructionParams {
     mintInterface: MintInterface;
     destination: PublicKey;
@@ -26,15 +27,15 @@ export interface CreateMintToInterfaceInstructionParams {
  * @param validityProof   Validity proof (required for compressed mints).
  * @param multiSigners    Multi-signature signer public keys.
  */
-export function createMintToInterfaceInstruction({
-    mintInterface,
-    destination,
-    authority,
-    payer,
-    amount,
-    validityProof,
-    multiSigners = [],
-}: CreateMintToInterfaceInstructionParams): TransactionInstruction {
+export function createMintToInterfaceInstruction(
+    mintInterface: MintInterface,
+    destination: PublicKey,
+    authority: PublicKey,
+    payer: PublicKey,
+    amount: number | bigint,
+    validityProof?: ValidityProofWithContext,
+    multiSigners: PublicKey[] = [],
+): TransactionInstruction {
     const mint = mintInterface.mint.address;
     const programId = mintInterface.programId;
 
@@ -85,16 +86,15 @@ export function createMintToInterfaceInstruction({
             : undefined,
     };
 
-    return createCtokenMintToInstruction({
-        mintSigner: mint,
+    return createCtokenMintToInstruction(
         authority,
         payer,
         validityProof,
-        merkleContext: mintInterface.merkleContext,
+        mintInterface.merkleContext,
         mintData,
         outputStateTreeInfo,
-        tokensOutQueue: outputStateTreeInfo.queue,
-        recipientAccount: destination,
+        outputStateTreeInfo.queue,
+        destination,
         amount,
-    });
+    );
 }
