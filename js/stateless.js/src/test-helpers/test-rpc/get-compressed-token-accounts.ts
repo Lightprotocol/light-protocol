@@ -53,19 +53,19 @@ export function parseTokenLayoutWithIdl(
         const buffer = Buffer.from(data);
         let offset = 0;
 
-        // mint: 32 bytes
+        // mint:
         const mint = new PublicKey(buffer.slice(offset, offset + 32));
         offset += 32;
 
-        // owner: 32 bytes
+        // owner:
         const owner = new PublicKey(buffer.slice(offset, offset + 32));
         offset += 32;
 
-        // amount: 8 bytes (u64 little-endian)
+        // amount:
         const amount = new BN(buffer.slice(offset, offset + 8), 'le');
         offset += 8;
 
-        // delegate: Option<Pubkey> - fixed size: 1 byte discriminator + 32 bytes pubkey
+        // delegate: fixed size: 1 byte discriminator + 32 bytes pubkey
         const delegateOption = buffer[offset];
         offset += 1;
         const delegate = delegateOption
@@ -73,7 +73,7 @@ export function parseTokenLayoutWithIdl(
             : null;
         offset += 32;
 
-        // state: 1 byte
+        // state:
         const state = buffer[offset];
         offset += 1;
 
