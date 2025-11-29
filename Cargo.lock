@@ -2338,6 +2338,7 @@ dependencies = [
  "light-concurrent-merkle-tree",
  "light-hash-set",
  "light-hasher",
+ "light-indexed-array",
  "light-indexed-merkle-tree",
  "light-merkle-tree-metadata",
  "light-merkle-tree-reference",

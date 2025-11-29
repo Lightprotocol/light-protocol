@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use light_hasher::{
     bigint::bigint_to_be_bytes_array, hash_chain::create_hash_chain_from_array, Poseidon,
 };
@@ -10,6 +12,45 @@ use light_sparse_merkle_tree::{
 use num_bigint::BigUint;
 
 use crate::{errors::ProverClientError, helpers::compute_root_from_merkle_proof};
+
+/// Cache for proof updates - maps (level, node_index) to latest hash.
+/// This allows O(HEIGHT) proof updates instead of O(changelog_size).
+#[derive(Default)]
+struct ProofCache {
+    /// Maps (level, node_index_at_level) -> hash
+    /// node_index_at_level = leaf_index >> level
+    cache: HashMap<(usize, usize), [u8; 32]>,
+}
+
+impl ProofCache {
+    /// Add a changelog entry to the cache.
+    /// For each level, store the hash that would be used as a sibling.
+    fn add_entry<const HEIGHT: usize>(&mut self, entry: &ChangelogEntry<HEIGHT>) {
+        let index = entry.index();
+        for level in 0..HEIGHT {
+            if let Some(hash) = entry.path[level] {
+                // Store the hash at the node's position at this level
+                let node_index = index >> level;
+                self.cache.insert((level, node_index), hash);
+            }
+        }
+    }
+
+    /// Update a proof using the cached values.
+    /// For each level, check if there's an update for the sibling position.
+    fn update_proof<const HEIGHT: usize>(&self, leaf_index: usize, proof: &mut [[u8; 32]; HEIGHT]) {
+        for level in 0..HEIGHT {
+            // The sibling's node index at this level
+            let my_node_index = leaf_index >> level;
+            let sibling_node_index = my_node_index ^ 1;
+
+            // If the sibling was updated, use its new hash
+            if let Some(&hash) = self.cache.get(&(level, sibling_node_index)) {
+                proof[level] = hash;
+            }
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct BatchAddressAppendInputs {
@@ -138,6 +179,13 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     let mut patched_low_element_values: Vec<[u8; 32]> = Vec::new();
     let mut patched_low_element_indices: Vec<usize> = Vec::new();
 
+    // Build proof cache from existing changelog entries for O(HEIGHT) proof updates
+    // instead of O(changelog_size) iteration
+    let mut proof_cache = ProofCache::default();
+    for entry in changelog.iter() {
+        proof_cache.add_entry::<HEIGHT>(entry);
+    }
+
     for i in 0..new_element_values.len() {
         let mut changelog_index = 0;
 
@@ -186,12 +234,14 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
         };
 
         {
-            for change_log_entry in changelog.iter().skip(changelog_index) {
-                change_log_entry
-                    .update_proof(low_element.index(), &mut low_element_proof)
-                    .unwrap();
-            }
-            let merkle_proof = low_element_proof.clone().try_into().unwrap();
+            // Use proof cache for O(HEIGHT) update instead of O(changelog_size) iteration
+            let mut low_element_proof_arr: [[u8; 32]; HEIGHT] =
+                low_element_proof.clone().try_into().unwrap_or_else(|v: Vec<[u8; 32]>| {
+                    panic!("Expected {} elements, got {}", HEIGHT, v.len())
+                });
+            proof_cache.update_proof::<HEIGHT>(low_element.index(), &mut low_element_proof_arr);
+            let merkle_proof = low_element_proof_arr;
+
             let new_low_leaf_hash = new_low_element
                 .hash::<Poseidon>(&new_element.value)
                 .unwrap();
@@ -200,6 +250,8 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
                 &merkle_proof,
                 new_low_element.index as u32,
             );
+            // Add to cache before pushing to changelog (for subsequent iterations)
+            proof_cache.add_entry::<HEIGHT>(&changelog_entry);
             changelog.push(changelog_entry);
             low_element_circuit_merkle_proofs.push(
                 merkle_proof
@@ -225,11 +277,8 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
 
             let current_index = next_index + i;
 
-            for change_log_entry in changelog.iter() {
-                change_log_entry
-                    .update_proof(current_index, &mut merkle_proof_array)
-                    .unwrap();
-            }
+            // Use proof cache for O(HEIGHT) update instead of O(changelog_size) iteration
+            proof_cache.update_proof::<HEIGHT>(current_index, &mut merkle_proof_array);
 
             let (updated_root, changelog_entry) = compute_root_from_merkle_proof(
                 new_element_leaf_hash,
@@ -238,6 +287,8 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             );
             new_root = updated_root;
 
+            // Add the new entry to both the changelog (for return) and cache (for next iterations)
+            proof_cache.add_entry::<HEIGHT>(&changelog_entry);
             changelog.push(changelog_entry);
             new_element_circuit_merkle_proofs.push(
                 merkle_proof_array

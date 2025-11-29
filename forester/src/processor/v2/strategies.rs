@@ -4,13 +4,14 @@
 
 use anyhow::anyhow;
 use async_trait::async_trait;
-use forester_utils::{address_staging_tree::AddressStagingTree, staging_tree::StagingTree};
+use forester_utils::{fast_address_staging_tree::FastAddressStagingTree, staging_tree::StagingTree};
 use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_TREE_HEIGHT;
 use light_client::rpc::Rpc;
 use light_compressed_account::QueueType;
 use light_prover_client::proof_types::{
     batch_append::BatchAppendsCircuitInputs, batch_update::BatchUpdateCircuitInputs,
 };
+use std::time::Instant;
 use tracing::{debug, info};
 
 use crate::processor::v2::{
@@ -299,7 +300,7 @@ pub struct AddressTreeStrategy;
 /// Address-specific queue data
 #[derive(Debug)]
 pub struct AddressQueueData {
-    pub staging_tree: AddressStagingTree,
+    pub staging_tree: FastAddressStagingTree,
     pub address_queue: light_client::indexer::AddressQueueDataV2,
 }
 
@@ -376,20 +377,30 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         // Capture initial_root before moving address_queue
         let initial_root = address_queue.initial_root;
         let start_index = address_queue.start_index;
-        let subtrees_len = address_queue.subtrees.len();
+        let nodes_len = address_queue.nodes.len();
 
-        // Build staging tree
-        let staging_tree = AddressStagingTree::from_subtrees_vec(
-            address_queue.subtrees.to_vec(),
-            start_index as usize,
-            initial_root,
-        )?;
+        // Build staging tree using nodes for direct proof lookups
+        let staging_tree = if !address_queue.nodes.is_empty() {
+            FastAddressStagingTree::from_nodes(
+                &address_queue.nodes,
+                &address_queue.node_hashes,
+                initial_root,
+                start_index as usize,
+            )?
+        } else {
+            // Fallback to subtrees-only mode (no direct proofs)
+            FastAddressStagingTree::from_subtrees(
+                address_queue.subtrees.to_vec(),
+                start_index as usize,
+                initial_root,
+            )?
+        };
 
         info!(
-            "Synced address tree: root {:?}[..4], start_index {}, {} subtrees",
+            "Synced address tree: root {:?}[..4], start_index {}, {} nodes",
             &initial_root[..4],
             start_index,
-            subtrees_len
+            nodes_len
         );
 
         Ok(Some(QueueData {
@@ -432,7 +443,8 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         // Get hash chain
         let leaves_hashchain = get_leaves_hashchain(&address_queue.leaves_hash_chains, batch_idx)?;
 
-        // Process batch
+        // Process batch - measure time for performance analysis
+        let batch_start = Instant::now();
         let result = queue_data
             .staging_tree
             .process_batch(
@@ -446,11 +458,13 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
                 zkp_batch_size_actual,
             )
             .map_err(|e| anyhow!("Failed to process address batch: {}", e))?;
+        let batch_duration = batch_start.elapsed();
 
         let new_root = result.new_root;
-        debug!(
-            "Address batch {} root transition: {:?}[..4] -> {:?}[..4]",
+        info!(
+            "Address batch {} circuit inputs: {:?} (root {:?}[..4] -> {:?}[..4])",
             batch_idx,
+            batch_duration,
             &result.old_root[..4],
             &new_root[..4]
         );

@@ -1,5 +1,9 @@
 [workspace]
 
+exclude = [ 
+    "photon"
+]
+
 members = [
     "program-libs/account-checks",
     "program-libs/array-map",

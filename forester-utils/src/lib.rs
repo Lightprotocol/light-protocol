@@ -6,6 +6,7 @@ pub mod account_zero_copy;
 pub mod address_merkle_tree_config;
 pub mod address_staging_tree;
 pub mod error;
+pub mod fast_address_staging_tree;
 pub mod forester_epoch;
 pub mod indexed_tree_processor;
 pub mod instructions;

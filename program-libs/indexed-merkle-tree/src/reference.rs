@@ -9,7 +9,7 @@ use num_traits::{CheckedAdd, CheckedSub, Num, ToBytes, Unsigned};
 use thiserror::Error;
 
 use crate::{
-    array::{IndexedArray, IndexedElement},
+    array::{HashSchema, IndexedArray, IndexedElement},
     errors::IndexedMerkleTreeError,
     HIGHEST_ADDRESS_PLUS_ONE,
 };
@@ -38,6 +38,7 @@ where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
 {
     pub merkle_tree: MerkleTree<H>,
+    pub hash_schema: HashSchema,
     _index: PhantomData<I>,
 }
 
@@ -47,9 +48,21 @@ where
     I: CheckedAdd + CheckedSub + Copy + Clone + PartialOrd + ToBytes + TryFrom<usize> + Unsigned,
     usize: From<I>,
 {
+    /// Creates a new indexed merkle tree with the default V1 hash schema (3-input).
     pub fn new(
         height: usize,
         canopy_depth: usize,
+    ) -> Result<Self, IndexedReferenceMerkleTreeError> {
+        Self::new_with_schema(height, canopy_depth, HashSchema::V1)
+    }
+
+    /// Creates a new indexed merkle tree with the specified hash schema.
+    /// - V1: 3-input hash `H(value, next_index, next_value)` (legacy)
+    /// - V2: 2-input hash `H(value, next_value)` (circuit-compatible)
+    pub fn new_with_schema(
+        height: usize,
+        canopy_depth: usize,
+        hash_schema: HashSchema,
     ) -> Result<Self, IndexedReferenceMerkleTreeError> {
         let mut merkle_tree = MerkleTree::new(height, canopy_depth);
 
@@ -61,6 +74,7 @@ where
 
         Ok(Self {
             merkle_tree,
+            hash_schema,
             _index: PhantomData,
         })
     }
@@ -74,12 +88,12 @@ where
         let nullifier_bundle = indexed_array.append(&init_value)?;
         let new_low_leaf = nullifier_bundle
             .new_low_element
-            .hash::<H>(&nullifier_bundle.new_element.value)?;
+            .hash_with_schema::<H>(&nullifier_bundle.new_element.value, self.hash_schema)?;
 
         self.merkle_tree.update(&new_low_leaf, 0)?;
         let new_leaf = nullifier_bundle
             .new_element
-            .hash::<H>(&nullifier_bundle.new_element_next_value)?;
+            .hash_with_schema::<H>(&nullifier_bundle.new_element_next_value, self.hash_schema)?;
         self.merkle_tree.append(&new_leaf)?;
         Ok(())
     }
@@ -93,12 +107,12 @@ where
         let nullifier_bundle = indexed_array.append(&init_value)?;
         let new_low_leaf = nullifier_bundle
             .new_low_element
-            .hash::<H>(&nullifier_bundle.new_element.value)?;
+            .hash_with_schema::<H>(&nullifier_bundle.new_element.value, self.hash_schema)?;
 
         self.merkle_tree.update(&new_low_leaf, 0)?;
         let new_leaf = nullifier_bundle
             .new_element
-            .hash::<H>(&nullifier_bundle.new_element_next_value)?;
+            .hash_with_schema::<H>(&nullifier_bundle.new_element_next_value, self.hash_schema)?;
         self.merkle_tree.append(&new_leaf)?;
         Ok(())
     }
@@ -134,13 +148,15 @@ where
         new_element_next_value: &BigUint,
     ) -> Result<(), IndexedReferenceMerkleTreeError> {
         // Update the low element.
-        let new_low_leaf = new_low_element.hash::<H>(&new_element.value)?;
+        let new_low_leaf =
+            new_low_element.hash_with_schema::<H>(&new_element.value, self.hash_schema)?;
         println!("reference update new low leaf hash {:?}", new_low_leaf);
         self.merkle_tree
             .update(&new_low_leaf, usize::from(new_low_element.index))?;
         println!("reference updated root {:?}", self.merkle_tree.root());
         // Append the new element.
-        let new_leaf = new_element.hash::<H>(new_element_next_value)?;
+        let new_leaf =
+            new_element.hash_with_schema::<H>(new_element_next_value, self.hash_schema)?;
         println!("reference update new leaf hash {:?}", new_leaf);
         self.merkle_tree.append(&new_leaf)?;
         println!("reference appended root {:?}", self.merkle_tree.root());
@@ -211,7 +227,7 @@ where
             index: proof.leaf_index,
             next_index: proof.next_index,
         };
-        let leaf_hash = array_element.hash::<H>(&higher_end_value)?;
+        let leaf_hash = array_element.hash_with_schema::<H>(&higher_end_value, self.hash_schema)?;
         self.merkle_tree
             .verify(&leaf_hash, proof.merkle_proof.as_slice(), proof.leaf_index)?;
         Ok(())

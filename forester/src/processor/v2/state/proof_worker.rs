@@ -5,7 +5,8 @@ use light_batched_merkle_tree::merkle_tree::{
 use light_prover_client::{
     proof_client::ProofClient,
     proof_types::{
-        batch_address_append::BatchAddressAppendInputs, batch_append::BatchAppendsCircuitInputs,
+        batch_address_append::{to_json as address_append_to_json, BatchAddressAppendInputs},
+        batch_append::BatchAppendsCircuitInputs,
         batch_update::BatchUpdateCircuitInputs,
     },
 };
@@ -111,6 +112,21 @@ async fn run_proof_worker(
                 }
             }
             ProofInput::AddressAppend(inputs) => {
+                // Log JSON inputs for debugging constraint errors
+                let json_inputs = address_append_to_json(&inputs);
+                info!(
+                    "AddressAppend inputs seq={}: old_root={:?}[..4], new_root={:?}[..4], start_index={}, batch_size={}",
+                    job.seq,
+                    inputs.old_root.to_bytes_be()[..4].to_vec(),
+                    inputs.new_root.to_bytes_be()[..4].to_vec(),
+                    inputs.start_index,
+                    inputs.batch_size
+                );
+                debug!(
+                    "AddressAppend JSON seq={}: {}",
+                    job.seq,
+                    json_inputs
+                );
                 match append_client.generate_batch_address_append_proof(inputs).await {
                     Ok((proof, new_root)) => Ok(BatchInstruction::AddressAppend(vec![
                         light_batched_merkle_tree::merkle_tree::InstructionDataAddressAppendInputs {
