@@ -89,25 +89,49 @@ describe('compress', () => {
         stateTreeInfo = selectStateTreeInfo(await rpc.getStateTreeInfos());
     });
 
-    it('should create account with address', async () => {
-        const preCreateAccountsBalance = await rpc.getBalance(payer.publicKey);
+    // createAccount is not supported in V2 (requires programId for address derivation via CPI)
+    it.skipIf(featureFlags.isV2())(
+        'should create account with address',
+        async () => {
+            const preCreateAccountsBalance = await rpc.getBalance(
+                payer.publicKey,
+            );
 
-        await createAccount(
-            rpc as TestRpc,
-            payer,
-            [
-                new Uint8Array([
-                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-                ]),
-            ],
-            LightSystemProgram.programId,
-            undefined,
-            stateTreeInfo,
-        );
+            await createAccount(
+                rpc as TestRpc,
+                payer,
+                [
+                    new Uint8Array([
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+                        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                        31, 32,
+                    ]),
+                ],
+                LightSystemProgram.programId,
+                undefined,
+                stateTreeInfo,
+            );
 
-        await expect(
-            createAccountWithLamports(
+            await expect(
+                createAccountWithLamports(
+                    rpc as TestRpc,
+                    payer,
+                    [
+                        new Uint8Array([
+                            1, 2, 255, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
+                            29, 30, 31, 32,
+                        ]),
+                    ],
+                    0,
+                    LightSystemProgram.programId,
+                ),
+            ).rejects.toThrowError(
+                'Neither input accounts nor outputStateTreeInfo are available',
+            );
+
+            // 0 lamports => 0 input accounts selected, so outputStateTreeInfo is required
+            await createAccountWithLamports(
                 rpc as TestRpc,
                 payer,
                 [
@@ -119,56 +143,26 @@ describe('compress', () => {
                 ],
                 0,
                 LightSystemProgram.programId,
-            ),
-        ).rejects.toThrowError(
-            'Neither input accounts nor outputStateTreeInfo are available',
-        );
+                undefined,
+                stateTreeInfo,
+            );
 
-        // 0 lamports => 0 input accounts selected, so outputStateTreeInfo is required
-        await createAccountWithLamports(
-            rpc as TestRpc,
-            payer,
-            [
-                new Uint8Array([
-                    1, 2, 255, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-                ]),
-            ],
-            0,
-            LightSystemProgram.programId,
-            undefined,
-            stateTreeInfo,
-        );
+            await createAccount(
+                rpc as TestRpc,
+                payer,
+                [
+                    new Uint8Array([
+                        1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+                        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                        31, 1,
+                    ]),
+                ],
+                LightSystemProgram.programId,
+                undefined,
+                stateTreeInfo,
+            );
 
-        await createAccount(
-            rpc as TestRpc,
-            payer,
-            [
-                new Uint8Array([
-                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 1,
-                ]),
-            ],
-            LightSystemProgram.programId,
-            undefined,
-            stateTreeInfo,
-        );
-
-        await createAccount(
-            rpc as TestRpc,
-            payer,
-            [
-                new Uint8Array([
-                    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 2,
-                ]),
-            ],
-            LightSystemProgram.programId,
-            undefined,
-            stateTreeInfo,
-        );
-        await expect(
-            createAccount(
+            await createAccount(
                 rpc as TestRpc,
                 payer,
                 [
@@ -181,77 +175,102 @@ describe('compress', () => {
                 LightSystemProgram.programId,
                 undefined,
                 stateTreeInfo,
-            ),
-        ).rejects.toThrow();
-        const postCreateAccountsBalance = await rpc.getBalance(payer.publicKey);
-        assert.equal(
-            postCreateAccountsBalance,
-            preCreateAccountsBalance -
-                txFees([
-                    { in: 0, out: 1, addr: 1 },
-                    { in: 0, out: 1, addr: 1 },
-                    { in: 0, out: 1, addr: 1 },
-                    { in: 0, out: 1, addr: 1 },
-                ]),
-        );
-    });
+            );
+            await expect(
+                createAccount(
+                    rpc as TestRpc,
+                    payer,
+                    [
+                        new Uint8Array([
+                            1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+                            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28,
+                            29, 30, 31, 2,
+                        ]),
+                    ],
+                    LightSystemProgram.programId,
+                    undefined,
+                    stateTreeInfo,
+                ),
+            ).rejects.toThrow();
+            const postCreateAccountsBalance = await rpc.getBalance(
+                payer.publicKey,
+            );
+            assert.equal(
+                postCreateAccountsBalance,
+                preCreateAccountsBalance -
+                    txFees([
+                        { in: 0, out: 1, addr: 1 },
+                        { in: 0, out: 1, addr: 1 },
+                        { in: 0, out: 1, addr: 1 },
+                        { in: 0, out: 1, addr: 1 },
+                    ]),
+            );
+        },
+    );
 
-    it('should compress lamports and create an account with address and lamports', async () => {
-        payer = await newAccountWithLamports(rpc, 1e9, 256);
+    // createAccountWithLamports is not supported in V2 (requires programId for address derivation via CPI)
+    it.skipIf(featureFlags.isV2())(
+        'should compress lamports and create an account with address and lamports',
+        async () => {
+            payer = await newAccountWithLamports(rpc, 1e9, 256);
 
-        const compressLamportsAmount = 1e7;
-        const preCompressBalance = await rpc.getBalance(payer.publicKey);
-        assert.equal(preCompressBalance, 1e9);
+            const compressLamportsAmount = 1e7;
+            const preCompressBalance = await rpc.getBalance(payer.publicKey);
+            assert.equal(preCompressBalance, 1e9);
 
-        await compress(
-            rpc,
-            payer,
-            compressLamportsAmount,
-            payer.publicKey,
-            stateTreeInfo,
-        );
+            await compress(
+                rpc,
+                payer,
+                compressLamportsAmount,
+                payer.publicKey,
+                stateTreeInfo,
+            );
 
-        const compressedAccounts = await rpc.getCompressedAccountsByOwner(
-            payer.publicKey,
-        );
-        assert.equal(compressedAccounts.items.length, 1);
-        assert.equal(
-            Number(compressedAccounts.items[0].lamports),
-            compressLamportsAmount,
-        );
+            const compressedAccounts = await rpc.getCompressedAccountsByOwner(
+                payer.publicKey,
+            );
+            assert.equal(compressedAccounts.items.length, 1);
+            assert.equal(
+                Number(compressedAccounts.items[0].lamports),
+                compressLamportsAmount,
+            );
 
-        assert.equal(compressedAccounts.items[0].data, null);
-        const postCompressBalance = await rpc.getBalance(payer.publicKey);
-        assert.equal(
-            postCompressBalance,
-            preCompressBalance -
-                compressLamportsAmount -
-                txFees([{ in: 0, out: 1 }]),
-        );
+            assert.equal(compressedAccounts.items[0].data, null);
+            const postCompressBalance = await rpc.getBalance(payer.publicKey);
+            assert.equal(
+                postCompressBalance,
+                preCompressBalance -
+                    compressLamportsAmount -
+                    txFees([{ in: 0, out: 1 }]),
+            );
 
-        await createAccountWithLamports(
-            rpc as TestRpc,
-            payer,
-            [
-                new Uint8Array([
-                    1, 255, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17,
-                    18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,
-                ]),
-            ],
-            100,
-            LightSystemProgram.programId,
-            undefined,
-        );
+            await createAccountWithLamports(
+                rpc as TestRpc,
+                payer,
+                [
+                    new Uint8Array([
+                        1, 255, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+                        17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+                        31, 32,
+                    ]),
+                ],
+                100,
+                LightSystemProgram.programId,
+                undefined,
+            );
 
-        const postCreateAccountBalance = await rpc.getBalance(payer.publicKey);
-        let expectedTxFees = txFees([{ in: 1, out: 2, addr: 1 }]);
-        assert.equal(
-            postCreateAccountBalance,
-            postCompressBalance - expectedTxFees,
-        );
-    });
+            const postCreateAccountBalance = await rpc.getBalance(
+                payer.publicKey,
+            );
+            let expectedTxFees = txFees([{ in: 1, out: 2, addr: 1 }]);
+            assert.equal(
+                postCreateAccountBalance,
+                postCompressBalance - expectedTxFees,
+            );
+        },
+    );
 
-    it('should compress lamports and create an account with address and lamports', async () => {
+    it('should compress and decompress lamports', async () => {
         payer = await newAccountWithLamports(rpc, 1e9, 256);
 
         const compressLamportsAmount = 1e7;

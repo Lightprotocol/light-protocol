@@ -966,4 +966,34 @@ export class TestRpc extends Connection implements CompressionApiInterface {
             newAddresses.map(address => address.address),
         );
     }
+
+    async getValidityProofV2(
+        accountMerkleContexts: any[] = [],
+        newAddresses: any[] = [],
+        derivationMode?: any,
+    ): Promise<ValidityProofWithContext> {
+        const hashes = accountMerkleContexts
+            .filter(ctx => ctx !== undefined)
+            .map(ctx => ({
+                hash: ctx.hash,
+                tree: ctx.treeInfo.tree,
+                queue: ctx.treeInfo.queue,
+            }));
+
+        const addresses = newAddresses.map(addr => ({
+            address: addr.address,
+            tree: addr.treeInfo.tree,
+            queue: addr.treeInfo.queue,
+        }));
+
+        return this.getValidityProofV0(hashes, addresses);
+    }
+
+    async getAccountInfoInterface(
+        _address: PublicKey,
+        _programId: PublicKey,
+        _addressSpaceInfo: any,
+    ): Promise<any> {
+        throw new Error('getAccountInfoInterface not implemented in TestRpc');
+    }
 }
