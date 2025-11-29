@@ -57,7 +57,7 @@ export async function createMint(
             ? TOKEN_2022_PROGRAM_ID
             : tokenProgramId || TOKEN_PROGRAM_ID;
 
-    const ixs = await CompressedTokenProgram.createMintSPL({
+    const ixs = await CompressedTokenProgram.createMint({
         feePayer: payer.publicKey,
         mint: keypair.publicKey,
         decimals,

@@ -4,4 +4,3 @@ export * from './helpers';
 export * from './serde';
 export * from './upload';
 export * from './get-account-interface';
-

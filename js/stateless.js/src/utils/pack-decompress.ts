@@ -35,7 +35,10 @@ export async function packDecompressAccountsIdempotent(
     const remainingAccounts: AccountMeta[] = [];
     const remainingAccountsMap = new Map<string, number>();
 
-    const getOrAddAccount = (pubkey: PublicKey, isWritable: boolean): number => {
+    const getOrAddAccount = (
+        pubkey: PublicKey,
+        isWritable: boolean,
+    ): number => {
         const key = pubkey.toBase58();
         if (!remainingAccountsMap.has(key)) {
             const index = remainingAccounts.length;
@@ -77,4 +80,3 @@ export async function packDecompressAccountsIdempotent(
         remainingAccounts,
     };
 }
-

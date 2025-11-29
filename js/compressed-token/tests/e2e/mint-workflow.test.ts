@@ -305,7 +305,10 @@ describe('Complete Mint Workflow', () => {
             owner.publicKey,
         );
 
-        const expectedAddress = getAtaAddressInterface(mintPda, owner.publicKey);
+        const expectedAddress = getAtaAddressInterface(
+            mintPda,
+            owner.publicKey,
+        );
         expect(ataAddress.toString()).toBe(expectedAddress.toString());
 
         const accountInfo = await rpc.getAccountInfo(ataAddress);
@@ -355,7 +358,10 @@ describe('Complete Mint Workflow', () => {
                 owner.publicKey,
             );
 
-            const expectedAddress = getAtaAddressInterface(mint, owner.publicKey);
+            const expectedAddress = getAtaAddressInterface(
+                mint,
+                owner.publicKey,
+            );
             expect(ataAddress.toString()).toBe(expectedAddress.toString());
 
             const accountInfo = await rpc.getAccountInfo(ataAddress);
@@ -398,7 +404,10 @@ describe('Complete Mint Workflow', () => {
             owner.publicKey,
         );
 
-        const expectedAddress = getAtaAddressInterface(mintPda, owner.publicKey);
+        const expectedAddress = getAtaAddressInterface(
+            mintPda,
+            owner.publicKey,
+        );
         expect(ataAddress.toString()).toBe(expectedAddress.toString());
 
         const updateNameSig = await updateMetadataField(
@@ -642,7 +651,10 @@ describe('Complete Mint Workflow', () => {
             );
         await rpc.confirmTransaction(createSig, 'confirmed');
 
-        const derivedAddressBefore = getAtaAddressInterface(mint, owner.publicKey);
+        const derivedAddressBefore = getAtaAddressInterface(
+            mint,
+            owner.publicKey,
+        );
 
         const { address: ataAddress } = await createAtaInterfaceIdempotent(
             rpc,
@@ -651,7 +663,10 @@ describe('Complete Mint Workflow', () => {
             owner.publicKey,
         );
 
-        const derivedAddressAfter = getAtaAddressInterface(mint, owner.publicKey);
+        const derivedAddressAfter = getAtaAddressInterface(
+            mint,
+            owner.publicKey,
+        );
 
         expect(ataAddress.toString()).toBe(derivedAddressBefore.toString());
         expect(ataAddress.toString()).toBe(derivedAddressAfter.toString());

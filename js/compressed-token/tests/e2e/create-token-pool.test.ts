@@ -8,11 +8,7 @@ import {
     TOKEN_PROGRAM_ID,
     createInitializeMint2Instruction,
 } from '@solana/spl-token';
-import {
-    addTokenPools,
-    createMint,
-    createTokenPool,
-} from '../../src/actions';
+import { addTokenPools, createMint, createTokenPool } from '../../src/actions';
 import {
     Rpc,
     buildAndSignTx,

@@ -15,11 +15,7 @@ import {
     featureFlags,
 } from '@lightprotocol/stateless.js';
 import { WasmFactory } from '@lightprotocol/hasher.rs';
-import {
-    createMint,
-    mintTo,
-    decompress,
-} from '../../src/actions';
+import { createMint, mintTo, decompress } from '../../src/actions';
 import {
     createAssociatedTokenAccount,
     getAssociatedTokenAddressSync,
@@ -275,7 +271,10 @@ describe('loadAtaInterface with SPL mint', () => {
                 { tokenPoolInfos },
             );
 
-            const expectedCtokenAta = getAtaAddressInterface(mint, owner.publicKey);
+            const expectedCtokenAta = getAtaAddressInterface(
+                mint,
+                owner.publicKey,
+            );
             expect(result.ctokenAta.toString()).toBe(
                 expectedCtokenAta.toString(),
             );

@@ -967,7 +967,9 @@ describe('serde', () => {
 
             // Bytes 32-63 should be the mint pubkey (after updateAuthority)
             const mintBytes = encoded.slice(32, 64);
-            expect(Buffer.from(mintBytes).equals(mintPubkey.toBuffer())).toBe(true);
+            expect(Buffer.from(mintBytes).equals(mintPubkey.toBuffer())).toBe(
+                true,
+            );
         });
     });
 
@@ -1219,9 +1221,9 @@ describe('serde', () => {
                 extensions: null,
             };
 
-            expect(() => toMintInstructionDataWithMetadata(compressedMint)).toThrow(
-                'CompressedMint does not have TokenMetadata extension',
-            );
+            expect(() =>
+                toMintInstructionDataWithMetadata(compressedMint),
+            ).toThrow('CompressedMint does not have TokenMetadata extension');
         });
 
         it('should throw if extensions array is empty', () => {
@@ -1241,9 +1243,9 @@ describe('serde', () => {
                 extensions: [],
             };
 
-            expect(() => toMintInstructionDataWithMetadata(compressedMint)).toThrow(
-                'CompressedMint does not have TokenMetadata extension',
-            );
+            expect(() =>
+                toMintInstructionDataWithMetadata(compressedMint),
+            ).toThrow('CompressedMint does not have TokenMetadata extension');
         });
     });
 

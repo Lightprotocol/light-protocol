@@ -17,4 +17,3 @@ export function getAtaProgramId(tokenProgramId: PublicKey): PublicKey {
     }
     return ASSOCIATED_TOKEN_PROGRAM_ID;
 }
-

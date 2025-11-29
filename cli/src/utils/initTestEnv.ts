@@ -130,7 +130,6 @@ export async function initTestEnv({
       indexerPort,
       checkPhotonVersion,
       photonDatabaseUrl,
-      undefined, // grpcUrl - not used for test validator, uses RPC polling
     );
   }
 
