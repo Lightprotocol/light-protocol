@@ -15,10 +15,12 @@ import {
     buildAndSignTx,
     deriveAddress,
     deriveAddressSeed,
+    deriveAddressSeedV2,
+    deriveAddressV2,
     selectStateTreeInfo,
     sendAndConfirmTx,
 } from '../utils';
-import { getDefaultAddressTreeInfo } from '../constants';
+import { featureFlags, getDefaultAddressTreeInfo } from '../constants';
 import { AddressTreeInfo, bn, TreeInfo } from '../state';
 import BN from 'bn.js';
 
@@ -49,8 +51,12 @@ export async function createAccount(
     const { blockhash } = await rpc.getLatestBlockhash();
     const { tree, queue } = addressTreeInfo ?? getDefaultAddressTreeInfo();
 
-    const seed = deriveAddressSeed(seeds, programId);
-    const address = deriveAddress(seed, tree);
+    const seed = featureFlags.isV2()
+        ? deriveAddressSeedV2(seeds)
+        : deriveAddressSeed(seeds, programId);
+    const address = featureFlags.isV2()
+        ? deriveAddressV2(seed, tree, programId)
+        : deriveAddress(seed, tree);
 
     if (!outputStateTreeInfo) {
         const stateTreeInfo = await rpc.getStateTreeInfos();
@@ -135,8 +141,12 @@ export async function createAccountWithLamports(
 
     const { tree } = addressTreeInfo ?? getDefaultAddressTreeInfo();
 
-    const seed = deriveAddressSeed(seeds, programId);
-    const address = deriveAddress(seed, tree);
+    const seed = featureFlags.isV2()
+        ? deriveAddressSeedV2(seeds)
+        : deriveAddressSeed(seeds, programId);
+    const address = featureFlags.isV2()
+        ? deriveAddressV2(seed, tree, programId)
+        : deriveAddress(seed, tree);
 
     const proof = await rpc.getValidityProof(
         inputAccounts.map(account => account.hash),

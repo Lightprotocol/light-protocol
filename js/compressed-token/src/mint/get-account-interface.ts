@@ -25,11 +25,7 @@ export { Account, AccountState } from '@solana/spl-token';
 export { ParsedTokenAccount } from '@lightprotocol/stateless.js';
 
 export interface TokenAccountSource {
-    type:
-        | 'spl-onchain'
-        | 'token2022-onchain'
-        | 'ctoken-onchain'
-        | 'ctoken-compressed';
+    type: 'spl' | 'token2022' | 'ctoken-hot' | 'ctoken-cold';
     address: PublicKey;
     amount: bigint;
     accountInfo: AccountInfo<Buffer>;
@@ -139,7 +135,7 @@ export function toAccountInfo(
     };
 }
 
-export function parseCTokenOnchain(
+export function parseCTokenHot(
     address: PublicKey,
     accountInfo: AccountInfo<Buffer>,
 ): {
@@ -158,7 +154,7 @@ export function parseCTokenOnchain(
     };
 }
 
-export function parseCTokenCompressed(
+export function parseCTokenCold(
     address: PublicKey,
     compressedAccount: CompressedAccountWithMerkleContext,
 ): {
@@ -215,9 +211,9 @@ export async function getAtaInterface(
 }
 
 /**
- * Helper: Try to fetch SPL Token onchain account
+ * Helper: Try to fetch SPL Token account
  */
-async function _tryFetchSplOnchain(
+async function _tryFetchSpl(
     rpc: Rpc,
     address: PublicKey,
     commitment?: Commitment,
@@ -241,9 +237,9 @@ async function _tryFetchSplOnchain(
 }
 
 /**
- * Helper: Try to fetch Token-2022 onchain account
+ * Helper: Try to fetch Token-2022 account
  */
-async function _tryFetchToken2022Onchain(
+async function _tryFetchToken2022(
     rpc: Rpc,
     address: PublicKey,
     commitment?: Commitment,
@@ -267,9 +263,9 @@ async function _tryFetchToken2022Onchain(
 }
 
 /**
- * Helper: Try to fetch CToken onchain account
+ * Helper: Try to fetch CToken hot (decompressed) account
  */
-async function _tryFetchCTokenOnchain(
+async function _tryFetchCTokenHot(
     rpc: Rpc,
     address: PublicKey,
     commitment?: Commitment,
@@ -283,13 +279,13 @@ async function _tryFetchCTokenOnchain(
     if (!info || !info.owner.equals(CTOKEN_PROGRAM_ID)) {
         throw new Error('Not a CTOKEN onchain account');
     }
-    return parseCTokenOnchain(address, info);
+    return parseCTokenHot(address, info);
 }
 
 /**
- * Helper: Try to fetch compressed token account by owner+mint
+ * Helper: Try to fetch CToken cold (compressed) account by owner+mint
  */
-async function _tryFetchCompressedByOwner(
+async function _tryFetchCTokenColdByOwner(
     rpc: Rpc,
     owner: PublicKey,
     mint: PublicKey,
@@ -311,13 +307,13 @@ async function _tryFetchCompressedByOwner(
     if (!compressedAccount.owner.equals(CTOKEN_PROGRAM_ID)) {
         throw new Error('Invalid owner for compressed token');
     }
-    return parseCTokenCompressed(ataAddress, compressedAccount);
+    return parseCTokenCold(ataAddress, compressedAccount);
 }
 
 /**
- * Helper: Try to fetch compressed token account by address (for non-ATA ctokens)
+ * Helper: Try to fetch CToken cold (compressed) account by address (for non-ATA ctokens)
  */
-async function _tryFetchCompressedByAddress(
+async function _tryFetchCTokenColdByAddress(
     rpc: Rpc,
     address: PublicKey,
 ): Promise<{
@@ -335,7 +331,7 @@ async function _tryFetchCompressedByAddress(
     if (!compressedAccount.owner.equals(CTOKEN_PROGRAM_ID)) {
         throw new Error('Invalid owner for compressed token');
     }
-    return parseCTokenCompressed(address, compressedAccount);
+    return parseCTokenCold(address, compressedAccount);
 }
 
 // TODO: add test
@@ -403,21 +399,21 @@ async function _getAccountInterface(
               );
 
         const results = await Promise.allSettled([
-            // 1. SPL Token onchain
-            _tryFetchSplOnchain(rpc, splTokenAta, commitment),
-            // 2. Token-2022 onchain
-            _tryFetchToken2022Onchain(rpc, token2022Ata, commitment),
-            // 3. CToken onchain
-            _tryFetchCTokenOnchain(rpc, cTokenAta, commitment),
-            // 4. CToken compressed (all compressed tokens are owned by CTOKEN_PROGRAM_ID)
+            // 1. SPL Token
+            _tryFetchSpl(rpc, splTokenAta, commitment),
+            // 2. Token-2022
+            _tryFetchToken2022(rpc, token2022Ata, commitment),
+            // 3. CToken hot (decompressed)
+            _tryFetchCTokenHot(rpc, cTokenAta, commitment),
+            // 4. CToken cold (compressed)
             fetchByOwner
-                ? _tryFetchCompressedByOwner(
+                ? _tryFetchCTokenColdByOwner(
                       rpc,
                       fetchByOwner.owner,
                       fetchByOwner.mint,
                       cTokenAta,
                   )
-                : _tryFetchCompressedByAddress(rpc, address!),
+                : _tryFetchCTokenColdByAddress(rpc, address!),
         ]);
 
         // Collect all successful results
@@ -439,16 +435,16 @@ async function _getAccountInterface(
                 let addr: PublicKey;
 
                 if (i === 0) {
-                    type = 'spl-onchain';
+                    type = 'spl';
                     addr = splTokenAta;
                 } else if (i === 1) {
-                    type = 'token2022-onchain';
+                    type = 'token2022';
                     addr = token2022Ata;
                 } else if (i === 2) {
-                    type = 'ctoken-onchain';
+                    type = 'ctoken-hot';
                     addr = cTokenAta;
                 } else {
-                    type = 'ctoken-compressed';
+                    type = 'ctoken-cold';
                     addr = cTokenAta;
                 }
 
@@ -471,12 +467,12 @@ async function _getAccountInterface(
             );
         }
 
-        // Priority order: CToken onchain > CToken compressed > SPL/T22
+        // Priority order: CToken hot > CToken cold > SPL/T22
         const priority: TokenAccountSource['type'][] = [
-            'ctoken-onchain',
-            'ctoken-compressed',
-            'spl-onchain',
-            'token2022-onchain',
+            'ctoken-hot',
+            'ctoken-cold',
+            'spl',
+            'token2022',
         ];
 
         sources.sort((a, b) => {
@@ -506,7 +502,7 @@ async function _getAccountInterface(
             amount: totalAmount,
         };
 
-        const isCold = primarySource.type === 'ctoken-compressed';
+        const isCold = primarySource.type === 'ctoken-cold';
 
         return {
             accountInfo: primarySource.accountInfo!,
@@ -557,11 +553,11 @@ async function _getAccountInterface(
 
         const sources: TokenAccountSource[] = [];
 
-        // Collect onchain CToken account
+        // Collect hot (decompressed) CToken account
         if (onchainAccount && onchainAccount.owner.equals(programId)) {
-            const parsed = parseCTokenOnchain(address, onchainAccount);
+            const parsed = parseCTokenHot(address, onchainAccount);
             sources.push({
-                type: 'ctoken-onchain',
+                type: 'ctoken-hot',
                 address,
                 amount: parsed.parsed.amount,
                 accountInfo: onchainAccount,
@@ -569,7 +565,7 @@ async function _getAccountInterface(
             });
         }
 
-        // Collect compressed CToken accounts
+        // Collect cold (compressed) CToken accounts
         for (const compressedAccount of compressedAccounts) {
             if (
                 compressedAccount &&
@@ -577,12 +573,9 @@ async function _getAccountInterface(
                 compressedAccount.data.data.length > 0 &&
                 compressedAccount.owner.equals(programId)
             ) {
-                const parsed = parseCTokenCompressed(
-                    address,
-                    compressedAccount,
-                );
+                const parsed = parseCTokenCold(address, compressedAccount);
                 sources.push({
-                    type: 'ctoken-compressed',
+                    type: 'ctoken-cold',
                     address,
                     amount: parsed.parsed.amount,
                     accountInfo: parsed.accountInfo,
@@ -596,12 +589,10 @@ async function _getAccountInterface(
             throw new TokenAccountNotFoundError();
         }
 
-        // Priority: onchain > compressed
+        // Priority: hot > cold
         sources.sort((a, b) => {
-            if (a.type === 'ctoken-onchain' && b.type === 'ctoken-compressed')
-                return -1;
-            if (a.type === 'ctoken-compressed' && b.type === 'ctoken-onchain')
-                return 1;
+            if (a.type === 'ctoken-hot' && b.type === 'ctoken-cold') return -1;
+            if (a.type === 'ctoken-cold' && b.type === 'ctoken-hot') return 1;
             return 0;
         });
 
@@ -625,7 +616,7 @@ async function _getAccountInterface(
         return {
             accountInfo: primarySource.accountInfo!,
             parsed: unifiedAccount,
-            isCold: primarySource.type === 'ctoken-compressed',
+            isCold: primarySource.type === 'ctoken-cold',
             loadContext: primarySource.loadContext,
             _sources: sources,
             _needsConsolidation: needsConsolidation,
@@ -663,8 +654,8 @@ async function _getAccountInterface(
         const type: TokenAccountSource['type'] = programId.equals(
             TOKEN_PROGRAM_ID,
         )
-            ? 'spl-onchain'
-            : 'token2022-onchain';
+            ? 'spl'
+            : 'token2022';
 
         return {
             accountInfo: info,

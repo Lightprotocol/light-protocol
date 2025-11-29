@@ -40,7 +40,7 @@ import { createWrapInstruction } from '../instructions/wrap';
  * Source of tokens found during load discovery
  */
 export interface LoadSource {
-    type: 'spl' | 'token2022' | 'ctoken-onchain' | 'compressed';
+    type: 'spl' | 'token2022' | 'ctoken-hot' | 'ctoken-cold';
     address: PublicKey;
     amount: bigint;
 }
@@ -258,7 +258,7 @@ export async function loadAtaInterfaceInstructions(
             compressedAccountsForProof = compressedAccounts;
 
             sources.push({
-                type: 'compressed',
+                type: 'ctoken-cold',
                 address: owner, // Compressed accounts are identified by owner
                 amount: compressedBalance,
             });

@@ -69,8 +69,8 @@ export {
     Account,
     AccountState,
     ParsedTokenAccount as ParsedTokenAccountInterface,
-    parseCTokenOnchain,
-    parseCTokenCompressed,
+    parseCTokenHot,
+    parseCTokenCold,
     toAccountInfo,
     convertTokenDataToAccount,
     // Types
