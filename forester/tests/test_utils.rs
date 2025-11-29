@@ -328,6 +328,34 @@ pub async fn get_active_phase_start_slot<R: Rpc>(
     phases.active.start
 }
 
+/// Get the active phase start slot for an epoch with enough time remaining.
+/// If the current epoch's active phase has less than `min_slots_remaining` slots,
+/// returns the next epoch's active phase start.
+#[allow(dead_code)]
+pub async fn get_next_active_phase_with_time<R: Rpc>(
+    rpc: &mut R,
+    protocol_config: &ProtocolConfig,
+    min_slots_remaining: u64,
+) -> u64 {
+    let current_slot = rpc.get_slot().await.unwrap();
+    let current_epoch = protocol_config.get_current_epoch(current_slot);
+    let phases = get_epoch_phases(protocol_config, current_epoch);
+
+    // Check if current epoch has enough time remaining
+    let slots_remaining = phases.active.end.saturating_sub(current_slot);
+    if slots_remaining >= min_slots_remaining {
+        phases.active.start
+    } else {
+        // Use next epoch
+        let next_phases = get_epoch_phases(protocol_config, current_epoch + 1);
+        println!(
+            "Current epoch {} has only {} slots remaining, using epoch {} (active phase starts at slot {})",
+            current_epoch, slots_remaining, current_epoch + 1, next_phases.active.start
+        );
+        next_phases.active.start
+    }
+}
+
 #[allow(dead_code)]
 pub async fn wait_for_slot(rpc: &mut LightClient, target_slot: u64) {
     while rpc.get_slot().await.unwrap() < target_slot {

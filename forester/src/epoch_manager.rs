@@ -73,10 +73,73 @@ use crate::{
 type StateBatchProcessorMap<R> = Arc<DashMap<Pubkey, (u64, Arc<Mutex<v2::UnifiedBatchProcessor<R, v2::StateTreeStrategy>>>)>>;
 type AddressBatchProcessorMap<R> = Arc<DashMap<Pubkey, (u64, Arc<Mutex<v2::UnifiedBatchProcessor<R, v2::AddressTreeStrategy>>>)>>;
 
+/// Timing for a single circuit type (circuit inputs + proof generation)
+#[derive(Copy, Clone, Debug, Default)]
+pub struct CircuitMetrics {
+    /// Time spent building circuit inputs
+    pub circuit_inputs_duration: std::time::Duration,
+    /// Time spent generating ZK proofs
+    pub proof_generation_duration: std::time::Duration,
+}
+
+impl CircuitMetrics {
+    pub fn total(&self) -> std::time::Duration {
+        self.circuit_inputs_duration + self.proof_generation_duration
+    }
+}
+
+impl std::ops::AddAssign for CircuitMetrics {
+    fn add_assign(&mut self, rhs: Self) {
+        self.circuit_inputs_duration += rhs.circuit_inputs_duration;
+        self.proof_generation_duration += rhs.proof_generation_duration;
+    }
+}
+
+/// Timing breakdown by circuit type
+#[derive(Copy, Clone, Debug, Default)]
+pub struct ProcessingMetrics {
+    /// State append circuit (output queue processing)
+    pub append: CircuitMetrics,
+    /// State nullify circuit (input queue processing)
+    pub nullify: CircuitMetrics,
+    /// Address append circuit
+    pub address_append: CircuitMetrics,
+    /// Time spent sending transactions (overlapped with proof gen)
+    pub tx_sending_duration: std::time::Duration,
+}
+
+impl ProcessingMetrics {
+    pub fn total(&self) -> std::time::Duration {
+        self.append.total() + self.nullify.total() + self.address_append.total() + self.tx_sending_duration
+    }
+
+    pub fn total_circuit_inputs(&self) -> std::time::Duration {
+        self.append.circuit_inputs_duration
+            + self.nullify.circuit_inputs_duration
+            + self.address_append.circuit_inputs_duration
+    }
+
+    pub fn total_proof_generation(&self) -> std::time::Duration {
+        self.append.proof_generation_duration
+            + self.nullify.proof_generation_duration
+            + self.address_append.proof_generation_duration
+    }
+}
+
+impl std::ops::AddAssign for ProcessingMetrics {
+    fn add_assign(&mut self, rhs: Self) {
+        self.append += rhs.append;
+        self.nullify += rhs.nullify;
+        self.address_append += rhs.address_append;
+        self.tx_sending_duration += rhs.tx_sending_duration;
+    }
+}
+
 #[derive(Copy, Clone, Debug)]
 pub struct WorkReport {
     pub epoch: u64,
     pub processed_items: usize,
+    pub metrics: ProcessingMetrics,
 }
 
 #[derive(Debug, Clone)]
@@ -109,6 +172,7 @@ pub struct EpochManager<R: Rpc> {
     authority: Arc<Keypair>,
     work_report_sender: mpsc::Sender<WorkReport>,
     processed_items_per_epoch_count: Arc<Mutex<HashMap<u64, AtomicUsize>>>,
+    processing_metrics_per_epoch: Arc<Mutex<HashMap<u64, ProcessingMetrics>>>,
     trees: Arc<Mutex<Vec<TreeAccounts>>>,
     slot_tracker: Arc<SlotTracker>,
     processing_epochs: Arc<DashMap<u64, Arc<AtomicBool>>>,
@@ -130,6 +194,7 @@ impl<R: Rpc> Clone for EpochManager<R> {
             authority: self.authority.clone(),
             work_report_sender: self.work_report_sender.clone(),
             processed_items_per_epoch_count: self.processed_items_per_epoch_count.clone(),
+            processing_metrics_per_epoch: self.processing_metrics_per_epoch.clone(),
             trees: self.trees.clone(),
             slot_tracker: self.slot_tracker.clone(),
             processing_epochs: self.processing_epochs.clone(),
@@ -185,6 +250,7 @@ impl<R: Rpc> EpochManager<R> {
             authority,
             work_report_sender,
             processed_items_per_epoch_count: Arc::new(Mutex::new(HashMap::new())),
+            processing_metrics_per_epoch: Arc::new(Mutex::new(HashMap::new())),
             trees: Arc::new(Mutex::new(trees)),
             slot_tracker,
             processing_epochs: Arc::new(DashMap::new()),
@@ -481,6 +547,16 @@ impl<R: Rpc> EpochManager<R> {
             .entry(epoch)
             .or_insert_with(|| AtomicUsize::new(0))
             .fetch_add(increment_by, Ordering::Relaxed);
+    }
+
+    async fn get_processing_metrics(&self, epoch: u64) -> ProcessingMetrics {
+        let metrics = self.processing_metrics_per_epoch.lock().await;
+        metrics.get(&epoch).copied().unwrap_or_default()
+    }
+
+    async fn add_processing_metrics(&self, epoch: u64, new_metrics: ProcessingMetrics) {
+        let mut metrics = self.processing_metrics_per_epoch.lock().await;
+        *metrics.entry(epoch).or_default() += new_metrics;
     }
 
     async fn recover_registration_info(&self, epoch: u64) -> Result<ForesterEpochInfo> {
@@ -1584,13 +1660,16 @@ impl<R: Rpc> EpochManager<R> {
                 .await
             }
             TreeType::StateV2 | TreeType::AddressV2 => {
-                self.process_v2(
+                let result = self.process_v2(
                     epoch_info,
                     tree_accounts,
                     queue_update,
                     consecutive_eligibility_end,
                 )
-                .await
+                .await?;
+                // Accumulate processing metrics for this epoch
+                self.add_processing_metrics(epoch_info.epoch, result.metrics).await;
+                Ok(result.items_processed)
             }
         }
     }
@@ -1935,7 +2014,7 @@ impl<R: Rpc> EpochManager<R> {
         tree_accounts: &TreeAccounts,
         queue_update: Option<&QueueUpdateMessage>,
         consecutive_eligibility_end: u64,
-    ) -> Result<usize> {
+    ) -> Result<v2::ProcessingResult> {
         match tree_accounts.tree_type {
             TreeType::StateV2 => {
                 if let Some(update) = queue_update {
@@ -1957,7 +2036,7 @@ impl<R: Rpc> EpochManager<R> {
                     let mut proc = processor.lock().await;
                     proc.process_queue_update(work).await
                 } else {
-                    Ok(0)
+                    Ok(v2::ProcessingResult::default())
                 }
             }
             TreeType::AddressV2 => {
@@ -1990,7 +2069,7 @@ impl<R: Rpc> EpochManager<R> {
                         }
                     }
                 } else {
-                    Ok(0)
+                    Ok(v2::ProcessingResult::default())
                 }
             }
             _ => {
@@ -1998,7 +2077,7 @@ impl<R: Rpc> EpochManager<R> {
                     "Unsupported tree type for V2 processing: {:?}",
                     tree_accounts.tree_type
                 );
-                Ok(0)
+                Ok(v2::ProcessingResult::default())
             }
         }
     }
@@ -2018,6 +2097,8 @@ impl<R: Rpc> EpochManager<R> {
             queue_metric_update(epoch_num, items_processed, duration).await;
             self.increment_processed_items_count(epoch_num, items_processed)
                 .await;
+            // Note: ProcessingMetrics are now accumulated in dispatch_tree_processing
+            // for V2 trees where detailed timing is available
         }
     }
 
@@ -2132,6 +2213,7 @@ impl<R: Rpc> EpochManager<R> {
         let report = WorkReport {
             epoch: epoch_info.epoch.epoch,
             processed_items: self.get_processed_items_count(epoch_info.epoch.epoch).await,
+            metrics: self.get_processing_metrics(epoch_info.epoch.epoch).await,
         };
 
         self.work_report_sender
@@ -2571,9 +2653,28 @@ mod tests {
         let report = WorkReport {
             epoch: 42,
             processed_items: 100,
+            metrics: ProcessingMetrics {
+                append: CircuitMetrics {
+                    circuit_inputs_duration: std::time::Duration::from_secs(1),
+                    proof_generation_duration: std::time::Duration::from_secs(3),
+                },
+                nullify: CircuitMetrics {
+                    circuit_inputs_duration: std::time::Duration::from_secs(1),
+                    proof_generation_duration: std::time::Duration::from_secs(2),
+                },
+                address_append: CircuitMetrics {
+                    circuit_inputs_duration: std::time::Duration::from_secs(1),
+                    proof_generation_duration: std::time::Duration::from_secs(2),
+                },
+                tx_sending_duration: std::time::Duration::ZERO,
+            },
         };
 
         assert_eq!(report.epoch, 42);
         assert_eq!(report.processed_items, 100);
+        // Total: (1+3) + (1+2) + (1+2) + 0 = 10
+        assert_eq!(report.metrics.total().as_secs(), 10);
+        assert_eq!(report.metrics.total_circuit_inputs().as_secs(), 3);
+        assert_eq!(report.metrics.total_proof_generation().as_secs(), 7);
     }
 }

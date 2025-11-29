@@ -1,10 +1,19 @@
 use std::collections::BTreeMap;
+use std::sync::atomic::Ordering;
 
 use borsh::BorshSerialize;
 
 // Maximum number of buffered proof results to prevent OOM
-// If we have more than this many out-of-order proofs, something is seriously wrong
 const MAX_BUFFER_SIZE: usize = 1000;
+
+// Number of proof instructions to bundle per transaction
+// Higher values reduce tx overhead but increase tx size and CU consumption
+pub const V2_IXS_PER_TX: usize = 4;
+
+// Minimum slots remaining before we force-send any pending batch
+// This prevents epoch expiration while waiting to fill a batch
+const MIN_SLOTS_FOR_BATCHING: u64 = 10;
+
 use light_batched_merkle_tree::merkle_tree::{
     InstructionDataBatchAppendInputs, InstructionDataBatchNullifyInputs,
 };
@@ -13,9 +22,9 @@ use light_registry::account_compression_cpi::sdk::{
     create_batch_append_instruction, create_batch_nullify_instruction,
     create_batch_update_address_tree_instruction,
 };
-use solana_sdk::signature::Signer;
+use solana_sdk::{instruction::Instruction, signature::Signer};
 use tokio::{sync::mpsc, task::JoinHandle};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::{
     errors::ForesterError,
@@ -24,7 +33,7 @@ use crate::{
     },
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum BatchInstruction {
     Append(Vec<InstructionDataBatchAppendInputs>),
     Nullify(Vec<InstructionDataBatchNullifyInputs>),
@@ -37,6 +46,8 @@ pub struct TxSender<R: Rpc> {
     buffer: BTreeMap<u64, BatchInstruction>,
     zkp_batch_size: u64,
     last_seen_root: [u8; 32],
+    // Pending instructions to be batched into a single tx
+    pending_batch: Vec<(BatchInstruction, u64)>, // (instruction, seq)
 }
 
 impl<R: Rpc> TxSender<R> {
@@ -52,9 +63,26 @@ impl<R: Rpc> TxSender<R> {
             buffer: BTreeMap::new(),
             zkp_batch_size,
             last_seen_root,
+            pending_batch: Vec::with_capacity(V2_IXS_PER_TX),
         };
 
         tokio::spawn(async move { sender.run(proof_rx).await })
+    }
+
+    /// Check if we should send the pending batch now due to time pressure
+    fn should_flush_due_to_time(&self) -> bool {
+        let current_slot = self.context.slot_tracker.estimated_current_slot();
+        let forester_end = self
+            .context
+            .forester_eligibility_end_slot
+            .load(Ordering::Acquire);
+        let eligibility_end_slot = if forester_end > 0 {
+            forester_end
+        } else {
+            self.context.epoch_phases.active.end
+        };
+        let slots_remaining = eligibility_end_slot.saturating_sub(current_slot);
+        slots_remaining < MIN_SLOTS_FOR_BATCHING
     }
 
     async fn run(mut self, mut proof_rx: mpsc::Receiver<ProofResult>) -> crate::Result<usize> {
@@ -94,93 +122,144 @@ impl<R: Rpc> TxSender<R> {
 
             self.buffer.insert(result.seq, instruction);
 
+            // Process in-order proofs and batch them
             while let Some(instr) = self.buffer.remove(&self.expected_seq) {
-                let (instructions, expected_root) = match &instr {
-                    BatchInstruction::Append(proofs) => {
-                        let ix = proofs
-                            .iter()
-                            .map(|data| {
-                                Ok(create_batch_append_instruction(
-                                    self.context.authority.pubkey(),
-                                    self.context.derivation,
-                                    self.context.merkle_tree,
-                                    self.context.output_queue,
-                                    self.context.epoch,
-                                    data.try_to_vec()?,
-                                ))
-                            })
-                            .collect::<anyhow::Result<Vec<_>>>()?;
-                        (ix, proofs.last().map(|p| p.new_root))
-                    }
-                    BatchInstruction::Nullify(proofs) => {
-                        let ix = proofs
-                            .iter()
-                            .map(|data| {
-                                Ok(create_batch_nullify_instruction(
-                                    self.context.authority.pubkey(),
-                                    self.context.derivation,
-                                    self.context.merkle_tree,
-                                    self.context.epoch,
-                                    data.try_to_vec()?,
-                                ))
-                            })
-                            .collect::<anyhow::Result<Vec<_>>>()?;
-                        (ix, proofs.last().map(|p| p.new_root))
-                    }
-                    BatchInstruction::AddressAppend(proofs) => {
-                        let ix = proofs
-                            .iter()
-                            .map(|data| {
-                                Ok(create_batch_update_address_tree_instruction(
-                                    self.context.authority.pubkey(),
-                                    self.context.derivation,
-                                    self.context.merkle_tree,
-                                    self.context.epoch,
-                                    data.try_to_vec()?,
-                                ))
-                            })
-                            .collect::<anyhow::Result<Vec<_>>>()?;
-                        (ix, proofs.last().map(|p| p.new_root))
-                    }
-                };
+                let seq = self.expected_seq;
+                self.expected_seq += 1;
+                self.pending_batch.push((instr, seq));
 
-                let instr_type = match &instr {
-                    BatchInstruction::Append(_) => "Append",
-                    BatchInstruction::Nullify(_) => "Nullify",
-                    BatchInstruction::AddressAppend(_) => "AddressAppend",
-                };
+                // Send batch when:
+                // 1. We have enough instructions, OR
+                // 2. We're running low on time (epoch ending soon)
+                let should_send = self.pending_batch.len() >= V2_IXS_PER_TX
+                    || (!self.pending_batch.is_empty() && self.should_flush_due_to_time());
 
-                match send_transaction_batch(&self.context, instructions).await {
-                    Ok(sig) => {
-                        if let Some(root) = expected_root {
-                            self.last_seen_root = root;
-                        }
-                        processed += self.zkp_batch_size as usize;
-                        self.expected_seq += 1;
-                        info!(
-                            "tx sent: {} type={} root={:?} seq={} epoch={}",
-                            sig,
-                            instr_type,
-                            self.last_seen_root,
-                            self.expected_seq,
-                            self.context.epoch
-                        );
-                    }
-                    Err(e) => {
-                        warn!("tx error {} epoch {}", e, self.context.epoch);
-                        return if let Some(ForesterError::NotInActivePhase) =
-                            e.downcast_ref::<ForesterError>()
-                        {
-                            warn!("Active phase ended while sending tx, stopping sender loop");
-                            Ok(processed)
-                        } else {
-                            Err(e)
-                        };
-                    }
+                if should_send {
+                    processed += self.send_pending_batch().await?;
                 }
             }
         }
 
+        // Send any remaining instructions
+        if !self.pending_batch.is_empty() {
+            processed += self.send_pending_batch().await?;
+        }
+
         Ok(processed)
+    }
+
+    async fn send_pending_batch(&mut self) -> crate::Result<usize> {
+        if self.pending_batch.is_empty() {
+            return Ok(0);
+        }
+
+        let batch = std::mem::replace(
+            &mut self.pending_batch,
+            Vec::with_capacity(V2_IXS_PER_TX),
+        );
+
+        let batch_len = batch.len();
+        let first_seq = batch.first().map(|(_, s)| *s).unwrap_or(0);
+        let last_seq = batch.last().map(|(_, s)| *s).unwrap_or(0);
+
+        // Build all instructions for this batch
+        let mut all_instructions: Vec<Instruction> = Vec::new();
+        let mut last_root: Option<[u8; 32]> = None;
+        let mut instr_type = "";
+
+        for (instr, _seq) in &batch {
+            let (instructions, expected_root) = match instr {
+                BatchInstruction::Append(proofs) => {
+                    instr_type = "Append";
+                    let ix = proofs
+                        .iter()
+                        .map(|data| {
+                            Ok(create_batch_append_instruction(
+                                self.context.authority.pubkey(),
+                                self.context.derivation,
+                                self.context.merkle_tree,
+                                self.context.output_queue,
+                                self.context.epoch,
+                                data.try_to_vec()?,
+                            ))
+                        })
+                        .collect::<anyhow::Result<Vec<_>>>()?;
+                    (ix, proofs.last().map(|p| p.new_root))
+                }
+                BatchInstruction::Nullify(proofs) => {
+                    instr_type = "Nullify";
+                    let ix = proofs
+                        .iter()
+                        .map(|data| {
+                            Ok(create_batch_nullify_instruction(
+                                self.context.authority.pubkey(),
+                                self.context.derivation,
+                                self.context.merkle_tree,
+                                self.context.epoch,
+                                data.try_to_vec()?,
+                            ))
+                        })
+                        .collect::<anyhow::Result<Vec<_>>>()?;
+                    (ix, proofs.last().map(|p| p.new_root))
+                }
+                BatchInstruction::AddressAppend(proofs) => {
+                    instr_type = "AddressAppend";
+                    let ix = proofs
+                        .iter()
+                        .map(|data| {
+                            Ok(create_batch_update_address_tree_instruction(
+                                self.context.authority.pubkey(),
+                                self.context.derivation,
+                                self.context.merkle_tree,
+                                self.context.epoch,
+                                data.try_to_vec()?,
+                            ))
+                        })
+                        .collect::<anyhow::Result<Vec<_>>>()?;
+                    (ix, proofs.last().map(|p| p.new_root))
+                }
+            };
+
+            all_instructions.extend(instructions);
+            if let Some(root) = expected_root {
+                last_root = Some(root);
+            }
+        }
+
+        debug!(
+            "Sending batched tx with {} instructions (seq {}..{})",
+            all_instructions.len(),
+            first_seq,
+            last_seq
+        );
+
+        match send_transaction_batch(&self.context, all_instructions).await {
+            Ok(sig) => {
+                if let Some(root) = last_root {
+                    self.last_seen_root = root;
+                }
+                let items_processed = batch_len * self.zkp_batch_size as usize;
+                info!(
+                    "tx sent: {} type={} ixs={} root={:?} seq={}..{} epoch={}",
+                    sig,
+                    instr_type,
+                    batch_len,
+                    &self.last_seen_root[..4],
+                    first_seq,
+                    last_seq,
+                    self.context.epoch
+                );
+                Ok(items_processed)
+            }
+            Err(e) => {
+                warn!("tx error {} epoch {}", e, self.context.epoch);
+                if let Some(ForesterError::NotInActivePhase) = e.downcast_ref::<ForesterError>() {
+                    warn!("Active phase ended while sending tx, stopping sender loop");
+                    Ok(0)
+                } else {
+                    Err(e)
+                }
+            }
+        }
     }
 }

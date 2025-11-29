@@ -18,7 +18,7 @@ use borsh::BorshSerialize;
 use create_address_test_program::create_invoke_cpi_instruction;
 use forester::{
     config::{ExternalServicesConfig, GeneralConfig, RpcPoolConfig, TransactionConfig},
-    epoch_manager::WorkReport,
+    epoch_manager::{ProcessingMetrics, WorkReport},
     run_pipeline,
     utils::get_protocol_config,
     ForesterConfig,
@@ -865,43 +865,75 @@ async fn performance_test_prefilled_queues() {
     };
 
     let protocol_config = get_protocol_config(&mut rpc).await;
-    let registration_slot = get_registration_phase_start_slot(&mut rpc, &protocol_config).await;
-    wait_for_slot(&mut rpc, registration_slot).await;
 
-    // Get active phase slot before starting forester
-    let active_slot = get_active_phase_start_slot(&mut rpc, &protocol_config).await;
-    println!("Active phase starts at slot {}", active_slot);
+    // Get active phase slot for an epoch with enough time remaining
+    // We need at least 100 slots to complete processing (queue size / throughput)
+    let active_slot = get_next_active_phase_with_time(&mut rpc, &protocol_config, 100).await;
+    let current_slot = rpc.get_slot().await.unwrap();
+    println!(
+        "Current slot: {}, Active phase starts at slot {}",
+        current_slot, active_slot
+    );
 
     // Wait until just before active phase to start forester
     // This ensures we capture the full processing time
-    println!("Waiting until slot {} to start forester...", active_slot.saturating_sub(5));
+    println!(
+        "Waiting until slot {} to start forester...",
+        active_slot.saturating_sub(5)
+    );
     wait_for_slot(&mut rpc, active_slot.saturating_sub(5)).await;
 
     let (service_handle, shutdown_sender, shutdown_compressible_sender, shutdown_bootstrap_sender, mut work_report_receiver) =
         setup_forester_pipeline(&config).await;
 
-    // Start timer from forester pipeline start
-    let pipeline_start = Instant::now();
-    println!("⏱️  TIMER STARTED - Forester pipeline started");
+    println!("Forester pipeline started, waiting for first work report...");
 
     // Wait for active phase
     wait_for_slot(&mut rpc, active_slot).await;
-    let active_phase_reached = pipeline_start.elapsed();
-    println!("✓ Active phase reached at {:?}", active_phase_reached);
+    println!("✓ Active phase started at slot {}", active_slot);
 
-    // Monitor work reports
+    // Monitor work reports - use ProcessingMetrics from reports
     let mut total_processed = 0;
+    let mut total_metrics = ProcessingMetrics::default();
     let mut last_report_time = Instant::now();
 
     let timeout_duration = Duration::from_secs(DEFAULT_TIMEOUT_SECONDS);
     let _result = timeout(timeout_duration, async {
         while let Some(report) = work_report_receiver.recv().await {
-            total_processed += report.processed_items;
+            println!(
+                "Work report: epoch={} items={} total={:?}",
+                report.epoch,
+                report.processed_items,
+                report.metrics.total()
+            );
+            println!(
+                "  Append:  circuit={:?}, proof={:?}",
+                report.metrics.append.circuit_inputs_duration,
+                report.metrics.append.proof_generation_duration
+            );
+            println!(
+                "  Nullify: circuit={:?}, proof={:?}",
+                report.metrics.nullify.circuit_inputs_duration,
+                report.metrics.nullify.proof_generation_duration
+            );
+            println!(
+                "  Address: circuit={:?}, proof={:?}",
+                report.metrics.address_append.circuit_inputs_duration,
+                report.metrics.address_append.proof_generation_duration
+            );
+
+            // Track cumulative values from reports with actual work
+            if report.processed_items > 0 {
+                total_processed = total_processed.max(report.processed_items);
+                // Accumulate metrics (AddAssign handles the accumulation)
+                total_metrics += report.metrics;
+            }
 
             if last_report_time.elapsed() > Duration::from_secs(5) {
-                let elapsed = pipeline_start.elapsed();
-                println!("Progress: {} items processed in {:?}", total_processed, elapsed);
-                println!("  Throughput: {:.2} items/s", total_processed as f64 / elapsed.as_secs_f64());
+                println!(
+                    "Progress: {} items in {:?}",
+                    total_processed, total_metrics.total()
+                );
                 last_report_time = Instant::now();
             }
 
@@ -916,9 +948,7 @@ async fn performance_test_prefilled_queues() {
     })
     .await;
 
-    let total_elapsed = pipeline_start.elapsed();
-    // Processing time = total time - time waiting for active phase
-    let processing_time = total_elapsed.saturating_sub(active_phase_reached);
+    let processing_time = total_metrics.total();
 
     // FINAL RESULTS
     // State queue breakdown:
@@ -930,14 +960,32 @@ async fn performance_test_prefilled_queues() {
     let address_items = 100;
 
     println!("\n=== PERFORMANCE TEST RESULTS ===");
-    println!("Total elapsed time: {:?}", total_elapsed);
-    println!("  Time to active phase: {:?}", active_phase_reached);
-    println!("  Processing time: {:?}", processing_time);
-    println!("Total items processed: {}", total_processed);
+    println!("Total processing time: {:?}", processing_time);
+    println!("\n--- Phase Breakdown by Circuit Type ---");
+    println!("  Append (state output queue):");
+    println!("    Circuit inputs: {:?}", total_metrics.append.circuit_inputs_duration);
+    println!("    Proof gen:      {:?}", total_metrics.append.proof_generation_duration);
+    println!("    Total:          {:?}", total_metrics.append.total());
+    println!("  Nullify (state input queue):");
+    println!("    Circuit inputs: {:?}", total_metrics.nullify.circuit_inputs_duration);
+    println!("    Proof gen:      {:?}", total_metrics.nullify.proof_generation_duration);
+    println!("    Total:          {:?}", total_metrics.nullify.total());
+    println!("  AddressAppend:");
+    println!("    Circuit inputs: {:?}", total_metrics.address_append.circuit_inputs_duration);
+    println!("    Proof gen:      {:?}", total_metrics.address_append.proof_generation_duration);
+    println!("    Total:          {:?}", total_metrics.address_append.total());
+    println!("\n--- Totals ---");
+    println!("  Total circuit inputs: {:?} ({:.1}%)",
+             total_metrics.total_circuit_inputs(),
+             100.0 * total_metrics.total_circuit_inputs().as_secs_f64() / processing_time.as_secs_f64().max(0.001));
+    println!("  Total proof gen:      {:?} ({:.1}%)",
+             total_metrics.total_proof_generation(),
+             100.0 * total_metrics.total_proof_generation().as_secs_f64() / processing_time.as_secs_f64().max(0.001));
+    println!("\nTotal items processed: {}", total_processed);
     println!("  State output items: {}", state_output_items);
     println!("  State input items: {}", state_input_items);
     println!("  Address items: {}", address_items);
-    println!("\nThroughput (items/second, based on processing time):");
+    println!("\nThroughput (items/second, based on total processing time):");
     let processing_secs = processing_time.as_secs_f64();
     if processing_secs > 0.0 {
         println!("  Overall: {:.2} items/second", total_processed as f64 / processing_secs);

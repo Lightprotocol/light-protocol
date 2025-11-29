@@ -8,8 +8,11 @@ use async_trait::async_trait;
 use light_client::rpc::Rpc;
 use solana_sdk::pubkey::Pubkey;
 use std::sync::atomic::Ordering;
+use std::time::Instant;
 use tokio::sync::mpsc;
 use tracing::{debug, info, trace, warn};
+
+use crate::epoch_manager::{CircuitMetrics, ProcessingMetrics};
 
 use crate::processor::v2::{
     common::{ensure_worker_pool, WorkerPool},
@@ -24,6 +27,14 @@ use crate::processor::v2::{
 // Strategy Trait - Tree-Specific Operations
 // ============================================================================
 
+/// Circuit type for metrics tracking
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CircuitType {
+    Append,
+    Nullify,
+    AddressAppend,
+}
+
 /// Strategy for tree-specific batch processing operations.
 ///
 /// This trait encapsulates the differences between state and address tree processing,
@@ -35,6 +46,9 @@ pub trait TreeStrategy<R: Rpc>: Send + Sync + std::fmt::Debug {
 
     /// Name of this strategy (for logging)
     fn name(&self) -> &'static str;
+
+    /// Returns the circuit type for metrics tracking
+    fn circuit_type(&self, queue_data: &Self::StagingTree) -> CircuitType;
 
     /// Fetches the zkp batch size from on-chain configuration
     async fn fetch_zkp_batch_size(&self, context: &BatchContext<R>) -> crate::Result<u64>;
@@ -67,6 +81,13 @@ pub struct QueueData<T> {
     pub staging_tree: T,
     pub initial_root: [u8; 32],
     pub num_batches: usize,
+}
+
+/// Result of processing a queue update, including timing breakdown
+#[derive(Debug, Clone, Default)]
+pub struct ProcessingResult {
+    pub items_processed: usize,
+    pub metrics: ProcessingMetrics,
 }
 
 // ============================================================================
@@ -130,7 +151,7 @@ impl<R: Rpc, S: TreeStrategy<R>> UnifiedBatchProcessor<R, S> {
     }
 
     /// Processes a queue update using the strategy pattern.
-    pub async fn process_queue_update(&mut self, queue_work: QueueWork) -> crate::Result<usize> {
+    pub async fn process_queue_update(&mut self, queue_work: QueueWork) -> crate::Result<ProcessingResult> {
         debug!(
             "UnifiedBatchProcessor[{}] processing queue update for tree {}",
             self.strategy.name(),
@@ -139,7 +160,7 @@ impl<R: Rpc, S: TreeStrategy<R>> UnifiedBatchProcessor<R, S> {
 
         // Validate queue work
         if !self.strategy.validate_queue_work(&queue_work) {
-            return Ok(0);
+            return Ok(ProcessingResult::default());
         }
 
         // Check batch size threshold
@@ -149,7 +170,7 @@ impl<R: Rpc, S: TreeStrategy<R>> UnifiedBatchProcessor<R, S> {
                 queue_work.queue_size,
                 self.zkp_batch_size
             );
-            return Ok(0);
+            return Ok(ProcessingResult::default());
         }
 
         // Calculate max_batches with upper bound to prevent resource exhaustion
@@ -184,7 +205,7 @@ impl<R: Rpc, S: TreeStrategy<R>> UnifiedBatchProcessor<R, S> {
             .await?
         {
             Some(data) => data,
-            None => return Ok(0),
+            None => return Ok(ProcessingResult::default()),
         };
 
         // Process batches
@@ -219,7 +240,7 @@ impl<R: Rpc, S: TreeStrategy<R>> UnifiedBatchProcessor<R, S> {
     async fn process_batches(
         &mut self,
         mut queue_data: QueueData<S::StagingTree>,
-    ) -> crate::Result<usize> {
+    ) -> crate::Result<ProcessingResult> {
         self.current_root = queue_data.initial_root;
         let num_batches = queue_data.num_batches;
 
@@ -234,6 +255,9 @@ impl<R: Rpc, S: TreeStrategy<R>> UnifiedBatchProcessor<R, S> {
 
         // Reset sequence counter
         self.seq = 0;
+
+        // Track proof generation start time (workers will run after we enqueue)
+        let proof_gen_start = Instant::now();
 
         // Spawn transaction sender
         let tx_sender_handle = TxSender::spawn(
@@ -250,15 +274,17 @@ impl<R: Rpc, S: TreeStrategy<R>> UnifiedBatchProcessor<R, S> {
             .job_tx
             .clone();
 
-        // Generate and enqueue proof jobs
+        // Generate and enqueue proof jobs - measure circuit inputs time
+        let circuit_inputs_start = Instant::now();
         let jobs_sent = self
             .enqueue_jobs(&mut queue_data, num_batches, job_tx, proof_tx.clone())
             .await?;
+        let circuit_inputs_duration = circuit_inputs_start.elapsed();
 
         // Signal completion
         drop(proof_tx);
 
-        // Wait for transaction processing
+        // Wait for transaction processing (this includes proof generation + tx sending)
         let tx_processed = tx_sender_handle
             .await
             .map_err(|e| anyhow!("Tx sender join error: {}", e))
@@ -270,6 +296,14 @@ impl<R: Rpc, S: TreeStrategy<R>> UnifiedBatchProcessor<R, S> {
                 );
             })?;
 
+        // Total time from proof gen start to completion
+        let total_proof_and_tx_time = proof_gen_start.elapsed();
+
+        // Estimate proof generation time as (total - circuit_inputs)
+        // This is an approximation since proof gen and tx sending overlap
+        // But for practical purposes, most of the time is proof generation
+        let proof_generation_duration = total_proof_and_tx_time.saturating_sub(circuit_inputs_duration);
+
         if tx_processed < jobs_sent * self.zkp_batch_size as usize {
             debug!(
                 "Processed {} items but expected {}, some proofs may have failed",
@@ -278,7 +312,29 @@ impl<R: Rpc, S: TreeStrategy<R>> UnifiedBatchProcessor<R, S> {
             );
         }
 
-        Ok(tx_processed)
+        // Build circuit-specific metrics
+        let circuit_type = self.strategy.circuit_type(&queue_data.staging_tree);
+        let circuit_metrics = CircuitMetrics {
+            circuit_inputs_duration,
+            proof_generation_duration,
+        };
+
+        let mut metrics = ProcessingMetrics::default();
+        match circuit_type {
+            CircuitType::Append => metrics.append = circuit_metrics,
+            CircuitType::Nullify => metrics.nullify = circuit_metrics,
+            CircuitType::AddressAppend => metrics.address_append = circuit_metrics,
+        }
+
+        info!(
+            "Batch processing complete: {} items, {:?}, circuit={:?}, proof={:?}",
+            tx_processed, circuit_type, circuit_inputs_duration, proof_generation_duration
+        );
+
+        Ok(ProcessingResult {
+            items_processed: tx_processed,
+            metrics,
+        })
     }
 
     async fn enqueue_jobs(

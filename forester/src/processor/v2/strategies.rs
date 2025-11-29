@@ -22,7 +22,7 @@ use crate::processor::v2::{
         },
         proof_worker::ProofInput,
     },
-    unified::{QueueData, TreeStrategy},
+    unified::{CircuitType, QueueData, TreeStrategy},
     BatchContext, QueueWork,
 };
 
@@ -60,6 +60,13 @@ impl<R: Rpc> TreeStrategy<R> for StateTreeStrategy {
 
     fn name(&self) -> &'static str {
         "State"
+    }
+
+    fn circuit_type(&self, queue_data: &Self::StagingTree) -> CircuitType {
+        match queue_data.phase {
+            StatePhase::Append => CircuitType::Append,
+            StatePhase::Nullify => CircuitType::Nullify,
+        }
     }
 
     async fn fetch_zkp_batch_size(&self, context: &BatchContext<R>) -> crate::Result<u64> {
@@ -302,6 +309,10 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
 
     fn name(&self) -> &'static str {
         "Address"
+    }
+
+    fn circuit_type(&self, _queue_data: &Self::StagingTree) -> CircuitType {
+        CircuitType::AddressAppend
     }
 
     async fn fetch_zkp_batch_size(&self, context: &BatchContext<R>) -> crate::Result<u64> {

@@ -11,7 +11,7 @@ use crate::Result;
 
 // Export unified architecture
 pub use strategies::{AddressTreeStrategy, StateTreeStrategy};
-pub use unified::UnifiedBatchProcessor;
+pub use unified::{ProcessingResult, UnifiedBatchProcessor};
 
 #[instrument(
     level = "debug",
