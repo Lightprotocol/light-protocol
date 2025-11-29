@@ -13,15 +13,6 @@ import {
     TreeType,
     CompressedAccountLegacy,
 } from '../../state';
-import {
-    struct,
-    publicKey,
-    u64,
-    option,
-    vecU8,
-    u8,
-    Layout,
-} from '@coral-xyz/borsh';
 
 type TokenData = {
     mint: PublicKey;
@@ -31,16 +22,6 @@ type TokenData = {
     state: number;
     tlv: Buffer | null;
 };
-
-// for test-rpc
-export const TokenDataLayout: Layout<TokenData> = struct([
-    publicKey('mint'),
-    publicKey('owner'),
-    u64('amount'),
-    option(publicKey(), 'delegate'),
-    u8('state'),
-    option(vecU8(), 'tlv'),
-]);
 
 export type EventWithParsedTokenTlvData = {
     inputCompressedAccountHashes: number[][];
@@ -67,9 +48,49 @@ export function parseTokenLayoutWithIdl(
             `Invalid owner ${compressedAccount.owner.toBase58()} for token layout`,
         );
     }
+
     try {
-        const decoded = TokenDataLayout.decode(Buffer.from(data));
-        return decoded;
+        const buffer = Buffer.from(data);
+        let offset = 0;
+
+        // mint: 32 bytes
+        const mint = new PublicKey(buffer.slice(offset, offset + 32));
+        offset += 32;
+
+        // owner: 32 bytes
+        const owner = new PublicKey(buffer.slice(offset, offset + 32));
+        offset += 32;
+
+        // amount: 8 bytes (u64 little-endian)
+        const amount = new BN(buffer.slice(offset, offset + 8), 'le');
+        offset += 8;
+
+        // delegate: Option<Pubkey> - fixed size: 1 byte discriminator + 32 bytes pubkey
+        const delegateOption = buffer[offset];
+        offset += 1;
+        const delegate = delegateOption
+            ? new PublicKey(buffer.slice(offset, offset + 32))
+            : null;
+        offset += 32;
+
+        // state: 1 byte
+        const state = buffer[offset];
+        offset += 1;
+
+        // TODO: come back with extensions
+        // tlv: Option<Vec<u8>> - 1 byte discriminator, then rest is tlv data
+        const tlvOption = buffer[offset];
+        offset += 1;
+        const tlv = tlvOption ? buffer.slice(offset) : null;
+
+        return {
+            mint,
+            owner,
+            amount,
+            delegate,
+            state,
+            tlv,
+        };
     } catch (error) {
         console.error('Decoding error:', error);
         throw error;
