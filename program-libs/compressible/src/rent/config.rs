@@ -8,7 +8,8 @@ pub const COMPRESSION_INCENTIVE: u16 = 1000;
 
 pub const BASE_RENT: u16 = 128;
 pub const RENT_PER_BYTE: u8 = 1;
-pub const SLOTS_PER_EPOCH: u64 = 6300; // 1.75h
+// Epoch duration: 1.5 hours, 90 minutes * 60 seconds / 0.4 seconds per slot = 13,500 slots per epoch
+pub const SLOTS_PER_EPOCH: u64 = 13500;
 
 /// Trait for accessing rent configuration parameters.
 ///

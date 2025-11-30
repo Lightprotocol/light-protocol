@@ -21,8 +21,8 @@ impl Default for CompressibleParams {
         Self {
             compressible_config: COMPRESSIBLE_CONFIG_V1,
             rent_sponsor: RENT_SPONSOR,
-            pre_pay_num_epochs: 2,
-            lamports_per_write: Some(100),
+            pre_pay_num_epochs: 16,
+            lamports_per_write: Some(766),
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
         }
@@ -30,12 +30,8 @@ impl Default for CompressibleParams {
 }
 
 impl CompressibleParams {
-    pub fn new(lamports_per_write: u32, pre_pay_num_epochs: u8) -> Self {
-        Self {
-            lamports_per_write: Some(lamports_per_write),
-            pre_pay_num_epochs,
-            ..Default::default()
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn compress_to_pubkey(mut self, compress_to: CompressToPubkey) -> Self {
@@ -43,6 +39,7 @@ impl CompressibleParams {
         self
     }
 }
+
 pub struct CompressibleParamsInfos<'info> {
     pub compressible_config: AccountInfo<'info>,
     pub rent_sponsor: AccountInfo<'info>,
@@ -55,8 +52,6 @@ pub struct CompressibleParamsInfos<'info> {
 
 impl<'info> CompressibleParamsInfos<'info> {
     pub fn new(
-        pre_pay_num_epochs: u8,
-        lamports_per_write: u32,
         compressible_config: AccountInfo<'info>,
         rent_sponsor: AccountInfo<'info>,
         system_program: AccountInfo<'info>,
@@ -65,8 +60,8 @@ impl<'info> CompressibleParamsInfos<'info> {
             compressible_config,
             rent_sponsor,
             system_program,
-            pre_pay_num_epochs,
-            lamports_per_write: Some(lamports_per_write),
+            pre_pay_num_epochs: CompressibleParams::default().pre_pay_num_epochs,
+            lamports_per_write: CompressibleParams::default().lamports_per_write,
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
         }

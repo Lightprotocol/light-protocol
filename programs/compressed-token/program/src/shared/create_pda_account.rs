@@ -32,7 +32,7 @@ use crate::{shared::convert_program_error, LIGHT_CPI_SIGNER};
 ///
 /// ## Parameters
 /// - `configs`: ArrayVec of PDA configs. First config is for the new account being created.
-///              Additional configs are for fee payer PDAs that need to sign.
+///   Additional configs are for fee payer PDAs that need to sign.
 #[profile]
 pub fn create_pda_account<const N: usize>(
     fee_payer: &AccountInfo,
