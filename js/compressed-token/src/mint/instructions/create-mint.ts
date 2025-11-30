@@ -20,6 +20,7 @@ import {
     MintActionCompressedInstructionData,
     TokenMetadataInstructionData as TokenMetadataBorshData,
 } from './mint-action-layout';
+import { TokenDataVersion } from '../../constants';
 
 /**
  * Token metadata for creating a compressed mint
@@ -109,7 +110,7 @@ function encodeCreateMintInstructionData(
             supply: BigInt(0),
             decimals: params.decimals,
             metadata: {
-                version: 3,
+                version: TokenDataVersion.ShaFlat,
                 splMintInitialized: false,
                 mint: splMintPda,
             },

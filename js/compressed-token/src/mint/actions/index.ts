@@ -8,4 +8,6 @@ export * from './mint-to';
 export * from './mint-to-compressed';
 export * from './mint-to-interface';
 export * from './get-or-create-ata-interface';
+export * from './transfer-interface';
+export * from './decompress2';
 export * from './wrap';

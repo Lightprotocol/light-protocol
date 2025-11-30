@@ -19,6 +19,7 @@ import {
     encodeMintActionInstructionData,
     MintActionCompressedInstructionData,
 } from './mint-action-layout';
+import { TokenDataVersion } from '../../constants';
 
 interface EncodeCompressedMintToInstructionParams {
     addressTree: PublicKey;
@@ -95,7 +96,7 @@ export interface CreateMintToCompressedInstructionParams {
     outputQueue: PublicKey;
     tokensOutQueue: PublicKey;
     recipients: Array<{ recipient: PublicKey; amount: number | bigint }>;
-    tokenAccountVersion?: number;
+    tokenAccountVersion?: TokenDataVersion;
 }
 
 /**
@@ -109,7 +110,7 @@ export interface CreateMintToCompressedInstructionParams {
  * @param outputQueue         Output queue for state changes.
  * @param tokensOutQueue      Queue for token outputs.
  * @param recipients          Array of recipients with amounts.
- * @param tokenAccountVersion Token account version (default: 3).
+ * @param tokenAccountVersion Token account version (default: TokenDataVersion.ShaFlat).
  */
 export function createMintToCompressedInstruction(
     authority: PublicKey,
@@ -120,7 +121,7 @@ export function createMintToCompressedInstruction(
     outputQueue: PublicKey,
     tokensOutQueue: PublicKey,
     recipients: Array<{ recipient: PublicKey; amount: number | bigint }>,
-    tokenAccountVersion: number = 3,
+    tokenAccountVersion: TokenDataVersion = TokenDataVersion.ShaFlat,
 ): TransactionInstruction {
     const addressTreeInfo = getDefaultAddressTreeInfo();
     const data = encodeCompressedMintToInstructionData({
