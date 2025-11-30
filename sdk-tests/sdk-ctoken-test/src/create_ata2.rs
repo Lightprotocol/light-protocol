@@ -33,8 +33,6 @@ pub fn process_create_ata2_invoke(
     }
 
     let compressible_params = CompressibleParamsInfos::new(
-        data.pre_pay_num_epochs,
-        data.lamports_per_write,
         accounts[5].clone(),
         accounts[6].clone(),
         accounts[4].clone(),
@@ -82,8 +80,6 @@ pub fn process_create_ata2_invoke_signed(
     }
 
     let compressible_params = CompressibleParamsInfos::new(
-        data.pre_pay_num_epochs,
-        data.lamports_per_write,
         accounts[5].clone(),
         accounts[6].clone(),
         accounts[4].clone(),

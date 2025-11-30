@@ -34,8 +34,6 @@ pub fn process_create_ata_invoke(
 
     // Build the compressible params using constructor
     let compressible_params = CompressibleParamsInfos::new(
-        data.pre_pay_num_epochs,
-        data.lamports_per_write,
         accounts[3].clone(),
         accounts[4].clone(),
         accounts[2].clone(),
@@ -82,8 +80,6 @@ pub fn process_create_ata_invoke_signed(
 
     // Build the compressible params using constructor
     let compressible_params = CompressibleParamsInfos::new(
-        data.pre_pay_num_epochs,
-        data.lamports_per_write,
         accounts[3].clone(),
         accounts[4].clone(),
         accounts[2].clone(),

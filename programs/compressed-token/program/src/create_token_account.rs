@@ -97,9 +97,9 @@ impl<'info> CreateCTokenAccounts<'info> {
 
 #[profile]
 #[inline(always)]
-pub fn parse_config_account<'info>(
-    config_account: &'info AccountInfo,
-) -> Result<&'info CompressibleConfig, ProgramError> {
+pub fn parse_config_account(
+    config_account: &AccountInfo,
+) -> Result<&CompressibleConfig, ProgramError> {
     // Validate config account owner
     check_owner(
         &pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX").to_bytes(),
