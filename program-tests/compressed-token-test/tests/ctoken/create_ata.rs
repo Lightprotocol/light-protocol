@@ -282,6 +282,7 @@ async fn test_create_ata_failing() {
             lamports_per_write: Some(1000),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
         };
 
         let create_ata_ix = CreateAssociatedTokenAccount::new(
@@ -333,6 +334,7 @@ async fn test_create_ata_failing() {
                 token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat as u8,
                 rent_payment: 2,
                 has_top_up: 1,
+                compression_only: 0,
                 write_top_up: 100,
                 compress_to_account_pubkey: Some(compress_to_pubkey), // Forbidden for ATAs!
             }),
@@ -399,6 +401,7 @@ async fn test_create_ata_failing() {
                 token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat as u8,
                 rent_payment: 2,
                 has_top_up: 1,
+                compression_only: 0,
                 write_top_up: 100,
                 compress_to_account_pubkey: None,
             }),
@@ -459,6 +462,7 @@ async fn test_create_ata_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
         };
 
         let create_ata_ix = CreateAssociatedTokenAccount::new(
@@ -497,6 +501,7 @@ async fn test_create_ata_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
         };
 
         let create_ata_ix = CreateAssociatedTokenAccount::new(
@@ -616,6 +621,7 @@ async fn test_ata_multiple_owners_same_mint() {
         lamports_per_write: Some(100),
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let create_ata_ix1 =

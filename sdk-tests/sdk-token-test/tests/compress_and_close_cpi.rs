@@ -93,6 +93,7 @@ async fn setup_compress_and_close_test(
                 lamports_per_write: None,
                 compress_to_account_pubkey: None,
                 token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+                compression_only: false,
             }
         } else {
             CompressibleParams::default()

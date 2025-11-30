@@ -2,9 +2,12 @@ use anchor_lang::prelude::ProgramError;
 use borsh::BorshDeserialize;
 use light_account_checks::AccountIterator;
 use light_compressible::config::CompressibleConfig;
-use light_ctoken_types::instructions::{
-    create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
-    extensions::compressible::CompressibleExtensionInstructionData,
+use light_ctoken_types::{
+    calculate_ctoken_account_size,
+    instructions::{
+        create_associated_token_account::CreateAssociatedTokenAccountInstructionData,
+        extensions::compressible::CompressibleExtensionInstructionData,
+    },
 };
 use light_program_profiler::profile;
 use pinocchio::{account_info::AccountInfo, instruction::Seed, pubkey::Pubkey};
@@ -12,10 +15,11 @@ use spl_pod::solana_msg::msg;
 
 use crate::{
     create_token_account::next_config_account,
+    extensions::{has_mint_extensions, MintExtensionFlags},
     shared::{
         convert_program_error, create_pda_account,
-        initialize_ctoken_account::initialize_ctoken_account, transfer_lamports_via_cpi,
-        validate_ata_derivation,
+        initialize_ctoken_account::{initialize_ctoken_account, CTokenInitConfig},
+        transfer_lamports_via_cpi, validate_ata_derivation,
     },
 };
 
@@ -59,6 +63,7 @@ pub(crate) fn process_create_associated_token_account_with_mode<const IDEMPOTENT
         &instruction_inputs.mint.to_bytes(),
         instruction_inputs.bump,
         instruction_inputs.compressible_config,
+        None, // No mint account available in create_ata (owner/mint passed as bytes)
     )
 }
 
@@ -71,6 +76,8 @@ pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bo
     mint_bytes: &[u8; 32],
     bump: u8,
     compressible_config: Option<CompressibleExtensionInstructionData>,
+    // Optional mint account for checking pausable extension (used by create_ata2)
+    mint_account: Option<&AccountInfo>,
 ) -> Result<(), ProgramError> {
     let mut iter = AccountIterator::new(account_infos);
 
@@ -93,11 +100,25 @@ pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bo
         return Err(ProgramError::IllegalOwner);
     }
 
-    let token_account_size = if compressible_config.is_some() {
-        light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE as usize
+    // Check which extensions the mint has (single deserialization, only if mint account is provided)
+    let mint_extensions = if let Some(mint) = mint_account {
+        if compressible_config.is_some() {
+            has_mint_extensions(mint)?
+        } else {
+            MintExtensionFlags::default()
+        }
     } else {
-        light_ctoken_types::BASE_TOKEN_ACCOUNT_SIZE as usize
+        MintExtensionFlags::default()
     };
+
+    let has_compressible = compressible_config.is_some();
+    let token_account_size = calculate_ctoken_account_size(
+        has_compressible,
+        mint_extensions.has_pausable,
+        mint_extensions.has_permanent_delegate,
+        mint_extensions.has_transfer_fee,
+        mint_extensions.has_transfer_hook,
+    ) as usize;
 
     let (compressible_config_account, custom_rent_payer) =
         if let Some(compressible_config_ix_data) = compressible_config.as_ref() {
@@ -136,11 +157,14 @@ pub(crate) fn process_create_associated_token_account_inner<const IDEMPOTENT: bo
 
     initialize_ctoken_account(
         associated_token_account,
-        mint_bytes,
-        owner_bytes,
-        compressible_config,
-        compressible_config_account,
-        custom_rent_payer,
+        CTokenInitConfig {
+            mint: mint_bytes,
+            owner: owner_bytes,
+            compressible: compressible_config,
+            compressible_config_account,
+            custom_rent_payer,
+            mint_extensions,
+        },
     )?;
     Ok(())
 }

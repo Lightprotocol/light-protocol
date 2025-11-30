@@ -1,6 +1,6 @@
 use account_compression::utils::constants::CPI_AUTHORITY_PDA_SEED;
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{Mint, TokenAccount, TokenInterface};
+use anchor_spl::token_interface::{TokenAccount, TokenInterface};
 use spl_token_2022::{
     extension::{BaseStateWithExtensions, ExtensionType, PodStateWithExtensions},
     pod::PodMint,
@@ -12,30 +12,71 @@ use crate::{
 };
 
 /// Creates an SPL or token-2022 token pool account, which is owned by the token authority PDA.
+/// We use manual token account initialization via CPI instead of Anchor's `token::mint` constraint
+/// because Anchor's constraint internally deserializes the mint account, which fails for Token 2022
+/// mints with variable-length extensions like ConfidentialTransferMint.
 #[derive(Accounts)]
 pub struct CreateTokenPoolInstruction<'info> {
     /// UNCHECKED: only pays fees.
     #[account(mut)]
     pub fee_payer: Signer<'info>,
+    /// CHECK: Token pool account. Initialized manually via CPI because Anchor's token::mint
+    /// constraint cannot handle Token 2022 mints with variable-length extensions.
     #[account(
         init,
-        seeds = [
-        POOL_SEED, &mint.key().to_bytes(),
-        ],
+        seeds = [POOL_SEED, &mint.key().to_bytes()],
         bump,
         payer = fee_payer,
-          token::mint = mint,
-          token::authority = cpi_authority_pda,
+        space = get_token_account_space(&mint)?,
+        owner = token_program.key(),
     )]
-    pub token_pool_pda: InterfaceAccount<'info, TokenAccount>,
+    pub token_pool_pda: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
-    /// CHECK: is mint account.
-    #[account(mut)]
-    pub mint: InterfaceAccount<'info, Mint>,
+    /// CHECK: Mint account. We use AccountInfo instead of InterfaceAccount<Mint> because
+    /// Anchor's InterfaceAccount cannot deserialize Token 2022 mints with variable-length
+    /// extensions like ConfidentialTransferMint. The mint is validated manually using
+    /// PodStateWithExtensions<PodMint>::unpack() in assert_mint_extensions().
+    #[account(owner = token_program.key())]
+    pub mint: AccountInfo<'info>,
     pub token_program: Interface<'info, TokenInterface>,
     /// CHECK: (seeds anchor constraint).
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]
     pub cpi_authority_pda: AccountInfo<'info>,
+}
+
+/// Calculates the space needed for a token account based on the mint's extensions.
+pub fn get_token_account_space(mint: &AccountInfo) -> Result<usize> {
+    let mint_data = mint.try_borrow_data()?;
+    let mint_state = PodStateWithExtensions::<PodMint>::unpack(&mint_data)
+        .map_err(|_| crate::ErrorCode::InvalidMint)?;
+    let extensions = mint_state.get_extension_types().unwrap_or_default();
+    ExtensionType::try_calculate_account_len::<spl_token_2022::state::Account>(&extensions)
+        .map_err(|_| crate::ErrorCode::InvalidMint.into())
+}
+
+/// Initializes a token account via CPI to the token program.
+pub fn initialize_token_account<'info>(
+    token_account: &AccountInfo<'info>,
+    mint: &AccountInfo<'info>,
+    authority: &AccountInfo<'info>,
+    token_program: &AccountInfo<'info>,
+) -> Result<()> {
+    let ix = spl_token_2022::instruction::initialize_account3(
+        token_program.key,
+        token_account.key,
+        mint.key,
+        authority.key,
+    )?;
+    anchor_lang::solana_program::program::invoke(
+        &ix,
+        &[
+            token_account.clone(),
+            mint.clone(),
+            authority.clone(),
+            token_program.clone(),
+        ],
+    )?;
+    Ok(())
 }
 
 pub fn get_token_pool_pda(mint: &Pubkey) -> Pubkey {
@@ -56,7 +97,9 @@ pub fn get_token_pool_pda_with_index(mint: &Pubkey, token_pool_index: u8) -> Pub
     find_token_pool_pda_with_index(mint, token_pool_index).0
 }
 
-const ALLOWED_EXTENSION_TYPES: [ExtensionType; 7] = [
+/// Allowed mint extension types for CToken accounts.
+/// Extensions not in this list will cause account creation to fail.
+pub const ALLOWED_EXTENSION_TYPES: [ExtensionType; 18] = [
     ExtensionType::MetadataPointer,
     ExtensionType::TokenMetadata,
     ExtensionType::InterestBearingConfig,
@@ -64,6 +107,18 @@ const ALLOWED_EXTENSION_TYPES: [ExtensionType; 7] = [
     ExtensionType::GroupMemberPointer,
     ExtensionType::TokenGroup,
     ExtensionType::TokenGroupMember,
+    // Token 2022 extensions for advanced features
+    ExtensionType::MintCloseAuthority,
+    ExtensionType::TransferFeeConfig,
+    ExtensionType::DefaultAccountState,
+    ExtensionType::PermanentDelegate,
+    ExtensionType::TransferHook,
+    ExtensionType::Pausable,
+    ExtensionType::ConfidentialTransferMint,
+    ExtensionType::ConfidentialTransferFeeConfig,
+    ExtensionType::ConfidentialMintBurn,
+    ExtensionType::ScaledUiAmount,
+    ExtensionType::NonTransferable,
 ];
 
 pub fn assert_mint_extensions(account_data: &[u8]) -> Result<()> {
@@ -78,29 +133,35 @@ pub fn assert_mint_extensions(account_data: &[u8]) -> Result<()> {
     Ok(())
 }
 
-/// Creates an SPL or token-2022 token pool account, which is owned by the token authority PDA.
+/// Creates an additional SPL or token-2022 token pool account, which is owned by the token authority PDA.
+/// We use manual token account initialization via CPI instead of Anchor's `token::mint` constraint
+/// because Anchor's constraint internally deserializes the mint account, which fails for Token 2022
+/// mints with variable-length extensions like ConfidentialTransferMint.
 #[derive(Accounts)]
 #[instruction(token_pool_index: u8)]
 pub struct AddTokenPoolInstruction<'info> {
     /// UNCHECKED: only pays fees.
     #[account(mut)]
     pub fee_payer: Signer<'info>,
+    /// CHECK: Token pool account. Initialized manually via CPI because Anchor's token::mint
+    /// constraint cannot handle Token 2022 mints with variable-length extensions.
     #[account(
         init,
-        seeds = [
-        POOL_SEED, &mint.key().to_bytes(), &[token_pool_index],
-        ],
+        seeds = [POOL_SEED, &mint.key().to_bytes(), &[token_pool_index]],
         bump,
         payer = fee_payer,
-          token::mint = mint,
-          token::authority = cpi_authority_pda,
+        space = get_token_account_space(&mint)?,
+        owner = token_program.key(),
     )]
-    pub token_pool_pda: InterfaceAccount<'info, TokenAccount>,
+    pub token_pool_pda: AccountInfo<'info>,
     pub existing_token_pool_pda: InterfaceAccount<'info, TokenAccount>,
     pub system_program: Program<'info, System>,
-    /// CHECK: is mint account.
-    #[account(mut)]
-    pub mint: InterfaceAccount<'info, Mint>,
+    /// CHECK: Mint account. We use AccountInfo instead of InterfaceAccount<Mint> because
+    /// Anchor's InterfaceAccount cannot deserialize Token 2022 mints with variable-length
+    /// extensions like ConfidentialTransferMint. The mint is validated manually using
+    /// PodStateWithExtensions<PodMint>::unpack() in assert_mint_extensions().
+    #[account(owner = token_program.key())]
+    pub mint: AccountInfo<'info>,
     pub token_program: Interface<'info, TokenInterface>,
     /// CHECK: (seeds anchor constraint).
     #[account(seeds = [CPI_AUTHORITY_PDA_SEED], bump)]

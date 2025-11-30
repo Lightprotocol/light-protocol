@@ -100,6 +100,7 @@ async fn test_spl_to_ctoken_invoke() {
     let data = TransferSplToCtokenData {
         amount: transfer_amount,
         token_pool_pda_bump,
+        decimals: 8,
     };
     // Discriminator 15 = SplToCtokenInvoke
     let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
@@ -228,6 +229,7 @@ async fn test_ctoken_to_spl_invoke() {
         let data = TransferSplToCtokenData {
             amount,
             token_pool_pda_bump,
+            decimals: 8,
         };
         let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -264,6 +266,7 @@ async fn test_ctoken_to_spl_invoke() {
     let data = TransferCtokenToSplData {
         amount: transfer_amount,
         token_pool_pda_bump,
+        decimals: 8,
     };
     // Discriminator 17 = CtokenToSplInvoke
     let wrapper_instruction_data = [vec![17u8], data.try_to_vec().unwrap()].concat();
@@ -402,6 +405,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
     let data = TransferSplToCtokenData {
         amount: transfer_amount,
         token_pool_pda_bump,
+        decimals: 8,
     };
     // Discriminator 16 = SplToCtokenInvokeSigned
     let wrapper_instruction_data = [vec![16u8], data.try_to_vec().unwrap()].concat();
@@ -540,6 +544,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
         let data = TransferSplToCtokenData {
             amount,
             token_pool_pda_bump,
+            decimals: 8,
         };
         let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -576,6 +581,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
     let data = TransferCtokenToSplData {
         amount: transfer_amount,
         token_pool_pda_bump,
+        decimals: 8,
     };
     // Discriminator 18 = CtokenToSplInvokeSigned
     let wrapper_instruction_data = [vec![18u8], data.try_to_vec().unwrap()].concat();

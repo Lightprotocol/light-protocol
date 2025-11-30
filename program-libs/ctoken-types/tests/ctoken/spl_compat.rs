@@ -8,7 +8,7 @@
 use light_compressed_account::Pubkey;
 use light_ctoken_types::state::{
     ctoken::{CToken, CompressedTokenConfig, ZCToken},
-    CompressionInfoConfig, ExtensionStructConfig,
+    CompressibleExtensionConfig, CompressionInfoConfig, ExtensionStructConfig,
 };
 use light_zero_copy::traits::{ZeroCopyAt, ZeroCopyAtMut, ZeroCopyNew};
 use rand::Rng;
@@ -390,9 +390,11 @@ fn test_compressed_token_with_compressible_extension() {
         delegate: false,
         is_native: false,
         close_authority: false,
-        extensions: vec![ExtensionStructConfig::Compressible(CompressionInfoConfig {
-            rent_config: (),
-        })],
+        extensions: vec![ExtensionStructConfig::Compressible(
+            CompressibleExtensionConfig {
+                info: CompressionInfoConfig { rent_config: () },
+            },
+        )],
     };
 
     // Calculate required buffer size (165 base + 1 AccountType + 1 Option + extension data)
@@ -451,9 +453,11 @@ fn test_account_type_compatibility_with_spl_parsing() {
         delegate: false,
         is_native: false,
         close_authority: false,
-        extensions: vec![ExtensionStructConfig::Compressible(CompressionInfoConfig {
-            rent_config: (),
-        })],
+        extensions: vec![ExtensionStructConfig::Compressible(
+            CompressibleExtensionConfig {
+                info: CompressionInfoConfig { rent_config: () },
+            },
+        )],
     };
 
     let mut buffer = vec![0u8; CToken::byte_len(&config).unwrap()];

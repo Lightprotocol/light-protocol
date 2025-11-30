@@ -11,6 +11,7 @@ use pinocchio::account_info::AccountInfo;
 use spl_pod::solana_msg::msg;
 
 use crate::{
+    extensions::check_mint_extensions,
     shared::{
         convert_program_error,
         transfer_lamports::{multi_transfer_lamports, Transfer},
@@ -31,11 +32,12 @@ const ID: &[u8; 32] = &LIGHT_CPI_SIGNER.program_id;
 
 /// Process native compressions/decompressions with token accounts
 #[profile]
-pub fn process_token_compression(
+pub fn process_token_compression<'a>(
     fee_payer: &AccountInfo,
-    inputs: &ZCompressedTokenInstructionDataTransfer2,
-    packed_accounts: &ProgramPackedAccounts<'_, AccountInfo>,
+    inputs: &'a ZCompressedTokenInstructionDataTransfer2<'a>,
+    packed_accounts: &'a ProgramPackedAccounts<'a, AccountInfo>,
     cpi_authority: &AccountInfo,
+    is_compression_only_hot_path: bool,
 ) -> Result<(), ProgramError> {
     if let Some(compressions) = inputs.compressions.as_ref() {
         // Array to accumulate transfer amounts by account index (max 40 packed accounts)
@@ -47,12 +49,32 @@ pub fn process_token_compression(
                 "compression source or recipient",
             )?;
 
+            // Centralized mint extension check for all compression paths
+            // Skip mint check for CompressAndClose when rent sponsor is signer (rent reclamation)
+            // The flag is verified to match reality inside compress_and_close.rs
+            let mint_account = packed_accounts.get_u8(compression.mint, "compression: mint")?;
+            // When owner is closing (not compression authority), check for disallowed extensions.
+            // Compression authority case already requires Compressible extension (validated in
+            // validate_compressed_token_account which checks for CompressedOnly TLV extension).
+            // Hot path skips this check because balance must be restored immediately via decompress.
+            let skip_mint_check = compression.mode == ZCompressionMode::CompressAndClose
+                && compression.rent_sponsor_is_signer();
+            let mint_checks = if skip_mint_check {
+                None
+            } else {
+                Some(check_mint_extensions(
+                    mint_account,
+                    is_compression_only_hot_path,
+                )?)
+            };
+
             let transfer = match source_or_recipient.owner() {
                 ID => ctoken::process_ctoken_compressions(
                     inputs,
                     compression,
                     source_or_recipient,
                     packed_accounts,
+                    mint_checks,
                 )?,
                 SPL_TOKEN_ID => {
                     spl::process_spl_compressions(

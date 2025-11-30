@@ -89,6 +89,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke() {
     let data = TransferInterfaceData {
         amount: transfer_amount,
         token_pool_pda_bump: Some(token_pool_pda_bump),
+        decimals: 8,
     };
     // Discriminator 19 = TransferInterfaceInvoke
     let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
@@ -201,6 +202,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
         let data = TransferInterfaceData {
             amount,
             token_pool_pda_bump: Some(token_pool_pda_bump),
+            decimals: 8,
         };
         let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -228,6 +230,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke() {
     let data = TransferInterfaceData {
         amount: transfer_amount,
         token_pool_pda_bump: Some(token_pool_pda_bump),
+        decimals: 8,
     };
     let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
 
@@ -351,6 +354,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
         let data = TransferInterfaceData {
             amount,
             token_pool_pda_bump: Some(token_pool_pda_bump),
+            decimals: 8,
         };
         let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -378,6 +382,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke() {
     let data = TransferInterfaceData {
         amount: transfer_amount,
         token_pool_pda_bump: None, // Not needed for CToken->CToken
+        decimals: 8,
     };
     let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
 
@@ -497,6 +502,7 @@ async fn test_transfer_interface_spl_to_ctoken_invoke_signed() {
     let data = TransferInterfaceData {
         amount: transfer_amount,
         token_pool_pda_bump: Some(token_pool_pda_bump),
+        decimals: 8,
     };
     // Discriminator 20 = TransferInterfaceInvokeSigned
     let wrapper_instruction_data = [vec![20u8], data.try_to_vec().unwrap()].concat();
@@ -622,6 +628,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
         let data = TransferInterfaceData {
             amount,
             token_pool_pda_bump: Some(token_pool_pda_bump),
+            decimals: 8,
         };
         let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -649,6 +656,7 @@ async fn test_transfer_interface_ctoken_to_spl_invoke_signed() {
     let data = TransferInterfaceData {
         amount: transfer_amount,
         token_pool_pda_bump: Some(token_pool_pda_bump),
+        decimals: 8,
     };
     // Discriminator 20 = TransferInterfaceInvokeSigned
     let wrapper_instruction_data = [vec![20u8], data.try_to_vec().unwrap()].concat();
@@ -780,6 +788,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
         let data = TransferInterfaceData {
             amount,
             token_pool_pda_bump: Some(token_pool_pda_bump),
+            decimals: 8,
         };
         let wrapper_instruction_data = [vec![19u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -807,6 +816,7 @@ async fn test_transfer_interface_ctoken_to_ctoken_invoke_signed() {
     let data = TransferInterfaceData {
         amount: transfer_amount,
         token_pool_pda_bump: None, // Not needed for CToken->CToken
+        decimals: 8,
     };
     // Discriminator 20 = TransferInterfaceInvokeSigned
     let wrapper_instruction_data = [vec![20u8], data.try_to_vec().unwrap()].concat();

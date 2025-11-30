@@ -11,6 +11,7 @@ pub const TRANSFER_INTERFACE_AUTHORITY_SEED: &[u8] = b"transfer_interface_author
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct TransferInterfaceData {
     pub amount: u64,
+    pub decimals: u8,
     /// Required for SPL<->CToken transfers, None for CToken->CToken
     pub token_pool_pda_bump: Option<u8>,
 }
@@ -43,6 +44,7 @@ pub fn process_transfer_interface_invoke(
 
     let mut transfer = TransferInterface::new(
         data.amount,
+        data.decimals,
         accounts[1].clone(), // source_account
         accounts[2].clone(), // destination_account
         accounts[3].clone(), // authority
@@ -99,6 +101,7 @@ pub fn process_transfer_interface_invoke_signed(
 
     let mut transfer = TransferInterface::new(
         data.amount,
+        data.decimals,
         accounts[1].clone(), // source_account
         accounts[2].clone(), // destination_account
         accounts[3].clone(), // authority (PDA)

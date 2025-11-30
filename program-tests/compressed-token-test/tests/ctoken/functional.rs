@@ -134,6 +134,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         lamports_per_write,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let create_token_account_ix = CreateCTokenAccount::new(
@@ -217,8 +218,8 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
     let tx_fee = 10_000; // Standard transaction fee
     assert_eq!(
         payer_balance_before - payer_balance_after,
-        11_776 + tx_fee,
-        "Payer should have paid exactly 14,830 lamports for additional rent (1 epoch) plus {} tx fee",
+        11_778 + tx_fee,
+        "Payer should have paid exactly lamports for additional rent (1 epoch) plus {} tx fee",
         tx_fee
     );
 
@@ -244,6 +245,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
             context.owner_keypair.pubkey(),
             &context.owner_keypair,
             &context.payer,
+            9,
         )
         .await
         .unwrap();
@@ -258,6 +260,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
             authority: context.owner_keypair.pubkey(),
             output_queue,
             pool_index: None,
+            decimals: 9,
         };
         assert_transfer2_compress(&mut context.rpc, compress_input).await;
     }

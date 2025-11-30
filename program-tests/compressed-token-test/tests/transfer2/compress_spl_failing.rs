@@ -207,6 +207,7 @@ fn create_spl_compression_inputs(
             pool_account_index,
             pool_index,
             bump,
+            9,
         )
         .map_err(|e| RpcError::AssertRpcError(format!("Failed to compress SPL: {:?}", e)))?;
 
@@ -224,6 +225,7 @@ fn create_spl_compression_inputs(
         in_lamports: None,
         out_lamports: None,
         output_queue: shared_output_queue,
+        in_tlv: None,
     })
 }
 
