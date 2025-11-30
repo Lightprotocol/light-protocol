@@ -377,6 +377,7 @@ pub struct CtokenToSplTransferAndClose {
     pub token_pool_pda: Pubkey,
     pub token_pool_pda_bump: u8,
     pub spl_token_program: Pubkey,
+    pub decimals: u8,
 }
 
 impl CtokenToSplTransferAndClose {
@@ -408,6 +409,7 @@ impl CtokenToSplTransferAndClose {
                 0, // no rent sponsor
                 0, // no compressed account
                 3, // destination is authority
+                false,
             )),
             delegate_is_set: false,
             method_used: true,
@@ -424,6 +426,7 @@ impl CtokenToSplTransferAndClose {
                 4, // pool_account_index
                 0, // pool_index (TODO: make dynamic)
                 self.token_pool_pda_bump,
+                self.decimals,
             )),
             delegate_is_set: false,
             method_used: true,
@@ -440,6 +443,7 @@ impl CtokenToSplTransferAndClose {
             out_lamports: None,
             token_accounts: vec![compress_to_pool, decompress_to_spl],
             output_queue: 0, // Decompressed accounts only, no output queue needed
+            in_tlv: None,
         };
 
         create_transfer2_instruction(inputs).map_err(ProgramError::from)

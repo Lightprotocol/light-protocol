@@ -116,6 +116,7 @@ fn test_rnd_create_input_compressed_account() {
                 &mut hash_cache,
                 &z_input_data,
                 remaining_accounts.as_slice(),
+                remaining_accounts.as_slice(),
                 lamports,
                 None, // No TLV data in test
                 is_frozen,

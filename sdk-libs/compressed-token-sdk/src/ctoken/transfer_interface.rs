@@ -14,11 +14,11 @@ pub struct SplInterface<'info> {
     pub spl_token_program: AccountInfo<'info>,
     pub token_pool_pda: AccountInfo<'info>,
     pub token_pool_pda_bump: u8,
-    pub decimals: u8,
 }
 
 pub struct TransferInterface<'info> {
     pub amount: u64,
+    pub decimals: u8,
     pub source_account: AccountInfo<'info>,
     pub destination_account: AccountInfo<'info>,
     pub authority: AccountInfo<'info>,
@@ -30,6 +30,7 @@ pub struct TransferInterface<'info> {
 impl<'info> TransferInterface<'info> {
     /// # Arguments
     /// * `amount` - Amount to transfer
+    /// * `decimals` - Token decimals (required for SPL transfers)
     /// * `source_account` - Source token account (can be ctoken or SPL)
     /// * `destination_account` - Destination token account (can be ctoken or SPL)
     /// * `authority` - Authority for the transfer (must be signer)
@@ -37,6 +38,7 @@ impl<'info> TransferInterface<'info> {
     /// * `compressed_token_program_authority` - Compressed token program authority
     pub fn new(
         amount: u64,
+        decimals: u8,
         source_account: AccountInfo<'info>,
         destination_account: AccountInfo<'info>,
         authority: AccountInfo<'info>,
@@ -48,6 +50,7 @@ impl<'info> TransferInterface<'info> {
             destination_account,
             authority,
             amount,
+            decimals,
             payer,
             compressed_token_program_authority,
             spl_interface: None,
@@ -83,7 +86,6 @@ impl<'info> TransferInterface<'info> {
             spl_token_program,
             token_pool_pda,
             token_pool_pda_bump,
-            decimals,
         });
         Ok(self)
     }
@@ -121,11 +123,11 @@ impl<'info> TransferInterface<'info> {
                     payer: self.payer.clone(),
                     token_pool_pda: config.token_pool_pda.clone(),
                     token_pool_pda_bump: config.token_pool_pda_bump,
+                    decimals: self.decimals,
                     spl_token_program: config.spl_token_program.clone(),
                     compressed_token_program_authority: self
                         .compressed_token_program_authority
                         .clone(),
-                    decimals: config.decimals,
                 }
                 .invoke()
             }
@@ -144,11 +146,11 @@ impl<'info> TransferInterface<'info> {
                     payer: self.payer.clone(),
                     token_pool_pda: config.token_pool_pda.clone(),
                     token_pool_pda_bump: config.token_pool_pda_bump,
+                    decimals: self.decimals,
                     spl_token_program: config.spl_token_program.clone(),
                     compressed_token_program_authority: self
                         .compressed_token_program_authority
                         .clone(),
-                    decimals: config.decimals,
                 }
                 .invoke()
             }
@@ -192,11 +194,11 @@ impl<'info> TransferInterface<'info> {
                     payer: self.payer.clone(),
                     token_pool_pda: config.token_pool_pda.clone(),
                     token_pool_pda_bump: config.token_pool_pda_bump,
+                    decimals: self.decimals,
                     spl_token_program: config.spl_token_program.clone(),
                     compressed_token_program_authority: self
                         .compressed_token_program_authority
                         .clone(),
-                    decimals: config.decimals,
                 }
                 .invoke_signed(signer_seeds)
             }
@@ -215,6 +217,7 @@ impl<'info> TransferInterface<'info> {
                     payer: self.payer.clone(),
                     token_pool_pda: config.token_pool_pda.clone(),
                     token_pool_pda_bump: config.token_pool_pda_bump,
+                    decimals: self.decimals,
                     spl_token_program: config.spl_token_program.clone(),
                     compressed_token_program_authority: self
                         .compressed_token_program_authority

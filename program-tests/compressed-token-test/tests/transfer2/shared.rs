@@ -458,6 +458,7 @@ impl TestContext {
                     lamports_per_write: None,
                     compress_to_account_pubkey: None,
                     token_account_version: TokenDataVersion::ShaFlat, // CompressAndClose requires ShaFlat
+                    compression_only: false,
                 };
                 CreateAssociatedTokenAccount::new(
                     payer.pubkey(),

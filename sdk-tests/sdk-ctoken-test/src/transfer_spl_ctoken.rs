@@ -14,6 +14,7 @@ pub const TRANSFER_AUTHORITY_SEED: &[u8] = b"transfer_authority";
 pub struct TransferSplToCtokenData {
     pub amount: u64,
     pub token_pool_pda_bump: u8,
+    pub decimals: u8,
 }
 
 /// Instruction data for CToken to SPL transfer
@@ -21,6 +22,7 @@ pub struct TransferSplToCtokenData {
 pub struct TransferCtokenToSplData {
     pub amount: u64,
     pub token_pool_pda_bump: u8,
+    pub decimals: u8,
 }
 
 /// Handler for transferring SPL tokens to CToken (invoke)
@@ -52,6 +54,7 @@ pub fn process_spl_to_ctoken_invoke(
         payer: accounts[5].clone(),
         token_pool_pda: accounts[6].clone(),
         token_pool_pda_bump: data.token_pool_pda_bump,
+        decimals: data.decimals,
         spl_token_program: accounts[7].clone(),
         compressed_token_program_authority: accounts[8].clone(),
     }
@@ -100,6 +103,7 @@ pub fn process_spl_to_ctoken_invoke_signed(
         payer: accounts[5].clone(),
         token_pool_pda: accounts[6].clone(),
         token_pool_pda_bump: data.token_pool_pda_bump,
+        decimals: data.decimals,
         spl_token_program: accounts[7].clone(),
         compressed_token_program_authority: accounts[8].clone(),
     };
@@ -140,6 +144,7 @@ pub fn process_ctoken_to_spl_invoke(
         payer: accounts[5].clone(),
         token_pool_pda: accounts[6].clone(),
         token_pool_pda_bump: data.token_pool_pda_bump,
+        decimals: data.decimals,
         spl_token_program: accounts[7].clone(),
         compressed_token_program_authority: accounts[8].clone(),
     }
@@ -188,6 +193,7 @@ pub fn process_ctoken_to_spl_invoke_signed(
         payer: accounts[5].clone(),
         token_pool_pda: accounts[6].clone(),
         token_pool_pda_bump: data.token_pool_pda_bump,
+        decimals: data.decimals,
         spl_token_program: accounts[7].clone(),
         compressed_token_program_authority: accounts[8].clone(),
     };

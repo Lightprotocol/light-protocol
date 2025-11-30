@@ -3,26 +3,55 @@
 //! These tests verify that freeze and thaw instructions work correctly
 //! for both basic mints and Token-2022 mints with extensions.
 
-use borsh::BorshDeserialize;
-use light_compressed_token_sdk::ctoken::create_token_account::{
-    create_compressible_token_account_instruction, CreateCompressibleTokenAccount,
-};
-use light_ctoken_types::state::{
-    AccountState, CToken, ExtensionStruct, PausableAccountExtension,
-    PermanentDelegateAccountExtension, TokenDataVersion, TransferFeeAccountExtension,
-    TransferHookAccountExtension,
+use borsh::{BorshDeserialize, BorshSerialize};
+use light_compressed_token_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
+use light_ctoken_types::{
+    instructions::create_ctoken_account::CreateTokenAccountInstructionData,
+    state::{
+        AccountState, CToken, ExtensionStruct, PausableAccountExtension,
+        PermanentDelegateAccountExtension, TokenDataVersion, TransferFeeAccountExtension,
+        TransferHookAccountExtension,
+    },
 };
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use light_test_utils::{spl::create_mint_helper, Rpc, RpcError};
 use serial_test::serial;
 use solana_sdk::{
     instruction::{AccountMeta, Instruction},
+    program_error::ProgramError,
     signature::Keypair,
     signer::Signer,
     system_instruction::create_account,
 };
 
-use super::{extensions::setup_extensions_test, shared::create_token_account};
+use super::extensions::setup_extensions_test;
+
+/// Helper to build a basic (non-compressible) CToken account initialization instruction
+fn create_token_account(
+    token_account: solana_sdk::pubkey::Pubkey,
+    mint: solana_sdk::pubkey::Pubkey,
+    owner: solana_sdk::pubkey::Pubkey,
+) -> Result<Instruction, ProgramError> {
+    let instruction_data = CreateTokenAccountInstructionData {
+        owner: owner.to_bytes().into(),
+        compressible_config: None,
+    };
+
+    let mut data = Vec::new();
+    data.push(18u8); // CreateTokenAccount discriminator
+    instruction_data
+        .serialize(&mut data)
+        .map_err(|e| ProgramError::BorshIoError(e.to_string()))?;
+
+    Ok(Instruction {
+        program_id: light_compressed_token::ID,
+        accounts: vec![
+            AccountMeta::new(token_account, false),
+            AccountMeta::new_readonly(mint, false),
+        ],
+        data,
+    })
+}
 
 /// Helper to build a freeze instruction
 fn build_freeze_instruction(
@@ -181,27 +210,30 @@ async fn test_freeze_thaw_with_extensions() -> Result<(), RpcError> {
     let account_keypair = Keypair::new();
     let account_pubkey = account_keypair.pubkey();
 
-    let create_ix = create_compressible_token_account_instruction(CreateCompressibleTokenAccount {
-        payer: payer.pubkey(),
+    let create_ix = CreateCTokenAccount::new(
+        payer.pubkey(),
         account_pubkey,
         mint_pubkey,
-        owner_pubkey: owner.pubkey(),
-        compressible_config: context
-            .rpc
-            .test_accounts
-            .funding_pool_config
-            .compressible_config_pda,
-        rent_sponsor: context
-            .rpc
-            .test_accounts
-            .funding_pool_config
-            .rent_sponsor_pda,
-        pre_pay_num_epochs: 2,
-        lamports_per_write: Some(100),
-        compress_to_account_pubkey: None,
-        token_account_version: TokenDataVersion::ShaFlat,
-        compression_only: true,
-    })
+        owner.pubkey(),
+        CompressibleParams {
+            compressible_config: context
+                .rpc
+                .test_accounts
+                .funding_pool_config
+                .compressible_config_pda,
+            rent_sponsor: context
+                .rpc
+                .test_accounts
+                .funding_pool_config
+                .rent_sponsor_pda,
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: TokenDataVersion::ShaFlat,
+            compression_only: true,
+        },
+    )
+    .instruction()
     .map_err(|e| RpcError::AssertRpcError(format!("Failed to create instruction: {}", e)))?;
 
     context

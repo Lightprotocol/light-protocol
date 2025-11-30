@@ -123,12 +123,7 @@ async fn test_setup_mint_22_with_all_extensions() {
 #[serial]
 async fn test_mint_and_compress_with_extensions() {
     use light_compressed_token_sdk::{
-        ctoken::{
-            create_token_account::{
-                create_compressible_token_account_instruction, CreateCompressibleTokenAccount,
-            },
-            transfer_interface::TransferSplToCtoken,
-        },
+        ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
         token_pool::find_token_pool_pda_with_index,
     };
     use light_ctoken_types::state::TokenDataVersion;
@@ -159,27 +154,30 @@ async fn test_mint_and_compress_with_extensions() {
     // 3. Create CToken account with extensions (destination for hot path transfer)
     let owner = Keypair::new();
     let account_keypair = Keypair::new();
-    let create_ix = create_compressible_token_account_instruction(CreateCompressibleTokenAccount {
-        payer: payer.pubkey(),
-        account_pubkey: account_keypair.pubkey(),
+    let create_ix = CreateCTokenAccount::new(
+        payer.pubkey(),
+        account_keypair.pubkey(),
         mint_pubkey,
-        owner_pubkey: owner.pubkey(),
-        compressible_config: context
-            .rpc
-            .test_accounts
-            .funding_pool_config
-            .compressible_config_pda,
-        rent_sponsor: context
-            .rpc
-            .test_accounts
-            .funding_pool_config
-            .rent_sponsor_pda,
-        pre_pay_num_epochs: 2,
-        lamports_per_write: Some(100),
-        compress_to_account_pubkey: None,
-        token_account_version: TokenDataVersion::ShaFlat,
-        compression_only: true,
-    })
+        owner.pubkey(),
+        CompressibleParams {
+            compressible_config: context
+                .rpc
+                .test_accounts
+                .funding_pool_config
+                .compressible_config_pda,
+            rent_sponsor: context
+                .rpc
+                .test_accounts
+                .funding_pool_config
+                .rent_sponsor_pda,
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: TokenDataVersion::ShaFlat,
+            compression_only: true,
+        },
+    )
+    .instruction()
     .unwrap();
     context
         .rpc
@@ -196,7 +194,7 @@ async fn test_mint_and_compress_with_extensions() {
         amount: transfer_amount,
         token_pool_pda_bump,
         source_spl_token_account: spl_account,
-        to: account_keypair.pubkey(),
+        destination_ctoken_account: account_keypair.pubkey(),
         authority: payer.pubkey(),
         mint: mint_pubkey,
         payer: payer.pubkey(),
@@ -243,9 +241,7 @@ async fn test_mint_and_compress_with_extensions() {
 #[serial]
 async fn test_create_ctoken_with_extensions() {
     use borsh::BorshDeserialize;
-    use light_compressed_token_sdk::ctoken::create_token_account::{
-        create_compressible_token_account_instruction, CreateCompressibleTokenAccount,
-    };
+    use light_compressed_token_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
     use light_ctoken_types::state::{
         AccountState, CToken, ExtensionStruct, PausableAccountExtension,
         PermanentDelegateAccountExtension, TokenDataVersion, TransferFeeAccountExtension,
@@ -260,27 +256,30 @@ async fn test_create_ctoken_with_extensions() {
     let account_keypair = Keypair::new();
     let account_pubkey = account_keypair.pubkey();
 
-    let create_ix = create_compressible_token_account_instruction(CreateCompressibleTokenAccount {
-        payer: payer.pubkey(),
+    let create_ix = CreateCTokenAccount::new(
+        payer.pubkey(),
         account_pubkey,
         mint_pubkey,
-        owner_pubkey: payer.pubkey(),
-        compressible_config: context
-            .rpc
-            .test_accounts
-            .funding_pool_config
-            .compressible_config_pda,
-        rent_sponsor: context
-            .rpc
-            .test_accounts
-            .funding_pool_config
-            .rent_sponsor_pda,
-        pre_pay_num_epochs: 2,
-        lamports_per_write: Some(100),
-        compress_to_account_pubkey: None,
-        token_account_version: TokenDataVersion::ShaFlat,
-        compression_only: true,
-    })
+        payer.pubkey(),
+        CompressibleParams {
+            compressible_config: context
+                .rpc
+                .test_accounts
+                .funding_pool_config
+                .compressible_config_pda,
+            rent_sponsor: context
+                .rpc
+                .test_accounts
+                .funding_pool_config
+                .rent_sponsor_pda,
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: TokenDataVersion::ShaFlat,
+            compression_only: true,
+        },
+    )
+    .instruction()
     .unwrap();
 
     context
@@ -354,12 +353,7 @@ async fn test_transfer_with_permanent_delegate() {
     use anchor_lang::prelude::AccountMeta;
     use anchor_spl::token_2022::spl_token_2022;
     use light_compressed_token_sdk::{
-        ctoken::{
-            create_token_account::{
-                create_compressible_token_account_instruction, CreateCompressibleTokenAccount,
-            },
-            transfer_interface::TransferSplToCtoken,
-        },
+        ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
         token_pool::find_token_pool_pda_with_index,
     };
     use light_ctoken_types::state::TokenDataVersion;
@@ -389,12 +383,12 @@ async fn test_transfer_with_permanent_delegate() {
     let account_a_keypair = Keypair::new();
     let account_a_pubkey = account_a_keypair.pubkey();
 
-    let create_a_ix =
-        create_compressible_token_account_instruction(CreateCompressibleTokenAccount {
-            payer: payer.pubkey(),
-            account_pubkey: account_a_pubkey,
-            mint_pubkey,
-            owner_pubkey: owner.pubkey(),
+    let create_a_ix = CreateCTokenAccount::new(
+        payer.pubkey(),
+        account_a_pubkey,
+        mint_pubkey,
+        owner.pubkey(),
+        CompressibleParams {
             compressible_config: context
                 .rpc
                 .test_accounts
@@ -410,8 +404,10 @@ async fn test_transfer_with_permanent_delegate() {
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
             compression_only: true,
-        })
-        .unwrap();
+        },
+    )
+    .instruction()
+    .unwrap();
 
     context
         .rpc
@@ -426,12 +422,12 @@ async fn test_transfer_with_permanent_delegate() {
     let account_b_keypair = Keypair::new();
     let account_b_pubkey = account_b_keypair.pubkey();
 
-    let create_b_ix =
-        create_compressible_token_account_instruction(CreateCompressibleTokenAccount {
-            payer: payer.pubkey(),
-            account_pubkey: account_b_pubkey,
-            mint_pubkey,
-            owner_pubkey: owner.pubkey(),
+    let create_b_ix = CreateCTokenAccount::new(
+        payer.pubkey(),
+        account_b_pubkey,
+        mint_pubkey,
+        owner.pubkey(),
+        CompressibleParams {
             compressible_config: context
                 .rpc
                 .test_accounts
@@ -447,8 +443,10 @@ async fn test_transfer_with_permanent_delegate() {
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
             compression_only: true,
-        })
-        .unwrap();
+        },
+    )
+    .instruction()
+    .unwrap();
 
     context
         .rpc
@@ -467,7 +465,7 @@ async fn test_transfer_with_permanent_delegate() {
         amount: mint_amount,
         token_pool_pda_bump,
         source_spl_token_account: spl_account,
-        to: account_a_pubkey,
+        destination_ctoken_account: account_a_pubkey,
         authority: payer.pubkey(),
         mint: mint_pubkey,
         payer: payer.pubkey(),
@@ -544,9 +542,7 @@ async fn test_transfer_with_permanent_delegate() {
 #[tokio::test]
 #[serial]
 async fn test_create_ctoken_with_frozen_default_state() {
-    use light_compressed_token_sdk::ctoken::create_token_account::{
-        create_compressible_token_account_instruction, CreateCompressibleTokenAccount,
-    };
+    use light_compressed_token_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
     use light_ctoken_types::state::TokenDataVersion;
 
     let mut rpc = LightProgramTest::new(ProgramTestConfig::new_v2(false, None))
@@ -568,22 +564,25 @@ async fn test_create_ctoken_with_frozen_default_state() {
     let account_keypair = Keypair::new();
     let account_pubkey = account_keypair.pubkey();
 
-    let create_ix = create_compressible_token_account_instruction(CreateCompressibleTokenAccount {
-        payer: payer.pubkey(),
+    let create_ix = CreateCTokenAccount::new(
+        payer.pubkey(),
         account_pubkey,
         mint_pubkey,
-        owner_pubkey: payer.pubkey(),
-        compressible_config: rpc
-            .test_accounts
-            .funding_pool_config
-            .compressible_config_pda,
-        rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
-        pre_pay_num_epochs: 2,
-        lamports_per_write: Some(100),
-        compress_to_account_pubkey: None,
-        token_account_version: TokenDataVersion::ShaFlat,
-        compression_only: true,
-    })
+        payer.pubkey(),
+        CompressibleParams {
+            compressible_config: rpc
+                .test_accounts
+                .funding_pool_config
+                .compressible_config_pda,
+            rent_sponsor: rpc.test_accounts.funding_pool_config.rent_sponsor_pda,
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: TokenDataVersion::ShaFlat,
+            compression_only: true,
+        },
+    )
+    .instruction()
     .unwrap();
 
     rpc.create_and_send_transaction(&[create_ix], &payer.pubkey(), &[&payer, &account_keypair])
@@ -659,12 +658,7 @@ async fn test_transfer_with_owner_authority() {
     use anchor_spl::token_2022::spl_token_2022;
     use borsh::BorshDeserialize;
     use light_compressed_token_sdk::{
-        ctoken::{
-            create_token_account::{
-                create_compressible_token_account_instruction, CreateCompressibleTokenAccount,
-            },
-            transfer_interface::TransferSplToCtoken,
-        },
+        ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
         token_pool::find_token_pool_pda_with_index,
     };
     use light_ctoken_types::state::{
@@ -697,12 +691,12 @@ async fn test_transfer_with_owner_authority() {
     let account_a_keypair = Keypair::new();
     let account_a_pubkey = account_a_keypair.pubkey();
 
-    let create_a_ix =
-        create_compressible_token_account_instruction(CreateCompressibleTokenAccount {
-            payer: payer.pubkey(),
-            account_pubkey: account_a_pubkey,
-            mint_pubkey,
-            owner_pubkey: owner.pubkey(),
+    let create_a_ix = CreateCTokenAccount::new(
+        payer.pubkey(),
+        account_a_pubkey,
+        mint_pubkey,
+        owner.pubkey(),
+        CompressibleParams {
             compressible_config: context
                 .rpc
                 .test_accounts
@@ -718,8 +712,10 @@ async fn test_transfer_with_owner_authority() {
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
             compression_only: true,
-        })
-        .unwrap();
+        },
+    )
+    .instruction()
+    .unwrap();
 
     context
         .rpc
@@ -734,12 +730,12 @@ async fn test_transfer_with_owner_authority() {
     let account_b_keypair = Keypair::new();
     let account_b_pubkey = account_b_keypair.pubkey();
 
-    let create_b_ix =
-        create_compressible_token_account_instruction(CreateCompressibleTokenAccount {
-            payer: payer.pubkey(),
-            account_pubkey: account_b_pubkey,
-            mint_pubkey,
-            owner_pubkey: owner.pubkey(),
+    let create_b_ix = CreateCTokenAccount::new(
+        payer.pubkey(),
+        account_b_pubkey,
+        mint_pubkey,
+        owner.pubkey(),
+        CompressibleParams {
             compressible_config: context
                 .rpc
                 .test_accounts
@@ -755,8 +751,10 @@ async fn test_transfer_with_owner_authority() {
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
             compression_only: true,
-        })
-        .unwrap();
+        },
+    )
+    .instruction()
+    .unwrap();
 
     context
         .rpc
@@ -791,7 +789,7 @@ async fn test_transfer_with_owner_authority() {
         amount: mint_amount,
         token_pool_pda_bump,
         source_spl_token_account: spl_account,
-        to: account_a_pubkey,
+        destination_ctoken_account: account_a_pubkey,
         authority: payer.pubkey(),
         mint: mint_pubkey,
         payer: payer.pubkey(),
@@ -1000,12 +998,7 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     use light_client::indexer::CompressedTokenAccount;
     use light_client::indexer::Indexer;
     use light_compressed_token_sdk::{
-        ctoken::{
-            create_token_account::{
-                create_compressible_token_account_instruction, CreateCompressibleTokenAccount,
-            },
-            transfer_interface::TransferSplToCtoken,
-        },
+        ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
         token_pool::find_token_pool_pda_with_index,
     };
     use light_ctoken_types::{
@@ -1040,27 +1033,30 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     let account_keypair = Keypair::new();
     let ctoken_account = account_keypair.pubkey();
 
-    let create_ix = create_compressible_token_account_instruction(CreateCompressibleTokenAccount {
-        payer: payer.pubkey(),
-        account_pubkey: ctoken_account,
+    let create_ix = CreateCTokenAccount::new(
+        payer.pubkey(),
+        ctoken_account,
         mint_pubkey,
-        owner_pubkey: owner.pubkey(),
-        compressible_config: context
-            .rpc
-            .test_accounts
-            .funding_pool_config
-            .compressible_config_pda,
-        rent_sponsor: context
-            .rpc
-            .test_accounts
-            .funding_pool_config
-            .rent_sponsor_pda,
-        pre_pay_num_epochs: 0, // Immediately compressible after 1 epoch
-        lamports_per_write: Some(100),
-        compress_to_account_pubkey: None,
-        token_account_version: TokenDataVersion::ShaFlat,
-        compression_only: true,
-    })
+        owner.pubkey(),
+        CompressibleParams {
+            compressible_config: context
+                .rpc
+                .test_accounts
+                .funding_pool_config
+                .compressible_config_pda,
+            rent_sponsor: context
+                .rpc
+                .test_accounts
+                .funding_pool_config
+                .rent_sponsor_pda,
+            pre_pay_num_epochs: 0, // Immediately compressible after 1 epoch
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: TokenDataVersion::ShaFlat,
+            compression_only: true,
+        },
+    )
+    .instruction()
     .unwrap();
 
     context
@@ -1074,14 +1070,14 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     let transfer_ix = TransferSplToCtoken {
         amount: mint_amount,
         token_pool_pda_bump,
+        decimals: 9,
         source_spl_token_account: spl_account,
-        to: ctoken_account,
+        destination_ctoken_account: ctoken_account,
         authority: payer.pubkey(),
         mint: mint_pubkey,
         payer: payer.pubkey(),
         token_pool_pda,
         spl_token_program: spl_token_2022::ID,
-        decimals: 9,
     }
     .instruction()
     .unwrap();
@@ -1160,12 +1156,12 @@ async fn test_compress_and_close_ctoken_with_extensions() {
     let decompress_dest_keypair = Keypair::new();
     let decompress_dest_account = decompress_dest_keypair.pubkey();
 
-    let create_dest_ix =
-        create_compressible_token_account_instruction(CreateCompressibleTokenAccount {
-            payer: payer.pubkey(),
-            account_pubkey: decompress_dest_account,
-            mint_pubkey,
-            owner_pubkey: owner.pubkey(),
+    let create_dest_ix = CreateCTokenAccount::new(
+        payer.pubkey(),
+        decompress_dest_account,
+        mint_pubkey,
+        owner.pubkey(),
+        CompressibleParams {
             compressible_config: context
                 .rpc
                 .test_accounts
@@ -1181,8 +1177,10 @@ async fn test_compress_and_close_ctoken_with_extensions() {
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
             compression_only: true,
-        })
-        .unwrap();
+        },
+    )
+    .instruction()
+    .unwrap();
 
     context
         .rpc
@@ -1356,12 +1354,7 @@ async fn run_compress_and_close_extension_test(
 ) -> Result<(), RpcError> {
     use light_client::indexer::Indexer;
     use light_compressed_token_sdk::{
-        ctoken::{
-            create_token_account::{
-                create_compressible_token_account_instruction, CreateCompressibleTokenAccount,
-            },
-            transfer_interface::TransferSplToCtoken,
-        },
+        ctoken::{CompressibleParams, CreateCTokenAccount, TransferSplToCtoken},
         token_pool::find_token_pool_pda_with_index,
     };
     use light_ctoken_types::{
@@ -1400,27 +1393,30 @@ async fn run_compress_and_close_extension_test(
     let account_keypair = Keypair::new();
     let ctoken_account = account_keypair.pubkey();
 
-    let create_ix = create_compressible_token_account_instruction(CreateCompressibleTokenAccount {
-        payer: payer.pubkey(),
-        account_pubkey: ctoken_account,
+    let create_ix = CreateCTokenAccount::new(
+        payer.pubkey(),
+        ctoken_account,
         mint_pubkey,
-        owner_pubkey: owner.pubkey(),
-        compressible_config: context
-            .rpc
-            .test_accounts
-            .funding_pool_config
-            .compressible_config_pda,
-        rent_sponsor: context
-            .rpc
-            .test_accounts
-            .funding_pool_config
-            .rent_sponsor_pda,
-        pre_pay_num_epochs: 0,
-        lamports_per_write: Some(100),
-        compress_to_account_pubkey: None,
-        token_account_version: TokenDataVersion::ShaFlat,
-        compression_only: true,
-    })
+        owner.pubkey(),
+        CompressibleParams {
+            compressible_config: context
+                .rpc
+                .test_accounts
+                .funding_pool_config
+                .compressible_config_pda,
+            rent_sponsor: context
+                .rpc
+                .test_accounts
+                .funding_pool_config
+                .rent_sponsor_pda,
+            pre_pay_num_epochs: 0,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: TokenDataVersion::ShaFlat,
+            compression_only: true,
+        },
+    )
+    .instruction()
     .map_err(|e| RpcError::CustomError(format!("Failed to create instruction: {:?}", e)))?;
 
     context
@@ -1433,14 +1429,14 @@ async fn run_compress_and_close_extension_test(
     let transfer_ix = TransferSplToCtoken {
         amount: mint_amount,
         token_pool_pda_bump,
+        decimals: 9,
         source_spl_token_account: spl_account,
-        to: ctoken_account,
+        destination_ctoken_account: ctoken_account,
         authority: payer.pubkey(),
         mint: mint_pubkey,
         payer: payer.pubkey(),
         token_pool_pda,
         spl_token_program: spl_token_2022::ID,
-        decimals: 9,
     }
     .instruction()
     .map_err(|e| {
@@ -1523,12 +1519,12 @@ async fn run_compress_and_close_extension_test(
     let decompress_dest_keypair = Keypair::new();
     let decompress_dest_account = decompress_dest_keypair.pubkey();
 
-    let create_dest_ix =
-        create_compressible_token_account_instruction(CreateCompressibleTokenAccount {
-            payer: payer.pubkey(),
-            account_pubkey: decompress_dest_account,
-            mint_pubkey,
-            owner_pubkey: owner.pubkey(),
+    let create_dest_ix = CreateCTokenAccount::new(
+        payer.pubkey(),
+        decompress_dest_account,
+        mint_pubkey,
+        owner.pubkey(),
+        CompressibleParams {
             compressible_config: context
                 .rpc
                 .test_accounts
@@ -1544,10 +1540,10 @@ async fn run_compress_and_close_extension_test(
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
             compression_only: true,
-        })
-        .map_err(|e| {
-            RpcError::CustomError(format!("Failed to create dest instruction: {:?}", e))
-        })?;
+        },
+    )
+    .instruction()
+    .map_err(|e| RpcError::CustomError(format!("Failed to create dest instruction: {:?}", e)))?;
 
     context
         .rpc

@@ -236,6 +236,7 @@ pub fn decompress_accounts_idempotent<'info>(
                         lamports_per_write: None,
                         compress_to_account_pubkey: Some(compress_to_pubkey),
                         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+                        compression_only: false,
                     }),
                 }
                 .invoke_signed(&[seeds_slice])?;

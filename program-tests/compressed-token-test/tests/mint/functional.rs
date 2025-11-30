@@ -720,6 +720,7 @@ async fn test_ctoken_transfer() {
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let create_ata_instruction = CreateAssociatedTokenAccount::new(

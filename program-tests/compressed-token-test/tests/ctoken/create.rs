@@ -233,6 +233,7 @@ async fn test_create_compressible_token_account_failing() {
             lamports_per_write: Some(1000),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
         };
 
         let create_token_account_ix = CreateCTokenAccount::new(
@@ -372,6 +373,7 @@ async fn test_create_compressible_token_account_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: Some(invalid_compress_to_pubkey),
             token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
         };
 
         let create_token_account_ix = CreateCTokenAccount::new(
@@ -422,6 +424,7 @@ async fn test_create_compressible_token_account_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
         };
 
         let create_token_account_ix = CreateCTokenAccount::new(
@@ -464,6 +467,7 @@ async fn test_create_compressible_token_account_failing() {
             lamports_per_write: Some(100),
             compress_to_account_pubkey: None,
             token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+            compression_only: false,
         };
 
         let create_token_account_ix = CreateCTokenAccount::new(

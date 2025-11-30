@@ -98,6 +98,7 @@ async fn setup_compression_test(token_amount: u64) -> Result<CompressionTestCont
         lamports_per_write: Some(1000),
         compress_to_account_pubkey: None,
         token_account_version: TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let create_ata_instruction = CreateAssociatedTokenAccount::new(

@@ -495,6 +495,7 @@ async fn test_pause_compressible_config_with_valid_authority() -> Result<(), Rpc
         lamports_per_write: None,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let compressible_instruction = CreateAssociatedTokenAccount::new(
@@ -631,6 +632,7 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
         lamports_per_write: None,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let compressible_instruction = CreateAssociatedTokenAccount::new(
@@ -680,6 +682,7 @@ async fn test_unpause_compressible_config_with_valid_authority() -> Result<(), R
         lamports_per_write: None,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let compressible_instruction = CreateAssociatedTokenAccount::new(
@@ -772,6 +775,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         lamports_per_write: None,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let compressible_instruction = CreateAssociatedTokenAccount::new(
@@ -822,6 +826,7 @@ async fn test_deprecate_compressible_config_with_valid_authority() -> Result<(),
         lamports_per_write: None,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let compressible_instruction = CreateAssociatedTokenAccount::new(

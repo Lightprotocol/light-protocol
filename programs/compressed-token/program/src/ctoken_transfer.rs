@@ -25,8 +25,8 @@ const ACCOUNT_MINT: usize = 3;
 /// Process ctoken transfer instruction
 #[profile]
 #[inline(always)]
-pub fn process_ctoken_transfer<'a>(
-    accounts: &'a [AccountInfo],
+pub fn process_ctoken_transfer(
+    accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     if accounts.len() < 3 {

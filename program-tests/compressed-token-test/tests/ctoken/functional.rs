@@ -134,6 +134,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         lamports_per_write,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let create_token_account_ix = CreateCTokenAccount::new(

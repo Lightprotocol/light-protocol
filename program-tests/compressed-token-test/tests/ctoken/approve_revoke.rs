@@ -4,9 +4,7 @@
 //! CToken accounts with extensions.
 
 use borsh::BorshDeserialize;
-use light_compressed_token_sdk::ctoken::create_token_account::{
-    create_compressible_token_account_instruction, CreateCompressibleTokenAccount,
-};
+use light_compressed_token_sdk::ctoken::{CompressibleParams, CreateCTokenAccount};
 use light_ctoken_types::state::{
     AccountState, CToken, ExtensionStruct, PausableAccountExtension,
     PermanentDelegateAccountExtension, TokenDataVersion, TransferFeeAccountExtension,
@@ -82,27 +80,30 @@ async fn test_approve_revoke_compressible() -> Result<(), RpcError> {
     let account_keypair = Keypair::new();
     let account_pubkey = account_keypair.pubkey();
 
-    let create_ix = create_compressible_token_account_instruction(CreateCompressibleTokenAccount {
-        payer: payer.pubkey(),
+    let create_ix = CreateCTokenAccount::new(
+        payer.pubkey(),
         account_pubkey,
         mint_pubkey,
-        owner_pubkey: owner.pubkey(),
-        compressible_config: context
-            .rpc
-            .test_accounts
-            .funding_pool_config
-            .compressible_config_pda,
-        rent_sponsor: context
-            .rpc
-            .test_accounts
-            .funding_pool_config
-            .rent_sponsor_pda,
-        pre_pay_num_epochs: 2,
-        lamports_per_write: Some(100),
-        compress_to_account_pubkey: None,
-        token_account_version: TokenDataVersion::ShaFlat,
-        compression_only: true,
-    })
+        owner.pubkey(),
+        CompressibleParams {
+            compressible_config: context
+                .rpc
+                .test_accounts
+                .funding_pool_config
+                .compressible_config_pda,
+            rent_sponsor: context
+                .rpc
+                .test_accounts
+                .funding_pool_config
+                .rent_sponsor_pda,
+            pre_pay_num_epochs: 2,
+            lamports_per_write: Some(100),
+            compress_to_account_pubkey: None,
+            token_account_version: TokenDataVersion::ShaFlat,
+            compression_only: true,
+        },
+    )
+    .instruction()
     .map_err(|e| RpcError::AssertRpcError(format!("Failed to create instruction: {}", e)))?;
 
     context
