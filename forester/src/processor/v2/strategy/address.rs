@@ -7,7 +7,7 @@ use crate::processor::v2::{
 };
 use anyhow::anyhow;
 use async_trait::async_trait;
-use forester_utils::fast_address_staging_tree::FastAddressStagingTree;
+use forester_utils::address_staging_tree::AddressStagingTree;
 use light_client::rpc::Rpc;
 use tracing::debug;
 #[derive(Debug, Clone)]
@@ -15,7 +15,7 @@ pub struct AddressTreeStrategy;
 
 #[derive(Debug)]
 pub struct AddressQueueData {
-    pub staging_tree: FastAddressStagingTree,
+    pub staging_tree: AddressStagingTree,
     pub address_queue: light_client::indexer::AddressQueueDataV2,
 }
 
@@ -86,14 +86,14 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
         let start_index = address_queue.start_index;
 
         let staging_tree = if !address_queue.nodes.is_empty() {
-            FastAddressStagingTree::from_nodes(
+            AddressStagingTree::from_nodes(
                 &address_queue.nodes,
                 &address_queue.node_hashes,
                 initial_root,
                 start_index as usize,
             )?
         } else {
-            FastAddressStagingTree::new(initial_root, start_index as usize)
+            AddressStagingTree::new(initial_root, start_index as usize)
         };
 
         Ok(Some(QueueData {
