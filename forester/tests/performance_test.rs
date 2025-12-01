@@ -207,7 +207,10 @@ async fn prefill_state_queue<R: Rpc>(
         phase2_successful, num_transactions
     );
     println!("  Total time: {:?}", elapsed);
-    println!("  Expected tree[0] queue balance: {} outputs / {} inputs");
+    println!(
+        "  Expected tree[0] queue balance: {} outputs / {} inputs",
+        TARGET_STATE_QUEUE_SIZE, TARGET_STATE_QUEUE_SIZE
+    );
 
     phase2_successful
 }
