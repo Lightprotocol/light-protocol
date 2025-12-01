@@ -3,7 +3,6 @@ export * from './update-mint';
 export * from './update-metadata';
 export * from './create-associated-ctoken';
 export * from './create-ata-interface';
-export * from './load-ata-interface';
 export * from './mint-to';
 export * from './mint-to-compressed';
 export * from './mint-to-interface';

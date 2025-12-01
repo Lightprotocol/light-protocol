@@ -316,3 +316,9 @@ export function createAssociatedTokenAccountInterfaceIdempotentInstruction(
         );
     }
 }
+
+/**
+ * Short alias for createAssociatedTokenAccountInterfaceIdempotentInstruction.
+ */
+export const createAtaInterfaceIdempotentInstruction =
+    createAssociatedTokenAccountInterfaceIdempotentInstruction;

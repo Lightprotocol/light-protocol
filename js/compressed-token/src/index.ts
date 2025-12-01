@@ -6,6 +6,19 @@ export * from './layout';
 export * from './program';
 export * from './types';
 export * from './compressible';
+export {
+    buildLoadParams,
+    buildAtaLoadInstructions,
+    loadAtaInstructions,
+    loadAta,
+    loadAtaInstructionsFromInterface,
+    calculateCompressibleLoadComputeUnits,
+    CompressibleAccountInput,
+    ParsedAccountInfoInterface,
+    CompressibleLoadParams,
+    PackedCompressedAccount,
+    LoadResult,
+} from './compressible/unified-load';
 
 // Export mint module with explicit naming to avoid conflicts
 export {
@@ -16,6 +29,7 @@ export {
     createAssociatedCTokenAccountIdempotentInstruction,
     createAssociatedTokenAccountInterfaceInstruction,
     createAssociatedTokenAccountInterfaceIdempotentInstruction,
+    createAtaInterfaceIdempotentInstruction,
     createMintToInstruction,
     createMintToCompressedInstruction,
     createMintToInterfaceInstruction,
@@ -38,11 +52,6 @@ export {
     createAtaInterfaceIdempotent,
     getAtaAddressInterface,
     getOrCreateAtaInterface,
-    loadAtaInterface,
-    loadAtaInterfaceInstructions,
-    buildDecompressToCTokenInstruction,
-    load,
-    loadInstructions,
     transferInterface,
     decompress2,
     wrap,
@@ -57,12 +66,6 @@ export {
     // Action types
     CreateAtaInterfaceParams,
     CreateAtaInterfaceResult,
-    LoadAtaInterfaceParams,
-    LoadAtaInterfaceResult,
-    LoadAtaInterfaceInstructionsParams,
-    LoadAtaInterfaceInstructionsResult,
-    LoadAtaOptions,
-    LoadSource,
     InterfaceOptions,
     LoadOptions,
     TransferInterfaceOptions,

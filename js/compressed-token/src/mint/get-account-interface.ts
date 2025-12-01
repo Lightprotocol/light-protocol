@@ -42,6 +42,12 @@ export interface AccountInterface {
     _needsConsolidation?: boolean;
     _hasDelegate?: boolean;
     _anyFrozen?: boolean;
+    /** True when fetched via getAtaInterface */
+    _isAta?: boolean;
+    /** ATA owner - set by getAtaInterface */
+    _owner?: PublicKey;
+    /** ATA mint - set by getAtaInterface */
+    _mint?: PublicKey;
 }
 
 function parseTokenData(data: Buffer): {
@@ -204,10 +210,20 @@ export async function getAtaInterface(
     commitment?: Commitment,
     programId?: PublicKey,
 ): Promise<AccountInterface> {
-    return _getAccountInterface(rpc, undefined, commitment, programId, {
-        owner,
-        mint,
-    });
+    const result = await _getAccountInterface(
+        rpc,
+        undefined,
+        commitment,
+        programId,
+        {
+            owner,
+            mint,
+        },
+    );
+    result._isAta = true;
+    result._owner = owner;
+    result._mint = mint;
+    return result;
 }
 
 /**
