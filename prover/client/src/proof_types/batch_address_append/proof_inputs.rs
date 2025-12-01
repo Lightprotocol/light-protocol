@@ -179,8 +179,6 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
     let mut patched_low_element_values: Vec<[u8; 32]> = Vec::new();
     let mut patched_low_element_indices: Vec<usize> = Vec::new();
 
-    // Build proof cache from existing changelog entries for O(HEIGHT) proof updates
-    // instead of O(changelog_size) iteration
     let mut proof_cache = ProofCache::default();
     for entry in changelog.iter() {
         proof_cache.add_entry::<HEIGHT>(entry);
@@ -234,9 +232,10 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
         };
 
         {
-            // Use proof cache for O(HEIGHT) update instead of O(changelog_size) iteration
-            let mut low_element_proof_arr: [[u8; 32]; HEIGHT] =
-                low_element_proof.clone().try_into().unwrap_or_else(|v: Vec<[u8; 32]>| {
+            let mut low_element_proof_arr: [[u8; 32]; HEIGHT] = low_element_proof
+                .clone()
+                .try_into()
+                .unwrap_or_else(|v: Vec<[u8; 32]>| {
                     panic!("Expected {} elements, got {}", HEIGHT, v.len())
                 });
             proof_cache.update_proof::<HEIGHT>(low_element.index(), &mut low_element_proof_arr);
@@ -250,7 +249,6 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
                 &merkle_proof,
                 new_low_element.index as u32,
             );
-            // Add to cache before pushing to changelog (for subsequent iterations)
             proof_cache.add_entry::<HEIGHT>(&changelog_entry);
             changelog.push(changelog_entry);
             low_element_circuit_merkle_proofs.push(
@@ -277,7 +275,6 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
 
             let current_index = next_index + i;
 
-            // Use proof cache for O(HEIGHT) update instead of O(changelog_size) iteration
             proof_cache.update_proof::<HEIGHT>(current_index, &mut merkle_proof_array);
 
             let (updated_root, changelog_entry) = compute_root_from_merkle_proof(
@@ -287,7 +284,6 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
             );
             new_root = updated_root;
 
-            // Add the new entry to both the changelog (for return) and cache (for next iterations)
             proof_cache.add_entry::<HEIGHT>(&changelog_entry);
             changelog.push(changelog_entry);
             new_element_circuit_merkle_proofs.push(
@@ -335,6 +331,24 @@ pub fn get_batch_address_append_circuit_inputs<const HEIGHT: usize>(
                 "Invalid address ordering at batch position {} (low = {:#x}, new = {:#x}, high = {:#x})",
                 idx, low, new, high
             )));
+        }
+    }
+
+    for (idx, ((low_value, new_value), high_value)) in patched_low_element_values
+        .iter()
+        .zip(new_element_values.iter())
+        .zip(patched_low_element_next_values.iter())
+        .enumerate()
+    {
+        let low = BigUint::from_bytes_be(low_value);
+        let new = BigUint::from_bytes_be(new_value);
+        let high = BigUint::from_bytes_be(high_value);
+
+        if !(low < new && new < high) {
+            return Err(ProverClientError::GenericError(format!(
+                    "Invalid address ordering at batch position {} (low = {:#x}, new = {:#x}, high = {:#x})",
+                    idx, low, new, high
+                )));
         }
     }
 

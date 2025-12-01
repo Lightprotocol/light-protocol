@@ -9,7 +9,7 @@ import (
 	"light/light-prover/logging"
 	"light/light-prover/prover/common"
 	v1 "light/light-prover/prover/v1"
-	"light/light-prover/prover/v2"
+	v2 "light/light-prover/prover/v2"
 	"light/light-prover/server"
 	"os"
 	"os/signal"
@@ -21,7 +21,7 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-const Version = "2.0.6"
+const Version = "2.0.7"
 
 func main() {
 	runCli()

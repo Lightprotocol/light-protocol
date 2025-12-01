@@ -5,16 +5,37 @@ import (
 	"fmt"
 	"light/light-prover/logging"
 	"light/light-prover/prover/common"
-	"light/light-prover/prover/v1"
-	"light/light-prover/prover/v2"
+	v1 "light/light-prover/prover/v1"
+	v2 "light/light-prover/prover/v2"
 	"log"
+	"os"
+	"strconv"
 	"time"
 )
 
 const (
 	// JobExpirationTimeout should match the forester's max_wait_time (600 seconds)
 	JobExpirationTimeout = 600 * time.Second
+	// DefaultMaxConcurrency is the default number of proofs to process in parallel per queue
+	DefaultMaxConcurrency = 10
 )
+
+// getMaxConcurrency reads the PROVER_MAX_CONCURRENCY environment variable
+// or returns the default value
+func getMaxConcurrency() int {
+	if val := os.Getenv("PROVER_MAX_CONCURRENCY"); val != "" {
+		if concurrency, err := strconv.Atoi(val); err == nil && concurrency > 0 {
+			logging.Logger().Info().
+				Int("max_concurrency", concurrency).
+				Msg("Using custom max concurrency from PROVER_MAX_CONCURRENCY")
+			return concurrency
+		}
+	}
+	logging.Logger().Info().
+		Int("max_concurrency", DefaultMaxConcurrency).
+		Msg("Using default max concurrency")
+	return DefaultMaxConcurrency
+}
 
 type ProofJob struct {
 	ID        string          `json:"id"`
@@ -34,6 +55,8 @@ type BaseQueueWorker struct {
 	stopChan            chan struct{}
 	queueName           string
 	processingQueueName string
+	maxConcurrency      int
+	semaphore           chan struct{}
 }
 
 type UpdateQueueWorker struct {
@@ -49,6 +72,7 @@ type AddressAppendQueueWorker struct {
 }
 
 func NewUpdateQueueWorker(redisQueue *RedisQueue, keyManager *common.LazyKeyManager) *UpdateQueueWorker {
+	maxConcurrency := getMaxConcurrency()
 	return &UpdateQueueWorker{
 		BaseQueueWorker: &BaseQueueWorker{
 			queue:               redisQueue,
@@ -56,11 +80,14 @@ func NewUpdateQueueWorker(redisQueue *RedisQueue, keyManager *common.LazyKeyMana
 			stopChan:            make(chan struct{}),
 			queueName:           "zk_update_queue",
 			processingQueueName: "zk_update_processing_queue",
+			maxConcurrency:      maxConcurrency,
+			semaphore:           make(chan struct{}, maxConcurrency),
 		},
 	}
 }
 
 func NewAppendQueueWorker(redisQueue *RedisQueue, keyManager *common.LazyKeyManager) *AppendQueueWorker {
+	maxConcurrency := getMaxConcurrency()
 	return &AppendQueueWorker{
 		BaseQueueWorker: &BaseQueueWorker{
 			queue:               redisQueue,
@@ -68,11 +95,14 @@ func NewAppendQueueWorker(redisQueue *RedisQueue, keyManager *common.LazyKeyMana
 			stopChan:            make(chan struct{}),
 			queueName:           "zk_append_queue",
 			processingQueueName: "zk_append_processing_queue",
+			maxConcurrency:      maxConcurrency,
+			semaphore:           make(chan struct{}, maxConcurrency),
 		},
 	}
 }
 
 func NewAddressAppendQueueWorker(redisQueue *RedisQueue, keyManager *common.LazyKeyManager) *AddressAppendQueueWorker {
+	maxConcurrency := getMaxConcurrency()
 	return &AddressAppendQueueWorker{
 		BaseQueueWorker: &BaseQueueWorker{
 			queue:               redisQueue,
@@ -80,12 +110,17 @@ func NewAddressAppendQueueWorker(redisQueue *RedisQueue, keyManager *common.Lazy
 			stopChan:            make(chan struct{}),
 			queueName:           "zk_address_append_queue",
 			processingQueueName: "zk_address_append_processing_queue",
+			maxConcurrency:      maxConcurrency,
+			semaphore:           make(chan struct{}, maxConcurrency),
 		},
 	}
 }
 
 func (w *BaseQueueWorker) Start() {
-	logging.Logger().Info().Str("queue", w.queueName).Msg("Starting queue worker")
+	logging.Logger().Info().
+		Str("queue", w.queueName).
+		Int("max_concurrency", w.maxConcurrency).
+		Msg("Starting queue worker with parallel processing")
 
 	for {
 		select {
@@ -153,31 +188,147 @@ func (w *BaseQueueWorker) processJobs() {
 		Str("job_id", job.ID).
 		Str("job_type", job.Type).
 		Str("queue", w.queueName).
-		Msg("Processing proof job")
+		Msg("Dequeued proof job")
 
-	processingJob := &ProofJob{
-		ID:        job.ID + "_processing",
-		Type:      "processing",
-		Payload:   job.Payload,
-		CreatedAt: time.Now(),
-	}
-	err = w.queue.EnqueueProof(w.processingQueueName, processingJob)
+	// Check for duplicate inputs before processing
+	inputHash := ComputeInputHash(job.Payload)
+
+	// Check if we already have a successful result for this input
+	cachedProof, cachedJobID, err := w.queue.FindCachedResult(inputHash)
 	if err != nil {
+		logging.Logger().Warn().
+			Err(err).
+			Str("job_id", job.ID).
+			Str("input_hash", inputHash).
+			Msg("Error searching for cached result, continuing with processing")
+	} else if cachedProof != nil {
+		// Found a cached successful result, return it immediately
+		logging.Logger().Info().
+			Str("job_id", job.ID).
+			Str("cached_job_id", cachedJobID).
+			Str("input_hash", inputHash).
+			Msg("Returning cached successful proof result without re-processing")
+
+		// Store result for new job ID
+		resultData, _ := json.Marshal(cachedProof)
+		resultJob := &ProofJob{
+			ID:        job.ID,
+			Type:      "result",
+			Payload:   json.RawMessage(resultData),
+			CreatedAt: time.Now(),
+		}
+		err = w.queue.EnqueueProof("zk_results_queue", resultJob)
+		if err != nil {
+			logging.Logger().Error().Err(err).Str("job_id", job.ID).Msg("Failed to enqueue cached result")
+		}
+		w.queue.StoreResult(job.ID, cachedProof)
+		w.queue.StoreInputHash(job.ID, inputHash)
 		return
 	}
 
-	err = w.processProofJob(job)
-	w.removeFromProcessingQueue(job.ID)
-
+	// Check if we already have a failure for this input
+	cachedFailure, cachedFailedJobID, err := w.queue.FindCachedFailure(inputHash)
 	if err != nil {
-		logging.Logger().Error().
+		logging.Logger().Warn().
 			Err(err).
 			Str("job_id", job.ID).
-			Str("queue", w.queueName).
-			Msg("Failed to process proof job")
+			Str("input_hash", inputHash).
+			Msg("Error searching for cached failure, continuing with processing")
+	} else if cachedFailure != nil {
+		// Found a cached failure, return it immediately
+		logging.Logger().Info().
+			Str("job_id", job.ID).
+			Str("cached_job_id", cachedFailedJobID).
+			Str("input_hash", inputHash).
+			Msg("Returning cached failure without re-processing")
 
-		w.addToFailedQueue(job, err)
+		// Extract error message from cached failure
+		var errorMsg string
+		if errMsg, ok := cachedFailure["error"].(string); ok {
+			errorMsg = errMsg
+		} else {
+			errorMsg = "Proof generation failed (cached failure)"
+		}
+
+		// Add to failed queue with new job ID
+		failedJob := map[string]interface{}{
+			"original_job": job,
+			"error":        errorMsg,
+			"failed_at":    time.Now(),
+			"cached_from":  cachedFailedJobID,
+		}
+
+		failedData, _ := json.Marshal(failedJob)
+		failedJobStruct := &ProofJob{
+			ID:        job.ID + "_failed",
+			Type:      "failed",
+			Payload:   json.RawMessage(failedData),
+			CreatedAt: time.Now(),
+		}
+
+		err = w.queue.EnqueueProof("zk_failed_queue", failedJobStruct)
+		if err != nil {
+			logging.Logger().Error().Err(err).Str("job_id", job.ID).Msg("Failed to enqueue cached failure")
+		}
+		w.queue.StoreInputHash(job.ID, inputHash)
+		return
 	}
+
+	// No cached result found, proceed with normal processing
+	// Store the input hash for this job to enable future deduplication
+	w.queue.StoreInputHash(job.ID, inputHash)
+
+	w.semaphore <- struct{}{}
+
+	go func(job *ProofJob) {
+		defer func() {
+			<-w.semaphore
+		}()
+
+		proofStartTime := time.Now()
+
+		logging.Logger().Info().
+			Str("job_id", job.ID).
+			Str("queue", w.queueName).
+			Msg("Starting proof generation")
+
+		processingJob := &ProofJob{
+			ID:        job.ID + "_processing",
+			Type:      "processing",
+			Payload:   job.Payload,
+			CreatedAt: time.Now(),
+		}
+		err := w.queue.EnqueueProof(w.processingQueueName, processingJob)
+		if err != nil {
+			logging.Logger().Error().
+				Err(err).
+				Str("job_id", job.ID).
+				Msg("Failed to add job to processing queue")
+			return
+		}
+
+		err = w.processProofJob(job)
+		w.removeFromProcessingQueue(job.ID)
+
+		proofDuration := time.Since(proofStartTime)
+
+		if err != nil {
+			logging.Logger().Error().
+				Err(err).
+				Str("job_id", job.ID).
+				Str("queue", w.queueName).
+				Dur("duration", proofDuration).
+				Msg("Failed to process proof job")
+
+			w.addToFailedQueue(job, err)
+		} else {
+			logging.Logger().Info().
+				Str("job_id", job.ID).
+				Str("queue", w.queueName).
+				Dur("duration", proofDuration).
+				Msg("Proof job completed successfully")
+		}
+	}(job)
 }
 
 func (w *UpdateQueueWorker) Start() {
@@ -294,7 +445,7 @@ func (w *BaseQueueWorker) processInclusionProof(payload json.RawMessage, meta co
 
 func (w *BaseQueueWorker) processNonInclusionProof(payload json.RawMessage, meta common.ProofRequestMeta) (*common.Proof, error) {
 	ps, err := w.keyManager.GetMerkleSystem(
-		0, 
+		0,
 		0,
 		meta.AddressTreeHeight,
 		meta.NumAddresses,

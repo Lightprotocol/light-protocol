@@ -20,9 +20,12 @@ use crate::{
 
 const MAX_RETRIES: u32 = 10;
 const BASE_RETRY_DELAY_SECS: u64 = 1;
-const DEFAULT_POLLING_INTERVAL_SECS: u64 = 1;
+const DEFAULT_POLLING_INTERVAL_MS: u64 = 100;
 const DEFAULT_MAX_WAIT_TIME_SECS: u64 = 600;
 const DEFAULT_LOCAL_SERVER: &str = "http://localhost:3001";
+
+const INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS: u64 = 1000;
+const INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS: u64 = 10000;
 
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
@@ -31,6 +34,16 @@ pub enum ProofResponse {
         job_id: String,
         estimated_time: Option<String>,
     },
+}
+
+/// Result of submitting a proof request asynchronously.
+/// Can be either a job ID to poll, or an immediate proof (for fast/local provers).
+#[derive(Debug)]
+pub enum SubmitProofResult {
+    /// Job was queued, poll with this ID
+    Queued(String),
+    /// Proof was returned immediately (sync response)
+    Immediate(ProofCompressed),
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,6 +65,7 @@ pub struct ProofClient {
     polling_interval: Duration,
     max_wait_time: Duration,
     api_key: Option<String>,
+    initial_poll_delay: Duration,
 }
 
 impl ProofClient {
@@ -59,9 +73,10 @@ impl ProofClient {
         Self {
             client: Client::new(),
             server_address: DEFAULT_LOCAL_SERVER.to_string(),
-            polling_interval: Duration::from_secs(DEFAULT_POLLING_INTERVAL_SECS),
+            polling_interval: Duration::from_millis(DEFAULT_POLLING_INTERVAL_MS),
             max_wait_time: Duration::from_secs(DEFAULT_MAX_WAIT_TIME_SECS),
             api_key: None,
+            initial_poll_delay: Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS),
         }
     }
 
@@ -72,13 +87,86 @@ impl ProofClient {
         max_wait_time: Duration,
         api_key: Option<String>,
     ) -> Self {
+        let initial_poll_delay = if api_key.is_some() {
+            Duration::from_millis(INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS)
+        } else {
+            Duration::from_millis(INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS)
+        };
+
         Self {
             client: Client::new(),
             server_address,
             polling_interval,
             max_wait_time,
             api_key,
+            initial_poll_delay,
         }
+    }
+
+    #[allow(unused)]
+    pub fn with_full_config(
+        server_address: String,
+        polling_interval: Duration,
+        max_wait_time: Duration,
+        api_key: Option<String>,
+        initial_poll_delay: Duration,
+    ) -> Self {
+        Self {
+            client: Client::new(),
+            server_address,
+            polling_interval,
+            max_wait_time,
+            api_key,
+            initial_poll_delay,
+        }
+    }
+
+    pub async fn submit_proof_async(
+        &self,
+        inputs_json: String,
+        circuit_type: &str,
+    ) -> Result<SubmitProofResult, ProverClientError> {
+        debug!(
+            "Submitting async proof request for circuit type: {}",
+            circuit_type
+        );
+
+        let response = self.send_proof_request(&inputs_json).await?;
+        let status_code = response.status();
+        let response_text = response.text().await.map_err(|e| {
+            ProverClientError::ProverServerError(format!("Failed to read response body: {}", e))
+        })?;
+
+        self.log_response(status_code, &response_text);
+
+        match status_code {
+            reqwest::StatusCode::ACCEPTED => {
+                debug!("Received asynchronous job response");
+                let job_response = self.parse_job_response(&response_text)?;
+                match job_response {
+                    ProofResponse::Async { job_id, .. } => {
+                        info!("Proof job queued with ID: {}", job_id);
+                        Ok(SubmitProofResult::Queued(job_id))
+                    }
+                }
+            }
+            reqwest::StatusCode::OK => {
+                // Synchronous response - proof returned immediately
+                debug!("Received synchronous proof response");
+                let proof = self.parse_proof_from_json(&response_text)?;
+                Ok(SubmitProofResult::Immediate(proof))
+            }
+            _ => self
+                .handle_error_response(&response_text)
+                .map(|_| unreachable!()),
+        }
+    }
+
+    pub async fn poll_proof_completion(
+        &self,
+        job_id: String,
+    ) -> Result<ProofCompressed, ProverClientError> {
+        self.poll_for_result(&job_id, Duration::ZERO).await
     }
 
     pub async fn generate_proof(
@@ -271,8 +359,30 @@ impl ProofClient {
 
         info!("Starting to poll for job {} at URL: {}", job_id, status_url);
 
+        debug!(
+            "Waiting {:?} before first poll to allow prover to persist job {}",
+            self.initial_poll_delay, job_id
+        );
+        sleep(self.initial_poll_delay).await;
+
         let mut poll_count = 0;
         let mut transient_error_count = 0;
+
+        if poll_count > 1 {
+            let wasted_polls = poll_count - 1;
+            let suggested_delay_ms = self.initial_poll_delay.as_millis() as u64
+                + (wasted_polls as u64 * self.polling_interval.as_millis() as u64);
+
+            warn!(
+                "Job {} required {} polls (wasted {} polls before completion). \
+                  Consider increasing initial_poll_delay from {}ms to ~{}ms for better efficiency.",
+                job_id,
+                poll_count,
+                wasted_polls,
+                self.initial_poll_delay.as_millis(),
+                suggested_delay_ms
+            );
+        }
 
         loop {
             poll_count += 1;
