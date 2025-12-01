@@ -1,0 +1,44 @@
+use async_trait::async_trait;
+use light_client::rpc::Rpc;
+
+use crate::processor::v2::{proof_worker::ProofInput, BatchContext, QueueWork};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CircuitType {
+    Append,
+    Nullify,
+    AddressAppend,
+}
+
+#[derive(Debug)]
+pub struct QueueData<T> {
+    pub staging_tree: T,
+    pub initial_root: [u8; 32],
+    pub num_batches: usize,
+}
+
+#[async_trait]
+pub trait TreeStrategy<R: Rpc>: Send + Sync + std::fmt::Debug {
+    type StagingTree: Send;
+
+    fn name(&self) -> &'static str;
+    fn circuit_type(&self, queue_data: &Self::StagingTree) -> CircuitType;
+
+    async fn fetch_zkp_batch_size(&self, context: &BatchContext<R>) -> crate::Result<u64>;
+
+    async fn fetch_queue_data(
+        &self,
+        context: &BatchContext<R>,
+        queue_work: &QueueWork,
+        max_batches: usize,
+        zkp_batch_size: u64,
+    ) -> crate::Result<Option<QueueData<Self::StagingTree>>>;
+
+    fn build_proof_job(
+        &self,
+        queue_data: &mut Self::StagingTree,
+        batch_idx: usize,
+        start: usize,
+        zkp_batch_size: u64,
+    ) -> crate::Result<(ProofInput, [u8; 32])>;
+}

@@ -70,8 +70,24 @@ use crate::{
 
 /// Map of tree pubkey to (epoch, processor)
 /// Using Arc<Mutex> for interior mutability since processors need &mut for processing
-type StateBatchProcessorMap<R> = Arc<DashMap<Pubkey, (u64, Arc<Mutex<v2::UnifiedBatchProcessor<R, v2::StateTreeStrategy>>>)>>;
-type AddressBatchProcessorMap<R> = Arc<DashMap<Pubkey, (u64, Arc<Mutex<v2::UnifiedBatchProcessor<R, v2::AddressTreeStrategy>>>)>>;
+type StateBatchProcessorMap<R> = Arc<
+    DashMap<
+        Pubkey,
+        (
+            u64,
+            Arc<Mutex<v2::UnifiedBatchProcessor<R, v2::StateTreeStrategy>>>,
+        ),
+    >,
+>;
+type AddressBatchProcessorMap<R> = Arc<
+    DashMap<
+        Pubkey,
+        (
+            u64,
+            Arc<Mutex<v2::UnifiedBatchProcessor<R, v2::AddressTreeStrategy>>>,
+        ),
+    >,
+>;
 
 /// Timing for a single circuit type (circuit inputs + proof generation)
 #[derive(Copy, Clone, Debug, Default)]
@@ -110,7 +126,10 @@ pub struct ProcessingMetrics {
 
 impl ProcessingMetrics {
     pub fn total(&self) -> std::time::Duration {
-        self.append.total() + self.nullify.total() + self.address_append.total() + self.tx_sending_duration
+        self.append.total()
+            + self.nullify.total()
+            + self.address_append.total()
+            + self.tx_sending_duration
     }
 
     pub fn total_circuit_inputs(&self) -> std::time::Duration {
@@ -1660,15 +1679,17 @@ impl<R: Rpc> EpochManager<R> {
                 .await
             }
             TreeType::StateV2 | TreeType::AddressV2 => {
-                let result = self.process_v2(
-                    epoch_info,
-                    tree_accounts,
-                    queue_update,
-                    consecutive_eligibility_end,
-                )
-                .await?;
+                let result = self
+                    .process_v2(
+                        epoch_info,
+                        tree_accounts,
+                        queue_update,
+                        consecutive_eligibility_end,
+                    )
+                    .await?;
                 // Accumulate processing metrics for this epoch
-                self.add_processing_metrics(epoch_info.epoch, result.metrics).await;
+                self.add_processing_metrics(epoch_info.epoch, result.metrics)
+                    .await;
                 Ok(result.items_processed)
             }
         }
@@ -1932,7 +1953,8 @@ impl<R: Rpc> EpochManager<R> {
                     let batch_context =
                         self.build_batch_context(epoch_info, tree_accounts, None, None, None);
                     let processor = Arc::new(Mutex::new(
-                        v2::UnifiedBatchProcessor::new(batch_context, v2::StateTreeStrategy).await?,
+                        v2::UnifiedBatchProcessor::new(batch_context, v2::StateTreeStrategy)
+                            .await?,
                     ));
                     info!(
                         "Created StateBatchProcessor for tree {} (epoch {})",
@@ -1982,7 +2004,8 @@ impl<R: Rpc> EpochManager<R> {
                     let batch_context =
                         self.build_batch_context(epoch_info, tree_accounts, None, None, None);
                     let processor = Arc::new(Mutex::new(
-                        v2::UnifiedBatchProcessor::new(batch_context, v2::AddressTreeStrategy).await?,
+                        v2::UnifiedBatchProcessor::new(batch_context, v2::AddressTreeStrategy)
+                            .await?,
                     ));
                     info!(
                         "Created AddressBatchProcessor for tree {} (epoch {})",
@@ -2367,7 +2390,10 @@ pub async fn run_service<R: Rpc>(
                     fetched_trees.retain(|tree| tree_ids.contains(&tree.merkle_tree));
                     if fetched_trees.is_empty() {
                         error!("None of the specified trees found: {:?}", tree_ids);
-                        return Err(anyhow::anyhow!("None of the specified trees found: {:?}", tree_ids));
+                        return Err(anyhow::anyhow!(
+                            "None of the specified trees found: {:?}",
+                            tree_ids
+                        ));
                     }
                     info!("Processing only trees: {:?}", tree_ids);
                 }

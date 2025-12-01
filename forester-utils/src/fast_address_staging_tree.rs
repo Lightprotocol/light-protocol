@@ -5,20 +5,20 @@
 ///
 /// The key optimization is replacing changelog-based proof patching with
 /// direct proof lookups from a reconstructed tree.
-
 use light_batched_merkle_tree::constants::DEFAULT_BATCH_ADDRESS_TREE_HEIGHT;
 use light_hasher::{bigint::bigint_to_be_bytes_array, Hasher, Poseidon};
 use light_indexed_array::{array::IndexedElement, changelog::RawIndexedElement};
 use light_merkle_tree_reference::MerkleTree;
 use light_prover_client::proof_types::batch_address_append::BatchAddressAppendInputs;
-use light_sparse_merkle_tree::indexed_changelog::{patch_indexed_changelogs, IndexedChangelogEntry};
+use light_sparse_merkle_tree::indexed_changelog::{
+    patch_indexed_changelogs, IndexedChangelogEntry,
+};
 use num_bigint::BigUint;
 use tracing::debug;
 
 use crate::error::ForesterUtilsError;
 use light_prover_client::proof_types::batch_address_append::get_batch_address_append_circuit_inputs;
 use light_sparse_merkle_tree::{changelog::ChangelogEntry, SparseMerkleTree};
-
 
 const HEIGHT: usize = DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize;
 
@@ -93,9 +93,11 @@ impl FastAddressStagingTree {
                 continue;
             }
 
-            merkle_tree.insert_node(node_index, node_hash).map_err(|e| {
-                ForesterUtilsError::AddressStagingTree(format!("Failed to insert node: {}", e))
-            })?;
+            merkle_tree
+                .insert_node(node_index, node_hash)
+                .map_err(|e| {
+                    ForesterUtilsError::AddressStagingTree(format!("Failed to insert node: {}", e))
+                })?;
         }
 
         // Set rightmost_index based on start_index
@@ -112,12 +114,17 @@ impl FastAddressStagingTree {
             // Note: get_leaf returns the hash. For update we need the hash.
             // merkle_tree.update takes the hash.
             if let Ok(last_leaf_hash) = merkle_tree.get_leaf(last_leaf_index) {
-                merkle_tree.update(&last_leaf_hash, last_leaf_index).map_err(|e| {
-                    ForesterUtilsError::AddressStagingTree(format!("Failed to fix boundary path: {}", e))
-                })?;
+                merkle_tree
+                    .update(&last_leaf_hash, last_leaf_index)
+                    .map_err(|e| {
+                        ForesterUtilsError::AddressStagingTree(format!(
+                            "Failed to fix boundary path: {}",
+                            e
+                        ))
+                    })?;
             }
         }
-        
+
         // Update current_root to match the cleaned tree
         let current_root = merkle_tree.root();
 
@@ -171,7 +178,10 @@ impl FastAddressStagingTree {
     /// Check if we have a fully reconstructed tree (from nodes)
     fn has_full_tree(&self) -> bool {
         // If we have any layers with data, we have a reconstructed tree
-        self.merkle_tree.layers.iter().any(|layer| !layer.is_empty())
+        self.merkle_tree
+            .layers
+            .iter()
+            .any(|layer| !layer.is_empty())
     }
 
     /// Get proof directly from the merkle tree
@@ -329,14 +339,20 @@ impl FastAddressStagingTree {
             // Record circuit inputs for this element (BEFORE tree updates)
             circuit_low_element_values.push(
                 bigint_to_be_bytes_array::<32>(&low_element.value).map_err(|e| {
-                    ForesterUtilsError::AddressStagingTree(format!("BigInt conversion error: {}", e))
+                    ForesterUtilsError::AddressStagingTree(format!(
+                        "BigInt conversion error: {}",
+                        e
+                    ))
                 })?,
             );
             circuit_low_element_indices.push(low_element.index);
             circuit_low_element_next_indices.push(low_element.next_index);
             circuit_low_element_next_values.push(
                 bigint_to_be_bytes_array::<32>(&low_element_next_value).map_err(|e| {
-                    ForesterUtilsError::AddressStagingTree(format!("BigInt conversion error: {}", e))
+                    ForesterUtilsError::AddressStagingTree(format!(
+                        "BigInt conversion error: {}",
+                        e
+                    ))
                 })?,
             );
             circuit_low_element_proofs.push(low_element_proof_arr.to_vec());
@@ -449,7 +465,10 @@ impl FastAddressStagingTree {
             start_index,
         )
         .map_err(|e| {
-            ForesterUtilsError::AddressStagingTree(format!("Failed to create circuit inputs: {}", e))
+            ForesterUtilsError::AddressStagingTree(format!(
+                "Failed to create circuit inputs: {}",
+                e
+            ))
         })?;
 
         debug!(
@@ -482,18 +501,18 @@ mod tests {
         num_existing: usize,
         num_new: usize,
     ) -> (
-        [[u8; 32]; HEIGHT],               // subtrees
-        [u8; 32],                          // initial_root
-        usize,                             // start_index
-        Vec<[u8; 32]>,                     // addresses to append
-        Vec<[u8; 32]>,                     // low_element_values
-        Vec<[u8; 32]>,                     // low_element_next_values
-        Vec<usize>,                        // low_element_indices
-        Vec<usize>,                        // low_element_next_indices
-        Vec<Vec<[u8; 32]>>,               // low_element_proofs
-        [u8; 32],                          // leaves_hashchain
-        Vec<u64>,                          // nodes
-        Vec<[u8; 32]>,                     // node_hashes
+        [[u8; 32]; HEIGHT], // subtrees
+        [u8; 32],           // initial_root
+        usize,              // start_index
+        Vec<[u8; 32]>,      // addresses to append
+        Vec<[u8; 32]>,      // low_element_values
+        Vec<[u8; 32]>,      // low_element_next_values
+        Vec<usize>,         // low_element_indices
+        Vec<usize>,         // low_element_next_indices
+        Vec<Vec<[u8; 32]>>, // low_element_proofs
+        [u8; 32],           // leaves_hashchain
+        Vec<u64>,           // nodes
+        Vec<[u8; 32]>,      // node_hashes
     ) {
         use light_hasher::hash_chain::create_hash_chain_from_array;
 
@@ -504,7 +523,9 @@ mod tests {
 
         // Initialize tree (insert the high-value sentinel element)
         tree.init().unwrap();
-        let init_value = BigUint::from_str_radix(light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
+        let init_value =
+            BigUint::from_str_radix(light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE, 10)
+                .unwrap();
         indexed_array.append(&init_value).unwrap();
 
         // Insert existing addresses to populate the tree
@@ -556,30 +577,33 @@ mod tests {
 
             // Find low element for this address
             let value = BigUint::from_bytes_be(&addr);
-            let (low_elem, low_elem_next_value) = indexed_array.find_low_element_for_nonexistent(&value).unwrap();
+            let (low_elem, low_elem_next_value) = indexed_array
+                .find_low_element_for_nonexistent(&value)
+                .unwrap();
 
             low_element_values.push(bigint_to_be_bytes_array::<32>(&low_elem.value).unwrap());
-            low_element_next_values.push(bigint_to_be_bytes_array::<32>(&low_elem_next_value).unwrap());
+            low_element_next_values
+                .push(bigint_to_be_bytes_array::<32>(&low_elem_next_value).unwrap());
             low_element_indices.push(low_elem.index);
             low_element_next_indices.push(low_elem.next_index);
 
             // Get proof for low element from the tree
-            let proof = tree
-                .get_proof_of_leaf(low_elem.index, false)
-                .unwrap();
+            let proof = tree.get_proof_of_leaf(low_elem.index, false).unwrap();
             low_element_proofs.push(proof.to_vec());
         }
 
         // Compute leaves hashchain
         let leaves_hashchain = if !addresses.is_empty() {
-            create_hash_chain_from_array(addresses.clone().try_into().unwrap_or_else(|v: Vec<[u8; 32]>| {
-                // Pad with zeros if needed
-                let mut arr = [[0u8; 32]; 4]; // Assuming max batch size 4 for test
-                for (idx, a) in v.into_iter().enumerate().take(4) {
-                    arr[idx] = a;
-                }
-                arr
-            }))
+            create_hash_chain_from_array(addresses.clone().try_into().unwrap_or_else(
+                |v: Vec<[u8; 32]>| {
+                    // Pad with zeros if needed
+                    let mut arr = [[0u8; 32]; 4]; // Assuming max batch size 4 for test
+                    for (idx, a) in v.into_iter().enumerate().take(4) {
+                        arr[idx] = a;
+                    }
+                    arr
+                },
+            ))
             .unwrap_or([0u8; 32])
         } else {
             [0u8; 32]
@@ -631,10 +655,21 @@ mod tests {
 
         // Check that the tree has the expected structure
         assert_eq!(fast_tree.next_index, start_index, "next_index mismatch");
-        assert_eq!(fast_tree.current_root, initial_root, "current_root mismatch");
+        assert_eq!(
+            fast_tree.current_root, initial_root,
+            "current_root mismatch"
+        );
 
         // The merkle_tree.root() returns what we pushed, but the layers should be consistent
-        println!("Num layers with data: {}", fast_tree.merkle_tree.layers.iter().filter(|l| !l.is_empty()).count());
+        println!(
+            "Num layers with data: {}",
+            fast_tree
+                .merkle_tree
+                .layers
+                .iter()
+                .filter(|l| !l.is_empty())
+                .count()
+        );
         println!("Total nodes inserted: {}", nodes.len());
     }
 
@@ -657,8 +692,7 @@ mod tests {
         ) = build_test_tree_and_data(3, 1); // 3 existing, 1 new
 
         // Create AddressStagingTree (reference implementation)
-        let mut address_staging_tree =
-            AddressStagingTree::new(subtrees, start_index, initial_root);
+        let mut address_staging_tree = AddressStagingTree::new(subtrees, start_index, initial_root);
 
         // Create FastAddressStagingTree
         let mut fast_staging_tree =
@@ -669,7 +703,12 @@ mod tests {
         println!(
             "FastAddressStagingTree has_full_tree: {}, num_layers_with_data: {}",
             fast_staging_tree.has_full_tree(),
-            fast_staging_tree.merkle_tree.layers.iter().filter(|l| !l.is_empty()).count()
+            fast_staging_tree
+                .merkle_tree
+                .layers
+                .iter()
+                .filter(|l| !l.is_empty())
+                .count()
         );
 
         // Process batch with reference implementation
@@ -727,8 +766,7 @@ mod tests {
         ) = build_test_tree_and_data(5, 4); // 5 existing, 4 new
 
         // Create both trees
-        let mut address_staging_tree =
-            AddressStagingTree::new(subtrees, start_index, initial_root);
+        let mut address_staging_tree = AddressStagingTree::new(subtrees, start_index, initial_root);
         let mut fast_staging_tree =
             FastAddressStagingTree::from_nodes(&nodes, &node_hashes, initial_root, start_index)
                 .expect("Failed to create fast staging tree");
@@ -760,7 +798,11 @@ mod tests {
             )
             .expect("Fast implementation failed");
 
-        compare_circuit_inputs(&ref_result.circuit_inputs, &fast_result.circuit_inputs, "batch");
+        compare_circuit_inputs(
+            &ref_result.circuit_inputs,
+            &fast_result.circuit_inputs,
+            "batch",
+        );
     }
 
     fn compare_circuit_inputs(
@@ -833,8 +875,7 @@ mod tests {
             assert_eq!(
                 reference.low_element_values[i], fast.low_element_values[i],
                 "{}: low_element_values[{}] mismatch",
-                test_name,
-                i
+                test_name, i
             );
 
             // Low element indices
@@ -847,8 +888,7 @@ mod tests {
             assert_eq!(
                 reference.low_element_indices[i], fast.low_element_indices[i],
                 "{}: low_element_indices[{}] mismatch",
-                test_name,
-                i
+                test_name, i
             );
 
             // Low element next indices
@@ -861,8 +901,7 @@ mod tests {
             assert_eq!(
                 reference.low_element_next_indices[i], fast.low_element_next_indices[i],
                 "{}: low_element_next_indices[{}] mismatch",
-                test_name,
-                i
+                test_name, i
             );
 
             // Low element next values
@@ -875,8 +914,7 @@ mod tests {
             assert_eq!(
                 reference.low_element_next_values[i], fast.low_element_next_values[i],
                 "{}: low_element_next_values[{}] mismatch",
-                test_name,
-                i
+                test_name, i
             );
 
             // Low element proofs
@@ -895,8 +933,7 @@ mod tests {
             assert_eq!(
                 reference.low_element_proofs[i], fast.low_element_proofs[i],
                 "{}: low_element_proofs[{}] mismatch",
-                test_name,
-                i
+                test_name, i
             );
 
             // New element values
@@ -909,8 +946,7 @@ mod tests {
             assert_eq!(
                 reference.new_element_values[i], fast.new_element_values[i],
                 "{}: new_element_values[{}] mismatch",
-                test_name,
-                i
+                test_name, i
             );
 
             // New element proofs
@@ -929,8 +965,7 @@ mod tests {
             assert_eq!(
                 reference.new_element_proofs[i], fast.new_element_proofs[i],
                 "{}: new_element_proofs[{}] mismatch",
-                test_name,
-                i
+                test_name, i
             );
         }
 
@@ -950,10 +985,7 @@ mod tests {
         use std::fs;
 
         // Load the photon JSON data
-        let json_path = concat!(
-            env!("CARGO_MANIFEST_DIR"),
-            "/src/test_data_photon.json"
-        );
+        let json_path = concat!(env!("CARGO_MANIFEST_DIR"), "/src/test_data_photon.json");
         let json_str = match fs::read_to_string(json_path) {
             Ok(s) => s,
             Err(e) => {
@@ -995,7 +1027,11 @@ mod tests {
 
         let start_index = aq["startIndex"].as_u64().unwrap() as usize;
 
-        println!("Photon data: {} nodes, start_index={}", nodes.len(), start_index);
+        println!(
+            "Photon data: {} nodes, start_index={}",
+            nodes.len(),
+            start_index
+        );
         println!("Initial root: {:?}", &initial_root[..4]);
 
         // Create FastAddressStagingTree from nodes
@@ -1106,7 +1142,9 @@ mod tests {
             .collect();
 
         // Parse leaves hash chain
-        let leaves_hashchain_str = aq["leavesHashChains"].as_array().unwrap()[0].as_str().unwrap();
+        let leaves_hashchain_str = aq["leavesHashChains"].as_array().unwrap()[0]
+            .as_str()
+            .unwrap();
         let leaves_hashchain_bytes = bs58::decode(leaves_hashchain_str).into_vec().unwrap();
         let mut leaves_hashchain = [0u8; 32];
         leaves_hashchain.copy_from_slice(&leaves_hashchain_bytes);
@@ -1159,22 +1197,34 @@ mod tests {
         println!("\n=== Verifying first circuit constraint ===");
 
         // Get the first element's data from circuit inputs
-        let low_value_0: [u8; 32] = bigint_to_be_bytes_array(&inputs.low_element_values[0]).unwrap();
-        let low_next_value_0: [u8; 32] = bigint_to_be_bytes_array(&inputs.low_element_next_values[0]).unwrap();
+        let low_value_0: [u8; 32] =
+            bigint_to_be_bytes_array(&inputs.low_element_values[0]).unwrap();
+        let low_next_value_0: [u8; 32] =
+            bigint_to_be_bytes_array(&inputs.low_element_next_values[0]).unwrap();
         let low_index_0: usize = inputs.low_element_indices[0].to_string().parse().unwrap();
 
         println!("low_element_value[0]: {:?}[..4]", &low_value_0[..4]);
-        println!("low_element_next_value[0]: {:?}[..4]", &low_next_value_0[..4]);
+        println!(
+            "low_element_next_value[0]: {:?}[..4]",
+            &low_next_value_0[..4]
+        );
         println!("low_element_index[0]: {}", low_index_0);
 
         // Compute what the circuit expects: oldLowLeafHash = H(value, next_value)
         let expected_old_leaf_hash = Poseidon::hashv(&[&low_value_0, &low_next_value_0]).unwrap();
-        println!("Expected old leaf hash (H(value, next_value)): {:?}[..4]", &expected_old_leaf_hash[..4]);
+        println!(
+            "Expected old leaf hash (H(value, next_value)): {:?}[..4]",
+            &expected_old_leaf_hash[..4]
+        );
 
         // Get the actual leaf hash from our tree at low_index_0
         // The tree stores actual leaf hashes, not raw values
         let actual_leaf_hash = fast_tree_clone.merkle_tree.layers[0][low_index_0];
-        println!("Actual leaf hash in tree at index {}: {:?}[..4]", low_index_0, &actual_leaf_hash[..4]);
+        println!(
+            "Actual leaf hash in tree at index {}: {:?}[..4]",
+            low_index_0,
+            &actual_leaf_hash[..4]
+        );
 
         // These should match!
         if expected_old_leaf_hash != actual_leaf_hash {
@@ -1182,8 +1232,14 @@ mod tests {
             println!("The circuit expects leaf hash = H(low_value, low_next_value)");
             println!("But the tree has a different leaf hash stored");
             println!("");
-            println!("Expected (from circuit computation): {:?}", expected_old_leaf_hash);
-            println!("Actual (from tree):                  {:?}", actual_leaf_hash);
+            println!(
+                "Expected (from circuit computation): {:?}",
+                expected_old_leaf_hash
+            );
+            println!(
+                "Actual (from tree):                  {:?}",
+                actual_leaf_hash
+            );
             panic!("Leaf hash mismatch - this will cause constraint #10699 to fail!");
         } else {
             println!("✓ Leaf hashes match!");
@@ -1226,17 +1282,23 @@ mod tests {
         println!("\n=== Verifying provided proofs against tree ===");
         for (i, proof) in low_element_proofs.iter().enumerate() {
             let index = low_element_indices[i];
-            let tree_proof = fast_tree_clone.merkle_tree.get_proof_of_leaf(index, true).unwrap();
-            let proof_vec: Vec<[u8; 32]> = proof.iter().map(|p| {
-                let mut arr = [0u8; 32];
-                arr.copy_from_slice(p);
-                arr
-            }).collect();
-            
+            let tree_proof = fast_tree_clone
+                .merkle_tree
+                .get_proof_of_leaf(index, true)
+                .unwrap();
+            let proof_vec: Vec<[u8; 32]> = proof
+                .iter()
+                .map(|p| {
+                    let mut arr = [0u8; 32];
+                    arr.copy_from_slice(p);
+                    arr
+                })
+                .collect();
+
             // Compare only first HEIGHT elements (proof might be longer?)
             // Actually proof is Vec<[u8; 32]>
             let proof_arr: Vec<[u8; 32]> = proof.clone();
-            
+
             if proof_arr != tree_proof {
                 println!("Proof mismatch at index {}!", i);
                 println!("Provided: {:?}", &proof_arr[0]);
@@ -1307,7 +1369,9 @@ mod tests {
 
         // Initialize tree
         tree.init().unwrap();
-        let init_value = BigUint::from_str_radix(light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE, 10).unwrap();
+        let init_value =
+            BigUint::from_str_radix(light_indexed_merkle_tree::HIGHEST_ADDRESS_PLUS_ONE, 10)
+                .unwrap();
         indexed_array.append(&init_value).unwrap();
 
         // Insert 2 existing addresses to populate the tree
@@ -1353,10 +1417,13 @@ mod tests {
 
             // Find low element based on INITIAL tree state
             let value = BigUint::from_bytes_be(&addr);
-            let (low_elem, low_elem_next_value) = indexed_array.find_low_element_for_nonexistent(&value).unwrap();
+            let (low_elem, low_elem_next_value) = indexed_array
+                .find_low_element_for_nonexistent(&value)
+                .unwrap();
 
             all_low_element_values.push(bigint_to_be_bytes_array::<32>(&low_elem.value).unwrap());
-            all_low_element_next_values.push(bigint_to_be_bytes_array::<32>(&low_elem_next_value).unwrap());
+            all_low_element_next_values
+                .push(bigint_to_be_bytes_array::<32>(&low_elem_next_value).unwrap());
             all_low_element_indices.push(low_elem.index);
             all_low_element_next_indices.push(low_elem.next_index);
 
@@ -1367,7 +1434,10 @@ mod tests {
 
         println!("Initial root: {:?}[..4]", &initial_root[..4]);
         println!("Start index: {}", start_index);
-        println!("Generated {} addresses in 2 batches of {}", total_addresses, batch_size);
+        println!(
+            "Generated {} addresses in 2 batches of {}",
+            total_addresses, batch_size
+        );
 
         // Print low element info to understand the initial state
         println!("\nInitial low element assignments:");
@@ -1387,7 +1457,9 @@ mod tests {
         let batch0_addresses: [[u8; 32]; 4] = all_addresses[0..batch_size].try_into().unwrap();
         let batch0_hashchain = create_hash_chain_from_array(batch0_addresses).unwrap();
 
-        let batch1_addresses: [[u8; 32]; 4] = all_addresses[batch_size..total_addresses].try_into().unwrap();
+        let batch1_addresses: [[u8; 32]; 4] = all_addresses[batch_size..total_addresses]
+            .try_into()
+            .unwrap();
         let batch1_hashchain = create_hash_chain_from_array(batch1_addresses).unwrap();
 
         // Process BATCH 0
@@ -1417,15 +1489,20 @@ mod tests {
             .map(|b| bigint_to_be_bytes_array(b).unwrap())
             .collect();
         let batch0_low_proof_arr: [[u8; 32]; HEIGHT] = batch0_low_proof.try_into().unwrap();
-        let batch0_low_index = batch0_result.circuit_inputs.low_element_indices[0].to_u64_digits()[0] as usize;
-        let batch0_low_value_bytes: [u8; 32] = bigint_to_be_bytes_array(&batch0_result.circuit_inputs.low_element_values[0]).unwrap();
-        let batch0_low_next_value_bytes: [u8; 32] = bigint_to_be_bytes_array(&batch0_result.circuit_inputs.low_element_next_values[0]).unwrap();
+        let batch0_low_index =
+            batch0_result.circuit_inputs.low_element_indices[0].to_u64_digits()[0] as usize;
+        let batch0_low_value_bytes: [u8; 32] =
+            bigint_to_be_bytes_array(&batch0_result.circuit_inputs.low_element_values[0]).unwrap();
+        let batch0_low_next_value_bytes: [u8; 32] =
+            bigint_to_be_bytes_array(&batch0_result.circuit_inputs.low_element_next_values[0])
+                .unwrap();
 
         // Compute expected leaf hash
         let batch0_old_leaf = IndexedElement {
             index: batch0_low_index,
             value: batch0_result.circuit_inputs.low_element_values[0].clone(),
-            next_index: batch0_result.circuit_inputs.low_element_next_indices[0].to_u64_digits()[0] as usize,
+            next_index: batch0_result.circuit_inputs.low_element_next_indices[0].to_u64_digits()[0]
+                as usize,
         };
         let old_leaf_hash_0 = batch0_old_leaf
             .hash::<Poseidon>(&batch0_result.circuit_inputs.low_element_next_values[0])
@@ -1437,9 +1514,13 @@ mod tests {
             batch0_low_index as u32,
         );
 
-        let old_root_bytes_0: [u8; 32] = bigint_to_be_bytes_array(&batch0_result.circuit_inputs.old_root).unwrap();
-        println!("Batch 0 element 0: computed_root={:?}[..4], old_root={:?}[..4]",
-            &computed_root_0[..4], &old_root_bytes_0[..4]);
+        let old_root_bytes_0: [u8; 32] =
+            bigint_to_be_bytes_array(&batch0_result.circuit_inputs.old_root).unwrap();
+        println!(
+            "Batch 0 element 0: computed_root={:?}[..4], old_root={:?}[..4]",
+            &computed_root_0[..4],
+            &old_root_bytes_0[..4]
+        );
 
         if computed_root_0 != old_root_bytes_0 {
             panic!("Batch 0 root mismatch! This would cause constraint #10699");
@@ -1476,19 +1557,22 @@ mod tests {
             .map(|b| bigint_to_be_bytes_array(b).unwrap())
             .collect();
         let batch1_low_proof_arr: [[u8; 32]; HEIGHT] = batch1_low_proof.try_into().unwrap();
-        let batch1_low_index = batch1_result.circuit_inputs.low_element_indices[0].to_u64_digits()[0] as usize;
+        let batch1_low_index =
+            batch1_result.circuit_inputs.low_element_indices[0].to_u64_digits()[0] as usize;
 
         // Compute expected leaf hash for batch 1
         let batch1_old_leaf = IndexedElement {
             index: batch1_low_index,
             value: batch1_result.circuit_inputs.low_element_values[0].clone(),
-            next_index: batch1_result.circuit_inputs.low_element_next_indices[0].to_u64_digits()[0] as usize,
+            next_index: batch1_result.circuit_inputs.low_element_next_indices[0].to_u64_digits()[0]
+                as usize,
         };
         let old_leaf_hash_1 = batch1_old_leaf
             .hash::<Poseidon>(&batch1_result.circuit_inputs.low_element_next_values[0])
             .unwrap();
 
-        let batch1_old_root_bytes: [u8; 32] = bigint_to_be_bytes_array(&batch1_result.circuit_inputs.old_root).unwrap();
+        let batch1_old_root_bytes: [u8; 32] =
+            bigint_to_be_bytes_array(&batch1_result.circuit_inputs.old_root).unwrap();
 
         let (computed_root_1, _) = compute_root_from_merkle_proof(
             old_leaf_hash_1,
@@ -1498,11 +1582,20 @@ mod tests {
 
         println!("\nBatch 1 element 0 verification:");
         println!("  low_element.index: {}", batch1_low_index);
-        println!("  low_element.value: {:#x}", batch1_result.circuit_inputs.low_element_values[0]);
-        println!("  low_element.next_value: {:#x}", batch1_result.circuit_inputs.low_element_next_values[0]);
+        println!(
+            "  low_element.value: {:#x}",
+            batch1_result.circuit_inputs.low_element_values[0]
+        );
+        println!(
+            "  low_element.next_value: {:#x}",
+            batch1_result.circuit_inputs.low_element_next_values[0]
+        );
         println!("  old_leaf_hash: {:?}[..4]", &old_leaf_hash_1[..4]);
         println!("  computed_root: {:?}[..4]", &computed_root_1[..4]);
-        println!("  expected old_root: {:?}[..4]", &batch1_old_root_bytes[..4]);
+        println!(
+            "  expected old_root: {:?}[..4]",
+            &batch1_old_root_bytes[..4]
+        );
 
         // This is the critical check - if cross-batch patching doesn't work,
         // the computed root won't match
@@ -1516,7 +1609,8 @@ mod tests {
         println!("✓ Batch 1 root verification passed - cross-batch patching works!");
 
         // Verify batch 1 uses batch 0's new_root as its old_root
-        let batch0_new_root_bytes: [u8; 32] = bigint_to_be_bytes_array(&batch0_result.circuit_inputs.new_root).unwrap();
+        let batch0_new_root_bytes: [u8; 32] =
+            bigint_to_be_bytes_array(&batch0_result.circuit_inputs.new_root).unwrap();
         assert_eq!(
             batch1_old_root_bytes, batch0_new_root_bytes,
             "Batch 1 old_root should equal batch 0 new_root"

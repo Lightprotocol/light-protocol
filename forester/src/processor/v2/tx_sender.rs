@@ -3,15 +3,13 @@ use std::sync::atomic::Ordering;
 
 use borsh::BorshSerialize;
 
-// Maximum number of buffered proof results to prevent OOM
+// Maximum number of buffered proof results
 const MAX_BUFFER_SIZE: usize = 1000;
 
 // Number of proof instructions to bundle per transaction
-// Higher values reduce tx overhead but increase tx size and CU consumption
 pub const V2_IXS_PER_TX: usize = 4;
 
 // Minimum slots remaining before we force-send any pending batch
-// This prevents epoch expiration while waiting to fill a batch
 const MIN_SLOTS_FOR_BATCHING: u64 = 10;
 
 use light_batched_merkle_tree::merkle_tree::{
@@ -24,13 +22,11 @@ use light_registry::account_compression_cpi::sdk::{
 };
 use solana_sdk::{instruction::Instruction, signature::Signer};
 use tokio::{sync::mpsc, task::JoinHandle};
-use tracing::{debug, info, warn};
+use tracing::{info, warn};
 
 use crate::{
     errors::ForesterError,
-    processor::v2::{
-        common::send_transaction_batch, state::proof_worker::ProofResult, BatchContext,
-    },
+    processor::v2::{common::send_transaction_batch, proof_worker::ProofResult, BatchContext},
 };
 
 #[derive(Debug, Clone)]
@@ -46,7 +42,6 @@ pub struct TxSender<R: Rpc> {
     buffer: BTreeMap<u64, BatchInstruction>,
     zkp_batch_size: u64,
     last_seen_root: [u8; 32],
-    // Pending instructions to be batched into a single tx
     pending_batch: Vec<(BatchInstruction, u64)>, // (instruction, seq)
 }
 
@@ -69,7 +64,6 @@ impl<R: Rpc> TxSender<R> {
         tokio::spawn(async move { sender.run(proof_rx).await })
     }
 
-    /// Check if we should send the pending batch now due to time pressure
     fn should_flush_due_to_time(&self) -> bool {
         let current_slot = self.context.slot_tracker.estimated_current_slot();
         let forester_end = self
@@ -105,7 +99,6 @@ impl<R: Rpc> TxSender<R> {
                 }
             };
 
-            // Check buffer size limit to prevent OOM
             if self.buffer.len() >= MAX_BUFFER_SIZE {
                 warn!(
                     "Buffer overflow: {} buffered proofs (max {}). Expected seq={}, oldest buffered={}",
@@ -122,7 +115,6 @@ impl<R: Rpc> TxSender<R> {
 
             self.buffer.insert(result.seq, instruction);
 
-            // Process in-order proofs and batch them
             while let Some(instr) = self.buffer.remove(&self.expected_seq) {
                 let seq = self.expected_seq;
                 self.expected_seq += 1;
@@ -140,7 +132,6 @@ impl<R: Rpc> TxSender<R> {
             }
         }
 
-        // Send any remaining instructions
         if !self.pending_batch.is_empty() {
             processed += self.send_pending_batch().await?;
         }
@@ -153,16 +144,12 @@ impl<R: Rpc> TxSender<R> {
             return Ok(0);
         }
 
-        let batch = std::mem::replace(
-            &mut self.pending_batch,
-            Vec::with_capacity(V2_IXS_PER_TX),
-        );
+        let batch = std::mem::replace(&mut self.pending_batch, Vec::with_capacity(V2_IXS_PER_TX));
 
         let batch_len = batch.len();
         let first_seq = batch.first().map(|(_, s)| *s).unwrap_or(0);
         let last_seq = batch.last().map(|(_, s)| *s).unwrap_or(0);
 
-        // Build all instructions for this batch
         let mut all_instructions: Vec<Instruction> = Vec::new();
         let mut last_root: Option<[u8; 32]> = None;
         let mut instr_type = "";
@@ -225,13 +212,6 @@ impl<R: Rpc> TxSender<R> {
                 last_root = Some(root);
             }
         }
-
-        debug!(
-            "Sending batched tx with {} instructions (seq {}..{})",
-            all_instructions.len(),
-            first_seq,
-            last_seq
-        );
 
         match send_transaction_batch(&self.context, all_instructions).await {
             Ok(sig) => {

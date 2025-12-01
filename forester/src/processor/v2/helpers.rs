@@ -1,3 +1,4 @@
+use crate::processor::v2::common::clamp_to_u16;
 use anyhow::anyhow;
 use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
 use light_client::{
@@ -8,7 +9,6 @@ use light_compressed_account::Pubkey;
 
 use crate::processor::v2::BatchContext;
 
-/// Fetches zkp_batch_size from on-chain merkle tree account (called once at startup)
 pub async fn fetch_zkp_batch_size<R: Rpc>(context: &BatchContext<R>) -> crate::Result<u64> {
     let rpc = context.rpc_pool.get_connection().await?;
     let mut account = rpc
@@ -59,8 +59,6 @@ pub async fn fetch_batches<R: Rpc>(
     fetch_len: u64,
     zkp_batch_size: u64,
 ) -> crate::Result<Option<light_client::indexer::StateQueueDataV2>> {
-    use crate::processor::v2::common::clamp_to_u16;
-
     let fetch_len_u16 = clamp_to_u16(fetch_len, "fetch_len");
     let zkp_batch_size_u16 = clamp_to_u16(zkp_batch_size, "zkp_batch_size");
 

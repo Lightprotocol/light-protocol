@@ -1,17 +1,20 @@
-pub mod address;
 pub mod common;
-pub mod state;
-mod strategies;
-mod unified;
+mod helpers;
+mod processor;
+mod proof_worker;
+mod strategy;
+mod tx_sender;
 
 use light_client::rpc::Rpc;
 use tracing::{instrument, trace};
 
-use crate::Result;
+use crate::{epoch_manager::ProcessingMetrics, Result};
 
-// Export unified architecture
-pub use strategies::{AddressTreeStrategy, StateTreeStrategy};
-pub use unified::{ProcessingResult, UnifiedBatchProcessor};
+pub use common::{BatchContext, ProverConfig, QueueWork};
+use light_compressed_account::TreeType;
+
+pub use address_strategy::AddressTreeStrategy;
+pub use state_strategy::StateTreeStrategy;
 
 #[instrument(
     level = "debug",
@@ -26,7 +29,6 @@ pub async fn process_batched_operations<R: Rpc>(
     context: BatchContext<R>,
     tree_type: TreeType,
 ) -> Result<usize> {
-    trace!("process_batched_operations");
     match tree_type {
         TreeType::AddressV2 => {
             trace!("AddressV2 processing should be handled through AddressSupervisor actor");
@@ -40,5 +42,8 @@ pub async fn process_batched_operations<R: Rpc>(
     }
 }
 
-pub use common::{BatchContext, ProverConfig, QueueWork};
-use light_compressed_account::TreeType;
+#[derive(Debug, Clone, Default)]
+pub struct ProcessingResult {
+    pub items_processed: usize,
+    pub metrics: ProcessingMetrics,
+}

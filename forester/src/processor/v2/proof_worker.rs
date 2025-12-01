@@ -11,9 +11,9 @@ use light_prover_client::{
     },
 };
 use tokio::sync::mpsc;
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, info, warn};
 
-use crate::processor::v2::{state::tx_sender::BatchInstruction, ProverConfig};
+use crate::processor::v2::{tx_sender::BatchInstruction, ProverConfig};
 
 #[derive(Debug)]
 pub enum ProofInput {
@@ -38,7 +38,6 @@ pub fn spawn_proof_workers(
     num_workers: usize,
     config: ProverConfig,
 ) -> async_channel::Sender<ProofJob> {
-    // Enforce minimum of 1 worker to prevent zero-capacity channels and no workers
     let num_workers = if num_workers == 0 {
         warn!("spawn_proof_workers called with num_workers=0, using 1 instead");
         1
@@ -77,11 +76,7 @@ async fn run_proof_worker(
         config.api_key,
     );
 
-    trace!("ProofWorker {} started", worker_id);
-
     while let Ok(job) = job_rx.recv().await {
-        debug!("ProofWorker {} processing job seq={}", worker_id, job.seq);
-
         let result_data = match job.inputs {
             ProofInput::Append(inputs) => {
                 match append_client.generate_batch_append_proof(inputs).await {
@@ -112,22 +107,11 @@ async fn run_proof_worker(
                 }
             }
             ProofInput::AddressAppend(inputs) => {
-                // Log JSON inputs for debugging constraint errors
                 let json_inputs = address_append_to_json(&inputs);
-                info!(
-                    "AddressAppend inputs seq={}: old_root={:?}[..4], new_root={:?}[..4], start_index={}, batch_size={}",
-                    job.seq,
-                    inputs.old_root.to_bytes_be()[..4].to_vec(),
-                    inputs.new_root.to_bytes_be()[..4].to_vec(),
-                    inputs.start_index,
-                    inputs.batch_size
-                );
-                debug!(
-                    "AddressAppend JSON seq={}: {}",
-                    job.seq,
-                    json_inputs
-                );
-                match append_client.generate_batch_address_append_proof(inputs).await {
+                match append_client
+                    .generate_batch_address_append_proof(inputs)
+                    .await
+                {
                     Ok((proof, new_root)) => Ok(BatchInstruction::AddressAppend(vec![
                         light_batched_merkle_tree::merkle_tree::InstructionDataAddressAppendInputs {
                             new_root,
@@ -150,7 +134,6 @@ async fn run_proof_worker(
             result: result_data,
         };
 
-        // Send result (success or failure) via the job's own channel
         if job.result_tx.send(result).await.is_err() {
             debug!(
                 "ProofWorker {} result channel closed for job seq={}, continuing",
@@ -161,6 +144,5 @@ async fn run_proof_worker(
         }
     }
 
-    trace!("ProofWorker {} shutting down", worker_id);
     Ok(())
 }
