@@ -1,11 +1,9 @@
-//! Load ATA - unifies wrap SPL/T22 + decompress into single flow
-
 use light_client::{
     indexer::{GetCompressedTokenAccountsByOwnerOrDelegateOptions, Indexer},
     rpc::{Rpc, RpcError},
 };
 use light_compressed_token_sdk::{
-    ctoken::TransferSplToCtoken, token_pool::find_token_pool_pda_with_index, SPL_TOKEN_PROGRAM_ID,
+    ctoken::TransferSplToCtoken, token_pool::find_token_pool_pda_with_index,
 };
 use solana_instruction::Instruction;
 use solana_keypair::Keypair;
@@ -20,7 +18,11 @@ use crate::instructions::transfer2::{
 };
 
 const SPL_ASSOCIATED_TOKEN_PROGRAM_ID: Pubkey =
-    solana_pubkey::pubkey!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+    Pubkey::new_from_array(light_compressed_token_types::SPL_ASSOCIATED_TOKEN_PROGRAM_ID);
+const SPL_TOKEN_2022_PROGRAM_ID: Pubkey =
+    Pubkey::new_from_array(light_compressed_token_types::SPL_TOKEN_2022_PROGRAM_ID);
+const SPL_TOKEN_PROGRAM_ID: Pubkey =
+    Pubkey::new_from_array(light_compressed_token_types::SPL_TOKEN_PROGRAM_ID);
 
 fn get_spl_ata(owner: &Pubkey, mint: &Pubkey, token_program: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(
@@ -28,6 +30,48 @@ fn get_spl_ata(owner: &Pubkey, mint: &Pubkey, token_program: &Pubkey) -> Pubkey 
         &SPL_ASSOCIATED_TOKEN_PROGRAM_ID,
     )
     .0
+}
+/// Wrap SPL(T22) balance to c-token ATA if it exists
+/// Returns `Option<Instruction>` (None if nothing to wrap)
+async fn try_wrap_spl_balance<R: Rpc>(
+    rpc: &mut R,
+    owner: &Pubkey,
+    mint: &Pubkey,
+    payer: Pubkey,
+    ctoken_ata: Pubkey,
+    token_program: Pubkey,
+) -> Result<Option<Instruction>, RpcError> {
+    let spl_ata = get_spl_ata(owner, mint, &token_program);
+
+    let Some(account_info) = rpc.get_account(spl_ata).await? else {
+        return Ok(None);
+    };
+
+    let Ok(pod_account) = pod_from_bytes::<PodAccount>(&account_info.data) else {
+        return Ok(None);
+    };
+
+    let balance: u64 = pod_account.amount.into();
+    if balance == 0 {
+        return Ok(None);
+    }
+
+    let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(mint, 0);
+    let wrap_ix = TransferSplToCtoken {
+        amount: balance,
+        token_pool_pda_bump,
+        source_spl_token_account: spl_ata,
+        destination_ctoken_account: ctoken_ata,
+        authority: *owner,
+        mint: *mint,
+        payer,
+        token_pool_pda,
+        spl_token_program: token_program,
+    }
+    .instruction()
+    .map_err(|e| RpcError::CustomError(e.to_string()))?;
+
+    Ok(Some(wrap_ix))
 }
 
 /// Returns `Vec<Instruction>` (empty if nothing to load)
@@ -40,35 +84,25 @@ pub async fn load_ata_instructions<R: Rpc + Indexer>(
 ) -> Result<Vec<Instruction>, RpcError> {
     let mut instructions = Vec::new();
 
-    // 1. Check SPL ATA balance
-    let spl_token_program = Pubkey::new_from_array(SPL_TOKEN_PROGRAM_ID);
-    let spl_ata = get_spl_ata(&owner, &mint, &spl_token_program);
-
-    if let Some(spl_account_info) = rpc.get_account(spl_ata).await? {
-        if let Ok(pod_account) = pod_from_bytes::<PodAccount>(&spl_account_info.data) {
-            let balance: u64 = pod_account.amount.into();
-            if balance > 0 {
-                let (token_pool_pda, token_pool_pda_bump) =
-                    find_token_pool_pda_with_index(&mint, 0);
-                let wrap_ix = TransferSplToCtoken {
-                    amount: balance,
-                    token_pool_pda_bump,
-                    source_spl_token_account: spl_ata,
-                    destination_ctoken_account: ctoken_ata,
-                    authority: owner,
-                    mint,
-                    payer,
-                    token_pool_pda,
-                    spl_token_program: Pubkey::new_from_array(SPL_TOKEN_PROGRAM_ID),
-                }
-                .instruction()
-                .map_err(|e| RpcError::CustomError(e.to_string()))?;
-                instructions.push(wrap_ix);
-            }
-        }
+    // wrap from SPL
+    if let Some(ix) =
+        try_wrap_spl_balance(rpc, &owner, &mint, payer, ctoken_ata, SPL_TOKEN_PROGRAM_ID).await?
+    {
+        instructions.push(ix);
+    } else if let Some(ix) = try_wrap_spl_balance(
+        rpc,
+        &owner,
+        &mint,
+        payer,
+        ctoken_ata,
+        SPL_TOKEN_2022_PROGRAM_ID,
+    )
+    .await?
+    {
+        instructions.push(ix);
     }
 
-    // 2. Check compressed token accounts
+    // decompress from compressed token accounts
     let options = GetCompressedTokenAccountsByOwnerOrDelegateOptions::new(Some(mint));
     let compressed_response = rpc
         .get_compressed_token_accounts_by_owner(&owner, Some(options), None)
@@ -198,5 +232,69 @@ mod tests {
         )
         .0;
         assert_eq!(ata, expected);
+    }
+
+    #[test]
+    fn test_spl_vs_t22_ata_different_addresses() {
+        let owner = make_pubkey(1);
+        let mint = make_pubkey(2);
+
+        let spl_ata = get_spl_ata(&owner, &mint, &SPL_TOKEN_PROGRAM_ID);
+        let t22_ata = get_spl_ata(&owner, &mint, &SPL_TOKEN_2022_PROGRAM_ID);
+
+        // Same owner/mint but different token programs should yield different ATAs
+        assert_ne!(spl_ata, t22_ata);
+    }
+
+    #[test]
+    fn test_t22_ata_derivation_correct() {
+        let owner = make_pubkey(1);
+        let mint = make_pubkey(2);
+
+        let t22_ata = get_spl_ata(&owner, &mint, &SPL_TOKEN_2022_PROGRAM_ID);
+
+        // Verify it's derived correctly with TOKEN_2022_PROGRAM_ID
+        let expected = Pubkey::find_program_address(
+            &[
+                owner.as_ref(),
+                SPL_TOKEN_2022_PROGRAM_ID.as_ref(),
+                mint.as_ref(),
+            ],
+            &SPL_ASSOCIATED_TOKEN_PROGRAM_ID,
+        )
+        .0;
+        assert_eq!(t22_ata, expected);
+    }
+
+    #[test]
+    fn test_t22_ata_deterministic() {
+        let owner = make_pubkey(1);
+        let mint = make_pubkey(2);
+
+        let t22_ata1 = get_spl_ata(&owner, &mint, &SPL_TOKEN_2022_PROGRAM_ID);
+        let t22_ata2 = get_spl_ata(&owner, &mint, &SPL_TOKEN_2022_PROGRAM_ID);
+        assert_eq!(t22_ata1, t22_ata2);
+    }
+
+    #[test]
+    fn test_t22_ata_different_owners() {
+        let owner1 = make_pubkey(1);
+        let owner2 = make_pubkey(2);
+        let mint = make_pubkey(10);
+
+        let t22_ata1 = get_spl_ata(&owner1, &mint, &SPL_TOKEN_2022_PROGRAM_ID);
+        let t22_ata2 = get_spl_ata(&owner2, &mint, &SPL_TOKEN_2022_PROGRAM_ID);
+        assert_ne!(t22_ata1, t22_ata2);
+    }
+
+    #[test]
+    fn test_t22_ata_different_mints() {
+        let owner = make_pubkey(1);
+        let mint1 = make_pubkey(10);
+        let mint2 = make_pubkey(11);
+
+        let t22_ata1 = get_spl_ata(&owner, &mint1, &SPL_TOKEN_2022_PROGRAM_ID);
+        let t22_ata2 = get_spl_ata(&owner, &mint2, &SPL_TOKEN_2022_PROGRAM_ID);
+        assert_ne!(t22_ata1, t22_ata2);
     }
 }

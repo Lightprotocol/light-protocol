@@ -11,6 +11,10 @@ pub const SPL_TOKEN_PROGRAM_ID: [u8; 32] =
 pub const SPL_TOKEN_2022_PROGRAM_ID: [u8; 32] =
     pubkey_array!("TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb");
 
+// SPL Associated Token Program ID
+pub const SPL_ASSOCIATED_TOKEN_PROGRAM_ID: [u8; 32] =
+    pubkey_array!("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL");
+
 // Light System Program ID
 pub const LIGHT_SYSTEM_PROGRAM_ID: [u8; 32] =
     pubkey_array!("SySTEM1eSU2p4BGQfQpimFEWWSC1XDFeun3Nqzz3rT7");
