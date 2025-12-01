@@ -93,11 +93,7 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
                 start_index as usize,
             )?
         } else {
-            FastAddressStagingTree::from_subtrees(
-                address_queue.subtrees.to_vec(),
-                start_index as usize,
-                initial_root,
-            )?
+            FastAddressStagingTree::new(initial_root, start_index as usize)
         };
 
         Ok(Some(QueueData {

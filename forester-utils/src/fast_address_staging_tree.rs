@@ -29,6 +29,15 @@ pub struct FastAddressStagingTree {
 }
 
 impl FastAddressStagingTree {
+    pub fn new(initial_root: [u8; 32], start_index: usize) -> Self {
+        FastAddressStagingTree {
+            merkle_tree: MerkleTree::<Poseidon>::new(HEIGHT, 0),
+            indexed_changelog: Vec::new(),
+            current_root: initial_root,
+            next_index: start_index,
+        }
+    }
+
     pub fn from_nodes(
         nodes: &[u64],
         node_hashes: &[[u8; 32]],
