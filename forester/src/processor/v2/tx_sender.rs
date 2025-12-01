@@ -79,10 +79,24 @@ impl<R: Rpc> TxSender<R> {
         slots_remaining < MIN_SLOTS_FOR_BATCHING
     }
 
+    fn is_still_eligible(&self) -> bool {
+        let current_slot = self.context.slot_tracker.estimated_current_slot();
+        current_slot < self.context.epoch_phases.active.end
+    }
+
     async fn run(mut self, mut proof_rx: mpsc::Receiver<ProofResult>) -> crate::Result<usize> {
         let mut processed = 0usize;
 
         while let Some(result) = proof_rx.recv().await {
+            if !self.is_still_eligible() {
+                info!(
+                    "Active phase ended for epoch {}, stopping tx sender (discarding {} buffered proofs)",
+                    self.context.epoch,
+                    self.buffer.len() + 1
+                );
+                return Ok(processed);
+            }
+
             // Handle proof failures
             let instruction = match result.result {
                 Ok(instr) => instr,
