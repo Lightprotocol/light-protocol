@@ -23,7 +23,6 @@ import {
     buildLoadParams,
     buildAtaLoadInstructions,
     loadAtaInstructions,
-    loadAtaInstructions,
     CompressibleAccountInput,
     ParsedAccountInfoInterface,
     calculateCompressibleLoadComputeUnits,

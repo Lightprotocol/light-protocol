@@ -5,7 +5,12 @@ use anchor_lang::{
     AccountDeserialize, AnchorDeserialize, Discriminator, InstructionData, ToAccountMetas,
 };
 use light_compressed_account::address::derive_address;
-use light_compressible_client::compressible_instruction;
+use light_compressible_client::{
+    build_load_params,
+    compressible_instruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
+    get_compressible_account::{deserialize_account, get_account_info_interface},
+    CompressibleAccountInput,
+};
 use light_macros::pubkey;
 use light_program_test::{program_test::LightProgramTest, AddressWithTree, Indexer, Rpc};
 use light_sdk::{
@@ -132,53 +137,57 @@ pub async fn decompress_single_user_record(
     expected_user_name: &str,
     expected_slot: u64,
 ) {
-    let address_tree_pubkey = rpc.get_address_tree_v2().tree;
+    let address_tree = rpc.get_address_tree_v2();
+    let address_tree_pubkey = address_tree.tree;
 
-    let user_compressed_address = derive_address(
-        &user_record_pda.to_bytes(),
-        &address_tree_pubkey.to_bytes(),
-        &program_id.to_bytes(),
+    // Use get_account_info_interface to fetch account info
+    let account_info = get_account_info_interface(user_record_pda, program_id, &address_tree, rpc)
+        .await
+        .expect("Should fetch account")
+        .expect("Account should exist");
+
+    assert!(
+        account_info.is_compressed,
+        "Account should be compressed before decompression"
     );
-    let c_user_pda = rpc
-        .get_compressed_account(user_compressed_address, None)
-        .await
-        .unwrap()
-        .value
-        .unwrap();
 
-    let user_account_data = c_user_pda.data.as_ref().unwrap();
-    let c_user_record = UserRecord::deserialize(&mut &user_account_data.data[..]).unwrap();
+    // Use deserialize_account to parse the account data
+    let user_record: UserRecord =
+        deserialize_account(&account_info).expect("Should deserialize user record");
 
-    let rpc_result = rpc
-        .get_validity_proof(vec![c_user_pda.hash], vec![], None)
-        .await
-        .unwrap()
-        .value;
+    // Use build_load_params to create the decompress instruction
+    let program_account_metas = sdk_compressible_test::accounts::DecompressAccountsIdempotent {
+        fee_payer: payer.pubkey(),
+        config: CompressibleConfig::derive_pda(program_id, 0).0,
+        rent_sponsor: payer.pubkey(),
+        ctoken_rent_sponsor: None,
+        ctoken_config: None,
+        ctoken_program: None,
+        ctoken_cpi_authority: None,
+        some_mint: payer.pubkey(),
+        system_program: Pubkey::default(),
+    }
+    .to_account_metas(None);
 
-    let instruction =
-        light_compressible_client::compressible_instruction::decompress_accounts_idempotent(
-            program_id,
-            &compressible_instruction::DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
-            &[*user_record_pda],
-            &[(
-                c_user_pda,
-                CompressedAccountVariant::UserRecord(c_user_record),
-            )],
-            &sdk_compressible_test::accounts::DecompressAccountsIdempotent {
-                fee_payer: payer.pubkey(),
-                config: CompressibleConfig::derive_pda(program_id, 0).0,
-                rent_sponsor: payer.pubkey(),
-                ctoken_rent_sponsor: None,
-                ctoken_config: None,
-                ctoken_program: None,
-                ctoken_cpi_authority: None,
-                some_mint: payer.pubkey(),
-                system_program: Pubkey::default(),
-            }
-            .to_account_metas(None),
-            rpc_result,
-        )
-        .unwrap();
+    let instructions = build_load_params(
+        rpc,
+        program_id,
+        &DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
+        &[CompressibleAccountInput::new(
+            *user_record_pda,
+            account_info,
+            CompressedAccountVariant::UserRecord(user_record),
+        )],
+        &program_account_metas,
+        vec![],
+    )
+    .await
+    .expect("build_load_params should succeed");
+
+    assert!(
+        !instructions.is_empty(),
+        "Should have at least one instruction"
+    );
 
     let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
     assert_eq!(
@@ -188,12 +197,17 @@ pub async fn decompress_single_user_record(
     );
 
     let result = rpc
-        .create_and_send_transaction(&[instruction], &payer.pubkey(), &[payer])
+        .create_and_send_transaction(&instructions, &payer.pubkey(), &[payer])
         .await;
     assert!(result.is_ok(), "Decompress transaction should succeed");
 
     let user_pda_account = rpc.get_account(*user_record_pda).await.unwrap();
 
+    let user_compressed_address = derive_address(
+        &user_record_pda.to_bytes(),
+        &address_tree_pubkey.to_bytes(),
+        &program_id.to_bytes(),
+    );
     let compressed_account = rpc
         .get_compressed_account(user_compressed_address, None)
         .await
