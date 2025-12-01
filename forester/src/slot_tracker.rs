@@ -3,7 +3,7 @@ use std::{
         atomic::{AtomicU64, Ordering},
         Arc,
     },
-    time::{SystemTime, UNIX_EPOCH},
+    time::Instant,
 };
 
 use light_client::rpc::Rpc;
@@ -14,50 +14,50 @@ pub fn slot_duration() -> Duration {
     Duration::from_nanos(solana_sdk::genesis_config::GenesisConfig::default().ns_per_slot() as u64)
 }
 
+fn slot_duration_secs() -> f64 {
+    static SLOT_DURATION_SECS: std::sync::OnceLock<f64> = std::sync::OnceLock::new();
+    *SLOT_DURATION_SECS.get_or_init(|| slot_duration().as_secs_f64())
+}
+
 #[derive(Debug)]
 pub struct SlotTracker {
     last_known_slot: AtomicU64,
-    last_update_time: AtomicU64,
+    last_update_nanos: AtomicU64,
+    reference_instant: Instant,
     update_interval: Duration,
 }
 
 impl SlotTracker {
     pub fn new(initial_slot: u64, update_interval: Duration) -> Self {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64;
+        let reference = Instant::now();
         Self {
             last_known_slot: AtomicU64::new(initial_slot),
-            last_update_time: AtomicU64::new(now),
+            last_update_nanos: AtomicU64::new(0),
+            reference_instant: reference,
             update_interval,
         }
     }
 
     pub fn update(&self, new_slot: u64) {
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64;
+        let elapsed_nanos = self.reference_instant.elapsed().as_nanos() as u64;
         self.last_known_slot.store(new_slot, Ordering::Release);
-        self.last_update_time.store(now, Ordering::Release);
+        self.last_update_nanos
+            .store(elapsed_nanos, Ordering::Release);
     }
 
+    #[inline]
     pub fn estimated_current_slot(&self) -> u64 {
         let last_slot = self.last_known_slot.load(Ordering::Acquire);
-        let last_update = self.last_update_time.load(Ordering::Acquire);
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as u64;
-        let elapsed = Duration::from_millis(now - last_update);
-        let estimated_slot =
-            last_slot + (elapsed.as_secs_f64() / slot_duration().as_secs_f64()) as u64;
+        let last_update_nanos = self.last_update_nanos.load(Ordering::Acquire);
+        let current_nanos = self.reference_instant.elapsed().as_nanos() as u64;
+        let elapsed_nanos = current_nanos.saturating_sub(last_update_nanos);
+        let elapsed_secs = elapsed_nanos as f64 / 1_000_000_000.0;
+        let estimated_slot = last_slot + (elapsed_secs / slot_duration_secs()) as u64;
         trace!(
             "Estimated current slot: {} (last known: {}, elapsed: {:?})",
             estimated_slot,
             last_slot,
-            elapsed
+            Duration::from_nanos(elapsed_nanos)
         );
         estimated_slot
     }

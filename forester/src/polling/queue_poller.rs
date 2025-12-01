@@ -159,7 +159,7 @@ impl Message<RegisterTree> for QueueInfoPoller {
         msg: RegisterTree,
         _ctx: &mut kameo::message::Context<Self, Self::Reply>,
     ) -> Self::Reply {
-        let (tx, rx) = mpsc::channel(100);
+        let (tx, rx) = mpsc::channel(1000);
 
         // Check if there's already a sender registered for this tree
         if let Some(old_sender) = self.tree_notifiers.insert(msg.tree_pubkey, tx) {

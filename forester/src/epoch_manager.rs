@@ -1074,47 +1074,81 @@ impl<R: Rpc> EpochManager<R> {
 
         let self_arc = Arc::new(self.clone());
         let epoch_info_arc = Arc::new(epoch_info.clone());
-        let mut handles: Vec<JoinHandle<Result<()>>> = Vec::new();
 
-        for tree in epoch_info.trees.iter() {
-            if should_skip_tree(&self.config, &tree.tree_accounts.tree_type) {
-                continue;
+        let trees_to_process: Vec<_> = epoch_info
+            .trees
+            .iter()
+            .filter(|tree| !should_skip_tree(&self.config, &tree.tree_accounts.tree_type))
+            .cloned()
+            .collect();
+
+        let v2_trees_for_registration: Vec<_> = trees_to_process
+            .iter()
+            .filter(|tree| {
+                matches!(
+                    tree.tree_accounts.tree_type,
+                    TreeType::StateV2 | TreeType::AddressV2
+                )
+            })
+            .collect();
+
+        let mut tree_receivers: std::collections::HashMap<_, _> = if let Some(ref poller) =
+            queue_poller
+        {
+            let registration_futures: Vec<_> = v2_trees_for_registration
+                .iter()
+                .map(|tree| {
+                    let poller = poller.clone();
+                    let tree_pubkey = tree.tree_accounts.merkle_tree;
+                    async move {
+                        let result = poller.ask(RegisterTree { tree_pubkey }).send().await;
+                        (tree_pubkey, result)
+                    }
+                })
+                .collect();
+
+            let results = futures::future::join_all(registration_futures).await;
+
+            let mut receivers = std::collections::HashMap::new();
+            for (tree_pubkey, result) in results {
+                match result {
+                    Ok(rx) => {
+                        receivers.insert(tree_pubkey, rx);
+                    }
+                    Err(e) => {
+                        error!(
+                            "Failed to register V2 tree {} with queue poller: {:?}.",
+                            tree_pubkey, e
+                        );
+                        return Err(anyhow::anyhow!(
+                            "Failed to register V2 tree {} with queue poller: {}. Cannot process without queue updates.",
+                            tree_pubkey, e
+                        ));
+                    }
+                }
             }
+            receivers
+        } else if !v2_trees_for_registration.is_empty() {
+            let first_tree = v2_trees_for_registration[0].tree_accounts.merkle_tree;
+            error!("No queue poller available for V2 tree {}.", first_tree);
+            return Err(anyhow::anyhow!(
+                "No queue poller available for V2 tree {}. Cannot process without queue updates.",
+                first_tree
+            ));
+        } else {
+            std::collections::HashMap::new()
+        };
 
-            let queue_update_rx = if matches!(
+        let mut handles: Vec<JoinHandle<Result<()>>> = Vec::with_capacity(trees_to_process.len());
+
+        for tree in trees_to_process {
+            let is_v2 = matches!(
                 tree.tree_accounts.tree_type,
                 TreeType::StateV2 | TreeType::AddressV2
-            ) {
-                if let Some(ref poller) = queue_poller {
-                    match poller
-                        .ask(RegisterTree {
-                            tree_pubkey: tree.tree_accounts.merkle_tree,
-                        })
-                        .send()
-                        .await
-                    {
-                        Ok(rx) => Some(rx),
-                        Err(e) => {
-                            error!(
-                                "Failed to register V2 tree {} with queue poller: {:?}.",
-                                tree.tree_accounts.merkle_tree, e
-                            );
-                            return Err(anyhow::anyhow!(
-                                "Failed to register V2 tree {} with queue poller: {}. Cannot process without queue updates.",
-                                tree.tree_accounts.merkle_tree, e
-                            ));
-                        }
-                    }
-                } else {
-                    error!(
-                        "No queue poller available for V2 tree {}.",
-                        tree.tree_accounts.merkle_tree
-                    );
-                    return Err(anyhow::anyhow!(
-                        "No queue poller available for V2 tree {}. Cannot process without queue updates.",
-                        tree.tree_accounts.merkle_tree
-                    ));
-                }
+            );
+
+            let queue_update_rx = if is_v2 {
+                tree_receivers.remove(&tree.tree_accounts.merkle_tree)
             } else {
                 None
             };
@@ -1127,14 +1161,13 @@ impl<R: Rpc> EpochManager<R> {
 
             let self_clone = self_arc.clone();
             let epoch_info_clone = epoch_info_arc.clone();
-            let tree = tree.clone();
 
             let handle = tokio::spawn(async move {
                 self_clone
                     .process_queue_v2(
                         &epoch_info_clone.epoch,
                         &epoch_info_clone.forester_epoch_pda,
-                        tree.clone(),
+                        tree,
                         queue_update_rx,
                     )
                     .await

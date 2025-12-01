@@ -1,4 +1,3 @@
-use std::collections::BTreeMap;
 use std::sync::atomic::Ordering;
 
 use borsh::BorshSerialize;
@@ -36,10 +35,71 @@ pub enum BatchInstruction {
     AddressAppend(Vec<light_batched_merkle_tree::merkle_tree::InstructionDataAddressAppendInputs>),
 }
 
+struct OrderedProofBuffer {
+    buffer: Vec<Option<BatchInstruction>>,
+    base_seq: u64,
+    len: usize,
+}
+
+impl OrderedProofBuffer {
+    fn new(capacity: usize) -> Self {
+        Self {
+            buffer: (0..capacity).map(|_| None).collect(),
+            base_seq: 0,
+            len: 0,
+        }
+    }
+
+    fn capacity(&self) -> usize {
+        self.buffer.len()
+    }
+
+    fn len(&self) -> usize {
+        self.len
+    }
+
+    fn insert(&mut self, seq: u64, instruction: BatchInstruction) -> bool {
+        if seq < self.base_seq {
+            return false;
+        }
+        let offset = (seq - self.base_seq) as usize;
+        if offset >= self.buffer.len() {
+            return false;
+        }
+        if self.buffer[offset].is_none() {
+            self.len += 1;
+        }
+        self.buffer[offset] = Some(instruction);
+        true
+    }
+
+    fn pop_next(&mut self) -> Option<BatchInstruction> {
+        let item = self.buffer[0].take();
+        if item.is_some() {
+            self.len -= 1;
+            self.base_seq += 1;
+            self.buffer.rotate_left(1);
+        }
+        item
+    }
+
+    fn expected_seq(&self) -> u64 {
+        self.base_seq
+    }
+
+    fn oldest_buffered(&self) -> Option<u64> {
+        for (i, item) in self.buffer.iter().enumerate() {
+            if item.is_some() {
+                return Some(self.base_seq + i as u64);
+            }
+        }
+        None
+    }
+}
+
 pub struct TxSender<R: Rpc> {
     context: BatchContext<R>,
-    expected_seq: u64,
-    buffer: BTreeMap<u64, BatchInstruction>,
+    buffer: OrderedProofBuffer,
     zkp_batch_size: u64,
     last_seen_root: [u8; 32],
     pending_batch: Vec<(BatchInstruction, u64)>, // (instruction, seq)
@@ -54,8 +114,7 @@ impl<R: Rpc> TxSender<R> {
     ) -> JoinHandle<crate::Result<usize>> {
         let sender = Self {
             context,
-            expected_seq: 0,
-            buffer: BTreeMap::new(),
+            buffer: OrderedProofBuffer::new(MAX_BUFFER_SIZE),
             zkp_batch_size,
             last_seen_root,
             pending_batch: Vec::with_capacity(V2_IXS_PER_TX),
@@ -64,12 +123,12 @@ impl<R: Rpc> TxSender<R> {
         tokio::spawn(async move { sender.run(proof_rx).await })
     }
 
-    fn should_flush_due_to_time(&self) -> bool {
-        let current_slot = self.context.slot_tracker.estimated_current_slot();
+    #[inline]
+    fn should_flush_due_to_time_at(&self, current_slot: u64) -> bool {
         let forester_end = self
             .context
             .forester_eligibility_end_slot
-            .load(Ordering::Acquire);
+            .load(Ordering::Relaxed);
         let eligibility_end_slot = if forester_end > 0 {
             forester_end
         } else {
@@ -79,8 +138,8 @@ impl<R: Rpc> TxSender<R> {
         slots_remaining < MIN_SLOTS_FOR_BATCHING
     }
 
-    fn is_still_eligible(&self) -> bool {
-        let current_slot = self.context.slot_tracker.estimated_current_slot();
+    #[inline]
+    fn is_still_eligible_at(&self, current_slot: u64) -> bool {
         current_slot < self.context.epoch_phases.active.end
     }
 
@@ -88,7 +147,9 @@ impl<R: Rpc> TxSender<R> {
         let mut processed = 0usize;
 
         while let Some(result) = proof_rx.recv().await {
-            if !self.is_still_eligible() {
+            let current_slot = self.context.slot_tracker.estimated_current_slot();
+
+            if !self.is_still_eligible_at(current_slot) {
                 info!(
                     "Active phase ended for epoch {}, stopping tx sender (discarding {} buffered proofs)",
                     self.context.epoch,
@@ -113,32 +174,39 @@ impl<R: Rpc> TxSender<R> {
                 }
             };
 
-            if self.buffer.len() >= MAX_BUFFER_SIZE {
+            if self.buffer.len() >= self.buffer.capacity() {
                 warn!(
-                    "Buffer overflow: {} buffered proofs (max {}). Expected seq={}, oldest buffered={}",
+                    "Buffer overflow: {} buffered proofs (max {}). Expected seq={}, oldest buffered={:?}",
                     self.buffer.len(),
-                    MAX_BUFFER_SIZE,
-                    self.expected_seq,
-                    self.buffer.keys().next().unwrap_or(&0)
+                    self.buffer.capacity(),
+                    self.buffer.expected_seq(),
+                    self.buffer.oldest_buffered()
                 );
                 return Err(anyhow::anyhow!(
                     "Proof buffer overflow: possible missing proof for seq={}",
-                    self.expected_seq
+                    self.buffer.expected_seq()
                 ));
             }
 
-            self.buffer.insert(result.seq, instruction);
+            if !self.buffer.insert(result.seq, instruction) {
+                warn!(
+                    "Failed to insert proof seq={} (base={}, capacity={})",
+                    result.seq,
+                    self.buffer.expected_seq(),
+                    self.buffer.capacity()
+                );
+            }
 
-            while let Some(instr) = self.buffer.remove(&self.expected_seq) {
-                let seq = self.expected_seq;
-                self.expected_seq += 1;
+            while let Some(instr) = self.buffer.pop_next() {
+                let seq = self.buffer.expected_seq() - 1; // pop_next already incremented
                 self.pending_batch.push((instr, seq));
 
                 // Send batch when:
                 // 1. We have enough instructions, OR
                 // 2. We're running low on time (epoch ending soon)
                 let should_send = self.pending_batch.len() >= V2_IXS_PER_TX
-                    || (!self.pending_batch.is_empty() && self.should_flush_due_to_time());
+                    || (!self.pending_batch.is_empty()
+                        && self.should_flush_due_to_time_at(current_slot));
 
                 if should_send {
                     processed += self.send_pending_batch().await?;
