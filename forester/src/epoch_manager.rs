@@ -15,7 +15,6 @@ use forester_utils::{
     rpc_pool::SolanaRpcPool,
 };
 use futures::future::join_all;
-use kameo::actor::{ActorRef, Spawn};
 use light_client::{
     indexer::{MerkleProof, NewAddressProofWithContext},
     rpc::{LightClient, LightClientConfig, RetryConfig, Rpc, RpcError},
