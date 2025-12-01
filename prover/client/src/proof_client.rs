@@ -36,8 +36,6 @@ pub enum ProofResponse {
     },
 }
 
-/// Result of submitting a proof request asynchronously.
-/// Can be either a job ID to poll, or an immediate proof (for fast/local provers).
 #[derive(Debug)]
 pub enum SubmitProofResult {
     /// Job was queued, poll with this ID
