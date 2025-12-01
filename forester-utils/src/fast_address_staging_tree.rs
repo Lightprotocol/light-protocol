@@ -17,8 +17,6 @@ use num_bigint::BigUint;
 use tracing::debug;
 
 use crate::error::ForesterUtilsError;
-use light_prover_client::proof_types::batch_address_append::get_batch_address_append_circuit_inputs;
-use light_sparse_merkle_tree::{changelog::ChangelogEntry, SparseMerkleTree};
 
 const HEIGHT: usize = DEFAULT_BATCH_ADDRESS_TREE_HEIGHT as usize;
 

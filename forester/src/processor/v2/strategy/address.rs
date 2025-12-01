@@ -1,3 +1,15 @@
+use crate::processor::v2::{
+    common::{batch_range, get_leaves_hashchain},
+    helpers::{fetch_address_batches, fetch_address_zkp_batch_size},
+    proof_worker::ProofInput,
+    strategy::{CircuitType, QueueData, TreeStrategy},
+    BatchContext, QueueWork,
+};
+use anyhow::anyhow;
+use async_trait::async_trait;
+use forester_utils::fast_address_staging_tree::FastAddressStagingTree;
+use light_client::rpc::Rpc;
+use tracing::debug;
 #[derive(Debug, Clone)]
 pub struct AddressTreeStrategy;
 
@@ -72,7 +84,6 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
 
         let initial_root = address_queue.initial_root;
         let start_index = address_queue.start_index;
-        let nodes_len = address_queue.nodes.len();
 
         let staging_tree = if !address_queue.nodes.is_empty() {
             FastAddressStagingTree::from_nodes(
@@ -126,7 +137,6 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
 
         let leaves_hashchain = get_leaves_hashchain(&address_queue.leaves_hash_chains, batch_idx)?;
 
-        let batch_start = Instant::now();
         let result = queue_data
             .staging_tree
             .process_batch(
@@ -140,10 +150,7 @@ impl<R: Rpc> TreeStrategy<R> for AddressTreeStrategy {
                 zkp_batch_size_actual,
             )
             .map_err(|e| anyhow!("Failed to process address batch: {}", e))?;
-        let batch_duration = batch_start.elapsed();
-
         let new_root = result.new_root;
-
         Ok((ProofInput::AddressAppend(result.circuit_inputs), new_root))
     }
 }

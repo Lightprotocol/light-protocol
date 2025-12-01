@@ -2,7 +2,7 @@ pub mod common;
 mod helpers;
 mod processor;
 mod proof_worker;
-mod strategy;
+pub mod strategy;
 mod tx_sender;
 
 use light_client::rpc::Rpc;
@@ -13,8 +13,7 @@ use crate::{epoch_manager::ProcessingMetrics, Result};
 pub use common::{BatchContext, ProverConfig, QueueWork};
 use light_compressed_account::TreeType;
 
-pub use address_strategy::AddressTreeStrategy;
-pub use state_strategy::StateTreeStrategy;
+pub use processor::QueueProcessor;
 
 #[instrument(
     level = "debug",

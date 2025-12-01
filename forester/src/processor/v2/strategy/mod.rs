@@ -3,6 +3,12 @@ use light_client::rpc::Rpc;
 
 use crate::processor::v2::{proof_worker::ProofInput, BatchContext, QueueWork};
 
+mod address;
+mod state;
+
+pub use address::AddressTreeStrategy;
+pub use state::StateTreeStrategy;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CircuitType {
     Append,

@@ -5,8 +5,7 @@ use light_batched_merkle_tree::merkle_tree::{
 use light_prover_client::{
     proof_client::ProofClient,
     proof_types::{
-        batch_address_append::{to_json as address_append_to_json, BatchAddressAppendInputs},
-        batch_append::BatchAppendsCircuitInputs,
+        batch_address_append::BatchAddressAppendInputs, batch_append::BatchAppendsCircuitInputs,
         batch_update::BatchUpdateCircuitInputs,
     },
 };
@@ -36,7 +35,7 @@ pub struct ProofResult {
 
 pub fn spawn_proof_workers(
     num_workers: usize,
-    config: ProverConfig,
+    config: &ProverConfig,
 ) -> async_channel::Sender<ProofJob> {
     let num_workers = if num_workers == 0 {
         warn!("spawn_proof_workers called with num_workers=0, using 1 instead");
@@ -107,7 +106,6 @@ async fn run_proof_worker(
                 }
             }
             ProofInput::AddressAppend(inputs) => {
-                let json_inputs = address_append_to_json(&inputs);
                 match append_client
                     .generate_batch_address_append_proof(inputs)
                     .await

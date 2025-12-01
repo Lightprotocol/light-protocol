@@ -4,15 +4,15 @@ use crate::{
     epoch_manager::{CircuitMetrics, ProcessingMetrics},
     processor::v2::{
         common::WorkerPool,
-        proof_worker::{ProofInput, ProofJob, ProofResult},
-        strategy::{CircuitType, TreeStrategy},
+        proof_worker::{spawn_proof_workers, ProofInput, ProofJob, ProofResult},
+        strategy::{CircuitType, QueueData, TreeStrategy},
         tx_sender::TxSender,
         BatchContext, ProcessingResult, QueueWork,
     },
 };
 use anyhow::anyhow;
-use light_compressed_account::Pubkey;
-use light_test_utils::Rpc;
+use light_client::rpc::Rpc;
+use solana_sdk::pubkey::Pubkey;
 use tokio::sync::mpsc;
 use tracing::{debug, warn};
 
@@ -48,11 +48,6 @@ impl<R: Rpc, S: TreeStrategy<R>> QueueProcessor<R, S> {
         queue_work: QueueWork,
     ) -> crate::Result<ProcessingResult> {
         if queue_work.queue_size < self.zkp_batch_size {
-            trace!(
-                "Queue size {} below zkp_batch_size {}, skipping",
-                queue_work.queue_size,
-                self.zkp_batch_size
-            );
             return Ok(ProcessingResult::default());
         }
 
@@ -70,7 +65,7 @@ impl<R: Rpc, S: TreeStrategy<R>> QueueProcessor<R, S> {
 
         if self.worker_pool.is_none() {
             let num_workers = self.context.num_proof_workers.max(1);
-            let job_tx = spawn_proof_workers(num_workers, self.context.prover_config);
+            let job_tx = spawn_proof_workers(num_workers, &self.context.prover_config);
             self.worker_pool = Some(WorkerPool { job_tx });
         }
 

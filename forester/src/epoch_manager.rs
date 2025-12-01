@@ -1,3 +1,4 @@
+use dashmap::mapref::entry::Entry;
 use std::{
     collections::HashMap,
     sync::{
@@ -55,7 +56,9 @@ use crate::{
             send_transaction::send_batched_transactions,
             tx_builder::EpochManagerTransactions,
         },
-        v2::{self, BatchContext, ProverConfig},
+        v2::strategy::AddressTreeStrategy,
+        v2::strategy::StateTreeStrategy,
+        v2::{BatchContext, ProcessingResult, ProverConfig, QueueProcessor, QueueWork},
     },
     queue_helpers::QueueItemData,
     rollover::{
@@ -70,24 +73,10 @@ use crate::{
 
 /// Map of tree pubkey to (epoch, processor)
 /// Using Arc<Mutex> for interior mutability since processors need &mut for processing
-type StateBatchProcessorMap<R> = Arc<
-    DashMap<
-        Pubkey,
-        (
-            u64,
-            Arc<Mutex<v2::UnifiedBatchProcessor<R, v2::StateTreeStrategy>>>,
-        ),
-    >,
->;
-type AddressBatchProcessorMap<R> = Arc<
-    DashMap<
-        Pubkey,
-        (
-            u64,
-            Arc<Mutex<v2::UnifiedBatchProcessor<R, v2::AddressTreeStrategy>>>,
-        ),
-    >,
->;
+type StateBatchProcessorMap<R> =
+    Arc<DashMap<Pubkey, (u64, Arc<Mutex<QueueProcessor<R, StateTreeStrategy>>>)>>;
+type AddressBatchProcessorMap<R> =
+    Arc<DashMap<Pubkey, (u64, Arc<Mutex<QueueProcessor<R, AddressTreeStrategy>>>)>>;
 
 /// Timing for a single circuit type (circuit inputs + proof generation)
 #[derive(Copy, Clone, Debug, Default)]
@@ -1933,9 +1922,7 @@ impl<R: Rpc> EpochManager<R> {
         &self,
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
-    ) -> Result<Arc<Mutex<v2::UnifiedBatchProcessor<R, v2::StateTreeStrategy>>>> {
-        use dashmap::mapref::entry::Entry;
-
+    ) -> Result<Arc<Mutex<QueueProcessor<R, StateTreeStrategy>>>> {
         let entry = self.state_processors.entry(tree_accounts.merkle_tree);
 
         match entry {
@@ -1948,34 +1935,21 @@ impl<R: Rpc> EpochManager<R> {
                         "Removing stale StateBatchProcessor for tree {} (epoch {} -> {})",
                         tree_accounts.merkle_tree, *stored_epoch, epoch_info.epoch
                     );
-                    // Don't pass forester_slot - processor is long-lived across forester slots,
-                    // so it should use the global active phase end for safety checks
                     let batch_context =
                         self.build_batch_context(epoch_info, tree_accounts, None, None, None);
                     let processor = Arc::new(Mutex::new(
-                        v2::UnifiedBatchProcessor::new(batch_context, v2::StateTreeStrategy)
-                            .await?,
+                        QueueProcessor::new(batch_context, StateTreeStrategy).await?,
                     ));
-                    info!(
-                        "Created StateBatchProcessor for tree {} (epoch {})",
-                        tree_accounts.merkle_tree, epoch_info.epoch
-                    );
                     occupied.insert((epoch_info.epoch, processor.clone()));
                     Ok(processor)
                 }
             }
             Entry::Vacant(vacant) => {
-                // Don't pass forester_slot - processor is long-lived across forester slots,
-                // so it should use the global active phase end for safety checks
                 let batch_context =
                     self.build_batch_context(epoch_info, tree_accounts, None, None, None);
                 let processor = Arc::new(Mutex::new(
-                    v2::UnifiedBatchProcessor::new(batch_context, v2::StateTreeStrategy).await?,
+                    QueueProcessor::new(batch_context, StateTreeStrategy).await?,
                 ));
-                info!(
-                    "Created StateBatchProcessor for tree {} (epoch {})",
-                    tree_accounts.merkle_tree, epoch_info.epoch
-                );
                 vacant.insert((epoch_info.epoch, processor.clone()));
                 Ok(processor)
             }
@@ -1986,7 +1960,7 @@ impl<R: Rpc> EpochManager<R> {
         &self,
         epoch_info: &Epoch,
         tree_accounts: &TreeAccounts,
-    ) -> Result<Arc<Mutex<v2::UnifiedBatchProcessor<R, v2::AddressTreeStrategy>>>> {
+    ) -> Result<Arc<Mutex<QueueProcessor<R, AddressTreeStrategy>>>> {
         use dashmap::mapref::entry::Entry;
 
         let entry = self.address_processors.entry(tree_accounts.merkle_tree);
@@ -1997,20 +1971,11 @@ impl<R: Rpc> EpochManager<R> {
                 if *stored_epoch == epoch_info.epoch {
                     Ok(processor_ref.clone())
                 } else {
-                    info!(
-                        "Removing stale AddressBatchProcessor for tree {} (epoch {} -> {})",
-                        tree_accounts.merkle_tree, *stored_epoch, epoch_info.epoch
-                    );
                     let batch_context =
                         self.build_batch_context(epoch_info, tree_accounts, None, None, None);
                     let processor = Arc::new(Mutex::new(
-                        v2::UnifiedBatchProcessor::new(batch_context, v2::AddressTreeStrategy)
-                            .await?,
+                        QueueProcessor::new(batch_context, AddressTreeStrategy).await?,
                     ));
-                    info!(
-                        "Created AddressBatchProcessor for tree {} (epoch {})",
-                        tree_accounts.merkle_tree, epoch_info.epoch
-                    );
                     occupied.insert((epoch_info.epoch, processor.clone()));
                     Ok(processor)
                 }
@@ -2019,12 +1984,8 @@ impl<R: Rpc> EpochManager<R> {
                 let batch_context =
                     self.build_batch_context(epoch_info, tree_accounts, None, None, None);
                 let processor = Arc::new(Mutex::new(
-                    v2::UnifiedBatchProcessor::new(batch_context, v2::AddressTreeStrategy).await?,
+                    QueueProcessor::new(batch_context, AddressTreeStrategy).await?,
                 ));
-                info!(
-                    "Created AddressBatchProcessor for tree {} (epoch {})",
-                    tree_accounts.merkle_tree, epoch_info.epoch
-                );
                 vacant.insert((epoch_info.epoch, processor.clone()));
                 Ok(processor)
             }
@@ -2037,7 +1998,7 @@ impl<R: Rpc> EpochManager<R> {
         tree_accounts: &TreeAccounts,
         queue_update: Option<&QueueUpdateMessage>,
         consecutive_eligibility_end: u64,
-    ) -> Result<v2::ProcessingResult> {
+    ) -> Result<ProcessingResult> {
         match tree_accounts.tree_type {
             TreeType::StateV2 => {
                 if let Some(update) = queue_update {
@@ -2045,13 +2006,12 @@ impl<R: Rpc> EpochManager<R> {
                         .get_or_create_state_processor(epoch_info, tree_accounts)
                         .await?;
 
-                    // Direct method calls instead of actor messages
                     {
                         let mut proc = processor.lock().await;
                         proc.update_eligibility(consecutive_eligibility_end);
                     }
 
-                    let work = v2::QueueWork {
+                    let work = QueueWork {
                         queue_type: update.queue_type,
                         queue_size: update.queue_size,
                     };
@@ -2059,7 +2019,7 @@ impl<R: Rpc> EpochManager<R> {
                     let mut proc = processor.lock().await;
                     proc.process_queue_update(work).await
                 } else {
-                    Ok(v2::ProcessingResult::default())
+                    Ok(ProcessingResult::default())
                 }
             }
             TreeType::AddressV2 => {
@@ -2068,13 +2028,12 @@ impl<R: Rpc> EpochManager<R> {
                         .get_or_create_address_processor(epoch_info, tree_accounts)
                         .await?;
 
-                    // Direct method calls instead of actor messages
                     {
                         let mut proc = processor.lock().await;
                         proc.update_eligibility(consecutive_eligibility_end);
                     }
 
-                    let work = v2::QueueWork {
+                    let work = QueueWork {
                         queue_type: update.queue_type,
                         queue_size: update.queue_size,
                     };
@@ -2092,7 +2051,7 @@ impl<R: Rpc> EpochManager<R> {
                         }
                     }
                 } else {
-                    Ok(v2::ProcessingResult::default())
+                    Ok(ProcessingResult::default())
                 }
             }
             _ => {
@@ -2100,7 +2059,7 @@ impl<R: Rpc> EpochManager<R> {
                     "Unsupported tree type for V2 processing: {:?}",
                     tree_accounts.tree_type
                 );
-                Ok(v2::ProcessingResult::default())
+                Ok(ProcessingResult::default())
             }
         }
     }

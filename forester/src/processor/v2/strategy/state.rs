@@ -1,12 +1,18 @@
-use forester_utils::staging_tree::BatchType;
-use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_TREE_HEIGHT;
-use light_compressed_account::QueueType;
-
 use crate::processor::v2::{
-    common::batch_range,
+    common::{batch_range, get_leaves_hashchain},
+    helpers::{fetch_batches, fetch_zkp_batch_size},
     proof_worker::ProofInput,
-    strategy::{CircuitType, TreeStrategy},
-    QueueWork,
+    strategy::{CircuitType, QueueData, TreeStrategy},
+    BatchContext, QueueWork,
+};
+use anyhow::anyhow;
+use async_trait::async_trait;
+use forester_utils::staging_tree::{BatchType, StagingTree};
+use light_batched_merkle_tree::constants::DEFAULT_BATCH_STATE_TREE_HEIGHT;
+use light_client::rpc::Rpc;
+use light_compressed_account::QueueType;
+use light_prover_client::proof_types::{
+    batch_append::BatchAppendsCircuitInputs, batch_update::BatchUpdateCircuitInputs,
 };
 
 #[derive(Debug, Clone)]
