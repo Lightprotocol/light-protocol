@@ -1,17 +1,9 @@
-/// Performance Test for Forester Batch Processing
-///
-/// This test fills ALL queues with transactions BEFORE starting the forester,
-/// then measures how long it takes to process all batches.
-///
-/// Test methodology:
-/// 1. Setup local validator + prover + indexer
-/// 2. Pre-fill V2 state queues with transactions (output + input)
-/// 3. Pre-fill V2 address queues with addresses
-/// 4. Record initial state (roots, queue sizes)
-/// 5. Start forester and measure time to process
-/// 6. Monitor metrics: throughput, batch processing time, etc.
-
-use std::{collections::HashMap, env, sync::Arc, time::{Duration, Instant}};
+use std::{
+    collections::HashMap,
+    env,
+    sync::Arc,
+    time::{Duration, Instant},
+};
 
 use anchor_lang::Discriminator;
 use borsh::BorshSerialize;
@@ -24,9 +16,9 @@ use forester::{
     ForesterConfig,
 };
 use light_batched_merkle_tree::{
-    merkle_tree::BatchedMerkleTreeAccount,
-    queue::BatchedQueueAccount,
+    merkle_tree::BatchedMerkleTreeAccount, queue::BatchedQueueAccount,
 };
+use light_client::indexer::GetCompressedTokenAccountsByOwnerOrDelegateOptions;
 use light_client::{
     indexer::{AddressWithTree, Indexer},
     local_test_validator::LightValidatorConfig,
@@ -35,8 +27,7 @@ use light_client::{
 use light_compressed_account::{
     address::derive_address,
     instruction_data::{
-        compressed_proof::CompressedProof,
-        data::NewAddressParamsAssigned,
+        compressed_proof::CompressedProof, data::NewAddressParamsAssigned,
         with_readonly::InstructionDataInvokeCpiWithReadOnly,
     },
     TreeType,
@@ -46,13 +37,11 @@ use light_compressed_token::process_transfer::{
     TokenTransferOutputData,
 };
 use light_compressed_token_sdk::compat::TokenDataWithMerkleContext;
-use light_client::indexer::GetCompressedTokenAccountsByOwnerOrDelegateOptions;
 use light_program_test::accounts::test_accounts::TestAccounts;
 use light_prover_client::prover::spawn_prover;
 use light_system_program;
 use light_test_utils::{
-    conversions::sdk_to_program_token_data,
-    pack::pack_new_address_params_assigned,
+    conversions::sdk_to_program_token_data, pack::pack_new_address_params_assigned,
     spl::create_mint_helper_with_keypair,
 };
 use rand::{prelude::SliceRandom, rngs::StdRng, Rng, SeedableRng};
@@ -71,17 +60,14 @@ mod test_utils;
 use test_utils::*;
 
 const MINT_TO_NUM: u64 = 5;
-const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 10; // 10 minutes for performance test
+const DEFAULT_TIMEOUT_SECONDS: u64 = 60 * 10;
 const COMPUTE_BUDGET_LIMIT: u32 = 1_000_000;
 
-// Performance test configuration - Define target queue sizes
-// Keep these small to avoid filling the queues (max capacity is ~14000)
-const TARGET_STATE_QUEUE_SIZE: usize = 100;  // Target items in state output queue
-const TARGET_ADDRESS_QUEUE_SIZE: usize = 100; // Target items in address queue
+const TARGET_STATE_QUEUE_SIZE: usize = 100;
+const TARGET_ADDRESS_QUEUE_SIZE: usize = 100;
 
-// Derived transaction counts based on queue size targets
-const NUM_STATE_TRANSACTIONS: usize = TARGET_STATE_QUEUE_SIZE / MINT_TO_NUM as usize; // Each mint creates MINT_TO_NUM items
-const NUM_ADDRESS_TRANSACTIONS: usize = TARGET_ADDRESS_QUEUE_SIZE / 10; // Each create_addresses_v2 creates 10 addresses (see line 236)
+const NUM_STATE_TRANSACTIONS: usize = TARGET_STATE_QUEUE_SIZE / MINT_TO_NUM as usize;
+const NUM_ADDRESS_TRANSACTIONS: usize = TARGET_ADDRESS_QUEUE_SIZE / 10;
 
 fn get_rpc_url() -> String {
     "http://localhost:8899".to_string()
@@ -112,28 +98,12 @@ fn get_photon_grpc_url() -> Option<String> {
 }
 
 fn get_forester_keypair() -> Keypair {
-    TestAccounts::get_local_test_validator_accounts().protocol.forester.insecure_clone()
+    TestAccounts::get_local_test_validator_accounts()
+        .protocol
+        .forester
+        .insecure_clone()
 }
 
-/// Pre-fill state queues with transactions
-///
-/// 2-Phase strategy to achieve PERFECT 100/100 balance for output and input queues on tree[0]:
-///
-/// Phase 1: Bootstrap on tree[0]
-/// - NUM_STATE_TRANSACTIONS mints to tree[0] → creates 100 tokens in output queue
-/// - tree[0] output queue: 100 items ✓
-///
-/// Phase 2: Cross-tree transfer tree[0] → tree[1]
-/// - NUM_STATE_TRANSACTIONS transfers consuming from tree[0], outputting to tree[1]
-/// - Nullifications go to tree[0]'s input queue → 100 items ✓
-/// - Outputs go to tree[1]'s output queue (we don't care about tree[1])
-///
-/// Example with 20 transactions:
-/// - Phase 1: 20 mints to tree[0] × 5 = 100 outputs on tree[0]
-/// - Phase 2: 20 transfers tree[0]→tree[1] × 5 = 100 nullifications on tree[0]
-/// - **Result: tree[0] has exactly 100 outputs + 100 inputs = 100/100 balance**
-///
-/// State output queue has max capacity of 100 items (2 batches × 50 items per batch in test config).
 async fn prefill_state_queue<R: Rpc>(
     rpc: &mut R,
     env: &TestAccounts,
@@ -143,19 +113,27 @@ async fn prefill_state_queue<R: Rpc>(
 ) -> usize {
     let bootstrap_mints = num_transactions;
 
-    println!("\n=== Pre-filling State Queue (2-Phase Strategy) ===");
-    println!("Phase 1: Bootstrap - {} mints to tree[0] (fills output queue)", bootstrap_mints);
-    println!("Phase 2: Transfer tree[0] → tree[1] - {} transfers (fills input queue)", num_transactions);
-    println!("Expected tree[0]: {} outputs + {} inputs = 100/100 balance",
-             num_transactions * MINT_TO_NUM as usize,
-             num_transactions * MINT_TO_NUM as usize);
+    println!("\n=== Pre-filling State Queue ===");
+    println!(
+        "Phase 1: Bootstrap - {} mints to tree[0] (fills output queue)",
+        bootstrap_mints
+    );
+    println!(
+        "Phase 2: Transfer tree[0] → tree[1] - {} transfers (fills input queue)",
+        num_transactions
+    );
+    println!(
+        "Expected tree[0]: {} outputs + {} inputs = {}/{} balance",
+        TARGET_STATE_QUEUE_SIZE,
+        TARGET_STATE_QUEUE_SIZE,
+        num_transactions * MINT_TO_NUM as usize,
+        num_transactions * MINT_TO_NUM as usize
+    );
 
     let start = Instant::now();
     let mut phase2_successful = 0;
     let mut bootstrap_successful = 0;
 
-    // Phase 1: Bootstrap mints to tree[0]
-    // Creates tokens on tree[0] → fills tree[0] output queue with 100 items
     println!("\nPhase 1: Creating initial token pool on tree[0]...");
     for i in 0..bootstrap_mints {
         let result = mint_to(rpc, &env.v2_state_trees[0].output_queue, payer, mint_pubkey)
@@ -165,7 +143,11 @@ async fn prefill_state_queue<R: Rpc>(
         if result.is_ok() {
             bootstrap_successful += 1;
             if (i + 1) % 5 == 0 {
-                println!("  Bootstrap progress: {}/{} mints successful", bootstrap_successful, i + 1);
+                println!(
+                    "  Bootstrap progress: {}/{} mints successful",
+                    bootstrap_successful,
+                    i + 1
+                );
             }
         } else {
             eprintln!("  Bootstrap mint {} FAILED: {:?}", i, result);
@@ -173,50 +155,63 @@ async fn prefill_state_queue<R: Rpc>(
     }
 
     if bootstrap_successful == 0 {
-        panic!("CRITICAL: All {} bootstrap mints failed! Cannot continue test.", bootstrap_mints);
+        panic!(
+            "CRITICAL: All {} bootstrap mints failed! Cannot continue test.",
+            bootstrap_mints
+        );
     }
 
-    println!("✓ Phase 1 complete: {}/{} bootstrap mints to tree[0]", bootstrap_successful, bootstrap_mints);
+    println!(
+        "Phase 1 complete: {}/{} bootstrap mints to tree[0]",
+        bootstrap_successful, bootstrap_mints
+    );
 
-    // Wait for indexer to process bootstrap mints
-    println!("\nWaiting 5 seconds for indexer to process bootstrap mints...");
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-
-    // Phase 2: Cross-tree transfers tree[0] → tree[1]
-    // Inputs from tree[0] → nullifications to tree[0] = 100 items in tree[0] input queue!
-    // Outputs to tree[1] → we don't care about tree[1]'s queues
     println!("\nPhase 2: Transferring tokens tree[0] → tree[1] (fills input queue)...");
     for i in 0..num_transactions {
         let result = perform_cross_tree_transfer(
-            rpc, env, payer, mint_pubkey,
+            rpc,
+            env,
+            payer,
+            mint_pubkey,
             0, // source_tree_index: tree[0]
             1, // dest_tree_index: tree[1]
-        ).await;
+        )
+        .await;
 
         if result.is_ok() {
             phase2_successful += 1;
             if (i + 1) % 5 == 0 {
-                println!("  Phase 2 progress: {}/{} transfers", i + 1, num_transactions);
+                println!(
+                    "  Phase 2 progress: {}/{} transfers",
+                    i + 1,
+                    num_transactions
+                );
             }
         } else {
             eprintln!("  Phase 2 transfer {} failed: {:?}", i, result);
         }
-
-        tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
     }
 
     let elapsed = start.elapsed();
-    println!("✓ Phase 2 complete: {}/{} transfers (tree[0] → tree[1])", phase2_successful, num_transactions);
+    println!(
+        "Phase 2 complete: {}/{} transfers (tree[0] → tree[1])",
+        phase2_successful, num_transactions
+    );
     println!("\n=== State Queue Pre-fill Summary ===");
-    println!("  Phase 1 (bootstrap): {}/{} mints to tree[0]", bootstrap_successful, bootstrap_mints);
-    println!("  Phase 2 (tree[0]→tree[1]): {}/{} transfers", phase2_successful, num_transactions);
+    println!(
+        "Phase 1 (bootstrap): {}/{} mints to tree[0]",
+        bootstrap_successful, bootstrap_mints
+    );
+    println!(
+        "Phase 2 (tree[0]→tree[1]): {}/{} transfers",
+        phase2_successful, num_transactions
+    );
     println!("  Total time: {:?}", elapsed);
-    println!("  Expected tree[0] queue balance: 100 outputs / 100 inputs");
+    println!("  Expected tree[0] queue balance: {} outputs / {} inputs");
 
     phase2_successful
 }
 
-/// Pre-fill address queue with new addresses
 async fn prefill_address_queue<R: Rpc>(
     rpc: &mut R,
     env: &TestAccounts,
@@ -243,13 +238,18 @@ async fn prefill_address_queue<R: Rpc>(
     }
 
     let elapsed = start.elapsed();
-    println!("✓ Pre-filled address queue: {} successful addresses in {:?}", successful, elapsed);
-    println!("  Throughput: {:.2} addr/s", successful as f64 / elapsed.as_secs_f64());
+    println!(
+        "Pre-filled address queue: {} successful addresses in {:?}",
+        successful, elapsed
+    );
+    println!(
+        "Throughput: {:.2} addr/s",
+        successful as f64 / elapsed.as_secs_f64()
+    );
 
     successful
 }
 
-/// Helper to mint tokens
 async fn mint_to<R: Rpc>(
     rpc: &mut R,
     merkle_tree_pubkey: &Pubkey,
@@ -277,10 +277,6 @@ async fn mint_to<R: Rpc>(
         .await
 }
 
-/// Helper to perform a cross-tree token transfer
-/// Transfers consume MINT_TO_NUM (5) inputs from source_tree and create MINT_TO_NUM (5) outputs on dest_tree.
-/// - Nullifications go to source_tree's input queue
-/// - Outputs go to dest_tree's output queue
 async fn perform_cross_tree_transfer<R: Rpc>(
     rpc: &mut R,
     env: &TestAccounts,
@@ -289,7 +285,6 @@ async fn perform_cross_tree_transfer<R: Rpc>(
     source_tree_index: usize,
     dest_tree_index: usize,
 ) -> Result<Signature, Box<dyn std::error::Error>> {
-    // Get compressed token accounts owned by payer
     let mut input_compressed_accounts: Vec<TokenDataWithMerkleContext> = rpc
         .indexer()?
         .get_compressed_token_accounts_by_owner(
@@ -304,41 +299,35 @@ async fn perform_cross_tree_transfer<R: Rpc>(
         .await?
         .into();
 
-    // Filter to ONLY use tokens from source_tree
-    // Nullifications will go to source_tree's input queue
     let source_merkle_tree = env.v2_state_trees[source_tree_index].merkle_tree;
     input_compressed_accounts.retain(|acc| {
         acc.compressed_account.merkle_context.merkle_tree_pubkey == source_merkle_tree
     });
 
-    // We need MINT_TO_NUM accounts for the transfer
     if input_compressed_accounts.len() < MINT_TO_NUM as usize {
         return Err(format!(
             "Not enough tokens on tree[{}]: found {}, need {}.",
             source_tree_index,
             input_compressed_accounts.len(),
             MINT_TO_NUM
-        ).into());
+        )
+        .into());
     }
 
-    // Shuffle and take MINT_TO_NUM random accounts (5 inputs)
     let rng = &mut rand::thread_rng();
     input_compressed_accounts.shuffle(rng);
     input_compressed_accounts.truncate(MINT_TO_NUM as usize);
 
-    // Calculate total tokens from all input accounts
     let total_tokens: u64 = input_compressed_accounts
         .iter()
         .map(|acc| acc.token_data.amount)
         .sum();
 
-    // Get hashes of all input accounts for validity proof
     let compressed_account_hashes: Vec<[u8; 32]> = input_compressed_accounts
         .iter()
         .map(|acc| acc.compressed_account.hash())
         .collect::<Result<Vec<_>, _>>()?;
 
-    // Get validity proof for all inputs
     let proof_for_compressed_accounts = rpc
         .indexer()?
         .get_validity_proof(compressed_account_hashes, vec![], None)
@@ -350,8 +339,6 @@ async fn perform_cross_tree_transfer<R: Rpc>(
         .map(|acc| acc.compressed_account.merkle_context)
         .collect();
 
-    // Create MINT_TO_NUM outputs on dest_tree: split total tokens evenly
-    // IMPORTANT: For V2 trees, TokenTransferOutputData.merkle_tree expects OUTPUT_QUEUE pubkey!
     let amount_per_output = total_tokens / MINT_TO_NUM;
     let compressed_accounts: Vec<TokenTransferOutputData> = (0..MINT_TO_NUM)
         .map(|_| TokenTransferOutputData {
@@ -362,13 +349,16 @@ async fn perform_cross_tree_transfer<R: Rpc>(
         })
         .collect();
 
-    let proof = proof_for_compressed_accounts.value.proof.0.map(|p| CompressedProof {
-        a: p.a,
-        b: p.b,
-        c: p.c,
-    });
+    let proof = proof_for_compressed_accounts
+        .value
+        .proof
+        .0
+        .map(|p| CompressedProof {
+            a: p.a,
+            b: p.b,
+            c: p.c,
+        });
 
-    // Convert all input accounts to program format
     let input_token_data: Vec<_> = input_compressed_accounts
         .iter()
         .map(|acc| sdk_to_program_token_data(acc.token_data.clone()))
@@ -414,7 +404,6 @@ async fn perform_cross_tree_transfer<R: Rpc>(
         .map_err(|e| e.into())
 }
 
-/// Helper to create addresses for V2 address tree
 async fn create_addresses_v2<R: Rpc>(
     rpc: &mut R,
     env: &TestAccounts,
@@ -513,23 +502,17 @@ async fn create_addresses_v2<R: Rpc>(
         .map_err(|e| e.into())
 }
 
-/// Setup RPC connection
 async fn setup_rpc_connection(forester: &Keypair) -> LightClient {
-    let mut rpc = LightClient::new(LightClientConfig::local())
-        .await
-        .unwrap();
+    let mut rpc = LightClient::new(LightClientConfig::local()).await.unwrap();
     rpc.payer = forester.insecure_clone();
     rpc
 }
-
-/// Ensure account has sufficient balance
 async fn ensure_sufficient_balance(rpc: &mut LightClient, pubkey: &Pubkey, target_balance: u64) {
     if rpc.get_balance(pubkey).await.unwrap() < target_balance {
         rpc.airdrop_lamports(pubkey, target_balance).await.unwrap();
     }
 }
 
-/// Get initial merkle tree state
 async fn get_initial_merkle_tree_state(
     rpc: &mut LightClient,
     merkle_tree_pubkey: &Pubkey,
@@ -574,7 +557,6 @@ async fn get_initial_merkle_tree_state(
     }
 }
 
-/// Setup forester pipeline
 async fn setup_forester_pipeline(
     config: &ForesterConfig,
 ) -> (
@@ -608,11 +590,7 @@ async fn setup_forester_pipeline(
     )
 }
 
-/// Get actual queue pending items from on-chain accounts
-async fn get_queue_pending_items<R: Rpc>(
-    rpc: &mut R,
-    env: &TestAccounts,
-) -> (usize, usize, usize) {
+async fn get_queue_pending_items<R: Rpc>(rpc: &mut R, env: &TestAccounts) -> (usize, usize, usize) {
     let state_output = get_output_queue_pending(rpc, &env.v2_state_trees[0].output_queue).await;
     let state_input = get_input_queue_pending(rpc, &env.v2_state_trees[0].merkle_tree).await;
     let address = get_address_queue_pending(rpc, &env.v2_address_trees[0]).await;
@@ -620,11 +598,12 @@ async fn get_queue_pending_items<R: Rpc>(
     (state_output, state_input, address)
 }
 
-/// Get pending items in state output queue
 async fn get_output_queue_pending<R: Rpc>(rpc: &mut R, queue_pubkey: &Pubkey) -> usize {
     match rpc.get_account(*queue_pubkey).await {
         Ok(Some(mut account)) => {
-            if let Ok(output_queue) = BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice()) {
+            if let Ok(output_queue) =
+                BatchedQueueAccount::output_from_bytes(account.data.as_mut_slice())
+            {
                 let metadata = output_queue.get_metadata();
                 let mut total_pending = 0;
                 for batch in metadata.batch_metadata.batches.iter() {
@@ -642,7 +621,6 @@ async fn get_output_queue_pending<R: Rpc>(rpc: &mut R, queue_pubkey: &Pubkey) ->
     }
 }
 
-/// Get pending items in state input queue (nullify)
 async fn get_input_queue_pending<R: Rpc>(rpc: &mut R, merkle_tree_pubkey: &Pubkey) -> usize {
     match rpc.get_account(*merkle_tree_pubkey).await {
         Ok(Some(mut account)) => {
@@ -666,7 +644,6 @@ async fn get_input_queue_pending<R: Rpc>(rpc: &mut R, merkle_tree_pubkey: &Pubke
     }
 }
 
-/// Get pending items in address queue
 async fn get_address_queue_pending<R: Rpc>(rpc: &mut R, merkle_tree_pubkey: &Pubkey) -> usize {
     match rpc.get_account(*merkle_tree_pubkey).await {
         Ok(Some(mut account)) => {
@@ -724,12 +701,10 @@ async fn performance_test_prefilled_queues() {
     )
     .await;
 
-    // Create mint for state transactions
     let mint_keypair = Keypair::new();
     let mint_pubkey = create_mint_helper_with_keypair(&mut rpc, &payer, &mint_keypair).await;
     println!("Created mint: {}", mint_pubkey);
 
-    // Get initial roots
     let (_, _, pre_state_root) = get_initial_merkle_tree_state(
         &mut rpc,
         &env.v2_state_trees[0].merkle_tree,
@@ -737,12 +712,9 @@ async fn performance_test_prefilled_queues() {
     )
     .await;
 
-    let (_, _, pre_address_root) = get_initial_merkle_tree_state(
-        &mut rpc,
-        &env.v2_address_trees[0],
-        TreeType::AddressV2,
-    )
-    .await;
+    let (_, _, pre_address_root) =
+        get_initial_merkle_tree_state(&mut rpc, &env.v2_address_trees[0], TreeType::AddressV2)
+            .await;
 
     println!("\n=== Initial State ===");
     println!("State root: {:?}[..8]", &pre_state_root[..8]);
@@ -751,22 +723,10 @@ async fn performance_test_prefilled_queues() {
     // PRE-FILL QUEUES BEFORE STARTING FORESTER
     println!("\n=== PHASE 1: PRE-FILLING QUEUES ===");
 
-    let state_txs = prefill_state_queue(
-        &mut rpc,
-        &env,
-        &payer,
-        &mint_pubkey,
-        NUM_STATE_TRANSACTIONS,
-    )
-    .await;
+    let state_txs =
+        prefill_state_queue(&mut rpc, &env, &payer, &mint_pubkey, NUM_STATE_TRANSACTIONS).await;
 
-    let address_txs = prefill_address_queue(
-        &mut rpc,
-        &env,
-        &payer,
-        NUM_ADDRESS_TRANSACTIONS,
-    )
-    .await;
+    let address_txs = prefill_address_queue(&mut rpc, &env, &payer, NUM_ADDRESS_TRANSACTIONS).await;
 
     let (state_out, state_in, addr_queue) = get_queue_pending_items(&mut rpc, &env).await;
     println!("\n=== Queue Status Before Forester ===");
@@ -774,8 +734,6 @@ async fn performance_test_prefilled_queues() {
     println!("State input queue: {} pending items", state_in);
     println!("Address queue: {} pending items", addr_queue);
 
-    // Assert queues are properly filled to target sizes
-    // State output: Target is TARGET_STATE_QUEUE_SIZE items
     assert!(
         state_out > 0,
         "State output queue should have items before forester starts, but was empty"
@@ -788,7 +746,6 @@ async fn performance_test_prefilled_queues() {
         TARGET_STATE_QUEUE_SIZE
     );
 
-    // Address queue: Target is TARGET_ADDRESS_QUEUE_SIZE items
     assert!(
         addr_queue > 0,
         "Address queue should have items before forester starts, but was empty"
@@ -802,10 +759,15 @@ async fn performance_test_prefilled_queues() {
     );
 
     let total_queue_items = state_out + addr_queue;
-    println!("✓ Queues are properly filled (state_output: {}/{}, address: {}/{}, total: {})",
-             state_out, TARGET_STATE_QUEUE_SIZE, addr_queue, TARGET_ADDRESS_QUEUE_SIZE, total_queue_items);
+    println!(
+        "Queues are properly filled (state_output: {}/{}, address: {}/{}, total: {})",
+        state_out,
+        TARGET_STATE_QUEUE_SIZE,
+        addr_queue,
+        TARGET_ADDRESS_QUEUE_SIZE,
+        total_queue_items
+    );
 
-    // NOW START FORESTER AND MEASURE TIME
     println!("\n=== PHASE 2: STARTING FORESTER ===");
 
     let config = ForesterConfig {
@@ -841,10 +803,7 @@ async fn performance_test_prefilled_queues() {
             skip_v1_address_trees: true,
             skip_v2_address_trees: false,
             // Filter to only process the specific trees we prefilled
-            tree_ids: vec![
-                env.v2_state_trees[0].merkle_tree,
-                env.v2_address_trees[0],
-            ],
+            tree_ids: vec![env.v2_state_trees[0].merkle_tree, env.v2_address_trees[0]],
             sleep_after_processing_ms: 50,
             sleep_when_idle_ms: 100,
         },
@@ -866,8 +825,6 @@ async fn performance_test_prefilled_queues() {
 
     let protocol_config = get_protocol_config(&mut rpc).await;
 
-    // Get active phase slot for an epoch with enough time remaining
-    // We need at least 100 slots to complete processing (queue size / throughput)
     let active_slot = get_next_active_phase_with_time(&mut rpc, &protocol_config, 100).await;
     let current_slot = rpc.get_slot().await.unwrap();
     println!(
@@ -875,22 +832,25 @@ async fn performance_test_prefilled_queues() {
         current_slot, active_slot
     );
 
-    // Wait until just before active phase to start forester
-    // This ensures we capture the full processing time
     println!(
         "Waiting until slot {} to start forester...",
         active_slot.saturating_sub(5)
     );
     wait_for_slot(&mut rpc, active_slot.saturating_sub(5)).await;
 
-    let (service_handle, shutdown_sender, shutdown_compressible_sender, shutdown_bootstrap_sender, mut work_report_receiver) =
-        setup_forester_pipeline(&config).await;
+    let (
+        service_handle,
+        shutdown_sender,
+        shutdown_compressible_sender,
+        shutdown_bootstrap_sender,
+        mut work_report_receiver,
+    ) = setup_forester_pipeline(&config).await;
 
     println!("Forester pipeline started, waiting for first work report...");
 
     // Wait for active phase
     wait_for_slot(&mut rpc, active_slot).await;
-    println!("✓ Active phase started at slot {}", active_slot);
+    println!("Active phase started at slot {}", active_slot);
 
     // Monitor work reports - use ProcessingMetrics from reports
     let mut total_processed = 0;
@@ -922,25 +882,23 @@ async fn performance_test_prefilled_queues() {
                 report.metrics.address_append.proof_generation_duration
             );
 
-            // Track cumulative values from reports with actual work
             if report.processed_items > 0 {
                 total_processed = total_processed.max(report.processed_items);
-                // Accumulate metrics (AddAssign handles the accumulation)
                 total_metrics += report.metrics;
             }
 
             if last_report_time.elapsed() > Duration::from_secs(5) {
                 println!(
                     "Progress: {} items in {:?}",
-                    total_processed, total_metrics.total()
+                    total_processed,
+                    total_metrics.total()
                 );
                 last_report_time = Instant::now();
             }
 
-            // Check if we've processed all expected items
             let expected_total = state_txs + address_txs;
             if total_processed >= expected_total {
-                println!("\n✓ All items processed!");
+                println!("\nAll items processed!");
                 break;
             }
         }
@@ -950,37 +908,59 @@ async fn performance_test_prefilled_queues() {
 
     let processing_time = total_metrics.total();
 
-    // FINAL RESULTS
-    // State queue breakdown:
-    //   - Output queue: 100 items (from bootstrap mints)
-    //   - Input queue: 100 items (nullifications from transfers)
-    // Address queue: 100 items
-    let state_output_items = 100;
-    let state_input_items = 100;
-    let address_items = 100;
+    let state_output_items = TARGET_STATE_QUEUE_SIZE;
+    let state_input_items = TARGET_STATE_QUEUE_SIZE;
+    let address_items = TARGET_ADDRESS_QUEUE_SIZE;
 
     println!("\n=== PERFORMANCE TEST RESULTS ===");
     println!("Total processing time: {:?}", processing_time);
     println!("\n--- Phase Breakdown by Circuit Type ---");
     println!("  Append (state output queue):");
-    println!("    Circuit inputs: {:?}", total_metrics.append.circuit_inputs_duration);
-    println!("    Proof gen:      {:?}", total_metrics.append.proof_generation_duration);
+    println!(
+        "    Circuit inputs: {:?}",
+        total_metrics.append.circuit_inputs_duration
+    );
+    println!(
+        "    Proof gen:      {:?}",
+        total_metrics.append.proof_generation_duration
+    );
     println!("    Total:          {:?}", total_metrics.append.total());
     println!("  Nullify (state input queue):");
-    println!("    Circuit inputs: {:?}", total_metrics.nullify.circuit_inputs_duration);
-    println!("    Proof gen:      {:?}", total_metrics.nullify.proof_generation_duration);
+    println!(
+        "    Circuit inputs: {:?}",
+        total_metrics.nullify.circuit_inputs_duration
+    );
+    println!(
+        "    Proof gen:      {:?}",
+        total_metrics.nullify.proof_generation_duration
+    );
     println!("    Total:          {:?}", total_metrics.nullify.total());
     println!("  AddressAppend:");
-    println!("    Circuit inputs: {:?}", total_metrics.address_append.circuit_inputs_duration);
-    println!("    Proof gen:      {:?}", total_metrics.address_append.proof_generation_duration);
-    println!("    Total:          {:?}", total_metrics.address_append.total());
+    println!(
+        "    Circuit inputs: {:?}",
+        total_metrics.address_append.circuit_inputs_duration
+    );
+    println!(
+        "    Proof gen:      {:?}",
+        total_metrics.address_append.proof_generation_duration
+    );
+    println!(
+        "    Total:          {:?}",
+        total_metrics.address_append.total()
+    );
     println!("\n--- Totals ---");
-    println!("  Total circuit inputs: {:?} ({:.1}%)",
-             total_metrics.total_circuit_inputs(),
-             100.0 * total_metrics.total_circuit_inputs().as_secs_f64() / processing_time.as_secs_f64().max(0.001));
-    println!("  Total proof gen:      {:?} ({:.1}%)",
-             total_metrics.total_proof_generation(),
-             100.0 * total_metrics.total_proof_generation().as_secs_f64() / processing_time.as_secs_f64().max(0.001));
+    println!(
+        "  Total circuit inputs: {:?} ({:.1}%)",
+        total_metrics.total_circuit_inputs(),
+        100.0 * total_metrics.total_circuit_inputs().as_secs_f64()
+            / processing_time.as_secs_f64().max(0.001)
+    );
+    println!(
+        "  Total proof gen:      {:?} ({:.1}%)",
+        total_metrics.total_proof_generation(),
+        100.0 * total_metrics.total_proof_generation().as_secs_f64()
+            / processing_time.as_secs_f64().max(0.001)
+    );
     println!("\nTotal items processed: {}", total_processed);
     println!("  State output items: {}", state_output_items);
     println!("  State input items: {}", state_input_items);
@@ -988,10 +968,22 @@ async fn performance_test_prefilled_queues() {
     println!("\nThroughput (items/second, based on total processing time):");
     let processing_secs = processing_time.as_secs_f64();
     if processing_secs > 0.0 {
-        println!("  Overall: {:.2} items/second", total_processed as f64 / processing_secs);
-        println!("  State output: {:.2} items/second", state_output_items as f64 / processing_secs);
-        println!("  State input: {:.2} items/second", state_input_items as f64 / processing_secs);
-        println!("  Address: {:.2} items/second", address_items as f64 / processing_secs);
+        println!(
+            "  Overall: {:.2} items/second",
+            total_processed as f64 / processing_secs
+        );
+        println!(
+            "  State output: {:.2} items/second",
+            state_output_items as f64 / processing_secs
+        );
+        println!(
+            "  State input: {:.2} items/second",
+            state_input_items as f64 / processing_secs
+        );
+        println!(
+            "  Address: {:.2} items/second",
+            address_items as f64 / processing_secs
+        );
     } else {
         println!("  (processing time too short to measure accurately)");
     }
@@ -1004,22 +996,21 @@ async fn performance_test_prefilled_queues() {
     )
     .await;
 
-    let (_, _, post_address_root) = get_initial_merkle_tree_state(
-        &mut rpc,
-        &env.v2_address_trees[0],
-        TreeType::AddressV2,
-    )
-    .await;
+    let (_, _, post_address_root) =
+        get_initial_merkle_tree_state(&mut rpc, &env.v2_address_trees[0], TreeType::AddressV2)
+            .await;
 
     println!("\n=== Root Verification ===");
     println!("State root changed: {}", pre_state_root != post_state_root);
     println!("  Before: {:?}[..8]", &pre_state_root[..8]);
     println!("  After:  {:?}[..8]", &post_state_root[..8]);
-    println!("Address root changed: {}", pre_address_root != post_address_root);
+    println!(
+        "Address root changed: {}",
+        pre_address_root != post_address_root
+    );
     println!("  Before: {:?}[..8]", &pre_address_root[..8]);
     println!("  After:  {:?}[..8]", &post_address_root[..8]);
 
-    // Assert roots actually changed (proof that forester processed the batches)
     assert_ne!(
         pre_state_root, post_state_root,
         "State root should have changed after forester processing"
@@ -1028,10 +1019,11 @@ async fn performance_test_prefilled_queues() {
         pre_address_root, post_address_root,
         "Address root should have changed after forester processing"
     );
-    println!("✓ Roots changed correctly");
+    println!("Roots changed correctly");
 
     // Verify queues are now empty (or nearly empty)
-    let (final_state_out, final_state_in, final_addr_queue) = get_queue_pending_items(&mut rpc, &env).await;
+    let (final_state_out, final_state_in, final_addr_queue) =
+        get_queue_pending_items(&mut rpc, &env).await;
     println!("\n=== Queue Status After Forester ===");
     println!("State output queue: {} pending items", final_state_out);
     println!("State input queue: {} pending items", final_state_in);
@@ -1058,8 +1050,10 @@ async fn performance_test_prefilled_queues() {
         MAX_REMAINING_ITEMS
     );
 
-    println!("✓ All queues are empty or nearly empty (state_output: {}, state_input: {}, address: {})",
-             final_state_out, final_state_in, final_addr_queue);
+    println!(
+        "All queues are empty or nearly empty (state_output: {}, state_input: {}, address: {})",
+        final_state_out, final_state_in, final_addr_queue
+    );
 
     // Cleanup
     shutdown_sender.send(()).unwrap();
@@ -1067,5 +1061,5 @@ async fn performance_test_prefilled_queues() {
     shutdown_bootstrap_sender.send(()).unwrap();
     service_handle.await.unwrap().unwrap();
 
-    println!("\n✓ Performance test completed successfully!");
+    println!("\nPerformance test completed successfully!");
 }
