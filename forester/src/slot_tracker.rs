@@ -70,7 +70,6 @@ impl SlotTracker {
                 }
                 Err(e) => error!("Failed to get slot: {:?}", e),
             }
-            tokio::task::yield_now().await;
             tokio::time::sleep(self.update_interval).await;
         }
     }
@@ -108,7 +107,6 @@ pub async fn wait_until_slot_reached<R: Rpc>(
             sleep_duration.as_secs_f64()
         );
 
-        tokio::task::yield_now().await;
         sleep(sleep_duration).await;
     }
 
