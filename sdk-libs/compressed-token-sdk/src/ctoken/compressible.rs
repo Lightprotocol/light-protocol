@@ -30,10 +30,15 @@ impl Default for CompressibleParams {
 }
 
 impl CompressibleParams {
+    /// Creates a new `CompressibleParams` with default values.
+    ///
+    /// Use builder methods to customize:
+    /// - [`compress_to_pubkey`](Self::compress_to_pubkey) - set the destination for compression
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Sets the destination pubkey for compression.
     pub fn compress_to_pubkey(mut self, compress_to: CompressToPubkey) -> Self {
         self.compress_to_account_pubkey = Some(compress_to);
         self
@@ -56,12 +61,13 @@ impl<'info> CompressibleParamsInfos<'info> {
         rent_sponsor: AccountInfo<'info>,
         system_program: AccountInfo<'info>,
     ) -> Self {
+        let defaults = CompressibleParams::default();
         Self {
             compressible_config,
             rent_sponsor,
             system_program,
-            pre_pay_num_epochs: CompressibleParams::default().pre_pay_num_epochs,
-            lamports_per_write: CompressibleParams::default().lamports_per_write,
+            pre_pay_num_epochs: defaults.pre_pay_num_epochs,
+            lamports_per_write: defaults.lamports_per_write,
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
         }
