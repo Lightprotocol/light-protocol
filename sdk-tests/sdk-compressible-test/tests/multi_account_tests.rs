@@ -181,7 +181,7 @@ async fn test_create_and_decompress_two_accounts() {
     )
     .await;
 
-    rpc.warp_to_slot(300).unwrap();
+    rpc.warp_epoch_forward(1).await.unwrap();
 
     compress_token_account_after_decompress(
         &mut rpc,
