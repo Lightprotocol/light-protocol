@@ -21,8 +21,8 @@ impl Default for CompressibleParams {
         Self {
             compressible_config: COMPRESSIBLE_CONFIG_V1,
             rent_sponsor: RENT_SPONSOR,
-            pre_pay_num_epochs: 2,
-            lamports_per_write: Some(100),
+            pre_pay_num_epochs: 16,
+            lamports_per_write: Some(766),
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
         }
@@ -30,19 +30,21 @@ impl Default for CompressibleParams {
 }
 
 impl CompressibleParams {
-    pub fn new(lamports_per_write: u32, pre_pay_num_epochs: u8) -> Self {
-        Self {
-            lamports_per_write: Some(lamports_per_write),
-            pre_pay_num_epochs,
-            ..Default::default()
-        }
+    /// Creates a new `CompressibleParams` with default values.
+    ///
+    /// Use builder methods to customize:
+    /// - [`compress_to_pubkey`](Self::compress_to_pubkey) - set the destination for compression
+    pub fn new() -> Self {
+        Self::default()
     }
 
+    /// Sets the destination pubkey for compression.
     pub fn compress_to_pubkey(mut self, compress_to: CompressToPubkey) -> Self {
         self.compress_to_account_pubkey = Some(compress_to);
         self
     }
 }
+
 pub struct CompressibleParamsInfos<'info> {
     pub compressible_config: AccountInfo<'info>,
     pub rent_sponsor: AccountInfo<'info>,
@@ -55,18 +57,17 @@ pub struct CompressibleParamsInfos<'info> {
 
 impl<'info> CompressibleParamsInfos<'info> {
     pub fn new(
-        pre_pay_num_epochs: u8,
-        lamports_per_write: u32,
         compressible_config: AccountInfo<'info>,
         rent_sponsor: AccountInfo<'info>,
         system_program: AccountInfo<'info>,
     ) -> Self {
+        let defaults = CompressibleParams::default();
         Self {
             compressible_config,
             rent_sponsor,
             system_program,
-            pre_pay_num_epochs,
-            lamports_per_write: Some(lamports_per_write),
+            pre_pay_num_epochs: defaults.pre_pay_num_epochs,
+            lamports_per_write: defaults.lamports_per_write,
             compress_to_account_pubkey: None,
             token_account_version: TokenDataVersion::ShaFlat,
         }

@@ -5,6 +5,12 @@ mod shared;
 use borsh::BorshSerialize;
 use light_client::{indexer::Indexer, rpc::Rpc};
 use light_compressed_token_sdk::compressed_token::mint_action::MintActionMetaConfig;
+use light_ctoken_types::{
+    instructions::extensions::{
+        token_metadata::TokenMetadataInstructionData, ExtensionInstructionData,
+    },
+    state::AdditionalMetadata,
+};
 use light_program_test::{LightProgramTest, ProgramTestConfig};
 use native_ctoken_examples::{CreateCmintData, ID, MINT_SIGNER_SEED};
 use solana_sdk::{
@@ -57,7 +63,7 @@ async fn test_create_compressed_mint() {
         .unwrap()
         .value;
 
-    // Create instruction data for wrapper program
+    // Create instruction data for wrapper program with TokenMetadata extension
     let create_cmint_data = CreateCmintData {
         decimals,
         address_merkle_tree_root_index: rpc_result.addresses[0].root_index,
@@ -66,7 +72,24 @@ async fn test_create_compressed_mint() {
         compression_address,
         mint: mint_pda,
         freeze_authority: None,
-        extensions: None,
+        extensions: Some(vec![ExtensionInstructionData::TokenMetadata(
+            TokenMetadataInstructionData {
+                update_authority: Some(payer.pubkey().to_bytes().into()),
+                name: b"Test Token".to_vec(),
+                symbol: b"TEST".to_vec(),
+                uri: b"https://example.com/metadata.json".to_vec(),
+                additional_metadata: Some(vec![
+                    AdditionalMetadata {
+                        key: b"test1".to_vec(),
+                        value: b"value1".to_vec(),
+                    },
+                    AdditionalMetadata {
+                        key: b"test2".to_vec(),
+                        value: b"value2".to_vec(),
+                    },
+                ]),
+            },
+        )]),
     };
     let instruction_data = [vec![0u8], create_cmint_data.try_to_vec().unwrap()].concat();
 
