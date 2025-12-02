@@ -124,7 +124,6 @@ fn process_compressible_extension(
                         token_account_info.data_len() as u64,
                         *current_slot,
                         token_account_info.lamports(),
-                        compressible_extension.lamports_per_write.into(),
                         light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
                     .map_err(|_| CTokenError::InvalidAccountData)?;

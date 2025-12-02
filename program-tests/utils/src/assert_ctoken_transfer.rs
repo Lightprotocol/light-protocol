@@ -105,7 +105,6 @@ pub async fn assert_compressible_for_account(
                         260,
                         current_slot,
                         lamports_before,
-                        compressible_before.lamports_per_write.into(),
                         light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
                     .unwrap();
