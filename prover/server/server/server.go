@@ -83,9 +83,44 @@ func (handler proofStatusHandler) ServeHTTP(w http.ResponseWriter, r *http.Reque
 	jobExists, jobStatus, jobInfo := handler.checkJobExistsDetailed(jobID)
 
 	if !jobExists {
+		// Fallback: check job metadata - this catches jobs that were submitted but not yet
+		// visible in queues due to Redis replica lag or race conditions
+		jobMeta, metaErr := handler.redisQueue.GetJobMeta(jobID)
+		if metaErr != nil {
+			logging.Logger().Warn().
+				Err(metaErr).
+				Str("job_id", jobID).
+				Msg("Error checking job metadata")
+		}
+
+		if jobMeta != nil {
+			// Job was submitted (we have metadata) but not found in queues - return queued status
+			logging.Logger().Info().
+				Str("job_id", jobID).
+				Interface("job_meta", jobMeta).
+				Msg("Job not found in queues but metadata exists - returning queued status")
+
+			response := map[string]interface{}{
+				"job_id":  jobID,
+				"status":  "queued",
+				"message": "Job is queued and waiting to be processed",
+			}
+			if circuitType, ok := jobMeta["circuit_type"]; ok {
+				response["circuit_type"] = circuitType
+			}
+			if submittedAt, ok := jobMeta["submitted_at"]; ok {
+				response["submitted_at"] = submittedAt
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusAccepted)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
 		logging.Logger().Warn().
 			Str("job_id", jobID).
-			Msg("Job not found in any queue")
+			Msg("Job not found in any queue or metadata")
 
 		notFoundError := &Error{
 			StatusCode: http.StatusNotFound,
@@ -726,6 +761,16 @@ func (handler proveHandler) handleAsyncProof(w http.ResponseWriter, r *http.Requ
 		logging.Logger().Warn().Msg("Queue failed, falling back to synchronous processing")
 		handler.handleSyncProof(w, r, buf, meta)
 		return
+	}
+
+	// Store job metadata for reliable status lookups - this ensures the status endpoint
+	// can find the job even if the queue lookup has race conditions or Redis replica lag
+	if err := handler.redisQueue.StoreJobMeta(jobID, queueName, string(meta.CircuitType)); err != nil {
+		// Log but don't fail - the job is already queued, metadata is just for status tracking
+		logging.Logger().Warn().
+			Err(err).
+			Str("job_id", jobID).
+			Msg("Failed to store job metadata (job is still queued)")
 	}
 
 	estimatedTime := handler.getEstimatedTime(meta.CircuitType)

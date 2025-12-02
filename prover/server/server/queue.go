@@ -55,6 +55,62 @@ func (rq *RedisQueue) EnqueueProof(queueName string, job *ProofJob) error {
 	return nil
 }
 
+// StoreJobMeta stores job metadata when a job is submitted to enable reliable status lookups.
+// This ensures the status endpoint can find the job even before a worker picks it up.
+// TTL is set to 1 hour to match result TTL.
+func (rq *RedisQueue) StoreJobMeta(jobID string, queueName string, circuitType string) error {
+	key := fmt.Sprintf("zk_job_meta_%s", jobID)
+	meta := map[string]interface{}{
+		"queue":        queueName,
+		"circuit_type": circuitType,
+		"submitted_at": time.Now(),
+		"status":       "queued",
+	}
+	data, err := json.Marshal(meta)
+	if err != nil {
+		return fmt.Errorf("failed to marshal job meta: %w", err)
+	}
+
+	err = rq.Client.Set(rq.Ctx, key, data, 1*time.Hour).Err()
+	if err != nil {
+		return fmt.Errorf("failed to store job meta: %w", err)
+	}
+
+	logging.Logger().Debug().
+		Str("job_id", jobID).
+		Str("queue", queueName).
+		Str("circuit_type", circuitType).
+		Msg("Stored job metadata for status tracking")
+
+	return nil
+}
+
+// GetJobMeta retrieves job metadata by job ID.
+// Returns nil if the job metadata doesn't exist.
+func (rq *RedisQueue) GetJobMeta(jobID string) (map[string]interface{}, error) {
+	key := fmt.Sprintf("zk_job_meta_%s", jobID)
+	result, err := rq.Client.Get(rq.Ctx, key).Result()
+	if err == redis.Nil {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to get job meta: %w", err)
+	}
+
+	var meta map[string]interface{}
+	if err := json.Unmarshal([]byte(result), &meta); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal job meta: %w", err)
+	}
+
+	return meta, nil
+}
+
+// DeleteJobMeta removes job metadata when a job completes or fails.
+func (rq *RedisQueue) DeleteJobMeta(jobID string) error {
+	key := fmt.Sprintf("zk_job_meta_%s", jobID)
+	return rq.Client.Del(rq.Ctx, key).Err()
+}
+
 func (rq *RedisQueue) DequeueProof(queueName string, timeout time.Duration) (*ProofJob, error) {
 	result, err := rq.Client.BLPop(rq.Ctx, timeout, queueName).Result()
 	if err != nil {

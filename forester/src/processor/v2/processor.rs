@@ -64,7 +64,6 @@ impl<R: Rpc, S: TreeStrategy<R>> QueueProcessor<R, S> {
         }
 
         if self.worker_pool.is_none() {
-            let num_workers = self.context.num_proof_workers.max(1);
             let job_tx = spawn_proof_workers(&self.context.prover_config);
             self.worker_pool = Some(WorkerPool { job_tx });
         }

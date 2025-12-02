@@ -328,6 +328,14 @@ func (w *BaseQueueWorker) processJobs() {
 				Dur("duration", proofDuration).
 				Msg("Proof job completed successfully")
 		}
+
+		// Clean up job metadata now that the job is complete (success or failure)
+		if delErr := w.queue.DeleteJobMeta(job.ID); delErr != nil {
+			logging.Logger().Warn().
+				Err(delErr).
+				Str("job_id", job.ID).
+				Msg("Failed to delete job metadata (non-critical)")
+		}
 	}(job)
 }
 
