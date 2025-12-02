@@ -294,6 +294,16 @@ impl PartialEq<CToken> for ZCToken<'_> {
                                 return false;
                             }
 
+                            // Compare compress_to_pubkey
+                            if zc_comp.compress_to_pubkey != regular_comp.compress_to_pubkey {
+                                return false;
+                            }
+
+                            // Compare account_version
+                            if zc_comp.account_version != regular_comp.account_version {
+                                return false;
+                            }
+
                             // Compare last_claimed_slot
                             if u64::from(zc_comp.last_claimed_slot)
                                 != regular_comp.last_claimed_slot

@@ -484,3 +484,104 @@ fn test_account_type_compatibility_with_spl_parsing() {
         .get_first_extension_type();
     println!("token_account_data {:?}", token_account_data);
 }
+
+/// Test PartialEq between ZCToken and CToken with Compressible extension.
+/// Verifies that compress_to_pubkey and account_version are compared correctly.
+#[test]
+fn test_compressible_extension_partial_eq() {
+    use light_compressible::{compression_info::CompressionInfo, rent::RentConfig};
+    use light_ctoken_types::state::{
+        ctoken::AccountState as CtokenAccountState, extensions::ExtensionStruct,
+    };
+
+    let config = CompressedTokenConfig {
+        delegate: false,
+        is_native: false,
+        close_authority: false,
+        extensions: vec![ExtensionStructConfig::Compressible(CompressionInfoConfig {
+            rent_config: (),
+        })],
+    };
+
+    let mut buffer = vec![0u8; CToken::byte_len(&config).unwrap()];
+    {
+        let (mut zctoken_mut, _) = CToken::new_zero_copy(&mut buffer, config).unwrap();
+
+        // Set extension fields
+        if let Some(ref mut exts) = zctoken_mut.extensions {
+            for ext in exts.iter_mut() {
+                if let light_ctoken_types::state::extensions::ZExtensionStructMut::Compressible(
+                    ref mut comp,
+                ) = ext
+                {
+                    comp.config_account_version = 1.into();
+                    comp.compress_to_pubkey = 1;
+                    comp.account_version = 2;
+                    comp.lamports_per_write = 100.into();
+                    comp.compression_authority = [1u8; 32];
+                    comp.rent_sponsor = [2u8; 32];
+                    comp.last_claimed_slot = 1000.into();
+                }
+            }
+        }
+    }
+
+    // Create owned CToken with matching values (rent_config is zeroed in the buffer)
+    let compression_info = CompressionInfo {
+        config_account_version: 1,
+        compress_to_pubkey: 1,
+        account_version: 2,
+        lamports_per_write: 100,
+        compression_authority: [1u8; 32],
+        rent_sponsor: [2u8; 32],
+        last_claimed_slot: 1000,
+        rent_config: RentConfig {
+            base_rent: 0,
+            compression_cost: 0,
+            lamports_per_byte_per_epoch: 0,
+            max_funded_epochs: 0,
+            _padding: [0; 2],
+        },
+    };
+
+    let ctoken = CToken {
+        mint: Pubkey::default(),
+        owner: Pubkey::default(),
+        amount: 0,
+        delegate: None,
+        state: CtokenAccountState::Initialized,
+        is_native: None,
+        delegated_amount: 0,
+        close_authority: None,
+        extensions: Some(vec![ExtensionStruct::Compressible(compression_info)]),
+    };
+
+    // Parse zero-copy view
+    let (zctoken, _) = CToken::zero_copy_at(&buffer).unwrap();
+
+    // Should be equal
+    assert_eq!(zctoken, ctoken);
+    assert_eq!(ctoken, zctoken);
+
+    // Test compress_to_pubkey mismatch
+    let ctoken_diff_compress = CToken {
+        extensions: Some(vec![ExtensionStruct::Compressible(CompressionInfo {
+            compress_to_pubkey: 0,
+            ..compression_info
+        })]),
+        ..ctoken.clone()
+    };
+    assert_ne!(zctoken, ctoken_diff_compress);
+    assert_ne!(ctoken_diff_compress, zctoken);
+
+    // Test account_version mismatch
+    let ctoken_diff_version = CToken {
+        extensions: Some(vec![ExtensionStruct::Compressible(CompressionInfo {
+            account_version: 0,
+            ..compression_info
+        })]),
+        ..ctoken.clone()
+    };
+    assert_ne!(zctoken, ctoken_diff_version);
+    assert_ne!(ctoken_diff_version, zctoken);
+}
