@@ -20,6 +20,7 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
     amount: u64,
     authority: &Keypair,
     payer: &Keypair,
+    decimals: u8,
 ) -> Result<Signature, RpcError> {
     let token_account_info = rpc
         .get_account(source_spl_token_account)
@@ -43,6 +44,7 @@ pub async fn spl_to_ctoken_transfer<R: Rpc + Indexer>(
         payer: payer.pubkey(),
         token_pool_pda,
         spl_token_program: Pubkey::new_from_array(SPL_TOKEN_PROGRAM_ID), // TODO: make dynamic
+        decimals,
     }
     .instruction()
     .map_err(|e| RpcError::CustomError(e.to_string()))?;

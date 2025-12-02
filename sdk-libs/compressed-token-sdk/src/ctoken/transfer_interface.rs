@@ -18,38 +18,48 @@ pub struct SplInterface<'info> {
 
 pub struct TransferInterface<'info> {
     pub amount: u64,
+    pub decimals: u8,
     pub source_account: AccountInfo<'info>,
     pub destination_account: AccountInfo<'info>,
     pub authority: AccountInfo<'info>,
     pub payer: AccountInfo<'info>,
     pub compressed_token_program_authority: AccountInfo<'info>,
     pub spl_interface: Option<SplInterface<'info>>,
+    /// System program - required for compressible account lamport top-ups
+    pub system_program: AccountInfo<'info>,
 }
 
 impl<'info> TransferInterface<'info> {
     /// # Arguments
     /// * `amount` - Amount to transfer
+    /// * `decimals` - Token decimals (required for SPL transfers)
     /// * `source_account` - Source token account (can be ctoken or SPL)
     /// * `destination_account` - Destination token account (can be ctoken or SPL)
     /// * `authority` - Authority for the transfer (must be signer)
     /// * `payer` - Payer for the transaction
     /// * `compressed_token_program_authority` - Compressed token program authority
+    /// * `system_program` - System program (required for compressible account lamport top-ups)
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         amount: u64,
+        decimals: u8,
         source_account: AccountInfo<'info>,
         destination_account: AccountInfo<'info>,
         authority: AccountInfo<'info>,
         payer: AccountInfo<'info>,
         compressed_token_program_authority: AccountInfo<'info>,
+        system_program: AccountInfo<'info>,
     ) -> Self {
         Self {
             source_account,
             destination_account,
             authority,
             amount,
+            decimals,
             payer,
             compressed_token_program_authority,
             spl_interface: None,
+            system_program,
         }
     }
 
@@ -120,6 +130,7 @@ impl<'info> TransferInterface<'info> {
                     payer: self.payer.clone(),
                     token_pool_pda: config.token_pool_pda.clone(),
                     token_pool_pda_bump: config.token_pool_pda_bump,
+                    decimals: self.decimals,
                     spl_token_program: config.spl_token_program.clone(),
                     compressed_token_program_authority: self
                         .compressed_token_program_authority
@@ -142,10 +153,12 @@ impl<'info> TransferInterface<'info> {
                     payer: self.payer.clone(),
                     token_pool_pda: config.token_pool_pda.clone(),
                     token_pool_pda_bump: config.token_pool_pda_bump,
+                    decimals: self.decimals,
                     spl_token_program: config.spl_token_program.clone(),
                     compressed_token_program_authority: self
                         .compressed_token_program_authority
                         .clone(),
+                    system_program: self.system_program.clone(),
                 }
                 .invoke()
             }
@@ -190,6 +203,7 @@ impl<'info> TransferInterface<'info> {
                     payer: self.payer.clone(),
                     token_pool_pda: config.token_pool_pda.clone(),
                     token_pool_pda_bump: config.token_pool_pda_bump,
+                    decimals: self.decimals,
                     spl_token_program: config.spl_token_program.clone(),
                     compressed_token_program_authority: self
                         .compressed_token_program_authority
@@ -212,10 +226,12 @@ impl<'info> TransferInterface<'info> {
                     payer: self.payer.clone(),
                     token_pool_pda: config.token_pool_pda.clone(),
                     token_pool_pda_bump: config.token_pool_pda_bump,
+                    decimals: self.decimals,
                     spl_token_program: config.spl_token_program.clone(),
                     compressed_token_program_authority: self
                         .compressed_token_program_authority
                         .clone(),
+                    system_program: self.system_program.clone(),
                 }
                 .invoke_signed(signer_seeds)
             }

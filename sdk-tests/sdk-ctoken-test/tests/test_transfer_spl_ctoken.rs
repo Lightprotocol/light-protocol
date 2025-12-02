@@ -10,7 +10,9 @@ use light_compressed_token_sdk::{
 };
 use light_compressed_token_types::CPI_AUTHORITY_PDA;
 use light_program_test::{LightProgramTest, ProgramTestConfig};
-use light_test_utils::spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens};
+use light_test_utils::spl::{
+    create_mint_helper, create_token_2022_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,
+};
 use native_ctoken_examples::{
     TransferCtokenToSplData, TransferSplToCtokenData, ID, TRANSFER_AUTHORITY_SEED,
 };
@@ -95,6 +97,7 @@ async fn test_spl_to_ctoken_invoke() {
     let data = TransferSplToCtokenData {
         amount: transfer_amount,
         token_pool_pda_bump,
+        decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 15 = SplToCtokenInvoke
     let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
@@ -109,6 +112,7 @@ async fn test_spl_to_ctoken_invoke() {
     // - accounts[6]: token_pool_pda
     // - accounts[7]: spl_token_program
     // - accounts[8]: compressed_token_program_authority
+    // - accounts[9]: system_program
     let wrapper_accounts = vec![
         AccountMeta::new_readonly(compressed_token_program_id, false),
         AccountMeta::new(spl_token_account_keypair.pubkey(), false),
@@ -119,6 +123,7 @@ async fn test_spl_to_ctoken_invoke() {
         AccountMeta::new(token_pool_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
         AccountMeta::new_readonly(cpi_authority_pda, false),
+        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
     ];
 
     let instruction = Instruction {
@@ -218,6 +223,7 @@ async fn test_ctoken_to_spl_invoke() {
         let data = TransferSplToCtokenData {
             amount,
             token_pool_pda_bump,
+            decimals: CREATE_MINT_HELPER_DECIMALS,
         };
         let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -230,6 +236,7 @@ async fn test_ctoken_to_spl_invoke() {
             AccountMeta::new(token_pool_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
             AccountMeta::new_readonly(cpi_authority_pda, false),
+            AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
         ];
 
         let instruction = Instruction {
@@ -254,6 +261,7 @@ async fn test_ctoken_to_spl_invoke() {
     let data = TransferCtokenToSplData {
         amount: transfer_amount,
         token_pool_pda_bump,
+        decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 17 = CtokenToSplInvoke
     let wrapper_instruction_data = [vec![17u8], data.try_to_vec().unwrap()].concat();
@@ -387,6 +395,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
     let data = TransferSplToCtokenData {
         amount: transfer_amount,
         token_pool_pda_bump,
+        decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 16 = SplToCtokenInvokeSigned
     let wrapper_instruction_data = [vec![16u8], data.try_to_vec().unwrap()].concat();
@@ -401,6 +410,7 @@ async fn test_spl_to_ctoken_invoke_signed() {
         AccountMeta::new(token_pool_pda, false),
         AccountMeta::new_readonly(anchor_spl::token::ID, false),
         AccountMeta::new_readonly(cpi_authority_pda, false),
+        AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
     ];
 
     let instruction = Instruction {
@@ -525,6 +535,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
         let data = TransferSplToCtokenData {
             amount,
             token_pool_pda_bump,
+            decimals: CREATE_MINT_HELPER_DECIMALS,
         };
         let wrapper_instruction_data = [vec![15u8], data.try_to_vec().unwrap()].concat();
         let wrapper_accounts = vec![
@@ -537,6 +548,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
             AccountMeta::new(token_pool_pda, false),
             AccountMeta::new_readonly(anchor_spl::token::ID, false),
             AccountMeta::new_readonly(cpi_authority_pda, false),
+            AccountMeta::new_readonly(solana_sdk::system_program::ID, false),
         ];
 
         let instruction = Instruction {
@@ -561,6 +573,7 @@ async fn test_ctoken_to_spl_invoke_signed() {
     let data = TransferCtokenToSplData {
         amount: transfer_amount,
         token_pool_pda_bump,
+        decimals: CREATE_MINT_HELPER_DECIMALS,
     };
     // Discriminator 18 = CtokenToSplInvokeSigned
     let wrapper_instruction_data = [vec![18u8], data.try_to_vec().unwrap()].concat();

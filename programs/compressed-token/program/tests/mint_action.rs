@@ -224,7 +224,8 @@ fn compute_expected_config(data: &MintActionCompressedInstructionData) -> Accoun
         .map(|ctx| ctx.first_set_context || ctx.set_context)
         .unwrap_or(false);
 
-    // 3. has_mint_to_actions (only MintToCompressed needs tokens_out_queue, not MintToCToken)
+    // 3. has_mint_to_actions
+    // Only MintToCompressed counts - MintToCToken mints to existing decompressed accounts
     let has_mint_to_actions = data
         .actions
         .iter()

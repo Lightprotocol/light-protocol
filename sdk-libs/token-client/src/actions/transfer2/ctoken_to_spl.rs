@@ -11,6 +11,7 @@ use solana_signature::Signature;
 use solana_signer::Signer;
 
 /// Transfer tokens from a compressed token account to an SPL token account
+#[allow(clippy::too_many_arguments)]
 pub async fn transfer_ctoken_to_spl<R: Rpc + Indexer>(
     rpc: &mut R,
     source_ctoken_account: Pubkey,
@@ -19,6 +20,7 @@ pub async fn transfer_ctoken_to_spl<R: Rpc + Indexer>(
     authority: &Keypair,
     mint: Pubkey,
     payer: &Keypair,
+    decimals: u8,
 ) -> Result<Signature, RpcError> {
     let (token_pool_pda, token_pool_pda_bump) = find_token_pool_pda_with_index(&mint, 0);
 
@@ -32,6 +34,7 @@ pub async fn transfer_ctoken_to_spl<R: Rpc + Indexer>(
         token_pool_pda,
         token_pool_pda_bump,
         spl_token_program: Pubkey::new_from_array(SPL_TOKEN_PROGRAM_ID), // TODO: make dynamic
+        decimals,
     }
     .instruction()
     .map_err(|e| RpcError::AssertRpcError(format!("Failed to create instruction: {:?}", e)))?;

@@ -22,6 +22,7 @@ use crate::instructions::transfer2::{
 /// * `to` - Recipient pubkey for the compressed tokens
 /// * `authority` - Authority that can spend from the token account
 /// * `payer` - Transaction fee payer
+/// * `decimals` - Mint decimals for SPL transfer_checked
 ///
 /// # Returns
 /// `Result<Instruction, TokenSdkError>` - The compression instruction
@@ -32,6 +33,7 @@ pub async fn compress<R: Rpc + Indexer>(
     to: Pubkey,
     authority: &Keypair,
     payer: &Keypair,
+    decimals: u8,
 ) -> Result<Signature, RpcError> {
     // Get mint from token account
     let token_account_info = rpc
@@ -57,6 +59,7 @@ pub async fn compress<R: Rpc + Indexer>(
             authority: authority.pubkey(),
             output_queue,
             pool_index: None,
+            decimals,
         })],
         payer.pubkey(),
         false,

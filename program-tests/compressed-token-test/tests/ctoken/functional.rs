@@ -134,6 +134,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
         lamports_per_write,
         compress_to_account_pubkey: None,
         token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+        compression_only: false,
     };
 
     let create_token_account_ix = CreateCTokenAccount::new(
@@ -245,6 +246,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
             context.owner_keypair.pubkey(),
             &context.owner_keypair,
             &context.payer,
+            9,
         )
         .await
         .unwrap();
@@ -259,6 +261,7 @@ async fn test_compressible_account_with_compression_authority_lifecycle() {
             authority: context.owner_keypair.pubkey(),
             output_queue,
             pool_index: None,
+            decimals: 9,
         };
         assert_transfer2_compress(&mut context.rpc, compress_input).await;
     }

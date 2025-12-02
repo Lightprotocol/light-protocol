@@ -11,7 +11,6 @@ pub async fn assert_compressible_for_account(
     name: &str,
     account_pubkey: Pubkey,
 ) {
-    println!("account_pubkey {:?}", account_pubkey);
     // Get pre-transaction state from cache
     let pre_account = rpc
         .get_pre_transaction_account(&account_pubkey)
@@ -30,17 +29,12 @@ pub async fn assert_compressible_for_account(
     let data_after = post_account.data.as_slice();
     let lamports_after = post_account.lamports;
 
-    // Get current slot
-    let current_slot = rpc.get_slot().await.unwrap();
-
-    println!("{} current_slot", current_slot);
     // Parse tokens
     let token_before = if data_before.len() > 165 {
         CToken::zero_copy_at(data_before).ok()
     } else {
         None
     };
-    println!("{:?} token_before", token_before);
 
     let token_after = if data_after.len() > 165 {
         CToken::zero_copy_at(data_after).ok()
@@ -76,36 +70,41 @@ pub async fn assert_compressible_for_account(
                     });
 
                 assert_eq!(
-                    u64::from(compressible_after.last_claimed_slot),
-                    u64::from(compressible_before.last_claimed_slot),
+                    u64::from(compressible_after.info.last_claimed_slot),
+                    u64::from(compressible_before.info.last_claimed_slot),
                     "{} last_claimed_slot should be different from current slot before transfer",
                     name
                 );
 
                 assert_eq!(
-                    compressible_before.compression_authority,
-                    compressible_after.compression_authority,
+                    compressible_before.info.compression_authority,
+                    compressible_after.info.compression_authority,
                     "{} compression_authority should not change",
                     name
                 );
                 assert_eq!(
-                    compressible_before.rent_sponsor, compressible_after.rent_sponsor,
+                    compressible_before.info.rent_sponsor, compressible_after.info.rent_sponsor,
                     "{} rent_sponsor should not change",
                     name
                 );
                 assert_eq!(
-                    compressible_before.config_account_version,
-                    compressible_after.config_account_version,
+                    compressible_before.info.config_account_version,
+                    compressible_after.info.config_account_version,
                     "{} config_account_version should not change",
                     name
                 );
                 let current_slot = rpc.get_slot().await.unwrap();
+                let rent_exemption = rpc
+                    .get_minimum_balance_for_rent_exemption(data_before.len())
+                    .await
+                    .unwrap();
                 let top_up = compressible_before
+                    .info
                     .calculate_top_up_lamports(
-                        260,
+                        data_before.len() as u64,
                         current_slot,
                         lamports_before,
-                        light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
+                        rent_exemption,
                     )
                     .unwrap();
                 // Check if top-up was applied
@@ -124,8 +123,6 @@ pub async fn assert_compressible_for_account(
                         name
                     );
                 }
-                println!("{:?} compressible_before", compressible_before);
-                println!("{:?} compressible_after", compressible_after);
             }
         }
     }

@@ -307,7 +307,7 @@ dependencies = [
  "solana-sdk",
  "solana-security-txt",
  "spl-token 7.0.0",
- "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-token-2022 7.0.0",
  "zerocopy",
 ]
 
@@ -1422,6 +1422,7 @@ dependencies = [
  "account-compression",
  "anchor-lang",
  "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "borsh 0.10.4",
  "forester-utils",
  "light-batched-merkle-tree",
  "light-client",
@@ -1445,7 +1446,7 @@ dependencies = [
  "solana-system-interface 1.0.0",
  "spl-pod",
  "spl-token 7.0.0",
- "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-token-2022 7.0.0",
  "tokio",
 ]
 
@@ -3594,6 +3595,7 @@ dependencies = [
  "light-compressed-account",
  "light-compressed-token-sdk",
  "light-concurrent-merkle-tree",
+ "light-ctoken-types",
  "light-event",
  "light-hasher",
  "light-indexed-merkle-tree",
@@ -3688,8 +3690,7 @@ dependencies = [
  "solana-security-txt",
  "spl-pod",
  "spl-token 7.0.0",
- "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "spl-token-2022 7.0.0 (git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf)",
+ "spl-token-2022 7.0.0",
  "tinyvec",
  "zerocopy",
 ]
@@ -3720,7 +3721,7 @@ dependencies = [
  "solana-program-error 2.2.2",
  "solana-pubkey 2.4.0",
  "spl-pod",
- "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-token-2022 7.0.0",
  "thiserror 2.0.17",
 ]
 
@@ -3826,7 +3827,7 @@ dependencies = [
  "solana-pubkey 2.4.0",
  "solana-sysvar",
  "spl-pod",
- "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-token-2022 7.0.0",
  "spl-token-metadata-interface 0.6.0",
  "thiserror 2.0.17",
  "tinyvec",
@@ -4048,7 +4049,7 @@ dependencies = [
  "solana-transaction",
  "solana-transaction-status",
  "solana-transaction-status-client-types",
- "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-token-2022 7.0.0",
  "tabled",
  "tokio",
 ]
@@ -4095,6 +4096,7 @@ dependencies = [
  "light-merkle-tree-metadata",
  "light-program-profiler",
  "light-system-program-anchor",
+ "light-zero-copy",
  "solana-account-info",
  "solana-instruction",
  "solana-pubkey 2.4.0",
@@ -4277,8 +4279,10 @@ dependencies = [
  "reqwest 0.12.24",
  "solana-banks-client",
  "solana-sdk",
+ "solana-system-interface 1.0.0",
+ "spl-pod",
  "spl-token 7.0.0",
- "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-token-2022 7.0.0",
  "thiserror 2.0.17",
 ]
 
@@ -4300,8 +4304,9 @@ dependencies = [
  "solana-pubkey 2.4.0",
  "solana-signature",
  "solana-signer",
+ "solana-system-interface 1.0.0",
  "spl-pod",
- "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-token-2022 7.0.0",
 ]
 
 [[package]]
@@ -5091,7 +5096,7 @@ dependencies = [
 [[package]]
 name = "pinocchio-token-interface"
 version = "0.0.0"
-source = "git+https://github.com/Lightprotocol/token?rev=38d8634353e5eeb8c015d364df0eaa39f5c48b05#38d8634353e5eeb8c015d364df0eaa39f5c48b05"
+source = "git+https://github.com/Lightprotocol/token?rev=5d2768b98075ba03dfc5d6e6dd8567ba065c84ba#5d2768b98075ba03dfc5d6e6dd8567ba065c84ba"
 dependencies = [
  "pinocchio",
  "pinocchio-pubkey",
@@ -5100,7 +5105,7 @@ dependencies = [
 [[package]]
 name = "pinocchio-token-program"
 version = "0.1.0"
-source = "git+https://github.com/Lightprotocol/token?rev=38d8634353e5eeb8c015d364df0eaa39f5c48b05#38d8634353e5eeb8c015d364df0eaa39f5c48b05"
+source = "git+https://github.com/Lightprotocol/token?rev=5d2768b98075ba03dfc5d6e6dd8567ba065c84ba#5d2768b98075ba03dfc5d6e6dd8567ba065c84ba"
 dependencies = [
  "pinocchio",
  "pinocchio-log",
@@ -6090,7 +6095,7 @@ dependencies = [
  "solana-program",
  "solana-sdk",
  "spl-pod",
- "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-token-2022 7.0.0",
  "tokio",
 ]
 
@@ -9465,19 +9470,7 @@ dependencies = [
  "solana-program",
  "solana-zk-sdk",
  "spl-pod",
- "spl-token-confidential-transfer-proof-extraction 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "spl-elgamal-registry"
-version = "0.1.1"
-source = "git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf#06d12f50a06db25d73857d253b9a82857d6f4cdf"
-dependencies = [
- "bytemuck",
- "solana-program",
- "solana-zk-sdk",
- "spl-pod",
- "spl-token-confidential-transfer-proof-extraction 0.2.1 (git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf)",
+ "spl-token-confidential-transfer-proof-extraction 0.2.1",
 ]
 
 [[package]]
@@ -9700,12 +9693,12 @@ dependencies = [
  "solana-program",
  "solana-security-txt",
  "solana-zk-sdk",
- "spl-elgamal-registry 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-elgamal-registry 0.1.1",
  "spl-memo",
  "spl-pod",
  "spl-token 7.0.0",
- "spl-token-confidential-transfer-ciphertext-arithmetic 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "spl-token-confidential-transfer-proof-extraction 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-token-confidential-transfer-ciphertext-arithmetic 0.2.1",
+ "spl-token-confidential-transfer-proof-extraction 0.2.1",
  "spl-token-confidential-transfer-proof-generation 0.2.0",
  "spl-token-group-interface 0.5.0",
  "spl-token-metadata-interface 0.6.0",
@@ -9728,40 +9721,13 @@ dependencies = [
  "solana-program",
  "solana-security-txt",
  "solana-zk-sdk",
- "spl-elgamal-registry 0.1.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "spl-elgamal-registry 0.1.1",
  "spl-memo",
  "spl-pod",
  "spl-token 7.0.0",
- "spl-token-confidential-transfer-ciphertext-arithmetic 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "spl-token-confidential-transfer-proof-extraction 0.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "spl-token-confidential-transfer-proof-generation 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "spl-token-group-interface 0.5.0",
- "spl-token-metadata-interface 0.6.0",
- "spl-transfer-hook-interface 0.9.0",
- "spl-type-length-value 0.7.0",
- "thiserror 2.0.17",
-]
-
-[[package]]
-name = "spl-token-2022"
-version = "7.0.0"
-source = "git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf#06d12f50a06db25d73857d253b9a82857d6f4cdf"
-dependencies = [
- "arrayref",
- "bytemuck",
- "num-derive 0.4.2",
- "num-traits",
- "num_enum",
- "solana-program",
- "solana-security-txt",
- "solana-zk-sdk",
- "spl-elgamal-registry 0.1.1 (git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf)",
- "spl-memo",
- "spl-pod",
- "spl-token 7.0.0",
- "spl-token-confidential-transfer-ciphertext-arithmetic 0.2.1 (git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf)",
- "spl-token-confidential-transfer-proof-extraction 0.2.1 (git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf)",
- "spl-token-confidential-transfer-proof-generation 0.3.0 (git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf)",
+ "spl-token-confidential-transfer-ciphertext-arithmetic 0.2.1",
+ "spl-token-confidential-transfer-proof-extraction 0.2.1",
+ "spl-token-confidential-transfer-proof-generation 0.3.0",
  "spl-token-group-interface 0.5.0",
  "spl-token-metadata-interface 0.6.0",
  "spl-transfer-hook-interface 0.9.0",
@@ -9827,17 +9793,6 @@ dependencies = [
 
 [[package]]
 name = "spl-token-confidential-transfer-ciphertext-arithmetic"
-version = "0.2.1"
-source = "git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf#06d12f50a06db25d73857d253b9a82857d6f4cdf"
-dependencies = [
- "base64 0.22.1",
- "bytemuck",
- "solana-curve25519",
- "solana-zk-sdk",
-]
-
-[[package]]
-name = "spl-token-confidential-transfer-ciphertext-arithmetic"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cddd52bfc0f1c677b41493dafa3f2dbbb4b47cf0990f08905429e19dc8289b35"
@@ -9853,19 +9808,6 @@ name = "spl-token-confidential-transfer-proof-extraction"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "eff2d6a445a147c9d6dd77b8301b1e116c8299601794b558eafa409b342faf96"
-dependencies = [
- "bytemuck",
- "solana-curve25519",
- "solana-program",
- "solana-zk-sdk",
- "spl-pod",
- "thiserror 2.0.17",
-]
-
-[[package]]
-name = "spl-token-confidential-transfer-proof-extraction"
-version = "0.2.1"
-source = "git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf#06d12f50a06db25d73857d253b9a82857d6f4cdf"
 dependencies = [
  "bytemuck",
  "solana-curve25519",
@@ -9911,16 +9853,6 @@ name = "spl-token-confidential-transfer-proof-generation"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0e3597628b0d2fe94e7900fd17cdb4cfbb31ee35c66f82809d27d86e44b2848b"
-dependencies = [
- "curve25519-dalek 4.1.3",
- "solana-zk-sdk",
- "thiserror 2.0.17",
-]
-
-[[package]]
-name = "spl-token-confidential-transfer-proof-generation"
-version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/token-2022?rev=06d12f50a06db25d73857d253b9a82857d6f4cdf#06d12f50a06db25d73857d253b9a82857d6f4cdf"
 dependencies = [
  "curve25519-dalek 4.1.3",
  "solana-zk-sdk",

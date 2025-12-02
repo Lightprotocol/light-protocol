@@ -214,6 +214,7 @@ async fn test_compress_full_and_close() {
         decompress_amount,
         ctoken_ata_pubkey,
         payer.pubkey(),
+        9,
     )
     .await
     .unwrap();

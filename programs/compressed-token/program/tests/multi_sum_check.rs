@@ -89,7 +89,7 @@ fn multi_sum_check_test(
             pool_account_index: 0,
             pool_index: 0,
             bump: 255,
-            decimals: 0,
+            decimals: 9,
         }]
     });
 
@@ -354,7 +354,7 @@ fn test_multi_mint_scenario(
             pool_account_index: 0,
             pool_index: 0,
             bump: 255,
-            decimals: 0,
+            decimals: 9,
         })
         .collect();
 

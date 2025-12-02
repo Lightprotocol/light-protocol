@@ -1,3 +1,4 @@
+use borsh::BorshDeserialize;
 use light_compressed_account::{
     compressed_account::{
         CompressedAccount as ProgramCompressedAccount, CompressedAccountData,
@@ -7,6 +8,7 @@ use light_compressed_account::{
     TreeType,
 };
 use light_compressed_token_sdk::compat::{AccountState, TokenData};
+use light_ctoken_types::state::ExtensionStruct;
 use light_indexed_merkle_tree::array::IndexedElement;
 use light_sdk::instruction::{
     PackedAccounts, PackedAddressTreeInfo, PackedStateTreeInfo, ValidityProof,
@@ -846,9 +848,13 @@ impl TryFrom<&photon_api::models::TokenAccount> for CompressedTokenAccount {
                 .token_data
                 .tlv
                 .as_ref()
-                .map(|tlv| base64::decode_config(tlv, base64::STANDARD_NO_PAD))
-                .transpose()
-                .map_err(|_| IndexerError::InvalidResponseData)?,
+                .map(|tlv| {
+                    let bytes = base64::decode_config(tlv, base64::STANDARD_NO_PAD)
+                        .map_err(|_| IndexerError::InvalidResponseData)?;
+                    Vec::<ExtensionStruct>::deserialize(&mut bytes.as_slice())
+                        .map_err(|_| IndexerError::InvalidResponseData)
+                })
+                .transpose()?,
         };
 
         Ok(CompressedTokenAccount { token, account })
@@ -883,9 +889,13 @@ impl TryFrom<&photon_api::models::TokenAccountV2> for CompressedTokenAccount {
                 .token_data
                 .tlv
                 .as_ref()
-                .map(|tlv| base64::decode_config(tlv, base64::STANDARD_NO_PAD))
-                .transpose()
-                .map_err(|_| IndexerError::InvalidResponseData)?,
+                .map(|tlv| {
+                    let bytes = base64::decode_config(tlv, base64::STANDARD_NO_PAD)
+                        .map_err(|_| IndexerError::InvalidResponseData)?;
+                    Vec::<ExtensionStruct>::deserialize(&mut bytes.as_slice())
+                        .map_err(|_| IndexerError::InvalidResponseData)
+                })
+                .transpose()?,
         };
 
         Ok(CompressedTokenAccount { token, account })

@@ -190,6 +190,7 @@ impl CTokenAccount2 {
     }
 
     #[profile]
+    #[allow(clippy::too_many_arguments)]
     pub fn compress_spl(
         &mut self,
         amount: u64,
@@ -198,6 +199,7 @@ impl CTokenAccount2 {
         pool_account_index: u8,
         pool_index: u8,
         bump: u8,
+        decimals: u8,
     ) -> Result<(), TokenSdkError> {
         // Check if there's already a compression set
         if self.compression.is_some() {
@@ -213,6 +215,7 @@ impl CTokenAccount2 {
             pool_account_index,
             pool_index,
             bump,
+            decimals,
         ));
         self.method_used = true;
 
@@ -254,6 +257,7 @@ impl CTokenAccount2 {
         pool_account_index: u8,
         pool_index: u8,
         bump: u8,
+        decimals: u8,
     ) -> Result<(), TokenSdkError> {
         // Check if there's already a compression set
         if self.compression.is_some() {
@@ -272,6 +276,7 @@ impl CTokenAccount2 {
             pool_account_index,
             pool_index,
             bump,
+            decimals,
         ));
         self.method_used = true;
 
@@ -306,7 +311,7 @@ impl CTokenAccount2 {
             pool_account_index: 0,
             pool_index: 0,
             bump: 0,
-            decimals: 0,
+            decimals: 0, // Not used for ctoken compression
         });
         self.method_used = true;
 
@@ -332,6 +337,7 @@ impl CTokenAccount2 {
         self.output.amount += amount;
 
         // Use the compress_and_close method from Compression
+        // rent_sponsor_is_signer is always false in SDK - only registry program CPI uses true
         self.compression = Some(Compression::compress_and_close_ctoken(
             amount,
             self.output.mint,
@@ -340,6 +346,7 @@ impl CTokenAccount2 {
             rent_sponsor_index,
             compressed_account_index,
             destination_index,
+            false, // rent_sponsor_is_signer: only true when registry program CPIs
         ));
         self.method_used = true;
 

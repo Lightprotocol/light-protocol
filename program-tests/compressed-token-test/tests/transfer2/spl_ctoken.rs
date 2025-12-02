@@ -18,7 +18,9 @@ use light_program_test::utils::assert::assert_rpc_error;
 pub use light_program_test::{LightProgramTest, ProgramTestConfig};
 pub use light_test_utils::{
     airdrop_lamports,
-    spl::{create_mint_helper, create_token_2022_account, mint_spl_tokens},
+    spl::{
+        create_mint_helper, create_token_2022_account, mint_spl_tokens, CREATE_MINT_HELPER_DECIMALS,
+    },
     Rpc, RpcError,
 };
 pub use light_token_client::actions::transfer2::{self};
@@ -89,6 +91,7 @@ async fn test_spl_to_ctoken_transfer() {
     assert_eq!(initial_spl_balance, amount);
 
     // Use the new spl_to_ctoken_transfer action from light-token-client
+    // Note: create_mint_helper creates mints with 2 decimals
     transfer2::spl_to_ctoken_transfer(
         &mut rpc,
         spl_token_account_keypair.pubkey(),
@@ -96,6 +99,7 @@ async fn test_spl_to_ctoken_transfer() {
         transfer_amount,
         &sender,
         &payer,
+        2, // decimals - must match mint decimals (create_mint_helper uses 2)
     )
     .await
     .unwrap();
@@ -148,6 +152,7 @@ async fn test_spl_to_ctoken_transfer() {
         &recipient,
         mint,
         &payer,
+        2, // decimals - must match mint decimals (create_mint_helper uses 2)
     )
     .await
     .unwrap();
@@ -261,6 +266,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         transfer_amount,
         &sender,
         &payer,
+        2, // decimals - must match mint decimals (create_mint_helper uses 2)
     )
     .await
     .unwrap();
@@ -301,6 +307,7 @@ async fn test_failing_ctoken_to_spl_with_compress_and_close() {
         token_pool_pda,
         token_pool_pda_bump,
         spl_token_program: anchor_spl::token::ID,
+        decimals: CREATE_MINT_HELPER_DECIMALS,
     }
     .instruction()
     .unwrap();
@@ -322,6 +329,7 @@ pub struct CtokenToSplTransferAndClose {
     pub token_pool_pda: Pubkey,
     pub token_pool_pda_bump: u8,
     pub spl_token_program: Pubkey,
+    pub decimals: u8,
 }
 
 impl CtokenToSplTransferAndClose {
@@ -353,6 +361,7 @@ impl CtokenToSplTransferAndClose {
                 0, // no rent sponsor
                 0, // no compressed account
                 3, // destination is authority
+                false,
             )),
             delegate_is_set: false,
             method_used: true,
@@ -369,6 +378,7 @@ impl CtokenToSplTransferAndClose {
                 4, // pool_account_index
                 0, // pool_index (TODO: make dynamic)
                 self.token_pool_pda_bump,
+                self.decimals,
             )),
             delegate_is_set: false,
             method_used: true,
@@ -385,6 +395,7 @@ impl CtokenToSplTransferAndClose {
             out_lamports: None,
             token_accounts: vec![compress_to_pool, decompress_to_spl],
             output_queue: 0, // Decompressed accounts only, no output queue needed
+            in_tlv: None,
         };
 
         create_transfer2_instruction(inputs).map_err(ProgramError::from)

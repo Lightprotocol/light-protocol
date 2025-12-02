@@ -154,6 +154,7 @@ where
                 lamports_per_write: None,
                 compress_to_account_pubkey: compress_to_pubkey,
                 token_account_version: light_ctoken_types::state::TokenDataVersion::ShaFlat,
+                compression_only: false,
             }),
         }
         .invoke_signed(&[seeds_slice])?;
@@ -171,6 +172,7 @@ where
         let decompress_index = crate::compressed_token::decompress_full::DecompressFullIndices {
             source,
             destination_index: owner_index,
+            tlv: None,
         };
         token_decompress_indices.push(decompress_index);
         token_signers_seed_groups.push(ctoken_signer_seeds);

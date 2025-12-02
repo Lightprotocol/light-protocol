@@ -48,7 +48,7 @@ impl CreateCTokenAccount {
                     } else {
                         0
                     },
-                    compression_only: 0,
+                    compression_only: config.compression_only as u8,
                     write_top_up: config.lamports_per_write.unwrap_or(0),
                     compress_to_account_pubkey: config.compress_to_account_pubkey.clone(),
                 });
@@ -173,6 +173,7 @@ impl<'info> From<&CreateCTokenAccountInfos<'info>> for CreateCTokenAccount {
                     lamports_per_write: config.lamports_per_write,
                     compress_to_account_pubkey: config.compress_to_account_pubkey.clone(),
                     token_account_version: config.token_account_version,
+                    compression_only: config.compression_only,
                 }),
         }
     }

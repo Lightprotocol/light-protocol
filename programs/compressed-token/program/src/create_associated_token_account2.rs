@@ -58,5 +58,6 @@ fn process_create_associated_token_account2_inner<const IDEMPOTENT: bool>(
         mint.key(),
         instruction_inputs.bump,
         instruction_inputs.compressible_config,
+        Some(mint), // Pass mint account for pausable extension check
     )
 }

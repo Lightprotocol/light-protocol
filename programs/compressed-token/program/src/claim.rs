@@ -111,6 +111,7 @@ fn validate_and_claim(
         for extension in extensions {
             if let ZExtensionStructMut::Compressible(compressible_ext) = extension {
                 return compressible_ext
+                    .info
                     .claim_and_update(ClaimAndUpdate {
                         compression_authority: accounts.compression_authority.key(),
                         rent_sponsor: accounts.rent_sponsor.key(),

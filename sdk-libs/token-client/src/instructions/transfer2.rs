@@ -14,7 +14,10 @@ use light_compressed_token_sdk::{
     token_pool::find_token_pool_pda_with_index,
 };
 use light_ctoken_types::{
-    instructions::transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
+    instructions::{
+        extensions::ExtensionInstructionData,
+        transfer2::{MultiInputTokenDataWithContext, MultiTokenTransferOutputData},
+    },
     state::TokenDataVersion,
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
@@ -72,6 +75,7 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
     decompress_amount: u64,
     solana_token_account: Pubkey,
     payer: Pubkey,
+    decimals: u8,
 ) -> Result<Instruction, TokenSdkError> {
     create_generic_transfer2_instruction(
         rpc,
@@ -81,6 +85,8 @@ pub async fn create_decompress_instruction<R: Rpc + Indexer>(
             solana_token_account,
             amount: decompress_amount,
             pool_index: None,
+            decimals,
+            in_tlv: None,
         })],
         payer,
         false,
@@ -104,6 +110,9 @@ pub struct DecompressInput {
     pub solana_token_account: Pubkey,
     pub amount: u64,
     pub pool_index: Option<u8>, // For SPL only. None = default (0), Some(n) = specific pool
+    pub decimals: u8,           // Mint decimals for SPL transfer_checked
+    /// TLV extensions for each input compressed account (required for version 3 accounts with extensions).
+    pub in_tlv: Option<Vec<Vec<ExtensionInstructionData>>>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -116,6 +125,7 @@ pub struct CompressInput {
     pub authority: Pubkey,
     pub output_queue: Pubkey,
     pub pool_index: Option<u8>, // For SPL only. None = default (0), Some(n) = specific pool
+    pub decimals: u8,           // Mint decimals for SPL transfer_checked
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -215,6 +225,8 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
     let mut in_lamports = Vec::new();
     let mut out_lamports = Vec::new();
     let mut token_accounts = Vec::new();
+    let mut collected_in_tlv: Vec<Vec<ExtensionInstructionData>> = Vec::new();
+    let mut has_any_tlv = false;
     for action in actions {
         match action {
             Transfer2InstructionType::Compress(input) => {
@@ -289,6 +301,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         pool_account_index,
                         pool_index,
                         bump,
+                        input.decimals,
                     )?;
                 } else {
                     // Regular compression for compressed token accounts
@@ -297,6 +310,17 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                 token_accounts.push(token_account);
             }
             Transfer2InstructionType::Decompress(input) => {
+                // Collect in_tlv data if provided
+                if let Some(ref tlv_data) = input.in_tlv {
+                    has_any_tlv = true;
+                    collected_in_tlv.extend(tlv_data.iter().cloned());
+                } else {
+                    // Add empty TLV entries for each input (needed for proper indexing)
+                    for _ in 0..input.compressed_token_account.len() {
+                        collected_in_tlv.push(Vec::new());
+                    }
+                }
+
                 let token_data = input
                     .compressed_token_account
                     .iter()
@@ -354,6 +378,7 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         pool_account_index,
                         pool_index,
                         bump,
+                        input.decimals,
                     )?;
                 } else {
                     // Use the new SPL-specific decompress method
@@ -533,10 +558,11 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
                         let mut found_compress_to_pubkey = false;
                         for extension in extensions {
                             if let ZExtensionStruct::Compressible(compressible_ext) = extension {
-                                found_rent_sponsor = Some(compressible_ext.rent_sponsor);
+                                found_rent_sponsor = Some(compressible_ext.info.rent_sponsor);
                                 found_compression_authority =
-                                    Some(compressible_ext.compression_authority);
-                                found_compress_to_pubkey = compressible_ext.compress_to_pubkey == 1;
+                                    Some(compressible_ext.info.compression_authority);
+                                found_compress_to_pubkey =
+                                    compressible_ext.info.compress_to_pubkey == 1;
                                 break;
                             }
                         }
@@ -634,6 +660,11 @@ pub async fn create_generic_transfer2_instruction<R: Rpc + Indexer>(
         },
         token_accounts,
         output_queue: shared_output_queue,
+        in_tlv: if has_any_tlv {
+            Some(collected_in_tlv)
+        } else {
+            None
+        },
     };
     println!("pre create_transfer2_instruction {:?}", inputs);
     create_transfer2_instruction(inputs)

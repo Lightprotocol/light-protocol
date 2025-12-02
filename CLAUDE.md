@@ -197,3 +197,57 @@ Format and clippy checks across the entire codebase.
 - **`program-tests/`**: Integration tests requiring Solana runtime, depend on `light-test-utils`
 - **`sdk-tests/`**: SDK-specific integration tests
 - **Special case**: `zero-copy-derive-test` in `program-tests/` only to break cyclic dependencies
+
+### Test Assertion Pattern
+
+When testing account state, use borsh deserialization with a single `assert_eq` against an expected reference account:
+
+```rust
+use borsh::BorshDeserialize;
+use light_ctoken_types::state::{
+    AccountState, CToken, ExtensionStruct, PausableAccountExtension,
+    PermanentDelegateAccountExtension,
+};
+
+// Deserialize the account
+let ctoken = CToken::deserialize(&mut &account.data[..])
+    .expect("Failed to deserialize CToken account");
+
+// Extract runtime-specific values from deserialized account
+let compression_info = ctoken
+    .extensions
+    .as_ref()
+    .and_then(|exts| {
+        exts.iter().find_map(|e| match e {
+            ExtensionStruct::Compressible(info) => Some(info.clone()),
+            _ => None,
+        })
+    })
+    .expect("Should have Compressible extension");
+
+// Build expected account for comparison
+let expected_ctoken = CToken {
+    mint: mint_pubkey.to_bytes().into(),
+    owner: payer.pubkey().to_bytes().into(),
+    amount: 0,
+    delegate: None,
+    state: AccountState::Frozen,
+    is_native: None,
+    delegated_amount: 0,
+    close_authority: None,
+    extensions: Some(vec![
+        ExtensionStruct::Compressible(compression_info),
+        ExtensionStruct::PausableAccount(PausableAccountExtension),
+        ExtensionStruct::PermanentDelegateAccount(PermanentDelegateAccountExtension),
+    ]),
+};
+
+// Single assert comparing full account state
+assert_eq!(ctoken, expected_ctoken, "CToken account should match expected");
+```
+
+**Benefits:**
+- Type-safe assertions using actual struct fields instead of magic byte offsets
+- Maintainable - if account layout changes, deserialization handles it
+- Readable - clear field names vs `account.data[108]`
+- Single assertion point for the entire account state

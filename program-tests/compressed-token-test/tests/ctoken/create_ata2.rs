@@ -21,6 +21,7 @@ async fn create_and_assert_ata2(
             lamports_per_write: compressible.lamports_per_write,
             compress_to_account_pubkey: None,
             token_account_version: compressible.account_version,
+            compression_only: false,
         };
 
         let mut builder =

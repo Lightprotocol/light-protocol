@@ -102,7 +102,7 @@ async fn test_close_token_account_fails() {
             &wrong_owner,
             Some(rent_sponsor),
             "wrong_owner",
-            75, // ErrorCode::OwnerMismatch
+            6075, // ErrorCode::OwnerMismatch
         )
         .await;
     }
@@ -210,7 +210,7 @@ async fn test_close_token_account_fails() {
             &owner_keypair,
             Some(rent_sponsor),
             "non_zero_balance",
-            74, // ErrorCode::NonNativeHasBalance
+            6074, // ErrorCode::NonNativeHasBalance
         )
         .await;
     }

@@ -1,6 +1,9 @@
 use light_compressed_token_types::{constants::TRANSFER2, ValidityProof};
 use light_ctoken_types::{
-    instructions::transfer2::{CompressedCpiContext, CompressedTokenInstructionDataTransfer2},
+    instructions::{
+        extensions::ExtensionInstructionData,
+        transfer2::{CompressedCpiContext, CompressedTokenInstructionDataTransfer2},
+    },
     COMPRESSED_TOKEN_PROGRAM_ID,
 };
 use light_program_profiler::profile;
@@ -70,6 +73,9 @@ pub struct Transfer2Inputs {
     pub in_lamports: Option<Vec<u64>>,
     pub out_lamports: Option<Vec<u64>>,
     pub output_queue: u8,
+    /// TLV extensions for input compressed accounts (one Vec per input account).
+    /// Used to pass extension state (e.g., CompressedOnly) for decompress operations.
+    pub in_tlv: Option<Vec<Vec<ExtensionInstructionData>>>,
 }
 
 /// Create the instruction for compressed token multi-transfer operations
@@ -83,6 +89,7 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
         in_lamports,
         out_lamports,
         output_queue,
+        in_tlv,
     } = inputs;
     let mut input_token_data_with_context = Vec::new();
     let mut output_compressed_accounts = Vec::new();
@@ -116,8 +123,8 @@ pub fn create_transfer2_instruction(inputs: Transfer2Inputs) -> Result<Instructi
         out_token_data: output_compressed_accounts,
         in_lamports,
         out_lamports,
-        in_tlv: None,  // TLV is unimplemented
-        out_tlv: None, // TLV is unimplemented
+        in_tlv,
+        out_tlv: None, // Out TLV is only for CompressAndClose by rent authority
         compressions: if collected_compressions.is_empty() {
             None
         } else {
