@@ -186,7 +186,6 @@ pub async fn assert_mint_action(
                         account_size,
                         current_slot,
                         pre_lamports,
-                        compressible.lamports_per_write,
                         light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                     )
                     .unwrap();

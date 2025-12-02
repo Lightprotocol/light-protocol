@@ -75,7 +75,6 @@ fn calculate_and_execute_top_up_transfers(
                                 transfer.account.data_len() as u64,
                                 current_slot,
                                 transfer.account.lamports(),
-                                compressible_extension.lamports_per_write.into(),
                                 light_ctoken_types::COMPRESSIBLE_TOKEN_RENT_EXEMPTION,
                             )
                             .map_err(|_| CTokenError::InvalidAccountData)?;

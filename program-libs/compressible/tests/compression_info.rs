@@ -550,7 +550,6 @@ fn test_calculate_top_up_lamports() {
                 TEST_BYTES,
                 test_case.current_slot,
                 test_case.current_lamports,
-                test_case.lamports_per_write,
                 rent_exemption_lamports,
             )
             .unwrap();
