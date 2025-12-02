@@ -5,7 +5,6 @@ use light_sparse_merkle_tree::changelog::ChangelogEntry;
 use num_bigint::{BigInt, BigUint};
 use num_traits::{Num, ToPrimitive};
 use serde::Serialize;
-use serde_json::json;
 
 pub fn get_project_root() -> Option<String> {
     let output = Command::new("git")
@@ -21,11 +20,9 @@ pub fn get_project_root() -> Option<String> {
 }
 
 pub fn change_endianness(bytes: &[u8]) -> Vec<u8> {
-    let mut vec = Vec::new();
-    for b in bytes.chunks(32) {
-        for byte in b.iter().rev() {
-            vec.push(*byte);
-        }
+    let mut vec = Vec::with_capacity(bytes.len());
+    for chunk in bytes.chunks(32) {
+        vec.extend(chunk.iter().rev());
     }
     vec
 }
@@ -107,9 +104,5 @@ pub fn create_json_from_struct<T>(json_struct: &T) -> String
 where
     T: Serialize,
 {
-    let json = json!(json_struct);
-    match serde_json::to_string_pretty(&json) {
-        Ok(json) => json,
-        Err(_) => panic!("Merkle tree data invalid"),
-    }
+    serde_json::to_string(json_struct).expect("JSON serialization failed for valid struct")
 }

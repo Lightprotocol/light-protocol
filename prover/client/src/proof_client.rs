@@ -19,10 +19,12 @@ use crate::{
 };
 
 const MAX_RETRIES: u32 = 10;
-const BASE_RETRY_DELAY_SECS: u64 = 1;
+const BASE_RETRY_DELAY_MS: u64 = 100;
+const MAX_RETRY_DELAY_MS: u64 = 5000;
 const DEFAULT_POLLING_INTERVAL_MS: u64 = 100;
 const DEFAULT_MAX_WAIT_TIME_SECS: u64 = 600;
 const DEFAULT_LOCAL_SERVER: &str = "http://localhost:3001";
+const REQUEST_TIMEOUT_SECS: u64 = 60;
 
 const INITIAL_POLL_DELAY_SMALL_CIRCUIT_MS: u64 = 200;
 const INITIAL_POLL_DELAY_LARGE_CIRCUIT_MS: u64 = 1000;
@@ -187,7 +189,10 @@ impl ProofClient {
                 Ok(proof) => return Ok(proof),
                 Err(err) if self.should_retry(&err, retries, elapsed) => {
                     retries += 1;
-                    let retry_delay = Duration::from_secs(BASE_RETRY_DELAY_SECS * retries as u64);
+                    // Exponential backoff: 100ms -> 200ms -> 400ms -> ... -> 5000ms (capped)
+                    let retry_delay = Duration::from_millis(
+                        (BASE_RETRY_DELAY_MS * 2_u64.pow(retries)).min(MAX_RETRY_DELAY_MS),
+                    );
 
                     if elapsed + retry_delay > self.max_wait_time {
                         warn!(
@@ -239,7 +244,8 @@ impl ProofClient {
         let mut request = self
             .client
             .post(&url)
-            .header("Content-Type", "application/json");
+            .header("Content-Type", "application/json")
+            .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS));
 
         if let Some(api_key) = &self.api_key {
             request = request.header("X-API-Key", api_key);
@@ -250,10 +256,17 @@ impl ProofClient {
             .send()
             .await
             .map_err(|e| {
-                ProverClientError::ProverServerError(format!(
-                    "Failed to send request to prover server: {}",
-                    e
-                ))
+                if e.is_timeout() {
+                    ProverClientError::ProverServerError(format!(
+                        "Request to prover server timed out after {}s",
+                        REQUEST_TIMEOUT_SECS
+                    ))
+                } else {
+                    ProverClientError::ProverServerError(format!(
+                        "Failed to send request to prover server: {}",
+                        e
+                    ))
+                }
             })
     }
 
@@ -452,8 +465,11 @@ impl ProofClient {
                         return Err(err);
                     }
 
-                    let retry_delay =
-                        Duration::from_secs(BASE_RETRY_DELAY_SECS * transient_error_count as u64);
+                    // Exponential backoff: 100ms -> 200ms -> 400ms -> ... -> 5000ms (capped)
+                    let retry_delay = Duration::from_millis(
+                        (BASE_RETRY_DELAY_MS * 2_u64.pow(transient_error_count))
+                            .min(MAX_RETRY_DELAY_MS),
+                    );
 
                     if total_elapsed + retry_delay > self.max_wait_time {
                         warn!(
@@ -483,15 +499,29 @@ impl ProofClient {
         job_id: &str,
         poll_count: u32,
     ) -> Result<JobStatusResponse, ProverClientError> {
-        let mut request = self.client.get(status_url);
+        let mut request = self
+            .client
+            .get(status_url)
+            .timeout(Duration::from_secs(REQUEST_TIMEOUT_SECS));
 
         if let Some(api_key) = &self.api_key {
             request = request.header("X-API-Key", api_key);
         }
 
         let response = request.send().await.map_err(|e| {
-            error!("Failed to send status request for job {}: {}", job_id, e);
-            ProverClientError::ProverServerError(format!("Failed to check job status: {}", e))
+            if e.is_timeout() {
+                error!(
+                    "Status request for job {} timed out after {}s",
+                    job_id, REQUEST_TIMEOUT_SECS
+                );
+                ProverClientError::ProverServerError(format!(
+                    "Status request timed out after {}s",
+                    REQUEST_TIMEOUT_SECS
+                ))
+            } else {
+                error!("Failed to send status request for job {}: {}", job_id, e);
+                ProverClientError::ProverServerError(format!("Failed to check job status: {}", e))
+            }
         })?;
 
         let status_code = response.status();
@@ -590,11 +620,25 @@ impl ProofClient {
         match result {
             Some(result) => {
                 trace!("Job {} has result, parsing proof JSON", job_id);
-                let proof_json = serde_json::to_string(&result).map_err(|e| {
-                    error!("Failed to serialize result for job {}: {}", job_id, e);
-                    ProverClientError::ProverServerError("Cannot serialize result".to_string())
-                })?;
-                self.parse_proof_from_json(&proof_json)
+                // Deserialize directly from Value instead of round-tripping through String
+                let proof_json: crate::proof::GnarkProofJson = serde_json::from_value(result)
+                    .map_err(|e| {
+                        error!(
+                            "Failed to parse proof from result for job {}: {}",
+                            job_id, e
+                        );
+                        ProverClientError::ProverServerError(format!(
+                            "Failed to parse proof: {}",
+                            e
+                        ))
+                    })?;
+                let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json)?;
+                let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c)?;
+                Ok(ProofCompressed {
+                    a: proof_a,
+                    b: proof_b,
+                    c: proof_c,
+                })
             }
             None => {
                 error!("Job {} completed but has no result", job_id);
@@ -619,8 +663,8 @@ impl ProofClient {
             ProverClientError::ProverServerError(format!("Failed to deserialize proof JSON: {}", e))
         })?;
 
-        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json);
-        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c);
+        let (proof_a, proof_b, proof_c) = proof_from_json_struct(proof_json)?;
+        let (proof_a, proof_b, proof_c) = compress_proof(&proof_a, &proof_b, &proof_c)?;
 
         Ok(ProofCompressed {
             a: proof_a,

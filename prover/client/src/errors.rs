@@ -30,6 +30,12 @@ pub enum ProverClientError {
 
     #[error("AltBn128Error error: {0}")]
     AltBn128CompressionError(String),
+
+    #[error("Invalid hex string: {0}")]
+    InvalidHexString(String),
+
+    #[error("Invalid proof data: {0}")]
+    InvalidProofData(String),
 }
 
 impl From<AltBn128CompressionError> for ProverClientError {

@@ -166,8 +166,8 @@ impl StateTreeStrategy {
             .ok_or_else(|| anyhow!("Output queue not present"))?;
 
         let range = batch_range(zkp_batch_size, batch.account_hashes.len(), start);
-        let leaves = batch.account_hashes[range.clone()].to_vec();
-        let leaf_indices = batch.leaf_indices[range].to_vec();
+        let leaves = &batch.account_hashes[range.clone()];
+        let leaf_indices = &batch.leaf_indices[range];
 
         let hashchain_idx = start / zkp_batch_size as usize;
         let batch_seq = queue_data.state_queue.root_seq + (batch_idx as u64) + 1;

@@ -24,15 +24,34 @@ func NewRedisQueue(redisURL string) (*RedisQueue, error) {
 		return nil, fmt.Errorf("failed to parse Redis URL: %w", err)
 	}
 
+	// Configure connection pool and timeouts for Cloud Run + VPC connector reliability
+	opts.PoolSize = 20                    // Connection pool size per instance
+	opts.MinIdleConns = 5                 // Keep some connections warm
+	opts.DialTimeout = 10 * time.Second   // Timeout for establishing new connections
+	opts.ReadTimeout = 30 * time.Second   // Timeout for read operations (BLPOP can be slow)
+	opts.WriteTimeout = 10 * time.Second  // Timeout for write operations
+	opts.PoolTimeout = 15 * time.Second   // Timeout for getting connection from pool
+	opts.ConnMaxIdleTime = 5 * time.Minute // Close idle connections after this time
+	opts.MaxRetries = 3                   // Retry failed commands
+
 	client := redis.NewClient(opts)
 	ctx := context.Background()
 
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 
 	if err := client.Ping(ctx).Err(); err != nil {
 		return nil, fmt.Errorf("failed to connect to Redis: %w", err)
 	}
+
+	logging.Logger().Info().
+		Int("pool_size", opts.PoolSize).
+		Int("min_idle_conns", opts.MinIdleConns).
+		Dur("dial_timeout", opts.DialTimeout).
+		Dur("read_timeout", opts.ReadTimeout).
+		Dur("write_timeout", opts.WriteTimeout).
+		Int("max_retries", opts.MaxRetries).
+		Msg("Redis client configured with connection pool")
 
 	return &RedisQueue{Client: client, Ctx: context.Background()}, nil
 }

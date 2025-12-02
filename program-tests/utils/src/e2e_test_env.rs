@@ -837,9 +837,9 @@ where
                                     let body = response_result.text().await.unwrap();
                                     let proof_json = deserialize_gnark_proof_json(&body).unwrap();
                                     let (proof_a, proof_b, proof_c) =
-                                        proof_from_json_struct(proof_json);
+                                        proof_from_json_struct(proof_json).unwrap();
                                     let (proof_a, proof_b, proof_c) =
-                                        compress_proof(&proof_a, &proof_b, &proof_c);
+                                        compress_proof(&proof_a, &proof_b, &proof_c).unwrap();
                                     let instruction_data = InstructionDataBatchNullifyInputs {
                                         new_root: circuit_inputs_new_root,
                                         compressed_proof: CompressedProof {

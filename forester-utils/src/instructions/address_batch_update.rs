@@ -168,8 +168,7 @@ async fn stream_instruction_data<'a, R: Rpc>(
                         proof_buffer.push(instruction_data);
 
                         if proof_buffer.len() >= MAX_PROOFS_PER_TX {
-                            yield Ok(proof_buffer.clone());
-                            proof_buffer.clear();
+                            yield Ok(std::mem::take(&mut proof_buffer));
                         }
                     },
                     Err(e) => {

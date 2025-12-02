@@ -1,3 +1,4 @@
+use futures::stream::StreamExt;
 use std::sync::Arc;
 
 use async_channel::Receiver;
@@ -44,14 +45,18 @@ impl ProofInput {
 
     fn new_root_bytes(&self) -> crate::Result<[u8; 32]> {
         match self {
-            ProofInput::Append(inputs) => light_hasher::bigint::bigint_to_be_bytes_array::<32>(
-                &inputs.new_root.to_biguint().unwrap(),
-            )
-            .map_err(Into::into),
-            ProofInput::Nullify(inputs) => light_hasher::bigint::bigint_to_be_bytes_array::<32>(
-                &inputs.new_root.to_biguint().unwrap(),
-            )
-            .map_err(Into::into),
+            ProofInput::Append(inputs) => {
+                let biguint = inputs.new_root.to_biguint().ok_or_else(|| {
+                    anyhow::anyhow!("Failed to convert append new_root to biguint")
+                })?;
+                light_hasher::bigint::bigint_to_be_bytes_array::<32>(&biguint).map_err(Into::into)
+            }
+            ProofInput::Nullify(inputs) => {
+                let biguint = inputs.new_root.to_biguint().ok_or_else(|| {
+                    anyhow::anyhow!("Failed to convert nullify new_root to biguint")
+                })?;
+                light_hasher::bigint::bigint_to_be_bytes_array::<32>(&biguint).map_err(Into::into)
+            }
             ProofInput::AddressAppend(inputs) => {
                 light_hasher::bigint::bigint_to_be_bytes_array::<32>(&inputs.new_root)
                     .map_err(Into::into)
@@ -111,6 +116,8 @@ impl ProofClients {
     }
 }
 
+const MAX_CONCURRENT_SUBMISSIONS: usize = 180;
+
 pub fn spawn_proof_workers(config: &ProverConfig) -> async_channel::Sender<ProofJob> {
     let (job_tx, job_rx) = async_channel::bounded::<ProofJob>(256);
     let clients = Arc::new(ProofClients::new(config));
@@ -122,49 +129,59 @@ async fn run_proof_pipeline(
     job_rx: Receiver<ProofJob>,
     clients: Arc<ProofClients>,
 ) -> crate::Result<()> {
-    while let Ok(job) = job_rx.recv().await {
-        let client = clients.get_client(&job.inputs);
-        let inputs_json = job.inputs.to_json();
-        let circuit_type = job.inputs.circuit_type();
-
-        match client.submit_proof_async(inputs_json, circuit_type).await {
-            Ok(SubmitProofResult::Queued(job_id)) => {
-                debug!(
-                    "Submitted proof job seq={} type={} job_id={}",
-                    job.seq, circuit_type, job_id
-                );
-
-                let poll_client = clients.clone();
-                tokio::spawn(async move {
-                    poll_and_send_result(poll_client, job_id, job.seq, job.inputs, job.result_tx)
-                        .await
-                });
-            }
-            Ok(SubmitProofResult::Immediate(proof)) => {
-                debug!(
-                    "Got immediate proof for seq={} type={}",
-                    job.seq, circuit_type
-                );
-
-                let result = build_proof_result(job.seq, &job.inputs, proof);
-                let _ = job.result_tx.send(result).await;
-            }
-            Err(e) => {
-                error!(
-                    "Failed to submit proof job seq={} type={}: {}",
-                    job.seq, circuit_type, e
-                );
-
-                let result = ProofResult {
-                    seq: job.seq,
-                    result: Err(format!("Submit failed: {}", e)),
-                };
-                let _ = job.result_tx.send(result).await;
-            }
+    futures::stream::unfold(job_rx, |rx| async move {
+        rx.recv().await.ok().map(|job| (job, rx))
+    })
+    .for_each_concurrent(MAX_CONCURRENT_SUBMISSIONS, |job| {
+        let clients = clients.clone();
+        async move {
+            submit_and_handle_proof(clients, job).await;
         }
-    }
+    })
+    .await;
 
     Ok(())
+}
+
+async fn submit_and_handle_proof(clients: Arc<ProofClients>, job: ProofJob) {
+    let client = clients.get_client(&job.inputs);
+    let inputs_json = job.inputs.to_json();
+    let circuit_type = job.inputs.circuit_type();
+
+    match client.submit_proof_async(inputs_json, circuit_type).await {
+        Ok(SubmitProofResult::Queued(job_id)) => {
+            debug!(
+                "Submitted proof job seq={} type={} job_id={}",
+                job.seq, circuit_type, job_id
+            );
+
+            let poll_client = clients.clone();
+            tokio::spawn(async move {
+                poll_and_send_result(poll_client, job_id, job.seq, job.inputs, job.result_tx).await
+            });
+        }
+        Ok(SubmitProofResult::Immediate(proof)) => {
+            debug!(
+                "Got immediate proof for seq={} type={}",
+                job.seq, circuit_type
+            );
+
+            let result = build_proof_result(job.seq, &job.inputs, proof);
+            let _ = job.result_tx.send(result).await;
+        }
+        Err(e) => {
+            error!(
+                "Failed to submit proof job seq={} type={}: {}",
+                job.seq, circuit_type, e
+            );
+
+            let result = ProofResult {
+                seq: job.seq,
+                result: Err(format!("Submit failed: {}", e)),
+            };
+            let _ = job.result_tx.send(result).await;
+        }
+    }
 }
 
 async fn poll_and_send_result(
