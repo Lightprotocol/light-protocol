@@ -1,4 +1,3 @@
-use futures::stream::StreamExt;
 use std::sync::Arc;
 
 use async_channel::Receiver;
@@ -116,8 +115,6 @@ impl ProofClients {
     }
 }
 
-const MAX_CONCURRENT_SUBMISSIONS: usize = 180;
-
 pub fn spawn_proof_workers(config: &ProverConfig) -> async_channel::Sender<ProofJob> {
     let (job_tx, job_rx) = async_channel::bounded::<ProofJob>(256);
     let clients = Arc::new(ProofClients::new(config));
@@ -129,59 +126,49 @@ async fn run_proof_pipeline(
     job_rx: Receiver<ProofJob>,
     clients: Arc<ProofClients>,
 ) -> crate::Result<()> {
-    futures::stream::unfold(job_rx, |rx| async move {
-        rx.recv().await.ok().map(|job| (job, rx))
-    })
-    .for_each_concurrent(MAX_CONCURRENT_SUBMISSIONS, |job| {
-        let clients = clients.clone();
-        async move {
-            submit_and_handle_proof(clients, job).await;
-        }
-    })
-    .await;
+    while let Ok(job) = job_rx.recv().await {
+        let client = clients.get_client(&job.inputs);
+        let inputs_json = job.inputs.to_json();
+        let circuit_type = job.inputs.circuit_type();
 
-    Ok(())
-}
+        match client.submit_proof_async(inputs_json, circuit_type).await {
+            Ok(SubmitProofResult::Queued(job_id)) => {
+                debug!(
+                    "Submitted proof job seq={} type={} job_id={}",
+                    job.seq, circuit_type, job_id
+                );
 
-async fn submit_and_handle_proof(clients: Arc<ProofClients>, job: ProofJob) {
-    let client = clients.get_client(&job.inputs);
-    let inputs_json = job.inputs.to_json();
-    let circuit_type = job.inputs.circuit_type();
+                let poll_client = clients.clone();
+                tokio::spawn(async move {
+                    poll_and_send_result(poll_client, job_id, job.seq, job.inputs, job.result_tx)
+                        .await
+                });
+            }
+            Ok(SubmitProofResult::Immediate(proof)) => {
+                debug!(
+                    "Got immediate proof for seq={} type={}",
+                    job.seq, circuit_type
+                );
 
-    match client.submit_proof_async(inputs_json, circuit_type).await {
-        Ok(SubmitProofResult::Queued(job_id)) => {
-            debug!(
-                "Submitted proof job seq={} type={} job_id={}",
-                job.seq, circuit_type, job_id
-            );
+                let result = build_proof_result(job.seq, &job.inputs, proof);
+                let _ = job.result_tx.send(result).await;
+            }
+            Err(e) => {
+                error!(
+                    "Failed to submit proof job seq={} type={}: {}",
+                    job.seq, circuit_type, e
+                );
 
-            let poll_client = clients.clone();
-            tokio::spawn(async move {
-                poll_and_send_result(poll_client, job_id, job.seq, job.inputs, job.result_tx).await
-            });
-        }
-        Ok(SubmitProofResult::Immediate(proof)) => {
-            debug!(
-                "Got immediate proof for seq={} type={}",
-                job.seq, circuit_type
-            );
-
-            let result = build_proof_result(job.seq, &job.inputs, proof);
-            let _ = job.result_tx.send(result).await;
-        }
-        Err(e) => {
-            error!(
-                "Failed to submit proof job seq={} type={}: {}",
-                job.seq, circuit_type, e
-            );
-
-            let result = ProofResult {
-                seq: job.seq,
-                result: Err(format!("Submit failed: {}", e)),
-            };
-            let _ = job.result_tx.send(result).await;
+                let result = ProofResult {
+                    seq: job.seq,
+                    result: Err(format!("Submit failed: {}", e)),
+                };
+                let _ = job.result_tx.send(result).await;
+            }
         }
     }
+
+    Ok(())
 }
 
 async fn poll_and_send_result(

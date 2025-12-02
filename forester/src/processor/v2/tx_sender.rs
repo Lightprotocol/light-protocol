@@ -5,9 +5,6 @@ use borsh::BorshSerialize;
 // Maximum number of buffered proof results
 const MAX_BUFFER_SIZE: usize = 1000;
 
-// High watermark - start warning when buffer reaches this level
-const BUFFER_HIGH_WATERMARK: usize = 800;
-
 // Number of proof instructions to bundle per transaction
 pub const V2_IXS_PER_TX: usize = 4;
 
@@ -40,7 +37,6 @@ pub enum BatchInstruction {
 
 struct OrderedProofBuffer {
     buffer: Vec<Option<BatchInstruction>>,
-    head: usize,
     base_seq: u64,
     len: usize,
 }
@@ -49,7 +45,6 @@ impl OrderedProofBuffer {
     fn new(capacity: usize) -> Self {
         Self {
             buffer: (0..capacity).map(|_| None).collect(),
-            head: 0,
             base_seq: 0,
             len: 0,
         }
@@ -71,22 +66,19 @@ impl OrderedProofBuffer {
         if offset >= self.buffer.len() {
             return false;
         }
-        // Calculate actual index in circular buffer
-        let index = (self.head + offset) % self.buffer.len();
-        if self.buffer[index].is_none() {
+        if self.buffer[offset].is_none() {
             self.len += 1;
         }
-        self.buffer[index] = Some(instruction);
+        self.buffer[offset] = Some(instruction);
         true
     }
 
-    /// Pop the next expected instruction if available. O(1).
     fn pop_next(&mut self) -> Option<BatchInstruction> {
-        let item = self.buffer[self.head].take();
+        let item = self.buffer[0].take();
         if item.is_some() {
             self.len -= 1;
             self.base_seq += 1;
-            self.head = (self.head + 1) % self.buffer.len();
+            self.buffer.rotate_left(1);
         }
         item
     }
@@ -96,9 +88,8 @@ impl OrderedProofBuffer {
     }
 
     fn oldest_buffered(&self) -> Option<u64> {
-        for i in 0..self.buffer.len() {
-            let index = (self.head + i) % self.buffer.len();
-            if self.buffer[index].is_some() {
+        for (i, item) in self.buffer.iter().enumerate() {
+            if item.is_some() {
                 return Some(self.base_seq + i as u64);
             }
         }
@@ -183,37 +174,17 @@ impl<R: Rpc> TxSender<R> {
                 }
             };
 
-            // Check buffer health and warn early
-            let buffer_len = self.buffer.len();
-            if buffer_len >= BUFFER_HIGH_WATERMARK {
-                let gap = result.seq.saturating_sub(self.buffer.expected_seq());
+            if self.buffer.len() >= self.buffer.capacity() {
                 warn!(
-                    "Buffer high watermark reached: {}/{} proofs buffered. Expected seq={}, received seq={}, gap={}. \
-                    This indicates out-of-order proof delivery or slow transaction processing.",
-                    buffer_len,
+                    "Buffer overflow: {} buffered proofs (max {}). Expected seq={}, oldest buffered={:?}",
+                    self.buffer.len(),
                     self.buffer.capacity(),
                     self.buffer.expected_seq(),
-                    result.seq,
-                    gap
-                );
-            }
-
-            if buffer_len >= self.buffer.capacity() {
-                // Log detailed diagnostics before failing
-                warn!(
-                    "Buffer overflow: {}/{} proofs. Expected seq={}, oldest buffered={:?}, received seq={}. \
-                    Likely cause: proof for seq={} was never received or failed silently.",
-                    buffer_len,
-                    self.buffer.capacity(),
-                    self.buffer.expected_seq(),
-                    self.buffer.oldest_buffered(),
-                    result.seq,
-                    self.buffer.expected_seq()
+                    self.buffer.oldest_buffered()
                 );
                 return Err(anyhow::anyhow!(
-                    "Proof buffer overflow: missing proof for seq={}, buffer full with {} items",
-                    self.buffer.expected_seq(),
-                    buffer_len
+                    "Proof buffer overflow: possible missing proof for seq={}",
+                    self.buffer.expected_seq()
                 ));
             }
 
@@ -235,7 +206,7 @@ impl<R: Rpc> TxSender<R> {
                 // 2. We're running low on time (epoch ending soon)
                 let should_send = self.pending_batch.len() >= V2_IXS_PER_TX
                     || (!self.pending_batch.is_empty()
-                        && self.should_flush_due_to_time_at(current_slot));
+                    && self.should_flush_due_to_time_at(current_slot));
 
                 if should_send {
                     processed += self.send_pending_batch().await?;
