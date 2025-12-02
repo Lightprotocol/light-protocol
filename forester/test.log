@@ -1,0 +1,161 @@
+=== PHASE 2: STARTING FORESTER ===
+2025-12-02T17:11:19.939996Z DEBUG forester::utils: Protocol config account: ProtocolConfigPda { authority: ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k, bump: 255, config: ProtocolConfig { genesis_slot: 0, min_weight: 1, slot_length: 10, registration_phase_length: 100, active_phase_length: 200, report_work_phase_length: 100, network_fee: 5000, cpi_context_size: 20488, finalize_counter_limit: 100, place_holder: 11111111111111111111111111111111, address_network_fee: 0, place_holder_b: 0, place_holder_c: 0, place_holder_d: 0, place_holder_e: 0, place_holder_f: 0 } }
+Current slot: 303, Active phase starts at slot 300
+Waiting until slot 295 to start forester...
+Forester pipeline started, waiting for first work report...
+Active phase started at slot 300
+2025-12-02T17:11:19.946575Z DEBUG forester::utils: Protocol config account: ProtocolConfigPda { authority: ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k, bump: 255, config: ProtocolConfig { genesis_slot: 0, min_weight: 1, slot_length: 10, registration_phase_length: 100, active_phase_length: 200, report_work_phase_length: 100, network_fee: 5000, cpi_context_size: 20488, finalize_counter_limit: 100, place_holder: 11111111111111111111111111111111, address_network_fee: 0, place_holder_b: 0, place_holder_c: 0, place_holder_d: 0, place_holder_e: 0, place_holder_f: 0 } }
+2025-12-02T17:11:19.947319Z DEBUG forester: Starting Forester pipeline
+2025-12-02T17:11:19.947566Z  INFO run_service{tx_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 15s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916796750 } } } ops_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 180s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916797333 } } } compressible_tracker=None forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP}: forester::epoch_manager: Starting forester in v2 mode
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [11, 161, 175, 9, 212, 229, 73, 73] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [164, 200, 108, 62, 87, 63, 123, 65] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [164, 200, 108, 62, 87, 63, 123, 65] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [164, 200, 108, 62, 87, 63, 123, 65] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [164, 200, 108, 62, 87, 63, 123, 65] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [164, 200, 108, 62, 87, 63, 123, 65] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [164, 200, 108, 62, 87, 63, 123, 65] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [113, 117, 101, 117, 101, 97, 99, 99] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [113, 117, 101, 117, 101, 97, 99, 99] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [113, 117, 101, 117, 101, 97, 99, 99] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [113, 117, 101, 117, 101, 97, 99, 99] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [113, 117, 101, 117, 101, 97, 99, 99] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [113, 117, 101, 117, 101, 97, 99, 99] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [113, 117, 101, 117, 101, 97, 99, 99] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [113, 117, 101, 117, 101, 97, 99, 99] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [113, 117, 101, 117, 101, 97, 99, 99] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [113, 117, 101, 117, 101, 97, 99, 99] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [15, 207, 4, 160, 127, 38, 142, 162] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [15, 207, 4, 160, 127, 38, 142, 162] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [15, 207, 4, 160, 127, 38, 142, 162] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [15, 207, 4, 160, 127, 38, 142, 162] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [31, 251, 180, 235, 3, 116, 50, 4] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [31, 251, 180, 235, 3, 116, 50, 4] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [31, 251, 180, 235, 3, 116, 50, 4] actual
+expected discriminator [66, 97, 116, 99, 104, 77, 116, 97] != [31, 251, 180, 235, 3, 116, 50, 4] actual
+2025-12-02T17:11:19.969013Z  INFO run_service{tx_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 15s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916796750 } } } ops_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 180s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916797333 } } } compressible_tracker=None forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP}: forester::epoch_manager: Processing only trees: [bmt1LryLZUMmF7ZtqESaw7wifBXLfXHQYoE4GAmrahU, amt2kaJA14v3urZbZvnc5v2np8jqvc4Z8zDep5wbtzx]
+2025-12-02T17:11:19.969097Z  INFO run_service{tx_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 15s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916796750 } } } ops_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 180s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916797333 } } } compressible_tracker=None forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP}: forester::epoch_manager: Tree discovery disabled when processing single tree
+2025-12-02T17:11:19.969122Z DEBUG run_service{tx_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 15s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916796750 } } } ops_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 180s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916797333 } } } compressible_tracker=None forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP}: forester::epoch_manager: Creating EpochManager (attempt 1)
+2025-12-02T17:11:19.969162Z  INFO run_service{tx_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 15s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916796750 } } } ops_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 180s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916797333 } } } compressible_tracker=None forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP}: forester::epoch_manager: Spawning QueueInfoPoller actor for indexer at http://localhost:8784
+2025-12-02T17:11:19.969452Z  INFO run_service{tx_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 15s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916796750 } } } ops_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 180s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916797333 } } } compressible_tracker=None forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP}: forester::epoch_manager: QueueInfoPoller actor spawn initiated
+2025-12-02T17:11:19.969476Z  INFO forester::polling::queue_poller: QueueInfoPoller actor starting
+2025-12-02T17:11:19.969563Z  INFO forester::polling::queue_poller: Starting queue info polling loop (1 second interval)
+2025-12-02T17:11:19.969562Z DEBUG run_service{tx_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 15s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916796750 } } } ops_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 180s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916797333 } } } compressible_tracker=None forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP}: forester::epoch_manager: Successfully created EpochManager after 1 attempts
+2025-12-02T17:11:19.969656Z DEBUG monitor_epochs: forester::epoch_manager: Starting epoch monitor
+2025-12-02T17:11:19.969685Z DEBUG forester::epoch_manager: Processing previous epoch: 0
+2025-12-02T17:11:19.969693Z DEBUG monitor_epochs: forester::epoch_manager: last_epoch: None, current_epoch: 1, slot: 303
+2025-12-02T17:11:19.969706Z DEBUG monitor_epochs: forester::epoch_manager: New epoch detected: 1
+2025-12-02T17:11:19.969820Z DEBUG run_service{tx_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 15s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916796750 } } } ops_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 180s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916797333 } } } compressible_tracker=None forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP}: forester::epoch_manager: Received new epoch: 0
+2025-12-02T17:11:19.970052Z  INFO process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0}: forester::epoch_manager: Entering process_epoch
+2025-12-02T17:11:19.970327Z DEBUG process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0}: forester::epoch_manager: Recovering registration info for epoch 0
+2025-12-02T17:11:19.970459Z DEBUG process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0}: forester::epoch_manager: Recovering registration info for epoch 0
+2025-12-02T17:11:19.970581Z  WARN forester::epoch_manager: Skipping current epoch 1 - registration ended at slot 299 (current slot: 303)
+2025-12-02T17:11:19.970602Z DEBUG forester::epoch_manager: Finished processing current and previous epochs
+2025-12-02T17:11:19.970605Z DEBUG monitor_epochs: forester::epoch_manager: Waiting for epoch 2 registration phase to start. Current slot: 303, Registration phase start slot: 400, Slots to wait: 97
+2025-12-02T17:11:19.970820Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:19.972085Z DEBUG forester::metrics: Updated SOL balance for forester En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP: 99.993587225 SOL
+2025-12-02T17:11:19.972097Z DEBUG forester::epoch_manager: Current SOL balance: 99.993587225 SOL
+2025-12-02T17:11:19.972457Z DEBUG process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0}: forester::epoch_manager: Recovered registration info for epoch 0
+2025-12-02T17:11:19.972736Z  INFO process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0}:wait_for_active_phase{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0}: forester::epoch_manager: Active phase has already started. Current slot: 303. Active phase start slot: 100. Slots left: 0.
+2025-12-02T17:11:19.973941Z  INFO process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0}:wait_for_active_phase{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0}: forester::epoch_manager: Finished waiting for active phase
+2025-12-02T17:11:19.975045Z  INFO process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0}:report_work{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0}: forester::epoch_manager: Reporting work
+2025-12-02T17:11:20.483199Z  INFO process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0}:report_work{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0}: forester::epoch_manager: Work reported
+Work report: epoch=0 items=0 total=0ns
+  Append:  circuit=0ns, proof=0ns
+  Nullify: circuit=0ns, proof=0ns
+  Address: circuit=0ns, proof=0ns
+2025-12-02T17:11:20.483881Z  INFO process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=0}: forester::epoch_manager: Exiting process_epoch
+2025-12-02T17:11:20.972056Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:21.970828Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:22.971028Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:23.971723Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:24.972254Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:25.971785Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:26.971233Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:27.971130Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:28.971507Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:29.970415Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:30.971942Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:31.970932Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:32.971237Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:33.971274Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:34.972023Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:35.971005Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:36.970561Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:37.970414Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:38.971276Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:39.971570Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:40.970974Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:41.971722Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:42.971021Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:43.970910Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:44.970705Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:45.970960Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:46.971257Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:47.971268Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:48.971390Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:49.970421Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:50.971057Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:51.971679Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:52.970724Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:53.970805Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:54.971187Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:55.971896Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:56.970784Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:57.970234Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:58.970906Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:11:59.971562Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:00.971191Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:01.970507Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:02.970552Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:03.970955Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:04.970784Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:05.180809Z DEBUG monitor_epochs: forester::epoch_manager: Next epoch 2 registration phase started, sending for processing
+2025-12-02T17:12:05.180981Z DEBUG monitor_epochs: forester::epoch_manager: last_epoch: Some(2), current_epoch: 2, slot: 400
+2025-12-02T17:12:05.181099Z DEBUG run_service{tx_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 15s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916796750 } } } ops_cache=Mutex { data: ProcessedHashCache { entries: {}, ttl: 180s, last_cleanup: Instant { tv_sec: 498, tv_nsec: 916797333 } } } compressible_tracker=None forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP}: forester::epoch_manager: Received new epoch: 2
+2025-12-02T17:12:05.181361Z  INFO process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}: forester::epoch_manager: Entering process_epoch
+2025-12-02T17:12:05.181521Z DEBUG process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}: forester::epoch_manager: Recovering registration info for epoch 2
+2025-12-02T17:12:05.181575Z DEBUG process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}: forester::epoch_manager: Recovering registration info for epoch 2
+2025-12-02T17:12:05.183351Z DEBUG monitor_epochs: forester::epoch_manager: Waiting for epoch 3 registration phase to start. Current slot: 400, Registration phase start slot: 600, Slots to wait: 200
+2025-12-02T17:12:05.184839Z DEBUG process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}: forester::epoch_manager: No existing registration found for epoch 2, will register fresh
+2025-12-02T17:12:05.188164Z  INFO process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}:register_for_epoch_with_retry{max_retries=100 retry_delay=1s forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}:register_for_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}: forester::epoch_manager: Registering for epoch: 2
+2025-12-02T17:12:05.192053Z DEBUG process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}:register_for_epoch_with_retry{max_retries=100 retry_delay=1s forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}:register_for_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}: forester::epoch_manager: Registering epoch 2
+2025-12-02T17:12:05.703915Z DEBUG process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}:register_for_epoch_with_retry{max_retries=100 retry_delay=1s forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}:register_for_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}: forester::epoch_manager: Registered epoch: Epoch { epoch: 2, epoch_pda: FsoqsNFrsNikyRKt5nTfxbhtdHUQrdy8VgnSnHPDpii, forester_epoch_pda: CFkYpmNzhhg2W5xA8D3yreKe9b86A6RNfk7UMQDuSVzU, phases: EpochPhases { registration: Phase { start: 400, end: 499 }, active: Phase { start: 500, end: 699 }, report_work: Phase { start: 700, end: 799 }, post: Phase { start: 800, end: 18446744073709551615 } }, state: Registration, merkle_trees: [] }
+2025-12-02T17:12:05.706099Z DEBUG process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}:register_for_epoch_with_retry{max_retries=100 retry_delay=1s forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}:register_for_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}: forester::epoch_manager: Registered: ForesterEpochInfo { epoch: Epoch { epoch: 2, epoch_pda: FsoqsNFrsNikyRKt5nTfxbhtdHUQrdy8VgnSnHPDpii, forester_epoch_pda: CFkYpmNzhhg2W5xA8D3yreKe9b86A6RNfk7UMQDuSVzU, phases: EpochPhases { registration: Phase { start: 400, end: 499 }, active: Phase { start: 500, end: 699 }, report_work: Phase { start: 700, end: 799 }, post: Phase { start: 800, end: 18446744073709551615 } }, state: Registration, merkle_trees: [] }, epoch_pda: EpochPda { epoch: 2, protocol_config: ProtocolConfig { genesis_slot: 0, min_weight: 1, slot_length: 10, registration_phase_length: 100, active_phase_length: 200, report_work_phase_length: 100, network_fee: 5000, cpi_context_size: 20488, finalize_counter_limit: 100, place_holder: 11111111111111111111111111111111, address_network_fee: 0, place_holder_b: 0, place_holder_c: 0, place_holder_d: 0, place_holder_e: 0, place_holder_f: 0 }, total_work: 0, registered_weight: 1 }, forester_epoch_pda: ForesterEpochPda { authority: En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP, config: ForesterConfig { fee: 0 }, epoch: 2, weight: 1, work_counter: 0, has_reported_work: false, forester_index: 0, epoch_active_phase_start_slot: 500, total_epoch_weight: None, protocol_config: ProtocolConfig { genesis_slot: 0, min_weight: 1, slot_length: 10, registration_phase_length: 100, active_phase_length: 200, report_work_phase_length: 100, network_fee: 5000, cpi_context_size: 20488, finalize_counter_limit: 100, place_holder: 11111111111111111111111111111111, address_network_fee: 0, place_holder_b: 0, place_holder_c: 0, place_holder_d: 0, place_holder_e: 0, place_holder_f: 0 }, finalize_counter: 0 }, trees: [] }
+2025-12-02T17:12:05.707001Z DEBUG process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}: forester::epoch_manager: Recovered registration info for epoch 2
+2025-12-02T17:12:05.709113Z  INFO process_epoch{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}:wait_for_active_phase{forester=En9a97stB3Ek2n6Ey3NJwCUJnmTzLMMEA5C69upGDuQP epoch=2}: forester::epoch_manager: Waiting for active phase to start. Current slot: 401. Active phase start slot: 500. Waiting time: ~ 49 seconds
+2025-12-02T17:12:05.971298Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:06.971757Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:07.970700Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:08.970754Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:09.970601Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:10.971098Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:11.971066Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:12.971448Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:13.971093Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:14.971044Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:15.971026Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:16.971162Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:17.970532Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:18.970606Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:19.969917Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:20.971340Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:21.970261Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:22.970626Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:23.971237Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:24.970943Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:25.970317Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:26.969973Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:27.971428Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:28.970996Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:29.971627Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:30.969972Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:31.971348Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:32.970542Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:33.970800Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:34.970913Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:35.970930Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:36.970388Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:37.970926Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:38.970582Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:39.970977Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll
+2025-12-02T17:12:40.970592Z DEBUG forester::polling::queue_poller: No trees registered; skipping queue info poll

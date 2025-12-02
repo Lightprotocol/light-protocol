@@ -57,7 +57,7 @@ use crate::{
         },
         v2::strategy::AddressTreeStrategy,
         v2::strategy::StateTreeStrategy,
-        v2::{BatchContext, ProcessingResult, ProverConfig, QueueProcessor, QueueWork},
+        v2::{BatchContext, ProcessingResult, ProverConfig, QueueProcessor, QueueWork, SharedProofCache},
     },
     queue_helpers::QueueItemData,
     rollover::{
@@ -187,6 +187,11 @@ pub struct EpochManager<R: Rpc> {
     tx_cache: Arc<Mutex<ProcessedHashCache>>,
     ops_cache: Arc<Mutex<ProcessedHashCache>>,
     queue_poller: Option<ActorRef<QueueInfoPoller>>,
+    /// Pre-registered tree receivers keyed by (epoch, tree_pubkey)
+    /// Receivers are registered during wait_for_active_phase so queue data is available immediately
+    tree_receivers: Arc<Mutex<HashMap<(u64, Pubkey), mpsc::Receiver<QueueUpdateMessage>>>>,
+    /// Proof caches for pre-warming during idle slots
+    proof_caches: Arc<DashMap<Pubkey, Arc<SharedProofCache>>>,
     state_processors: StateBatchProcessorMap<R>,
     address_processors: AddressBatchProcessorMap<R>,
     compressible_tracker: Option<Arc<CompressibleAccountTracker>>,
@@ -209,6 +214,8 @@ impl<R: Rpc> Clone for EpochManager<R> {
             tx_cache: self.tx_cache.clone(),
             ops_cache: self.ops_cache.clone(),
             queue_poller: self.queue_poller.clone(),
+            tree_receivers: self.tree_receivers.clone(),
+            proof_caches: self.proof_caches.clone(),
             state_processors: self.state_processors.clone(),
             address_processors: self.address_processors.clone(),
             compressible_tracker: self.compressible_tracker.clone(),
@@ -265,6 +272,8 @@ impl<R: Rpc> EpochManager<R> {
             tx_cache,
             ops_cache,
             queue_poller,
+            tree_receivers: Arc::new(Mutex::new(HashMap::new())),
+            proof_caches: Arc::new(DashMap::new()),
             state_processors: Arc::new(DashMap::new()),
             address_processors: Arc::new(DashMap::new()),
             compressible_tracker,
@@ -984,6 +993,55 @@ impl<R: Rpc> EpochManager<R> {
                 active_phase_start_slot,
                 waiting_secs);
         }
+
+        // Pre-register V2 trees with the queue poller before waiting for active phase.
+        // This allows queue data to accumulate during the wait so processors have data immediately.
+        if let Some(ref poller) = self.queue_poller {
+            let trees = self.trees.lock().await;
+            let v2_trees: Vec<_> = trees
+                .iter()
+                .filter(|t| matches!(t.tree_type, TreeType::StateV2 | TreeType::AddressV2))
+                .collect();
+
+            if !v2_trees.is_empty() {
+                info!(
+                    "Pre-registering {} V2 trees with queue poller before active phase",
+                    v2_trees.len()
+                );
+
+                let epoch = epoch_info.epoch.epoch;
+                let registration_futures: Vec<_> = v2_trees
+                    .iter()
+                    .map(|tree| {
+                        let poller = poller.clone();
+                        let tree_pubkey = tree.merkle_tree;
+                        async move {
+                            let result = poller.ask(RegisterTree { tree_pubkey }).send().await;
+                            (tree_pubkey, result)
+                        }
+                    })
+                    .collect();
+
+                let results = futures::future::join_all(registration_futures).await;
+
+                let mut tree_receivers = self.tree_receivers.lock().await;
+                for (tree_pubkey, result) in results {
+                    match result {
+                        Ok(rx) => {
+                            tree_receivers.insert((epoch, tree_pubkey), rx);
+                            debug!("Pre-registered tree {} for epoch {}", tree_pubkey, epoch);
+                        }
+                        Err(e) => {
+                            error!(
+                                "Failed to pre-register V2 tree {} with queue poller: {:?}",
+                                tree_pubkey, e
+                            );
+                        }
+                    }
+                }
+            }
+        }
+
         wait_until_slot_reached(&mut *rpc, &self.slot_tracker, active_phase_start_slot).await?;
 
         let forester_epoch_pda_pubkey = get_forester_epoch_pda_from_authority(
@@ -1082,7 +1140,7 @@ impl<R: Rpc> EpochManager<R> {
             .cloned()
             .collect();
 
-        let v2_trees_for_registration: Vec<_> = trees_to_process
+        let v2_trees_for_processing: Vec<_> = trees_to_process
             .iter()
             .filter(|tree| {
                 matches!(
@@ -1092,52 +1150,79 @@ impl<R: Rpc> EpochManager<R> {
             })
             .collect();
 
-        let mut tree_receivers: std::collections::HashMap<_, _> = if let Some(ref poller) =
-            queue_poller
-        {
-            let registration_futures: Vec<_> = v2_trees_for_registration
-                .iter()
-                .map(|tree| {
-                    let poller = poller.clone();
-                    let tree_pubkey = tree.tree_accounts.merkle_tree;
-                    async move {
-                        let result = poller.ask(RegisterTree { tree_pubkey }).send().await;
-                        (tree_pubkey, result)
-                    }
-                })
-                .collect();
-
-            let results = futures::future::join_all(registration_futures).await;
-
+        // Retrieve pre-registered receivers from wait_for_active_phase
+        let epoch = epoch_info.epoch.epoch;
+        let mut local_tree_receivers: std::collections::HashMap<_, _> = {
+            let mut tree_receivers = self.tree_receivers.lock().await;
             let mut receivers = std::collections::HashMap::new();
-            for (tree_pubkey, result) in results {
-                match result {
-                    Ok(rx) => {
-                        receivers.insert(tree_pubkey, rx);
-                    }
-                    Err(e) => {
-                        error!(
-                            "Failed to register V2 tree {} with queue poller: {:?}.",
-                            tree_pubkey, e
-                        );
-                        return Err(anyhow::anyhow!(
-                            "Failed to register V2 tree {} with queue poller: {}. Cannot process without queue updates.",
-                            tree_pubkey, e
-                        ));
-                    }
+
+            for tree in &v2_trees_for_processing {
+                let tree_pubkey = tree.tree_accounts.merkle_tree;
+                if let Some(rx) = tree_receivers.remove(&(epoch, tree_pubkey)) {
+                    receivers.insert(tree_pubkey, rx);
+                    debug!(
+                        "Retrieved pre-registered receiver for tree {} epoch {}",
+                        tree_pubkey, epoch
+                    );
+                } else if queue_poller.is_some() {
+                    // Fallback: register now if not pre-registered (shouldn't happen normally)
+                    warn!(
+                        "Tree {} was not pre-registered for epoch {}, registering now",
+                        tree_pubkey, epoch
+                    );
                 }
             }
             receivers
-        } else if !v2_trees_for_registration.is_empty() {
-            let first_tree = v2_trees_for_registration[0].tree_accounts.merkle_tree;
+        };
+
+        // Fallback registration for any trees that weren't pre-registered
+        if let Some(ref poller) = queue_poller {
+            let missing_trees: Vec<_> = v2_trees_for_processing
+                .iter()
+                .filter(|tree| !local_tree_receivers.contains_key(&tree.tree_accounts.merkle_tree))
+                .collect();
+
+            if !missing_trees.is_empty() {
+                let registration_futures: Vec<_> = missing_trees
+                    .iter()
+                    .map(|tree| {
+                        let poller = poller.clone();
+                        let tree_pubkey = tree.tree_accounts.merkle_tree;
+                        async move {
+                            let result = poller.ask(RegisterTree { tree_pubkey }).send().await;
+                            (tree_pubkey, result)
+                        }
+                    })
+                    .collect();
+
+                let results = futures::future::join_all(registration_futures).await;
+
+                for (tree_pubkey, result) in results {
+                    match result {
+                        Ok(rx) => {
+                            local_tree_receivers.insert(tree_pubkey, rx);
+                        }
+                        Err(e) => {
+                            error!(
+                                "Failed to register V2 tree {} with queue poller: {:?}.",
+                                tree_pubkey, e
+                            );
+                            return Err(anyhow::anyhow!(
+                                "Failed to register V2 tree {} with queue poller: {}. Cannot process without queue updates.",
+                                tree_pubkey, e
+                            ));
+                        }
+                    }
+                }
+            }
+        } else if !v2_trees_for_processing.is_empty() && local_tree_receivers.is_empty() {
+            let first_tree = v2_trees_for_processing[0].tree_accounts.merkle_tree;
             error!("No queue poller available for V2 tree {}.", first_tree);
             return Err(anyhow::anyhow!(
                 "No queue poller available for V2 tree {}. Cannot process without queue updates.",
                 first_tree
             ));
-        } else {
-            std::collections::HashMap::new()
-        };
+        }
 
         let mut handles: Vec<JoinHandle<Result<()>>> = Vec::with_capacity(trees_to_process.len());
 
@@ -1148,7 +1233,7 @@ impl<R: Rpc> EpochManager<R> {
             );
 
             let queue_update_rx = if is_v2 {
-                tree_receivers.remove(&tree.tree_accounts.merkle_tree)
+                local_tree_receivers.remove(&tree.tree_accounts.merkle_tree)
             } else {
                 None
             };
@@ -1504,6 +1589,34 @@ impl<R: Rpc> EpochManager<R> {
             consecutive_eligibility_end
         );
 
+        let tree_pubkey = tree_accounts.merkle_tree;
+        let current_slot = self.slot_tracker.estimated_current_slot();
+        let slots_until_eligible = forester_slot_details
+            .start_solana_slot
+            .saturating_sub(current_slot);
+
+        // Pre-warm proofs during idle time if we have enough time
+        // Only pre-warm if we have at least 2 seconds (4 slots) of idle time
+        if slots_until_eligible > 4 {
+            info!(
+                "Pre-warming proofs for tree {} during {} slot wait",
+                tree_pubkey, slots_until_eligible
+            );
+            if let Err(e) = self
+                .prewarm_proofs_during_wait(
+                    epoch_info,
+                    tree_accounts,
+                    consecutive_eligibility_end,
+                    forester_slot_details.start_solana_slot,
+                    queue_update_rx,
+                )
+                .await
+            {
+                warn!("Pre-warming failed for tree {}: {:?}", tree_pubkey, e);
+                // Continue with normal processing - pre-warming is best-effort
+            }
+        }
+
         let mut rpc = self.rpc_pool.get_connection().await?;
         wait_until_slot_reached(
             &mut *rpc,
@@ -1512,7 +1625,20 @@ impl<R: Rpc> EpochManager<R> {
         )
         .await?;
 
-        let tree_pubkey = tree_accounts.merkle_tree;
+        // Check if we have valid cached proofs to send
+        if let Some(items_sent) = self
+            .try_send_cached_proofs(epoch_info, tree_accounts, consecutive_eligibility_end)
+            .await?
+        {
+            if items_sent > 0 {
+                info!(
+                    "Sent {} items from cache for tree {}",
+                    items_sent, tree_pubkey
+                );
+                self.update_metrics_and_counts(epoch_info.epoch, items_sent, Duration::from_millis(1))
+                    .await;
+            }
+        }
         let mut estimated_slot = self.slot_tracker.estimated_current_slot();
 
         let mut timeouts = 0u32;
@@ -2114,6 +2240,293 @@ impl<R: Rpc> EpochManager<R> {
             // Note: ProcessingMetrics are now accumulated in dispatch_tree_processing
             // for V2 trees where detailed timing is available
         }
+    }
+
+    /// Pre-warm proofs during idle time before the forester's next eligible slot.
+    /// Consumes queue updates and generates proofs, caching them for later use.
+    async fn prewarm_proofs_during_wait(
+        &self,
+        epoch_info: &Epoch,
+        tree_accounts: &TreeAccounts,
+        consecutive_eligibility_end: u64,
+        deadline_slot: u64,
+        queue_update_rx: &mut mpsc::Receiver<QueueUpdateMessage>,
+    ) -> Result<()> {
+        let tree_pubkey = tree_accounts.merkle_tree;
+
+        // Get or create proof cache for this tree
+        let cache = self
+            .proof_caches
+            .entry(tree_pubkey)
+            .or_insert_with(|| Arc::new(SharedProofCache::new(tree_pubkey)))
+            .clone();
+
+        // Try to receive a queue update (non-blocking initially, then with timeout)
+        let update = match tokio::time::timeout(Duration::from_millis(100), queue_update_rx.recv())
+            .await
+        {
+            Ok(Some(update)) if update.queue_size > 0 => update,
+            Ok(Some(_)) => {
+                trace!("Empty queue update during pre-warm for tree {}", tree_pubkey);
+                return Ok(());
+            }
+            Ok(None) => {
+                debug!("Queue channel closed during pre-warm for tree {}", tree_pubkey);
+                return Ok(());
+            }
+            Err(_) => {
+                trace!("No queue update available for pre-warming tree {}", tree_pubkey);
+                return Ok(());
+            }
+        };
+
+        info!(
+            "Pre-warming {} items for tree {} (deadline slot: {})",
+            update.queue_size, tree_pubkey, deadline_slot
+        );
+
+        // Get or create processor
+        let processor = match tree_accounts.tree_type {
+            TreeType::StateV2 => {
+                let proc = self
+                    .get_or_create_state_processor(epoch_info, tree_accounts)
+                    .await?;
+                {
+                    let mut p = proc.lock().await;
+                    p.update_eligibility(consecutive_eligibility_end);
+                }
+                Some(proc)
+            }
+            TreeType::AddressV2 => {
+                let proc = self
+                    .get_or_create_address_processor(epoch_info, tree_accounts)
+                    .await?;
+                {
+                    let mut p = proc.lock().await;
+                    p.update_eligibility(consecutive_eligibility_end);
+                }
+                None // Address processors have different type, handle separately
+            }
+            _ => return Ok(()),
+        };
+
+        // Pre-warm proofs for state trees
+        if let Some(proc) = processor {
+            let work = QueueWork {
+                queue_type: update.queue_type,
+                queue_size: update.queue_size,
+            };
+
+            let mut p = proc.lock().await;
+            match p.prewarm_proofs(cache.clone(), work).await {
+                Ok(count) => {
+                    info!(
+                        "Pre-warmed {} proofs for tree {} before eligible slot",
+                        count, tree_pubkey
+                    );
+                }
+                Err(e) => {
+                    warn!("Failed to pre-warm proofs for tree {}: {:?}", tree_pubkey, e);
+                    cache.clear().await;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Try to send cached proofs if they are valid for the current on-chain root.
+    /// Returns Some(items_sent) if cached proofs were used, None if cache was invalid.
+    async fn try_send_cached_proofs(
+        &self,
+        epoch_info: &Epoch,
+        tree_accounts: &TreeAccounts,
+        _consecutive_eligibility_end: u64,
+    ) -> Result<Option<usize>> {
+        let tree_pubkey = tree_accounts.merkle_tree;
+
+        // Get proof cache for this tree
+        let cache = match self.proof_caches.get(&tree_pubkey) {
+            Some(c) => c.clone(),
+            None => return Ok(None),
+        };
+
+        // Check if cache is still being warmed
+        if cache.is_warming().await {
+            debug!("Cache still warming for tree {}, skipping", tree_pubkey);
+            return Ok(None);
+        }
+
+        // Get current on-chain root
+        let mut rpc = self.rpc_pool.get_connection().await?;
+        let current_root = match self.fetch_current_root(&mut *rpc, tree_accounts).await {
+            Ok(root) => root,
+            Err(e) => {
+                warn!(
+                    "Failed to fetch current root for tree {}: {:?}",
+                    tree_pubkey, e
+                );
+                return Ok(None);
+            }
+        };
+
+        // Try to take cached proofs if valid
+        let cached_proofs = match cache.take_if_valid(&current_root).await {
+            Some(proofs) => proofs,
+            None => {
+                debug!(
+                    "No valid cached proofs for tree {} (root: {:?})",
+                    tree_pubkey,
+                    &current_root[..4]
+                );
+                return Ok(None);
+            }
+        };
+
+        if cached_proofs.is_empty() {
+            return Ok(Some(0));
+        }
+
+        info!(
+            "Sending {} cached proofs for tree {} (root: {:?})",
+            cached_proofs.len(),
+            tree_pubkey,
+            &current_root[..4]
+        );
+
+        // Send cached proofs as transactions
+        let items_sent = self
+            .send_cached_proofs_as_transactions(epoch_info, tree_accounts, cached_proofs)
+            .await?;
+
+        Ok(Some(items_sent))
+    }
+
+    /// Fetch the current merkle root from chain
+    async fn fetch_current_root(
+        &self,
+        rpc: &mut impl Rpc,
+        tree_accounts: &TreeAccounts,
+    ) -> Result<[u8; 32]> {
+        use light_batched_merkle_tree::merkle_tree::BatchedMerkleTreeAccount;
+
+        let mut account = rpc
+            .get_account(tree_accounts.merkle_tree)
+            .await?
+            .ok_or_else(|| anyhow!("Tree account not found: {}", tree_accounts.merkle_tree))?;
+
+        let tree = match tree_accounts.tree_type {
+            TreeType::StateV2 => BatchedMerkleTreeAccount::state_from_bytes(
+                &mut account.data,
+                &tree_accounts.merkle_tree.into(),
+            )?,
+            TreeType::AddressV2 => BatchedMerkleTreeAccount::address_from_bytes(
+                &mut account.data,
+                &tree_accounts.merkle_tree.into(),
+            )?,
+            _ => return Err(anyhow!("Unsupported tree type for root fetch")),
+        };
+
+        let root = tree.root_history.last().copied().unwrap_or([0u8; 32]);
+        Ok(root)
+    }
+
+    /// Send cached proofs as transactions
+    async fn send_cached_proofs_as_transactions(
+        &self,
+        epoch_info: &Epoch,
+        tree_accounts: &TreeAccounts,
+        cached_proofs: Vec<crate::processor::v2::CachedProof>,
+    ) -> Result<usize> {
+        use crate::processor::v2::BatchInstruction;
+        use light_registry::account_compression_cpi::sdk::{
+            create_batch_append_instruction, create_batch_nullify_instruction,
+            create_batch_update_address_tree_instruction,
+        };
+        use borsh::BorshSerialize;
+
+        let mut total_items = 0;
+        let authority = self.config.payer_keypair.pubkey();
+        let derivation = self.config.derivation_pubkey;
+
+        // Group proofs into batches for transaction efficiency
+        const PROOFS_PER_TX: usize = 4;
+        for chunk in cached_proofs.chunks(PROOFS_PER_TX) {
+            let mut instructions = Vec::new();
+
+            for proof in chunk {
+                let ix = match &proof.instruction {
+                    BatchInstruction::Append(data) => {
+                        data.iter()
+                            .map(|d| {
+                                create_batch_append_instruction(
+                                    authority,
+                                    derivation,
+                                    tree_accounts.merkle_tree,
+                                    tree_accounts.queue,
+                                    epoch_info.epoch,
+                                    d.try_to_vec().unwrap(),
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                    }
+                    BatchInstruction::Nullify(data) => {
+                        data.iter()
+                            .map(|d| {
+                                create_batch_nullify_instruction(
+                                    authority,
+                                    derivation,
+                                    tree_accounts.merkle_tree,
+                                    epoch_info.epoch,
+                                    d.try_to_vec().unwrap(),
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                    }
+                    BatchInstruction::AddressAppend(data) => {
+                        data.iter()
+                            .map(|d| {
+                                create_batch_update_address_tree_instruction(
+                                    authority,
+                                    derivation,
+                                    tree_accounts.merkle_tree,
+                                    epoch_info.epoch,
+                                    d.try_to_vec().unwrap(),
+                                )
+                            })
+                            .collect::<Vec<_>>()
+                    }
+                };
+                instructions.extend(ix);
+                total_items += 1;
+            }
+
+            if !instructions.is_empty() {
+                let mut rpc = self.rpc_pool.get_connection().await?;
+                match rpc
+                    .create_and_send_transaction(
+                        &instructions,
+                        &authority,
+                        &[&self.config.payer_keypair],
+                    )
+                    .await
+                {
+                    Ok(sig) => {
+                        info!(
+                            "Sent cached proofs tx: {} ({} instructions)",
+                            sig,
+                            instructions.len()
+                        );
+                    }
+                    Err(e) => {
+                        warn!("Failed to send cached proofs tx: {:?}", e);
+                        // Continue with other batches
+                    }
+                }
+            }
+        }
+
+        Ok(total_items)
     }
 
     async fn rollover_if_needed(&self, tree_account: &TreeAccounts) -> Result<()> {

@@ -1,9 +1,10 @@
-use std::{sync::atomic::Ordering, time::Instant};
+use std::{sync::atomic::Ordering, sync::Arc, time::Instant};
 
 use crate::{
     epoch_manager::{CircuitMetrics, ProcessingMetrics},
     processor::v2::{
         common::WorkerPool,
+        proof_cache::SharedProofCache,
         proof_worker::{spawn_proof_workers, ProofInput, ProofJob, ProofResult},
         strategy::{CircuitType, QueueData, TreeStrategy},
         tx_sender::TxSender,
@@ -14,7 +15,7 @@ use anyhow::anyhow;
 use light_client::rpc::Rpc;
 use solana_sdk::pubkey::Pubkey;
 use tokio::sync::mpsc;
-use tracing::{debug, warn};
+use tracing::{debug, info, warn};
 
 const MAX_BATCHES_LIMIT: usize = 1000;
 
@@ -210,5 +211,119 @@ impl<R: Rpc, S: TreeStrategy<R>> QueueProcessor<R, S> {
             inputs,
             result_tx,
         }
+    }
+
+    /// Pre-warm the proof cache by generating proofs without sending transactions.
+    /// This should be called during idle time (when forester is not eligible).
+    /// Returns the number of proofs cached.
+    pub async fn prewarm_proofs(
+        &mut self,
+        cache: Arc<SharedProofCache>,
+        queue_work: QueueWork,
+    ) -> crate::Result<usize> {
+        if queue_work.queue_size < self.zkp_batch_size {
+            return Ok(0);
+        }
+
+        let max_batches =
+            ((queue_work.queue_size / self.zkp_batch_size) as usize).min(MAX_BATCHES_LIMIT);
+
+        if self.worker_pool.is_none() {
+            let job_tx = spawn_proof_workers(&self.context.prover_config);
+            self.worker_pool = Some(WorkerPool { job_tx });
+        }
+
+        let queue_data = match self
+            .strategy
+            .fetch_queue_data(&self.context, &queue_work, max_batches, self.zkp_batch_size)
+            .await?
+        {
+            Some(data) => data,
+            None => return Ok(0),
+        };
+
+        self.prewarm_batches(cache, queue_data).await
+    }
+
+    /// Generate proofs and cache them instead of sending transactions
+    async fn prewarm_batches(
+        &mut self,
+        cache: Arc<SharedProofCache>,
+        mut queue_data: QueueData<S::StagingTree>,
+    ) -> crate::Result<usize> {
+        let initial_root = queue_data.initial_root;
+        self.current_root = initial_root;
+        let num_batches = queue_data.num_batches;
+        let num_workers = self.context.num_proof_workers.max(1);
+
+        // Start cache warming with the current root
+        cache.start_warming(initial_root).await;
+
+        let (proof_tx, mut proof_rx) = mpsc::channel(num_workers * 2);
+
+        self.seq = 0;
+        let job_tx = self
+            .worker_pool
+            .as_ref()
+            .ok_or_else(|| anyhow!("Worker pool not initialized"))?
+            .job_tx
+            .clone();
+
+        info!(
+            "Pre-warming {} proofs for tree {} with root {:?}",
+            num_batches,
+            self.context.merkle_tree,
+            &initial_root[..4]
+        );
+
+        let jobs_sent = self
+            .enqueue_jobs(&mut queue_data, num_batches, job_tx, proof_tx.clone())
+            .await?;
+
+        drop(proof_tx);
+
+        // Collect proofs into cache instead of sending transactions
+        let mut proofs_cached = 0;
+        while let Some(result) = proof_rx.recv().await {
+            match result.result {
+                Ok(instruction) => {
+                    cache.add_proof(result.seq, instruction).await;
+                    proofs_cached += 1;
+                }
+                Err(e) => {
+                    warn!(
+                        "Proof generation failed during pre-warm for seq={}: {}",
+                        result.seq, e
+                    );
+                    // Continue collecting other proofs
+                }
+            }
+        }
+
+        cache.finish_warming().await;
+
+        if proofs_cached < jobs_sent {
+            warn!(
+                "Pre-warmed {} proofs but expected {} for tree {}",
+                proofs_cached,
+                jobs_sent,
+                self.context.merkle_tree
+            );
+        } else {
+            info!(
+                "Pre-warmed {} proofs for tree {} (zkp_batch_size={}, items={})",
+                proofs_cached,
+                self.context.merkle_tree,
+                self.zkp_batch_size,
+                proofs_cached * self.zkp_batch_size as usize
+            );
+        }
+
+        Ok(proofs_cached)
+    }
+
+    /// Get the current root that proofs are being generated against
+    pub fn current_root(&self) -> &[u8; 32] {
+        &self.current_root
     }
 }

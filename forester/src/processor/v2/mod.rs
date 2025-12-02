@@ -1,6 +1,7 @@
 pub mod common;
 mod helpers;
 mod processor;
+pub mod proof_cache;
 mod proof_worker;
 pub mod strategy;
 mod tx_sender;
@@ -12,8 +13,10 @@ use crate::{epoch_manager::ProcessingMetrics, Result};
 
 pub use common::{BatchContext, ProverConfig, QueueWork};
 use light_compressed_account::TreeType;
+pub use proof_cache::{CachedProof, SharedProofCache};
 
 pub use processor::QueueProcessor;
+pub use tx_sender::BatchInstruction;
 
 #[instrument(
     level = "debug",
