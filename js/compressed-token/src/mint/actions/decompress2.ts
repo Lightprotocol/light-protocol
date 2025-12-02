@@ -166,4 +166,3 @@ export async function decompress2(
 
     return sendAndConfirmTx(rpc, tx, confirmOptions);
 }
-

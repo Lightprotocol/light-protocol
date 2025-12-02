@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = { workspace = true }
 
 [features]
+test-sbf = []
 
 [dependencies]
 # Light Protocol dependencies
@@ -25,3 +26,13 @@ solana-signature = { workspace = true }
 spl-token-2022 = { workspace = true }
 spl-pod = { workspace = true }
 borsh = { workspace = true }
+
+[dev-dependencies]
+light-program-test = { workspace = true, features = ["devenv"] }
+light-test-utils = { workspace = true }
+light-compressed-token = { workspace = true }
+tokio = { workspace = true }
+solana-sdk = { workspace = true }
+spl-token = { workspace = true }
+anchor-spl = { workspace = true }
+anchor-lang = { workspace = true }

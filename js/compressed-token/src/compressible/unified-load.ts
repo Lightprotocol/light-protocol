@@ -435,61 +435,61 @@ export async function buildLoadParams(
     );
 
     if (compressedProgramAccounts.length > 0) {
-    // Build proof inputs
+        // Build proof inputs
         const proofInputs = compressedProgramAccounts.map(acc => ({
-        hash: acc.info.loadContext!.hash,
-        tree: acc.info.loadContext!.treeInfo.tree,
-        queue: acc.info.loadContext!.treeInfo.queue,
-    }));
+            hash: acc.info.loadContext!.hash,
+            tree: acc.info.loadContext!.treeInfo.tree,
+            queue: acc.info.loadContext!.treeInfo.queue,
+        }));
 
         // Get validity proof
-    const proofResult = await rpc.getValidityProofV0(proofInputs, []);
+        const proofResult = await rpc.getValidityProofV0(proofInputs, []);
 
-    // Build accounts data for packing
+        // Build accounts data for packing
         const accountsData = compressedProgramAccounts.map(acc => {
-        if (acc.accountType === 'cTokenData') {
-            if (!acc.tokenVariant) {
-                throw new Error(
-                    'tokenVariant is required when accountType is "cTokenData"',
-                );
-            }
-            return {
-                key: 'cTokenData',
-                data: {
-                    variant: { [acc.tokenVariant]: {} },
-                    tokenData: acc.info.parsed,
-                },
-                treeInfo: acc.info.loadContext!.treeInfo,
-            };
+            if (acc.accountType === 'cTokenData') {
+                if (!acc.tokenVariant) {
+                    throw new Error(
+                        'tokenVariant is required when accountType is "cTokenData"',
+                    );
+                }
+                return {
+                    key: 'cTokenData',
+                    data: {
+                        variant: { [acc.tokenVariant]: {} },
+                        tokenData: acc.info.parsed,
+                    },
+                    treeInfo: acc.info.loadContext!.treeInfo,
+                };
             }
             return {
                 key: acc.accountType,
                 data: acc.info.parsed,
                 treeInfo: acc.info.loadContext!.treeInfo,
             };
-    });
+        });
 
         const addresses = compressedProgramAccounts.map(acc => acc.address);
         const treeInfos = compressedProgramAccounts.map(
-        acc => acc.info.loadContext!.treeInfo,
-    );
+            acc => acc.info.loadContext!.treeInfo,
+        );
 
-    const packed = await packDecompressAccountsIdempotent(
-        programId,
-        {
-            compressedProof: proofResult.compressedProof,
-            treeInfos,
-        },
-        accountsData,
-        addresses,
-    );
+        const packed = await packDecompressAccountsIdempotent(
+            programId,
+            {
+                compressedProof: proofResult.compressedProof,
+                treeInfos,
+            },
+            accountsData,
+            addresses,
+        );
 
         decompressParams = {
-        proofOption: packed.proofOption,
-        compressedAccounts:
-            packed.compressedAccounts as PackedCompressedAccount[],
-        systemAccountsOffset: packed.systemAccountsOffset,
-        remainingAccounts: packed.remainingAccounts,
+            proofOption: packed.proofOption,
+            compressedAccounts:
+                packed.compressedAccounts as PackedCompressedAccount[],
+            systemAccountsOffset: packed.systemAccountsOffset,
+            remainingAccounts: packed.remainingAccounts,
         };
     }
 

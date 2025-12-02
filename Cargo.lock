@@ -3770,10 +3770,15 @@ dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
  "light-client",
+ "light-compressed-account",
+ "light-compressed-token-sdk",
+ "light-compressed-token-types",
  "light-sdk",
  "solana-account",
  "solana-instruction",
  "solana-pubkey 2.4.0",
+ "spl-pod",
+ "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "thiserror 2.0.17",
 ]
 
@@ -4286,22 +4291,30 @@ dependencies = [
 name = "light-token-client"
 version = "0.1.0"
 dependencies = [
+ "anchor-lang",
+ "anchor-spl 0.31.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "borsh 0.10.4",
  "light-client",
  "light-compressed-account",
+ "light-compressed-token",
  "light-compressed-token-sdk",
  "light-compressed-token-types",
  "light-ctoken-types",
+ "light-program-test",
  "light-sdk",
+ "light-test-utils",
  "light-zero-copy",
  "solana-instruction",
  "solana-keypair",
  "solana-msg 2.2.1",
  "solana-pubkey 2.4.0",
+ "solana-sdk",
  "solana-signature",
  "solana-signer",
  "spl-pod",
+ "spl-token 7.0.0",
  "spl-token-2022 7.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "tokio",
 ]
 
 [[package]]
@@ -6087,6 +6100,7 @@ dependencies = [
  "light-sdk",
  "light-sdk-types",
  "light-test-utils",
+ "light-token-client",
  "solana-program",
  "solana-sdk",
  "spl-pod",

@@ -1,9 +1,11 @@
+pub mod build_load_params;
 pub mod get_compressible_account;
 
 #[cfg(feature = "anchor")]
 use anchor_lang::{AnchorDeserialize, AnchorSerialize};
 #[cfg(not(feature = "anchor"))]
 use borsh::{BorshDeserialize as AnchorDeserialize, BorshSerialize as AnchorSerialize};
+pub use build_load_params::{build_load_params, CompressibleAccountInput};
 use light_client::indexer::{CompressedAccount, TreeInfo, ValidityProofWithContext};
 pub use light_sdk::compressible::config::CompressibleConfig;
 use light_sdk::{
