@@ -109,18 +109,8 @@ macro_rules! impl_is_compressible {
                 if let Some(rent_deficit) = is_compressible {
                     Ok(lamports_per_write as u64 + rent_deficit)
                 } else {
-                    let last_funded_epoch_number = self.get_last_funded_epoch(
-                        num_bytes,
-                        current_lamports,
-                        rent_exemption_lamports,
-                    )?;
-
-                    // Calculate how many epochs ahead of current epoch the account is funded
-                    // last_funded_epoch_number is the epoch number (e.g., 1), so we add 1 to get count
-                    // (epochs 0 and 1 = 2 epochs funded)
-                    let current_epoch = crate::rent::slot_to_epoch(current_slot);
                     let epochs_funded_ahead =
-                        (last_funded_epoch_number.saturating_add(1)).saturating_sub(current_epoch);
+                        state.epochs_funded_ahead(&self.rent_config, rent_exemption_lamports);
 
                     // Skip top-up if already funded for max_funded_epochs or more
                     if epochs_funded_ahead >= self.rent_config.max_funded_epochs as u64 {

@@ -466,31 +466,31 @@ fn test_calculate_top_up_lamports() {
         // PATH 3: WELL-FUNDED (0 lamports)
         // ============================================================
         TestCase {
-            name: "exactly max_funded_epochs (2)",
+            name: "2 epochs funded - needs top-up (only 1 ahead)",
             current_slot: 0,
             current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 2),
             last_claimed_slot: 0,
             lamports_per_write,
-            expected_top_up: 0,
-            description: "Epoch 0: last_claimed=epoch 0, funded through epoch 1, epochs_funded_ahead=2 >= max=2",
+            expected_top_up: lamports_per_write as u64,
+            description: "Epoch 0: funded through epoch 1, epochs_funded_ahead=1 < max=2, needs top-up",
         },
         TestCase {
-            name: "3 epochs when max is 2",
+            name: "3 epochs when max is 2 - exactly at target",
             current_slot: 0,
             current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 3),
             last_claimed_slot: 0,
             lamports_per_write,
             expected_top_up: 0,
-            description: "Epoch 0: not compressible, epochs_funded_ahead=3 > max_funded_epochs=2",
+            description: "Epoch 0: funded through epoch 2, epochs_funded_ahead=2 >= max_funded_epochs=2",
         },
         TestCase {
-            name: "2 epochs at epoch 1 boundary",
+            name: "2 epochs at epoch 1 boundary - needs top-up",
             current_slot: SLOTS_PER_EPOCH,
             current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 2),
             last_claimed_slot: SLOTS_PER_EPOCH,
             lamports_per_write,
-            expected_top_up: 0,
-            description: "Epoch 1: not compressible (has 776 for required 776), epochs_funded_ahead=2 >= max_funded_epochs=2",
+            expected_top_up: lamports_per_write as u64,
+            description: "Epoch 1: funded through epoch 2, epochs_funded_ahead=1 < max_funded_epochs=2",
         },
         // ============================================================
         // EDGE CASES
@@ -505,13 +505,13 @@ fn test_calculate_top_up_lamports() {
             description: "Zero write fee + compressible state: top_up = 0 + deficit (rent + compression_cost)",
         },
         TestCase {
-            name: "zero lamports_per_write - well-funded case",
+            name: "zero lamports_per_write - needs top-up but write fee is 0",
             current_slot: 0,
             current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 2),
             last_claimed_slot: 0,
             lamports_per_write: 0,
             expected_top_up: 0,
-            description: "Zero write fee + well-funded: epochs_funded_ahead=2 >= max_funded_epochs=2, top_up=0",
+            description: "Zero write fee: epochs_funded_ahead=1 < max=2, but lamports_per_write=0 so top_up=0",
         },
         TestCase {
             name: "large lamports_per_write",
@@ -530,6 +530,36 @@ fn test_calculate_top_up_lamports() {
             lamports_per_write,
             expected_top_up: lamports_per_write as u64 + RENT_PER_EPOCH + FULL_COMPRESSION_COSTS,
             description: "Invalid state: current_lamports < rent_exemption+compression_cost, saturating_sub → available_balance=0",
+        },
+        // ============================================================
+        // LAGGING CLAIMS - verifies arrears don't count as "funded ahead"
+        // ============================================================
+        TestCase {
+            name: "lagging claim - 5 epochs funded but only 1 ahead due to arrears",
+            current_slot: SLOTS_PER_EPOCH * 3, // epoch 3
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 5),
+            last_claimed_slot: 0, // epoch 0 - lagging 3 epochs behind
+            lamports_per_write,
+            expected_top_up: lamports_per_write as u64,
+            description: "Epoch 3: 5 epochs funded from epoch 0 covers through epoch 4. epochs_funded_ahead = 4 - 3 = 1 < max=2, needs top-up",
+        },
+        TestCase {
+            name: "lagging claim - 6 epochs funded, exactly 2 ahead",
+            current_slot: SLOTS_PER_EPOCH * 3, // epoch 3
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 6),
+            last_claimed_slot: 0, // epoch 0 - lagging 3 epochs behind
+            lamports_per_write,
+            expected_top_up: 0,
+            description: "Epoch 3: 6 epochs funded from epoch 0 covers through epoch 5. epochs_funded_ahead = 5 - 3 = 2 >= max=2, no top-up",
+        },
+        TestCase {
+            name: "lagging claim - just covers arrears plus current+next, no buffer",
+            current_slot: SLOTS_PER_EPOCH * 3, // epoch 3
+            current_lamports: rent_exemption_lamports + FULL_COMPRESSION_COSTS + (RENT_PER_EPOCH * 4),
+            last_claimed_slot: 0, // epoch 0
+            lamports_per_write,
+            expected_top_up: lamports_per_write as u64,
+            description: "Epoch 3: 4 epochs funded (0,1,2,3) covers through epoch 3. epochs_funded_ahead = 3 - 3 = 0 < max=2, needs top-up",
         },
     ];
 

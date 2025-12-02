@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use light_compressible::rent::{RentConfig, RentConfigTrait};
+use light_compressible::rent::RentConfig;
 use light_sdk_types::instruction::account_meta::CompressedAccountMetaNoLamportsNoAddress;
 use solana_account_info::AccountInfo;
 use solana_clock::Clock;
@@ -166,13 +166,8 @@ impl CompressionInfo {
             return self.lamports_per_write as u64 + rent_deficit;
         }
 
-        // Calculate how many epochs we're funded for
-        let available_balance = state.get_available_rent_balance(
-            rent_exemption_lamports,
-            self.rent_config.compression_cost(),
-        );
-        let rent_per_epoch = self.rent_config.rent_curve_per_epoch(num_bytes);
-        let epochs_funded_ahead = available_balance / rent_per_epoch;
+        let epochs_funded_ahead =
+            state.epochs_funded_ahead(&self.rent_config, rent_exemption_lamports);
 
         // If already at or above target, no top-up needed (cruise control)
         if epochs_funded_ahead >= self.rent_config.max_funded_epochs as u64 {
