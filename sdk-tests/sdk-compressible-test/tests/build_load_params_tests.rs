@@ -66,7 +66,9 @@ async fn test_build_load_params_single_pda() {
             CompressedAccountVariant::UserRecord(user_record),
         )],
         &[],
-        vec![],
+        payer.pubkey(),
+        payer.pubkey(),
+        &[], // no ATAs to wrap
     )
     .await
     .expect("build_load_params should succeed");
@@ -83,6 +85,7 @@ async fn test_build_load_params_empty() {
     let program_id = sdk_compressible_test::ID;
     let config = ProgramTestConfig::new_v2(true, Some(vec![("sdk_compressible_test", program_id)]));
     let mut rpc = LightProgramTest::new(config).await.unwrap();
+    let payer = rpc.get_payer().insecure_clone();
 
     let instructions = build_load_params::<_, CompressedAccountVariant>(
         &mut rpc,
@@ -90,7 +93,9 @@ async fn test_build_load_params_empty() {
         &DECOMPRESS_ACCOUNTS_IDEMPOTENT_DISCRIMINATOR,
         &[],
         &[],
-        vec![],
+        payer.pubkey(),
+        payer.pubkey(),
+        &[],
     )
     .await
     .expect("build_load_params should succeed");

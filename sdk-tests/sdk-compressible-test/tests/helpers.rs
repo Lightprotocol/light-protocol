@@ -179,7 +179,9 @@ pub async fn decompress_single_user_record(
             CompressedAccountVariant::UserRecord(user_record),
         )],
         &program_account_metas,
-        vec![],
+        payer.pubkey(),
+        payer.pubkey(),
+        &[], // no ATAs to wrap
     )
     .await
     .expect("build_load_params should succeed");

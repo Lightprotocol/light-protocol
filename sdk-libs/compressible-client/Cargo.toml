@@ -16,6 +16,11 @@ solana-account = { workspace = true }
 
 light-client = { workspace = true, features = ["v2"] }
 light-sdk = { workspace = true, features = ["v2", "cpi-context"] }
+light-compressed-token-sdk = { workspace = true }
+light-compressed-token-types = { workspace = true }
+
+spl-pod = { workspace = true }
+spl-token-2022 = { workspace = true }
 
 anchor-lang = { workspace = true, features = ["idl-build"], optional = true }
 borsh = { workspace = true }
@@ -23,4 +28,4 @@ borsh = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-light-compressed-account = { workspace = true } 
+light-compressed-account = { workspace = true }
