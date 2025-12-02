@@ -2602,6 +2602,22 @@ impl<R: Rpc> EpochManager<R> {
             epoch_info.epoch.epoch,
         );
 
+        // Always send the work report with metrics, regardless of on-chain result
+        let report = WorkReport {
+            epoch: epoch_info.epoch.epoch,
+            processed_items: self.get_processed_items_count(epoch_info.epoch.epoch).await,
+            metrics: self.get_processing_metrics(epoch_info.epoch.epoch).await,
+        };
+
+        // Send metrics report first (before potential early return on error)
+        self.work_report_sender
+            .send(report)
+            .await
+            .map_err(|e| ChannelError::WorkReportSend {
+                epoch: report.epoch,
+                error: e.to_string(),
+            })?;
+
         match rpc
             .create_and_send_transaction(
                 &[ix],
@@ -2636,20 +2652,6 @@ impl<R: Rpc> EpochManager<R> {
                 ))));
             }
         }
-
-        let report = WorkReport {
-            epoch: epoch_info.epoch.epoch,
-            processed_items: self.get_processed_items_count(epoch_info.epoch.epoch).await,
-            metrics: self.get_processing_metrics(epoch_info.epoch.epoch).await,
-        };
-
-        self.work_report_sender
-            .send(report)
-            .await
-            .map_err(|e| ChannelError::WorkReportSend {
-                epoch: report.epoch,
-                error: e.to_string(),
-            })?;
 
         Ok(())
     }
