@@ -115,4 +115,3 @@ pub fn create_decompress_ata_instruction(
         data: transfer2_ix.data,
     })
 }
-

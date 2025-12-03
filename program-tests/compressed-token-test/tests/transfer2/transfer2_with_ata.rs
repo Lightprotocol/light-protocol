@@ -332,7 +332,7 @@ async fn test_transfer2_with_ata_single_input_success() {
 
     // Verify ATA now has the tokens
     let ata_account = ctx.rpc.get_account(ctx.ata).await.unwrap().unwrap();
-    assert!(ata_account.data.len() > 0, "ATA should exist with tokens");
+    assert!(!ata_account.data.is_empty(), "ATA should exist with tokens");
 }
 
 /// Test: Successfully decompress multiple ATA-owned compressed tokens in single call
@@ -380,7 +380,7 @@ async fn test_transfer2_with_ata_multiple_inputs_success() {
 
     // Verify all tokens are now in ATA
     let ata_account = ctx.rpc.get_account(ctx.ata).await.unwrap().unwrap();
-    assert!(ata_account.data.len() > 0, "ATA should exist with tokens");
+    assert!(!ata_account.data.is_empty(), "ATA should exist with tokens");
 }
 
 // ============================================================================
@@ -1039,10 +1039,9 @@ async fn test_attack_all_indices_same_fails() {
 
     // ATTACK: Set all indices to same value
     let data_len = ix.data.len();
-    let single_idx = ix.data[data_len - 5]; // wallet_idx
-    ix.data[data_len - 5] = single_idx; // wallet_idx
-    ix.data[data_len - 4] = single_idx; // mint_idx
-    ix.data[data_len - 3] = single_idx; // ata_idx
+    let single_idx = ix.data[data_len - 5]; // wallet_idx (keep same)
+    ix.data[data_len - 4] = single_idx; // mint_idx = wallet_idx
+    ix.data[data_len - 3] = single_idx; // ata_idx = wallet_idx
 
     let result = ctx
         .rpc
