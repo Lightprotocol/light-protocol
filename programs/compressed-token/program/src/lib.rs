@@ -16,6 +16,7 @@ pub mod extensions;
 pub mod mint_action;
 pub mod shared;
 pub mod transfer2;
+pub mod transfer2_with_ata;
 pub mod withdraw_funding_pool;
 
 // Reexport the wrapped anchor program.
@@ -34,6 +35,7 @@ use withdraw_funding_pool::process_withdraw_funding_pool;
 
 use crate::{
     convert_account_infos::convert_account_infos, mint_action::processor::process_mint_action,
+    transfer2_with_ata::process_transfer2_with_ata,
 };
 
 pub const LIGHT_CPI_SIGNER: CpiSigner =
@@ -78,6 +80,9 @@ pub enum InstructionType {
     CreateAssociatedTokenAccount2 = 106,
     /// Create associated token account with owner and mint as accounts (idempotent)
     CreateAssociatedTokenAccount2Idempotent = 107,
+    /// Transfer2 wrapper for ATA-owned compressed tokens (compress_to_pubkey mode)
+    /// Allows any Transfer2 operation where some inputs have owner = ATA pubkey
+    Transfer2WithAta = 108,
     Other,
 }
 
@@ -96,6 +101,7 @@ impl From<u8> for InstructionType {
             105 => InstructionType::WithdrawFundingPool,
             106 => InstructionType::CreateAssociatedTokenAccount2,
             107 => InstructionType::CreateAssociatedTokenAccount2Idempotent,
+            108 => InstructionType::Transfer2WithAta,
             _ => InstructionType::Other, // anchor instructions
         }
     }
@@ -162,6 +168,10 @@ pub fn process_instruction(
         InstructionType::CreateAssociatedTokenAccount2Idempotent => {
             msg!("CreateAssociatedTokenAccount2Idempotent");
             process_create_associated_token_account2_idempotent(accounts, &instruction_data[1..])?;
+        }
+        InstructionType::Transfer2WithAta => {
+            msg!("Transfer2WithAta");
+            process_transfer2_with_ata(accounts, &instruction_data[1..])?;
         }
         // anchor instructions have no discriminator conflicts with InstructionType
         // TODO: add test for discriminator conflict

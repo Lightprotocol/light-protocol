@@ -6,4 +6,5 @@ pub mod no_system_program_cpi_failing;
 pub mod random;
 pub mod shared;
 pub mod spl_ctoken;
+pub mod transfer2_with_ata;
 pub mod transfer_failing;
