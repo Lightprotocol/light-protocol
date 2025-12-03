@@ -35,8 +35,8 @@ pub struct CompressToPubkey {
 
 impl CompressToPubkey {
     pub fn check_seeds(&self, pubkey: &Pubkey) -> Result<(), CTokenError> {
-        if self.seeds.len() > MAX_SEEDS {
-            return Err(CTokenError::TooManySeeds(MAX_SEEDS));
+        if self.seeds.len() >= MAX_SEEDS {
+            return Err(CTokenError::TooManySeeds(MAX_SEEDS - 1));
         }
         let mut references = ArrayVec::<[&[u8]; MAX_SEEDS]>::new();
         for seed in self.seeds.iter() {
@@ -61,8 +61,10 @@ pub fn derive_address(
     program_id: &Pubkey,
 ) -> Result<Pubkey, CTokenError> {
     const PDA_MARKER: &[u8; 21] = b"ProgramDerivedAddress";
-    if seeds.len() > MAX_SEEDS {
-        return Err(CTokenError::TooManySeeds(MAX_SEEDS));
+    // Must be strictly less than MAX_SEEDS because we need space for:
+    // seeds + bump + program_id + PDA_MARKER in a [MAX_SEEDS + 2] array
+    if seeds.len() >= MAX_SEEDS {
+        return Err(CTokenError::TooManySeeds(MAX_SEEDS - 1));
     }
     const UNINIT: MaybeUninit<&[u8]> = MaybeUninit::<&[u8]>::uninit();
     let mut data = [UNINIT; MAX_SEEDS + 2];
