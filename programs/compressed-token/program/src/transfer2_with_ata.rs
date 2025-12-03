@@ -11,41 +11,24 @@ use spl_pod::solana_msg::msg;
 
 use crate::{shared::cpi::slice_invoke_signed, LIGHT_CPI_SIGNER};
 
-const NO_DELEGATE: u8 = 255;
+const SYSTEM_ACCOUNTS_OFFSET: usize = 7;
 
-/// Process the Transfer2WithAta instruction
-///
-/// Supports two modes:
-/// 1. Owner mode (delegate_index = 255): owner_wallet must be signer
-/// 2. Delegate mode (delegate_index != 255): delegate must be signer AND match input delegate fields
-///
-/// In both modes, ATA is derived from owner_wallet + mint and becomes signer via PDA signing.
+/// Process transfer2 with ATA as compressed-token owner.
 #[profile]
 pub fn process_transfer2_with_ata(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
-    // Parse: [transfer2_data...] ++ [wallet_index, mint_index, ata_index, ata_bump, delegate_index]
-    let suffix_start = instruction_data
-        .len()
-        .checked_sub(5)
-        .ok_or(ProgramError::InvalidInstructionData)?;
-    let wallet_index = *instruction_data
-        .get(suffix_start)
-        .ok_or(ProgramError::InvalidInstructionData)? as usize;
-    let mint_index = *instruction_data
-        .get(suffix_start + 1)
-        .ok_or(ProgramError::InvalidInstructionData)? as usize;
-    let ata_index = *instruction_data
-        .get(suffix_start + 2)
-        .ok_or(ProgramError::InvalidInstructionData)? as usize;
-    let ata_bump = *instruction_data
-        .get(suffix_start + 3)
-        .ok_or(ProgramError::InvalidInstructionData)?;
-    let delegate_index = *instruction_data
-        .get(suffix_start + 4)
-        .ok_or(ProgramError::InvalidInstructionData)?;
-    let transfer2_data = &instruction_data[..suffix_start];
+    // Parse suffix: [transfer2_data...] ++ [wallet_idx, mint_idx, ata_idx, bump, use_delegate]
+    let len = instruction_data.len();
+    if len < 5 {
+        msg!("ix data too short");
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    let (transfer2_data, suffix) = instruction_data.split_at(len - 5);
+    let (wallet_index, mint_index, ata_index) =
+        (suffix[0] as usize, suffix[1] as usize, suffix[2] as usize);
+    let (ata_bump, use_delegate) = (suffix[3], suffix[4] != 0);
 
     let owner_wallet = accounts
         .get(wallet_index)
@@ -57,7 +40,7 @@ pub fn process_transfer2_with_ata(
         .get(ata_index)
         .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-    // CHECK: ATA derivation (always from owner_wallet + mint)
+    // CHECK: ATA is derived correctly
     let seeds: [&[u8]; 3] = [
         owner_wallet.key().as_ref(),
         LIGHT_CPI_SIGNER.program_id.as_ref(),
@@ -65,95 +48,77 @@ pub fn process_transfer2_with_ata(
     ];
     let derived_ata =
         pinocchio_pubkey::derive_address(&seeds, Some(ata_bump), &LIGHT_CPI_SIGNER.program_id);
-
     if *ata_account.key() != derived_ata {
-        msg!("Transfer2WithAta: ATA derivation mismatch");
+        msg!("ATA derivation mismatch");
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // Parse transfer2 data to validate inputs
-    let (parsed_transfer2, _) =
-        CompressedTokenInstructionDataTransfer2::zero_copy_at(transfer2_data)
-            .map_err(|_| ProgramError::InvalidInstructionData)?;
+    let (parsed, _) = CompressedTokenInstructionDataTransfer2::zero_copy_at(transfer2_data)
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
+    let ata_packed_idx = ata_index.saturating_sub(SYSTEM_ACCOUNTS_OFFSET);
 
-    const SYSTEM_ACCOUNTS_OFFSET: usize = 7;
-    let ata_packed_index = ata_index.saturating_sub(SYSTEM_ACCOUNTS_OFFSET);
-
-    // CHECK: Signer and input validation based on mode
-    if delegate_index != NO_DELEGATE {
-        // Delegate mode: delegate must be signer and match all input delegate fields
+    if use_delegate {
+        let first_input = parsed
+            .in_token_data
+            .first()
+            .ok_or(ProgramError::InvalidInstructionData)?;
+        if !first_input.has_delegate() {
+            msg!("delegate mode but input has no delegate");
+            return Err(ProgramError::InvalidAccountData);
+        }
+        let delegate_packed_idx = first_input.delegate as usize;
         let delegate = accounts
-            .get(delegate_index as usize)
+            .get(delegate_packed_idx + SYSTEM_ACCOUNTS_OFFSET)
             .ok_or(ProgramError::NotEnoughAccountKeys)?;
 
-        check_signer(delegate).map_err(|e| {
-            msg!("Transfer2WithAta: delegate must be signer");
-            ProgramError::from(e)
+        // CHECK: signer
+        check_signer(delegate).map_err(|_| {
+            msg!("delegate not signer");
+            ProgramError::MissingRequiredSignature
         })?;
 
-        let delegate_packed_index =
-            (delegate_index as usize).saturating_sub(SYSTEM_ACCOUNTS_OFFSET);
-
-        for (i, input) in parsed_transfer2.in_token_data.iter().enumerate() {
-            // Check owner = ATA
-            if input.owner as usize != ata_packed_index {
-                msg!(
-                    "Transfer2WithAta: input {} owner mismatch: {} != {}",
-                    i,
-                    input.owner,
-                    ata_packed_index
-                );
-                return Err(ProgramError::InvalidAccountData);
-            }
-            // Check delegate field matches the delegate signer
-            if !input.has_delegate() || input.delegate as usize != delegate_packed_index {
-                msg!(
-                    "Transfer2WithAta: input {} delegate mismatch: has_delegate={}, delegate={}, expected={}",
-                    i,
-                    input.has_delegate(),
-                    input.delegate,
-                    delegate_packed_index
-                );
+        // CHECK: same delegate and compressed owner = ATA
+        for input in parsed.in_token_data.iter() {
+            if input.owner as usize != ata_packed_idx
+                || !input.has_delegate()
+                || input.delegate as usize != delegate_packed_idx
+            {
+                msg!("input owner/delegate mismatch");
                 return Err(ProgramError::InvalidAccountData);
             }
         }
     } else {
-        // Owner mode: owner_wallet must be signer
-        check_signer(owner_wallet).map_err(|e| {
-            msg!("Transfer2WithAta: owner_wallet must be signer");
-            ProgramError::from(e)
+        // CHECK: signer
+        check_signer(owner_wallet).map_err(|_| {
+            msg!("owner not signer");
+            ProgramError::MissingRequiredSignature
         })?;
 
-        // CHECK: ATA owns all inputs
-        for (i, input) in parsed_transfer2.in_token_data.iter().enumerate() {
-            if input.owner as usize != ata_packed_index {
-                msg!(
-                    "Transfer2WithAta: input {} owner mismatch: {} != {}",
-                    i,
-                    input.owner,
-                    ata_packed_index
-                );
+        // CHECK: compressed owner = ATA
+        for input in parsed.in_token_data.iter() {
+            if input.owner as usize != ata_packed_idx {
+                msg!("input owner mismatch");
                 return Err(ProgramError::InvalidAccountData);
             }
         }
     }
 
-    let mut transfer2_ix_data = Vec::with_capacity(1 + transfer2_data.len());
-    transfer2_ix_data.push(101u8); // Transfer2 discriminator
-    transfer2_ix_data.extend_from_slice(transfer2_data);
+    // self-CPI with ATA as signer
+    let mut ix_data = Vec::with_capacity(1 + transfer2_data.len());
+    ix_data.push(101u8);
+    ix_data.extend_from_slice(transfer2_data);
 
-    // Build account metas, make ATA as signer.
-    let mut account_metas = Vec::with_capacity(accounts.len());
-    for (i, acc) in accounts.iter().enumerate() {
-        let is_signer = acc.is_signer() || i == ata_index;
-        account_metas.push(AccountMeta::new(acc.key(), acc.is_writable(), is_signer));
-    }
-
-    let instruction = Instruction {
-        program_id: &LIGHT_CPI_SIGNER.program_id,
-        accounts: &account_metas,
-        data: &transfer2_ix_data,
-    };
+    let account_metas: Vec<_> = accounts
+        .iter()
+        .enumerate()
+        .map(|(i, acc)| {
+            AccountMeta::new(
+                acc.key(),
+                acc.is_writable(),
+                acc.is_signer() || i == ata_index,
+            )
+        })
+        .collect();
 
     let bump_seed = [ata_bump];
     let ata_seeds = [
@@ -162,10 +127,18 @@ pub fn process_transfer2_with_ata(
         Seed::from(mint.key().as_ref()),
         Seed::from(bump_seed.as_ref()),
     ];
-    let signer = Signer::from(&ata_seeds);
 
-    slice_invoke_signed(&instruction, accounts, &[signer]).map_err(|e| {
-        msg!("Transfer2WithAta: CPI failed: {:?}", e);
+    slice_invoke_signed(
+        &Instruction {
+            program_id: &LIGHT_CPI_SIGNER.program_id,
+            accounts: &account_metas,
+            data: &ix_data,
+        },
+        accounts,
+        &[Signer::from(&ata_seeds)],
+    )
+    .map_err(|_| {
+        msg!("self-CPI failed");
         ProgramError::InvalidArgument
     })
 }

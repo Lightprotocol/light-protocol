@@ -23,8 +23,6 @@ use super::transfer2::{
     create_generic_transfer2_instruction, DecompressInput, Transfer2InstructionType,
 };
 
-const NO_DELEGATE: u8 = 255;
-
 /// Input for decompressing ATA-owned compressed tokens
 #[derive(Debug, Clone)]
 pub struct DecompressAtaInput {
@@ -38,9 +36,9 @@ pub struct DecompressAtaInput {
     pub destination_ata: Pubkey,
     /// Amount to decompress (if None, decompress full balance)
     pub decompress_amount: Option<u64>,
-    /// Optional delegate (if set, delegate must sign instead of owner_wallet,
-    /// and all inputs must have this delegate set)
-    pub delegate: Option<Pubkey>,
+    /// If true, use delegate mode (delegate from inputs must sign).
+    /// If false, use owner mode (owner_wallet must sign).
+    pub use_delegate: bool,
 }
 
 /// Creates a Transfer2WithAta instruction for decompressing ATA-owned compressed tokens.
@@ -50,8 +48,8 @@ pub struct DecompressAtaInput {
 /// have that ATA as owner, and performs a self-CPI to Transfer2 with the ATA signed.
 ///
 /// Supports two modes:
-/// - Owner mode (delegate = None): owner_wallet must sign
-/// - Delegate mode (delegate = Some): delegate must sign, all inputs must have matching delegate
+/// - Owner mode (use_delegate = false): owner_wallet must sign
+/// - Delegate mode (use_delegate = true): delegate (from inputs) must sign
 pub async fn create_decompress_ata_instruction<R: Rpc + Indexer>(
     rpc: &mut R,
     input: DecompressAtaInput,
@@ -74,14 +72,21 @@ pub async fn create_decompress_ata_instruction<R: Rpc + Indexer>(
         }
     }
 
-    // If delegate mode, validate all inputs have matching delegate
-    if let Some(delegate) = input.delegate {
+    // If delegate mode, validate all inputs have same delegate set
+    let delegate = if input.use_delegate {
+        let first_delegate = input.compressed_token_accounts[0]
+            .token
+            .delegate
+            .ok_or(TokenSdkError::InvalidAccountData)?;
         for account in &input.compressed_token_accounts {
-            if account.token.delegate != Some(delegate) {
+            if account.token.delegate != Some(first_delegate) {
                 return Err(TokenSdkError::InvalidAccountData);
             }
         }
-    }
+        Some(first_delegate)
+    } else {
+        None
+    };
 
     // Calculate total balance and decompress amount
     let total_balance: u64 = input
@@ -92,7 +97,6 @@ pub async fn create_decompress_ata_instruction<R: Rpc + Indexer>(
     let decompress_amount = input.decompress_amount.unwrap_or(total_balance);
 
     // Use the EXISTING working decompress instruction builder
-    // This handles all the packed account index tracking correctly
     let mut transfer2_ix = create_generic_transfer2_instruction(
         rpc,
         vec![Transfer2InstructionType::Decompress(DecompressInput {
@@ -107,23 +111,14 @@ pub async fn create_decompress_ata_instruction<R: Rpc + Indexer>(
     )
     .await?;
 
-    // Now transform this into a Transfer2WithAta instruction:
-    // 1. Add wallet to accounts (needed for on-chain ATA derivation)
-    // 2. Add delegate to accounts if in delegate mode
-    // 3. Find the indices we need
-    // 4. Change the discriminator
-    // 5. Append the extra bytes
-
     // Add wallet to accounts if not already there (always needed for ATA derivation)
-    let wallet_index = transfer2_ix
+    let wallet_index = match transfer2_ix
         .accounts
         .iter()
-        .position(|m| m.pubkey == input.owner_wallet);
-
-    let wallet_index = match wallet_index {
+        .position(|m| m.pubkey == input.owner_wallet)
+    {
         Some(idx) => {
-            // In owner mode, wallet needs to be signer
-            if input.delegate.is_none() {
+            if !input.use_delegate {
                 transfer2_ix.accounts[idx].is_signer = true;
             }
             idx as u8
@@ -134,68 +129,52 @@ pub async fn create_decompress_ata_instruction<R: Rpc + Indexer>(
                 .accounts
                 .push(solana_instruction::AccountMeta::new_readonly(
                     input.owner_wallet,
-                    input.delegate.is_none(), // is_signer only if owner mode
+                    !input.use_delegate, // is_signer only if owner mode
                 ));
             idx
         }
     };
 
-    // Handle delegate mode
-    let delegate_index = if let Some(delegate) = input.delegate {
-        let existing_idx = transfer2_ix
+    // In delegate mode, mark delegate as signer
+    if let Some(delegate_pubkey) = delegate {
+        if let Some(idx) = transfer2_ix
             .accounts
             .iter()
-            .position(|m| m.pubkey == delegate);
-
-        match existing_idx {
-            Some(idx) => {
-                transfer2_ix.accounts[idx].is_signer = true;
-                idx as u8
-            }
-            None => {
-                let idx = transfer2_ix.accounts.len() as u8;
-                transfer2_ix
-                    .accounts
-                    .push(solana_instruction::AccountMeta::new_readonly(
-                        delegate, true, // delegate must be signer
-                    ));
-                idx
-            }
+            .position(|m| m.pubkey == delegate_pubkey)
+        {
+            transfer2_ix.accounts[idx].is_signer = true;
         }
-    } else {
-        NO_DELEGATE
-    };
+        // Note: delegate should already be in accounts from the decompress instruction
+        // since it's referenced in the compressed token inputs
+    }
 
-    // Find mint index (should already be in accounts for decompress)
+    // Find mint and ATA indices
     let mint_index = transfer2_ix
         .accounts
         .iter()
         .position(|m| m.pubkey == input.mint)
         .ok_or(TokenSdkError::InvalidAccountData)? as u8;
 
-    // Find ATA index (should already be in accounts as the token owner/recipient)
     let ata_index = transfer2_ix
         .accounts
         .iter()
         .position(|m| m.pubkey == derived_ata)
         .ok_or(TokenSdkError::InvalidAccountData)? as u8;
 
-    // IMPORTANT: Un-mark ATA as signer in the outer instruction!
-    // The ATA is a PDA - we can't sign with it directly.
-    // The on-chain Transfer2WithAta will sign for it via CPI.
+    // Un-mark ATA as signer - it's a PDA, on-chain will sign via CPI
     if let Some(ata_meta) = transfer2_ix.accounts.get_mut(ata_index as usize) {
         ata_meta.is_signer = false;
     }
 
     // Modify instruction data:
-    // - Change discriminator from 101 (Transfer2) to 108 (Transfer2WithAta)
-    // - Append: wallet_index, mint_index, ata_index, ata_bump, delegate_index
+    // - Change discriminator to Transfer2WithAta
+    // - Append: [wallet_idx, mint_idx, ata_idx, bump, use_delegate]
     transfer2_ix.data[0] = TRANSFER2_WITH_ATA;
     transfer2_ix.data.push(wallet_index);
     transfer2_ix.data.push(mint_index);
     transfer2_ix.data.push(ata_index);
     transfer2_ix.data.push(ata_bump);
-    transfer2_ix.data.push(delegate_index);
+    transfer2_ix.data.push(input.use_delegate as u8);
 
     Ok(Instruction {
         program_id: Pubkey::from(COMPRESSED_TOKEN_PROGRAM_ID),

@@ -318,7 +318,7 @@ async fn test_transfer2_with_ata_single_input_success() {
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None, // Full balance
-        delegate: None,
+        use_delegate: false,
     };
 
     let ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
@@ -366,7 +366,7 @@ async fn test_transfer2_with_ata_multiple_inputs_success() {
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     let ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
@@ -414,7 +414,7 @@ async fn test_transfer2_with_ata_wrong_owner_signer_fails() {
         mint: ctx.mint,
         destination_ata: ctx.ata, // This won't match derivation from wrong_wallet
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     let result = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey()).await;
@@ -445,7 +445,7 @@ async fn test_transfer2_with_ata_wrong_mint_fails() {
         mint: wrong_mint, // Wrong mint
         destination_ata: ctx.ata,
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     let result = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey()).await;
@@ -474,7 +474,7 @@ async fn test_transfer2_with_ata_wallet_not_signer_fails() {
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     let ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
@@ -514,7 +514,7 @@ async fn test_transfer2_with_ata_wrong_ata_account_fails() {
         mint: ctx.mint,
         destination_ata: wrong_ata, // Wrong ATA!
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     let result = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey()).await;
@@ -563,7 +563,7 @@ async fn test_transfer2_with_ata_mixed_ownership_fails() {
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     // Should fail because not all inputs have owner = ATA
@@ -594,7 +594,7 @@ async fn test_attack_wrong_bump_fails() {
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
@@ -653,7 +653,7 @@ async fn test_delegate_mode_delegate_not_signer_fails() {
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
@@ -720,7 +720,7 @@ async fn test_delegate_mode_inputs_have_no_delegate_fails() {
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
@@ -772,7 +772,7 @@ async fn test_delegate_mode_delegate_index_out_of_bounds_fails() {
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
@@ -819,7 +819,7 @@ async fn test_delegate_mode_owner_signs_instead_of_delegate_fails() {
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
@@ -869,7 +869,7 @@ async fn test_attack_wrong_wallet_index_fails() {
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
@@ -913,7 +913,7 @@ async fn test_attack_wrong_mint_index_fails() {
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
@@ -957,7 +957,7 @@ async fn test_attack_wrong_ata_index_fails() {
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
@@ -997,15 +997,13 @@ async fn test_sdk_rejects_delegate_not_matching_inputs() {
 
     // These accounts don't have any delegate set
     // Try to use delegate mode - SDK should reject
-    let fake_delegate = Keypair::new();
-
     let input = DecompressAtaInput {
         compressed_token_accounts: compressed_accounts.clone(),
         owner_wallet: ctx.owner_wallet.pubkey(),
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None,
-        delegate: Some(fake_delegate.pubkey()), // Specify delegate but inputs don't have it
+        use_delegate: true, // Request delegate mode but inputs don't have delegate set
     };
 
     let result = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey()).await;
@@ -1013,6 +1011,273 @@ async fn test_sdk_rejects_delegate_not_matching_inputs() {
     assert!(
         result.is_err(),
         "SDK must reject when delegate is specified but inputs don't have that delegate"
+    );
+}
+
+/// Test: ATTACK - Duplicate indices (wallet_idx == mint_idx)
+/// This could cause ATA derivation to use same key twice, breaking the derivation
+#[tokio::test]
+#[serial]
+async fn test_attack_duplicate_wallet_mint_index_fails() {
+    let mut ctx = setup_transfer2_with_ata_test().await.unwrap();
+    ctx.create_mint().await.unwrap();
+    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
+    ctx.mint_and_compress_to_ata(1000).await.unwrap();
+    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
+
+    let compressed_accounts = ctx.get_ata_owned_compressed_accounts().await.unwrap();
+    assert!(!compressed_accounts.is_empty());
+
+    let input = DecompressAtaInput {
+        compressed_token_accounts: compressed_accounts.clone(),
+        owner_wallet: ctx.owner_wallet.pubkey(),
+        mint: ctx.mint,
+        destination_ata: ctx.ata,
+        decompress_amount: None,
+        use_delegate: false,
+    };
+
+    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+        .await
+        .unwrap();
+
+    // ATTACK: Set mint_index to same value as wallet_index
+    let data_len = ix.data.len();
+    let wallet_idx = ix.data[data_len - 5];
+    ix.data[data_len - 4] = wallet_idx; // mint_idx = wallet_idx
+
+    let result = ctx
+        .rpc
+        .create_and_send_transaction(&[ix], &ctx.payer.pubkey(), &[&ctx.payer, &ctx.owner_wallet])
+        .await;
+
+    assert!(
+        result.is_err(),
+        "SECURITY: Must fail when wallet_idx == mint_idx (ATA derivation would be wrong)"
+    );
+}
+
+/// Test: ATTACK - Duplicate indices (wallet_idx == ata_idx)
+/// This tests that we can't use same account for wallet and ATA
+#[tokio::test]
+#[serial]
+async fn test_attack_duplicate_wallet_ata_index_fails() {
+    let mut ctx = setup_transfer2_with_ata_test().await.unwrap();
+    ctx.create_mint().await.unwrap();
+    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
+    ctx.mint_and_compress_to_ata(1000).await.unwrap();
+    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
+
+    let compressed_accounts = ctx.get_ata_owned_compressed_accounts().await.unwrap();
+    assert!(!compressed_accounts.is_empty());
+
+    let input = DecompressAtaInput {
+        compressed_token_accounts: compressed_accounts.clone(),
+        owner_wallet: ctx.owner_wallet.pubkey(),
+        mint: ctx.mint,
+        destination_ata: ctx.ata,
+        decompress_amount: None,
+        use_delegate: false,
+    };
+
+    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+        .await
+        .unwrap();
+
+    // ATTACK: Set ata_index to same value as wallet_index
+    let data_len = ix.data.len();
+    let wallet_idx = ix.data[data_len - 5];
+    ix.data[data_len - 3] = wallet_idx; // ata_idx = wallet_idx
+
+    let result = ctx
+        .rpc
+        .create_and_send_transaction(&[ix], &ctx.payer.pubkey(), &[&ctx.payer, &ctx.owner_wallet])
+        .await;
+
+    assert!(
+        result.is_err(),
+        "SECURITY: Must fail when wallet_idx == ata_idx (account confusion)"
+    );
+}
+
+/// Test: ATTACK - ata_index pointing to system account slot (< 7)
+/// The packed_index calculation uses saturating_sub(7), so ata_index < 7 would give packed_index = 0
+/// This could potentially match an input with owner = 0
+#[tokio::test]
+#[serial]
+async fn test_attack_ata_index_in_system_slot_fails() {
+    let mut ctx = setup_transfer2_with_ata_test().await.unwrap();
+    ctx.create_mint().await.unwrap();
+    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
+    ctx.mint_and_compress_to_ata(1000).await.unwrap();
+    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
+
+    let compressed_accounts = ctx.get_ata_owned_compressed_accounts().await.unwrap();
+    assert!(!compressed_accounts.is_empty());
+
+    let input = DecompressAtaInput {
+        compressed_token_accounts: compressed_accounts.clone(),
+        owner_wallet: ctx.owner_wallet.pubkey(),
+        mint: ctx.mint,
+        destination_ata: ctx.ata,
+        decompress_amount: None,
+        use_delegate: false,
+    };
+
+    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+        .await
+        .unwrap();
+
+    // ATTACK: Set ata_index to 0 (system account slot)
+    // This would make ata_packed_index = 0.saturating_sub(7) = 0
+    let data_len = ix.data.len();
+    ix.data[data_len - 3] = 0; // ata_idx = 0 (likely system program or fee payer)
+
+    let result = ctx
+        .rpc
+        .create_and_send_transaction(&[ix], &ctx.payer.pubkey(), &[&ctx.payer, &ctx.owner_wallet])
+        .await;
+
+    assert!(
+        result.is_err(),
+        "SECURITY: Must fail when ata_index is in system slot (packed_index underflow)"
+    );
+}
+
+/// Test: ATTACK - Delegate index same as wallet index
+/// This tests account confusion when delegate points to same account as wallet
+#[tokio::test]
+#[serial]
+async fn test_attack_delegate_index_equals_wallet_index_fails() {
+    let mut ctx = setup_transfer2_with_ata_test().await.unwrap();
+    ctx.create_mint().await.unwrap();
+    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
+    ctx.mint_and_compress_to_ata(1000).await.unwrap();
+    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
+
+    let compressed_accounts = ctx.get_ata_owned_compressed_accounts().await.unwrap();
+    assert!(!compressed_accounts.is_empty());
+
+    let input = DecompressAtaInput {
+        compressed_token_accounts: compressed_accounts.clone(),
+        owner_wallet: ctx.owner_wallet.pubkey(),
+        mint: ctx.mint,
+        destination_ata: ctx.ata,
+        decompress_amount: None,
+        use_delegate: false,
+    };
+
+    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+        .await
+        .unwrap();
+
+    // ATTACK: Set delegate_index to same value as wallet_index
+    // This tries to use owner_wallet as both the wallet for ATA derivation AND as delegate
+    let data_len = ix.data.len();
+    let wallet_idx = ix.data[data_len - 5];
+    ix.data[data_len - 1] = wallet_idx; // delegate_idx = wallet_idx
+
+    // This should fail because:
+    // 1. In delegate mode, inputs must have delegate field set to delegate_packed_index
+    // 2. Our inputs don't have delegate set, so has_delegate() = false
+    let result = ctx
+        .rpc
+        .create_and_send_transaction(&[ix], &ctx.payer.pubkey(), &[&ctx.payer, &ctx.owner_wallet])
+        .await;
+
+    assert!(
+        result.is_err(),
+        "SECURITY: Must fail when delegate_idx == wallet_idx (inputs don't have delegate)"
+    );
+}
+
+/// Test: ATTACK - All indices point to same account
+/// Maximum confusion attack
+#[tokio::test]
+#[serial]
+async fn test_attack_all_indices_same_fails() {
+    let mut ctx = setup_transfer2_with_ata_test().await.unwrap();
+    ctx.create_mint().await.unwrap();
+    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
+    ctx.mint_and_compress_to_ata(1000).await.unwrap();
+    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
+
+    let compressed_accounts = ctx.get_ata_owned_compressed_accounts().await.unwrap();
+    assert!(!compressed_accounts.is_empty());
+
+    let input = DecompressAtaInput {
+        compressed_token_accounts: compressed_accounts.clone(),
+        owner_wallet: ctx.owner_wallet.pubkey(),
+        mint: ctx.mint,
+        destination_ata: ctx.ata,
+        decompress_amount: None,
+        use_delegate: false,
+    };
+
+    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+        .await
+        .unwrap();
+
+    // ATTACK: Set all indices to same value
+    let data_len = ix.data.len();
+    let single_idx = ix.data[data_len - 5]; // wallet_idx
+    ix.data[data_len - 5] = single_idx; // wallet_idx
+    ix.data[data_len - 4] = single_idx; // mint_idx
+    ix.data[data_len - 3] = single_idx; // ata_idx
+
+    let result = ctx
+        .rpc
+        .create_and_send_transaction(&[ix], &ctx.payer.pubkey(), &[&ctx.payer, &ctx.owner_wallet])
+        .await;
+
+    assert!(
+        result.is_err(),
+        "SECURITY: Must fail when all indices point to same account"
+    );
+}
+
+/// Test: ATTACK - Zero byte for all suffix indices
+/// Tests handling of all-zero suffix
+#[tokio::test]
+#[serial]
+async fn test_attack_all_zero_suffix_indices_fails() {
+    let mut ctx = setup_transfer2_with_ata_test().await.unwrap();
+    ctx.create_mint().await.unwrap();
+    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
+    ctx.mint_and_compress_to_ata(1000).await.unwrap();
+    ctx.create_ata_with_compress_to_pubkey().await.unwrap();
+
+    let compressed_accounts = ctx.get_ata_owned_compressed_accounts().await.unwrap();
+    assert!(!compressed_accounts.is_empty());
+
+    let input = DecompressAtaInput {
+        compressed_token_accounts: compressed_accounts.clone(),
+        owner_wallet: ctx.owner_wallet.pubkey(),
+        mint: ctx.mint,
+        destination_ata: ctx.ata,
+        decompress_amount: None,
+        use_delegate: false,
+    };
+
+    let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
+        .await
+        .unwrap();
+
+    // ATTACK: Set all indices to 0 (except delegate which stays 255)
+    let data_len = ix.data.len();
+    ix.data[data_len - 5] = 0; // wallet_idx = 0
+    ix.data[data_len - 4] = 0; // mint_idx = 0
+    ix.data[data_len - 3] = 0; // ata_idx = 0
+    ix.data[data_len - 2] = 0; // bump = 0
+
+    let result = ctx
+        .rpc
+        .create_and_send_transaction(&[ix], &ctx.payer.pubkey(), &[&ctx.payer, &ctx.owner_wallet])
+        .await;
+
+    assert!(
+        result.is_err(),
+        "SECURITY: Must fail when suffix has all zero indices"
     );
 }
 
@@ -1035,7 +1300,7 @@ async fn test_instruction_data_too_short_fails() {
         mint: ctx.mint,
         destination_ata: ctx.ata,
         decompress_amount: None,
-        delegate: None,
+        use_delegate: false,
     };
 
     let mut ix = create_decompress_ata_instruction(&mut ctx.rpc, input, ctx.payer.pubkey())
@@ -1114,7 +1379,7 @@ async fn test_transfer2_with_ata_cu_benchmark() {
             mint: ata_ctx.mint,
             destination_ata: ata_ctx.ata,
             decompress_amount: None,
-            delegate: None,
+            use_delegate: false,
         };
 
         let ata_ix =
